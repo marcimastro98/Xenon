@@ -74,3 +74,43 @@ test('a failed read is a fixed word, never the message, which could name an addr
 test('stop at shutdown never throws', () => {
   assert.doesNotThrow(() => featureRoutes.stop());
 });
+
+// A copy of the list of its own, so a table loaded here is not one another test finds.
+function freshList() {
+  const file = require.resolve('../feature-routes.js');
+  const kept = require.cache[file];
+  delete require.cache[file];
+  try { return require('../feature-routes.js'); } finally { require.cache[file] = kept; }
+}
+
+test('a table answers the whole addresses its keys name, and no address a key only begins', async () => {
+  const list = freshList();
+  const calls = [];
+  const answer = (name) => async (...handed) => { calls.push([name, ...handed]); };
+  const branches = { 'GET /t/one': answer('one'), 'POST|GET /t/both': answer('both'), 'POST /t/x|/t/y': answer('xy'), 'GET /t/files/*': answer('files'), '* /t/any/*': answer('any') };
+  assert.deepEqual(list.tableRoutes(branches).map(([key]) => key), ['GET /t/one', 'POST /t/both', 'GET /t/both', 'POST /t/x', 'POST /t/y']);
+  list.loadTables([{ branches }, { branches: {} }]);
+  assert.deepEqual(list.tableKeys(), ['GET /t/one', 'POST /t/both', 'GET /t/both', 'POST /t/x', 'POST /t/y']);
+  assert.deepEqual(list.keys(), featureRoutes.keys(), 'the older features are counted apart');
+  for (const [method, path, want] of [['GET', '/t/one', true], ['POST', '/t/one', false], ['GET', '/t/both', true], ['POST', '/t/y', true],
+    ['GET', '/t/files/a', false], ['GET', '/t/files/', false], ['GET', '/t/any/a', false], ['GET', '/t/one/', false]]) {
+    assert.equal(list.has(method, path), want, `${method} ${path}`);
+  }
+  const [req, res, ctx, engine] = [{}, {}, { json: 1 }, { store: 2 }];
+  assert.equal(await list.run('POST', '/t/y', req, res, ctx, engine), true);
+  assert.deepEqual(calls, [['xy', req, res, ctx, engine]], 'the function is handed the request, the answer, the handler\'s values and the names of server.js');
+  assert.equal(await list.run('GET', '/t/files/a', req, res, ctx, engine), false);
+  assert.equal(featureRoutes.has('GET', '/t/one'), false);
+});
+
+test('two functions for one address stop the engine from starting', () => {
+  const again = { branches: { 'GET /t/one': async () => {} } };
+  assert.throws(() => freshList().loadTables([again, { branches: { 'POST|GET /t/one': async () => {} } }]), /feature-routes\.js: two functions answer GET \/t\/one/);
+  assert.throws(() => freshList().loadTables([{ branches: { 'GET /api/net-path': async () => {} } }]), /two functions answer GET \/api\/net-path/, 'an address of an older feature counts');
+});
+
+test('a function of a table that throws is not caught here: the handler\'s boundary answers', async () => {
+  const list = freshList();
+  list.loadTables([{ branches: { 'GET /t/broken': async () => { throw new Error('broken'); } } }]);
+  await assert.rejects(list.run('GET', '/t/broken', {}, {}, {}, {}), /broken/);
+});

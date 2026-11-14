@@ -7284,8 +7284,11 @@ const { chatWithXenon } = require('./ai/chat-xenon.js');
 const { chatWithCli } = require('./ai/chat-cli.js');
 const { chatWithOllama } = require('./ai/chat-ollama.js');
 const { chatWithLocalServer } = require('./ai/chat-local-server.js');
+
+// feature-routes.js loads the tables of routes here, in the order the lines
+// below always loaded them. A line below names a table this file still calls.
+featureRoutes.loadTables();
 const { branches: lightsBranches } = require('./lights/routes.js');
-const { branches: tickerBranches } = require('./ticker/routes.js');
 const { branches: deckBranches } = require('./deck/routes.js');
 const { branches: aiBranches } = require('./ai/routes.js');
 const { branches: claudeCodeBranches } = require('./claude-code/routes.js');
@@ -7309,7 +7312,6 @@ const { branches: widgetSdkCallsBranches } = require('./widget-sdk/routes-calls.
 const { branches: widgetSdkPackagesBranches } = require('./widget-sdk/routes-packages.js');
 const { branches: aiMemoryBranches } = require('./ai/routes-memory.js');
 const { branches: aiVoiceBranches } = require('./ai/routes-voice.js');
-const { branches: vitalsBranches } = require('./vitals/routes.js');
 const { branches: transferBranches } = require('./transfer/routes.js');
 const { branches: transferPhoneBranches } = require('./transfer/routes-phone.js');
 const { branches: pairedAccessBranches } = require('./paired/routes-access.js');
@@ -7327,20 +7329,14 @@ const { branches: performanceModeBranches } = require('./performance/routes-mode
 const { branches: audioVolumeBranches } = require('./audio/routes-volume.js');
 const { branches: timeBranches } = require('./time/routes.js');
 const { branches: codexBranches } = require('./codex/routes.js');
-const { branches: tickerListsBranches } = require('./ticker/routes-lists.js');
 const { branches: screensCaptureBranches } = require('./screens/routes-capture.js');
 const { branches: windowsTilesTilesBranches } = require('./windows-tiles/routes-tiles.js');
 const { branches: lookBranches } = require('./look/routes.js');
-const { branches: gridBranches } = require('./grid/routes.js');
 const { branches: settingsBranches } = require('./settings/routes.js');
 const { branches: streamingBranches } = require('./streaming/routes.js');
 const { branches: mediaBranches } = require('./media/routes.js');
-const { branches: weatherBranches } = require('./weather/routes.js');
-const { branches: systemInfoBranches } = require('./system/routes-info.js');
 const { branches: notificationOpenBranches } = require('./notification-open/routes.js');
 const { branches: widgetOptionsBranches } = require('./widget-options/routes.js');
-const { branches: menuBranches } = require('./menu/routes.js');
-const { branches: alertsBranches } = require('./alerts/routes.js');
 const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');
 const { branches: streamingYoutubeBranches } = require('./streaming/routes-youtube.js');
 const { branches: streamingSpotifyBranches } = require('./streaming/routes-spotify.js');
@@ -7352,6 +7348,14 @@ const { branches: aiLocalBranches } = require('./ai/routes-local.js');
 const { branches: widgetSdkImagesBranches } = require('./widget-sdk/routes-images.js');
 const { branches: settingsSaveBranches } = require('./settings/routes-save.js');
 const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
+
+// The names of this file the tables of routes are handed (feature-routes.js),
+// read for each request. tools/restructure/dispatch-move.mjs writes the list.
+const routeHands = () => ({
+  TILE_ASSET_EXT_BY_MIME, _footballPayload, _geminiOneShot, _loadFootballInfo, _xenonMenuState, batteryMonitor, collectSensors, drawShell,
+  geminiKeyFor, getNetworkInfo, getSystemInfo, getWeather, guardian, layersPeek, readHubSettings, readHubSettingsForUpdate, refreshFootball,
+  refreshStocks, roastSparks, saveVitalsState, screenMenu, vitalsNag, writeHubSettings,
+});
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -7526,17 +7530,8 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/sdk-service' && req.method === 'GET') {
     await widgetSdkBranches['GET /sdk-service'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
-  } else if (reqPath === '/screen-alerts' && req.method === 'GET') {
-    await alertsBranches['GET /screen-alerts'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
   } else if (reqPath === '/scene' && req.method === 'GET') {
     await ambientBranches['GET /scene'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
-  } else if (reqPath === '/draw' && req.method === 'GET') {
-    await alertsBranches['GET /draw'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
-  } else if (reqPath === '/menu' && req.method === 'GET') {
-    await menuBranches['GET /menu'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/deck-popup' && req.method === 'GET') {
     await deckKeysBranches['GET /deck-popup'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
@@ -7577,26 +7572,14 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/audio' && req.method === 'GET') {
     await audioVolumeBranches['GET /audio'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getAudioInfo });
 
-  } else if (reqPath === '/system' && req.method === 'GET') {
-    await systemInfoBranches['GET /system'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSystemInfo });
-
-  } else if (reqPath === '/system/sensors' && req.method === 'GET') {
-    await systemInfoBranches['GET /system/sensors'](req, res, { json, err500, reqPath, urlObj, isRemote }, { collectSensors });
-
   } else if (reqPath === '/perf' && req.method === 'GET') {
     await performanceBranches['GET /perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _perfStream });
 
   } else if (reqPath === '/perf/sessions' && req.method === 'GET') {
     await performanceBranches['GET /perf/sessions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _gameSessions });
 
-  } else if (reqPath === '/api/battery' && req.method === 'GET') {
-    await systemInfoBranches['GET /api/battery'](req, res, { json, err500, reqPath, urlObj, isRemote }, { batteryMonitor });
-
   } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {
     await systemBranches['POST /system/enable-sensors'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/network' && req.method === 'GET') {
-    await systemInfoBranches['GET /network'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getNetworkInfo });
 
   } else if (reqPath === '/api/processes/history' && req.method === 'GET') {
     await performanceModeBranches['GET /api/processes/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _processesHistory });
@@ -7609,7 +7592,7 @@ const handleRequest = async (req, res) => {
 
   } else if (featureRoutes.has(req.method, reqPath)) {
     // A route that lives in its feature's routes.js (feature-routes.js).
-    await featureRoutes.run(req.method, reqPath, req, res, { json, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath });
+    await featureRoutes.run(req.method, reqPath, req, res, { json, err500, reqPath, urlObj, isRemote, jsonpCb, remote, sendPage, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath }, routeHands());
 
   } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
     await performanceBranches['GET /api/gamemode/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -7635,9 +7618,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/sdk/grant' && req.method === 'POST') {
     await widgetSdkPackagesBranches['POST /sdk/grant'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveSdkGrant });
 
-  } else if (reqPath === '/api/vitals/state' && req.method === 'POST') {
-    await vitalsBranches['POST /api/vitals/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveVitalsState });
-
   } else if (reqPath === '/api/performance/state' && req.method === 'POST') {
     await performanceModeBranches['POST /api/performance/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updatePerformanceSetting });
 
@@ -7661,15 +7641,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/lighting/event' && req.method === 'POST') {
     await lightsBranches['POST /api/lighting/event'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/vitals/nag' && req.method === 'POST') {
-    await vitalsBranches['POST /api/vitals/nag'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });
-
-  } else if (reqPath === '/api/vitals/caps' && req.method === 'GET') {
-    await vitalsBranches['GET /api/vitals/caps'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });
-
-  } else if (reqPath === '/api/vitals/popup' && req.method === 'GET') {
-    await vitalsBranches['GET /api/vitals/popup'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });
 
   } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
     await lightsControlBranches['POST /api/lighting/animation'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
@@ -7701,9 +7672,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/lighting/sdk-install' && req.method === 'POST') {
     await lightsBranches['POST /api/lighting/sdk-install'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/api/guardian/history' && req.method === 'GET') {
-    await systemInfoBranches['GET /api/guardian/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { guardian });
-
   } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {
     await aiBranches['POST /api/ai/turn/stop'](req, res, { json, err500, reqPath, urlObj, isRemote });
   } else if (reqPath === '/api/ai/turn' && req.method === 'GET') {
@@ -7728,9 +7696,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/icue/sharpen' && req.method === 'POST') {
     await lightsBranches['POST /api/icue/sharpen'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/weather' && req.method === 'GET') {
-    await weatherBranches['GET /weather'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getWeather });
 
   } else if (reqPath === '/media' && req.method === 'GET') {
     await mediaBranches['GET /media'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getMediaInfo, setMediaPreferredSource });
@@ -8052,21 +8017,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/community/rate' && req.method === 'POST') {
     await storeCatalogBranches['POST /api/community/rate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
 
-  } else if (reqPath === '/api/stocks' && req.method === 'GET') {
-    await tickerBranches['GET /api/stocks'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshStocks });
-
-  } else if (reqPath === '/api/stocks/chart' && req.method === 'GET') {
-    await tickerBranches['GET /api/stocks/chart'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/stocks/search' && req.method === 'GET') {
-    await tickerBranches['GET /api/stocks/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/stocks/watchlist' && req.method === 'POST') {
-    await tickerListsBranches['POST /api/stocks/watchlist'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshStocks, writeHubSettings });
-
-  } else if (reqPath === '/api/weather/config' && req.method === 'POST') {
-    await weatherBranches['POST /api/weather/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, writeHubSettings });
-
   } else if (reqPath === '/api/claude' && req.method === 'GET') {
     await claudeCodeBranches['GET /api/claude'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeFresh, refreshClaude });
 
@@ -8192,30 +8142,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/chatgpt/delete' && req.method === 'POST') {
     await codexBranches['POST /api/chatgpt/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
-
-  } else if (reqPath === '/api/football' && req.method === 'GET') {
-    await tickerListsBranches['GET /api/football'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _footballPayload, _loadFootballInfo, refreshFootball });
-
-  } else if (reqPath === '/api/football/standings' && req.method === 'GET') {
-    await tickerBranches['GET /api/football/standings'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/football/news' && req.method === 'GET') {
-    await tickerBranches['GET /api/football/news'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/football/search' && req.method === 'GET') {
-    await tickerBranches['GET /api/football/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/football/teams' && req.method === 'POST') {
-    await tickerListsBranches['POST /api/football/teams'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshFootball, writeHubSettings });
-
-  } else if (reqPath === '/api/news' && req.method === 'GET') {
-    await tickerBranches['GET /api/news'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/news/search' && req.method === 'GET') {
-    await tickerBranches['GET /api/news/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/news/feeds' && req.method === 'POST') {
-    await tickerListsBranches['POST /api/news/feeds'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, writeHubSettings });
 
   } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
     await smartHomeBranches['GET /api/homeassistant/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildHaState });
@@ -8810,9 +8736,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/ai/summarize' && req.method === 'POST') {
     await aiMemoryBranches['POST /api/ai/summarize'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, cliOneShot, geminiKeyFor, readHubSettings });
 
-  } else if (reqPath === '/api/vitals/roast' && req.method === 'POST') {
-    await vitalsBranches['POST /api/vitals/roast'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, geminiKeyFor, readHubSettings, roastSparks });
-
   } else if (reqPath === '/api/log' && req.method === 'POST') {
     await engineBranches['POST /api/log'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
@@ -8927,9 +8850,6 @@ const handleRequest = async (req, res) => {
   } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {
     await storeCatalogPacksBranches['DELETE /sound-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
 
-  } else if (reqPath === '/tile-asset' && req.method === 'POST') {
-    await gridBranches['POST /tile-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { TILE_ASSET_EXT_BY_MIME });
-
   } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {
     await windowsTilesTilesBranches['POST /slideshow-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { SLIDESHOW_ASSET_EXT_BY_MIME });
 
@@ -8981,18 +8901,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/layers/edit' && req.method === 'GET') {
     await widgetOptionsBranches['GET /layers/edit'](req, res, { json, err500, reqPath, urlObj, isRemote }, { layersEdit, layersPeek });
-
-  } else if (reqPath === '/screen-draw' && req.method === 'GET') {
-    await alertsBranches['GET /screen-draw'](req, res, { json, err500, reqPath, urlObj, isRemote }, { drawShell });
-
-  } else if (reqPath === '/screen-menu' && req.method === 'GET') {
-    await menuBranches['GET /screen-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { screenMenu });
-
-  } else if (reqPath === '/screen-menu' && req.method === 'POST') {
-    await menuBranches['POST /screen-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { layersPeek, screenMenu });
-
-  } else if (reqPath === '/xenon-menu' && req.method === 'GET') {
-    await menuBranches['GET /xenon-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _xenonMenuState });
 
   } else if (reqPath === '/layers/host' && req.method === 'POST') {
     await widgetOptionsBranches['POST /layers/host'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _menuHotkey, layersHost, refreshHotkeyListener });

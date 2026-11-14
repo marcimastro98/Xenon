@@ -13,6 +13,7 @@ import { moveBranches, renderSurvey, surveyBranches } from '../../tools/restruct
 import { KINDS, ROUTES } from '../../tools/restructure/branches-kinds.mjs';
 import { planBranches, tableOf } from '../../tools/restructure/branches-plan.mjs';
 import { readCall, readModule, requireLine, typeLine } from '../../tools/restructure/branches-text.mjs';
+import { chainBack } from '../../tools/restructure/dispatch-undo.mjs';
 import { replay } from '../../tools/restructure/extract.mjs';
 import { LEDGER, PROTECTED, readLedger } from '../../tools/restructure/ledger.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
@@ -118,7 +119,9 @@ test('the survey and the plan agree on a required name of a protected stretch th
 
 test('the real engine: every table on the list is there, and each of its bodies stands under one test of the handler', () => {
   const records = readLedger(REPO).branches?.['server/server.js'] ?? [];
-  const engine = readFileSync(path.join(REPO, 'server', 'server.js'), 'utf8');
+  // A test that left the chain for a table of feature-routes.js (dispatch-move.mjs) is read back in its place, with its call.
+  const tableSteps = JSON.parse(readFileSync(path.join(REPO, 'tools', 'restructure', 'dispatch-moves.json'), 'utf8')).steps;
+  const engine = chainBack(readFileSync(path.join(REPO, 'server', 'server.js'), 'utf8'), tableSteps);
   const calls = engine.split('\n').flatMap((line) => KINDS.map((kind) => readCall(line, kind))).filter(Boolean);
   const tables = new Map();
   for (const record of records) tables.set(record.file, [...(tables.get(record.file) ?? []), ...record.keys]);

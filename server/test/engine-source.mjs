@@ -31,12 +31,17 @@
 // The lines of a block of a long function may stand in a function of a module of their own, with one call left
 // where they stood (tools/restructure `block`). The text handed out here has the lines back in their place, and
 // the module without them; asked for by its name, the new function is read as its module has it.
+//
+// The test of a route that asks for a whole address may have left the handler's chain, its table answering from
+// feature-routes.js (tools/restructure dispatch-move.mjs). The text handed out here has every such test back in its
+// place in the chain, with the call under it.
 import { readFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { emptyModuleText, undoBlockText } from '../../tools/restructure/block-text.mjs';
 import { undoBranchesText } from '../../tools/restructure/branches-text.mjs';
+import { chainBack } from '../../tools/restructure/dispatch-undo.mjs';
 import { undoGatherText } from '../../tools/restructure/gather-undo.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 import { dropReturnedPart, undoReturnedText } from '../../tools/restructure/returned-undo.mjs';
@@ -65,8 +70,13 @@ const SPREADS = readLedger().spreads?.[ENGINE] ?? [];
 const PARTS = new Set(SPREADS.flatMap((spread) => spread.parts.map((part) => part.name)));
 // A module whose moved code asks for files by path: the list has each new spelling with the old one.
 const SPELLED = new Map(Object.values(readLedger().sources ?? {}).flat().filter((entry) => entry.spelled).map((entry) => [entry.file, entry.spelled]));
+// The tests of whole addresses that left the engine's chain for the tables of feature-routes.js (dispatch-move.mjs).
+const tableSteps = () => once('the tests that left the chain', () => JSON.parse(readFileSync(join(REPO, 'tools', 'restructure', 'dispatch-moves.json'), 'utf8')).steps);
+/** @param {string} file @param {string} text the file as it is @returns {string} the engine file with every test that left its chain back in place */
+export const testsBack = (file, text) => (file === ENGINE ? chainBack(text, tableSteps()) : text);
 const oldPlaces = (file) => {
-  const text = PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file);
+  const asIs = PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file);
+  const text = testsBack(file, asIs);
   return SPELLED.has(file) ? oldSpellings(text, SPELLED.get(file)) : text;
 };
 // A module that holds the lines of a block, with the name of its function.

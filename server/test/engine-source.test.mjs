@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { blocksBack, bodiesBack, cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, oldSpellings, stateRewrites, wholeObjects } from './engine-source.mjs';
+import { blocksBack, bodiesBack, cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, oldSpellings, stateRewrites, testsBack, wholeObjects } from './engine-source.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -21,7 +21,8 @@ const placeModules = new Set(entries.filter((entry) => entry.paths || entry.home
 // A function that asks for a module inside its body has the path spelled for its new folder: the readers hand out the old spelling.
 const spelled = new Map(entries.filter((entry) => entry.spelled).map((entry) => [entry.file, entry.spelled]));
 const asWritten = (file) => {
-  const onDisk = readFileSync(join(ROOT, file), 'utf8');
+  // The tests of whole addresses that left the handler's chain are read back in their place.
+  const onDisk = testsBack(file, readFileSync(join(ROOT, file), 'utf8'));
   const text = spelled.has(file) ? oldSpellings(onDisk, spelled.get(file)) : onDisk;
   return oldNames(wholeObjects(file, bodiesBack(file, blocksBack(file, placeModules.has(file) ? oldPathsText(text) : text))), rewrites);
 };

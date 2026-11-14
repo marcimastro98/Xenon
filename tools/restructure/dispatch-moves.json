@@ -1,0 +1,382 @@
+{
+ "note": "Written by tools/restructure/dispatch-move.mjs: every step that took tests of whole addresses out of the chain of server/server.js and listed their tables in server/feature-routes.js. `cuts` are the lines taken out, each with the one line it stood before or after; `hands` the names added to routeHands; `listed` the files added to TABLE_FILES. server/test/engine-source.mjs puts the cuts back for the tests that read the chain as text.",
+ "steps": [
+  {
+   "modules": [
+    {
+     "local": "tickerBranches",
+     "spec": "./ticker/routes.js"
+    },
+    {
+     "local": "tickerListsBranches",
+     "spec": "./ticker/routes-lists.js"
+    },
+    {
+     "local": "weatherBranches",
+     "spec": "./weather/routes.js"
+    },
+    {
+     "local": "vitalsBranches",
+     "spec": "./vitals/routes.js"
+    },
+    {
+     "local": "systemInfoBranches",
+     "spec": "./system/routes-info.js"
+    },
+    {
+     "local": "alertsBranches",
+     "spec": "./alerts/routes.js"
+    },
+    {
+     "local": "gridBranches",
+     "spec": "./grid/routes.js"
+    },
+    {
+     "local": "menuBranches",
+     "spec": "./menu/routes.js"
+    }
+   ],
+   "cuts": [
+    {
+     "lines": [
+      "  } else if (reqPath === '/xenon-menu' && req.method === 'GET') {",
+      "    await menuBranches['GET /xenon-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _xenonMenuState });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/layers/host' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/screen-menu' && req.method === 'POST') {",
+      "    await menuBranches['POST /screen-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { layersPeek, screenMenu });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/layers/host' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/screen-menu' && req.method === 'GET') {",
+      "    await menuBranches['GET /screen-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { screenMenu });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/layers/host' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/screen-draw' && req.method === 'GET') {",
+      "    await alertsBranches['GET /screen-draw'](req, res, { json, err500, reqPath, urlObj, isRemote }, { drawShell });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/layers/host' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/tile-asset' && req.method === 'POST') {",
+      "    await gridBranches['POST /tile-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { TILE_ASSET_EXT_BY_MIME });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/vitals/roast' && req.method === 'POST') {",
+      "    await vitalsBranches['POST /api/vitals/roast'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, geminiKeyFor, readHubSettings, roastSparks });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/log' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/news/feeds' && req.method === 'POST') {",
+      "    await tickerListsBranches['POST /api/news/feeds'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/news/search' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/news/search'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/news' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/news'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/football/teams' && req.method === 'POST') {",
+      "    await tickerListsBranches['POST /api/football/teams'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshFootball, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/football/search' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/football/search'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/football/news' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/football/news'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/football/standings' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/football/standings'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/football' && req.method === 'GET') {",
+      "    await tickerListsBranches['GET /api/football'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _footballPayload, _loadFootballInfo, refreshFootball });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/weather/config' && req.method === 'POST') {",
+      "    await weatherBranches['POST /api/weather/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/claude' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/stocks/watchlist' && req.method === 'POST') {",
+      "    await tickerListsBranches['POST /api/stocks/watchlist'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshStocks, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/claude' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/stocks/search' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/stocks/search'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/claude' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/stocks/chart' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/stocks/chart'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/claude' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/stocks' && req.method === 'GET') {",
+      "    await tickerBranches['GET /api/stocks'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshStocks });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/claude' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/weather' && req.method === 'GET') {",
+      "    await weatherBranches['GET /weather'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getWeather });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/media' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/guardian/history' && req.method === 'GET') {",
+      "    await systemInfoBranches['GET /api/guardian/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { guardian });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/vitals/popup' && req.method === 'GET') {",
+      "    await vitalsBranches['GET /api/vitals/popup'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/vitals/caps' && req.method === 'GET') {",
+      "    await vitalsBranches['GET /api/vitals/caps'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/vitals/nag' && req.method === 'POST') {",
+      "    await vitalsBranches['POST /api/vitals/nag'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/vitals/state' && req.method === 'POST') {",
+      "    await vitalsBranches['POST /api/vitals/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveVitalsState });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/performance/state' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/network' && req.method === 'GET') {",
+      "    await systemInfoBranches['GET /network'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getNetworkInfo });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/processes/history' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/battery' && req.method === 'GET') {",
+      "    await systemInfoBranches['GET /api/battery'](req, res, { json, err500, reqPath, urlObj, isRemote }, { batteryMonitor });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/system/sensors' && req.method === 'GET') {",
+      "    await systemInfoBranches['GET /system/sensors'](req, res, { json, err500, reqPath, urlObj, isRemote }, { collectSensors });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/perf' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/system' && req.method === 'GET') {",
+      "    await systemInfoBranches['GET /system'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSystemInfo });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/perf' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/menu' && req.method === 'GET') {",
+      "    await menuBranches['GET /menu'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/deck-popup' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/draw' && req.method === 'GET') {",
+      "    await alertsBranches['GET /draw'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/deck-popup' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/screen-alerts' && req.method === 'GET') {",
+      "    await alertsBranches['GET /screen-alerts'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/scene' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "const { branches: tickerBranches } = require('./ticker/routes.js');"
+     ],
+     "before": "const { branches: deckBranches } = require('./deck/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: tickerListsBranches } = require('./ticker/routes-lists.js');"
+     ],
+     "before": "const { branches: screensCaptureBranches } = require('./screens/routes-capture.js');"
+    },
+    {
+     "lines": [
+      "const { branches: weatherBranches } = require('./weather/routes.js');"
+     ],
+     "before": "const { branches: systemInfoBranches } = require('./system/routes-info.js');"
+    },
+    {
+     "lines": [
+      "const { branches: vitalsBranches } = require('./vitals/routes.js');"
+     ],
+     "before": "const { branches: transferBranches } = require('./transfer/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: systemInfoBranches } = require('./system/routes-info.js');"
+     ],
+     "before": "const { branches: notificationOpenBranches } = require('./notification-open/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: alertsBranches } = require('./alerts/routes.js');"
+     ],
+     "before": "const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');"
+    },
+    {
+     "lines": [
+      "const { branches: gridBranches } = require('./grid/routes.js');"
+     ],
+     "before": "const { branches: settingsBranches } = require('./settings/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: menuBranches } = require('./menu/routes.js');"
+     ],
+     "before": "const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');"
+    }
+   ],
+   "hands": [
+    "TILE_ASSET_EXT_BY_MIME",
+    "_footballPayload",
+    "_geminiOneShot",
+    "_loadFootballInfo",
+    "_xenonMenuState",
+    "batteryMonitor",
+    "collectSensors",
+    "drawShell",
+    "geminiKeyFor",
+    "getNetworkInfo",
+    "getSystemInfo",
+    "getWeather",
+    "guardian",
+    "layersPeek",
+    "readHubSettings",
+    "readHubSettingsForUpdate",
+    "refreshFootball",
+    "refreshStocks",
+    "roastSparks",
+    "saveVitalsState",
+    "screenMenu",
+    "vitalsNag",
+    "writeHubSettings"
+   ],
+   "listed": [
+    "./ticker/routes.js",
+    "./ticker/routes-lists.js",
+    "./weather/routes.js",
+    "./vitals/routes.js",
+    "./system/routes-info.js",
+    "./alerts/routes.js",
+    "./grid/routes.js",
+    "./menu/routes.js"
+   ]
+  }
+ ]
+}

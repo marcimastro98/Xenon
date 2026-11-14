@@ -24,7 +24,12 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { request } from '../ci/engine-rig.mjs';
+import { pairDevice } from '../ci/paired-device.mjs';
 import { copyEngine } from '../ci/request-check.mjs';
+import { readHead } from './branches-text.mjs';
+import { exactRoutes } from './dispatch-read.mjs';
+import { readListed } from './dispatch-undo.mjs';
 import { openParser } from './parser.mjs';
 import { kept, levelCounts, recordProblems, settle } from './routes-answers.mjs';
 import { askable, exactGetPaths, routeChain, setOfTexts } from './routes-list.mjs';
@@ -52,6 +57,14 @@ export const REFUSALS = [
   { label: 'POST an address nobody answers', method: 'POST', path: '/no-such-address-route-check', headers: { 'Content-Type': 'application/json' }, body: '{}' },
 ];
 
+// The kind of content, and with it the headers a move of routes must leave alone: who may read the answer from
+// another page, what the page may load, whether the kind may be guessed, whether it may be kept.
+export function contentAndHeaders(headers) {
+  const of = (name) => (headers[name] === undefined ? '-' : String(headers[name]));
+  return `${String(headers['content-type'] || '')} [from ${of('access-control-allow-origin')}; private ${of('access-control-allow-private-network')}; `
+    + `policy ${of('content-security-policy').length}; sniff ${of('x-content-type-options')}; keep ${of('cache-control')}]`;
+}
+
 function ask(port, { method, path: pathname, headers = {}, body }) {
   // The length is said for every body: left to itself Node says none for a DELETE, and the engine cannot read the body.
   const sent = body === undefined ? headers : { 'Content-Length': Buffer.byteLength(body), ...headers };
@@ -59,7 +72,7 @@ function ask(port, { method, path: pathname, headers = {}, body }) {
     const req = http.request({ host: '127.0.0.1', port, method, path: pathname, headers: sent, timeout: ANSWER_LIMIT_MS }, (res) => {
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => resolve({ status: res.statusCode, type: String(res.headers['content-type'] || ''), body: Buffer.concat(chunks) }));
+      res.on('end', () => resolve({ status: res.statusCode, type: contentAndHeaders(res.headers), body: Buffer.concat(chunks) }));
       res.on('error', () => resolve(null));
     });
     req.on('timeout', () => req.destroy());
@@ -74,7 +87,7 @@ async function answersOf(folder, port, questions, writes) {
   const temp = path.join(folder, 'temp');
   for (const made of [home, temp]) mkdirSync(made, { recursive: true });
   const child = spawn(process.execPath, ['--require', QUIET, 'server/server.js'], { cwd: folder, stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, XENON_PORT: String(port), HOME: home, USERPROFILE: home, APPDATA: home, LOCALAPPDATA: home, TEMP: temp, TMP: temp, TMPDIR: temp } });
+    env: { ...process.env, XENON_PORT: String(port), XENON_BIND_HOST: '127.0.0.1', HOME: home, USERPROFILE: home, APPDATA: home, LOCALAPPDATA: home, TEMP: temp, TMP: temp, TMPDIR: temp } });
   const limit = setTimeout(() => child.kill(), START_LIMIT_MS);
   let output = '';
   for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => { output = (output + chunk).slice(-4000); });
@@ -93,6 +106,13 @@ ${output}`);
     };
     await Promise.all(Array.from({ length: AT_ONCE }, worker));
     for (const next of writes) answers[next.label] = kept(await ask(port, next));
+    // Last, because pairing changes the copy's settings: the same plain questions asked as a paired device.
+    const device = await pairDevice({ ask: (method, pathname, body, headers) => request(port, { method, path: pathname, body, headers }) });
+    for (const next of device.ok ? questions.filter((question) => question.plain) : []) {
+      const got = await device.ask(next.method, next.path);
+      answers[`paired device: ${next.label}`] = kept(got && { status: got.status, type: contentAndHeaders(got.headers), body: Buffer.from(got.text) });
+    }
+    if (!device.ok) answers['paired device: pairing'] = { status: 0, type: device.why, bytes: 0, body: '', shape: null };
   } finally {
     clearTimeout(limit);
     if (child.exitCode === null) await new Promise((resolve) => { child.once('exit', resolve); child.kill(); });
@@ -119,7 +139,7 @@ export function baseEdits(changed, untracked) {
 
 // A copy of the engine as one commit had it: the same copy as for the working folder (so the two differ in
 // nothing but the code), with every file that changed since the commit put back as the commit had it.
-function copyOfCommit(rev) {
+export function copyOfCommit(rev) {
   const folder = copyEngine();
   const git = (args) => execFileSync('git', args, { cwd: ROOT, maxBuffer: 256 * 1024 * 1024 });
   const where = ['--', 'server', 'packages/core', 'package.json'];
@@ -137,14 +157,25 @@ function copyOfCommit(rev) {
 }
 
 /** What to ask an engine, read from its own code. */
-export function questionsFor({ engineText, remoteText, skip, writes = [], parser }) {
-  const { branches } = routeChain(engineText, parser);
+export function questionsFor({ engineText, remoteText, skip, writes = [], parser, tableRoutes = [] }) {
+  // An address a table of feature-routes.js answers is asked like one the chain tests for.
+  const branches = [...routeChain(engineText, parser).branches, ...tableRoutes.map((route) => ({ test: `reqPath === '${route.split(' ')[1]}' && req.method === '${route.split(' ')[0]}'` }))];
   const paths = exactGetPaths(branches);
   const wrote = writeRequests(branches, writes);
   const mutators = [...setOfTexts(engineText, parser, 'CSRF_MUTATION_PATHS'), ...setOfTexts(remoteText, parser, 'DEFAULT_GET_MUTATORS')];
   const { ask: wanted, skipped, stale } = askable({ paths, mutators, skip });
   return { paths, skipped, stale, writes: wrote.ask, staleWrites: [...wrote.stale, ...wrote.unexplained],
-    questions: [...wanted.map((address) => ({ label: `GET ${address}`, method: 'GET', path: address })), ...REFUSALS] };
+    questions: [...wanted.map((address) => ({ label: `GET ${address}`, method: 'GET', path: address, plain: true })), ...REFUSALS] };
+}
+
+/**
+ * @param {(file: string) => string} read reads a repo-relative file of the engine being asked
+ * @returns {string[]} every `METHOD /address` the tables listed in feature-routes.js answer; none for an engine without tables
+ */
+export function tableRoutesOf(read) {
+  let specs = [];
+  try { specs = readListed(read('server/feature-routes.js')).specs; } catch { /* an engine from before the tables */ }
+  return specs.flatMap((spec) => read(path.posix.join('server', spec)).split('\n').map(readHead).filter(Boolean).flatMap((head) => exactRoutes(head.key)));
 }
 
 async function record(rev) {
@@ -155,7 +186,7 @@ async function record(rev) {
   const parser = await openParser();
   let plan;
   try {
-    plan = questionsFor({ engineText: read(ENGINE), remoteText: read('server/remote-access.js'), skip, writes, parser });
+    plan = questionsFor({ engineText: read(ENGINE), remoteText: read('server/remote-access.js'), skip, writes, parser, tableRoutes: tableRoutesOf(read) });
   } finally {
     parser.close();
   }
@@ -172,11 +203,12 @@ async function record(rev) {
   const answers = settle(runs[0], runs[1]);
   const shapes = Object.fromEntries(Object.entries(runs[0]).filter(([, answer]) => answer.shape !== null).map(([label, answer]) => [label, answer.shape]));
   return { getRoutes: plan.paths.length, asked: plan.questions.length - REFUSALS.length, refusals: REFUSALS.length, writes: plan.writes.length,
+    paired: Object.keys(runs[0]).filter((label) => label.startsWith('paired device: GET ')).length,
     skipped: plan.skipped, staleSkips: plan.stale, staleWrites: plan.staleWrites, levels: levelCounts(answers), answers, shapes };
 }
 
 const summary = (made) => `${made.asked} of ${made.getRoutes} GET routes asked (${made.skipped.length} left out), ${made.refusals} requests the gate must refuse, `
-  + `${made.writes ?? 0} requests of routes that write, in order; `
+  + `${made.writes ?? 0} requests of routes that write, in order, ${made.paired ?? 0} of the GET routes asked again as a paired device; `
   + `compared by body ${made.levels.body}, by shape ${made.levels.shape}, by status ${made.levels.status}, not steady ${made.levels.unsteady}`;
 
 async function main() {

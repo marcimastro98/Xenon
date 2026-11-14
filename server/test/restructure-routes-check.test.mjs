@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 import { kept, levelCounts, recordProblems, settle, shapeOf } from '../../tools/restructure/routes-answers.mjs';
-import { baseEdits, questionsFor, REFUSALS } from '../../tools/restructure/routes-check.mjs';
+import { baseEdits, contentAndHeaders, questionsFor, REFUSALS, tableRoutesOf } from '../../tools/restructure/routes-check.mjs';
 import { askable, exactGetPaths, routeChain, setOfTexts } from '../../tools/restructure/routes-list.mjs';
 import { writeRequests } from '../../tools/restructure/routes-writes.mjs';
 
@@ -161,7 +161,8 @@ test('on the real engine: only plain GET routes are asked, none that changes som
   const skip = JSON.parse(readFileSync(repoFile('tools/restructure/routes-skip.json'), 'utf8')).paths;
   const engineText = readFileSync(repoFile('server/server.js'), 'utf8');
   const remoteText = readFileSync(repoFile('server/remote-access.js'), 'utf8');
-  const made = questionsFor({ engineText, remoteText, skip, parser });
+  const tableRoutes = tableRoutesOf((file) => readFileSync(repoFile(file), 'utf8'));
+  const made = questionsFor({ engineText, remoteText, skip, parser, tableRoutes });
   const changes = new Set([...setOfTexts(engineText, parser, 'CSRF_MUTATION_PATHS'), ...setOfTexts(remoteText, parser, 'DEFAULT_GET_MUTATORS')]);
   const asked = made.questions.filter((question) => !REFUSALS.includes(question));
   assert.ok(asked.length > 150, `${asked.length} routes are asked`);
@@ -177,11 +178,35 @@ test('on the real engine: only plain GET routes are asked, none that changes som
   for (const refusal of REFUSALS) assert.ok(!/^\/(toggle|media|volume|mic|speaker|audio)\b/.test(refusal.path), 'no refusal is tried on an address that could act on this PC');
   // The routes that write: every entry names a route of today and says what it touches, and none is of a kind that acts on the PC.
   const writes = JSON.parse(readFileSync(repoFile('tools/restructure/routes-writes.json'), 'utf8')).requests;
-  const wrote = questionsFor({ engineText, remoteText, skip, writes, parser });
+  const wrote = questionsFor({ engineText, remoteText, skip, writes, parser, tableRoutes });
   assert.deepEqual(wrote.staleWrites, []);
   assert.equal(wrote.writes.length, writes.length);
   assert.ok(wrote.writes.length >= 20, `${wrote.writes.length} requests of routes that write`);
   assert.deepEqual(wrote.questions, made.questions, 'the list of writes changes nothing in what is asked with GET');
   const ACTS_ON_THE_PC = /^\/(?:toggle|media|volume|mic|speaker|audio|lock|windows|deck\/press|actions|remote\/|search\/(?:open|reveal)|disk\/(?:clean|reveal)|api\/(?:lighting|transfer|devclean|speak|tts|chime|claude\/run|phone|calls)|second-screen|update\/(?:prepare|apply)|sdk\/install|backup)/;
   for (const request of wrote.writes) assert.ok(!ACTS_ON_THE_PC.test(request.path), `${request.path} could act on this PC and is not asked`);
+});
+
+test('an address a table of feature-routes.js answers is asked like one the chain tests for', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const files = {
+    'server/feature-routes.js': ['const TABLE_FILES = () => [', "  require('./a/routes.js'),", "  inChain(require('./b/routes.js')),", '];'].join('\n'),
+    'server/a/routes.js': ["  'GET /tabled': async (req, res, { json }) => {", "  'POST|GET /tabled/both': async (req, res, { json }) => {", "  'GET /tabled/files/*': async (req, res, { json }) => {"].join('\n'),
+    'server/b/routes.js': "  'GET /waiting': async (req, res, { json }) => {",
+  };
+  const tableRoutes = tableRoutesOf((file) => files[file]);
+  assert.deepEqual(tableRoutes, ['GET /tabled', 'POST /tabled/both', 'GET /tabled/both'], 'a file the list only loads answers nothing, and a beginning is no whole address');
+  assert.deepEqual(tableRoutesOf(() => 'const FEATURES = [];'), [], 'an engine from before the tables has none');
+  const remoteText = 'const DEFAULT_GET_MUTATORS = new Set([]);';
+  const plain = questionsFor({ engineText: HANDLER.replace('const CHANGES', 'const CSRF_MUTATION_PATHS'), remoteText, skip: {}, parser }).questions.filter((question) => question.plain).map((question) => question.path);
+  const tabled = questionsFor({ engineText: HANDLER.replace('const CHANGES', 'const CSRF_MUTATION_PATHS'), remoteText, skip: {}, parser, tableRoutes }).questions.filter((question) => question.plain).map((question) => question.path);
+  assert.deepEqual(tabled, [...plain, '/tabled', '/tabled/both']);
+});
+
+test('the headers a move of routes must leave alone are kept with the kind of the answer', () => {
+  assert.equal(contentAndHeaders({ 'content-type': 'application/json' }), 'application/json [from -; private -; policy 1; sniff -; keep -]');
+  const full = contentAndHeaders({ 'content-type': 'text/html', 'access-control-allow-origin': '*', 'access-control-allow-private-network': 'true',
+    'content-security-policy': "default-src 'none'", 'x-content-type-options': 'nosniff', 'cache-control': 'no-store' });
+  assert.equal(full, 'text/html [from *; private true; policy 18; sniff nosniff; keep no-store]');
+  assert.notEqual(contentAndHeaders({ 'content-type': 'text/html', 'access-control-allow-origin': 'http://127.0.0.1:3030' }), contentAndHeaders({ 'content-type': 'text/html' }));
 });
