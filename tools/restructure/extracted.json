@@ -809,6 +809,9 @@
     "server/lighting-effects.js": [
       {"file":"server/lights/colour-basics.js","about":"The small colour sums the lighting effects are built from: a channel kept between 0 and 255, a hex colour read and written, hue, saturation and value turned into red, green and blue, and a brightness applied.","names":["clamp8","hexToRgb","rgbToHex","applyBrightness","hsvToRgb"]},
       {"file":"server/lights/animation-colours.js","about":"The colour of a lighting animation at a moment: one colour for a device, a gradient along a strip, the key that says when a frame changes, and the palette, period, steps and candle flicker they are worked out from.","names":["paletteGradient","speedToPeriod","quantHue","quantLevel","candleLevel","CANDLE_WARM","paletteStops","isSpatialAnimation","animationColorAt","animationFrameKey","animationGradientAt"]}
+    ],
+    "server/trial-vault.js": [
+      {"file":"server/store-supporters/trial-vault-packages.js","about":"What is in a trial drop once it is decrypted: the code read, the places a preset carries widget packages, every valid package by id, the same code with each package replaced by a marker for the dashboard, and a package turned back into what an install takes.","names":["parseInner","widgetSlots","packagesOf","stubInner","rawManifest","toPayload"]}
     ]
   },
   "spreads": {
