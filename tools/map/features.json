@@ -294,6 +294,7 @@
         "server/linux-index.js",
         "server/linux-app-icons.js",
         "server/spotlight.html",
+        "server/js/spotlight/**",
         "server/js/spotlight*.js",
         "server/js/search-widget.js",
         "server/components/Spotlight/**",
