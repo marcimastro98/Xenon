@@ -498,7 +498,9 @@
       {"file":"server/deck/popup-window.js","about":"Opening a Deck in a window of its own.","names":["openDeckPopupWindow"]},
       {"file":"server/claude-code/link-status.js","about":"What the Claude Code tile is told about the link to the terminal.","names":["_claudeLinkStatus"]},
       {"file":"server/transfer/engine-phone.js","about":"The engine's phone: calls, messages and contacts of the phone linked to this PC.","names":["phone"],"wire":{"first":"phone","last":"phone"}},
-      {"file":"server/transfer/phone-assistant.js","about":"What the assistant may do with the phone: look a contact up, start a call, write a message.","names":["aiPhoneTool"],"bare":["./call-detect","./ai-pc-apps"]}
+      {"file":"server/transfer/phone-assistant.js","about":"What the assistant may do with the phone: look a contact up, start a call, write a message.","names":["aiPhoneTool"],"bare":["./call-detect","./ai-pc-apps"]},
+      {"file":"server/deck/engine-linux-hotkey.js","about":"The engine's writer of shortcuts into the Linux desktop's own key store; nothing on other systems.","names":["_linuxHotkey"],"wire":{"first":"_linuxHotkey","last":"_linuxHotkey"},"spelled":{"../linux-hotkey.js":"./linux-hotkey"}},
+      {"file":"server/deck/linux-hotkey-refresh.js","about":"Brings the Linux desktop's shortcut entries in line with the chosen search shortcut and page shortcuts.","names":["refreshLinuxHotkey"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
