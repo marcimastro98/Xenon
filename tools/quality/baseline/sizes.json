@@ -142,7 +142,7 @@
     "server/js/trial-pass-ui.js": 414,
     "server/js/twitchwatch-widget.js": 1071,
     "server/js/unifi-widget.js": 1141,
-    "server/js/update.js": 1328,
+    "server/js/update.js": 1204,
     "server/js/usage-ask.js": 336,
     "server/js/vitals-pet-core.js": 2775,
     "server/js/vitals-pet.js": 950,

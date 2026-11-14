@@ -108,6 +108,9 @@
     },
     "server/js/disk-widget.js": {
       "tools/modal-census/census.mjs": "Patches the text a test browser is served, at the line `window.DiskWidget = {`. That line is not a function and cannot leave; the scripts next to it are served as they are."
+    },
+    "server/js/update.js": {
+      "tools/modal-census/census.mjs": "Patches the text a test browser is served, at the line `window.XenonUpdate = {`, with calls to showUpdatingOverlay, openReleaseNotes and openUpdateFailed. That line is not a function and cannot leave, and the three functions stay in the wrapper; the scripts next to it are served as they are."
     }
   }
 }

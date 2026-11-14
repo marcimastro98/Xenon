@@ -876,6 +876,7 @@
         "server/icue-sdk-install.js",
         "server/icue-sdk-update.ps1",
         "server/whatsnew.json",
+        "server/js/update/**",
         "server/js/update.js",
         "server/js/release-*.js",
         "server/js/whats-new*.js",
