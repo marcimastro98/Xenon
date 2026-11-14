@@ -3,7 +3,8 @@
 // first, and one tap brings it back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync as readFileSyncRaw } from 'node:fs';
+import { readdirSync } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 import { engineSource } from './engine-source.mjs';
