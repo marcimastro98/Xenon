@@ -321,7 +321,7 @@ test('the field survives the action catalog, which strips what it does not know'
   assert.equal(out.contextUri, 'spotify:album:def');
   assert.equal(validateAction({ type: 'spotifyPlayUri', uri: 'spotify:track:abc' }).contextUri, undefined,
     'and it stays absent when unused, so stored Deck keys do not churn');
-  assert.match(read('server/stream-spotify.js'), /case 'spotifyPlayUri': return playUri\(action\.uri, action\.contextUri\);/);
+  assert.match(engineSource('server/stream-spotify.js'), /case 'spotifyPlayUri': return playUri\(action\.uri, action\.contextUri\);/);
 });
 
 test('the SDK guide says when to send it and that it is always safe to', () => {
@@ -346,7 +346,7 @@ test('a collection plays as a context, with no track looked up', async () => {
 });
 
 test('the two new scopes are requested', () => {
-  const src = read('server/stream-spotify.js');
+  const src = engineSource('server/stream-spotify.js');
   assert.match(src, /'user-read-recently-played'/);
   assert.match(src, /'user-follow-read'/);
 });
@@ -465,12 +465,12 @@ test('signing out drops the previous account\'s library', async () => {
   assert.equal(after.ok, false, 'a signed-out read must not be answered from memory');
   assert.equal(after.error, 'not_connected');
   assert.equal(seen.length, 1, 'and it must not reach Spotify either');
-  assert.match(read('server/stream-spotify.js'),
+  assert.match(engineSource('server/stream-spotify.js'),
     /async function logout\(\) \{ await clearCreds\(\); queryCacheClear\(\);/);
 });
 
 test('the cache stays small and short — a burst absorber, not a store', () => {
-  const src = read('server/stream-spotify.js');
+  const src = engineSource('server/stream-spotify.js');
   assert.match(src, /const QUERY_CACHE_MAX = 16;/);
   assert.match(src, /const QUERY_TTL_MS = 10000;/);
   assert.match(src, /const QUERY_TTL_VOLATILE_MS = 3000;/);

@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'js', 'spotify-widget.js'), 'utf8');
 
@@ -142,7 +143,7 @@ test('every reason has a line to print', () => {
 // hours, and the limit persists" — against a dashboard still promising shortly.
 // The server already knew how long (it holds the breaker to Retry-After); it
 // simply never said.
-const SERVER = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'stream-spotify.js'), 'utf8');
+const SERVER = engineSource('server/stream-spotify.js');
 
 test('the refusal carries how long the breaker holds', () => {
   const m = /async function apiRequest\(method, pathWithQuery, bodyObj\) \{[\s\S]*?\n  \}/.exec(SERVER);
