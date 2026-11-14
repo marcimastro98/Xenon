@@ -21,12 +21,20 @@ function deckOfTheWindow() {
   return { deck: tile ? tile.getAttribute('data-dashboard-instance') : 'no tile', drawn: Boolean(tile?.childElementCount) };
 }
 
+// The voice panel of the screen: the alerts window loads its scripts only when Bit is called (js/screen-bit.js holds
+// the list). Called here, so that the page is read with them in it. Runs in the page.
+function callBit() {
+  return window.ScreenBit.load().then(() => 'loaded', (error) => `not loaded: ${error?.message || error}`);
+}
+
 /**
  * `file` is the page's own file, `path` where the engine serves it. The dashboard is opened on the wide
  * screen it is made for and on a phone held upright. `widgets` marks the page the engine builds per
  * desktop widget. `stay` keeps a page that sends the window elsewhere once it has loaded (the driver
  * page leaves for the dashboard on an install that shows the dashboard) where it is. `probe` is a question of the
  * page's own, asked in the page once it has loaded: what a module does cannot be asked by name from outside.
+ * `first` is something the page is asked to do before it is read, for the files it loads only when asked; `holds`
+ * names the script whose list those files are in (browser-lists.mjs).
  */
 export const PAGES = [
   { name: 'dashboard wide', file: 'server/index.html', path: '/', width: 2560, height: 720 },
@@ -37,6 +45,7 @@ export const PAGES = [
   { name: 'menu', file: 'server/menu.html', path: '/menu', ...DESK },
   { name: 'scene', file: 'server/scene.html', path: '/scene', ...DESK },
   { name: 'alerts', file: 'server/screen-alerts.html', path: '/screen-alerts', ...DESK },
+  { name: 'alerts with the voice panel', file: 'server/screen-alerts.html', path: '/screen-alerts', first: callBit, holds: 'server/js/screen-bit.js', ...DESK },
   { name: 'search window', file: 'server/spotlight.html', path: '/spotlight', ...DESK },
   { name: 'drawing sheet', file: 'server/draw.html', path: '/draw', ...DESK },
   { name: 'widgets-only driver', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, ...DESK },
@@ -179,13 +188,15 @@ export async function openPage(browser, port, page, settleMs, run) {
 }
 
 /**
- * @param {any} browser @param {number} port @param {{ name: string, path: string, width: number, height: number, stay?: boolean, probe?: () => any }} page
+ * @param {any} browser @param {number} port @param {{ name: string, path: string, width: number, height: number, stay?: boolean, probe?: () => any, first?: () => any }} page
  * @param {number} settleMs @param {any} parser @param {Map<string, string[]>} known
  * @returns {Promise<any>} what the page check keeps of one page
  */
 export function recordPage(browser, port, page, settleMs, parser, known) {
   const plain = plainFor(port);
   return openPage(browser, port, page, settleMs, async (tab, seen) => {
+    const asked = page.first ? await tab.evaluate(page.first) : null;
+    if (page.first) await tab.waitForTimeout(settleMs);
     const held = await tab.evaluate(readPage);
     const names = await declaredNames(held.scripts.filter((address) => !held.modules.includes(address)), parser, known);
     const modules = held.modules.length ? await tab.evaluate(importAll, held.modules) : [];
@@ -198,6 +209,7 @@ export function recordPage(browser, port, page, settleMs, parser, known) {
       declared: Object.fromEntries(names.map((name, i) => [name, types[i]])),
       ...(modules.length ? { modules: modules.map((made) => (made.error ? { address: plain(made.address), error: plain(made.error) } : { ...made, address: plain(made.address) })) } : {}),
       ...(held.widgets === null ? {} : { widgets: held.widgets }),
+      ...(page.first ? { asked } : {}),
       ...(page.probe ? { probe: await tab.evaluate(page.probe) } : {}),
     };
   });

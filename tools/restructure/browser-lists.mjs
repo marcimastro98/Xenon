@@ -1,6 +1,8 @@
-// The lists of browser files that code puts together while it runs, and from
-// which the engine builds a page: today one, server/js/layer-tiles.js, whose rows
-// say which scripts and stylesheets the page of a widget on the desktop loads.
+// The lists of browser files that code puts together while it runs. One the
+// engine builds a page from: server/js/layer-tiles.js, whose rows say which
+// scripts and stylesheets the page of a widget on the desktop loads. The others
+// are held by a script that loads them itself when it is asked to, under the
+// names SCRIPTS and CSS (server/js/screen-bit.js, the voice panel of the screen).
 // A file in such a list is loaded by a page no search for a tag finds, so a split
 // must put the new files into every list that holds the old one, right next to it.
 //
@@ -10,6 +12,11 @@
 import vm from 'node:vm';
 
 export const BUILT_LIST = 'server/js/layer-tiles.js';
+/** Scripts that load their own list when asked: each is opened by a page of the page check that asks it to (browser-check-pages.mjs). */
+export const ASKED_LISTS = ['server/js/screen-bit.js'];
+export const LIST_FILES = [BUILT_LIST, ...ASKED_LISTS];
+/** The row a script's own SCRIPTS and CSS make. */
+export const OWN_ROW = 'SCRIPTS';
 const PAGE_ROOT = 'server/';
 const KEYS = ['css', 'js'];
 const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -18,16 +25,18 @@ const urlOf = (file) => file.slice(PAGE_ROOT.length);
 /**
  * Runs the list file and reads its rows.
  * @param {string} text the list file
- * @returns {Record<string, { css: string[], js: string[] }>} per row, the repo-relative files it loads, in order
+ * @returns {Record<string, { css: string[], js: string[] }>} per row, the repo-relative files it loads, in order:
+ *   the rows of TILES, and one row for the file's own SCRIPTS and CSS when it has them
  */
 export function readLists(text) {
   const module = { exports: {} };
   vm.runInNewContext(text, { module }, { timeout: 5000 });
+  const made = module.exports;
   const rows = {};
-  for (const [name, row] of Object.entries(module.exports.TILES ?? {})) {
-    // Array.from: the lists come out of another realm, and would never equal a list made here.
-    rows[name] = Object.fromEntries(KEYS.map((key) => [key, Array.from(row[key] ?? [], (url) => PAGE_ROOT + url)]));
-  }
+  // Array.from: the lists come out of another realm, and would never equal a list made here.
+  const filesOf = (row) => Object.fromEntries(KEYS.map((key) => [key, Array.from(row[key] ?? [], (url) => PAGE_ROOT + url)]));
+  for (const [name, row] of Object.entries(made.TILES ?? {})) rows[name] = filesOf(row);
+  if (made.SCRIPTS || made.CSS) rows[OWN_ROW] = filesOf({ js: made.SCRIPTS, css: made.CSS });
   return rows;
 }
 
@@ -47,9 +56,10 @@ export function listsHold(text, file) {
 /**
  * @param {string} text the list file
  * @param {string[]} run the files of one split, in the order they must load
+ * @param {string} [listFile] the list file's name, for the messages
  * @returns {string[]} problems, empty when every list holds none of them or all of them in a row
  */
-export function listRunProblems(text, run) {
+export function listRunProblems(text, run, listFile = BUILT_LIST) {
   const problems = [];
   for (const [name, row] of Object.entries(readLists(text))) {
     for (const key of KEYS) {
@@ -57,7 +67,7 @@ export function listRunProblems(text, run) {
       if (first === -1) continue;
       const held = row[key].filter((file) => run.includes(file));
       if (held.length !== run.length || row[key].slice(first, first + run.length).join('\n') !== run.join('\n')) {
-        problems.push(`the row "${name}" of ${BUILT_LIST} loads ${held.map(urlOf).join(', ')} where ${run.map(urlOf).join(', ')} must follow each other with nothing between`);
+        problems.push(`the row "${name}" of ${listFile} loads ${held.map(urlOf).join(', ')} where ${run.map(urlOf).join(', ')} must follow each other with nothing between`);
       }
     }
   }
@@ -112,10 +122,11 @@ function addAfterBuiltName(text, oldFile, urls) {
  * @param {string} oldFile repo-relative file the lists already hold
  * @param {string[]} newFiles repo-relative files, in the order they must load
  * @param {'before' | 'after'} where
+ * @param {string} [listFile] the list file's name, for the messages
  * @returns {{ text: string, reasons: string[] }} `text` unchanged when no list holds the old file; `reasons` say why the
  *   edit is not proven: the lists, run before and after, must differ by the new files next to the old one and nothing else
  */
-export function addToLists(text, oldFile, newFiles, where) {
+export function addToLists(text, oldFile, newFiles, where, listFile = BUILT_LIST) {
   const was = readLists(text);
   if (!Object.values(was).some((row) => KEYS.some((key) => row[key].includes(oldFile)))) return { text, reasons: [] };
   const urls = newFiles.map(urlOf);
@@ -127,12 +138,12 @@ export function addToLists(text, oldFile, newFiles, where) {
   if (where === 'after') next = addAfterBuiltName(next, oldFile, urls);
   const wanted = (list) => list.flatMap((file) => (file !== oldFile ? [file] : where === 'before' ? [...newFiles, file] : [file, ...newFiles]));
   let now;
-  try { now = readLists(next); } catch (error) { return { text, reasons: [`${BUILT_LIST} does not run after the new files were written into it: ${error.message}`] }; }
+  try { now = readLists(next); } catch (error) { return { text, reasons: [`${listFile} does not run after the new files were written into it: ${error.message}`] }; }
   const reasons = [];
   for (const name of new Set([...Object.keys(was), ...Object.keys(now)])) {
     for (const key of KEYS) {
       if (wanted(was[name]?.[key] ?? []).join('\n') !== (now[name]?.[key] ?? []).join('\n')) {
-        reasons.push(`the row "${name}" of ${BUILT_LIST} builds its ${key} list in a way the tool cannot follow: write ${urlOf(oldFile)} out in that row first`);
+        reasons.push(`the row "${name}" of ${listFile} builds its ${key} list in a way the tool cannot follow: write ${urlOf(oldFile)} out in that row first`);
       }
     }
   }

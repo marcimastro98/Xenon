@@ -10,8 +10,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PAGES, onThisPc, plainFor, serverOf, staysOnCopy, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
-import { addToLists, BUILT_LIST, listRunProblems, listsHold, readLists } from '../../tools/restructure/browser-lists.mjs';
+import { addToLists, ASKED_LISTS, BUILT_LIST, listRunProblems, listsHold, OWN_ROW, readLists } from '../../tools/restructure/browser-lists.mjs';
 import { applyMove } from '../../tools/restructure/browser-moves.mjs';
+import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
 import { listPages, tagsOf } from '../../tools/restructure/browser-pages.mjs';
 import { builtPages } from '../../tools/restructure/browser-state.mjs';
 import { Refusal } from '../../tools/restructure/extract-plan.mjs';
@@ -138,4 +139,60 @@ test('a recording drops the address of the test copy and keeps any other, so a r
   assert.equal(plain('http://127.0.0.1:3030/api/native/status net::ERR_BLOCKED_BY_CLIENT'), 'http://127.0.0.1:3030/api/native/status net::ERR_BLOCKED_BY_CLIENT');
   assert.equal(plain("blocked at 'http://127.0.0.1:3041/a' from origin 'http://127.0.0.1:3041'"), "blocked at '/a' from origin ''");
   assert.equal(['http://127.0.0.1:3041/a.css', 'http://127.0.0.1:3041/b.css'].map(plain).join(' '), '/a.css /b.css', 'usable as the function of a map');
+});
+
+// A script that loads its own list when asked, written the way js/screen-bit.js is.
+const OWN = [
+  "'use strict';",
+  '(function (root, factory) {',
+  '  const api = factory();',
+  "  if (typeof module === 'object' && module.exports) module.exports = api;",
+  '  if (root) root.Panel = api;',
+  "})(typeof window !== 'undefined' ? window : globalThis, function () {",
+  "  const CSS = Object.freeze(['components/Panel/Panel.css']);",
+  '  const SCRIPTS = Object.freeze([',
+  "    'shared/src/face.js', 'js/chat.js', 'js/chat-glow.js',",
+  '  ]);',
+  '  return Object.freeze({ SCRIPTS, CSS });',
+  '});',
+  '',
+].join('\n');
+
+test('a script that loads its own list when asked is a list too: one row, its SCRIPTS and CSS', () => {
+  assert.deepEqual(readLists(OWN), { [OWN_ROW]: { css: ['server/components/Panel/Panel.css'], js: ['server/shared/src/face.js', 'server/js/chat.js', 'server/js/chat-glow.js'] } });
+  assert.equal(listsHold(OWN, 'server/js/chat.js'), true);
+  const run = ['server/js/chat/voice.js', 'server/js/chat.js'];
+  const done = addToLists(OWN, 'server/js/chat.js', ['server/js/chat/voice.js'], 'before', 'server/js/panel.js');
+  assert.deepEqual(done.reasons, []);
+  assert.deepEqual(readLists(done.text)[OWN_ROW].js, ['server/shared/src/face.js', 'server/js/chat/voice.js', 'server/js/chat.js', 'server/js/chat-glow.js']);
+  assert.deepEqual(listRunProblems(done.text, run, 'server/js/panel.js'), []);
+  assert.match(listRunProblems(OWN, run, 'server/js/panel.js')[0], /^the row "SCRIPTS" of server\/js\/panel\.js loads js\/chat\.js where js\/chat\/voice\.js, js\/chat\.js must follow each other/);
+});
+
+test('a move writes every list that holds the script, the one a script loads when asked too', (t) => {
+  if (!parser) return t.skip('TypeScript is not installed here (npm run quality:install)');
+  const asked = ASKED_LISTS[0];
+  const files = { 'server/index.html': '<script src="js/chat.js"></script>\n', 'server/js/chat.js': "'use strict';\n\nfunction say() {}\n\nfunction hear() {\n  say();\n}\n\nhear();\n", [asked]: OWN };
+  const move = { kind: 'script', from: 'server/js/chat.js', file: 'server/js/chat/voice.js', about: 'The voice.', names: ['say'] };
+  const done = applyMove({ get: (file) => files[file] ?? null }, move, { parser, pages: ['server/index.html'], earlier: [] });
+  assert.deepEqual(readLists(done.files.get(asked))[OWN_ROW].js.slice(1, 3), ['server/js/chat/voice.js', 'server/js/chat.js']);
+  assert.ok(done.files.get('server/index.html').includes('<script src="js/chat/voice.js"></script>\n<script src="js/chat.js"></script>'));
+});
+
+test('every script that loads its own list is asked to by a page of the page check, which loads that script', () => {
+  for (const list of ASKED_LISTS) {
+    const page = PAGES.find((entry) => entry.holds === list);
+    assert.ok(page && typeof page.first === 'function', `${list}: no page of the check asks it to load its list`);
+    const html = fs.readFileSync(path.join(ROOT, page.file), 'utf8');
+    assert.ok(tagsOf(html).some((tag) => tag.file === list), `${page.file} loads ${list}`);
+    assert.ok(Object.keys(readLists(fs.readFileSync(path.join(ROOT, list), 'utf8'))).includes(OWN_ROW), `${list} holds a list of its own`);
+  }
+});
+
+test('a page asked to load its files first must end the same way before and after', () => {
+  const view = (asked) => ({ name: 'alerts with the voice panel', address: '/screen-alerts', pageErrors: [], consoleErrors: [], failedRequests: [], refused: [], globals: [], declared: {},
+    scripts: [], stylesheets: [], rules: 'x', ruleCount: 0, asked });
+  const recording = (asked) => ({ views: [view(asked)], settings: {} });
+  assert.deepEqual(compareRecordings(recording('loaded'), recording('loaded'), { moves: [] }), []);
+  assert.match(compareRecordings(recording('loaded'), recording('not loaded: script js/chat.js'), { moves: [] })[0], /asked to load first ended differently/);
 });

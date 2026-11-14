@@ -184,6 +184,7 @@ export function compareRecordings(before, after, ledger = readBrowserLedger(REPO
     if (was.rules !== now.rules) say(`the style rules of the linked stylesheets differ (${was.ruleCount} before, ${now.ruleCount} now)`);
     if (was.widgets !== now.widgets) say(`the widgets on the page differ (${was.widgets} before, ${now.widgets} now)`);
     if (JSON.stringify(was.probe) !== JSON.stringify(now.probe)) say(`the page's own question is answered differently (${JSON.stringify(was.probe)} before, ${JSON.stringify(now.probe)} now)`);
+    if (JSON.stringify(was.asked) !== JSON.stringify(now.asked)) say(`what the page was asked to load first ended differently (${JSON.stringify(was.asked)} before, ${JSON.stringify(now.asked)} now)`);
   }
   for (const [step, ok] of Object.entries(after.settings)) if (!ok) problems.push(`settings: "${step}" failed`);
   return problems;

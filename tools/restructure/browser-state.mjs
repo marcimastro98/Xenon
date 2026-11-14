@@ -12,7 +12,7 @@ import path from 'node:path';
 import { analyzeRun, orderProblems, runsOnLoad } from './browser-analyze.mjs';
 import { consumerProblems } from './browser-consumers.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
-import { BUILT_LIST, listRunProblems } from './browser-lists.mjs';
+import { BUILT_LIST, LIST_FILES, listRunProblems } from './browser-lists.mjs';
 import { moduleStateProblems } from './browser-module.mjs';
 import { nodeLoadProblems } from './browser-node-loads.mjs';
 import { listPages, runProblems, tagsOf } from './browser-pages.mjs';
@@ -65,7 +65,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
   const read = (file) => readFileSync(path.join(root, file), 'utf8');
   const written = listPages(root).map((page) => ({ page, html: read(page) }));
   const pages = [...written, ...builtPages(root)];
-  const list = existsSync(path.join(root, BUILT_LIST)) ? read(BUILT_LIST) : null;
+  const lists = LIST_FILES.filter((name) => existsSync(path.join(root, name))).map((name) => ({ name, text: read(name) }));
   const problems = [];
   const files = [];
   for (const file of splitFiles(ledger)) {
@@ -74,7 +74,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
     const loaders = pages.filter(({ html }) => tagsOf(html).some((tag) => run.includes(tag.file)));
     if (loaders.length === 0) problems.push(`no page loads ${file}`);
     for (const { page, html } of loaders) problems.push(...runProblems(html, run).map((problem) => `${page} ${problem}`));
-    if (list !== null) problems.push(...listRunProblems(list, run));
+    for (const list of lists) problems.push(...listRunProblems(list.text, run, list.name));
     problems.push(...consumerProblems(root, file, { tests }));
     if (file.endsWith('.css')) {
       for (const part of run) problems.push(...readStylesheet(read(part)).problems.map((problem) => `${part}: ${problem}`));

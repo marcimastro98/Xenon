@@ -15,7 +15,7 @@ import path from 'node:path';
 
 import { uncheckedPages } from './browser-check-pages.mjs';
 import { BROWSER_LEDGER } from './browser-ledger.mjs';
-import { BUILT_LIST, listsHold } from './browser-lists.mjs';
+import { LIST_FILES, listsHold } from './browser-lists.mjs';
 import { tagsOf } from './browser-pages.mjs';
 
 export const CONSUMERS = 'tools/restructure/browser-consumers.json';
@@ -36,8 +36,7 @@ const blank = (text) => text.replace(/[^\n]/g, ' ');
  *   from its parts ('components/' + name + '/' + name + '.css'), where no search for the file's name finds it
  */
 export function builtListsWith(root, file) {
-  const place = path.join(root, BUILT_LIST);
-  return existsSync(place) && listsHold(readFileSync(place, 'utf8'), file) ? [BUILT_LIST] : [];
+  return LIST_FILES.filter((list) => list !== file && existsSync(path.join(root, list)) && listsHold(readFileSync(path.join(root, list), 'utf8'), file));
 }
 
 /** Comments blanked out, every line kept, so a file named in a comment is not read as a use of it. */

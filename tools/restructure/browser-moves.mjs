@@ -5,7 +5,7 @@
 // Nothing here touches the disk, so the same code does a move and redoes it from
 // an old revision to compare (browser-extract.mjs).
 
-import { addToLists, BUILT_LIST, listRunProblems, listsHold } from './browser-lists.mjs';
+import { addToLists, LIST_FILES, listRunProblems, listsHold } from './browser-lists.mjs';
 import { moduleMove } from './browser-module.mjs';
 import { addTags, inlineScripts, runProblems, tagsOf, urlOfFile } from './browser-pages.mjs';
 import { headerOf, MAX_LINES, planScriptMove } from './browser-plan.mjs';
@@ -34,14 +34,15 @@ function retag(tree, pages, { old, added, where, before, after }) {
     files.set(page, made.html);
   }
   if (files.size === 0) reasons.push(`no page loads ${old} with a tag: where a new file would load cannot be proven`);
-  // The pages built from a list of files (the widgets on the desktop) get the new files in every row that holds the old one.
-  const list = tree.get(BUILT_LIST);
-  if (list !== null && listsHold(list, old)) {
-    const made = addToLists(list, old, added, where);
-    const problems = [...listRunProblems(list, before), ...made.reasons];
-    if (problems.length === 0) problems.push(...listRunProblems(made.text, after));
+  // A list of files in code (the widgets on the desktop, the voice panel of the screen) gets the new files in every row that holds the old one.
+  for (const name of LIST_FILES) {
+    const list = tree.get(name);
+    if (list === null || !listsHold(list, old)) continue;
+    const made = addToLists(list, old, added, where, name);
+    const problems = [...listRunProblems(list, before, name), ...made.reasons];
+    if (problems.length === 0) problems.push(...listRunProblems(made.text, after, name));
     reasons.push(...problems);
-    files.set(BUILT_LIST, made.text);
+    files.set(name, made.text);
   }
   if (reasons.length) throw new Refusal(reasons);
   return files;
