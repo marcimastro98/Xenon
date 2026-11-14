@@ -768,6 +768,10 @@
     "server/living-index.js": [
       {"file":"server/search/living-index-limits.js","about":"The waits of the living index: before its process is started again, for an answer, and for the overview of a whole drive.","names":["RETRY_MS","REQ_TIMEOUT_MS","OVERVIEW_TIMEOUT_MS"]},
       {"file":"server/search/living-index-questions.js","about":"What the living index is asked: a search, the sizes of folders, the overview and the contents of a drive, the folders, the biggest files, the duplicates, and how far the index has come.","names":["query","sizes","overview","browse","dirs","list","top","dupes","stats","startingStats"],"inner":{"factory":"createLivingIndex","make":"makeQuestions"}}
+    ],
+    "server/self-update.js": [
+      {"file":"server/updates/self-update-apply.js","about":"The staged update handed to the applier outside this process: whether one is already under way, the applier that could not be started, the environment it is given, and the start itself.","names":["applyInFlight","onSpawnError","applierEnv","apply"],"inner":{"factory":"createSelfUpdate","make":"makeApply"}},
+      {"file":"server/updates/self-update-support.js","about":"Whether this install can update itself and how: a git checkout, the reason it cannot, whether the install folder can be written, whether the update needs the administrator, and whether the shell updates without asking.","names":["isGitCheckout","unsupportedReason","supported","_installWritable","needsElevation","shellUpdatesSilently"],"inner":{"factory":"createSelfUpdate","make":"makeSupport"}}
     ]
   },
   "spreads": {
@@ -985,6 +989,9 @@
     ],
     "server/auto-update.js": [
       {"factory":"createAutoUpdater","object":"auState","names":["record","release","lastCheckAt","prepareTries","postponedUntil","countdown","tickTimer","ticking","stopped","lastDecision","lastBlockers","started"],"kept":[],"bare":[],"after":1}
+    ],
+    "server/self-update.js": [
+      {"factory":"createSelfUpdate","object":"suRun","names":["preparing","applyStartedAt","lastSpawnError"],"kept":[],"bare":[],"after":0}
     ]
   }
 }
