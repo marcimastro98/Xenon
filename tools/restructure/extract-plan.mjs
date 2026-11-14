@@ -7,7 +7,7 @@ import path from 'node:path';
 import { closureOf } from './analyze.mjs';
 import { namesRunAtLoad } from './load-registrations.mjs';
 import { requireLines, wrapNames } from './module-requires.mjs';
-import { requireEdit } from './require-edits.mjs';
+import { requireEdits } from './require-edits.mjs';
 import { lineStarts } from './top-level.mjs';
 
 export const MAX_LINES = 300;
@@ -166,12 +166,9 @@ export function planExtraction(job) {
   // Required names only the moved code used: the old file stops asking for them.
   const orphaned = new Set(needed.filter((name) => !remaining.some((record) => record !== bindings.get(name).record && record.uses.has(name))));
   const starts = lineStarts(text);
-  const edits = new Map();
-  required.modules.forEach((module) => {
-    const edit = requireEdit({ text, starts, record: records[module.index], orphaned,
-      ownModule: ownModules.has(module.file), builtin: module.kind === 'builtin' });
-    if (edit) edits.set(edit.first, { ...edit, oldLines: lines.slice(edit.first, edit.first + edit.count) });
-  });
+  const requires = required.modules.map((module) => ({ record: records[module.index], ownModule: ownModules.has(module.file), builtin: module.kind === 'builtin' }));
+  const edits = new Map(requireEdits({ text, starts, requires, orphaned })
+    .map((edit) => [edit.first, { ...edit, oldLines: lines.slice(edit.first, edit.first + edit.count) }]));
 
   // The old file: the ranges go, one require comes in.
   const anchorRecord = records[place.anchor];

@@ -20,7 +20,7 @@ import { readBranches } from './branches-scope.mjs';
 import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, OPEN_LINE, ownOf, readModule, readRequire, requireLine, SET_ONCE_LINE, typeLine } from './branches-text.mjs';
 import { MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
-import { requireEdit } from './require-edits.mjs';
+import { requireEdits } from './require-edits.mjs';
 import { lineStarts } from './top-level.mjs';
 
 const TABLE_FILE = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)\/[a-z]+(?:-([a-z0-9]+(?:-[a-z0-9]+)*))?\.js$/;
@@ -116,12 +116,12 @@ function orphanEdits({ text, parser, source, needed, modules, ownModules, kept }
   if (stuck.length) throw new Refusal([`only the moved code uses ${stuck.join(', ')}, required in a protected stretch of ${source} that is never edited`]);
   const starts = lineStarts(text);
   const lines = text.split('\n');
-  const edits = new Map();
-  for (const record of new Set([...orphaned].map((name) => after.bindings.get(name).record))) {
+  const requires = [...new Set([...orphaned].map((name) => after.bindings.get(name).record))].map((record) => {
     const module = modules.find((entry) => record.names.includes(entry.name));
-    const edit = requireEdit({ text, starts, record, orphaned, ownModule: ownModules.has(module.file), builtin: module.kind === 'builtin' });
-    if (edit) edits.set(edit.first, { ...edit, oldLines: lines.slice(edit.first, edit.first + edit.count) });
-  }
+    return { record, ownModule: ownModules.has(module.file), builtin: module.kind === 'builtin' };
+  });
+  const edits = new Map(requireEdits({ text, starts, requires, orphaned })
+    .map((edit) => [edit.first, { ...edit, oldLines: lines.slice(edit.first, edit.first + edit.count) }]));
   const out = [];
   const done = [];
   for (let at = 0; at < lines.length; at += 1) {

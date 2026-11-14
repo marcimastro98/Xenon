@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { analyze } from '../../tools/restructure/analyze.mjs';
 import { planExtraction, Refusal } from '../../tools/restructure/extract-plan.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
+import { requireEditProblem } from '../../tools/restructure/require-edits.mjs';
 import { proveMove } from '../../tools/restructure/verify.mjs';
 
 const parser = parserAvailable() ? await openParser() : null;
@@ -176,4 +177,36 @@ test('two requires next to each other that both go with the moved code are prove
     assert.deepEqual(made.newSource.split('\n'), ['const keep = 1;', "const { f } = require('./part/x.js');", 'function g() { return f() + keep; }', ''], body);
     assert.deepEqual(proven(text, made), [], body);
   }
+});
+
+test('two requires written on one line each lose their names where they stand, and the line stays', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const text = ['const { make, KIND, OTHER } = require("./lib"); const { first } = require("./made");', 'const path = require("path");',
+    'function f() { return make(KIND) + first(); }', 'function g() { return f() + OTHER + path.sep; }', ''].join('\n');
+  const made = plan(text, ['f']);
+  assert.equal(made.newSource.split('\n')[0], 'const { OTHER } = require("./lib"); require("./made");',
+    'both statements are edited in one go: neither edit is lost, and both modules still load here');
+  assert.deepEqual(proven(text, made), []);
+  // A module the tool made itself would lose its whole line when it stood alone; on a shared line it stays as a bare require.
+  const own = plan(text, ['f'], { ownModules: new Set(['server/made.js', 'server/lib.js']) });
+  assert.equal(own.newSource.split('\n')[0], made.newSource.split('\n')[0]);
+  assert.deepEqual(proven(text, own), []);
+  // Only one of the two loses something: the other is the same bytes.
+  const one = ['const { make, KIND } = require("./lib"); const { first } = require("./made"); // both for f and g',
+    'function f() { return make(KIND); }', 'function g() { return f() + first() + KIND; }', ''].join('\n');
+  const half = plan(one, ['f']);
+  assert.equal(half.newSource.split('\n')[0], 'const { KIND } = require("./lib"); const { first } = require("./made"); // both for f and g');
+  assert.deepEqual(proven(one, half), []);
+});
+
+test('the proof of a line with several requires checks each statement and lets none come or go', () => {
+  const module = "const { a } = require('../lib.js');\n";
+  const old = ['const { a, b } = require("./lib"); const { c } = require("./more");'];
+  assert.equal(requireEditProblem(old, ['const { b } = require("./lib"); const { c } = require("./more");'], module), null);
+  assert.equal(requireEditProblem(old, ['const { b } = require("./lib"); require("./more");'], module), null);
+  assert.match(requireEditProblem(old, ['const { b } = require("./lib");'], module), /a line with 2 requires did not keep one statement for each/);
+  assert.match(requireEditProblem(old, ['const { b } = require("./lib"); const { c, evil } = require("./more");'], module), /gained evil/);
+  assert.match(requireEditProblem(old, ['const { b } = require("./lib"); const { c } = require("./other");'], module), /changed into something else/);
+  assert.match(requireEditProblem(['const { a } = require("./lib"); start();'], ['require("./lib"); start();'], module), /is not a plain require/,
+    'a line that holds anything but requires is never edited');
 });
