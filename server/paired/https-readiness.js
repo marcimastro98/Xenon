@@ -2,6 +2,8 @@
 // Why the HTTPS door for paired devices is not up, as one of a few reasons the settings page
 // turns into a sentence.
 
+// Imported rather than spelled again, so this module and the setup cannot
+// disagree about what tailscaled's "no client has started me" state is called.
 const { NO_BACKEND } = require('../remote-control/tailscale.js');
 
 /**

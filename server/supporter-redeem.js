@@ -10,7 +10,6 @@
 // timeout, bounded body, no-throw result objects) with one difference: a POST
 // must never follow redirects, so any 3xx is treated as a failure.
 
-require('./atomic-write.js');
 require('./net-guard');
 
 // Author-owned hub base URL — fixed like CATALOG_BASE, never user-configurable

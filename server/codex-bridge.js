@@ -26,7 +26,6 @@
 // carries counts only.
 
 const path = require('path');
-require('./claude-bridge');
 
 const MAX_SESSIONS = 20;
 const MAX_PENDING = 8;

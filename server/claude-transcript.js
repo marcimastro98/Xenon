@@ -16,7 +16,6 @@
 //     lookup reads only what was appended since its last look.
 
 const fsp = require('fs/promises');
-require('./claude-bridge.js');
 
 // Same shape the runner accepts for --resume: Claude Code session ids are uuids,
 // and this refuses anything that could climb out of the directory.

@@ -55,10 +55,6 @@ const PROGRESS_MIN_MS = 500;         // one SSE frame per id per half second, no
 const INFLIGHT_STALE_MS = 10 * 60 * 1000;
 
 const ID_RE = /^f[0-9a-f]{16}$/;
-// Windows swallows these whole, extension and all, however they are spelled.
-// Shared with the sound/icon pack validators (see win-reserved.js for the
-// forms covered: "con .txt", COM¹, CONIN$ …).
-require('./win-reserved');
 
 const {
   EXT_RE, stripDangerous, clampUtf8, label, extOf, deliveryName, contentDisposition,

@@ -30,7 +30,6 @@ const fs = require('fs');
 const fsp = fs.promises;
 const os = require('os');
 const path = require('path');
-require('./claude-bridge.js');
 
 const READ_CONCURRENCY = 6;             // parallel file reads; keeps the FS burst polite
 // Transcripts are read as a stream, so size is not a reason to skip one. The

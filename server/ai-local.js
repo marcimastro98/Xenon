@@ -1,6 +1,4 @@
 'use strict';
-require('./ps-quote');
-require('./pinned-hash');
 const { createPace } = require('./search-pace');
 require('./net-guard');
 

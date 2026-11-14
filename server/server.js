@@ -33,12 +33,10 @@ const { createFpsDemand } = require('./fps-demand');
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
 const { createNotificationOpener, platformDeps: notificationOpenDeps } = require('./notification-open/index.js');
-require('./notification-open/start-apps.js');
 const layersHost = require('./layers-host').createLayersHost();
 // Edit mode of the layer windows (layers-edit.js): runtime only, told to every
 // open window over SSE `layers-edit`.
 const DeckShortcuts = require('./js/deck-shortcuts.js');
-require('./altgr-keys-windows.js');
 const { _altGrKeys } = require('./deck/altgr-keys.js');
 _altGrKeys();
 const { createDeckShortcutRunner } = require('./deck-shortcut-runner');
@@ -57,7 +55,6 @@ const { createPacketLoss } = require('./packet-loss');
 const { createPerfNet } = require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 const { createExclusiveHint } = require('./exclusive-hint');
-require('./capabilities/over-screen');
 const { createGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
 const listOps = require('./list-ops');
@@ -68,9 +65,6 @@ const { createCaptures } = require('./captures');
 const { createCaptureGallery } = require('./capture-gallery');
 const { createCaptureSend } = require('./capture-send');
 const { createCaptureCopy } = require('./capture-copy');
-require('./notes-ai');
-require('./agenda-ai'); // edit_task / edit_calendar_event: find by words, change only what is named
-require('./timer-actions'); // pause/resume/reset/stop rules shared by the tile and Bit
 require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
@@ -464,8 +458,6 @@ const callDetect = require('./call-detect');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const SdkGrant = require('./sdk-grant.js');
-require('./sdk-proxy');
-require('./sdk-store');
 const signalrgb = require('./signalrgb');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
@@ -486,9 +478,6 @@ try {
 } catch { /* platform without one */ }
 const lighting = require('./lighting');
 const { createSessionWatch } = require('./session-watch');
-require('./lighting-led-colors');
-require('./lighting-layouts');
-require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
@@ -535,7 +524,6 @@ const welcomeSparks = require('./welcome-sparks');
 require('./ai-creation-labels');
 const aiTurns = require('./ai-turns');
 const aiMyWidgets = require('./ai-my-widgets');
-require('./ai-widget-scripts');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
 const { withThinking, applyThinking } = require('./ai-gemini-thinking');
@@ -600,7 +588,6 @@ const communityCatalog = require('./community-catalog');
 require('./community-messages');
 require('./community-installs');
 const supporterRedeem = require('./supporter-redeem');
-require('./sparks-wallet');
 const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
 const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
 const aiPresets = require('./ai-presets');          // the assistant's create_preset / preset_reference tools
@@ -609,12 +596,10 @@ const aiSurface = require('./ai-surface');  // Bit on the main screen with no da
 const AiToolGroups = require('./ai-tool-groups'); // Bit's tools: a core + groups on demand (use_tools)
 const aiTurnRecord = require('./ai-turn-record');  // what Bit really did in a reply, kept in the chat history
 const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_deck_action)
-require('./ai-rate-store');  // Bit votes on a Store entry, after a card
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
 require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
 require('./scene-page');  // the desktop scene: wallpaper and screensaver
-require('./ai-preset-critique');  // hub design advice joins the critique (Xenon credits)
 require('./version-ping');
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
 const iconPacks = require('./icon-packs');
@@ -633,15 +618,12 @@ const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
-const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update'); require('./helper-first-install.js');
-require('./native-installer');
+const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');;
 const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
 const { createSpotifyProvider } = require('./stream-spotify');
-require('./spotify-launch');
-require('./discord-launch'); // start/focus Discord and open a chat, on every OS
 const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
@@ -654,7 +636,6 @@ const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
 const { createPcId } = require('./pc-id.js');
 const { createMcpDev } = require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
 const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of their tools does
-require('./lyrics-translate-price');
 
 const { APP_VERSION } = require('./updates/app-version.js');
 
@@ -674,14 +655,12 @@ try { const w = require('./node-version').nodeWarning(); if (w) console.warn(w);
 const {
   AUTO_UPDATE_ASSUME_IDLE, HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS,
 } = require('./updates/check-values.js');
-require('./semver');
 const autoUpdateLib = require('./auto-update');
 const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
 const { checkLatestRelease } = require('./updates/latest-release.js');
 
 const { WHATSNEW_FILE } = require('./updates/whats-new-file.js');
-require('./release-notes.js');
 const { normalizeWhatsNew } = require('./updates/whats-new-normalize.js');
 
 let _whatsNewCache = null;   // { at, data } — re-read from disk at most once a minute
@@ -1080,7 +1059,6 @@ function buildCoreAiFunctions() {
 const { buildMemoryFunctions } = require('./ai/memory-functions.js');
 
 const { SVV } = require('./audio/svv-path.js');
-require('./svv-text'); // SoundVolumeView's CSV, read in the encoding it was written in
 const { MEDIA_SCRIPT } = require('./media/script-paths.js');
 const { HELPER_EXE } = require('./engine/paths.js');
 const { MEDIAREMOTE_DIR } = require('./media/script-paths.js');
@@ -1758,7 +1736,6 @@ const {
 const {
   normalizeNotesState, notesToText, textToNotesState, _notesRevOf,
 } = require('./time/notes-state.js');
-require('./actions/widget-timers');
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
 // injected into the AI system prompt so the assistant remembers across sessions.
 const aiMemory = createAiMemory({ dataDir: DATA_DIR });
@@ -2257,8 +2234,6 @@ async function sendHotkeyCombo(keys) {
   }
   return { ok: false, error: 'hotkey_unavailable' };
 }
-
-require('./ps-quote');
 
 const { resolveAppIcons } = require('./programs/app-icons.js');
 

@@ -64,8 +64,6 @@
 // This file is pure + requireable (no server state, no I/O outside the store it
 // owns) so every decision above is unit-tested in test/remote-access.test.mjs.
 
-require('./atomic-write.js');
-
 const {
   COOKIE_NAME, CODE_LENGTH, hashToken, newToken, newAssetKey, newCode, canonicalCode, formatCode,
   safeEqual, readCookie, cookieHeader,

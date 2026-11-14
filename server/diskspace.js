@@ -24,11 +24,9 @@ const os = require('os');
 require('./disk-categories');
 require('./disk-guard');
 require('./js/disk-intelligence');
-require('./disk-history');
 require('./disk-kinds');
 const { createDupeVerifier } = require('./disk-dupes');
 const { userTempDirs } = require('./disk-space/temp-dirs.js');
-require('./atomic-write');
 
 const SUMMARY_FILE = 'disk-summary.json';
 

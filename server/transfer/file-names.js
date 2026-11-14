@@ -3,6 +3,9 @@
 // shape, the name it is delivered under and the download header.
 
 const path = require('node:path');
+// Windows swallows these whole, extension and all, however they are spelled.
+// Shared with the sound/icon pack validators (see win-reserved.js for the
+// forms covered: "con .txt", COM¹, CONIN$ …).
 const { WIN_RESERVED_RE } = require('../win-reserved.js');
 
 const MAX_LABEL = 120;

@@ -9,10 +9,7 @@
 // are read and nothing is written.
 
 const path = require('path');
-require('./atomic-write');
 
-require('./sensor-history/recent.js');
-require('./sensor-history/energy.js');
 const { normalizeEveryMin } = require('./js/sensor-history.js');
 
 const { TICK_MS, DUE_SLACK_MS, USAGE_MS } = require('./sensor-history/guardian-limits.js');

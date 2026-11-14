@@ -38,9 +38,6 @@ const DEFAULT_PORT = 3443;
 // schedule when asked; asking daily is cheap, rate-limit-free (it reuses a fresh
 // cert) and leaves 89 days of slack for a machine that was off for a while.
 const RENEW_INTERVAL_MS = 24 * 3600 * 1000;
-// Imported rather than spelled again, so this module and the setup cannot
-// disagree about what tailscaled's "no client has started me" state is called.
-require('./remote-control/tailscale');
 
 // The door comes up in a RACE, and one attempt is not enough to win it. On
 // Windows the Tailscale SERVICE starts with the machine while its tray app
