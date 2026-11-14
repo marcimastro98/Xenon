@@ -171,7 +171,7 @@ function pickOnScreens(next, where, kind, value, master) {
 }
 
 // The next ambientMode for a patch from setDesktopScene, `a` normalized. Pure; the
-// settings writer runs it under the lock (server.js updateDesktopSceneSetting).
+// settings writer runs it under the lock (ambient/desktop-scene-setting.js updateDesktopSceneSetting).
 function applyPatch(a, patch) {
   const next = { ...a, byScreen: JSON.parse(JSON.stringify(a.byScreen || {})) };
   if (patch.wallpaper === 'toggle') next.wallpaper = !next.wallpaper;

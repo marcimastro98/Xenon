@@ -10,7 +10,7 @@ function normalizeSensorRate(value) {
   return SENSOR_RATE_MS.includes(n) ? n : 5000;
 }
 
-// Mirror of the client's normalizeFanLabels (settings.js): explicit bounded
+// Mirror of the client's normalizeFanLabels (js/settings/normalize-search-hotkeys.js): explicit bounded
 // rebuild of the flat { "<kind>|<sensor name>": "label" } rename map.
 function normalizeServerFanLabels(value) {
   const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {};

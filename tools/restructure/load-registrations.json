@@ -67,7 +67,7 @@
           "server/linux-media.js": "5987a87e8c99d950afb4a0e110c4cfac1b3beba068058be8b6207bf77597d820",
           "server/media/linux-media-shape.js": "13b4d2fc9fadbe935b0af418a88912f56e50586ba56c09f3bb9f7dfc27f63d22",
           "server/linux-mpris.js": "d810bb60fb4b89cefdf32c3908568614128bf14fce53c21efdb3cd16d57a9b67",
-          "server/media/linux-mpris-read.js": "03d88110080643cdb9e2756f51561139630a2336280e12571599df3753a86e75"
+          "server/media/linux-mpris-read.js": "0ea18ac7b7face79f1fe39dd2e0d6cef21312e61ea8ae2899b476e38a0e368b3"
         },
         "reason": "createDarwinMedia and createLinuxMedia keep onChange in a variable and return available, start, stop, info and command; onChange is called only from handleLine, retire and command, which run once start() has spawned the reader, and createLinuxMpris, which createLinuxMedia hands it to, calls it only from its poll tick."
       },

@@ -99,7 +99,7 @@ function keepStoredOnSave(prev, incoming, isRemote) {
   // kept it working. Its sole legitimate writer is POST /api/remote-access/
   // enable (loopback-only, so a phone can never switch itself on). The
   // browser settings model does not carry the key AT ALL — normalizeSettings
-  // in js/settings.js has no `remoteAccess` — so every generic save arrived
+  // in js/settings/normalize-settings.js has no `remoteAccess` — so every generic save arrived
   // without it and `normalizeHubSettings` rebuilt it as `{enabled:false}`.
   // The result: remote access switched ITSELF off the first time the user
   // changed any setting anywhere, live sockets were dropped, and from then

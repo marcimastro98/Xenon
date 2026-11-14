@@ -15,7 +15,7 @@ const MAX_BODY_BYTES = 5 * 1024 * 1024;   // catalog JSON — generous, rejects 
 // ── HTTPS conditional GET ────────────────────────────────────────────────────
 // Mirrors fetchFeedConditional in ics-feeds.js (same redirect cap, timeout,
 // body cap, ETag/304 handling) — the codebase convention for these fetchers is
-// a documented mirror (see stocks.js fetchJson). If you harden one, harden all.
+// a documented mirror (see ticker/stocks-fetch.js fetchJson). If you harden one, harden all.
 function fetchText(url, validators, _hops = 0) {
   return new Promise((resolve, reject) => {
     if (_hops > 5) return reject(new Error('too many redirects'));

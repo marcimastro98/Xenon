@@ -185,7 +185,7 @@ function createEmbeddedBrowser(opts) {
         probing = false;
         if (sock !== edge.ws) return;
         console.warn('[embedded-browser] Edge stopped answering: restarting it');
-        // A reason the tiles' retry recognises (browser-tile.js isLaunchError
+        // A reason the tiles' retry recognises (server/js/browser-tile/says.js isLaunchError
         // matches "closed"), so a tile whose command was cut short reopens too.
         killBrowser('hung_closed');
       },

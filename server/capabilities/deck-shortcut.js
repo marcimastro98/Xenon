@@ -9,7 +9,7 @@
 //                    serialized with every other Deck write; the edit returns
 //                    { changed: [instanceId], result }, and only changed
 //                    instances are written back
-//     status()       the per-key verdicts (server.js _deckShortcutStatus)
+//     status()       the per-key verdicts (deck/shortcut-questions.js _deckShortcutStatus)
 //     takenByOthers() the combos the search and page shortcuts hold
 //   }
 const S = require('../js/deck-shortcuts.js');

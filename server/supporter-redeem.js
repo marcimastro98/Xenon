@@ -6,7 +6,7 @@
 // one-time code (3-device cap, expiry gate) and answers with the content
 // key the client then uses to decrypt the v2 remote-locked bundle.
 //
-// The POST discipline mirrors fetchText in community-catalog.js (https-only,
+// The POST discipline mirrors fetchText in store-catalog/catalog-fetch.js (https-only,
 // timeout, bounded body, no-throw result objects) with one difference: a POST
 // must never follow redirects, so any 3xx is treated as a failure.
 

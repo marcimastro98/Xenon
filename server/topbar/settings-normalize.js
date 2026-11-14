@@ -59,7 +59,7 @@ function normalizeTopbarClock(value, legacyRoot) {
 }
 
 // The chrome BUTTONS — order, side, visibility. Twin of normalizeTopbarActions in
-// js/settings.js; both must agree or a save from any surface resets the list.
+// server/js/settings/normalize-topbar.js; both must agree or a save from any surface resets the list.
 // `settings` and `layout` are forced visible: they are the two ways back IN (undo
 // anything; rearrange the dashboard again), and on a touch kiosk with no keyboard
 // there is no other route to either. The repair belongs in the normalizer rather

@@ -64,7 +64,7 @@ function createDiskSpace(opts) {
   // Told when a cached overview gained something after it was answered (the
   // background duplicate pass), so the dashboard can refetch. No-op in tests.
   const onDiskUpdate = typeof o.onDiskUpdate === 'function' ? o.onDiskUpdate : () => {};
-  // "Show in folder", injected from server.js (revealInFileManager) for the same
+  // "Show in folder", injected by server.js (revealInFileManager of files/reveal-in-file-manager.js) for the same
   // reason filesearch.js takes it: one platform switch, not two that drift.
   const revealExternal = typeof o.revealExternal === 'function' ? o.revealExternal : null;
   // The Living Index (living-index.js). When it is on, the widget needs no

@@ -83,7 +83,7 @@ const branches = {
     // runs out (claude-inbox.js), and a session with a request held here is
     // what the tile offers "goes into the open session" for. The answer is
     // { text } or {}: only an idle session is handed anything, and only once
-    // (claude-bridge.js, takeForTerminal). The text is never logged.
+    // (claude-code/bridge-follow-ups.js, takeForTerminal). The text is never logged.
     if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
     let sessionId = '';
     try {
@@ -185,7 +185,7 @@ const branches = {
   'POST /api/claude/reply': async (req, _res, { json, err500 }, { _claudeBridge, _claudeInbox }) => {
     // A follow-up typed on the dashboard for a live session. It is QUEUED, not
     // sent, and the tile shows that state, because "sent" would be a lie until
-    // it arrives. Two delivery points (claude-bridge.js, queueFollowUp): the end
+    // it arrives. Two delivery points (claude-code/bridge-follow-ups.js, queueFollowUp): the end
     // of the running turn, via /api/claude/turn-end, or, for an idle session
     // whose mod is listening, the mod, woken here so it arrives at once.
     //

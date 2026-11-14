@@ -3,7 +3,7 @@
 // Settings revisions are SERVER-assigned, and every endpoint that writes the
 // settings store must assign them the SAME way. The rev is not bookkeeping: the
 // client compares it against its own to decide whether to adopt a broadcast
-// (js/settings.js `_runSettingsSseHydrate` skips anything <= its local rev) and
+// (server/js/settings/hydrate.js `_runSettingsSseHydrate` skips anything <= its local rev) and
 // whether the server copy or its own wins at boot (`localNewer` in
 // `_hydrateHubSettingsImpl`). A rev the server assigns BELOW a surface's own
 // therefore makes that surface stop adopting changes made on another one.

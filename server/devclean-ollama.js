@@ -24,7 +24,7 @@ function ollamaRequest(baseUrl, method, route, body, timeoutMs) {
     try { u = new URL(route, baseUrl); } catch { return resolve({ ok: false }); }
     const payload = body ? JSON.stringify(body) : null;
     // family: 4 — Ollama listens on 127.0.0.1 and "localhost" resolves to ::1
-    // first on Windows (see _ollamaReachable in ai-local.js).
+    // first on Windows (see _ollamaReachable in ai/local-ollama-calls.js).
     const req = http.request({
       hostname: u.hostname, port: u.port || 11434, path: u.pathname, method, family: 4,
       headers: payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {},

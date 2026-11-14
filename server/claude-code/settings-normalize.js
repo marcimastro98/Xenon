@@ -5,7 +5,7 @@
 // question cards and the topbar marker. Both on unless explicitly stored false,
 // so an existing install keeps what it has. `approvals` is not display-only —
 // /api/claude/permission reads it and hands the prompt straight back to the
-// terminal when it is off. Twin of normalizeClaudeWidget in js/settings.js.
+// terminal when it is off. Twin of normalizeClaudeWidget in js/settings/normalize-ai.js.
 function normalizeClaudeWidget(value) {
   const source = value && typeof value === 'object' ? value : {};
   return {

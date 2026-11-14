@@ -11,7 +11,7 @@
 // endpoint that already had the key on disk. So the secret made a round trip to
 // the browser for nothing, and on the paired-device door (R1.1) that round trip
 // crossed the LAN in cleartext. The server-side half of the swap is
-// `geminiKeyFor()` in server.js: an empty `key` falls back to the stored one, so
+// `geminiKeyFor()` in ai/gemini-key-for.js: an empty `key` falls back to the stored one, so
 // the client sends nothing and every AI surface behaves exactly as before.
 //
 // Both halves are REQUIRED together. Redact without preserve and the next normal

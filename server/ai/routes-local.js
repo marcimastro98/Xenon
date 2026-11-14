@@ -48,7 +48,7 @@ const branches = {
       // A model the local table does not know can still be gated, using the
       // requirements the download catalog published for it. The local table wins
       // where it has an entry, and junk figures are dropped rather than trusted
-      // (see _sanitizedReq in ai-local.js) — a remote file may raise the bar for
+      // (see _sanitizedReq in ai/local-hardware.js) — a remote file may raise the bar for
       // a model we never sized, never lower it for one we did.
       const safety = aiLocal.modelSafety(concrete, scan, aiModels.ollamaRequirements(concrete));
       if (!safety.ok) {

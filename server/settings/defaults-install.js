@@ -4,7 +4,7 @@
 const HUB_DEFAULTS_INSTALL = Object.freeze({
   // Which screen the user chose for Xenon (asked once at first run): 'auto',
   // 'screen' (named in `monitor`), or 'phone'. Client-owned and client-sent —
-  // see normalizeSurface in js/settings.js, which must stay in step with the
+  // see normalizeSurface in server/js/settings/normalize-home-screens.js, which must stay in step with the
   // normalizer below or the settings-server-owned-keys test fails.
   //
   // This is NOT the authority for where the native window opens: the shell keeps

@@ -82,7 +82,7 @@ const HUB_DEFAULTS_APP = Object.freeze({
   //
   // Empty/false on a fresh install: nobody has dismissed anything yet, and the
   // legacy key is promoted into these by the client on first hydrate (see
-  // promoteLegacySeenFlags in js/settings.js), so an existing user does not have
+  // promoteLegacySeenFlags in server/js/settings/startup-cards.js), so an existing user does not have
   // to answer either card a second time.
   whatsNewSeen: '',
   releaseNotesSeen: '',

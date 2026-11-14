@@ -2,7 +2,7 @@
 // old name.
 
 // The screen the user chose for Xenon. Mirrors normalizeSurface in
-// js/settings.js key for key — the client owns this one, and a drift between the
+// server/js/settings/normalize-home-screens.js key for key — the client owns this one, and a drift between the
 // two halves is what silently resets a key on every save.
 const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
 function normalizeSurfaceChoice(value) {

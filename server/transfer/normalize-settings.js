@@ -5,7 +5,7 @@ const { clampNumber } = require('../settings/values.js');
 const { DEFAULT_HUB_SETTINGS } = require('../settings/defaults.js');
 
 // Phone ↔ PC file transfer. Server-owned: there is no twin in
-// js/settings.js normalizeSettings, on purpose, because `inboxDir` names a
+// js/settings/normalize-settings.js normalizeSettings, on purpose, because `inboxDir` names a
 // folder on this machine and the settings blob reaches every paired phone. The
 // keep-prev guard in POST /settings is what stops a generic save from wiping
 // it, and settings-server-owned-keys.test.mjs fails until both exist.

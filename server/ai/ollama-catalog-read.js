@@ -53,7 +53,7 @@ function normalizeCatalog(payload) {
   return out;
 }
 
-// HTTPS conditional GET. Mirrors fetchText in community-catalog.js (same
+// HTTPS conditional GET. Mirrors fetchText in store-catalog/catalog-fetch.js (same
 // redirect cap, timeout, body cap, ETag handling) — the codebase convention for
 // these fetchers is a documented mirror. If you harden one, harden all.
 function _fetchText(url, etag, _hops = 0) {

@@ -222,7 +222,7 @@ function createFileSearch(opts) {
     if (!rec || rec.app) return { ok: false, error: 'unknown_id' };
     try { await fs.promises.stat(rec.path); } catch { return { ok: false, error: 'not_found' }; }
     try {
-      // The platform switch lives in server.js next to openExternalPath and is
+      // The platform switch lives in files/reveal-in-file-manager.js, companion to openExternalPath, and is
       // injected, because the transfer widget's "show in folder" is the same
       // verb — and two copies of a three-way platform branch drift into one of
       // them quietly not working off Windows.

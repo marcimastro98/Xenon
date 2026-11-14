@@ -213,7 +213,7 @@
       const temps = guardCtx.tempDirs || [];
       // STRICTLY below a temp dir: the temp directory itself is resolved from
       // the environment by every running process and is never an item (see
-      // isContainerDir in diskspace.js, which refuses it a second time).
+      // isContainerDir in disk-space/delete-guard.js, which refuses it a second time).
       const inTemp = temps.some((t) => t && p !== t && under(p, t, platform, true));
       if (!inTemp) {
         for (const sys of SYSTEM_PREFIXES) {

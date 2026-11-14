@@ -13,7 +13,7 @@ const MAX_ADDRESS = 253;
 const list = (value) => (Array.isArray(value) ? value.slice() : []);
 
 // Only the slots the package declares, whatever else the page sent. The address
-// itself is checked again at every use (sdk-widgets.js resolveUserHosts).
+// itself is checked again at every use (widget-sdk/manifest-parts.js resolveUserHosts).
 function addressesFor(pkg, sent) {
   const out = {};
   const given = sent && typeof sent === 'object' ? sent : {};

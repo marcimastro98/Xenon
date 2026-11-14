@@ -41,7 +41,7 @@ function clampHaPan(v) {
 }
 
 // Per-camera view transform { [cameraEntity]: { rot, flip, zoom?, panX?, panY? } }
-// — mirrors actions/unifi.js normalizeUnifiAngles but keyed by camera entity id.
+// — mirrors actions/unifi-settings.js normalizeUnifiAngles but keyed by camera entity id.
 // A fully neutral entry is dropped so the map stays lean. This transforms the
 // SHOWN snapshot only; no command is ever sent to Home Assistant.
 function normalizeHaCamAngles(value) {

@@ -21,7 +21,7 @@
 // antivirus, a corporate resolver) block SOME names and not others — so a second
 // and third name is a far cheaper fix than asking a user to audit blocklists.
 // Keep every source free, key-less and https, and keep the parsers pure: they are
-// fixture-tested in test/weather-geo-sources.test.mjs against real payloads.
+// fixture-tested in test/weather-diagnosis.test.mjs against real payloads.
 const GEO_IP_SOURCES = Object.freeze([
   { name: 'ipwho.is', url: 'https://ipwho.is/',
     parse: (g) => (g && g.success === false ? null : { lat: g && g.latitude, lon: g && g.longitude, location: g && g.city, region: g && g.region, country: g && g.country }) },

@@ -1,7 +1,7 @@
 'use strict';
 
 // The parts of server/whatsnew.json that say what each sheet and each release
-// looks like. Rebuilt from known keys only, like normalizeWhatsNew in server.js:
+// looks like. Rebuilt from known keys only, like normalizeWhatsNew in updates/whats-new-normalize.js:
 // the file ships with the build, but what reaches the page is still a boundary.
 
 const SHEET_COLORS = Object.freeze(['green', 'lavender', 'yellow', 'blue', 'orange']);

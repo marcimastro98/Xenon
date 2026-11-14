@@ -32,7 +32,7 @@
 //    ran in and their full text never leave this module: only a plan name, a
 //    project's folder NAME, a clamped title and numbers do.
 //  - argv, never a shell; the API-key variables are removed from the child's
-//    environment (ai-cli.js childEnv) so nothing here can bill per token.
+//    environment (ai/cli-run.js childEnv) so nothing here can bill per token.
 
 const { spawn } = require('child_process');
 
@@ -62,7 +62,7 @@ const { makeRefresh } = require('./codex/appserver-refresh.js');
 const { makeAnswers } = require('./codex/appserver-answers.js');
 
 // ── the child ───────────────────────────────────────────────────────────────
-// `resolveExe()` → { cmd, pre } | null (ai-cli.js resolveCodex);
+// `resolveExe()` → { cmd, pre } | null (ai/cli-places.js resolveCodex);
 // `env()` → the child's environment; `cwd()` → a folder of ours.
 function createAppServer({
   resolveExe, env, cwd, clientVersion = '0.0.0', isOurHook = () => false,

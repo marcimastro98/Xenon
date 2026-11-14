@@ -25,7 +25,7 @@ const branches = {
 
   'GET /sdk/widgets': async (_req, _res, { json }, { refreshSdkScan, widgetCatalogVersionOf, widgetExportable, widgetOptionsStore, widgetOriginOf }) => {
     // Installed third-party widget packages — validated manifests only (see
-    // sdk-widgets.js normalizeManifest). Manifest text is untrusted → the client
+    // widget-sdk/manifest-normalize.js normalizeManifest). Manifest text is untrusted → the client
     // renders it via textContent. NEVER a JSONP candidate. Always rescans (the
     // Rescan button) and refreshes the shared scan cache. Each package is a copy
     // decorated with origin + exportable (exports limited to the user's own creations).

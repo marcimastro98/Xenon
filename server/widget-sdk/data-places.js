@@ -16,7 +16,7 @@ const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
 // example. No record = a developer-dropped folder ('local') → the user's own
 // work. This is policy, not a security boundary — but GET /sdk/export enforces
 // it server-side, so an imported package can never round-trip into a new code.
-// The merge rules (mergeOrigin/originExportable) are pure in sdk-widgets.js.
+// The merge rules (mergeOrigin/originExportable) are pure in widget-sdk/package-install.js.
 const WIDGET_ORIGINS_FILE = path.join(DATA_DIR, 'widget-origins.json');
 
 // Widget artwork, kept across restarts (GET /sdk/asset/…). Bounded per package

@@ -158,7 +158,7 @@ function createHelperUpdate(opts) {
     return out;
   }
 
-  // Returns a status string; never throws. See server.js ensureHelperUpToDate for
+  // Returns a status string; never throws. See updates/helper-up-to-date.js ensureHelperUpToDate for
   // how each status maps to "done" vs "retry":
   //   up-to-date | installed | skip-not-latest | no-helper  → terminal (record)
   //   not-ready | signature-invalid | mismatch | error      → retry

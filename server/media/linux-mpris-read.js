@@ -59,7 +59,7 @@ function artistFrom(v) {
   return typeof v === 'string' ? v : '';
 }
 
-// Assemble the record shape linux-media.js's shapeNowPlaying already consumes.
+// Assemble the record shape media/linux-media-shape.js's shapeNowPlaying already consumes.
 // Values stay STRINGS of the raw microsecond numbers, exactly as playerctl
 // prints them, so unitDivisor/seconds keep being the single place units are
 // decided rather than two places that can drift apart.

@@ -18,7 +18,7 @@ const thumbMemory = {
   lastGood: { title: '', artist: '', album: '', value: '' },
   // The album-art thumbnail is a ~50-100KB base64 data URI. Re-sending it on every
   // 2s 'media' broadcast is pure waste once the client holds it: the client caches
-  // the last thumbnail per track (media.js `_lastThumb`) and reuses it whenever a
+  // the last thumbnail per track (js/media/now-playing.js `_lastThumb`) and reuses it whenever a
   // payload omits one for the same track. So strip the thumbnail from BROADCASTS
   // while the track is unchanged — the SSE connect-seed and GET /media still carry
   // it in full so a fresh or reconnecting client always gets the art. The key

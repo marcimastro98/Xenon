@@ -8,7 +8,7 @@
 // exactly as with a code pasted by hand. Sound packs are audio files, which a
 // text model cannot write, so they are refused.
 //
-// server.js internals arrive through `deps`:
+// The engine's internals arrive through `deps` (grid/ai-preset-deps.js):
 //   normalizeSettings(settings) → normalized hub settings (normalizeHubSettings)
 //   dashboardWidgets            → [{id, w, h}] built-in tile ids and default sizes
 //   sdkEnabled                  → boolean, Community widgets switched on

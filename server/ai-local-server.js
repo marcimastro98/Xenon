@@ -14,7 +14,7 @@
 //     (ai-provider-creds.js)
 //
 // Failures are reason codes (`localserver_*`): the chat says them in the user's
-// language (_aiFormatApiError in js/ai.js).
+// language (_aiFormatApiError in server/js/ai/providers-and-errors.js).
 
 const http = require('http');
 const https = require('https');

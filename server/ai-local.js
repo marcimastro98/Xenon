@@ -44,7 +44,7 @@ const {
 
 
 // Synthesize `text` to a WAV Buffer using msedge-tts, transcoding the MP3 stream
-// to WAV via ffmpeg. `ffmpegPath` is injected by server.js (getFfmpegPath()).
+// to WAV via ffmpeg. `ffmpegPath` is handed in by the caller (getFfmpegPath() of ffmpeg-install/ffmpeg-path.js).
 async function localTts(text, lang, ffmpegPath) {
   const clean = String(text || '').trim().slice(0, 2000);
   if (!clean) return Buffer.alloc(0);

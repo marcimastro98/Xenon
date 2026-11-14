@@ -47,7 +47,7 @@ const { foldName, matchTier, queryEntries, queryIndex } = require('./search/linu
 // ── Disk map (exported for tests) ────────────────────────────────────────────
 // The same walk that answers search already knows every file's size, so the
 // disk widget needs no second traversal and no helper — it needs this list
-// grouped four ways. diskspace.js asks for all four in one `overview` call and
+// grouped four ways. disk-space/overview.js asks for all four in one `overview` call and
 // does the rest itself (categories, and the SHA-256 verification that turns
 // same-size candidates into real duplicates).
 

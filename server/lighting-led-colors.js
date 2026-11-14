@@ -9,7 +9,7 @@ const fx = require('./lighting-effects');
 
 // CORSAIR_DEVICE_LEDCOUNT_MAX in the iCUE SDK header: no device has more.
 const MAX_LED_COLORS = 512;
-// Keep in step with the client mirror in js/settings.js (normalizeLightingLedValue).
+// Keep in step with the client mirror in server/js/settings/normalize-lighting.js (normalizeLightingLedValue).
 const LED_EFFECT_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'temperature', 'album'];
 // Styles that loop: a device using one needs the animation ticker.
 const LED_DYNAMIC_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle'];

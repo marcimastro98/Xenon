@@ -16,7 +16,7 @@ const FETCH_DEADLINE_MS = 15000;
 const MAX_BODY_BYTES = 512 * 1024;      // a text feed; anything larger is a mistake
 
 // ── HTTPS conditional GET ────────────────────────────────────────────────────
-// Mirrors fetchText in community-catalog.js (same redirect cap, timeout, body
+// Mirrors fetchText in store-catalog/catalog-fetch.js (same redirect cap, timeout, body
 // cap, ETag/304 handling). If you harden one, harden all.
 function fetchText(url, validators, _hops = 0) {
   return new Promise((resolve, reject) => {

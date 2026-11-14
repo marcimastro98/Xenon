@@ -102,9 +102,9 @@ const branches = {
       // it gets no decision, which is the tool proceeding to ask normally.
       if (data && data.tool_name === 'AskUserQuestion') { json({}); return; }
       // The mod already asked about this call and its wait ran out: the
-      // terminal asks now, not a second card (claude-bridge.js, takeHandBack).
+      // terminal asks now, not a second card (claude-code/bridge-approvals.js, takeHandBack).
       if (_claudeBridge.takeHandBack(data)) { json({}); return; }
-      // Whether the plan card offers auto mode depends on it (claude-bridge.js,
+      // Whether the plan card offers auto mode depends on it (claude-code/bridge-approvals.js,
       // planChoices). One small read, only for a plan.
       if (data && data.tool_name === 'ExitPlanMode') {
         claudeState.defaultMode = await claudeLink.defaultMode().catch(() => '');

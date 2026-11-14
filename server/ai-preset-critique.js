@@ -42,7 +42,7 @@ const THEME_PAIRS = [
 ];
 const PALETTE_KEYS = ['accent', 'background', 'text', 'paletteVariants', ...themePalette.VARIANT_OPTIONAL_KEYS];
 
-// The palette each shown tone paints, built the way js/settings.js
+// The palette each shown tone paints, built the way server/js/settings/appearance.js
 // deriveEffectiveThemePalette does (stock auto palette, the variant for the
 // tone, Comic's paper surface).
 function themeTones(norm) {

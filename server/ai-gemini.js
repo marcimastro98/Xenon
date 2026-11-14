@@ -77,7 +77,7 @@ const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 // The sentinel is tested CASE-FOLDED, and the folded form is what gets stored, so
 // there is one spelling of it on disk. Without the fold, `AUTO` fell through to
 // the id pattern below — which is case-insensitive — and was kept as a literal
-// pin on a model no provider has. See parseStored() in ai-models.js for the full
+// pin on a model no provider has. See parseStored() in ai/model-ranking.js for the full
 // account of why that could never repair itself.
 function sanitizeModel(value) {
   const v = String(value || '').trim();

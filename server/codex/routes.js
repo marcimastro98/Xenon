@@ -27,7 +27,7 @@ const branches = {
 
   'GET /api/codex/thread': async (_req, _res, { json, err500, urlObj }, { _codexApp, _codexBridge }) => {
     // One conversation, as the tile shows it when a row is tapped: requests and
-    // final answers, cleaned of attachment paths (codex-appserver.js parseTurns).
+    // final answers, cleaned of attachment paths (codex/appserver-parse-threads.js parseTurns).
     // Only a thread Codex listed to us or a session its hooks reported, so this
     // never reads an arbitrary id.
     try {

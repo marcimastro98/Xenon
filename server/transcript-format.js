@@ -23,7 +23,7 @@ function clock(seconds) {
 }
 
 // whisper.cpp's -oj output → [{ start, end, text }] in seconds. `clean` drops
-// what whisper writes over silence (ai-local.js cleanTranscript); a line left
+// what whisper writes over silence (ai/local-stt.js cleanTranscript); a line left
 // empty by it is dropped.
 function linesFromWhisper(json, clean = s => String(s || '').trim()) {
   const list = json && Array.isArray(json.transcription) ? json.transcription : [];

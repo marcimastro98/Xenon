@@ -56,7 +56,7 @@ function minuteKey(at) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-// The same point shape as guardian.js series(): one sample is its own average
+// The same point shape as sensor-history/guardian-answers.js series(): one sample is its own average
 // and its own peak.
 function recentSeries(list, metrics) {
   return (Array.isArray(list) ? list : []).map((e) => {

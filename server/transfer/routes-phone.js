@@ -204,7 +204,7 @@ const branches = {
       // so a phone sending from the sofa shows up on the PC as it happens.
       broadcastTransfer();
 
-      // The streaming core lives in file-transfer.js (receiveStream): bounded
+      // The streaming core lives in transfer/receive-stream.js (receiveStream): bounded
       // during the stream rather than from Content-Length, request kept alive
       // so an over-size body can still be answered, temp removed on any
       // failure. It is there rather than here so it can be exercised against a

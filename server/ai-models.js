@@ -25,7 +25,7 @@
 //
 // Ollama's RESOLUTION is deliberately NOT here. Its `auto` already means
 // something else and better: the biggest model the MACHINE can run, decided by
-// computeTier() and the hardware scan in ai-local.js. A remote list must never
+// computeTier() and the hardware scan in ai/local-hardware.js. A remote list must never
 // pick the model that runs on the user's own GPU. What IS here is its download
 // catalog (bottom of the file) — discovery only, so a model published after this
 // release can still be offered.
@@ -157,7 +157,7 @@ function catalog(provider, storedByRole, apiKey) {
 // Three limits keep a network file from becoming a lever on the user's machine:
 // it can only ADD names to a list of things to download; it can never choose the
 // model that runs (see the header); and its hardware figures are advisory, with
-// MODEL_REQUIREMENTS in ai-local.js winning wherever it has an entry and
+// MODEL_REQUIREMENTS in ai/local-hardware.js winning wherever it has an entry and
 // _sanitizedReq() dropping anything out of range. The worst a hostile answer can
 // do is offer a download the user must still click and the safety gate must
 // still pass.

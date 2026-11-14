@@ -12,7 +12,7 @@
 // exactly as before.
 //
 // This module only parks and answers requests. What may be handed over, and
-// when, is the bridge's call (`take` → claude-bridge.js takeForTerminal): only
+// when, is the bridge's call (`take` → claude-code/bridge-follow-ups.js takeForTerminal): only
 // to an idle session, and only once. The text passes through; it is never kept
 // or logged here.
 //
