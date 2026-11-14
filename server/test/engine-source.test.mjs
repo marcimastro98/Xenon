@@ -123,6 +123,13 @@ test('the joined text holds the old file and every module, each once', () => {
   assert.throws(() => declarationSource('aNameNobodyDeclares'), /is not declared at the top level of server\/server\.js/);
 });
 
+// Variables the engine gave their first value where it loads, until a function of another module took that over
+// (it is called where the engine loads, and again when the person saves new app keys): the value is read there.
+const FIRST_VALUE_IN = {
+  streamTwitch: 'server/streaming/make-providers.js', streamYouTube: 'server/streaming/make-providers.js', streamSpotify: 'server/streaming/make-providers.js',
+  discordRpc: 'server/discord/make-provider.js',
+};
+
 test('a module that holds shared variables is one object and nothing else, and the old names are gone from the code', () => {
   const engine = readFileSync(join(ROOT, 'server', 'server.js'), 'utf8');
   const seen = new Set(entries.map((entry) => entry.file));
@@ -147,7 +154,12 @@ test('a module that holds shared variables is one object and nothing else, and t
       const escaped = name.replace(/[$]/g, '\\$&');
       assert.ok(!new RegExp(`^(?:const|let|var)\\s+${escaped}\\b`, 'm').test(engine), `${name} is not declared in server.js any more`);
       assert.match(code, new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`), `the readers still hand ${name} out by its old name`);
-      if (state.kept.includes(name)) assert.match(declarationSource(name), new RegExp(`^let ${escaped} = `), `${name} gets its first value in server.js`);
+      if (FIRST_VALUE_IN[name]) {
+        const maker = readFileSync(join(ROOT, FIRST_VALUE_IN[name]), 'utf8');
+        assert.ok(maker.split('\n').some((line) => line.startsWith(`  ${state.object}.${state.props[name]} = `)), `${name} gets its first value in ${FIRST_VALUE_IN[name]}`);
+        const call = `${/function (make[A-Za-z]+)\(/.exec(maker)?.[1]}();`;
+        assert.ok(engine.split('\n').includes(call), `server.js calls ${call} where it loads`);
+      } else if (state.kept.includes(name)) assert.match(declarationSource(name), new RegExp(`^let ${escaped} = `), `${name} gets its first value in server.js`);
       else {
         assert.equal(fileDeclaring(name), file);
         assert.match(declarationSource(name), new RegExp(`^let ${escaped}(?: = |;)`));

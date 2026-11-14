@@ -529,10 +529,6 @@ const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');;
 require('./startup-task');
-const { createTwitchProvider } = require('./stream-twitch');
-const { createDiscordProvider } = require('./discord-rpc');
-const { createYouTubeProvider } = require('./stream-youtube');
-const { createSpotifyProvider } = require('./stream-spotify');
 const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
@@ -1602,7 +1598,7 @@ async function performAiUndo(entry) {
 }
 const { DECK_FILE } = require('./deck/deck-file.js');
 const {
-  STREAM_CONFIG_FILE, STREAM_TOKENS_FILE, _readStreamTokensSnapshot, readStreamClientId,
+  STREAM_CONFIG_FILE, STREAM_TOKENS_FILE, _readStreamTokensSnapshot,
   STREAM_CONFIG_KEYS,
 } = require('./streaming/config-files.js');
 const { UPLOADS_DIR } = require('./engine/uploads-dir.js');
@@ -5132,7 +5128,7 @@ const remoteControl = createRemoteControl({
   saveSettings: (s) => withHubSettingsLock(() => writeHubSettings(s).then(safe => { hub.settings = safe; return safe; })),
 });
 const {
-  discordNotifWanted, discordNotifScopeWanted, winNotifWanted,
+  discordNotifWanted, winNotifWanted,
 } = require('./settings/notification-switches.js');
 
 const { _feedWidgetInUse } = require('./grid/feed-widget-in-use.js');
@@ -5311,18 +5307,14 @@ const briefing = createBriefingEngine({
 });
 
 const { streams } = require('./streaming/providers.js');
+const { makeStreamProviders } = require('./streaming/make-providers.js');
 const { tilePlaySearch } = require('./streaming/tile-play-search.js');
 
 // Twitch + YouTube live integrations. Tokens persist to a server-only file
 // (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
 // the user pastes/saves their app credentials in Settings → Streaming, picking up
 // the new client_id/secret without a server restart (see saveStreamConfig).
-streams.twitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
-streams.youtube = createYouTubeProvider({
-  clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
-  clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
-  tokensFile: STREAM_TOKENS_FILE,
-});
+makeStreamProviders();
 // Twitch Deck actions (Phase 2). These arrow deps read `streams.twitch` at call
 // time, so a re-created provider is picked up automatically.
 deckRegistryDeps.twitchClip = () => streams.twitch.createClip();
@@ -5339,7 +5331,6 @@ deckRegistryDeps.ytBroadcast = (mode) => streams.youtube.transitionBroadcast(mod
 // Spotify integration (Authorization Code + PKCE — no client secret). `let` so it
 // can be re-created when the user saves a Client ID in Settings → Streaming (see
 // saveStreamConfig). Tokens persist to the same server-only stream-tokens.json.
-streams.spotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
 const { SPOTIFY_LOCAL_FALLBACK } = require('./media/spotify-local-fallback.js');
 deckRegistryDeps.spotify = async (action) => {
   const r = await streams.spotify.runAction(action);
@@ -5357,12 +5348,8 @@ deckRegistryDeps.spotify = async (action) => {
 };
 
 const { discordLink } = require('./discord/link.js');
-discordLink.rpc = createDiscordProvider({
-  clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
-  clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
-  tokensFile: STREAM_TOKENS_FILE,
-  wantNotifications: discordNotifScopeWanted,
-});
+const { makeDiscordProvider } = require('./discord/make-provider.js');
+makeDiscordProvider();
 // All Discord Deck actions funnel through the provider (it owns the RPC socket and
 // the current-state reads). Reads `discordLink.rpc` at call time so a re-created
 // provider is picked up automatically.
@@ -5730,23 +5717,12 @@ async function saveStreamConfig(patch) {
     if (patch && typeof patch[k] === 'string') cfg[k] = patch[k].trim().slice(0, 200);
   }
   await writeFileAtomic(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2));
-  streams.twitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
-  streams.youtube = createYouTubeProvider({
-    clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
-    clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
-    tokensFile: STREAM_TOKENS_FILE,
-  });
-  streams.spotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+  makeStreamProviders();
   // Stop any live watch on the OLD provider first — closing it with a watcher
   // still attached would spin up a reconnect loop against the stale socket.
   stopDiscordWatch();
   try { discordLink.rpc.close(); } catch { /* ignore */ }
-  discordLink.rpc = createDiscordProvider({
-    clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
-    clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
-    tokensFile: STREAM_TOKENS_FILE,
-    wantNotifications: discordNotifScopeWanted,
-  });
+  makeDiscordProvider();
   refreshDiscordWatch();   // re-arm the watch if the new creds are linked and a dashboard is open
 }
 
