@@ -44,7 +44,7 @@
   const editWellSizes = new Map();     // instanceId -> { w, h } (edit-mode well)
   const editFits = new Map();          // instanceId -> pending rAF id
 
-  const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
+  const { tr, el, switchRow } = window.DeckParts;
   // Inline SVGs for the docked now-playing transport (mirrors the chat mini-player).
   const NP_SVG = {
     prev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6V6Zm3.5 6 8.5 6V6l-8.5 6Z"/></svg>',
@@ -1120,8 +1120,6 @@
     return nav.get(instanceId);
   }
 
-  const el = makeEl; // shared DOM factory from utils.js
-
   // opts.on (the editor's previews): draw the key on or off whatever the live
   // state says, so both faces can be shown side by side. opts.themeColors: a key
   // with no colour of its own takes the theme's accent (Aspetto Deck).
@@ -1493,18 +1491,6 @@
     device.appendChild(buildNowPlaying(look.mediaStyle, look.themeColors));   // always shown so music styling is visible
     root.appendChild(device);
     return root;
-  }
-  // A full-width labelled switch row, for the deck-wide on/off choices.
-  function switchRow(labelKey, labelFb, on, onChange) {
-    const row = el('button', 'deck-ed-switchrow'); row.type = 'button';
-    row.setAttribute('role', 'switch');
-    row.appendChild(el('span', 'deck-ed-switchtxt', tr(labelKey, labelFb)));
-    row.appendChild(el('span', 'deck-ed-switch'));
-    let state = !!on;
-    const paint = () => row.setAttribute('aria-checked', state ? 'true' : 'false');
-    row.addEventListener('click', () => { state = !state; paint(); onChange(state); });
-    paint();
-    return row;
   }
 
   function openDeckStyleModal(tile, instanceId, profileId) {
