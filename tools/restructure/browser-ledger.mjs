@@ -15,7 +15,8 @@ const NOTE = 'What tools/restructure took out of which browser file, in order. W
  *   `moves`: `{ kind: 'script', from, file, about, names }` (declarations to a script that loads right before),
  *   `{ kind: 'style', from, parts: [{ file, at }] }` (a stylesheet cut at lines, the parts linked right after)
  *   `{ kind: 'inline', from, file, about, nth }` (a script written inside a page, to a file)
- *   or `{ kind: 'module', file, names }` (a classic script turned into an ES module; `names` are the top-level names it stopped sharing).
+ *   `{ kind: 'module', file, names }` (a classic script turned into an ES module; `names` are the top-level names it stopped sharing)
+ *   or `{ kind: 'unwrap', file }` (a module that lost the wrapper around its code).
  */
 export function readBrowserLedger(root) {
   try {

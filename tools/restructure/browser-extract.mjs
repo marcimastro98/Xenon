@@ -14,6 +14,7 @@ import { readBrowserLedger, runOf, writeBrowserLedger } from './browser-ledger.m
 import { moduleReasons, saysModule } from './browser-module.mjs';
 import { applyMove } from './browser-moves.mjs';
 import { nodeKeeps } from './browser-node-loads.mjs';
+import { wrapperOf } from './browser-unwrap.mjs';
 import { listPages } from './browser-pages.mjs';
 import { builtPages } from './browser-state.mjs';
 import { Refusal } from './extract-plan.mjs';
@@ -113,10 +114,12 @@ export function perform({ root, parser, move, dryRun = false, plan = null }) {
   const ledger = ledgerOf(root, plan);
   const tree = treeOf(root, plan);
   // The tests are held to the reader by server/test/restructure-browser-state.test.mjs, once the first move is done.
+  // A move that makes no file (a conversion, a wrapper taken off) says in its own code why it cannot be done.
+  const inPlace = move.kind === 'module' || move.kind === 'unwrap';
   const reasons = move.kind === 'module' ? moduleReasons({ root, parser, file: move.file, ledger, pages: everyPage(root) }).reasons.map((reason) => reason.text)
-    : move.kind === 'inline' ? uncheckedPages([move.from]).map((page) => `the page check never opens ${page}: add it to tools/restructure/browser-check-pages.mjs first`)
+    : move.kind === 'unwrap' ? [] : move.kind === 'inline' ? uncheckedPages([move.from]).map((page) => `the page check never opens ${page}: add it to tools/restructure/browser-check-pages.mjs first`)
       : consumerProblems(root, move.from, { tests: false });
-  if (move.kind !== 'module') {
+  if (!inPlace) {
     reasons.push(...targetReasons(root, move));
     const kept = keptNames(root, move.from);
     for (const name of move.names ?? []) if (kept.has(name)) reasons.push(`${name} stays in ${move.from}: ${kept.get(name)} reads it there`);
@@ -151,7 +154,13 @@ export function showAt(root, rev, file) {
   return run.status === 0 ? run.stdout : null;
 }
 
-const newFilesOf = (move) => (move.kind === 'style' ? move.parts.map((part) => part.file) : move.kind === 'module' ? [] : [move.file]);
+const newFilesOf = (move) => (move.kind === 'style' ? move.parts.map((part) => part.file) : move.kind === 'module' || move.kind === 'unwrap' ? [] : [move.file]);
+
+// A move that makes no file: the revision has it when the script says there that it is a module, or has no wrapper there.
+function doneInPlace(move, was, parser) {
+  if (was === null) return false;
+  return move.kind === 'module' ? saysModule(parser.parse(was, move.file), parser.K) : !wrapperOf(was, move.file, parser).wrapped;
+}
 
 /**
  * Redoes every recorded move the revision does not have yet, starting from the
@@ -172,9 +181,7 @@ export function replay({ root, parser, base, show = showAt }) {
   ledger.moves.forEach((move, index) => {
     const made = newFilesOf(move);
     const there = made.filter((file) => show(root, base, file) !== null);
-    // A conversion makes no file: the revision has it when the script says there that it is a module.
-    const was = move.kind === 'module' ? tree.get(move.file) : null;
-    if (move.kind === 'module' ? was !== null && saysModule(parser.parse(was, move.file), parser.K) : there.length === made.length) return;
+    if (move.kind === 'module' || move.kind === 'unwrap' ? doneInPlace(move, tree.get(move.file), parser) : there.length === made.length) return;
     if (there.length) { problems.push(`${base} has ${there.join(', ')} but not the rest of that move`); return; }
     let done;
     try {

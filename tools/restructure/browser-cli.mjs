@@ -10,6 +10,7 @@
 //   node tools/restructure/cli.mjs browser inline --from <page> --to <new script> --about "<one sentence>" [--nth 0]
 //   node tools/restructure/cli.mjs browser apply <plan.json> [--dry-run]   several moves: [{ from, to, about, picks }, { css, cuts }]
 //   node tools/restructure/cli.mjs browser module <script> [--dry-run]     turn a classic script that runs last into an ES module
+//   node tools/restructure/cli.mjs browser module <script> --unwrap [--dry-run]   take the wrapper off a script that is a module already
 //   node tools/restructure/cli.mjs browser module --list [--all]           which scripts can become a module today, and what keeps the others
 //   node tools/restructure/cli.mjs browser consumers <file>                who names a browser file in code
 //   node tools/restructure/cli.mjs browser tests <file> [--write]          point the tests that read it as text at the reader
@@ -160,6 +161,12 @@ function listModules(parser, { flags }) {
 function convert(parser, { flags, rest }) {
   const file = posix(rest[0]);
   const dryRun = Boolean(flags['dry-run']);
+  if (flags.unwrap) {
+    const was = read(file).split('\n').length - 1;
+    const bare = perform({ root: REPO_ROOT, parser, move: { kind: 'unwrap', file }, dryRun });
+    console.log(`${file} ${dryRun ? 'would lose' : 'lost'} its wrapper: ${was} lines before, ${bare.lines[file]} now, every other line as it was.`);
+    return 0;
+  }
   const done = perform({ root: REPO_ROOT, parser, move: { kind: 'module', file }, dryRun });
   const pages = Object.keys(done.lines).filter((name) => name.endsWith('.html'));
   console.log(`${file} ${dryRun ? 'would be' : 'is'} a module: ${pages.join(', ')} ${pages.length === 1 ? 'loads' : 'load'} it with type="module", and ${done.record.names.length} of its names leave the shared scope.`);
@@ -256,7 +263,7 @@ export async function main(argv) {
     extract: Boolean(flags.from && flags.to && rest.length), 'split-css': rest.length >= 2, inline: Boolean(flags.from && flags.to),
     module: flags.list ? rest.length === 0 : rest.length === 1 }[command];
   if (!complete) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(4, 18).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(4, 19).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   if (command === 'carry') return carry();
