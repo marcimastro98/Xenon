@@ -91,7 +91,7 @@ export function proveInner({ before, after, moduleText, plan, parser, source, ta
   const inside = made.inner.records;
   if (inside.length === 0) return [...problems, `${make} is empty`];
   const gives =/^return \{([\s\S]*)\};$/.exec(moduleText.split('\n').slice(made.open + inside.at(-1).line[0], made.open + inside.at(-1).line[1] + 1).map((line) => line.trim()).join(' '));
-  if (inside.slice(0, -1).some((record) => record.kind !== 'function' && record.kind !== 'const') || !gives) problems.push(`${make} is more than the moved functions and what it gives back`);
+  if (inside.slice(0, -1).some((record) => !['function', 'const', 'let'].includes(record.kind)) || !gives) problems.push(`${make} is more than the moved functions and what it gives back`);
   else if (!sameSet(namesIn(gives[1]), taken)) problems.push(`${make} gives back ${namesIn(gives[1]).join(', ')} and the factory takes ${taken.join(', ')}`);
   const movedNames = inside.slice(0, -1).flatMap((record) => record.names);
 
@@ -101,7 +101,7 @@ export function proveInner({ before, after, moduleText, plan, parser, source, ta
   for (const record of inside.slice(0, -1)) {
     for (const name of record.uses.keys()) {
       if (movedNames.includes(name)) {
-        if (!['function', 'const'].includes(was.inner.bindings.get(name)?.kind)) problems.push(`${name} was not a function of ${factory}, nor a constant`);
+        if (!['function', 'const', 'let'].includes(was.inner.bindings.get(name)?.kind)) problems.push(`${name} was not a function of ${factory}, nor a constant or a variable`);
       } else if (made.params.includes(name)) {
         const own = was.inner.bindings.get(name);
         const fixed = own ? HANDED_OVER.has(own.kind) && !own.reassigned : was.params.includes(name) && !written(was, name);
@@ -117,13 +117,15 @@ export function proveInner({ before, after, moduleText, plan, parser, source, ta
     }
   }
 
-  // 4b. What left is what it was, and a constant that left is one whose value is written out and reads the same at the
-  // moment the factory calls the new module (inner-constants.mjs, asked of the old file).
+  // 4b. What left is what it was, and a constant or a variable that left is one whose value is written out and reads the
+  // same at the moment the factory calls the new module; a variable is one nothing left behind used (inner-constants.mjs,
+  // asked of the old file).
   const left = new Set(movedNames.map((name) => was.inner.bindings.get(name)?.record).filter(Boolean));
   for (const record of inside.slice(0, -1)) {
     const old = was.inner.bindings.get(record.names[0])?.record;
     if (old?.kind !== record.kind || !sameSet(old.names, record.names)) { problems.push(`${record.names.join(', ')} is not in ${make} what it was in ${factory}`); continue; }
-    if (old.kind !== 'const') continue;
+    if (old.kind === 'function') continue;
+    if (old.kind === 'let' && old.names.some((name) => taken.includes(name))) problems.push(`${old.names.join(', ')} is a variable and ${make} gives it back: the factory would hold a copy`);
     problems.push(...constantReasons({ inner: was.inner, params: was.params, file: was.file, reach: was.reach, record: old, label: old.names.join(', '),
       movedSet: left, factory, real: (line) => was.open + line + 1 }));
   }

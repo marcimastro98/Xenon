@@ -45,7 +45,7 @@ function planWith(job, names, text, ownModules, left) {
  * @param {string} job.source repo-relative file of the factory @param {string} job.target repo-relative new module
  * @param {string} job.about one sentence: the new file's first comment
  * @param {string} job.factory the top-level function the functions leave @param {string} job.make the function the new module gives
- * @param {string[]} job.names functions declared in the factory's body, and constants of it to move and have handed back
+ * @param {string[]} job.names functions declared in the factory's body, constants of it to move and have handed back, and variables only they use
  * @param {boolean} [job.dryRun] plan and prove, write nothing
  * @returns {{ moved: string[], returned: string[], passed: string[], lines: number, sourceLines: number, target: string,
  *   bare?: { dropped: { spec: string, why: string }[], kept: { spec: string, why: string }[] },
@@ -109,7 +109,7 @@ export function runInner(parser, root, { flags, rest }) {
   console.log(`${dryRun ? 'would move' : 'moved'} ${done.moved.join(', ')} out of ${flags.factory} to ${done.target} (${done.lines} lines); `
     + `${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines.`);
   console.log(`  ${flags.make} is handed ${done.passed.join(', ') || 'nothing'} and gives back ${done.returned.join(', ')}.`);
-  if (done.along?.added.length) console.log(`  ${dryRun ? 'would take' : 'took'} along ${done.along.added.join(', ')}: constants only the moved code uses, their values written out.`);
+  if (done.along?.added.length) console.log(`  ${dryRun ? 'would take' : 'took'} along ${done.along.added.join(', ')}: constants and variables only the moved code uses, their first values written out.`);
   const left = done.along?.left ?? [];
   const shared = left.filter((row) => row.shared).map((row) => row.name);
   if (shared.length) console.log(`  ${dryRun ? 'would leave' : 'left'} ${shared.join(', ')} in ${flags.factory}, which uses them too: they are handed over. Name one to move it and have it handed back.`);

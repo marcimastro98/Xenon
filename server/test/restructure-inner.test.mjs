@@ -167,7 +167,7 @@ test('the call stands after the constants it hands over and before the first use
 test('what a hand-over would not keep is refused, with the reason', (t) => {
   if (!parser) return t.skip(SKIP);
   assert.match(refusal(SOURCE, ['count']), /count \(server\/demo\.js:10\) uses calls, a variable of createThing that can be assigned again/);
-  assert.match(refusal(SOURCE, ['calls']), /calls is not a function declared once in the body of createThing, nor a constant/);
+  assert.match(refusal(SOURCE, ['calls']), /calls \(server\/demo\.js:8\) is a variable that line 10 of createThing uses too: a variable cannot be handed over or back/);
   assert.match(refusal(SOURCE, ['nowhere']), /nowhere is not a function declared once/);
   assert.match(refusal(SOURCE, ['find']), /^$/, 'find alone can go: fetchAll keeps using it');
   assert.match(refusal(SOURCE, ['find'], { make: 'createThing' }), /createThing is a word server\/demo\.js already uses/);
@@ -230,7 +230,7 @@ test('the command writes both files and records the step, a dry run writes nothi
     // `seen` is a `new Map()` only find uses: it goes along without being named (restructure-inner-constants.test.mjs has the rules).
     assert.deepEqual([tried.moved, tried.returned, tried.passed, tried.along], [['seen', 'find', 'fetchAll'], ['fetchAll'], ['runner', 'limit'], { added: ['seen'], left: [] }]);
     assert.throws(() => moveInner({ ...job, target: 'server/paired/demo-steps.js' }), Refusal, 'what leaves a file in a feature folder stays next to it');
-    assert.throws(() => moveInner({ ...job, names: ['count'] }), Refusal);
+    assert.throws(() => moveInner({ ...job, names: ['calls'] }), Refusal);
     assert.equal(existsSync(join(root, NEW)), false, 'a dry run and a refusal write nothing');
     assert.equal(readFileSync(join(root, OLD), 'utf8'), SOURCE);
     assert.equal(existsSync(join(root, 'server/paired')), false);

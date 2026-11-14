@@ -75,7 +75,7 @@ export function readBody(text, parser, source, factory) {
 }
 
 /**
- * Why one function or constant of the body cannot leave with the others that do.
+ * Why one function, constant or variable of the body cannot leave with the others that do.
  * @param {{ body: ReturnType<typeof readBody>, record: any, movedSet: Set<any>, source: string, factory: string, passed?: Set<string>, needed?: Set<string> }} ask
  *   `passed` and `needed` collect what it would be handed and what the new module would require
  * @returns {string[]}
@@ -84,7 +84,7 @@ export function leaveReasons({ body, record, movedSet, source, factory, passed =
   const { inner, file, shell, reach, real } = body;
   const label = `${record.names.join(', ')} (${source}:${real(record.line[0])})`;
   const reasons = record.sharesLine ? [`${label} shares a line with another statement`] : [];
-  if (record.kind === 'const') reasons.push(...constantReasons({ inner, params: shell.params, file, reach, record, label, movedSet, factory, real }));
+  if (record.kind !== 'function') reasons.push(...constantReasons({ inner, params: shell.params, file, reach, record, label, movedSet, factory, real }));
   else if (inner.bindings.get(record.names[0]).reassigned) reasons.push(`${label} is assigned again in ${factory}: the factory would keep a copy that never changes`);
   const movedNames = [...movedSet].flatMap((moved) => moved.names);
   return [...reasons, ...sortUses({ record, label, inner, file, shell, movedNames, source, factory, passed, needed })];
@@ -150,7 +150,7 @@ function placeCall({ inner, moved, movedSet, passed, factory, source, real }) {
  * @param {string} job.about one sentence saying what the new file does: its first comment
  * @param {string} job.factory the top-level function whose body the functions leave
  * @param {string} job.make the name of the function the new module gives
- * @param {string[]} job.names functions declared in the factory's body, and constants of it whose value is written out
+ * @param {string[]} job.names functions declared in the factory's body, and constants and variables of it whose value is written out
  * @param {(spec: string, from: string, to: string) => any} job.rewrite from module-requires.mjs
  * @param {Set<string>} [job.protectedNames] @param {number[][]} [job.protectedStretches] @param {Set<string>} [job.ownModules] as in extract-plan.mjs
  * @param {number} [job.maxLines]
@@ -170,8 +170,8 @@ export function planInner(job) {
   const bodyRead = readBody(text, parser, source, factory);
   const { file, shell, inner, real } = bodyRead;
   const declared = (name) => inner.records.filter((record) => record.names.includes(name));
-  const wrong = names.filter((name) => declared(name).length !== 1 || !['function', 'const'].includes(declared(name)[0].kind));
-  if (wrong.length) throw new Refusal(wrong.map((name) => `${name} is not a function declared once in the body of ${factory}, nor a constant`));
+  const wrong = names.filter((name) => declared(name).length !== 1 || !['function', 'const', 'let'].includes(declared(name)[0].kind));
+  if (wrong.length) throw new Refusal(wrong.map((name) => `${name} is not a function declared once in the body of ${factory}, nor a constant or a variable of it`));
 
   const moved = [...new Set(names.map((name) => inner.bindings.get(name).record))].sort((a, b) => a.index - b.index);
   const movedSet = new Set(moved);

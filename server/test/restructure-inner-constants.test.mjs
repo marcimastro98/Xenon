@@ -2,7 +2,8 @@
 // `inner`, inner-constants.mjs): one whose value is written out moves, one the factory still uses
 // comes back by the line that takes the functions back and is the same object on both sides, the
 // ones only the moved code uses go along without being named, and every other is refused or left
-// with a reason. The proof asks the same of the old file on its own.
+// with a reason. A `let` goes the same way when nothing left in the factory uses it, and is never
+// handed over or back. The proof asks the same of the old file on its own.
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -111,7 +112,7 @@ test('a constant that is not a value written out, or that would read something e
     [['  const a = [];', '  function reset() { a = null; }', '  function f() { return a; }', '  return { f, reset };'], ['a', 'f'], /is assigned to in createThing: a constant cannot be/],
     [['  let calls = 0;', '  const a = () => calls;', ...use], ['a', 'f'], /a \(server\/demo\.js:6\) uses calls, a variable of createThing that can be assigned again/],
     [['  const a = [], b = runner();', ...use], ['a', 'f'], /a, b \(server\/demo\.js:5\) is not a value written out: it calls `runner\(\)`/],
-    [['  let a = [];', ...use], ['a', 'f'], /a is not a function declared once in the body of createThing, nor a constant/],
+    [['  var a = [];', ...use], ['a', 'f'], /a is not a function declared once in the body of createThing, nor a constant or a variable of it/],
   ];
   for (const [body, names, reason] of variants) assert.match(refusal(thing(...body), names), reason, body[0]);
 });
@@ -131,8 +132,64 @@ test('the proof asks the old file on its own whether a constant that left is wri
   const made = plan(SOURCE, ['find', 'fetchAll', 'seen', 'LIMITS', 'pick']);
   const swap = (text) => text.replace('new Map()', 'runner(sep)');
   assert.match(proven(swap(SOURCE), made, swap(made.moduleText)).join('\n'), /seen is not a value written out: it calls `runner\(\)`/);
-  const lower = (text) => text.replace('const pick =', 'let pick =');
-  assert.match(proven(lower(SOURCE), made, lower(made.moduleText)).join('\n'), /makeSteps is more than the moved functions and what it gives back/);
+  assert.match(proven(SOURCE, made, made.moduleText.replace('const pick =', 'var pick =')).join('\n'), /makeSteps is more than the moved functions and what it gives back/);
+  // A variable the factory still uses would come back as a copy: the old file says it is one.
+  const lower = (text) => text.replace('const seen =', 'let seen =');
+  const told = proven(lower(SOURCE), made, lower(made.moduleText)).join('\n');
+  assert.match(told, /seen is a variable that line 17 of createThing uses too: a variable cannot be handed over or back/);
+  assert.match(told, /seen is a variable and makeSteps gives it back: the factory would hold a copy/);
+});
+
+test('a variable only the moved code uses leaves with it, first value or none, and each thing made keeps its own', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const source = thing('  let calls = 0;', '  let last;', '  let onDone = null, tag = \'n\';', '  function count() { calls += 1; last = runner(tag + calls); if (onDone) onDone(last); return calls; }',
+    '  function listen(fn) { onDone = fn; }', '  return { count, listen };');
+  const made = plan(source, ['calls', 'last', 'onDone', 'count', 'listen']);
+  assert.deepEqual([made.moved, made.returned, made.passed], [['calls', 'last', 'onDone', 'tag', 'count', 'listen'], ['count', 'listen'], ['runner']]);
+  assert.match(made.moduleText, /\n {2}let calls = 0;\n {2}let last;\n {2}let onDone = null, tag = 'n';\n {2}function count\(\)/);
+  assert.deepEqual(proven(source, made), []);
+  const root = demoRepo(source);
+  try {
+    writeFileSync(join(root, 'server/remote-control/old.js'), source);
+    const done = moveInner({ root, parser, source: OLD, target: NEW, about: ABOUT, factory: 'createThing', make: 'makeSteps', names: ['count', 'listen'] });
+    assert.deepEqual([done.moved, done.along], [['calls', 'last', 'onDone', 'tag', 'count', 'listen'], { added: ['calls', 'last', 'onDone', 'tag'], left: [] }], 'not named, they go along');
+    assert.deepEqual(readLedger(root).sources[OLD][0].names, ['calls', 'last', 'onDone', 'tag', 'count', 'listen']);
+    const show = (_root, _rev, name) => (name === OLD ? source : null);
+    assert.deepEqual(replay({ root, parser, base: 'BASE', show }), { problems: [], replayed: 1, files: [[OLD, NEW]] });
+    const load = createRequire(join(root, 'server', 'x.js'));
+    const run = (name) => {
+      const heard = [];
+      const [one, two] = [load(name).createThing((text) => text), load(name).createThing((text) => text)];
+      one.listen((text) => heard.push(text));
+      return [one.count(), one.count(), two.count(), heard];
+    };
+    assert.deepEqual(run('./remote-control/demo.js'), [1, 2, 1, ['n1', 'n2']], 'two things made count apart');
+    assert.deepEqual(run('./remote-control/demo.js'), run('./remote-control/old.js'));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a variable the factory uses too, or one read while the factory runs, stays with the reason', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const shared = ['  let calls = 0;', '  function count() { calls += 1; return calls; }', '  return { count, seen: () => calls };'];
+  const variants = [
+    [shared, ['calls', 'count'], /calls \(server\/demo\.js:5\) is a variable that line 7 of createThing uses too: a variable cannot be handed over or back\. Move what uses it along, or first keep what createThing remembers in one object \(gather\)/],
+    [['  let n = 1;', '  const a = [n];', '  function f() { n += 1; return a; }', '  return { f };'], ['n', 'a', 'f'], /a \(server\/demo\.js:6\) reads the variable n \(line 5\) while createThing runs: it could hold another value at another moment/],
+    [['  let n = 1;', '  let m = n;', '  function f() { n += 1; return m; }', '  return { f };'], ['n', 'm', 'f'], /m \(server\/demo\.js:6\) reads the variable n \(line 5\) while createThing runs/],
+    [['  const first = f();', '  let a;', '  function f() { return a; }', '  return { f, first };'], ['a', 'f'], /a \(server\/demo\.js:6\): line 5 could use it while createThing runs, above the line that declares it: today that is an error/],
+    [['  let a = runner();', '  function f() { return a; }', '  return { f };'], ['a', 'f'], /a \(server\/demo\.js:5\) is not a value written out: it calls `runner\(\)`/],
+  ];
+  for (const [body, names, reason] of variants) assert.match(refusal(thing(...body), names), reason, body[0]);
+  // Not named, it is left where it is, and the function that needs it is refused with both reasons.
+  const root = demoRepo(thing(...shared));
+  try {
+    assert.throws(() => moveInner({ root, parser, source: OLD, target: NEW, about: ABOUT, factory: 'createThing', make: 'makeSteps', names: ['count'], dryRun: true }),
+      (error) => error instanceof Refusal && /count \(.*:6\) uses calls, a variable of createThing that can be assigned again/.test(error.reasons[0])
+        && /^calls was left in createThing: calls \(.*:5\) is a variable that line 7 of createThing uses too/.test(error.reasons.at(-1)));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 function demoRepo(source) {

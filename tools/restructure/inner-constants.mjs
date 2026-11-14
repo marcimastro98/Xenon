@@ -16,21 +16,34 @@
 // One object is made, in the new module. A constant the factory still uses comes back by the
 // line that takes the functions back, so a list, an object, a Set or a function is the same one
 // on both sides: changing what it holds is seen by both.
+//
+// A `let` leaves by the same rule for its first value (none at all is a value too), with one
+// more: nothing left in the factory may use it. A variable cannot be handed over or back, a copy
+// would not follow it; when only the moved code reads and assigns it, it is the same variable
+// there, made once for each call of the factory as before. Nothing reads a variable while the
+// factory runs: what it holds at that moment is not what it holds at another.
 
 import { createReach, kindOfName, readFixed } from './browser-inner-fixed.mjs';
 
-/** A constant that only builds a value when its line runs. */
-export const isWrittenOut = (record) => record.kind === 'const' && Boolean(record.fixed) && record.fixed.reasons.length === 0;
+const MOVABLE = new Set(['const', 'let']);
+const NO_VALUE = / has no value$/;
+
+/** A constant or a variable that only builds a value when its line runs. */
+export const isWrittenOut = (record) => MOVABLE.has(record.kind) && Boolean(record.fixed) && record.fixed.reasons.length === 0;
 
 /**
- * Adds to every `const` of a factory's body what browser-inner-fixed.mjs reads of its value (`fixed`).
+ * Adds to every `const` and `let` of a factory's body what browser-inner-fixed.mjs reads of its value (`fixed`).
  * @param {{ records: any[], bindings: Map<string, any> }} inner the body, from analyze.mjs
  * @param {string} bodyText the text that was analyzed @param {any} parser from parser.mjs @param {string} source
  * @returns {(record: any) => Set<any>} who uses a record, or uses something that does
  */
 export function markConstants(inner, bodyText, parser, source) {
   const nodes = parser.parse(bodyText, source).statements.filter((node) => (node.flags & parser.NodeFlags.Reparsed) === 0);
-  inner.records.forEach((record, index) => { record.fixed = record.kind === 'const' && nodes[index] ? readFixed(parser.K, nodes[index]) : null; });
+  inner.records.forEach((record, index) => {
+    record.fixed = MOVABLE.has(record.kind) && nodes[index] ? readFixed(parser.K, nodes[index]) : null;
+    // `let name;` starts as undefined, which is the same at any moment.
+    if (record.fixed && record.kind === 'let') record.fixed.reasons = record.fixed.reasons.filter((reason) => !NO_VALUE.test(reason));
+  });
   return createReach(inner.records, inner.bindings);
 }
 
@@ -49,9 +62,17 @@ export function constantReasons({ inner, params, file, reach, record, label, mov
   if (!record.fixed) return [`${label} is not a constant whose value can be read`];
   const reasons = record.fixed.reasons.map((reason) => `${label} is not a value written out: ${reason.replace("the wrapper's", `${factory}'s`)}`);
   if (record.uses.has('arguments')) reasons.push(`${label} says \`arguments\` in an arrow, which is ${factory}'s`);
-  if (record.names.some((name) => inner.bindings.get(name)?.reassigned)) reasons.push(`${label} is assigned to in ${factory}: a constant cannot be, and the error would move with it`);
   const at = (other) => `(line ${real(other.line[0])})`;
   const runs = (other) => !movedSet.has(other) && other.kind !== 'function';
+  if (record.kind === 'let') {
+    const user = inner.records.find((other) => !movedSet.has(other) && record.names.some((name) => other.uses.has(name)));
+    if (user) {
+      reasons.push(`${label} is a variable that line ${real(user.line[0])} of ${factory} uses too: a variable cannot be handed over or back. `
+        + `Move what uses it along, or first keep what ${factory} remembers in one object (gather)`);
+    }
+  } else if (record.names.some((name) => inner.bindings.get(name)?.reassigned)) {
+    reasons.push(`${label} is assigned to in ${factory}: a constant cannot be, and the error would move with it`);
+  }
   for (const { name, how } of record.fixed.reads) {
     const own = inner.bindings.get(name);
     if (own?.record === record) { reasons.push(`${label} reads ${name}, which it declares itself`); continue; }
@@ -65,6 +86,10 @@ export function constantReasons({ inner, params, file, reach, record, label, mov
     }
     if (own.kind === 'function') {
       if (how !== 'value') reasons.push(`${label} computes with the function ${name} ${at(own.record)}, or copies from it`);
+      continue;
+    }
+    if (own.record.kind === 'let' || own.record.kind === 'var') {
+      reasons.push(`${label} reads the variable ${name} ${at(own.record)} while ${factory} runs: it could hold another value at another moment`);
       continue;
     }
     if (own.record.index > record.index) reasons.push(`${label} reads ${name} above the line that declares it ${at(own.record)}`);
@@ -86,7 +111,7 @@ export function constantReasons({ inner, params, file, reach, record, label, mov
 }
 
 /**
- * The constants that go along with the named functions and constants without being named: every written-out
+ * The constants and variables that go along with what was named without being named themselves: every written-out
  * constant they use, and the ones those use, that nothing left in the factory uses and that nothing keeps there.
  * A constant the factory uses too is not added: named, it moves and is handed back; left alone, it is handed over.
  * @param {object} ask
@@ -117,10 +142,11 @@ export function constantsAlong({ inner, names, factory, real, reasonsOf }) {
     const movedSet = new Set([...named, ...added]);
     for (const record of added) {
       const user = inner.records.find((other) => !movedSet.has(other) && record.names.some((name) => other.uses.has(name)));
-      const why = user ? `line ${real(user.line[0])} of ${factory} uses it too: it is handed over; name it to move it and have it handed back` : reasonsOf(record, movedSet)[0];
+      const shared = Boolean(user) && record.kind === 'const';
+      const why = shared ? `line ${real(user.line[0])} of ${factory} uses it too: it is handed over; name it to move it and have it handed back` : reasonsOf(record, movedSet)[0];
       if (!why) continue;
       added.delete(record);
-      left.push({ record, name: record.names.join(', '), why, shared: Boolean(user) });
+      left.push({ record, name: record.names.join(', '), why, shared });
       again = true;
       break;
     }
