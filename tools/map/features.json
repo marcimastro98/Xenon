@@ -717,6 +717,7 @@
         "server/football*.js",
         "server/news*.js",
         "server/js/stock-widget.js",
+        "server/js/football-widget/**",
         "server/js/football-widget.js",
         "server/js/news-widget.js",
         "server/js/ticker.js",

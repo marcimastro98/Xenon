@@ -75,7 +75,7 @@
     power: tile('power', 'PowerWidget', ['js/spark-path.js', 'js/history-chart.js', 'js/guardian-history.js', 'js/sensor-access.js', 'js/power-widget.js'],
       { system: 'onSSE', homeassistant: 'onHaSSE' }, null, ['components/GuardianHistory/GuardianHistory.css']),
     stocks: tile('stocks', 'StockWidget', ['js/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),
-    football: tile('football', 'FootballWidget', ['js/tile-tab-memory.js', 'js/football-widget.js'], { football: 'onSSE' }),
+    football: tile('football', 'FootballWidget', ['js/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget.js'], { football: 'onSSE' }),
     news: tile('news', 'NewsWidget', ['js/news-widget.js'], { news: 'onSSE' }),
     slideshow: tile('slideshow', 'SlideshowWidget', ['js/slideshow-widget.js'], {}),
     notifications: tile('notifications', 'NotificationsWidget', ['js/notification-open.js', 'js/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
