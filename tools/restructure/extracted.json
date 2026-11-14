@@ -622,7 +622,9 @@
       {"file":"server/actions/home-assistant-address.js","about":"The addresses of a Home Assistant server, worked out from the one the user typed, and the bounded download of a camera picture from it.","names":["HA_WS_MAX_PAYLOAD","haWsUrl","haHttpOrigin","HA_SNAPSHOT_MAX_BYTES","haHttpGetBuffer","isConfigured"]},
       {"file":"server/actions/home-assistant-entity.js","about":"What the dashboard keeps of a Home Assistant entity, and the checks that tell an entity id, a camera and a media player.","names":["compactEntity","isEntityId","isCameraEntity","isMediaPlayerEntity"]},
       {"file":"server/actions/home-assistant-service.js","about":"Turns an action of a Deck key, a tile or the assistant into the Home Assistant service call that does it, refusing values a service would not take.","names":["actionNumber","HVAC_MODES","REPEAT_MODES","tenths","stateAttrs","listed","onOff","repeatMode","tempRange","actionToServiceCall"]},
-      {"file":"server/actions/home-assistant-settings.js","about":"Cleans the Home Assistant settings as they are saved: entities, cameras and their angles, dashboards, and the token, which is kept on a save without one and never sent back to the screen.","names":["HA_DASHBOARD_PATH_RE","HA_DASHBOARDS_MAX","normalizeDashboards","HA_MAX_ENTITIES","HA_MAX_CAMERAS","HA_MAX_ENERGY_ENTITIES","HA_CAM_ROTATIONS","clampHaPan","normalizeHaCamAngles","normalizeHomeAssistant","haSameDestination","preserveHaToken","redactHaToken"]}
+      {"file":"server/actions/home-assistant-settings.js","about":"Cleans the Home Assistant settings as they are saved: entities, cameras and their angles, dashboards, and the token, which is kept on a save without one and never sent back to the screen.","names":["HA_DASHBOARD_PATH_RE","HA_DASHBOARDS_MAX","normalizeDashboards","HA_MAX_ENTITIES","HA_MAX_CAMERAS","HA_MAX_ENERGY_ENTITIES","HA_CAM_ROTATIONS","clampHaPan","normalizeHaCamAngles","normalizeHomeAssistant","haSameDestination","preserveHaToken","redactHaToken"]},
+      {"file":"server/actions/home-assistant-reads.js","about":"What is read from Home Assistant: the entities with their area and device, the cameras and one frame of a camera, the cover of what a media player plays, the state the tiles show, and whether there is a connection.","names":["listEntities","CAMERAS_TTL_MS","camerasCache","cameras","cameraSnapshot","artworkKey","mediaArtwork","snapshot","hasStates","isConnected"],"inner":{"factory":"createHomeAssistant","make":"makeReads"}},
+      {"file":"server/actions/home-assistant-calls.js","about":"What Home Assistant is asked to do: a Deck action turned into a service call, a service called, the connection tried, and the dashboards listed.","names":["runAction","callService","test","listDashboards"],"inner":{"factory":"createHomeAssistant","make":"makeCalls"}}
     ],
     "server/actions/voicemeeter.js": [
       {"file":"server/actions/voicemeeter-params.js","about":"What a Voicemeeter action may name and set: the editions with their strips and buses, the parameter names that are safe to send, the range of a gain, and where the Voicemeeter library is looked for.","names":["EDITIONS","editionFor","busLabels","busIndex","stripCount","GAIN_MIN","GAIN_MAX","clampGain","PARAM_INDEXED_RE","PARAM_FLAT_RE","isSafeParam","paramName","nextFlag","nextGain","DLL_NAME","dllCandidates"]}
@@ -953,6 +955,10 @@
     "server/actions/wavelink.js": [
       {"factory":"createWaveLink","object":"wlLink","names":["ws","ready","idleTimer","pingTimer","retryTimer","reconnectDelay","reqId","goodPort","goodHost","watching"],"kept":[],"bare":[],"after":2},
       {"factory":"createWaveLink","object":"wlMixer","names":["dialect","identity","seeded","wantMeters","mixes","outputs","meterSubs","monitorMix","switchState","micConnected","outputRaw"],"kept":[],"bare":[],"after":2}
+    ],
+    "server/actions/home-assistant.js": [
+      {"factory":"createHomeAssistant","object":"haMaps","names":["areaMap","deviceMap"],"kept":[],"bare":[],"after":4},
+      {"factory":"createHomeAssistant","object":"haLink","names":["ws","ready","idleTimer","pingTimer","retryTimer","reconnectDelay","msgId","watching"],"kept":[],"bare":[],"after":4}
     ]
   }
 }
