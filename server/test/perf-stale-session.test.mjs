@@ -25,14 +25,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const { createPriority } = createRequire(import.meta.url)('../perf-session/priority.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SRC = fs.readFileSync(path.join(HERE, '..', 'js', 'performance.js'), 'utf8');
-const STATS_PS = fs.readFileSync(path.join(HERE, '..', 'performance.ps1'), 'utf8');
+const SRC = readFileSync(path.join(HERE, '..', 'js', 'performance.js'), 'utf8');
+const STATS_PS = readFileSync(path.join(HERE, '..', 'performance.ps1'), 'utf8');
 
 // The probe, modelled: what an isRunning reply means. Mirrors _boostedAlive().
 function alive(reply) {

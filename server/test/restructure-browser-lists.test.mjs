@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { partsOf } from './browser-source.mjs';
 
 import { PAGES, onThisPc, plainFor, serverOf, staysOnCopy, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
 import { addToLists, ASKED_LISTS, BUILT_LIST, listRunProblems, listsHold, OWN_ROW, ownRowOf, readLists } from '../../tools/restructure/browser-lists.mjs';
@@ -190,8 +191,11 @@ test('every script that loads its own list is asked to by a page of the page che
     for (const file of rows[ownRowOf(list)].js) assert.ok(fs.existsSync(path.join(ROOT, file)), `${list} lists ${file}, which is a file of the repo`);
   }
   assert.deepEqual(ASKED_LISTS, ['server/js/screen-bit.js', 'server/js/driver-perf.js', 'server/js/layer-host.js']);
-  assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/driver-perf.js'), 'utf8'), 'server/js/driver-perf.js')[OWN_ROW].js.slice(-2), ['server/js/perf-settings.js', 'server/js/performance.js']);
-  assert.equal(readLists(fs.readFileSync(path.join(ROOT, WRITTEN), 'utf8'), WRITTEN).EDIT_SCRIPTS.js.at(-1), 'server/js/layer-edit.js');
+  // Each list ends with the scripts its last script is made of today, in the order a page loads them.
+  const perfMode = ['server/js/perf-settings.js', ...partsOf('server/js/performance.js')];
+  assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/driver-perf.js'), 'utf8'), 'server/js/driver-perf.js')[OWN_ROW].js.slice(-perfMode.length), perfMode);
+  const editor = partsOf('server/js/layer-edit.js');
+  assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, WRITTEN), 'utf8'), WRITTEN).EDIT_SCRIPTS.js.slice(-editor.length), editor);
 });
 
 // A script that cannot run outside a page and hands its list to nobody: the list is read out of its text.

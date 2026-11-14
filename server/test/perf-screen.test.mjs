@@ -4,7 +4,7 @@
 // the two talk through the server (perf-screen.js, SSE perf_screen).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
+import { partsOf, readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
@@ -219,6 +219,8 @@ function page(settings) {
   return { ctx, perf, posts, fetches, timers, scripts, classes, emit, settle, hub: () => vm.runInContext('hubSettings', ctx) };
 }
 
+// What the driver page loads for Performance Mode: its settings, then the scripts the mode is made of today, in page order.
+const PERF_SCRIPTS = ['js/perf-settings.js', ...partsOf('server/js/performance.js').map((file) => file.slice('server/'.length))];
 const ON = { performance: { enabled: true, autoSuggest: true, autoMode: 'suggest', opts: { pauseAnimations: true, powerPlan: 'high', priorityBoost: true } } };
 
 test('off by default: nothing is loaded, no event does anything', async () => {
@@ -234,10 +236,10 @@ test('a game starts: the suggestion goes to the screen, Optimize applies the saf
   const p = page(ON);
   p.perf.sync(p.hub());
   await p.settle();
-  assert.deepEqual(p.scripts, ['js/perf-settings.js', 'js/performance.js'], 'in order, once');
+  assert.deepEqual(p.scripts, PERF_SCRIPTS, 'in order, once');
   p.perf.sync(p.hub());
   await p.settle();
-  assert.equal(p.scripts.length, 2);
+  assert.equal(p.scripts.length, PERF_SCRIPTS.length);
 
   p.emit('status', { muted: false });   // a partial payload is not "the game ended"
   p.emit('status', { gaming: true, gameRunning: true, activity: 'gaming', process: 'game.exe' });
@@ -375,7 +377,7 @@ test('Bit can optimize with the suggestion off: loaded on demand', async () => {
   const p = page({ performance: { enabled: false } });
   p.emit('perf_screen', { kind: 'answer', choice: 'optimize' });
   await p.settle();
-  assert.equal(p.scripts.length, 2);
+  assert.equal(p.scripts.length, PERF_SCRIPTS.length);
   assert.equal(p.hub().performance.active, true);
   p.emit('perf_screen', { kind: 'prompt', activity: 'gaming' });   // not an answer: ignored
   p.emit('perf_screen', { kind: 'answer', choice: 'optimize' });   // already on: nothing twice
