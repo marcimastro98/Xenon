@@ -45,7 +45,7 @@ const { createDeckSoundPlayer } = require('./deck-sound-player');
 const LayerPages = require('./layer-pages');
 const { createSituations } = require('./situations');
 const { createWidgetKeys } = require('./widget-keys');
-const { readFailed, heardApp, heardMedia, reportedApps, nothingHeard, createHeardPlayer, createMusicFact, afterPress, PRESS_HOLDS_MS, cacheLife, cachedReadUsable } = require('./media-read');
+const { readFailed, heardMedia, reportedApps, afterPress, PRESS_HOLDS_MS, cacheLife } = require('./media-read');
 const { pressMediaKey, tellApp, createMediaSender } = require('./media-key.js');
 const micUse = require('./mic-use');
 const { isOwnApp } = require('./capabilities/layer-anchor');
@@ -117,8 +117,6 @@ const {
 } = require('./media/timings.js');
 
 const { liveMediaSnapshot } = require('./media/snapshot.js');
-
-const { F } = require('./audio/svv-csv.js');
 
 const { appAudioTarget } = require('./audio/app-target.js');
 
@@ -1872,8 +1870,7 @@ setInterval(_sweepStaleStt, 60000).unref();
 
 
 const { mediaChoice } = require('./media/preferred-source.js');
-const heardPlayer = createHeardPlayer(F);
-const musicNow = createMusicFact();
+const { heardPlayer, musicNow } = require('./media/heard.js');
 
 const { setMediaPreferredSource } = require('./media/preferred-source-set.js');
 
@@ -2197,7 +2194,7 @@ async function getMediaInfo(force = false) {
   return mediaNow.pending;
 }
 
-const { mediaListDown, soundingRows } = require('./media/sounding-rows.js');
+const { mediaListDown } = require('./media/sounding-rows.js');
 
 // A list that failed is asked again on the side: a wedged one answers after its whole
 // timeout, and a song starting meanwhile must not wait for that to be seen.
@@ -2213,36 +2210,13 @@ function probeMediaList() {
     .finally(() => { mediaNow.listProbe = null; });
 }
 
-async function mediaStandIn(error) {
-  if (cachedReadUsable(mediaNow.cache, Date.now())) {
-    // Aged like a cache hit: the raw copy carries a position seconds old,
-    // which the lyrics would read as a seek back.
-    return liveMediaSnapshot(mediaNow.cache.data, Date.now() - mediaNow.cache.updatedAt);
-  }
-  const fallback = applyStickyThumb(await hydrateArtwork(normalizeMedia(await getMediaFallback(error))));
-  // Begun before a press, this read has not heard it.
-  if (Date.now() < mediaNow.holdUntil) return mediaNow.cache.data;
-  mediaNow.cache = { data: fallback, updatedAt: Date.now() };
-  return fallback;
-}
-
-// Who is making sound right now, or paused a moment ago, as a media read; null until an
-// app is heard twice.
-async function heardNow(skip = []) {
-  const rows = await soundingRows();
-  const left = [gameDetect.getGameProcess(), ...skip];
-  return heardPlayer.read(rows, heardApp(rows, F, left), left);
-}
+const { mediaStandIn, heardNow } = require('./media/stand-in.js');
 
 // A read saying nothing plays may only mean the player never told the OS. Asked only while
 // a rule needs the answer: nobody else should pay for a process every few seconds.
 async function heardInsteadOf(read) {
   if (read.playbackStatus === 'Playing' || !_situations.needs('music')) return null;
   try { return await heardNow(reportedApps(read)); } catch { return null; }
-}
-
-async function getMediaFallback(error) {
-  try { return (await heardNow()) || nothingHeard(error); } catch { return nothingHeard(error); }
 }
 
 const { runMediaKeyScript } = require('./media/key-script.js');
