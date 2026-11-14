@@ -6,7 +6,8 @@
 // line, says what the module is for and is never lost: such a line always
 // stays, with its comment as it was. Requires written on one line are edited
 // together and keep their line: each loses its names where it stands, and one
-// that loses all of them stays as a bare `require('x');`.
+// that loses all of them stays as a bare `require('x');`. A comment block right
+// above a require is never lost either: the line stays under it, without names.
 
 import { wrapNames } from './module-requires.mjs';
 
@@ -30,7 +31,10 @@ export function requireEdit({ text, starts, record, orphaned, ownModule, builtin
   const last = record.line[1] - 1;
   const end = last + 1 < starts.length ? starts[last + 1] - 1 : text.length;
   const commented = TRAILING_COMMENT.test(text.slice(starts[last], end));
-  if (whole && (ownModule || builtin) && !commented) return { first: record.range[0] - 1, count: record.range[1] - record.range[0] + 1, newLines: [] };
+  // A comment block right above the line is not the tool's to delete: it may be the header of
+  // the file. Such a line stays as `require('x');` under its comment, and a person decides.
+  const noted = record.range[0] < record.line[0];
+  if (whole && (ownModule || builtin) && !commented && !noted) return { first, count: record.range[1] - first, newLines: [] };
 
   if (ownModule && !whole) {
     // The tool wrote this line itself: write it again with the names that are left.
