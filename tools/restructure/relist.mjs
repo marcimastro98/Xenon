@@ -5,7 +5,8 @@
 // `relist` records the new fingerprint and pins the new modules next to it, because part of
 // what was read lives there now. Everything else is refused, and a person reads the file
 // again: a hand edit (so also a change to the very function the entry is about), a rewrite
-// (`state`, `lift`, `paths`), or a file that was not the text that was read before the move.
+// (`state`, `lift`, `paths`, and `inner`, which leaves a new call where the functions stood), or a file
+// that was not the text that was read before the move.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -105,7 +106,7 @@ export function planRelist({ read, show, ledger, problems, base }) {
     if (hashes.size !== 1 || !hashes.has(textHash(before))) { refuse(`at ${base} it was already not the text that was read: it changed by hand before any move`); continue; }
     const made = (ledger.sources[pinned] ?? []).filter((entry) => show(entry.file) === null);
     if (made.length === 0) { refuse(`it differs from ${base} and no move out of it is recorded: it changed by hand`); continue; }
-    const rewritten = made.filter((entry) => entry.state || entry.lift || entry.paths);
+    const rewritten = made.filter((entry) => entry.state || entry.lift || entry.paths || entry.inner);
     if (rewritten.length) { refuse(`${rewritten.map((entry) => entry.file).join(', ')} came out of it by a rewrite, which changes the words that were read`); continue; }
     changes.push({ pinned, was: [...hashes][0], now: textHash(text), lists: [...lists],
       modules: made.map((entry) => ({ file: entry.file, hash: textHash(read(entry.file)) })) });

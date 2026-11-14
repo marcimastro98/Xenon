@@ -10,6 +10,8 @@ import path from 'node:path';
 import { analyze } from './analyze.mjs';
 import { redoBranches } from './branches.mjs';
 import { planExtraction, Refusal } from './extract-plan.mjs';
+import { planInnerFor } from './inner.mjs';
+import { proveInner } from './inner-proof.mjs';
 import { appendLedger, groupsOf, LEDGER, protectedNames, quietModules, readLedger } from './ledger.mjs';
 import { planLiftFor, proveLift, repoFileReader } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
@@ -154,6 +156,7 @@ export function replay({ root, parser, base, show = gitShow }) {
       try {
         if (entry.lift) plan = planLiftFor({ ...step, name: entry.names[0] });
         else if (entry.paths) plan = planPathsFor({ ...step, names: entry.names });
+        else if (entry.inner) plan = planInnerFor({ ...step, ...entry.inner, names: entry.names, ownModules });
         else if (entry.state) {
           plan = planStateFor({ ...step, object: entry.state.object, vars: Object.entries(entry.state.props).map(([name, prop]) => ({ name, prop })) });
         } else plan = planFor({ ...step, names: entry.names, withDeps: false, ownModules });
@@ -165,6 +168,7 @@ export function replay({ root, parser, base, show = gitShow }) {
       const texts = { before: text, after: plan.newSource, moduleText: plan.moduleText, plan };
       const proof = entry.paths ? provePaths({ ...texts, parser, source, target: entry.file })
         : entry.lift ? proveLift({ ...texts, parser, source, target: entry.file, fileOf: repoFileReader(root) })
+        : entry.inner ? proveInner({ ...texts, parser, source, target: entry.file, ...entry.inner })
         : entry.state ? proveState({ ...texts, parser, source }) : proveMove(texts);
       problems.push(...proof.map((p) => `${entry.file}: ${p}`));
       const onDisk = existsSync(path.join(root, entry.file)) ? readFileSync(path.join(root, entry.file), 'utf8') : null;

@@ -89,7 +89,7 @@ test('nothing is recorded again when the move is not proven, or the file changed
     sources: { [KEEPER]: [{ file: PART, names: ['clean'] }] } }));
   assert.match(hand.refusals[0], /keeper\.js: it differs from BASE and no move out of it is recorded: it changed by hand/);
   // A rewrite changes the words that were read, however well it is proven.
-  for (const kind of ['state', 'lift', 'paths']) {
+  for (const kind of ['state', 'lift', 'paths', 'inner']) {
     const rewritten = refusals(memory({ disk: { ...listsFor(textHash(READ)), ...moved }, base: { [KEEPER]: READ, [OTHER]: 'other' },
       sources: { [KEEPER]: [{ file: PART, names: ['clean'], [kind]: kind === 'state' ? { object: 'kept', props: {} } : true }] } }));
     assert.match(rewritten.refusals[0], /keeper-clean\.js came out of it by a rewrite, which changes the words that were read/, kind);

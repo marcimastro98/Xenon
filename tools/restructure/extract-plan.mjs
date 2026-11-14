@@ -78,7 +78,7 @@ export function loadUseTest({ records, seeds, names, bindings }) {
 
 // Where the new require can go: after every module it needs is loaded, and before
 // the first statement that could use a moved name while the file is still loading.
-function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source, stretches }) {
+export function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source, stretches }) {
   const firstUse = records.filter((record) => !movedSet.has(record)).find(loadUseTest({ records, seeds: moved, names: movedNames, bindings }));
   const before = firstUse ? firstUse.index : records.length;
   const loaded = modules.filter((m) => m.kind !== 'builtin').reduce((max, m) => Math.max(max, m.index), -1);
