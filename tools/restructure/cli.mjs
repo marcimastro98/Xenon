@@ -58,7 +58,7 @@ import { bareLines } from './dead-requires.mjs';
 import { extract, replay } from './extract.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { moveRefusal } from './extract-try.mjs';
-import { groupsOf, protectedNames, readLedger } from './ledger.mjs';
+import { blockFunctions, groupsOf, protectedNames, readLedger } from './ledger.mjs';
 import { liftValue } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
@@ -175,13 +175,13 @@ const keptNames = (parser, source) => protectedNames(REPO_ROOT, source, analyze(
 function runBranches(parser, { flags, rest }) {
   const source = posix(flags.from);
   if (flags.survey) {
-    const survey = surveyBranches({ text: readSource(source), parser, source, kind: flags.tools ? TOOLS : ROUTES, kept: keptNames(parser, source) });
+    const survey = surveyBranches({ text: readSource(source), parser, source, kind: flags.tools ? TOOLS : ROUTES, kept: keptNames(parser, source), blocks: blockFunctions(readLedger(REPO_ROOT).sources[source] ?? []) });
     console.log(flags.json ? JSON.stringify(survey, null, 1) : renderSurvey(survey, source, { bodies: Boolean(flags.bodies) }));
     return 0;
   }
   const dryRun = Boolean(flags['dry-run']);
   const below = (address) => address === flags.under || address.startsWith(`${String(flags.under).replace(/[/]$/, '')}/`);
-  const under = flags.under ? surveyBranches({ text: readSource(source), parser, source, kept: keptNames(parser, source) }).movable.map((row) => row.key).filter((key) => below(key.split(' ')[1])) : [];
+  const under = flags.under ? surveyBranches({ text: readSource(source), parser, source, kept: keptNames(parser, source), blocks: blockFunctions(readLedger(REPO_ROOT).sources[source] ?? []) }).movable.map((row) => row.key).filter((key) => below(key.split(' ')[1])) : [];
   const done = moveBranches({ root: REPO_ROOT, parser, source, target: posix(flags.to), about: flags.about, keys: [...under, ...rest], dryRun });
   console.log(`${dryRun ? 'would move' : 'moved'} ${done.keys.length} ${done.keys.length === 1 ? 'body' : 'bodies'} to ${done.target} (${done.lines} lines${done.added ? ', a new file' : ''}); `
     + `${source} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines. Every test of the handler is where it was.`);

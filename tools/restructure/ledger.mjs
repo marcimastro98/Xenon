@@ -145,6 +145,16 @@ export function quietModules(entries) {
 }
 
 /**
+ * The functions that hold the lines of a block taken out of a long function of the file (block.mjs): their calls stand
+ * in that function, and the readers of the engine's text put the lines back where the call is.
+ * @param {{ names: string[], block?: object }[]} entries a file's entries, or the ones before a step being redone
+ * @returns {Set<string>}
+ */
+export function blockFunctions(entries) {
+  return new Set(entries.filter((entry) => entry.block).map((entry) => entry.names[0]));
+}
+
+/**
  * The protected values of a file that may get a module of their own, required on the line where they stood.
  * @param {string} root @param {string} source repo-relative
  * @returns {Set<string>}

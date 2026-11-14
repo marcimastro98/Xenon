@@ -46,6 +46,17 @@ export function tableOf(source, target) {
   return { local: `${feature}${kind.localWord}${word ? word[0].toUpperCase() + word.slice(1) : ''}Branches`, spec: `./${relative}`, kind };
 }
 
+/**
+ * Why a body that calls a function holding a block (block.mjs) stays: the readers of the engine's text put the block's
+ * lines back where that call stands, and look for it in the file the lines came from.
+ * @param {{ uses: Map<string, any> }} branch @param {Set<string>} blocks @param {string} source @returns {string[]} one reason, or none
+ */
+export function blockReasons(branch, blocks, source) {
+  const held = [...blocks].filter((name) => branch.uses.has(name));
+  if (held.length === 0) return [];
+  return [`it calls ${held.join(', ')}, which ${held.length > 1 ? 'hold' : 'holds'} lines of a block taken out of this body: the readers of the engine's text put them back where the call stands, and look for it in ${source}`];
+}
+
 const HOLDS_A_PLACE = '_context';
 /**
  * The parameters of a body's function: only what it uses, so nothing in the new file is declared and left unused.
@@ -154,6 +165,8 @@ function orphanEdits({ text, parser, source, needed, modules, ownModules, kept }
  * @param {Set<string>} [job.allowed] handlers whose bodies may move (protected.json `branches`)
  * @param {Set<string>} [job.protectedNames] names of the file's protected stretches
  * @param {Set<string>} [job.ownModules] modules earlier steps made out of this file that run nothing when they load
+ * @param {Set<string>} [job.blocks] functions that hold the lines of a block taken out of this file (block.mjs): a body with
+ *   the call of one stays, because the readers of the engine's text put those lines back where the call stands, in this file
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, moduleText: string, local: string, spec: string, keys: string[], addedRequire: boolean,
  *   edits: { at: number, oldLines: string[], newLines: string[] }[], requires: any[], lines: number, sourceLines: number }}
@@ -161,7 +174,7 @@ function orphanEdits({ text, parser, source, needed, modules, ownModules, kept }
  */
 export function planBranches(job) {
   const { text, parser, source, target, about, keys, moduleBefore, rewrite, allowed = new Set(),
-    protectedNames = new Set(), ownModules = new Set(), maxLines = MAX_LINES } = job;
+    protectedNames = new Set(), ownModules = new Set(), blocks = new Set(), maxLines = MAX_LINES } = job;
   if (text.includes('\r')) throw new Refusal([`${source} has Windows line endings: code files are LF here (.gitattributes), fix the checkout first`]);
   const table = tableOf(source, target);
   if (!table) throw new Refusal([`${target} is not <feature>/routes.js, <feature>/tools.js or one of them with -<word>, next to ${source}`]);
@@ -181,6 +194,7 @@ export function planBranches(job) {
     reasons.push(...found[0].reasons.map((reason) => `${key} (${source}:${found[0].line}): ${reason}`));
     const taken = placeHolders(kind).filter((name) => found[0].uses.has(name));
     if (taken.length) reasons.push(`${key} (${source}:${found[0].line}): it uses ${taken.join(', ')}, a name its function keeps for a value it does not use`);
+    reasons.push(...blockReasons(found[0], blocks, source).map((reason) => `${key} (${source}:${found[0].line}): ${reason}`));
     picked.push(found[0]);
   }
   if (picked.length === 0) reasons.push('no branch was named');

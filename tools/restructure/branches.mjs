@@ -7,26 +7,26 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, wr
 import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
-import { planBranches } from './branches-plan.mjs';
+import { blockReasons, planBranches } from './branches-plan.mjs';
 import { proveBranches } from './branches-proof.mjs';
 import { kindOf, ROUTES } from './branches-kinds.mjs';
 import { readBranches } from './branches-scope.mjs';
 import { Refusal } from './extract-plan.mjs';
-import { branchHandlers, protectedBetween, protectedNames, quietModules, readLedger, recordBranches } from './ledger.mjs';
+import { blockFunctions, branchHandlers, protectedBetween, protectedNames, quietModules, readLedger, recordBranches } from './ledger.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
 import { targetReasons } from './target-rules.mjs';
 import { syntaxProblems, unknownNameProblems } from './verify.mjs';
 
 /** Plans a move of `text` with the repo's protected list. Throws a Refusal. */
-export function planBranchesFor({ root, parser, text, source, target, about, keys, moduleBefore, ownModules }) {
+export function planBranchesFor({ root, parser, text, source, target, about, keys, moduleBefore, ownModules, blocks }) {
   const analysis = analyze(text, parser, source);
   const guard = protectedNames(root, source, analysis.records);
   if (guard.missing.length) {
     throw new Refusal([`tools/restructure/protected.json names ${guard.missing.join(', ')}, which ${source} no longer declares: correct the list first`]);
   }
   return planBranches({ text, parser, analysis, source, target, about, keys, moduleBefore, rewrite: createSpecRewriter(root),
-    allowed: branchHandlers(root, source), protectedNames: guard.names, ownModules });
+    allowed: branchHandlers(root, source), protectedNames: guard.names, ownModules, blocks });
 }
 
 /** Proves a planned move with the repo's protected stretches. @returns {string[]} problems */
@@ -58,7 +58,7 @@ export function moveBranches({ root, parser, source, target, about, keys, dryRun
   const known = records.some((record) => record.file === target);
   if (existsSync(file) && !known) throw new Refusal([`${target} exists and is not a table this command made: give the bodies a file of their own (${kindOf(target)?.fileWord ?? 'routes'}-<word>.js)`]);
   const moduleBefore = known ? readFileSync(file, 'utf8') : null;
-  const plan = planBranchesFor({ root, parser, text: before, source, target, about, keys, moduleBefore, ownModules: quietModules(entries) });
+  const plan = planBranchesFor({ root, parser, text: before, source, target, about, keys, moduleBefore, ownModules: quietModules(entries), blocks: blockFunctions(entries) });
   const reasons = targetReasons({ root, source, target, requires: plan.requires.map((module) => module.file).filter(Boolean), existing: known });
   if (reasons.length) throw new Refusal(reasons);
   const proof = proveBranchesFor({ root, parser, before, moduleBefore, plan, source, target });
@@ -98,7 +98,7 @@ export function redoBranches({ root, parser, source, base, records, count, text,
     const moduleBefore = modules.get(record.file) ?? null;
     try {
       const plan = planBranchesFor({ root, parser, text: out, source, target: record.file, about: record.about, keys: record.keys, moduleBefore,
-        ownModules: quietModules(earlier) });
+        ownModules: quietModules(earlier), blocks: blockFunctions(earlier) });
       problems.push(...proveBranchesFor({ root, parser, before: out, moduleBefore, plan, source, target: record.file }).map((p) => `${record.file}: ${p}`));
       out = plan.newSource;
       modules.set(record.file, plan.moduleText);
@@ -119,8 +119,9 @@ const groupOf = (branch) => {
 
 /**
  * What can move and what keeps the rest, body by body.
- * @param {{ text: string, parser: any, source: string, kind?: typeof ROUTES, handler?: string, kept?: Set<string> }} job
- *   `kept`: the names of the file's protected stretches (ledger.mjs protectedNames), none when left out
+ * @param {{ text: string, parser: any, source: string, kind?: typeof ROUTES, handler?: string, kept?: Set<string>, blocks?: Set<string> }} job
+ *   `kept`: the names of the file's protected stretches (ledger.mjs protectedNames), none when left out;
+ *   `blocks`: the functions that hold a block taken out of the file (ledger.mjs blockFunctions), none when left out
  * @returns {{ branches: number, moved: number,
  *   bodies: { key: string | null, test: string, group: string, line: number, lines: number, state: 'now' | 'handed' | 'kept', own: string[], reasons: string[] }[],
  *   movable: { key: string, group: string, lines: number, line: number, own: string[] }[],
@@ -129,7 +130,7 @@ const groupOf = (branch) => {
  *   the names in `own` (`handed`), or it stays for `reasons`. `movable`: the first two. `held`: per name of the file
  *   that cannot be handed over, how many bodies wait on it, how many on it alone, and those bodies' lines.
  */
-export function surveyBranches({ text, parser, source, kind = ROUTES, handler = kind.handler, kept = new Set() }) {
+export function surveyBranches({ text, parser, source, kind = ROUTES, handler = kind.handler, kept = new Set(), blocks = new Set() }) {
   const analysis = analyze(text, parser, source);
   const { branches } = readBranches({ text, parser, analysis, kind, handler });
   const open = branches.filter((branch) => !branch.moved);
@@ -141,7 +142,7 @@ export function surveyBranches({ text, parser, source, kind = ROUTES, handler = 
       .filter((record) => record !== analysis.bindings.get(name).record && record.uses.has(name))
       .every((record) => record.names.includes(handler) && sameUse(record.uses.get(name), branch.uses.get(name))));
     branch.reasons.splice(branch.reasons.length - branch.holders.length, 0,
-      ...alone.map((name) => `it alone uses ${name}, required in a protected stretch of the file that is never edited`));
+      ...alone.map((name) => `it alone uses ${name}, required in a protected stretch of the file that is never edited`), ...blockReasons(branch, blocks, source));
   }
   const stateOf = (branch) => (branch.reasons.length ? 'kept' : branch.own.length ? 'handed' : 'now');
   const bodies = open.map((branch) => ({ key: branch.key, test: branch.test, group: groupOf(branch), line: branch.line, lines: branch.lines,
@@ -157,7 +158,7 @@ export function surveyBranches({ text, parser, source, kind = ROUTES, handler = 
       held.set(name, row);
     }
     for (const reason of branch.reasons.slice(0, others)) {
-      const kind = reason.replace(/^it (uses|assigns|alone uses) \S+/, 'it $1 …');
+      const kind = reason.replace(/^it (uses|assigns|alone uses) \S+/, 'it $1 …').replace(/^it calls .*?, which holds? /, 'it calls … which holds ');
       other.set(kind, (other.get(kind) ?? 0) + 1);
     }
   }
