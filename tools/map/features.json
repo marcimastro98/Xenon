@@ -954,6 +954,7 @@
         "server/js/settings.js",
         "server/js/settings/**",
         "server/js/settings-*.js",
+        "server/js/settings-search/**",
         "server/components/SettingsModal/**"
       ]
     },
