@@ -12,6 +12,8 @@ import { assign, globToRegExp, readMap } from '../map/map.mjs';
 const SERVED = new Set(['styles', 'components', 'js', 'vendor', 'public', 'shared', 'assets', 'test']);
 const SHARED_FEATURES = new Set(['helpers-shared', 'shared-core']);
 const KEBAB = '[a-z0-9]+(?:-[a-z0-9]+)*';
+// The engine's folder: the tool takes its files apart, and a folder in it is a feature.
+const ENGINE_HOME = 'server';
 
 /** @param {string} root @returns {(file: string) => boolean} true for a path that never moves */
 export function frozenTest(root) {
@@ -33,6 +35,18 @@ export function ownersOf(files) {
   return owners;
 }
 
+/**
+ * Where the modules taken out of a file go. A file of the engine's own folder gives them a folder one level down; a file
+ * that sits in a feature folder already (`server/<feature>/<file>.js`) keeps them next to it: folders stay one level deep.
+ * @param {string} source repo-relative file the code leaves
+ * @returns {{ home: string, feature: string | null }} `feature` is the one folder allowed, null when any may be named
+ */
+export function homeOf(source) {
+  const folder = path.posix.dirname(source);
+  const inFeature = new RegExp(`^(${ENGINE_HOME})/(${KEBAB})$`).exec(folder);
+  return inFeature ? { home: inFeature[1], feature: inFeature[2] } : { home: folder, feature: null };
+}
+
 function isIgnored(root, file) {
   const run = spawnSync('git', ['check-ignore', '-q', '--', file], { cwd: root });
   return run.status === 0;
@@ -49,8 +63,11 @@ function isIgnored(root, file) {
  */
 export function targetReasons({ root, source, target, requires = [], existing = false }) {
   const reasons = [];
-  const home = path.posix.dirname(source);
-  const shape = new RegExp(`^${home}/(${KEBAB})/${KEBAB}\\.js$`).exec(target);
+  const { home, feature: own } = homeOf(source);
+  const shape = new RegExp(`^${home}/(${own ?? KEBAB})/${KEBAB}\\.js$`).exec(target);
+  if (!shape && own) {
+    return [`${target} is not ${home}/${own}/<file>.js in lowercase kebab-case: ${source} sits in a feature folder already, and what is taken out of it stays next to it`];
+  }
   if (!shape) return [`${target} is not ${home}/<feature>/<file>.js in lowercase kebab-case`];
   const feature = shape[1];
   if (frozenTest(root)(target)) reasons.push(`${target} is a frozen path (tools/map/frozen-paths.json)`);

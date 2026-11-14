@@ -32,7 +32,7 @@ export const BY_HAND = new Set([
   'engine-source.mjs', 'engine-source.test.mjs', 'restructure-analyze.test.mjs', 'restructure-extract.test.mjs',
   'restructure-verify.test.mjs', 'restructure-remainder.test.mjs', 'restructure-branches-move.test.mjs', 'restructure-engine-test-readers.test.mjs',
   'quality-ratchet.test.mjs', 'structure-frozen-paths.test.mjs', 'structure-map.test.mjs', 'structure-requires-resolve.test.mjs',
-  'restructure-side-copy.test.mjs',
+  'restructure-side-copy.test.mjs', 'restructure-feature-folder.test.mjs',
 ]);
 
 const UTF8 = String.raw`,\s*'utf-?8'`;

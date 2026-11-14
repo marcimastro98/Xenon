@@ -5,6 +5,8 @@
 //   node tools/restructure/cli.mjs analyze <file> [--json] [--names a,b]
 //   node tools/restructure/cli.mjs extract --from <file> --to <dir>/<feature>/<file>.js --about "<one sentence>"
 //                                          [--with-deps] [--dry-run] <name> [<name> ...]
+//                                                                  a file that sits in <dir>/<feature>/ already keeps what is
+//                                                                  taken out of it next to it: --to <dir>/<feature>/<file>.js
 //   node tools/restructure/cli.mjs apply <plan.json>               several extractions: [{ from, to, about, names }], put in an
 //                                                                  order that works; run again after a refusal, done ones are skipped
 //   node tools/restructure/cli.mjs state --from <file> --to <dir>/<feature>/<file>.js --object <name> --about "<one sentence>"
@@ -259,7 +261,8 @@ async function main(argv) {
     || (command === 'branches' && !(args.flags.from && (args.flags.survey || (args.flags.to && (args.flags.under || args.rest.length)))))
     || (command === 'spread' && !(args.flags.from && args.flags.name && args.rest.length > 1 && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))));
   if (!known || args.rest.length < needsFile || incomplete) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 33).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    const head = readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1);
+    console.error(head.slice(0, head.findIndex((line) => !line.startsWith('//'))).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   const parser = await openParser();
