@@ -13,7 +13,8 @@ const wordOf = (name) => new RegExp(`(?<![\\w$])${name}(?![\\w$])`);
 
 /**
  * @param {string} root
- * @param {{ name: string, from: string, file: string }[]} moves the names to look for, each with the two files that may hold it
+ * @param {{ name: string, from: string, file: string, takers?: string[] }[]} moves the names to look for, each with the two files that may hold it
+ *   and the scripts made of the same wrapper later, which may take from it on the one line that does that
  * @returns {string[]} one line per other place that has a name as a word
  */
 export function nameClashes(root, moves) {
@@ -28,10 +29,20 @@ export function nameClashes(root, moves) {
     const text = rest.join(':');
     for (const move of moves) {
       if (file === move.file || file === move.from || !wordOf(move.name).test(text)) continue;
+      if (move.takers?.includes(file) && text.trimEnd().endsWith(`} = window.${move.name};`)) continue;
       problems.push(`${file}:${at} has ${move.name} as a word, the name ${move.file} leaves on window: a page would have two things under one name`);
     }
   }
   return problems;
+}
+
+/**
+ * @param {any[]} moves the list of moves @returns {{ name: string, from: string, file: string, takers: string[] }[]} the name each script made of moved
+ *   functions leaves on window, with the later scripts of the same wrapper that are recorded as taking from it
+ */
+export function namesMade(moves) {
+  const inner = moves.filter((move) => move.kind === 'inner');
+  return inner.map(({ name, from, file }) => ({ name, from, file, takers: inner.filter((other) => other.from === from && Object.hasOwn(other.takes ?? {}, name)).map((other) => other.file) }));
 }
 
 /**

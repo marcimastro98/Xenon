@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { nameClashes, recordedClashes } from '../../tools/restructure/browser-inner-names.mjs';
+import { nameClashes, namesMade, recordedClashes } from '../../tools/restructure/browser-inner-names.mjs';
 import { heldFunctions, planInnerScript, readWrapper } from '../../tools/restructure/browser-inner-plan.mjs';
 import { innerStateProblems, proveInnerMove } from '../../tools/restructure/browser-inner-proof.mjs';
 import { groupsOf, renderSurvey, surveyScript } from '../../tools/restructure/browser-inner-survey.mjs';
@@ -122,6 +122,16 @@ test('the name left on window is nobody else\'s: not a word of another file, not
     assert.deepEqual(nameClashes(root, [{ ...mine, name: 'LeafWords' }]), []);
     assert.match(nameClashes(root, [mine, { name: 'LeafKeys', from: 'server/js/leaf-keys.js', file: 'server/js/leaf-keys/all.js' }]).join('\n'), /server\/js\/leaf-keys\/all\.js would leave LeafKeys on window, the name another script made of moved functions leaves there/);
     assert.deepEqual(nameClashes(root, []), []);
+    // A later script of the same wrapper takes from it, on the line that does that and nowhere else.
+    write('server/js/leaf/later.js', '(() => {\n  const {\n    keyOf,\n  } = window.LeafKeys;\n})();\n');
+    const later = { kind: 'inner', from: FILE, file: 'server/js/leaf/later.js', name: 'LeafLater', takes: { LeafKeys: ['keyOf'] } };
+    const made = namesMade([{ kind: 'inner', ...mine }, later, { kind: 'script', from: FILE, file: 'server/js/leaf-rows.js' }]);
+    assert.deepEqual(made, [{ ...mine, takers: ['server/js/leaf/later.js'] }, { name: 'LeafLater', from: FILE, file: 'server/js/leaf/later.js', takers: [] }]);
+    assert.deepEqual(nameClashes(root, made).filter((problem) => problem.includes('later.js')), []);
+    assert.match(nameClashes(root, [mine]).join('\n'), /server\/js\/leaf\/later\.js:4 has LeafKeys as a word/, 'not without the record');
+    write('server/js/leaf/later.js', '(() => {\n  const { keyOf } = window.LeafKeys;\n  window.LeafKeys.more = 1;\n})();\n');
+    assert.match(nameClashes(root, made).join('\n'), /server\/js\/leaf\/later\.js:3 has LeafKeys as a word/, 'only the line that takes');
+    assert.doesNotMatch(nameClashes(root, made).join('\n'), /later\.js:2/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
   const recording = { engine: { name: 'chromium', blank: ['History', 'PerformanceTiming'] }, views: [{ name: 'menu', globals: ['MenuRows'], declared: { LeafKeys: 'object' } }] };
   assert.deepEqual(recordedClashes(recording, 'PerformanceTiming'), ['PerformanceTiming is a name the browser itself has on window (chromium)']);

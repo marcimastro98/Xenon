@@ -10,7 +10,7 @@ import path from 'node:path';
 import { analyzeRun } from './browser-analyze.mjs';
 import { uncheckedPages } from './browser-check-pages.mjs';
 import { consumerProblems, keptNames } from './browser-consumers.mjs';
-import { nameClashes, recordedClashes } from './browser-inner-names.mjs';
+import { nameClashes, namesMade, recordedClashes } from './browser-inner-names.mjs';
 import { windowNameOf } from './browser-inner-plan.mjs';
 import { letsDone } from './browser-lets-proof.mjs';
 import { readBrowserLedger, runOf, writeBrowserLedger } from './browser-ledger.mjs';
@@ -82,8 +82,7 @@ function innerReasons(root, move, ledger) {
   const reasons = nodeLoadersOf(root, move.from).slice(0, 1).map((loader) => `${move.from} is loaded by Node too (${loader}): there it is one file, with no script before it and no window`);
   const name = windowNameOf(move.from, move.file);
   if (!name) return reasons;
-  const made = ledger.moves.filter((entry) => entry.kind === 'inner').map(({ name: taken, from, file }) => ({ name: taken, from, file }));
-  reasons.push(...nameClashes(root, [...made, { name, from: move.from, file: move.file }]).filter((problem) => problem.includes(name)));
+  reasons.push(...nameClashes(root, [...namesMade(ledger.moves), { name, from: move.from, file: move.file }]).filter((problem) => problem.includes(name)));
   if (move.recorded) reasons.push(...recordedClashes(move.recorded, name));
   return reasons;
 }

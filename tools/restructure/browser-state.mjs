@@ -13,7 +13,7 @@ import path from 'node:path';
 
 import { analyzeRun, orderProblems, runsOnLoad } from './browser-analyze.mjs';
 import { consumerProblems } from './browser-consumers.mjs';
-import { nameClashes } from './browser-inner-names.mjs';
+import { nameClashes, namesMade } from './browser-inner-names.mjs';
 import { innerStateProblems } from './browser-inner-proof.mjs';
 import { innerFilesOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { BUILT_LIST, LIST_FILES, listRunProblems } from './browser-lists.mjs';
@@ -109,7 +109,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
     files.push(move.file);
     problems.push(...moduleStateProblems(move.file, read(move.file), pages, parser));
   }
-  problems.push(...nameClashes(root, ledger.moves.filter((entry) => entry.kind === 'inner').map(({ name, from, file }) => ({ name, from, file }))));
+  problems.push(...nameClashes(root, namesMade(ledger.moves)));
   problems.push(...unwrapStateProblems(ledger));
   return { problems, files };
 }
