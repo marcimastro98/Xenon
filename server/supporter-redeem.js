@@ -10,28 +10,17 @@
 // timeout, bounded body, no-throw result objects) with one difference: a POST
 // must never follow redirects, so any 3xx is treated as a failure.
 
-const https = require('https');
-const fs = require('fs');
-const fsp = fs.promises;
-const path = require('path');
-const crypto = require('crypto');
-const { writeFileAtomic } = require('./atomic-write.js');
-const { armDeadline } = require('./net-guard');
+require('./atomic-write.js');
+require('./net-guard');
 
 // Author-owned hub base URL — fixed like CATALOG_BASE, never user-configurable
 // (a settings field would be attack/typo surface with no user benefit).
 const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
 
-const FETCH_TIMEOUT_MS = 8000;
-const MAX_RESPONSE_BYTES = 64 * 1024;
-const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
-// Same canonical form as preset-share: uppercase, [A-Z0-9] only. Hub codes
-// canonicalize to a 2-letter prefix + 12 symbols: 'XS' (supporter pass), 'XL'
-// (per-entry item code for limited/purchased drops) or 'XT' (the 7-day pass
-// trial, see trial-pass.js).
-const canonCode = (s) => String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
-const HUB_CODE_RE = /^X[SLT][A-Z0-9]{12}$/;
-const TRIAL_RE = /^XT[A-Z0-9]{12}$/;
+const { FETCH_TIMEOUT_MS, postJson } = require('./store-supporters/hub-post.js');
+const {
+  ENTRY_ID_RE, canonCode, HUB_CODE_RE, TRIAL_RE, VERSION_RE, cleanKv,
+} = require('./store-supporters/hub-shapes.js');
 // Errors we pass through to the client verbatim; anything else maps to network.
 // 'wrong_code' = valid code, wrong tier/entry (e.g. a supporter code on a
 // limited drop, or an item code on a different entry than it was issued for).
@@ -50,123 +39,15 @@ const MAX_UPDATE_RESPONSE_BYTES = 3 * 1024 * 1024;
 // timeout stays short, the whole-request cap (twice this) leaves a minute.
 const UPDATE_TIMEOUT_MS = 30000;
 const MAX_BUNDLE_CHARS = 2 * 1024 * 1024 + 4096;
-const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
-// A key version names which of the entry's keys a file was sealed with (see the
-// hub's versions.js). Small positive integer or nothing.
-const cleanKv = (v) => (Number.isInteger(v) && v >= 1 && v <= 1000 ? v : null);
 
-// ── Install id ───────────────────────────────────────────────────────────────
-// One random UUID per install, persisted in DATA_DIR. Not a secret — just a
-// stable anonymous identifier, and the seed for the scoped ids below. It is
-// LOCAL: nothing sends this value itself to the hub.
-let _installId = null;
-let _installIdInflight = null;   // shared promise so concurrent cold reads resolve once
+const { redeemState } = require('./store-supporters/redeem-state.js');
 
-async function getInstallId(dataDir) {
-  if (_installId) return _installId;
-  // Serialize concurrent first-run calls (reachable now that ratings' mine=1
-  // reads and votes can fire together): without this, two callers both miss the
-  // cache, mint different UUIDs, and — sharing the same `.tmp-<pid>` path —
-  // clobber each other's temp file so one rename ENOENTs and the persisted id
-  // disagrees with the in-memory one.
-  if (_installIdInflight) return _installIdInflight;
-  _installIdInflight = (async () => {
-    const file = path.join(dataDir, 'install-id.json');
-    try {
-      const parsed = JSON.parse(await fsp.readFile(file, 'utf8'));
-      if (parsed && typeof parsed.installId === 'string'
-        && /^[0-9a-f-]{36}$/i.test(parsed.installId)) {
-        _installId = parsed.installId;
-        return _installId;
-      }
-    } catch { /* missing or corrupt — regenerate below */ }
-    const fresh = crypto.randomUUID();
-    // Temp + rename so a crash mid-write can never leave a corrupt file behind
-    // (same discipline as writeFileAtomic in server.js, local to avoid a cycle).
-    // The temp name carries a random suffix so it never collides with a
-    // parallel writer sharing this pid.
-    const tmp = file + '.tmp-' + process.pid + '-' + crypto.randomBytes(6).toString('hex');
-    await fsp.writeFile(tmp, JSON.stringify({ installId: fresh }), 'utf8');
-    await fsp.rename(tmp, file);
-    _installId = fresh;
-    return _installId;
-  })();
-  try {
-    return await _installIdInflight;
-  } finally {
-    _installIdInflight = null;
-  }
-}
+const {
+  getInstallId, SCOPE_RATINGS, SCOPE_DEVICES, SCOPE_WELCOME, _scopedCache, getScopedId, SAVEABLE_RE,
+  readSavedCode, saveCode, forgetCode, savedStatus,
+} = require('./store-supporters/install-data.js');
 
-// ── Scoped ids ───────────────────────────────────────────────────────────────
-// The install id itself never leaves this machine. What goes to the hub is a
-// per-purpose hash of it: SHA-256 over `<uuid>|<scope>`.
-//
-// Sending the raw UUID to both /redeem and /ratings put the same value in the
-// hub's `activations` and `ratings` tables, which made "which star ratings did
-// this named supporter cast" answerable with one join (a supporter's code links
-// to their Discord account). Two scopes, two unlinkable values, and the thing
-// that ties them together stays on the user's disk.
-//
-// The scope labels are a wire contract with the hub (src/scoped-ids.js there):
-// change one and every existing row is orphaned — the user would lose their
-// vote and burn a fresh device slot on their next redeem.
-const SCOPE_RATINGS = 'ratings';
-const SCOPE_DEVICES = 'activations';
-const SCOPE_WELCOME = 'welcome';
-const _scopedCache = new Map();
 
-async function getScopedId(dataDir, scope) {
-  const cached = _scopedCache.get(scope);
-  if (cached) return cached;
-  const raw = await getInstallId(dataDir);
-  const scoped = crypto.createHash('sha256').update(raw.toLowerCase() + '|' + scope).digest('hex');
-  _scopedCache.set(scope, scoped);
-  return scoped;
-}
-
-// ── The remembered supporter pass ────────────────────────────────────────────
-// A supporter pass unlocks every supporter drop, so before this the same code
-// was typed again for every single one. It is remembered HERE, next to the
-// install id, and never in settings.json: that blob is mirrored into every
-// surface's localStorage and travels to every paired phone (the geminiApiKey
-// lesson, v4.11.0). The browser is told a BOOLEAN and never the value.
-//
-// Only the XS pass is saved. An XL code opens exactly one drop, so reusing it
-// on the next one would answer 'wrong_code' at a user who typed nothing.
-const SUPPORTER_FILE = 'supporter-code.json';
-const SAVEABLE_RE = /^XS[A-Z0-9]{12}$/;
-
-// Deliberately uncached: it is read once per unlock tap, and a cache would have
-// to be invalidated by both the save and the forget below to stay honest.
-async function readSavedCode(dataDir) {
-  try {
-    const parsed = JSON.parse(await fsp.readFile(path.join(dataDir, SUPPORTER_FILE), 'utf8'));
-    const canon = canonCode(parsed && parsed.code);
-    return SAVEABLE_RE.test(canon) ? canon : '';
-  } catch { return ''; }
-}
-
-async function saveCode(dataDir, code) {
-  const canon = canonCode(code);
-  if (!SAVEABLE_RE.test(canon)) return false;
-  try {
-    await writeFileAtomic(path.join(dataDir, SUPPORTER_FILE), JSON.stringify({ code: canon }));
-    return true;
-  } catch { return false; }
-}
-
-/** Reset path for the remembered pass. Missing file = already forgotten. */
-async function forgetCode(dataDir) {
-  try { await fsp.unlink(path.join(dataDir, SUPPORTER_FILE)); }
-  catch (e) { if (e && e.code !== 'ENOENT') return { ok: false, error: 'network' }; }
-  return { ok: true, saved: false };
-}
-
-/** What the dashboard is allowed to know: whether there is one, not what it is. */
-async function savedStatus(dataDir) {
-  return { ok: true, saved: !!(await readSavedCode(dataDir)) };
-}
 
 /**
  * Stores a pass the user typed in Settings, before any drop needs it.
@@ -191,25 +72,17 @@ async function saveTypedCode(dataDir, code, { verify = false } = {}) {
   return ok ? { ok: true, saved: true } : { ok: false, error: 'network' };
 }
 
-// ── The running pass trial ───────────────────────────────────────────────────
-// server.js plugs trial-pass.js in here (it depends on this module, so it cannot
-// be required back). With it, a redeem the user typed nothing into uses the trial
-// code while the trial runs, and an XT the hub accepted is remembered there.
-let _trialPass = null;
-function useTrialPass(trialPass) { _trialPass = trialPass || null; }
+function useTrialPass(trialPass) { redeemState.trialPass = trialPass || null; }
 
-// An unlock that works also carries the entry's rating ticket (rating-votes.js):
-// a locked entry has no other way to one. Never allowed to cost the unlock.
-let _ratingVotes = null;
-function useRatingVotes(votes) { _ratingVotes = votes || null; }
+function useRatingVotes(votes) { redeemState.ratingVotes = votes || null; }
 async function withRatingId(payload) {
-  if (!_ratingVotes) return payload;
-  const ratingId = await _ratingVotes.ratingId().catch(() => '');
+  if (!redeemState.ratingVotes) return payload;
+  const ratingId = await redeemState.ratingVotes.ratingId().catch(() => '');
   return ratingId ? { ...payload, ratingId } : payload;
 }
 async function keepRatingTicket(entryId, out) {
-  if (!_ratingVotes || !out || typeof out.ratingTicket !== 'string') return;
-  await _ratingVotes.addTicket(entryId, out.ratingTicket, out.ratingTicketAt).catch(() => {});
+  if (!redeemState.ratingVotes || !out || typeof out.ratingTicket !== 'string') return;
+  await redeemState.ratingVotes.addTicket(entryId, out.ratingTicket, out.ratingTicketAt).catch(() => {});
 }
 
 // ── Outbound POST ────────────────────────────────────────────────────────────
@@ -220,51 +93,6 @@ let _transport = postJson; // swappable for tests
 // turn, so it passes its own ceiling and timeout.
 function hubPost(pathname, body, maxBytes, timeoutMs) {
   return _transport(HUB_BASE + pathname, body, maxBytes, timeoutMs);
-}
-
-function postJson(url, body, maxBytes = MAX_RESPONSE_BYTES, timeoutMs = FETCH_TIMEOUT_MS) {
-  return new Promise((resolve) => {
-    if (!/^https:\/\//i.test(url)) return resolve({ ok: false, error: 'network' });
-    const payload = JSON.stringify(body);
-    let req;
-    try {
-      req = https.request(url, {
-        method: 'POST',
-        timeout: timeoutMs,
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-      }, onResponse);
-    } catch {
-      return resolve({ ok: false, error: 'network' });
-    }
-    req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', () => resolve({ ok: false, error: 'network' }));
-    // `timeout` is an idle timeout only; a hub that trickles bytes would hold
-    // the POST open forever. Cap the whole request at twice the idle timeout
-    // the caller chose (a credits turn waits minutes on the model).
-    armDeadline(req, timeoutMs * 2);
-    req.end(payload);
-
-    function onResponse(res) {
-      // Never follow a redirect on a POST carrying a redeemable code. Non-3xx
-      // statuses (including 400/429) carry a JSON body from the hub — parse it.
-      if (res.statusCode >= 300 && res.statusCode < 400) {
-        res.resume();
-        return resolve({ ok: false, error: 'network' });
-      }
-      let size = 0;
-      const chunks = [];
-      res.on('data', (c) => {
-        size += c.length;
-        if (size > maxBytes) { req.destroy(new Error('body too large')); return; }
-        chunks.push(c);
-      });
-      res.on('end', () => {
-        try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-        catch { resolve({ ok: false, error: 'network' }); }
-      });
-      res.on('error', () => resolve({ ok: false, error: 'network' }));
-    }
-  });
 }
 
 // ── Redemption ───────────────────────────────────────────────────────────────
@@ -278,8 +106,8 @@ async function redeem({ entryId, code, dataDir, kv, viaTrial = false, allowTrial
   // disk here even while the tap comes from a paired phone.
   const fromSaved = !canon;
   if (fromSaved && !viaTrial) canon = await readSavedCode(dataDir);
-  const fromTrial = fromSaved && !canon && !!_trialPass && allowTrial;
-  if (fromTrial) canon = await _trialPass.activeCode();
+  const fromTrial = fromSaved && !canon && !!redeemState.trialPass && allowTrial;
+  if (fromTrial) canon = await redeemState.trialPass.activeCode();
   if (!ENTRY_ID_RE.test(id) || !HUB_CODE_RE.test(canon)) {
     return { ok: false, error: 'bad_request' };
   }
@@ -309,7 +137,7 @@ async function redeem({ entryId, code, dataDir, kv, viaTrial = false, allowTrial
     // Opened with a trial code: the route keeps the key on this server (trial-vault.js).
     if (TRIAL_RE.test(canon)) answer.trial = true;
     if (TRIAL_RE.test(canon) && Number.isFinite(out.trialEndsAt)) {
-      if (_trialPass) await _trialPass.remember(canon, out.trialEndsAt);
+      if (redeemState.trialPass) await redeemState.trialPass.remember(canon, out.trialEndsAt);
       answer.trialEndsAt = out.trialEndsAt * 1000;
     }
     return answer;
@@ -317,8 +145,8 @@ async function redeem({ entryId, code, dataDir, kv, viaTrial = false, allowTrial
   const error = out && KNOWN_ERRORS.has(out.error) ? out.error : 'network';
   // The hub refused the running trial's code: ask it now, so the trial state is
   // not left saying "active" for the rest of its 48 hours of trust.
-  if (fromTrial && _trialPass && error !== 'network' && typeof _trialPass.check === 'function') {
-    try { await _trialPass.check(); } catch { /* the next scheduled look settles it */ }
+  if (fromTrial && redeemState.trialPass && error !== 'network' && typeof redeemState.trialPass.check === 'function') {
+    try { await redeemState.trialPass.check(); } catch { /* the next scheduled look settles it */ }
   }
   // A pass the hub no longer knows was REPLACED or revoked: reissuing a code
   // hub-side deactivates the previous one, and a saved pass had already worked
@@ -332,8 +160,8 @@ async function redeem({ entryId, code, dataDir, kv, viaTrial = false, allowTrial
   // 'wrong_code' are statements about this request, not about the code.
   // An ex-supporter's saved pass ran out (or is not for this entry) while a pass
   // trial runs here: the trial is what opens it, so ask with that instead.
-  if (fromSaved && !fromTrial && allowTrial && _trialPass && (error === 'expired' || error === 'wrong_code')
-      && await _trialPass.activeCode()) {
+  if (fromSaved && !fromTrial && allowTrial && redeemState.trialPass && (error === 'expired' || error === 'wrong_code')
+      && await redeemState.trialPass.activeCode()) {
     return redeem({ entryId: id, dataDir, kv, viaTrial: true });
   }
   if (fromSaved && !fromTrial && error === 'bad_code') {
@@ -403,5 +231,5 @@ module.exports = {
   SCOPE_WELCOME,
   HUB_BASE,
   _setTransport(fn) { _transport = fn || postJson; },
-  _resetInstallIdCache() { _installId = null; _scopedCache.clear(); },
+  _resetInstallIdCache() { redeemState.installId = null; _scopedCache.clear(); },
 };
