@@ -32,8 +32,8 @@
 // Automatic background calls stay off these providers: a subscription's limits
 // assume ordinary, individual use, and they are the same limits the user
 // codes against.
-const os = require('os');
 const path = require('path');
+const os = require('os');
 const fsp = require('fs').promises;
 const claudeRun = require('./claude-run');
 
