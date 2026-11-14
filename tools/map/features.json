@@ -234,6 +234,7 @@
         "server/discord/**",
         "server/discord-*.js",
         "server/js/discord-widget.js",
+        "server/js/discord-widget/**",
         "server/components/DiscordWidget/**",
         "server/public/images/discord/**"
       ]
