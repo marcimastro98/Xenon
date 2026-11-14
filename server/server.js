@@ -23,7 +23,7 @@ const path = require('path');
 if (process.platform !== 'win32') process.umask(0o077);
 // Screenshots, recordings and speech go to a private temp folder (0700), not
 // as predictable names in the shared /tmp.
-const { privateTmpDir, privateTmpFile } = require('./private-tmp');
+const { privateTmpDir } = require('./private-tmp');
 const { nativeCollectors } = require('./system/native-collectors.js');
 const { POWERSHELL_SUPPORTED } = require('./powershell/supported.js');
 const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
@@ -435,7 +435,6 @@ const aiMyWidgets = require('./ai-my-widgets');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
 const { withThinking, applyThinking } = require('./ai-gemini-thinking');
-const { transcriptionPrompt } = require('./stt-voice-gate');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
 require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
@@ -444,7 +443,6 @@ const { createBatteryMonitor } = require('./battery');
 const { createAiMemory } = require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
-const { splitSentences } = require('./tts-chunks');
 const { createBriefingEngine } = require('./briefing');
 require('./ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
@@ -565,16 +563,9 @@ const { loadWhatsNew } = require('./updates/whats-new-read.js');
 
 const { audioCache } = require('./audio/device-cache.js');
 
-const { geminiModelFor } = require('./ai/gemini-model-for.js');
+require('./ai/gemini-model-for.js');
 
-const AI_MODELS = Object.freeze({
-  get chat() { return geminiModelFor('chat'); },
-  get chatPro() { return geminiModelFor('chatPro'); },
-  get tts() { return geminiModelFor('tts'); },
-  get live() { return geminiModelFor('live'); },
-});
-
-const { localServerOneShot } = require('./ai/local-server-one-shot.js');
+const { AI_MODELS } = require('./ai/models.js');
 
 const { pcAiFunctions } = require('./ai/core-tools-pc.js');
 
@@ -2452,61 +2443,6 @@ async function lyricsForPlayingKey(key) {
   return { status: 200, entry: await lyricsCache.get(key) };
 }
 
-// One request to the AI the user set for Bit (Sparks, their own key, Ollama or
-// their plan) → { text, tokens, input, output } (the last two split for the
-// cost estimate). Claude Code and Codex run on the user's plan: nothing to pay
-// per request, but each counts toward the plan's limits, which Lyrics says
-// before its switch is on. They run on the plan's small model at low effort.
-// `json` asks Gemini for a JSON reply; the other providers follow the prompt.
-// `image` ({ mimeType, data } base64) is a picture the request is about; check
-// userAiVisionBlocker() first, since a plan run through its program sees none.
-async function completeWithUserAi({ system, user, maxTokens, json = false, temperature, image = null, use }) {
-  const settings = await readHubSettings().catch(() => null) || {};
-  const provider = aiLocal.sanitizeProvider(settings.aiProvider);
-  let tokens = 0;
-  let split = null;
-  const onUsage = (n, parts) => { tokens = n; split = parts || null; };
-  const parts = image ? [{ text: user }, { inlineData: image }] : [{ text: user }];
-  let text = '';
-  if (provider === 'ollama') {
-    const result = await aiLocal.localChat({
-      baseUrl: aiLocal.sanitizeOllamaUrl(settings.ollamaUrl),
-      model: aiLocal.resolveModel(aiLocal.sanitizeModel(settings.ollamaModel), settings.hardwareScan),
-      geminiTools: [], history: [{ role: 'user', parts }], systemText: system,
-      executeTool: async () => ({ fnResult: {}, clientActions: [] }),
-    });
-    text = result && result.text;
-  } else if (provider === 'localapi') {
-    text = await aiLocalServer.oneShot({
-      config: aiLocalServer.configFrom(settings), systemText: system, userText: user, maxTokens, onUsage, image,
-    });
-  } else if (aiCli.isCliProvider(provider)) {
-    if (image) { const e = new Error('this AI cannot see pictures'); e.code = 'no_vision'; throw e; }
-    text = await aiCli.oneShot({
-      provider, model: await smallTaskModel(provider, settings), effort: 'low',
-      // Total only: a plan's tokens have no price, and Codex's large fixed
-      // instructions would skew the per-song figure a paid provider is priced on.
-      systemText: system, userText: user, onUsage: (n) => { tokens = n; },
-    });
-  } else if (provider === 'openai' || provider === 'anthropic') {
-    const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
-    text = await mod.oneShot({
-      apiKey: provider === 'openai' ? settings.openaiApiKey : settings.anthropicApiKey,
-      model: await smallTaskModel(provider, settings), systemText: system, userText: user, maxTokens, onUsage, image,
-    });
-  } else if (provider === 'xenon') {
-    text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: system, userText: user, maxTokens, onUsage, image, use });
-  } else if (provider === 'gemini') {
-    const apiKey = await geminiKeyFor('');
-    const opts = { model: await smallTaskModel(provider, settings), temperature, json, onUsage };
-    text = await _geminiOneShot(apiKey, parts, system, maxTokens, opts);
-  } else {
-    throw new Error('provider not supported');
-  }
-  const sparks = split && Number.isFinite(split.credits) ? split.credits : null;
-  return { text: String(text || ''), tokens, input: split && split.input, output: split && split.output, sparks };
-}
-
 const { companionLookSparks } = require('./ai/companion-look-sparks.js');
 
 const { svvExec } = require('./audio/svv-exec.js');
@@ -3222,164 +3158,9 @@ const { readBody, readBodyBuffer } = require('./http/read-body.js');
 
 const { listScreens } = require('./screens/list-screens.js');
 
-const { speakState } = require('./ai/speak-state.js');
+const { _duckSpeakerVolume } = require('./audio/speaker-duck.js');
 
-const { _duckSpeakerVolume, _restoreSpeakerVolume } = require('./audio/speaker-duck.js');
-
-// Gemini native TTS (prebuilt neural voice). Returns a Promise<Buffer> with WAV
-// audio, or rejects on error (quota, offline, no audio). Voice names are
-// language-agnostic — the model speaks whatever language the text is in.
-function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
-  return new Promise((resolve, reject) => {
-    const safeVoice = String(voice || 'Charon').replace(/[^A-Za-z]/g, '').slice(0, 30) || 'Charon';
-    const payload = JSON.stringify({
-      contents: [{ parts: [{ text: String(text || '').slice(0, 1000) }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: safeVoice } } },
-      },
-    });
-    const t0 = Date.now();
-    const ttsReq = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${AI_MODELS.tts}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
-    }, (ttsRes) => {
-      let d = '';
-      ttsRes.on('data', c => { d += c; });
-      ttsRes.on('end', () => {
-        process.stdout.write(`[TTS] Gemini HTTP ${ttsRes.statusCode} in ${Date.now() - t0}ms\n`);
-        try {
-          const parsed = JSON.parse(d);
-          if (parsed.error) return reject(new Error(parsed.error.message || 'gemini tts error'));
-          const part = parsed?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-          if (!part || !part.data) return reject(new Error('no audio data'));
-          const pcmBytes = Buffer.from(part.data, 'base64');
-          const rateMatch = String(part.mimeType || '').match(/rate=(\d+)/);
-          const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
-          resolve(pcmToWav(pcmBytes, sampleRate));
-        } catch (e) { reject(e); }
-      });
-    });
-    ttsReq.on('error', reject);
-    ttsReq.setTimeout(20000, () => { ttsReq.destroy(); reject(new Error('gemini tts timeout')); });
-    ttsReq.write(payload);
-    ttsReq.end();
-  });
-}
-
-// One-shot Gemini text generation (no tools, no history). Used by the opt-in
-// advanced features (Game Companion, Guardian) for single fire-and-forget
-// analyses. `parts` follows the Gemini content-part shape (text / inlineData).
-// `opts` (all optional): `model` overrides the chat model, `temperature`,
-// `json` asks for a JSON reply, `onUsage(totalTokens, { input, output })` reports what it cost.
-function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
-  const model = opts.model || AI_MODELS.chat;
-  return _withGeminiModel(model, apiKey, (id, thinking) => _geminiOneShotOnce(apiKey, parts, systemText, maxTokens, opts, id, thinking));
-}
-
-const { _withGeminiModel, _geminiOneShotOnce } = require('./ai/gemini-one-shot.js');
-
-const { stopServerSpeak, _playWavFile } = require('./ai/speak-play.js');
-
-// Speak text server-side using Gemini neural TTS (voice: Charon).
-// Playback is server-side so it works regardless of window focus or WebView quirks.
-// Resolves when speech finishes (or is stopped). Silently resolves on TTS error.
-function speakOnServer(text, langPrefix, apiKey, provider) {
-  return new Promise(async (resolve) => {
-    stopServerSpeak();
-    const myToken = speakState.genToken;
-    const clean = String(text || '').slice(0, 2000);
-    if (!clean) return resolve();
-
-    // Voice output per provider: Ollama, a local server and Claude (no speech API) use the free
-    // local Edge neural TTS; ChatGPT uses OpenAI TTS (its server-only key comes
-    // from settings); Gemini uses Gemini TTS with the request's key.
-    // Claude Code / Codex bring no speech of their own either, so they share it.
-    const useLocal = provider === 'ollama' || provider === 'localapi' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider);
-    const useOpenai = provider === 'openai';
-    let openaiKey = '';
-    if (useOpenai) { const s = await readHubSettings().catch(() => null); openaiKey = String((s && s.openaiApiKey) || '').trim(); }
-    const key = String(apiKey || '').trim();
-    if (useOpenai && !openaiKey) return resolve();
-    if (!useLocal && !useOpenai && !key) return resolve();
-    // The Gemini branch degrades to the local Edge voice rather than failing: it
-    // runs on a preview model, and both callers below treat a synth error as
-    // "say nothing", so a retired model would take the assistant's voice away
-    // with the only trace in the log. See the same fallback on /api/tts.
-    const synth = async (t) => {
-      if (useLocal) return aiLocal.localTts(t, langPrefix, getFfmpegPath());
-      if (useOpenai) return aiOpenai.tts({ apiKey: openaiKey, text: t, model: providerModelFor('openai', 'tts') });
-      try {
-        return await _geminiTtsToWav(t, key, 'Charon');
-      } catch (e) {
-        process.stdout.write(`[TTS] Gemini failed (${e.message}): falling back to the local voice\n`);
-        if (/not found|not supported|NOT_FOUND|404/i.test(String(e.message || ''))) {
-          aiModels.markMissing('gemini', AI_MODELS.tts);
-        }
-        return aiLocal.localTts(t, langPrefix, getFfmpegPath());
-      }
-    };
-
-    const chunks = splitSentences(clean);
-
-    // Single sentence → the original one-shot path (no pipelining overhead).
-    if (chunks.length <= 1) {
-      const gWavPath = privateTmpFile('xenon-gtts-', '.wav');
-      try {
-        const wavBuf = await synth(clean);
-        if (speakState.genToken !== myToken) return resolve();
-        if (!wavBuf || wavBuf.length === 0) return resolve();
-        await fs.promises.writeFile(gWavPath, wavBuf);
-        if (speakState.genToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
-        await _playWavFile(gWavPath, myToken);
-      } catch (e) {
-        process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} failed (${e.message})\n`);
-        fs.promises.unlink(gWavPath).catch(() => {});
-      }
-      return resolve();
-    }
-
-    // Multi-sentence → synth the NEXT sentence while the current one plays, so
-    // the user hears the first sentence after one synth, not after the whole
-    // reply. speak_start + ducking fire on the first played chunk; the media
-    // volume is restored once, after the last (or on a barge-in cancel).
-    const writeChunk = async (t, idx) => {
-      const buf = await synth(t);
-      if (speakState.genToken !== myToken || !buf || !buf.length) return null;
-      const p = privateTmpFile(`xenon-gtts-${idx}-`, '.wav');
-      await fs.promises.writeFile(p, buf);
-      return p;
-    };
-    let started = false;
-    let nextPath = null;
-    try {
-      nextPath = await writeChunk(chunks[0], 0).catch(() => null);
-      for (let i = 0; i < chunks.length; i++) {
-        if (speakState.genToken !== myToken) break;
-        const curPath = nextPath;
-        nextPath = null; // consumed below (played wavs are unlinked by _playWavFile)
-        // Kick off the next sentence's synth BEFORE playing the current one.
-        const prefetch = (i + 1 < chunks.length)
-          ? writeChunk(chunks[i + 1], i + 1).catch(() => null)
-          : Promise.resolve(null);
-        if (curPath) {
-          await _playWavFile(curPath, myToken, { duck: !started, broadcast: !started, restore: false });
-          started = true;
-        }
-        nextPath = await prefetch;
-      }
-    } catch (e) {
-      process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} chunked failed (${e.message})\n`);
-    } finally {
-      // A prefetched-but-never-played chunk (loop broke on barge-in) would leak.
-      if (nextPath) fs.promises.unlink(nextPath).catch(() => {});
-      if (started) _restoreSpeakerVolume(); // restore once, after the last chunk
-    }
-    resolve();
-  });
-}
+const { stopServerSpeak } = require('./ai/speak-play.js');
 
 // Shutdown / restart / sleep: switch off the lights Xenon drives itself first
 // (session-watch.js says why node cannot see these on its own). Runs only
@@ -5478,15 +5259,13 @@ function _chatgptChanged(id) {
   try { broadcastSSE('chatgpt', _chatgptPayload(id)); } catch { /* a repaint must never break a turn */ }
 }
 
-const { pcmToWav } = require('./wav/pcm-to-wav.js');
+const { speakOnServer } = require('./ai/speak-on-server.js');
 
 const { LEAKED_CALL_RE, _parseLeakedToolCall } = require('./ai/leaked-tool-call.js');
 
-const { _perfPlanPrompt, _normalizePerfPlan } = require('./performance/ai-plan.js');
+const { _geminiOneShot, _transcribeAudio, _geminiWebSearch } = require('./ai/gemini-calls.js');
 
-const { _geminiWebSearchOnce, _geminiGenerateJSONOnce } = require('./ai/gemini-search-json.js');
-
-const { _transcribeAudioOnce } = require('./ai/gemini-transcribe.js');
+const { completeWithUserAi } = require('./ai/complete-with-user-ai.js');
 
 const {
   STARTUP_TASK_CHECK_MS, LEFTOVER_TASKS_DELAY_MS, tidyLeftoverTasks,
@@ -5507,6 +5286,8 @@ const { addIntegrationAiFunctions } = require('./streaming/assistant-functions.j
 const { _audioToWav16k } = require('./ai/audio-to-wav.js');
 
 const { _noteAudioWatched, audioPollWanted } = require('./audio/watched.js');
+
+const { _aiPerformancePlan } = require('./ai/performance-plan.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -6413,79 +6194,6 @@ function _remoteGate(req, res, secure) {
       // An unknown verdict is a bug, and the safe reading of a bug is "no".
       return _classicForbidden(res);
   }
-}
-
-function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
-  const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
-  const safeMime = ALLOWED_AUDIO.has(mimeType) ? mimeType : 'audio/webm';
-  const sttPrompt = transcriptionPrompt(aiLangName(lang));
-  const model = AI_MODELS.chat;
-  return _withGeminiModel(model, apiKey, (id, thinking) => _transcribeAudioOnce(sttPrompt, safeMime, audioB64, apiKey, id, thinking));
-}
-
-// Web search via Gemini grounding. Runs as a SEPARATE call from the main chat
-// because the google_search grounding tool cannot be combined with
-// functionDeclarations in the same request (doing so makes Gemini return empty
-// responses). Returns a short grounded answer plus source URLs. On any failure
-// resolves with an { error } object so the caller can degrade gracefully.
-function _geminiWebSearch(query, apiKey) {
-  const q = String(query || '').trim().slice(0, 500);
-  if (!q) return Promise.resolve({ error: 'empty query' });
-  const model = AI_MODELS.chat;
-  return _withGeminiModel(model, apiKey, (id, thinking) => _geminiWebSearchOnce(q, apiKey, id, thinking))
-    .catch((e) => ({ error: e.message }));
-}
-
-function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
-  const model = AI_MODELS.chat;
-  return _withGeminiModel(model, apiKey, (id, thinking) => _geminiGenerateJSONOnce(prompt, apiKey, timeoutMs, id, thinking))
-    .catch(() => null);
-}
-
-async function _aiPerformancePlan({ activity, appNames, opts, provider, key, model, ollamaUrl, hardwareScan, lang, stats }) {
-  const names = Array.isArray(appNames) ? appNames.filter(n => typeof n === 'string').slice(0, 40) : [];
-  const safeActivity = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting', 'other'].includes(activity) ? activity : 'other';
-  const prompt = _perfPlanPrompt(safeActivity, names, opts || {}, lang, stats);
-  try {
-    if (provider === 'ollama') {
-      const baseUrl = aiLocal.sanitizeOllamaUrl(ollamaUrl);
-      const concreteModel = aiLocal.resolveModel(model, hardwareScan);
-      const r = await aiLocal.localChat({
-        baseUrl, model: concreteModel, geminiTools: [], history: [{ role: 'user', parts: [{ text: prompt }] }],
-        systemText: 'You output only a single JSON object, never prose or markdown.',
-        executeTool: async () => ({ fnResult: {}, clientActions: [] }),
-      });
-      return _normalizePerfPlan(r && r.text, names);
-    }
-    if (provider === 'localapi') {
-      const settings = await readHubSettings().catch(() => null);
-      const text = await localServerOneShot(settings, 'You output only a single JSON object, never prose or markdown.', prompt, 500);
-      return _normalizePerfPlan(text, names);
-    }
-    if (provider === 'openai' || provider === 'anthropic') {
-      // Server-only key comes from settings, not the request (unlike Gemini).
-      const settings = await readHubSettings().catch(() => null);
-      const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
-      const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-      const provModel = providerModelFor(provider, 'chat', settings);
-      if (!provKey) return null;
-      const text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: 'You output only a single JSON object, never prose or markdown.', userText: prompt, maxTokens: 500 });
-      return _normalizePerfPlan(text, names);
-    }
-    if (provider === 'xenon') {
-      const text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: 'You output only a single JSON object, never prose or markdown.', userText: prompt, maxTokens: 500, use: 'perf' });
-      return _normalizePerfPlan(text, names);
-    }
-    if (aiCli.isCliProvider(provider)) {
-      // Started by the user switching Performance Mode on, so it may use their
-      // subscription; slower than an API call, and the plan waits for it.
-      const text = await cliOneShot(provider, 'You output only a single JSON object, never prose or markdown.', prompt);
-      return _normalizePerfPlan(text, names);
-    }
-    if (!key) return null;
-    const text = await _geminiGenerateJSON(prompt, key);
-    return _normalizePerfPlan(text, names);
-  } catch { return null; }
 }
 
 // Named, not inline, because a SECOND listener shares it: the T2 HTTPS door in
