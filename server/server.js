@@ -456,8 +456,7 @@ const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnecte
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createPerfSession } = require('./perf-session');
 const { shieldWish } = require('./perf-session/shield-wish');
-const { createObs, scenePreviewRequest } = require('./actions/obs');
-const { createStreamerbot } = require('./actions/streamerbot');
+require('./actions/streamerbot');
 const { createHomeAssistant } = require('./actions/home-assistant');
 const { createHaQuery } = require('./actions/home-assistant-query');
 const { createChroma } = require('./actions/chroma');
@@ -2516,20 +2515,7 @@ const { svvExec } = require('./audio/svv-exec.js');
 
 const { setMicMute } = require('./audio/mic-mute.js');
 
-// Lazy OBS WebSocket client — reads live settings on each new connection so
-// changes in Settings take effect without a server restart.
-const deckObs = createObs(async () => {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  return { host: s.obsHost, port: s.obsPort, password: s.obsPassword };
-});
-
-// Lazy Streamer.bot WebSocket client — same on-demand/idle-close model as OBS, so
-// a closed dashboard or an unconfigured streamer.bot keeps zero sockets open.
-// Reads live settings on each new connection (no restart needed after Settings).
-const deckSb = createStreamerbot(async () => {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  return { host: s.streamerbotHost, port: s.streamerbotPort, password: s.streamerbotPassword };
-});
+const { deckObs, deckSb } = require('./streaming/deck-clients.js');
 
 // Lazy Home Assistant WebSocket client — same on-demand/idle-close/watch model as
 // OBS. Holds ONE live socket only while the Smart Home tile is on screen AND HA is
@@ -2664,33 +2650,7 @@ const { obsWatch } = require('./streaming/obs-watch-state.js');
 const { obsWatching } = require('./streaming/obs-watching.js');
 const { streamingLive } = require('./streaming/live.js');
 
-function applyObsPartial(partial) {
-  if (!partial) return;
-  const sceneChanged = ('obsScene' in partial) && partial.obsScene !== obsWatch.state.obsScene;
-  if (partial.obsMutes) obsWatch.state.obsMutes = Object.assign({}, obsWatch.state.obsMutes, partial.obsMutes);
-  if (partial.obsVolumes) obsWatch.state.obsVolumes = Object.assign({}, obsWatch.state.obsVolumes, partial.obsVolumes);
-  if (Array.isArray(partial.obsInputs)) obsWatch.state.obsInputs = partial.obsInputs;
-  for (const k of ['obsRecording', 'obsStreaming', 'obsScene']) if (k in partial) obsWatch.state[k] = partial[k];
-  broadcastSSE('obs', obsWatch.state);
-  if (sceneChanged && obsWatch.previewTimer) captureScenePreview(); // refresh the preview instantly on a scene switch
-}
-
-async function captureScenePreview() {
-  const scene = obsWatch.state.obsScene;
-  if (!scene) return;                         // no program scene yet
-  try {
-    const r = scenePreviewRequest(scene);
-    const resp = await deckObs.request(r.requestType, r.requestData);
-    if (resp && resp.imageData) {
-      // Skip the rebroadcast when the frame is byte-identical to the last one — a
-      // static program scene otherwise re-pushes the same base64 image every 5s.
-      if (resp.imageData !== obsWatch.preview.image || scene !== obsWatch.preview.scene) {
-        obsWatch.preview = { scene, image: resp.imageData };
-        broadcastSSE('obs_preview', obsWatch.preview);
-      }
-    }
-  } catch (e) { /* keep the last image on a failed/again-later capture */ }
-}
+const { applyObsPartial, captureScenePreview } = require('./streaming/obs-live-state.js');
 
 const { frontAppKnown } = require('./system/front-app-known.js');
 // The facts behind the rules on placed widgets and pages. Each closure runs on the
@@ -2826,38 +2786,7 @@ async function refreshHaWatch() {
   _haConfigSig = sig;
 }
 
-const { sbWatching } = require('./streaming/streamerbot-watching.js');
-const { sbWatch } = require('./streaming/streamerbot-watch-state.js');
-
-const { pushActivity } = require('./streaming/streamerbot-activity.js');
-
-async function buildSbState() {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const configured = !!s.streamerbotHost;
-  return { configured, connected: configured && deckSb.isConnected(), globals: configured ? deckSb.globalsSnapshot() : {} };
-}
-
-// Coalesce bursts of global changes into at most one broadcast per ~250ms (one
-// Streamer.bot action can flip several globals at once). Keeps SSE traffic tiny.
-function scheduleSbBroadcast() {
-  if (sbWatch.notifyTimer) return;
-  sbWatch.notifyTimer = setTimeout(async () => {
-    sbWatch.notifyTimer = null;
-    try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
-  }, 250);
-}
-
-async function refreshSbWatch() {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const want = !!s.streamerbotHost && sseClients.size > 0;
-  if (want && !sbWatching.stop) {
-    sbWatching.stop = deckSb.watch(scheduleSbBroadcast, pushActivity);
-  } else if (!want && sbWatching.stop) {
-    const stopSb = sbWatching.stop; stopSb(); sbWatching.stop = null;
-    if (sbWatch.notifyTimer) { clearTimeout(sbWatch.notifyTimer); sbWatch.notifyTimer = null; }
-    try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
-  }
-}
+const { buildSbState, refreshSbWatch } = require('./streaming/streamerbot-watch.js');
 
 const { wlWatching } = require('./audio/wavelink-watching.js');
 const { wlWatch } = require('./audio/wavelink-watch-state.js');
