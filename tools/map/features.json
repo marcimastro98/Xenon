@@ -393,6 +393,7 @@
         "server/settings-ai.js",
         "server/sensor-source-ai.js",
         "server/js/ai.js",
+        "server/js/ai/**",
         "server/js/ai-*.js",
         "server/js/bit-*.js",
         "server/js/audio-feedback.js",

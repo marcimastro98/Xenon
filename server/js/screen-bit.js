@@ -23,7 +23,7 @@
     'shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js',
     'shared/src/bit-phrases.js', 'shared/src/bit-spark.js', 'js/dialog-focus.js',
     'js/xenon-credits.js', 'js/ai-turn-wait.js', 'js/bit-app.js', 'js/ai-bit-chat.js',
-    'js/ai-reply-choices.js', 'js/ai-ask-card.js', 'js/ai.js', 'js/ai-deck-confirm.js', 'js/ai-edge-glow.js',
+    'js/ai-reply-choices.js', 'js/ai-ask-card.js', 'js/ai/providers-and-errors.js', 'js/ai/panel.js', 'js/ai/turns.js', 'js/ai/send-message.js', 'js/ai/client-actions.js', 'js/ai/markdown.js', 'js/ai/bubbles.js', 'js/ai/status.js', 'js/ai/voice-input.js', 'js/ai/voice-recorders.js', 'js/ai/voice-mode.js', 'js/ai/voice-session.js', 'js/ai/speak.js', 'js/ai/attachments.js', 'js/ai/screen-capture.js', 'js/ai/pc-confirm.js', 'js/ai/copy.js', 'js/ai/dictation.js', 'js/ai.js', 'js/ai-deck-confirm.js', 'js/ai-edge-glow.js',
   ]);
   const IDLE_RELOAD_MS = 60 * 1000;
 

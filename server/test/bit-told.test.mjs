@@ -2,7 +2,7 @@
 // the way Bit opens a creation it told someone about (open_store_entry).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
