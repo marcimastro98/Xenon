@@ -3,6 +3,7 @@
 // A file about to be split must have every one of them accounted for, because
 // each of them would go on reading one file where there are now several.
 //
+// A test that puts the file's name together from pieces is found by browser-built-names.mjs.
 // Pages are followed by their tags, the list the pages for desktop widgets are
 // built from by its rows (browser-lists.mjs), tests by server/test/browser-source.mjs.
 // A page that loads the file must be one the page check opens (browser-check-pages.mjs).
@@ -13,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { BUILT_HINTS, builtMentions } from './browser-built-names.mjs';
 import { uncheckedPages } from './browser-check-pages.mjs';
 import { BROWSER_LEDGER } from './browser-ledger.mjs';
 import { LIST_FILES, listsHold } from './browser-lists.mjs';
@@ -91,7 +93,7 @@ export function withOneSearch(root, files, work) {
     for (const name of here) holders.get(name).push(other);
   }
   const before = once;
-  once = { root, holders, texts, read: new Map() };
+  once = { root, holders, texts, read: new Map(), builders: null };
   try { return work(); } finally { once = before; }
 }
 
@@ -103,6 +105,15 @@ function holder(root, other) {
   const made = { raw, text: withoutComments(raw, other), tags: /^server\/.*\.html$/.test(other) ? tagsOf(raw).map((tag) => ({ file: tag.file, line: raw.slice(0, tag.start).split('\n').length })) : [] };
   kept?.set(other, made);
   return made;
+}
+
+// The scripts that put a name ending in .js together from pieces (browser-built-names.mjs): one search, kept while many files are asked about.
+const SCRIPT = /[.][cm]?js$/;
+function builders(root) {
+  const search = () => grepFor(root, BUILT_HINTS).filter((other) => SCRIPT.test(other)).sort();
+  if (once?.root !== root) return search();
+  once.builders ??= search();
+  return once.builders;
 }
 
 // A path written from where its file stands (./, ../) that is a file of the repo, and not the one asked about.
@@ -142,6 +153,15 @@ export function mentionsOf(root, file) {
     }
     if (lines.length) found.push({ file: other, lines: [...new Set(lines)], kind: TEST.test(other) ? 'test' : 'code', reader: raw.includes(READER), loads });
     else if (tagLines.size) found.push({ file: other, lines: [...tagLines], kind: 'page', reader: false, loads });
+  }
+  // A name built from pieces: `../js/${name}.js` over a list with this file's name in it, without its ending.
+  for (const other of file.endsWith('.js') ? builders(root) : []) {
+    if (other === file) continue;
+    const { raw, text } = holder(root, other);
+    const lines = builtMentions(text, file);
+    const named = found.find((mention) => mention.file === other);
+    if (named && lines.length) named.lines = [...new Set([...named.lines, ...lines])].sort((a, b) => a - b);
+    else if (lines.length) found.push({ file: other, lines, kind: TEST.test(other) ? 'test' : 'code', reader: raw.includes(READER), loads: [] });
   }
   // A list that holds the file is followed by the tool like a page; one that only names it in a sentence is code.
   for (const list of builtListsWith(root, file)) {
