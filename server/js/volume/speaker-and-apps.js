@@ -193,12 +193,6 @@ function wireAppMixer() {
   });
 }
 
-// The microphone mixer changes an app's microphone only: Discord's input slider
-// must not move Discord's output (the server sets each direction on its own).
-function appMixDir(row) {
-  return row.closest('#mic-apps') ? 'capture' : 'render';
-}
-
 function handleAppMixInput(slider) {
   const row = slider.closest('.app-mix-row');
   if (!row) return;
@@ -206,7 +200,9 @@ function handleAppMixInput(slider) {
   // The process name outlives the session CLI id (which rotates when the app
   // restarts), so it rides along as the server's preferred durable target.
   const proc = row.dataset.appProc || '';
-  const dir = appMixDir(row);
+  // The microphone mixer changes an app's microphone only: Discord's input slider
+  // must not move Discord's output (the server sets each direction on its own).
+  const dir = row.closest('#mic-apps') ? 'capture' : 'render';
   const level = parseInt(slider.value, 10);
   lastAppMixTouch = Date.now();
   const volEl = row.querySelector('.app-mix-vol');
@@ -239,7 +235,7 @@ async function handleAppMixMute(btn) {
     await fetch(SERVER + '/audio/app/mute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, muted: nowMuted, proc, dir: appMixDir(row) }),
+      body: JSON.stringify({ id, muted: nowMuted, proc, dir: row.closest('#mic-apps') ? 'capture' : 'render' }),
     });
   } catch {}
 }
