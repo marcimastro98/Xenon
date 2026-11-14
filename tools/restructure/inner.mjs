@@ -34,8 +34,8 @@ function planWith(job, names, text, ownModules, left) {
   try {
     return planInnerFor({ ...job, names, text, ownModules });
   } catch (error) {
-    if (!(error instanceof Refusal) || left.length === 0) throw error;
-    throw new Refusal([...error.reasons, ...left.map((row) => `${row.name} was left in ${job.factory}: ${row.why}`)]);
+    if (!(error instanceof Refusal) || left.every((row) => row.shared)) throw error;
+    throw new Refusal([...error.reasons, ...left.filter((row) => !row.shared).map((row) => `${row.name} was left in ${job.factory}: ${row.why}`)]);
   }
 }
 
@@ -49,7 +49,7 @@ function planWith(job, names, text, ownModules, left) {
  * @param {boolean} [job.dryRun] plan and prove, write nothing
  * @returns {{ moved: string[], returned: string[], passed: string[], lines: number, sourceLines: number, target: string,
  *   bare?: { dropped: { spec: string, why: string }[], kept: { spec: string, why: string }[] },
- *   along?: { added: string[], left: { name: string, why: string }[] } }} `bare` as in extract.mjs; `along`: the constants that
+ *   along?: { added: string[], left: { name: string, why: string, shared: boolean }[] } }} `bare` as in extract.mjs; `along`: the constants that
  *   went without being named, and the written-out ones the moved code uses that stayed, each with why (inner-constants.mjs);
  *   throws a Refusal before anything is written, an Error after a failed check (files put back)
  */
@@ -110,7 +110,10 @@ export function runInner(parser, root, { flags, rest }) {
     + `${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines.`);
   console.log(`  ${flags.make} is handed ${done.passed.join(', ') || 'nothing'} and gives back ${done.returned.join(', ')}.`);
   if (done.along?.added.length) console.log(`  ${dryRun ? 'would take' : 'took'} along ${done.along.added.join(', ')}: constants only the moved code uses, their values written out.`);
-  for (const row of done.along?.left ?? []) console.log(`  ${dryRun ? 'would leave' : 'left'} ${row.name} in ${flags.factory}: ${row.why}.`);
+  const left = done.along?.left ?? [];
+  const shared = left.filter((row) => row.shared).map((row) => row.name);
+  if (shared.length) console.log(`  ${dryRun ? 'would leave' : 'left'} ${shared.join(', ')} in ${flags.factory}, which uses them too: they are handed over. Name one to move it and have it handed back.`);
+  for (const row of left.filter((row) => !row.shared)) console.log(`  ${dryRun ? 'would leave' : 'left'} ${row.name} in ${flags.factory}: ${row.why}.`);
   for (const line of bareLines(done.bare, dryRun)) console.log(line);
   if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');
   return 0;

@@ -155,6 +155,7 @@ test('the constants only the moved code uses go along without being named; one t
     assert.deepEqual(tried.along.added, ['pick']);
     assert.deepEqual(tried.along.left.map((row) => row.name).sort(), ['LIMITS', 'seen']);
     for (const row of tried.along.left) assert.match(row.why, /^line 17 of createThing uses it too: it is handed over; name it to move it and have it handed back$/);
+    assert.deepEqual(tried.along.left.map((row) => row.shared), [true, true], 'marked as shared, so the command tells them in one line');
     assert.equal(existsSync(join(root, NEW)), false, 'a dry run writes nothing');
 
     const done = moveInner({ ...job, names: ['find', 'fetchAll', 'seen'] });
@@ -177,6 +178,7 @@ test('a constant that stays keeps the one that computes with it, and the functio
     assert.deepEqual([tried.moved, tried.passed, tried.along.added], [['lone', 'f'], ['twice'], ['lone']], 'lone only takes twice as it is: it goes, and is handed twice');
     assert.deepEqual(tried.along.left.map((row) => row.name), ['twice'], 'base, which nothing that moves uses, is not told');
     assert.match(tried.along.left[0].why, /computes with base \(line 5\) or copies from it, and base stays in createThing/);
+    assert.equal(tried.along.left[0].shared, false);
 
     // A constant left behind can be what the move then trips on: the refusal says both.
     writeFileSync(join(root, OLD), thing('  const first = runner(f);', '  const a = [];', '  function f() { return a; }', '  return { f, first };'));

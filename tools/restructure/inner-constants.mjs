@@ -93,7 +93,8 @@ export function constantReasons({ inner, params, file, reach, record, label, mov
  * @param {{ records: any[], bindings: Map<string, any> }} ask.inner the factory's body, marked by markConstants
  * @param {string[]} ask.names what was named @param {string} ask.factory @param {(line: number) => number} ask.real
  * @param {(record: any, movedSet: Set<any>) => string[]} ask.reasonsOf why a record cannot leave with that set (inner-plan.mjs)
- * @returns {{ added: string[], left: { name: string, why: string }[] }} `left`: written-out constants the moved code uses that stay, each with why
+ * @returns {{ added: string[], left: { name: string, why: string, shared: boolean }[] }} `left`: written-out constants the moved code uses that
+ *   stay, each with why; `shared` when the only reason is that the factory uses it too
  */
 export function constantsAlong({ inner, names, factory, real, reasonsOf }) {
   const named = new Set(names.map((name) => inner.bindings.get(name)?.record).filter(Boolean));
@@ -119,7 +120,7 @@ export function constantsAlong({ inner, names, factory, real, reasonsOf }) {
       const why = user ? `line ${real(user.line[0])} of ${factory} uses it too: it is handed over; name it to move it and have it handed back` : reasonsOf(record, movedSet)[0];
       if (!why) continue;
       added.delete(record);
-      left.push({ record, name: record.names.join(', '), why });
+      left.push({ record, name: record.names.join(', '), why, shared: Boolean(user) });
       again = true;
       break;
     }
@@ -127,6 +128,6 @@ export function constantsAlong({ inner, names, factory, real, reasonsOf }) {
   const order = (a, b) => a.index - b.index;
   // Only the ones what moves in the end still uses are told: one that only a constant left behind read is nobody's business here.
   const moved = [...named, ...added];
-  const told = left.filter((row) => moved.some((record) => row.record.names.some((name) => record.uses.has(name)))).map(({ name, why }) => ({ name, why }));
+  const told = left.filter((row) => moved.some((record) => row.record.names.some((name) => record.uses.has(name)))).map(({ name, why, shared }) => ({ name, why, shared }));
   return { added: [...added].sort(order).flatMap((record) => record.names), left: told };
 }
