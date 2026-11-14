@@ -239,9 +239,15 @@ test('old logs are pruned so Xenon\'s own folder stays bounded', async () => {
     findMangoHud: () => '/usr/bin/mangohud',
   });
   await mon.start();
-  await new Promise((r) => setTimeout(r, 150));
+  // The pruning runs after start() has answered and deletes twenty files one by one: on a
+  // busy disk that takes longer than any fixed pause, so the folder is read until it is done.
+  const csvs = async () => (await readdir(logDir)).filter((n) => n.endsWith('.csv'));
+  let left = await csvs();
+  for (let i = 0; i < 200 && left.length > 40; i++) {
+    await new Promise((r) => setTimeout(r, 50));
+    left = await csvs();
+  }
   mon.stop();
-  const left = (await readdir(logDir)).filter((n) => n.endsWith('.csv'));
   assert.ok(left.length <= 40, `expected pruning to 40, got ${left.length}`);
   assert.ok(left.length > 0);
 });
