@@ -122,8 +122,6 @@ const { appAudioTarget } = require('./audio/app-target.js');
 
 const { cpuSnapshot, getCpuName } = require('./system/cpu.js');
 
-const { collectorNum, SENSOR_ACCESS } = require('./system/sensor-values.js');
-
 const {
   RAM_INFO_RETRY_MS, IDLE_POLL_MS, IDLE_POLL_FAST_MS, IDLE_AWAY_SEC, BATTERY_POLL_GAME_MS,
 } = require('./system/timings.js');
@@ -407,7 +405,7 @@ const { createFirstReading, createFactReader } = require('./first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
 require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
-const SensorSourceAi = require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
+require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
 require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
@@ -619,13 +617,12 @@ const { buildMemoryFunctions } = require('./ai/memory-functions.js');
 const { MEDIA_SCRIPT } = require('./media/script-paths.js');
 const { HELPER_EXE } = require('./engine/paths.js');
 const { MEDIAREMOTE_DIR } = require('./media/script-paths.js');
-const { CPU_TEMP_SCRIPT, ENABLE_SENSORS_SCRIPT } = require('./system/script-paths.js');
-const sensorService = require('./sensor-service/reader.js').instance();
+const { ENABLE_SENSORS_SCRIPT } = require('./system/script-paths.js');
+require('./sensor-service/engine-reader.js');
 const {
   DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT, DECK_WINDOW_SCRIPT,
 } = require('./deck/script-paths.js');
 const { PERFORMANCE_SCRIPT, PROCESSES_SCRIPT } = require('./performance/script-paths.js');
-const { SENSORS_SCRIPT } = require('./system/script-paths.js');
 const { PERF_PRIORITY_SCRIPT } = require('./performance/script-paths.js');
 const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
 // How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
@@ -1669,7 +1666,7 @@ const aiPcApps = require('./ai-pc-apps');
 
 const { _killWorker } = require('./powershell/worker-state.js');
 
-const { runPowerShellWorker, runCollector } = require('./system/pwsh-worker.js');
+const { runPowerShellWorker } = require('./system/pwsh-worker.js');
 
 // Wireless peripheral battery (Corsair via the iCUE bridge + Bluetooth via the
 // battery.ps1 PnP collector). TTL-cached inside the monitor; consumed by
@@ -1892,95 +1889,6 @@ const { hydrateArtwork } = require('./media/artwork-lookup.js');
 const { getWeather } = require('./weather/get-weather.js');
 
 const { getCpuUsage } = require('./system/cpu-usage.js');
-
-async function getCpuTemp() {
-  const age = Date.now() - sensorCache.reading.updatedAt;
-  if (age < sensorRateMs()) return sensorCache.reading.cpuTemp;
-  if (sensorReads.cpuTempPending) return sensorReads.cpuTempPending;
-
-  sensorReads.cpuTempPending = (async () => {
-    try {
-      const data = nativeCollectors ? await nativeCollectors.cpuTemp() : ((await sensorService.cpu(sensorRateMs())) || await runCollector(CPU_TEMP_SCRIPT, [], 10000));
-      // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
-      let fans = data.fans;
-      if (fans && !Array.isArray(fans)) fans = [fans];
-      sensorCache.reading = {
-        cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
-        // The automatic pick's sensor name (Tctl/Tdie, CPU Package), shown by
-        // Settings → Sensor sources next to "Automatic". Presentation only.
-        cpuTempSource: typeof data.cpuTempSource === 'string' ? data.cpuTempSource.trim().slice(0, 48) || null : null,
-        fans: (Array.isArray(fans) ? fans : [])
-          .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
-          // `kind` says where the fan physically is ('psu' = the PSU's own fan,
-          // 'ctrl' = an AIO/fan-hub controller); anything the collector doesn't
-          // vouch for falls back to a motherboard header.
-          .map(f => ({
-            name: String(f.name || 'Fan').slice(0, 48),
-            rpm: Math.round(collectorNum(f.rpm)),
-            kind: f.kind === 'psu' || f.kind === 'ctrl' ? f.kind : 'mb',
-          })),
-        cpuWatts: collectorNum(data.cpuWatts),
-        psuWatts: collectorNum(data.psuWatts),
-        // Live core clock in MHz — the fastest core, not an average across them
-        // (see cpu-temp.ps1). A platform whose collector cannot read one leaves
-        // it null rather than reporting the nominal speed as if it were current.
-        cpuClockMHz: collectorNum(data.cpuClockMHz) === null ? null : Math.round(collectorNum(data.cpuClockMHz)),
-        sensorAccess: SENSOR_ACCESS.has(data.sensorAccess) ? data.sensorAccess : null,
-        updatedAt: Date.now(),
-      };
-    } catch {
-      sensorCache.reading.updatedAt = Date.now();
-    }
-    sensorReads.cpuTempPending = null;
-    return sensorCache.reading.cpuTemp;
-  })();
-
-  return sensorReads.cpuTempPending;
-}
-
-// ── Sensor sources ──────────────────────────────────────────────────────────
-// The catalog of every sensor the collectors can read (Settings → Sensor
-// sources, the SDK `sensors` stream), and the chosen ones read for
-// getSystemInfo. Through the collector seam on macOS/Linux, the worker on
-// Windows. `ids` null = the whole catalog. `known: false` means no answer
-// (worker gone, LHM sessions not open yet), which applySensorSources must not
-// mistake for "the sensor is gone".
-async function collectSensors(ids) {
-  if (nativeCollectors) {
-    if (typeof nativeCollectors.listSensors !== 'function') return { known: true, sensors: [] };
-    const raw = ids ? await nativeCollectors.readSensors(ids) : await nativeCollectors.listSensors();
-    return { known: true, sensors: SensorSources.normalizeSensorCatalog(raw) };
-  }
-  if (!POWERSHELL_SUPPORTED) return { known: true, sensors: [] };
-  // The worker only: sensors.ps1 walks the LHM sessions that live there, so a
-  // one-shot spawn would answer an empty list that looks like a sensorless PC.
-  const raw = await sensorService.mergeSensors(parseJsonOutput(await runPowerShellWorker(SENSORS_SCRIPT, ids ? ['read', ids.join('|')] : ['list'], 8000)), ids);
-  if (!raw || raw.ok !== true) return { known: false, sensors: [] };
-  const list = Array.isArray(raw.sensors) ? raw.sensors : (raw.sensors ? [raw.sensors] : []);
-  return { known: raw.lhm === true, sensors: SensorSources.normalizeSensorCatalog(list) };
-}
-
-function readChosenSensors(sources) {
-  const ids = [...new Set(Object.values(sources))];
-  if (!ids.length) return Promise.resolve([]);
-  const key = ids.join('|');
-  if (key === sensorReads.chosen.key && Date.now() - sensorReads.chosen.at < sensorRateMs()) return Promise.resolve(sensorReads.chosen.readings);
-  if (sensorReads.chosenPending) return sensorReads.chosenPending;
-  sensorReads.chosenPending = collectSensors(ids)
-    .then((r) => (r.known ? r.sensors : null))
-    .catch(() => null)
-    .then((readings) => {
-      // A failed read keeps the last good one for the same choice, so a worker
-      // restart does not blink the tile back to the automatic sensor.
-      const keep = readings === null && key === sensorReads.chosen.key ? sensorReads.chosen.readings : readings;
-      sensorReads.chosen = { key, readings: keep, at: Date.now() };
-      return keep;
-    })
-    .finally(() => { sensorReads.chosenPending = null; });
-  return sensorReads.chosenPending;
-}
-
-
 
 const { diskLetters } = require('./disk/letters-state.js');
 
@@ -2918,24 +2826,6 @@ async function editFavorites(args) {
   if (result && (result.added || result.removed)) FAVORITE_REFRESH[plan.kind]().catch(() => {});
   return result;
 }
-// sensor_source: the catalog is read only when a list or a choice needs it.
-async function chooseSensorSource(args) {
-  const current = () => SensorSources.normalizeSensorSources(hub.settings && hub.settings.sensorSources);
-  const needsCatalog = args && args.metric && !/^(auto|automatic)$/i.test(String(args.sensor || '').trim());
-  const cat = needsCatalog ? await collectSensors(null) : null;
-  if (cat && !cat.known) return { ok: false, error: 'sensors_not_ready', hint: 'The sensor reader is still starting: try again in a minute.' };
-  const plan = SensorSourceAi.plan(args, cat && cat.sensors);
-  if (plan.error) return { ok: false, ...plan };
-  if (plan.read) return { ok: true, sources: current(), metrics: SensorSourceAi.METRICS };
-  if (plan.list) return { ok: true, metric: plan.list, chosen: current()[plan.list] || 'auto', sensors: SensorSourceAi.candidates(plan.list, cat.sensors) };
-  await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const written = await writeHubSettings({ ...cur, sensorSources: SensorSourceAi.nextSources(cur.sensorSources, plan), rev: nextSettingsRev(cur.rev) });
-    hub.settings = written;
-    broadcastSSE('settings', { rev: written.rev });
-  });
-  return { ok: true, metric: plan.metric, now: current()[plan.metric] || 'auto' };
-}
 async function playInTile(args) {
   const want = TilePlay.parseTilePlay(args);
   if (want.error) return { ok: false, ...want };
@@ -3405,6 +3295,10 @@ const { _overlayHotkey } = require('./widget-options/overlay-hotkey.js');
 
 const { sensorRateMs } = require('./system/sensor-rate.js');
 
+const { collectSensors, readChosenSensors } = require('./system/sensors-read.js');
+
+const { getCpuTemp } = require('./system/cpu-temp.js');
+
 const { getGpuInfo } = require('./system/gpu-read.js');
 
 const {
@@ -3440,6 +3334,8 @@ const { writeHubSettings } = require('./settings/write.js');
 const { getSlideshowDir } = require('./windows-tiles/slideshow-dir.js');
 
 const { withHubSettingsLock } = require('./settings/write-lock.js');
+
+const { chooseSensorSource } = require('./system/choose-sensor-source.js');
 
 const { _flushLightingPersist, _persistLighting } = require('./lights/persist.js');
 

@@ -469,7 +469,11 @@
       {"file":"server/ticker/stocks-refresh.js","about":"Fetching the prices of the chosen stocks: one fetch at a time, the alerts that are due are told, and the fresh prices go to the open dashboards.","names":["refreshStocks"]},
       {"file":"server/ticker/football-refresh.js","about":"Fetching the matches of the chosen teams: one fetch at a time, goals and final whistles are told once, and the fresh scores go to the open dashboards.","names":["refreshFootball"]},
       {"file":"server/media/heard.js","about":"What the PC is heard playing when no player reports a song, and the last song known: both made when the engine starts and filled by the media reading.","names":["heardPlayer","musicNow"],"wire":{"first":"heardPlayer","last":"musicNow"}},
-      {"file":"server/media/stand-in.js","about":"What the media tile shows when no player reports a song: the app that is heard making sound, or the last reading while it is still fresh.","names":["mediaStandIn","heardNow","getMediaFallback"]}
+      {"file":"server/media/stand-in.js","about":"What the media tile shows when no player reports a song: the app that is heard making sound, or the last reading while it is still fresh.","names":["mediaStandIn","heardNow","getMediaFallback"]},
+      {"file":"server/sensor-service/engine-reader.js","about":"The reader of the sensor service that the engine itself reads through, taken when the engine starts: the same one the routes of the service report on.","names":["sensorService"],"wire":{"first":"sensorService","last":"sensorService"},"spelled":{"./reader.js":"./sensor-service/reader.js"}},
+      {"file":"server/system/cpu-temp.js","about":"The processor temperature the dashboard shows, from the system's own collectors where there are any, otherwise from the sensor service or the sensor script.","names":["getCpuTemp"]},
+      {"file":"server/system/sensors-read.js","about":"The list of sensors and the readings of the ones the person chose, the sensor service's rows merged with what the sensor script reads.","names":["collectSensors","readChosenSensors"]},
+      {"file":"server/system/choose-sensor-source.js","about":"Choosing which sensor a reading on the dashboard comes from when the assistant is asked to, or listing the sensors there are.","names":["chooseSensorSource"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
