@@ -55,6 +55,56 @@ function mentionOf(file) {
   return new RegExp(`(?<![\\w.-])((?:[\\w.-]+/)*)${base}(?![\\w-])`, 'g');
 }
 
+const grepFor = (root, names) => {
+  const run = spawnSync('git', ['grep', '-l', '-I', '-z', '-F', ...names.flatMap((name) => ['-e', name])], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (run.status !== 0 && run.status !== 1) throw new Error(`git grep failed: ${run.stderr}`);
+  return run.stdout.split('\0').filter(Boolean);
+};
+
+// Set while one caller asks about many files (withOneSearch): which tracked files hold each file name, and each of them read once.
+let once = null;
+const SIMPLE_NAME = /^[\w.-]+\.js$/;
+const SEARCH_AT_ONCE = 100;
+
+/**
+ * Asking who names a file is one search of the whole repo. Asked for hundreds of files, that is hundreds of
+ * searches: here one search (a few, a hundred names each) finds every file that holds any of the names, each
+ * is read once, and `mentionsOf` answers from that for as long as `work` runs. The answers are the same.
+ * @template T @param {string} root @param {string[]} files repo-relative scripts that will be asked about @param {() => T} work
+ * @returns {T}
+ */
+export function withOneSearch(root, files, work) {
+  const names = [...new Set(files.map((file) => path.posix.basename(file)).filter((name) => SIMPLE_NAME.test(name)))];
+  const holding = new Set();
+  for (let at = 0; at < names.length; at += SEARCH_AT_ONCE) for (const file of grepFor(root, names.slice(at, at + SEARCH_AT_ONCE))) holding.add(file);
+  const wanted = new Set(names);
+  const holders = new Map(names.map((name) => [name, []]));
+  const texts = new Map();
+  for (const other of [...holding].sort()) {
+    const raw = readFileSync(path.join(root, other), 'utf8');
+    texts.set(other, raw);
+    // A name is in the text where the text has it as letters in a row: every ".js" is the end of each name that stands right before it.
+    const here = new Set();
+    for (const match of raw.matchAll(/[\w.-]*\.js/g)) {
+      for (let from = 0; from < match[0].length - 3; from += 1) { const name = match[0].slice(from); if (wanted.has(name)) here.add(name); }
+    }
+    for (const name of here) holders.get(name).push(other);
+  }
+  const before = once;
+  once = { root, holders, texts, read: new Map() };
+  try { return work(); } finally { once = before; }
+}
+
+// A file that names another one: its text, the text without comments and its tags, worked out once per search.
+function holder(root, other) {
+  const kept = once && once.root === root ? once.read : null;
+  if (kept?.has(other)) return kept.get(other);
+  const raw = once?.root === root && once.texts.has(other) ? once.texts.get(other) : readFileSync(path.join(root, other), 'utf8');
+  const made = { raw, text: withoutComments(raw, other), tags: /^server\/.*\.html$/.test(other) ? tagsOf(raw).map((tag) => ({ file: tag.file, line: raw.slice(0, tag.start).split('\n').length })) : [] };
+  kept?.set(other, made);
+  return made;
+}
+
 /**
  * @param {string} root
  * @param {string} file repo-relative browser file
@@ -65,16 +115,13 @@ function mentionOf(file) {
  */
 export function mentionsOf(root, file) {
   const base = path.posix.basename(file);
-  const run = spawnSync('git', ['grep', '-l', '-I', '-z', '-F', '-e', base], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (run.status !== 0 && run.status !== 1) throw new Error(`git grep failed: ${run.stderr}`);
+  const holding = once?.root === root && once.holders.has(base) ? once.holders.get(base) : grepFor(root, [base]);
   const found = [];
-  for (const other of run.stdout.split('\0').filter(Boolean).sort()) {
+  for (const other of [...holding].sort()) {
     if (other === file || PROSE.test(other)) continue;
-    const raw = readFileSync(path.join(root, other), 'utf8');
-    const text = withoutComments(raw, other);
+    const { raw, text, tags } = holder(root, other);
     // Only a page of the app gets its tags from the tool; a page elsewhere (a tool's own page) is code that names the file.
-    const tagLines = /^server\/.*\.html$/.test(other) ? new Set(tagsOf(raw).filter((tag) => tag.file === file)
-      .map((tag) => raw.slice(0, tag.start).split('\n').length)) : new Set();
+    const tagLines = new Set(tags.filter((tag) => tag.file === file).map((tag) => tag.line));
     const lines = [];
     const loads = [];
     for (const match of text.matchAll(mentionOf(file))) {

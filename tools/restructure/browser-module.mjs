@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { uncheckedPages } from './browser-check-pages.mjs';
-import { followsAlone, mentionsOf, withoutComments } from './browser-consumers.mjs';
+import { followsAlone, mentionsOf, withOneSearch, withoutComments } from './browser-consumers.mjs';
 import { tagsOf } from './browser-pages.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { readTopLevel } from './top-level.mjs';
@@ -220,6 +220,8 @@ export function candidates({ root, parser, ledger, pages }) {
   const run = spawnSync('git', ['ls-files', '-z', '--', 'server/js', 'server/components'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   if (run.status !== 0) throw new Error(`git ls-files failed: ${run.stderr}`);
   const done = new Set(ledger.moves.filter((move) => move.kind === 'module').map((move) => move.file));
-  return run.stdout.split('\0').filter((file) => OURS.test(file) && !VENDOR.test(file)).sort().map((file) => (done.has(file)
-    ? { file, module: true, names: [], reasons: [] } : { file, module: false, ...moduleReasons({ root, parser, file, ledger, pages }) }));
+  const files = run.stdout.split('\0').filter((file) => OURS.test(file) && !VENDOR.test(file)).sort();
+  // Who names each script is asked of the whole repo: one search for all of them, not one each.
+  return withOneSearch(root, files, () => files.map((file) => (done.has(file)
+    ? { file, module: true, names: [], reasons: [] } : { file, module: false, ...moduleReasons({ root, parser, file, ledger, pages }) })));
 }
