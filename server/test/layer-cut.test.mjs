@@ -83,7 +83,8 @@ test('the layer page loads the cut before the host and the host uses it', () => 
   assert.match(host, /CUT\.roundedCut\(it\.box, it\.radius, steps\)/);
 });
 
-test('a Store widget that only shows keeps the size it asked for', () => {
+test('a Store widget that sizes its own box keeps the size it asked for', () => {
   const css = src('../components/LayerHost/LayerHost.css');
-  assert.match(css, /\.layer-slot\[data-small\]:has\(\.cw-frame\[data-layer-through\]\):not\(:has\(\.cw-state\)\) \{\s*--layer-min-w: 16px;\s*--layer-min-h: 16px;/);
+  assert.match(css, /\.layer-slot\[data-small\]\[data-fit\]:not\(:has\(\.cw-state\)\) \{\s*--layer-min-w: 16px;\s*--layer-min-h: 16px;/);
+  assert.match(src('../js/layer-fit.js'), /slot\.dataset\.fit = 'true';\s*const box = boxOf\(slot\);/);
 });
