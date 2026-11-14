@@ -83,7 +83,7 @@
     "server/js/gif-read.js": 353,
     "server/js/gif-write.js": 334,
     "server/js/history-chart.js": 322,
-    "server/js/installed-manager.js": 843,
+    "server/js/installed-manager.js": 759,
     "server/js/layer-edit.js": 576,
     "server/js/layer-host.js": 583,
     "server/js/layers-model.js": 695,

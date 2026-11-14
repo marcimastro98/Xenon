@@ -150,6 +150,7 @@
         "server/js/store-update-mail.js",
         "server/js/buy-sheet*.js",
         "server/js/content-installs.js",
+        "server/js/installed-manager/**",
         "server/js/installed-manager.js",
         "server/js/place-installed.js",
         "server/components/CommunityStore/**",

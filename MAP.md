@@ -76,7 +76,7 @@ The catalog of looks and widgets, and what supporters get.
 | Feature | What it does | Where |
 |---|---|---|
 | **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass and what they unlock. | `server/store-supporters/**` `server/supporter-redeem.js` `server/feature-unlock.js` `server/sparks-wallet.js` `server/welcome-sparks.js` `server/trial-*.js` and 16 more |
-| **Store** | The catalog: browse, buy, install, rate and update looks, widgets and packs. | `server/store-catalog/**` `server/community-*.js` `server/sdk-store.js` `server/store-snapshots.js` `server/rating-votes.js` `server/widget-auto-update.js` and 16 more |
+| **Store** | The catalog: browse, buy, install, rate and update looks, widgets and packs. | `server/store-catalog/**` `server/community-*.js` `server/sdk-store.js` `server/store-snapshots.js` `server/rating-votes.js` `server/widget-auto-update.js` and 17 more |
 | **Sharing a look** | Export and import of themes, pages and packs as a code, with the safety checks on what comes in. | `server/js/preset-share.js` `server/js/share-*.js` `server/js/dashboard-presets.js` `server/js/topbar-share.js` |
 
 ## On top of the desktop
