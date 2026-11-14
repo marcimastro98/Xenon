@@ -33,7 +33,7 @@ The screen itself: the grid of tiles, how it looks, the top bar, the scenes show
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene-*.js` `server/scene.html` `server/js/ambient*.js` `server/js/lockscreen.js` `server/js/lock-digits.js` and 6 more |
+| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene-*.js` `server/scene.html` `server/js/ambient*.js` `server/js/ambient-canvas-editor-form/**` `server/js/lockscreen.js` and 7 more |
 | **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/topbar/**` `server/js/topbar-*.js` `server/js/topbar-media/**` `server/js/status.js` `server/components/Topbar/**` `server/components/TopbarMedia/**` and 1 more |
 | **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/os-theme.js` `server/js/theme-*.js` `server/js/palette-model.js` `server/js/tile-style-*.js` and 15 more |
 | **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/tile-previews.js` `server/tile-settings.js` `server/js/main.js` `server/js/dashboard-*.js` and 16 more |

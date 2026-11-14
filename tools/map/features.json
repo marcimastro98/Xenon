@@ -796,6 +796,7 @@
         "server/scene-*.js",
         "server/scene.html",
         "server/js/ambient*.js",
+        "server/js/ambient-canvas-editor-form/**",
         "server/js/lockscreen.js",
         "server/js/lock-digits.js",
         "server/js/scene-*.js",
