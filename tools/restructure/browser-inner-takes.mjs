@@ -31,6 +31,13 @@ const PLAIN_NAME = /^[A-Za-z_$][\w$]*$/;
 /** @param {string[]} names @param {string} from the name on window @param {string} indent @returns {string[]} the line as the tool writes it */
 export const takeText = (names, from, indent) => wrapNames(names, 'const {', `} = window.${from};`).map((line) => indent + line);
 
+/** @param {string[]} code the lines of one statement @returns {{ names: string[], from: string } | null} what `const { a, b } = window.<Name>;` takes, and from where */
+export function takeOf(code) {
+  const taken = TAKE.exec(code.map((line) => line.trim()).join(' '));
+  const names = taken ? taken[1].split(',').map((name) => name.trim()).filter(Boolean) : [];
+  return taken && names.length && names.every((name) => PLAIN_NAME.test(name)) ? { names, from: taken[2] } : null;
+}
+
 /**
  * Every statement of a wrapper that is `const { a, b } = window.<Name>;` written as the tool writes it.
  * @param {any} shell from readWrapper @param {string} text of the same script

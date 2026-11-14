@@ -11,6 +11,7 @@
 
 import { isFunction, lineOf, ownReasons } from './browser-inner-judge.mjs';
 import { CLOSES, OPENS, readWrapper, SECTION_TITLE, windowNameOf } from './browser-inner-plan.mjs';
+import { retakeProblems, undoRetakes } from './browser-inner-retakes.mjs';
 import { kindsIn, markTaken, takeLines, takeText } from './browser-inner-takes.mjs';
 import { MAX_LINES } from './browser-plan.mjs';
 import { movedBeforeRule } from './browser-page-helpers.mjs';
@@ -128,8 +129,9 @@ function readParts(source, parts, parser) {
 }
 const givers = (read) => read.filter((part) => part.made).map((part) => ({ file: part.file, name: part.name, gives: part.made.gives }));
 
-// What must hold between a wrapper and one script made of its functions, on any day. `before`: the scripts that load before that one.
-function pairProblems({ now, text, source, target, made, others, before }) {
+// What must hold between a wrapper and one script made of its functions, on any day. `before`: the scripts that load before that one,
+// `later`: the ones that load after it, which may take a name of it the old script no longer uses.
+function pairProblems({ now, text, source, target, made, others, before, later = [] }) {
   const problems = [];
   for (const take of made.takes) {
     const part = before.find((entry) => entry.name === take.from);
@@ -139,14 +141,16 @@ function pairProblems({ now, text, source, target, made, others, before }) {
   if (!same(made.takes.map((take) => take.from), before.map((part) => part.name).filter((from) => made.takes.some((take) => take.from === from)))) problems.push(`${target} does not take from the earlier scripts once each, in the order they load`);
   const name = windowNameOf(source, target);
   const takers = takersOf(now, text, name);
-  if (takers.length !== 1) return [`${source} must take the functions of ${target} back on one line, \`const { ... } = window.${name};\`: ${takers.length} such lines`];
-  const [{ record: taker, takes }] = takers;
-  if (!same(takes, made.gives)) problems.push(`${source} takes ${takes.join(', ') || 'nothing plainly'} from window.${name}, and ${target} leaves ${made.gives.join(', ')} there`);
-  if (takes.length === 0) problems.push(`${source} takes nothing from ${target}`);
+  const elsewhere = new Set(later.flatMap((part) => part.takes.filter((take) => take.from === name).flatMap((take) => take.names)));
+  const unclaimed = made.gives.filter((given) => !elsewhere.has(given));
+  if (takers.length > 1 || (takers.length === 0 && unclaimed.length)) return [`${source} must take the functions of ${target} back on one line, \`const { ... } = window.${name};\`: ${takers.length} such lines`];
+  const { record: taker = null, takes = [] } = takers[0] ?? {};
+  if (!same(takes, made.gives.filter((given) => takes.includes(given))) || unclaimed.some((given) => !takes.includes(given))) problems.push(`${source} takes ${takes.join(', ') || 'nothing plainly'} from window.${name}, and ${target} leaves ${made.gives.join(', ')} there`);
+  if (taker && takes.length === 0) problems.push(`${source} takes nothing from ${target}`);
   for (const taken of takes) if (now.twice.has(taken)) problems.push(`${source} declares ${taken} twice`);
   // A word is enough: `window.Name`, `Name`, a string holding it.
   const word = new RegExp(`(?<![\\w$])${name}(?![\\w$])`, 'g');
-  if ((text.match(word) ?? []).length !== 1) problems.push(`${source} says ${name} more than once: only the line that takes the functions back may name it`);
+  if ((text.match(word) ?? []).length !== takers.length) problems.push(`${source} says ${name} more than once: only the line that takes the functions back may name it`);
   if (now.strictFile !== made.shell.strictFile || now.strictInside !== made.shell.strictInside) problems.push(`${target} does not run in the same mode (strict or not) as ${source}, or not by the same line`);
   for (const [fn, record] of made.functions) {
     for (const used of record.uses.keys()) {
@@ -161,19 +165,37 @@ function pairProblems({ now, text, source, target, made, others, before }) {
     if (!takes.includes(fn) && now.records.some((record) => record.uses.has(fn))) problems.push(`${source} still uses ${fn}, which it does not take back from ${target}`);
     if (now.records.some((entry) => (entry.uses.get(fn)?.write ?? 0) > 0)) problems.push(`${source} assigns ${fn} again: the ${isFunction(record) ? 'function' : 'constant'} in ${target} would not change with it`);
   }
-  problems.push(...earlyUses(now, taker, source));
+  if (taker) problems.push(...earlyUses(now, taker, source));
   return problems;
 }
 
 /**
  * @param {object} move
  * @param {string} move.before the old script before @param {string} move.after the old script after @param {string} move.made the new script
- * @param {{ ranges: number[][], glue: { at: number, lines: string[] } }} move.plan where the planner says it took lines out and put its line in
+ * @param {{ ranges: number[][], glue: { at: number, lines: string[] }, retakes?: { at: number, was: string[], now: string[] }[] }} move.plan where the planner
+ *   says it took lines out, put its line in, and rewrote a line that takes names from an earlier script
  * @param {any} move.parser @param {string} move.source repo-relative old script @param {string} move.target repo-relative new script
  * @param {{ file: string, text: string }[]} [move.earlier] the scripts made of this wrapper's functions before
  * @returns {string[]} problems, empty when the move is proven
  */
-export function proveInnerMove({ before, after, made, plan, parser, source, target, earlier = [] }) {
+export function proveInnerMove(move) {
+  if (!move.plan.retakes?.length) return proveAsTaken(move);
+  // The lines that take names from earlier scripts were rewritten: put them back, prove the move as one without a rewrite, then hold the rewrite itself.
+  const { after, plan, parser, source, target, made, earlier = [] } = move;
+  const undone = undoRetakes(after, plan);
+  const problems = undone.problems.length ? undone.problems : proveAsTaken({ ...move, after: undone.text, plan: { ...plan, glue: { ...plan.glue, at: undone.glueAt } } });
+  if (problems.length) return problems;
+  const [was, now] = [undone.text, after].map((text) => readWrapper(text, source, parser));
+  if (now.problems.length) return now.problems;
+  const taking = takeLines(was, undone.text).map((line) => ({ at: was.open + line.record.line[0], names: line.names, from: line.from }));
+  const { read, known } = readParts(source, [...earlier, { file: target, text: made }], parser);
+  const claimed = new Set(read.flatMap((part) => (part.made?.takes ?? []).flatMap((take) => take.names.map((name) => `${take.from}.${name}`))));
+  return [...retakeProblems({ taking, places: undone.places, now, source, known, claimed }),
+    ...innerStateProblems({ source, text: after, parts: [...earlier, { file: target, text: made }], parser })];
+}
+
+/** @param {any} move the same, with every line that takes names from an earlier script as it was @returns {string[]} */
+function proveAsTaken({ before, after, made, plan, parser, source, target, earlier = [] }) {
   const name = windowNameOf(source, target);
   if (!name) return [`${target} is not ${source.replace(/\.js$/, '')}/<what it does>.js`];
   const { read, known } = readParts(source, earlier, parser);
@@ -257,7 +279,8 @@ export function innerStateProblems({ source, text, parts, parser }) {
     if (!part.made) { problems.push(`${part.file} is not ${source.replace(/\.js$/, '')}/<what it does>.js`); continue; }
     if (part.made.problems.length) { problems.push(...part.made.problems); continue; }
     const others = new Map(read.filter((other) => other !== part && other.made).flatMap((other) => [...other.made.functions.keys()].map((fn) => [fn, other.file])));
-    problems.push(...pairProblems({ now, text, source, target: part.file, made: part.made, others, before: givers(read.slice(0, at)) }));
+    const later = read.slice(at + 1).filter((other) => other.made).map((other) => ({ takes: other.made.takes }));
+    problems.push(...pairProblems({ now, text, source, target: part.file, made: part.made, others, before: givers(read.slice(0, at)), later }));
   }
   return problems;
 }

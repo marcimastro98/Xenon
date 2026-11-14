@@ -87,7 +87,7 @@ export function innerMoveOf(parser, job, read, earlier = []) {
   const shell = readWrapperWith(read(from) ?? '', from, parser, parts);
   const all = shell.problems.length ? names : withConstants(shell, names);
   if (all.length > names.length) console.log(`Going along, constants the named functions use: ${all.slice(names.length).join(', ')}`);
-  const move = { kind: 'inner', from, file: job.to, about: job.about, names: all };
+  const move = { kind: 'inner', from, file: job.to, about: job.about, names: all, retakes: true };
   if (job.recorded) Object.defineProperty(move, 'recorded', { value: JSON.parse(readFileSync(job.recorded, 'utf8')), enumerable: false });
   if (!windowNameOf(from, job.to)) throw new Refusal([`${job.to} must be ${from.replace(/\.js$/, '')}/<what it does>.js in lowercase kebab-case: the name it leaves on window is read off its place`]);
   return move;

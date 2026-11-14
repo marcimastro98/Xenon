@@ -38,7 +38,8 @@
 import { readDecisions } from './browser-inner-decides.mjs';
 import { createReach, readFixed } from './browser-inner-fixed.mjs';
 import { anchorOf, isFunction, lineOf, mayTravel, ownReasons } from './browser-inner-judge.mjs';
-import { kindsIn, markTaken, takesOf, takeText } from './browser-inner-takes.mjs';
+import { retakesOf } from './browser-inner-retakes.mjs';
+import { kindsIn, markTaken, takeLines, takesOf, takeText } from './browser-inner-takes.mjs';
 import { headerOf, MAX_LINES } from './browser-plan.mjs';
 import { movedBeforeRule } from './browser-page-helpers.mjs';
 import { Refusal } from './extract-plan.mjs';
@@ -159,6 +160,10 @@ export function readWrapperWith(text, file, parser, earlier) {
   return markTaken(shell, text, new Map(earlier.map((part) => [windowNameOf(file, part.file), kindsIn(readWrapper(part.text, part.file, parser))])));
 }
 
+// `<Script>.<name>` for every name one of these scripts takes from another.
+const claimedBy = (parts, parser) => new Set(parts.flatMap((part) => takeLines(readWrapper(part.text, part.file, parser), part.text)
+  .flatMap((line) => line.names.map((name) => `${line.from}.${name}`))));
+
 /**
  * @param {object} job
  * @param {string} job.text the old script @param {any} job.parser from parser.mjs
@@ -167,11 +172,13 @@ export function readWrapperWith(text, file, parser, earlier) {
  * @param {string[]} job.names functions and written-out constants declared in the wrapper
  * @param {{ file: string, text: string }[]} [job.earlier] the scripts made of this wrapper before, in the order they load: the new one may take their names
  * @param {number} [job.maxLines]
+ * @param {boolean} [job.retake] rewrite the lines that take names from earlier scripts to the names the old script still uses (browser-inner-retakes.mjs)
  * @returns {{ newSource: string, targetText: string, moved: string[], gives: string[], name: string, ranges: number[][],
- *   glue: { at: number, lines: string[] }, takes: { from: string, names: string[] }[] }} `ranges` are 1-based lines of the old script, `glue.at` the 0-based line of the
- *   new text of the old script where the line that takes the functions back stands. Throws a Refusal with every reason.
+ *   glue: { at: number, lines: string[] }, takes: { from: string, names: string[] }[], retakes: { at: number, was: string[], now: string[] }[] }}
+ *   `ranges` are 1-based lines of the old script, `glue.at` the 0-based line of the new text of the old script where the line that takes
+ *   the functions back stands, `retakes[].at` the same for a rewritten line. Throws a Refusal with every reason.
  */
-export function planInnerScript({ text, parser, source, target, about, names, earlier = [], maxLines = MAX_LINES }) {
+export function planInnerScript({ text, parser, source, target, about, names, earlier = [], maxLines = MAX_LINES, retake = false }) {
   const shell = readWrapperWith(text, source, parser, earlier);
   if (shell.problems.length) throw new Refusal(shell.problems);
   const name = windowNameOf(source, target);
@@ -217,17 +224,22 @@ export function planInnerScript({ text, parser, source, target, about, names, ea
   if (anchor && (!movedSet.has(anchor) || blank(rangeLines(anchor).at(-1)))) glue.push('');
   const glueLine = anchor ? shell.open + (movedSet.has(anchor) ? topOf(anchor) : anchor.range[0]) : shell.close;
   const moving = new Set(moved.flatMap((record) => Array.from({ length: record.range[1] - topOf(record) + 1 }, (_, i) => shell.open + topOf(record) + i)));
+  const order = earlier.map((part) => windowNameOf(source, part.file));
+  const retakes = retake ? retakesOf(shell, text, movedSet, order, claimedBy(earlier, parser)).map((entry) => ({ ...entry, at: -1 })) : [];
+  for (const entry of retakes) for (let index = entry.first; index <= entry.last; index += 1) moving.add(index);
   const kept = [];
   let at = -1;
   lines.forEach((line, index) => {
     if (index === glueLine) { at = kept.length; kept.push(...glue); }
+    const rewritten = retakes.find((entry) => entry.first === index);
+    if (rewritten) { rewritten.at = kept.length; kept.push(...rewritten.now); }
     if (!moving.has(index)) kept.push(line);
   });
 
   // The new script: first comment, a wrapper in the old script's mode, the moved text, the one name on window.
   const body = [...headerOf(about, shell.strictFile).split('\n').slice(0, -1), OPENS[1]];
   if (shell.strictInside) body.push(`${shell.indent}'use strict';`, '');
-  const takes = takesOf(shell, moved, earlier.map((part) => windowNameOf(source, part.file)));
+  const takes = takesOf(shell, moved, order);
   for (const take of takes) body.push(...takeText(take.names, take.from, shell.indent));
   if (takes.length) body.push('');
   // Two constants that stood on lines next to each other stay next to each other.
@@ -243,5 +255,6 @@ export function planInnerScript({ text, parser, source, target, about, names, ea
     throw new Refusal([`${target} would be ${body.length} lines, the limit for a new file is ${maxLines}: move less per file, split by what the code does`]);
   }
   return { newSource: kept.join('\n'), targetText: `${body.join('\n')}\n`, moved: movedNames, gives, name,
-    ranges: moved.map((record) => [shell.open + topOf(record) + 1, shell.open + record.range[1] + 1]), glue: { at, lines: glue }, takes };
+    ranges: moved.map((record) => [shell.open + topOf(record) + 1, shell.open + record.range[1] + 1]), glue: { at, lines: glue }, takes,
+    retakes: retakes.map((entry) => ({ at: entry.at, was: entry.was, now: entry.now })) };
 }

@@ -19,9 +19,10 @@ const NOTE = 'What tools/restructure took out of which browser file, in order. W
  *   `{ kind: 'unwrap', file }` (a module that lost the wrapper around its code)
  *   `{ kind: 'lets', file, object, names, kept }` (lets of a script's wrapper turned into properties of one object in it; `kept` are the
  *   ones whose first value is still given where the `let` stood)
- *   or `{ kind: 'inner', from, file, about, names, gives, name, takes? }` (functions out of a script's wrapper to a script that loads
+ *   or `{ kind: 'inner', from, file, about, names, gives, name, takes?, retakes? }` (functions out of a script's wrapper to a script that loads
  *   right before and leaves them on `window.<name>`; `gives` are the ones the old script takes back, `takes` the names the new script
- *   takes from the ones made of the same wrapper before it, by their name on window).
+ *   takes from the ones made of the same wrapper before it, by their name on window; `retakes: true` when the move also rewrote a line of the
+ *   old script that took names from an earlier one, to the names it still uses: browser-inner-retakes.mjs).
  */
 export function readBrowserLedger(root) {
   try {
