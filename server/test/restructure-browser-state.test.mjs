@@ -16,7 +16,7 @@ import { readBrowserLedger, runOf, splitFiles } from '../../tools/restructure/br
 import { firstReadCounts } from '../../tools/restructure/browser-cli.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
 import { stateProblems } from '../../tools/restructure/browser-state.mjs';
-import { retarget } from '../../tools/restructure/browser-test-readers.mjs';
+import { heldByText, retarget } from '../../tools/restructure/browser-test-readers.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -77,6 +77,23 @@ test('a test moves to the reader by changing where readFileSync comes from, and 
   assert.equal(retarget(done, to), done, 'a second run changes nothing');
   assert.equal(retarget("import fs from 'node:fs';\nconst readFileSync = (file) => fs.readFileSync(file);\n", to), null, 'left for a person');
   assert.equal(retarget("import { existsSync } from 'node:fs';\n", to), null);
+});
+
+test('a test that holds a list of scripts, or cuts a script between two of its lines, is listed for a person', () => {
+  const script = ["'use strict';", '(function () {', '  function stampMount(tile) {', '    tile.dataset.mount = 1;', '  }', '  // True while the editor is open.', '  function editing() { return false; }', '})();', ''].join('\n');
+  const held = (...lines) => heldByText(lines.join('\n'), 'server/js/leaf.js', script);
+  assert.deepEqual(held("assert.deepEqual(scripts, ['js/utils.js', 'js/leaf.js', 'js/feed.js']);"), { lists: [1], cuts: [] });
+  assert.deepEqual(held('const page = [', "  'js/utils.js', 'js/leaf.js',", '];'), { lists: [2], cuts: [] }, 'a list over several lines');
+  assert.deepEqual(held("assert.deepEqual(scripts, ['js/utils.js', ...partsOf('server/js/leaf.js').map(short), 'js/feed.js']);").lists, [], 'written as its parts already');
+  assert.deepEqual(held("assert.ok(page.indexOf('js/utils.js') < page.indexOf('js/leaf.js'));").lists, [], 'an order asked of two tags is not a list');
+  assert.deepEqual(held("for (const file of ['js/leaf.js']) read(file);").lists, [], 'nor is the file alone');
+  assert.deepEqual(held(String.raw`assert.match(tiles, /'js\/utils\.js', 'js\/leaf\.js'\]/);`).lists, [1], 'a list asked for as a regular expression');
+  assert.deepEqual(held("const fn = cut(LEAF, '  function stampMount(tile) {', '  // True while the editor is open.');").cuts,
+    [{ line: 1, from: 'function stampMount(tile) {', to: '// True while the editor is open.' }]);
+  assert.deepEqual(held("const fn = cut(LEAF, '  function stampMount(', '  function editing(');").cuts, [{ line: 1, from: 'function stampMount(', to: 'function editing(' }], 'how two lines begin');
+  assert.deepEqual(held("const fn = cut(LEAF, '  function stampMount(tile) {', '\\n  }\\n');").cuts, [], 'cut at the function\'s own end');
+  assert.deepEqual(held("assert.match(LEAF, /stampMount/); assert.ok(LEAF.includes('function editing() { return false; }'));").cuts, [], 'one line of the file is a look, not a cut');
+  assert.deepEqual(held("const wrapper = cut(LEAF, \"'use strict';\", '(function () {');").cuts, [], 'lines every wrapped script has say nothing');
 });
 
 test('a file named in a comment is not a use of it', () => {

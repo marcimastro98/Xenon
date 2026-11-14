@@ -33,7 +33,7 @@ import { nodeKeeps } from './browser-node-loads.mjs';
 import { resolvePicks } from './browser-plan.mjs';
 import { stateProblems } from './browser-state.mjs';
 import { readStylesheet } from './browser-styles.mjs';
-import { retargetTests } from './browser-test-readers.mjs';
+import { retargetTests, testsHeldByText } from './browser-test-readers.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
 import { carryCounts, checksAvailable, lintCounts } from './ratchets.mjs';
@@ -202,6 +202,8 @@ function moveTests({ flags, rest }) {
   const { changed, byHand } = retargetTests(REPO_ROOT, posix(rest[0]), Boolean(flags.write));
   console.log(`${changed.length} tests ${flags.write ? 'now read' : 'would read'} ${posix(rest[0])} through server/test/browser-source.mjs.`);
   if (byHand.length) console.log(`By hand (they name the file without a plain readFileSync import):\n  ${byHand.join('\n  ')}`);
+  const held = testsHeldByText(REPO_ROOT, posix(rest[0]));
+  if (held.length) console.log(`To read by hand (a move can break them wherever they read):\n  ${held.join('\n  ')}`);
   return 0;
 }
 
