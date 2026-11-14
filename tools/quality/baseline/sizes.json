@@ -56,7 +56,7 @@
     "server/js/capture-gallery.js": 352,
     "server/js/chatgpt-widget.js": 357,
     "server/js/claude-widget.js": 2858,
-    "server/js/codex-widget.js": 892,
+    "server/js/codex-widget.js": 828,
     "server/js/color-picker.js": 319,
     "server/js/community-gallery.js": 2079,
     "server/js/custom-bg.js": 494,

@@ -16,9 +16,11 @@
 // side from the hooks server/codex-link.js installs. Every string here is
 // Codex-derived and renders through textContent (makeEl), never innerHTML.
 (function () {
-  const el = makeEl;
+  const {
+    el, t, mmss, windowLabel, sourceLabel, intentOf, timerOf, tileHead, askedBy, stateLabel,
+    threadStateLabel,
+  } = window.CodexWidgetLines;
   const api = apiJson;
-  const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
   const AK = window.ApprovalKeys;
 
   let payload = null;       // { app, live, link, cfg, sdk } from SSE or GET /api/codex
@@ -89,30 +91,11 @@
     const d = Math.floor(h / 24), hh = h % 24;
     return d + U('d', 'd') + (hh ? hh + U('h', 'h') : '');
   }
-  function mmss(ms) {
-    const s = Math.max(0, Math.round((ms || 0) / 1000));
-    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-  }
-  // A usage window's name from its length, never assumed: Codex decides it.
-  function windowLabel(mins) {
-    if (mins === 300) return t('codex_win_5h', '5 hours');
-    if (mins === 10080) return t('codex_win_week', 'Week');
-    if (mins >= 43000 && mins <= 44700) return t('codex_win_month', '30 days');
-    if (!Number.isFinite(mins) || mins <= 0) return t('codex_win_plan', 'Plan');
-    if (mins < 1440) return t('codex_win_hours', '{n} hours').replace('{n}', String(Math.round(mins / 60)));
-    return t('codex_win_days', '{n} days').replace('{n}', String(Math.round(mins / 1440)));
-  }
   function planLabel(p) {
     const s = String(p || '');
     if (!s || s === 'unknown') return '';
     const nice = { free: 'Free', go: 'Go', plus: 'Plus', pro: 'Pro', prolite: 'Pro Lite', promax: 'Pro Max', team: 'Team', business: 'Business', enterprise: 'Enterprise', edu: 'Edu' };
     return nice[s] || s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-  function sourceLabel(s) {
-    return ({
-      app: t('codex_src_app', 'ChatGPT app'), cli: t('codex_src_cli', 'Terminal'), ide: t('codex_src_ide', 'Editor'),
-      exec: t('codex_src_exec', 'Script'), agent: t('codex_src_agent', 'Sub-agent'),
-    })[s] || '';
   }
 
   // ── decisions ──
@@ -135,18 +118,6 @@
     paint();
   }
 
-  function intentOf(a) {
-    const d = a.detail || {};
-    switch (d.kind) {
-      case 'command': return t('codex_intent_command', 'Run a command');
-      case 'patch': return t('codex_intent_patch', 'Change files');
-      case 'stdin': return t('codex_intent_stdin', 'Type into a running command');
-      case 'permissions': return t('codex_intent_widen', 'Get more access than this session has');
-      case 'agent': return t('codex_intent_agent', 'Start a sub-agent');
-      case 'mcp': return t('codex_intent_mcp', 'Use a tool from {s}').replace('{s}', d.server || 'MCP');
-      default: return a.tool || t('codex_intent_other', 'Do something');
-    }
-  }
   const RISK_LABEL = {
     irreversible: () => t('claude_risk_irreversible', 'Cannot be undone'),
     publish: () => t('claude_risk_publish', 'Publishes your work'),
@@ -186,29 +157,6 @@
     b.disabled = deciding.has(a.id);
     b.addEventListener('click', () => { if (arming.isArmed(a.id)) onTap(); });
     return b;
-  }
-
-  function timerOf(a) {
-    const left = el('span', 'cx-dec-timer');
-    left.dataset.cxExpiresAt = String(Date.now() + (a.expiresInMs || 0));
-    left.dataset.tpl = t('claude_dec_left', '{t} left');
-    left.textContent = left.dataset.tpl.replace('{t}', mmss(a.expiresInMs));
-    return left;
-  }
-
-  function tileHead(a) {
-    const head = el('div', 'cx-dec-head');
-    head.appendChild(el('span', 'cx-dec-kind', t('codex_permission', 'Codex is asking')));
-    head.appendChild(el('span', 'cx-dec-where', [a.project, a.model].filter(Boolean).join(' · ')));
-    const left = timerOf(a);
-    left.title = t('codex_dec_expires', 'After this Codex asks you itself');
-    head.appendChild(left);
-    return head;
-  }
-
-  function askedBy(a) {
-    if (!a.project) return t('codex_permission', 'Codex is asking');
-    return t('codex_asking_in', 'Codex is asking in {project}').replace('{project}', () => a.project);
   }
 
   function sheetFoot(a, keys) {
@@ -346,18 +294,6 @@
   }
 
   // ── sessions and recent conversations ──
-  function stateLabel(s) {
-    if (s.ended) return t('codex_state_ended', 'Closed');
-    if (s.state === 'waiting') return t('codex_state_waiting', 'Waiting for you');
-    if (s.state === 'running') return t('codex_state_running', 'Working');
-    return t('codex_state_idle', 'Idle');
-  }
-  // Most conversations are history: one says a state only while it is doing something.
-  function threadStateLabel(th) {
-    if (th.status === 'waiting') return t('codex_state_waiting', 'Waiting for you');
-    if (th.status === 'active') return t('codex_state_running', 'Working');
-    return '';
-  }
   // How long ago, coarse enough to read at a glance: minutes, then hours, then
   // days, then a date. "69g10h" was exact and unreadable.
   function ago(ts) {
