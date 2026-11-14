@@ -33,9 +33,7 @@
 // assume ordinary, individual use, and they are the same limits the user
 // codes against.
 const path = require('path');
-const os = require('os');
 const fsp = require('fs').promises;
-const claudeRun = require('./claude-run');
 
 const {
   PROVIDERS, TIMEOUT_MS, TOOL_TIMEOUT_MS, STATUS_TIMEOUT_MS, STATUS_TTL_MS, MODELS_TTL_MS,
@@ -43,80 +41,16 @@ const {
 } = require('./ai/cli-limits.js');
 
 
-// ── locating the programs ───────────────────────────────────────────────────
-let codexCache = null;
-const { asLaunch, isFile, newestCodexCopy } = require('./ai/cli-find-codex.js');
-async function resolveCodex() {
-  // A cached copy inside an app or extension folder disappears when that
-  // updates, so the cache is re-checked rather than trusted.
-  if (codexCache && (codexCache.pre.length || await isFile(codexCache.cmd))) return codexCache;
-  codexCache = null;
-  const win = process.platform === 'win32';
-  for (const hit of await claudeRun.whichRaw('codex')) {
-    const low = hit.toLowerCase();
-    if (win ? low.endsWith('.exe') : !low.endsWith('.cmd') && !low.endsWith('.ps1')) {
-      return (codexCache = win ? { cmd: hit, pre: [] } : await asLaunch(hit));
-    }
-    // npm's Windows shim needs a shell; run the package's entry under node
-    // instead, like claude-run.js does for Claude Code.
-    const js = path.join(path.dirname(hit), 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
-    if (await isFile(js)) return (codexCache = { cmd: process.execPath, pre: [js] });
-  }
-  const copy = await newestCodexCopy();
-  return copy ? (codexCache = win ? { cmd: copy, pre: [] } : await asLaunch(copy)) : null;
-}
-function resolveExe(provider) {
-  return provider === 'claudecode' ? claudeRun.resolveExecutable() : resolveCodex();
-}
+const { cliSession } = require('./ai/cli-session.js');
+const { resolveCodex, resolveExe, workDir } = require('./ai/cli-places.js');
 
 const { childEnv, run, UNKNOWN_FLAG_RE, runWithOptional } = require('./ai/cli-run.js');
 
-// An empty folder of our own: no project files, no CLAUDE.md or AGENTS.md for
-// the program to pick up, nothing of the user's for it to wander into.
-//
-// Created once per run of the server with mkdtemp (a random name, mode 0700),
-// never a fixed name in the shared temp folder: on a machine with several
-// users another one could create /tmp/xenon-ai-cli first and plant a
-// CLAUDE.md, AGENTS.md or .claude/settings.json the assistant would obey, or
-// read the pictures attached to a question.
-let _workDir = null;
-async function workDir() {
-  if (_workDir) {
-    try { if ((await fsp.stat(_workDir)).isDirectory()) return _workDir; } catch { /* removed: make another */ }
-  }
-  _workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'xenon-ai-cli-'));
-  try { await fsp.chmod(_workDir, 0o700); } catch { /* Windows: the user's own temp folder */ }
-  return _workDir;
-}
-
-
-// ── status and models ───────────────────────────────────────────────────────
-// Claude Code answers both through the control protocol of its stream-json
-// mode, the one Anthropic's own Agent SDK speaks: an `initialize` request gets
-// back, among other things, the models this account can use today (with the
-// exact model each one currently resolves to) and the account's plan. No user
-// message is sent, so no model is called and no quota is spent; the program
-// exits when its input closes. It is the same list its own /model picker
-// shows, so it moves when Anthropic ships a model, with no change here.
-const INIT_TIMEOUT_MS = 45000;      // a cold start on Windows is slow; this is not on the chat path
-const initCache = { at: 0, value: null };
-async function claudeInit({ fresh = false } = {}) {
-  if (!fresh && initCache.value && Date.now() - initCache.at < MODELS_TTL_MS) return initCache.value;
-  const exe = await claudeRun.resolveExecutable();
-  if (!exe) return null;
-  const req = JSON.stringify({ type: 'control_request', request_id: 'xenon-init', request: { subtype: 'initialize' } }) + '\n';
-  const r = await runWithOptional(exe, (skip) => {
-    const a = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--tools', ''];
-    for (const f of ['--safe-mode', '--no-session-persistence']) if (!skip.has(f)) a.push(f);
-    return a;
-  }, ['--safe-mode', '--no-session-persistence'], { input: req, env: childEnv('claudecode'), cwd: await workDir(), timeoutMs: INIT_TIMEOUT_MS });
-  const value = parseClaudeInit(r.stdout);
-  if (value) { initCache.at = Date.now(); initCache.value = value; }
-  return value;
-}
 const {
   parseClaudeInit, why, parseClaudeAuth, parseCodexLogin, parseCodexModels,
 } = require('./ai/cli-status-text.js');
+
+const { claudeInit } = require('./ai/cli-claude-init.js');
 
 const statusCache = new Map();   // provider → { at, value }
 async function status(provider, { fresh = false } = {}) {
@@ -147,24 +81,18 @@ async function status(provider, { fresh = false } = {}) {
   return value;
 }
 
-// The models the program offers this account today. Claude Code: its own
-// list, from `initialize` above. Codex: its own catalog, `codex debug models`
-// (the ones it marks `visibility: "list"` are the ones its picker shows).
-// Only if the program cannot be asked does Claude Code fall back to its
-// family aliases, which it resolves to the newest model of each family.
-let codexModels = { at: 0, list: null };
 async function models(provider, { fresh = false } = {}) {
   if (provider === 'claudecode') {
     const init = await claudeInit({ fresh }).catch(() => null);
     return init && init.models.length ? init.models : CLAUDE_MODELS.map((m) => Object.assign({ version: '', resolved: '' }, m));
   }
   if (provider !== 'codex') return [];
-  if (!fresh && codexModels.list && Date.now() - codexModels.at < MODELS_TTL_MS) return codexModels.list;
+  if (!fresh && cliSession.codexModels.list && Date.now() - cliSession.codexModels.at < MODELS_TTL_MS) return cliSession.codexModels.list;
   const exe = await resolveCodex();
   if (!exe) return [];
   const r = await run(exe, ['debug', 'models'], { env: childEnv('codex'), timeoutMs: 30000, cwd: await workDir() });
   const list = parseCodexModels(r.stdout);
-  if (list.length) codexModels = { at: Date.now(), list };
+  if (list.length) cliSession.codexModels = { at: Date.now(), list };
   return list;
 }
 
@@ -188,14 +116,13 @@ const {
 // token; there is no other way in, and a call for a tool the turn was not
 // given is refused here whatever the program asks for.
 const BRIDGE = path.join(__dirname, 'ai-mcp-bridge.js');
-let mcpUrl = '';
 function configure(opts) {
-  if (opts && typeof opts.port === 'number') mcpUrl = 'http://127.0.0.1:' + opts.port + '/api/ai/cli/mcp';
+  if (opts && typeof opts.port === 'number') cliSession.mcpUrl = 'http://127.0.0.1:' + opts.port + '/api/ai/cli/mcp';
 }
 const {
   toolSessions, openToolSession, handleMcp, geminiToolsToMcp,
 } = require('./ai/cli-mcp-tools.js');
-function bridgeEnv(token) { return { XENON_MCP_URL: mcpUrl, XENON_MCP_TOKEN: token }; }
+function bridgeEnv(token) { return { XENON_MCP_URL: cliSession.mcpUrl, XENON_MCP_TOKEN: token }; }
 
 const { CliError, parseClaude, parseCodex } = require('./ai/cli-answers.js');
 
@@ -263,7 +190,6 @@ function codexArgs(systemText, model, dir, skip, token, imageFiles = [], effort 
   return a;
 }
 
-let active = 0;
 // `tools` (Gemini-style declarations) + `executeTool` give the model Xenon's
 // tools for this turn; without them it is a plain answer, as for a summary.
 // `effort: 'low'` keeps Codex's reasoning short, for small automatic jobs.
@@ -279,9 +205,9 @@ async function chat({ provider, model, systemText, history, tools, executeTool, 
   // and the program itself says so anyway when it is not signed in.
   const known = statusCache.get(provider);
   if (known && Date.now() - known.at < STATUS_TTL_MS && known.value.loggedIn === false) throw new CliError('cli_not_logged_in');
-  if (active >= MAX_ACTIVE) throw new CliError('cli_busy');
-  active++;
-  const mcpTools = (mcpUrl && typeof executeTool === 'function') ? geminiToolsToMcp(tools) : [];
+  if (cliSession.active >= MAX_ACTIVE) throw new CliError('cli_busy');
+  cliSession.active++;
+  const mcpTools = (cliSession.mcpUrl && typeof executeTool === 'function') ? geminiToolsToMcp(tools) : [];
   const token = mcpTools.length ? openToolSession(mcpTools, executeTool) : '';
   let imageFiles = [];
   try {
@@ -303,7 +229,7 @@ async function chat({ provider, model, systemText, history, tools, executeTool, 
   } finally {
     if (token) toolSessions.delete(token);
     for (const f of imageFiles) fsp.unlink(f).catch(() => { /* already gone */ });
-    active--;
+    cliSession.active--;
   }
 }
 
