@@ -23,14 +23,9 @@ const fs = require('fs');
 const path = require('path');
 const { lowerPriority } = require('./child-priority');
 
-const POLL_MS = 2000;            // child polling cadence
-const POLL_GAME_MS = 5000;       // through a game, see setPace()
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 const FEED_MAX = 30;
-const TEXT_MAX = 200;
-const BODY_MAX = 400;
-const ICON_MAX = 128 * 1024;     // data: URI cap (helper caps the raw logo lower)
 
 const PS_SCRIPT = path.join(__dirname, 'notifications.ps1');
 const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
@@ -42,52 +37,21 @@ let _onItem = null;
 let _onFeed = null;
 let _onPresent = null;
 
-let _proc = null;
-let _wanted = false;             // desired state from the last sync()
-let _stopped = false;            // process shutdown — never restart after
-let _buffer = '';
-let _restartTimer = null;
-let _linuxFlushTimer = null;     // idle flush for the last dbus-monitor block
-let _consecutiveFastFails = 0;
-let _helperDisabled = false;
-let _lastSpawnWasHelper = false;
-let _pollMs = POLL_MS;
+const { notifWatch } = require('./notification-open/winnotif-state.js');
+const {
+  POLL_MS, _stopChild, setPace, getState, getFeed, isSupported, reportedState,
+} = require('./notification-open/winnotif-control.js');
 
-let _state = 'off';              // 'off'|'starting'|'allowed'|'denied'|'unavailable'
-let _seq = 0;
-let _items = [];                 // newest first, capped at FEED_MAX
+const { _project } = require('./notification-open/winnotif-shape.js');
+
+notifWatch.pollMs = POLL_MS;
+
 
 function init(deps) {
   if (deps && typeof deps.isExcluded === 'function') _isExcluded = deps.isExcluded;
   if (deps && typeof deps.onItem === 'function') _onItem = deps.onItem;
   if (deps && typeof deps.onFeed === 'function') _onFeed = deps.onFeed;
   if (deps && typeof deps.onPresent === 'function') _onPresent = deps.onPresent;
-}
-
-// Server-side re-projection at the trust boundary: known keys only, length
-// caps, server-assigned monotonic id (child ids reset per session, so they
-// are unusable as feed keys). Anything malformed collapses to a safe shape.
-function _project(raw) {
-  const r = raw && typeof raw === 'object' ? raw : {};
-  const icon = typeof r.icon === 'string' && r.icon.startsWith('data:image/') && r.icon.length <= ICON_MAX
-    ? r.icon : null;
-  return {
-    id: ++_seq,
-    // The CHILD's own id, kept alongside ours. Ours is the feed key (child ids
-    // reset every session, so they are unusable for that); this one is what the
-    // `present` event speaks, and it is the only way to tell that a particular
-    // toast has been removed from Action Center. Absent when the child is an
-    // older helper that does not report ids.
-    srcId: Number.isFinite(r.id) ? Math.floor(r.id) : null,
-    app: String(r.app || '').slice(0, TEXT_MAX),
-    aumid: String(r.aumid || '').slice(0, TEXT_MAX),
-    // Linux only: the .desktop id the notification named (linux-notif.js).
-    desktopEntry: typeof r.desktopEntry === 'string' && /^[A-Za-z0-9][\w.-]{0,119}$/.test(r.desktopEntry) ? r.desktopEntry : '',
-    title: String(r.title || '').slice(0, TEXT_MAX),
-    body: String(r.body || '').slice(0, BODY_MAX),
-    at: Number.isFinite(r.at) && r.at > 0 ? Math.floor(r.at) : Date.now(),
-    icon,
-  };
 }
 
 function _excluded(item) {
@@ -105,13 +69,13 @@ function _handleLine(line) {
 
   if (msg.event === 'status') {
     const s = ['allowed', 'denied', 'unavailable'].includes(msg.status) ? msg.status : 'unavailable';
-    if (s !== _state) { _state = s; _emitFeed(); }
+    if (s !== notifWatch.state) { notifWatch.state = s; _emitFeed(); }
   } else if (msg.event === 'seed') {
     // The child seeds with what's in Action Center right now (newest first).
     // Replace wholesale: correct for the first start, for a crash-restart and
     // for a dashboard-reopen alike — never a duplicate-merge problem.
     const items = Array.isArray(msg.items) ? msg.items : [];
-    _items = items.map(_project).filter(it => !_excluded(it)).slice(0, FEED_MAX);
+    notifWatch.items = items.map(_project).filter(it => !_excluded(it)).slice(0, FEED_MAX);
     _emitFeed();
   } else if (msg.event === 'present') {
     // Which toasts are still in Action Center. Only the incoming-call card cares:
@@ -126,20 +90,20 @@ function _handleLine(line) {
     const item = _project(msg.item);
     if (!item.app && !item.title && !item.body) return;   // no usable text → drop
     if (_excluded(item)) return;
-    _items.unshift(item);
-    if (_items.length > FEED_MAX) _items.length = FEED_MAX;
+    notifWatch.items.unshift(item);
+    if (notifWatch.items.length > FEED_MAX) notifWatch.items.length = FEED_MAX;
     if (_onItem) { try { _onItem(item); } catch { /* ignore */ } }
   }
 }
 
 function _onData(chunk) {
-  _buffer += chunk;
+  notifWatch.buffer += chunk;
   let nl;
-  while ((nl = _buffer.indexOf('\n')) >= 0) {
-    const line = _buffer.slice(0, nl).replace(/\r$/, '').trim();
-    _buffer = _buffer.slice(nl + 1);
+  while ((nl = notifWatch.buffer.indexOf('\n')) >= 0) {
+    const line = notifWatch.buffer.slice(0, nl).replace(/\r$/, '').trim();
+    notifWatch.buffer = notifWatch.buffer.slice(nl + 1);
     if (!line) continue;
-    _consecutiveFastFails = 0; // receiving data → healthy
+    notifWatch.consecutiveFastFails = 0; // receiving data → healthy
     _handleLine(line);
   }
 }
@@ -178,31 +142,31 @@ function _emitNotifyBlock(block) {
 // message and the next notification opens with its own header, so clearing
 // cannot drop or double anything.
 function _flushLinuxTail() {
-  _linuxFlushTimer = null;
-  if (!_buffer || _proc === null) return;
-  if (_emitNotifyBlock(_buffer)) _buffer = '';
+  notifWatch.linuxFlushTimer = null;
+  if (!notifWatch.buffer || notifWatch.proc === null) return;
+  if (_emitNotifyBlock(notifWatch.buffer)) notifWatch.buffer = '';
 }
 
 function _armLinuxFlush() {
-  if (_linuxFlushTimer) clearTimeout(_linuxFlushTimer);
-  _linuxFlushTimer = setTimeout(_flushLinuxTail, LINUX_FLUSH_MS);
-  if (typeof _linuxFlushTimer.unref === 'function') _linuxFlushTimer.unref();
+  if (notifWatch.linuxFlushTimer) clearTimeout(notifWatch.linuxFlushTimer);
+  notifWatch.linuxFlushTimer = setTimeout(_flushLinuxTail, LINUX_FLUSH_MS);
+  if (typeof notifWatch.linuxFlushTimer.unref === 'function') notifWatch.linuxFlushTimer.unref();
 }
 
 function _onDbusData(chunk) {
-  _buffer += chunk;
-  const blocks = linuxNotif.splitBlocks(_buffer);
+  notifWatch.buffer += chunk;
+  const blocks = linuxNotif.splitBlocks(notifWatch.buffer);
   // The last block may still be arriving, so it is left in the buffer until the
   // next header proves it complete — or the idle flush below does.
   const complete = blocks.slice(0, -1);
-  _buffer = blocks.length ? blocks[blocks.length - 1] : '';
+  notifWatch.buffer = blocks.length ? blocks[blocks.length - 1] : '';
   for (const block of complete) {
-    _consecutiveFastFails = 0;                      // receiving data → healthy
+    notifWatch.consecutiveFastFails = 0;                      // receiving data → healthy
     _emitNotifyBlock(block);
   }
   // Re-arm on every chunk: while data keeps arriving the tail is still growing,
   // and only the last chunk's timer actually fires.
-  if (_buffer) _armLinuxFlush();
+  if (notifWatch.buffer) _armLinuxFlush();
 }
 
 function _startLinux(startedAt) {
@@ -218,88 +182,73 @@ function _startLinux(startedAt) {
   try {
     child = spawn(bin, linuxNotif.MONITOR_ARGS);
   } catch {
-    _proc = null;
+    notifWatch.proc = null;
     _scheduleRestart(startedAt);
     return;
   }
-  _proc = child;
+  notifWatch.proc = child;
   // The session bus is the user's own, so there is no permission gate to wait
   // for: if the monitor started, it is watching.
   _handleLine(JSON.stringify({ event: 'status', status: 'allowed' }));
-  child.stdout.on('data', (d) => { if (_proc === child) _onDbusData(d.toString('utf8')); });
+  child.stdout.on('data', (d) => { if (notifWatch.proc === child) _onDbusData(d.toString('utf8')); });
   child.stderr.on('data', () => { /* match-rule warnings; ignore */ });
-  const onGone = () => { if (_proc === child) { _proc = null; _scheduleRestart(startedAt); } };
+  const onGone = () => { if (notifWatch.proc === child) { notifWatch.proc = null; _scheduleRestart(startedAt); } };
   child.on('error', onGone);
   child.on('close', onGone);
 }
 
 function _start() {
-  if (_stopped) return;
+  if (notifWatch.stopped) return;
   if (process.platform !== 'win32' && process.platform !== 'linux') return;
-  if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
-  _buffer = '';
-  _state = 'starting';
+  if (notifWatch.restartTimer) { clearTimeout(notifWatch.restartTimer); notifWatch.restartTimer = null; }
+  notifWatch.buffer = '';
+  notifWatch.state = 'starting';
   const startedAt = Date.now();
   if (process.platform === 'linux') { _startLinux(startedAt); return; }
   let useHelper = false;
-  if (!_helperDisabled) {
+  if (!notifWatch.helperDisabled) {
     try { useHelper = fs.existsSync(HELPER_EXE); } catch { useHelper = false; }
   }
-  _lastSpawnWasHelper = useHelper;
+  notifWatch.lastSpawnWasHelper = useHelper;
   let child;
   try {
     child = useHelper
-      ? spawn(HELPER_EXE, ['notifications-serve', String(_pollMs)], { windowsHide: true })
+      ? spawn(HELPER_EXE, ['notifications-serve', String(notifWatch.pollMs)], { windowsHide: true })
       : spawn('powershell.exe', [
           '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
           '-File', PS_SCRIPT, '-IntervalMs', String(POLL_MS),
         ], { windowsHide: true });
   } catch {
-    _proc = null;
+    notifWatch.proc = null;
     _scheduleRestart(startedAt);
     return;
   }
-  _proc = child;
+  notifWatch.proc = child;
   lowerPriority(child.pid);
   // Every handler checks identity against the child it was registered on: a
   // stop→start bounce (dashboard reload while the old child's async close is
   // still queued) would otherwise null out — and leave orphaned + duplicated —
   // the replacement listener. Mirrors wakeword.js.
-  child.stdout.on('data', d => { if (_proc === child) _onData(d.toString('utf8')); });
+  child.stdout.on('data', d => { if (notifWatch.proc === child) _onData(d.toString('utf8')); });
   child.stderr.on('data', () => { /* probe warnings; ignore */ });
   // setPace() writes here: a pipe that breaks raises 'error' on the stream, and an
   // unhandled one takes the server down. 'close' below is what handles the exit.
   child.stdin.on('error', () => {});
-  const onGone = () => { if (_proc === child) { _proc = null; _scheduleRestart(startedAt); } };
+  const onGone = () => { if (notifWatch.proc === child) { notifWatch.proc = null; _scheduleRestart(startedAt); } };
   child.on('error', onGone);
   child.on('close', onGone);
 }
 
 function _scheduleRestart(startedAt) {
-  if (_stopped || !_wanted) return;   // deliberate stop — not a crash
-  if (Date.now() - startedAt < 2500) _consecutiveFastFails++; else _consecutiveFastFails = 0;
-  if (_consecutiveFastFails >= 3 && _lastSpawnWasHelper && !_helperDisabled) {
-    _helperDisabled = true;           // broken exe → pin the PS fallback
-    _consecutiveFastFails = 0;
+  if (notifWatch.stopped || !notifWatch.wanted) return;   // deliberate stop — not a crash
+  if (Date.now() - startedAt < 2500) notifWatch.consecutiveFastFails++; else notifWatch.consecutiveFastFails = 0;
+  if (notifWatch.consecutiveFastFails >= 3 && notifWatch.lastSpawnWasHelper && !notifWatch.helperDisabled) {
+    notifWatch.helperDisabled = true;           // broken exe → pin the PS fallback
+    notifWatch.consecutiveFastFails = 0;
   }
-  const delay = _consecutiveFastFails >= 3 ? FAIL_BACKOFF_MS : RESTART_DELAY_MS;
-  if (_restartTimer) clearTimeout(_restartTimer);
-  _restartTimer = setTimeout(_start, delay);
-}
-
-function _stopChild() {
-  if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
-  if (_linuxFlushTimer) { clearTimeout(_linuxFlushTimer); _linuxFlushTimer = null; }
-  if (_proc) {
-    const p = _proc;
-    _proc = null;                     // detach first so 'close' won't restart
-    try { p.stdin.end(); } catch { /* helper exits on EOF */ }
-    try { p.kill(); } catch { /* the PS loop needs the kill */ }
-  }
-  _buffer = '';
-  // Privacy: drop the buffered notification text the moment nobody watches.
-  _items = [];
-  _state = 'off';
+  const delay = notifWatch.consecutiveFastFails >= 3 ? FAIL_BACKOFF_MS : RESTART_DELAY_MS;
+  if (notifWatch.restartTimer) clearTimeout(notifWatch.restartTimer);
+  notifWatch.restartTimer = setTimeout(_start, delay);
 }
 
 // Reconcile the child with the desired state. server.js computes `want` as
@@ -307,56 +256,30 @@ function _stopChild() {
 function sync(want) {
   // Gate on the reader that exists, not on Windows: the Linux child is spawned
   // from _start() too, and gating this on win32 left _startLinux unreachable —
-  // the whole dbus path was dead code, since _wanted could never be true there.
-  _wanted = !!want && isSupported();
-  if (_wanted && !_proc && !_restartTimer && !_stopped) _start();
+  // the whole dbus path was dead code, since notifWatch.wanted could never be true there.
+  notifWatch.wanted = !!want && isSupported();
+  if (notifWatch.wanted && !notifWatch.proc && !notifWatch.restartTimer && !notifWatch.stopped) _start();
   // 'unavailable' is terminal: no child, no timer, nothing to tear down. Treat
   // it like 'off' here or every sync() re-runs _stopChild() and re-announces a
   // state that did not change (sync fires on each SSE connect/close and save).
-  else if (!_wanted && (_proc || _restartTimer || _items.length || (_state !== 'off' && _state !== 'unavailable'))) {
+  else if (!notifWatch.wanted && (notifWatch.proc || notifWatch.restartTimer || notifWatch.items.length || (notifWatch.state !== 'off' && notifWatch.state !== 'unavailable'))) {
     _stopChild();
     _emitFeed();
-  }
-}
-
-// Through a game the reader looks less often: every look is a call into the Windows
-// notification service. Only the helper listens. The PowerShell fallback keeps its
-// pace, and Linux has nothing to slow: dbus-monitor is told, it does not ask.
-function setPace(slow) {
-  const ms = slow ? POLL_GAME_MS : POLL_MS;
-  if (ms === _pollMs) return;
-  _pollMs = ms;
-  if (_proc && _lastSpawnWasHelper) {
-    try { _proc.stdin.write(`${ms}\n`); } catch { /* the child is going away */ }
   }
 }
 
 // Re-filter the stored feed after the excluded-apps list changed; announces
 // only when something was actually dropped.
 function applyExclusions() {
-  const before = _items.length;
-  _items = _items.filter(it => !_excluded(it));
-  if (_items.length !== before) _emitFeed();
+  const before = notifWatch.items.length;
+  notifWatch.items = notifWatch.items.filter(it => !_excluded(it));
+  if (notifWatch.items.length !== before) _emitFeed();
 }
 
-function getState() { return _state; }
-function getFeed() { return _items; }
-
-// The mirror has one reader per platform: WinRT's UserNotificationListener on
-// Windows, the Notify method on the session bus on Linux. Anywhere else there
-// is no reader at all, so no child is ever spawned.
-function isSupported() { return process.platform === 'win32' || process.platform === 'linux'; }
-
-// What a dashboard should be told the state is. `getState()` stays the raw child
-// state — the reader's own logic and its tests depend on that — but where there
-// is no reader the child never runs, so that state sits at 'off' forever, which
-// the tile renders as "Connecting…" and never leaves (its self-heal loop then
-// re-seeds against 'off' indefinitely). Report a terminal, honest state instead.
-function reportedState() { return isSupported() ? _state : 'unavailable'; }
 
 function stop() {
-  _stopped = true;
-  _wanted = false;
+  notifWatch.stopped = true;
+  notifWatch.wanted = false;
   _stopChild();
 }
 
@@ -371,5 +294,5 @@ module.exports = {
   // flush directly so the "last block delivered without waiting for the next"
   // fix is testable without real timers or a live bus.
   _onDbusData, _flushLinuxTail,
-  _setProcForTest: (v, helper = false) => { _proc = v; _lastSpawnWasHelper = helper; },
+  _setProcForTest: (v, helper = false) => { notifWatch.proc = v; notifWatch.lastSpawnWasHelper = helper; },
 };

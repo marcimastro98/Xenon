@@ -2,6 +2,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const wn = require('../winnotif.js');
 
@@ -64,7 +65,7 @@ test('a pipe that broke does not reach the server', () => {
 });
 
 test('the child\'s stdin has an error handler, a broken pipe would otherwise take the server down', () => {
-  const source = readFileSync(new URL('../winnotif.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const source = engineSource('server/winnotif.js').replace(/\r\n/g, '\n');
   assert.match(source, /_proc = child;[\s\S]{0,900}child\.stdin\.on\('error', \(\) => \{\}\);\n\s+const onGone/);
   assert.match(source, /spawn\(HELPER_EXE, \['notifications-serve', String\(_pollMs\)\]/, 'a restart mid-game keeps the pace');
   assert.match(source, /'-File', PS_SCRIPT, '-IntervalMs', String\(POLL_MS\)/, 'the fallback never hears the way back');

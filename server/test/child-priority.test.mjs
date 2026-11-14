@@ -41,7 +41,7 @@ test('every background reader gives way', () => {
   assert.match(server, /COMPlus_GCgen0MaxBudget: PWSH_WORKER_GC_BUDGET \} \}\);\n\s+\} catch \{ return null; \}\n\s+lowerPriority\(proc\.pid\);/, 'sensor worker');
   assert.match(server, /_mediaHost\.proc = proc;\n\s+lowerPriority\(proc\.pid\);/, 'media host');
   assert.match(server, /lowPriority: lowerPriority,/, 'transcripts');
-  assert.match(source('winnotif.js'), /_proc = child;\n\s+lowerPriority\(child\.pid\);/, 'notification reader');
+  assert.match(engineSource('server/winnotif.js'), /_proc = child;\n\s+lowerPriority\(child\.pid\);/, 'notification reader');
   assert.match(source('living-index.js'), /host\.proc = proc;\n\s+lowerPriority\(proc\.pid\);/, 'index host');
   assert.match(source('audio-levels.js'), /scheduleRestart\(startedAt\);\n\s+return;\n\s+\}\n\s+lowerPriority\(_proc\.pid\);/, 'audio levels');
 });

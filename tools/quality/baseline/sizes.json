@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 193,
+  "count": 192,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -184,7 +184,6 @@
     "server/update-apply.ps1": 781,
     "server/update-apply.sh": 605,
     "server/windows.ps1": 390,
-    "server/winnotif.js": 375,
     "tools/bit-messages-check/check.mjs": 533,
     "tools/build-seo.mjs": 1085,
     "tools/build-supporters.mjs": 439,

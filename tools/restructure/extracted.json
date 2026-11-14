@@ -587,6 +587,11 @@
     ],
     "server/remote-https.js": [
       {"file":"server/paired/https-readiness.js","about":"Why the HTTPS door for paired devices is not up, as one of a few reasons the settings page turns into a sentence.","names":["readiness"]}
+    ],
+    "server/winnotif.js": [
+      {"file":"server/notification-open/winnotif-state.js","about":"What the notification reader remembers while it runs: its child process, what it has read so far, and how its last starts went.","names":["_proc","_wanted","_stopped","_buffer","_restartTimer","_linuxFlushTimer","_consecutiveFastFails","_helperDisabled","_lastSpawnWasHelper","_pollMs","_state","_seq","_items"],"state":{"object":"notifWatch","props":{"_proc":"proc","_wanted":"wanted","_stopped":"stopped","_buffer":"buffer","_restartTimer":"restartTimer","_linuxFlushTimer":"linuxFlushTimer","_consecutiveFastFails":"consecutiveFastFails","_helperDisabled":"helperDisabled","_lastSpawnWasHelper":"lastSpawnWasHelper","_pollMs":"pollMs","_state":"state","_seq":"seq","_items":"items"},"kept":["_pollMs"],"bare":[]}},
+      {"file":"server/notification-open/winnotif-shape.js","about":"One notification as the child reader printed it, turned into the shape the dashboards get: known keys only, lengths capped, and an id the server gives.","names":["TEXT_MAX","BODY_MAX","ICON_MAX","_project"]},
+      {"file":"server/notification-open/winnotif-control.js","about":"What the notification reader is asked from outside while its child runs: stop the child and forget what it read, look less often through a game, and say what state it is in.","names":["POLL_MS","POLL_GAME_MS","_stopChild","setPace","getState","getFeed","isSupported","reportedState"]}
     ]
   },
   "spreads": {
