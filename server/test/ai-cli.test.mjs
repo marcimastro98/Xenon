@@ -306,7 +306,10 @@ test('the chat route gives these providers Xenon\'s tools, run by the same execu
   assert.match(S, /\(provider === 'ollama' \|\| provider === 'localapi' \|\| provider === 'openai' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\)\)\n\s+\? await aiLocal\.localWebSearch/);
   // The bridge finds this server: configured once PORT exists (a const used
   // before its line would take the whole server down at start).
-  assert.ok(S.indexOf('aiCli.configure({ port: PORT })') > S.indexOf('const PORT = (() => {'));
+  // PORT is worked out on its line of the engine file, or taken there from the module that works it out.
+  const taken = S.indexOf("const { PORT } = require('./engine/port.js');");
+  const portAt = taken === -1 ? S.indexOf('const PORT = (() => {') : taken;
+  assert.ok(portAt > 0 && S.indexOf('aiCli.configure({ port: PORT })') > portAt);
 });
 
 test("Bit's automatic lines never spend the subscription; what the user starts may", () => {
