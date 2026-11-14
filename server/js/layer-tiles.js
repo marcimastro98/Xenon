@@ -88,7 +88,7 @@
     twitchwatch: tile('twitchwatch', 'TwitchWatchWidget', ['js/tile-tab-memory.js', 'js/twitch-chat.js', 'js/watch-view.js', 'js/twitchwatch-widget.js'], {}, null, ['components/TwitchWatchWidget/TwitchWatchWidgetChat.css']),
     spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}, null, ['components/SpotifyWidget/SpotifyWidgetTabs.css']),
     claude: tile('claude', 'ClaudeWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/custom-select.js', 'js/claude-history.js', 'js/claude-thread.js', 'js/claude-roadmap.js', 'js/claude-ident.js',
-      'js/claude-clawd.js', 'js/claude-rail.js', 'js/claude-console.js', 'js/claude-agents.js', 'js/claude-widget.js'], { claude: 'onSSE' },
+      'js/claude-clawd.js', 'js/claude-rail.js', 'js/claude-console.js', 'js/claude-agents.js', 'js/claude-widget/words.js', 'js/claude-widget.js'], { claude: 'onSSE' },
       'ClaudeWidget', ['components/ClaudeWidget/ClaudeWidgetDecisions.css', 'components/ClaudeWidget/ClaudeWidgetHeader.css', 'components/ClaudeWidget/ClaudeWidgetConsole.css', 'components/ClaudeWidget/ClaudeWidgetComposer.css', 'components/ClaudeWidget/ClaudeWidgetPanels.css', 'components/CustomSelect/CustomSelect.css', 'components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
     openaicodex: tile('openaicodex', 'CodexWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/codex-widget.js'], { codex: 'onSSE' },
       'CodexWidget', ['components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
