@@ -89,12 +89,6 @@ const { createCaptureFolder } = require('./capture-folder');
 const { resolveUserFolder, replayRingDir } = require('./user-folders');
 const { CAPTURE_EXE } = require('./screens/capture-exe.js');
 const _captureHost = createCaptureHost({ exe: CAPTURE_EXE, log: (m) => console.warn(m) });
-const {
-  sanitizeWeatherCity, resolveWeatherLocation, pickWeatherLocationResult,
-  splitWeatherDisplayLocation,
-} = require('./weather/location.js');
-
-const { WEATHER_PROVIDERS, weatherProviderOrder } = require('./weather/providers.js');
 
 const {
   DASHBOARD_WIDGET_IDS, DASHBOARD_LAYOUT_VERSION,
@@ -120,8 +114,6 @@ const { SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
 const { findFirstFile } = require('./ffmpeg-install/lookup.js');
 
 const { WL_OFF_STATE } = require('./audio/wavelink-values.js');
-
-const { WEATHER_LANGS } = require('./weather/setting-values.js');
 
 const { normalizeEvents } = require('./time/events-normalize.js');
 
@@ -1444,8 +1436,6 @@ const { DEFAULT_HUB_SETTINGS } = require('./settings/defaults.js');
 
 const { normalizeLockWidgets } = require('./settings/normalize-lock-widgets.js');
 
-const { normalizeAmbientMode } = require('./ambient/normalize-mode.js');
-
 const { readHubSettings, readHubSettingsForUpdate } = require('./settings/read.js');
 
 const { cliOneShot } = require('./ai/cli-one-shot.js');
@@ -2261,10 +2251,6 @@ setInterval(() => {
 
 const { sensorReads } = require('./system/sensor-reads-state.js');
 const { sensorCache } = require('./system/sensor-cache.js');
-const {
-  WEATHER_CACHE_MAX_ENTRIES, weatherCache, weatherPending, weatherLocationCache,
-  newestWeatherForLocation,
-} = require('./weather/cache.js');
 const { audioReads } = require('./audio/read-state.js');
 const { sttDevice } = require('./ai/stt-device-state.js');
 
@@ -2276,43 +2262,10 @@ setInterval(_sweepStaleStt, 60000).unref();
 const { mediaChoice } = require('./media/preferred-source.js');
 const heardPlayer = createHeardPlayer(F);
 const musicNow = createMusicFact();
-const {
-  WEATHER_CACHE_MS, WEATHER_FORECAST_CACHE_MS, WEATHER_GEO_FAIL_COOLDOWN_MS,
-} = require('./weather/timings.js');
-const { WEATHER_FORECAST_MAX_DAYS } = require('./weather/forecast-shape.js');
-const { artworkCache } = require('./media/artwork-cache.js');
 
 const { setMediaPreferredSource } = require('./media/preferred-source-set.js');
 
 const { readSoundVolumeRows } = require('./audio/volume-rows.js');
-
-const { FETCH_JSON_MAX_BYTES } = require('./http/fetch-json-limit.js');
-function fetchJson(url, timeout = 2500, extraHeaders) {
-  return new Promise((resolve, reject) => {
-    const headers = { 'User-Agent': 'Xenon/1.0', ...(extraHeaders || {}) };
-    const req = https.get(url, { timeout, headers }, res => {
-      // An answer is JSON from a weather or artwork service: anything else, or
-      // anything this large, is not one, and is not read into memory.
-      if (res.statusCode !== 200) { res.resume(); reject(new Error('HTTP ' + res.statusCode)); return; }
-      const chunks = [];
-      let size = 0;
-      res.on('data', chunk => {
-        size += chunk.length;
-        if (size > FETCH_JSON_MAX_BYTES) { req.destroy(new Error('body too large')); return; }
-        chunks.push(chunk);
-      });
-      res.on('end', () => {
-        try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-        catch (e) { reject(e); }
-      });
-    });
-    req.on('timeout', () => { req.destroy(new Error('Artwork lookup timeout')); });
-    req.on('error', reject);
-    // `timeout` above only fires on a quiet socket; this ends a request that
-    // trickles forever (net-guard.armDeadline).
-    require('./net-guard').armDeadline(req, Math.max(timeout * 4, 10000));
-  });
-}
 
 // ── What the media hosts hand us, made usable ───────────────────────────────
 // Reported as issue #128, on Apple Music for Windows: the cover never rendered
@@ -2327,313 +2280,9 @@ function fetchJson(url, timeout = 2500, extraHeaders) {
 
 
 
-async function hydrateArtwork(data) {
-  if (!data || !data.active || data.thumbnail) return data;
-  const title = (data.title || '').trim();
-  const artist = (data.artist || '').trim();
-  if (!title || !artist) return data;
+const { hydrateArtwork } = require('./media/artwork-lookup.js');
 
-  const key = `${artist}::${title}`.toLowerCase();
-  if (artworkCache.has(key)) {
-    data.thumbnail = artworkCache.get(key);
-    return data;
-  }
-
-  try {
-    const term = encodeURIComponent(`${artist} ${title}`);
-    const result = await fetchJson(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`, 2500);
-    const art = result && result.results && result.results[0] && result.results[0].artworkUrl100;
-    const bigArt = art ? art.replace('100x100bb', '600x600bb') : null;
-    // LRU eviction: cap cache at 200 entries to prevent unbounded growth.
-    if (artworkCache.size >= 200) artworkCache.delete(artworkCache.keys().next().value);
-    artworkCache.set(key, bigArt);
-    data.thumbnail = bigArt;
-  } catch {
-    if (artworkCache.size >= 200) artworkCache.delete(artworkCache.keys().next().value);
-    artworkCache.set(key, null);
-  }
-
-  return data;
-}
-
-const { normalizeWeather } = require('./weather/wttr.js');
-
-// Recover real coordinates for a manual city that open-meteo's structured
-// geocoder rejected — a full address or place name like
-// "Bücherei Wien Hütteldorfer Straße 130d". The user must never have to know or
-// type coordinates: wttr.in's geocoder is far more lenient (it resolves freeform
-// strings the structured one won't) and its response carries the matched point's
-// lat/lon. Reusing those coordinates lets the coordinate-only providers
-// (MET Norway / Open-Meteo — the full 7-day forecast) run, instead of the widget
-// silently degrading to wttr's own 3-day feed. Language-independent, unlike
-// matching localized city names ("Wien" vs "Vienna"). Returns a place or null.
-async function recoverWeatherPlaceViaWttr(requestedCity, lang) {
-  let raw;
-  // wttr answers plain text ("Unknown location…") for a real miss, so a JSON
-  // parse failure here just means "not found" — fall through to null, never throw.
-  try { raw = await fetchJson(`https://wttr.in/${encodeURIComponent(requestedCity)}?format=j1&lang=${lang}`, 3500); }
-  catch { return null; }
-  const area = raw && Array.isArray(raw.nearest_area) && raw.nearest_area[0] || null;
-  const lat = Number(area && area.latitude);
-  const lon = Number(area && area.longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  // Keep the user's own text as the displayed name (what they typed) and just
-  // attach the recovered coordinates so the richer providers can run.
-  return { placePath: `/${lat.toFixed(4)},${lon.toFixed(4)}`, resolvedCity: requestedCity, lat, lon };
-}
-
-async function resolveManualWeatherPlace(city, lang) {
-  const requestedCity = sanitizeWeatherCity(city);
-  if (!requestedCity) return { placePath: '', resolvedCity: '' };
-
-  const cacheKey = `${lang}|${requestedCity.toLowerCase()}`;
-  const cached = weatherLocationCache.get(cacheKey);
-  if (cached && (Date.now() - cached.updatedAt) < WEATHER_CACHE_MS) return cached.value;
-
-  let value = {
-    placePath: `/${encodeURIComponent(requestedCity)}`,
-    resolvedCity: requestedCity,
-    lat: NaN,
-    lon: NaN,
-  };
-
-  try {
-    const query = encodeURIComponent(requestedCity);
-    const geo = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=10&language=${lang}&format=json`, 3000);
-    const match = pickWeatherLocationResult(geo && geo.results, requestedCity);
-    const latitude = Number(match && match.latitude);
-    const longitude = Number(match && match.longitude);
-    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-      value = {
-        placePath: `/${latitude.toFixed(4)},${longitude.toFixed(4)}`,
-        resolvedCity: [match.name, match.admin1, match.country].filter(Boolean).join(', ') || requestedCity,
-        lat: latitude,
-        lon: longitude,
-      };
-    }
-  } catch {
-    // Fall back to the raw city name when geocoding is unavailable.
-  }
-
-  // The exact string didn't resolve to coordinates (a full address / place
-  // name). Try to recover the intended city from its words so MET Norway /
-  // Open-Meteo can still run (7-day forecast) instead of the widget quietly
-  // dropping to wttr.in's 3 days — without asking the user for coordinates.
-  if (!Number.isFinite(value.lat) || !Number.isFinite(value.lon)) {
-    try {
-      const recovered = await recoverWeatherPlaceViaWttr(requestedCity, lang);
-      if (recovered) value = recovered;
-    } catch { /* keep the raw-name value; wttr can still self-geolocate */ }
-  }
-
-  // Keyed on the city a request names, so it is bounded: the oldest goes first.
-  if (weatherLocationCache.size >= 200) weatherLocationCache.delete(weatherLocationCache.keys().next().value);
-  weatherLocationCache.set(cacheKey, { value, updatedAt: Date.now() });
-  return value;
-}
-
-const { METNO_HEADERS, normalizeMetno } = require('./weather/met-norway.js');
-
-const { normalizeOpenMeteo } = require('./weather/open-meteo.js');
-
-const { GEO_IP_SOURCES, normalizeGeoIpValue } = require('./weather/geo-ip.js');
-const { WEATHER_GEO_FILE } = require('./weather/geo-file.js');
-const { weatherGeo } = require('./weather/auto-place-state.js');
-const { loadPersistedAutoLocation } = require('./weather/auto-place-load.js');
-async function resolveAutoLocation() {
-  if (!weatherGeo.load) weatherGeo.load = loadPersistedAutoLocation();
-  await weatherGeo.load;
-  if (weatherGeo.place.value && (Date.now() - weatherGeo.place.updatedAt) < WEATHER_CACHE_MS) {
-    return weatherGeo.place.value;
-  }
-  // After a failed lookup, don't pay the fetch timeout again on every forecast
-  // refresh — serve the last known place immediately and retry after a cooldown.
-  if (Date.now() - weatherGeo.failAt < WEATHER_GEO_FAIL_COOLDOWN_MS) {
-    return weatherGeo.place.value || null;
-  }
-  // Concurrent misses (several surfaces/languages refreshing at the same tick)
-  // share one lookup: these are free, rate-limited services, and a burst of
-  // parallel requests is exactly what gets throttled. The sources are tried in
-  // order and the FIRST usable answer wins — a later one is never consulted, so
-  // the normal case still costs exactly one request, as it did before.
-  if (!weatherGeo.refresh) {
-    weatherGeo.refresh = (async () => {
-      const attempts = [];
-      for (const source of GEO_IP_SOURCES) {
-        let value = null;
-        try {
-          value = normalizeGeoIpValue(source.parse(await fetchJson(source.url, 3000)));
-          attempts.push(`${source.name}:${value ? 'ok' : 'no_data'}`);
-        } catch (e) {
-          // A blocked hostname fails here (NXDOMAIN / refused connection / a
-          // filter's HTML interstitial that won't parse as JSON) — try the next.
-          attempts.push(`${source.name}:${String((e && e.code) || 'error').slice(0, 24)}`);
-        }
-        if (!value) continue;
-        weatherGeo.place = { value, updatedAt: Date.now() };
-        weatherGeo.source = source.name;
-        weatherGeo.attempts = attempts.join(', ');
-        writeFileAtomic(WEATHER_GEO_FILE, JSON.stringify({ ...value, updatedAt: weatherGeo.place.updatedAt }))
-          .catch(() => { /* best-effort — memory copy still serves this run */ });
-        return value;
-      }
-      weatherGeo.attempts = attempts.join(', ');
-      weatherGeo.failAt = Date.now();
-      return null;
-    })().finally(() => { weatherGeo.refresh = null; });
-  }
-  const fresh = await weatherGeo.refresh;
-  // Lookup failed: reuse the last known coordinates even past their TTL, so the
-  // forecast stays pinned to one place instead of drifting to wttr's IP guess.
-  return fresh || weatherGeo.place.value || null;
-}
-
-// Provider fetchers — each resolves to a normalized object or null (never throws),
-// so getWeather() can fall through to the next source.
-async function fetchWttrWeather(ctx) {
-  try {
-    const raw = await fetchJson(`https://wttr.in${ctx.placePath}?format=j1&lang=${ctx.lang}`, 3500);
-    const data = normalizeWeather(raw, ctx.lang);
-    if (!data.ok) return null;
-    data.source = 'wttr';
-    return data;
-  } catch { return null; }
-}
-async function fetchOpenMeteoWeather(ctx) {
-  if (!Number.isFinite(ctx.lat) || !Number.isFinite(ctx.lon)) return null;
-  try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ctx.lat}&longitude=${ctx.lon}`
-      + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,precipitation,visibility,uv_index'
-      + '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m'
-      + '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max'
-      + `&timezone=auto&forecast_days=${WEATHER_FORECAST_MAX_DAYS}`;
-    const raw = await fetchJson(url, 3500);
-    return normalizeOpenMeteo(raw, ctx);
-  } catch { return null; }
-}
-async function fetchMetnoWeather(ctx) {
-  if (!Number.isFinite(ctx.lat) || !Number.isFinite(ctx.lon)) return null;
-  try {
-    const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${ctx.lat.toFixed(4)}&lon=${ctx.lon.toFixed(4)}`;
-    const raw = await fetchJson(url, 3500, METNO_HEADERS(APP_VERSION));
-    return normalizeMetno(raw, ctx);
-  } catch { return null; }
-}
-
-const WEATHER_FETCHERS = {
-  'open-meteo': fetchOpenMeteoWeather,
-  'metno': fetchMetnoWeather,
-  'wttr': fetchWttrWeather,
-};
-
-async function getWeather(lang = 'en', requestedLocation = null) {
-  // Unsupported/missing language falls back to English (neutral), never to a
-  // specific locale — a client on a language the server doesn't know must not
-  // get Italian conditions on an otherwise-translated UI (#72).
-  const safeLang = WEATHER_LANGS.has(lang) ? lang : 'en';
-  const settings = await readHubSettings().catch(() => null);
-  const hasRequestLocation = requestedLocation && (requestedLocation.mode !== undefined || requestedLocation.city !== undefined);
-  const location = resolveWeatherLocation(hasRequestLocation ? requestedLocation : settings && settings.weather);
-  const provider = settings && settings.weather && WEATHER_PROVIDERS.has(settings.weather.provider)
-    ? settings.weather.provider : 'auto';
-  const cacheKey = `${safeLang}|${provider}|${location.mode}|${location.city.toLowerCase()}`;
-  const cached = weatherCache.get(cacheKey);
-  if (cached && (Date.now() - cached.updatedAt) < WEATHER_FORECAST_CACHE_MS) return cached.data;
-  const pending = weatherPending.get(cacheKey);
-  if (pending) return pending;
-
-  const promise = (async () => {
-    // Build the location context. Coordinate-based providers (open-meteo, metno)
-    // need lat/lon: from geocoding in manual mode, from IP geolocation in auto.
-    const ctx = { lang: safeLang, mode: location.mode, city: location.city, lat: NaN, lon: NaN, placePath: '', location: '', region: '', country: '' };
-    if (location.mode === 'manual') {
-      const manualPlace = await resolveManualWeatherPlace(location.city, safeLang);
-      ctx.placePath = manualPlace.placePath;
-      if (Number.isFinite(manualPlace.lat) && Number.isFinite(manualPlace.lon)) { ctx.lat = manualPlace.lat; ctx.lon = manualPlace.lon; }
-      if (manualPlace.resolvedCity) {
-        const d = splitWeatherDisplayLocation(manualPlace.resolvedCity);
-        ctx.location = d.location || ''; ctx.region = d.region || ''; ctx.country = d.country || '';
-      }
-    } else {
-      const auto = await resolveAutoLocation();
-      if (auto) { ctx.lat = auto.lat; ctx.lon = auto.lon; ctx.location = auto.location; ctx.region = auto.region; ctx.country = auto.country; }
-    }
-
-    // Try providers in order; the first that answers wins. A single source being
-    // down or coordinate-less never blanks the widget. The outcome of each is
-    // recorded: when they ALL fail, the difference between "we never got
-    // coordinates" and "the services didn't answer" is the whole diagnosis, and
-    // until now neither the user nor a support reply could tell them apart.
-    const hasCoords = Number.isFinite(ctx.lat) && Number.isFinite(ctx.lon);
-    const tried = {};
-    let data = null;
-    for (const name of weatherProviderOrder(provider)) {
-      // open-meteo and met.no return null on their first line without
-      // coordinates; naming that as skipped rather than failed keeps the report
-      // honest about which link in the chain actually broke.
-      if (!hasCoords && name !== 'wttr') { tried[name] = 'no_coordinates'; continue; }
-      data = await WEATHER_FETCHERS[name](ctx);
-      tried[name] = data && data.ok ? 'ok' : 'failed';
-      if (data && data.ok) break;
-    }
-    if (!data || !data.ok) {
-      // Prefer the exact-language snapshot; otherwise bridge to the newest
-      // cached forecast for this place in any language, so a language change
-      // never blanks the tile while the providers recover (#88).
-      const bridge = cached ? cached.data : newestWeatherForLocation(provider, location.mode, location.city);
-      if (bridge) return { ...bridge, stale: true };
-      // Answered rather than thrown: a 500 with a stack message tells the tile
-      // nothing it can show, and the tile is where the user is. The failure is
-      // NOT cached — the next poll retries in full.
-      return {
-        ok: false,
-        error: hasCoords ? 'providers_down' : (location.mode === 'manual' ? 'city_not_found' : 'no_location'),
-        providers: tried,
-        geo: location.mode === 'manual' ? '' : (weatherGeo.source || weatherGeo.attempts || 'none'),
-        locationMode: location.mode,
-        requestedCity: location.city,
-        updatedAt: Date.now(),
-      };
-    }
-
-    data.locationMode = location.mode;
-    data.requestedCity = location.city;
-    // A resolved display name (geocode in manual, IP-geo in auto) wins over a
-    // provider's own — and is the only name coordinate providers have.
-    if (ctx.location) data.location = ctx.location;
-    if (ctx.region) data.region = ctx.region;
-    if (ctx.country) data.country = ctx.country;
-
-    // Air quality is a shared post-step for every provider (needs coordinates).
-    if (Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lon))) {
-      try {
-        const aqiRaw = await fetchJson(
-          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen`,
-          4000
-        );
-        const cur = aqiRaw && aqiRaw.current || {};
-        data.aqi  = Number.isFinite(Number(cur.european_aqi))     ? Math.round(Number(cur.european_aqi))           : null;
-        data.pm25 = Number.isFinite(Number(cur.pm2_5))            ? Math.round(Number(cur.pm2_5) * 10) / 10        : null;
-        data.pm10 = Number.isFinite(Number(cur.pm10))             ? Math.round(Number(cur.pm10))                   : null;
-        data.no2  = Number.isFinite(Number(cur.nitrogen_dioxide)) ? Math.round(Number(cur.nitrogen_dioxide) * 10) / 10 : null;
-        // Pollen (grains/m³) is Europe-only; surface the highest active type as a
-        // single glanceable value (null outside coverage → the tile hides it).
-        const pollenTypes = ['grass_pollen', 'birch_pollen', 'alder_pollen', 'ragweed_pollen', 'mugwort_pollen', 'olive_pollen'];
-        const pollenVals = pollenTypes.map((k) => Number(cur[k])).filter((n) => Number.isFinite(n));
-        data.pollen = pollenVals.length ? Math.round(Math.max(...pollenVals)) : null;
-      } catch { }
-    }
-    weatherCache.set(cacheKey, { data, updatedAt: Date.now() });
-    if (weatherCache.size > WEATHER_CACHE_MAX_ENTRIES) {
-      weatherCache.delete(weatherCache.keys().next().value); // oldest insert
-    }
-    return data;
-  })()
-    .finally(() => { weatherPending.delete(cacheKey); });
-
-  weatherPending.set(cacheKey, promise);
-  return promise;
-}
+const { getWeather } = require('./weather/get-weather.js');
 
 function getCpuUsage() {
   return cachedCpuUsage;
@@ -5209,20 +4858,7 @@ async function _xenonMenuState() {
   });
 }
 
-// The animated wallpaper and the PC screensaver, by voice or a Deck key
-// (capabilities/desktop-scene.js). A toggle is decided inside the lock, so two
-// quick presses never read the same value.
-async function updateDesktopSceneSetting(patch) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const ambient = require('./capabilities/desktop-scene.js').applyPatch(normalizeAmbientMode(cur.ambientMode), patch);
-    const lockWidgets = normalizeLockWidgets(patch.lockWidgets || cur.lockWidgets);
-    const saved = await writeHubSettings({ ...cur, lockWidgets, ambientMode: normalizeAmbientMode(ambient), rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    return saved.ambientMode;
-  });
-}
+const { updateDesktopSceneSetting } = require('./ambient/desktop-scene-setting.js');
 
 // The usage mode, set by voice or a Deck key (capabilities/usage-mode.js). The
 // shell's main window picks it up on its next load (route `/`).
