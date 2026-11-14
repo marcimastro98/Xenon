@@ -548,6 +548,7 @@
         "server/js/performance/**",
         "server/js/performance*.js",
         "server/js/perf-*.js",
+        "server/js/perf-widget/**",
         "server/js/game-*.js",
         "server/js/driver-perf.js",
         "server/js/gpu-hint.js",
