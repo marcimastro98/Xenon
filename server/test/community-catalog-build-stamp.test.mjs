@@ -35,6 +35,15 @@ const writeCache = (extra) => fs.writeFileSync(path.join(dir, 'community-catalog
 }));
 const readCache = () => JSON.parse(fs.readFileSync(path.join(dir, 'community-catalog-cache.json'), 'utf8'));
 const settle = () => new Promise((r) => setTimeout(r, 50));
+// The refetched copy is saved after fetchCatalog resolves, and a busy machine can take longer than
+// one pause (a CI runner did): ask again until the saved copy says what is waited for.
+async function savedCopy(ready) {
+  for (let tries = 0; tries < 100; tries += 1) {
+    try { const copy = readCache(); if (ready(copy)) return copy; } catch { /* being written */ }
+    await settle();
+  }
+  return readCache();
+}
 
 beforeEach(() => { cat._resetCache(); cat._setFetcher(null); dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xcat-')); });
 // The refetched copy is saved after fetchCatalog resolves: let that write land
@@ -53,8 +62,8 @@ test('a copy written by an older build is refetched in full before it is served'
   const out = await cat.fetchCatalog();
   assert.deepEqual(f.etags, [''], 'no If-None-Match: a 304 would keep the old copy');
   assert.equal(out.entries[0].sparks, 300, 'the Sparks price is back on the first read');
-  await settle();
-  assert.equal(readCache().appVersion, '5.1.0', 'the new copy is stamped with this build');
+  const copy = await savedCopy((saved) => saved.appVersion === '5.1.0');
+  assert.equal(copy.appVersion, '5.1.0', 'the new copy is stamped with this build');
 });
 
 test('a copy from another stamped build is treated the same way', async () => {
