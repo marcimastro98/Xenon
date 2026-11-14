@@ -441,7 +441,12 @@
       {"file":"server/ai/wake-word-wanted.js","about":"Whether the wake word should be listened for: it is switched on, something would answer it, and speech-to-text is on this computer.","names":["wakeWordWanted"]},
       {"file":"server/ai/wake-word-watch.js","about":"Starts or stops listening for the wake word, to match who is connected and whether a live voice session holds the microphone.","names":["refreshWakeWordWatch"]},
       {"file":"server/settings/usage-and-alerts-settings.js","about":"Saves the usage mode, or whether alerts show on the screen, as one change of the settings; the wake word is then started or stopped to match.","names":["updateScreenAlertsSetting","updateUsageModeSetting"]},
-      {"file":"server/ai/live-session-end.js","about":"Ends a live voice session: its timer, capture and connection are closed, the speaker volume and the wake word are put back.","names":["_teardownLiveSession"]}
+      {"file":"server/ai/live-session-end.js","about":"Ends a live voice session: its timer, capture and connection are closed, the speaker volume and the wake word are put back.","names":["_teardownLiveSession"]},
+      {"file":"server/streaming/obs-watching.js","about":"The function that stops the live connection to OBS, held while that connection is open.","names":["obsStopWatch"],"state":{"object":"obsWatching","props":{"obsStopWatch":"stop"},"kept":[],"bare":[]}},
+      {"file":"server/smart-home/ha-watching.js","about":"The function that stops the live connection to Home Assistant, held while that connection is open.","names":["haStopWatch"],"state":{"object":"haWatching","props":{"haStopWatch":"stop"},"kept":[],"bare":[]}},
+      {"file":"server/streaming/streamerbot-watching.js","about":"The function that stops the live connection to Streamer.bot, held while that connection is open.","names":["sbStopWatch"],"state":{"object":"sbWatching","props":{"sbStopWatch":"stop"},"kept":[],"bare":[]}},
+      {"file":"server/audio/wavelink-watching.js","about":"The function that stops the live connection to Wave Link, held while that connection is open.","names":["wlStopWatch"],"state":{"object":"wlWatching","props":{"wlStopWatch":"stop"},"kept":[],"bare":[]}},
+      {"file":"server/smart-home/unifi-events-watching.js","about":"The function that stops the live connection to the UniFi console's events, held while that connection is open.","names":["unifiEventsStopWatch"],"state":{"object":"unifiWatching","props":{"unifiEventsStopWatch":"stop"},"kept":[],"bare":[]}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

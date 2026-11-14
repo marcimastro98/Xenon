@@ -2661,7 +2661,7 @@ async function applySecondScreenMode(mode, opts) {
 }
 
 const { obsWatch } = require('./streaming/obs-watch-state.js');
-let obsStopWatch = null;
+const { obsWatching } = require('./streaming/obs-watching.js');
 const { streamingLive } = require('./streaming/live.js');
 
 function applyObsPartial(partial) {
@@ -2722,7 +2722,7 @@ async function refreshObsWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const tile = !!s.obsHost || streamingLive.obsWanted;
   const want = (tile || _situations.needs('live') || _situations.needs('recording')) && sseClients.size > 0;
-  if (want && !obsStopWatch) obsStopWatch = deckObs.watch(applyObsPartial);
+  if (want && !obsWatching.stop) obsWatching.stop = deckObs.watch(applyObsPartial);
   // A rule only asks whether OBS is live: no picture of the scene every 5 s for it.
   if (want && tile && !obsWatch.previewTimer) {
     obsWatch.previewTimer = setInterval(captureScenePreview, 5000);
@@ -2730,8 +2730,8 @@ async function refreshObsWatch() {
   } else if (want && !tile && obsWatch.previewTimer) {
     clearInterval(obsWatch.previewTimer); obsWatch.previewTimer = null;
   }
-  if (!want && obsStopWatch) {
-    const stopObs = obsStopWatch; stopObs(); obsStopWatch = null;
+  if (!want && obsWatching.stop) {
+    const stopObs = obsWatching.stop; stopObs(); obsWatching.stop = null;
     if (obsWatch.previewTimer) { clearInterval(obsWatch.previewTimer); obsWatch.previewTimer = null; }
     obsWatch.state = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
     obsWatch.preview = { scene: '', image: '' };
@@ -2740,13 +2740,7 @@ async function refreshObsWatch() {
   }
 }
 
-// ── Home Assistant live state ────────────────────────────────────────────────
-// A compact snapshot of the user's SELECTED entities is pushed to the Smart Home
-// tile over the `homeassistant` SSE event. The persistent HA socket is held only
-// while a dashboard is open (SSE clients > 0) AND HA is configured, so a closed
-// dashboard or an unconfigured HA keeps zero sockets open. The token never leaves
-// the server — only this projected state does.
-let haStopWatch = null;
+const { haWatching } = require('./smart-home/ha-watching.js');
 const { haWatch } = require('./smart-home/ha-watch-state.js');
 
 const { _haDeckWatchClients, haDeckWatchUnion } = require('./smart-home/deck-watch.js');
@@ -2815,15 +2809,15 @@ async function refreshHaWatch() {
   const ha = (s && s.homeAssistant) || {};
   const want = !!(ha.url && ha.token) && sseClients.size > 0;
   const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || []), JSON.stringify(ha.energyEntities || []), JSON.stringify(ha.areaOrder || []), ha.tileView || ''].join(' ') : '';
-  if (want && !haStopWatch) {
-    haStopWatch = deckHa.watch(scheduleHaBroadcast);
-  } else if (!want && haStopWatch) {
-    const stopHa = haStopWatch; stopHa(); haStopWatch = null;
+  if (want && !haWatching.stop) {
+    haWatching.stop = deckHa.watch(scheduleHaBroadcast);
+  } else if (!want && haWatching.stop) {
+    const stopHa = haWatching.stop; stopHa(); haWatching.stop = null;
     if (haWatch.notifyTimer) { clearTimeout(haWatch.notifyTimer); haWatch.notifyTimer = null; }
     haWatch.deckStatesLast = '';   // a future watcher must get a fresh seed
     haWatch.stateLast = '';
     try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
-  } else if (want && haStopWatch && sig !== _haConfigSig) {
+  } else if (want && haWatching.stop && sig !== _haConfigSig) {
     // Already watching AND the config/selection actually changed (the user picked
     // different devices) — push a fresh snapshot so the tile reflects the new
     // selection immediately instead of waiting for the next HA state change.
@@ -2832,14 +2826,7 @@ async function refreshHaWatch() {
   _haConfigSig = sig;
 }
 
-// ── Streamer.bot live global variables ───────────────────────────────────────
-// A snapshot of Streamer.bot's global variables is pushed to the client over the
-// `streamerbot` SSE event, so a Deck key can REFLECT a global (its on/off follows
-// the real value) — the "stateful key" of phase 2. The socket subscribes to
-// GlobalVariable* events (push, no polling) and is held open only while a dashboard
-// is open (SSE clients > 0) AND Streamer.bot is configured, mirroring OBS/HA. The
-// password never leaves the server — only the projected globals do.
-let sbStopWatch = null;
+const { sbWatching } = require('./streaming/streamerbot-watching.js');
 const { sbWatch } = require('./streaming/streamerbot-watch-state.js');
 
 const { pushActivity } = require('./streaming/streamerbot-activity.js');
@@ -2863,21 +2850,16 @@ function scheduleSbBroadcast() {
 async function refreshSbWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const want = !!s.streamerbotHost && sseClients.size > 0;
-  if (want && !sbStopWatch) {
-    sbStopWatch = deckSb.watch(scheduleSbBroadcast, pushActivity);
-  } else if (!want && sbStopWatch) {
-    const stopSb = sbStopWatch; stopSb(); sbStopWatch = null;
+  if (want && !sbWatching.stop) {
+    sbWatching.stop = deckSb.watch(scheduleSbBroadcast, pushActivity);
+  } else if (!want && sbWatching.stop) {
+    const stopSb = sbWatching.stop; stopSb(); sbWatching.stop = null;
     if (sbWatch.notifyTimer) { clearTimeout(sbWatch.notifyTimer); sbWatch.notifyTimer = null; }
     try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
   }
 }
 
-// ── Elgato Wave Link live mixer state ────────────────────────────────────────
-// While a Wave Link tile/Deck key is on screen AND the integration is enabled,
-// hold ONE live socket that mirrors the mixer and pushes it over the `wavelink`
-// SSE event. Idle-closes otherwise (mirrors OBS/HA). Opt-in (enabled=false by
-// default) so a dashboard never probes localhost:1824 for users who don't use it.
-let wlStopWatch = null;
+const { wlWatching } = require('./audio/wavelink-watching.js');
 const { wlWatch } = require('./audio/wavelink-watch-state.js');
 
 async function buildWlState() {
@@ -2902,14 +2884,14 @@ function scheduleWlBroadcast() {
 async function refreshWlWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const want = !!(s.wavelink && s.wavelink.enabled === true) && sseClients.size > 0;
-  if (want && !wlStopWatch) {
+  if (want && !wlWatching.stop) {
     // Level meters are asked for only while a dashboard is actually connected,
     // and switched off again on teardown: subscribing leaves Wave Link pushing
     // at ~2Hz forever otherwise, which is the "periodic work with no listener"
     // this codebase gates everywhere else. 2.x has no meters and ignores it.
-    wlStopWatch = deckWaveLink.watch(scheduleWlBroadcast, { meters: true });
-  } else if (!want && wlStopWatch) {
-    const stopWl = wlStopWatch; stopWl(); wlStopWatch = null;
+    wlWatching.stop = deckWaveLink.watch(scheduleWlBroadcast, { meters: true });
+  } else if (!want && wlWatching.stop) {
+    const stopWl = wlWatching.stop; stopWl(); wlWatching.stop = null;
     if (wlWatch.notifyTimer) { clearTimeout(wlWatch.notifyTimer); wlWatch.notifyTimer = null; }
     try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
   }
@@ -2942,13 +2924,7 @@ function refreshVoicemeeterWatch() {
   }
 }
 
-// ── UniFi Protect camera notifications (person/vehicle/motion/ring) ───────────
-// While a Cameras tile is on screen (SSE clients > 0) AND notifications are enabled,
-// hold ONE live WebSocket to the console's updates stream and surface each new
-// detection as a `unifi_event` SSE → a dashboard toast (gated by the master Notifiche
-// switch on the client). Idle-closes otherwise, mirroring OBS/HA/Wave Link. The
-// per-camera+kind cooldown lives here so one person lingering can't spam the screen.
-let unifiEventsStopWatch = null;
+const { unifiWatching } = require('./smart-home/unifi-events-watching.js');
 const { unifiNotify } = require('./smart-home/unifi-notify-state.js');
 const { _unifiNotifyCooldown, _onUnifiDetection } = require('./smart-home/unifi-detections.js');
 
@@ -2966,13 +2942,13 @@ async function refreshUnifiEventsWatch() {
   // Reconnect if the console credentials changed under an active watch (the socket
   // is bound to the old session); a mere toggle of the type checkboxes doesn't need it.
   const sig = want ? [u.host, u.username, u.password].join('\u0000') : '';
-  if (want && !unifiEventsStopWatch) {
-    unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
-  } else if (!want && unifiEventsStopWatch) {
-    const stopUnifi = unifiEventsStopWatch; stopUnifi(); unifiEventsStopWatch = null;
+  if (want && !unifiWatching.stop) {
+    unifiWatching.stop = deckUnifiEvents.watch(_onUnifiDetection);
+  } else if (!want && unifiWatching.stop) {
+    const stopUnifi = unifiWatching.stop; stopUnifi(); unifiWatching.stop = null;
     _unifiNotifyCooldown.clear();
-  } else if (want && unifiEventsStopWatch && sig !== unifiNotify.configSig) {
-    const stopUnifi = unifiEventsStopWatch; stopUnifi(); unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
+  } else if (want && unifiWatching.stop && sig !== unifiNotify.configSig) {
+    const stopUnifi = unifiWatching.stop; stopUnifi(); unifiWatching.stop = deckUnifiEvents.watch(_onUnifiDetection);
   }
   unifiNotify.configSig = sig;
 }
@@ -6863,8 +6839,8 @@ data: ${JSON.stringify({ ...st, seed: true })}
   // delivered copy is included only for the PC — see transferState.
   try { res.write(`event: transfer\ndata: ${JSON.stringify(transferState(!isRemote))}\n\n`); } catch (e) { /* ignore */ }
   // Seed the just-connected client with the current OBS state (if watching).
-  if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsWatch.state)}\n\n`); } catch (e) { /* ignore */ } }
-  if (obsStopWatch && obsWatch.preview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsWatch.preview)}\n\n`); } catch (e) { /* ignore */ } }
+  if (obsWatching.stop) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsWatch.state)}\n\n`); } catch (e) { /* ignore */ } }
+  if (obsWatching.stop && obsWatch.preview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsWatch.preview)}\n\n`); } catch (e) { /* ignore */ } }
   // Seed the just-connected client with the current Home Assistant state.
   buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
   // Seed the just-connected client with the current Streamer.bot globals.
@@ -9349,17 +9325,17 @@ function _gracefulShutdown() {
   try { discordLink.rpc.close(); } catch {}
   // Stop the live Home Assistant watch (clears its reconnect timer) then close the
   // WebSocket. Stopping first prevents close() from scheduling a reconnect.
-  try { if (haStopWatch) { const stopHa = haStopWatch; stopHa(); haStopWatch = null; } } catch {}
+  try { if (haWatching.stop) { const stopHa = haWatching.stop; stopHa(); haWatching.stop = null; } } catch {}
   try { if (haWatch.notifyTimer) { clearTimeout(haWatch.notifyTimer); haWatch.notifyTimer = null; } } catch {}
   try { deckHa.close(); } catch {}
   // Stop the Wave Link mixer watch (clears its reconnect timer) then close the WS;
   // uninitialize any held Chroma session so Synapse reclaims device control.
-  try { if (wlStopWatch) { const stopWl = wlStopWatch; stopWl(); wlStopWatch = null; } } catch {}
+  try { if (wlWatching.stop) { const stopWl = wlWatching.stop; stopWl(); wlWatching.stop = null; } } catch {}
   try { if (wlWatch.notifyTimer) { clearTimeout(wlWatch.notifyTimer); wlWatch.notifyTimer = null; } } catch {}
   try { deckWaveLink.close(); } catch {}
   // Stop the UniFi Protect camera-notifications watch (clears its reconnect timer)
   // then close the updates WebSocket — a long-lived socket with no job object.
-  try { if (unifiEventsStopWatch) { const stopUnifi = unifiEventsStopWatch; stopUnifi(); unifiEventsStopWatch = null; } } catch {}
+  try { if (unifiWatching.stop) { const stopUnifi = unifiWatching.stop; stopUnifi(); unifiWatching.stop = null; } } catch {}
   try { deckUnifiEvents.close(); } catch {}
   try { deckChroma.close(); } catch {}
   // Resolve any parked sdk_handler calls so their /actions/run responses flush
