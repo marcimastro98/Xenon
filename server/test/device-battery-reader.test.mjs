@@ -103,7 +103,9 @@ test('reader: a read that never ends is killed and its device left out', async (
     children.push(child);
     return child;
   };
-  const reader = createReader({ start, limitMs: 5, platform: 'darwin', warn: quiet });
+  // The limit must be longer than the stand-in takes to name its device, also on a busy machine:
+  // with a few milliseconds the limit can win, and then there is no device to leave out.
+  const reader = createReader({ start, limitMs: 250, platform: 'darwin', warn: quiet });
   await reader.read();
   assert.equal(children[0].killed, true);
   await reader.read();
