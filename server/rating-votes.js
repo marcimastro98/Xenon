@@ -21,85 +21,37 @@
 const fs = require('fs');
 const { writeFileAtomic } = require('./atomic-write');
 
-const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
-const REASONS = new Set(['breaks', 'slow', 'dislike', 'useless']);
-const REASON_MAX_STARS = 3;
-const TICKET_MAX = 200;
-const MAX_ENTRIES = 300;
+const {
+  ENTRY_ID_RE, REASONS, REASON_MAX_STARS, MAX_ENTRIES, WAIT_MS, SEEN_MS, ASK_EVERY_MS,
+  ASKS_PER_ENTRY, TICK_MS, FIRST_TICK_MS, VOTE_ERRORS, cleanTime, cleanEntry, blankEntry,
+  ownedEntries, inUse,
+} = require('./store-catalog/rating-vote-rules.js');
 
-const DAY = 24 * 3600 * 1000;
-const WAIT_MS = 3 * DAY;              // the hub's RATING_WAIT_SEC
-const SEEN_MS = 2 * 3600 * 1000;      // on screen before Bit may ask
-const ASK_EVERY_MS = 7 * DAY;
-const ASKS_PER_ENTRY = 2;
-const TICK_MS = 10 * 60 * 1000;
-const FIRST_TICK_MS = 2 * 60 * 1000;
-const TICKETS_PER_TICK = 10;
-const UNLOCKS_PER_TICK = 3;
-const STORE_SHOTS = 'https://assets.xenon-app.com/community/shots/';
 
-// Errors the Store and Bit may show; anything else is 'network'.
-const VOTE_ERRORS = new Set(['bad_request', 'bad_entry', 'rate_limited', 'catalog_unavailable', 'update_required']);
+const { makeAsks } = require('./store-catalog/rating-vote-asks.js');
 
-const cleanTime = (v) => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
-
-function cleanEntry(raw) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const e = {
-    at: cleanTime(raw.at),
-    seenMs: cleanTime(raw.seenMs),
-    stars: Number.isInteger(raw.stars) && raw.stars >= 1 && raw.stars <= 5 ? raw.stars : 0,
-    votedAt: cleanTime(raw.votedAt),
-    asked: Math.min(ASKS_PER_ENTRY, cleanTime(raw.asked)),
-  };
-  if (typeof raw.ticket === 'string' && raw.ticket && raw.ticket.length <= TICKET_MAX) e.ticket = raw.ticket;
-  for (const flag of ['closed', 'locked', 'used', 'gone', 'unlockTried']) {
-    if (raw[flag] === true) e[flag] = true;
-  }
-  return e;
-}
-
-function blankEntry() {
-  return { at: 0, seenMs: 0, stars: 0, votedAt: 0, asked: 0 };
-}
-
-// Catalog entries with a receipt on this PC. A trial is not owning it.
-function ownedEntries(settings) {
-  const out = new Map();
-  const list = settings && Array.isArray(settings.contentInstalls) ? settings.contentInstalls : [];
-  for (const tx of list) {
-    if (!tx || tx.source !== 'catalog' || tx.trial === true) continue;
-    if (typeof tx.sourceId === 'string' && ENTRY_ID_RE.test(tx.sourceId)) out.set(tx.sourceId, tx);
-  }
-  return out;
-}
-
-// A widget counts while it is placed. What the server cannot check from here (a
-// theme, a page, a pack) counts while it is installed and a screen is on.
-function inUse(tx, placed) {
-  const ids = tx.resources && Array.isArray(tx.resources.widgetIds) ? tx.resources.widgetIds : [];
-  return !ids.length || ids.some((id) => placed.includes(id));
-}
-
-const placedText = (s) => JSON.stringify([s.dashboardLayout, s.layers]);
+const { makeTickets } = require('./store-catalog/rating-vote-tickets.js');
 
 function createRatingVotes({
   file, pcId, scopedId, hub, redeemSaved = async () => null, fileAsk = async () => {},
   settings = () => ({}), watching = () => true, onVoted = () => {}, now = Date.now, log = console,
 }) {
-  let state = null;
-  let loading = null;
-  let saving = Promise.resolve();
-  let timer = 0;
-  let first = 0;
-  let ticking = false;
-  let lastTick = 0;
+  const rvState = {
+    state: null,
+    loading: null,
+    saving: undefined, // given its first value further down, where it was declared
+    timer: 0,
+    first: 0,
+    ticking: false,
+    lastTick: 0,
+  };
+  rvState.saving = Promise.resolve();
   const voting = new Set();
 
   async function load() {
-    if (state) return state;
-    if (!loading) {
-      loading = (async () => {
+    if (rvState.state) return rvState.state;
+    if (!rvState.loading) {
+      rvState.loading = (async () => {
         let raw = null;
         try {
           raw = JSON.parse(await fs.promises.readFile(file, 'utf8'));
@@ -112,23 +64,23 @@ function createRatingVotes({
           const e = ENTRY_ID_RE.test(id) ? cleanEntry(value) : null;
           if (e) entries[id] = e;
         }
-        state = { lastAskAt: raw ? cleanTime(raw.lastAskAt) : 0, entries };
-        return state;
-      })().finally(() => { loading = null; });
+        rvState.state = { lastAskAt: raw ? cleanTime(raw.lastAskAt) : 0, entries };
+        return rvState.state;
+      })().finally(() => { rvState.loading = null; });
     }
-    return loading;
+    return rvState.loading;
   }
 
   function save() {
-    saving = saving
-      .then(() => writeFileAtomic(file, JSON.stringify({ v: 1, ...state })))
+    rvState.saving = rvState.saving
+      .then(() => writeFileAtomic(file, JSON.stringify({ v: 1, ...rvState.state })))
       .catch((e) => log.warn('[rating-votes] could not save:', e.message));
-    return saving;
+    return rvState.saving;
   }
 
   function entry(id) {
-    if (!state.entries[id]) state.entries[id] = blankEntry();
-    return state.entries[id];
+    if (!rvState.state.entries[id]) rvState.state.entries[id] = blankEntry();
+    return rvState.state.entries[id];
   }
 
   const statsOn = () => (settings() || {}).catalogStats === true;
@@ -139,124 +91,20 @@ function createRatingVotes({
     try { return await pcId(); } catch { return ''; }
   }
 
-  // A ticket that came back with an unlock.
-  async function addTicket(entryId, ticket, atSec) {
-    if (!ENTRY_ID_RE.test(String(entryId)) || typeof ticket !== 'string' || !ticket || ticket.length > TICKET_MAX) return false;
-    await load();
-    const e = entry(entryId);
-    if (e.votedAt || e.ticket) return false;
-    e.ticket = ticket;
-    e.at = (cleanTime(atSec) * 1000) || now();
-    delete e.used;
-    await save();
-    return true;
-  }
+  const {
+    addTicket, syncTickets,
+  } = makeTickets({ scopedId, hub, redeemSaved, now, rvState, load, save, entry, ratingId });
 
-  // ── Tickets for what is installed ────────────────────────────
-  async function askTicket(id, e, wire, voter) {
-    const out = await hub('/ratings/ticket', { entryId: id, ratingId: wire, scopedId: voter });
-    if (out && out.ok === true && typeof out.ticket === 'string') {
-      e.ticket = out.ticket.slice(0, TICKET_MAX);
-      e.at = (cleanTime(out.at) * 1000) || now();
-      return 'changed';
-    }
-    if (out && out.ok === true && Number.isInteger(out.voted)) {
-      e.stars = out.voted >= 1 && out.voted <= 5 ? out.voted : 0;
-      e.votedAt = now();
-      return 'changed';
-    }
-    const error = out && out.error;
-    if (error === 'needs_unlock') { e.locked = true; return 'changed'; }
-    if (error === 'already_issued') { e.used = true; return 'changed'; }
-    if (error === 'bad_entry') { e.gone = true; return 'changed'; }
-    return 'stop';   // offline, or the hub's limits: the next tick tries again
-  }
-
-  async function syncTickets(list) {
-    const wire = await ratingId();
-    if (!wire) return false;
-    const voter = await scopedId();
-    let changed = false;
-    let tickets = 0;
-    let unlocks = 0;
-    for (const id of list.keys()) {
-      const e = state.entries[id] || blankEntry();
-      if (e.ticket || e.votedAt || e.used || e.gone) continue;
-      if (e.locked) {
-        if (e.unlockTried || unlocks >= UNLOCKS_PER_TICK) continue;
-        unlocks += 1;
-        entry(id).unlockTried = true;
-        changed = true;
-        try { await redeemSaved(id); } catch { /* no pass, or offline: it stays unvotable */ }
-        continue;
-      }
-      if (tickets >= TICKETS_PER_TICK) break;
-      tickets += 1;
-      const outcome = await askTicket(id, entry(id), wire, voter);
-      if (outcome === 'stop') break;
-      changed = true;
-    }
-    return changed;
-  }
-
-  // ── Real use, and the one ask ────────────────────────────────
-  function countUse(list, elapsed) {
-    const s = settings() || {};
-    const placed = placedText(s);
-    let changed = false;
-    for (const [id, tx] of list) {
-      const e = state.entries[id];
-      if (!e || !e.ticket || e.seenMs >= SEEN_MS || !inUse(tx, placed)) continue;
-      e.seenMs += elapsed;
-      changed = true;
-    }
-    return changed;
-  }
-
-  function nextAsk(list) {
-    const s = settings() || {};
-    if (s.ratingAsks === false || s.catalogStats !== true) return null;
-    const t = now();
-    if (state.lastAskAt && t - state.lastAskAt < ASK_EVERY_MS) return null;
-    let best = null;
-    for (const id of list.keys()) {
-      const e = state.entries[id];
-      if (!e || !e.ticket || e.closed || e.votedAt || e.asked >= ASKS_PER_ENTRY) continue;
-      if (t < e.at + WAIT_MS || e.seenMs < SEEN_MS) continue;
-      if (!best || e.at < state.entries[best].at) best = id;
-    }
-    return best;
-  }
-
-  async function ask(list) {
-    const id = nextAsk(list);
-    if (!id) return false;
-    const e = state.entries[id];
-    const tx = list.get(id);
-    const t = now();
-    e.asked += 1;
-    state.lastAskAt = t;
-    await fileAsk({
-      id: `rate:${id}:${e.asked}`,
-      kind: 'rate',
-      at: t,
-      title: tx.name || id,
-      entryId: id,
-      since: cleanTime(tx.installedAt) || e.at,
-      expires: t + ASK_EVERY_MS,
-      media: { type: 'image', url: `${STORE_SHOTS}${id}.webp` },
-    });
-    return true;
-  }
+  const { countUse, ask } = makeAsks({ fileAsk, settings, now, rvState });
 
   async function tick() {
-    if (ticking || !watching()) return;
-    ticking = true;
+    if (rvState.ticking || !watching()) return;
+    rvState.ticking = true;
     try {
       await load();
       const t = now();
-      const elapsed = lastTick ? Math.min(t - lastTick, TICK_MS * 2) : 0;
-      lastTick = t;
+      const elapsed = rvState.lastTick ? Math.min(t - rvState.lastTick, TICK_MS * 2) : 0;
+      rvState.lastTick = t;
       const list = ownedEntries(settings() || {});
       let changed = elapsed > 0 && countUse(list, elapsed);
       if (statsOn()) changed = (await syncTickets(list)) || changed;
@@ -265,7 +113,7 @@ function createRatingVotes({
     } catch (e) {
       log.warn('[rating-votes] tick failed:', e.message);
     } finally {
-      ticking = false;
+      rvState.ticking = false;
     }
   }
 
@@ -274,7 +122,7 @@ function createRatingVotes({
     const id = String(entryId || '');
     if (!ENTRY_ID_RE.test(id)) return { ok: false, error: 'bad_request' };
     await load();
-    const e = state.entries[id] || blankEntry();
+    const e = rvState.state.entries[id] || blankEntry();
     if (e.votedAt) return { ok: true, state: 'voted', stars: e.stars };
     if (!ownedEntries(settings() || {}).has(id)) return { ok: true, state: 'none' };
     if (e.used) return { ok: true, state: 'used' };
@@ -290,7 +138,7 @@ function createRatingVotes({
     const n = Number(stars);
     if (!ENTRY_ID_RE.test(id) || !Number.isInteger(n) || n < 1 || n > 5) return { ok: false, error: 'bad_request' };
     await load();
-    const e = state.entries[id];
+    const e = rvState.state.entries[id];
     if (e && e.votedAt) return { ok: false, error: 'already_voted' };
     if (!e || !e.ticket) return { ok: false, error: 'no_ticket' };
     if (voting.has(id)) return { ok: false, error: 'rate_limited' };
@@ -339,21 +187,21 @@ function createRatingVotes({
   }
 
   function start() {
-    if (timer) return;
-    first = setTimeout(tick, FIRST_TICK_MS);
-    timer = setInterval(tick, TICK_MS);
-    if (first.unref) first.unref();
-    if (timer.unref) timer.unref();
+    if (rvState.timer) return;
+    rvState.first = setTimeout(tick, FIRST_TICK_MS);
+    rvState.timer = setInterval(tick, TICK_MS);
+    if (rvState.first.unref) rvState.first.unref();
+    if (rvState.timer.unref) rvState.timer.unref();
   }
 
   function stop() {
-    clearTimeout(first);
-    clearInterval(timer);
-    first = 0;
-    timer = 0;
+    clearTimeout(rvState.first);
+    clearInterval(rvState.timer);
+    rvState.first = 0;
+    rvState.timer = 0;
   }
 
-  const flush = () => saving;
+  const flush = () => rvState.saving;
 
   return { start, stop, flush, tick, stateOf, vote, close, addTicket, ratingId };
 }

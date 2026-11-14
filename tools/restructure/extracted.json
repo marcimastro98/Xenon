@@ -772,6 +772,11 @@
     "server/self-update.js": [
       {"file":"server/updates/self-update-apply.js","about":"The staged update handed to the applier outside this process: whether one is already under way, the applier that could not be started, the environment it is given, and the start itself.","names":["applyInFlight","onSpawnError","applierEnv","apply"],"inner":{"factory":"createSelfUpdate","make":"makeApply"}},
       {"file":"server/updates/self-update-support.js","about":"Whether this install can update itself and how: a git checkout, the reason it cannot, whether the install folder can be written, whether the update needs the administrator, and whether the shell updates without asking.","names":["isGitCheckout","unsupportedReason","supported","_installWritable","needsElevation","shellUpdatesSilently"],"inner":{"factory":"createSelfUpdate","make":"makeSupport"}}
+    ],
+    "server/rating-votes.js": [
+      {"file":"server/store-catalog/rating-vote-rules.js","about":"The rules of a vote on a Store entry: what an entry id, a reason and a ticket may be, the waits before Bit may ask, how much is done per tick, the errors that may be shown, and the record of one entry cleaned, made blank, listed and told in use.","names":["ENTRY_ID_RE","REASONS","REASON_MAX_STARS","TICKET_MAX","MAX_ENTRIES","DAY","WAIT_MS","SEEN_MS","ASK_EVERY_MS","ASKS_PER_ENTRY","TICK_MS","FIRST_TICK_MS","TICKETS_PER_TICK","UNLOCKS_PER_TICK","STORE_SHOTS","VOTE_ERRORS","cleanTime","cleanEntry","blankEntry","ownedEntries","inUse","placedText"]},
+      {"file":"server/store-catalog/rating-vote-asks.js","about":"When Bit may ask for a vote: the time an entry has been on screen counted, the one entry to ask about now if the person allows asking at all, and the ask itself.","names":["countUse","nextAsk","ask"],"inner":{"factory":"createRatingVotes","make":"makeAsks"}},
+      {"file":"server/store-catalog/rating-vote-tickets.js","about":"The tickets a vote is spent with: one that came back with an unlock, one asked of the hub for an installed entry, and the tickets of everything installed brought up to date a few per tick.","names":["addTicket","askTicket","syncTickets"],"inner":{"factory":"createRatingVotes","make":"makeTickets"}}
     ]
   },
   "spreads": {
@@ -992,6 +997,9 @@
     ],
     "server/self-update.js": [
       {"factory":"createSelfUpdate","object":"suRun","names":["preparing","applyStartedAt","lastSpawnError"],"kept":[],"bare":[],"after":0}
+    ],
+    "server/rating-votes.js": [
+      {"factory":"createRatingVotes","object":"rvState","names":["state","loading","saving","timer","first","ticking","lastTick"],"kept":["saving"],"bare":[],"after":0}
     ]
   }
 }
