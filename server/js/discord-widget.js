@@ -41,22 +41,10 @@
     caret: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
     logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6a16 16 0 0 0-4-1l-.3.6a12 12 0 0 1 3.5 1.1 13 13 0 0 0-10.4 0A12 12 0 0 1 10.3 5.6L10 5a16 16 0 0 0-4 1C3.5 9.7 2.8 13.3 3.2 16.8a16 16 0 0 0 4.9 2.5l1-1.7a10 10 0 0 1-1.6-.8l.4-.3a11 11 0 0 0 9.4 0l.4.3a10 10 0 0 1-1.6.8l1 1.7a16 16 0 0 0 4.9-2.5c.5-4-.6-7.6-3.4-10.8Z"/><circle cx="9.3" cy="13" r="1.2"/><circle cx="14.7" cy="13" r="1.2"/></svg>',
   };
-  // Audio-processing features → their existing Deck option i18n keys (reused).
-  const FEATURES = [
-    { key: 'noise_suppression', labelKey: 'deck_opt_noise_suppression' },
-    { key: 'echo_cancellation', labelKey: 'deck_opt_echo_cancellation' },
-    { key: 'automatic_gain_control', labelKey: 'deck_opt_automatic_gain_control' },
-    { key: 'qos', labelKey: 'deck_opt_qos' },
-  ];
+  const { FEATURES, t, tiles, TABS, tabOf, anyTabOpen, applyLabels } = window.DiscordWidgetTabs;
 
-  const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
   const el = makeEl;   // shared DOM factory from utils.js
   const api = apiJson; // shared fetch-JSON helper from utils.js
-
-  // Only tiles actually placed on a dashboard page count. A hidden / never-added
-  // widget sits in the #widget-pool (outside any .pager-page). Adding the widget
-  // makes it live (seed + SSE) on the next layout pass; removing it parks it back.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="discord"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
 
   let connected = null;      // null = unknown, from /stream/discord/status
   let username = '';
@@ -77,33 +65,6 @@
   let rosterTimer = null;
   const ROSTER_MS = 6000;
 
-  // Internal tabs so the (grouped) channel list can use the whole widget height
-  // instead of being squeezed under the controls. Controls tab also carries the
-  // current call's members + who's speaking. Reuses the layout_card_* i18n labels.
-  const TABS = [
-    { id: 'controls', labelKey: 'layout_card_controls', fb: 'Controls' },
-    { id: 'channels', labelKey: 'layout_card_channels', fb: 'Channels' },
-    { id: 'soundboard', labelKey: 'discord_w_soundboard', fb: 'Soundboard' },
-    { id: 'notifs', labelKey: 'discord_w_notifs', fb: 'Notifications' },
-  ];
-  // Which tab is open is a property of the TILE, not of the widget. It used to be
-  // one shared variable, which was invisible while only one Discord tile could
-  // exist — and is exactly what a second tile is for: asked for on Discord by
-  // someone who wanted the notification feed on top and the voice controls
-  // underneath, both on screen at once. Stored on the mount so it survives every
-  // repaint and travels with the tile, and remembered per tile (TileTabMemory) so
-  // a reload opens each tile on the tab it was left on.
-  function mounts() {
-    return tiles().map((t) => t.querySelector('.discord-widget-mount')).filter(Boolean);
-  }
-  function tabOf(mount) {
-    const v = (mount && mount.dataset) ? mount.dataset.dcTab : '';
-    return TABS.some((tb) => tb.id === v) ? v : 'controls';
-  }
-  // Is ANY tile showing this tab? The lazy loads and the roster poll ask this
-  // rather than "is the tab open": with two tiles, one of them on Channels is
-  // reason enough to poll, and one on Notifications means the feed is being read.
-  function anyTabOpen(id) { return mounts().some((m) => tabOf(m) === id); }
 
   // Notification mirroring (opt-in): the feed's flags + a bounded item list.
   // Seeded lazily from GET /stream/discord/notifications the first time the tab
@@ -430,33 +391,13 @@
     return av;
   }
 
-  // The parts of a member that change while the chip stays: who is speaking,
-  // their own mute and deafen, and "I turned them down" (localMute), which is a
-  // different fact from "they muted themselves" and must not share a marker:
-  // the glyph is theirs, the struck-through name is yours.
-  function applyMemberState(chip, m) {
-    chip.classList.toggle('is-speaking', !!m.speaking);
-    chip.classList.toggle('is-deaf', !!m.deaf);
-    chip.classList.toggle('is-muted', !!m.mute && !m.deaf);
-    chip.classList.toggle('is-local-muted', !!(chip.classList.contains('is-adjustable') && m.localMute));
-    const label = m.name || '';
-    const state = m.deaf ? t('discord_w_member_deaf', 'deafened') : m.mute ? t('discord_w_member_muted', 'muted') : '';
-    chip.title = state ? label + ' (' + state + ')' : label;
-  }
+  const { applyMemberState, syncMemberStates } = window.DiscordWidgetMemberState;
 
   // What a chip is built from. A change here rebuilds the chips; anything else
   // is applied to the chips that are already there.
   function memberShape(m, adjustable) {
     return (m.id || '') + '\u0001' + (m.name || '') + '\u0001' + (m.avatar || '') + '\u0001'
       + (adjustable ? (openMember === m.id ? 'o' : 'a') : '');
-  }
-
-  function syncMemberStates(box, members) {
-    const byId = new Map(members.map(m => [m.id || '', m]));
-    box.querySelectorAll('.dc-member[data-member]').forEach((chip) => {
-      const m = byId.get(chip.dataset.member);
-      if (m) applyMemberState(chip, m);
-    });
   }
 
   // Fill a container with member chips for the current call.
@@ -554,36 +495,6 @@
       box.dataset.dcFor = m.id;
     }
     refreshMemberCtl(box.firstChild, m);
-  }
-
-  // Re-apply every static (language-dependent) label. ensure() sets these once at
-  // build time, so without this they'd stay in the language the widget was first
-  // painted in. Called from paint(), which applyTranslations() re-runs on a
-  // language change — so the widget follows the UI language like every other panel.
-  function applyLabels(mount) {
-    mount.querySelectorAll('.dc-tab-lbl').forEach(lbl => {
-      const def = TABS.find(x => x.id === lbl.parentElement.dataset.dtab);
-      if (def) lbl.textContent = t(def.labelKey, def.fb);
-    });
-    const nTxt = mount.querySelector('.dc-notice-txt');
-    if (nTxt) nTxt.textContent = t('twitch_not_connected', 'Connect in Settings → Streaming');
-    const inLbl = mount.querySelector('.dc-vol-in .dc-vol-lbl');
-    // Inside the Discord tile the name of the app goes without saying.
-    if (inLbl) inLbl.textContent = t('dc_vol_mic', 'Mic volume');
-    const outLbl = mount.querySelector('.dc-vol-out .dc-vol-lbl');
-    if (outLbl) outLbl.textContent = t('dc_vol_out', 'Output volume');
-    const audLbl = mount.querySelector('.dc-ctl-audio .dc-sec-label');
-    if (audLbl) audLbl.textContent = t('layout_card_audio', 'Audio');
-    mount.querySelectorAll('.dc-chip').forEach(chip => {
-      const f = FEATURES.find(x => x.key === chip.dataset.feature);
-      if (f) chip.textContent = t(f.labelKey, f.key);
-    });
-    const sHint = mount.querySelector('.dc-sound-hint');
-    if (sHint) sHint.textContent = t('discord_w_sound_hint', 'Join a voice channel to play a sound');
-    const lMsg = mount.querySelector('.dc-launch-msg');
-    if (lMsg) lMsg.textContent = t('discord_w_offline', 'Discord isn\'t running');
-    const lBtn = mount.querySelector('.dc-launch-btn');
-    if (lBtn) lBtn.textContent = t('discord_w_open', 'Open Discord');
   }
 
   // Title for the channel/call you're in: the channel name, or (for a nameless DM/
