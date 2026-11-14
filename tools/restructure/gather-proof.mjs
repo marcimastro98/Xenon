@@ -6,7 +6,9 @@
 //      such use was touched: read off the scopes by a walk written here, apart from the planner's reader
 //      (scope-uses.mjs), so a mistake in one shows up as a difference between the two.
 
+import { calledProblems } from './gather-called.mjs';
 import { GATHER_KEPT_NOTE } from './gather-plan.mjs';
+import { AFTER_SHORT } from './gather-undo.mjs';
 
 const escaped = (text) => text.replace(/[$]/g, '\\$&');
 const lineOf = (text, offset) => text.slice(0, offset).split('\n').length;
@@ -110,13 +112,15 @@ export function bodyUses(tree, { K, NodeFlags }, factory, names) {
 }
 
 // The new text with the old names back, and where each name landed in it: `declares` for a first value that was
-// left on its line and reads `let name` again.
-function undoWithPlaces(text, { object, names, kept }) {
+// left on its line and reads `let name` again. `long`: which of the written-out `name: object.name`, counted from the top,
+// were `name: name` before and not the short `{ name }`; a wrong count shows as a file that does not come back byte for byte.
+function undoWithPlaces(text, { object, names, kept, long }) {
   const any = [...names].sort((a, b) => b.length - a.length).map(escaped).join('|');
-  const pattern = new RegExp(`(?<![\\w$.])(${any}): ${escaped(object)}\\.\\1(?![\\w$])|(?<![\\w$])${escaped(object)}\\.(${any})(?![\\w$])`, 'g');
+  const pattern = new RegExp(`(?<![\\w$.])(${any}): ${escaped(object)}\\.\\1(?![\\w$])${AFTER_SHORT}|(?<![\\w$])${escaped(object)}\\.(${any})(?![\\w$])`, 'g');
   const places = [];
   let out = '';
   let last = 0;
+  let written = 0;
   for (const match of text.matchAll(pattern)) {
     out += text.slice(last, match.index);
     const name = match[1] ?? match[2];
@@ -124,6 +128,7 @@ function undoWithPlaces(text, { object, names, kept }) {
     const lineStart = text.lastIndexOf('\n', match.index - 1) + 1;
     const declares = !match[1] && kept.includes(name) && text.slice(lineStart, match.index) === '  ' && /^\s*=(?![=>])/.test(text.slice(last, last + 40));
     if (declares) out += 'let ';
+    if (match[1] !== undefined && long.has(written++)) out += `${name}: `;
     places.push({ name, at: out.length, declares });
     out += name;
   }
@@ -145,7 +150,7 @@ export function proveGather({ before, after, plan, parser, source = 'file.js' })
   const now = after.split('\n');
   if (now.slice(glue.at, glue.at + glue.lines.length).join('\n') !== glue.lines.join('\n')) return ['the object is not where the plan put it'];
   now.splice(glue.at, glue.lines.length);
-  const back = undoWithPlaces(now.join('\n'), { object, names, kept });
+  const back = undoWithPlaces(now.join('\n'), { object, names, kept, long: new Set(plan.long ?? []) });
   const undone = back.text.split('\n');
   const blocks = [...removed].sort((a, b) => a.line - b.line);
   for (const block of blocks) undone.splice(block.line - 1, 0, ...block.lines);
@@ -217,5 +222,8 @@ export function proveGather({ before, after, plan, parser, source = 'file.js' })
   if (held.length !== back.places.length) problems.push(`${back.places.length} names were rewritten, ${object} is used ${held.length} times`);
   const words = (after.match(new RegExp(`(?<![\\w$])${escaped(object)}(?![\\w$])`, 'g')) ?? []).length;
   if (words !== held.length + 1) problems.push(`the word ${object} stands ${words} times in the new file, ${held.length + 1} expected: once declared, and once per use`);
+
+  // 5. A property that is called can hold only functions that ignore `this`: asked of the new file by gather-called.mjs.
+  problems.push(...calledProblems({ tree: parser.parse(after, source), parser, object, names, kept }));
   return problems;
 }

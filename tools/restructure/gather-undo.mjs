@@ -5,16 +5,23 @@
 //
 // Nothing here knows where the rewrite happened: it looks for `object.name` as
 // text. That is exact because `gather` refuses a file that already has the
-// object's name as a word, text like `name: name`, and a statement of the
-// factory's body that starts a line by assigning a variable it leaves in place.
+// object's name as a word, and a statement of the factory's body that starts a
+// line by assigning a variable it leaves in place. One thing does not come back
+// as it was written: `name: name` comes back the short way, `{ name }`, which
+// means the same. The proof (gather-proof.mjs) has the plan and puts it back exactly.
 
 import { statePattern } from './state-undo.mjs';
 
 const escaped = (text) => text.replace(/[$]/g, '\\$&');
 
+// What follows a `{ name }` that was written out: a comma, the closing brace, or the first value of a pattern.
+// `name: object.name ? a : b` is followed by something else: there the property was always written out, and
+// only `object.name` is the rewrite.
+export const AFTER_SHORT = '(?=\\s*(?:[,}]|=(?![=>])))';
+
 /** @param {string} object @param {string} name @returns {RegExp} every `name: object.name`, written for a `{ name }` */
 export function shorthandPattern(object, name) {
-  return new RegExp(`(?<![\\w$.])${escaped(name)}: ${escaped(object)}\\.${escaped(name)}(?![\\w$])`, 'g');
+  return new RegExp(`(?<![\\w$.])${escaped(name)}: ${escaped(object)}\\.${escaped(name)}(?![\\w$])${AFTER_SHORT}`, 'g');
 }
 
 /** @param {string} object @param {string} name @returns {RegExp} a line of the factory's body that starts by assigning `object.name` */

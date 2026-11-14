@@ -39,6 +39,7 @@ export function gather(job) {
   if (proof.length) throw new Error(`the plan does not prove itself, nothing was written:\n${proof.join('\n')}`);
   const count = (text) => text.split('\n').length - 1;
   const result = { names: plan.names, kept: plan.kept, counts: plan.counts, between: plan.between, sourceLines: count(plan.newSource) - count(before) };
+  if (plan.left.length) result.left = plan.left;
   if (dryRun) return result;
 
   writeFileSync(path.join(root, source), plan.newSource);
@@ -101,6 +102,7 @@ export function runGather(parser, root, { flags, rest }) {
     console.log(`  ${name} -> ${flags.object}.${name}: ${count.found} uses rewritten${count.shorthand ? ` (${count.shorthand} of them a { ${name} } written out)` : ''}; `
       + (count.moved ? 'its first value is in the object' : 'its first value is still given on the line where the let stood'));
   }
+  for (const row of done.left ?? []) console.log(`  left a let: ${row.why}`);
   if (done.between.length) {
     console.log(`  Statements that call something between the first let and the last (${source}, lines ${done.between.join(', ')}): none can reach a later let by a name. `
       + 'A function kept in an object by an earlier line and called through that object is not seen: read these lines.');

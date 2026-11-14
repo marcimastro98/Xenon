@@ -16,7 +16,8 @@
 
 import { analyze } from './analyze.mjs';
 import { Refusal } from './extract-plan.mjs';
-import { bodyAssignment } from './gather-undo.mjs';
+import { unprovenCalled } from './gather-called.mjs';
+import { AFTER_SHORT, bodyAssignment } from './gather-undo.mjs';
 import { readFactory } from './inner-plan.mjs';
 import { PLAIN_GLOBALS } from './load-time-calls.mjs';
 import { readForms, readReferences } from './state-refs.mjs';
@@ -56,14 +57,16 @@ function readUses({ refs, forms, text, starts, source, object }) {
     const where = `${source}:${lineAt(starts, ref.start) + 1}`;
     const target = `${object}.${ref.name}`;
     if (text.slice(ref.start, ref.end) !== ref.name) reasons.push(`${ref.name} (${where}) is not written plainly`);
-    if (forms.called.has(ref.end)) reasons.push(`${ref.name} (${where}) is called: as ${target}() the function would get ${object} as \`this\``);
     if (forms.named.has(ref.end)) reasons.push(`${ref.name} (${where}) is given a function without a name of its own: it takes the name of the variable, and would lose it`);
     if (forms.deleted.has(ref.end)) reasons.push(`${ref.name} (${where}) is the operand of delete`);
     const shorthand = forms.shorthand.has(ref.end);
-    if (!shorthand && new RegExp(`(?<![\\w$.])${ref.name.replace(/[$]/g, '\\$&')}: $`).test(text.slice(0, ref.start))) {
-      reasons.push(`${where}: \`${ref.name}: ${ref.name}\` would read like a rewritten \`{ ${ref.name} }\` and could not be told apart from it: write it the short way first`);
+    const closes = new RegExp(`^${AFTER_SHORT}`).test(text.slice(ref.end, ref.end + 2000));
+    if (shorthand && !closes) {
+      reasons.push(`${where}: something stands between the short \`{ ${ref.name} }\` and the comma, the } or the first value after it: undone, it could not be found again`);
     }
-    edits.push({ start: ref.start, end: ref.end, put: shorthand ? `${ref.name}: ${target}` : target });
+    // `name: name` written out reads, rewritten, like a `{ name }` written out: the plan says which were long, and the proof puts them back.
+    const long = !shorthand && closes && new RegExp(`(?<![\\w$.])${ref.name.replace(/[$]/g, '\\$&')}: $`).test(text.slice(0, ref.start));
+    edits.push({ start: ref.start, end: ref.end, put: shorthand ? `${ref.name}: ${target}` : target, written: shorthand || long, long });
   }
   return { reasons, edits };
 }
@@ -75,13 +78,15 @@ function readUses({ refs, forms, text, starts, source, object }) {
  * @param {string} job.object the name of the object
  * @param {string[]} [job.names] the variables; every `let` and `var` of the body when left out
  * @param {Set<string>} [job.protectedNames] names that are never touched
- * @returns {{ newSource: string, object: string, factory: string, names: string[], kept: string[], bare: string[],
+ * @returns {{ newSource: string, object: string, factory: string, names: string[], kept: string[], bare: string[], long: number[],
+ *   left: { name: string, why: string }[],
  *   counts: Record<string, { found: number, shorthand: number, moved: boolean }>, between: number[], glue: { at: number, lines: string[] },
  *   removed: { line: number, lines: string[], name: string, eq: string, value: string | null, trail: string }[] }}
  *   `glue.at` is the 0-based line of the object in the new text; `removed` are the declarations that left, with the
  *   1-based line of the old file their block started on; `kept` the variables still given their first value where
  *   the `let` stood, `bare` the ones declared without one; `between` the 1-based lines of the statements that run
- *   between the first `let` and the last and call something
+ *   between the first `let` and the last and call something; `long` which of the properties written out, counted from the top of the
+ *   new text, were `name: name` before; `left` the called variables that stay a `let` because they are not proven (gather-called.mjs)
  */
 export function planGather(job) {
   const { text, parser, source, factory, object, protectedNames = new Set() } = job;
@@ -130,7 +135,22 @@ export function planGather(job) {
     declarations.push({ name, record, ...read });
   }
   declarations.sort((a, b) => a.record.index - b.record.index);
-  const uses = readUses({ refs: readReferences(tree, parser, new Set(declarations.map((entry) => entry.name)), object, statements), forms, text, starts, source, object });
+  const refs = readReferences(tree, parser, new Set(declarations.map((entry) => entry.name)), object, statements);
+  // A variable that is called becomes a property only when every value it is given ignores `this`. Named, it is refused
+  // with the reason; when every let is meant, it stays a let and the others are gathered.
+  const calledAt = new Map();
+  for (const ref of refs) if (forms.called.has(ref.end) && !calledAt.has(ref.name)) calledAt.set(ref.name, ref.start);
+  const firstValues = new Map(declarations.filter((entry) => calledAt.has(entry.name))
+    .map((entry) => [entry.name, statements[entry.record.index].declarationList.declarations[0].initializer]));
+  const unproven = unprovenCalled({ tree, parser, refs: refs.filter((ref) => calledAt.has(ref.name)), firstValues });
+  const left = [];
+  for (const [name, why] of unproven) {
+    const said = `${name} (${source}:${lineAt(starts, calledAt.get(name)) + 1}) is called: as ${object}.${name}() the function would get ${object} as \`this\`, and ${why}`;
+    if (job.names?.length || unproven.size === declarations.length) reasons.push(said);
+    else left.push({ name, why: said });
+  }
+  for (const row of left) declarations.splice(declarations.findIndex((entry) => entry.name === row.name), 1);
+  const uses = readUses({ refs: refs.filter((ref) => !left.some((row) => row.name === ref.name)), forms, text, starts, source, object });
   reasons.push(...uses.reasons);
 
   // The object stands where the first `let` stood, so a use before that line fails as it does today. A later `let`
@@ -197,6 +217,7 @@ export function planGather(job) {
       return [entry.name, { found: own.length, shorthand: own.filter((edit) => edit.put.includes(': ')).length, moved: Boolean(entry.moved) }];
     })),
     between: running(anchor.record, last.record).filter((record) => record.loadTime && !declarations.some((entry) => entry.record === record)).map((record) => real(record.line[0])),
-    glue: { at: glueAt, lines: glueLines }, removed,
+    glue: { at: glueAt, lines: glueLines }, removed, left,
+    long: uses.edits.filter((edit) => edit.written).sort((a, b) => a.start - b.start).flatMap((edit, index) => (edit.long ? [index] : [])),
   };
 }

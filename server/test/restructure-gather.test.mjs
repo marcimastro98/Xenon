@@ -109,7 +109,7 @@ test('what could change what runs, or when it fails, is refused with the reason'
     [['  let a = null;', '  function set() { a = function () {}; }', '  return set;'], /a \(server\/demo\.js:4\) is given a function without a name of its own/],
     [['  let a = null;', '  function set(o) { ({ a = () => 1 } = o); }', '  return set;'], /is given a function without a name of its own/],
     [['  let a = null;', '  return () => a();'], /a \(server\/demo\.js:4\) is called: as memory\.a\(\) the function would get memory as `this`/],
-    [['  let a = 0;', '  return () => ({ a: a });'], /`a: a` would read like a rewritten `\{ a \}`/],
+    [['  let a = 0;', '  return () => ({ a /* now */ });'], /something stands between the short `\{ a \}` and the comma, the \} or the first value after it/],
     [['  let a = runner();', '  a = 2;', '  return () => a;'], /is assigned by a statement that starts a line of a body/],
     // Text for the tool to refuse: nothing here is run.
     [['  let a = 0;', '  return () => eval(\'a\');'], /createThing calls eval, which could name a variable in text no tool can see/],
