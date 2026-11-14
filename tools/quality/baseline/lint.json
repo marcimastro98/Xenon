@@ -1145,7 +1145,7 @@
     "server/js/topbar-look.js complexity/useOptionalChain": 2,
     "server/js/topbar-look.js suspicious/noControlCharactersInRegex": 2,
     "server/js/topbar-media.js complexity/useMathMinMax": 2,
-    "server/js/topbar-media.js complexity/useOptionalChain": 1,
+    "server/js/topbar-media/pieces.js complexity/useOptionalChain": 1,
     "server/js/topbar-minimal.js complexity/useArrowFunction": 1,
     "server/js/topbar-minimal.js complexity/useOptionalChain": 24,
     "server/js/topbar-minimal.js suspicious/useIterableCallbackReturn": 6,
