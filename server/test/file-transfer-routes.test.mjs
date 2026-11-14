@@ -80,12 +80,12 @@ test('nothing reads a request body before the dispatch chain', () => {
 test('an over-size upload gets an answer, not a connection reset', () => {
   const src = branchSource('/api/transfer/upload', 'POST');
   assert.ok(/413/.test(src), 'there is no 413 path at all');
-  assert.ok(/'Connection': 'close'/.test(src),
-    'the refusal must tell the client to stop sending, or it keeps pushing a 2 GB body at a closed ear');
-  assert.ok(/res\.on\('finish'[^)]*\)[\s\S]{0,120}req\.destroy\(\)/.test(src),
-    'the socket must be destroyed only AFTER the refusal has flushed. Destroying it first '
-    + 'is what turns a clear "too large" into a network error the user cannot act on '
-    + '(the readBody shape, which is wrong here).');
+  assert.ok(src.includes('refuseUpload(req, res, status, '),
+    'the refusal goes through refuse-upload.js, which answers and keeps reading before any close. '
+    + 'Its behaviour is exercised against real sockets in file-transfer-stream.test.mjs');
+  assert.ok(!['req.destroy()', 'socket.destroy()', "'Connection': 'close'"].some((cut) => src.includes(cut)),
+    'the route must not cut the connection itself: a close while bytes are still on their way is '
+    + 'a reset, and a reset can reach the sender before "too large" does');
 });
 
 test('the upload derives its direction from the door, never from the request', () => {

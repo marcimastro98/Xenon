@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const { DATA_DIR } = require('../engine/paths.js');
 const { TRANSFER_DISK_HEADROOM } = require('./limits.js');
 const fileTransferLib = require('../file-transfer.js');
+const { refuseUpload } = require('./refuse-upload.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
@@ -253,11 +254,10 @@ const branches = {
       }
       const status = code === 'XFER_TOO_BIG' ? 413 : (code === 'ENOSPC' ? 507 : 500);
       const error = code === 'XFER_TOO_BIG' ? 'too_big' : (code === 'ENOSPC' ? 'no_space' : 'write_failed');
-      res.writeHead(status, { 'Content-Type': 'application/json', 'Connection': 'close' });
-      res.end(JSON.stringify({ ok: false, error, max: began.limit }));
-      // Only once the refusal has actually flushed. Destroying the socket any
-      // earlier is what turns a clear 413 into "network error".
-      res.on('finish', () => { try { req.destroy(); } catch { /* already gone */ } });
+      // Answered, then read and dropped for a while before any close: cutting a
+      // connection that still has bytes on their way is what turns a clear 413
+      // into "network error" (refuse-upload.js).
+      refuseUpload(req, res, status, { ok: false, error, max: began.limit });
     }
   },
 };
