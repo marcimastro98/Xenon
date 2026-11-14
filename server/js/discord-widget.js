@@ -13,65 +13,53 @@
 // running and the account linked in Settings → Streaming. Renders into
 // .discord-widget-mount.
 (function () {
-  const ICONS = {
-    // Filled by CSS via currentColor + fill; the outline reads as "not pinned"
-    // and the filled star as "pinned", with no second glyph to keep in step.
-    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z"/></svg>',
-    micOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
-    micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18M9 9v2a3 3 0 0 0 4.5 2.6M15 11V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 10 6.3M12 18v3"/></svg>',
-    deafOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/></svg>',
-    deafOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-2a8 8 0 0 1 16 0v2"/><path d="M4 15h3v5H5.5A1.5 1.5 0 0 1 4 18.5zM20 15h-3v5h1.5a1.5 1.5 0 0 0 1.5-1.5z" fill="currentColor"/><path d="m3 3 18 18"/></svg>',
-    ptt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M7 11h.01M11 11h.01M15 11h.01M7 15h10"/></svg>',
-    vad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h2l2-5 3 12 3-16 2 9h4"/></svg>',
-    leave: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 17 5 12l5-5M5 12h11"/></svg>',
-    join: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
-    spkOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 10 5 4M21 10l-5 4"/></svg>',
-    // The two states a member's avatar can carry, as Discord draws them: a
-    // struck-through microphone (they muted themselves) and struck-through
-    // headphones (they deafened themselves, which mutes them too). Geometry
-    // after Lucide's mic-off and headphone-off (ISC licence), the icon family
-    // the rest of the dashboard's glyphs follow; drawn heavier, because the
-    // badge shows them at 8px.
-    micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><path d="M12 19v3"/></svg>',
-    deafOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14h-1.343"/><path d="M9.128 3.47A9 9 0 0 1 21 12v3.343"/><path d="m2 2 20 20"/><path d="M20.414 20.414A2 2 0 0 1 19 21h-1a2 2 0 0 1-2-2v-3"/><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.636-6.364"/></svg>',
-    reply: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
-    minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>',
-    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
-    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
-    caret: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
-    logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6a16 16 0 0 0-4-1l-.3.6a12 12 0 0 1 3.5 1.1 13 13 0 0 0-10.4 0A12 12 0 0 1 10.3 5.6L10 5a16 16 0 0 0-4 1C3.5 9.7 2.8 13.3 3.2 16.8a16 16 0 0 0 4.9 2.5l1-1.7a10 10 0 0 1-1.6-.8l.4-.3a11 11 0 0 0 9.4 0l.4.3a10 10 0 0 1-1.6.8l1 1.7a16 16 0 0 0 4.9-2.5c.5-4-.6-7.6-3.4-10.8Z"/><circle cx="9.3" cy="13" r="1.2"/><circle cx="14.7" cy="13" r="1.2"/></svg>',
-  };
+  const { ICONS } = window.DiscordWidgetIcons;
   const { FEATURES, t, tiles, TABS, tabOf, anyTabOpen, applyLabels } = window.DiscordWidgetTabs;
 
   const el = makeEl;   // shared DOM factory from utils.js
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
-  let connected = null;      // null = unknown, from /stream/discord/status
-  let username = '';
-  let voice = null;          // last voice state (from the mount fetch or an SSE push)
-  let channels = null;       // cached voice-channel list
-  let channelsInflight = null;
-  let sounds = null;         // cached soundboard list (lazy: fetched when the tab opens)
-  let soundsInflight = null;
-  let previewAudio = null;   // shared <audio> for local sound auditions (one at a time)
-  let seeded = false;        // did the one-shot mount fetch run yet?
+  const discordState = {
+    connected: null,      // null = unknown, from /stream/discord/status
+    username: '',
+    voice: null,          // last voice state (from the mount fetch or an SSE push)
+    channels: null,       // cached voice-channel list
+    channelsInflight: null,
+    sounds: null,         // cached soundboard list (lazy: fetched when the tab opens)
+    soundsInflight: null,
+    previewAudio: null,   // shared <audio> for local sound auditions (one at a time)
+    seeded: false,        // did the one-shot mount fetch run yet?
+    // Roster: who's currently connected in each voice channel (Channels tab). Unlike
+    // the event-driven voice state, this needs a GET_CHANNEL per channel, so it's
+    // polled ONLY while the Channels tab is open and the page is visible (see
+    // syncRosterPolling) — near-zero cost otherwise. Map<channelId, members[]>.
+    roster: null,
+    rosterInflight: null,
+    rosterTimer: null,
+    // Notification mirroring (opt-in): the feed's flags + a bounded item list.
+    // Seeded lazily from GET /stream/discord/notifications the first time the tab
+    // opens; new items then arrive over the `discord_notification` SSE event.
+    notif: { enabled: false, hide: false, state: 'off' },  // state: 'off'|'ok'|'scope_missing'
+    notifItems: null,        // null = not seeded yet
+    notifInflight: null,
+    notifUnread: 0,               // arrivals while another tab is open → red badge on the tab
+    // Discord lets you set the volume of one person in your channel, and mute them
+    // for yourself only — the thing you reach for when one friend is twice as loud
+    // as everyone else. It has been available to community widgets since 4.11 and
+    // had no control of its own here, so the only way to use it was to write a
+    // widget. Someone asked where the setting was, which is a fair question to ask
+    // about a feature with no setting.
+    //
+    // Tapping a name opens the controls under the list rather than in a popover: a
+    // popover needs positioning, a dismiss rule and a z-index on a surface that is
+    // often a touchscreen, and this widget already speaks in rows.
+    openMember: '',       // id of the person whose controls are open, '' for none
+    dragging: false,       // true while a finger/pointer is on the slider
+  };
 
-  // Roster: who's currently connected in each voice channel (Channels tab). Unlike
-  // the event-driven voice state, this needs a GET_CHANNEL per channel, so it's
-  // polled ONLY while the Channels tab is open and the page is visible (see
-  // syncRosterPolling) — near-zero cost otherwise. Map<channelId, members[]>.
-  let roster = null;
-  let rosterInflight = null;
-  let rosterTimer = null;
   const ROSTER_MS = 6000;
 
 
-  // Notification mirroring (opt-in): the feed's flags + a bounded item list.
-  // Seeded lazily from GET /stream/discord/notifications the first time the tab
-  // opens; new items then arrive over the `discord_notification` SSE event.
-  let notif = { enabled: false, hide: false, state: 'off' };  // state: 'off'|'ok'|'scope_missing'
-  let notifItems = null;        // null = not seeded yet
-  let notifInflight = null;
   const NOTIF_MAX = 30;
   const notifRevealed = new Set();   // ids tapped open while "hide content" is on
   // Avatar URLs that did not load. Discord hands one out for accounts with no
@@ -84,7 +72,6 @@
   // asking the CDN again on every rebuild. Bounded like notifIconBad.
   const avatarBad = new Set();
   const NOTIF_ICON_BAD_MAX = 200;
-  let notifUnread = 0;               // arrivals while another tab is open → red badge on the tab
 
   // Open Settings → Streaming (from the widget's "not linked" notice).
   function openStreamingSettings() {
@@ -161,7 +148,7 @@
       b.addEventListener('click', () => {
         mount.dataset.dcTab = tb.id;   // this tile only — a sibling tile keeps its own
         if (tileId) TileTabMemory.set(tileId, tb.id);
-        if (tb.id === 'notifs') notifUnread = 0;
+        if (tb.id === 'notifs') discordState.notifUnread = 0;
         paint();
       });
       tabs.appendChild(b);
@@ -254,7 +241,7 @@
       pullVoice().then(() => {
         paint();
         tries += 1;
-        if ((!voice || !voice.ok) && tries < 6) setTimeout(recheck, 2000);
+        if ((!discordState.voice || !discordState.voice.ok) && tries < 6) setTimeout(recheck, 2000);
         else btn.disabled = false;
       });
     };
@@ -307,26 +294,14 @@
   }
 
   // ── Turning one person up or down ─────────────────────────────────────────
-  // Discord lets you set the volume of one person in your channel, and mute them
-  // for yourself only — the thing you reach for when one friend is twice as loud
-  // as everyone else. It has been available to community widgets since 4.11 and
-  // had no control of its own here, so the only way to use it was to write a
-  // widget. Someone asked where the setting was, which is a fair question to ask
-  // about a feature with no setting.
-  //
-  // Tapping a name opens the controls under the list rather than in a popover: a
-  // popover needs positioning, a dismiss rule and a z-index on a surface that is
-  // often a touchscreen, and this widget already speaks in rows.
-  let openMember = '';       // id of the person whose controls are open, '' for none
-
   function callMembers() {
-    return (voice && Array.isArray(voice.members)) ? voice.members : [];
+    return (discordState.voice && Array.isArray(discordState.voice.members)) ? discordState.voice.members : [];
   }
   // Your own row is not one of these: Discord has no per-user setting for your
   // own account (your levels are the mic/output rows above), and the server
   // answers `self_not_supported` — so the row simply isn't a button.
   function canAdjust(m) {
-    return !!(m && m.id && voice && voice.channel && m.id !== (voice.selfId || ''));
+    return !!(m && m.id && discordState.voice && discordState.voice.channel && m.id !== (discordState.voice.selfId || ''));
   }
 
   // A member chip: their Discord avatar and name, with Discord's own cues: a
@@ -346,9 +321,9 @@
     if (adjustable) {
       chip.type = 'button';
       chip.classList.add('is-adjustable');
-      chip.classList.toggle('is-open', openMember === m.id);
+      chip.classList.toggle('is-open', discordState.openMember === m.id);
       chip.addEventListener('click', () => {
-        openMember = (openMember === m.id) ? '' : m.id;
+        discordState.openMember = (discordState.openMember === m.id) ? '' : m.id;
         paint();
       });
     }
@@ -397,7 +372,7 @@
   // is applied to the chips that are already there.
   function memberShape(m, adjustable) {
     return (m.id || '') + '\u0001' + (m.name || '') + '\u0001' + (m.avatar || '') + '\u0001'
-      + (adjustable ? (openMember === m.id ? 'o' : 'a') : '');
+      + (adjustable ? (discordState.openMember === m.id ? 'o' : 'a') : '');
   }
 
   // Fill a container with member chips for the current call.
@@ -420,14 +395,13 @@
   // still readable to a screen reader and still translated.
   const USER_VOL_MAX = 200;   // Discord's own ceiling for a per-person level
   const VOL_STEP = 5;
-  let dragging = false;       // true while a finger/pointer is on the slider
 
   function buildMemberCtl(m) {
     const row = el('div', 'dc-mctl-row');
 
     const mute = el('button', 'dc-mctl-mute');
     mute.type = 'button';
-    mute.addEventListener('click', () => runAction(mute, { type: 'discordUserMute', user: openMember, mode: 'toggle' }));
+    mute.addEventListener('click', () => runAction(mute, { type: 'discordUserMute', user: discordState.openMember, mode: 'toggle' }));
 
     const range = el('input', 'dc-mctl-range');
     range.type = 'range'; range.min = '0'; range.max = String(USER_VOL_MAX); range.step = String(VOL_STEP);
@@ -436,18 +410,18 @@
     // Dragging must not talk to Discord on every pixel: the number follows the
     // thumb locally, and the level is written once, when the finger lifts. The
     // flag also stops the SSE repaint from yanking the thumb out from under it.
-    range.addEventListener('pointerdown', () => { dragging = true; });
+    range.addEventListener('pointerdown', () => { discordState.dragging = true; });
     range.addEventListener('input', () => { val.textContent = range.value; paintFill(range); row.classList.remove('is-unknown'); });
     const commit = () => {
-      if (!dragging) return;
-      dragging = false;
-      runAction(range, { type: 'discordUserVol', user: openMember, mode: 'set', value: range.value });
+      if (!discordState.dragging) return;
+      discordState.dragging = false;
+      runAction(range, { type: 'discordUserVol', user: discordState.openMember, mode: 'set', value: range.value });
     };
     range.addEventListener('change', commit);
-    range.addEventListener('pointercancel', () => { dragging = false; });
+    range.addEventListener('pointercancel', () => { discordState.dragging = false; });
     // Keyboard: arrows fire `change` per press on some engines and not others,
     // so commit on release as well rather than leaving the level unwritten.
-    range.addEventListener('keyup', () => { if (!dragging) runAction(range, { type: 'discordUserVol', user: openMember, mode: 'set', value: range.value }); });
+    range.addEventListener('keyup', () => { if (!discordState.dragging) runAction(range, { type: 'discordUserVol', user: discordState.openMember, mode: 'set', value: range.value }); });
 
     row.append(mute, range, val);
     return row;
@@ -472,7 +446,7 @@
     mute.setAttribute('aria-label', label);
     range.title = t('dc_member_vol', 'Volume for you');
     range.setAttribute('aria-label', (m.name || '') + ' — ' + range.title);
-    if (dragging) return;   // their finger is on it; Discord's copy can wait
+    if (discordState.dragging) return;   // their finger is on it; Discord's copy can wait
     // A volume Discord does not report is not 100. The thumb has to sit
     // somewhere, so it rests at the default and the row says the value is not
     // known — a number would be a guess at a setting the machine may not be in.
@@ -485,12 +459,12 @@
 
   // The controls for the person whose name is open, or nothing.
   function fillMemberCtl(box) {
-    const m = openMember ? callMembers().find(x => x.id === openMember) : null;
+    const m = discordState.openMember ? callMembers().find(x => x.id === discordState.openMember) : null;
     // They left, or you did: close rather than leave controls pointing at nobody.
-    if (!m || !canAdjust(m)) { openMember = ''; dragging = false; box.replaceChildren(); box.hidden = true; box.dataset.dcFor = ''; return; }
+    if (!m || !canAdjust(m)) { discordState.openMember = ''; discordState.dragging = false; box.replaceChildren(); box.hidden = true; box.dataset.dcFor = ''; return; }
     box.hidden = false;
     if (box.dataset.dcFor !== m.id || !box.firstChild) {
-      dragging = false;
+      discordState.dragging = false;
       box.replaceChildren(buildMemberCtl(m));
       box.dataset.dcFor = m.id;
     }
@@ -500,9 +474,9 @@
   // Title for the channel/call you're in: the channel name, or (for a nameless DM/
   // group call) the participant names, or a generic "in call" label.
   function callTitle() {
-    if (!voice || !voice.channel) return '';
-    if (voice.channel.name) return voice.channel.name;
-    const names = (voice.members || []).map(m => m.name).filter(Boolean);
+    if (!discordState.voice || !discordState.voice.channel) return '';
+    if (discordState.voice.channel.name) return discordState.voice.channel.name;
+    const names = (discordState.voice.members || []).map(m => m.name).filter(Boolean);
     return names.length ? names.slice(0, 3).join(', ') : t('discord_w_call', 'In call');
   }
 
@@ -511,14 +485,14 @@
   function paintChannels(mount) {
     const list = mount.querySelector('.dc-chan-list');
     if (!list) return;
-    const linked = connected === true;
-    const activeId = voice && voice.channel ? voice.channel.id : '';
-    const membersFor = (c) => (c.id === activeId && voice && Array.isArray(voice.members))
-      ? voice.members : (roster ? (roster.get(c.id) || []) : []);
+    const linked = discordState.connected === true;
+    const activeId = discordState.voice && discordState.voice.channel ? discordState.voice.channel.id : '';
+    const membersFor = (c) => (c.id === activeId && discordState.voice && Array.isArray(discordState.voice.members))
+      ? discordState.voice.members : (discordState.roster ? (discordState.roster.get(c.id) || []) : []);
     // Skip the full rebuild (channel rows + member strips) when nothing observable
     // changed — paintChannels runs on every 6s roster tick and is usually identical.
-    const sig = !linked ? 'x' : (!channels || !channels.length) ? 'e'
-      : channels.map(c => c.id + ':' + (c.name || '') + ':' + (c.id === activeId ? 1 : 0) + ':'
+    const sig = !linked ? 'x' : (!discordState.channels || !discordState.channels.length) ? 'e'
+      : discordState.channels.map(c => c.id + ':' + (c.name || '') + ':' + (c.id === activeId ? 1 : 0) + ':'
           // Who is in each channel, not what they are doing: speaking and
           // muting are applied to the chips in place below, so a voice push
           // several times a second does not rebuild (and re-load) every avatar.
@@ -532,14 +506,14 @@
       // it in the signature the tap would repaint nothing until a member moved.
       + '#' + collapsedIds().join(',');
     if (list.dataset.dcSig === sig) {
-      if (linked && channels && channels.length) {
-        syncMemberStates(list, channels.flatMap(c => membersFor(c)));
+      if (linked && discordState.channels && discordState.channels.length) {
+        syncMemberStates(list, discordState.channels.flatMap(c => membersFor(c)));
       }
       return;
     }
     list.dataset.dcSig = sig;
     if (!linked) { list.replaceChildren(el('div', 'dc-chan-empty', t('twitch_notlinked', 'Not linked'))); return; }
-    if (!channels || !channels.length) {
+    if (!discordState.channels || !discordState.channels.length) {
       list.replaceChildren(el('div', 'dc-chan-empty', t('discord_w_no_channels', 'No voice channels')));
       return;
     }
@@ -553,9 +527,9 @@
       const isActive = c.id === activeId;
       // Members: the live voice state (with speaking) for the channel you're in,
       // the polled roster for every other channel. Either may be absent.
-      const members = (isActive && voice && Array.isArray(voice.members))
-        ? voice.members
-        : (roster ? (roster.get(c.id) || []) : []);
+      const members = (isActive && discordState.voice && Array.isArray(discordState.voice.members))
+        ? discordState.voice.members
+        : (discordState.roster ? (discordState.roster.get(c.id) || []) : []);
       const row = el('div', 'dc-chan-row');
       const b = el('button', 'dc-chan');
       b.type = 'button';
@@ -610,7 +584,7 @@
       return h;
     };
 
-    const { pinned, rest } = splitFavourites(channels, favIds());
+    const { pinned, rest } = splitFavourites(discordState.channels, favIds());
     const groups = Array.from(groupByGuild(rest).values());
     // Favourites is not a server and never collapses: it is the shortcut PAST
     // the scrolling, so hiding it would work against the thing being asked for.
@@ -658,10 +632,10 @@
   function previewSound(id) {
     if (!/^\d+$/.test(String(id))) return;
     try {
-      if (previewAudio) previewAudio.pause();
-      previewAudio = new Audio('https://cdn.discordapp.com/soundboard-sounds/' + id);
-      previewAudio.volume = 0.8;
-      previewAudio.play().catch(() => { /* autoplay/network blocked → ignore */ });
+      if (discordState.previewAudio) discordState.previewAudio.pause();
+      discordState.previewAudio = new Audio('https://cdn.discordapp.com/soundboard-sounds/' + id);
+      discordState.previewAudio.volume = 0.8;
+      discordState.previewAudio.play().catch(() => { /* autoplay/network blocked → ignore */ });
     } catch { /* ignore */ }
   }
 
@@ -688,17 +662,17 @@
   function paintSoundboard(mount) {
     const panel = mount.querySelector('.dc-panel--soundboard');
     if (!panel) return;
-    const linked = connected === true;
-    const inChan = !!(voice && voice.ok && voice.channel);
+    const linked = discordState.connected === true;
+    const inChan = !!(discordState.voice && discordState.voice.ok && discordState.voice.channel);
     const hint = panel.querySelector('.dc-sound-hint');
     if (hint) hint.hidden = !linked || inChan;
     const grid = panel.querySelector('.dc-sound-grid');
     if (!grid) return;
     if (!linked) { grid.replaceChildren(el('div', 'dc-sound-empty', t('twitch_notlinked', 'Not linked'))); return; }
-    if (sounds === null) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_loading', 'Loading…'))); return; }
-    if (!sounds.length) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_no_sounds', 'No soundboard sounds'))); return; }
+    if (discordState.sounds === null) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_loading', 'Loading…'))); return; }
+    if (!discordState.sounds.length) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_no_sounds', 'No soundboard sounds'))); return; }
     const frag = document.createDocumentFragment();
-    sounds.forEach(s => frag.appendChild(soundTile(s)));
+    discordState.sounds.forEach(s => frag.appendChild(soundTile(s)));
     grid.replaceChildren(frag);
   }
 
@@ -724,14 +698,14 @@
     const head = el('div', 'dc-notif-head');
     head.append(el('span', 'dc-notif-title', n.title || ''), el('span', 'dc-notif-time', fmtNotifTime(n.at)));
     const body = el('div', 'dc-notif-body');
-    const masked = notif.hide && n.body && !notifRevealed.has(n.id);
+    const masked = discordState.notif.hide && n.body && !notifRevealed.has(n.id);
     body.textContent = masked ? t('discord_w_notif_hidden', 'Tap to show') : (n.body || '');
     body.classList.toggle('is-masked', !!masked);
     txt.append(head, body);
     row.appendChild(txt);
     const reply = replyButton(n);
     if (reply) row.appendChild(reply);
-    if (notif.hide && n.body) {
+    if (discordState.notif.hide && n.body) {
       row.classList.add('is-tappable');
       row.addEventListener('click', () => {
         if (notifRevealed.has(n.id)) notifRevealed.delete(n.id); else notifRevealed.add(n.id);
@@ -794,12 +768,12 @@
     // second while people are talking — and rebuilding the rows re-creates every
     // <img>, which is what made the avatars in the feed blink. Same guard, and
     // for the same reason, as the one in paintChannels. Reported on Discord.
-    const sig = connected !== true ? 'x'
-      : notifItems === null ? 'loading'
-      : !notif.enabled ? 'off'
-      : notif.state === 'scope_missing' ? 'relink'
-      : !notifItems.length ? 'empty'
-      : notifItems.map(n => n.id + ((notif.hide && n.body && !notifRevealed.has(n.id)) ? 'm' : '')).join('|');
+    const sig = discordState.connected !== true ? 'x'
+      : discordState.notifItems === null ? 'loading'
+      : !discordState.notif.enabled ? 'off'
+      : discordState.notif.state === 'scope_missing' ? 'relink'
+      : !discordState.notifItems.length ? 'empty'
+      : discordState.notifItems.map(n => n.id + ((discordState.notif.hide && n.body && !notifRevealed.has(n.id)) ? 'm' : '')).join('|');
     // The states, the masked body and the times are all rendered here, so a
     // language change or a 12/24h change has to redraw them.
     const full = sig + '#' + (document.documentElement.lang || '')
@@ -816,32 +790,32 @@
       }
       list.replaceChildren(box);
     };
-    if (connected !== true) { showMsg('twitch_notlinked', 'Not linked'); return; }
-    if (notifItems === null) { showMsg('discord_w_loading', 'Loading…'); return; }
-    if (!notif.enabled) { showMsg('discord_w_notif_off', 'Notification mirroring is off', true); return; }
-    if (notif.state === 'scope_missing') { showMsg('discord_w_notif_relink', 'Reconnect Discord once to activate notifications', true); return; }
-    if (!notifItems.length) { showMsg('discord_w_notif_empty', 'No notifications yet'); return; }
+    if (discordState.connected !== true) { showMsg('twitch_notlinked', 'Not linked'); return; }
+    if (discordState.notifItems === null) { showMsg('discord_w_loading', 'Loading…'); return; }
+    if (!discordState.notif.enabled) { showMsg('discord_w_notif_off', 'Notification mirroring is off', true); return; }
+    if (discordState.notif.state === 'scope_missing') { showMsg('discord_w_notif_relink', 'Reconnect Discord once to activate notifications', true); return; }
+    if (!discordState.notifItems.length) { showMsg('discord_w_notif_empty', 'No notifications yet'); return; }
     const frag = document.createDocumentFragment();
-    notifItems.forEach(n => frag.appendChild(notifRow(n)));
+    discordState.notifItems.forEach(n => frag.appendChild(notifRow(n)));
     list.replaceChildren(frag);
   }
 
   // Seed the feed (flags + recent buffer) — once, lazily, when the tab first
   // opens. Newest first; live items then prepend via onNotification().
   function loadNotifs() {
-    if (notifInflight) return notifInflight;
-    notifInflight = api('/stream/discord/notifications').then(d => {
+    if (discordState.notifInflight) return discordState.notifInflight;
+    discordState.notifInflight = api('/stream/discord/notifications').then(d => {
       if (d && d.ok) {
-        notif = { enabled: !!d.enabled, hide: !!d.hide, state: d.state || 'off' };
-        notifItems = Array.isArray(d.items) ? d.items.slice(-NOTIF_MAX).reverse() : [];
-      } else if (notifItems === null) notifItems = [];
-    }).catch(() => { if (notifItems === null) notifItems = []; })
-      .finally(() => { notifInflight = null; });
-    return notifInflight;
+        discordState.notif = { enabled: !!d.enabled, hide: !!d.hide, state: d.state || 'off' };
+        discordState.notifItems = Array.isArray(d.items) ? d.items.slice(-NOTIF_MAX).reverse() : [];
+      } else if (discordState.notifItems === null) discordState.notifItems = [];
+    }).catch(() => { if (discordState.notifItems === null) discordState.notifItems = []; })
+      .finally(() => { discordState.notifInflight = null; });
+    return discordState.notifInflight;
   }
 
   function syncNotifsLoad() {
-    if (anyTabOpen('notifs') && connected === true && notifItems === null && !notifInflight) {
+    if (anyTabOpen('notifs') && discordState.connected === true && discordState.notifItems === null && !discordState.notifInflight) {
       loadNotifs().then(paint);
     }
   }
@@ -850,44 +824,44 @@
   // proves the subscription is live, whatever the last seeded flags said.
   function onNotification(item) {
     if (!item || typeof item !== 'object') return;
-    if (notifItems === null) notifItems = [];
-    notifItems.unshift(item);
-    if (notifItems.length > NOTIF_MAX) notifItems.length = NOTIF_MAX;
-    notif.enabled = true;
-    notif.state = 'ok';
-    if (!anyTabOpen('notifs')) notifUnread += 1;   // no badge while a tile is showing the feed
+    if (discordState.notifItems === null) discordState.notifItems = [];
+    discordState.notifItems.unshift(item);
+    if (discordState.notifItems.length > NOTIF_MAX) discordState.notifItems.length = NOTIF_MAX;
+    discordState.notif.enabled = true;
+    discordState.notif.state = 'ok';
+    if (!anyTabOpen('notifs')) discordState.notifUnread += 1;   // no badge while a tile is showing the feed
     if (tiles().length) paint();
   }
 
   // Soundboard list — fetched once (lazily, the first time the tab is opened while
   // Discord is reachable), then cached. Degrades to [] when Discord is offline.
   function loadSounds() {
-    if (soundsInflight) return soundsInflight;
-    soundsInflight = api('/stream/discord/sounds').then(d => {
-      sounds = (d && d.ok && Array.isArray(d.sounds)) ? d.sounds : [];
-    }).catch(() => { sounds = []; }).finally(() => { soundsInflight = null; });
-    return soundsInflight;
+    if (discordState.soundsInflight) return discordState.soundsInflight;
+    discordState.soundsInflight = api('/stream/discord/sounds').then(d => {
+      discordState.sounds = (d && d.ok && Array.isArray(d.sounds)) ? d.sounds : [];
+    }).catch(() => { discordState.sounds = []; }).finally(() => { discordState.soundsInflight = null; });
+    return discordState.soundsInflight;
   }
 
   // Lazily load the soundboard the first time its tab is opened while Discord is up.
   // One-shot (no polling): once `sounds` is an array it never refetches until reset.
   function syncSoundsLoad() {
-    if (anyTabOpen('soundboard') && connected === true && voice && voice.ok && sounds === null && !soundsInflight) {
+    if (anyTabOpen('soundboard') && discordState.connected === true && discordState.voice && discordState.voice.ok && discordState.sounds === null && !discordState.soundsInflight) {
       loadSounds().then(paint);
     }
   }
 
   function paint() {
-    const linked = connected === true;
-    const live = !!(voice && voice.ok);
-    const inChan = live && voice.channel;
+    const linked = discordState.connected === true;
+    const live = !!(discordState.voice && discordState.voice.ok);
+    const inChan = live && discordState.voice.channel;
     tiles().forEach(tile => {
       const mount = tile.querySelector('.discord-widget-mount');
       if (!mount) return;
       ensure(mount);
       applyLabels(mount);   // keep static labels in the current UI language
       mount.querySelector('.dc-wrap').classList.toggle('dc-off', !linked);
-      mount.querySelector('.dc-user').textContent = linked ? (username || '') : '';
+      mount.querySelector('.dc-user').textContent = linked ? (discordState.username || '') : '';
 
       const pill = mount.querySelector('.dc-pill');
       pill.classList.toggle('in-voice', !!inChan);
@@ -903,7 +877,7 @@
       // loaded voice state that came back not-ok). Not shown until voice is known,
       // so it doesn't flash before the first read resolves.
       const launch = mount.querySelector('.dc-launch');
-      if (launch) launch.hidden = !(linked && voice && voice.ok === false);
+      if (launch) launch.hidden = !(linked && discordState.voice && discordState.voice.ok === false);
 
       // Tabs: each tile reflects ITS OWN open tab, so two Discord tiles can show
       // two different ones at the same time.
@@ -912,25 +886,25 @@
       mount.querySelectorAll('.dc-panel').forEach(p => { p.hidden = p.dataset.dtab !== tab; });
       const badge = mount.querySelector('.dc-tab-badge');
       if (badge) {
-        badge.hidden = notifUnread <= 0;
-        badge.textContent = notifUnread > 9 ? '9+' : String(notifUnread);
+        badge.hidden = discordState.notifUnread <= 0;
+        badge.textContent = discordState.notifUnread > 9 ? '9+' : String(discordState.notifUnread);
       }
 
       // Mute
       const mute = mount.querySelector('.dc-mute');
-      const muted = !!(live && voice.mute);
+      const muted = !!(live && discordState.voice.mute);
       mute.classList.toggle('is-on', muted);
       mute.querySelector('.dc-btn-ico').innerHTML = muted ? ICONS.micOff : ICONS.micOn;
       mute.querySelector('.dc-btn-lbl').textContent = muted ? t('twitch_mic_unmute', 'Unmute') : t('twitch_mic_mute', 'Mute');
       // Deafen
       const deaf = mount.querySelector('.dc-deaf');
-      const deafened = !!(live && voice.deaf);
+      const deafened = !!(live && discordState.voice.deaf);
       deaf.classList.toggle('is-on', deafened);
       deaf.querySelector('.dc-btn-ico').innerHTML = deafened ? ICONS.deafOff : ICONS.deafOn;
       deaf.querySelector('.dc-btn-lbl').textContent = deafened ? t('discord_w_undeafen', 'Undeafen') : t('discord_w_deafen', 'Deafen');
       // Push-to-talk / voice activity (label shows the CURRENT mode)
       const ptt = mount.querySelector('.dc-ptt');
-      const isPtt = !!(live && voice.mode === 'PUSH_TO_TALK');
+      const isPtt = !!(live && discordState.voice.mode === 'PUSH_TO_TALK');
       ptt.classList.toggle('is-on', isPtt);
       ptt.querySelector('.dc-btn-ico').innerHTML = isPtt ? ICONS.ptt : ICONS.vad;
       ptt.querySelector('.dc-btn-lbl').textContent = isPtt ? t('deck_opt_ptt', 'Push-to-talk') : t('deck_opt_vad', 'Voice activity');
@@ -942,13 +916,13 @@
 
       // Volumes
       const inVal = mount.querySelector('.dc-vol-in .dc-vol-val');
-      if (inVal) inVal.textContent = (live && voice.inputVolume != null) ? String(voice.inputVolume) : '—';
+      if (inVal) inVal.textContent = (live && discordState.voice.inputVolume != null) ? String(discordState.voice.inputVolume) : '—';
       const outVal = mount.querySelector('.dc-vol-out .dc-vol-val');
-      if (outVal) outVal.textContent = (live && voice.outputVolume != null) ? String(voice.outputVolume) : '—';
+      if (outVal) outVal.textContent = (live && discordState.voice.outputVolume != null) ? String(discordState.voice.outputVolume) : '—';
 
       // Audio chips
       mount.querySelectorAll('.dc-chip').forEach(chip => {
-        const on = !!(live && voice.features && voice.features[chip.dataset.feature]);
+        const on = !!(live && discordState.voice.features && discordState.voice.features[chip.dataset.feature]);
         chip.classList.toggle('is-on', on);
       });
 
@@ -962,7 +936,7 @@
           fillMembers(call.querySelector('.dc-call-members'));
           fillMemberCtl(call.querySelector('.dc-call-mctl'));
         } else {
-          openMember = '';   // left the call: nothing to point at any more
+          discordState.openMember = '';   // left the call: nothing to point at any more
         }
       }
 
@@ -978,48 +952,48 @@
   // Voice-channel list — fetched once when linked (deduped across the multi-pass
   // layout init), then cached. Degrades to [] when Discord is offline.
   function loadChannels() {
-    if (channelsInflight) return channelsInflight;
-    channelsInflight = api('/stream/discord/channels').then(d => {
-      channels = (d && d.ok && Array.isArray(d.channels)) ? d.channels : [];
-    }).catch(() => { channels = []; }).finally(() => { channelsInflight = null; });
-    return channelsInflight;
+    if (discordState.channelsInflight) return discordState.channelsInflight;
+    discordState.channelsInflight = api('/stream/discord/channels').then(d => {
+      discordState.channels = (d && d.ok && Array.isArray(d.channels)) ? d.channels : [];
+    }).catch(() => { discordState.channels = []; }).finally(() => { discordState.channelsInflight = null; });
+    return discordState.channelsInflight;
   }
 
   async function pullVoice() {
     const v = await api('/stream/discord/voice');
-    voice = (v && typeof v === 'object') ? v : null;
+    discordState.voice = (v && typeof v === 'object') ? v : null;
   }
 
   // Fetch the per-channel roster (who's in each voice channel) into a Map. Keeps the
   // previous roster on a transient failure so the strip doesn't flicker empty.
   function loadRoster() {
-    if (rosterInflight) return rosterInflight;
-    rosterInflight = api('/stream/discord/roster').then(d => {
+    if (discordState.rosterInflight) return discordState.rosterInflight;
+    discordState.rosterInflight = api('/stream/discord/roster').then(d => {
       if (d && d.ok && Array.isArray(d.channels)) {
         const map = new Map();
         d.channels.forEach(c => { if (c && c.id) map.set(String(c.id), Array.isArray(c.members) ? c.members : []); });
-        roster = map;
+        discordState.roster = map;
       }
     }).catch(() => { /* keep last roster on a transient blip */ })
-      .finally(() => { rosterInflight = null; });
-    return rosterInflight;
+      .finally(() => { discordState.rosterInflight = null; });
+    return discordState.rosterInflight;
   }
 
   // Poll the roster ONLY while the Channels tab is open, Discord is linked, the page
   // is visible and a tile is placed — so the per-channel GET_CHANNEL reads never run
   // when nobody's looking (keeps the integration lightweight).
   function rosterWanted() {
-    return anyTabOpen('channels') && connected === true && !document.hidden && tiles().some(onVisiblePage);
+    return anyTabOpen('channels') && discordState.connected === true && !document.hidden && tiles().some(onVisiblePage);
   }
 
   function syncRosterPolling() {
     if (rosterWanted()) {
-      if (rosterTimer) return;                          // already polling
-      rosterTimer = setInterval(() => { loadRoster().then(paint); }, ROSTER_MS);
+      if (discordState.rosterTimer) return;                          // already polling
+      discordState.rosterTimer = setInterval(() => { loadRoster().then(paint); }, ROSTER_MS);
       loadRoster().then(paint);                         // instant first fill on open
-    } else if (rosterTimer) {
-      clearInterval(rosterTimer); rosterTimer = null;
-      roster = null;                                    // drop stale membership; reopening refetches
+    } else if (discordState.rosterTimer) {
+      clearInterval(discordState.rosterTimer); discordState.rosterTimer = null;
+      discordState.roster = null;                                    // drop stale membership; reopening refetches
     }
   }
 
@@ -1028,15 +1002,15 @@
   async function seed() {
     if (!tiles().length) return;
     const s = await api('/stream/discord/status');
-    if (s) { connected = !!s.connected; username = s.login || ''; }
-    if (connected) {
+    if (s) { discordState.connected = !!s.connected; discordState.username = s.login || ''; }
+    if (discordState.connected) {
       await pullVoice();
       // Load the channel list once Discord is actually reachable (voice.ok). If it
       // drops (app closed), forget the cached list so it reloads when it returns.
-      if (voice && voice.ok) { if (channels === null) await loadChannels(); }
-      else { channels = null; sounds = null; }
+      if (discordState.voice && discordState.voice.ok) { if (discordState.channels === null) await loadChannels(); }
+      else { discordState.channels = null; discordState.sounds = null; }
     } else {
-      voice = null; channels = null; sounds = null;
+      discordState.voice = null; discordState.channels = null; discordState.sounds = null;
     }
     paint();
   }
@@ -1045,23 +1019,23 @@
   // Zero work happens here until Discord actually changes something.
   function onSSE(data) {
     if (!data || typeof data !== 'object') return;
-    connected = !!data.connected;
-    username = data.login || '';
-    voice = (data.voice && typeof data.voice === 'object') ? data.voice : null;
+    discordState.connected = !!data.connected;
+    discordState.username = data.login || '';
+    discordState.voice = (data.voice && typeof data.voice === 'object') ? data.voice : null;
     // Feed health rides the same event ('off' | 'ok' | 'scope_missing') so the
     // Notifications tab can point at the one-time re-link without polling.
-    if (typeof data.notif === 'string') notif.state = data.notif;
-    if (connected && voice && voice.ok) { if (channels === null) { loadChannels().then(paint); } }
-    else if (!connected) { channels = null; sounds = null; notifItems = null; notifRevealed.clear(); notifUnread = 0; }
+    if (typeof data.notif === 'string') discordState.notif.state = data.notif;
+    if (discordState.connected && discordState.voice && discordState.voice.ok) { if (discordState.channels === null) { loadChannels().then(paint); } }
+    else if (!discordState.connected) { discordState.channels = null; discordState.sounds = null; discordState.notifItems = null; notifRevealed.clear(); discordState.notifUnread = 0; }
     paint();
   }
 
   function renderWidgets() {
     // No tiles placed → park state so a later re-add re-seeds from scratch, and stop
     // the roster poll (syncRosterPolling sees no tiles → clears its timer).
-    if (!tiles().length) { seeded = false; syncRosterPolling(); return; }
+    if (!tiles().length) { discordState.seeded = false; syncRosterPolling(); return; }
     paint();                                       // instant paint from cache
-    if (!seeded) { seeded = true; seed(); }        // deduped across the multi-pass layout init
+    if (!discordState.seeded) { discordState.seeded = true; seed(); }        // deduped across the multi-pass layout init
   }
 
   // Re-evaluate the roster poll when the page is hidden/shown (stop while hidden).

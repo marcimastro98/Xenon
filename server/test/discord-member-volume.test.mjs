@@ -37,7 +37,7 @@ const inCall = (selfId) => ({ channel: { id: 'c1', name: 'General' }, selfId, me
 
 test('everyone in the call gets controls', () => {
   const voice = inCall('111');
-  const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)(voice);
+  const fn = new Function('discordState', `${lift('canAdjust')}; return canAdjust;`)({ voice });
   assert.equal(fn({ id: '222', name: 'Bianca' }), true);
 });
 
@@ -46,7 +46,7 @@ test('your own row is not a button', () => {
   // mic and output rows above — and the server answers `self_not_supported`. A
   // slider that cannot work must not be offered.
   const voice = inCall('111');
-  const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)(voice);
+  const fn = new Function('discordState', `${lift('canAdjust')}; return canAdjust;`)({ voice });
   assert.equal(fn({ id: '111', name: 'You' }), false);
   assert.match(RPC, /if \(id === await selfUserId\(\)\) return \{ ok: false, error: 'self_not_supported' \};/,
     'and the server still refuses it, since the widget is not the boundary');
@@ -56,13 +56,13 @@ test('nobody gets controls when you are not in a call', () => {
   // The roster in the Channels tab lists people in OTHER channels. Discord only
   // accepts these settings for someone in the channel you are in, and answers OK
   // for anyone else — a control that reports success and changes nothing.
-  const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)({ channel: null, selfId: '111', members: [] });
+  const fn = new Function('discordState', `${lift('canAdjust')}; return canAdjust;`)({ voice: { channel: null, selfId: '111', members: [] } });
   assert.equal(fn({ id: '222', name: 'Bianca' }), false);
   assert.match(RPC, /\{ ok: false, error: 'user_not_here' \}/);
 });
 
 test('a member with no id is never actionable', () => {
-  const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)(inCall('111'));
+  const fn = new Function('discordState', `${lift('canAdjust')}; return canAdjust;`)({ voice: inCall('111') });
   for (const m of [null, {}, { name: 'x' }, { id: '' }]) assert.equal(fn(m), false, JSON.stringify(m));
 });
 
@@ -93,7 +93,7 @@ test('dragging talks to Discord once, when the finger lifts', () => {
 test('the repaint does not yank the thumb out from under a finger', () => {
   // paint() runs on every SSE push. Rebuilding the row mid-drag, or writing
   // Discord's value back into it, would fight the person using it.
-  assert.match(WIDGET, /if \(dragging\) return;   \/\/ their finger is on it/);
+  assert.match(WIDGET, /if \(discordState\.dragging\) return;   \/\/ their finger is on it/);
   assert.match(WIDGET, /if \(box\.dataset\.dcFor !== m\.id \|\| !box\.firstChild\)/,
     'and the row is rebuilt only when it is a different person');
 });
@@ -122,21 +122,21 @@ test('the panel is rebuilt on every paint, so it follows Discord', () => {
   // the number at whatever it was when the row was tapped.
   assert.match(WIDGET, /fillMemberCtl\(call\.querySelector\('\.dc-call-mctl'\)\)/);
   const body = WIDGET.slice(WIDGET.indexOf('function fillMemberCtl('));
-  assert.match(body.slice(0, 900), /callMembers\(\)\.find\(x => x\.id === openMember\)/);
+  assert.match(body.slice(0, 900), /callMembers\(\)\.find\(x => x\.id === discordState\.openMember\)/);
   assert.match(body.slice(0, 900), /refreshMemberCtl\(box\.firstChild, m\)/);
 });
 
 test('a person who leaves takes their open panel with them', () => {
   const body = WIDGET.slice(WIDGET.indexOf('function fillMemberCtl('), WIDGET.indexOf('function fillMemberCtl(') + 900);
-  assert.match(body, /if \(!m \|\| !canAdjust\(m\)\) \{ openMember = ''; dragging = false;/);
-  assert.match(WIDGET, /openMember = '';   \/\/ left the call/);
+  assert.match(body, /if \(!m \|\| !canAdjust\(m\)\) \{ discordState\.openMember = ''; discordState\.dragging = false;/);
+  assert.match(WIDGET, /discordState\.openMember = '';   \/\/ left the call/);
 });
 
 // ── The wiring ───────────────────────────────────────────────────────────────
 
 test('the controls send the actions that already existed', () => {
-  assert.match(WIDGET, /\{ type: 'discordUserVol', user: openMember, mode: 'set', value: range\.value \}/);
-  assert.match(WIDGET, /\{ type: 'discordUserMute', user: openMember, mode: 'toggle' \}/);
+  assert.match(WIDGET, /\{ type: 'discordUserVol', user: discordState\.openMember, mode: 'set', value: range\.value \}/);
+  assert.match(WIDGET, /\{ type: 'discordUserMute', user: discordState\.openMember, mode: 'toggle' \}/);
   assert.match(RPC, /case 'discordUserVol':  return await setUserVolume\(a\.user, a\.mode, a\.value\);/,
     'no new server surface: this is the SDK action, given a button');
 });

@@ -66,7 +66,7 @@ test('the lazy loads and the roster poll ask whether ANY tile shows the tab', ()
   for (const tab of ['notifs', 'soundboard', 'channels']) {
     assert.ok(WIDGET.includes(`anyTabOpen('${tab}')`), `${tab} gate still asks about one shared tab`);
   }
-  assert.match(WIDGET, /if \(!anyTabOpen\('notifs'\)\) notifUnread \+= 1;/);
+  assert.match(WIDGET, /if \(!anyTabOpen\('notifs'\)\) discordState\.notifUnread \+= 1;/);
 });
 
 test('the tile-level tab attribute does not collide with the panel one', () => {
