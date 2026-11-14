@@ -1,7 +1,8 @@
 // The proof of a `wire` step (wire.mjs), written apart from its planner: it works from the three texts and the
 // two line numbers of the plan, and reads everything else again from nothing.
 //
-//   1. The file is the old file with the run gone and one require in its place.
+//   1. The file is the old file with the run gone and one require in its place. Above it, a require the run alone
+//      used is the same require with fewer names, on the same line.
 //   2. Put back where that require stands, the lines of the module's body give the old file byte for byte
 //      (but for a relative require spelled for the new folder, which is followed to the same file).
 //   3. Above its body the module has only its comment and requires, each one a require the old file has above
@@ -16,6 +17,7 @@ import path from 'node:path';
 import { analyze, FILE_BOUND } from './analyze.mjs';
 import { loadUseTest } from './extract-plan.mjs';
 import { readShape } from './lift.mjs';
+import { requireEditProblem } from './require-edits.mjs';
 import { topStatements } from './state-refs.mjs';
 
 const REQUIRE_CALL = /require\((['"])([^'"]+)\1\)/g;
@@ -36,7 +38,8 @@ function readFrame(moduleText, count) {
  * @param {string} step.before the old file before
  * @param {string} step.after the old file after
  * @param {string} step.moduleText the new module
- * @param {{ first: number, last: number }} step.plan the 0-based lines of the run in the old file
+ * @param {{ first: number, last: number, edits?: { first: number, count: number, newLines: string[] }[] }} step.plan the 0-based lines of
+ *   the run in the old file, and the lines above it that are requires with fewer names now
  * @param {any} step.parser
  * @param {string} step.source repo-relative old file
  * @param {string} step.target repo-relative new module
@@ -53,11 +56,22 @@ export function proveWire({ before, after, moduleText, plan, parser, source, tar
   if (!frame) return ['the new module is not a comment, its requires, the lines of the run and one export'];
 
   // 1. Nothing but the run left the file, and what stands in its place is one require of the new module.
-  const glueCount = now.length - (old.length - run.length);
-  const glue = now.slice(first, first + glueCount).join('\n');
+  //    Above it, a require the run alone used is the same require with fewer names (require-edits.mjs checks each).
+  const edits = [...(plan.edits ?? [])].sort((a, b) => b.first - a.first);
+  const above = old.slice(0, first);
+  edits.forEach((edit, index) => {
+    const next = edits[index - 1];
+    if (edit.first < 0 || edit.count < 1 || edit.first + edit.count > (next ? next.first : first)) { problems.push('a changed require is not above the run, or two changes overlap'); return; }
+    const wrong = requireEditProblem(old.slice(edit.first, edit.first + edit.count), edit.newLines, moduleText);
+    if (wrong) problems.push(`line ${edit.first + 1}: ${wrong}`);
+    above.splice(edit.first, edit.count, ...edit.newLines);
+  });
+  const at = above.length;
+  const glueCount = now.length - at - (old.length - 1 - last);
+  const glue = now.slice(at, at + Math.max(0, glueCount)).join('\n');
   const spec = path.posix.relative(path.posix.dirname(source), target);
   const asked = `require('${spec.startsWith('.') ? spec : `./${spec}`}');`;
-  if (glueCount < 1 || now.slice(0, first).join('\n') !== old.slice(0, first).join('\n') || now.slice(first + glueCount).join('\n') !== old.slice(last + 1).join('\n')) {
+  if (glueCount < 1 || now.slice(0, at).join('\n') !== above.join('\n') || now.slice(at + glueCount).join('\n') !== old.slice(last + 1).join('\n')) {
     problems.push('the old file is not the old text with the run replaced by one statement');
   } else if (!/^const \{[\s\w$,]+\} = require\('[^']+'\);$/.test(glue) || !glue.endsWith(`} = ${asked}`)) {
     problems.push(`what stands where the run stood is not one require of ${target}`);
@@ -120,6 +134,9 @@ export function proveWire({ before, after, moduleText, plan, parser, source, tar
       else if (bound.reassigned) problems.push(`${name} is assigned again in the file`);
       if (was.bindings.get(name).reassigned) problems.push(`${name} is assigned again after it is declared: the file would keep the value it had when the module loaded`);
     } else if (bound || used) problems.push(`the file still uses ${name}, which the module does not hand back`);
+  }
+  for (const name of was.bindings.keys()) {
+    if (!own.has(name) && !file.bindings.has(name) && file.records.some((record) => record.uses.has(name))) problems.push(`the file still uses ${name}, which it no longer requires`);
   }
   for (const name of frame.exports) if (!own.has(name)) problems.push(`the module exports ${name}, which the run does not declare`);
   const nodes = topStatements(parser.parse(moduleText, target), parser);

@@ -15,10 +15,13 @@
 //     (the file would keep the first value);
 //   - no statement above the run can reach one of its functions while the file loads: a function declaration
 //     could be called from the first line of the file, a required one only after its require.
+// A require above the run that only the run used stays on its line, so its module loads when it always did, and
+// loses the names nobody in the file uses any more (require-edits.mjs); only one of Node's own modules loses its line.
 // The proof is in wire-proof.mjs, written apart. The module is recorded as one that runs code at load
 // (`wire` in extracted.json): later moves never drop its require line and never let it load earlier.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
+import { isBuiltin } from 'node:module';
 import path from 'node:path';
 
 import { analyze, FILE_BOUND } from './analyze.mjs';
@@ -27,6 +30,7 @@ import { appendLedger, protectedNames, readLedger } from './ledger.mjs';
 import { readShape, repoFileReader } from './lift.mjs';
 import { createSpecRewriter, requireLines, wrapNames } from './module-requires.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
+import { requireEdits } from './require-edits.mjs';
 import { topStatements } from './state-refs.mjs';
 import { targetReasons } from './target-rules.mjs';
 import { syntaxProblems, unknownNameProblems } from './verify.mjs';
@@ -58,7 +62,7 @@ export const exportLine = (names) => `module.exports = { ${names.join(', ')} };`
  * @param {(file: string | null) => string | null} [job.readFile] the text of a repo file, to look into what the run requires
  * @param {number} [job.maxLines]
  * @returns {{ names: string[], exports: string[], newSource: string, moduleText: string, first: number, last: number, glue: string[],
- *   needs: string[], requires: { from: string, to: string, file: string | null }[], files: string[] }}
+ *   edits: { first: number, count: number, newLines: string[] }[], needs: string[], requires: { from: string, to: string, file: string | null }[], files: string[] }}
  *   `first`..`last` are the 0-based lines that left. Throws a Refusal.
  */
 export function planWire({ text, parser, source, target, about, first: firstName, last: lastName = firstName, rewrite,
@@ -145,8 +149,14 @@ export function planWire({ text, parser, source, target, about, first: firstName
     throw new Refusal([`${target} would be ${moduleText.split('\n').length - 1} lines, the limit for a new file is ${maxLines}`]);
   }
   const glue = glueLines(exports, source, target);
-  const newSource = [...lines.slice(0, first), ...glue, ...lines.slice(last + 1)].join('\n');
-  return { names, exports, newSource, moduleText, first, last, glue, needs: [...needs],
+  // What the file required for the run alone: the module stays loaded on its line, the names go.
+  const orphaned = new Set([...needs].filter((name) => !outside.some((record) => record !== bindings.get(name).record && record.uses.has(name))));
+  const edits = requireEdits({ text, starts, orphaned, requires: [...new Set([...orphaned].map((name) => bindings.get(name).record))]
+    .map((record) => ({ record, ownModule: false, builtin: isBuiltin(record.require.spec) })) }).sort((a, b) => b.first - a.first);
+  const above = lines.slice(0, first);
+  for (const edit of edits) above.splice(edit.first, edit.count, ...edit.newLines);
+  const newSource = [...above, ...glue, ...lines.slice(last + 1)].join('\n');
+  return { names, exports, newSource, moduleText, first, last, glue, edits, needs: [...needs],
     requires: requires.map(({ from, to, file }) => ({ from, to, file })),
     files: [...new Set([...head.modules, ...requires].map((spec) => spec.file).filter(Boolean))] };
 }

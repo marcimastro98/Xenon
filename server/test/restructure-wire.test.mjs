@@ -52,7 +52,19 @@ test('the run goes to the module unchanged and in its order, the file requires i
   const lines = SOURCE.split('\n');
   assert.equal(made.moduleText, ['// What the part does.', '', "const os = require('node:os');", "const { make } = require('../make.js');", "const { log } = require('../log.js');", '',
     ...lines.slice(5, 12), "const two = make('two', () => require('../extra.js').more(one));", '', 'module.exports = { ask, two };', ''].join('\n'));
-  assert.equal(made.newSource, [...lines.slice(0, 5), "const { ask, two } = require('./part/x.js');", ...lines.slice(13)].join('\n'));
+  // What the file required for the run alone goes with it: a name leaves its require, a file stays loaded on its line.
+  assert.equal(made.newSource, ["const { tune } = require('./make');", "require('./log.js');", 'const unused = 1;', '',
+    "const { ask, two } = require('./part/x.js');", ...lines.slice(13)].join('\n'));
+  assert.equal(made.edits.length, 3);
+  const kept = { ...made, edits: made.edits.filter((edit) => edit.first !== 2) };
+  assert.match(proven(SOURCE, kept).join('\n'), /not the old text with the run replaced/, 'a changed line the plan does not name is caught');
+  const dropped = made.newSource.replace("require('./log.js');\n", '');
+  assert.notDeepEqual(proveWire({ before: SOURCE, after: dropped, moduleText: made.moduleText, plan: made, parser, source: OLD, target: NEW, fileOf }), [],
+    'a file that is no longer loaded where it was is caught');
+  const short = made.newSource.replace("const { tune } = require('./make');", "require('./make');");
+  const lost = { ...made, edits: made.edits.map((edit) => (edit.first === 1 ? { ...edit, newLines: ["require('./make');"] } : edit)) };
+  assert.match(proveWire({ before: SOURCE.replace('${unused}', '${unused}${tune}'), after: short.replace('${unused}', '${unused}${tune}'), moduleText: made.moduleText,
+    plan: lost, parser, source: OLD, target: NEW, fileOf }).join('\n'), /tune/, 'a name the file still uses cannot leave its require');
   assert.deepEqual(made.names, ['one', 'asked', 'ask', 'two']);
   assert.deepEqual(made.exports, ['ask', 'two'], 'only what the file still uses is handed back; the counter stays with the function that changes it');
   assert.deepEqual(wireSpelled(made), { '../extra.js': './extra' });
