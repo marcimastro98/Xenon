@@ -25,8 +25,7 @@
     open: S('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
   };
 
-  const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
-  const el = makeEl;    // shared DOM factory from utils.js
+  const { t, el, callsCfg, initials, errorText, ring } = window.CallModalWords;
   const api = apiJson;  // shared fetch-JSON helper from utils.js
 
   let list = [];             // ringing calls, newest first (server order)
@@ -37,13 +36,6 @@
   let seeded = false;
   let letGo = null;          // gives the keyboard back
 
-  function callsCfg() {
-    try {
-      const c = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.calls : null;
-      return c && typeof c === 'object' ? c : {};
-    } catch { return {}; }
-  }
-
   // An icon URL is rendered only when its scheme is one we allow. A notification
   // icon is a data: image minted by the server's own reader, and a Discord one
   // is an https URL it validated — anything else is dropped rather than shown,
@@ -53,21 +45,6 @@
     if (s.startsWith('data:image/')) return s;
     if (/^https:\/\//i.test(s)) return s;
     return '';
-  }
-
-  // Initials for the avatar. Only letters and digits count as a word: people
-  // put emoji in contact names ("Amore 🐔"), and taking the emoji as a second
-  // initial filled the circle with a picture instead of a letter. \p{L} keeps
-  // Cyrillic, Greek and CJK working — it is emoji and punctuation that are
-  // excluded, not non-Latin scripts.
-  function initials(name) {
-    const parts = String(name || '').trim().split(/\s+/)
-      .map(w => Array.from(w).filter(ch => /[\p{L}\p{N}]/u.test(ch)).join(''))
-      .filter(Boolean);
-    if (!parts.length) return '';
-    const first = Array.from(parts[0])[0] || '';
-    const second = parts.length > 1 ? (Array.from(parts[parts.length - 1])[0] || '') : '';
-    return (first + second).toUpperCase();
   }
 
   // ── acting ────────────────────────────────────────────────────────────────
@@ -100,22 +77,6 @@
 
   function dismissCall() {
     if (list[0]) act(list[0], 'dismiss');
-  }
-
-  function errorText(code) {
-    const map = {
-      window_not_found: t('call_err_window', 'I could not find that app’s window.'),
-      no_window_tool: t('call_err_window', 'I could not find that app’s window.'),
-      window_list_failed: t('call_err_window', 'I could not find that app’s window.'),
-      hotkey_unavailable: t('call_err_keys', 'This machine cannot send the shortcut.'),
-      hotkey_failed: t('call_err_keys', 'This machine cannot send the shortcut.'),
-      accessibility_denied: t('call_err_access', 'Allow Xenon Helper under Accessibility to answer from here.'),
-      discord_unavailable: t('call_err_discord', 'Discord is not connected.'),
-      discord_failed: t('call_err_discord', 'Discord is not connected.'),
-      not_ringing: t('call_err_gone', 'That call is no longer ringing.'),
-      unavailable: t('call_err_unavailable', 'That is not possible on this PC.'),
-    };
-    return map[code] || t('call_err_generic', 'It did not work.');
   }
 
   // ── rendering ─────────────────────────────────────────────────────────────
@@ -265,11 +226,6 @@
     // silenced, and stops the moment either changes. Asking on every paint
     // rather than tracking transitions keeps the two from drifting apart.
     ring(!call.silenced && callsCfg().sound !== false);
-  }
-
-  function ring(on) {
-    try { if (window.XenonSound && typeof window.XenonSound.ring === 'function') window.XenonSound.ring(!!on); }
-    catch { /* audio is optional; the card is the real surface */ }
   }
 
   function closeOverlay() {
