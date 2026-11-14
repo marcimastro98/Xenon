@@ -71,7 +71,7 @@ function createFileSearch(opts) {
 
   const {
     rejectPending, retireHost, bumpIdle, ensureHost,
-  } = makeHost({ CATALOG_SUPPORTED, scriptPath, host });
+  } = makeHost({ CATALOG_SUPPORTED, scriptPath, host, spawnHost: o.spawnHost });   // o.spawnHost: a test's made-up process
 
   // The host answers one query at a time, so a fast typist used to queue every
   // keystroke's query behind the previous ones: "f", "fa", "fat"… each waited

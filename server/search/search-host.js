@@ -5,7 +5,8 @@
 const { spawn } = require('node:child_process');
 const { HOST_IDLE_MS, HOST_RETRY_MS } = require('./search-limits.js');
 
-function makeHost({ CATALOG_SUPPORTED, scriptPath, host }) {
+// `spawnHost` stands in for child_process.spawn in tests, so a made-up process can answer.
+function makeHost({ CATALOG_SUPPORTED, scriptPath, host, spawnHost = spawn }) {
   function rejectPending(id, err) {
     const p = host.pending.get(id);
     if (!p) return;
@@ -47,7 +48,7 @@ function makeHost({ CATALOG_SUPPORTED, scriptPath, host }) {
     if (Date.now() - host.diedAt < HOST_RETRY_MS) return null;
     let proc;
     try {
-      proc = spawn('powershell.exe',
+      proc = spawnHost('powershell.exe',
         ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-Serve'],
         { windowsHide: true });
     } catch { return null; }
