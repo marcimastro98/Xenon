@@ -9,7 +9,7 @@
 // element with a fixed rect, so what is "on screen" is decided by the test.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 

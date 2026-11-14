@@ -457,7 +457,7 @@ test('controller: a failed write never jams the queue', async () => {
 // The map and the Deck picker name a board's own LEDs after the output they hang
 // on, so "Output 2 · 3" is the same piece in Settings and on a Deck key.
 test('lighting map: an output and its pieces are named after the output', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const vm = await import('node:vm');
   const src = readFileSync(new URL('../js/lighting-map.js', import.meta.url), 'utf8');
   const ctx = { window: { LightingUI: { tr: (key, fallback) => fallback } } };
