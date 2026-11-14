@@ -11,6 +11,7 @@ import { analyze } from './analyze.mjs';
 import { redoBranches } from './branches.mjs';
 import { diskTree, dropOnDisk } from './dead-requires-disk.mjs';
 import { planExtraction, Refusal } from './extract-plan.mjs';
+import { tidyPlan } from './extract-tidy.mjs';
 import { gathersToRedo, redoGathers } from './gather.mjs';
 import { planInnerFor } from './inner.mjs';
 import { proveInner } from './inner-proof.mjs';
@@ -56,7 +57,7 @@ export function extract(job) {
   const entries = readLedger(root).sources[source] ?? [];
   const earlier = entries.map((entry) => entry.file);
   const bare = dropOnDisk({ root, parser: job.parser, source, target, plan: planFor({ ...job, text: before, ownModules: quietModules(entries) }) });
-  const { plan } = bare;
+  const plan = tidyPlan(before, bare.plan);
   const requires = plan.requires.map((module) => module.file).filter(Boolean);
   const reasons = targetReasons({ root, source, target, requires });
   if (reasons.length) throw new Refusal(reasons);
@@ -82,7 +83,8 @@ export function extract(job) {
     if (madeFolder && readdirSync(folder).length === 0) rmdirSync(folder);
     throw new Error(`the move failed its checks and was undone:\n${problems.join('\n')}`);
   }
-  appendLedger(root, source, { file: target, about, names: plan.moved, ...(bare.dropped.length ? { bare: bare.dropped.map((row) => row.spec) } : {}) });
+  appendLedger(root, source, { file: target, about, names: plan.moved, ...(bare.dropped.length ? { bare: bare.dropped.map((row) => row.spec) } : {}),
+    ...(plan.glue.blanks?.length ? { tidy: true } : {}) });
   return result;
 }
 
@@ -185,6 +187,8 @@ export function replay({ root, parser, base, show = gitShow }) {
         problems.push(...redone.problems.map((p) => `${entry.file}: ${p}`));
         plan = redone.plan;
       }
+      // Recorded only when the step took blank lines out, so the steps made before it could are redone as they were.
+      if (entry.tidy) plan = tidyPlan(text, plan);
       const texts = { before: text, after: plan.newSource, moduleText: plan.moduleText, plan };
       const proof = entry.paths ? provePaths({ ...texts, parser, source, target: entry.file })
         : entry.lift ? proveLift({ ...texts, parser, source, target: entry.file, fileOf: repoFileReader(root) })

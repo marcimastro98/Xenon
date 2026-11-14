@@ -19,7 +19,8 @@ const tally = (counts, lines, by) => { for (const line of lines) counts.set(line
  * @param {string} move.after the old file after
  * @param {string} move.moduleText the new module
  * @param {{ ranges: number[][], glue: { sourceAt: number, sourceLines: string[], moduleLines: number[],
- *   edits?: { at: number, oldLines: string[], newLines: string[] }[] } }} move.plan
+ *   edits?: { at: number, first?: number, oldLines: string[], newLines: string[] }[], blanks?: number[] } }} move.plan
+ *   `blanks`: 0-based lines of the old file taken out by extract-tidy.mjs, each a blank line just under a line that went whole
  * @returns {string[]} problems, empty when the move is proven
  */
 export function proveMove({ before, after, moduleText, plan }) {
@@ -27,7 +28,7 @@ export function proveMove({ before, after, moduleText, plan }) {
   const old = before.split('\n');
   const now = after.split('\n');
   const made = moduleText.split('\n').slice(0, -1);
-  const { sourceAt, sourceLines, moduleLines, edits = [] } = plan.glue;
+  const { sourceAt, sourceLines, moduleLines, edits = [], blanks = [] } = plan.glue;
 
   // 1. The moved text is byte for byte the old ranges, in the old order.
   let from = 0;
@@ -46,6 +47,7 @@ export function proveMove({ before, after, moduleText, plan }) {
   tally(counts, sourceLines, 1);
   tally(counts, moduleLines.map((index) => made[index]), 1);
   for (const edit of edits) { tally(counts, edit.oldLines, -1); tally(counts, edit.newLines, 1); }
+  tally(counts, blanks.map((index) => old[index] ?? ''), -1);
   const off = [...counts].filter(([, n]) => n !== 0);
   if (off.length) {
     const shown = off.slice(0, 5).map(([line, n]) => `${n > 0 ? 'lost' : 'extra'} x${Math.abs(n)}: ${JSON.stringify(line.slice(0, 80))}`);
@@ -55,7 +57,20 @@ export function proveMove({ before, after, moduleText, plan }) {
   // 3. Outside the moved ranges the old file is untouched: without the glue it is the old text without the ranges.
   const gone = new Set();
   for (const [start, end] of plan.ranges) for (let line = start; line <= end; line += 1) gone.add(line - 1);
-  const expected = old.filter((_, index) => !gone.has(index)).join('\n');
+  // A blank line may go with the move only when the line just above it went whole: a moved line, a require
+  // taken out altogether, or another blank line that went for the same reason.
+  const went = new Set(gone);
+  for (const edit of edits) {
+    if (edit.first === undefined || edit.newLines.length > 0) continue;
+    for (let i = 0; i < edit.oldLines.length; i += 1) went.add(edit.first + i);
+  }
+  for (const index of [...blanks].sort((a, b) => a - b)) {
+    if (old[index] === undefined || old[index].trim() !== '') problems.push(`line ${index + 1} of the old file went as a blank line, and it is not one`);
+    else if (!went.has(index - 1)) problems.push(`the blank line ${index + 1} of the old file went, but the line above it stayed`);
+    else went.add(index);
+  }
+  const dropped = new Set(blanks);
+  const expected = old.filter((_, index) => !gone.has(index) && !dropped.has(index)).join('\n');
   if (now.slice(sourceAt, sourceAt + sourceLines.length).join('\n') !== sourceLines.join('\n')) {
     problems.push('the new require is not where the plan put it');
   }

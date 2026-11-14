@@ -124,9 +124,9 @@ export function placeRequire({ records, moved, movedSet, movedNames, bindings, m
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, moduleText: string, moved: string[], exported: string[], imported: string[],
  *   ranges: number[][], requires: any[], glue: { sourceAt: number, sourceLines: string[], moduleLines: number[],
- *   edits: { at: number, oldLines: string[], newLines: string[] }[] } }}
+ *   sourceFirst: number, edits: { at: number, first: number, oldLines: string[], newLines: string[] }[] } }}
  *   `edits` are requires of the old file that lost names only the moved code used, in the order of the old file; `at` and
- *   `sourceAt` are 0-based lines of the new text.
+ *   `sourceAt` are 0-based lines of the new text, `first` and `sourceFirst` the 0-based lines of the old text they stand for.
  */
 export function planExtraction(job) {
   const { text, analysis, names, source, target, about, rewrite, withDeps = false,
@@ -212,7 +212,7 @@ export function planExtraction(job) {
   return {
     newSource: kept.join('\n'), moduleText: `${body.join('\n')}\n`,
     moved: movedNames, exported, imported, ranges: moved.map((record) => record.range), requires: required.modules,
-    glue: { sourceAt, sourceLines: sourceGlue, moduleLines: moduleGlue,
-      edits: [...edits.values()].sort((a, b) => a.first - b.first).map(({ at, oldLines, newLines }) => ({ at, oldLines, newLines })) },
+    glue: { sourceAt, sourceFirst: anchorRecord.range[0] - 1, sourceLines: sourceGlue, moduleLines: moduleGlue,
+      edits: [...edits.values()].sort((a, b) => a.first - b.first).map(({ at, first, oldLines, newLines }) => ({ at, first, oldLines, newLines })) },
   };
 }
