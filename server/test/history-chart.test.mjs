@@ -309,7 +309,8 @@ test('the chart engine loads before the History module on the page and in deskto
   assert.ok(at('spark-path.js') > 0 && at('spark-path.js') < at('history-chart.js') && at('history-chart.js') < at('guardian-history.js'));
   const tiles = read('../js/layer-tiles.js');
   const history = partsOf('server/js/guardian-history.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // the scripts the History module is made of today
-  for (const list of [`'js/picker.js', 'js/history-chart.js', ${history}]`, `power: tile('power', 'PowerWidget', ['js/spark-path.js', 'js/history-chart.js', ${history}`]) assert.ok(tiles.includes(list), list);
+  const chart = partsOf('server/js/history-chart.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // and the chart engine
+  for (const list of [`'js/picker.js', ${chart}, ${history}]`, `power: tile('power', 'PowerWidget', ['js/spark-path.js', ${chart}, ${history}`]) assert.ok(tiles.includes(list), list);
   assert.match(tiles, /null, \['components\/GuardianHistory\/GuardianHistory\.css'\]\)/);
 });
 
