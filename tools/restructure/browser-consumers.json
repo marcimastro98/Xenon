@@ -102,6 +102,9 @@
           "openDeckMixer"
         ]
       }
+    },
+    "server/js/custom-widget.js": {
+      "tools/modal-census/census.mjs": "Patches the text a test browser is served, at the line `window.CustomWidget = {`, with calls to functions of the wrapper. That line is not a function and cannot leave, and a function taken out by `browser inner` is still a name of the wrapper; the scripts next to it are served as they are."
     }
   }
 }

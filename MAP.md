@@ -111,7 +111,7 @@ What lets other people build widgets safely.
 |---|---|---|
 | **xenon-mcp** | Lets Claude Code or Codex build and test a widget on a running Xenon. | `packages/mcp/**` `server/mcp-dev.js` `server/mcp-dev-tools.js` `server/ai-mcp-bridge.js` `server/js/mcp-dev-client.js` |
 | **Shared core and brand** | Constants and formatters used by engine and screen alike, and the brand reference. | `packages/core/**` `packages/design-system/**` |
-| **Widget SDK** | Runs other people's widgets in a sandbox, with only the permissions they were given. | `server/widget-sdk/**` `server/sdk-*.js` `server/sdk-limits/**` `server/sdk-example/**` `server/sdk-service.html` `server/shell-driver.html` and 8 more |
+| **Widget SDK** | Runs other people's widgets in a sandbox, with only the permissions they were given. | `server/widget-sdk/**` `server/sdk-*.js` `server/sdk-limits/**` `server/sdk-example/**` `server/sdk-service.html` `server/shell-driver.html` and 9 more |
 
 ## App and helpers
 
