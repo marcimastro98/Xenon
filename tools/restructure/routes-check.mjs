@@ -163,8 +163,10 @@ export function questionsFor({ engineText, remoteText, skip, writes = [], parser
   const wrote = writeRequests(branches, writes);
   const mutators = [...setOfTexts(engineText, parser, 'CSRF_MUTATION_PATHS'), ...setOfTexts(remoteText, parser, 'DEFAULT_GET_MUTATORS')];
   const { ask: wanted, skipped, stale } = askable({ paths, mutators, skip });
+  // Asked in the order of the alphabet: an answer may depend on what was asked before it, and a route that moves from
+  // the chain to a table must not change the order of the questions.
   return { paths, skipped, stale, writes: wrote.ask, staleWrites: [...wrote.stale, ...wrote.unexplained],
-    questions: [...wanted.map((address) => ({ label: `GET ${address}`, method: 'GET', path: address, plain: true })), ...REFUSALS] };
+    questions: [...[...wanted].sort().map((address) => ({ label: `GET ${address}`, method: 'GET', path: address, plain: true })), ...REFUSALS] };
 }
 
 /**

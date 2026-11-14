@@ -3912,6 +3912,626 @@
     "./deck/routes.js",
     "./deck/routes-keys.js"
    ]
+  },
+  {
+   "modules": [
+    {
+     "local": "settingsBranches",
+     "spec": "./settings/routes.js"
+    },
+    {
+     "local": "settingsSaveBranches",
+     "spec": "./settings/routes-save.js"
+    },
+    {
+     "local": "pairedBranches",
+     "spec": "./paired/routes.js"
+    },
+    {
+     "local": "pairedAccessBranches",
+     "spec": "./paired/routes-access.js"
+    },
+    {
+     "local": "pairedPushBranches",
+     "spec": "./paired/routes-push.js"
+    },
+    {
+     "local": "remoteControlBranches",
+     "spec": "./remote-control/routes.js"
+    },
+    {
+     "local": "transferBranches",
+     "spec": "./transfer/routes.js"
+    },
+    {
+     "local": "transferPhoneBranches",
+     "spec": "./transfer/routes-phone.js"
+    }
+   ],
+   "cuts": [
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/push/test' && req.method === 'POST') {",
+      "    await pairedPushBranches['POST /api/push/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPushNotify });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/push/status' && req.method === 'GET') {",
+      "    await pairedPushBranches['GET /api/push/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/push/unsubscribe' && req.method === 'POST') {",
+      "    await pairedPushBranches['POST /api/push/unsubscribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/push/subscribe' && req.method === 'POST') {",
+      "    await pairedPushBranches['POST /api/push/subscribe'](req, res, { json, err500, reqPath, urlObj, isRemote, remote }, { webPush });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/push/key' && req.method === 'POST') {",
+      "    await pairedPushBranches['POST /api/push/key'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/revoke-all' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/revoke-all'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _dropRemoteSockets, remoteAccess, webPush });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/revoke' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/revoke'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _dropRemoteSockets, remoteAccess, webPush });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/rename' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/rename'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteAccess });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/whoami' && req.method === 'GET') {",
+      "    await pairedAccessBranches['GET /api/remote-access/whoami'](req, res, { json, err500, reqPath, urlObj, isRemote, remote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/redeem' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/redeem'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _peerIp, remoteAccess });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/pair/cancel' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/pair/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteAccess });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/pair' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/pair'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, remoteAccess, remoteAccessEnabled, remoteHttps });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/https/setup' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/https/setup'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteHttpsSetup });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/https' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/https'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _syncRemoteHttps, readHubSettingsForUpdate, remoteHttps, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/enable' && req.method === 'POST') {",
+      "    await pairedAccessBranches['POST /api/remote-access/enable'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _dropRemoteSockets, _syncRemoteHttps, applyBindHost, readHubSettingsForUpdate, remoteAccess, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/remote-access/status' && req.method === 'GET') {",
+      "    await pairedAccessBranches['GET /api/remote-access/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, _remoteHttpsState, remoteAccess, remoteAccessEnabled, remoteHttpsInstaller, remoteHttpsSetup });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/unblock' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/unblock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/block' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/block'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/session/close' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/session/close'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/screen/cycle' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/screen/cycle'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/screen' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/screen'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/screens' && req.method === 'GET') {",
+      "    await remoteControlBranches['GET /remote/screens'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/ondemand' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/ondemand'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/disable' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/disable'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/enable' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/enable'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/kill' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/kill'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/pin' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/pin'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/sunshine/configure' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/sunshine/configure'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/tailscale/login' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/tailscale/login'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/install' && req.method === 'POST') {",
+      "    await remoteControlBranches['POST /remote/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/remote/status' && req.method === 'GET') {",
+      "    await remoteControlBranches['GET /remote/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/sse' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/phone/dial' && req.method === 'POST') {",
+      "    await transferPhoneBranches['POST /api/phone/dial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/phone/send' && req.method === 'POST') {",
+      "    await transferPhoneBranches['POST /api/phone/send'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/phone/message' && req.method === 'GET') {",
+      "    await transferPhoneBranches['GET /api/phone/message'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/phone/messages' && req.method === 'GET') {",
+      "    await transferPhoneBranches['GET /api/phone/messages'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/phone/calls' && req.method === 'GET') {",
+      "    await transferPhoneBranches['GET /api/phone/calls'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/phone/contacts' && req.method === 'GET') {",
+      "    await transferPhoneBranches['GET /api/phone/contacts'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/phone' && req.method === 'GET') {",
+      "    await transferPhoneBranches['GET /api/phone'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/calls/act' && req.method === 'POST') {",
+      "    await transferPhoneBranches['POST /api/calls/act'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/calls/test' && req.method === 'POST') {",
+      "    await transferPhoneBranches['POST /api/calls/test'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/calls' && req.method === 'GET') {",
+      "    await transferPhoneBranches['GET /api/calls'](req, res, { json, err500, reqPath, urlObj, isRemote }, { keySendAvailable, keySendProblem });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/settings/pick' && req.method === 'POST') {",
+      "    await transferBranches['POST /api/transfer/settings/pick'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseTransferFolder, updateTransferSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/settings' && req.method === 'POST') {",
+      "    await transferBranches['POST /api/transfer/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateTransferSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {",
+      "    await transferBranches['GET /api/transfer/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, fileTransfer, transferInboxDir, transferSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/undo' && req.method === 'POST') {",
+      "    await transferBranches['POST /api/transfer/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { broadcastTransfer, undoTransferDelete });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/delete' && req.method === 'POST') {",
+      "    await transferBranches['POST /api/transfer/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { TRANSFER_UNDO_MS, broadcastTransfer, fileTransfer, holdForUndo });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/reveal' && req.method === 'POST') {",
+      "    await transferBranches['POST /api/transfer/reveal'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/open' && req.method === 'POST') {",
+      "    await transferBranches['POST /api/transfer/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/thumb' && req.method === 'GET') {",
+      "    await transferBranches['GET /api/transfer/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/file' && (req.method === 'GET' || req.method === 'HEAD')) {",
+      "    await transferBranches['GET|HEAD /api/transfer/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/list' && req.method === 'GET') {",
+      "    await transferBranches['GET /api/transfer/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { transferState });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transfer/upload' && req.method === 'POST') {",
+      "    await transferPhoneBranches['POST /api/transfer/upload'](req, res, { json, err500, reqPath, urlObj, isRemote, remote }, { broadcastTransfer, deliverTransfer, fileTransfer, transferEnabled, transferPushBody, transferSettings, webPushNotify });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/settings' && req.method === 'POST') {",
+      "    await settingsSaveBranches['POST /settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexChanged, _syncCodexDemand, _syncSessionWatch, autoUpdater, batteryMonitor, deckChroma, deckUnifi, embeddedBrowser, phone, refreshClaude, refreshDiscordWatch, refreshFootball, refreshHaWatch, refreshHotkeyListener, refreshLivingIndex, refreshObsWatch, refreshSbWatch, refreshStocks, refreshUnifiEventsWatch, refreshWakeWordWatch, refreshWlWatch, widgetAutoUpdater });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/settings' && req.method === 'GET') {",
+      "    await settingsBranches['GET /settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/backup/save' && req.method === 'POST') {",
+      "    await settingsBranches['POST /backup/save'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseBackupFolder, saveBackupToDisk });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/backup/import' && req.method === 'POST') {",
+      "    await settingsBranches['POST /backup/import'](req, res, { json, err500, reqPath, urlObj, isRemote }, { applyBackup });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/backup/export' && req.method === 'GET') {",
+      "    await settingsBranches['GET /backup/export'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildBackup });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/settings/tile' && req.method === 'POST') {",
+      "    await settingsBranches['POST /settings/tile'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveTileSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/manifest.webmanifest' && req.method === 'GET') {",
+      "    await pairedBranches['GET /manifest.webmanifest'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sw.js' && req.method === 'GET') {",
+      "    await pairedBranches['GET /sw.js'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/pair' && req.method === 'GET') {",
+      "    await pairedBranches['GET /pair'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "const { branches: settingsBranches } = require('./settings/routes.js');"
+     ],
+     "before": "const { branches: smartHomeCamerasBranches } = require('./smart-home/routes-cameras.js');"
+    },
+    {
+     "lines": [
+      "const { branches: settingsSaveBranches } = require('./settings/routes-save.js');"
+     ],
+     "before": "const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');"
+    },
+    {
+     "lines": [
+      "const { branches: pairedBranches } = require('./paired/routes.js');"
+     ],
+     "before": "const { branches: widgetSdkCallsBranches } = require('./widget-sdk/routes-calls.js');"
+    },
+    {
+     "lines": [
+      "const { branches: pairedAccessBranches } = require('./paired/routes-access.js');"
+     ],
+     "before": "const { branches: pairedPushBranches } = require('./paired/routes-push.js');"
+    },
+    {
+     "lines": [
+      "const { branches: pairedPushBranches } = require('./paired/routes-push.js');"
+     ],
+     "before": "const { branches: diskBranches } = require('./disk/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: remoteControlBranches } = require('./remote-control/routes.js');"
+     ],
+     "before": "const { branches: storeCatalogPacksBranches } = require('./store-catalog/routes-packs.js');"
+    },
+    {
+     "lines": [
+      "const { branches: transferBranches } = require('./transfer/routes.js');"
+     ],
+     "before": "const { branches: transferPhoneBranches } = require('./transfer/routes-phone.js');"
+    },
+    {
+     "lines": [
+      "const { branches: transferPhoneBranches } = require('./transfer/routes-phone.js');"
+     ],
+     "before": "const { branches: diskBranches } = require('./disk/routes.js');"
+    }
+   ],
+   "hands": [
+    "TRANSFER_UNDO_MS",
+    "_dropRemoteSockets",
+    "_peerIp",
+    "_remoteHttpsState",
+    "_syncRemoteHttps",
+    "applyBackup",
+    "applyBindHost",
+    "broadcastTransfer",
+    "buildBackup",
+    "chooseBackupFolder",
+    "chooseTransferFolder",
+    "deliverTransfer",
+    "fileTransfer",
+    "holdForUndo",
+    "keySendProblem",
+    "phone",
+    "refreshLivingIndex",
+    "refreshSbWatch",
+    "refreshUnifiEventsWatch",
+    "refreshWlWatch",
+    "remoteAccessEnabled",
+    "remoteControl",
+    "remoteHttps",
+    "remoteHttpsSetup",
+    "saveBackupToDisk",
+    "saveTileSettings",
+    "transferInboxDir",
+    "transferPushBody",
+    "transferSettings",
+    "transferState",
+    "undoTransferDelete",
+    "updateTransferSettings",
+    "webPush",
+    "webPushNotify"
+   ],
+   "listed": [
+    "./settings/routes.js",
+    "./settings/routes-save.js",
+    "./paired/routes.js",
+    "./paired/routes-access.js",
+    "./paired/routes-push.js",
+    "./remote-control/routes.js",
+    "./transfer/routes.js",
+    "./transfer/routes-phone.js"
+   ]
   }
  ]
 }

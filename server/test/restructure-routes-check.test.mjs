@@ -204,7 +204,8 @@ test('an address a table of feature-routes.js answers is asked like one the chai
   const remoteText = 'const DEFAULT_GET_MUTATORS = new Set([]);';
   const plain = questionsFor({ engineText: HANDLER.replace('const CHANGES', 'const CSRF_MUTATION_PATHS'), remoteText, skip: {}, parser }).questions.filter((question) => question.plain).map((question) => question.path);
   const tabled = questionsFor({ engineText: HANDLER.replace('const CHANGES', 'const CSRF_MUTATION_PATHS'), remoteText, skip: {}, parser, tableRoutes }).questions.filter((question) => question.plain).map((question) => question.path);
-  assert.deepEqual(tabled, [...plain, '/tabled'], 'an address asked with two methods was no plain GET route in the chain, and is none in a table');
+  assert.deepEqual(tabled, [...plain, '/tabled'].sort(), 'an address asked with two methods was no plain GET route in the chain, and is none in a table');
+  assert.deepEqual(tabled, [...tabled].sort(), 'asked in the order of the alphabet, wherever the route lives');
 });
 
 test('the headers a move of routes must leave alone are kept with the kind of the answer', () => {
