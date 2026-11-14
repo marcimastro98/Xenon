@@ -479,7 +479,9 @@
       {"file":"server/search/living-index-engine.js","about":"The index of the person's files that the search reads, made when the engine starts: it begins to build only after its start delay and when a search or the disk view asks.","names":["livingIndex"],"wire":{"first":"livingIndex","last":"livingIndex"}},
       {"file":"server/search/living-index-roots.js","about":"Pointing the index at the folders chosen in the settings, and on macOS noticing when the permission to read the whole disk is given or taken away.","names":["refreshMacFdaState","refreshLivingIndex"]},
       {"file":"server/deck/pack-stores.js","about":"The stores of the icon packs and sound packs the person installed for the Deck, made when the engine starts: each reads its folder when asked.","names":["iconPackStore","soundPackStore"],"wire":{"first":"iconPackStore","last":"soundPackStore"}},
-      {"file":"server/deck/sound-file.js","about":"Finding the file of a sound a Deck key plays, in the installed sound packs or among the sounds the person added.","names":["resolveDeckSoundFile"]}
+      {"file":"server/deck/sound-file.js","about":"Finding the file of a sound a Deck key plays, in the installed sound packs or among the sounds the person added.","names":["resolveDeckSoundFile"]},
+      {"file":"server/ai/memory-store.js","about":"What the assistant was asked to remember about the person, made when the engine starts: the file is read at the first use.","names":["aiMemory"],"wire":{"first":"aiMemory","last":"aiMemory"}},
+      {"file":"server/ai/live-system-instruction.js","about":"What the live voice conversation is told before it starts: the date and time, who it is, what it remembers of the person, and the language to answer in.","names":["_buildLiveSystemInstruction"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

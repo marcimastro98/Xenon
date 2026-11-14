@@ -433,7 +433,7 @@ const aiModels = require('./ai-models');
 require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const { createGuardian } = require('./guardian');
 const { createBatteryMonitor } = require('./battery');
-const { createAiMemory } = require('./ai-memory');
+require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
 const { createBriefingEngine } = require('./briefing');
@@ -1191,9 +1191,7 @@ function openDeckPopupWindow(instanceRaw, topmost) {
 }
 const { NOTES_FILE, EVENTS_FILE, TASKS_FILE, TIMERS_FILE } = require('./time/store-files.js');
 const { notesToText, textToNotesState } = require('./time/notes-state.js');
-// Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
-// injected into the AI system prompt so the assistant remembers across sessions.
-const aiMemory = createAiMemory({ dataDir: DATA_DIR });
+const { aiMemory } = require('./ai/memory-store.js');
 // Recent AI state-mutating actions, so the user can undo a regrettable one (notes
 // overwrite, bulk clear, a just-created item). In-memory only (short-term undo).
 const aiActionLog = createAiActionLog();
@@ -7045,6 +7043,8 @@ const { _startLivePcmCapture } = require('./ai/live-pcm-capture.js');
 
 const { _teardownLiveSession } = require('./ai/live-session-end.js');
 
+const { _buildLiveSystemInstruction } = require('./ai/live-system-instruction.js');
+
 server.on('upgrade', (req, socket, head) => {
   let pathname = '';
   try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
@@ -7177,18 +7177,6 @@ function _handleEmbeddedClient(client) {
   };
   client.on('close', cleanup);
   client.on('error', cleanup);
-}
-
-function _buildLiveSystemInstruction({ langName, summary }) {
-  const now = new Date();
-  const nowDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const nowTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const memText = (hub.settings && hub.settings.aiMemory !== false && aiMemory.count() > 0)
-    ? ' ' + aiMemory.formatForPrompt() : '';
-  const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
-  const langText = langName ? ` Always reply in ${langName}.` : '';
-  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a dashboard the user runs on a second screen of their own. This is a spoken conversation: keep answers short and natural, 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card. When the user asks you to make something (a theme, a page, a widget, an Ambient scene, a Deck profile, a package), ground it with preset_reference, build it with create_preset, and fix every critique "fix" item with another create_preset call before you speak about it; then say in one sentence what you made and that it is open in the import window for them to check. Never read codes, JSON or file contents aloud.` + memText + sumText + langText;
 }
 
 function _handleLiveClient(client) {
