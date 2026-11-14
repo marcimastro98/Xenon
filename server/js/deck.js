@@ -65,19 +65,10 @@
   // Bookmark glyph: "save this profile as a reusable preset".
   const SAVE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v16l9-4 9 4V5a2 2 0 0 0-2-2Z"/></svg>';
   const SHARE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 1 0-3-3c0 .24.04.47.09.7L8.04 9.81A2.99 2.99 0 0 0 3 12a3 3 0 0 0 5.04 2.19l7.12 4.16c-.05.21-.08.43-.08.65a2.92 2.92 0 1 0 2.92-2.92Z"/></svg>';
-  function keyMinFor(cfg) {
-    const sizes = (window.DeckModel && window.DeckModel.KEY_SIZES) || { sm: 56, md: 76, lg: 104 };
-    return sizes[cfg.keySize] || sizes.md || 76;
-  }
+  const {
+    keyMinFor, isLayoutEditing, computeAutoGrid, sameGridShape, wellContentSize, positionProfileMenu,
+  } = window.DeckGridFit;
   const { deckLookFor, stampDeckLitCues, stampDeckAlpha, stampDeckMount } = window.DeckLookStamps;
-  // True while the dashboard Layout editor is open. The deck must NOT auto-fit its
-  // key grid then: the tile is mid-resize (GridStack hasn't applied its final cell
-  // height yet, and the user is actively dragging the corner), so measuring it now
-  // would compact the deck to a sliver and re-rendering mid-drag fights GridStack's
-  // resize. We let it settle once editing ends (the ResizeObserver re-fits then).
-  function isLayoutEditing() {
-    return typeof document !== 'undefined' && document.body && document.body.classList.contains('layout-editing');
-  }
 
   // Whether a key on any Deck shows one of these live states, in view or not.
   function usesState(sources) {
@@ -577,6 +568,10 @@
   window.DeckSoundPlayer = { play: playDeckSound, stopAll: stopAllDeckSounds };
   const { safeIconSrc, applyStateStyle, applyCycleFace, setLabelColor } = window.DeckKeyFace;
 
+  const {
+    tellDone, tt, flashError, lightingAction, sliderAction, onPointerRelease, obsRoleOf,
+  } = window.DeckKeyActions;
+
   // A key's keyboard shortcut runs on the server; the steps only a dashboard
   // can do (sound, AI chat, mixer) come back here once claimed (main.js).
   window.DeckClientRun = (action) => {
@@ -662,14 +657,6 @@
     _lastDeckErr = { msg, at: now };
     window.XenonToast.show(window.DeckErrorText.keyToast(code, msg, tt));
   }
-  // A key whose effect cannot be seen says what it did (js/deck-done-text.js).
-  function tellDone(action, data) {
-    const note = window.XenonToast && window.DeckDoneText ? window.DeckDoneText.note(action, data, tt) : null;
-    if (note) window.XenonToast.show(note);
-  }
-  function tt(key, fallback) {
-    return (typeof window.t === 'function' && window.t(key)) || fallback;
-  }
   // A key run from its keyboard shortcut failed on the server (main.js SSE).
   window.DeckShortcutFailed = (info) => {
     if (!window.XenonToast || !info) return;
@@ -680,23 +667,6 @@
     if (!window.XenonToast || !info) return;
     window.XenonToast.show(window.DeckErrorText.menuFailed(info, tt));
   };
-  // Briefly flash a key red to surface a failed action (path not found, OBS
-  // offline, …) — actions must not fail silently.
-  function flashError(node) {
-    if (!node) return;
-    node.classList.remove('has-error');
-    void node.offsetWidth;          // restart the animation if it's still mid-flash
-    node.classList.add('has-error');
-    setTimeout(() => node.classList.remove('has-error'), 600);
-  }
-  // Build the lighting action for a key's reaction: set colour/effect when `on`,
-  // else restore the lights to normal. Returns null when the key has no reaction.
-  function lightingAction(light, on) {
-    if (!light || !light.color) return null;
-    return on
-      ? { type: 'lighting', mode: 'set', color: light.color, style: light.style || 'solid' }
-      : { type: 'lighting', mode: 'restore' };
-  }
   // Run a trigger's steps in order, pausing delayMs before each. A single action
   // is one zero-delay step. Sequencing/delays are client-side; each step POSTs.
   // `gesture` ({type, state?}) tells a widget's handler how the key was pressed;
@@ -716,21 +686,6 @@
   }
 
   // ── Touch faders (slider keys) ─────────────────────────────────────────
-  // Map a slider key's target + a 0–100 value to the registry action it drives.
-  function sliderAction(slider, value) {
-    const v = String(value);
-    switch (slider.target) {
-      case 'volume':        return { type: 'volume', mode: 'set', value: v };
-      case 'appVolume':     return { type: 'appVolume', app: slider.app, mode: 'set', value: v };
-      case 'spotifyVolume': return { type: 'spotifyVolume', mode: 'set', value: v };
-      case 'obsInput':      return { type: 'obsInputVolume', source: slider.source, value: v };
-      case 'haLight':       return { type: 'haLight', entity: slider.entity, mode: 'brightness', value: v };
-      case 'discordInput':  return { type: 'discordInputVol', mode: 'set', value: v };
-      case 'discordOutput': return { type: 'discordOutputVol', mode: 'set', value: v };
-      default: return null;
-    }
-  }
-
   function paintSlider(node, pct) {
     const clamped = Math.min(100, Math.max(0, Math.round(pct)));
     if (clamped === node._sliderValue) return;   // no repaint when the rounded value didn't move
@@ -871,20 +826,6 @@
     }, key.autoOff * 1000));
   }
 
-  // Call onRelease once when this pointer lets go, wherever it is by then: a key
-  // re-rendered away under the finger never sees its own pointerup, and a held
-  // key must still let go.
-  function onPointerRelease(e, onRelease) {
-    const id = e.pointerId;
-    const done = (ev) => {
-      if (ev.pointerId !== id) return;
-      document.removeEventListener('pointerup', done, true);
-      document.removeEventListener('pointercancel', done, true);
-      onRelease();
-    };
-    document.addEventListener('pointerup', done, true);
-    document.addEventListener('pointercancel', done, true);
-  }
   const REPEAT_MAX_MS = 60000;    // a stuck finger (or a lost pointerup) stops repeating after a minute
 
   // Bind tap / double-tap / press-and-hold on an action key node. Each gesture
@@ -1181,23 +1122,6 @@
 
   const el = makeEl; // shared DOM factory from utils.js
 
-  // The OBS "role" a key plays, from its trigger actions: 'scene' (set scene OR
-  // cycle next), 'record', 'stream', or null. Used to pick which key hosts the
-  // live scene thumbnail. obsSceneNext has no state binding, so this marker is
-  // the only way to recognise a cycle scene key.
-  function obsRoleOf(key) {
-    if (!key || key.kind !== 'action' || !key.triggers || !window.DeckActions) return null;
-    const types = [];
-    window.DeckModel.KEY_TRIGGERS.forEach((tr) => {
-      const steps = window.DeckActions.triggerSteps(key.triggers[tr]);
-      if (steps[0] && steps[0].action) types.push(steps[0].action.type);
-    });
-    if (types.some((t) => t === 'obsScene' || t === 'obsSceneNext')) return 'scene';
-    if (types.includes('obsRecord')) return 'record';
-    if (types.includes('obsStream')) return 'stream';
-    return null;
-  }
-
   // opts.on (the editor's previews): draw the key on or off whatever the live
   // state says, so both faces can be shown side by side. opts.themeColors: a key
   // with no colour of its own takes the theme's accent (Aspetto Deck).
@@ -1396,22 +1320,7 @@
     return root;
   }
 
-  function crumbLabel(cfg, state) {
-    // The crumb names the profile being SHOWN (a Smart-Profiles auto-switch may
-    // temporarily differ from the persisted activeProfile).
-    const shownId = (state.volatileProfile && cfg.profiles.some((p) => p.id === state.volatileProfile))
-      ? state.volatileProfile : cfg.activeProfile;
-    const profile = cfg.profiles.find(p => p.id === shownId) || cfg.profiles[0];
-    if (!state.path.length) return profile.name;
-    let folder = profile.root, title = profile.name;
-    for (const id of state.path) {
-      let found = null;
-      for (const page of folder.pages) { const k = page.keys.find(key => key && key.kind === 'folder' && key.id === id); if (k) { found = k; break; } }
-      if (!found) break;
-      title = found.title || title; folder = found.folder;
-    }
-    return title;
-  }
+  const { crumbLabel, listProfiles } = window.DeckProfileNames;
 
   // Edit-mode toolbar: key-size segmented control, auto-fit toggle, manual grid
   // steppers (only when auto-fit is off), and a now-playing dock toggle. Each
@@ -2073,53 +1982,6 @@
     firstPaintFits.set(instanceId, raf1);
   }
 
-  // Measure the live key grid and reshape `cfg` to the column/row count that fits
-  // at its key size. Returns the (possibly) reshaped config; a no-op when auto-fit
-  // is off or the grid isn't measurable yet. Uses { preserve:true } so a user's
-  // intentional empty slots are kept and a key is NEVER repacked — the grid grows
-  // to fit the highest occupied slot, so even a transient/smaller first-paint
-  // measurement can't compact the saved layout.
-  //
-  // Auto-fit fills the tile with keys at the SELECTED PHYSICAL SIZE (S/M/L →
-  // KEY_SIZES), Stream-Deck style — NOT by inflating a few keys to fill the space.
-  // gridForSize() does exactly this (and expands columns/rows so the caps reach the
-  // edges, like a Stream Deck XL), so S = many small keys, L = fewer larger keys,
-  // none oversized. The previous "largest-cap" heuristic produced 3 giant caps on a
-  // wide tile with few keys. Pure: no DOM.
-  function computeAutoGrid(cfg, w, h) {
-    const DM = window.DeckModel;
-    if (!(w > 20 && h > 20) || !(DM && DM.gridForSize && DM.fitDeckGrids)) return cfg;
-    const { cols, rows } = DM.gridForSize(w, h, cfg.keySize);
-    // The tile size fits the same target for every profile, but each profile grows
-    // independently to hold its own keys — grids are per-profile now.
-    const grid = DM.fitDeckGrids(cfg, cols, rows);
-    if (sameGridShape(grid, cfg)) return cfg;   // identity return = "no change" for callers
-    return grid;
-  }
-
-  // True when every profile has the same cols/rows in both configs — the per-profile
-  // replacement for the old top-level cols/rows comparison.
-  function sameGridShape(a, b) {
-    if (a === b) return true;
-    if (!a || !b || a.profiles.length !== b.profiles.length) return false;
-    return a.profiles.every((p, i) => {
-      const q = b.profiles[i];
-      return q && q.id === p.id && q.cols === p.cols && q.rows === p.rows;
-    });
-  }
-
-  // The well's CONTENT box — the same box the CSS square-cap formula reads via
-  // container-query units (container-type:size queries the content box). A bare
-  // clientWidth/Height also counts the well padding (up to 13px per side), which
-  // made gridForSize see a bigger area than the CSS and fit an extra column/row
-  // the caps then had to shrink for — the classic "grid sfasata" at some sizes.
-  function wellContentSize(well) {
-    const cs = getComputedStyle(well);
-    const w = well.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-    const h = well.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-    return { w: Math.max(0, w), h: Math.max(0, h) };
-  }
-
   // Reshape `cfg` to auto-fill the tile. Measures the WELL (the available area),
   // not the grid — the grid letterboxes to a square block, so measuring it would
   // feed back. Normal view only: while editing, the grid is fitted against the
@@ -2520,39 +2382,6 @@
         body: JSON.stringify({ client: haWatchClientId, entities: list }),
       }).catch(() => { haWatchSig = null; });   // retry on the next render
     }, 300);
-  }
-
-  // Place the portaled popover just under its anchor (the crumb button), clamped
-  // to the viewport so it never spills off-screen on a small panel.
-  function positionProfileMenu(menu, anchor) {
-    const r = anchor.getBoundingClientRect();
-    // On the Xeneon Edge, <html> carries CSS `zoom` (fractional-DPR compensation),
-    // which magnifies the inline px of a body-portaled fixed element. getBoundingClientRect
-    // is in visual (zoomed) space, while offsetWidth/innerWidth and the written inline px
-    // are in layout space — so convert the anchor rect to layout coords by dividing by the
-    // zoom (mirrors the drag-clone). On desktop (zoom = 1) this is a no-op.
-    const z = (window.__pageZoom && window.__pageZoom > 0) ? window.__pageZoom : 1;
-    const rLeft = r.left / z, rTop = r.top / z, rBottom = r.bottom / z;
-    menu.style.visibility = 'hidden';     // measure before painting to avoid a flash at 0,0
-    const mw = menu.offsetWidth || 200, mh = menu.offsetHeight || 0;
-    const margin = 8;
-    // The room to clamp inside, in the same layout space as the numbers above.
-    // Normally the window; under the Xeneon Edge preview NOT the window, because
-    // that mode makes <body> a fixed 2560x720 stage and hides anything outside
-    // it. This popover is portaled to that body, so its own containing block is
-    // the stage and the window's height is a promise of space that does not
-    // exist — the menu lands in the letterbox and is cut off. Same fault as the
-    // dropdown panel in js/custom-select.js, reported from the same screen.
-    const stage = document.documentElement.classList.contains('edge-preview') ? document.body : null;
-    const roomW = stage ? stage.offsetWidth : window.innerWidth;
-    const roomH = stage ? stage.offsetHeight : window.innerHeight;
-    let left = rLeft;
-    left = Math.max(margin, Math.min(left, roomW - mw - margin));
-    let top = rBottom + 6;
-    if (top + mh > roomH - margin) top = Math.max(margin, rTop - mh - 6);  // flip above if no room below
-    menu.style.left = Math.round(left) + 'px';
-    menu.style.top = Math.round(top) + 'px';
-    menu.style.visibility = '';
   }
 
   // ── Profile switcher popover ──────────────────────────────────────────
@@ -3297,22 +3126,6 @@
   }
 
   // ── Profile control surface for Xenon AI (voice + chat) ───────────────
-  // The distinct profile names across all deck instances, each flagged if it's the
-  // active profile in any instance. Sent to the AI so it can switch by exact name.
-  function listProfiles() {
-    const seen = new Map();   // lowercased name -> { name, active }
-    for (const { instanceId } of deckInstances()) {
-      const cfg = getConfig(instanceId);
-      for (const p of cfg.profiles) {
-        const isActive = p.id === cfg.activeProfile;
-        const existing = seen.get(p.name.toLowerCase());
-        if (!existing) seen.set(p.name.toLowerCase(), { name: p.name, active: isActive });
-        else if (isActive) existing.active = true;
-      }
-    }
-    return Array.from(seen.values());
-  }
-
   // Switch every deck instance that owns a profile matching `name` — exact
   // (case-insensitive) first, else a unique substring match. Returns a summary
   // the AI relays to the user. Used by ai.js for the switch_deck_profile action.
