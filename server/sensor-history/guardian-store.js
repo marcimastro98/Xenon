@@ -4,6 +4,7 @@
 
 const fs = require('node:fs');
 const { writeFileAtomic } = require('../atomic-write.js');
+const { makeKeptWrite } = require('../files/kept-write.js');
 const Recent = require('./recent.js');
 const { MAX_HOURS, MAX_DAYS } = require('./guardian-limits.js');
 const { METRICS } = require('./guardian-metrics.js');
@@ -64,11 +65,12 @@ function makeStore({ FILE, state }) {
   // Atomic write (shared primitive): a crash mid-write must never truncate
   // the history store into a corrupt file that load() would reset to empty,
   // discarding weeks of collected data (the durable-store invariant).
-  // Returns whether the write reached the disk so callers can retry later.
+  // Returns whether the write reached the disk so callers can retry later. A failure is told
+  // once, by the error's code: its message holds the path, which is under the user's folder.
+  const storeWrite = makeKeptWrite('history', 'the sensor history');
   async function persist() {
     if (!state.store) return false;
-    try { await writeFileAtomic(FILE, JSON.stringify(state.store)); return true; }
-    catch (e) { console.error('Guardian persist failed:', e.message); return false; }
+    return storeWrite.save(FILE, JSON.stringify(state.store));
   }
 
   // Backup bridge: the whole history store, already in its normalized shape.
