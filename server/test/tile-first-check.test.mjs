@@ -3,7 +3,7 @@
 // back: 14 for Lyrics, each with a second one for the pass, in the first seconds of every load.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
