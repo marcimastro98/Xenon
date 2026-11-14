@@ -463,7 +463,11 @@
       {"file":"server/ai/complete-with-user-ai.js","about":"One answer from the model the person chose in the settings, for the features that need a text and no conversation.","names":["completeWithUserAi"]},
       {"file":"server/ai/performance-plan.js","about":"The plan the model writes for Performance Mode: which of the running programs can be put aside for what the person is doing.","names":["_aiPerformancePlan"]},
       {"file":"server/system/packet-loss-count.js","about":"The count of pings sent and lost that the network reading turns into a share of lost packets, made when the engine starts.","names":["_packetLoss"],"wire":{"first":"_packetLoss","last":"_packetLoss"}},
-      {"file":"server/system/network-info.js","about":"The network reading the dashboard shows: the adapter, its address, the speed up and down, the ping and the share of lost packets; two dashboards asking together share one reading.","names":["getNetworkInfo","_getNetworkInfoRaw"]}
+      {"file":"server/system/network-info.js","about":"The network reading the dashboard shows: the adapter, its address, the speed up and down, the ping and the share of lost packets; two dashboards asking together share one reading.","names":["getNetworkInfo","_getNetworkInfoRaw"]},
+      {"file":"server/ticker/stocks-alert-memory.js","about":"The memory of which price alerts were already shown, made when the engine starts, so that a price that stays past its mark is told once.","names":["_stocksAlerts"],"wire":{"first":"_stocksAlerts","last":"_stocksAlerts"}},
+      {"file":"server/ticker/football-alert-memory.js","about":"The memory of which goals and final whistles were already shown, made when the engine starts, so that each is told once.","names":["_footballAlerts"],"wire":{"first":"_footballAlerts","last":"_footballAlerts"}},
+      {"file":"server/ticker/stocks-refresh.js","about":"Fetching the prices of the chosen stocks: one fetch at a time, the alerts that are due are told, and the fresh prices go to the open dashboards.","names":["refreshStocks"]},
+      {"file":"server/ticker/football-refresh.js","about":"Fetching the matches of the chosen teams: one fetch at a time, goals and final whistles are told once, and the fresh scores go to the open dashboards.","names":["refreshFootball"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

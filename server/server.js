@@ -4658,46 +4658,16 @@ function _syncFpsMonitor() {
 const { stocksState } = require('./ticker/stocks-state.js');
 const { stocksRefresh } = require('./ticker/stocks-refresh-state.js');
 
-const { _pushStocks } = require('./ticker/stocks-push.js');
-const _stocksAlerts = stocks.createAlertTracker();
+require('./ticker/stocks-alert-memory.js');
 
-
-async function refreshStocks() {
-  if (stocksRefresh.refreshing) return stocksState.cache;
-  stocksRefresh.lastFetch = Date.now();
-  const cfg = _stocksSettings();
-  if (!Array.isArray(cfg.watchlist) || !cfg.watchlist.length) {
-    stocksState.cache = { quotes: [], provider: 'yahoo', refreshedAt: Date.now() };
-    _pushStocks();
-    return stocksState.cache;
-  }
-  stocksRefresh.refreshing = true;
-  try {
-    const opts = _stocksProviderOpts();
-    const quotes = await stocks.fetchQuotes(cfg.watchlist, opts);
-    if (quotes.length) stocksState.cache = { quotes, provider: stocks.resolveProvider(opts), refreshedAt: Date.now() };
-    // Alerts: one per symbol per direction per day (the tracker dedupes on dayKey).
-    const dayKey = new Date().toISOString().slice(0, 10);
-    const alerts = _stocksAlertsWanted(cfg) ? _stocksAlerts.evaluate(quotes, cfg.alertPercent, dayKey) : [];
-    for (const a of alerts) broadcastSSE('stocks_alert', a);
-    // LED reaction (same lighting notification effect the other feeds use),
-    // gated by the master Notifiche switch — mirrors the client toast gating.
-    if (alerts.length) {
-      const master = hub.settings && hub.settings.notifications;
-      if (!(master && master.enabled === false)) { try { lighting.onEvent('notification'); } catch {} }
-    }
-    _pushStocks();
-  } catch { /* keep last good cache */ }
-  finally { stocksRefresh.refreshing = false; }
-  return stocksState.cache;
-}
 
 const { _widgetPlaced } = require('./grid/widget-placed.js');
 
 const {
-  _stocksSettings, _stocksProviderOpts, _stocksAlertsWanted, _footballSettings, _footballOpts,
-  _newsSettings, _newsOpts,
+  _stocksSettings, _stocksProviderOpts, _footballSettings, _footballOpts, _newsSettings, _newsOpts,
 } = require('./ticker/feed-settings.js');
+
+const { refreshStocks } = require('./ticker/stocks-refresh.js');
 
 // Client-gated cadence: a light 10s heartbeat that only fetches once the user's
 // refreshSec has elapsed and a dashboard is actually open. Zero cost at rest.
@@ -4711,44 +4681,13 @@ setInterval(() => {
 
 const { footballState } = require('./ticker/football-state.js');
 
-const _footballAlerts = football.createAlertTracker();
+require('./ticker/football-alert-memory.js');
 
 
-const {
-  _footballPayload, _pushFootball, _loadFootballInfo, _warmFootballInfo,
-} = require('./ticker/football-push.js');
+const { _footballPayload, _loadFootballInfo } = require('./ticker/football-push.js');
 
 
-async function refreshFootball() {
-  if (footballState.refreshing) return footballState.cache;
-  footballState.lastFetch = Date.now();
-  const cfg = _footballSettings();
-  if (!Array.isArray(cfg.teams) || !cfg.teams.length) {
-    footballState.cache = { teams: [], live: false, refreshedAt: Date.now() };
-    // Following nothing means holding no identities either.
-    _warmFootballInfo([]).then(_pushFootball).catch(() => {});
-    _pushFootball();
-    return footballState.cache;
-  }
-  footballState.refreshing = true;
-  try {
-    const data = await football.fetchFixtures(cfg.teams, _footballOpts());
-    if (data.teams.length) footballState.cache = { teams: data.teams, live: data.live, refreshedAt: Date.now() };
-    // Alerts: a goal or full-time transition for a followed team (deduped).
-    const alerts = _footballAlerts.evaluate(footballState.cache.teams, { alerts: cfg.alerts !== false });
-    for (const a of alerts) broadcastSSE('football_alert', a);
-    if (alerts.length) {
-      const master = hub.settings && hub.settings.notifications;
-      if (!(master && master.enabled === false)) { try { lighting.onEvent('notification'); } catch {} }
-    }
-    _pushFootball();
-  } catch { /* keep last good cache */ }
-  finally { footballState.refreshing = false; }
-  // Identity second, and never blocking the fixtures: the scores are what the
-  // user is waiting for, and a crest arriving a beat later pushes on its own.
-  _warmFootballInfo(cfg.teams).then(_pushFootball).catch(() => {});
-  return footballState.cache;
-}
+const { refreshFootball } = require('./ticker/football-refresh.js');
 
 // Client-gated cadence (mirrors stocks): a light heartbeat that only fetches once
 // the user's refreshSec has elapsed and a dashboard is actually open.
