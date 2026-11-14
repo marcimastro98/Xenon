@@ -50,12 +50,10 @@
     return btn('diskw-copy-btn', '↗', () => revealItem(id), tr('disk_reveal', 'Mostra nella cartella'));
   }
 
-  function el(tag, cls, text) {
-    const node = document.createElement(tag);
-    if (cls) node.className = cls;
-    if (text != null) node.textContent = text;
-    return node;
-  }
+  const {
+    el, btn, withTransition, appendRootCopy, actionRow, renderIndexLimitNote, renderStaleNote,
+    renderLoading, renderReport,
+  } = window.DiskWidgetPieces;
 
   // Paths are shown inside `direction: rtl` boxes so the ellipsis eats the
   // START of a long path and the file name stays readable. That flips the
@@ -66,19 +64,6 @@
   function ltrPath(value) {
     const s = String(value == null ? '' : value);
     return s ? LRI + s + PDI : s;
-  }
-
-  function btn(cls, label, onClick, title) {
-    const node = el('button', cls, label);
-    node.type = 'button';
-    if (title) node.title = title;
-    node.addEventListener('click', onClick);
-    return node;
-  }
-
-  function withTransition(change) {
-    if (typeof document.startViewTransition === 'function') document.startViewTransition(change);
-    else change();
   }
 
   async function copyPath(path) {
@@ -129,11 +114,6 @@
   }
 
   // ── Root and header ──────────────────────────────────────────────────────
-
-  function appendRootCopy(chip, info, prefix) {
-    chip.appendChild(el('strong', '', (prefix || '') + info.primary));
-    chip.appendChild(el('small', '', info.secondary));
-  }
 
   function renderRoots() {
     const row = el('div', 'diskw-roots');
@@ -305,16 +285,6 @@
   }
 
   // ── What is worth doing ──────────────────────────────────────────────────
-  function actionRow(title, sub, onClick) {
-    const row = onClick ? btn('diskw-act', '', onClick) : el('div', 'diskw-act is-static');
-    const copy = el('span', 'diskw-act-copy');
-    copy.appendChild(el('strong', '', title));
-    if (sub) copy.appendChild(el('span', '', sub));
-    row.appendChild(copy);
-    if (onClick) row.appendChild(el('span', 'diskw-act-go', '›'));
-    return row;
-  }
-
   function goView(view) {
     withTransition(() => { diskState.activeView = view; diskState.confirmCat = null; renderAll(); });
   }
@@ -380,13 +350,6 @@
     return section;
   }
 
-  function renderIndexLimitNote() {
-    if (!diskState.overview || !diskState.overview.index || (!diskState.overview.index.capped && !diskState.overview.index.detailCapped)) return null;
-    return el('div', 'diskw-index-note', diskState.overview.index.capped
-      ? tr('disk_index_capped', 'L’indice ha raggiunto il limite di sicurezza: i numeri sono utili ma non rappresentano ogni file.')
-      : tr('disk_detail_capped', 'La mappa è completa; la lista di dettaglio per la pulizia mostra un campione limitato. Aggiorna dopo ogni passaggio.'));
-  }
-
   function closeAdvisorModal() {
     diskState.advisorAiRequest++;
     if (advisorLetGo) advisorLetGo();
@@ -397,106 +360,11 @@
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('disk-advisor', false);
   }
 
-  function advisorStat(label, value, detail) {
-    const stat = el('div', 'diskw-modal-stat');
-    stat.appendChild(el('span', '', label));
-    stat.appendChild(el('strong', '', value));
-    if (detail) stat.appendChild(el('small', '', detail));
-    return stat;
-  }
-
-  function advisorFact(label, text) {
-    const row = el('div', 'diskw-modal-fact');
-    row.appendChild(el('strong', '', label));
-    row.appendChild(el('p', '', text));
-    return row;
-  }
+  const {
+    advisorFact, renderAiMarkdown, advisorStats, advisorSection,
+  } = window.DiskWidgetAdvisorReport;
 
   // ── AI report markdown → DOM (safe) ──────────────────────────────────────
-  // The provider returns markdown (headings, **bold**, `| tables |`, ---); the
-  // panel used to drop it in as raw text, so the report read as a wall of
-  // asterisks and pipes. This builds NODES, never innerHTML: every piece of the
-  // untrusted AI text reaches the page through textContent, so there is nothing
-  // to inject. It covers exactly what the storage report uses — headings,
-  // lists, tables, rules, bold/italic/code — and anything unknown stays plain.
-  const MD_INLINE_RE = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|__[^_]+__|_[^_\n]+_)/;
-  function mdInline(node, text) {
-    String(text).split(MD_INLINE_RE).forEach((p) => {
-      if (!p) return;
-      if (p.length > 2 && p[0] === '`' && p[p.length - 1] === '`') node.appendChild(el('code', 'diskw-md-code', p.slice(1, -1)));
-      else if (p.length > 4 && (p.startsWith('**') || p.startsWith('__'))) node.appendChild(el('strong', '', p.slice(2, -2)));
-      else if (p.length > 2 && (p[0] === '*' || p[0] === '_')) node.appendChild(el('em', '', p.slice(1, -1)));
-      else node.appendChild(document.createTextNode(p));
-    });
-    return node;
-  }
-  const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
-  const isTableSep = (l) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l);
-  const splitRow = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
-
-  function renderAiMarkdown(box, raw) {
-    const lines = String(raw || '').replace(/\r/g, '').split('\n');
-    let list = null;
-    const endList = () => { list = null; };
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Horizontal rule.
-      if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) { endList(); box.appendChild(el('hr', 'diskw-md-hr')); continue; }
-
-      // Table: a row, then a |---|---| separator, then rows until a non-row.
-      if (isTableRow(line) && i + 1 < lines.length && isTableSep(lines[i + 1])) {
-        endList();
-        const header = splitRow(line);
-        const rows = [];
-        let j = i + 2;
-        for (; j < lines.length && isTableRow(lines[j]) && !isTableSep(lines[j]); j++) rows.push(splitRow(lines[j]));
-        const scroller = el('div', 'diskw-md-tablewrap');
-        const table = el('table', 'diskw-md-table');
-        const thead = el('thead', '');
-        const htr = el('tr', '');
-        header.forEach((c) => mdInline(htr.appendChild(el('th', '')), c));
-        thead.appendChild(htr);
-        table.appendChild(thead);
-        const tbody = el('tbody', '');
-        rows.forEach((cells) => {
-          const tr = el('tr', '');
-          for (let k = 0; k < header.length; k++) mdInline(tr.appendChild(el('td', '')), cells[k] || '');
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        scroller.appendChild(table);
-        box.appendChild(scroller);
-        i = j - 1;
-        continue;
-      }
-
-      const heading = /^\s*(#{1,6})\s+(.*)$/.exec(line);
-      if (heading) {
-        endList();
-        const level = Math.min(heading[1].length, 4);
-        mdInline(box.appendChild(el('div', 'diskw-md-h diskw-md-h' + level)), heading[2]);
-        continue;
-      }
-
-      const bullet = /^(\s*)[-*+]\s+(.*)$/.exec(line);
-      const numbered = /^(\s*)(\d+)\.\s+(.*)$/.exec(line);
-      if (bullet || numbered) {
-        if (!list) { list = el('div', 'diskw-md-list'); box.appendChild(list); }
-        const indent = ((bullet ? bullet[1] : numbered[1]) || '').length;
-        const item = el('div', 'diskw-md-li' + (indent >= 2 ? ' is-sub' : ''));
-        item.appendChild(el('span', 'diskw-md-bullet', numbered ? numbered[2] + '.' : '•'));
-        mdInline(item.appendChild(el('div', 'diskw-md-litext')), bullet ? bullet[2] : numbered[3]);
-        list.appendChild(item);
-        continue;
-      }
-
-      endList();
-      if (!line.trim()) continue;          // blank line = the gap between blocks
-      mdInline(box.appendChild(el('div', 'diskw-md-p')), line);
-    }
-    return box;
-  }
 
   async function runAdvisorAi(button, output) {
     const request = ++diskState.advisorAiRequest;
@@ -551,29 +419,6 @@
     head.appendChild(heading);
     head.appendChild(btn('diskw-modal-close', '×', closeAdvisorModal, tr('disk_close', 'Chiudi')));
     return head;
-  }
-
-  function advisorStats(a) {
-    const percent = (value) => (value != null ? Math.round(value) + '%' : '');
-    const stats = el('div', 'diskw-modal-stats');
-    stats.appendChild(advisorStat(tr('disk_used_space', 'Spazio usato'), fmtSize(a.used), percent(a.usedPercent)));
-    stats.appendChild(advisorStat(tr('disk_free_space', 'Spazio libero'), fmtSize(a.free), percent(a.freePercent)));
-    stats.appendChild(advisorStat(
-      tr('disk_recommended_cleanup', 'Pulizia consigliata'),
-      fmtSize(a.safeBytes),
-      tr('disk_recommended_cleanup_hint', 'cache e temporanei rigenerabili')));
-    stats.appendChild(advisorStat(
-      tr('disk_personal_decision', 'Scelta personale'),
-      fmtSize(a.reviewBytes + a.duplicateBytes),
-      tr('disk_personal_decision_hint', 'Xenon non decide al posto tuo')));
-    return stats;
-  }
-
-  function advisorSection(title, intro) {
-    const section = el('section', 'diskw-modal-section');
-    section.appendChild(el('h3', '', title));
-    if (intro) section.appendChild(el('p', 'diskw-modal-section-intro', intro));
-    return section;
   }
 
   // The heading of a row that opens, and all there is of one with nothing more to say.
@@ -1004,13 +849,6 @@
     return nav;
   }
 
-  function renderStaleNote() {
-    if (!diskState.overview || !diskState.overview.stale) return null;
-    return el('div', 'diskw-index-note', tr('disk_stale_note',
-      'Dati dell’ultima analisi, {when}. L’indice si sta ricostruendo: pulizia e cartelle tornano disponibili quando ha finito.')
-      .replace('{when}', fmtAgo(diskState.overview.generatedAt)));
-  }
-
   function renderOverview() {
     const wrap = el('div', 'diskw-view diskw-overview');
     const a = analysis();
@@ -1425,30 +1263,12 @@
 
   // ── States and lifecycle ─────────────────────────────────────────────────
 
-  function renderLoading() {
-    const card = el('div', 'diskw-state-card');
-    card.appendChild(XenonLoader.create());
-    card.appendChild(el('strong', '', diskState.loadingSlow
-      ? tr('disk_loading_slow', 'Sto aggregando milioni di file…')
-      : tr('disk_loading', 'Compongo la mappa live…')));
-    card.appendChild(el('p', '', diskState.loadingSlow
-      ? tr('disk_loading_slow_detail', 'La prima fotografia di un disco molto grande può richiedere qualche secondo; le successive vengono riutilizzate.')
-      : tr('disk_loading_detail', 'Dimensioni, cartelle grandi e duplicati vengono letti in una sola fotografia coerente.')));
-    return card;
-  }
-
   function renderError() {
     const card = el('div', 'diskw-state-card diskw-state-error');
     card.appendChild(el('strong', '', tr('disk_error_title', 'Questa vista non è arrivata')));
     card.appendChild(el('p', '', friendlyError(diskState.overviewError)));
     card.appendChild(btn('diskw-btn diskw-btn-accent', tr('disk_retry', 'Riprova'), () => loadOverview(true)));
     return card;
-  }
-
-  function renderReport() {
-    if (!diskState.lastReport) return null;
-    const cls = 'diskw-report' + (diskState.lastReport.error ? ' is-error' : diskState.lastReport.warning ? ' is-warning' : '');
-    return el('div', cls, diskState.lastReport.pending ? (diskState.lastReport.text || tr('disk_cleaning', 'Pulizia…')) : diskState.lastReport.text);
   }
 
   // The Full Disk Access card. It is deliberately concrete about the cause —
