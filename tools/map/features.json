@@ -624,6 +624,7 @@
         "server/js/disk-*.js",
         "server/js/disk-widget/**",
         "server/js/devclean-widget.js",
+        "server/js/devclean-widget/**",
         "server/components/DiskWidget/**",
         "server/components/DevClean/**"
       ]
