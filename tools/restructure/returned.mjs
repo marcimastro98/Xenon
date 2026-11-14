@@ -39,7 +39,8 @@
 import { analyze } from './analyze.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { protectedNames } from './ledger.mjs';
-import { CLOSE_LINE, END_LINE, RETURN_LINE, callLine, partHead, returnedLines, undoReturnedInPlace } from './returned-undo.mjs';
+import { listNames, wordsOf } from './returned-list.mjs';
+import { CLOSE_LINE, callLine, partHead, returnLines, returnedLines, undoReturnedInPlace } from './returned-undo.mjs';
 import { createUseReader } from './scope-uses.mjs';
 import { cutLines, literalKeys, spreadObject } from './spread.mjs';
 import { sameReturnProblems } from './spread-eval.mjs';
@@ -53,7 +54,11 @@ const sameList = (one, other) => one.length === other.length && one.every((item,
 
 // `function name(...) { const ...; return { ... }; }` at the top level of a parsed file: its place among the
 // statements, the object it returns (null when it does not end with one), and the names its body can read.
-function returningFunction(sourceFile, parser, name) {
+// With `list` it is the list written out that is looked for (returned-list.mjs).
+const entriesOf = (literal) => literal.properties ?? literal.elements;
+const namesOf = (literal, K, list) => (list ? listNames(literal, K) : literalKeys(literal, K));
+
+function returningFunction(sourceFile, parser, name, list = false) {
   const { K, NodeFlags } = parser;
   const statements = topStatements(sourceFile, parser);
   const index = statements.findIndex((statement) => statement.kind === K.FunctionDeclaration && statement.name?.text === name);
@@ -61,7 +66,7 @@ function returningFunction(sourceFile, parser, name) {
   const declared = statements[index];
   const body = declared.body.statements.filter((statement) => (statement.flags & NodeFlags.Reparsed) === 0);
   const returns = body.at(-1);
-  const literal = returns?.kind === K.ReturnStatement && returns.expression?.kind === K.ObjectLiteralExpression ? returns.expression : null;
+  const literal = returns?.kind === K.ReturnStatement && returns.expression?.kind === (list ? K.ArrayLiteralExpression : K.ObjectLiteralExpression) ? returns.expression : null;
   const params = declared.parameters.map((parameter) => (parameter.name.kind === K.Identifier ? parameter.name.text : null));
   const constants = body.slice(0, -1).map((statement) => {
     const list = statement.kind === K.VariableStatement ? statement.declarationList : null;
@@ -86,18 +91,19 @@ function boundWords(node, K) {
 }
 
 // What keeps the object of a function from being cut, read from the tree: the same list for the plan and the proof.
-function objectReasons(found, parser, name) {
-  const reasons = literalKeys(found.literal, parser.K).reasons.map((reason) => `the object ${name} returns holds ${reason}`);
-  for (const word of boundWords(found.literal, parser.K)) reasons.push(`the object ${name} returns says \`${word}\`, which would mean something else in a part`);
+function objectReasons(found, parser, name, list = false) {
+  const { whole } = wordsOf(list);
+  const reasons = namesOf(found.literal, parser.K, list).reasons.map((reason) => `the ${whole} ${name} returns holds ${reason}`);
+  for (const word of boundWords(found.literal, parser.K)) reasons.push(`the ${whole} ${name} returns says \`${word}\`, which would mean something else in a part`);
   const uses = createUseReader(parser.K, parser.NodeFlags)(found.returns);
-  for (const local of found.locals) if (uses.get(local)?.write) reasons.push(`the object ${name} returns gives ${local} another value: a part would change its own copy`);
+  for (const local of found.locals) if (uses.get(local)?.write) reasons.push(`the ${whole} ${name} returns gives ${local} another value: a part would change its own copy`);
   return reasons;
 }
 
 // The arguments and constants of the function the entries from `from` up to `to` read, in the order they are declared.
 function handedTo(found, parser, from, to) {
   const usesOf = createUseReader(parser.K, parser.NodeFlags);
-  const read = new Set(found.literal.properties.slice(from, to).flatMap((property) => [...usesOf(property).keys()]));
+  const read = new Set(entriesOf(found.literal).slice(from, to).flatMap((property) => [...usesOf(property).keys()]));
   return found.locals.filter((local) => read.has(local));
 }
 
@@ -107,9 +113,12 @@ function handedTo(found, parser, from, to) {
  * @param {string} job.name the function
  * @param {{ name: string, first: string }[]} job.parts the parts in order: the function's name and the first key it returns
  * @param {Set<string>} [job.protectedNames] names that never change
- * @returns {{ newSource: string, name: string, parts: { name: string, first: string, keys: number, params: string[] }[] }} throws a Refusal
+ * @param {boolean} [job.list] the function returns a list written out, and a part is said by the name of its first entry (returned-list.mjs)
+ * @returns {{ newSource: string, name: string, list?: true, parts: { name: string, first: string, keys: number, params: string[] }[] }} throws a Refusal
  */
-export function planReturned({ text, parser, source, name, parts, protectedNames: kept = new Set() }) {
+export function planReturned({ text, parser, source, name, parts, protectedNames: kept = new Set(), list = false }) {
+  const { open, end } = returnLines(list);
+  const words = wordsOf(list);
   const reasons = [];
   if (kept.has(name)) reasons.push(`${name} is protected (tools/restructure/protected.json)`);
   if (parts.length < 2) reasons.push('a cut needs two parts or more');
@@ -118,18 +127,18 @@ export function planReturned({ text, parser, source, name, parts, protectedNames
     else if (timesIn(text, part.name)) reasons.push(`${source} already has the word ${part.name}`);
   }
   const sourceFile = parser.parse(text, source);
-  const found = returningFunction(sourceFile, parser, name);
-  const where = returnedLines(text, name);
+  const found = returningFunction(sourceFile, parser, name, list);
+  const where = returnedLines(text, name, list);
   const onLines = found?.literal && where && lineOf(text, found.declared.getStart(sourceFile)) === where.head && lineOf(text, found.declared.end - 1) === where.close
     && lineOf(text, found.returns.getStart(sourceFile)) === where.first && lineOf(text, found.returns.end - 1) === where.last;
   if (!onLines) {
-    throw new Refusal([...reasons, `${name} is not \`${partHead(name, ['…'])}\` at the top level of ${source}, ending with \`${RETURN_LINE.trim()}\`, \`${END_LINE.trim()}\` and \`${CLOSE_LINE}\` on lines of their own`]);
+    throw new Refusal([...reasons, `${name} is not \`${partHead(name, ['…'])}\` at the top level of ${source}, ending with \`${open.trim()}\`, \`${end.trim()}\` and \`${CLOSE_LINE}\` on lines of their own`]);
   }
   if (!found.locals) reasons.push(`${name} takes an argument that is not a plain name, or does something before its return that is not \`const name = ...\``);
-  else reasons.push(...objectReasons(found, parser, name));
+  else reasons.push(...objectReasons(found, parser, name, list));
   if (reasons.length) throw new Refusal(reasons);
-  const keys = literalKeys(found.literal, parser.K).keys;
-  const { cuts, reasons: cutReasons } = cutLines({ text, sourceFile, literal: found.literal, keys, parts, inner: where });
+  const keys = namesOf(found.literal, parser.K, list).keys;
+  const { cuts, reasons: cutReasons } = cutLines({ text, sourceFile, literal: found.literal, keys, parts, inner: where, entries: entriesOf(found.literal), words });
   if (cutReasons.length) throw new Refusal(cutReasons);
 
   const lines = text.split('\n');
@@ -140,33 +149,34 @@ export function planReturned({ text, parser, source, name, parts, protectedNames
   // The parts stand right before the function, above the comment written on it.
   let top = where.head;
   while (top > 0 && /^\s*(?:\/\/|\/\*|\*)/.test(lines[top - 1])) top -= 1;
-  const block = made.flatMap((part, index) => [partHead(part.name, part.params), RETURN_LINE, ...lines.slice(cuts[index], ends[index]), END_LINE, CLOSE_LINE, '']);
+  const block = made.flatMap((part, index) => [partHead(part.name, part.params), open, ...lines.slice(cuts[index], ends[index]), end, CLOSE_LINE, '']);
   const calls = made.map((part) => callLine(part.name, part.params));
-  return { newSource: [...lines.slice(0, top), ...block, ...lines.slice(top, where.first + 1), ...calls, ...lines.slice(where.last)].join('\n'), name, parts: made };
+  return { newSource: [...lines.slice(0, top), ...block, ...lines.slice(top, where.first + 1), ...calls, ...lines.slice(where.last)].join('\n'), name, ...(list ? { list: true } : {}), parts: made };
 }
 
 // The cut as the new text has it: every part a function right before the old one that only returns an object,
 // handed exactly what its entries read, and the old function returning the parts called in order and nothing else.
 function readCut(newFile, parser, cut, locals) {
   const { K } = parser;
-  const whole = returningFunction(newFile, parser, cut.name);
-  const parts = cut.parts.map((part) => returningFunction(newFile, parser, part.name));
-  if (!whole?.literal || parts.some((part) => !part?.literal)) return { problems: [`${cut.name} or one of its parts is no longer a function that ends by returning an object written out`] };
+  const whole = returningFunction(newFile, parser, cut.name, cut.list);
+  const parts = cut.parts.map((part) => returningFunction(newFile, parser, part.name, cut.list));
+  const said = cut.list ? 'a list' : 'an object';
+  if (!whole?.literal || parts.some((part) => !part?.literal)) return { problems: [`${cut.name} or one of its parts is no longer a function that ends by returning ${said} written out`] };
   const problems = [];
   if (parts.some((part, index) => part.index !== whole.index - parts.length + index)) problems.push(`the parts of ${cut.name} do not stand right before it, in order`);
   const usesOf = createUseReader(K, parser.NodeFlags);
   parts.forEach((part, index) => {
     const named = cut.parts[index].name;
-    if (part.before !== 0) problems.push(`${named} does more than return an object`);
+    if (part.before !== 0) problems.push(`${named} does more than return ${said}`);
     const read = usesOf(part.returns);
     if (!sameList(part.params, locals.filter((local) => read.has(local)))) problems.push(`${named} is not handed exactly what its keys read of ${cut.name}: ${locals.filter((local) => read.has(local)).join(', ') || 'nothing'}`);
-    const call = whole.literal.properties[index];
-    const called = call?.kind === K.SpreadAssignment && call.expression.kind === K.CallExpression && call.expression.expression.kind === K.Identifier
+    const call = entriesOf(whole.literal)[index];
+    const called = call?.kind === (cut.list ? K.SpreadElement : K.SpreadAssignment) && call.expression.kind === K.CallExpression && call.expression.expression.kind === K.Identifier
       && call.expression.expression.text === named && call.expression.arguments.every((argument) => argument.kind === K.Identifier)
       && sameList(call.expression.arguments.map((argument) => argument.text), part.params);
     if (!called) problems.push(`${cut.name} does not return ${named} called with ${part.params.join(', ') || 'nothing'} at place ${index + 1}`);
   });
-  if (whole.literal.properties.length !== parts.length) problems.push(`${cut.name} returns something else than its parts`);
+  if (entriesOf(whole.literal).length !== parts.length) problems.push(`${cut.name} returns something else than its parts`);
   return { problems, whole, parts };
 }
 
@@ -181,13 +191,13 @@ export function proveReturned({ before, after, parser, source, spread: cut }) {
   if (undone !== before) return [`with the keys of the parts put back, ${source} is not the old file byte for byte`];
   const oldFile = parser.parse(before, source);
   const newFile = parser.parse(after, source);
-  const old = returningFunction(oldFile, parser, cut.name);
-  if (!old?.literal || !old.locals) return [`${cut.name} was not a function of the old ${source} that declares constants and returns an object written out`];
+  const old = returningFunction(oldFile, parser, cut.name, cut.list);
+  if (!old?.literal || !old.locals) return [`${cut.name} was not a function of the old ${source} that declares constants and returns ${cut.list ? 'a list' : 'an object'} written out`];
   const made = readCut(newFile, parser, cut, old.locals);
   if (!made.whole) return made.problems;
-  const problems = [...made.problems, ...objectReasons(old, parser, cut.name)];
+  const problems = [...made.problems, ...objectReasons(old, parser, cut.name, cut.list)];
   if (!sameList(made.whole.locals ?? [], old.locals)) problems.push(`${cut.name} no longer has the arguments and constants it had`);
-  const texts = (file, literal) => literal.properties.map((property) => property.getText(file));
+  const texts = (file, literal) => entriesOf(literal).map((property) => property.getText(file));
   if (texts(oldFile, old.literal).join('\n\u0000') !== made.parts.flatMap((part) => texts(newFile, part.literal)).join('\n\u0000')) {
     problems.push(`the entries of the parts, one after the other, are not the entries ${cut.name} returned`);
   }
@@ -196,28 +206,30 @@ export function proveReturned({ before, after, parser, source, spread: cut }) {
   }
   if (problems.length) return problems;
   const record = analyze(before, parser, source).records.find((entry) => entry.names.includes(cut.name));
-  const [was, now] = [returnedLines(before, cut.name), returnedLines(after, cut.name)];
-  const first = returnedLines(after, cut.parts[0].name).head;
+  const [was, now] = [returnedLines(before, cut.name, cut.list), returnedLines(after, cut.name, cut.list)];
+  const first = returnedLines(after, cut.parts[0].name, cut.list).head;
   return sameReturnProblems({ oldCode: before.split('\n').slice(was.head, was.close + 1).join('\n'), newCode: after.split('\n').slice(first, now.close + 1).join('\n'),
     name: cut.name, outside: [...record.uses.keys()] });
 }
 
 /** Plans a cut of `text` with the repo's protected list. Throws a Refusal. */
-export function planReturnedFor({ root, parser, text, source, name, parts }) {
+export function planReturnedFor({ root, parser, text, source, name, parts, list = false }) {
   const guard = protectedNames(root, source, analyze(text, parser, source).records);
   if (guard.missing.length) {
     throw new Refusal([`tools/restructure/protected.json names ${guard.missing.join(', ')}, which ${source} no longer declares: correct the list first`]);
   }
-  return planReturned({ text, parser, source, name, parts, protectedNames: guard.names });
+  return planReturned({ text, parser, source, name, parts, protectedNames: guard.names, list });
 }
 
 /**
  * Cuts, proves, writes and records, as `spreadObject` does for a frozen object: the record is marked `returns`.
- * @param {{ root: string, parser: any, source: string, name: string, parts: { name: string, first: string }[], dryRun?: boolean }} job
+ * @param {{ root: string, parser: any, source: string, name: string, parts: { name: string, first: string }[], dryRun?: boolean, list?: boolean }} job
+ *   `list`: what the function returns is a list (returned-list.mjs); the record says so too
  * @returns {{ name: string, parts: { name: string, first: string, keys: number, params: string[] }[], sourceLines: number }}
  */
 export function cutReturned(job) {
-  return spreadObject({ ...job, planFor: planReturnedFor, prove: proveReturned, mark: { returns: true } });
+  const planFor = (asked) => planReturnedFor({ ...asked, list: Boolean(job.list) });
+  return spreadObject({ ...job, planFor, prove: proveReturned, mark: job.list ? { returns: true, list: true } : { returns: true } });
 }
 
 /**
@@ -229,10 +241,11 @@ export function runReturned(parser, root, { flags, rest }) {
   const posix = (file) => String(file).split('\\').join('/').replace(/^\.\//, '');
   const dryRun = Boolean(flags['dry-run']);
   const parts = rest.map((pair) => { const [name, first] = pair.split('='); return { name, first }; });
-  const done = cutReturned({ root, parser, source: posix(flags.from), name: flags.name, parts, dryRun });
+  const list = Boolean(flags.list);
+  const done = cutReturned({ root, parser, source: posix(flags.from), name: flags.name, parts, dryRun, list });
   console.log(`${dryRun ? 'would cut' : 'cut'} what ${done.name} returns into ${done.parts.length} functions; ${posix(flags.from)} ${dryRun ? 'would grow' : 'grew'} by ${done.sourceLines} lines. `
-    + 'Run with stand-ins, old and new return the same keys in the same order with the same values.');
-  for (const part of done.parts) console.log(`  ${part.name}(${part.params.join(', ')}): ${part.keys} keys, from ${part.first}`);
+    + 'Run with stand-ins, old and new return the same ' + (list ? 'entries' : 'keys') + ' in the same order with the same values.');
+  for (const part of done.parts) console.log(`  ${part.name}(${part.params.join(', ')}): ${part.keys} ${list ? 'entries' : 'keys'}, from ${part.first}`);
   if (!dryRun) console.log('Next: move each part with extract, then node tools/restructure/gate.mjs');
   return 0;
 }

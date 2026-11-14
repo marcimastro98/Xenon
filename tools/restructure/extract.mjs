@@ -112,9 +112,10 @@ function redoCuts({ root, parser, source, base, cuts, count, text, problems }) {
   let out = text;
   for (const spread of cuts.filter((cut) => cut.after === count)) {
     try {
-      // A cut of the object a function returns (returned.mjs) is recorded in the same list, marked `returns`.
+      // A cut of the object a function returns (returned.mjs) is recorded in the same list, marked `returns`;
+      // `list` besides when what it returns is a list (returned-list.mjs).
       const [planFor, prove] = spread.returns ? [planReturnedFor, proveReturned] : [planSpreadFor, proveSpread];
-      const plan = planFor({ root, parser, text: out, source, name: spread.name, parts: spread.parts });
+      const plan = planFor({ root, parser, text: out, source, name: spread.name, parts: spread.parts, list: spread.list });
       problems.push(...prove({ before: out, after: plan.newSource, parser, source, spread }).map((p) => `${spread.name}: ${p}`));
       out = plan.newSource;
     } catch (error) {

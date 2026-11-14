@@ -83,24 +83,26 @@ export function literalKeys(literal, K) {
 }
 
 // The line each part starts on: its first key's line, moved up over the comment lines right above it.
-export function cutLines({ text, sourceFile, literal, keys, parts, inner }) {
+// `entries` and `words` are given for a list (returned-list.mjs): its entries, said by their names.
+export function cutLines({ text, sourceFile, literal, keys, parts, inner, entries = literal.properties, words = { whole: 'object', entry: 'key' } }) {
   const lines = text.split('\n');
   const reasons = [];
   const cuts = [];
   for (const part of parts) {
     const at = keys.indexOf(part.first);
-    if (at === -1) { reasons.push(`${part.first} is not a key of the object`); continue; }
-    const property = literal.properties[at];
+    if (at === -1) { reasons.push(`${part.first} is not a ${words.entry} of the ${words.whole}`); continue; }
+    const property = entries[at];
     let line = lineOf(text, property.getStart(sourceFile));
-    if (!lines[line].trimStart().startsWith(property.name.getText(sourceFile))) reasons.push(`the key ${part.first} does not begin its line`);
+    const begins = lines[line].trimStart().startsWith((property.name ?? property).getText(sourceFile).split('\n')[0]);
+    if (!begins) reasons.push(`the ${words.entry} ${part.first} does not begin its line`);
     while (line - 1 > inner.first && /^\s*\/\//.test(lines[line - 1])) line -= 1;
     const offset = lines.slice(0, line).join('\n').length + 1;
-    const between = at === 0 ? '' : text.slice(literal.properties[at - 1].end, offset);
+    const between = at === 0 ? '' : text.slice(entries[at - 1].end, offset);
     if (at > 0 && !/^,[ \t]*(?:\/\/[^\n]*)?\n\s*$/.test(between)) reasons.push(`the entry before ${part.first} does not end on a line of its own`);
     if (cuts.length && line <= cuts.at(-1)) reasons.push(`${part.first} does not come after the part before it`);
     cuts.push(line);
   }
-  if (reasons.length === 0 && cuts[0] !== inner.first + 1) reasons.push(`the first part has to start with the object: ${keys[0]} is its first key`);
+  if (reasons.length === 0 && cuts[0] !== inner.first + 1) reasons.push(`the first part has to start with the ${words.whole}: ${keys[0]} is its first ${words.entry}`);
   return { cuts, reasons };
 }
 

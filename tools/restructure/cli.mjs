@@ -27,6 +27,7 @@
 //                                                                  one big frozen object is cut into constants where it stands and
 //                                                                  made of them again in the same order; `extract` moves them after
 //   node tools/restructure/cli.mjs spread --returned --from <file> --name <function> [--dry-run] <part>=<first key> [...]   the object a function returns, cut into functions the same way
+//   node tools/restructure/cli.mjs spread --returned --list --from <file> --name <function> [--dry-run] <part>=<first name> [...]   the list a function returns (returned-list.mjs)
 //   node tools/restructure/cli.mjs branches --from <file> --to <dir>/<feature>/routes[-<word>].js [--about "<one sentence>"] [--dry-run]
 //                                           [--under <address>] ["<METHOD> <address>" ...]
 //                                                                  the bodies of routes of the request handler go into a table in

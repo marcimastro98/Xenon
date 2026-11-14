@@ -122,7 +122,7 @@ export function wholeObjects(file, text) {
   for (const spread of SPREADS) {
     const [undo, drop] = spread.returns ? [undoReturnedText, dropReturnedPart] : [undoSpreadText, dropPart];
     if (plainFileOf(spread.name) === file) out = undo(out, spread, (part) => readAsIs(plainFileOf(part)));
-    for (const part of spread.parts) if (plainFileOf(part.name) === file) out = drop(out, part.name);
+    for (const part of spread.parts) if (plainFileOf(part.name) === file) out = drop(out, part.name, spread.list);
   }
   return out;
 }
