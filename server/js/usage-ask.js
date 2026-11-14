@@ -10,10 +10,9 @@
 // asked: they get 'both', which moves nothing on any screen. The Xenon menu, Settings and
 // Bit change it later.
 (function () {
-  const TITLE = {
-    both: 'usage_ask_both_title', widgets: 'usage_ask_widgets_title', dashboard: 'usage_ask_dash_title', phone: 'usage_ask_phone_title',
-  };
-  const RAILS_PEEK_MS = 3200;
+  const {
+    TITLE, plan, tr, el, current, displays, subLine, peekRails, leavesForDriver,
+  } = window.UsageAskPieces;
   const DRIVER_WAIT_MS = 4000; // a window that should have left for the driver page and did not
 
   let overlay = null;
@@ -27,30 +26,6 @@
   let tapped = false;    // a screen was tapped: a late list must not move the dashboard
   let leaving = false;
 
-  const plan = () => window.UsageAskPlan;
-
-  function tr(key, fallback) {
-    if (typeof t !== 'function') return fallback;
-    const v = t(key);
-    return (v && v !== key) ? v : fallback;
-  }
-
-  function el(tag, className, text) {
-    const n = document.createElement(tag);
-    if (className) n.className = className;
-    if (text != null) n.textContent = text;
-    return n;
-  }
-
-  const settings = () => (typeof hubSettings === 'object' && hubSettings) || {};
-  const current = () => (window.UsageMode ? window.UsageMode.normalize(settings().usageMode) : '');
-
-  function menuKeyText() {
-    const layers = settings().layers || {};
-    const combo = typeof layers.menuKey === 'string' && layers.menuKey ? layers.menuKey : 'alt+shift+x';
-    return window.DeckShortcuts && typeof window.DeckShortcuts.formatShortcut === 'function'
-      ? window.DeckShortcuts.formatShortcut(combo) : combo;
-  }
 
   // Only in the app on this PC, where the widgets can be drawn, and only once.
   function shouldAsk() {
@@ -61,12 +36,6 @@
     if (typeof isLayerPage === 'function' && isLayerPage()) return false;
     try { if (window.self !== window.top) return false; } catch (e) { return false; }
     return true;
-  }
-
-  function displays() {
-    const native = window.XenonNative;
-    if (!native || typeof native.displayState !== 'function') return [];
-    return native.displayState().displays || [];
   }
 
   // The shell pushes its screens a moment after the page loads, so this runs again then:
@@ -144,14 +113,6 @@
     picture.draw(list);
     overlay.querySelector('.ua-phone').classList.toggle('is-on', plan().several(list));
     paint();
-  }
-
-  function subLine() {
-    const sub = el('p', 'ua-sub');
-    // The key combination never breaks across lines ("Alt + Shift" / "+ X").
-    const [before, after = ''] = tr('usage_ask_sub', 'Change it any time from the Xenon menu ({key}) or by asking Bit.').split('{key}');
-    sub.append(el('span', '', before), el('span', 'ua-key', menuKeyText()), el('span', '', after));
-    return sub;
   }
 
   function phoneLine() {
@@ -245,21 +206,6 @@
         console.warn('[usage-ask] not placed: ' + action.widget, e);
       }
     }
-  }
-
-  // With the tour gone from the first run, this is how the side buttons get seen.
-  function peekRails() {
-    const rails = window.TopbarMinimal;
-    if (!rails || typeof rails.peekRails !== 'function') return;
-    rails.peekRails(true);
-    setTimeout(() => rails.peekRails(false), RAILS_PEEK_MS);
-  }
-
-  // "Widgets only" in the app's own window (the splash opens it with shell=main): saving the
-  // mode trades this page for the small driver page, which the shell hides (layers-shell.js).
-  function leavesForDriver(answer) {
-    if (answer.usage !== 'widgets' || answer.phone) return false;
-    try { return new URLSearchParams(window.location.search).get('shell') === 'main'; } catch { return false; }
   }
 
   async function confirm(mode = picked) {

@@ -935,6 +935,7 @@
         "server/first-run/**",
         "server/js/onboarding.js",
         "server/js/usage-*.js",
+        "server/js/usage-ask/**",
         "server/js/boot-splash.js",
         "server/js/xenon-loader.js",
         "server/js/greeting*.js",

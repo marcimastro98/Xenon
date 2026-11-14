@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 152,
+  "count": 151,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -122,7 +122,6 @@
     "server/js/twitchwatch-widget.js": 1071,
     "server/js/unifi-widget.js": 785,
     "server/js/update.js": 1168,
-    "server/js/usage-ask.js": 336,
     "server/js/vitals-pet-core.js": 2775,
     "server/js/vitals-pet.js": 709,
     "server/js/vitals.js": 596,
