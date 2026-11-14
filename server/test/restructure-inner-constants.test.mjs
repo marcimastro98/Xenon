@@ -177,6 +177,12 @@ test('a constant that stays keeps the one that computes with it, and the functio
     assert.deepEqual([tried.moved, tried.passed, tried.along.added], [['lone', 'f'], ['twice'], ['lone']], 'lone only takes twice as it is: it goes, and is handed twice');
     assert.deepEqual(tried.along.left.map((row) => row.name), ['twice'], 'base, which nothing that moves uses, is not told');
     assert.match(tried.along.left[0].why, /computes with base \(line 5\) or copies from it, and base stays in createThing/);
+
+    // A constant left behind can be what the move then trips on: the refusal says both.
+    writeFileSync(join(root, OLD), thing('  const first = runner(f);', '  const a = [];', '  function f() { return a; }', '  return { f, first };'));
+    assert.throws(() => moveInner({ root, parser, source: OLD, target: NEW, about: ABOUT, factory: 'createThing', make: 'makeSteps', names: ['f'], dryRun: true }),
+      (error) => error instanceof Refusal && /a \(.*:6\) is declared after line 5/.test(error.reasons[0])
+        && /^a was left in createThing: a \(.*:6\): line 5 could use it while createThing runs, above the line that declares it/.test(error.reasons.at(-1)));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

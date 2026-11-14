@@ -29,6 +29,16 @@ export function planInnerFor({ root, parser, text, source, target, about, factor
     protectedNames: guard.names, protectedStretches: guard.stretches });
 }
 
+// A refusal also says which constants were left behind and why: the reason is often theirs.
+function planWith(job, names, text, ownModules, left) {
+  try {
+    return planInnerFor({ ...job, names, text, ownModules });
+  } catch (error) {
+    if (!(error instanceof Refusal) || left.length === 0) throw error;
+    throw new Refusal([...error.reasons, ...left.map((row) => `${row.name} was left in ${job.factory}: ${row.why}`)]);
+  }
+}
+
 /**
  * @param {object} job
  * @param {string} job.root repo root @param {any} job.parser from parser.mjs
@@ -52,7 +62,7 @@ export function moveInner(job) {
   const along = constantsAlong({ inner: body.inner, names: job.names, factory, real: body.real,
     reasonsOf: (record, movedSet) => leaveReasons({ body, record, movedSet, source, factory }) });
   const names = [...job.names, ...along.added];
-  const bare = dropOnDisk({ root, parser, source, target, plan: planInnerFor({ ...job, names, text: before, ownModules: quietModules(entries) }) });
+  const bare = dropOnDisk({ root, parser, source, target, plan: planWith(job, names, before, quietModules(entries), along.left) });
   const { plan } = bare;
   const reasons = targetReasons({ root, source, target, requires: plan.requires.map((module) => module.file).filter(Boolean) });
   if (reasons.length) throw new Refusal(reasons);
