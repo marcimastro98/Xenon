@@ -68,7 +68,7 @@ const SERVER_OWNED = {
   // never models it, and it must not: a surface still holding a mirror of a
   // PREVIOUS store would echo that store's id back and make this one answer with
   // the identity of the install it replaced, disarming the check for every other
-  // surface. See settingsMirrorIsForeign in js/settings.js.
+  // surface. See settingsMirrorIsForeign in server/js/settings/hydrate.js.
   storeId: 'incoming.storeId = prev.storeId;',
   // Recording options: `folder` names a folder on THIS PC and is blanked on the
   // wire like fileTransfer.inboxDir (capture-settings.js), so without the guard

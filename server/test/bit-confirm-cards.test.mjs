@@ -1,5 +1,5 @@
 // The two cards where Bit asks before doing something: a Deck action (js/ai-deck-confirm.js) and
-// a command on the PC (_aiShowPcConfirm in js/ai.js). They can come up while the next message is
+// a command on the PC (_aiShowPcConfirm in js/ai/pc-confirm.js). They can come up while the next message is
 // being typed, so a stray key must never say yes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

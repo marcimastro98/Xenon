@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
 
-// The shared playback clock in js/media.js (mediaClockStep) drives the lyrics.
+// The shared playback clock in server/js/media/now-playing.js (mediaClockStep) drives the lyrics.
 // Its inputs are host samples in whole seconds that trail the real position by
 // up to ~2 s in a sawtooth (measured with Spotify on Windows). The clock must
 // follow the freshest of them, never step backwards on lag, and still catch a

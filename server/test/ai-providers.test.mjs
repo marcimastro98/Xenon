@@ -160,7 +160,7 @@ test('every key the redactor blanks is also preserved on save', () => {
 // Scope, stated honestly: this catches the DIRECT form (`!!s.geminiApiKey`,
 // `if (!hubSettings.geminiApiKey)`), which is what all four call sites looked
 // like. It does NOT catch the indirect form — assign to a local, then test the
-// local — which is what the three in-flight guards inside ai.js were. Those read
+// local — which is what the three in-flight guards inside server/js/ai/providers-and-errors.js were. Those read
 // `_aiProviderReady()` now, and there is no textual rule that separates "this
 // local holds the key for the request body" (correct, and still everywhere) from
 // "this local is about to be used as a gate". A grep is the wrong tool for that

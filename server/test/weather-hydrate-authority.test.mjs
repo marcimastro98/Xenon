@@ -10,7 +10,7 @@
 // follow-up. The one exception is a local edit not yet acknowledged by the server
 // (dirty / parked pre-first-hydrate), which must survive the copy we just fetched.
 //
-// _hydrateHubSettingsImpl can't be imported (js/settings.js is a classic script
+// _hydrateHubSettingsImpl can't be imported (server/js/settings/hydrate-apply.js is a classic script
 // full of browser globals), so — like settings-rev.test.mjs asserts on the real
 // helper — this pulls the actual reconciliation expression out of the source and
 // evaluates IT, so the guarantee is tested, not a paraphrase of it.

@@ -125,7 +125,7 @@ test('an Ambient scene message passes its scene on, and only one the app could s
   assert.equal(ambientFromMessage({ type: 'xenon-maker:ambient', scene: [scene] }), null);
   assert.equal(ambientFromMessage({ type: 'xenon-maker:ambient' }), null);
   assert.equal(ambientFromMessage(null), null);
-  // Larger than sanitizeAmbientScenes in server.js keeps.
+  // Larger than sanitizeAmbientScenes in server/ambient/scenes-sanitize.js keeps.
   const big = { ...scene, name: 'x'.repeat(400001) };
   assert.equal(ambientFromMessage({ type: 'xenon-maker:ambient', scene: big }), null);
 });

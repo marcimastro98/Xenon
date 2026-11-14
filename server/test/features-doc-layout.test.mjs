@@ -53,7 +53,7 @@ test('the Pages section says how to reuse a page instead of rebuilding it', () =
 });
 
 test('the Pages section warns that removing a page destroys duplicated tiles', () => {
-  // dashboard-pages.js removeDashboardPage() hides singleton primaries (dock
+  // dashboard-pages/pager.js removeDashboardPage() hides singleton primaries (dock
   // restorable) but strips groups and copies, and calls Deck.forgetInstance on a
   // removed Deck copy — its keys are gone. The guide must not promise otherwise.
   const s = section('Pages');

@@ -14,7 +14,7 @@ const loadVersionCompare = () => SU;
 
 test('update join: a prerelease install is not stranded on its beta', () => {
   const { verLess } = loadVersionCompare();
-  // THE regression. sdk-widgets.js normalizeManifest accepts [0-9A-Za-z._-], so
+  // THE regression. server/widget-sdk/manifest-normalize.js normalizeManifest accepts [0-9A-Za-z._-], so
   // '2.0.0-beta' and 'v1.2.3' are versions that really get installed — and the
   // old numeric-dotted-only parse read them as junk. Fail-closed then meant "no
   // update, ever": no badge, no toast, no error, forever.

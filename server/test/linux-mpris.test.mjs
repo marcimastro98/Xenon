@@ -49,7 +49,7 @@ test('the record keeps playerctl\'s shape, so shapeNowPlaying is unchanged', () 
     title: "Un titolo con 'apice, virgola, e — trattino",
     artist: 'Primo Artista, Secondo Artista',
     album: 'Album di prova',
-    // Numbers stay STRINGS of raw microseconds: unitDivisor in linux-media.js
+    // Numbers stay STRINGS of raw microseconds: unitDivisor in server/media/linux-media-shape.js
     // stays the single place the unit is decided, for both transports.
     length: '213000000',
     position: '42000000',

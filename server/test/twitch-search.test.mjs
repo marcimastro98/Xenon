@@ -1,4 +1,4 @@
-// The Twitch watching tile's search (stream-twitch.js searchChannels). Helix
+// The Twitch watching tile's search (server/streaming/twitch-channels.js searchChannels). Helix
 // /search/channels matches channel NAMES only, so "santa monica", which lives in
 // stream titles and tags, found nothing while twitch.tv showed a whole page. The
 // search now also reads the live directory and matches titles and tags.

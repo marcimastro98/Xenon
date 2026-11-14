@@ -19,7 +19,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = readFileSync(join(__dirname, '..', 'js', 'calendar.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // The label now asks Settings → Time format which shape an hour takes, through
-// the shared timeParts() in utils.js, so the harness supplies it. Before that
+// the shared timeParts() in js/utils/time-and-format.js, so the harness supplies it. Before that
 // the locale decided alone, which is the bug Piotr reported: an English user who
 // chose 24-hour still read "09:30 PM" here while their clock read 21:30.
 function loadLabel(clockFormat) {

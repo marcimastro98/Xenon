@@ -11,7 +11,7 @@ import { appStringsSource } from './i18n-source.mjs';
 //
 //   monitor.rs   display_state()  builds the JSON the shell injects
 //   native-bridge.js  displayState()  rebuilds it as a plain object for the page
-//   settings.js  renderSurfaceSection()  has a literal fallback for the browser,
+//   server/js/settings/surface.js  renderSurfaceSection()  has a literal fallback for the browser,
 //                where there is no shell at all
 //
 // Nothing in that chain spreads. A field added to the Rust half and not to the

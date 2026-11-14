@@ -17,7 +17,7 @@ const GALLERY = readFileSync(fileURLToPath(new URL('../js/community-gallery.js',
 const DROP = readFileSync(fileURLToPath(new URL('../js/catalog-drop.js', import.meta.url)), 'utf8');
 const UTILS = readFileSync(fileURLToPath(new URL('../js/utils.js', import.meta.url)), 'utf8');
 
-// Both gates read their stock through limitedStock() (utils.js), so it has to be
+// Both gates read their stock through limitedStock() (server/js/utils/time-and-format.js), so it has to be
 // in the context with them — lifted the same way, from the same source.
 function limitedStockSource() {
   const start = UTILS.indexOf('function limitedStock(');

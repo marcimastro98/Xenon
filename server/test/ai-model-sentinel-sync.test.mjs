@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 // The `auto` / `auto:<family>` sentinel is spelled FIVE times: once per provider
 // module (sanitizeModel), once in the resolver (parseStored), and once in the
-// browser (normalizeModelChoice in js/settings.js, which is what the Custom…
+// browser (normalizeModelChoice in server/js/settings/normalize-ai.js, which is what the Custom…
 // field writes). They are not one function because each provider's copy also
 // documents that provider's own id shape — but they must agree about what a
 // stored value MEANS, and this file is what holds them level.

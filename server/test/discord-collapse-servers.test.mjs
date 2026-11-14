@@ -51,7 +51,7 @@ test('it is stored as guild ids, so it survives a rename', () => {
 test('the state is saved to the server, not just to this tab', () => {
   const save = WIDGET.slice(WIDGET.indexOf('function saveCollapsed'));
   const body = save.slice(0, save.indexOf('function toggleGuild'));
-  // saveTileSetting (utils.js): saveHubSettings on the dashboard (server-bound by
+  // saveTileSetting (server/js/utils/page-and-text.js): saveHubSettings on the dashboard (server-bound by
   // default), POST /settings/tile from a widget on the screen.
   assert.match(body, /saveTileSetting\(\{ discordCollapsedGuilds: next \}\)/, 'it has to outlive the tab');
   assert.match(body, /renderWidgets\(\)/);

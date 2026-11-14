@@ -51,7 +51,7 @@ test('nothing formats an hour behind the setting back', () => {
 });
 
 test('every file that formats a time is loaded after the helper that defines it', () => {
-  // timeParts lives in utils.js and is called from a dozen plain scripts. A
+  // timeParts lives in js/utils/time-and-format.js and is called from a dozen plain scripts. A
   // script tag ordered before it would throw on first paint rather than fall
   // back, so the order is part of the contract.
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');

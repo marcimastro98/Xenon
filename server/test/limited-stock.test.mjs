@@ -4,7 +4,7 @@ import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
-// limitedStock() (js/utils.js) is the ONE place a limited-edition drop's numbers
+// limitedStock() (server/js/utils/time-and-format.js) is the ONE place a limited-edition drop's numbers
 // are derived, and it exists because of a real, visible failure: `left` and
 // `soldOut` are added by the server proxy (community-catalog.js), so a surface
 // reading a catalog that never passed through it — the published browser demo,

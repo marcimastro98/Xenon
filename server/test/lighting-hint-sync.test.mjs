@@ -5,7 +5,7 @@
 // on Album → LED or an event flash with the master off staring at dead lights and
 // an empty page, while the server had the reason ready in /api/lighting/status.
 //
-// The client mirror (wantsSession in js/lighting-page.js) can't import the server
+// The client mirror (wantsSession in server/js/lighting-page/panels.js) can't import the server
 // function, so pin the two against each other at the source level: the same set of
 // effect keys, and the hint actually gated on the mirror.
 import { test } from 'node:test';
