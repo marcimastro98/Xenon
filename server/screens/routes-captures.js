@@ -16,8 +16,8 @@ const branches = {
   'GET /captures': async (_req, _res, { json, err500, urlObj }, { _captureExport, _captureHost, _captures, _transcripts, layersHost, remoteAccess, transferEnabled }) => {
     // The gallery: a page of captures, newest first, with ids and names only
     // (captures.js keeps the paths). Readable from a paired phone, which may
-    // look and download; deleting, trimming, copying and "show in folder" are
-    // the PC's (REMOTE_DENY).
+    // look, download and make new copies (trim, export, transcript); deleting,
+    // copying and "show in folder" are the PC's (REMOTE_DENY).
     try {
       const q = urlObj.searchParams;
       const page = await _captures.browse({
@@ -81,7 +81,7 @@ const branches = {
 
   'POST /captures/transcribe': async (req, _res, { json, err500 }, { _transcripts }) => {
     // Starts writing down what is said in a video; answers at once, progress
-    // and the end come over SSE `transcript`. The PC's only (REMOTE_DENY).
+    // and the end come over SSE `transcript`. A paired device may ask, by POST only.
     try {
       const body = JSON.parse(await readBody(req, 1024) || '{}');
       const r = await _transcripts.start(String((body && body.id) || ''));
@@ -91,8 +91,8 @@ const branches = {
 
   'POST /captures/export': async (req, _res, { json, err500 }, { _captureExport }) => {
     // A copy of a video for sharing (vertical, fitted to a size, GIF): answers
-    // at once, progress and the end come over SSE `capture_export`. The PC's
-    // only (REMOTE_DENY + CSRF).
+    // at once, progress and the end come over SSE `capture_export`. A paired
+    // device may ask, by POST only (CSRF list).
     try {
       const body = JSON.parse(await readBody(req, 1024) || '{}') || {};
       const r = await _captureExport.start(String(body.id || ''), {
@@ -186,8 +186,8 @@ const branches = {
   },
 
   'POST /captures/delete|/captures/reveal|/captures/copy|/captures/trim': async (req, _res, { json, err500, reqPath }, { _captureGallery, _captures }) => {
-    // delete / reveal / copy / trim, by id. Loopback-only (REMOTE_DENY) and in
-    // CSRF_MUTATION_PATHS: each one acts on a file on this PC.
+    // delete / reveal / copy / trim, by id. All in CSRF_MUTATION_PATHS; delete, reveal and copy
+    // are the PC's only (REMOTE_DENY), trim makes a new copy and a paired device may ask it.
     try {
       const body = JSON.parse(await readBody(req, 1024) || '{}');
       const id = String((body && body.id) || '');

@@ -39,7 +39,7 @@ const branches = {
     } catch (e) { err500(e.message); }
   },
 
-  'POST /api/push/test': async (req, _res, { json, err500 }, { webPushNotify }) => {
+  'POST /api/push/test': async (req, _res, { json, err500, remote }, { webPushNotify }) => {
     // The "did that actually work" button. It is the only way a user can tell:
     // everything else about push is invisible until something happens at three
     // in the morning.
@@ -49,13 +49,15 @@ const branches = {
     // clamped by webPush.send() like any other message, and this endpoint sends
     // nothing but what the person pressing the button just wrote on their own
     // dashboard — reaching it at all already requires being a paired device.
+    // A paired device tests ITS OWN notifications: its text reaches no other
+    // device. Pressed at the PC, the test goes to every subscribed device.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       const r = await webPushNotify({
         title: String(body.title || 'Xenon'),
         body: String(body.body || 'Notifications are working.'),
         tag: 'xenon-test',
-      }, { urgency: 'high', ttl: 60 });
+      }, { urgency: 'high', ttl: 60, deviceId: remote?.device ? String(remote.device.id || '') : null });
       json(r);
     } catch (e) { err500(e.message); }
   },
