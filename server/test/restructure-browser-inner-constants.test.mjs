@@ -126,10 +126,15 @@ test('a constant that is assigned to stays; changing what it holds does not keep
 test('a statement above a constant that could reach it while the script loads keeps it: there the old script fails today', (t) => {
   if (!parser) return t.skip(SKIP);
   const above = (line) => script(TOP, line, SIZES, COUNT, LABEL, SIZE_OF, REST);
-  const early = /LIMIT, STEP|SIZES|LIMIT \(server\/js\/leaf\.js:7\): line 4 could use it while the script loads, above the line that declares it: today that is an error, after the move it would not be/;
-  assert.match(why(above('  bump();')), early, 'through a function that stays');
+  // Every constant the statement could reach is told on a line of its own, with the line it stands on: a pattern
+  // with a bare `|` between the names would be met by the name alone.
+  const EARLY = 'line 4 could use it while the script loads, above the line that declares it: today that is an error, after the move it would not be';
+  const early = (text, note) => {
+    for (const told of ['SIZES (server/js/leaf.js:6)', 'LIMIT (server/js/leaf.js:7)', 'STEP (server/js/leaf.js:8)']) assert.ok(text.split('\n').includes(`${told}: ${EARLY}`), `${note}: ${told} in\n${text}`);
+  };
+  early(why(above('  bump();')), 'through a function that stays');
   assert.match(why(above('  const first = sizeOf(0);')), /label \(server\/js\/leaf\.js:12\): line 4 could use it while the script loads/, 'through a function that moves');
-  assert.match(why(above("  document.addEventListener('x', () => bump());")), early, 'a function handed on may be called at once');
+  early(why(above("  document.addEventListener('x', () => bump());")), 'a function handed on may be called at once');
   assert.match(why(above('  const TWICE = [LIMIT];')), /LIMIT \(server\/js\/leaf\.js:7\): line 4 could use it while the script loads/, 'a written-out constant that reads it above its line');
   assert.equal(why(above("  console.log('up');")), '', 'code that reaches none of them is no reason');
   assert.equal(why(above('  const start = () => bump();')), '', 'nor is a function nobody calls yet: a constant that only builds a value runs nothing');
