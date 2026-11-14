@@ -504,7 +504,8 @@
       {"file":"server/performance/engine-registry.js","about":"The engine's runner of Performance Mode: closing, reopening and prioritising apps through the one allowlist.","names":["perfRegistry"],"wire":{"first":"perfRegistry","last":"perfRegistry"}},
       {"file":"server/performance/engine-exclusive-hint.js","about":"The engine's one notice per game that exclusive full screen hides the widgets over it.","names":["_exclusiveHint"],"wire":{"first":"_exclusiveHint","last":"_exclusiveHint"}},
       {"file":"server/performance/engine-perf-net.js","about":"The engine's ping and packet loss for the performance tile, read only when someone chose to see them.","names":["_perfNet"],"wire":{"first":"_perfNet","last":"_perfNet"}},
-      {"file":"server/performance/engine-fps-demand.js","about":"The engine's rule for when the FPS reader runs and when it pauses.","names":["_fpsDemand","_syncFpsMonitor"],"wire":{"first":"_fpsDemand","last":"_syncFpsMonitor"}}
+      {"file":"server/performance/engine-fps-demand.js","about":"The engine's rule for when the FPS reader runs and when it pauses.","names":["_fpsDemand","_syncFpsMonitor"],"wire":{"first":"_fpsDemand","last":"_syncFpsMonitor"}},
+      {"file":"server/search/engine-file-search.js","about":"The engine's search of the person's files and apps.","names":["fileSearch"],"wire":{"first":"fileSearch","last":"fileSearch"}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

@@ -384,14 +384,14 @@ const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pa
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
 require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
 require('./slideshow-folder');          // the slideshow's "folder on this PC" source
-const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
+require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
 const { createDevClean } = require('./devclean');
 const featureRoutes = require('./feature-routes.js');           // the routes added since this file stopped growing
 const { createFeatureUnlock } = require('./feature-unlock');
 const { createTrialPass } = require('./trial-pass');
 const { createTrialVault } = require('./trial-vault');
-const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
+require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
 require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
@@ -707,20 +707,9 @@ const { runPowerShellScript } = require('./powershell/run-command.js');
 
 const { openExternalPath } = require('./deck/open-external-path.js');
 
-const { launchInstalledApp } = require('./search/launch-installed-app.js');
+require('./search/launch-installed-app.js');
 
-const fileSearch = createFileSearch({
-  dataDir: DATA_DIR,
-  livingIndex,
-  openExternal: (p, args) => openExternalPath(p, args),
-  // Injected rather than kept as a second copy of the platform switch: the
-  // transfer widget's "show in folder" is the same verb, and two copies of a
-  // three-way platform branch drift into one of them working off Windows.
-  revealExternal: (p, dir) => revealInFileManager(p, dir),
-  appsProvider: getInstalledApps,
-  launchApp: launchInstalledApp,
-  catalogRunner: process.platform === 'darwin' ? createMdfindRunner() : undefined,
-});
+const { fileSearch } = require('./search/engine-file-search.js');
 const {
   _hotkey, MAX_HOTKEY_BINDINGS, HOTKEY_RETRY_MS, HOTKEY_RETRY_MAX_MS, _stopHotkeyListener,
 } = require('./deck/hotkey-state.js');
