@@ -4,10 +4,13 @@
 // every top-level name of its classic scripts still answering, every module having
 // run to its end, the style rules it ends up with; and, on the dashboard, Settings opening, changing one setting and keeping it.
 //
-//   node tools/restructure/browser-page-check.mjs record <port> <out.json> [settleMs]
+//   node tools/restructure/browser-page-check.mjs record <port> <out.json> [settleMs] [--engine chromium|webkit]
 //   node tools/restructure/browser-page-check.mjs compare <before.json> <after.json>
+//   node tools/restructure/browser-page-check.mjs engines <chromium.json> <webkit.json>
 //
-// Run `record` on the commit before the split and on the split, then `compare`.
+// Run `record` on the commit before the split and on the split, then `compare`; both in the same engine.
+// `engines` reads one tree recorded in two engines and says what the second does with the pages that the first
+// does not (browser-check-engine.mjs; XENON_PAGE_ENGINE picks the engine too, Chromium when nothing does).
 // The pages are listed in browser-check-pages.mjs. It only opens a copy made and
 // started by side-copy.mjs (the copy answers a marker file; port 3030 and any other
 // server are refused): the check changes the clock format and the widgets on the
@@ -20,6 +23,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { engineDifferences, engineFromArgs, engineOf, startEngine } from './browser-check-engine.mjs';
 import { PAGES, onThisPc, openPage, recordPage, recordWidgetPages } from './browser-check-pages.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { openParser } from './parser.mjs';
@@ -31,8 +35,6 @@ const DAILY_PORT = 3030;
 const LOAD_TIMEOUT_MS = 60000;
 const SAVE_WAIT_MS = 2500;
 const LISTS = ['scripts', 'stylesheets'];
-// The browser finds no address but this PC's own number, so nothing a page opens (a socket too) leaves this PC.
-const NO_OUTSIDE = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1';
 
 function loadPlaywright() {
   const from = process.env.XENON_PLAYWRIGHT || path.resolve(REPO_ROOT, '..', 'xenon-maker', 'node_modules', 'playwright');
@@ -78,16 +80,32 @@ const sayPage = (view) => `${view.name} (${view.address}): ${view.pageErrors.len
   + `${view.failedRequests.length} failed requests, ${view.refused.length} servers outside the copy refused, ${view.globals.length} names on window, ${Object.keys(view.declared).length} top-level names, `
   + `${view.scripts.length} scripts${view.modules ? ` (${view.modules.length} modules)` : ''}, ${view.stylesheets.length} stylesheets, ${view.ruleCount} style rules.`;
 
-async function record(port, outFile, settleMs) {
+// The names an empty page has on `window` in this engine: the engine's own, so that a recording can tell them from a page's.
+// The empty page has the copy's own address: an engine keeps some names (Bluetooth, the sensors) from a page that has none.
+async function blankNames(browser, port) {
+  const context = await browser.newContext();
+  try {
+    const empty = `http://127.0.0.1:${port}/an-empty-page-of-the-check`;
+    await context.route(empty, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>empty</title>' }));
+    const page = await context.newPage();
+    await page.goto(empty, { waitUntil: 'load', timeout: LOAD_TIMEOUT_MS });
+    return await page.evaluate(() => Object.getOwnPropertyNames(window).filter((name) => !/^\d+$/.test(name)).sort());
+  } finally { await context.close(); }
+}
+
+async function record(port, outFile, settleMs, engine) {
   if (port === DAILY_PORT) throw new Error(`port ${DAILY_PORT} is the server in daily use: start a test copy on another port`);
   await mustBeSideCopy(port);
-  const { chromium } = loadPlaywright();
   const parser = await openParser();
-  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXE || undefined, args: [NO_OUTSIDE] });
+  const started = await startEngine(loadPlaywright(), engine).catch((error) => { parser.close(); throw error; });
+  const { browser } = started;
   const known = new Map();
   const views = [];
   let settings;
+  let blank;
   try {
+    console.log(`engine: ${started.about.name} ${started.about.version}`);
+    blank = await blankNames(browser, port);
     for (const page of PAGES) {
       const made = page.widgets ? await recordWidgetPages(browser, port, page, settleMs, parser, known)
         : [await recordPage(browser, port, page, settleMs, parser, known)];
@@ -95,10 +113,11 @@ async function record(port, outFile, settleMs) {
     }
     settings = await settingsRoundTrip(browser, port, settleMs);
   } finally {
-    await browser.close();
+    await started.close();
     parser.close();
   }
-  writeFileSync(outFile, `${JSON.stringify({ views, settings }, null, 1)}\n`);
+  writeFileSync(outFile, `${JSON.stringify({ engine: { ...started.about, blank, outside: started.outside }, views, settings }, null, 1)}\n`);
+  if (started.outside.length) console.log(`sockets that wanted to leave this PC and ended at the dead end: ${started.outside.join(', ')}`);
   console.log(`settings: ${JSON.stringify(settings)}`);
 }
 
@@ -159,6 +178,7 @@ function moduleProblems(was, now, ledger) {
  * @returns {string[]} what the split changed in the pages, empty when nothing
  */
 export function compareRecordings(before, after, ledger = readBrowserLedger(REPO_ROOT)) {
+  if (engineOf(before) !== engineOf(after)) return [`the first recording was made in ${engineOf(before)} and the second in ${engineOf(after)}: compare a tree with itself in one engine (two engines: the command "engines")`];
   const problems = [];
   for (const was of before.views) if (!after.views.some((view) => view.name === was.name)) problems.push(`${was.name}: opened before, not opened now`);
   for (const now of after.views) {
@@ -201,16 +221,29 @@ function compare(beforeFile, afterFile) {
       + `${view.scripts.length} scripts (${was.scripts.length} before), ${view.stylesheets.length} stylesheets (${was.stylesheets.length} before).`);
   }
   const ran = after.views.flatMap((view) => view.modules ?? []).length;
-  console.log(`${after.views.length} pages${ran ? `, ${ran} module loads ran to their end` : ''}. settings: opens, the clock format changes, survives a reload and comes back from the server.`);
+  console.log(`${engineOf(after)}: ${after.views.length} pages${ran ? `, ${ran} module loads ran to their end` : ''}. settings: opens, the clock format changes, survives a reload and comes back from the server.`);
   return 0;
 }
 
+// One tree in two engines: the faults first, then what is only the engines being two.
+function engines(firstFile, secondFile) {
+  const [first, second] = [firstFile, secondFile].map((file) => JSON.parse(readFileSync(file, 'utf8')));
+  if (engineOf(first) === engineOf(second)) { console.error(`both recordings were made in ${engineOf(first)}`); return 2; }
+  const { faults, differences } = engineDifferences(first, second);
+  const about = (recording) => `${engineOf(recording)} ${recording.engine?.version ?? ''}`.trim();
+  console.log(`${about(first)} against ${about(second)}, ${second.views.length} pages.`);
+  console.log(`Faults (${faults.length}):${faults.map((line) => `\n  ${line}`).join('')}`);
+  console.log(`Only the engines differing (${differences.length}):${differences.map((line) => `\n  ${line}`).join('')}`);
+  return faults.length ? 1 : 0;
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [command, a, b, c] = process.argv.slice(2);
-  if (command === 'record' && Number(a) > 0 && b) await record(Number(a), b, Number(c) || 5000);
+  const { engine, rest: [command, a, b, c] } = engineFromArgs(process.argv.slice(2));
+  if (command === 'record' && Number(a) > 0 && b) await record(Number(a), b, Number(c) || 5000, engine);
   else if (command === 'compare' && a && b) process.exitCode = compare(a, b);
+  else if (command === 'engines' && a && b) process.exitCode = engines(a, b);
   else {
-    console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(6, 8).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(6, 9).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     process.exitCode = 2;
   }
 }

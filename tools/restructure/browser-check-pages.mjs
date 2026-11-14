@@ -6,6 +6,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { REFUSED } from './browser-check-engine.mjs';
 import { liteWidgets } from './browser-lists.mjs';
 import { readTopLevel } from './top-level.mjs';
 
@@ -80,9 +81,6 @@ export function serverOf(address) {
 export function onThisPc(server) {
   try { return /^(?:localhost|127(?:\.\d+){3}|\[::1\])$/.test(new URL(server).hostname); } catch { return false; }
 }
-
-// What the browser writes in the console for a request the check refused.
-const REFUSED = /net::ERR_BLOCKED_BY_CLIENT/;
 
 /**
  * An address without what changes from run to run: the copy's own port and the cache stamp. Any other address
@@ -165,6 +163,8 @@ export async function openPage(browser, port, page, settleMs, run) {
     const first = `http://127.0.0.1:${port}${page.path}`;
     const plain = plainFor(port);
     const seen = { pageErrors: [], consoleErrors: [], failedRequests: [], refused: [] };
+    // The way out of a page that must stay, which the check itself answers with nothing: WebKit calls that a failed request.
+    const held = new Set();
     await context.route('**/*', (route) => {
       const request = route.request();
       if (!staysOnCopy(request.url(), port)) {
@@ -173,11 +173,12 @@ export async function openPage(browser, port, page, settleMs, run) {
         return route.abort('blockedbyclient');
       }
       const leaves = page.stay && request.isNavigationRequest() && request.frame() === tab.mainFrame() && request.url() !== first;
+      if (leaves) held.add(request);
       return leaves ? route.fulfill({ status: 204 }) : route.continue();
     });
     tab.on('pageerror', (error) => seen.pageErrors.push(plain(error.message)));
     tab.on('console', (message) => { if (message.type() === 'error' && !REFUSED.test(message.text())) seen.consoleErrors.push(plain(message.text())); });
-    tab.on('requestfailed', (request) => { if (staysOnCopy(request.url(), port)) seen.failedRequests.push(`${plain(request.url())} ${request.failure()?.errorText ?? ''}`.trim()); });
+    tab.on('requestfailed', (request) => { if (staysOnCopy(request.url(), port) && !held.has(request)) seen.failedRequests.push(`${plain(request.url())} ${request.failure()?.errorText ?? ''}`.trim()); });
     tab.on('response', (response) => { if (response.status() >= 400) seen.failedRequests.push(`${plain(response.url())} ${response.status()}`); });
     await tab.goto(first, { waitUntil: 'load', timeout: LOAD_TIMEOUT_MS });
     await tab.waitForTimeout(settleMs);

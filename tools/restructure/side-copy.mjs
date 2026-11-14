@@ -9,13 +9,14 @@
 //
 //   node tools/restructure/side-copy.mjs build <folder> <port> [baseRev]
 //   node tools/restructure/side-copy.mjs run <folder> <port> [minutes]
-//   node tools/restructure/side-copy.mjs record <folder> <port> <out.json> [baseRev]
+//   node tools/restructure/side-copy.mjs record <folder> <port> <out.json> [baseRev] [--engine chromium|webkit]
 //
 // `build` makes <folder>/server from the working folder, or with the files of `server/`
 // as they were at `baseRev`. `run` starts it and ends when the file <folder>/stop
 // appears or after the minutes given (default 20), stopping only what it started.
 // `record` does both, runs the page check (browser-page-check.mjs) against the copy and
-// stops it: one command, and its exit code is 0 only when all of it worked.
+// stops it: one command, and its exit code is 0 only when all of it worked. `--engine webkit` opens the pages in
+// Playwright's WebKit and not in Chromium (browser-check-engine.mjs).
 // Port 3030 is the installed app's and is refused. Always read the exit code.
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -25,6 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ownFolders } from '../ci/own-folders.mjs';
+import { engineFromArgs } from './browser-check-engine.mjs';
 import { CUTS, NOT_COPIED, cutsFor, engineFiles, makeCuts, placeCuts } from './side-copy-cuts.mjs';
 
 export { CUTS, cutsFor, engineFiles, placeCuts };
@@ -205,9 +207,10 @@ export async function mustBeSideCopy(port, waitMs = 60_000) {
 /**
  * Builds the copy, runs it, records the pages on it and stops it.
  * @param {string} rootArg @param {unknown} portArg @param {string} outFile @param {string} [baseRev] @param {string} [repo]
+ * @param {string} [engine] the engine the pages are opened in, Chromium when nothing is said
  * @returns {Promise<number>} 0 only when the build, the run and the page check all worked
  */
-export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROOT) {
+export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROOT, engine = 'chromium') {
   console.log(await build(rootArg, portArg, baseRev, repo));
   const root = sideRoot(rootArg, repo);
   const running = run(root, portArg, RECORD_MINUTES + 1, repo);
@@ -215,7 +218,7 @@ export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROO
   let checked = 1;
   try {
     checked = await new Promise((resolve) => {
-      const check = spawn(process.execPath, [PAGE_CHECK, 'record', String(sidePort(portArg)), outFile], { stdio: 'inherit', windowsHide: true });
+      const check = spawn(process.execPath, [PAGE_CHECK, 'record', String(sidePort(portArg)), outFile, '--engine', engine], { stdio: 'inherit', windowsHide: true });
       const limit = setTimeout(() => { console.error(`the page check was stopped after ${RECORD_MINUTES} minutes`); stopTree(check); }, RECORD_MINUTES * 60_000);
       check.once('error', () => { clearTimeout(limit); resolve(1); });
       check.once('exit', (code) => { clearTimeout(limit); resolve(code ?? 1); });
@@ -228,11 +231,11 @@ export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROO
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [command, root, port, extra, last] = process.argv.slice(2);
   try {
+    const { engine, rest: [command, root, port, extra, last] } = engineFromArgs(process.argv.slice(2));
     if (command === 'build' && root && port) console.log(await build(root, port, extra));
     else if (command === 'run' && root && port) process.exitCode = await run(root, port, extra ? Number(extra) : undefined);
-    else if (command === 'record' && root && port && extra) process.exitCode = await record(root, port, path.resolve(extra), last);
+    else if (command === 'record' && root && port && extra) process.exitCode = await record(root, port, path.resolve(extra), last, REPO_ROOT, engine);
     else {
       console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(9, 12).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
       process.exitCode = 2;
