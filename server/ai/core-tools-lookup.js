@@ -1,0 +1,33 @@
+// The tools the assistant always has to look things up: stocks, football, news, the web and
+// what is on the screen.
+
+const SettingsAi = require('../settings-ai.js');
+const SensorSourceAi = require('../sensor-source-ai.js');
+
+function lookupAiFunctions() {
+  return [
+        // ── Stock market (Borsa) ──
+        { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
+        { name: 'get_stock_watchlist', description: 'Get the current prices and day changes for every stock in the user\'s watchlist (their saved favorites). Use for "how are my stocks", "read my watchlist", "any big movers today".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'add_stock_favorite', description: 'Add a stock/index/crypto symbol to the user\'s watchlist so it shows in the Borsa widget and ticker. Use for "add Tesla to my stocks", "watch ENI.MI".', parameters: { type: 'OBJECT', properties: { symbol: { type: 'STRING', description: 'The ticker symbol to add (e.g. "TSLA", "ENI.MI", "BTC-EUR").' } }, required: ['symbol'] } },
+        { name: 'edit_favorites', description: 'Add, remove or list the user\'s favourites: "stocks" (the Stocks watchlist), "teams" (teams and competitions in the Football tile) or "news" (sources and topics in the News tile). Add by name as the user says it ("Tesla", "Juventus", "Serie A", "ANSA"); for news, words that are not a source become a topic, and an https feed address is added as it is. Remove by words from the name. Replies: added/already/removed, or not_found (with the current items), ambiguous (with the matches: ask which), full.', parameters: { type: 'OBJECT', properties: { list: { type: 'STRING', enum: ['stocks', 'teams', 'news'] }, action: { type: 'STRING', enum: ['add', 'remove', 'list'], description: 'Default add.' }, name: { type: 'STRING', description: 'The stock, team, competition, news source or topic, as the user named it.' } }, required: ['list'] } },
+        { name: 'sensor_source', description: 'Which hardware sensor a headline reading comes from (Settings → Performance → Sensor sources), for when a temperature or a wattage looks wrong. No metric → the current choices. A metric and no sensor → the sensors this PC has for it (id, device, name, live value). A metric and a sensor id from that list → use it; sensor "auto" → back to Automatic.', parameters: { type: 'OBJECT', properties: {
+          metric: { type: 'STRING', enum: SensorSourceAi.METRICS.slice() },
+          sensor: { type: 'STRING', description: 'A sensor id from the list, or "auto".' },
+        } } },
+        { name: 'change_setting', description: 'Change one of these Settings switches, or call with no setting to read them all: ' + SettingsAi.NAMES.map((n) => n + ' (' + SettingsAi.PREFS[n].values.join('/') + ': ' + SettingsAi.PREFS[n].about + ')').join('; ') + '. Clock format, temperature unit, language and weather city are configure_preferences; theme and look are change_theme and customize_appearance. Replies with before/now, or unknown_setting / bad_value with the allowed list.', parameters: { type: 'OBJECT', properties: { setting: { type: 'STRING', enum: SettingsAi.NAMES.slice() }, value: { type: 'STRING', description: 'One of the values listed for that setting.' } } } },
+        // ── Football (Calcio) ──
+        { name: 'get_football_scores', description: 'Get the next fixture and latest result for the user\'s favorite football (soccer) teams: the teams saved in their Calcio widget. Use for "how did Napoli do", "any football results", "when does Inter play next", "my teams".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'Optional team name to filter to one of their favorites (e.g. "Napoli"). Omit for all favorites.' } } } },
+        { name: 'get_league_standings', description: 'Get the current league table / standings for a football competition. Give a competition name ("Serie A", "Premier League", "Champions League", "World Cup") or a team the user follows (its league is used). Use for "Serie A table", "Champions League standings", "where is Napoli in the table".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'A competition name (e.g. "Serie A", "Champions League") or a followed team name (e.g. "Napoli" → Serie A).' } }, required: ['team'] } },
+        // ── News ──
+        { name: 'get_news_headlines', description: 'Get the latest news headlines: either about a specific topic, or the top headlines from the feeds the user follows in the News widget. Use for "what\'s in the news", "any news about AI", "latest headlines", "news about Milan".', parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'Optional topic/keyword to fetch headlines about (e.g. "artificial intelligence", "elezioni"). Omit for the user\'s followed feeds.' } } } },
+        // ── Web search ──
+        { name: 'web_search', description: 'Search the internet for current, recent, or real-time information you are not certain about (news, prices, sports scores, release dates, live facts, anything after your training cutoff). Returns a grounded summary with sources. Use it instead of guessing whenever freshness matters.', parameters: { type: 'OBJECT', properties: {
+          query: { type: 'STRING', description: 'The search query, phrased clearly (e.g. "EUR USD exchange rate today", "latest iPhone model 2026")' },
+        }, required: ['query'] } },
+        // ── Screen vision ──
+        { name: 'capture_screen', description: 'Capture a fresh screenshot of the user\'s screen so you can see what is currently displayed. Use it whenever the user asks about what is on their screen, asks you to read/look at/check something visual, or references on-screen content. The capture is always live (current moment). On multi-monitor setups, pass the 1-based monitor number; if the user did not say which monitor and there are several, omit it to receive the monitor list and then ask which one to focus on.', parameters: { type: 'OBJECT', properties: { monitor: { type: 'NUMBER', description: '1-based monitor index to capture (e.g. 1, 2). Omit on single-monitor setups or to list monitors first.' } } } },
+  ];
+}
+
+module.exports = { lookupAiFunctions };

@@ -66,7 +66,8 @@ test('a name is declared in one place, and the readers find it there', () => {
     for (const name of names) {
       assert.equal(fileDeclaring(name), file);
       const text = declarationSource(name);
-      const where = partNames.has(name) || blockNames.has(name) ? readFileSync(join(ROOT, file), 'utf8') : asWritten(file);
+      const onDisk = readFileSync(join(ROOT, file), 'utf8');
+      const where = blockNames.has(name) ? onDisk : partNames.has(name) ? (spelled.has(file) ? oldSpellings(onDisk, spelled.get(file)) : onDisk) : asWritten(file);
       assert.ok(where.includes(text), `${name} is read from ${file}`);
       const escaped = name.replace(/[$]/g, '\\$&');
       assert.ok(!new RegExp(`^(?:async\\s+)?(?:function\\*?|const|let|var|class)\\s+${escaped}\\b`, 'm').test(engine),

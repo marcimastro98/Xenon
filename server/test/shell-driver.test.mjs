@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './native-source.mjs'; // browser files too: it reads them through ./browser-source.mjs
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 import { partsOf } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
@@ -146,7 +146,7 @@ test('the driver page carries only what it needs, in order', () => {
 });
 
 test('without a dashboard the wake word is armed only when the alerts window can answer it', () => {
-  const fn = SERVER.slice(SERVER.indexOf('function wakeWordWanted() {'), SERVER.indexOf('function _sttInputArgs('));
+  const fn = declarationSource('wakeWordWanted');
   assert.match(fn, /if \(UsageMode\.widgetsOnly\(_serverHubSettings && _serverHubSettings\.usageMode\)\) \{\n\s+const n = _serverHubSettings\.notifications;\n\s+if \(n && n\.onScreen === false\) return false;/);
   const alerts = SERVER.slice(SERVER.indexOf('async function updateScreenAlertsSetting('), SERVER.indexOf('async function updateUsageModeSetting('));
   assert.match(alerts, /refreshWakeWordWatch\(\);/);

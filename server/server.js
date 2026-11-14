@@ -68,7 +68,7 @@ require('./js/page-target.js'); // which page "go to Streaming" means (shared wi
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
-const SettingsAi = require('./settings-ai'); // change_setting: the allowlisted Settings switches
+require('./settings-ai'); // change_setting: the allowlisted Settings switches
 require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
 require('./vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
 const CaptureCovers = require('./capture-covers');
@@ -579,344 +579,22 @@ const AI_MODELS = Object.freeze({
 
 const { localServerOneShot } = require('./ai/local-server-one-shot.js');
 
-// Core Xenon AI function declarations — the always-available tools (dashboard,
-// media, audio, system, timers, notes/tasks/calendar, lighting, deck, memory,
-// stocks/football/news, web/vision). Hoisted so BOTH the /api/ai turn-based
-// handler (which appends integration-conditional tools) and the realtime Voce
-// Live endpoint share one identical, drift-free source. Returns a fresh array
-// each call so callers can push without mutating a shared const.
-function buildCoreAiFunctions() {
+const { pcAiFunctions } = require('./ai/core-tools-pc.js');
+
+const { lookupAiFunctions } = require('./ai/core-tools-lookup.js');
+
+const { plannerAiFunctions } = require('./ai/core-tools-planner.js');
+
+const { dashboardAiFunctions } = require('./ai/core-tools-dashboard.js');
+
+const { lightingAiFunctions } = require('./ai/core-tools-lighting.js');
+
+const { appearanceAiFunctions } = require('./ai/core-tools-appearance.js');
+
+const { deckCreatorAiFunctions } = require('./ai/core-tools-deck-creator.js');
+
+function knowledgeAiFunctions() {
   return [
-        // ── Microphone ──
-        { name: 'toggle_mic', description: 'Toggle microphone mute/unmute', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'mute_mic', description: 'Mute the microphone', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'unmute_mic', description: 'Unmute the microphone', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Media ──
-        { name: 'media_playpause', description: 'Play or pause current media playback', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'media_next', description: 'Skip to the next track', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'media_previous', description: 'Go to the previous track', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Volume / Audio ──
-        { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
-        { name: 'toggle_speaker_mute', description: 'Toggle the speaker/audio output mute on or off', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_mic_volume', description: 'Set microphone input volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Mic volume 0-100' } }, required: ['level'] } },
-        { name: 'app_audio', description: 'Adjust the audio of a SPECIFIC running application (per-app mixer): turn one app up or down, or mute/unmute it, without touching the master volume. e.g. "lower Spotify", "mute Chrome".', parameters: { type: 'OBJECT', properties: {
-          app: { type: 'STRING', description: 'The application name or process, e.g. "Spotify", "chrome", "Discord"' },
-          action: { type: 'STRING', description: 'One of: volume_up, volume_down, mute, unmute, toggle_mute' },
-        }, required: ['app', 'action'] } },
-        // ── System ──
-        { name: 'lock_pc', description: 'Lock the computer: its normal lock screen, the user logs back in', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats, plus fan speeds (fans[]) and power draw in watts (power.cpu/gpu/psu/total)', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_battery_status', description: 'Get the battery level of the user\'s wireless peripherals (mouse, keyboard, headset: Corsair via iCUE, Bluetooth devices, and mice, keyboards, headsets and controllers of many brands on their USB dongle; a device with no known protocol is not listed; if the result has access, the OS must allow the read first: say what it needs, on Linux the access.command line). A device with lastReadMinutesAgo is asleep or off: its percent is that old, say so. Two of one model read "Name" and "Name (2)". Use for "how\'s my mouse battery", "batteria del mouse".', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_energy_status', description: 'Get the full energy picture: the PC\'s power draw in watts (CPU/GPU/PSU) plus the user\'s Home Assistant power/energy readings (solar production, smart plugs, home meter, UPS). Use for "how much power is the PC using", "quanto sta producendo il fotovoltaico", "consumo di casa".', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Stock market (Borsa) ──
-        { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
-        { name: 'get_stock_watchlist', description: 'Get the current prices and day changes for every stock in the user\'s watchlist (their saved favorites). Use for "how are my stocks", "read my watchlist", "any big movers today".', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'add_stock_favorite', description: 'Add a stock/index/crypto symbol to the user\'s watchlist so it shows in the Borsa widget and ticker. Use for "add Tesla to my stocks", "watch ENI.MI".', parameters: { type: 'OBJECT', properties: { symbol: { type: 'STRING', description: 'The ticker symbol to add (e.g. "TSLA", "ENI.MI", "BTC-EUR").' } }, required: ['symbol'] } },
-        { name: 'edit_favorites', description: 'Add, remove or list the user\'s favourites: "stocks" (the Stocks watchlist), "teams" (teams and competitions in the Football tile) or "news" (sources and topics in the News tile). Add by name as the user says it ("Tesla", "Juventus", "Serie A", "ANSA"); for news, words that are not a source become a topic, and an https feed address is added as it is. Remove by words from the name. Replies: added/already/removed, or not_found (with the current items), ambiguous (with the matches: ask which), full.', parameters: { type: 'OBJECT', properties: { list: { type: 'STRING', enum: ['stocks', 'teams', 'news'] }, action: { type: 'STRING', enum: ['add', 'remove', 'list'], description: 'Default add.' }, name: { type: 'STRING', description: 'The stock, team, competition, news source or topic, as the user named it.' } }, required: ['list'] } },
-        { name: 'sensor_source', description: 'Which hardware sensor a headline reading comes from (Settings → Performance → Sensor sources), for when a temperature or a wattage looks wrong. No metric → the current choices. A metric and no sensor → the sensors this PC has for it (id, device, name, live value). A metric and a sensor id from that list → use it; sensor "auto" → back to Automatic.', parameters: { type: 'OBJECT', properties: {
-          metric: { type: 'STRING', enum: SensorSourceAi.METRICS.slice() },
-          sensor: { type: 'STRING', description: 'A sensor id from the list, or "auto".' },
-        } } },
-        { name: 'change_setting', description: 'Change one of these Settings switches, or call with no setting to read them all: ' + SettingsAi.NAMES.map((n) => n + ' (' + SettingsAi.PREFS[n].values.join('/') + ': ' + SettingsAi.PREFS[n].about + ')').join('; ') + '. Clock format, temperature unit, language and weather city are configure_preferences; theme and look are change_theme and customize_appearance. Replies with before/now, or unknown_setting / bad_value with the allowed list.', parameters: { type: 'OBJECT', properties: { setting: { type: 'STRING', enum: SettingsAi.NAMES.slice() }, value: { type: 'STRING', description: 'One of the values listed for that setting.' } } } },
-        // ── Football (Calcio) ──
-        { name: 'get_football_scores', description: 'Get the next fixture and latest result for the user\'s favorite football (soccer) teams: the teams saved in their Calcio widget. Use for "how did Napoli do", "any football results", "when does Inter play next", "my teams".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'Optional team name to filter to one of their favorites (e.g. "Napoli"). Omit for all favorites.' } } } },
-        { name: 'get_league_standings', description: 'Get the current league table / standings for a football competition. Give a competition name ("Serie A", "Premier League", "Champions League", "World Cup") or a team the user follows (its league is used). Use for "Serie A table", "Champions League standings", "where is Napoli in the table".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'A competition name (e.g. "Serie A", "Champions League") or a followed team name (e.g. "Napoli" → Serie A).' } }, required: ['team'] } },
-        // ── News ──
-        { name: 'get_news_headlines', description: 'Get the latest news headlines: either about a specific topic, or the top headlines from the feeds the user follows in the News widget. Use for "what\'s in the news", "any news about AI", "latest headlines", "news about Milan".', parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'Optional topic/keyword to fetch headlines about (e.g. "artificial intelligence", "elezioni"). Omit for the user\'s followed feeds.' } } } },
-        // ── Web search ──
-        { name: 'web_search', description: 'Search the internet for current, recent, or real-time information you are not certain about (news, prices, sports scores, release dates, live facts, anything after your training cutoff). Returns a grounded summary with sources. Use it instead of guessing whenever freshness matters.', parameters: { type: 'OBJECT', properties: {
-          query: { type: 'STRING', description: 'The search query, phrased clearly (e.g. "EUR USD exchange rate today", "latest iPhone model 2026")' },
-        }, required: ['query'] } },
-        // ── Screen vision ──
-        { name: 'capture_screen', description: 'Capture a fresh screenshot of the user\'s screen so you can see what is currently displayed. Use it whenever the user asks about what is on their screen, asks you to read/look at/check something visual, or references on-screen content. The capture is always live (current moment). On multi-monitor setups, pass the 1-based monitor number; if the user did not say which monitor and there are several, omit it to receive the monitor list and then ask which one to focus on.', parameters: { type: 'OBJECT', properties: { monitor: { type: 'NUMBER', description: '1-based monitor index to capture (e.g. 1, 2). Omit on single-monitor setups or to list monitors first.' } } } },
-        // ── Notes ──
-        { name: 'read_notes', description: 'Read the current notes/scratchpad content', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'write_notes', description: 'Replace the whole text of the note open in the notes widget. To add a note, add to one or change another, use edit_note instead.', parameters: { type: 'OBJECT', properties: { content: { type: 'STRING', description: 'New notes content' } }, required: ['content'] } },
-        { name: 'edit_note', description: 'Work on one note of the notes widget, which holds several (read_notes lists their titles: a title is the first line). action: "new" (default, a new note with text: "write a note: buy milk", "prendi nota"), "append" (text on a new line at the end: "add eggs to the shopping note"), "replace" (the whole text), "pin", "unpin", "open" (show it in the widget) or "delete" (confirm first unless the user was explicit). note: words from the title of the note to work on; leave it out for the note open in the widget. Errors: "not_found" (comes with the titles), "empty_text", "too_many_notes".', parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', description: 'new, append, replace, pin, unpin, open or delete' }, note: { type: 'STRING', description: 'words from the note title; empty = the open note' }, text: { type: 'STRING', description: 'the text for new, append or replace' } } } },
-        // ── Tasks ──
-        { name: 'list_tasks', description: 'List all tasks in the task list', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'create_task', description: 'Create a new task in the task list', parameters: { type: 'OBJECT', properties: {
-          text: { type: 'STRING', description: 'Task description' },
-          priority: { type: 'STRING', description: 'Priority: high, medium, or low (default: medium)' },
-        }, required: ['text'] } },
-        { name: 'delete_task', description: 'Delete a specific task by its id. Use list_tasks first to get the id if not known.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Task id to delete' },
-        }, required: ['id'] } },
-        { name: 'clear_all_tasks', description: 'Delete ALL tasks at once. Use only when the user explicitly asks to clear or delete all tasks.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'edit_task', description: 'Change a task that already exists: its text, priority or how often it repeats. Name it by words from its text (or its id from list_tasks); only the fields given change. When the words fit several tasks the reply lists them to ask which.', parameters: { type: 'OBJECT', properties: {
-          task: { type: 'STRING', description: 'Words from the task as the user says them, e.g. "dentist"' },
-          id: { type: 'STRING', description: 'Task id from list_tasks, instead of words' },
-          text: { type: 'STRING', description: 'New text' },
-          priority: { type: 'STRING', description: 'high, medium or low' },
-          repeat: { type: 'STRING', description: 'never, daily, weekly or custom (every N days)' },
-          every_days: { type: 'NUMBER', description: 'With repeat custom: every how many days' },
-        } } },
-        { name: 'complete_task', description: 'Mark a task as completed or uncompleted. Use list_tasks first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Task id to mark' },
-          completed: { type: 'BOOLEAN', description: 'true to mark done, false to unmark (default true)' },
-        }, required: ['id'] } },
-        // ── Calendar ──
-        { name: 'list_calendar_events', description: 'List upcoming calendar events', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'create_calendar_event', description: 'Create a new calendar event', parameters: { type: 'OBJECT', properties: {
-          title: { type: 'STRING', description: 'Event title' },
-          starts_at: { type: 'STRING', description: 'Start datetime in ISO 8601, e.g. 2026-05-25T14:00:00' },
-          notes: { type: 'STRING', description: 'Optional notes' },
-          reminder_at: { type: 'STRING', description: 'Optional reminder datetime in ISO 8601' },
-        }, required: ['title', 'starts_at'] } },
-        { name: 'delete_calendar_event', description: 'Delete a calendar event by its id. Use list_calendar_events first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Event id to delete' },
-        }, required: ['id'] } },
-        { name: 'edit_calendar_event', description: 'Change a calendar event that already exists: move it, rename it, change its notes, end or reminder. Name it by words from its title (or its id from list_calendar_events); only the fields given change. When the words fit several events the reply lists them to ask which.', parameters: { type: 'OBJECT', properties: {
-          event: { type: 'STRING', description: 'Words from the title as the user says them, e.g. "dentist"' },
-          id: { type: 'STRING', description: 'Event id from list_calendar_events, instead of words' },
-          title: { type: 'STRING', description: 'New title' },
-          starts_at: { type: 'STRING', description: 'New start in ISO 8601, e.g. 2026-05-25T14:00:00' },
-          ends_at: { type: 'STRING', description: 'New end in ISO 8601, or "none" for no end' },
-          reminder_at: { type: 'STRING', description: 'New reminder in ISO 8601, or "none" to remove it' },
-          notes: { type: 'STRING', description: 'New notes (empty text clears them)' },
-        } } },
-        { name: 'clear_all_calendar_events', description: 'Delete ALL calendar events at once. Use only when the user explicitly asks to clear or delete all events.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'play_in_tile', description: 'Play a Twitch channel or a YouTube video, or open a web page, in the tile that shows it (Twitch, YouTube, Browser), on whichever screen of this PC has that tile. Give the channel, link or address the user named in `target`; when they only describe it ("a Minecraft stream", "lofi music") give the words in `search` and the first match plays. The reply says what is playing, or that no open screen has that tile (then offer to add it with place_widget).', parameters: { type: 'OBJECT', properties: {
-          tile: { type: 'STRING', enum: ['twitch', 'youtube', 'browser'], description: 'Which tile' },
-          target: { type: 'STRING', description: 'Twitch channel name or link, YouTube video link or id, or the web address for the Browser tile' },
-          search: { type: 'STRING', description: 'Words to look for on Twitch (a live channel) or YouTube (a video) when the user named no exact channel or video' },
-        }, required: ['tile'] } },
-        // ── Dashboard UI ──
-        { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'open_app_switcher', description: 'Open the app switcher panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'open_whats_new', description: "Open What's New: the full-screen sheets of the version running now. Use when the user asks what changed, what is new, or to see the news of this version again.", parameters: { type: 'object', properties: {} } },
-        { name: 'open_store_entry', description: "Open one creation in the Store by its entry id. Use when the user wants to see something Bit told them about: the conversation memory gives the entry id. It only opens the page; installing and buying stay with the user there.", parameters: { type: 'OBJECT', properties: { entryId: { type: 'STRING', description: 'The Store entry id' } }, required: ['entryId'] } },
-        { name: 'open_sparks_shop', description: "Open the Store's Sparks tab: where Sparks (Xenon's credits) are bought, with what they are for. Use when the user wants to buy or top up Sparks, or asks where to get them.", parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'start_ambient_mode', description: 'Open the Ambient/screensaver mode (fullscreen scene with clock, media, weather: the old focus lock screen)', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'stop_ambient_mode', description: 'Close the Ambient/screensaver mode if it is showing', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
-        { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Performance Mode ──
-        { name: 'optimize_performance', description: 'Open Performance Mode optimization (shows the confirmation sheet listing what will be done). Use when the user asks to optimize performance, free up resources, or boost the PC for gaming/work. It never applies anything without the user confirming on the sheet.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, put back the apps moved out of the game\'s way, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Timers ──
-        { name: 'start_timer', description: 'Start a new countdown timer ("set a timer for 5 minutes", "remind me in 30 seconds") or a stopwatch that counts up ("start a stopwatch", with kind stopwatch and no duration).', parameters: { type: 'OBJECT', properties: {
-          label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
-          kind: { type: 'STRING', description: 'countdown (default) or stopwatch' },
-          duration_secs: { type: 'NUMBER', description: 'Countdown length in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour). Not for a stopwatch.' },
-          chime_every_secs: { type: 'NUMBER', description: 'Stopwatch only: sound a chime every N seconds (e.g. 60). Leave out for none.' },
-        } } },
-        { name: 'control_timer', description: 'Pause, resume, restart or stop a timer or stopwatch already on the Timers tile. "stop" puts it back to its start and holds it there; to remove it use delete_timer. With no timer named it acts on the only one there is, or the newest one that is running (pause) or paused (resume); when that is unclear the reply lists the labels to ask about.', parameters: { type: 'OBJECT', properties: {
-          action: { type: 'STRING', description: 'pause, resume, reset (from the start, counting) or stop' },
-          timer: { type: 'STRING', description: 'Its label as the user says it, or its id from list_timers. Leave out when there is one timer.' },
-        }, required: ['action'] } },
-        { name: 'list_timers', description: 'List all active timers and stopwatches: a countdown reports remaining_secs, a stopwatch reports elapsed_secs', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'delete_timer', description: 'Delete a timer by its id', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Timer id to delete' },
-        }, required: ['id'] } },
-        // ── System launcher ──
-        { name: 'open_application', description: 'Open an app, website, or file on the user\'s PC. For well-known apps use their plain name (spotify, chrome, notepad, obs, vlc…). For Steam use exactly "steam", for Discord use "discord". Full URLs (https://…) and absolute file paths also work.', parameters: { type: 'OBJECT', properties: {
-          target: { type: 'STRING', description: 'App name (e.g. "spotify", "steam", "discord"), full URL, or absolute file path' },
-        }, required: ['target'] } },
-        { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
-          target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
-        }, required: ['target'] } },
-        // ── Local file search ──
-        { name: 'search_files', description: 'Search files on the user\'s PC by name and (where Windows indexed it) content: all local, nothing leaves the machine. The query understands natural filters in EN/IT: kind ("photos"/"foto", "documents"), extensions ("pdf", "excel"), dates ("last month", "dicembre 2024", "ieri"), sizes ("more than 100 mb", "grandi"). Use for "find my rental contract", "cerca le foto di dicembre", "il pdf della fattura". Returns top results each with an id: to open one, call open_search_result with that id.', parameters: { type: 'OBJECT', properties: {
-          query: { type: 'STRING', description: 'The search phrase, in the user\'s own words (e.g. "contratto affitto pdf", "foto di dicembre")' },
-        }, required: ['query'] } },
-        { name: 'open_search_result', description: 'Open one result returned by search_files, by its id (default app for files, Explorer for folders). Executable/script files are refused for safety: pass reveal:true to show the file selected in its folder instead, which runs nothing.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'The result id from search_files' },
-          reveal: { type: 'BOOLEAN', description: 'true to reveal the file in Explorer instead of opening it' },
-        }, required: ['id'] } },
-        { name: 'phone_lookup', description: 'Look somebody up in the phonebook of the phone paired to this PC over Bluetooth, and read the recent call log. READ-ONLY. Use it before phone_call or phone_message so the number comes from the user\'s own contacts instead of being guessed. Also answers "who called me?", "chi mi ha chiamato ieri", "che numero ha mio padre".', parameters: { type: 'OBJECT', properties: {
-          name: { type: 'STRING', description: 'Part of a contact name to search for. Omit to get the recent call log instead.' },
-        }, required: [] } },
-        { name: 'phone_call', description: 'Place a real phone call through the paired phone. Use for "chiama Marco", "call mum". Prefer a name and let this resolve it against the phonebook; pass a raw number only when the user dictated one. The call is real and costs the user money, so never call somebody the user did not name.', parameters: { type: 'OBJECT', properties: {
-          name: { type: 'STRING', description: 'The contact to call, as the user said it. Resolved against the phonebook.' },
-          number: { type: 'STRING', description: 'A literal number, only when the user dictated one rather than a name.' },
-        }, required: [] } },
-        { name: 'phone_message', description: 'Send a text message through the paired phone. Use for "manda un messaggio a Marco", "text mum that I am late". The recipient MUST be a contact in the phonebook: a raw number is refused, because a text cannot be recalled and a wrong number reaches a stranger permanently. Read the message back to the user in your reply so they can see what was sent.', parameters: { type: 'OBJECT', properties: {
-          name: { type: 'STRING', description: 'The contact to write to. Must match somebody in the phonebook.' },
-          text: { type: 'STRING', description: 'The message, in the user\'s own words.' },
-        }, required: ['name', 'text'] } },
-        { name: 'disk_insights', description: 'Read a live, local disk-space analysis: volume capacity/free space, indexed usage, safe-to-clean categories (temp, browser/package caches, build output, old installers, Recycle Bin), the biggest folders/files, verified duplicate waste, and Xenon\'s risk-ranked cleanup plan with a why/effect/action explanation. READ-ONLY: you can explain and recommend, but deletion happens only when the user taps the confirmation in the disk widget, you have no delete capability. Use for "what is eating my disk", "cosa occupa spazio", "posso liberare spazio?".', parameters: { type: 'OBJECT', properties: {
-          rootIndex: { type: 'INTEGER', description: 'Optional index of the configured disk/folder root to analyze. Omit for the first root.' },
-        } } },
-        // ── RGB Lighting (Corsair / iCUE bridge) ──
-        { name: 'set_lights', description: 'Set a manual RGB colour on all the lighting Xenon drives: Corsair through iCUE and every other device set up in Settings → Lighting (overrides reactive effects until cleared; for one device or one part use run_deck_action lightDevice/lightPart, for Razer Chroma chromaColor). Accepts a colour name (EN or IT, e.g. "red"/"rosso") or a #RRGGBB hex. Use "off"/"spento" to turn them dark.', parameters: { type: 'OBJECT', properties: {
-          color: { type: 'STRING', description: 'Colour name or #RRGGBB, e.g. "red", "rosso", "#00ff88", "off"' },
-        }, required: ['color'] } },
-        { name: 'clear_lights', description: 'Clear the manual colour override so reactive effects (CPU temperature, album colour, event flashes) resume.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_effect', description: 'Enable or disable a lighting effect: temperature (CPU temp → colour), musicAlbum (album cover → LEDs), timer, notification, reminder.', parameters: { type: 'OBJECT', properties: {
-          effect: { type: 'STRING', description: 'One of: temperature, musicAlbum, timer, notification, reminder' },
-          enabled: { type: 'BOOLEAN', description: 'true to enable, false to disable' },
-        }, required: ['effect', 'enabled'] } },
-        { name: 'set_event_effect', description: 'Configure an event flash effect (timer, notification, reminder): its colour and animation style, and optionally enable it.', parameters: { type: 'OBJECT', properties: {
-          effect: { type: 'STRING', description: 'One of: timer, notification, reminder' },
-          color: { type: 'STRING', description: 'Colour name or #RRGGBB (e.g. "red", "rosso", "#00ff88")' },
-          style: { type: 'STRING', description: 'Animation style: blink, pulse, or solid' },
-          enabled: { type: 'BOOLEAN', description: 'Optional: enable/disable the effect' },
-        }, required: ['effect'] } },
-        { name: 'set_animation', description: 'Set the ambient RGB lighting animation. Styles: none, solid (fixed colour), breathing, cycle (rainbow), wave (scrolling rainbow), aurora (northern-lights drift), candle (warm flicker), palette (cycles the user\'s own 2-5 colours). Optionally set the colour (breathing/candle), the speed, and the palette colours. The lighting master must be on for the animation to show (use set_lighting_bridge).', parameters: { type: 'OBJECT', properties: {
-          style: { type: 'STRING', description: 'One of: none, solid, breathing, cycle, wave, aurora, candle, palette' },
-          color: { type: 'STRING', description: 'Optional colour name or #RRGGBB (used by breathing and candle)' },
-          speed: { type: 'NUMBER', description: 'Optional speed 1-100 (higher = faster)' },
-          palette: { type: 'STRING', description: 'Optional comma-separated 2-5 colours for the palette style, e.g. "#ff0000,#0000ff" or "rosso,blu,verde"' },
-        } } },
-        { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE and the board, which show their own lighting; pass dark:true when the user wants the lights switched OFF.', parameters: { type: 'OBJECT', properties: {
-          enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
-          dark: { type: 'BOOLEAN', description: 'with enabled:false, every light goes dark (black) instead of going back to iCUE/the board. Use it for "switch the lights off".' },
-        }, required: ['enabled'] } },
-        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature, fan speed, power draw).', parameters: { type: 'OBJECT', properties: {
-          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp, gpuTemp, cpu, gpu, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts' },
-        }, required: ['sensor'] } },
-        { name: 'go_to_page', description: 'Show a page of the dashboard: by the name the user gave it, by its number, or the next/previous one.', parameters: { type: 'OBJECT', properties: {
-          page: { type: 'STRING', description: 'The page as the user names it: its name (e.g. "Streaming"), its number ("2"), "next" or "prev". When no page has that name the reply lists the real names.' },
-        }, required: ['page'] } },
-        { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
-          profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
-        }, required: ['profile'] } },
-        // ── Appearance & preferences (fine-grained dashboard customization) ──
-        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (liquid/glass/retro/comic), or exact semantic colours for the app canvas, panels, nested surfaces, controls, text, borders, accent and UI states. Use this (not change_theme) for any specific-colour request. Applies live, contrast-checks by default and persists.', parameters: { type: 'OBJECT', properties: {
-          preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
-          style: { type: 'STRING', description: 'Optional base skin: "liquid" (Liquid Glass, real blur over the wallpaper), "glass" (Classic), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
-          appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
-          accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
-          background: { type: 'STRING', description: 'Optional app canvas/background colour as #RRGGBB' },
-          surface: { type: 'STRING', description: 'Optional main panel/widget/modal surface colour as #RRGGBB' },
-          surface_alt: { type: 'STRING', description: 'Optional secondary row/card/tab surface colour as #RRGGBB' },
-          control_color: { type: 'STRING', description: 'Optional input/menu/button surface colour as #RRGGBB' },
-          text: { type: 'STRING', description: 'Optional primary text colour as #RRGGBB' },
-          muted_text: { type: 'STRING', description: 'Optional secondary text colour as #RRGGBB' },
-          line_color: { type: 'STRING', description: 'Optional border/divider colour as #RRGGBB' },
-          accent_text: { type: 'STRING', description: 'Optional text/icon colour used on accent-filled controls as #RRGGBB' },
-          success_color: { type: 'STRING', description: 'Optional success state colour as #RRGGBB' },
-          warning_color: { type: 'STRING', description: 'Optional warning state colour as #RRGGBB' },
-          danger_color: { type: 'STRING', description: 'Optional danger/error state colour as #RRGGBB' },
-          info_color: { type: 'STRING', description: 'Optional informational state colour as #RRGGBB' },
-          contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
-        } } },
-        { name: 'style_tile', description: 'Dress ONE tile, as the Material tab of its style window does: what it is made of and the colour of the glass. Use it when the user names a single tile ("clear glass on the music tile", "make the chat violet"); for the whole dashboard use customize_appearance. Works on every skin. Pass tile and at least one of material and tint. Applies live and saves with the layout. Its shape, pictures and frames stay in the style window: open layout mode for those.', parameters: { type: 'OBJECT', properties: {
-          tile: { type: 'STRING', description: 'The tile: its id when you know it (media is the music player; chat, calendar, agenda, tasks, notes, system, audio, mic, timer, weather) or just its name as shown on screen, in the user\'s language' },
-          material: { type: 'STRING', description: 'One of: liquid (Liquid Glass), clear (nearly see-through), frosted (thick blur), solid (nothing shows through), none (no panel, only the content over the background), theme (back to what the theme gives)' },
-          tint: { type: 'STRING', description: 'Colour of the glass as #RRGGBB, or "none" for the colour of the theme. On a dark look use a deep colour, so light text stays readable' },
-        }, required: ['tile'] } },
-        { name: 'create_dashboard_style', description: 'Build a COMPLETE custom dashboard theme from a description, apply it live, and save it as a named card in the Temi gallery so the user can switch back to it. Pass any subset: every field defaults to the current look. Use this when the user asks for a whole vibe/aesthetic rather than one colour ("crea un tema cyberpunk viola", "make me a warm minimalist theme", "un look pastello morbido e arrotondato"). Prefer create_preset kind "theme" when the theme needs its own light AND dark palettes, or when the user wants a code to share or to review before applying.', parameters: { type: 'OBJECT', properties: {
-          name: { type: 'STRING', description: 'Short theme name for the gallery card (e.g. "Cyberpunk Viola")' },
-          skin: { type: 'STRING', description: 'Base skin: "liquid" (Liquid Glass, real blur over the wallpaper), "glass" (Classic), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
-          base_appearance: { type: 'STRING', description: 'Base mode: "light" or "dark"' },
-          accent: { type: 'STRING', description: 'Accent/brand colour #RRGGBB' },
-          background: { type: 'STRING', description: 'App canvas/background colour #RRGGBB' },
-          surface: { type: 'STRING', description: 'Main panel/widget/modal surface colour #RRGGBB' },
-          surface_alt: { type: 'STRING', description: 'Secondary row/card/tab surface colour #RRGGBB' },
-          control_color: { type: 'STRING', description: 'Input/menu/button surface colour #RRGGBB' },
-          text: { type: 'STRING', description: 'Primary text colour #RRGGBB' },
-          muted_text: { type: 'STRING', description: 'Secondary/muted text colour #RRGGBB' },
-          line_color: { type: 'STRING', description: 'Dividers/borders colour #RRGGBB' },
-          accent_text: { type: 'STRING', description: 'Text/icon colour on accent-filled controls #RRGGBB' },
-          success_color: { type: 'STRING', description: 'Success state colour #RRGGBB' },
-          warning_color: { type: 'STRING', description: 'Warning state colour #RRGGBB' },
-          danger_color: { type: 'STRING', description: 'Danger/error state colour #RRGGBB' },
-          info_color: { type: 'STRING', description: 'Informational state colour #RRGGBB' },
-          contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
-          panel_opacity: { type: 'NUMBER', description: 'Panel opacity 0.05–1 (lower = more translucent)' },
-          corner_radius: { type: 'NUMBER', description: 'Corner roundness 0–2 (0 = square, 1 = default, 2 = very round)' },
-          glass_blur: { type: 'NUMBER', description: 'Glass blur in px 0–40 (default 22)' },
-          glass_saturation: { type: 'NUMBER', description: 'Glass colour saturation % 100–220 (default 160)' },
-          border_strength: { type: 'NUMBER', description: 'Panel border strength 0–2 (1 = default)' },
-          shadow_strength: { type: 'NUMBER', description: 'Tile drop shadow strength 0–2 (0 = default, no shadow)' },
-        } } },
-        { name: 'create_animated_background', description: 'Write and apply a custom ANIMATED BACKGROUND for the dashboard from the user\'s description. YOU author the code: define a JavaScript function draw(ctx, t, w, h) that paints ONE frame, ctx is a canvas 2D context, t is elapsed seconds (float), w and h are the pixel size. It is called ~60×/second on a full-screen canvas behind the dashboard. Keep it self-contained (declare any particles/state with const or let ABOVE the draw function so it persists across frames), efficient, and tasteful behind a UI (avoid a pure-white fill or harsh strobing). The code runs in an isolated sandbox with NO network, DOM, storage or dashboard access, so use only the canvas 2D API, Math and Date. Use for requests like "crea uno sfondo animato con particelle blu", "make me a drifting starfield background", "sfondo tipo nebulosa viola". Applies live and persists.', parameters: { type: 'OBJECT', properties: {
-          name: { type: 'STRING', description: 'Short name for this background (e.g. "Nebulosa viola")' },
-          code: { type: 'STRING', description: 'The full JavaScript source defining function draw(ctx, t, w, h). May declare helper state/constants above draw. No imports, no network, no DOM.' },
-        }, required: ['code'] } },
-        { name: 'configure_preferences', description: 'Adjust dashboard preferences: 12h/24h clock, temperature unit, interface language, weather location, and which widgets appear on the focus lock screen. Pass only the fields the user asked to change. Applies live and persists.', parameters: { type: 'OBJECT', properties: {
-          clock_format: { type: 'STRING', description: 'Clock format: auto, 12, or 24' },
-          temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
-          language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, zh, es, fr, de, pt, ru, or nl' },
-          weather_mode: { type: 'STRING', description: 'Weather location mode: auto (geolocate) or manual' },
-          weather_city: { type: 'STRING', description: 'City name: sets weather_mode to manual automatically' },
-          lock_widgets: { type: 'OBJECT', description: 'Focus lock-screen widgets to show/hide', properties: {
-            clock: { type: 'BOOLEAN' }, weather: { type: 'BOOLEAN' }, media: { type: 'BOOLEAN' }, calendar: { type: 'BOOLEAN' },
-          } },
-        } } },
-        { name: 'set_creation_model', description: 'Sparks (Bit credits) only: change which model makes creations (widgets, themes, backgrounds, scenes, Decks) and how much it reasons before creating. Pass only what the user asked to change. Saved in Settings → Bit, and a creation asked in the same message already uses it. Use for "usa Opus", "use Sonnet", "ragiona di più", "think less", "fallo più curato". Per widget at the Normal level: Haiku about 3 Sparks, Sonnet about 50, Opus about 150; Thorough costs about twice Normal, Light stays close to Normal.', parameters: { type: 'OBJECT', properties: {
-          model: { type: 'STRING', description: 'haiku (fast, simplest), sonnet (balanced) or opus (most accurate)' },
-          effort: { type: 'STRING', description: 'low (Light: little reasoning, for simple requests), medium (Normal, recommended) or high (Thorough: more polished, about twice the credits and time)' },
-        } } },
-        { name: 'set_media_source', description: 'Choose which media app the Now Playing tile follows when several are playing: pass the app/source name (e.g. "Spotify", "YouTube") or "auto" to follow whatever is active. Use when the user says "show Spotify", "segui YouTube", "torna automatico".', parameters: { type: 'OBJECT', properties: {
-          source: { type: 'STRING', description: 'Media source name (e.g. "Spotify", "YouTube") or "auto"' },
-        }, required: ['source'] } },
-        { name: 'list_audio_devices', description: 'List the available speaker/output and microphone/input devices (and which are current). Use before set_audio_device when you do not know the exact device names, or to answer "what speakers/mics do I have?".', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_audio_device', description: 'Switch the default audio output (speaker) or input (microphone) device by name. If the name does not match, you get the list of available devices back, then ask the user which one. Use for "switch to my headphones", "usa le casse", "cambia microfono".', parameters: { type: 'OBJECT', properties: {
-          kind: { type: 'STRING', description: 'Which device to switch: "speaker" (output) or "mic" (input)' },
-          name: { type: 'STRING', description: 'The device name or a distinctive part of it, e.g. "Headphones", "Realtek", "USB microphone"' },
-        }, required: ['kind', 'name'] } },
-        // ── Deck composer + creator ecosystem (v4.4) ──
-        { name: 'deck_action_catalog', description: 'Read-only: the FULL Deck action catalog (every action type + its params/options), the live-state sources, live-value sources and slider targets. Call this BEFORE configure_deck when you are unsure of an exact action type or its parameters.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'rate_store_item', description: 'Vote on something the user installed from the Store, when they say how many stars they give it. Never guess the stars and never vote on your own. It does not vote yet: the user sees a confirmation card, because a vote is final and cannot be changed. It can be voted three days after install. If the name is not found the answer lists what is installed.', parameters: { type: 'OBJECT', properties: {
-          name: { type: 'STRING', description: 'The name of the widget, theme or pack as the user said it.' },
-          stars: { type: 'NUMBER', description: 'Whole stars from 1 to 5, as the user said.' },
-          why: { type: 'STRING', enum: ['breaks', 'slow', 'dislike', 'useless'], description: 'Only for 1 to 3 stars and only if the user said it: it breaks, it is slow, they do not like it, they do not need it.' },
-          description: { type: 'STRING', description: 'Short line in the user\'s language shown on the card, saying the vote is final.' },
-        }, required: ['name', 'stars'] } },
-        { name: 'run_deck_action', description: 'Run ONE Deck action now, exactly as if the user pressed a key that does it: any type from deck_action_catalog with its params, e.g. {type:"wlInputMute",mixId:"..."}, {type:"vmStripMute",strip:"0"}, {type:"obsMute",source:"Mic"}, {type:"lightColor",color:"#ff0000"}, {type:"webhook",url:"..."}, {type:"typeText",text:"ciao"} (types into the window in front), {type:"hotkey",keys:"ctrl+shift+m"}. Use it for what no other tool covers (Wave Link, Voicemeeter, OBS sources, Streamer.bot, Razer Chroma and other lighting, Deck states, Steam games, window moves, the soundboard, SDK widget actions...): when a dedicated tool exists, use that one. Actions that run code, type or press keys, call or message, post to a stream or a chat, lock the PC, or unlock or call a smart-home service do NOT run yet: the user gets a confirmation card, so say it is waiting on the card, never that it is done. Replies with the action\'s own result, e.g. {ok:false,error:"obs_offline"}.', parameters: { type: 'OBJECT', properties: {
-          action: { type: 'OBJECT', description: 'The typed action, e.g. {"type":"vmBusMute","bus":"0","mode":"toggle"}', properties: { type: { type: 'STRING' } } },
-          description: { type: 'STRING', description: 'Short plain-language line in the user\'s language saying what it does, shown on the confirmation card when one is needed.' },
-        }, required: ['action'] } },
-        { name: 'configure_deck', description: 'Create a Deck profile, or add keys to the one in use (addTo "current"), with FULL power: any action type from deck_action_catalog (typed actions with their exact params, e.g. {type:"obsScene",scene:"Live"} or {type:"hotkey",keys:"ctrl+shift+m"}; scripts, typed text and webhooks are refused, the user adds those in the Deck editor), per-key tap/double/hold, live state bindings, live value badges, touch sliders and Smart-Profiles auto-switch rules. Prefer this over genesis_setup_deck when the user asks for anything beyond its basic action list. Every action is re-validated by the app before it is stored or runs. Prefer create_preset kind "deck" for a bigger profile with folders, a styled look, or a code to share.', parameters: { type: 'OBJECT', properties: {
-          profileName: { type: 'STRING', description: 'Short profile name in the user\'s language, e.g. "Streaming Pro"' },
-          cols: { type: 'NUMBER', description: 'Grid columns (1-8)' },
-          rows: { type: 'NUMBER', description: 'Grid rows (1-8)' },
-          keys: { type: 'ARRAY', description: 'The keys (max 32). Each: title, one emoji icon, optional hex color; then EITHER actions (array of typed action objects, run in order on tap; optional double/hold arrays for those gestures) OR kind:"slider" + slider target.', items: { type: 'OBJECT', properties: {
-            title: { type: 'STRING' }, icon: { type: 'STRING', description: 'An icon from the Deck\'s own library, drawn in the Deck\'s look (use one whenever it fits): ' + require('./js/deck-icons.js').ids().join(', ') + '. Only when none fits: one emoji' },
-            color: { type: 'STRING', description: 'Hex accent, e.g. #ff3b30' }, kind: { type: 'STRING', description: '"action" (default) or "slider" (a touch fader)' },
-            unlit: { type: 'BOOLEAN', description: 'Optional: one face, the key never lights from its action (a key that only saves a replay or a screenshot)' },
-            actions: { type: 'ARRAY', description: 'Tap: typed action objects, e.g. [{"type":"micMute","mode":"toggle"}]. Each may carry delayMs.', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
-            double: { type: 'ARRAY', description: 'Optional double-tap actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
-            hold: { type: 'ARRAY', description: 'Optional press-and-hold actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
-            toggle: { type: 'BOOLEAN', description: 'Optional: a switch. The first tap runs actions and the key stays lit, the next runs "off"' },
-            off: { type: 'ARRAY', description: 'toggle keys: the actions of the tap that turns it off (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
-            mode: { type: 'STRING', description: 'Optional: "momentary" runs "press" when pressed and "release" when let go (push to talk), "repeat" runs actions again and again while held (volume up)' },
-            press: { type: 'ARRAY', description: 'momentary keys: actions on press (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
-            release: { type: 'ARRAY', description: 'momentary keys: actions on release (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
-            confirm: { type: 'BOOLEAN', description: 'Optional: ask for a second tap before running, for keys costly to hit by mistake (end stream, shut down)' },
-            state: { type: 'OBJECT', description: 'Optional live-state binding, e.g. {"source":"discordMuted"} or {"source":"haEntity","entity":"light.desk"}: the key lights while ON', properties: { source: { type: 'STRING' } } },
-            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown, or {"source":"sensor","name":"cpuWatts"} for a hardware reading (cpu, gpu, cpuTemp, gpuTemp, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts, battery:<device name>), or {"source":"vitals","name":"hydration"} for how full a Vitals meter is (hydration, energy, stamina, focus, posture, or lowest = the emptiest one)', properties: { source: { type: 'STRING' } } },
-            stateStyle: { type: 'OBJECT', description: 'Optional alternate face while the state is ON: {"icon":"record","label":"LIVE","color":"#ff3355"} (icon as for the key)', properties: { icon: { type: 'STRING' }, label: { type: 'STRING' }, color: { type: 'STRING' } } },
-            slider: { type: 'OBJECT', description: 'kind:"slider" only. target: volume|appVolume|spotifyVolume|obsInput|haLight|discordInput|discordOutput (+ app/entity/source when the target needs one); orient: "v"|"h"', properties: { target: { type: 'STRING' }, app: { type: 'STRING' }, entity: { type: 'STRING' }, source: { type: 'STRING' }, orient: { type: 'STRING' } } },
-          }, required: ['title'] } },
-          addTo: { type: 'STRING', description: 'Optional "current": put the keys in the free slots of the profile the user is using (a new page when it is full) instead of making a new profile. Use it when the user asks to add a key to their Deck; profileName, cols, rows and look are then ignored' },
-          look: { type: 'OBJECT', description: 'Optional, the on/off cues of the new profile: {"litRing":true} rings every lit key, {"dimOff":true} dims the keys that are off', properties: { litRing: { type: 'BOOLEAN' }, dimOff: { type: 'BOOLEAN' } } },
-          autoSwitch: { type: 'OBJECT', description: 'Optional Smart Profiles: auto-show a profile when an app is focused. {"enabled":true,"revert":"default"|"stay","rules":[{"exe":"obs64","profile":"Streaming"}]} (exe = process name, lowercase, no .exe)', properties: { enabled: { type: 'BOOLEAN' }, revert: { type: 'STRING' }, rules: { type: 'ARRAY', items: { type: 'OBJECT', properties: { exe: { type: 'STRING' }, profile: { type: 'STRING' } }, required: ['exe', 'profile'] } } } },
-        } } },
-        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). It can also live in the top bar with no tile on screen: for a small readout there (a mouse battery, a counter) declare "mini": true and "background": true and read sdk_reference section "mini" first; "badge", "island" and "topbarButton" are its other places. Write self-contained files (no external URLs in markup: the sandbox has NO direct network). Put the JavaScript in .js files and attach events with addEventListener: the sandbox CSP allows script files only, so inline on* attributes never run. Set manifest "size" to the shape you designed for (small, medium, wide, tall or large): the widget is put on the current page in that shape, and most tiles on the 2560x720 panel are wide and short (about 750x220 px), so lay out in a row when the tile is much wider than tall. Fill the tile: html, body and the root at height 100% with container-type: size on the root and type sized in cqmin, so the content covers most of the box with no empty band and nothing sunk to one edge. files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream":"battery","data":{...}} messages: the payload is in .data, and the manifest must list the stream. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear), use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "ai":true to ask one plain question at a time to the AI the user set for Bit, the same one you run on (type:"ai" with prompt, optional system, maxTokens, json; the answer comes back in ai_result as text, render it with textContent): no tools, no history, a daily number per widget the user sets, so ask on a tap or a new item, never on a timer; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key); "shape" to give the widget\'s OWN tile a silhouette instead of a rectangle ({"preset":"hexagon"}, also squircle, circle, diamond, cut-corner, parallelogram, ticket, arch, shield, wave, blob, or your own closed SVG path in a 0-to-1 square, {"path":"M .5 0 L 1 .5 L .5 1 L 0 .5 Z"}), which needs no permission and sends the widget {type:"shape",safe:{t,r,b,l}} so it can keep its content clear of the cut edges. Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message: it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything. Use create_preset (kind "widget" or "ambient") only when the user wants a share code or a package; this tool is the direct install. To CHANGE a widget the user already has (made by you or by them, even days ago), call my_widgets to find it and read its files, then call this tool with its id and ONLY the files you change: the files you leave out stay as they are, and "remove" drops the ones the new version no longer uses. Raise the manifest "version". A widget from the Store or a share code belongs to someone else and cannot be changed: make a new one with a new id instead. For a brand-new widget pick an id that my_widgets does not list.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Package id: lowercase letters/digits/dashes, 2-40 chars, e.g. "cpu-ring"' },
-          files: { type: 'ARRAY', description: 'The package files as plain text (manifest.json + index.html + any .js/.css)', items: { type: 'OBJECT', properties: {
-            path: { type: 'STRING', description: 'Relative path, e.g. "manifest.json", "index.html", "widget.js"' },
-            content: { type: 'STRING', description: 'The file\'s full text content' },
-          }, required: ['path', 'content'] } },
-          remove: { type: 'ARRAY', description: 'When changing an existing widget: paths of its files to delete', items: { type: 'STRING' } },
-        }, required: ['id', 'files'] } },
-        { name: 'my_widgets', description: 'Read-only: the widgets the user owns (made with you or by them), so you can change one later. No id → the list (id, name, version, size, description). With an id → that widget\'s files in full (text), and its images/fonts by name only. Widgets from the Store or share codes are not listed and cannot be read. A widget made in Xenon Maker comes back as its design (doc.js) with a hint on how to change it.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'The widget id to read; leave out for the list' },
-        } } },
-        { name: 'preset_reference', description: 'Read-only: the exact rules of one Xenon share code kind for create_preset (every field, its allowed values and ranges, read from the code of the app itself) plus a minimal valid example. Call it BEFORE create_preset for any kind you have not built in this conversation. No kind → the list of kinds.', parameters: { type: 'OBJECT', properties: {
-          kind: { type: 'STRING', description: 'One of: theme, bg, page, deck, topbar, icons, widget, ambient, ambient-layout, bundle' },
-        } } },
-        { name: 'create_preset', description: 'Create ANY Xenon creation as a share code and open it in the import window, where the user reviews and confirms it (nothing is applied or installed by this call). Kinds: theme (whole look, also light+dark pairs), bg (animated background), page (a dashboard page of tiles), deck (a Deck profile with folders), topbar (the whole top bar), icons (an SVG icon pack), widget / ambient (SDK packages from files you write), ambient-layout (a native Ambient scene), bundle (a package of several parts). Sound packs cannot be generated (audio files). The data is dry-run through the same rules the import uses first: "report" lists what the import would drop or change, so fix and call again when it matters. "critique" is a measured design check of the result (contrast ratios, overlapping or off-grid tiles, unreadable or empty elements, keys that do nothing, and for widgets the rules of the Store review: unused permissions, hidden or dynamic code, loops that keep running while hidden): fix every "fix" item and call create_preset again BEFORE telling the user about the creation; "consider" items are judgement calls. Call preset_reference first for the exact shape. To see the result on screen, ask the user to import it and use capture_screen when they ask you to look.', parameters: { type: 'OBJECT', properties: {
-          kind: { type: 'STRING', description: 'One of: theme, bg, page, deck, topbar, icons, widget, ambient, ambient-layout, bundle' },
-          name: { type: 'STRING', description: 'The name of the creation, 60 characters at most' },
-          data: { type: 'STRING', description: 'The data of the creation: a JSON object serialized to a string, shaped as preset_reference describes for this kind' },
-        }, required: ['kind', 'name', 'data'] } },
-        { name: 'marketplace_search', description: 'Search the Xenon community catalog (themes, backgrounds, pages, Deck profiles, widgets, Ambient scenes, bundles, icon packs, sound packs) by text and/or kind. Use when the user asks what is available, e.g. "c\'è un tema cyberpunk?".', parameters: { type: 'OBJECT', properties: {
-          query: { type: 'STRING', description: 'Free-text search (name, author, tags)' },
-          kind: { type: 'STRING', description: 'Optional filter: theme|bg|page|deck|widget|ambient|bundle|icons|sounds' },
-        } } },
-        { name: 'marketplace_install', description: 'Start installing a community catalog entry by its id (from marketplace_search). This OPENS THE IMPORT REVIEW DIALOG: the user always confirms there; nothing is applied silently. Locked (supporter) entries cannot be installed this way.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'The catalog entry id' },
-        }, required: ['id'] } },
-        { name: 'open_virtual_deck', description: 'Open the Deck as its own always-on-top window on the user\'s main monitor (Virtual Deck). Use for "apri il deck sul PC", "voglio i tasti sullo schermo principale".', parameters: { type: 'OBJECT', properties: {
-          instance: { type: 'STRING', description: 'Optional deck instance id (default: the primary deck)' },
-        } } },
         // ── App knowledge (grounding, read-only) ──
         { name: 'xenon_knowledge', description: 'Read-only: your OWN documentation about Xenon itself. Call this BEFORE answering any question about how Xenon works, its setup, features, requirements, or troubleshooting, e.g. why sensors/fans read empty, how updates or the marketplace work, what supporter codes are, how to publish content, privacy, integrations setup. Pass the user\'s question (or a topic id) as query; call with no query to list all topic ids. Base your answer on the returned card and answer in the user\'s language.', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'The user\'s question in a few words, or a topic id (e.g. "sensors", "marketplace", "troubleshooting"). Omit to list all topics.' },
@@ -929,6 +607,25 @@ function buildCoreAiFunctions() {
         ...capabilities.aiFunctions(capabilityRunner.probes()),
         // ── Vitals and Bit the pet (vitals-ai-tools.js) ──
         ...vitalsAiTools.FUNCTIONS,
+  ];
+}
+
+// Core Xenon AI function declarations — the always-available tools (dashboard,
+// media, audio, system, timers, notes/tasks/calendar, lighting, deck, memory,
+// stocks/football/news, web/vision). Hoisted so BOTH the /api/ai turn-based
+// handler (which appends integration-conditional tools) and the realtime Voce
+// Live endpoint share one identical, drift-free source. Returns a fresh array
+// each call so callers can push without mutating a shared const.
+function buildCoreAiFunctions() {
+  return [
+    ...pcAiFunctions(),
+    ...lookupAiFunctions(),
+    ...plannerAiFunctions(),
+    ...dashboardAiFunctions(),
+    ...lightingAiFunctions(),
+    ...appearanceAiFunctions(),
+    ...deckCreatorAiFunctions(),
+    ...knowledgeAiFunctions(),
   ];
 }
 
@@ -4548,33 +4245,6 @@ async function _xenonMenuState() {
 
 const { updateDesktopSceneSetting } = require('./ambient/desktop-scene-setting.js');
 
-// The usage mode, set by voice or a Deck key (capabilities/usage-mode.js). The
-// shell's main window picks it up on its next load (route `/`).
-// "Avvisi sullo schermo" (js/screen-alerts.js): the rest of `notifications` stays.
-async function updateScreenAlertsSetting(on) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const notifications = { ...(cur.notifications || {}), onScreen: on === true };
-    const saved = await writeHubSettings({ ...cur, notifications, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    // In "widgets only" the alerts window is who answers the wake word.
-    refreshWakeWordWatch();
-    return saved.notifications.onScreen;
-  });
-}
-
-async function updateUsageModeSetting(mode) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const saved = await writeHubSettings({ ...cur, usageMode: mode, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    refreshWakeWordWatch();
-    return saved.usageMode;
-  });
-}
-
 const { normalizeDeckStore } = require('./deck/store-normalize.js');
 
 const { readDeckStore } = require('./deck/store-read.js');
@@ -4958,6 +4628,16 @@ const { refreshDiscordWatch } = require('./discord/watch-refresh.js');
 const { updateNotificationsSetting } = require('./settings/notifications-setting.js');
 
 const { withTasksWrite, writeTasks } = require('./time/tasks-write.js');
+
+const { _whisperReady } = require('./ai/whisper-ready.js');
+
+const { wakeWordWanted } = require('./ai/wake-word-wanted.js');
+
+const { refreshWakeWordWatch } = require('./ai/wake-word-watch.js');
+
+const {
+  updateScreenAlertsSetting, updateUsageModeSetting,
+} = require('./settings/usage-and-alerts-settings.js');
 
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
@@ -5405,31 +5085,6 @@ setInterval(async () => {
   }
 }, SENSORS_STREAM_POLL_MS).unref();
 
-const { whisperState } = require('./ai/whisper-ready-state.js');
-const { whisperProbe } = require('./ai/whisper-probe.js');
-function _whisperReady() {
-  // Cached: this runs on the SSE connect/close path, which must never do sync
-  // FS. A positive result is sticky (whisper doesn't uninstall itself); a
-  // negative probe is cached for 10 s (and reset by the install handler).
-  if (whisperState.ready) return true;
-  const now = Date.now();
-  if (now - whisperProbe.lastAt < 10000) return false;
-  whisperProbe.lastAt = now;
-  try { whisperState.ready = !!aiLocal.whisperExe(__dirname) && fs.existsSync(aiLocal.whisperPaths(__dirname).model); }
-  catch { whisperState.ready = false; }
-  return whisperState.ready;
-}
-function wakeWordWanted() {
-  const w = hub.settings && hub.settings.wakeWord;
-  // "Widgets only" has no dashboard: the on-screen alerts window answers it
-  // (js/screen-bit.js). With that window turned off nobody would, so the mic
-  // stays closed.
-  if (UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode)) {
-    const n = hub.settings.notifications;
-    if (n && n.onScreen === false) return false;
-  }
-  return !!(w && w.enabled) && _whisperReady();
-}
 const { _sttInputArgs, _sttVia, _sttDeviceLabel } = require('./ai/stt-input.js');
 wakeWord.init({
   getFfmpegPath,
@@ -5446,12 +5101,6 @@ wakeWord.init({
   // prevents two tabs from double-starting a voice session.
   onWake: () => broadcastSSE('wake', { at: Date.now() }),
 });
-function refreshWakeWordWatch() {
-  // Listener count first: it short-circuits the (cached) whisper probe away
-  // whenever nobody is connected. A live voice session owns the mic (dshow can't
-  // share it), so the wake word stays down for its whole duration.
-  wakeWord.sync(!liveVoice.active && sseClients.size > 0 && wakeWordWanted());
-}
 
 const { saveStreamConfig } = require('./streaming/save-config.js');
 
@@ -8308,6 +7957,8 @@ const { _packWsFrame } = require('./windows-tiles/ws-frame.js');
 
 const { _startLivePcmCapture } = require('./ai/live-pcm-capture.js');
 
+const { _teardownLiveSession } = require('./ai/live-session-end.js');
+
 server.on('upgrade', (req, socket, head) => {
   let pathname = '';
   try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
@@ -8452,30 +8103,6 @@ function _buildLiveSystemInstruction({ langName, summary }) {
   const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
   const langText = langName ? ` Always reply in ${langName}.` : '';
   return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a dashboard the user runs on a second screen of their own. This is a spoken conversation: keep answers short and natural, 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card. When the user asks you to make something (a theme, a page, a widget, an Ambient scene, a Deck profile, a package), ground it with preset_reference, build it with create_preset, and fix every critique "fix" item with another create_preset call before you speak about it; then say in one sentence what you made and that it is open in the import window for them to check. Never read codes, JSON or file contents aloud.` + memText + sumText + langText;
-}
-
-async function _teardownLiveSession(reason) {
-  // No-op only when the session neither started arming (no liveVoice.active) nor
-  // created any handles. Crucially, if liveVoice.active was set true — even before
-  // liveNow.session was assigned, i.e. a stop that lands mid-await in the 'start'
-  // path — we must STILL restore the duck and the wake word, or the mic stays
-  // ducked and the wake word stays suspended forever.
-  if (!liveVoice.active && !liveNow.session) return;
-  const s = liveNow.session;
-  const wasActive = liveVoice.active;
-  liveNow.session = null;
-  liveVoice.active = false;
-  try { if (s && s.timer) clearTimeout(s.timer); } catch {}
-  try { if (s && s.capture) s.capture.stop(); } catch {}
-  try { if (s && s.session) s.session.close(); } catch {}
-  try { _restoreSpeakerVolume(); } catch {}
-  // Mic released: restore the wake word's desired state, then let it come back
-  // after a settle delay (clears the suspend flag). Mirrors the STT stop path.
-  if (wasActive) {
-    try { refreshWakeWordWatch(); } catch {}
-    try { wakeWord.resumeSoon(); } catch {}
-  }
-  process.stdout.write(`[Live] session ended (${reason || 'done'})\n`);
 }
 
 function _handleLiveClient(client) {

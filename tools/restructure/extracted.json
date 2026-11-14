@@ -429,7 +429,19 @@
       {"file":"server/streaming/save-config.js","about":"Saves the app keys of the streaming accounts and makes the accounts again with them.","names":["saveStreamConfig"]},
       {"file":"server/settings/notifications-setting.js","about":"Saves the notification switches changed by the assistant or a Deck key.","names":["updateNotificationsSetting"]},
       {"file":"server/time/events-write.js","about":"The saves of the calendar events, one after the other.","names":["withEventsWrite","writeEvents","updateEvents","markEventReminders"]},
-      {"file":"server/time/tasks-write.js","about":"The saves of the tasks, one after the other.","names":["withTasksWrite","writeTasks"]}
+      {"file":"server/time/tasks-write.js","about":"The saves of the tasks, one after the other.","names":["withTasksWrite","writeTasks"]},
+      {"file":"server/ai/core-tools-pc.js","about":"The tools the assistant always has for the microphone, what is playing, the volume and the computer itself.","names":["pcAiFunctions"]},
+      {"file":"server/ai/core-tools-lookup.js","about":"The tools the assistant always has to look things up: stocks, football, news, the web and what is on the screen.","names":["lookupAiFunctions"]},
+      {"file":"server/ai/core-tools-planner.js","about":"The tools the assistant always has for notes, tasks and the calendar.","names":["plannerAiFunctions"]},
+      {"file":"server/ai/core-tools-dashboard.js","about":"The tools the assistant always has for the dashboard itself: its panels, Performance Mode, timers, opening programs and finding files.","names":["dashboardAiFunctions"]},
+      {"file":"server/ai/core-tools-lighting.js","about":"The tools the assistant always has for the RGB lights.","names":["lightingAiFunctions"]},
+      {"file":"server/ai/core-tools-appearance.js","about":"The tools the assistant always has to change how the dashboard looks and what it prefers.","names":["appearanceAiFunctions"]},
+      {"file":"server/ai/core-tools-deck-creator.js","about":"The tools the assistant always has to compose Deck keys and to work with what creators make and share.","names":["deckCreatorAiFunctions"],"spelled":{"../js/deck-icons.js":"./js/deck-icons.js"}},
+      {"file":"server/ai/whisper-ready.js","about":"Whether the speech-to-text program and its model are on this computer, asked at most every ten seconds.","names":["_whisperReady"],"home":true},
+      {"file":"server/ai/wake-word-wanted.js","about":"Whether the wake word should be listened for: it is switched on, something would answer it, and speech-to-text is on this computer.","names":["wakeWordWanted"]},
+      {"file":"server/ai/wake-word-watch.js","about":"Starts or stops listening for the wake word, to match who is connected and whether a live voice session holds the microphone.","names":["refreshWakeWordWatch"]},
+      {"file":"server/settings/usage-and-alerts-settings.js","about":"Saves the usage mode, or whether alerts show on the screen, as one change of the settings; the wake word is then started or stopped to match.","names":["updateScreenAlertsSetting","updateUsageModeSetting"]},
+      {"file":"server/ai/live-session-end.js","about":"Ends a live voice session: its timer, capture and connection are closed, the speaker volume and the wake word are put back.","names":["_teardownLiveSession"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
@@ -900,7 +912,8 @@
   "spreads": {
     "server/server.js": [
       {"name":"DEFAULT_HUB_SETTINGS","parts":[{"name":"HUB_DEFAULTS_LOOK","first":"appearance"},{"name":"HUB_DEFAULTS_SCREEN","first":"ambientMode"},{"name":"HUB_DEFAULTS_APP","first":"swipeHomeGesture"},{"name":"HUB_DEFAULTS_TILES","first":"browserAdblock"},{"name":"HUB_DEFAULTS_ASSISTANT","first":"aiProvider"},{"name":"HUB_DEFAULTS_FEATURES","first":"aiFeatures"},{"name":"HUB_DEFAULTS_CONNECTIONS","first":"stocks"},{"name":"HUB_DEFAULTS_INSTALL","first":"surfaceChoice"}],"after":258},
-      {"name":"normalizeHubSettings","parts":[{"name":"normalizeHubLook","first":"appearance"},{"name":"normalizeHubScreen","first":"ambientMode"},{"name":"normalizeHubApp","first":"swipeHomeGesture"},{"name":"normalizeHubTiles","first":"browserAdblock"},{"name":"normalizeHubAssistant","first":"aiProvider"},{"name":"normalizeHubFeatures","first":"aiFeatures"},{"name":"normalizeHubConnections","first":"stocks"},{"name":"normalizeHubInstall","first":"surfaceChoice"}],"after":346,"returns":true}
+      {"name":"normalizeHubSettings","parts":[{"name":"normalizeHubLook","first":"appearance"},{"name":"normalizeHubScreen","first":"ambientMode"},{"name":"normalizeHubApp","first":"swipeHomeGesture"},{"name":"normalizeHubTiles","first":"browserAdblock"},{"name":"normalizeHubAssistant","first":"aiProvider"},{"name":"normalizeHubFeatures","first":"aiFeatures"},{"name":"normalizeHubConnections","first":"stocks"},{"name":"normalizeHubInstall","first":"surfaceChoice"}],"after":346,"returns":true},
+      {"name":"buildCoreAiFunctions","parts":[{"name":"pcAiFunctions","first":"toggle_mic"},{"name":"lookupAiFunctions","first":"get_stock_quote"},{"name":"plannerAiFunctions","first":"read_notes"},{"name":"dashboardAiFunctions","first":"open_weather_panel"},{"name":"lightingAiFunctions","first":"set_lights"},{"name":"appearanceAiFunctions","first":"customize_appearance"},{"name":"deckCreatorAiFunctions","first":"deck_action_catalog"},{"name":"knowledgeAiFunctions","first":"xenon_knowledge"}],"after":428,"returns":true,"list":true}
     ]
   },
   "branches": {
