@@ -1,0 +1,144 @@
+
+/* ══════════════════════════════════════════════════════════════════
+   8 · MARKDOWN  (assistant typography inside the transcript)
+   ══════════════════════════════════════════════════════════════════ */
+.ai-msg-markdown { display: block; }
+
+.ai-msg-markdown .ai-h3,
+.ai-msg-markdown .ai-h4 {
+  font-size: .92rem;
+  font-weight: 700;
+  color: rgba(255,255,255,.96);
+  margin: .7em 0 .25em;
+  line-height: 1.25;
+}
+.ai-msg-markdown .ai-h4 { font-size: .85rem; }
+
+.ai-msg-markdown .ai-p { margin: .2em 0; line-height: 1.6; }
+
+.ai-msg-markdown .ai-ul,
+.ai-msg-markdown .ai-ol {
+  margin: .3em 0 .3em 1em;
+  padding: 0;
+  list-style-position: outside;
+}
+.ai-msg-markdown .ai-ul { list-style-type: disc; }
+.ai-msg-markdown .ai-ol { list-style-type: decimal; }
+.ai-msg-markdown li { margin: .15em 0; line-height: 1.5; }
+
+.ai-msg-markdown .ai-inline-code {
+  background: rgba(255,255,255,.10);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: .82em;
+  color: rgba(var(--accent-rgb), 1);
+}
+
+.ai-msg-markdown .ai-hr { border: none; border-top: 1px solid rgba(255,255,255,.12); margin: .6em 0; }
+.ai-msg-markdown strong { font-weight: 700; color: rgba(255,255,255,.98); }
+.ai-msg-markdown em     { font-style: italic; color: rgba(255,255,255,.85); }
+.ai-msg-markdown .ai-link {
+  color: rgba(var(--accent-rgb), .95);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ai-msg-markdown .ai-link:hover { color: rgba(var(--accent-rgb), 1); }
+
+/* ── Reduced-motion: honour the system preference ────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ai-siri-ring, .ai-panel::before,
+  .ai-presence, .ai-dictate-btn.active, .ai-voice-hint,
+  body.ai-voice-mode.ai-voice-ambient .ai-overlay::after { animation: none !important; }
+  /* The edge glow stays lit (static) so ambient mode still signals it's active. */
+  body.ai-voice-mode.ai-voice-ambient .ai-overlay::after { opacity: .8; }
+}
+
+/* ── What to ask next, and answers to a question: quiet rows, one tap sends one.
+   No boxes: a row of bordered buttons under every reply read as noise. ──── */
+.ai-choices { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin: -4px 0 8px 28px; }
+.ai-choice {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 44px; max-width: 100%; padding: 0 8px; margin-left: -8px; cursor: pointer;
+  border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13.5px; line-height: 1.35; text-align: left;
+  color: var(--muted-text);
+  overflow-wrap: anywhere;
+  transition: background .15s ease, color .15s ease;
+}
+.ai-choice::before {
+  content: ""; flex: none; width: 16px; height: 16px; opacity: .7;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 10 5 5-5 5M4 4v7a4 4 0 0 0 4 4h12'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 10 5 5-5 5M4 4v7a4 4 0 0 0 4 4h12'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.ai-choice:hover { background: var(--hover-bg, rgba(255,255,255,.06)); color: var(--text); }
+.ai-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Bit's question with real alternatives (js/ai-ask-card.js) ── */
+.ai-ask { align-items: stretch; gap: 2px; margin: 0 0 8px 17px; outline: none; }
+.ai-ask-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  width: 100%; min-height: 44px; margin: 0; padding: 8px 10px; cursor: pointer;
+  border: 1px solid transparent; border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13.5px; line-height: 1.35; text-align: left;
+  color: var(--text);
+}
+.ai-ask-row::before { content: none; }
+.ai-ask-row:hover, .ai-ask-row:focus-visible { background: var(--hover-bg, rgba(255,255,255,.06)); color: var(--text); }
+.ai-ask-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ai-ask-n { flex: none; width: 14px; font-size: 12px; line-height: 18px; color: var(--muted-text); font-variant-numeric: tabular-nums; }
+.ai-ask-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ai-ask-lbl { overflow-wrap: anywhere; }
+.ai-ask-lbl small { margin-left: 8px; font-size: 11px; color: var(--muted-text); }
+.ai-ask-note { font-size: 12.5px; line-height: 1.35; color: var(--muted-text); overflow-wrap: anywhere; }
+.ai-ask-own { align-items: center; }
+.ai-ask-leave { align-self: flex-start; margin: 2px 0 0 2px; font-weight: 600; }
+.ai-ask-leave::before { content: none; }
+
+/* ── The way to more Scintille, under a reply that ran them low or out (BitChat.buyRow) ── */
+.ai-buy { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 8px; }
+.ai-buy-line { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted-text); }
+.ai-buy-pack {
+  border-radius: 12px; font-size: 13px; line-height: 1.35;
+  color: rgba(255,255,255,.94);
+  background: rgba(var(--accent-rgb), .10);
+  border: 1px solid rgba(var(--accent-rgb), .30);
+  transition: background .15s ease, border-color .15s ease;
+}
+.ai-buy-pack:hover { background: rgba(var(--accent-rgb), .18); border-color: rgba(var(--accent-rgb), .5); }
+.ai-buy-pack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ai-buy-go { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; min-height: 44px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* ── "Annulla" and "Riprova ora": underlined words under a reply, no box. ──── */
+.ai-undo-row { display: flex; justify-content: flex-start; margin: -6px 0 4px 28px; }
+.ai-undo-btn,
+.ai-retry-btn {
+  min-height: 36px; padding: 0 4px; margin-left: -4px; cursor: pointer;
+  border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13px; line-height: 1;
+  color: var(--muted-text);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.ai-retry-btn { color: var(--text); }
+.ai-undo-btn:hover, .ai-retry-btn:hover { color: var(--text); }
+.ai-undo-btn:focus-visible, .ai-retry-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ai-undo-btn:disabled { cursor: default; }
+.ai-undo-btn.ai-undo-done { text-decoration: none; opacity: .8; cursor: default; }
+@media (pointer: coarse) { .ai-undo-btn, .ai-retry-btn { min-height: 44px; } }
+
+/* What Bit said on its own (js/bit-told.js): a chat message with a title, and the
+   picture and the button it came with. */
+.ai-told { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.ai-told-media { width: min(320px, 100%); overflow: hidden; border-radius: 6px; }
+.ai-told-media img, .ai-told-media video { display: block; width: 100%; height: auto; }
+.ai-told-title { font-weight: 600; color: var(--text); }
+.ai-told-answer { color: var(--muted-text); }
+.ai-told-go {
+  min-height: 44px; max-width: 100%; padding: 0 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13.5px; color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ai-told-go:hover { background: var(--hover-bg, rgba(255,255,255,.06)); }
+.ai-told-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

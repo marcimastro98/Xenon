@@ -91,6 +91,9 @@
       "server/js/layer-tiles.js": "Names the file only in the sentence that says why the chat is never a widget on the desktop; no row of the list loads it.",
       "server/test/ai-edge-glow.test.mjs": "Names the file only in the title of a test; what it reads is ai-edge-glow.js.",
       "server/test/screen-companion.test.mjs": "Names the file as an address: the card's list must not hold it, and a stand-in page answers when that address is loaded. It never opens the file."
+    },
+    "server/components/AIPanel/AIPanel.css": {
+      "server/spotlight.html": "Names the sheet only in a comment of its own style block; the window gets the sheet from the list of the screen's voice panel (js/screen-bit.js), which the tool follows."
     }
   }
 }

@@ -16,7 +16,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.ScreenBit = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
-  const CSS = Object.freeze(['components/AIPanel/AIPanel.css']);
+  const CSS = Object.freeze(['components/AIPanel/AIPanel.css', 'components/AIPanel/AIPanelConversation.css', 'components/AIPanel/AIPanelInput.css', 'components/AIPanel/AIPanelVoice.css', 'components/AIPanel/AIPanelAmbientVoice.css', 'components/AIPanel/AIPanelPickers.css', 'components/AIPanel/AIPanelReplies.css']);
   // index.html's order. No ai-live.js: Voce Live needs the dashboard's
   // full-duplex audio path, so on the screen Bit talks turn by turn.
   const SCRIPTS = Object.freeze([

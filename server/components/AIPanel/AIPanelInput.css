@@ -1,0 +1,260 @@
+
+/* ══════════════════════════════════════════════════════════════════
+   5 · INPUT  (emerges quietly, recedes visually)
+   ══════════════════════════════════════════════════════════════════ */
+.ai-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px 18px;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.ai-text-input {
+  flex: 1;
+  /* A flex item's `min-width` defaults to `auto`, and for an <input> that
+     resolves to the intrinsic width of its `size` attribute — about 20
+     characters — measured in whatever font actually loaded. So `flex: 1` can
+     grow this box but never shrink it below that floor, and when the floor is
+     wider than the row the overflow lands on the LAST sibling: the send button
+     gets clipped by the panel edge. Seen on Linux, where neither Inter nor
+     Segoe UI exists and the stack falls through to Noto Sans, whose wider
+     metrics push the floor past the available width. `min-width: 0` is what
+     makes `flex: 1` mean what it reads like. */
+  min-width: 0;
+  height: 42px;
+  border-radius: 21px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.92);
+  font-size: 13.5px;
+  padding: 0 16px;
+  outline: none;
+  transition: border-color .25s, background .25s, box-shadow .25s;
+}
+.ai-text-input::placeholder { color: rgba(255,255,255,.30); }
+.ai-text-input:focus {
+  border-color: rgba(var(--accent-rgb), .45);
+  background: rgba(255,255,255,.07);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .08);
+}
+
+.ai-send-btn,
+.ai-attach-btn,
+.ai-talk-btn,
+.ai-dictate-btn {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.035);
+  color: rgba(255,255,255,.48);
+  cursor: pointer;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  transition: background .18s, color .18s, border-color .18s, transform .12s;
+}
+.ai-send-btn:hover,
+.ai-attach-btn:hover, .ai-talk-btn:hover,
+.ai-dictate-btn:hover {
+  background: rgba(255,255,255,.09);
+  color: rgba(255,255,255,.92);
+}
+.ai-send-btn:active,
+.ai-attach-btn:active, .ai-talk-btn:active,
+.ai-dictate-btn:active { transform: scale(.94); }
+
+.ai-send-btn svg { width: 17px; height: 17px; fill: currentColor; }
+.ai-dictate-btn svg { width: 19px; height: 19px; fill: none; }
+/* While a reply is on its way, send is a square stop (ai.js aiSendOrStop). */
+.ai-send-btn .ai-stop-icon { display: none; }
+body.ai-turn-running .ai-send-btn .ai-send-icon { display: none; }
+body.ai-turn-running .ai-send-btn .ai-stop-icon { display: block; width: 15px; height: 15px; }
+.ai-attach-btn svg, .ai-talk-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+/* Inline dictation: recording pulses in the accent; the brief transcription
+   round-trip dims the button and blocks re-entry. */
+.ai-dictate-btn.active {
+  background: rgba(var(--accent-rgb), .22);
+  border-color: rgba(var(--accent-rgb), .50);
+  color: var(--accent);
+  animation: xn-pulse 1.2s ease-in-out infinite;
+  will-change: opacity;
+}
+.ai-dictate-btn.busy { opacity: .55; pointer-events: none; }
+
+/* One main button, in Bit's green (the main action of the brand): it dictates
+   while the field is empty, sends once there is a draft, and is the square stop
+   while a reply is on its way (js/bit-composer.js). A copy's composer has no
+   dictation, so its send stays. */
+.ai-send-btn,
+.ai-dictate-btn {
+  background: var(--bit-action, #6ee787);
+  border-color: transparent;
+  color: var(--bit-action-ink, #0b2412);
+}
+.ai-send-btn:hover,
+.ai-dictate-btn:hover { background: var(--bit-action, #6ee787); color: var(--bit-action-ink, #0b2412); filter: brightness(1.08); }
+.ai-input-row:has(.ai-dictate-btn):not(.has-draft) .ai-send-btn,
+.ai-input-row.has-draft .ai-dictate-btn,
+body.ai-turn-running .ai-input-row .ai-dictate-btn { display: none; }
+/* The stop must beat the "no draft hides send" rule above: the field is empty
+   while a reply is on its way, so the selector carries the same :has(). */
+body.ai-turn-running .ai-input-row .ai-send-btn,
+body.ai-turn-running .ai-input-row:has(.ai-dictate-btn):not(.has-draft) .ai-send-btn {
+  display: grid;
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.18);
+  color: rgba(255,255,255,.92);
+}
+
+/* The screen goes with every message: the attach button says so. */
+.ai-attach-btn.active {
+  background: rgba(var(--accent-rgb), .20);
+  border-color: rgba(var(--accent-rgb), .46);
+  color: var(--accent);
+}
+
+/* The attach menu: a file, or the screen with every message. */
+.ai-attach-menu {
+  position: absolute;
+  left: 12px;
+  bottom: calc(100% - 4px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.ai-attach-item {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-attach-item:hover, .ai-attach-item:focus-visible { background: var(--hover-bg); outline: none; }
+.ai-attach-item[aria-checked="true"] { color: var(--accent); }
+
+/* ── Pending attachment preview strip ────────────────────────────── */
+.ai-attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 20px 2px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.ai-attach-preview[hidden] { display: none !important; }
+.ai-attach-thumb-wrap { position: relative; flex-shrink: 0; }
+.ai-attach-thumb {
+  width: 52px; height: 52px;
+  object-fit: cover;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.14);
+  display: block;
+}
+.ai-attach-thumb-rm {
+  position: absolute;
+  top: -5px; right: -5px;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(20,22,28,.92);
+  color: rgba(255,255,255,.82);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid; place-items: center;
+  padding: 0;
+}
+.ai-attach-thumb-rm:hover { background: rgba(220,60,60,.9); color: #fff; }
+
+/* ── Images inside conversation ──────────────────────────────────── */
+.ai-bubble-images { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+.ai-bubble-img {
+  max-width: 200px; max-height: 130px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.12);
+  display: block;
+}
+
+/* ── Document attachments (PDF / text) — pending preview + in bubble ─ */
+.ai-attach-doc,
+.ai-bubble-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+}
+.ai-attach-doc { height: 52px; }
+.ai-attach-doc-ext {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), .18);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: .4px;
+}
+.ai-attach-doc-name,
+.ai-bubble-doc .ai-attach-doc-name {
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: rgba(255,255,255,.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* legacy in-chat monitor picker (text mode) — kept, restyled subtle */
+.ai-screen-picker {
+  padding: 8px 20px 6px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ai-screen-picker-label { font-size: 11.5px; color: rgba(255,255,255,.38); }
+.ai-screen-picker-row { display: flex; gap: 7px; flex-wrap: wrap; }
+.ai-screen-picker-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.75);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.ai-screen-picker-btn:hover {
+  background: rgba(var(--accent-rgb), .16);
+  border-color: rgba(var(--accent-rgb), .32);
+  color: rgba(255,255,255,.95);
+}
+.ai-screen-picker-primary { border-color: rgba(var(--accent-rgb), .28); color: rgba(255,255,255,.88); }

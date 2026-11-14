@@ -1,0 +1,113 @@
+
+/* ══════════════════════════════════════════════════════════════════
+   6b · AMBIENT VOICE — the dashboard stays visible, only the edge glows
+   Opt-in (Settings → Xenon AI → "Chat vocale trasparente"). The opaque
+   "room" is peeled away: the panel turns transparent, the orb steps aside,
+   and the screen border breathes in the accent to signal listen / think /
+   speak. Live captions sit in a compact glass strip at the bottom so they
+   stay readable over any widget behind them.
+   ══════════════════════════════════════════════════════════════════ */
+body.ai-voice-mode.ai-voice-ambient .ai-panel {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+body.ai-voice-mode.ai-voice-ambient .ai-panel::before { display: none; } /* kill the breathing aura */
+
+/* The reactive edge glow — an inset halo hugging the screen border. It rides
+   above the (now see-through) panel but never eats taps (pointer-events:none). */
+body.ai-voice-mode.ai-voice-ambient .ai-overlay::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  box-shadow:
+    inset 0 0 3px  rgba(var(--accent-rgb), .55),
+    inset 0 0 34px rgba(var(--accent-rgb), .30),
+    inset 0 0 90px rgba(var(--accent-rgb), .12);
+  transition: box-shadow .45s ease;
+  animation: xn-edge-breathe 4.4s ease-in-out infinite;
+  will-change: opacity;
+}
+body.ai-voice-mode.ai-voice-ambient.voice-listening .ai-overlay::after { animation-duration: 2.6s; }
+body.ai-voice-mode.ai-voice-ambient.voice-thinking .ai-overlay::after {
+  animation-duration: 1.5s;
+  box-shadow:
+    inset 0 0 3px  rgba(182,157,255, .55),
+    inset 0 0 34px rgba(182,157,255, .30),
+    inset 0 0 90px rgba(182,157,255, .12);
+}
+body.ai-voice-mode.ai-voice-ambient.voice-speaking .ai-overlay::after {
+  animation-duration: 1.9s;
+  box-shadow:
+    inset 0 0 4px   rgba(var(--accent-rgb), .78),
+    inset 0 0 46px  rgba(var(--accent-rgb), .42),
+    inset 0 0 120px rgba(var(--accent-rgb), .18);
+}
+@keyframes xn-edge-breathe {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: .95; }
+}
+
+/* One glass card at the bottom: a small Bit, what was heard and the reply,
+   and the state on the right. It reads over any widget behind it. */
+/* The view still covers the screen (a tap anywhere stops); only the stage
+   inside it is drawn. */
+body.ai-voice-mode.ai-voice-ambient .ai-voice-view {
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0;
+  padding: 16px 16px 22px;
+}
+body.ai-voice-mode.ai-voice-ambient .ai-voice-stage {
+  display: flex;
+  width: min(780px, 100%);
+  max-height: 46vh;
+  box-sizing: border-box;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 12px 20px 12px 12px;
+  text-align: left;
+  border-radius: 16px;
+  background: rgba(10, 12, 13, .9);
+  border: 1px solid rgba(255, 255, 255, .14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+body.ai-voice-mode.ai-voice-ambient .ai-presence { gap: 0; padding: 0; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-bit { width: 36px; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-aura,
+body.ai-voice-mode.ai-voice-ambient .ai-voice-bars { display: none; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-words { flex: 1 1 auto; align-items: flex-start; gap: 4px; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-user {
+  width: 100%;
+  font-size: 14px;
+  color: rgba(255, 255, 255, .6);
+  text-align: left;
+}
+body.ai-voice-mode.ai-voice-ambient .ai-voice-reply {
+  width: 100%;
+  font-size: 20px;
+  font-weight: 500;
+  text-align: left;
+  max-height: 30vh;
+}
+body.ai-voice-mode.ai-voice-ambient .ai-voice-reply.ai-voice-reply-long { font-size: 15px; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-hint {
+  flex: none;
+  max-width: 34%;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, .66);
+  text-align: right;
+}
+@media (max-width: 520px) {
+  body.ai-voice-mode.ai-voice-ambient .ai-voice-stage { flex-wrap: wrap; }
+  body.ai-voice-mode.ai-voice-ambient .ai-voice-words { flex-basis: calc(100% - 56px); }
+  body.ai-voice-mode.ai-voice-ambient .ai-voice-hint { max-width: none; width: 100%; text-align: left; }
+}
+body.ai-voice-mode.ai-voice-ambient .ai-header { text-shadow: 0 1px 8px rgba(0, 0, 0, .6); }
