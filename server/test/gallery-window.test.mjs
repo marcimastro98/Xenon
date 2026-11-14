@@ -3,7 +3,7 @@
 // and every layer letting go of the keyboard while it is still in the page.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs'; // a script comes with the scripts cut out of it
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
