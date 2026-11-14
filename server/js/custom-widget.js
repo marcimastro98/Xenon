@@ -19,7 +19,7 @@
     swap: S('<path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/>'),
     reload: S('<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>'),
   };
-  const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
+  const { t, langCode, tempUnit, hwTempUnit } = window.CustomWidgetHostSays;
   const el = makeEl;   // shared DOM factory from utils.js
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
@@ -530,11 +530,9 @@
     }
     return out;
   }
-  // instanceId → { frame, pkgId, ready, lastAction, lastFetch, lastState, ambient? }.
-  // Ambient entries are fullscreen scene frames registered by AmbientMode under
-  // a reserved id — they are not tiles, so every tile-driven cleanup below must
-  // skip them (AmbientMode owns their lifecycle).
-  const AMBIENT_INST_ID = '__ambient-scene__';
+  const {
+    AMBIENT_INST_ID, WEATHER_VIEW_ID, assignKeyOf, hostKindOf, instanceIdOf,
+  } = window.CustomWidgetInstances;
   const frames = new Map();
   // Frames stopped for leaving their own page (see guardFrame): tile instance id
   // or 'svc:'+pkgId → the package id. Kept until the user reloads the widget or
@@ -555,15 +553,9 @@
   const SURFACE_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const lastData = {};        // stream → last payload (seed for late frames)
   let discordSeedInflight = null;   // shared one-shot seed of the `discord` stream
-  // Streams whose widgets draw the recent PAST, not only the present. For these
-  // the host keeps the last minutes of payloads and hands them to a frame as one
-  // `history` message when it starts and when it comes back into view, so a chart
-  // opens full instead of filling up while the user watches (WIDGET_SDK.md,
-  // `processes`). The first mount on a fresh page seeds the ring from the
-  // server, which kept the same readings while this page did not exist.
-  const HISTORY_STREAMS = { processes: { maxAgeMs: 5 * 60 * 1000, maxItems: 160, url: '/api/processes/history' } };
-  const streamHistory = {};         // stream → [{ t, data }] oldest first, host clock
-  const historySeed = {};           // stream → 'pending' | 'done'
+  const {
+    HISTORY_STREAMS, streamHistory, historySeed, withFanLabels, historyPrune, historyPush,
+  } = window.CustomWidgetStreamData;
   // Deck states published by widgets over the bridge, keyed "pkg/stateId".
   // Authoritative copy — pushed wholesale into the Deck snapshot on change.
   const sdkStates = {};
@@ -586,29 +578,6 @@
       .filter(n => n.querySelector('.custom-widget-mount')));
   }
 
-  // The Weather window's host: its own frame, the Weather tile's assignment.
-  const WEATHER_VIEW_ID = 'weather@view';
-  // The sdkWidgets.assign key an instance reads and writes.
-  function assignKeyOf(instId) {
-    return instId === WEATHER_VIEW_ID ? 'weather' : instId;
-  }
-
-  // The tile kind an instance belongs to: 'custom', or 'weather' for a Weather host.
-  function hostKindOf(instId) {
-    return String(assignKeyOf(instId) || '').split('~')[0];
-  }
-
-  // Identity comes from the ATOM (data-dashboard-instance, set on every
-  // duplicated copy; the primary has none → base id), NEVER from the enclosing
-  // .grid-stack-item's gs-id: inside a tab group that item is the GROUP's
-  // (gs-id "g-…"), so every member would collapse onto one shared key — the
-  // assignment "vanished" into an unreachable key when a tile joined a group,
-  // two custom tabs fought over one slot, and unassigning one killed both.
-  // Standalone tiles are unaffected: a primary's gs-id IS the base id and a
-  // copy's gs-id IS its data-dashboard-instance, so stored keys keep working.
-  function instanceIdOf(tile) {
-    return tile.getAttribute('data-cw-host') || tile.getAttribute('data-dashboard-instance') || tile.getAttribute('data-dashboard-widget') || 'custom';
-  }
 
   // Store widgets placed on a layer surface (js/layer-host.js) are keyed by the
   // layer id and live only in memory: a layer page never saves sdkWidgets.assign.
@@ -815,32 +784,6 @@
 
   // --accent and --bg are registered <color>s (@property in global.css, so a
 
-  function langCode() {
-    return (typeof t === 'function' && t('locale')) || 'en';
-  }
-
-  // Celsius or Fahrenheit, as the user set it in Settings. Sent for the same
-  // reason `lang` is: a widget that draws a temperature — a monitor showing CPU
-  // and GPU, a weather tile — has no other way to know, and one showing °C on a
-  // dashboard where everything else says °F is wrong in a way the widget author
-  // cannot fix from inside. Not a permission: it is a preference about how to
-  // format, and it says nothing about the user beyond which unit they read.
-  //
-  // Values ARE NOT converted. Xenon reports Celsius everywhere it reports a
-  // temperature, and it keeps doing that: converting on the way out would mean a
-  // widget could not tell 30 °C from 30 °F without reading this field anyway, and
-  // the two together are the only pair that cannot be misread.
-  function tempUnit() {
-    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
-    return hs.tempUnit === 'f' ? 'f' : 'c';
-  }
-  // The unit the user reads CPU/GPU temperatures in. Usually the same as
-  // tempUnit, but it can be set apart (°F forecast, °C hardware), so a monitor
-  // widget reads this one and a weather widget reads tempUnit.
-  function hwTempUnit() {
-    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
-    return hs.hwTempUnit === 'c' || hs.hwTempUnit === 'f' ? hs.hwTempUnit : tempUnit();
-  }
 
   // Where this frame is drawn, and whether a dashboard is in use on this PC.
   // A widget can lay itself out for the place it is in (a corner of the desktop,
@@ -2407,28 +2350,6 @@
     }
   });
 
-  // The user's own fan names (Fans widget → tap to rename, persisted in settings
-  // as fanLabels) must reach sandboxed widgets too: the board only ever says
-  // "Fan #1", so a widget seeing the raw sensor name shows a different label than
-  // every builtin surface for the same fan — and loses the ONE clue that a header
-  // drives a pump rather than a case fan (which is how a widget ends up painting
-  // a healthy AIO pump at permanent redline). Copy-on-write: the payload is
-  // shared with the builtin tiles, so it is never mutated in place.
-  function withFanLabels(payload) {
-    if (!payload || typeof payload !== 'object' || !Array.isArray(payload.fans)) return payload;
-    const labels = (typeof window.getFanLabels === 'function') ? window.getFanLabels() : null;
-    if (!labels) return payload;
-    let touched = false;
-    const fans = payload.fans.map((f) => {
-      if (!f || typeof f !== 'object') return f;
-      const custom = labels[(f.kind || 'mb') + '|' + String(f.name)];
-      if (typeof custom !== 'string' || !custom) return f;
-      touched = true;
-      return { ...f, name: custom };
-    });
-    return touched ? { ...payload, fans } : payload;
-  }
-
   // SSE relay (called from main.js): cache + fan out to granted, ready frames.
   // Always cache lastData so a frame returning to view gets fresh data on the next
   // tick, but don't post to a hidden tab or to a frame parked on a non-current pager
@@ -2522,20 +2443,6 @@
   }
 
   // ---- short stream history (HISTORY_STREAMS) ------------------------------
-  function historyPrune(stream, now) {
-    const cfg = HISTORY_STREAMS[stream];
-    const ring = streamHistory[stream];
-    if (!cfg || !ring) return;
-    while (ring.length && now - ring[0].t > cfg.maxAgeMs) ring.shift();
-    while (ring.length > cfg.maxItems) ring.shift();
-  }
-  function historyPush(stream, data, t) {
-    const ring = streamHistory[stream] || (streamHistory[stream] = []);
-    const last = ring[ring.length - 1];
-    if (last && t < last.t) ring.length = 0;   // the clock stepped back: start over
-    ring.push({ t, data });
-    historyPrune(stream, t);
-  }
   // Send what the ring holds. On the first mount of a fresh page the ring is
   // empty, so ask the server for the readings it kept, merge the ones older than
   // anything seen here, and send again to every granted frame.
@@ -3417,55 +3324,10 @@
   }
 
   // ── Picker filters ───────────────────────────────────────────────
-  // Categories are derived from what a manifest DECLARES (its data streams),
-  // never from a free-text field a package could put anything in — so the chips
-  // stay meaningful no matter who authored the widget. A chip is only rendered
-  // when at least one listed widget falls in it, so tapping one can never empty
-  // the list on its own.
-  const PICK_CATS = [
-    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'sensors', 'perf', 'battery', 'processes', 'scriptStates'] },
-    { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
-    { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
-    { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
-    { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude', 'codex'] },
-    { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant', 'lighting'] },
-  ];
-  // Below this many entries the list is already scannable and the filter bar
-  // would cost more tile height than it saves.
-  const PICK_FILTER_MIN = 6;
-  // Why the rescan skipped a folder, in words. GET /sdk/widgets has always
-  // returned these alongside the packages and nothing ever displayed them, so a
-  // package whose manifest fails validation was installed, listed as "Installed"
-  // in the Store, and absent from this picker with nothing said anywhere —
-  // indistinguishable from a search that simply found nothing.
-  // Only the reasons a user can act on get a sentence. Anything else falls
-  // through as its raw code on purpose: an unexplained code is still the thing
-  // that gets pasted into a bug report, and swallowing it is how this became
-  // invisible in the first place.
-  const PICK_BROKEN_REASONS = {
-    missing_manifest: { key: 'cw_pick_broken_no_manifest', fb: 'its manifest.json is missing' },
-    bad_manifest: { key: 'cw_pick_broken_bad_manifest', fb: 'its manifest.json could not be read' },
-    missing_entry: { key: 'cw_pick_broken_no_entry', fb: 'the file it names as its entry point is missing' },
-    unsupported_api: { key: 'cw_pick_broken_api', fb: 'it was built for a different SDK version' },
-  };
-  // A folder full of junk must not push the widgets off the panel.
-  const PICK_BROKEN_MAX = 6;
-  // Search text and active chip, per tile instance. Kept outside the DOM so a
-  // repaint (a rescan, a package install) doesn't drop what the user typed.
-  const pickFilter = new Map();
-
-  // Accent- and case-insensitive, so "meteo" finds "Météo" and vice versa.
-  function pickNorm(s) {
-    return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-  }
-
-  // Category ids an entry belongs to. Anything matching none — a clock, a
-  // decorative tile — lands in 'other' so no widget is unreachable by chip.
-  function pickCatsOf(streams) {
-    const have = new Set(Array.isArray(streams) ? streams : []);
-    const hits = PICK_CATS.filter(c => c.streams.some(s => have.has(s))).map(c => c.id);
-    return hits.length ? hits : ['other'];
-  }
+  const {
+    PICK_CATS, PICK_FILTER_MIN, PICK_BROKEN_REASONS, PICK_BROKEN_MAX, pickFilter, pickNorm,
+    pickCatsOf,
+  } = window.CustomWidgetPickerWords;
 
   // A Weather tile's chooser also says where a weather widget comes from: Bit
   // (where its chat is on this screen) and Xenon Maker, beside the Store.
