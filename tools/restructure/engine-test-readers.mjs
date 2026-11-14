@@ -34,6 +34,8 @@ export const BY_HAND = new Set([
 
 const UTF8 = String.raw`,\s*'utf-?8'`;
 const SPACED = String.raw`,\s*`;
+// Where readFileSync comes from when it is not imported by name: fs.readFileSync, require('node:fs').readFileSync.
+const FS = String.raw`(?:(?:fs|require\('(?:node:)?fs'\))\.)?`;
 const quoted = (text) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
 // Folders of server/ that hold no script a test would read by name.
@@ -71,9 +73,9 @@ export function readsOf(source = ENGINE, { bare = true } = {}) {
   const pieces = parts.length > 1 ? `(?:'${whole}'|${parts.map((part) => `'${quoted(part)}'`).join(SPACED)})` : `'${whole}'`;
   return [
     // readFileSync(new URL('../server.js', import.meta.url), 'utf8'), with or without fileURLToPath(...)
-    new RegExp(String.raw`(?:fs\.)?readFileSync\(\s*(?:fileURLToPath\(\s*)?new URL\('\.\.\/${whole}',\s*import\.meta\.url\)\)?${UTF8}\s*\)`, 'g'),
+    new RegExp(String.raw`${FS}readFileSync\(\s*(?:fileURLToPath\(\s*)?new URL\('\.\.\/${whole}',\s*import\.meta\.url\)\)?${UTF8}\s*\)`, 'g'),
     // readFileSync(join(HERE, '..', 'server.js'), 'utf8'), readFileSync(path.join(ROOT, 'server', 'server.js'), 'utf8')
-    new RegExp(String.raw`(?:fs\.)?readFileSync\(\s*(?:path\.)?join\(\s*\w+,\s*(?:'\.\.',\s*|'server',\s*)?${pieces}\)${UTF8}\s*\)`, 'g'),
+    new RegExp(String.raw`${FS}readFileSync\(\s*(?:path\.)?join\(\s*\w+,\s*(?:'\.\.',\s*|'server',\s*)?${pieces}\)${UTF8}\s*\)`, 'g'),
     // read('../server.js'), read('server.js'), read('server/server.js'), read('server', 'server.js'), src('server.js')
     new RegExp(String.raw`\b(?:read|src|source|readLf)\((?:'\.\.\/${whole}'|${bare ? `'${whole}'|` : ''}'server\/${whole}'|'server',\s*${pieces})\)`, 'g'),
   ];

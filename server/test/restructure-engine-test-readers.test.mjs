@@ -77,6 +77,8 @@ test('--source: every spelling of "read that file as text" becomes engineSource(
     "readFileSync(join(HERE, '..', 'lighting.js'), 'utf8')",
     "fs.readFileSync(path.join(ROOT, 'server', 'lighting.js'), 'utf8')",
     "readFileSync(join(SERVER_DIR, 'lighting.js'), 'utf8')",
+    "require('node:fs').readFileSync(new URL('../lighting.js', import.meta.url), 'utf8')",
+    "require('fs').readFileSync(path.join(ROOT, 'server', 'lighting.js'), 'utf8')",
     "read('../lighting.js')", "read('lighting.js')", "read('server/lighting.js')", "read('server', 'lighting.js')",
     "src('lighting.js')", "source('lighting.js')", "readLf('../lighting.js')",
   ];
