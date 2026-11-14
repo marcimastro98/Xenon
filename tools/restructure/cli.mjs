@@ -165,16 +165,19 @@ function runSpread(parser, { flags, rest }) {
   return 0;
 }
 
+// The names of a file's protected stretches, for a survey: a required one among them that a single body uses keeps that body.
+const keptNames = (parser, source) => protectedNames(REPO_ROOT, source, analyze(readSource(source), parser, source).records).names;
+
 function runBranches(parser, { flags, rest }) {
   const source = posix(flags.from);
   if (flags.survey) {
-    const survey = surveyBranches({ text: readSource(source), parser, source, kind: flags.tools ? TOOLS : ROUTES });
+    const survey = surveyBranches({ text: readSource(source), parser, source, kind: flags.tools ? TOOLS : ROUTES, kept: keptNames(parser, source) });
     console.log(flags.json ? JSON.stringify(survey, null, 1) : renderSurvey(survey, source, { bodies: Boolean(flags.bodies) }));
     return 0;
   }
   const dryRun = Boolean(flags['dry-run']);
   const below = (address) => address === flags.under || address.startsWith(`${String(flags.under).replace(/[/]$/, '')}/`);
-  const under = flags.under ? surveyBranches({ text: readSource(source), parser, source }).movable.map((row) => row.key).filter((key) => below(key.split(' ')[1])) : [];
+  const under = flags.under ? surveyBranches({ text: readSource(source), parser, source, kept: keptNames(parser, source) }).movable.map((row) => row.key).filter((key) => below(key.split(' ')[1])) : [];
   const done = moveBranches({ root: REPO_ROOT, parser, source, target: posix(flags.to), about: flags.about, keys: [...under, ...rest], dryRun });
   console.log(`${dryRun ? 'would move' : 'moved'} ${done.keys.length} ${done.keys.length === 1 ? 'body' : 'bodies'} to ${done.target} (${done.lines} lines${done.added ? ', a new file' : ''}); `
     + `${source} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines. Every test of the handler is where it was.`);

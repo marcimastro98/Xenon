@@ -101,6 +101,21 @@ test('the survey says what can move and which name keeps the rest', (t) => {
   assert.deepEqual([moved.moved, moved.movable.map((row) => row.key)], [1, ['POST /b', 'GET /c', 'GET /g', 'GET /j']]);
 });
 
+test('the survey and the plan agree on a required name of a protected stretch that one body alone uses', (t) => {
+  if (!parser) return t.skip(SKIP);
+  // `fs` is used by POST /b alone, `lights` by GET /a and GET /j: with both protected, only the first keeps its body.
+  const kept = new Set(['fs', 'lights']);
+  const survey = surveyBranches({ text: SOURCE, parser, source: OLD, kept });
+  const row = (key) => survey.bodies.find((body) => body.key === key);
+  assert.deepEqual([row('POST /b').state, row('POST /b').reasons], ['kept', ['it alone uses fs, required in a protected stretch of the file that is never edited']]);
+  assert.deepEqual([row('GET /a').state, row('GET /j').state], ['now', 'now'], 'a name two bodies use stays in use when one of them moves');
+  assert.ok(survey.other.some((entry) => entry.reason === 'it alone uses … required in a protected stretch of the file that is never edited' && entry.branches === 1));
+  const plan = (keys) => planBranches({ text: SOURCE, parser, source: OLD, target: TABLE, about: 'What the lights answer.', keys, moduleBefore: null, rewrite, allowed: ALLOWED, protectedNames: kept });
+  assert.throws(() => plan(['POST /b']), /only the moved code uses fs, required in a protected stretch/);
+  assert.equal(plan(['GET /a']).keys.length, 1);
+  assert.equal(surveyBranches({ text: SOURCE, parser, source: OLD }).bodies.find((body) => body.key === 'POST /b').state, 'now', 'without a protected list nothing is kept for it');
+});
+
 test('the real engine: every table on the list is there, and each of its bodies stands under one test of the handler', () => {
   const records = readLedger(REPO).branches?.['server/server.js'] ?? [];
   const engine = readFileSync(path.join(REPO, 'server', 'server.js'), 'utf8');

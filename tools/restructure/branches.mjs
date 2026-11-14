@@ -119,7 +119,8 @@ const groupOf = (branch) => {
 
 /**
  * What can move and what keeps the rest, body by body.
- * @param {{ text: string, parser: any, source: string, kind?: typeof ROUTES, handler?: string }} job
+ * @param {{ text: string, parser: any, source: string, kind?: typeof ROUTES, handler?: string, kept?: Set<string> }} job
+ *   `kept`: the names of the file's protected stretches (ledger.mjs protectedNames), none when left out
  * @returns {{ branches: number, moved: number,
  *   bodies: { key: string | null, test: string, group: string, line: number, lines: number, state: 'now' | 'handed' | 'kept', own: string[], reasons: string[] }[],
  *   movable: { key: string, group: string, lines: number, line: number, own: string[] }[],
@@ -128,10 +129,20 @@ const groupOf = (branch) => {
  *   the names in `own` (`handed`), or it stays for `reasons`. `movable`: the first two. `held`: per name of the file
  *   that cannot be handed over, how many bodies wait on it, how many on it alone, and those bodies' lines.
  */
-export function surveyBranches({ text, parser, source, kind = ROUTES, handler = kind.handler }) {
+export function surveyBranches({ text, parser, source, kind = ROUTES, handler = kind.handler, kept = new Set() }) {
   const analysis = analyze(text, parser, source);
   const { branches } = readBranches({ text, parser, analysis, kind, handler });
   const open = branches.filter((branch) => !branch.moved);
+  // A required name of a protected stretch that only one body uses: moving the body would leave the name unused in a
+  // line that is never edited, and the plan refuses that. Said here too, so the survey and the plan agree.
+  const sameUse = (a, b) => a.read === b.read && a.write === b.write && a.change === b.change;
+  for (const branch of open) {
+    const alone = branch.needed.filter((name) => kept.has(name) && analysis.records
+      .filter((record) => record !== analysis.bindings.get(name).record && record.uses.has(name))
+      .every((record) => record.names.includes(handler) && sameUse(record.uses.get(name), branch.uses.get(name))));
+    branch.reasons.splice(branch.reasons.length - branch.holders.length, 0,
+      ...alone.map((name) => `it alone uses ${name}, required in a protected stretch of the file that is never edited`));
+  }
   const stateOf = (branch) => (branch.reasons.length ? 'kept' : branch.own.length ? 'handed' : 'now');
   const bodies = open.map((branch) => ({ key: branch.key, test: branch.test, group: groupOf(branch), line: branch.line, lines: branch.lines,
     state: stateOf(branch), own: branch.own, reasons: branch.reasons }));
@@ -146,7 +157,7 @@ export function surveyBranches({ text, parser, source, kind = ROUTES, handler = 
       held.set(name, row);
     }
     for (const reason of branch.reasons.slice(0, others)) {
-      const kind = reason.replace(/^it (uses|assigns) \S+/, 'it $1 …');
+      const kind = reason.replace(/^it (uses|assigns|alone uses) \S+/, 'it $1 …');
       other.set(kind, (other.get(kind) ?? 0) + 1);
     }
   }
