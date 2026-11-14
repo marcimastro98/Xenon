@@ -39,13 +39,22 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const LEDGER = join(REPO, 'tools', 'restructure', 'extracted.json');
 const ENGINE = 'server/server.js';
 
-const readAsIs = (file) => readFileSync(join(REPO, file), 'utf8');
+// A test file asks for the same text once per test, and putting the engine back together reads the list and
+// every module again each time (7 seconds a call at 370 modules). Nothing here changes while a test runs, so
+// each file, the list and each rebuilt text is worked out once per process.
+const kept = new Map();
+const once = (key, make) => {
+  if (!kept.has(key)) kept.set(key, make());
+  return kept.get(key);
+};
+
+const readAsIs = (file) => once(`as it is: ${file}`, () => readFileSync(join(REPO, file), 'utf8'));
 // A module of places next to the engine says SERVER_DIR where the old file said __dirname: the old word is put back.
 const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths).map((entry) => entry.file));
 const SPREADS = readLedger().spreads?.[ENGINE] ?? [];
 const PARTS = new Set(SPREADS.flatMap((spread) => spread.parts.map((part) => part.name)));
 const oldPlaces = (file) => (PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
-const read = (file) => wholeObjects(file, bodiesBack(file, oldPlaces(file)));
+const read = (file) => once(`put back: ${file}`, () => wholeObjects(file, bodiesBack(file, oldPlaces(file))));
 
 /**
  * @param {string} file repo-relative @param {string} text its text
@@ -76,12 +85,14 @@ function plainFileOf(name) {
 }
 
 function readLedger() {
-  try {
-    return JSON.parse(readFileSync(LEDGER, 'utf8'));
-  } catch (error) {
-    if (error.code === 'ENOENT') return {};
-    throw error;
-  }
+  return once('the list', () => {
+    try {
+      return JSON.parse(readFileSync(LEDGER, 'utf8'));
+    } catch (error) {
+      if (error.code === 'ENOENT') return {};
+      throw error;
+    }
+  });
 }
 
 function ledgerOf(source) {
@@ -158,10 +169,12 @@ export function oldDeclarations(text, { state }) {
  * @returns {string}
  */
 export function engineSource(source = ENGINE) {
-  const rewrites = stateRewrites(source);
-  const gathered = gatheredIn(source);
-  return [oldNames(read(source), rewrites, gathered),
-    ...ledgerOf(source).map((entry) => (entry.state ? oldDeclarations(read(entry.file), entry) : oldNames(read(entry.file), rewrites, gathered)))].join('\n');
+  return once(`whole: ${source}`, () => {
+    const rewrites = stateRewrites(source);
+    const gathered = gatheredIn(source);
+    return [oldNames(read(source), rewrites, gathered),
+      ...ledgerOf(source).map((entry) => (entry.state ? oldDeclarations(read(entry.file), entry) : oldNames(read(entry.file), rewrites, gathered)))].join('\n');
+  });
 }
 
 /**

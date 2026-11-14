@@ -151,3 +151,14 @@ test('a module that holds shared variables is one object and nothing else, and t
     }
   }
 });
+
+// 268 test files ask for this text, most of them once per test. Put together from scratch it took 7 seconds
+// a call, and the suite went past its limit on a slow runner. Asked again in one process, it is handed back.
+test('the whole engine is put together once per process, then handed back', () => {
+  const first = engineSource();
+  const started = performance.now();
+  for (let i = 0; i < 20; i += 1) assert.equal(engineSource(), first);
+  assert.equal(declarationSource('keepStoredOnSave'), declarationSource('keepStoredOnSave'));
+  const took = performance.now() - started;
+  assert.ok(took < 2000, `twenty more askings took ${Math.round(took)} ms; from scratch they take minutes`);
+});
