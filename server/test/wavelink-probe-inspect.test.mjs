@@ -19,7 +19,10 @@ import { inspectWs, describeWs } from '../../tools/wavelink-probe.mjs';
 // (4000). The first version of this file used 30 + 60 against 500 and so never
 // let the handshake timer fire late, which hid a bug that reported EVERY live
 // socket as "no websocket here". Keep quietMs + rpcMs greater than openMs.
-const FAST = { quietMs: 60, rpcMs: 120, openMs: 100 };
+//
+// openMs is also the time a real handshake on this machine has: 100 ms was too little with
+// the processors busy, and a live socket read as "no websocket here".
+const FAST = { quietMs: 300, rpcMs: 900, openMs: 1000 };
 
 function wsServer(onConnection) {
   return new Promise((resolve) => {

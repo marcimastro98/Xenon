@@ -95,6 +95,8 @@ function main(argv) {
     console.log(totals || 'the run printed no totals');
     const failed = failedTests(output);
     for (const name of failed) console.log(`FAILED UNDER LOAD  ${name}`);
+    // What each one said, as the runner printed it (the first 120 lines are enough to see why).
+    if (failed.length) console.log(output.slice(output.lastIndexOf('failing tests:')).split('\n').slice(0, 120).join('\n'));
     if (!failed.length && code === 0) console.log('Every test passed with the machine busy.');
     process.exitCode = code === 0 ? 0 : 1;
   });

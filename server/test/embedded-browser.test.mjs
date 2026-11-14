@@ -559,7 +559,7 @@ test('a hung Edge is restarted, and the next open works on a fresh one (#144)', 
   let kills = 0;
   const host = eb.createEmbeddedBrowser({
     WebSocketImpl: makeHangingWS(state), idleMs: 10000,
-    cmdTimeoutMs: 40, navTimeoutMs: 40, probeTimeoutMs: 30,
+    cmdTimeoutMs: 400, navTimeoutMs: 400, probeTimeoutMs: 300,
     launch: async () => { launches += 1; return { proc: { on() {}, kill() { kills += 1; }, unref() {} }, wsUrl: 'ws://x' }; },
   });
   const keepAlive = setInterval(() => {}, 20);
@@ -570,7 +570,8 @@ test('a hung Edge is restarted, and the next open works on a fresh one (#144)', 
     state.hung = true;
     await assert.rejects(host.open('b', 'example.com', 400, 300, 1, () => {}), /cdp_timeout/,
       'an unanswered command fails instead of waiting forever');
-    await delay(80);
+    for (let i = 0; i < 500 && kills < 1; i++) await delay(10);   // the probe has its own deadline
+    await delay(80);   // the old socket has to be gone before a new open, as the tile waits before its retry
     assert.equal(kills, 1, 'the probe got no answer either: the hung Edge is killed');
 
     state.hung = false;
@@ -589,13 +590,13 @@ test('a slow page is not a hung browser: Edge is kept (#144)', async () => {
   let kills = 0;
   const host = eb.createEmbeddedBrowser({
     WebSocketImpl: makeHangingWS(state), idleMs: 10000,
-    cmdTimeoutMs: 40, navTimeoutMs: 40, probeTimeoutMs: 30,
+    cmdTimeoutMs: 400, navTimeoutMs: 400, probeTimeoutMs: 300,
     launch: async () => { launches += 1; return { proc: { on() {}, kill() { kills += 1; }, unref() {} }, wsUrl: 'ws://x' }; },
   });
   const keepAlive = setInterval(() => {}, 20);
   try {
     await assert.rejects(host.open('a', 'example.com', 400, 300, 1, () => {}), /cdp_timeout/);
-    await delay(80);
+    await delay(450);   // longer than the probe's deadline: an unanswered one would have killed by now
     assert.equal(kills, 0, 'the probe was answered: the browser is alive and stays');
     assert.equal(launches, 1);
   } finally {

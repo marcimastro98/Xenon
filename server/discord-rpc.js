@@ -205,7 +205,6 @@ function createDiscordProvider(deps) {
         _connectPipe().then((s) => {
           if (settled) { try { s.destroy(); } catch { /* ignore */ } return; }
           sock = s;
-          // A frame that cannot be one closes the pipe: 'close' below fails what is waiting.
           const decode = createDecoder(handleMessage, () => { try { s.destroy(); } catch { /* already gone */ } });
           s.on('data', decode);
           s.on('error', () => fail(new Error('discord_closed')));
