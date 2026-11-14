@@ -105,21 +105,16 @@ const { launchLinuxApp } = require('./programs/launch-linux-app.js');
 const { revealInFileManager } = require('./files/reveal-in-file-manager.js');
 
 const {
-  BACKGROUND_TRANSCODE_TIMEOUT_MS, BACKGROUND_MIME_BY_EXT, FONT_MAX_BYTES, FONT_MIME_BY_EXT,
-  TILE_ASSET_MIME_BY_EXT,
+  BACKGROUND_MIME_BY_EXT, FONT_MAX_BYTES, FONT_MIME_BY_EXT, TILE_ASSET_MIME_BY_EXT,
 } = require('./http/upload-limits.js');
 
 const { SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
-
-const { findFirstFile } = require('./ffmpeg-install/lookup.js');
 
 const { WL_OFF_STATE } = require('./audio/wavelink-values.js');
 
 const { normalizeEvents } = require('./time/events-normalize.js');
 
 const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/timer-values.js');
-
-const { _parseAvfAudioDevices, _ffmpegKnowsFormat } = require('./ai/stt-device-probe.js');
 
 const {
   MEDIA_HOST_RETRY_MS, MEDIA_HELPER_BAD_MS, MEDIA_CACHE_MS, MEDIA_READER_REST_MS,
@@ -1837,18 +1832,6 @@ function mcpDevDeps() {
     listOwn: async () => aiMyWidgets.listOwn((await refreshSdkScan()).packages, widgetExportable),
     readPayload: (id) => sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id),
   };
-}
-
-// A picture of the screen where the tile is, and only that box.
-async function mcpDevCapture(where) {
-  const rect = mcpDevTools.screenRect(process.platform, where);
-  if (!rect) return { ok: false, error: 'not_on_screen' };
-  try {
-    const data = await captureScreenshot(rect, { maxWidth: 1600 });
-    return { ok: true, data, width: rect.width, height: rect.height };
-  } catch {
-    return { ok: false, error: 'capture_failed' };
-  }
 }
 
 // /api/mcp/dev/*: the bridge pairs and calls; the dashboard answers pairings
@@ -4006,72 +3989,6 @@ const { readBody, readBodyBuffer } = require('./http/read-body.js');
 
 const { listScreens } = require('./screens/list-screens.js');
 
-const { _capShrinkToWidth } = require('./screens/shrink-to-width.js');
-
-// Capture a screenshot; `monitor` is an optional {x,y,width,height} region.
-// Returns base64 JPEG.
-//
-// `opts.maxWidth` caps the output width (the AI vision path wants a small
-// payload; the share card wants the panel near native — an Edge capture loses a
-// quarter of its width at the 1920 default). `opts.quality` is ffmpeg -q:v,
-// lower is better. Both default to the historic values, so callers that pass no
-// opts produce a byte-identical command line.
-async function captureScreenshot(monitor, opts) {
-  const maxWidth = Math.min(3840, Math.max(640, Math.trunc(Number(opts && opts.maxWidth)) || 1920));
-  const quality = String(Math.min(31, Math.max(1, Math.trunc(Number(opts && opts.quality)) || 3)));
-  const tmpPath = privateTmpFile('xenon_ss_', '.jpg');
-  try {
-    if (process.platform === 'darwin') {
-      // screencapture is built in and needs no ffmpeg: -x silences the shutter,
-      // -t jpg matches what the callers expect. It captures the main display;
-      // -R takes a region in global screen coordinates, which is exactly the
-      // rectangle the monitor picker already hands us.
-      const args = ['-x', '-t', 'jpg'];
-      if (monitor && monitor.width > 0 && monitor.height > 0) {
-        args.push('-R', `${monitor.x},${monitor.y},${monitor.width},${monitor.height}`);
-      }
-      args.push(tmpPath);
-      // Without the Screen Recording grant macOS writes a desktop-picture-only
-      // image rather than failing, so there is nothing to detect here — the
-      // grant is a first-run prompt the user answers once.
-      await execFilePromise('/usr/sbin/screencapture', args, { timeout: 15000 });
-      await _capShrinkToWidth(tmpPath, maxWidth);
-      const shot = await fs.promises.readFile(tmpPath);
-      return shot.toString('base64');
-    }
-    const ffmpeg = getFfmpegPath();
-    const ffmpegArgs = ['-y'];
-    if (process.platform === 'linux') {
-      // x11grab addresses a screen as DISPLAY plus an optional +x,y origin, and
-      // takes the whole screen when no size is given. There is deliberately no
-      // Wayland path: capturing there goes through the xdg-desktop-portal
-      // screencast API, which is a permission dialog and a PipeWire stream, not
-      // an ffmpeg input — so under Wayland this fails and says so, rather than
-      // silently returning someone's idea of a screen.
-      const display = process.env.DISPLAY || ':0.0';
-      ffmpegArgs.push('-f', 'x11grab', '-framerate', '1');
-      if (monitor && monitor.width > 0 && monitor.height > 0) {
-        ffmpegArgs.push('-video_size', `${monitor.width}x${monitor.height}`);
-        ffmpegArgs.push('-i', `${display}+${monitor.x || 0},${monitor.y || 0}`);
-      } else {
-        ffmpegArgs.push('-i', display);
-      }
-    } else {
-      ffmpegArgs.push('-f', 'gdigrab', '-framerate', '1');
-      if (monitor && monitor.width > 0 && monitor.height > 0) {
-        ffmpegArgs.push('-offset_x', String(monitor.x), '-offset_y', String(monitor.y), '-video_size', `${monitor.width}x${monitor.height}`);
-      }
-      ffmpegArgs.push('-i', 'desktop');
-    }
-    ffmpegArgs.push('-vframes', '1', '-q:v', quality, '-vf', `scale='min(${maxWidth},iw)':-2`, tmpPath);
-    await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
-    const imgBuffer = await fs.promises.readFile(tmpPath);
-    return imgBuffer.toString('base64');
-  } finally {
-    fs.promises.unlink(tmpPath).catch(() => {});
-  }
-}
-
 const { speakState } = require('./ai/speak-state.js');
 
 const { _duckSpeakerVolume, _restoreSpeakerVolume } = require('./audio/speaker-duck.js');
@@ -4594,54 +4511,13 @@ async function runAiTool(fnName, fnArgs, deps) {
 
 
 
-function getFfmpegPath() {
-  if (process.env.XEH_FFMPEG) return process.env.XEH_FFMPEG;
-  if (process.platform !== 'win32') {
-    // Homebrew's two prefixes (Apple Silicon, then Intel) before falling back
-    // to PATH — a LaunchAgent starts with a minimal PATH that often lacks both.
-    const unixCandidates = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg'];
-    const found = unixCandidates.find(candidate => fs.existsSync(candidate));
-    return found || 'ffmpeg';
-  }
-  const localCandidates = [
-    path.join(__dirname, 'ffmpeg.exe'),
-    path.join(__dirname, 'ffmpeg', 'bin', 'ffmpeg.exe'),
-  ];
-  const local = localCandidates.find(candidate => fs.existsSync(candidate));
-  if (local) return local;
+const { getFfmpegPath } = require('./ffmpeg-install/ffmpeg-path.js');
 
-  if (process.env.LOCALAPPDATA) {
-    const wingetPackages = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Packages');
-    const wingetFfmpeg = findFirstFile(wingetPackages, 'ffmpeg.exe', 5);
-    if (wingetFfmpeg) return wingetFfmpeg;
-  }
+const { captureScreenshot } = require('./screens/capture-screenshot.js');
 
-  return 'ffmpeg.exe';
-}
+const { mcpDevCapture } = require('./mcp/dev-capture.js');
 
-async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
-  const ffmpeg = getFfmpegPath();
-  await execFilePromise(ffmpeg, [
-    '-y',
-    '-hide_banner',
-    '-loglevel', 'error',
-    '-i', sourcePath,
-    '-vf', 'fps=30,scale=1920:-2',
-    '-an',
-    '-c:v', 'libvpx',
-    '-deadline', 'good',
-    '-cpu-used', '4',
-    '-b:v', '6M',
-    '-maxrate', '8M',
-    '-bufsize', '12M',
-    '-auto-alt-ref', '0',
-    targetPath,
-  ], { timeout: BACKGROUND_TRANSCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 });
-
-  const stat = await fs.promises.stat(targetPath);
-  if (!stat.isFile() || stat.size <= 0) throw new Error('Converted WebM is empty');
-  return stat;
-}
+const { transcodeMp4BackgroundToWebm } = require('./look/background-to-webm.js');
 
 const { hub } = require('./settings/current.js');
 const { setDefaultAudioDevice } = require('./audio/default-device.js');
@@ -4663,8 +4539,6 @@ const { aiPresetDeps } = require('./grid/ai-preset-deps.js');
 const { providerModelFor } = require('./ai/provider-models.js');
 
 const { _pcControlEnabled } = require('./ai/pc-control-switch.js');
-
-const { _sttGain } = require('./ai/mic-gain.js');
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
 // must not hit the disk that often. Populated at startup and on every POST.
@@ -5292,6 +5166,8 @@ const { _writeTasksNow } = require('./time/tasks-write-now.js');
 const { _saveTimers } = require('./time/timers-save.js');
 
 const { pushDiscordNotification } = require('./discord/notif-push.js');
+
+const { _initSttDevice } = require('./ai/stt-devices.js');
 
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
@@ -6597,6 +6473,8 @@ const { refreshStartupTaskState } = require('./install/startup-task-refresh.js')
 
 const { addIntegrationAiFunctions } = require('./streaming/assistant-functions.js');
 
+const { _audioToWav16k } = require('./ai/audio-to-wav.js');
+
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
 // level, so DNS-rebinding / Host-spoofing attacks from non-loopback IPs are blocked.
@@ -7504,142 +7382,6 @@ function _remoteGate(req, res, secure) {
   }
 }
 
-// Enumerate DirectShow audio devices via ffmpeg. Returns an array of friendly device name strings.
-async function _enumSttDevice() {
-  const ffmpeg = getFfmpegPath();
-  let stderr = '';
-  try {
-    await new Promise(resolve => {
-      const p = spawn(ffmpeg, ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { windowsHide: true });
-      p.stderr.setEncoding('utf8');
-      p.stderr.on('data', d => { stderr += d; });
-      p.on('exit', resolve);
-      p.on('error', resolve);
-      setTimeout(() => { try { p.kill(); } catch {} resolve(); }, 5000);
-    });
-  } catch {}
-
-  const names = [];
-  let inAudioSection = false; // for ffmpeg <7 (section-based format)
-
-  for (const line of stderr.split('\n')) {
-    if (/Alternative name/i.test(line)) continue;
-
-    // ffmpeg 7+ format: [in#0 @ ...] "Device Name" (audio)
-    const newFmt = line.match(/"([^"]+)"\s*\(audio\)/i);
-    if (newFmt && !newFmt[1].startsWith('@device_')) { names.push(newFmt[1]); continue; }
-
-    // ffmpeg <7 format: section header + [dshow @ ...] "Device Name"
-    if (/DirectShow audio devices/i.test(line)) { inAudioSection = true; continue; }
-    if (/DirectShow video devices/i.test(line)) { inAudioSection = false; continue; }
-    if (inAudioSection) {
-      const oldFmt = line.match(/"([^@][^"]+)"/);
-      if (oldFmt) names.push(oldFmt[1]);
-    }
-  }
-  return names;
-}
-
-async function _initSttDevice() {
-  const ffmpeg = getFfmpegPath();
-
-  if (process.platform === 'darwin') {
-    try {
-      const stderr = await new Promise(resolve => {
-        let buf = '';
-        // Listing always "fails" (there is no input to open), so the exit code
-        // is meaningless here — the inventory it printed on the way out is not.
-        const p = spawn(ffmpeg, ['-hide_banner', '-f', 'avfoundation', '-list_devices', 'true', '-i', ''], { windowsHide: true });
-        p.stderr.setEncoding('utf8');
-        p.stderr.on('data', d => { buf += d; });
-        p.on('exit', () => resolve(buf));
-        p.on('error', () => resolve(''));
-        setTimeout(() => { try { p.kill(); } catch {} resolve(buf); }, 4000);
-      });
-      const devices = _parseAvfAudioDevices(stderr);
-      if (devices.length) {
-        // Prefer the device the mixer says is the default input, so the wake
-        // word and the recorder follow the mic the user actually picked.
-        let chosen = null;
-        if (audioCache.micLabel) {
-          const lbl = audioCache.micLabel.toLowerCase();
-          chosen = devices.find(d => d.name.toLowerCase().includes(lbl));
-        }
-        sttDevice.avfIndex = (chosen || devices[0]).index;
-        process.stdout.write(`[STT] avfoundation input [${sttDevice.avfIndex}] "${(chosen || devices[0]).name}"\n`);
-      } else {
-        process.stdout.write('[STT] No avfoundation audio input found (ffmpeg missing, or Microphone permission not granted)\n');
-      }
-    } catch (e) {
-      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
-    }
-    sttDevice.ready = true;
-    sttDevice.micLabel = audioCache.micLabel || (sttDevice.avfIndex !== null ? `__avf_${sttDevice.avfIndex}__` : null);
-    _sttDeviceWaiters.splice(0).forEach(cb => cb());
-    return;
-  }
-
-  if (process.platform === 'linux') {
-    // pulse before alsa, deliberately. PipeWire and PulseAudio both expose the
-    // pulse API, `default` follows the input the user actually picked in the
-    // mixer, and it captures while the sound server holds the device — a raw
-    // alsa grab usually cannot, because the card is already open.
-    try {
-      if (await _ffmpegKnowsFormat(ffmpeg, 'pulse')) sttDevice.linuxFormat = 'pulse';
-      else if (await _ffmpegKnowsFormat(ffmpeg, 'alsa')) sttDevice.linuxFormat = 'alsa';
-      if (sttDevice.linuxFormat) process.stdout.write(`[STT] ${sttDevice.linuxFormat} input "default"\n`);
-      else process.stdout.write('[STT] ffmpeg knows neither pulse nor alsa: voice input is unavailable\n');
-    } catch (e) {
-      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
-    }
-    sttDevice.ready = true;
-    sttDevice.micLabel = audioCache.micLabel || (sttDevice.linuxFormat ? `__${sttDevice.linuxFormat}__` : null);
-    _sttDeviceWaiters.splice(0).forEach(cb => cb());
-    return;
-  }
-
-  // Probe WASAPI support — if ffmpeg knows the format, use it (fast init ~200ms)
-  let wasapiOk = false;
-  try {
-    await new Promise(resolve => {
-      let stderr = '';
-      const p = spawn(ffmpeg, ['-hide_banner', '-list_devices', 'true', '-f', 'wasapi', '-i', 'dummy'], { windowsHide: true });
-      p.stderr.setEncoding('utf8');
-      p.stderr.on('data', d => { stderr += d; });
-      p.on('exit', () => { wasapiOk = !/Unknown input format/i.test(stderr); resolve(); });
-      p.on('error', resolve);
-      setTimeout(() => { try { p.kill(); } catch {} resolve(); }, 4000);
-    });
-  } catch {}
-
-  if (wasapiOk) {
-    sttDevice.useWasapi = true;
-    process.stdout.write('[STT] WASAPI available: fast init\n');
-  } else {
-    // WASAPI not supported — enumerate DirectShow devices as fallback
-    try {
-      const names = await _enumSttDevice();
-      if (names.length > 0) {
-        let chosen = null;
-        if (audioCache.micLabel) {
-          const lbl = audioCache.micLabel.toLowerCase();
-          chosen = names.find(d => d.toLowerCase().includes(lbl));
-        }
-        sttDevice.dshowDevice = chosen || names[0];
-        process.stdout.write(`[STT] WASAPI unavailable, dshow: "${sttDevice.dshowDevice}"\n`);
-      } else {
-        process.stdout.write('[STT] No audio input method found\n');
-      }
-    } catch (e) {
-      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
-    }
-  }
-
-  sttDevice.ready = true;
-  sttDevice.micLabel = audioCache.micLabel || sttDevice.dshowDevice || (wasapiOk ? '__wasapi_default__' : null);
-  _sttDeviceWaiters.splice(0).forEach(cb => cb());
-}
-
 let _sttDeviceStarted = false;
 function _startSttDevice() {
   if (_sttDeviceStarted) return;
@@ -7679,28 +7421,6 @@ function _maybeRebindSttDevice() {
       wakeWord.bounce();
     } catch (e) { process.stdout.write('[STT] Rebind error: ' + e.message + '\n'); }
   }, 800);
-}
-
-// Any clip the browser or a paired phone recorded → 16 kHz mono WAV.
-function _audioToWav16k(inBuf) {
-  return new Promise((resolve, reject) => {
-    // -protocol_whitelist pipe: the input is whatever the browser (or a
-    // paired phone) sent, and ffmpeg guesses its format; a playlist
-    // format could otherwise make it open files or URLs.
-    const ff = spawn(getFfmpegPath(), ['-hide_banner', '-loglevel', 'error', '-protocol_whitelist', 'pipe', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'], { windowsHide: true });
-    const out = [];
-    const errBuf = [];
-    ff.stdout.on('data', c => out.push(c));
-    ff.stderr.on('data', c => errBuf.push(c));
-    ff.on('error', reject);
-    ff.on('close', code => {
-      if (code === 0 && out.length) resolve(Buffer.concat(out));
-      else reject(new Error('ffmpeg wav transcode failed: ' + Buffer.concat(errBuf).toString().slice(0, 200)));
-    });
-    ff.stdin.on('error', () => {}); // ignore EPIPE if ffmpeg exits early
-    ff.stdin.write(inBuf);
-    ff.stdin.end();
-  });
 }
 
 function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
@@ -10455,6 +10175,8 @@ const { embeddedConn } = require('./windows-tiles/embedded-conn-state.js');
 
 const { _packWsFrame } = require('./windows-tiles/ws-frame.js');
 
+const { _startLivePcmCapture } = require('./ai/live-pcm-capture.js');
+
 server.on('upgrade', (req, socket, head) => {
   let pathname = '';
   try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
@@ -10587,39 +10309,6 @@ function _handleEmbeddedClient(client) {
   };
   client.on('close', cleanup);
   client.on('error', cleanup);
-}
-
-// ── Voce Live (Gemini Live realtime) — server pieces ─────────────────────────
-// Continuous mic → 16 kHz mono PCM frames, built on the SAME device selection
-// (WASAPI/dshow), gain and ffmpeg the one-shot STT recorder uses — but piping
-// raw PCM to stdout so it streams to Gemini in ~100 ms frames with no WAV
-// round-trip. Returns a stop handle.
-function _startLivePcmCapture(onPcm, onError) {
-  const inputArgs = _sttInputArgs();
-  if (!inputArgs) throw new Error('No audio device available for the live session');
-  const ffmpeg = getFfmpegPath();
-  const gain = _sttGain();
-  const proc = spawn(ffmpeg, [
-    '-hide_banner', '-loglevel', 'error',
-    ...inputArgs,
-    '-af', `volume=${gain}`,
-    '-ar', String(aiLive.INPUT_SAMPLE_RATE), '-ac', '1', '-f', 's16le', 'pipe:1',
-  ], { windowsHide: true });
-  let carry = Buffer.alloc(0);
-  proc.stdout.on('data', (buf) => {
-    // chunkPcm keeps a trailing partial frame as its last element; carry it to
-    // the next tick so no audio is dropped at buffer boundaries.
-    const frames = aiLive.chunkPcm(carry.length ? Buffer.concat([carry, buf]) : buf, aiLive.INPUT_CHUNK_BYTES);
-    carry = Buffer.alloc(0);
-    for (const f of frames) {
-      if (f.length === aiLive.INPUT_CHUNK_BYTES) { try { onPcm(f); } catch (e) { /* ignore */ } }
-      else carry = f;
-    }
-  });
-  proc.stderr.on('data', () => {}); // drain
-  proc.on('error', (e) => { try { onError && onError(e); } catch (_) { /* ignore */ } });
-  proc.on('exit', () => { try { onError && onError(new Error('capture ended')); } catch (_) { /* ignore */ } });
-  return { stop() { try { proc.stdin.end(); } catch {} try { proc.kill(); } catch {} } };
 }
 
 function _buildLiveSystemInstruction({ langName, summary }) {

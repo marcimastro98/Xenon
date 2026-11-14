@@ -381,7 +381,14 @@
       {"file":"server/weather/place-lookup.js","about":"Finds the place the weather is asked for: the city the person typed, or where the PC seems to be.","names":["recoverWeatherPlaceViaWttr","resolveManualWeatherPlace","resolveAutoLocation"]},
       {"file":"server/weather/fetchers.js","about":"Asks each weather service for the weather of a place, and the list of them by name.","names":["fetchWttrWeather","fetchOpenMeteoWeather","fetchMetnoWeather","WEATHER_FETCHERS"]},
       {"file":"server/weather/get-weather.js","about":"The weather for the place asked for: the place is found, the services are tried in order, and the answer is kept for a while.","names":["getWeather"],"tidy":true},
-      {"file":"server/ambient/desktop-scene-setting.js","about":"Changes the animated wallpaper or the PC screensaver from a spoken request or a Deck key, inside the settings queue.","names":["updateDesktopSceneSetting"],"spelled":{"../capabilities/desktop-scene.js":"./capabilities/desktop-scene.js"}}
+      {"file":"server/ambient/desktop-scene-setting.js","about":"Changes the animated wallpaper or the PC screensaver from a spoken request or a Deck key, inside the settings queue.","names":["updateDesktopSceneSetting"],"spelled":{"../capabilities/desktop-scene.js":"./capabilities/desktop-scene.js"}},
+      {"file":"server/ffmpeg-install/ffmpeg-path.js","about":"Where ffmpeg is on this computer: the copy next to the engine, the one a package manager installed, or the one on the PATH.","names":["getFfmpegPath"],"home":true},
+      {"file":"server/screens/capture-screenshot.js","about":"Takes one picture of a screen with ffmpeg.","names":["captureScreenshot"]},
+      {"file":"server/look/background-to-webm.js","about":"Turns an MP4 background into a WebM the dashboard plays.","names":["transcodeMp4BackgroundToWebm"]},
+      {"file":"server/ai/stt-devices.js","about":"Finds the microphone ffmpeg records dictation from.","names":["_enumSttDevice","_initSttDevice"]},
+      {"file":"server/ai/audio-to-wav.js","about":"Turns a recorded clip into the 16 kHz mono WAV the speech models read.","names":["_audioToWav16k"]},
+      {"file":"server/ai/live-pcm-capture.js","about":"Records the microphone as raw sound for a live voice session.","names":["_startLivePcmCapture"]},
+      {"file":"server/mcp/dev-capture.js","about":"Takes the picture of a tile that a coding tool asked to see.","names":["mcpDevCapture"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
