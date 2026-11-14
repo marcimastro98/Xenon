@@ -621,6 +621,7 @@
         "server/linux-hotkey.js",
         "server/altgr-keys-windows.js",
         "server/js/deck*.js",
+        "server/js/deck/**",
         "server/js/approval-keys.js",
         "server/components/DeckPanel/**"
       ]

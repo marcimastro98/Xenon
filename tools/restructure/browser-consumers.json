@@ -94,6 +94,14 @@
     },
     "server/components/AIPanel/AIPanel.css": {
       "server/spotlight.html": "Names the sheet only in a comment of its own style block; the window gets the sheet from the list of the screen's voice panel (js/screen-bit.js), which the tool follows."
+    },
+    "server/js/deck.js": {
+      "tools/modal-census/census.mjs": {
+        "how": "Patches the text a test browser is served, at the line that opens openDeckMixer, with calls to functions of the wrapper. That line stays in the file, and a function taken out by `browser inner` is still a name of the wrapper; the scripts next to it are served as they are.",
+        "keeps": [
+          "openDeckMixer"
+        ]
+      }
     }
   }
 }

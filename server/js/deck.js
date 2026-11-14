@@ -74,58 +74,7 @@
     const sizes = (window.DeckModel && window.DeckModel.KEY_SIZES) || { sm: 56, md: 76, lg: 104 };
     return sizes[cfg.keySize] || sizes.md || 76;
   }
-  function deckLookFor(cfg, profileId) {
-    const M = window.DeckModel;
-    if (M && typeof M.effectiveDeckLook === 'function') return M.effectiveDeckLook(cfg, profileId);
-    return { capStyle: cfg.capStyle, keyShape: cfg.keyShape, plate: cfg.plate, transparency: cfg.transparency, wellImage: cfg.wellImage, mediaStyle: cfg.mediaStyle };
-  }
-  // The single place that turns the stored 0-100 transparency into the custom
-  // properties DeckPanel.css fades on, so the style preview and the real deck can
-  // never disagree about what a value means. Both surfaces are painted on their
-  // own layer precisely so this can stay one number: an `opacity` on .deck-device
-  // would take the keys with it.
-  // Deck-wide on/off cues (Aspetto Deck): a lit ring on every key that is on,
-  // and every state-following key dimmed while off. CSS keys off these.
-  function stampDeckLitCues(root, look) {
-    if (look && look.litRing) root.dataset.litring = '1'; else delete root.dataset.litring;
-    if (look && look.dimOff) root.dataset.dimoff = '1'; else delete root.dataset.dimoff;
-    if (look && look.themeColors) root.dataset.themecolors = '1'; else delete root.dataset.themecolors;
-  }
-  function stampDeckAlpha(root, look) {
-    const t = Math.max(0, Math.min(100, Number(look && look.transparency) || 0));
-    const alpha = String((100 - t) / 100);
-    root.style.setProperty('--deck-plate-alpha', alpha);
-    root.style.setProperty('--deck-well-alpha', alpha);
-    // The mount a tab-group tile paints IS the chassis, so it follows the chassis
-    // rather than only the slider: the "Nessuna" faceplate removes the body
-    // outright, and leaving the mount behind reproduced exactly the box that
-    // finish exists to get rid of.
-    root.style.setProperty('--deck-mount-alpha', (look && look.plate === 'none') ? '0' : alpha);
-  }
-  // A Deck inside a tab-group repaints the HOSTING tile as its chassis mount
-  // (.panel.tabgroup.deck-tab-active), so that tile has to fade with the device or
-  // the slider looks broken: the chassis goes and the mount takes its place. The
-  // tile is an ANCESTOR of the .deck-root carrying the value, and a custom property
-  // only inherits downward, so it is stamped directly. dashboard-tabgroups.js does
-  // the same when it rebuilds the bar, which covers the case this call cannot see:
-  // a group tile built fresh around a member that was MOVED into it rather than
-  // re-rendered.
-  function stampDeckMount(tile) {
-    if (!tile || !tile.querySelector) return;
-    const root = tile.querySelector('.deck-root');
-    // A Deck with no faceplate draws no body, so the dashboard tile around it must
-    // not draw its drop shadow either: under bare keys it is a dark strip along an
-    // empty edge (DeckPanel.css, [data-deck-bare]). Set on the Deck's own tile, or
-    // on the group tile that mounts it, whichever is the direct child of the grid
-    // item, so the stylesheet needs no deep :has() walk.
-    const bare = !!(root && root.dataset.plate === 'none');
-    tile.toggleAttribute('data-deck-bare', bare);
-    const mount = tile.closest ? tile.closest('.panel.tabgroup') : null;
-    if (!mount) return;
-    mount.style.setProperty('--deck-mount-alpha', (root && root.style.getPropertyValue('--deck-mount-alpha')) || '1');
-    mount.toggleAttribute('data-deck-bare', bare);
-    mount.toggleAttribute('data-deck-themeplate', !!(root && root.dataset.plate === 'theme'));
-  }
+  const { deckLookFor, stampDeckLitCues, stampDeckAlpha, stampDeckMount } = window.DeckLookStamps;
   // True while the dashboard Layout editor is open. The deck must NOT auto-fit its
   // key grid then: the tile is mid-resize (GridStack hasn't applied its final cell
   // height yet, and the user is actively dragging the corner), so measuring it now
@@ -891,6 +840,8 @@
   // SDK widget's granted soundboard actions here (pack-relative clips only —
   // the caller gates the file shape). Same element cache, same panic stop.
   window.DeckSoundPlayer = { play: playDeckSound, stopAll: stopAllDeckSounds };
+  const { safeIconSrc, applyStateStyle, applyCycleFace, setLabelColor } = window.DeckKeyFace;
+
   // A key's keyboard shortcut runs on the server; the steps only a dashboard
   // can do (sound, AI chat, mixer) come back here once claimed (main.js).
   window.DeckClientRun = (action) => {
@@ -1567,13 +1518,6 @@
   }
 
   const el = makeEl; // shared DOM factory from utils.js
-
-  // Only allow image icons from schemes that cannot run script: remote images,
-  // inline data images, and object URLs. Anything else falls back to a glyph.
-  function safeIconSrc(value) {
-    const v = String(value || '').trim();
-    return (/^https?:\/\//i.test(v) || /^data:image\//i.test(v) || /^blob:/i.test(v)) ? v : '';
-  }
 
   // The OBS "role" a key plays, from its trigger actions: 'scene' (set scene OR
   // cycle next), 'record', 'stream', or null. Used to pick which key hosts the
@@ -3410,124 +3354,6 @@
     });
     if (ticking && !liveTicker) liveTicker = setInterval(applyLiveFaces, 1000);
     else if (!ticking && liveTicker) { clearInterval(liveTicker); liveTicker = null; }
-  }
-
-  // Swap a key's face to its alternate ON style (icon glyph / label / accent)
-  // and restore the original losslessly when the state turns off. The base
-  // icon's real nodes are parked in a fragment (never rebuilt from strings), so
-  // image/builtin faces survive the round-trip; all text goes via textContent.
-  // Fill a `.deck-ico` with the GLYPH forms of an icon: a built-in vector, a
-  // compact picture, or an emoji. Shared by the base face (below) and by the
-  // active face in applyStateStyle, so a state icon is built by the same code
-  // that builds a normal one — the alternative was a second, drifting copy that
-  // happened to support only text, which is exactly what it did support.
-  //
-  // Full-bleed pictures are deliberately not here: those restyle the whole cap
-  // (`has-image` + the label scrim) rather than filling the glyph slot, and only
-  // the base face does that. normalizeStateIcon stores an active-face picture as
-  // 'small' for the same reason.
-  function fillGlyphIcon(ico, icon) {
-    ico.textContent = '';
-    ico.classList.remove('is-builtin', 'is-img-small');
-    const type = icon && icon.type;
-    const src = type === 'image' ? safeIconSrc(icon.value) : '';
-    if (src) {
-      const img = document.createElement('img');
-      img.draggable = false;
-      img.src = src; img.alt = '';
-      ico.classList.add('is-img-small');
-      ico.appendChild(img);
-      return true;
-    }
-    if (type === 'builtin' && window.DeckIcons && window.DeckIcons.has(icon.value)) {
-      ico.classList.add('is-builtin');
-      ico.appendChild(window.DeckIcons.el(icon.value));
-      return true;
-    }
-    // Only an EMOJI is printed as text. Without that check the value of anything
-    // that failed to render — an unknown built-in id, an image whose URL was
-    // rejected — was written onto the cap as a word, so a key that should have
-    // fallen back to its base face showed `javascript:alert(1)` instead. Harmless
-    // as text (never markup, never fetched) and wrong in every other way. The base
-    // face has always tested the type here; this is the same test.
-    const text = (type === 'emoji' && icon && typeof icon.value === 'string') ? icon.value : '';
-    if (!text) return false;
-    ico.textContent = text;
-    return true;
-  }
-
-  function applyStateStyle(node, on) {
-    const ss = node._deckStateStyle;
-    const base = node._ssBase;
-    if (!ss || !base || on === node._ssApplied) return;
-    node._ssApplied = on;
-    if (ss.icon) {
-      if (on && !base.iconFrag) {
-        // Keep the base face's nodes rather than its markup: a built-in SVG or an
-        // <img> has to come back exactly as it was, and remembering the classes
-        // is what lets `is-builtin` / `is-img-small` be restored with it.
-        base.iconFrag = document.createDocumentFragment();
-        while (base.ico.firstChild) base.iconFrag.appendChild(base.ico.firstChild);
-        base.iconClass = base.ico.className;
-        if (!fillGlyphIcon(base.ico, ss.icon)) {
-          // Nothing renderable (an unknown built-in id, a rejected image): put the
-          // base face straight back rather than leaving the key blank.
-          base.ico.className = base.iconClass;
-          while (base.iconFrag.firstChild) base.ico.appendChild(base.iconFrag.firstChild);
-          base.iconFrag = null;
-        }
-      } else if (!on && base.iconFrag) {
-        base.ico.textContent = '';
-        base.ico.className = base.iconClass || 'deck-ico';
-        base.ico.appendChild(base.iconFrag);
-        base.iconFrag = null;
-      }
-    }
-    if (ss.label) base.labelEl.textContent = on ? ss.label : base.labelText;
-    if (ss.color) {
-      if (on) { node.classList.add('has-accent'); node.style.setProperty('--key-accent', ss.color); }
-      else if (base.accent) { node.style.setProperty('--key-accent', base.accent); }
-      else { node.style.removeProperty('--key-accent'); node.classList.remove('has-accent'); }
-    }
-    if (ss.color2 || (ss.color && base.accent2)) {
-      // The lit face has its own gradient, or a plain colour that replaces the
-      // base gradient; off restores whatever the base face had.
-      const next = on ? (ss.color2 || '') : base.accent2;
-      if (next) {
-        node.classList.add('has-gradient');
-        node.style.setProperty('--key-accent2', next);
-        node.dataset.grad = (on ? '' : base.grad) || node.dataset.grad || 'd';
-      } else {
-        node.classList.remove('has-gradient');
-        node.style.removeProperty('--key-accent2');
-      }
-    }
-    if (ss.iconColor) {
-      const c = on ? ss.iconColor : base.iconColor;
-      base.ico.style.color = c;
-      if (c) node.style.setProperty('--key-icon-color', c); else node.style.removeProperty('--key-icon-color');
-    }
-    if (ss.labelColor) setLabelColor(base.labelEl, on ? ss.labelColor : base.labelColor);
-  }
-
-  // Show a cycle key's state `index` (0 = its base face): back to the base face,
-  // then the state's own face on top, and light that state's dot.
-  function applyCycleFace(node, index) {
-    const key = node._deckCycleKey;
-    if (!key || node._cycleAt === index) return;
-    applyStateStyle(node, false);
-    node._deckStateStyle = index > 0 ? key.cycle[index - 1] : null;
-    if (node._deckStateStyle) applyStateStyle(node, true);
-    node._cycleAt = index;
-    const pips = node.querySelectorAll(':scope > .deck-key-cycle > .pip');
-    pips.forEach((p, i) => p.classList.toggle('is-at', i === index));
-  }
-
-  // The colour also goes in a variable: a cap style that inks its labels (Comic)
-  // has to force its own colour, and reads this one first.
-  function setLabelColor(label, c) {
-    label.style.color = c || '';
-    if (c) label.style.setProperty('--key-label-color', c); else label.style.removeProperty('--key-label-color');
   }
 
   // ── which audio output is active ────────────────────────────────────────
