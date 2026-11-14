@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 184,
+  "count": 183,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -63,7 +63,6 @@
     "server/js/capture-annotate.js": 375,
     "server/js/capture-gallery-viewer.js": 546,
     "server/js/capture-gallery.js": 352,
-    "server/js/capture-toast.js": 404,
     "server/js/chatgpt-widget.js": 357,
     "server/js/claude-widget.js": 3160,
     "server/js/codex-widget.js": 892,

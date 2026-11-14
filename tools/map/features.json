@@ -313,6 +313,7 @@
         "server/screen-capture.js",
         "server/steps-*.js",
         "server/ffmpeg-install/**",
+        "server/js/capture-toast/**",
         "server/js/capture-*.js",
         "server/js/ffmpeg-offer.js",
         "server/components/CaptureGallery/**",
