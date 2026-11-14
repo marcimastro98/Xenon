@@ -46,7 +46,16 @@ test('a test written one of the other plain ways names its body with a key no ot
   assert.equal(keyOf("reqPath === '/x' && (req.method === 'POST' || req.method === 'GET')"), 'POST|GET /x');
   assert.equal(keyOf("reqPath.startsWith('/x/') && req.method === 'DELETE'"), 'DELETE /x/*');
   assert.equal(keyOf("req.method === 'GET' && reqPath.startsWith('/x/')"), 'GET /x/*');
-  assert.equal(keyOf("reqPath.startsWith('/x/')"), null, 'asked with any method: not one of the ways');
+  assert.equal(keyOf("reqPath.startsWith('/x/')"), '* /x/*', 'asked with any method');
+  assert.equal(keyOf("req.method === 'GET' && (reqPath.startsWith('/x/') || reqPath.startsWith('/y/'))"), 'GET /x/*|/y/*');
+  assert.equal(keyOf("req.method === 'GET' && (reqPath.startsWith('/x/') || reqPath.startsWith(OTHER))"), null, 'a start that is not written as text');
+  assert.equal(keyOf("(reqPath === '/x' && req.method === 'POST') || (reqPath === '/y' && req.method === 'POST')"), 'POST /x|/y');
+  assert.equal(keyOf("(reqPath === '/x' && req.method === 'POST')\n      || (reqPath === '/y' && req.method === 'POST')\n      || (reqPath === '/z' && req.method === 'POST')"),
+    'POST /x|/y|/z', 'a test a line: where a line ends says nothing about what is asked');
+  assert.equal(keyOf("(reqPath === '/x' && req.method === 'POST') || (reqPath === '/y' && req.method === 'GET')"), null, 'two methods');
+  assert.equal(keyOf("(reqPath === '/x' && req.method === 'POST') || (reqPath === '/x' && req.method === 'POST')"), null, 'one address twice');
+  assert.equal(keyOf("(reqPath === '/x' && req.method === 'POST')"), null);
+  assert.equal(keyOf("(reqPath === '/x' && req.method === 'POST') || isRemote"), null);
   assert.equal(keyOf("reqPath === '/x' && (req.method === 'POST' || req.method === 'GET' || req.method === 'PUT')"), null);
   assert.equal(keyOf("(reqPath === '/x' || reqPath === '/y') && req.method === 'GET'"), null);
   assert.equal(keyOf("reqPath.startsWith('/x/') && (req.method === 'GET' || req.method === 'HEAD')"), null);
@@ -59,7 +68,7 @@ test('a test written one of the other plain ways names its body with a key no ot
 test('a body under such a test moves like any other, and two tests that would share a key are refused', (t) => {
   if (!parser) return t.skip(SKIP);
   const swap = (text, from, to) => { assert.equal(text.split(from).length, 2, `the sample has ${JSON.stringify(from)} once`); return text.replace(from, () => to); };
-  const text = swap(swap(SOURCE, "reqPath.startsWith('/h/')", "reqPath.startsWith('/h/') && req.method === 'GET'"),
+  const text = swap(swap(SOURCE, "reqPath.startsWith('/h/') && !isRemote", "reqPath.startsWith('/h/') && req.method === 'GET'"),
     "reqPath === '/a' && req.method === 'GET'", "reqPath === '/a' && (req.method === 'GET' || req.method === 'HEAD')");
   const made = plan(['GET /h/*', 'GET|HEAD /a'], { text });
   assert.deepEqual(made.keys, ['GET|HEAD /a', 'GET /h/*']);
@@ -70,6 +79,26 @@ test('a body under such a test moves like any other, and two tests that would sh
   assert.equal(undoBranchesText(made.newSource, () => made.moduleText), text, 'and is put back under its test');
   const twice = swap(text, "reqPath === '/j' && req.method === 'GET'", "req.method === 'GET' && reqPath.startsWith('/h/')");
   assert.match(refusal(['GET /h/*'], { text: twice }), /2 branches of handleRequest answer GET \/h\/\*, one was expected/);
+});
+
+test('a start asked with any method, either of two starts, and several addresses with one method are tests with a key too', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const swap = (text, from, to) => { assert.equal(text.split(from).length, 2, `the sample has ${JSON.stringify(from)} once`); return text.replace(from, () => to); };
+  const several = "(reqPath === '/j' && req.method === 'GET')\n      || (reqPath === '/j2' && req.method === 'GET')";
+  const text = swap(swap(swap(SOURCE, "reqPath.startsWith('/h/') && !isRemote", "reqPath.startsWith('/h/')"),
+    "reqPath === '/g' && req.method === 'GET'", "req.method === 'GET' && (reqPath.startsWith('/g/') || reqPath.startsWith('/g2/'))"),
+  "reqPath === '/j' && req.method === 'GET'", several);
+  const keys = ['GET /g/*|/g2/*', '* /h/*', 'GET /j|/j2'];
+  for (const key of keys) assert.equal(readCall(callLine('lightsBranches', key)).key, key, 'the call of such a key is read back');
+  const made = plan(keys, { text });
+  assert.deepEqual(made.keys, keys);
+  assert.ok(made.newSource.includes("  } else if (reqPath.startsWith('/h/')) {\n    await lightsBranches['* /h/*'](req, res, { json, err500, reqPath, urlObj, isRemote });\n"));
+  assert.ok(made.newSource.includes(`  else if (${several}) {\n    await lightsBranches['GET /j|/j2'](req, res, { json, err500, reqPath, urlObj, isRemote });\n`), 'the test stays on its lines');
+  assert.deepEqual(readModule(made.moduleText).entries.map((entry) => entry.key), keys);
+  assert.deepEqual(proven(made, { before: text }), []);
+  assert.equal(undoBranchesText(made.newSource, () => made.moduleText), text, 'and each body is put back under its test');
+  const twice = swap(text, "reqPath === '/i' && req.method === 'GET'", "(reqPath === '/j' && req.method === 'GET') || (reqPath === '/j2' && req.method === 'GET')");
+  assert.match(refusal(['GET /j|/j2'], { text: twice }), /2 branches of handleRequest answer GET \/j\|\/j2, one was expected/);
 });
 
 test('a table is named after its folder, and a body is handed only what it uses', () => {
@@ -100,7 +129,7 @@ test('every branch is read with what its body takes from outside and what keeps 
   assert.equal(of('GET /f').reasons.join('\n'), 'it has `this`', 'a value given back with `return` does not keep a route: its call gives it back');
   assert.deepEqual([of('GET /f').returns, of('POST /b').returns, of('GET /a').returns], [true, false, false], 'a bare `return;` gives nothing back');
   assert.deepEqual([of('GET /g').needed, of('GET /g').own], [[], ['late']], 'a name required further down is handed over: a table that required it would load its module early');
-  assert.match(branches[7].reasons.join('\n'), /its test is not an address, or the start of one, asked with one method or either of two/);
+  assert.match(branches[7].reasons.join('\n'), /its test is not one of the plain ways to ask for an address/);
   assert.match(of('GET /i').reasons.join('\n'), /its body is not on lines of its own/);
 });
 

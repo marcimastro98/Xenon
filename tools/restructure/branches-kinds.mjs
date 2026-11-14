@@ -27,26 +27,45 @@ import { routeChain } from './routes-list.mjs';
 //   reqPath === '/x' && req.method === 'GET'                               GET /x       (in either order)
 //   reqPath === '/x' && (req.method === 'POST' || req.method === 'GET')    POST|GET /x
 //   reqPath.startsWith('/x/') && req.method === 'GET'                      GET /x/*     (in either order)
+//   reqPath.startsWith('/x/')                                              * /x/*       (whatever the method)
+//   req.method === 'GET' && (reqPath.startsWith('/x/') || reqPath.startsWith('/y/'))        GET /x/*|/y/*
+//   (reqPath === '/x' && req.method === 'POST') || (reqPath === '/y' && req.method === 'POST')   POST /x|/y
+//       (two addresses or more, each a different one, all asked with the one method)
+//
+// A test written over several lines is read as if it stood on one: where a line ends says nothing about what it asks.
 const ADDRESS = String.raw`'(\/[^'\\*|]*)'`;
 const ASKED = String.raw`req\.method === '([A-Z]+)'`;
+const STARTS = String.raw`reqPath\.startsWith\(${ADDRESS}\)`;
+const ONE = String.raw`\(reqPath === ${ADDRESS} && ${ASKED}\)`;
 const whole = (text) => new RegExp(`^${text}$`);
+// Several addresses, each with its method: a key only when the method is the same one and no address comes twice.
+function severalAddresses(found) {
+  const parts = [...found[0].matchAll(new RegExp(ONE, 'g'))];
+  const addresses = parts.map((part) => part[1]);
+  const methods = new Set(parts.map((part) => part[2]));
+  return methods.size === 1 && new Set(addresses).size === addresses.length ? `${parts[0][2]} ${addresses.join('|')}` : null;
+}
 const ROUTE_TESTS = [
   { test: whole(`reqPath === ${ADDRESS} && ${ASKED}`), key: (found) => `${found[2]} ${found[1]}` },
   { test: whole(`${ASKED} && reqPath === ${ADDRESS}`), key: (found) => `${found[1]} ${found[2]}` },
   { test: whole(String.raw`reqPath === ${ADDRESS} && \(${ASKED} \|\| ${ASKED}\)`), key: (found) => `${found[2]}|${found[3]} ${found[1]}` },
   { test: whole(String.raw`reqPath\.startsWith\(${ADDRESS}\) && ${ASKED}`), key: (found) => `${found[2]} ${found[1]}*` },
   { test: whole(String.raw`${ASKED} && reqPath\.startsWith\(${ADDRESS}\)`), key: (found) => `${found[1]} ${found[2]}*` },
+  { test: whole(STARTS), key: (found) => `* ${found[1]}*` },
+  { test: whole(String.raw`${ASKED} && \(${STARTS} \|\| ${STARTS}\)`), key: (found) => `${found[1]} ${found[2]}*|${found[3]}*` },
+  { test: whole(String.raw`${ONE}(?: \|\| ${ONE})+`), key: severalAddresses },
 ];
 const TOOL_NAME = /^fnName === '([a-z][a-z0-9_]*)'$/;
 
 /**
  * @param {string} test a branch's test as written
- * @returns {string | null} `METHOD /path`, `METHOD|METHOD /path` or `METHOD /path*` when the test is exactly one of the
- *   ways above
+ * @returns {string | null} the key of the test when it is exactly one of the ways above: `METHOD /path`,
+ *   `METHOD|METHOD /path`, `METHOD /path*`, `* /path*`, `METHOD /path*|/path*` or `METHOD /path|/path`
  */
 export function keyOf(test) {
+  const plain = test.replace(/\s*\n\s*/g, ' ');
   for (const way of ROUTE_TESTS) {
-    const found = way.test.exec(test);
+    const found = way.test.exec(plain);
     if (found) return way.key(found);
   }
   return null;
@@ -83,9 +102,9 @@ export const ROUTES = Object.freeze({
   returns: true,
   result: null,
   indent: '    ',
-  key: String.raw`[A-Z]+(?:\|[A-Z]+)? /[^'\\*|]*\*?`,
+  key: String.raw`(?:[A-Z]+(?:\|[A-Z]+)?|\*) /[^'\\*|]*\*?(?:\|/[^'\\*|]*\*?)*`,
   keyOf,
-  notKey: 'its test is not an address, or the start of one, asked with one method or either of two',
+  notKey: 'its test is not one of the plain ways to ask for an address (ROUTE_TESTS in branches-kinds.mjs)',
   chainOf: routeChain,
   type: '(req: any, res: any, context: any) => Promise<void>',
   typeOwn: '(req: any, res: any, context: any, engine?: any) => Promise<void>',

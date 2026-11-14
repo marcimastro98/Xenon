@@ -41,7 +41,7 @@ const handleRequest = async (req, res) => {
     return json({ f: this });
   } else if (reqPath === '/g' && req.method === 'GET') {
     json({ g: late() });
-  } else if (reqPath.startsWith('/h/')) {
+  } else if (reqPath.startsWith('/h/') && !isRemote) {
     json({ h: 1 });
   } else if (reqPath === '/i' && req.method === 'GET') { json({ i: 1 }); }
   else if (reqPath === '/j' && req.method === 'GET') {
