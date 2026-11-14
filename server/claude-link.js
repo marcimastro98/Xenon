@@ -164,7 +164,6 @@ async function link(dataDir, port, opts) {
   return status(dataDir, port);
 }
 
-// ── unlink ───────────────────────────────────────────────────────────────────
 // ── repair ───────────────────────────────────────────────────────────────────
 // A link the user made that is now incomplete (written by an older Xenon, or
 // rewritten since by something else) is brought back to the current set, once,
@@ -182,6 +181,7 @@ async function repairLink(dataDir, port) {
   return { ...next, repaired: true, repairedMissing: st.missing, repairedOutdated: st.outdated };
 }
 
+// ── unlink ───────────────────────────────────────────────────────────────────
 async function unlink(dataDir, port) {
   const file = settingsPath();
   const settings = await readJson(file);

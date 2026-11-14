@@ -44,10 +44,7 @@ const fs = require('fs');
 const path = require('path');
 require('./js/deck-actions.js');
 require('./js/deck-shortcuts.js'); // nothing is taken from it here, but it runs code when it loads
-// A package may declare the SILHOUETTE of its own tile. It goes through the very
-// same validator a shared preset does (js/dashboard-instances.js) rather than a
-// second copy of the rules here — one boundary, two doors.
-require('./js/dashboard-instances.js');
+require('./js/dashboard-instances.js'); // nothing is taken from it here, but it runs code when it loads
 
 const {
   SDK_API_VERSION, SDK_STREAMS, SDK_ACTION_CATEGORIES, SDK_ACTION_LIMITS, sdkActionWithinLimits,

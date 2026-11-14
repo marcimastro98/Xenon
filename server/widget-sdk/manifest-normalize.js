@@ -4,6 +4,9 @@
 // refused.
 
 const { validateAction, clampDelay } = require('../js/deck-actions.js');
+// A package may declare the SILHOUETTE of its own tile. It goes through the very
+// same validator a shared preset does (js/dashboard-instances.js) rather than a
+// second copy of the rules here — one boundary, two doors.
 const { normalizeTileShape, normalizeWidgetIcon } = require('../js/dashboard-instances.js');
 const WidgetOptions = require('../widget-options/options.js');
 const {
