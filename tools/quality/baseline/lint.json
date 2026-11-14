@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5930,
+  "total": 5929,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -146,8 +146,7 @@
     "server/bug-report.js suspicious/noControlCharactersInRegex": 2,
     "server/calendar-reminders.js complexity/useOptionalChain": 1,
     "server/call-detect.js complexity/useOptionalChain": 6,
-    "server/calls.js complexity/useOptionalChain": 13,
-    "server/calls.js style/useConst": 1,
+    "server/calls.js complexity/useOptionalChain": 2,
     "server/capabilities/benchmark.js complexity/useOptionalChain": 1,
     "server/capabilities/bug-report.js complexity/useOptionalChain": 2,
     "server/capabilities/capture-marker.js complexity/useOptionalChain": 2,
@@ -1457,6 +1456,8 @@
     "server/transcript-format.js complexity/useOptionalChain": 2,
     "server/transcript-format.js suspicious/noControlCharactersInRegex": 6,
     "server/transfer/call-capabilities.js complexity/useOptionalChain": 3,
+    "server/transfer/calls-act.js complexity/useOptionalChain": 7,
+    "server/transfer/calls-ring.js complexity/useOptionalChain": 4,
     "server/transfer/calls-settings.js complexity/useOptionalChain": 2,
     "server/transfer/file-names.js style/useConst": 1,
     "server/transfer/linux-phone-dbus.js complexity/useOptionalChain": 3,

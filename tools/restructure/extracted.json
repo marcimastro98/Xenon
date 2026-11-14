@@ -491,7 +491,10 @@
       {"file":"server/transfer/call-apps.js","about":"The apps whose notifications can be a call, with how each is named and what it can be asked to do.","names":["DEFAULT_APPS"]}
     ],
     "server/calls.js": [
-      {"file":"server/transfer/call-capabilities.js","about":"What can be done with a ringing call from the dashboard, per app and system, and the call as the page sees it.","names":["comboFor","entryFor","capabilitiesFor","projectCall"]}
+      {"file":"server/transfer/call-capabilities.js","about":"What can be done with a ringing call from the dashboard, per app and system, and the call as the page sees it.","names":["comboFor","entryFor","capabilitiesFor","projectCall"]},
+      {"file":"server/transfer/calls-state.js","about":"What the phone-call relay remembers while the engine runs: who gave it its helpers, the calls in progress, and the timer that drops old ones.","names":["_deps","_active","_recent","_seq","_timer","_stopped"],"state":{"object":"callState","props":{"_deps":"deps","_active":"active","_recent":"recent","_seq":"seq","_timer":"timer","_stopped":"stopped"},"kept":[],"bare":[]}},
+      {"file":"server/transfer/calls-ring.js","about":"Starts and ends a ringing call for the phone-call relay: tells the dashboards, notifies the phone that is away, and drops a call nobody answered.","names":["RING_TIMEOUT_MS","DEDUPE_MS","MAX_ACTIVE","_settings","enabled","_broadcast","_rearm","_expire","_pruneRecent","_ring","PUSH_TITLE","_notifyAway","_endByKey"]},
+      {"file":"server/transfer/calls-act.js","about":"What a tap on a call card does: answer, decline or hang up, by bringing the calling app forward and sending it the key, or by asking the phone.","names":["FOCUS_SETTLE_MS","_find","_drop","_focusApp","_sendToApp","act"]}
     ],
     "server/linux-phone.js": [
       {"file":"server/transfer/linux-phone-dbus.js","about":"Asks BlueZ and oFono over D-Bus with busctl on Linux, and reads values and object lists out of its JSON answers.","names":["CALL_TIMEOUT_MS","runBusctl","dbusErrorName","dbusValue","parseManagedObjects","dbusRows","firstObjectPath"]},

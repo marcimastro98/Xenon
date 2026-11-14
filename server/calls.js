@@ -34,11 +34,6 @@
 
 const callDetect = require('./call-detect');
 
-const RING_TIMEOUT_MS = 45000;   // a little past a real ring, then the card goes
-const DEDUPE_MS = 20000;         // the same ring re-announced is not a new call
-const MAX_ACTIVE = 3;            // two phones ringing at once is rare, not impossible
-const FOCUS_SETTLE_MS = 220;     // let the window actually come forward before the key
-
 // ── Pure: which combo answers/declines this call on this platform ───────────
 
 const {
@@ -47,144 +42,17 @@ const {
 
 // ── The live state ─────────────────────────────────────────────────────────
 
-let _deps = null;
-let _active = [];          // newest first, capped at MAX_ACTIVE
-let _recent = new Map();   // dedupe key → last ring time
-let _seq = 0;
-let _timer = null;
-let _stopped = false;
+const { callState } = require('./transfer/calls-state.js');
 
-function init(deps) { _deps = deps && typeof deps === 'object' ? deps : null; }
+const {
+  RING_TIMEOUT_MS, DEDUPE_MS, MAX_ACTIVE, _settings, enabled, _broadcast, _rearm, _ring, _endByKey,
+} = require('./transfer/calls-ring.js');
 
-function _settings() {
-  try { return (_deps && _deps.getSettings && _deps.getSettings()) || {}; }
-  catch { return {}; }
-}
+const { act } = require('./transfer/calls-act.js');
 
-function enabled() { return _settings().enabled === true; }
-
-function _broadcast() {
-  if (!_deps || typeof _deps.broadcast !== 'function') return;
-  try { _deps.broadcast('calls', { calls: _active.map(projectCall) }); }
-  catch { /* a listener error never breaks the ring */ }
-}
-
-// One timer for the whole list rather than one per call: the list is at most
-// three long and the tick only has to be accurate to about a second.
-function _rearm() {
-  if (_timer) { clearTimeout(_timer); _timer = null; }
-  if (_stopped || !_active.length) return;
-  const soonest = Math.min(..._active.map(c => c.endsAt));
-  const delay = Math.max(250, soonest - Date.now());
-  _timer = setTimeout(_expire, delay);
-  if (typeof _timer.unref === 'function') _timer.unref();
-}
-
-function _expire() {
-  _timer = null;
-  const now = Date.now();
-  const before = _active.length;
-  _active = _active.filter(c => c.endsAt > now);
-  if (_active.length !== before) _broadcast();
-  _rearm();
-}
-
-// Drop dedupe entries that can no longer suppress anything, so the map cannot
-// grow across a long uptime.
-function _pruneRecent(now) {
-  for (const [k, t] of _recent) if (now - t > DEDUPE_MS) _recent.delete(k);
-}
-
-// A classified call becomes a ringing card — or is dropped as a repeat.
-function _ring(call) {
-  if (_stopped || !enabled() || !call) return null;
-  const now = Date.now();
-  _pruneRecent(now);
-  if (call.key && _recent.has(call.key) && now - _recent.get(call.key) < DEDUPE_MS) return null;
-  if (call.key) _recent.set(call.key, now);
-
-  const s = _settings();
-  const ctx = {
-    platform: (_deps && _deps.platform) || process.platform,
-    apps: Array.isArray(s.apps) ? s.apps : [],
-    hotkey: !!(_deps && typeof _deps.hotkeyAvailable === 'function' && _deps.hotkeyAvailable()),
-    windowTool: !!(_deps && typeof _deps.listWindows === 'function'),
-    discordLinked: !!(_deps && typeof _deps.discordLinked === 'function' && _deps.discordLinked()),
-    phoneCanAnswer: !!(_deps && typeof _deps.phoneCanAnswer === 'function' && _deps.phoneCanAnswer()),
-    phoneCanHangUp: !!(_deps && typeof _deps.phoneCanHangUp === 'function' && _deps.phoneCanHangUp()),
-  };
-
-  const rec = {
-    ...call,
-    id: 'c' + (++_seq) + '-' + now.toString(36),
-    at: now,
-    endsAt: now + RING_TIMEOUT_MS,
-    silenced: false,
-    caps: capabilitiesFor(call, ctx),
-  };
-  _active.unshift(rec);
-  if (_active.length > MAX_ACTIVE) _active.length = MAX_ACTIVE;
-  _broadcast();
-  _rearm();
-  _notifyAway(rec);
-  try { if (_deps && _deps.onEvent) _deps.onEvent('notification'); } catch { /* lighting optional */ }
-  return rec;
-}
-
-// The push title, in the 11 languages the dashboard speaks. A lock-screen line
-// is the one piece of text here that the client cannot translate for us — it is
-// written while nobody is looking at a dashboard — so the server picks it from
-// the language already stored in settings, exactly like the daily briefing does.
-const PUSH_TITLE = Object.freeze({
-  en: ['Incoming call', 'Incoming video call'],
-  it: ['Chiamata in arrivo', 'Videochiamata in arrivo'],
-  es: ['Llamada entrante', 'Videollamada entrante'],
-  fr: ['Appel entrant', 'Appel vidéo entrant'],
-  de: ['Eingehender Anruf', 'Eingehender Videoanruf'],
-  pt: ['Chamada recebida', 'Videochamada recebida'],
-  nl: ['Inkomende oproep', 'Inkomend videogesprek'],
-  ru: ['Входящий вызов', 'Входящий видеозвонок'],
-  ja: ['着信', 'ビデオ通話の着信'],
-  ko: ['수신 전화', '영상 통화 수신'],
-  zh: ['来电', '视频通话来电'],
-});
-
-// Wake a phone that is not looking at the dashboard. An incoming call is the
-// archetype of what Web Push exists for here: something the user set up and is
-// actively waiting for, not a digest. The caller's name is the whole payload —
-// a lock screen is a public surface, so nothing else goes in it.
-function _notifyAway(rec) {
-  if (!_deps || typeof _deps.push !== 'function') return;
-  if (_settings().push === false) return;
-  let lang = 'en';
-  try { lang = String((_deps.getLanguage && _deps.getLanguage()) || 'en').slice(0, 2).toLowerCase(); }
-  catch { lang = 'en'; }
-  const titles = PUSH_TITLE[lang] || PUSH_TITLE.en;
-  const who = rec.caller || '';
-  try {
-    _deps.push({
-      title: titles[rec.video ? 1 : 0],
-      body: who ? who + ' · ' + rec.appName : rec.appName,
-      tag: 'xenon-call',
-    });
-  } catch { /* push is best-effort; the card is the real surface */ }
-}
+function init(deps) { callState.deps = deps && typeof deps === 'object' ? deps : null; }
 
 // ── Inputs ─────────────────────────────────────────────────────────────────
-
-// Stop ringing a call whose end was just announced. Also clears its dedupe
-// entry: the same person calling straight back is a NEW call, and leaving the
-// key behind would swallow it for the rest of the window.
-function _endByKey(key) {
-  if (!key) return false;
-  const before = _active.length;
-  _active = _active.filter(c => c.key !== key);
-  _recent.delete(key);
-  if (_active.length === before) return false;
-  _broadcast();
-  _rearm();
-  return true;
-}
 
 function onNotification(item) {
   if (!enabled()) return null;
@@ -225,15 +93,15 @@ function onNotification(item) {
 // be read as "removed". A card only becomes eligible once its id has actually
 // been observed present at least once; until then absence means nothing.
 function onNotificationsPresent(ids) {
-  if (!_active.length) return;
+  if (!callState.active.length) return;
   const present = new Set(Array.isArray(ids) ? ids : []);
   let changed = false;
-  for (const call of _active.slice()) {
+  for (const call of callState.active.slice()) {
     if (!Number.isFinite(call.srcId)) continue;      // Discord, or an older reader
     if (present.has(call.srcId)) { call.srcSeen = true; continue; }
     if (!call.srcSeen) continue;
-    _active = _active.filter(c => c !== call);
-    _recent.delete(call.key);                        // an immediate call back must ring
+    callState.active = callState.active.filter(c => c !== call);
+    callState.recent.delete(call.key);                        // an immediate call back must ring
     changed = true;
   }
   if (changed) { _broadcast(); _rearm(); }
@@ -262,7 +130,7 @@ function _isPhoneMirror(item, s) {
 // Fill the caller in on the card the OS already raised. Returns the card when
 // it took the notification, so the caller knows not to classify it again.
 function _nameRingingPhoneCall(item, s) {
-  const call = _active.find(c => c.key === PHONE_KEY);
+  const call = callState.active.find(c => c.key === PHONE_KEY);
   if (!call) return null;
   if (!_isPhoneMirror(item, s)) return null;
   if (Date.now() - call.at > ENRICH_WINDOW_MS) return null;
@@ -291,7 +159,7 @@ function onPhoneState(state) {
   if (!s.incoming) { _endByKey(PHONE_KEY); return null; }
 
   // Already ringing: the OS re-reporting the same call is not a new one.
-  const existing = _active.find(c => c.key === PHONE_KEY);
+  const existing = callState.active.find(c => c.key === PHONE_KEY);
   if (existing) return existing;
 
   return _ring({
@@ -317,156 +185,25 @@ function onDiscordNotification(n) {
 
 // ── Acting on a ring ───────────────────────────────────────────────────────
 
-function _find(id) { return _active.find(c => c.id === String(id || '')) || null; }
-
-function _drop(id) {
-  const before = _active.length;
-  _active = _active.filter(c => c.id !== id);
-  if (_active.length !== before) { _broadcast(); _rearm(); }
-}
-
-// Bring the app's window forward. Matching is by the same `match` list the
-// classifier uses, checked against the window's process name AND its title,
-// because an Electron app reports a generic process name on some platforms.
-async function _focusApp(call) {
-  if (!_deps || typeof _deps.listWindows !== 'function' || typeof _deps.focusWindow !== 'function') {
-    return { ok: false, error: 'no_window_tool' };
-  }
-  const entry = entryFor(call.appId, _settings().apps);
-  const needles = (entry && Array.isArray(entry.match) ? entry.match : [])
-    .map(m => callDetect.foldText(m)).filter(Boolean);
-  if (!needles.length) return { ok: false, error: 'no_match_rule' };
-
-  let list = [];
-  try {
-    const r = await _deps.listWindows();
-    list = Array.isArray(r && r.windows) ? r.windows : [];
-  } catch { return { ok: false, error: 'window_list_failed' }; }
-
-  const hit = list.find((w) => {
-    const hay = callDetect.foldText(String((w && w.app) || '') + ' ' + String((w && w.title) || ''));
-    return hay && needles.some(n => hay.includes(n));
-  });
-  if (!hit || !hit.id) return { ok: false, error: 'window_not_found' };
-
-  try {
-    const r = await _deps.focusWindow(String(hit.id));
-    if (r && r.ok === false) return { ok: false, error: r.error || 'focus_failed' };
-  } catch { return { ok: false, error: 'focus_failed' }; }
-  return { ok: true };
-}
-
-// Focus the app, wait for it to actually come forward, then send the combo.
-// The wait is not superstition: a shortcut delivered while the window is still
-// animating goes to whatever had focus before, which on a touchscreen is the
-// dashboard itself.
-async function _sendToApp(call, kind) {
-  const entry = entryFor(call.appId, _settings().apps);
-  const keys = comboFor(entry, kind, {
-    platform: (_deps && _deps.platform) || process.platform,
-    video: !!call.video,
-  });
-  if (!keys) return { ok: false, error: 'no_shortcut' };
-  const focused = await _focusApp(call);
-  if (!focused.ok) return focused;
-  await new Promise(r => setTimeout(r, FOCUS_SETTLE_MS));
-  if (typeof _deps.sendHotkey !== 'function') return { ok: false, error: 'hotkey_unavailable' };
-  try {
-    const r = await _deps.sendHotkey(keys);
-    if (r && r.ok === false) return { ok: false, error: r.error || 'hotkey_failed' };
-  } catch { return { ok: false, error: 'hotkey_failed' }; }
-  return { ok: true };
-}
-
-// The single entry point for every button on the card. Never throws: a failure
-// is reported to the card so it can say what went wrong instead of appearing to
-// have worked.
-async function act(id, action) {
-  const call = _find(id);
-  if (!call) return { ok: false, error: 'not_ringing' };
-  const what = String(action || '');
-
-  if (what === 'silence') {
-    call.silenced = true;
-    _broadcast();
-    return { ok: true };
-  }
-  if (what === 'dismiss') { _drop(call.id); return { ok: true }; }
-
-  if (what === 'open') {
-    if (!call.caps.open) return { ok: false, error: 'unavailable' };
-    const r = await _focusApp(call);
-    if (r.ok) _drop(call.id);
-    return r;
-  }
-
-  if (what === 'answer') {
-    if (!call.caps.answer) return { ok: false, error: 'unavailable' };
-    // The paired phone. Nothing is focused and no key is sent: the platform
-    // that allows this owns the call, so answering is one call into it. The
-    // card is only dropped once that came back ok — a failed answer must leave
-    // the ring on screen, because the phone is still ringing.
-    if (call.source === 'phone') {
-      if (typeof _deps.phoneAnswer !== 'function') return { ok: false, error: 'unavailable' };
-      let r;
-      try { r = await _deps.phoneAnswer(); }
-      catch { return { ok: false, error: 'phone_failed' }; }
-      if (!r || r.ok === false) return { ok: false, error: (r && r.error) || 'phone_failed' };
-      _drop(call.id);
-      return { ok: true };
-    }
-    if (call.source === 'discord') {
-      if (typeof _deps.discordJoin !== 'function') return { ok: false, error: 'discord_unavailable' };
-      let r;
-      try { r = await _deps.discordJoin(call.channelId); }
-      catch { return { ok: false, error: 'discord_failed' }; }
-      if (r && r.ok === false) return { ok: false, error: r.error || 'discord_failed' };
-      _drop(call.id);
-      return { ok: true };
-    }
-    const r = await _sendToApp(call, 'answer');
-    if (r.ok) _drop(call.id);
-    return r;
-  }
-
-  if (what === 'decline') {
-    if (!call.caps.decline) return { ok: false, error: 'unavailable' };
-    if (call.source === 'phone') {
-      if (typeof _deps.phoneHangUp !== 'function') return { ok: false, error: 'unavailable' };
-      let r;
-      try { r = await _deps.phoneHangUp(); }
-      catch { return { ok: false, error: 'phone_failed' }; }
-      if (!r || r.ok === false) return { ok: false, error: (r && r.error) || 'phone_failed' };
-      _drop(call.id);
-      return { ok: true };
-    }
-    const r = await _sendToApp(call, 'decline');
-    if (r.ok) _drop(call.id);
-    return r;
-  }
-
-  return { ok: false, error: 'bad_action' };
-}
-
 // ── Read + lifecycle ───────────────────────────────────────────────────────
 
-function current() { return _active.map(projectCall); }
+function current() { return callState.active.map(projectCall); }
 
 // Turning the feature off must clear what is on screen: a card left ringing
 // after the switch flipped would have no way to be answered.
 function applySettings() {
   if (enabled()) return;
-  if (!_active.length) return;
-  _active = [];
+  if (!callState.active.length) return;
+  callState.active = [];
   _broadcast();
   _rearm();
 }
 
 function stop() {
-  _stopped = true;
-  if (_timer) { clearTimeout(_timer); _timer = null; }
-  _active = [];
-  _recent.clear();
+  callState.stopped = true;
+  if (callState.timer) { clearTimeout(callState.timer); callState.timer = null; }
+  callState.active = [];
+  callState.recent.clear();
 }
 
 module.exports = {
@@ -476,5 +213,5 @@ module.exports = {
   RING_TIMEOUT_MS, DEDUPE_MS, MAX_ACTIVE,
   // test hooks: drive the lifecycle without a server
   _ringForTest: _ring,
-  _resetForTest: () => { _active = []; _recent.clear(); _seq = 0; _stopped = false; if (_timer) { clearTimeout(_timer); _timer = null; } },
+  _resetForTest: () => { callState.active = []; callState.recent.clear(); callState.seq = 0; callState.stopped = false; if (callState.timer) { clearTimeout(callState.timer); callState.timer = null; } },
 };
