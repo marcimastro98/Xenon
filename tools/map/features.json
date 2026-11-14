@@ -936,6 +936,7 @@
       "files": [
         "server/first-run/**",
         "server/js/onboarding.js",
+        "server/js/onboarding/**",
         "server/js/usage-*.js",
         "server/js/usage-ask/**",
         "server/js/boot-splash.js",
