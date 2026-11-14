@@ -243,7 +243,7 @@ export function ciProblems(text, engines) {
       problems.push(`ci.yml: Node ${major}, a line "engines" accepts, is not tested`);
     }
   }
-  for (const needed of ['npm ci', 'npm run quality:install', 'npm test', 'node tools/ci/boot-check.mjs', 'node tools/ci/settings-save-check.mjs', 'npm run doctor', 'npm run check:platform-apis']) {
+  for (const needed of ['npm ci', 'npm run quality:install', 'npm test', 'node tools/ci/boot-check.mjs', 'node tools/ci/settings-save-check.mjs', 'node tools/ci/ai-chat-check.mjs', 'npm run doctor', 'npm run check:platform-apis']) {
     if (!codeLines(text).some((l) => l.text.includes(needed))) problems.push(`ci.yml: never runs "${needed}"`);
   }
   return problems;

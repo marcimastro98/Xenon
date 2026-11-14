@@ -79,6 +79,14 @@ jobs:
         timeout-minutes: 5
         run: node tools/ci/settings-save-check.mjs --list "${{ runner.temp }}/save.log"
 
+      # The route every chat turn goes through, asked on a throwaway copy of the
+      # engine with a stand-in for the model on 127.0.0.1: what it refuses, what
+      # of a picture reaches the model, a failing model server, the stop button.
+      # The stand-in never asks for a tool, so no tool of the engine runs.
+      - name: A chat turn keeps its rules
+        timeout-minutes: 3
+        run: node tools/ci/ai-chat-check.mjs --list "${{ runner.temp }}/chat.log"
+
       # Exits 1 on a collector whose answer the dashboard would misread. A
       # sensor or a tool the runner does not have is "absent", not a failure.
       - name: Doctor
@@ -94,6 +102,7 @@ jobs:
           path: |
             ${{ runner.temp }}/boot.log
             ${{ runner.temp }}/save.log
+            ${{ runner.temp }}/chat.log
             ${{ runner.temp }}/doctor
             server/data/server.log*
           if-no-files-found: ignore

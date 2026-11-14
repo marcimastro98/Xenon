@@ -12,7 +12,7 @@ const scripts = JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8')).
 
 test('every check is on the list, the proof first and the server last among the slow ones', () => {
   const names = gateSteps().map((step) => step.name);
-  assert.deepEqual(names, ['verify', 'carry', 'map', 'sizes', 'typecheck', 'lint', 'test', 'boot', 'requests', 'save', 'routes', 'personal', 'whitespace']);
+  assert.deepEqual(names, ['verify', 'carry', 'map', 'sizes', 'typecheck', 'lint', 'test', 'boot', 'requests', 'save', 'chat', 'routes', 'personal', 'whitespace']);
 });
 
 test('the base commit goes to verify and to the route check, and nowhere else', () => {
@@ -36,7 +36,7 @@ test('every file a step runs exists, the four server checks use the side port, a
     if (!step.git) assert.ok(existsSync(new URL(step.argv[0], ROOT)), step.argv[0]);
     assert.ok(step.minutes > 0 && step.minutes <= 15, step.name);
   }
-  for (const name of ['boot', 'requests', 'save', 'routes']) assert.equal(gateSteps().find((step) => step.name === name).env.XENON_PORT, gatePort(process.env.XENON_GATE_PORT));
+  for (const name of ['boot', 'requests', 'save', 'chat', 'routes']) assert.equal(gateSteps().find((step) => step.name === name).env.XENON_PORT, gatePort(process.env.XENON_GATE_PORT));
 });
 
 test('the gate takes another port when asked, and never the one of the installed app', () => {

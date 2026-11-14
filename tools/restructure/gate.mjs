@@ -50,6 +50,7 @@ export function gateSteps(base = 'HEAD') {
     { name: 'boot', argv: ['tools/ci/boot-check.mjs'], minutes: 2, env: { XENON_PORT: PORT } },
     { name: 'requests', argv: ['tools/ci/request-check.mjs'], minutes: 4, env: { XENON_PORT: PORT } },
     { name: 'save', argv: ['tools/ci/settings-save-check.mjs'], minutes: 4, env: { XENON_PORT: PORT } },
+    { name: 'chat', argv: ['tools/ci/ai-chat-check.mjs'], minutes: 3, env: { XENON_PORT: PORT } },
     { name: 'routes', argv: ['tools/restructure/routes-check.mjs', 'check', '--base', base], minutes: 4, env: { XENON_PORT: PORT } },
     { name: 'personal', argv: ['tools/repo-sweep.mjs', 'personal'], minutes: 5 },
     { name: 'whitespace', argv: ['diff', '--check'], minutes: 1, git: true },
