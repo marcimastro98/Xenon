@@ -576,7 +576,9 @@
     ],
     "server/linux-phone.js": [
       {"file":"server/transfer/linux-phone-dbus.js","about":"Asks BlueZ and oFono over D-Bus with busctl on Linux, and reads values and object lists out of its JSON answers.","names":["CALL_TIMEOUT_MS","runBusctl","dbusErrorName","dbusValue","parseManagedObjects","dbusRows","firstObjectPath"]},
-      {"file":"server/transfer/linux-phone-parse.js","about":"Picks the paired phone and its modem out of what D-Bus lists on Linux, and reads the calls and their state.","names":["PBAP_UUID","MAP_UUID","hasUuid","pickPhone","parseModems","pickModem","RINGING_STATES","ACTIVE_STATES","parseCalls","callState"]}
+      {"file":"server/transfer/linux-phone-parse.js","about":"Picks the paired phone and its modem out of what D-Bus lists on Linux, and reads the calls and their state.","names":["PBAP_UUID","MAP_UUID","hasUuid","pickPhone","parseModems","pickModem","RINGING_STATES","ACTIVE_STATES","parseCalls","callState"]},
+      {"file":"server/transfer/linux-phone-limits.js","about":"How long a pull of the phone book from a paired phone may take on Linux, and how often it is asked whether it is done.","names":["PULL_TIMEOUT_MS","PULL_POLL_MS"]},
+      {"file":"server/transfer/linux-phone-obex.js","about":"The two things a paired phone gives over OBEX on Linux: the phone book pulled to a private file and read, and a message session opened on a folder and closed again.","names":["pullPhonebook","waitForTransfer","withMapSession","selectFolder"],"inner":{"factory":"createLinuxPhone","make":"makeObex"}}
     ],
     "server/auto-update.js": [
       {"file":"server/updates/auto-update-decide.js","about":"Decides whether an update may install itself now: a newer version, old enough, the PC idle, at night, and not marked as one to ask about.","names":["MIN_AGE_MS","IDLE_MIN_SEC","NIGHT_START_HOUR","NIGHT_END_HOUR","NO_AUTO_MARKER","parseVer","newer","normVer","hasNoAutoMarker","inNightWindow","decide"]}
