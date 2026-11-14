@@ -1252,28 +1252,7 @@ async function refreshSdkScan() {
   return sdkScan.cache;
 }
 
-const _widgetOrigins = (() => {   // one small read at startup, never on a request
-  try {
-    const raw = JSON.parse(fs.readFileSync(WIDGET_ORIGINS_FILE, 'utf8'));
-    const out = {};
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      for (const id of Object.keys(raw)) {
-        const rec = raw[id];
-        if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) continue;
-        if (!rec || !['import', 'creator', 'builtin', 'local'].includes(rec.origin)) continue;
-        out[id] = {
-          origin: rec.origin,
-          at: typeof rec.at === 'string' ? rec.at.slice(0, 32) : '',
-          // Which CATALOG version this package was last installed from — see
-          // recordWidgetOrigin. Same charset the SDK accepts for a version.
-          catalogVersion: (typeof rec.catalogVersion === 'string' && /^[0-9A-Za-z._+-]{1,32}$/.test(rec.catalogVersion))
-            ? rec.catalogVersion : '',
-        };
-      }
-    }
-    return out;
-  } catch { return {}; }   // missing/corrupt → everything defaults to 'unknown'
-})();
+const { _widgetOrigins } = require('./widget-sdk/widget-origins.js');
 // No record → 'unknown': we can't prove it's the user's own work (it could be a
 // dev folder OR an install from before this tracking existed), so it is treated
 // as NOT exportable — fail-closed, never risk redistributing someone else's
@@ -1283,12 +1262,7 @@ function widgetOriginOf(id) {
   if (!rec && trialVault.has(id)) return 'trial';   // never exportable, claimable or auto-updated
   return rec ? rec.origin : 'unknown';
 }
-// The catalog-entry version this package was last installed from ('' when it
-// never came from the catalog, or predates this record).
-function widgetCatalogVersionOf(id) {
-  const rec = _widgetOrigins[id];
-  return (rec && rec.catalogVersion) || '';
-}
+const { widgetCatalogVersionOf } = require('./widget-sdk/widget-catalog-version.js');
 function widgetExportable(id) {
   return sdkWidgets.originExportable(widgetOriginOf(id));
 }
