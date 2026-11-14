@@ -19,6 +19,7 @@ import { planLiftFor, proveLift, repoFileReader } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { planPathsFor, provePaths } from './paths.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
+import { planReturnedFor, proveReturned } from './returned.mjs';
 import { planSpreadFor, proveSpread } from './spread.mjs';
 import { planStateFor, proveState } from './state.mjs';
 import { targetReasons } from './target-rules.mjs';
@@ -102,8 +103,10 @@ function redoCuts({ root, parser, source, base, cuts, count, text, problems }) {
   let out = text;
   for (const spread of cuts.filter((cut) => cut.after === count)) {
     try {
-      const plan = planSpreadFor({ root, parser, text: out, source, name: spread.name, parts: spread.parts });
-      problems.push(...proveSpread({ before: out, after: plan.newSource, parser, source, spread }).map((p) => `${spread.name}: ${p}`));
+      // A cut of the object a function returns (returned.mjs) is recorded in the same list, marked `returns`.
+      const [planFor, prove] = spread.returns ? [planReturnedFor, proveReturned] : [planSpreadFor, proveSpread];
+      const plan = planFor({ root, parser, text: out, source, name: spread.name, parts: spread.parts });
+      problems.push(...prove({ before: out, after: plan.newSource, parser, source, spread }).map((p) => `${spread.name}: ${p}`));
       out = plan.newSource;
     } catch (error) {
       problems.push(`${spread.name}: the recorded cut cannot be redone from ${base}: ${error.message}`);

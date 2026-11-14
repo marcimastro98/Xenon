@@ -13,6 +13,8 @@
 // A big frozen object may have been cut into parts (`DEFAULT_HUB_SETTINGS` is
 // several constants spread together now). The text handed out here has every key
 // back inside the one literal, and the parts gone, as the tests found it before.
+// The same goes for the object a function returns, when it was cut into part
+// functions (`normalizeHubSettings` returns its parts called one after the other).
 //
 // The body of a route may live in a table in a module of its feature, with one
 // call of the table left under the route's test (tools/restructure `branches`).
@@ -29,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { undoBranchesText } from '../../tools/restructure/branches-text.mjs';
 import { undoGatherText } from '../../tools/restructure/gather-undo.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
+import { dropReturnedPart, undoReturnedText } from '../../tools/restructure/returned-undo.mjs';
 import { dropPart, undoSpreadText } from '../../tools/restructure/spread-undo.mjs';
 import { undoStateText } from '../../tools/restructure/state-undo.mjs';
 
@@ -51,8 +54,9 @@ const read = (file) => wholeObjects(file, bodiesBack(file, oldPlaces(file)));
 export function wholeObjects(file, text) {
   let out = text;
   for (const spread of SPREADS) {
-    if (plainFileOf(spread.name) === file) out = undoSpreadText(out, spread, (part) => readAsIs(plainFileOf(part)));
-    for (const part of spread.parts) if (plainFileOf(part.name) === file) out = dropPart(out, part.name);
+    const [undo, drop] = spread.returns ? [undoReturnedText, dropReturnedPart] : [undoSpreadText, dropPart];
+    if (plainFileOf(spread.name) === file) out = undo(out, spread, (part) => readAsIs(plainFileOf(part)));
+    for (const part of spread.parts) if (plainFileOf(part.name) === file) out = drop(out, part.name);
   }
   return out;
 }
@@ -86,8 +90,9 @@ function ledgerOf(source) {
 
 /**
  * @param {string} [source]
- * @returns {{ name: string, parts: { name: string, first: string }[] }[]} the frozen objects of the file that were cut
- *   into parts: each part is a constant holding the keys from `first` on, spread into the object in order
+ * @returns {{ name: string, parts: { name: string, first: string }[], returns?: true }[]} the frozen objects of the file that were cut
+ *   into parts: each part is a constant holding the keys from `first` on, spread into the object in order. One marked
+ *   `returns` is a function instead: each part is a function returning the keys from `first` on, called in order
  */
 export function cutObjects(source = ENGINE) {
   return readLedger().spreads?.[source] ?? [];

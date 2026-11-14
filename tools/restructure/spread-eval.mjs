@@ -36,7 +36,7 @@ export function standIns() {
 
 // What two values differ in, as sentences. Stand-ins and plain values have to be the very same; objects and
 // lists are walked: same keys in the same order, same frozen state, same kind.
-function differences(old, now, where, out) {
+export function differences(old, now, where, out) {
   if (Object.is(old, now)) return;
   const walkable = (value) => value !== null && typeof value === 'object';
   if (typeof old === 'function' && typeof now === 'function' && String(old) === String(now)) return;
@@ -75,5 +75,44 @@ export function sameObjectProblems({ oldCode, newCode, name, outside }) {
   if (!Object.isFrozen(old) || !Object.isFrozen(now)) problems.push(`${name} is not frozen ${Object.isFrozen(old) ? 'after' : 'before'} the cut`);
   if (Object.keys(old).join('\n') !== Object.keys(now).join('\n')) problems.push(`Object.keys(${name}) is another list, or in another order`);
   differences(old, now, name, problems);
+  return problems;
+}
+
+/**
+ * Runs a function twice, as it was written and as its parts (returned.mjs), and compares what the two return when
+ * given nothing, an empty object, and an object that answers every key with a stand-in.
+ * @param {object} job
+ * @param {string} job.oldCode the function as one piece @param {string} job.newCode the part functions and then the function
+ * @param {string} job.name @param {string[]} job.outside the names the code takes from the file around it
+ * @returns {string[]} what is different; empty when the two return the same
+ */
+export function sameReturnProblems({ oldCode, newCode, name, outside }) {
+  const context = vm.createContext({});
+  const builtIn = new Set(vm.runInContext('Object.getOwnPropertyNames(globalThis)', context));
+  const names = [...new Set(outside)].filter((used) => used !== name && !builtIn.has(used));
+  const standIn = standIns();
+  const made = (code) => vm.runInContext(`(function (${names.join(', ')}) {\n${code}\nreturn ${name};\n})`, context)(...names.map(standIn));
+  const anyKey = new Proxy({}, { get: (_target, key) => (typeof key === 'symbol' ? undefined : standIn(`given.${key}`)) });
+  const answer = (run, given) => { try { return { value: run(...given) }; } catch (error) { return { error: String(error?.message ?? error) }; } };
+  let old;
+  let now;
+  try {
+    [old, now] = [made(oldCode), made(newCode)];
+  } catch (error) {
+    return [`${name} could not be read with stand-ins for ${names.join(', ')}: ${error.message}`];
+  }
+  const problems = [];
+  let compared = 0;
+  for (const [what, given] of [['nothing', []], ['an empty object', [{}]], ['an object with every key', [anyKey]]]) {
+    const [was, is] = [answer(old, given), answer(now, given)];
+    if (was.error !== undefined || is.error !== undefined) {
+      if (was.error !== is.error) problems.push(`given ${what}, ${name} ${is.error === undefined ? 'no longer fails' : `fails: ${is.error}`}`);
+      continue;
+    }
+    if (Object.keys(Object(was.value)).join('\n') !== Object.keys(Object(is.value)).join('\n')) problems.push(`given ${what}, ${name} returns other keys, or the same in another order`);
+    differences(was.value, is.value, `given ${what}, what ${name} returns`, problems);
+    compared += 1;
+  }
+  if (compared === 0) problems.push(`${name} fails whatever it is given when run with stand-ins: nothing could be compared`);
   return problems;
 }

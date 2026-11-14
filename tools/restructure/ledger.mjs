@@ -12,7 +12,7 @@ const NOTE = 'What tools/restructure took out of which file, in order. Written b
 /**
  * @param {string} root
  * @returns {{ note: string, sources: Record<string, {file: string, about: string, names: string[]}[]>,
- *   spreads?: Record<string, { name: string, parts: { name: string, first: string }[], after: number }[]>,
+ *   spreads?: Record<string, { name: string, parts: { name: string, first: string }[], after: number, returns?: true }[]>,
  *   branches?: Record<string, { file: string, about: string, keys: string[], after: number }[]>,
  *   gathers?: Record<string, { factory: string, object: string, names: string[], kept: string[], bare: string[], after: number }[]> }}
  */
@@ -50,10 +50,11 @@ export function appendLedger(root, source, entry) {
 
 /**
  * A frozen object that was cut into parts where it stood (spread.mjs). It is not a module, so it has a list of its
- * own: `after` says how many entries the file had when it was cut, which is where the replay redoes it.
+ * own: `after` says how many entries the file had when it was cut, which is where the replay redoes it. `returns` marks
+ * the other kind of cut kept in this list: the object a function returns, cut into part functions (returned.mjs).
  * @param {string} root
  * @param {string} source repo-relative file that declares the object
- * @param {{ name: string, parts: { name: string, first: string }[], after: number }} spread
+ * @param {{ name: string, parts: { name: string, first: string }[], after: number, returns?: true }} spread
  */
 export function recordSpread(root, source, spread) {
   const ledger = readLedger(root);

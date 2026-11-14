@@ -70,7 +70,7 @@ function plainKey(property, K) {
 }
 
 /** @returns {{ keys: string[], reasons: string[] }} the keys of a literal in written order, and what keeps it from being cut */
-function literalKeys(literal, K) {
+export function literalKeys(literal, K) {
   const keys = [];
   const reasons = new Set();
   for (const property of literal.properties) {
@@ -83,7 +83,7 @@ function literalKeys(literal, K) {
 }
 
 // The line each part starts on: its first key's line, moved up over the comment lines right above it.
-function cutLines({ text, sourceFile, literal, keys, parts, inner }) {
+export function cutLines({ text, sourceFile, literal, keys, parts, inner }) {
   const lines = text.split('\n');
   const reasons = [];
   const cuts = [];
@@ -204,14 +204,15 @@ export function planSpreadFor({ root, parser, text, source, name, parts }) {
  * @param {string} job.name the frozen object
  * @param {{ name: string, first: string }[]} job.parts
  * @param {boolean} [job.dryRun] plan and prove, write nothing
+ * @param {Function} [job.planFor] @param {Function} [job.prove] @param {object} [job.mark] another kind of cut (returned.mjs): how it is planned and proven, and what its record says besides
  * @returns {{ name: string, parts: { name: string, first: string, keys: number }[], sourceLines: number }}
  *   `sourceLines` is how many lines the file grew by; throws a Refusal before anything is written, an Error after a
  *   failed check (file put back)
  */
-export function spreadObject({ root, parser, source, name, parts, dryRun = false }) {
+export function spreadObject({ root, parser, source, name, parts, dryRun = false, planFor = planSpreadFor, prove = proveSpread, mark = {} }) {
   const before = readFileSync(path.join(root, source), 'utf8');
-  const plan = planSpreadFor({ root, parser, text: before, source, name, parts });
-  const proof = proveSpread({ before, after: plan.newSource, parser, source, spread: plan });
+  const plan = planFor({ root, parser, text: before, source, name, parts });
+  const proof = prove({ before, after: plan.newSource, parser, source, spread: plan });
   if (proof.length) throw new Error(`the plan does not prove itself, nothing was written:\n${proof.join('\n')}`);
   const count = (text) => text.split('\n').length - 1;
   const result = { name, parts: plan.parts, sourceLines: count(plan.newSource) - count(before) };
@@ -225,7 +226,7 @@ export function spreadObject({ root, parser, source, name, parts, dryRun = false
     writeFileSync(path.join(root, source), before);
     throw new Error(`the cut failed its checks and was undone:\n${problems.join('\n')}`);
   }
-  recordSpread(root, source, { name, parts: parts.map((part) => ({ name: part.name, first: part.first })), after: entries.length });
+  recordSpread(root, source, { name, parts: parts.map((part) => ({ name: part.name, first: part.first })), after: entries.length, ...mark });
   return result;
 }
 
