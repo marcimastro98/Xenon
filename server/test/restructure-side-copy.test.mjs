@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  CUTS, MARKER_ADDRESS, build, cutProblems, cutsFor, engineFiles, mustBeSideCopy, placeCuts, run, sidePort, sideRoot,
+  CUTS, MARKER_ADDRESS, RESIZE_NOTICE, build, cutProblems, cutsFor, engineFiles, mustBeSideCopy, onlyResizeNotice, placeCuts, recordUntilSame, run, sidePort, sideRoot,
 } from '../../tools/restructure/side-copy.mjs';
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -141,4 +141,31 @@ test('the page check is told no about a server that is not a cut copy, and about
   await assert.rejects(mustBeSideCopy(other.address().port, 5000), /not a cut copy/);
   await assert.rejects(mustBeSideCopy(await freePort(), 1200), /nothing answers/);
   await assert.rejects(mustBeSideCopy(3030, 1200), /installed app/);
+});
+
+test('a recording that differs only by the resize notice is made again, twice at most, and says so', async () => {
+  const notice = `desktop widgets 2: new page error: ${RESIZE_NOTICE}`;
+  const other = 'dashboard: new on window: Leak';
+  assert.equal(onlyResizeNotice([notice, `menu: new console error: ${RESIZE_NOTICE}`]), true);
+  assert.equal(onlyResizeNotice([]), false, 'nothing differs: nothing to record again');
+  assert.equal(onlyResizeNotice([notice, other]), false, 'another difference stays a difference');
+  assert.equal(onlyResizeNotice([`dashboard: new failed request: /x?${RESIZE_NOTICE}`]), false, 'only as an error of the page');
+  // `answers`: what each compare finds, in order; `codes`: how each recording ends.
+  const tried = async (answers, codes = []) => {
+    const said = [];
+    let recorded = 0;
+    const found = await recordUntilSame({ recordOnce: async () => { recorded += 1; return codes[recorded - 1] ?? 0; }, compare: () => answers.shift() ?? [], say: (line) => said.push(line) });
+    return { ...found, recorded, said };
+  };
+  assert.deepEqual(await tried([[]]), { code: 0, again: 0, problems: [], recorded: 1, said: [] });
+  const once = await tried([[notice], []]);
+  assert.deepEqual([once.code, once.again, once.problems, once.recorded], [0, 1, [], 2]);
+  assert.match(once.said[0], /^Recorded again \(1 of 2 at most\): the only difference was the notice "ResizeObserver loop completed with undelivered notifications\." on desktop widgets 2, which an engine gives on some runs and not on others\.$/);
+  const never = await tried([[notice], [notice], [notice], []]);
+  assert.deepEqual([never.again, never.problems, never.recorded, never.said.length], [2, [notice], 3, 2], 'the third time it is reported as it is');
+  assert.deepEqual((await tried([[notice, other]])).recorded, 1, 'a real difference is not recorded away');
+  const real = await tried([[notice], [other]]);
+  assert.deepEqual([real.again, real.problems], [1, [other]], 'what the second recording shows is what is reported');
+  assert.deepEqual(await tried([[notice]], [0, 1]), { code: 1, again: 1, problems: [], recorded: 2, said: ['Recorded again (1 of 2 at most): the only difference was the notice "ResizeObserver loop completed with undelivered notifications." on desktop widgets 2, which an engine gives on some runs and not on others.'] });
+  assert.deepEqual((await tried([[notice]], [1])).recorded, 1, 'a recording that failed is not compared');
 });

@@ -174,7 +174,7 @@ test('the side copy refuses an engine it does not know before it builds anything
   }
   const copy = spawnSync(process.execPath, [path.join(TOOLS, 'side-copy.mjs')], { encoding: 'utf8' });
   assert.equal(copy.status, 2);
-  assert.match(copy.stderr, /record <folder> <port> <out\.json> \[baseRev\] \[--engine chromium\|webkit\]\s*$/);
+  assert.match(copy.stderr, /record <folder> <port> <out\.json> \[baseRev\] \[--engine chromium\|webkit\] \[--against <before\.json>\]\s*$/);
   const check = spawnSync(process.execPath, [path.join(TOOLS, 'browser-page-check.mjs')], { encoding: 'utf8' });
   assert.equal(check.status, 2);
   assert.match(check.stderr, /record <port> <out\.json> \[settleMs\] \[--engine chromium\|webkit\]\n.*compare <before\.json> <after\.json>\n.*engines <chromium\.json> <webkit\.json>\s*$/);

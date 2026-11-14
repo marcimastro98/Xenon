@@ -9,14 +9,16 @@
 //
 //   node tools/restructure/side-copy.mjs build <folder> <port> [baseRev]
 //   node tools/restructure/side-copy.mjs run <folder> <port> [minutes]
-//   node tools/restructure/side-copy.mjs record <folder> <port> <out.json> [baseRev] [--engine chromium|webkit]
+//   node tools/restructure/side-copy.mjs record <folder> <port> <out.json> [baseRev] [--engine chromium|webkit] [--against <before.json>]
 //
 // `build` makes <folder>/server from the working folder, or with the files of `server/`
 // as they were at `baseRev`. `run` starts it and ends when the file <folder>/stop
 // appears or after the minutes given (default 20), stopping only what it started.
 // `record` does both, runs the page check (browser-page-check.mjs) against the copy and
 // stops it: one command, and its exit code is 0 only when all of it worked. `--engine webkit` opens the pages in
-// Playwright's WebKit and not in Chromium (browser-check-engine.mjs).
+// Playwright's WebKit and not in Chromium (browser-check-engine.mjs). `--against` compares the recording with an
+// earlier one of the same engine and, when the only difference is the notice an engine gives on some runs and not
+// on others (RESIZE_NOTICE), records again on the same copy, twice at most, and says that it did.
 // Port 3030 is the installed app's and is refused. Always read the exit code.
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -204,15 +206,57 @@ export async function mustBeSideCopy(port, waitMs = 60_000) {
   throw new Error(`port ${port}: ${why}. The page check only opens a copy made by tools/restructure/side-copy.mjs (build, then run).`);
 }
 
+export const RESIZE_NOTICE = 'ResizeObserver loop completed with undelivered notifications.';
+const AGAIN_MAX = 2;
+/** @param {string[]} problems what `compare` found @returns {boolean} true when there are some and each is the notice, new on a page */
+export const onlyResizeNotice = (problems) => problems.length > 0 && problems.every((problem) => /: new (?:page|console) error: /.test(problem) && problem.includes(RESIZE_NOTICE));
+
+/**
+ * Records, compares, and records again while the only difference is the notice.
+ * @param {{ recordOnce: () => Promise<number>, compare: () => string[], say?: (line: string) => void, limit?: number }} job
+ *   `compare` gives the problems of the last recording against the earlier one
+ * @returns {Promise<{ code: number, again: number, problems: string[] }>} `again`: how many times it recorded again
+ */
+export async function recordUntilSame({ recordOnce, compare, say = console.log, limit = AGAIN_MAX }) {
+  let code = await recordOnce();
+  let problems = code === 0 ? compare() : [];
+  let again = 0;
+  while (code === 0 && again < limit && onlyResizeNotice(problems)) {
+    again += 1;
+    say(`Recorded again (${again} of ${limit} at most): the only difference was the notice "${RESIZE_NOTICE}" on ${problems.map((problem) => problem.split(':')[0]).join(', ')}, which an engine gives on some runs and not on others.`);
+    code = await recordOnce();
+    problems = code === 0 ? compare() : [];
+  }
+  return { code, again, problems };
+}
+
 /**
  * Builds the copy, runs it, records the pages on it and stops it.
  * @param {string} rootArg @param {unknown} portArg @param {string} outFile @param {string} [baseRev] @param {string} [repo]
  * @param {string} [engine] the engine the pages are opened in, Chromium when nothing is said
- * @returns {Promise<number>} 0 only when the build, the run and the page check all worked
+ * @param {string | null} [against] an earlier recording of the same engine to compare with
+ * @returns {Promise<number>} 0 only when the build, the run and the page check all worked, and with `against` the two recordings are the same
  */
-export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROOT, engine = 'chromium') {
+export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROOT, engine = 'chromium', against = null) {
   console.log(await build(rootArg, portArg, baseRev, repo));
   const root = sideRoot(rootArg, repo);
+  const recordOnce = () => runAndCheck(root, portArg, outFile, repo, engine);
+  if (!against) return recordOnce();
+  let last = '';
+  const compare = () => {
+    const ran = spawnSync(process.execPath, [PAGE_CHECK, 'compare', against, outFile], { encoding: 'utf8', windowsHide: true });
+    last = ran.stdout.trim().split('\n').pop() ?? '';
+    return ran.status === 0 ? [] : (ran.stderr.trim() || `the compare ended with code ${ran.status}`).split('\n');
+  };
+  const { code, again, problems } = await recordUntilSame({ recordOnce, compare });
+  if (code !== 0) return code;
+  if (problems.length) { console.error(problems.join('\n')); return 1; }
+  console.log(`${last}${again ? ` Recorded ${again + 1} times.` : ''}`);
+  return 0;
+}
+
+// Runs the built copy, records the pages on it and stops it.
+async function runAndCheck(root, portArg, outFile, repo, engine) {
   const running = run(root, portArg, RECORD_MINUTES + 1, repo);
   running.catch(() => { /* told below, once the page check has ended */ });
   let checked = 1;
@@ -232,10 +276,13 @@ export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROO
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const { engine, rest: [command, root, port, extra, last] } = engineFromArgs(process.argv.slice(2));
+    const given = engineFromArgs(process.argv.slice(2));
+    const at = given.rest.indexOf('--against');
+    const against = at === -1 ? null : path.resolve(given.rest.splice(at, 2)[1] ?? '');
+    const { engine, rest: [command, root, port, extra, last] } = given;
     if (command === 'build' && root && port) console.log(await build(root, port, extra));
     else if (command === 'run' && root && port) process.exitCode = await run(root, port, extra ? Number(extra) : undefined);
-    else if (command === 'record' && root && port && extra) process.exitCode = await record(root, port, path.resolve(extra), last, REPO_ROOT, engine);
+    else if (command === 'record' && root && port && extra) process.exitCode = await record(root, port, path.resolve(extra), last, REPO_ROOT, engine, against);
     else {
       console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(9, 12).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
       process.exitCode = 2;
