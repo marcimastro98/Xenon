@@ -5,6 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
+import { homeProblems, plainHome } from './extract-home-proof.mjs';
 import { plainModule, respellProblems } from './respell-proof.mjs';
 import { requireEditProblem } from './require-edits.mjs';
 
@@ -21,7 +22,7 @@ const tally = (counts, lines, by) => { for (const line of lines) counts.set(line
  * @param {string} move.moduleText the new module
  * @param {{ ranges: number[][], glue: { sourceAt: number, sourceLines: string[], moduleLines: number[],
  *   edits?: { at: number, first?: number, oldLines: string[], newLines: string[] }[], blanks?: number[],
- *   respells?: { at: number, first: number, column: number, from: string, to: string }[] } }} move.plan
+ *   respells?: { at: number, first: number, column: number, from: string, to: string }[], home?: { at: number, first: number, column: number }[] } }} move.plan
  *   `blanks`: 0-based lines of the old file taken out by extract-tidy.mjs, each a blank line just under a line that went whole
  * @param {{ source: string, target: string, fileOf: (spec: string, from: string) => string | null }} [move.paths] needed when the plan
  *   spells paths again (`glue.respells`): the two repo-relative files and where a relative require written in a file leads
@@ -30,9 +31,11 @@ const tally = (counts, lines, by) => { for (const line of lines) counts.set(line
 export function proveMove({ before, after, moduleText: written, plan, paths }) {
   // 0. A path asked for inside a moved function may be spelled for the new folder. With the old spelling back the
   //    module is checked as every other; that each new spelling reaches the same file is checked on its own.
-  const plain = plainModule(written, plan.glue.respells ?? []);
+  //    The same for `__dirname` inside a moved function, which the new module says as the folder it works out (`glue.home`).
+  const spelt = plainModule(written, plan.glue.respells ?? []);
+  const plain = plainHome(spelt.text, plan.glue.home ?? []);
   const moduleText = plain.text;
-  const problems = [...plain.problems, ...respellProblems({ before, plan, paths })];
+  const problems = [...spelt.problems, ...plain.problems, ...respellProblems({ before, plan, paths }), ...homeProblems({ before, written, plan, paths })];
   const old = before.split('\n');
   const now = after.split('\n');
   const made = moduleText.split('\n').slice(0, -1);

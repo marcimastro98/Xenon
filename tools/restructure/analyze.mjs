@@ -5,6 +5,7 @@ import { isBuiltin } from 'node:module';
 
 import { afterLoadFor, afterLoadNames } from './after-load.mjs';
 import { repoAloneTest } from './alone.mjs';
+import { readHomeUses } from './extract-home.mjs';
 import { readInlineRequires } from './extract-inline.mjs';
 import { markRegistrations, namesHeldAtLoad, namesRunAtLoad, registrationsFor, repoFileOf } from './load-registrations.mjs';
 import { topStatements } from './state-refs.mjs';
@@ -62,7 +63,8 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
   const listProblems = markRegistrations(records, text, rules.registrations ?? registrationsFor(file), { bindings, fileOf });
   const served = afterLoadNames(records, text, rules.afterLoad ?? afterLoadFor(file), { bindings, fileOf });
   const nodes = topStatements(sourceFile, parser);
-  const inline = (record) => readInlineRequires(record, nodes[record.index], { sourceFile, K: parser.K, fileOf });
+  const inline = (record) => ({ asked: readInlineRequires(record, nodes[record.index], { sourceFile, K: parser.K, fileOf }),
+    home: readHomeUses(record, nodes[record.index], { sourceFile, K: parser.K }) });
   for (const record of records) describe(record, bindings, duplicates, inline);
   // Asked only for a module that would otherwise hold a declaration back, and once for each: the proof reads other files.
   let early = rules.early;
@@ -90,14 +92,17 @@ function describe(record, bindings, duplicates, inline) {
   record.changes = pick((name, use) => use.change > 0 && bindings.get(name).kind !== 'require');
   record.state = record.deps.filter((name) => bindings.get(name).state);
   record.fileBound = [...record.uses.keys()].filter((name) => FILE_BOUND.has(name) && !(record.kind === 'require' && name === 'require'));
-  ({ list: record.inlineRequires, why: record.inlineWhy } = inline(record));
+  const tie = inline(record);
+  ({ list: record.inlineRequires, why: record.inlineWhy } = tie.asked);
+  // `__dirname` inside a function (extract-home.mjs): the places of the word, or null and why not.
+  ({ list: record.homeUses, why: record.homeWhy } = tie.home);
   record.globals = [...record.uses.keys()].filter((name) => !bindings.has(name) && !FILE_BOUND.has(name));
   const blockers = [];
   const block = (code, names) => { if (!names || names.length) blockers.push(names ? { code, names } : { code }); };
   if (!CAN_MOVE.has(record.kind)) block(`is-a-${record.kind}`);
   else if (record.loadTime) block('runs-code-at-load');
   if (record.sharesLine) block('shares-a-line');
-  block('bound-to-this-file', record.inlineRequires ? [] : record.fileBound);
+  block('bound-to-this-file', record.inlineRequires || record.homeUses ? [] : record.fileBound);
   block('declared-twice', record.names.filter((name) => duplicates.has(name)));
   if (CAN_MOVE.has(record.kind)) block('is-shared-state', record.names.filter((name) => bindings.get(name).state));
   block('reassigns', record.writes);
@@ -182,7 +187,7 @@ export function toJson(analysis) {
   const declarations = analysis.records.filter((r) => r.names.length > 0 && r.kind !== 'require').map((r) => ({
     names: r.names, kind: r.kind, line: r.line, range: r.range, lines: r.range[1] - r.range[0] + 1,
     reads: r.deps, requires: r.requires, writes: r.writes, changes: r.changes, state: r.state,
-    fileBound: r.fileBound, inlineRequires: r.inlineRequires?.map((asked) => asked.from) ?? null, loadTime: r.loadTime, loadTimeCalls: r.loadCalls, movable: r.movable, blockers: r.blockers,
+    fileBound: r.fileBound, inlineRequires: r.inlineRequires?.map((asked) => asked.from) ?? null, homeUses: r.homeUses?.length ?? null, loadTime: r.loadTime, loadTimeCalls: r.loadCalls, movable: r.movable, blockers: r.blockers,
   }));
   const statements = analysis.records.filter((r) => r.names.length === 0).map((r) => ({
     line: r.line, reads: r.deps, writes: r.writes, changes: r.changes,

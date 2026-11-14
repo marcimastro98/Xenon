@@ -5,6 +5,7 @@
 import path from 'node:path';
 
 import { closureOf } from './analyze.mjs';
+import { homeFor, writeHome } from './extract-home.mjs';
 import { respellsFor, writeRespells } from './extract-inline.mjs';
 import { namesRunAtLoad } from './load-registrations.mjs';
 import { requireLines, wrapNames } from './module-requires.mjs';
@@ -45,8 +46,9 @@ function selfReasons(record, at, protectedNames) {
     reasons.push(`${label} (${at(record)}) runs code when the file loads${calls}: moving it would change the load order`);
   }
   if (record.sharesLine) reasons.push(`${label} (${at(record)}) shares a line with another statement`);
-  if (record.fileBound.length && !record.inlineRequires) {
-    reasons.push(`${label} (${at(record)}) uses ${record.fileBound.join(', ')}, which would mean another file there${record.inlineWhy ? `: ${record.inlineWhy}` : ''}`);
+  if (record.fileBound.length && !record.inlineRequires && !record.homeUses) {
+    const why = record.inlineWhy || record.homeWhy;
+    reasons.push(`${label} (${at(record)}) uses ${record.fileBound.join(', ')}, which would mean another file there${why ? `: ${why}` : ''}`);
   }
   const guarded = record.names.filter((name) => protectedNames.has(name));
   if (guarded.length) reasons.push(`${guarded.join(', ')} (${at(record)}) is part of the security prelude and stays where it is`);
@@ -128,7 +130,7 @@ export function placeRequire({ records, moved, movedSet, movedNames, bindings, m
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, moduleText: string, moved: string[], exported: string[], imported: string[],
  *   ranges: number[][], requires: any[], asked: string[], glue: { sourceAt: number, sourceLines: string[], moduleLines: number[],
- *   respells?: { at: number, first: number, column: number, from: string, to: string }[],
+ *   respells?: { at: number, first: number, column: number, from: string, to: string }[], home?: { at: number, first: number, column: number }[],
  *   sourceFirst: number, edits: { at: number, first: number, oldLines: string[], newLines: string[] }[] } }}
  *   `edits` are requires of the old file that lost names only the moved code used, in the order of the old file; `at` and
  *   `sourceAt` are 0-based lines of the new text, `first` and `sourceFirst` the 0-based lines of the old text they stand for.
@@ -170,6 +172,9 @@ export function planExtraction(job) {
 
   const needed = [...new Set(moved.flatMap((record) => record.requires))];
   const required = requireLines(needed, bindings, (spec) => rewrite(spec, source, target));
+  // `__dirname` inside a moved function becomes the folder the new module works out in one line (extract-home.mjs).
+  const home = homeFor(moved, { source, target, requireLines: required.lines });
+  if (home.reasons.length) throw new Refusal(home.reasons);
   const place = placeRequire({ records, moved, movedSet, movedNames, bindings, modules: required.modules, source,
     stretches: protectedStretches, anyTime: analysis.anyTime });
   if (place.reason) throw new Refusal([place.reason]);
@@ -204,7 +209,7 @@ export function planExtraction(job) {
 
   // The new module: first comment, requires, the moved text, exports.
   const strict = /^(?:\s|\/\/.*|\/\*[\s\S]*?\*\/)*(['"])use strict\1/.test(text);
-  const body = [...(strict ? ["'use strict';"] : []), ...wrapComment(about), '', ...required.lines];
+  const body = [...(strict ? ["'use strict';"] : []), ...wrapComment(about), '', ...required.lines, ...(home.line ? [home.line] : [])];
   if (required.lines.length) body.push('');
   const moduleGlue = body.map((_, index) => index);
   const glueLine = (line) => { moduleGlue.push(body.length); body.push(line); };
@@ -219,6 +224,7 @@ export function planExtraction(job) {
   const exported = movedNames.filter((name) => !bindings.get(name).reassigned);
   for (const line of wrapNames(exported, 'module.exports = {', '};')) glueLine(line);
   const respells = writeRespells(body, inline.respells, (record) => madeAt.get(record));
+  const homeRows = writeHome(body, home.uses, (record) => madeAt.get(record));
   if (body.length > maxLines) {
     throw new Refusal([`${target} would be ${body.length} lines, the limit for a new file is ${maxLines}: move fewer names per file, split by what they do`]);
   }
@@ -228,6 +234,6 @@ export function planExtraction(job) {
     asked: [...new Set(inline.respells.map((row) => row.file).filter(Boolean))],
     glue: { sourceAt, sourceFirst: anchorRecord.range[0] - 1, sourceLines: sourceGlue, moduleLines: moduleGlue,
       edits: [...edits.values()].sort((a, b) => a.first - b.first).map(({ at, first, oldLines, newLines }) => ({ at, first, oldLines, newLines })),
-      ...(respells.length ? { respells } : {}) },
+      ...(respells.length ? { respells } : {}), ...(homeRows.length ? { home: homeRows } : {}) },
   };
 }

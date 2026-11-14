@@ -54,7 +54,8 @@ const once = (key, make) => {
 
 const readAsIs = (file) => once(`as it is: ${file}`, () => readFileSync(join(REPO, file), 'utf8'));
 // A module of places next to the engine says SERVER_DIR where the old file said __dirname: the old word is put back.
-const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths).map((entry) => entry.file));
+// So does a module with a moved function that said __dirname (`home` in the list): its one line for the folder goes too.
+const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths || entry.home).map((entry) => entry.file));
 const SPREADS = readLedger().spreads?.[ENGINE] ?? [];
 const PARTS = new Set(SPREADS.flatMap((spread) => spread.parts.map((part) => part.name)));
 // A module whose moved code asks for files by path: the list has each new spelling with the old one.

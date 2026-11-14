@@ -17,7 +17,7 @@ const entries = extractedFrom();
 // Variables that became properties of an object in a module of their own: the readers hand out the old names.
 const rewrites = stateRewrites();
 // Modules of places next to the engine say SERVER_DIR where server.js said __dirname: the readers hand out the old word.
-const placeModules = new Set(entries.filter((entry) => entry.paths).map((entry) => entry.file));
+const placeModules = new Set(entries.filter((entry) => entry.paths || entry.home).map((entry) => entry.file));
 // A function that asks for a module inside its body has the path spelled for its new folder: the readers hand out the old spelling.
 const spelled = new Map(entries.filter((entry) => entry.spelled).map((entry) => [entry.file, entry.spelled]));
 const asWritten = (file) => {

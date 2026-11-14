@@ -90,7 +90,7 @@ export function extract(job) {
     throw new Error(`the move failed its checks and was undone:\n${problems.join('\n')}`);
   }
   appendLedger(root, source, { file: target, about, names: plan.moved, ...(bare.dropped.length ? { bare: bare.dropped.map((row) => row.spec) } : {}),
-    ...(plan.glue.blanks?.length ? { tidy: true } : {}), ...(spelled ? { spelled } : {}) });
+    ...(plan.glue.blanks?.length ? { tidy: true } : {}), ...(spelled ? { spelled } : {}), ...(plan.glue.home?.length ? { home: true } : {}) });
   return result;
 }
 
@@ -203,6 +203,10 @@ export function replay({ root, parser, base, show = gitShow }) {
       // The paths a move spelled again are in the list (engine-source.mjs reads them): the list says what the tool does.
       if (!entry.lift && !entry.paths && !entry.inner && !entry.state && JSON.stringify(spelledOf(plan)) !== JSON.stringify(entry.spelled ?? null)) {
         problems.push(`${entry.file}: the list does not record the paths the move spells again ("spelled")`);
+      }
+      // The same for a module that says SERVER_DIR where the old file said __dirname.
+      if (!entry.lift && !entry.paths && !entry.inner && !entry.state && Boolean(plan.glue.home?.length) !== Boolean(entry.home)) {
+        problems.push(`${entry.file}: the list does not say whether the move respells __dirname ("home")`);
       }
       problems.push(...proof.map((p) => `${entry.file}: ${p}`));
       const onDisk = existsSync(path.join(root, entry.file)) ? readFileSync(path.join(root, entry.file), 'utf8') : null;

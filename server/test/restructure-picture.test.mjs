@@ -27,7 +27,7 @@ const SOURCE = [
   'function clamp(n) { return Math.min(n, LIMIT); }',
   'function gate(req) { return table.includes(req); }',
   'function where() {',
-  '  return __dirname;',
+  '  return __filename;',
   '}',
   'setInterval(bump, 1000);',
   'process.on("exit", bump);',
@@ -72,7 +72,7 @@ test('what keeps a function is followed through the names it uses', (t) => {
   const record = (name) => analysis.bindings.get(name).record;
   const kept = new Set(['gate']);
   assert.deepEqual(holdersOf(record('twice'), analysis.bindings, kept).state, ['count'], 'through bump()');
-  assert.deepEqual(holdersOf(record('where'), analysis.bindings, kept).file, ['__dirname']);
+  assert.deepEqual(holdersOf(record('where'), analysis.bindings, kept).file, ['__filename']);
   const free = holdersOf(record('clamp'), analysis.bindings, kept);
   assert.deepEqual(Object.values(free).flat(), [], 'a function of a constant is held by nothing');
 });
@@ -81,11 +81,11 @@ test('the big pieces say what keeps each, and one name alone is counted with its
   if (!parser) return t.skip(SKIP);
   const { seen } = read();
   assert.deepEqual(seen.big.map((row) => row.name), ['bump', 'where'], 'the two pieces over two lines');
-  assert.deepEqual(seen.alone.names.find((row) => row.holder === '__dirname'), { holder: '__dirname', kind: 'words that mean this file', functions: 1, lines: 3 });
+  assert.deepEqual(seen.alone.names.find((row) => row.holder === '__filename'), { holder: '__filename', kind: 'words that mean this file', functions: 1, lines: 3 });
   assert.deepEqual(seen.alone.names.find((row) => row.holder === 'count'), { holder: 'count', kind: 'variables', functions: 2, lines: 5 });
   const said = renderPicture(seen, 'demo.js');
   assert.match(said, /^demo\.js: 20 lines\./);
-  assert.match(said, /where \(line 14\): words that mean this file: __dirname/);
+  assert.match(said, /where \(line 14\): words that mean this file: __filename/);
   assert.match(said, /comments and blank lines between the pieces\s+1/);
 });
 

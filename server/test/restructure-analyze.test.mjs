@@ -175,7 +175,7 @@ test('the list in the repo explains itself and names only modules that compute',
 
 test('code tied to its file, or needing something that cannot move, stays', (t) => {
   if (!parser) return t.skip(SKIP);
-  const a = read(['let state = 0;', 'function here() { return __dirname; }', 'function lazy() { return require("./x"); }',
+  const a = read(['let state = 0;', 'function here() { return __filename; }', 'function lazy() { return require("./x"); }',
     'function touch() { state += 1; }', 'function user() { touch(); }', 'function leaf() { return 1; }',
     'function top() { return leaf(); }', ''].join('\n'));
   assert.deepEqual(codes(a, 'here'), ['bound-to-this-file']);

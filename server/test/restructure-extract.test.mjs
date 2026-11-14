@@ -118,7 +118,7 @@ test('what is not safe is refused, each with its reason', (t) => {
   assert.match(refusal(SOURCE, ['tidy', 'SEP'], { about: ' ' }), /say in one sentence what the new file does/);
   assert.match(refusal('function dead() {}\nfunction live() {}\nlive();\n', ['dead']), /nothing left in server\/demo\.js uses dead/);
   assert.match(refusal('const HOME = process.cwd();\nfunction f() { return HOME; }\n', ['HOME']), /runs code when the file loads/);
-  assert.match(refusal('function f() { return __dirname; }\nf();\n', ['f']), /uses __dirname/);
+  assert.match(refusal('function f() { return __filename; }\nf();\n', ['f']), /uses __filename/);
   assert.match(refusal(SOURCE.replace(/\n/g, '\r\n'), ['tidy', 'SEP']), /Windows line endings/);
 });
 
