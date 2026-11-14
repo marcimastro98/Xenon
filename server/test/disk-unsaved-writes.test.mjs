@@ -32,12 +32,12 @@ function assertNoPath(lines, dir) {
 }
 
 test('a write that fails is kept as not saved and told once; the next one that succeeds clears it', async () => {
-  const { makeKeptWrite } = require('../disk-space/kept-write.js');
+  const { makeKeptWrite } = require('../files/kept-write.js');
   const lines = [];
   let fail = true;
   const wrote = [];
   const refused = Object.assign(new Error('EPERM: operation not permitted, rename C:/Users/someone/x.json'), { code: 'EPERM' });
-  const kept = makeKeptWrite('the test store', {
+  const kept = makeKeptWrite('disk', 'the test store', {
     write: async (file, text) => { if (fail) throw refused; wrote.push([file, text]); },
     log: (line) => lines.push(line),
   });

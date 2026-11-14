@@ -23,7 +23,7 @@
 const crypto = require('crypto');
 const fsDefault = require('fs');
 const path = require('path');
-const { makeKeptWrite } = require('./disk-space/kept-write.js');
+const { makeKeptWrite } = require('./files/kept-write.js');
 
 const CACHE_FILE = 'disk-hashes.json';
 const EDGE_BYTES = 64 * 1024;
@@ -42,7 +42,7 @@ function createDupeVerifier(opts = {}) {
   const held = typeof opts.held === 'function' ? opts.held : () => false;
 
   let cache = null;            // key -> { s, m, e (edge hash), h (full hash), at }
-  const cacheWrite = makeKeptWrite('the cache of file hashes');
+  const cacheWrite = makeKeptWrite('disk', 'the cache of file hashes');
   let saveTimer = null;
   let running = null;          // the pass in flight (a promise)
   let stopped = false;

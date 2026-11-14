@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const DiskCategories = require('../disk-categories.js');
 const DiskGuard = require('../disk-guard.js');
-const { makeKeptWrite } = require('./kept-write.js');
+const { makeKeptWrite } = require('../files/kept-write.js');
 const {
   SCAN_TIMEOUT_MS, CATEGORY_ITEMS_MAX, HASH_FILE_MAX, HASH_TOTAL_MAX, DUPE_GROUPS_MAX,
 } = require('./limits.js');
@@ -156,7 +156,7 @@ function makeScan({
     return verified;
   }
 
-  const summaryWrite = makeKeptWrite('the summary of the last scan');
+  const summaryWrite = makeKeptWrite('disk', 'the summary of the last scan');
 
   async function persistSummary() {
     const byCategory = {};

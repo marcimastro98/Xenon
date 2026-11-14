@@ -5,11 +5,11 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const DiskHistory = require('../disk-history.js');
-const { makeKeptWrite } = require('./kept-write.js');
+const { makeKeptWrite } = require('../files/kept-write.js');
 
 function makeSavedOverviews({ dataDir, cmpKey, SNAPSHOT_FILE, HISTORY_FILE, saved, resolveRoot }) {
-  const snapshotWrite = makeKeptWrite('the last overview of the drives');
-  const historyWrite = makeKeptWrite('the history of the drives');
+  const snapshotWrite = makeKeptWrite('disk', 'the last overview of the drives');
+  const historyWrite = makeKeptWrite('disk', 'the history of the drives');
 
   async function loadPersisted() {
     if (saved.snapshots && saved.history) return;
