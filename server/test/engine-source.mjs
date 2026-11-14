@@ -170,10 +170,16 @@ export function extractedFrom(source = ENGINE) {
  * @returns {{ file: string, about: string, names: string[],
  *   state: { object: string, props: Record<string, string>, kept: string[], bare: string[] } }[]}
  *   the modules that hold variables of the file as properties of one object: `props` is old name to property,
- *   `kept` the names whose first value is still given in the file, `bare` the ones declared without a value
+ *   `kept` the names whose first value is still given in the file, `bare` the ones declared without a value.
+ *   A name the list says gets its first value from a function of another module today (`state.firstValue`,
+ *   first-values.mjs) is handed out as what the file declares now: not kept, and without a value.
  */
 export function stateRewrites(source = ENGINE) {
-  return ledgerOf(source).filter((entry) => entry.state);
+  return once(`state: ${source}`, () => ledgerOf(source).filter((entry) => entry.state).map((entry) => {
+    const elsewhere = Object.keys(entry.state.firstValue ?? {});
+    if (elsewhere.length === 0) return entry;
+    return { ...entry, state: { ...entry.state, kept: entry.state.kept.filter((name) => !elsewhere.includes(name)), bare: [...entry.state.bare, ...elsewhere] } };
+  }));
 }
 
 /**
@@ -221,7 +227,7 @@ export function engineSource(source = ENGINE) {
     const rewrites = stateRewrites(source);
     const gathered = gatheredIn(source);
     return [oldNames(read(source), rewrites, gathered),
-      ...ledgerOf(source).map((entry) => (entry.state ? oldDeclarations(read(entry.file), entry) : oldNames(read(entry.file), rewrites, gathered)))].join('\n');
+      ...ledgerOf(source).map((entry) => (entry.state ? oldDeclarations(read(entry.file), rewrites.find((made) => made.file === entry.file)) : oldNames(read(entry.file), rewrites, gathered)))].join('\n');
   });
 }
 

@@ -49,6 +49,22 @@ export function appendLedger(root, source, entry) {
 }
 
 /**
+ * Variables of a state module that were given their first value in the file (`kept`) and get it today from a
+ * function of another module (first-values.mjs). The entry of the state module gains `state.firstValue`; what the
+ * step itself wrote stays as it is, so `verify` redoes the step as before.
+ * @param {string} root @param {string} source repo-relative file the variables were taken out of
+ * @param {string} object the object of the state module
+ * @param {Record<string, { file: string, by: string }>} values variable to the module and function that give it its first value
+ */
+export function recordFirstValues(root, source, object, values) {
+  const ledger = readLedger(root);
+  const entry = (ledger.sources[source] ?? []).find((made) => made.state?.object === object);
+  if (!entry) throw new Error(`${source} has no state module whose object is ${object}`);
+  entry.state.firstValue = { ...entry.state.firstValue, ...values };
+  writeLedger(root, ledger);
+}
+
+/**
  * A frozen object that was cut into parts where it stood (spread.mjs). It is not a module, so it has a list of its
  * own: `after` says how many entries the file had when it was cut, which is where the replay redoes it. `returns` marks
  * the other kind of cut kept in this list: the object a function returns, cut into part functions (returned.mjs).
