@@ -484,7 +484,12 @@
       {"file":"server/discord/rpc-voice-values.js","about":"The small sums behind the Discord voice controls: a switch flipped, push-to-talk toggled, a volume nudged, and one person's volume.","names":["USER_VOL_MAX","DEFAULT_USER_VOL","toggleValue","nextPttType","nudgedVolume","userVolumeAbs","userVolumeFor"]},
       {"file":"server/discord/rpc-shapes.js","about":"What the Discord app sends turned into what the tile draws: the people in a voice channel with their pictures, soundboard sounds, and notifications.","names":["isSnowflake","avatarUrl","channelMembers","isSoundId","parseSoundRef","normNotification","normSound"]},
       {"file":"server/discord/rpc-pipe.js","about":"The local pipe to the Discord app: where it is, that it belongs to this user, and the framing of each message sent and read.","names":["OP_HANDSHAKE","OP_FRAME","OP_CLOSE","OP_PING","OP_PONG","PIPE_COUNT","encodeFrame","createDecoder","pipePath","trustedIpcSocket","connectPipe"]},
-      {"file":"server/discord/rpc-debug.js","about":"The optional log of what the Discord app sends, switched on for a diagnosis.","names":["RPC_DEBUG","logDispatch"]}
+      {"file":"server/discord/rpc-debug.js","about":"The optional log of what the Discord app sends, switched on for a diagnosis.","names":["RPC_DEBUG","logDispatch"]},
+      {"file":"server/discord/rpc-limits.js","about":"The limits of the Discord link: how long an idle socket is kept, how long a command and the Authorize click may take, which channels are voice channels, the audio switches that can be toggled, and how many per-person volumes are remembered.","names":["IDLE_MS","CMD_TIMEOUT_MS","AUTHORIZE_TIMEOUT_MS","GUILD_VOICE","AUDIO_FEATURES","MAX_USER_OVERRIDES"]},
+      {"file":"server/discord/rpc-watch.js","about":"The live voice watch over the Discord link: who listens, the events subscribed to, the voice state read again after a burst of events, the speaking events of the channel the user is in, the wait before connecting again, and what is known about notifications.","names":["WATCH_EVENTS","RECONNECT_MAX_MS","watchCb","notifyCb","lastNotifSubError","lastVoice","reconnectTimer","recomputeTimer","reconnectDelay","emitOffline","emitVoice","handleDispatch","scheduleRecompute","recompute","CHANNEL_EVENTS","resubscribeSpeaking","scheduleReconnect","startWatch","watchVoice","stopWatch","notifStatus"],"inner":{"factory":"createDiscordProvider","make":"makeWatch"}},
+      {"file":"server/discord/rpc-login.js","about":"Signing in to the Discord desktop app over its local pipe: the Authorize click, the code exchanged for tokens, the token renewed, who is signed in, what the dashboard is told, and signing out.","names":["configured","refresh","fetchUser","loginFail","loginBusy","login","doLogin","logout","status"],"inner":{"factory":"createDiscordProvider","make":"makeLogin"}},
+      {"file":"server/discord/rpc-voice-reads.js","about":"What Discord is asked about voice: the voice channels, who is in them, the channel the user is in, the soundboard, and the full voice state the tile shows.","names":["selfUserId","enumVoiceChannels","listVoiceChannels","voiceRoster","currentChannelId","listSoundboardSounds","playSoundboard","voiceState"],"inner":{"factory":"createDiscordProvider","make":"makeVoiceReads"}},
+      {"file":"server/discord/rpc-voice-actions.js","about":"What can be done to Discord voice: mute, deafen, push to talk, join and leave a channel, open a text channel, the volumes, one person's volume and mute, the audio switches, and the one door every Deck action comes through.","names":["setSelf","setPtt","selectVoice","openTextChannel","leaveVoice","nudgeVolume","setVolumeAbs","noteOverride","memberVoice","userTarget","setUserVolume","setUserMute","toggleAudioFeature","runAction"],"inner":{"factory":"createDiscordProvider","make":"makeVoiceActions"}}
     ],
     "server/codex-appserver.js": [
       {"file":"server/codex/appserver-rpc.js","about":"Talks JSON-RPC with Codex's own app server over its pipes: lines put back together, one request with its time limit, and an answer that means not supported.","names":["REQUEST_TIMEOUT_MS","MAX_LINE","createLineDecoder","isUnsupported","RpcError","createRpc"]},
@@ -925,6 +930,9 @@
     "server/claude-bridge.js": [
       {"factory":"createBridge","object":"readings","names":["limits","modSeen"],"kept":[],"bare":[],"after":6},
       {"factory":"createBridge","object":"issued","names":["seq"],"kept":[],"bare":[],"after":6}
+    ],
+    "server/discord-rpc.js": [
+      {"factory":"createDiscordProvider","object":"watchState","names":["watching","notifState","watchChannelId","currentVoiceChannelId"],"kept":[],"bare":[],"after":5}
     ]
   }
 }
