@@ -7,8 +7,8 @@ register. You do this once per service, then paste the credentials into
 **Settings → Streaming** in the dashboard and tap **Connect**.
 
 Nothing is hard-coded and nothing is committed: your credentials are stored only
-in `server/stream-config.json` (git-ignored) and your login tokens only in
-`server/stream-tokens.json` (git-ignored). They never leave your PC.
+in `server/data/stream-config.json` (git-ignored) and your login tokens only in
+`server/data/stream-tokens.json` (git-ignored). They never leave your PC.
 
 > **Why per-user?** These are *your* accounts. Twitch needs only a free app
 > registration (one click-through). YouTube uses a Google Cloud project; Google
@@ -168,11 +168,11 @@ never sent to the browser.
 
 ## Where credentials live (advanced)
 
-- **App credentials**: `server/stream-config.json` — keys `twitchClientId`,
+- **App credentials**: `server/data/stream-config.json` — keys `twitchClientId`,
   `youtubeClientId`, `youtubeClientSecret`, `discordClientId`,
   `discordClientSecret`, `spotifyClientId`. The Settings inputs write this file; you
   can also edit it directly or use the `TWITCH_CLIENT_ID` / `YOUTUBE_CLIENT_ID` /
   `YOUTUBE_CLIENT_SECRET` / `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` /
   `SPOTIFY_CLIENT_ID` environment variables (env wins).
-- **Login tokens**: `server/stream-tokens.json` — managed automatically; delete it
+- **Login tokens**: `server/data/stream-tokens.json` — managed automatically; delete it
   to force a full re-login. Both files are git-ignored and never sent to the browser.
