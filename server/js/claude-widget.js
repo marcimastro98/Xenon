@@ -25,14 +25,14 @@
   const api = apiJson;      // fetch → JSON, null on failure (utils.js)
   const AK = window.ApprovalKeys;
   const {
-    t, hTok, dur, ago, until, fmtTokens, fmtMoney, fmtPct, fmtWhen, fmtDay, endedLabel, toolIntent,
-    RISK_LABEL, PLAN_CHOICE_LABEL, askedBy, sheetTitle, stateLabel, attachErrorText, replyErrorText,
-    runErrorText, runStateText,
+    t, hTok, dur, ago, until, fmtTokens, fmtMoney, fmtPct, fmtDay, endedLabel, toolIntent, RISK_LABEL,
+    PLAN_CHOICE_LABEL, askedBy, sheetTitle, stateLabel, attachErrorText, replyErrorText, runErrorText,
+    runStateText,
   } = window.ClaudeWidgetWords;
 
   const {
-    widgetState, live, limits, sessions, aged, statusSeen, COLLAPSE_KEY, readCollapsed, isCollapsed,
-    runs, resolveAskProject, sessionById, clearAttach, promptWithAttachments, replyMode, resumeNote,
+    widgetState, live, limits, sessions, statusSeen, COLLAPSE_KEY, readCollapsed, isCollapsed, runs,
+    resolveAskProject, sessionById, clearAttach, promptWithAttachments, replyMode, resumeNote,
     askSession, inLiveSession, canRunCommands, titles, runsFor, currentPlanKey, stopTicker,
   } = window.ClaudeWidgetKnown;
   let seeded = false, seedInflight = false;
@@ -55,7 +55,7 @@
   }
 
   // ── model → hue. Encodes which model produced the work, not decoration. ──
-  const { modelHue, shortModel, mmss, prettyModel, clamp, level } = window.ClaudeWidgetModelWords;
+  const { modelHue, shortModel, prettyModel, clamp, level } = window.ClaudeWidgetModelWords;
 
   // ── formatting ──
 
@@ -859,6 +859,10 @@
     return wrap;
   }
 
+  const { composerSelect, runBuiltins, slashQuery } = window.ClaudeWidgetComposerParts;
+
+  const { startTicker } = window.ClaudeWidgetTicker;
+
   // ── asking Claude from the touchscreen ─────────────────────────────────────
   // The open session's conversation (js/claude-thread.js): re-reads after every
   // state change until the turn has closed, so the end of a reply is never missed.
@@ -1339,30 +1343,6 @@
   };
   const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
-  // One of the composer's dropdowns. It uses the app's own select so a long
-  // list stays on the display; a change never repaints, which would throw away
-  // what is typed.
-  function composerSelect(cls, label, options, value, onChange) {
-    const sel = document.createElement('select');
-    sel.className = cls;
-    sel.setAttribute('data-cs-fixed', '');
-    sel.setAttribute('aria-label', label);
-    sel.title = label;
-    options.forEach((o) => {
-      const opt = document.createElement('option');
-      opt.value = o.id;
-      opt.textContent = o.label;
-      if (o.note) opt.dataset.csNote = o.note;
-      if (o.id === value) opt.selected = true;
-      sel.appendChild(opt);
-    });
-    sel.addEventListener('change', () => onChange(sel.value));
-    if (typeof window.initCustomSelect === 'function') {
-      requestAnimationFrame(() => { try { window.initCustomSelect(sel); } catch {} });
-    }
-    return sel;
-  }
-
   function runModeSelect() {
     const opts = [{ id: '', label: t('claude_run_mode_default', 'Default mode'), note: t('claude_run_mode_default_note', 'your Claude Code setting') }];
     widgetState.askOptions.modes.forEach((m) => opts.push({ id: m, label: t(RUN_MODE_LABELS[m][0], RUN_MODE_LABELS[m][1]) }));
@@ -1440,18 +1420,6 @@
     ];
   }
 
-  // In a new run the model, effort and mode belong to the bar under the box, so
-  // these three set it instead of going to Claude Code as text (headless
-  // Claude Code ignores them).
-  function runBuiltins() {
-    const list = [
-      { name: 'model', desc: t('claude_slash_model', 'Change the model, e.g. /model opus') },
-      { name: 'effort', desc: t('claude_slash_effort', 'Set the effort: low, medium, high, xhigh, max') },
-    ];
-    if (widgetState.askOptions.modes.includes('plan')) list.push({ name: 'plan', desc: t('claude_slash_plan', 'Start in plan mode: it plans first and changes nothing') });
-    return list;
-  }
-
   // Applies "/model x", "/effort x" or "/plan [text]" to the bar. Returns the
   // prompt that is left to send (null: nothing left), or false when the text
   // is not one of these.
@@ -1474,12 +1442,6 @@
     }
     done();
     return null;
-  }
-
-  // The word being typed, when the box is exactly "/word" so far.
-  function slashQuery(text) {
-    const m = /^\/([^\s]*)$/.exec(text);
-    return m ? m[1].toLowerCase() : null;
   }
 
   // What a command takes after its name, offered the way Claude Code's own
@@ -2504,22 +2466,6 @@
   }
 
   // ── ticking ────────────────────────────────────────────────────────────────
-  // Only the countdown texts change every second. Repainting the whole tile for
-  // that would throw away scroll position and fight the user's taps, so the tick
-  // mutates just those nodes — and stops entirely when nothing counts down.
-  function tick() {
-    const nodes = document.querySelectorAll('[data-reset-at], [data-expires-at], [data-age-base]');
-    nodes.forEach(n => {
-      if (n.dataset.resetAt) n.textContent = until(Number(n.dataset.resetAt));
-      else if (n.dataset.expiresAt) n.textContent = (n.dataset.tpl || '{t}').replace('{t}', mmss(Number(n.dataset.expiresAt) - Date.now()));
-      else n.textContent = (n.dataset.agePrefix || '') + dur(aged(Number(n.dataset.ageBase)));
-    });
-    if (!nodes.length) stopTicker();
-  }
-  function startTicker() {
-    if (widgetState.ticker) return;
-    widgetState.ticker = setInterval(tick, 1000);
-  }
 
   function paint() {
     // A finger is on the widget: see "a tap must survive an SSE push".
