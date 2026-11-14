@@ -17,13 +17,9 @@
 // Matching lives in js/fuzzy-find.js (pure, unit-tested). This file is only
 // the DOM half: build the index, paint the results, reveal the chosen row.
 (function () {
-  const RECENT_KEY = 'xeneonedge.settingsSearchRecent.v1';
-  const RECENT_MAX = 5;
+  const { input, panel, readRecent, setSearching, reveal, leave } = window.SettingsSearchGoing;
   const RESULT_LIMIT = 40;
-  const ROW_SEL = '.settings-toggle-row, .settings-row, .settings-vitals-row, .settings-ambient-row, .settings-supporter-row';
-  const PLACE_SEL = 'details, .settings-section';
-  const LABEL_MAX = 90;
-  const VALUE_SEL = 'option[data-i18n], .settings-seg-btn[data-i18n], .settings-seg [data-i18n], button[data-i18n]';
+  const { build, text } = window.SettingsSearchIndexOfRows;
 
   let index = null;
   let entries = [];
@@ -32,129 +28,6 @@
   let selected = 0;
   let paintRaf = 0;
 
-  const input = () => document.getElementById('settings-search-input');
-  const panel = () => document.getElementById('settings-search-results');
-  const content = () => document.getElementById('settings-content');
-
-  // Every language for one key; see FuzzyFind.i18nFields for the weights.
-  function fieldsFor(key, weight, opts) {
-    if (typeof i18n !== 'object' || !i18n || !window.FuzzyFind) return [];
-    const cur = (typeof lang === 'string' && lang) ? lang : 'en';
-    return window.FuzzyFind.i18nFields(i18n, key, weight, { ...(opts || {}), lang: cur });
-  }
-
-  const { keyOf, labelKeyOf, reachable, placeKey, onScreen } = window.SettingsSearchRows;
-
-  // What a row sits under, nearest first: the row that opens, the section, the
-  // head of its card.
-  function placeOf(row, card, headKey) {
-    for (let n = row.parentElement; n && n !== card; n = n.parentElement) {
-      const key = n.matches(PLACE_SEL) ? placeKey(n) : '';
-      if (key) return key;
-    }
-    return headKey;
-  }
-
-  function build() {
-    const list = [];
-    const catKeys = {};
-    document.querySelectorAll('#settings-nav [data-settings-cat]').forEach((b) => {
-      if (b.hidden) return;
-      const cat = b.dataset.settingsCat;
-      // The Supporta footer button names the category in its title; its label
-      // is the short form.
-      const key = b.getAttribute('data-i18n-title') || keyOf(b.querySelector('[data-i18n]'));
-      if (cat && key && !catKeys[cat]) catKeys[cat] = key;
-    });
-
-    for (const [cat, key] of Object.entries(catKeys)) {
-      list.push({
-        id: 'cat:' + cat, kind: 'cat', cat, labelKey: key,
-        fields: [...fieldsFor(key, 1, { fuzzy: true }), ...fieldsFor('settings_kw_' + cat, 0.8, { fuzzy: true })],
-      });
-    }
-
-    const root = content();
-    if (!root) return list;
-    const seen = new Set();
-    for (const card of root.children) {
-      const cat = card.dataset && card.dataset.settingsCat;
-      // No reachable() test on the card itself: every card outside the open category carries
-      // `hidden` from settingsSetCategory, so that test indexed only the open
-      // one. A card this machine lacks is caught by its category being absent
-      // from the sidebar, or by the Windows-only mark.
-      if (!cat || !catKeys[cat] || card.dataset.unavailable === '1') continue;
-      if (window.XenonPlatform && window.XenonPlatform !== 'win32' && card.closest('[data-settings-win-only]')) continue;
-      const catFields = fieldsFor(catKeys[cat], 0.3, { mainOnly: true });
-      const headEl = card.querySelector('.settings-group-head [data-i18n]:not(.settings-hint)');
-      const headKey = keyOf(headEl);
-      const headHint = keyOf(card.querySelector('.settings-group-head .settings-hint[data-i18n]'));
-      if (headKey) {
-        list.push({
-          id: cat + '|' + headKey, kind: 'card', cat, labelKey: headKey, hintKey: headHint, el: card,
-          fields: [...fieldsFor(headKey, 1, { fuzzy: true }), ...fieldsFor(headHint, 0.4), ...catFields],
-        });
-      }
-      const rows = card.querySelectorAll(ROW_SEL);
-      const inRow = new Set();
-      rows.forEach((row) => {
-        if (!reachable(row, card)) return;
-        const labelKey = labelKeyOf(row);
-        if (!labelKey || labelKey === headKey) return;
-        // A row nested in another row with the same label (a toggle-row used as
-        // the caption of a vitals-row) is one setting, not two results.
-        const outer = row.parentElement && row.parentElement.closest(ROW_SEL);
-        if (outer && card.contains(outer) && labelKeyOf(outer) === labelKey) return;
-        // A paragraph that happens to be the first text in a row is a note,
-        // not the name of a setting.
-        if (text(labelKey).length > LABEL_MAX) return;
-        let id = cat + '|' + labelKey;
-        for (let n = 2; seen.has(id); n++) id = cat + '|' + labelKey + '#' + n;
-        seen.add(id);
-        inRow.add(row);
-        const cardKey = placeOf(row, card, headKey);
-        const cardFields = fieldsFor(cardKey, 0.6, { mainOnly: true });
-        const hintKey = keyOf(row.querySelector('.settings-hint[data-i18n]'));
-        const values = [];
-        row.querySelectorAll(VALUE_SEL).forEach((v) => { values.push(...fieldsFor(keyOf(v), 0.5)); });
-        // Extra words for a row whose control has no translated text of its own
-        // (°C / °F): data-search-kw names an i18n key, like settings_kw_<cat>.
-        const kw = row.getAttribute('data-search-kw') || row.querySelector('[data-search-kw]')?.getAttribute('data-search-kw');
-        if (kw) values.push(...fieldsFor(kw, 0.8, { fuzzy: true }));
-        list.push({
-          id, kind: 'row', cat, labelKey, hintKey, cardKey, el: row,
-          fields: [...fieldsFor(labelKey, 1, { fuzzy: true }), ...fieldsFor(hintKey, 0.4), ...values, ...cardFields, ...catFields],
-        });
-      });
-      // Actions that are not part of a named row: "Import theme…", "Export backup".
-      card.querySelectorAll('.settings-btn[data-i18n]').forEach((btn) => {
-        if ([...inRow].some((r) => r.contains(btn)) || !reachable(btn, card)) return;
-        const labelKey = keyOf(btn);
-        const id = cat + '|' + labelKey;
-        if (seen.has(id)) return;
-        seen.add(id);
-        const cardKey = placeOf(btn, card, headKey);
-        list.push({
-          id, kind: 'action', cat, labelKey, cardKey, el: btn,
-          fields: [...fieldsFor(labelKey, 0.9, { fuzzy: true }), ...fieldsFor(cardKey, 0.6, { mainOnly: true }), ...catFields],
-        });
-      });
-      // A section, or a row that opens, is found by its own name too.
-      card.querySelectorAll(PLACE_SEL).forEach((place) => {
-        const labelKey = placeKey(place);
-        const id = cat + '|' + labelKey;
-        if (!labelKey || seen.has(id) || labelKey === headKey || !reachable(place, card)) return;
-        seen.add(id);
-        const hintKey = keyOf(place.querySelector(':scope > summary .settings-hint[data-i18n]'));
-        list.push({
-          id, kind: 'card', cat, labelKey, hintKey, el: place,
-          fields: [...fieldsFor(labelKey, 1, { fuzzy: true }), ...fieldsFor(hintKey, 0.4), ...catFields],
-        });
-      });
-    }
-    for (const e of list) e.catKey = catKeys[e.cat];
-    return list;
-  }
 
   function ensureIndex(force) {
     if (index && !force) return;
@@ -164,18 +37,6 @@
   }
 
   // ── Recent picks (a per-screen convenience, never synced) ──
-  function readRecent() {
-    try {
-      const v = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-      return Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, RECENT_MAX) : [];
-    } catch { return []; }
-  }
-  function pushRecent(id) {
-    try {
-      const next = [id, ...readRecent().filter((x) => x !== id)].slice(0, RECENT_MAX);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-    } catch { /* private mode, blocked storage: the search still works */ }
-  }
 
   function run() {
     ensureIndex();
@@ -193,10 +54,6 @@
   }
 
   // ── Painting ──
-  function text(key) {
-    return key && typeof t === 'function' ? t(key) : '';
-  }
-
   function itemFor(res, i) {
     const e = res.entry;
     const btn = document.createElement('button');
@@ -284,63 +141,7 @@
     });
   }
 
-  function setSearching(on) {
-    const c = content();
-    const box = panel();
-    if (!c || !box) return;
-    c.classList.toggle('is-searching', on);
-    box.hidden = !on;
-    input()?.setAttribute('aria-expanded', on ? 'true' : 'false');
-    if (on) c.scrollTop = 0;
-  }
-
   // ── Going to the row ──
-  // A row behind a switch that is off is not on screen: the switch is the way in.
-  // A block names its own; otherwise it is the row before, up through the parents.
-  function landing(el) {
-    const root = content();
-    if (onScreen(el)) return el;
-    const gate = el.closest('[data-behind-switch]');
-    const named = gate && document.getElementById(gate.dataset.behindSwitch);
-    if (named && onScreen(named)) return named.closest(ROW_SEL) || named;
-    for (let n = el; n && n !== root; n = n.parentElement) {
-      if (onScreen(n)) return n;
-      for (let s = n.previousElementSibling; s; s = s.previousElementSibling) {
-        if (onScreen(s) && (s.matches(ROW_SEL) || s.querySelector(ROW_SEL))) return s;
-      }
-    }
-    return null;
-  }
-
-  function reveal(entry, fromKeyboard) {
-    if (!entry) return;
-    pushRecent(entry.id);
-    setSearching(false);
-    if (typeof settingsSetCategory === 'function') settingsSetCategory(entry.cat);
-    // On a phone the category list may be open over the content: the choice
-    // is made, fold it away like a category tap does.
-    document.getElementById('settings-nav')?.classList.remove('is-open');
-    const target = entry.el && entry.el.isConnected ? entry.el : null;
-    if (!target) return;
-    const details = target.closest('details');
-    if (details && !details.open) details.open = true;
-    const el = landing(target);
-    if (!el) return;
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // After settingsSetCategory's column packing has placed the cards.
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
-      el.classList.remove('settings-search-flash');
-      void el.offsetWidth;   // restart the animation on a second pick
-      el.classList.add('settings-search-flash');
-      setTimeout(() => el.classList.remove('settings-search-flash'), 2600);
-      if (fromKeyboard) {
-        const ctl = el.matches('button, input, select, textarea') ? el : el.querySelector('input:not([type="hidden"]), select, textarea, button');
-        if (ctl) { try { ctl.focus({ preventScroll: true }); } catch { /* best effort */ } }
-      }
-    });
-  }
-
   // ── Wiring ──
   function onInput(ev) {
     query = ev.target.value || '';
@@ -443,11 +244,6 @@
     const el = input();
     if (el && (el.value || !panel()?.hidden)) { clear(); el.blur(); return true; }
     return false;
-  }
-
-  // A category picked from the sidebar ends the search view.
-  function leave() {
-    if (content()?.classList.contains('is-searching')) setSearching(false);
   }
 
   window.SettingsSearch = { init, onOpen, handleEscape, leave, _build: build };
