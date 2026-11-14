@@ -454,8 +454,8 @@ require('./actions/voicemeeter');
 const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
-const { createSecondScreen } = require('./second-screen');
-const { createScreenCapture } = require('./screen-capture');
+require('./second-screen');
+require('./screen-capture');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');
 require('./unifi-events');
@@ -2183,59 +2183,9 @@ const embeddedBrowser = createEmbeddedBrowser({
 // browser + XENON) in step after a login, since they drive independent headless
 // pages over one shared cookie jar (see browser-surface-sync.js / GitHub #96).
 const browserSync = createBrowserSurfaceSync();
-// Second-screen prerequisite check + one-click VDD install (UI not wired yet).
-const secondScreen = createSecondScreen();
-// Second-screen capture host: spawns the Xenon Helper `screen-serve` mode on
-// demand and relays its JPEG frames over the /second-screen/ws loopback socket.
-const screenCapture = createScreenCapture({ helperExe: HELPER_EXE });
+const { secondScreen, screenCapture } = require('./screens/second-screen-hosts.js');
 
-// Apply a resolution to the virtual display. Fast path: commit the advertised mode
-// live via the helper (no UAC, no device churn) — this is what actually makes the
-// chosen resolution stick (a new VDD monitor sits at a stale 800x600 default until
-// a mode is committed). Fallback: if the mode isn't advertised yet (display missing
-// or created by an older single-mode config), (re)create it with the full preset
-// config — which is elevated but idempotent (remove-then-install one, never spam) —
-// then commit again.
-async function applySecondScreenMode(mode, opts) {
-  const soft = !!(opts && opts.soft);
-  let width = mode && mode.width;
-  let height = mode && mode.height;
-  // Soft auto-restore (the tile re-asserting the saved resolution on every load):
-  // trust the *persisted* resolution from settings.json, not the client-sent one.
-  // On a fresh page load the tile may fire this before its hubSettings is populated
-  // and would otherwise send the 1080p default — silently clobbering the user's
-  // saved mode, which is exactly the "I have to re-apply every time" bug. The server
-  // always has the authoritative saved value, so resolve it here.
-  if (soft) {
-    try {
-      const s = await readHubSettings();
-      const ss = s && s.secondScreen;
-      if (ss && ss.width > 0 && ss.height > 0) { width = ss.width; height = ss.height; }
-    } catch (e) { /* fall back to the client-sent mode */ }
-  }
-  const m = { monitor: 'virtual', width, height };
-  if (!(m.width > 0 && m.height > 0)) return { ok: false, code: 'bad_args' };
-
-  try {
-    const r = await screenCapture.setMode(m);
-    if (r && r.ok) return { ok: true, code: 'mode_applied', width: r.width, height: r.height };
-  } catch (e) { /* fall through to (re)create */ }
-
-  // Silent auto-restore path (tile re-asserting the saved resolution on load): never
-  // fall back to the elevated device (re)create — a UAC prompt on every restart is
-  // exactly what we're avoiding. The user can re-apply manually from Settings.
-  if (soft) return { ok: false, code: 'needs_apply' };
-
-  const created = await secondScreen.createDisplay(mode);
-  if (!(created && created.ok)) return created;
-  if (created.code === 'display_needs_reboot') return created;
-
-  try {
-    const r2 = await screenCapture.setMode(m);
-    if (r2 && r2.ok) return { ok: true, code: 'mode_applied', width: r2.width, height: r2.height };
-  } catch (e) { /* display exists; mode may settle after a reboot */ }
-  return { ok: true, code: 'display_ready' };
-}
+const { applySecondScreenMode } = require('./screens/second-screen-mode.js');
 
 const { obsWatch } = require('./streaming/obs-watch-state.js');
 const { obsWatching } = require('./streaming/obs-watching.js');
@@ -7019,6 +6969,8 @@ const { _teardownLiveSession } = require('./ai/live-session-end.js');
 
 const { _buildLiveSystemInstruction } = require('./ai/live-system-instruction.js');
 
+const { _handleSecondScreenClient } = require('./screens/second-screen-client.js');
+
 server.on('upgrade', (req, socket, head) => {
   let pathname = '';
   try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
@@ -7045,46 +6997,6 @@ server.on('upgrade', (req, socket, head) => {
   }
   embeddedWss.handleUpgrade(req, socket, head, (client) => _handleEmbeddedClient(client));
 });
-
-// Relay for the Second-screen tile. One capture host is shared, so only one
-// client streams at a time; if a second client starts, it takes over the sink.
-// The capture process itself self-stops when no tile is visible (the client
-// sends 'stop' on hide / perf-pause), keeping idle cost at zero.
-function _handleSecondScreenClient(client) {
-  const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
-  let owns = false;
-  let useBinary = false;
-  const sink = (data, meta) => {
-    if (!useBinary) { send({ type: 'frame', data, w: meta.w, h: meta.h, seq: meta.seq }); return; }
-    let payload; try { payload = Buffer.from(data, 'base64'); } catch (e) { return; }
-    try { client.send(_packWsFrame({ type: 'frame', w: meta.w, h: meta.h, seq: meta.seq }, payload)); } catch (e) { /* ignore */ }
-  };
-  client.on('message', async (raw) => {
-    let m; try { m = JSON.parse(String(raw)); } catch (e) { return; }
-    if (!m || typeof m !== 'object') return;
-    try {
-      switch (m.type) {
-        case 'list': { const r = await screenCapture.list(); send({ type: 'monitors', monitors: r.monitors || [] }); break; }
-        case 'start': {
-          owns = true;
-          useBinary = m.binary === true;
-          screenCapture.setFrameSink(sink);
-          const r = await screenCapture.start({ monitor: m.monitor, fps: m.fps, maxWidth: m.maxWidth, maxHeight: m.maxHeight, quality: m.quality });
-          send({ type: 'started', info: r });
-          break;
-        }
-        case 'stop': { owns = false; await screenCapture.stop(); send({ type: 'stopped' }); break; }
-        case 'input': { screenCapture.input(m.event); break; }
-        default: break;
-      }
-    } catch (e) {
-      send({ type: 'error', error: String((e && e.message) || e) });
-    }
-  });
-  const cleanup = () => { if (owns) screenCapture.stop().catch(() => {}); owns = false; };
-  client.on('close', cleanup);
-  client.on('error', cleanup);
-}
 
 // Execute the cross-surface follow plan for a Browser-widget navigation: any idle
 // sibling tile still sitting on the page this one just left is re-navigated so it
