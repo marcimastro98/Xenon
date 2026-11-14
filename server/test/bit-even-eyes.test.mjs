@@ -3,7 +3,7 @@
 // and one eye came out wider than the other. So Bit is painted as anti-aliased
 // paths, one per colour, and the icon box sits on whole cells.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
 
