@@ -7296,11 +7296,9 @@ const { branches: audioBranches } = require('./audio/routes.js');
 const { branches: updatesBranches } = require('./updates/routes.js');
 const { branches: performanceBranches } = require('./performance/routes.js');
 const { branches: systemBranches } = require('./system/routes.js');
-const { branches: windowsTilesBranches } = require('./windows-tiles/routes.js');
 const { branches: installBranches } = require('./install/routes.js');
 const { branches: widgetSdkBranches } = require('./widget-sdk/routes.js');
 const { branches: engineBranches } = require('./engine/routes.js');
-const { branches: screensBranches } = require('./screens/routes.js');
 const { branches: discordBranches } = require('./discord/routes.js');
 const { branches: searchBranches } = require('./search/routes.js');
 const { branches: storeCatalogBranches } = require('./store-catalog/routes.js');
@@ -7329,21 +7327,15 @@ const { branches: performanceModeBranches } = require('./performance/routes-mode
 const { branches: audioVolumeBranches } = require('./audio/routes-volume.js');
 const { branches: timeBranches } = require('./time/routes.js');
 const { branches: codexBranches } = require('./codex/routes.js');
-const { branches: screensCaptureBranches } = require('./screens/routes-capture.js');
-const { branches: windowsTilesTilesBranches } = require('./windows-tiles/routes-tiles.js');
 const { branches: lookBranches } = require('./look/routes.js');
 const { branches: settingsBranches } = require('./settings/routes.js');
 const { branches: streamingBranches } = require('./streaming/routes.js');
 const { branches: mediaBranches } = require('./media/routes.js');
-const { branches: notificationOpenBranches } = require('./notification-open/routes.js');
-const { branches: widgetOptionsBranches } = require('./widget-options/routes.js');
 const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');
 const { branches: streamingYoutubeBranches } = require('./streaming/routes-youtube.js');
 const { branches: streamingSpotifyBranches } = require('./streaming/routes-spotify.js');
 const { branches: aiDictationBranches } = require('./ai/routes-dictation.js');
 const { branches: smartHomeCamerasBranches } = require('./smart-home/routes-cameras.js');
-const { branches: screensCapturesBranches } = require('./screens/routes-captures.js');
-const { branches: ambientBranches } = require('./ambient/routes.js');
 const { branches: aiLocalBranches } = require('./ai/routes-local.js');
 const { branches: widgetSdkImagesBranches } = require('./widget-sdk/routes-images.js');
 const { branches: settingsSaveBranches } = require('./settings/routes-save.js');
@@ -7352,9 +7344,15 @@ const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
 // The names of this file the tables of routes are handed (feature-routes.js),
 // read for each request. tools/restructure/dispatch-move.mjs writes the list.
 const routeHands = () => ({
-  TILE_ASSET_EXT_BY_MIME, _footballPayload, _geminiOneShot, _loadFootballInfo, _xenonMenuState, batteryMonitor, collectSensors, drawShell,
-  geminiKeyFor, getNetworkInfo, getSystemInfo, getWeather, guardian, layersPeek, readHubSettings, readHubSettingsForUpdate, refreshFootball,
-  refreshStocks, roastSparks, saveVitalsState, screenMenu, vitalsNag, writeHubSettings,
+  BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, _captureCovers, _captureExport,
+  _captureFolder, _captureGallery, _captureHost, _captures, _deskPageSync, _footballPayload, _geminiOneShot, _loadFootballInfo, _menuHotkey,
+  _replay, _saveTimers, _transcripts, _xenonMenuState, applySecondScreenMode, batteryMonitor, captureScreenshot, chooseCaptureFolder,
+  collectSensors, deckRegistry, defaultCaptureFolder, drawShell, embeddedBrowser, geminiKeyFor, getNetworkInfo, getSlideshowDir,
+  getSystemInfo, getWeather, guardian, layersEdit, layersHost, layersPeek, makeMarkClips, readHubSettings, readHubSettingsForUpdate,
+  readNotes, refreshExternalFeeds, refreshFootball, refreshHotkeyListener, refreshStocks, remoteAccess, remoteHttpsInstaller,
+  replayDiskInfo, roastSparks, saveNotesGuarded, saveVitalsState, screenCapture, screenMenu, secondScreen, sendCaptureToPhone, tilePlay,
+  transcodeMp4BackgroundToWebm, transferEnabled, updateCaptureSettings, updateEvents, updateTasks, vitalsNag, writeEvents, writeHubSettings,
+  writeNotes, writeTasks,
 });
 
 const handleRequest = async (req, res) => {
@@ -7530,14 +7528,8 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/sdk-service' && req.method === 'GET') {
     await widgetSdkBranches['GET /sdk-service'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
-  } else if (reqPath === '/scene' && req.method === 'GET') {
-    await ambientBranches['GET /scene'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
   } else if (reqPath === '/deck-popup' && req.method === 'GET') {
     await deckKeysBranches['GET /deck-popup'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
-  } else if (reqPath === '/layer-i18n.js' && req.method === 'GET') {
-    await widgetOptionsBranches['GET /layer-i18n.js'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/spotlight' && req.method === 'GET') {
     await searchBranches['GET /spotlight'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
@@ -7712,18 +7704,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/media/previous' && (req.method === 'POST' || req.method === 'GET')) {
     await mediaBranches['POST|GET /media/previous'](req, res, { json, err500, reqPath, urlObj, isRemote }, { mediaAction });
 
-  } else if (reqPath === '/windows' && req.method === 'GET') {
-    await windowsTilesBranches['GET /windows'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/windows/focus' && req.method === 'POST') {
-    await windowsTilesBranches['POST /windows/focus'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/windows/close' && req.method === 'POST') {
-    await windowsTilesBranches['POST /windows/close'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/windows/launch' && req.method === 'POST') {
-    await windowsTilesTilesBranches['POST /windows/launch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });
-
   } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {
     await audioVolumeBranches['POST|GET /volume/set'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
@@ -7829,18 +7809,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/signalrgb/effects' && req.method === 'GET') {
     await lightsBranches['GET /api/signalrgb/effects'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
-    await windowsTilesBranches['GET /embedded-browser/available'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser, remoteHttpsInstaller });
-
-  } else if (reqPath === '/embedded-browser/install' && req.method === 'POST') {
-    await windowsTilesBranches['POST /embedded-browser/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser, remoteHttpsInstaller });
-
-  } else if (reqPath === '/embedded-browser/adblock' && req.method === 'GET') {
-    await windowsTilesTilesBranches['GET /embedded-browser/adblock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser });
-
-  } else if (reqPath === '/embedded-browser/adblock/install' && req.method === 'POST') {
-    await windowsTilesBranches['POST /embedded-browser/adblock/install'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
     await streamingBranches['GET /obs/scenes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckObs, refreshObsWatch });
 
@@ -7858,18 +7826,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/streamerbot/activity' && req.method === 'GET') {
     await streamingBranches['GET /streamerbot/activity'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildSbState });
-
-  } else if (reqPath === '/notes/list' && req.method === 'GET') {
-    await timeBranches['GET /notes/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readNotes });
-
-  } else if (reqPath === '/notes/list' && req.method === 'POST') {
-    await timeBranches['POST /notes/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveNotesGuarded });
-
-  } else if (reqPath === '/notes' && req.method === 'GET') {
-    await timeBranches['GET /notes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readNotes });
-
-  } else if (reqPath === '/notes' && req.method === 'POST') {
-    await timeBranches['POST /notes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { writeNotes });
 
   } else if (reqPath === '/version' && req.method === 'GET') {
     await updatesBranches['GET /version'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -8190,29 +8146,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/deck-config' && req.method === 'POST') {
     await deckKeysBranches['POST /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { withDeckWrite, writeDeckStore });
-
-  } else if (reqPath === '/events' && req.method === 'GET') {
-    await timeBranches['GET /events'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/events' && req.method === 'POST') {
-    await timeBranches['POST /events'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateEvents, writeEvents });
-
-  } else if (reqPath === '/external-events' && req.method === 'GET') {
-    await timeBranches['GET /external-events'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshExternalFeeds });
-
-  } else if (reqPath === '/external-events/refresh' && req.method === 'POST') {
-    await timeBranches['POST /external-events/refresh'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshExternalFeeds });
-
-  } else if (reqPath === '/tasks' && req.method === 'GET') {
-    await timeBranches['GET /tasks'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/tasks' && req.method === 'POST') {
-    await timeBranches['POST /tasks'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateTasks, writeTasks });
-  } else if (reqPath === '/api/timers' && req.method === 'GET') {
-    await timeBranches['GET /api/timers'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/timers' && req.method === 'POST') {
-    await timeBranches['POST /api/timers'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
 
   } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {
     await timeBranches['PATCH /api/timers/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
@@ -8739,15 +8672,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/log' && req.method === 'POST') {
     await engineBranches['POST /api/log'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/api/screens' && req.method === 'GET') {
-    await screensBranches['GET /api/screens'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/screenshot' && req.method === 'GET') {
-    await screensCaptureBranches['GET /api/screenshot'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot });
-
-  } else if (reqPath === '/api/screenshot/monitor' && req.method === 'GET') {
-    await screensCaptureBranches['GET /api/screenshot/monitor'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot });
-
   } else if (reqPath === '/api/stt/start' && req.method === 'POST') {
     await aiDictationBranches['POST /api/stt/start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceWhenReady, _sttInputArgs, _sttVia, getFfmpegPath });
 
@@ -8820,12 +8744,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/volume/restore' && req.method === 'POST') {
     await audioVolumeBranches['POST /api/volume/restore'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
-  } else if (reqPath === '/background' && req.method === 'POST') {
-    await lookBranches['POST /background'](req, res, { json, err500, reqPath, urlObj, isRemote }, { BACKGROUND_EXT_BY_MIME, transcodeMp4BackgroundToWebm });
-
-  } else if (reqPath === '/font' && req.method === 'POST') {
-    await lookBranches['POST /font'](req, res, { json, err500, reqPath, urlObj, isRemote }, { FONT_EXT_BY_MIME });
-
   } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
     await lookBranches['DELETE /font/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
@@ -8849,15 +8767,6 @@ const handleRequest = async (req, res) => {
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {
     await storeCatalogPacksBranches['DELETE /sound-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
-
-  } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {
-    await windowsTilesTilesBranches['POST /slideshow-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { SLIDESHOW_ASSET_EXT_BY_MIME });
-
-  } else if (reqPath === '/slideshow/folder' && req.method === 'GET') {
-    await windowsTilesTilesBranches['GET /slideshow/folder'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSlideshowDir });
-
-  } else if (reqPath === '/slideshow/file' && req.method === 'GET') {
-    await windowsTilesTilesBranches['GET /slideshow/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSlideshowDir });
 
   } else if (reqPath === '/search' && req.method === 'GET') {
     await searchFilesBranches['GET /search'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
@@ -8895,18 +8804,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/deck/shortcut-claim' && req.method === 'POST') {
     await deckKeysBranches['POST /deck/shortcut-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });
-
-  } else if (reqPath === '/tiles/play-claim' && req.method === 'POST') {
-    await windowsTilesTilesBranches['POST /tiles/play-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { tilePlay });
-
-  } else if (reqPath === '/layers/edit' && req.method === 'GET') {
-    await widgetOptionsBranches['GET /layers/edit'](req, res, { json, err500, reqPath, urlObj, isRemote }, { layersEdit, layersPeek });
-
-  } else if (reqPath === '/layers/host' && req.method === 'POST') {
-    await widgetOptionsBranches['POST /layers/host'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _menuHotkey, layersHost, refreshHotkeyListener });
-
-  } else if (reqPath === '/layers/desk' && req.method === 'POST') {
-    await widgetOptionsBranches['POST /layers/desk'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deskPageSync, layersHost });
 
   } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {
     await searchBranches['GET /search/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -9015,54 +8912,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/transfer/undo' && req.method === 'POST') {
     await transferBranches['POST /api/transfer/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { broadcastTransfer, undoTransferDelete });
-
-  } else if (reqPath === '/captures' && req.method === 'GET') {
-    await screensCapturesBranches['GET /captures'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport, _captureHost, _captures, _transcripts, layersHost, remoteAccess, transferEnabled });
-
-  } else if (reqPath === '/captures/transcript' && req.method === 'GET') {
-    await screensCapturesBranches['GET /captures/transcript'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captures, _transcripts });
-
-  } else if (reqPath === '/captures/transcribe' && req.method === 'POST') {
-    await screensCapturesBranches['POST /captures/transcribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _transcripts });
-
-  } else if (reqPath === '/captures/export' && req.method === 'POST') {
-    await screensCapturesBranches['POST /captures/export'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport });
-
-  } else if (reqPath === '/captures/export-cancel' && req.method === 'POST') {
-    await screensCapturesBranches['POST /captures/export-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport });
-
-  } else if (reqPath === '/captures/thumb' && req.method === 'GET') {
-    await screensCapturesBranches['GET /captures/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureGallery });
-
-  } else if (reqPath === '/captures/file' && (req.method === 'GET' || req.method === 'HEAD')) {
-    await screensCapturesBranches['GET|HEAD /captures/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captures });
-
-  } else if ((reqPath === '/captures/delete' && req.method === 'POST')
-    || (reqPath === '/captures/reveal' && req.method === 'POST')
-    || (reqPath === '/captures/copy' && req.method === 'POST')
-    || (reqPath === '/captures/trim' && req.method === 'POST')) {
-    await screensCapturesBranches['POST /captures/delete|/captures/reveal|/captures/copy|/captures/trim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureGallery, _captures });
-
-  } else if (reqPath === '/captures/clips' && req.method === 'POST') {
-    await screensCaptureBranches['POST /captures/clips'](req, res, { json, err500, reqPath, urlObj, isRemote }, { makeMarkClips });
-
-  } else if (reqPath === '/captures/send' && req.method === 'POST') {
-    await screensCaptureBranches['POST /captures/send'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sendCaptureToPhone });
-
-  } else if (reqPath === '/captures/spots' && req.method === 'POST') {
-    await screensCapturesBranches['POST /captures/spots'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureCovers });
-
-  } else if (reqPath === '/captures/save' && req.method === 'POST') {
-    await screensCapturesBranches['POST /captures/save'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureCovers });
-
-  } else if (reqPath === '/capture/settings' && req.method === 'GET') {
-    await screensCaptureBranches['GET /capture/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureFolder, _captures, _replay, defaultCaptureFolder, replayDiskInfo });
-
-  } else if (reqPath === '/capture/settings' && req.method === 'POST') {
-    await screensCaptureBranches['POST /capture/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateCaptureSettings });
-
-  } else if (reqPath === '/capture/settings/pick' && req.method === 'POST') {
-    await screensCaptureBranches['POST /capture/settings/pick'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseCaptureFolder, updateCaptureSettings });
 
   } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {
     await transferBranches['GET /api/transfer/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, fileTransfer, transferInboxDir, transferSettings });
@@ -9244,9 +9093,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/stream/discord/roster' && req.method === 'GET') {
     await discordBranches['GET /stream/discord/roster'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/notifications/windows' && req.method === 'GET') {
-    await notificationOpenBranches['GET /notifications/windows'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/calls' && req.method === 'GET') {
     await transferPhoneBranches['GET /api/calls'](req, res, { json, err500, reqPath, urlObj, isRemote }, { keySendAvailable, keySendProblem });
@@ -9446,21 +9292,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/stream/spotify/launch' && req.method === 'POST') {
     await streamingSpotifyBranches['POST /stream/spotify/launch'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/second-screen/requirements' && req.method === 'GET') {
-    await windowsTilesTilesBranches['GET /second-screen/requirements'](req, res, { json, err500, reqPath, urlObj, isRemote }, { screenCapture, secondScreen });
-
-  } else if (reqPath === '/second-screen/install' && req.method === 'POST') {
-    await windowsTilesTilesBranches['POST /second-screen/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });
-
-  } else if (reqPath === '/second-screen/create-display' && req.method === 'POST') {
-    await windowsTilesTilesBranches['POST /second-screen/create-display'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });
-
-  } else if (reqPath === '/second-screen/apply-resolution' && req.method === 'POST') {
-    await windowsTilesTilesBranches['POST /second-screen/apply-resolution'](req, res, { json, err500, reqPath, urlObj, isRemote }, { applySecondScreenMode });
-
-  } else if (reqPath === '/second-screen/remove-display' && req.method === 'POST') {
-    await windowsTilesTilesBranches['POST /second-screen/remove-display'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });
 
   } else if (reqPath === '/remote/status' && req.method === 'GET') {
     await remoteControlBranches['GET /remote/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });

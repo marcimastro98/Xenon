@@ -28,7 +28,6 @@ import { request } from '../ci/engine-rig.mjs';
 import { pairDevice } from '../ci/paired-device.mjs';
 import { copyEngine } from '../ci/request-check.mjs';
 import { readHead } from './branches-text.mjs';
-import { exactRoutes } from './dispatch-read.mjs';
 import { readListed } from './dispatch-undo.mjs';
 import { openParser } from './parser.mjs';
 import { kept, levelCounts, recordProblems, settle } from './routes-answers.mjs';
@@ -158,8 +157,8 @@ export function copyOfCommit(rev) {
 
 /** What to ask an engine, read from its own code. */
 export function questionsFor({ engineText, remoteText, skip, writes = [], parser, tableRoutes = [] }) {
-  // An address a table of feature-routes.js answers is asked like one the chain tests for.
-  const branches = [...routeChain(engineText, parser).branches, ...tableRoutes.map((route) => ({ test: `reqPath === '${route.split(' ')[1]}' && req.method === '${route.split(' ')[0]}'` }))];
+  // An address a table of feature-routes.js answers is read as the test the chain had for it, so it is asked, or left out, as it was.
+  const branches = [...routeChain(engineText, parser).branches, ...tableRoutes.map((test) => ({ test }))];
   const paths = exactGetPaths(branches);
   const wrote = writeRequests(branches, writes);
   const mutators = [...setOfTexts(engineText, parser, 'CSRF_MUTATION_PATHS'), ...setOfTexts(remoteText, parser, 'DEFAULT_GET_MUTATORS')];
@@ -170,12 +169,23 @@ export function questionsFor({ engineText, remoteText, skip, writes = [], parser
 
 /**
  * @param {(file: string) => string} read reads a repo-relative file of the engine being asked
- * @returns {string[]} every `METHOD /address` the tables listed in feature-routes.js answer; none for an engine without tables
+ * @returns {string[]} for every key of whole addresses the tables listed in feature-routes.js answer, the test the chain
+ *   had for it, as branches-kinds.mjs reads it back to the same key; none for an engine without tables
  */
+/** @param {string} key a key of whole addresses @returns {string | null} the test of the chain that key was read from; null for any other key */
+export function testOfKey(key) {
+  const found = /^([A-Z]+)(?:\|([A-Z]+))? (\/[^*|]*(?:\|\/[^*|]*)*)$/.exec(key);
+  if (!found) return null;
+  const [, first, second, addresses] = found;
+  const asked = (method) => `req.method === '${method}'`;
+  if (addresses.includes('|')) return second ? null : addresses.split('|').map((address) => `(reqPath === '${address}' && ${asked(first)})`).join(' || ');
+  return second ? `reqPath === '${addresses}' && (${asked(first)} || ${asked(second)})` : `reqPath === '${addresses}' && ${asked(first)}`;
+}
+
 export function tableRoutesOf(read) {
   let specs = [];
   try { specs = readListed(read('server/feature-routes.js')).specs; } catch { /* an engine from before the tables */ }
-  return specs.flatMap((spec) => read(path.posix.join('server', spec)).split('\n').map(readHead).filter(Boolean).flatMap((head) => exactRoutes(head.key)));
+  return specs.flatMap((spec) => read(path.posix.join('server', spec)).split('\n').map(readHead).filter(Boolean).map((head) => testOfKey(head.key)).filter(Boolean));
 }
 
 async function record(rev) {

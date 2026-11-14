@@ -7,9 +7,10 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { keyOf } from '../../tools/restructure/branches-kinds.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 import { kept, levelCounts, recordProblems, settle, shapeOf } from '../../tools/restructure/routes-answers.mjs';
-import { baseEdits, contentAndHeaders, questionsFor, REFUSALS, tableRoutesOf } from '../../tools/restructure/routes-check.mjs';
+import { baseEdits, contentAndHeaders, questionsFor, REFUSALS, tableRoutesOf, testOfKey } from '../../tools/restructure/routes-check.mjs';
 import { askable, exactGetPaths, routeChain, setOfTexts } from '../../tools/restructure/routes-list.mjs';
 import { writeRequests } from '../../tools/restructure/routes-writes.mjs';
 
@@ -195,12 +196,15 @@ test('an address a table of feature-routes.js answers is asked like one the chai
     'server/b/routes.js': "  'GET /waiting': async (req, res, { json }) => {",
   };
   const tableRoutes = tableRoutesOf((file) => files[file]);
-  assert.deepEqual(tableRoutes, ['GET /tabled', 'POST /tabled/both', 'GET /tabled/both'], 'a file the list only loads answers nothing, and a beginning is no whole address');
+  assert.deepEqual(tableRoutes, ["reqPath === '/tabled' && req.method === 'GET'", "reqPath === '/tabled/both' && (req.method === 'POST' || req.method === 'GET')"],
+    'a file the list only loads answers nothing, and a beginning is no whole address');
+  for (const key of ['GET /a', 'POST|GET /a', 'POST /a|/b', 'DELETE /a|/b|/c']) assert.equal(keyOf(testOfKey(key)), key, 'the test is the one the key was read from');
+  for (const key of ['GET /a/*', '* /a/*', 'POST|GET /a|/b']) assert.equal(testOfKey(key), null);
   assert.deepEqual(tableRoutesOf(() => 'const FEATURES = [];'), [], 'an engine from before the tables has none');
   const remoteText = 'const DEFAULT_GET_MUTATORS = new Set([]);';
   const plain = questionsFor({ engineText: HANDLER.replace('const CHANGES', 'const CSRF_MUTATION_PATHS'), remoteText, skip: {}, parser }).questions.filter((question) => question.plain).map((question) => question.path);
   const tabled = questionsFor({ engineText: HANDLER.replace('const CHANGES', 'const CSRF_MUTATION_PATHS'), remoteText, skip: {}, parser, tableRoutes }).questions.filter((question) => question.plain).map((question) => question.path);
-  assert.deepEqual(tabled, [...plain, '/tabled', '/tabled/both']);
+  assert.deepEqual(tabled, [...plain, '/tabled'], 'an address asked with two methods was no plain GET route in the chain, and is none in a table');
 });
 
 test('the headers a move of routes must leave alone are kept with the kind of the answer', () => {

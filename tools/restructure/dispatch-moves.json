@@ -377,6 +377,599 @@
     "./grid/routes.js",
     "./menu/routes.js"
    ]
+  },
+  {
+   "modules": [
+    {
+     "local": "lookBranches",
+     "spec": "./look/routes.js"
+    },
+    {
+     "local": "ambientBranches",
+     "spec": "./ambient/routes.js"
+    },
+    {
+     "local": "screensBranches",
+     "spec": "./screens/routes.js"
+    },
+    {
+     "local": "screensCaptureBranches",
+     "spec": "./screens/routes-capture.js"
+    },
+    {
+     "local": "screensCapturesBranches",
+     "spec": "./screens/routes-captures.js"
+    },
+    {
+     "local": "widgetOptionsBranches",
+     "spec": "./widget-options/routes.js"
+    },
+    {
+     "local": "windowsTilesBranches",
+     "spec": "./windows-tiles/routes.js"
+    },
+    {
+     "local": "windowsTilesTilesBranches",
+     "spec": "./windows-tiles/routes-tiles.js"
+    },
+    {
+     "local": "notificationOpenBranches",
+     "spec": "./notification-open/routes.js"
+    },
+    {
+     "local": "timeBranches",
+     "spec": "./time/routes.js"
+    }
+   ],
+   "cuts": [
+    {
+     "lines": [
+      "  } else if (reqPath === '/second-screen/remove-display' && req.method === 'POST') {",
+      "    await windowsTilesTilesBranches['POST /second-screen/remove-display'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/remote/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/second-screen/apply-resolution' && req.method === 'POST') {",
+      "    await windowsTilesTilesBranches['POST /second-screen/apply-resolution'](req, res, { json, err500, reqPath, urlObj, isRemote }, { applySecondScreenMode });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/remote/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/second-screen/create-display' && req.method === 'POST') {",
+      "    await windowsTilesTilesBranches['POST /second-screen/create-display'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/remote/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/second-screen/install' && req.method === 'POST') {",
+      "    await windowsTilesTilesBranches['POST /second-screen/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/remote/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/second-screen/requirements' && req.method === 'GET') {",
+      "    await windowsTilesTilesBranches['GET /second-screen/requirements'](req, res, { json, err500, reqPath, urlObj, isRemote }, { screenCapture, secondScreen });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/remote/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/notifications/windows' && req.method === 'GET') {",
+      "    await notificationOpenBranches['GET /notifications/windows'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/calls' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/capture/settings/pick' && req.method === 'POST') {",
+      "    await screensCaptureBranches['POST /capture/settings/pick'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseCaptureFolder, updateCaptureSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/capture/settings' && req.method === 'POST') {",
+      "    await screensCaptureBranches['POST /capture/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateCaptureSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/capture/settings' && req.method === 'GET') {",
+      "    await screensCaptureBranches['GET /capture/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureFolder, _captures, _replay, defaultCaptureFolder, replayDiskInfo });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/save' && req.method === 'POST') {",
+      "    await screensCapturesBranches['POST /captures/save'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureCovers });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/spots' && req.method === 'POST') {",
+      "    await screensCapturesBranches['POST /captures/spots'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureCovers });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/send' && req.method === 'POST') {",
+      "    await screensCaptureBranches['POST /captures/send'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sendCaptureToPhone });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/clips' && req.method === 'POST') {",
+      "    await screensCaptureBranches['POST /captures/clips'](req, res, { json, err500, reqPath, urlObj, isRemote }, { makeMarkClips });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if ((reqPath === '/captures/delete' && req.method === 'POST')",
+      "    || (reqPath === '/captures/reveal' && req.method === 'POST')",
+      "    || (reqPath === '/captures/copy' && req.method === 'POST')",
+      "    || (reqPath === '/captures/trim' && req.method === 'POST')) {",
+      "    await screensCapturesBranches['POST /captures/delete|/captures/reveal|/captures/copy|/captures/trim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureGallery, _captures });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/file' && (req.method === 'GET' || req.method === 'HEAD')) {",
+      "    await screensCapturesBranches['GET|HEAD /captures/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captures });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/thumb' && req.method === 'GET') {",
+      "    await screensCapturesBranches['GET /captures/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureGallery });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/export-cancel' && req.method === 'POST') {",
+      "    await screensCapturesBranches['POST /captures/export-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/export' && req.method === 'POST') {",
+      "    await screensCapturesBranches['POST /captures/export'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/transcribe' && req.method === 'POST') {",
+      "    await screensCapturesBranches['POST /captures/transcribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _transcripts });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures/transcript' && req.method === 'GET') {",
+      "    await screensCapturesBranches['GET /captures/transcript'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captures, _transcripts });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/captures' && req.method === 'GET') {",
+      "    await screensCapturesBranches['GET /captures'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport, _captureHost, _captures, _transcripts, layersHost, remoteAccess, transferEnabled });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/layers/desk' && req.method === 'POST') {",
+      "    await widgetOptionsBranches['POST /layers/desk'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deskPageSync, layersHost });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/layers/host' && req.method === 'POST') {",
+      "    await widgetOptionsBranches['POST /layers/host'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _menuHotkey, layersHost, refreshHotkeyListener });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/layers/edit' && req.method === 'GET') {",
+      "    await widgetOptionsBranches['GET /layers/edit'](req, res, { json, err500, reqPath, urlObj, isRemote }, { layersEdit, layersPeek });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/tiles/play-claim' && req.method === 'POST') {",
+      "    await windowsTilesTilesBranches['POST /tiles/play-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { tilePlay });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/slideshow/file' && req.method === 'GET') {",
+      "    await windowsTilesTilesBranches['GET /slideshow/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSlideshowDir });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/search' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/slideshow/folder' && req.method === 'GET') {",
+      "    await windowsTilesTilesBranches['GET /slideshow/folder'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSlideshowDir });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/search' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {",
+      "    await windowsTilesTilesBranches['POST /slideshow-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { SLIDESHOW_ASSET_EXT_BY_MIME });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/search' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/font' && req.method === 'POST') {",
+      "    await lookBranches['POST /font'](req, res, { json, err500, reqPath, urlObj, isRemote }, { FONT_EXT_BY_MIME });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/background' && req.method === 'POST') {",
+      "    await lookBranches['POST /background'](req, res, { json, err500, reqPath, urlObj, isRemote }, { BACKGROUND_EXT_BY_MIME, transcodeMp4BackgroundToWebm });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/screenshot/monitor' && req.method === 'GET') {",
+      "    await screensCaptureBranches['GET /api/screenshot/monitor'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/stt/start' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/screenshot' && req.method === 'GET') {",
+      "    await screensCaptureBranches['GET /api/screenshot'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/stt/start' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/screens' && req.method === 'GET') {",
+      "    await screensBranches['GET /api/screens'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/stt/start' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/timers' && req.method === 'POST') {",
+      "    await timeBranches['POST /api/timers'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/timers' && req.method === 'GET') {",
+      "    await timeBranches['GET /api/timers'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/tasks' && req.method === 'POST') {",
+      "    await timeBranches['POST /tasks'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateTasks, writeTasks });"
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/tasks' && req.method === 'GET') {",
+      "    await timeBranches['GET /tasks'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/external-events/refresh' && req.method === 'POST') {",
+      "    await timeBranches['POST /external-events/refresh'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshExternalFeeds });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/external-events' && req.method === 'GET') {",
+      "    await timeBranches['GET /external-events'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshExternalFeeds });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/events' && req.method === 'POST') {",
+      "    await timeBranches['POST /events'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateEvents, writeEvents });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/events' && req.method === 'GET') {",
+      "    await timeBranches['GET /events'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/notes' && req.method === 'POST') {",
+      "    await timeBranches['POST /notes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { writeNotes });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/version' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/notes' && req.method === 'GET') {",
+      "    await timeBranches['GET /notes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readNotes });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/version' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/notes/list' && req.method === 'POST') {",
+      "    await timeBranches['POST /notes/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveNotesGuarded });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/version' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/notes/list' && req.method === 'GET') {",
+      "    await timeBranches['GET /notes/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readNotes });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/version' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/embedded-browser/adblock/install' && req.method === 'POST') {",
+      "    await windowsTilesBranches['POST /embedded-browser/adblock/install'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/obs/scenes' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/embedded-browser/adblock' && req.method === 'GET') {",
+      "    await windowsTilesTilesBranches['GET /embedded-browser/adblock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/obs/scenes' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/embedded-browser/install' && req.method === 'POST') {",
+      "    await windowsTilesBranches['POST /embedded-browser/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser, remoteHttpsInstaller });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/obs/scenes' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {",
+      "    await windowsTilesBranches['GET /embedded-browser/available'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser, remoteHttpsInstaller });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/obs/scenes' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/windows/launch' && req.method === 'POST') {",
+      "    await windowsTilesTilesBranches['POST /windows/launch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/windows/close' && req.method === 'POST') {",
+      "    await windowsTilesBranches['POST /windows/close'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/windows/focus' && req.method === 'POST') {",
+      "    await windowsTilesBranches['POST /windows/focus'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/windows' && req.method === 'GET') {",
+      "    await windowsTilesBranches['GET /windows'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/layer-i18n.js' && req.method === 'GET') {",
+      "    await widgetOptionsBranches['GET /layer-i18n.js'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/spotlight' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/scene' && req.method === 'GET') {",
+      "    await ambientBranches['GET /scene'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/deck-popup' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "const { branches: ambientBranches } = require('./ambient/routes.js');"
+     ],
+     "before": "const { branches: aiLocalBranches } = require('./ai/routes-local.js');"
+    },
+    {
+     "lines": [
+      "const { branches: screensBranches } = require('./screens/routes.js');"
+     ],
+     "before": "const { branches: discordBranches } = require('./discord/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: screensCaptureBranches } = require('./screens/routes-capture.js');"
+     ],
+     "before": "const { branches: windowsTilesTilesBranches } = require('./windows-tiles/routes-tiles.js');"
+    },
+    {
+     "lines": [
+      "const { branches: screensCapturesBranches } = require('./screens/routes-captures.js');"
+     ],
+     "before": "const { branches: aiLocalBranches } = require('./ai/routes-local.js');"
+    },
+    {
+     "lines": [
+      "const { branches: widgetOptionsBranches } = require('./widget-options/routes.js');"
+     ],
+     "before": "const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');"
+    },
+    {
+     "lines": [
+      "const { branches: windowsTilesBranches } = require('./windows-tiles/routes.js');"
+     ],
+     "before": "const { branches: installBranches } = require('./install/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: windowsTilesTilesBranches } = require('./windows-tiles/routes-tiles.js');"
+     ],
+     "before": "const { branches: lookBranches } = require('./look/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: notificationOpenBranches } = require('./notification-open/routes.js');"
+     ],
+     "before": "const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');"
+    }
+   ],
+   "hands": [
+    "BACKGROUND_EXT_BY_MIME",
+    "FONT_EXT_BY_MIME",
+    "SLIDESHOW_ASSET_EXT_BY_MIME",
+    "_captureCovers",
+    "_captureExport",
+    "_captureFolder",
+    "_captureGallery",
+    "_captureHost",
+    "_captures",
+    "_deskPageSync",
+    "_menuHotkey",
+    "_replay",
+    "_saveTimers",
+    "_transcripts",
+    "applySecondScreenMode",
+    "captureScreenshot",
+    "chooseCaptureFolder",
+    "deckRegistry",
+    "defaultCaptureFolder",
+    "embeddedBrowser",
+    "getSlideshowDir",
+    "layersEdit",
+    "layersHost",
+    "makeMarkClips",
+    "readNotes",
+    "refreshExternalFeeds",
+    "refreshHotkeyListener",
+    "remoteAccess",
+    "remoteHttpsInstaller",
+    "replayDiskInfo",
+    "saveNotesGuarded",
+    "screenCapture",
+    "secondScreen",
+    "sendCaptureToPhone",
+    "tilePlay",
+    "transcodeMp4BackgroundToWebm",
+    "transferEnabled",
+    "updateCaptureSettings",
+    "updateEvents",
+    "updateTasks",
+    "writeEvents",
+    "writeNotes",
+    "writeTasks"
+   ],
+   "listed": [
+    "./look/routes.js",
+    "./ambient/routes.js",
+    "./screens/routes.js",
+    "./screens/routes-capture.js",
+    "./screens/routes-captures.js",
+    "./widget-options/routes.js",
+    "./windows-tiles/routes.js",
+    "./windows-tiles/routes-tiles.js",
+    "./notification-open/routes.js",
+    "./time/routes.js"
+   ]
   }
  ]
 }
