@@ -471,7 +471,6 @@ const featureRoutes = require('./feature-routes.js');           // the routes ad
 const { createFeatureUnlock } = require('./feature-unlock');
 const { createTrialPass } = require('./trial-pass');
 const { createTrialVault } = require('./trial-vault');
-require('./installed-apps');               // macOS/Linux apps for the search's Applications tier
 const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
@@ -5287,10 +5286,6 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   if (!stat.isFile() || stat.size <= 0) throw new Error('Converted WebM is empty');
   return stat;
 }
-
-require('./js/dashboard-instances.js');
-require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
-
 
 const { hub } = require('./settings/current.js');
 const { goToPageMiss } = require('./grid/go-to-page-miss.js');
