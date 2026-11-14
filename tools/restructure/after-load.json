@@ -9,7 +9,8 @@
           "const server = http.createServer((req, res) => runGuarded(handleRequest, req, res));": "355e7f7b60d0c94a70a33d70f1b691079a5e7d7d9a5ff9f39753a3b40020287a"
         },
         "read": {
-          "server/remote-https.js": "d0d989268b0260711b007ef95ee6a6e2577682531ae8d28b38d8dbd77618bf35"
+          "server/remote-https.js": "41d8c1e8bccc58b09d072083f1157e8546b66195bba3e5e516e2205054a6889f",
+          "server/paired/https-readiness.js": "1182ddad2e4ca71d7cff131df6da6481501206175eb4016bccb7155071e59f0a"
         },
         "reason": "Both statements write a function that calls runGuarded(handleRequest, req, res) and hand it on. http.createServer keeps it as the listener of 'request', which Node calls when a request has arrived from a socket. createRemoteHttps keeps it as `handler` in its closure and uses it in one place, as the listener of the https.createServer it makes inside an async function, after an await, once the user has turned the Tailscale door on; none of the functions it returns calls it."
       }

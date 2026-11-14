@@ -569,6 +569,21 @@
     ],
     "server/perf-session/core-shield.js": [
       {"file":"server/perf-session/core-shield-rules.js","about":"The rules of the core shield: how many cores a process uses, which processes belong to one app, which are never moved, which app is in front and which are the busiest.","names":["BUSY_SHARE","PRESSURE_SAMPLES","APP_MIN_CORES","MAX_APPS","MIN_SAMPLE_MS","MAX_RUNTIME_DEPTH","coresUsed","parentOf","withDescendants","withAncestors","untouchable","appRoot","appOf","inFront","moveRule","busiestApps"]}
+    ],
+    "server/linux-media.js": [
+      {"file":"server/media/linux-media-shape.js","about":"What playerctl prints on Linux turned into the now-playing shape the media tile reads, and a media command as playerctl's arguments.","names":["FIELDS","STATUS","COMMANDS","commandArgs","APP_NAMES","appNameFor","unitDivisor","seconds","parseFollowLine","artUrl","shapeNowPlaying"]}
+    ],
+    "server/darwin-media.js": [
+      {"file":"server/media/darwin-media-shape.js","about":"What the macOS now-playing reader prints turned into the shape the media tile reads, with the cover as a data address, and a media command as its arguments.","names":["COMMAND_CODES","commandCode","commandArgs","APP_NAMES","appNameFor","parseStreamLine","seconds","MIME_RE","B64_RE","MAX_ARTWORK_B64","artworkUri","text","shapeNowPlaying"]}
+    ],
+    "server/linux-mpris.js": [
+      {"file":"server/media/linux-mpris-read.js","about":"Reads what MPRIS players answer over D-Bus on Linux: their names, one player's track and state, and which player is the one to show.","names":["MPRIS_PREFIX","unwrap","mprisNamesFrom","cell","propsFrom","playerIdFrom","artistFrom","recordFrom","RANK","pickRecord","recordChanged"]}
+    ],
+    "server/gamedetect.js": [
+      {"file":"server/performance/game-ignore-lists.js","about":"The programs that are never a game, even in full screen or with many frames: launchers, browsers, players and tools.","names":["IGNORE_PROC_RE","WINDOWED_IGNORE_RE"]}
+    ],
+    "server/remote-https.js": [
+      {"file":"server/paired/https-readiness.js","about":"Why the HTTPS door for paired devices is not up, as one of a few reasons the settings page turns into a sentence.","names":["readiness"]}
     ]
   },
   "spreads": {

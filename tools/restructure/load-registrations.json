@@ -29,7 +29,8 @@
       {
         "statement": "gameDetect.setIgnoreSource(() => hub.settings && hub.settings.gameIgnore);",
         "callees": {
-          "server/gamedetect.js": "0b99be7871469ff924c7a8cdb581b69a0bc400b32849d0f7c143bd40007b036d"
+          "server/gamedetect.js": "ce16b4bdb20aaf27390ed45733cad0f6c4260bd618bb12936f74417938eacfa1",
+          "server/performance/game-ignore-lists.js": "dbd16e1526270a6cb01a66f64d42c47b7e635495d2a8fb6bba9a203da1920aed"
         },
         "reason": "setIgnoreSource stores the function in a variable and clears a cached list; the function is first called by isIgnoredProc, when a process is checked."
       },
@@ -57,9 +58,12 @@
       {
         "statement": "const nativeMedia =",
         "callees": {
-          "server/darwin-media.js": "b27192b251a932ab78b88d23302b936ce4c457fd6369ab9d5e3e4152cf8f3885",
-          "server/linux-media.js": "a28f4bcce06ebaf0673a7011175572382c7fdcf3105dbbaaf9fd5f1f3e94f441",
-          "server/linux-mpris.js": "334037ac42ca0f36159874494de1aff20cf34308c85f42c1a0a7d994bd5ca817"
+          "server/darwin-media.js": "ee8ce3367c2f0b0903a53123b839be010d7105dd760d923f4e1c4c16606186e5",
+          "server/media/darwin-media-shape.js": "f258fdf76e7c5c9f2e9d6a86f6bee86e4a97b99ca5d0fe582d99bbcb47c6203d",
+          "server/linux-media.js": "5987a87e8c99d950afb4a0e110c4cfac1b3beba068058be8b6207bf77597d820",
+          "server/media/linux-media-shape.js": "13b4d2fc9fadbe935b0af418a88912f56e50586ba56c09f3bb9f7dfc27f63d22",
+          "server/linux-mpris.js": "d810bb60fb4b89cefdf32c3908568614128bf14fce53c21efdb3cd16d57a9b67",
+          "server/media/linux-mpris-read.js": "03d88110080643cdb9e2756f51561139630a2336280e12571599df3753a86e75"
         },
         "reason": "createDarwinMedia and createLinuxMedia keep onChange in a variable and return available, start, stop, info and command; onChange is called only from handleLine, retire and command, which run once start() has spawned the reader, and createLinuxMpris, which createLinuxMedia hands it to, calls it only from its poll tick."
       },
