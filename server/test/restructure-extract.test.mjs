@@ -142,6 +142,9 @@ test('the proof notices a changed byte, inside the moved text or outside it', (t
   assert.match(proven(SOURCE, touched).join('\n'), /text outside the moved ranges changed/);
   const extra = { ...made, moduleText: made.moduleText.replace('module.exports', 'tidy("x");\nmodule.exports') };
   assert.match(proven(SOURCE, extra).join('\n'), /lines are not accounted for/);
+  // A module shorter than the plan says is a problem to read, not a crash of the proof.
+  const short = { ...made, moduleText: `${made.moduleText.split('\n').slice(0, 3).join('\n')}\n` };
+  assert.match(proven(SOURCE, short).join('\n'), /the new module has 3 lines and the plan names line/);
   const widened = { ...made, newSource: made.newSource.replace('const { other } = require("./lib");', 'const { other, evil } = require("./lib");'),
     glue: { ...made.glue, edits: made.glue.edits.map((edit) => ({ ...edit, newLines: ['const { other, evil } = require("./lib");'] })) } };
   assert.match(proven(SOURCE, widened).join('\n'), /gained evil/);

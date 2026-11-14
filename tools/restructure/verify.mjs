@@ -56,7 +56,10 @@ export function proveMove({ before, after, moduleText: written, plan, paths }) {
   tally(counts, now, -1);
   tally(counts, made, -1);
   tally(counts, sourceLines, 1);
-  tally(counts, moduleLines.map((index) => made[index]), 1);
+  // A line the plan calls its own and the module does not have: said as a problem, the module is not what the plan made.
+  const absent = moduleLines.filter((index) => made[index] === undefined);
+  if (absent.length) problems.push(`the new module has ${made.length} lines and the plan names line ${absent[0] + 1} of it`);
+  tally(counts, moduleLines.filter((index) => made[index] !== undefined).map((index) => made[index]), 1);
   for (const edit of edits) { tally(counts, edit.oldLines, -1); tally(counts, edit.newLines, 1); }
   tally(counts, blanks.map((index) => old[index] ?? ''), -1);
   const off = [...counts].filter(([, n]) => n !== 0);
