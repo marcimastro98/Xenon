@@ -350,6 +350,7 @@
         "server/layers-*.js",
         "server/layer-lite.html",
         "server/widget-options/**",
+        "server/js/layer-edit/**",
         "server/js/layer-*.js",
         "server/js/layers-*.js",
         "server/js/widget-options-panel.js",

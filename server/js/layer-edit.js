@@ -14,12 +14,8 @@
   'use strict';
 
   const BIG_PX = 160;          // under this the corner to grab sits on the box's corner, not in it
-  const SMALLEST_PX = 48;      // a box with no size of its own in the stylesheet
+  const { wordsOf, seenBox, rectOf, fractions, moved, stretched } = window.LayerEditGeometry;
   const TINY_PX = 72;          // under this a box is all drag: its size goes by name
-  // The box of the performance words: their letters go from 12 to 30 px at 5.5% of it
-  // (PerfWidget.css), so they stay readable and nothing is left to pull past these.
-  const WORDS_WIDTH = Object.freeze({ min: 218, max: 545 });
-  const SNAP_PX = 10;          // a box is pulled onto a line this close
   const CLICK_PX = 4;          // less than this is a tap, not a drag
   const BAR_EDGE_PX = 12;      // the bar's distance from the edge of the screen
   const WORDS_EDGE_PX = 6;     // the frame around words, clear of them
@@ -35,16 +31,11 @@
   let picked = '';           // the key of the box whose choices are open
   let cardScript = null;
   let chromeWatch = null;    // the window's cut follows what edit mode adds to it
-  const names = new Map();   // widget id -> the name the server gives it
+  const { names, tr, HINT, pickRow, nameOf, tagOf } = window.LayerEditWords;
   let desks = null;          // { current, count } where the shell says which desktop is shown
   const frames = new WeakMap();   // slot -> frame
   const entryOf = new WeakMap();  // frame -> the box it covers, as last drawn
   const guideLines = { x: null, y: null };
-
-  const tr = (key, fallback) => {
-    const text = typeof t === 'function' ? t(key) : '';
-    return text && text !== key ? text : fallback;
-  };
 
   // `tag` span inside a tab: a button may not hold another button.
   function cross(className, label, tag = 'button') {
@@ -70,8 +61,6 @@
     if (!(res && res.ok)) api.place();
     return res;
   }
-
-  const HINT = () => tr('layer_edit_hint', 'Drag a widget. Tap it for its choices.');
 
   function ensureBar() {
     if (bar) return;
@@ -179,18 +168,6 @@
     return box;
   }
 
-  function pickRow(label, onPick, thumb) {
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'layer-edit-pick';
-    if (thumb) row.appendChild(thumb);
-    const name = document.createElement('span');
-    name.textContent = label;   // a Store widget's name is untrusted text
-    row.appendChild(name);
-    row.addEventListener('click', onPick);
-    return row;
-  }
-
   async function openSheet(btn) {
     if (window.LayerEditPages) window.LayerEditPages.close();
     const list = await api.run({ type: 'layerList', pictures: 'yes', keys: 'yes' });
@@ -295,27 +272,6 @@
     return api.root().getBoundingClientRect();
   }
 
-  function boxOf(slot, origin) {
-    const r = slot.getBoundingClientRect();
-    return { x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height };
-  }
-
-  const wordsOf = (slot) => slot.querySelector(':scope > [data-dashboard-widget] [data-layer-fit]');
-
-  // What the person sees of a box: its words when it is only words. Their box may be far
-  // bigger (five times, on one line), and only a place on the screen can be measured.
-  function seenBox(slot, origin) {
-    const words = wordsOf(slot);
-    const r = words ? words.getBoundingClientRect() : null;
-    if (!r || r.width < 1 || r.height < 1) return boxOf(slot, origin);
-    return { x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height };
-  }
-
-  const smallestOf = (slot) => {
-    const style = getComputedStyle(slot);
-    return { w: parseFloat(style.getPropertyValue('--layer-min-w')) || SMALLEST_PX, h: parseFloat(style.getPropertyValue('--layer-min-h')) || SMALLEST_PX };
-  };
-
   function showAt(slot, b, origin) {
     slot.style.setProperty('--layer-x', (b.x / origin.width * 100) + '%');
     slot.style.setProperty('--layer-y', (b.y / origin.height * 100) + '%');
@@ -325,17 +281,6 @@
     const share = window.LayersModel.shareOf({ x: b.x / origin.width, y: b.y / origin.height, w: b.w / origin.width, h: b.h / origin.height });
     slot.style.setProperty('--layer-px', String(share.x));
     slot.style.setProperty('--layer-py', String(share.y));
-  }
-
-  const fractionOf = (v, of) => Math.round(v / of * 10000) / 10000;
-
-  function rectOf(b, origin) {
-    return { x: fractionOf(b.x, origin.width), y: fractionOf(b.y, origin.height), w: fractionOf(b.w, origin.width), h: fractionOf(b.h, origin.height) };
-  }
-
-  function fractions(b, origin) {
-    const r = rectOf(b, origin);
-    return [r.x, r.y, r.w, r.h].join(',');
   }
 
   // A line the box sits on, across the screen, for as long as it does.
@@ -376,20 +321,6 @@
     drag.frame.classList.add('is-dragging');
   }
 
-  // A move writes the saved size back, never the drawn one: a box is drawn bigger than it
-  // is saved (the words on one line, the smallest a tile can draw), and saving that grew
-  // the widget with every drag.
-  function moved(d, dx, dy) {
-    if (!d.words) return window.LayerDrag.move({ ...d.seen, ...d.size }, dx, dy, d.area, d.lines, SNAP_PX);
-    const step = window.LayerDrag.move(d.seen, dx, dy, d.area, d.lines, SNAP_PX);
-    return { box: window.LayerDrag.holdWords(step.box, d.size, d.area), guides: step.guides };
-  }
-
-  function stretched(d, dx, dy) {
-    if (d.words) return { box: window.LayerDrag.scaleWords(d.seen, d.size, dx, d.area, WORDS_WIDTH), guides: { x: null, y: null } };
-    return window.LayerDrag.stretch(d.seen, dx, dy, d.area, d.lines, SNAP_PX, smallestOf(d.entry.slot));
-  }
-
   function moveTo(e) {
     if (!drag) return;
     const dx = e.clientX - drag.px;
@@ -426,19 +357,6 @@
   }
 
   // ── The choices of one widget (js/layer-edit-card.js) ─────────────────────
-  function nameOf(w) {
-    const known = names.get(w.id) || w.pkg || w.widget || '';
-    return w.kind === 'sdk' ? known : tr('layout_widget_' + w.widget, known);
-  }
-
-  // "In game", "With the music", "On Spotify": what the tag on a frame says.
-  function tagOf(w) {
-    const say = window.LayerSee.labelOf(w);
-    if (say.text) return say.text;
-    const words = tr(say.key, say.key);
-    return Object.entries(say.vars || {}).reduce((text, [name, value]) => text.replace('{' + name + '}', value), words);
-  }
-
   function otherBoxes(entry) {
     return api.boxes().filter((b) => b.slot !== entry.slot);
   }
