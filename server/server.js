@@ -396,9 +396,9 @@ const { createTrialPass } = require('./trial-pass');
 const { createTrialVault } = require('./trial-vault');
 const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
-const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
+require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
 const { createPhone } = require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
-const { createLinuxIndex } = require('./linux-index');         // the same surface in plain Node, for the platform with no helper
+require('./linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./first-reading');
@@ -709,11 +709,9 @@ const mcpDev = createMcpDev({
 });
 const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
 const { ICON_PACKS_DIR, SOUND_PACKS_DIR } = require('./deck/pack-places.js');
-const { INDEX_START_DELAY_MS, _spotlightPopupPids } = require('./search/spotlight-state.js');
+const { _spotlightPopupPids } = require('./search/spotlight-state.js');
 
-const livingIndex = process.platform === 'linux'
-  ? createLinuxIndex({ startDelayMs: INDEX_START_DELAY_MS })
-  : createLivingIndex({ helperExe: HELPER_EXE, startDelayMs: INDEX_START_DELAY_MS });
+const { livingIndex } = require('./search/living-index-engine.js');
 const { runPowerShellScript } = require('./powershell/run-command.js');
 
 const { openExternalPath } = require('./deck/open-external-path.js');
@@ -1053,34 +1051,9 @@ function refreshHotkeyListener() {
   proc.unref();
 }
 
-const { macDiskAccess } = require('./search/mac-disk-access.js');
 let _macFdaTimer = null;
 
 const { usableIndexRoots } = require('./search/index-roots.js');
-
-// Ask macOS whether the grant still holds, and re-point the index when the
-// answer changes. It CHANGES on its own: the grant is bound to the app's code
-// signature, Xenon's is ad-hoc, and its hash moves with every build — so an
-// update silently revokes Full Disk Access and this is what notices. Polling
-// beats asking once at startup for the same reason it beats asking the user:
-// granting the permission then takes effect on its own, within a minute, with
-// nothing to restart.
-async function refreshMacFdaState() {
-  if (process.platform !== 'darwin') return;
-  if (!nativeCollectors || typeof nativeCollectors.fullDiskAccess !== 'function') return;
-  let granted = true;
-  try { granted = await nativeCollectors.fullDiskAccess(); } catch { return; }
-  if (granted === macDiskAccess.granted) return;
-  macDiskAccess.granted = granted;
-  refreshLivingIndex();
-}
-
-// Point the Living Index at the configured roots (idempotent — setRoots
-// restarts the host only when they actually changed).
-function refreshLivingIndex() {
-  const cfg = (hub.settings && hub.settings.searchSettings) || {};
-  try { livingIndex.setRoots(usableIndexRoots(cfg.indexRoots)); } catch { /* helper absent */ }
-}
 
 const { volumeDetailsProbe, diskModelsProbe, getDiskDetails } = require('./disk/drive-details.js');
 
@@ -3278,6 +3251,8 @@ const { mcpDevCapture } = require('./mcp/dev-capture.js');
 const { transcodeMp4BackgroundToWebm } = require('./look/background-to-webm.js');
 
 const { hub } = require('./settings/current.js');
+const { refreshMacFdaState, refreshLivingIndex } = require('./search/living-index-roots.js');
+
 const { setDefaultAudioDevice } = require('./audio/default-device.js');
 
 const { goToPageMiss } = require('./grid/go-to-page-miss.js');

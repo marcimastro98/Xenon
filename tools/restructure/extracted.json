@@ -475,7 +475,9 @@
       {"file":"server/system/sensors-read.js","about":"The list of sensors and the readings of the ones the person chose, the sensor service's rows merged with what the sensor script reads.","names":["collectSensors","readChosenSensors"]},
       {"file":"server/system/choose-sensor-source.js","about":"Choosing which sensor a reading on the dashboard comes from when the assistant is asked to, or listing the sensors there are.","names":["chooseSensorSource"]},
       {"file":"server/screens/capture-engine-host.js","about":"The host of the capture program that records the screen and keeps the replay, made when the engine starts: the program itself is started only when a capture is asked for.","names":["_captureHost"],"wire":{"first":"_captureHost","last":"_captureHost"}},
-      {"file":"server/screens/replay-hotkey.js","about":"The key combination that saves the replay, or none while the replay is off, the capture program is missing or the person switched the shortcut off.","names":["_replayHotkey"]}
+      {"file":"server/screens/replay-hotkey.js","about":"The key combination that saves the replay, or none while the replay is off, the capture program is missing or the person switched the shortcut off.","names":["_replayHotkey"]},
+      {"file":"server/search/living-index-engine.js","about":"The index of the person's files that the search reads, made when the engine starts: it begins to build only after its start delay and when a search or the disk view asks.","names":["livingIndex"],"wire":{"first":"livingIndex","last":"livingIndex"}},
+      {"file":"server/search/living-index-roots.js","about":"Pointing the index at the folders chosen in the settings, and on macOS noticing when the permission to read the whole disk is given or taken away.","names":["refreshMacFdaState","refreshLivingIndex"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
