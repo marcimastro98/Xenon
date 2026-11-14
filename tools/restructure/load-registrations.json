@@ -85,7 +85,7 @@
       {
         "statement": "const deckRegistry = createRegistry(deckRegistryDeps);",
         "callees": {
-          "server/actions/registry.js": "815937b1c4ee28a86ffb06450de9ed3161bc164752dacef18921adf17a466d5f",
+          "server/actions/registry.js": "cf433c68b7a061741e48813d891d12a2f40ba9d1e63dbf73e94f568c460719f3",
           "server/actions/registry-app-paths.js": "95d5a7ce29d4eef76b340367e30c4d9504a532562941da11f17a373d466ba85e",
           "server/actions/registry-open-paths.js": "f6207de9d38676dcb40defbae243773a85c2cdea1f5a6efbc2461c26ccd0cb0d",
           "server/actions/registry-values.js": "0b207071509e48058ab84622c970205734afbbb9bf6443300ff6c2834d7a790d",

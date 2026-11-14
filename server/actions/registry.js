@@ -1,5 +1,4 @@
 'use strict';
-require('../svv-text');
 const { validateAction, validateGesture } = require('../js/deck-actions.js');
 const { scopeTimerLabel } = require('./widget-timers');
 const { obsRequest } = require('./obs.js');

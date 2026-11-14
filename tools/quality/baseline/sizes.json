@@ -20,7 +20,7 @@
     "packages/core/src/bit-phrases.js": 707,
     "packages/design-system/brand-book.html": 525,
     "server/actions/home-assistant.js": 413,
-    "server/actions/registry.js": 710,
+    "server/actions/registry.js": 709,
     "server/actions/voicemeeter.js": 352,
     "server/actions/wavelink.js": 757,
     "server/ai-cli.js": 348,
