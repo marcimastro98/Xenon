@@ -13,7 +13,7 @@ import { readFileSync } from './browser-source.mjs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -218,7 +218,7 @@ test('the route is grant-gated, selection-bound and POST; the bridge checks the 
 
 test('an unchanged selection is not broadcast again; a new dashboard is seeded at connect', () => {
   const server = engineSource();
-  const fn = server.slice(server.indexOf('function scheduleHaBroadcast'), server.indexOf('async function refreshHaWatch'));
+  const fn = declarationSource('scheduleHaBroadcast');
   assert.match(fn, /if \(sig !== _haStateLast\) \{ _haStateLast = sig; broadcastSSE\('homeassistant', state\); \}/);
   const refresh = server.slice(server.indexOf('async function refreshHaWatch'));
   assert.match(refresh.slice(0, 1600), /_haStateLast = '';/, 'stopping the watch forgets the last payload');
