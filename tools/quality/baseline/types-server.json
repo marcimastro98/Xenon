@@ -77,7 +77,7 @@
     "server/claude-usage.js TS2810": 1,
     "server/codex-appserver.js TS2339": 2,
     "server/codex-appserver.js TS2554": 1,
-    "server/codex-link.js TS2769": 1,
+    "server/codex/link-hooks-edit.js TS2769": 1,
     "server/cross-site.js TS8032": 1,
     "server/deck-shortcut-runner.js TS2810": 1,
     "server/deck/open-external-path.js TS2769": 1,

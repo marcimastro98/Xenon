@@ -815,6 +815,11 @@
     ],
     "server/trial-vault.js": [
       {"file":"server/store-supporters/trial-vault-packages.js","about":"What is in a trial drop once it is decrypted: the code read, the places a preset carries widget packages, every valid package by id, the same code with each package replaced by a marker for the dashboard, and a package turned back into what an install takes.","names":["parseInner","widgetSlots","packagesOf","stubInner","rawManifest","toPayload"]}
+    ],
+    "server/codex-link.js": [
+      {"file":"server/codex/script-paths.js","about":"Where the script Codex runs as our hook sits in the install.","names":["HOOK_SCRIPT"],"paths":true},
+      {"file":"server/codex/link-command.js","about":"The command line Codex runs our hook with: quoted for a POSIX shell, and on Windows the bare path of a small .cmd in the data folder that holds the quoted node and script, because Codex wraps the line in one pair of quotes.","names":["quotePosix","CMD_SAFE_PATH","wrapperPath","wrapperBody","hookCommand"]},
+      {"file":"server/codex/link-hooks-edit.js","about":"Our handlers in Codex's hooks.json: the events they are wanted for, one handler built, a handler told ours from the user's own, where ours stand, the file with ours put in where they stood, and the file without them.","names":["OURS_RE","PERMISSION","LIFECYCLE","EXPECTED","ourHandler","isOurHandler","isOurCommand","sameHandler","locateOurs","withOurHooks","withoutOurHooks"]}
     ]
   },
   "spreads": {
