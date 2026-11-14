@@ -4,7 +4,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { makeKeptWrite } = require('../files/kept-write.js');
 const { USAGE_SAVE_DEBOUNCE_MS } = require('./search-limits.js');
 
 function makeOpens({ usageFile, tally }) {
@@ -20,14 +20,22 @@ function makeOpens({ usageFile, tally }) {
     return tally.usage;
   }
 
+  const usageWrite = makeKeptWrite('search', 'what was opened from the search');
+
+  // Marked as saved before the write, so an open during it marks it again; a write the disk
+  // refused marks it again too, and the next change or the stop writes it.
+  async function saveUsage() {
+    if (!tally.usage || !tally.usageDirty) return;
+    tally.usageDirty = false;
+    if (!await usageWrite.save(usageFile, JSON.stringify(tally.usage))) tally.usageDirty = true;
+  }
+
   function scheduleUsageSave() {
     tally.usageDirty = true;
     if (tally.usageSaveTimer) return;
     tally.usageSaveTimer = setTimeout(() => {
       tally.usageSaveTimer = null;
-      if (!tally.usage || !tally.usageDirty) return;
-      tally.usageDirty = false;
-      writeFileAtomic(usageFile, JSON.stringify(tally.usage)).catch(() => { tally.usageDirty = true; });
+      saveUsage();
     }, USAGE_SAVE_DEBOUNCE_MS);
     tally.usageSaveTimer.unref();
   }
@@ -50,7 +58,7 @@ function makeOpens({ usageFile, tally }) {
     return { opens, folders };
   }
 
-  return { loadUsage, scheduleUsageSave, usageSnapshot };
+  return { loadUsage, scheduleUsageSave, saveUsage, usageSnapshot };
 }
 
 module.exports = { makeOpens };

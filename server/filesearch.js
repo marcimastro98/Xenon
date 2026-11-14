@@ -25,7 +25,6 @@ const fs = require('fs');
 const crypto = require('crypto');
 require('./search-query');
 const SearchRank = require('./search-rank');
-const { writeFileAtomic } = require('./atomic-write');
 const { isBlockedOpenPath } = require('./actions/registry');
 
 const { RESULTS_CACHE_MAX } = require('./search/search-limits.js');
@@ -119,7 +118,7 @@ function createFileSearch(opts) {
     usageDirty: false,
   };
 
-  const { loadUsage, scheduleUsageSave, usageSnapshot } = makeOpens({ usageFile, tally });
+  const { loadUsage, scheduleUsageSave, saveUsage, usageSnapshot } = makeOpens({ usageFile, tally });
 
   // ── Result-id cache (opaque ids the open/reveal endpoints resolve) ───────
   const results = new Map(); // id -> { path, name, dir }
@@ -254,11 +253,7 @@ function createFileSearch(opts) {
   function stop() {
     retireHost('shutdown');
     if (tally.usageSaveTimer) { clearTimeout(tally.usageSaveTimer); tally.usageSaveTimer = null; }
-    if (tally.usage && tally.usageDirty) {
-      tally.usageDirty = false;
-      return writeFileAtomic(usageFile, JSON.stringify(tally.usage)).catch(() => {});
-    }
-    return Promise.resolve();
+    return saveUsage();
   }
 
   return {
