@@ -11,19 +11,11 @@
 // SSE `captures` (deleted or trimmed anywhere) and `capture` (a new one).
 (function () {
   const M = window.CaptureGalleryModel;
-  const PAGE = 60;
-  const PLACEHOLDERS = 8;
-  const KIND_ROWS = {
-    '': ['capg_filter_all', 'All', 'gallery'],
-    video: ['capg_filter_video', 'Videos', 'video'],
-    screenshot: ['capg_filter_shot', 'Screenshots', 'screenshot'],
-  };
+  const {
+    PAGE, KIND_ROWS, tr, el, kindLabel, timeOf, dayTitle, key, status, placeholders, markRow,
+    engineCan,
+  } = window.CaptureGalleryWords;
 
-  const tr = (k, fb) => {
-    const v = typeof window.t === 'function' ? window.t(k) : k;
-    return v === k && fb != null ? fb : v;
-  };
-  const el = makeEl;
 
   // Static, trusted markup only (same stroke set as the Store's icons).
   const S0 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
@@ -53,25 +45,6 @@
     return apiJson(url('/captures?' + q));
   }
 
-  function kindLabel(e) {
-    if (e.kind === 'gif') return 'GIF'; // the format's name in every language
-    return e.kind === 'screenshot' ? tr('capg_kind_screenshot', 'Screenshot')
-      : e.kind === 'replay' ? tr('capg_kind_replay', 'Replay') : tr('capg_kind_recording', 'Recording');
-  }
-
-  function timeOf(ms) {
-    try { return new Date(ms).toLocaleTimeString([], timeParts()); } catch { return ''; }
-  }
-
-  function dayTitle(group) {
-    if (group.when === 'today') return tr('capg_today', 'Today');
-    if (group.when === 'yesterday') return tr('capg_yesterday', 'Yesterday');
-    try {
-      const day = new Date(group.at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
-      return day.charAt(0).toLocaleUpperCase() + day.slice(1);
-    } catch { return group.key; }
-  }
-
   function tile(e) {
     const b = el('button', 'capg-tile');
     b.type = 'button';
@@ -96,34 +69,12 @@
     return b;
   }
 
-  function key(text, onClick, cls) {
-    const b = el('button', 'capg-key' + (cls ? ' ' + cls : ''), text);
-    b.type = 'button';
-    b.addEventListener('click', onClick);
-    return b;
-  }
-
-  // A line in the middle of the page, with at most one key under it.
-  function status(text, act) {
-    const box = el('div', 'cgal-status capg-status', text);
-    if (act) box.appendChild(act);
-    return box;
-  }
-
   function emptyState() {
     if (g.filter || g.game) return status(tr('capg_empty_filter', 'Nothing here with this filter.'));
     const text = tr('capg_empty', 'Nothing yet. Screenshots, recordings and replays you save land here.');
     if (window.__xenonRemote || typeof window.openSettings !== 'function') return status(text);
     // Settings first: a sheet window leaves as soon as nothing is showing.
     return status(text, key(tr('capg_open_settings', 'Open settings'), () => { window.openSettings('capture'); close(); }));
-  }
-
-  // The page's shape until the first answer comes.
-  function placeholders() {
-    const grid = el('div', 'capg-grid');
-    grid.setAttribute('aria-hidden', 'true');
-    for (let i = 0; i < PLACEHOLDERS; i += 1) grid.appendChild(el('span', 'capg-thumb'));
-    return grid;
   }
 
   function paintGrid() {
@@ -157,11 +108,6 @@
     row.addEventListener('click', pick);
     markRow(row, on);
     return row;
-  }
-
-  function markRow(row, on) {
-    row.classList.toggle('on', on);
-    row.setAttribute('aria-pressed', String(on));
   }
 
   function setFilter(f) {
@@ -267,15 +213,6 @@
     x.appendChild(icon('close'));
     x.addEventListener('click', close);
     return x;
-  }
-
-  // A reply without `can` (an older server) keeps every button, as before.
-  function engineCan(c) {
-    const o = c && typeof c === 'object' ? c : {};
-    return {
-      export: o.export !== false, cover: o.cover !== false, speech: o.speech !== false,
-      trim: o.trim !== false, copy: o.copy !== false,
-    };
   }
 
   function openViewer(id, note) {
