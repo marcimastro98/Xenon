@@ -169,3 +169,13 @@ test('the whole engine is put together once per process, then handed back', () =
   const took = performance.now() - started;
   assert.ok(took < 2000, `twenty more askings took ${Math.round(took)} ms; from scratch they take minutes`);
 });
+
+// `stop()` called as `holder.stop()` would hand the function its holder as `this`. Each watch is read into a local
+// name first and called through that, so the variable can become a property of an object without changing the call.
+test('a watch is stopped through a local name, not through the variable that holds it', () => {
+  const engine = engineSource();
+  for (const name of ['obsStopWatch', 'haStopWatch', 'sbStopWatch', 'wlStopWatch', 'unifiEventsStopWatch']) {
+    assert.ok(engine.includes(`${name};`), `${name} is read into a local`);
+    assert.ok(!engine.includes(`${name}(`), `${name} is never called by its own name`);
+  }
+});

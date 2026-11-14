@@ -2731,7 +2731,7 @@ async function refreshObsWatch() {
     clearInterval(obsWatch.previewTimer); obsWatch.previewTimer = null;
   }
   if (!want && obsStopWatch) {
-    obsStopWatch(); obsStopWatch = null;
+    const stopObs = obsStopWatch; stopObs(); obsStopWatch = null;
     if (obsWatch.previewTimer) { clearInterval(obsWatch.previewTimer); obsWatch.previewTimer = null; }
     obsWatch.state = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
     obsWatch.preview = { scene: '', image: '' };
@@ -2818,7 +2818,7 @@ async function refreshHaWatch() {
   if (want && !haStopWatch) {
     haStopWatch = deckHa.watch(scheduleHaBroadcast);
   } else if (!want && haStopWatch) {
-    haStopWatch(); haStopWatch = null;
+    const stopHa = haStopWatch; stopHa(); haStopWatch = null;
     if (haWatch.notifyTimer) { clearTimeout(haWatch.notifyTimer); haWatch.notifyTimer = null; }
     haWatch.deckStatesLast = '';   // a future watcher must get a fresh seed
     haWatch.stateLast = '';
@@ -2866,7 +2866,7 @@ async function refreshSbWatch() {
   if (want && !sbStopWatch) {
     sbStopWatch = deckSb.watch(scheduleSbBroadcast, pushActivity);
   } else if (!want && sbStopWatch) {
-    sbStopWatch(); sbStopWatch = null;
+    const stopSb = sbStopWatch; stopSb(); sbStopWatch = null;
     if (sbWatch.notifyTimer) { clearTimeout(sbWatch.notifyTimer); sbWatch.notifyTimer = null; }
     try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
   }
@@ -2909,7 +2909,7 @@ async function refreshWlWatch() {
     // this codebase gates everywhere else. 2.x has no meters and ignores it.
     wlStopWatch = deckWaveLink.watch(scheduleWlBroadcast, { meters: true });
   } else if (!want && wlStopWatch) {
-    wlStopWatch(); wlStopWatch = null;
+    const stopWl = wlStopWatch; stopWl(); wlStopWatch = null;
     if (wlWatch.notifyTimer) { clearTimeout(wlWatch.notifyTimer); wlWatch.notifyTimer = null; }
     try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
   }
@@ -2969,10 +2969,10 @@ async function refreshUnifiEventsWatch() {
   if (want && !unifiEventsStopWatch) {
     unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
   } else if (!want && unifiEventsStopWatch) {
-    unifiEventsStopWatch(); unifiEventsStopWatch = null;
+    const stopUnifi = unifiEventsStopWatch; stopUnifi(); unifiEventsStopWatch = null;
     _unifiNotifyCooldown.clear();
   } else if (want && unifiEventsStopWatch && sig !== unifiNotify.configSig) {
-    unifiEventsStopWatch(); unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
+    const stopUnifi = unifiEventsStopWatch; stopUnifi(); unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
   }
   unifiNotify.configSig = sig;
 }
@@ -9349,17 +9349,17 @@ function _gracefulShutdown() {
   try { discordLink.rpc.close(); } catch {}
   // Stop the live Home Assistant watch (clears its reconnect timer) then close the
   // WebSocket. Stopping first prevents close() from scheduling a reconnect.
-  try { if (haStopWatch) { haStopWatch(); haStopWatch = null; } } catch {}
+  try { if (haStopWatch) { const stopHa = haStopWatch; stopHa(); haStopWatch = null; } } catch {}
   try { if (haWatch.notifyTimer) { clearTimeout(haWatch.notifyTimer); haWatch.notifyTimer = null; } } catch {}
   try { deckHa.close(); } catch {}
   // Stop the Wave Link mixer watch (clears its reconnect timer) then close the WS;
   // uninitialize any held Chroma session so Synapse reclaims device control.
-  try { if (wlStopWatch) { wlStopWatch(); wlStopWatch = null; } } catch {}
+  try { if (wlStopWatch) { const stopWl = wlStopWatch; stopWl(); wlStopWatch = null; } } catch {}
   try { if (wlWatch.notifyTimer) { clearTimeout(wlWatch.notifyTimer); wlWatch.notifyTimer = null; } } catch {}
   try { deckWaveLink.close(); } catch {}
   // Stop the UniFi Protect camera-notifications watch (clears its reconnect timer)
   // then close the updates WebSocket — a long-lived socket with no job object.
-  try { if (unifiEventsStopWatch) { unifiEventsStopWatch(); unifiEventsStopWatch = null; } } catch {}
+  try { if (unifiEventsStopWatch) { const stopUnifi = unifiEventsStopWatch; stopUnifi(); unifiEventsStopWatch = null; } } catch {}
   try { deckUnifiEvents.close(); } catch {}
   try { deckChroma.close(); } catch {}
   // Resolve any parked sdk_handler calls so their /actions/run responses flush
