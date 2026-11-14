@@ -137,6 +137,24 @@ test('an upload in flight says the size it was given, whatever the cap is at tha
   assert.equal(store.stats().reserved, 1000, 'the room each one holds is what it was');
 });
 
+test('an upload begun without a sender has none: in flight, once landed and read back from disk', async () => {
+  const dir = tmpDir();
+  const store = FT.createFileTransfer({ dir, rand: seqRand(), maxBytes: 500, quotaBytes: 100000 });
+  await store.init();
+  const began = store.begin({ name: 'note.txt', declaredLength: 2 });
+  assert.equal(store.inflightList()[0].from, '', 'nobody is not a sender called "file"');
+  fs.writeFileSync(began.target, 'hi');
+  assert.equal((await store.commit(began.id, 2)).from, '');
+  const named = await land(store, 'named.txt', Buffer.from('x'));
+  assert.equal(named.from, '');
+
+  const again = FT.createFileTransfer({ dir, rand: seqRand(), maxBytes: 500, quotaBytes: 100000 });
+  await again.init();
+  assert.deepEqual(again.list().map((row) => row.from), ['', '']);
+  const spaced = again.begin({ name: 'a.txt', declaredLength: 1, from: '  Desk  ' });
+  assert.equal(again.inflightList().find((row) => row.id === spaced.id).from, 'Desk', 'a sender that is given is kept as before');
+});
+
 test('abort() takes an upload off the list and gives its room back', async () => {
   const store = FT.createFileTransfer({ dir: tmpDir(), rand: seqRand(), maxBytes: 100, quotaBytes: 100 });
   await store.init();

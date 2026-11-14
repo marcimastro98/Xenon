@@ -50,6 +50,11 @@ function label(name) {
   return trimmed;
 }
 
+/** Who sent a file, as shown beside it. Nobody is the empty string, never the stand-in name of a file. */
+function sender(name) {
+  return stripDangerous(name).trim() ? label(name).slice(0, 40) : '';
+}
+
 /**
  * The extension, read from the client's name and validated by shape. A name
  * with no usable extension is stored without one — refusing it would be an
@@ -100,6 +105,6 @@ function contentDisposition(name) {
 }
 
 module.exports = {
-  MAX_LABEL, MAX_NAME_BYTES, EXT_RE, stripDangerous, clampUtf8, label, extOf, deliveryName,
+  MAX_LABEL, MAX_NAME_BYTES, EXT_RE, stripDangerous, clampUtf8, label, sender, extOf, deliveryName,
   contentDisposition,
 };

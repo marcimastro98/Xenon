@@ -55,7 +55,7 @@ const { PROGRESS_MIN_MS, INFLIGHT_STALE_MS } = require('./transfer/inflight-limi
 const ID_RE = /^f[0-9a-f]{16}$/;
 
 const {
-  EXT_RE, stripDangerous, clampUtf8, label, extOf, deliveryName, contentDisposition,
+  EXT_RE, stripDangerous, clampUtf8, label, sender, extOf, deliveryName, contentDisposition,
 } = require('./transfer/file-names.js');
 
 const {
@@ -184,7 +184,7 @@ function createFileTransfer(o) {
       ext: EXT_RE.test(String(raw.ext || '')) ? String(raw.ext) : '',
       size: Number.isFinite(size) && size >= 0 ? size : 0,
       direction: raw.direction === 'out' ? 'out' : 'in',
-      from: label(raw.from || '').slice(0, 40),
+      from: sender(raw.from),
       at: Number.isFinite(Number(raw.at)) ? Number(raw.at) : 0,
       delivered: typeof raw.delivered === 'string' ? raw.delivered : '',
     };
@@ -242,7 +242,7 @@ function createFileTransfer(o) {
       name: label(i.name),
       ext,
       direction: i.direction === 'out' ? 'out' : 'in',
-      from: label(i.from || '').slice(0, 40),
+      from: sender(i.from),
     });
     return { id, ext, file, target: path.join(filesDir, file), limit: caps.maxBytes };
   }
