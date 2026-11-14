@@ -52,7 +52,7 @@ const WidgetOptions = require('./widget-options/options.js');
 
 const {
   SDK_API_VERSION, SDK_STREAMS, SDK_ACTION_CATEGORIES, SDK_ACTION_LIMITS, sdkActionWithinLimits,
-  SDK_ACTION_TYPES, categoryOfActionType,
+  SDK_ACTION_TYPES, SDK_MACRO_ACTION_TYPES, categoryOfActionType,
 } = require('./widget-sdk/surface.js');
 
 // The only playSound.file shape SDK code (bridge actions AND manifest macros)
@@ -60,10 +60,6 @@ const {
 // never drift from the install boundary. The client copies (js/preset-share.js,
 // js/custom-widget.js) must be kept in step by hand.
 const SDK_SOUND_FILE_RE = require('./sound-packs').PACK_FILE_RE;
-
-// A macro runs on the server, where nothing stamps a timer with its widget, so a
-// macro step could name the user's own timers. Refused at install instead.
-const SDK_MACRO_ACTION_TYPES = Object.freeze(SDK_ACTION_TYPES.filter((type) => !SDK_ACTION_CATEGORIES.timers.includes(type)));
 
 const { WIDGET_ID_RE, SDK_SUB_ID_RE, ENTRY_RE } = require('./widget-sdk/package-names.js');
 

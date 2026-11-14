@@ -252,6 +252,10 @@ function sdkActionWithinLimits(action) {
 // are restricted to this set — openApp/openFile/hotkey/webhook stay unreachable.
 const SDK_ACTION_TYPES = Object.freeze(Object.values(SDK_ACTION_CATEGORIES).flat());
 
+// A macro runs on the server, where nothing stamps a timer with its widget, so a
+// macro step could name the user's own timers. Refused at install instead.
+const SDK_MACRO_ACTION_TYPES = Object.freeze(SDK_ACTION_TYPES.filter((type) => !SDK_ACTION_CATEGORIES.timers.includes(type)));
+
 // Category (grant unit) a deck-action type belongs to, or null. Used to check a
 // macro's steps against the categories the user granted the package.
 function categoryOfActionType(type) {
@@ -263,5 +267,5 @@ function categoryOfActionType(type) {
 
 module.exports = {
   SDK_API_VERSION, SDK_STREAMS, SDK_ACTION_CATEGORIES, SDK_ACTION_LIMITS, sdkActionWithinLimits,
-  SDK_ACTION_TYPES, categoryOfActionType,
+  SDK_ACTION_TYPES, SDK_MACRO_ACTION_TYPES, categoryOfActionType,
 };
