@@ -1446,8 +1446,6 @@ const { normalizeLockWidgets } = require('./settings/normalize-lock-widgets.js')
 
 const { normalizeAmbientMode } = require('./ambient/normalize-mode.js');
 
-const { normalizeHubSettings } = require('./settings/normalize-hub-settings.js');
-
 const { readHubSettings, readHubSettingsForUpdate } = require('./settings/read.js');
 
 const { cliOneShot } = require('./ai/cli-one-shot.js');
@@ -4256,26 +4254,6 @@ async function editFavorites(args) {
   if (result && (result.added || result.removed)) FAVORITE_REFRESH[plan.kind]().catch(() => {});
   return result;
 }
-// change_setting: one allowlisted field under the lock; nothing written when it
-// already has that value. The rev bump makes open dashboards reload the settings.
-async function changeSetting(args) {
-  const plan = SettingsAi.plan(args);
-  if (plan.error) return { ok: false, ...plan };
-  if (plan.read) return { ok: true, settings: SettingsAi.current(hub.settings) };
-  let before = null;
-  await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const out = SettingsAi.apply(normalizeHubSettings(cur), plan);
-    before = out.before;
-    if (!out.patch) return;
-    const written = await writeHubSettings({ ...cur, ...out.patch, rev: nextSettingsRev(cur.rev) });
-    hub.settings = written;
-    broadcastSSE('settings', { rev: written.rev });
-  });
-  if (plan.name === 'visualizer') refreshAudioLevelsWatch();
-  const now = SettingsAi.current(hub.settings)[plan.name];
-  return { ok: true, setting: plan.name, before, now, ...(before === now ? { unchanged: true } : {}) };
-}
 // sensor_source: the catalog is read only when a list or a choice needs it.
 async function chooseSensorSource(args) {
   const current = () => SensorSources.normalizeSensorSources(hub.settings && hub.settings.sensorSources);
@@ -6061,6 +6039,8 @@ const phone = createPhone({
 });
 
 const { refreshAudioLevelsWatch } = require('./audio/levels-wanted.js');
+const { changeSetting } = require('./settings/change-setting.js');
+
 // Each tick goes straight out; the helper's own interval is the rate limit, and
 // the payload is only the apps that are actually making sound.
 audioLevels.onTick((peaks) => {
@@ -8389,6 +8369,7 @@ const { branches: ambientBranches } = require('./ambient/routes.js');
 const { branches: aiLocalBranches } = require('./ai/routes-local.js');
 const { branches: widgetSdkImagesBranches } = require('./widget-sdk/routes-images.js');
 const { branches: settingsSaveBranches } = require('./settings/routes-save.js');
+const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -10453,14 +10434,7 @@ const handleRequest = async (req, res) => {
     await streamingYoutubeBranches['POST /stream/youtube/query'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath.startsWith('/api/mcp/dev/')) {
-    // Claude Code / Codex building widgets (mcp-dev.js). Never from a paired
-    // device: absent from remotePathAllowed, and refused here as well.
-    if (isRemote) { res.writeHead(403); res.end(); return; }
-    try {
-      await handleMcpDevRoute(req, res, reqPath, json);
-    } catch (e) {
-      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : (e && e.code === 'PAYLOAD_TOO_LARGE' ? 'too_large' : 'failed') });
-    }
+    await mcpDevBranches['* /api/mcp/dev/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { handleMcpDevRoute });
 
   } else if (reqPath === '/sdk/ai' && req.method === 'POST') {
     await widgetSdkCallsBranches['POST /sdk/ai'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAi, sdkPackagesCached });

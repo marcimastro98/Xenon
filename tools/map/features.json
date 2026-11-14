@@ -80,6 +80,7 @@
       "what": "Lets Claude Code or Codex build and test a widget on a running Xenon.",
       "files": [
         "packages/mcp/**",
+        "server/mcp/**",
         "server/mcp-dev.js",
         "server/mcp-dev-tools.js",
         "server/ai-mcp-bridge.js",
