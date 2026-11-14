@@ -85,15 +85,16 @@ function wordsIn(K, node) {
  * Reads a script that is one wrapper around all its code.
  * @param {string} text @param {string} file @param {any} parser
  * @returns {{ problems: string[], open: number, close: number, indent: string, strictFile: boolean, strictInside: boolean,
- *   records: any[], bindings: Map<string, any>, twice: Set<string>, words: Set<string>, reach: (record: any) => Set<any>, taken: Map<string, any> }}
+ *   records: any[], bindings: Map<string, any>, twice: Set<string>, words: Set<string>, reach: (record: any) => Set<any>, taken: Map<string, any>, tree: any, inside: any[] }}
  *   `open` and `close` are the 0-based lines of the wrapper's two lines; a record's line n (1-based, as top-level.mjs
  *   counts) is line `open + n` (0-based) of the file. `words`: eval, with, as the whole script says them.
  *   A `const` record carries `fixed`, what browser-inner-fixed.mjs reads of its value.
  *   `reach` answers which statements could reach one while the script loads. `taken` is empty here: browser-inner-takes.mjs fills it.
+ *   `tree` is the script as parsed and `inside` the wrapper's statements in it, one per record: their places are places in `text`.
  */
 export function readWrapper(text, file, parser) {
   const { K } = parser;
-  const none = { open: 0, close: 0, indent: '  ', strictFile: false, strictInside: false, records: [], bindings: new Map(), twice: new Set(), words: new Set(), reach: () => new Set(), taken: new Map() };
+  const none = { open: 0, close: 0, indent: '  ', strictFile: false, strictInside: false, records: [], bindings: new Map(), twice: new Set(), words: new Set(), reach: () => new Set(), taken: new Map(), tree: null, inside: [] };
   if (text.includes('\r')) return { ...none, problems: [`${file} has Windows line endings: code files are LF here (.gitattributes), fix the checkout first`] };
   const tree = parser.parse(text, file);
   const statements = real(parser, tree.statements);
@@ -138,7 +139,7 @@ export function readWrapper(text, file, parser) {
   });
   const firstLine = inside.length ? lines[lineAt(starts, inside[0].getStart(tree))] : '  ';
   return { problems, open, close, indent: /^[ \t]*/.exec(firstLine)[0], strictFile: statements.some((node) => node !== code[0] && isStrict(K, node)),
-    strictInside: isStrict(K, inside[0]), records, bindings, twice, words: new Set(records.flatMap((record) => [...record.words])), reach: createReach(records, bindings), taken: new Map() };
+    strictInside: isStrict(K, inside[0]), records, bindings, twice, words: new Set(records.flatMap((record) => [...record.words])), reach: createReach(records, bindings), taken: new Map(), tree, inside };
 }
 
 /**

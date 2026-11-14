@@ -2,13 +2,16 @@
 // declarations to a script that loads right before the old one, a stylesheet cut
 // into parts linked right after it, a script written inside a page to a file,
 // a classic script turned into an ES module (browser-module.mjs), a module
-// that loses the wrapper it no longer needs (browser-unwrap.mjs), and functions
-// out of a script's wrapper to a script that loads right before it (browser-inner-plan.mjs).
+// that loses the wrapper it no longer needs (browser-unwrap.mjs), functions out of
+// a script's wrapper to a script that loads right before it (browser-inner-plan.mjs),
+// and a wrapper's lets turned into one object, in place (browser-lets-plan.mjs).
 // Nothing here touches the disk, so the same code does a move and redoes it from
 // an old revision to compare (browser-extract.mjs).
 
 import { planInnerScript } from './browser-inner-plan.mjs';
 import { proveInnerMove } from './browser-inner-proof.mjs';
+import { planLets } from './browser-lets-plan.mjs';
+import { proveLets } from './browser-lets-proof.mjs';
 import { addToLists, LIST_FILES, listRunProblems, listsHold } from './browser-lists.mjs';
 import { moduleMove } from './browser-module.mjs';
 import { addTags, inlineScripts, runProblems, tagsOf, urlOfFile } from './browser-pages.mjs';
@@ -90,6 +93,19 @@ function innerMove(tree, move, { parser, pages, earlier }) {
   return { files, made: [move.file], record: { kind: 'inner', from: move.from, file: move.file, about: move.about, names: plan.moved, gives: plan.gives, name: plan.name, ...takes } };
 }
 
+// A wrapper's lets as properties of one object: the script alone changes, and no page has to know.
+function letsMove(tree, move, { parser }) {
+  const text = need(tree, move.file);
+  const plan = planLets({ text, parser, source: move.file, object: move.object, names: move.names });
+  const unproven = proveLets({ before: text, after: plan.newSource, plan, parser, source: move.file });
+  if (unproven.length) throw new Refusal(unproven.map((problem) => `planned, and not proven: ${problem}`));
+  const found = Object.values(plan.counts).reduce((sum, count) => sum + count.found, 0);
+  const added = plan.newSource.split('\n').length - text.split('\n').length;
+  const note = `${plan.names.length} lets of ${move.file} are properties of ${plan.object}: ${found} places that used them rewritten, `
+    + `${plan.kept.length === 1 ? '1 first value left where it stood' : `${plan.kept.length} first values left where they stood`}, ${added} ${added === 1 ? 'line' : 'lines'} added.`;
+  return { files: new Map([[move.file, plan.newSource]]), made: [], notes: [note], record: { kind: 'lets', file: move.file, object: plan.object, names: plan.names, kept: plan.kept } };
+}
+
 function styleMove(tree, move, { pages, earlier }) {
   if (earlier.some((entry) => entry.kind === 'style' && entry.from === move.from)) {
     throw new Refusal([`${move.from} is cut into parts already: a second cut would have to load between them`]);
@@ -139,13 +155,14 @@ function inlineMove(tree, move) {
  * Works one move out, from the texts in `tree`.
  * @param {{ get: (file: string) => string | null }} tree the repo's files as text, null for a file that is not there
  * @param {any} move `{ kind: 'script', from, file, about, names }`, `{ kind: 'style', from, parts: [{ file, at }] }`
- *   `{ kind: 'inline', from, file, about, nth }`, `{ kind: 'module', file }`, `{ kind: 'unwrap', file }` or `{ kind: 'inner', from, file, about, names }`
+ *   `{ kind: 'inline', from, file, about, nth }`, `{ kind: 'module', file }`, `{ kind: 'unwrap', file }`, `{ kind: 'inner', from, file, about, names }`
+ *   or `{ kind: 'lets', file, object, names }`
  * @param {{ parser: any, pages: string[], earlier: any[] }} context the pages of the app and the moves done before this one
- * @returns {{ files: Map<string, string>, made: string[], record: any }} every file to write with its new text,
- *   which of them are new, and the line for the list of moves. Throws a Refusal with every reason when the move is not safe.
+ * @returns {{ files: Map<string, string>, made: string[], record: any, notes?: string[] }} every file to write with its new text,
+ *   which of them are new, the line for the list of moves, and what the move has to say about itself. Throws a Refusal with every reason when the move is not safe.
  */
 export function applyMove(tree, move, context) {
-  const work = { script: scriptMove, style: styleMove, inline: inlineMove, module: moduleMove, unwrap: unwrapMove, inner: innerMove }[move.kind];
+  const work = { script: scriptMove, style: styleMove, inline: inlineMove, module: moduleMove, unwrap: unwrapMove, inner: innerMove, lets: letsMove }[move.kind];
   if (!work) throw new Refusal([`unknown kind of move: ${move.kind}`]);
   const done = work(tree, move, context);
   const taken = done.made.filter((file) => tree.get(file) !== null);

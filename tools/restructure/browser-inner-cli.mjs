@@ -1,14 +1,15 @@
-// What `browser inner` prints, and the move it hands to browser-extract.mjs.
+// What `browser inner` prints, and the moves `browser inner` and `browser state` hand to browser-extract.mjs.
 //
 //   browser inner <script> [--json]        the functions of the script's wrapper: which may leave, in which groups, what keeps the others
 //   browser inner --survey [--all] [--json]   the same in numbers for every wrapped script over 300 lines (--all: every wrapped script)
 //   browser inner --from <script> --to <script's name>/<what it does>.js --about "<one sentence>" [--recorded <before.json>] [--dry-run] <function | group:N> ...
+//   browser state <script> [--object <name>] [--not <let>,<let>] [--dry-run] [<let> ...]   the wrapper's lets (all of them, or the named ones) as properties of one object
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { withConstants } from './browser-inner-judge.mjs';
-import { readWrapperWith, windowNameOf } from './browser-inner-plan.mjs';
+import { readWrapper, readWrapperWith, windowNameOf } from './browser-inner-plan.mjs';
 import { renderSurvey, surveyAll, surveyScript } from './browser-inner-survey.mjs';
 import { innerFilesOf, readBrowserLedger } from './browser-ledger.mjs';
 import { Refusal } from './extract-plan.mjs';
@@ -34,6 +35,33 @@ export function showSurvey(root, parser, { flags }) {
   if (flags.json) { console.log(JSON.stringify(survey.scripts.map(({ rows, groups, ...rest }) => rest), null, 1)); return 0; }
   console.log(renderSurvey(survey, Boolean(flags.all)).join('\n'));
   return 0;
+}
+
+/**
+ * @param {any} parser @param {{ state: string, object?: string, names?: string[], not?: string }} job `names`: the lets to rewrite, every let of the wrapper when none is named;
+ *   `not`: lets to leave as they are, with commas between them
+ * @param {(file: string) => string | null} read the files as the move will find them
+ * @returns {any} the move for browser-extract.mjs
+ */
+export function letsMoveOf(parser, job, read) {
+  const shell = readWrapper(read(job.state) ?? '', job.state, parser);
+  if (shell.problems.length) throw new Refusal(shell.problems);
+  const lets = shell.records.filter((record) => record.kind === 'let').flatMap((record) => record.names);
+  const not = String(job.not ?? '').split(',').filter(Boolean);
+  const unknown = not.filter((name) => !lets.includes(name));
+  if (unknown.length) throw new Refusal(unknown.map((name) => `${name} is not a let of the wrapper of ${job.state}`));
+  const names = job.names?.length ? job.names.filter((name) => !not.includes(name)) : lets.filter((name) => !not.includes(name));
+  return { kind: 'lets', file: job.state, object: job.object || 'state', names };
+}
+
+/**
+ * What one move did, in a line.
+ * @param {any} move @param {{ made: string[], lines: Record<string, number>, notes: string[] }} done @param {boolean} dryRun @returns {string}
+ */
+export function saidOf(move, done, dryRun) {
+  if (done.made.length === 0) return `${dryRun ? 'would write: ' : ''}${done.notes.join(' ')} ${move.file} ${dryRun ? 'would be' : 'is'} ${done.lines[move.file]} lines.`;
+  const sizes = done.made.map((file) => `${file} (${done.lines[file]} lines)`).join(', ');
+  return `${dryRun ? 'would write' : 'wrote'} ${sizes}; ${move.from} ${dryRun ? 'would be' : 'is'} ${done.lines[move.from]} lines.`;
 }
 
 /**

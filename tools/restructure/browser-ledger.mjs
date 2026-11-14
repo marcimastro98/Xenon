@@ -7,7 +7,7 @@ import path from 'node:path';
 
 export const BROWSER_LEDGER = 'tools/restructure/extracted-browser.json';
 const NOTE = 'What tools/restructure took out of which browser file, in order. Written by `browser extract`, `browser split-css`, '
-  + '`browser inline`, `browser module` and `browser inner`, read by `browser verify` and by server/test/browser-source.mjs. Do not edit by hand.';
+  + '`browser inline`, `browser module`, `browser inner` and `browser state`, read by `browser verify` and by server/test/browser-source.mjs. Do not edit by hand.';
 
 /**
  * @param {string} root
@@ -17,6 +17,8 @@ const NOTE = 'What tools/restructure took out of which browser file, in order. W
  *   `{ kind: 'inline', from, file, about, nth }` (a script written inside a page, to a file)
  *   `{ kind: 'module', file, names }` (a classic script turned into an ES module; `names` are the top-level names it stopped sharing)
  *   `{ kind: 'unwrap', file }` (a module that lost the wrapper around its code)
+ *   `{ kind: 'lets', file, object, names, kept }` (lets of a script's wrapper turned into properties of one object in it; `kept` are the
+ *   ones whose first value is still given where the `let` stood)
  *   or `{ kind: 'inner', from, file, about, names, gives, name, takes? }` (functions out of a script's wrapper to a script that loads
  *   right before and leaves them on `window.<name>`; `gives` are the ones the old script takes back, `takes` the names the new script
  *   takes from the ones made of the same wrapper before it, by their name on window).

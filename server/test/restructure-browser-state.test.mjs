@@ -31,7 +31,7 @@ test('every split browser file still loads in a row, runs nothing new on load, a
 
 test('every file the list of moves names is there, once', () => {
   // A wrapper taken off makes no file: it is done on a module the list names already (browser-unwrap.mjs holds it to that).
-  const made = ledger.moves.filter((move) => move.kind !== 'unwrap').flatMap((move) => (move.kind === 'style' ? move.parts.map((part) => part.file) : [move.file]));
+  const made = ledger.moves.filter((move) => move.kind !== 'unwrap' && move.kind !== 'lets').flatMap((move) => (move.kind === 'style' ? move.parts.map((part) => part.file) : [move.file]));
   assert.deepEqual(made.filter((file, at) => made.indexOf(file) !== at), [], 'a file is the target of one move');
   assert.deepEqual([...made, ...ledger.moves.map((move) => move.from).filter(Boolean)].filter((file) => !fs.existsSync(path.join(ROOT, file))), []);
 });

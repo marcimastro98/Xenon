@@ -39,7 +39,8 @@ function readDeclaration({ text, starts, lines, record, node, sourceFile, forms 
   return { start, nameEnd, moved: null };
 }
 
-function referenceReasons({ refs, forms, text, starts, source, object, names, propOf, statements, records, parser }) {
+// Exported for the browser side (browser-lets-plan.mjs), which asks the same of a wrapper's statements: `records` then need only `names` and `line`.
+export function referenceReasons({ refs, forms, text, starts, source, object, names, propOf, statements, records, parser }) {
   const reasons = [];
   const locals = new Map();
   for (const ref of refs) {

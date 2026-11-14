@@ -8,12 +8,13 @@
 //   node tools/restructure/cli.mjs browser cuts <stylesheet>               the lines where a stylesheet opens a section
 //   node tools/restructure/cli.mjs browser split-css <stylesheet> [--dry-run] <line>:<Part.css> ...
 //   node tools/restructure/cli.mjs browser inline --from <page> --to <new script> --about "<one sentence>" [--nth 0]
-//   node tools/restructure/cli.mjs browser apply <plan.json> [--dry-run]   several moves: [{ from, to, about, picks }, { css, cuts }, { inner, to, about, names }]
+//   node tools/restructure/cli.mjs browser apply <plan.json> [--dry-run]   several moves: [{ from, to, about, picks }, { css, cuts }, { inner, to, about, names }, { state, object, not, names }]
 //   node tools/restructure/cli.mjs browser module <script> [--dry-run]     turn a classic script that runs last into an ES module
 //   node tools/restructure/cli.mjs browser module <script> --unwrap [--dry-run]   take the wrapper off a script that is a module already
 //   node tools/restructure/cli.mjs browser module --list [--all]           which scripts can become a module today, and what keeps the others
 //   node tools/restructure/cli.mjs browser inner <script> | --survey [--all]   the functions of a script's wrapper that may leave it, and what keeps the rest
 //   node tools/restructure/cli.mjs browser inner --from <script> --to <script's name>/<job>.js --about "<one sentence>" [--recorded <before.json>] [--dry-run] <function | group:N> ...
+//   node tools/restructure/cli.mjs browser state <script> [--object <name>] [--not <let>,<let>] [--dry-run] [<let> ...]   the wrapper's lets as properties of one object
 //   node tools/restructure/cli.mjs browser consumers <file>                who names a browser file in code
 //   node tools/restructure/cli.mjs browser tests <file> [--write]          point the tests that read it as text at the reader
 //   node tools/restructure/cli.mjs browser verify [--base HEAD]            redo the recorded moves from a revision, compare bytes
@@ -26,7 +27,7 @@ import { readCounts, saveCounts } from '../quality/baseline-file.mjs';
 import { analyzeRun, assignedAtHome, orderProblems, stayReasons } from './browser-analyze.mjs';
 import { keptNames, mentionsOf } from './browser-consumers.mjs';
 import { everyPage, ledgerOf, newPlan, perform, replay, showAt, treeOf } from './browser-extract.mjs';
-import { innerMoveOf, showInner, showSurvey } from './browser-inner-cli.mjs';
+import { innerMoveOf, letsMoveOf, saidOf, showInner, showSurvey } from './browser-inner-cli.mjs';
 import { innerFilesOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { candidates } from './browser-module.mjs';
 import { nodeKeeps } from './browser-node-loads.mjs';
@@ -39,7 +40,7 @@ import { openParser, REPO_ROOT } from './parser.mjs';
 import { carryCounts, checksAvailable, lintCounts } from './ratchets.mjs';
 import { syntaxProblems } from './verify.mjs';
 
-const VALUE_FLAGS = new Set(['--from', '--to', '--about', '--base', '--nth', '--recorded']);
+const VALUE_FLAGS = new Set(['--from', '--to', '--about', '--base', '--nth', '--recorded', '--object', '--not']);
 const posix = (file) => String(file).split('\\').join('/').replace(/^\.\//, '');
 const read = (file) => readFileSync(path.join(REPO_ROOT, file), 'utf8');
 
@@ -123,6 +124,7 @@ function toMove(job, parser, plan) {
     }) };
   }
   if (job.inner) return innerMoveOf(parser, { ...job, inner: posix(job.inner), to: posix(job.to) }, (file) => treeOf(REPO_ROOT, plan).get(file), innerFilesOf(ledgerOf(REPO_ROOT, plan), posix(job.inner)));
+  if (job.state) return letsMoveOf(parser, { ...job, state: posix(job.state) }, (file) => treeOf(REPO_ROOT, plan).get(file));
   if (job.inline) return { kind: 'inline', from: posix(job.inline), file: posix(job.to), about: job.about, nth: Number(job.nth ?? 0) };
   const from = posix(job.from);
   const { records, why } = movable(from, parser, plan);
@@ -137,8 +139,7 @@ function runMoves(parser, jobs, dryRun) {
   for (const job of jobs) {
     const move = toMove(job, parser, plan);
     const done = perform({ root: REPO_ROOT, parser, move, dryRun, plan });
-    const sizes = done.made.map((file) => `${file} (${done.lines[file]} lines)`).join(', ');
-    console.log(`${dryRun ? 'would write' : 'wrote'} ${sizes}; ${move.from} ${dryRun ? 'would be' : 'is'} ${done.lines[move.from]} lines.`);
+    console.log(saidOf(move, done, dryRun));
     if (move.skipped?.length) console.log(`  left in place inside the ranges: ${move.skipped.join(', ')}`);
   }
   if (!dryRun) console.log('Next: browser verify, browser carry, then npm run sizes -- --update and npm run map.');
@@ -267,9 +268,9 @@ export async function main(argv) {
   const { flags, rest } = args;
   const complete = { analyze: rest.length === 1, cuts: rest.length === 1, consumers: rest.length === 1, tests: rest.length === 1, apply: rest.length === 1, verify: true, carry: true,
     extract: Boolean(flags.from && flags.to && rest.length), 'split-css': rest.length >= 2, inline: Boolean(flags.from && flags.to),
-    module: flags.list ? rest.length === 0 : rest.length === 1, inner: flags.survey ? rest.length === 0 : flags.from ? Boolean(flags.to && rest.length) : rest.length === 1 }[command];
+    module: flags.list ? rest.length === 0 : rest.length === 1, inner: flags.survey ? rest.length === 0 : flags.from ? Boolean(flags.to && rest.length) : rest.length === 1, state: rest.length >= 1 }[command];
   if (!complete) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(4, 21).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(4, 22).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   if (command === 'carry') return carry();
@@ -286,6 +287,7 @@ export async function main(argv) {
     if (command === 'apply') return runMoves(parser, JSON.parse(readFileSync(rest[0], 'utf8')), dryRun);
     if (command === 'split-css') return runMoves(parser, [{ css: rest[0], cuts: rest.slice(1) }], dryRun);
     if (command === 'inner') return runMoves(parser, [{ inner: flags.from, to: flags.to, about: flags.about, names: rest, recorded: flags.recorded }], dryRun);
+    if (command === 'state') return runMoves(parser, [{ state: rest[0], object: flags.object, not: flags.not, names: rest.slice(1) }], dryRun);
     if (command === 'inline') return runMoves(parser, [{ inline: flags.from, to: flags.to, about: flags.about, nth: flags.nth }], dryRun);
     return runMoves(parser, [{ from: flags.from, to: flags.to, about: flags.about, picks: rest }], dryRun);
   } catch (error) {
