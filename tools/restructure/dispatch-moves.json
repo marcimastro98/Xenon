@@ -2077,6 +2077,790 @@
     "./streaming/routes-twitch.js",
     "./streaming/routes-youtube.js"
    ]
+  },
+  {
+   "modules": [
+    {
+     "local": "aiBranches",
+     "spec": "./ai/routes.js"
+    },
+    {
+     "local": "aiDictationBranches",
+     "spec": "./ai/routes-dictation.js"
+    },
+    {
+     "local": "aiLocalBranches",
+     "spec": "./ai/routes-local.js"
+    },
+    {
+     "local": "aiMemoryBranches",
+     "spec": "./ai/routes-memory.js"
+    },
+    {
+     "local": "aiVoiceBranches",
+     "spec": "./ai/routes-voice.js"
+    },
+    {
+     "local": "claudeCodeBranches",
+     "spec": "./claude-code/routes.js"
+    },
+    {
+     "local": "claudeCodeRunBranches",
+     "spec": "./claude-code/routes-run.js"
+    },
+    {
+     "local": "claudeCodeSessionBranches",
+     "spec": "./claude-code/routes-session.js"
+    },
+    {
+     "local": "codexBranches",
+     "spec": "./codex/routes.js"
+    }
+   ],
+   "cuts": [
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/chime' && req.method === 'POST') {",
+      "    await aiBranches['POST /api/chime'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/wake/status' && req.method === 'GET') {",
+      "    await aiVoiceBranches['GET /api/wake/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _whisperReady });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/whisper-install' && req.method === 'POST') {",
+      "    await aiLocalBranches['POST /api/ai-local/whisper-install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshWakeWordWatch });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'POST') {",
+      "    await aiBranches['POST /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/ollama-start' && req.method === 'POST') {",
+      "    await aiBranches['POST /api/ai-local/ollama-start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/pull' && req.method === 'POST') {",
+      "    return await aiLocalBranches['POST /api/ai-local/pull'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/models' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai-local/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/capabilities' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai-local/capabilities'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/status' && req.method === 'GET') {",
+      "    await aiLocalBranches['GET /api/ai-local/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai-local/scan' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai-local/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/speak/stop' && req.method === 'POST') {",
+      "    await aiVoiceBranches['POST /api/speak/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { stopServerSpeak });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/speak' && req.method === 'POST') {",
+      "    await aiVoiceBranches['POST /api/speak'](req, res, { json, err500, reqPath, urlObj, isRemote }, { geminiKeyFor, speakOnServer });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/tts' && req.method === 'POST') {",
+      "    await aiVoiceBranches['POST /api/tts'](req, res, { json, err500, reqPath, urlObj, isRemote }, { AI_MODELS, getFfmpegPath, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/transcribe' && req.method === 'POST') {",
+      "    await aiBranches['POST /api/transcribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _audioToWav16k, _transcribeAudio, geminiKeyFor, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/models' && req.method === 'GET') {",
+      "    await aiVoiceBranches['GET /api/ai/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/cli/models' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai/cli/models'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/cli/status' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai/cli/status'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/xenon/balance' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai/xenon/balance'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/cli/mcp' && req.method === 'POST') {",
+      "    await aiBranches['POST /api/ai/cli/mcp'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/stt/stop' && req.method === 'POST') {",
+      "    await aiDictationBranches['POST /api/stt/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceLabel, _sttVia, _transcribeAudio, geminiKeyFor, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/stt/start' && req.method === 'POST') {",
+      "    await aiDictationBranches['POST /api/stt/start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceWhenReady, _sttInputArgs, _sttVia, getFfmpegPath });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/summarize' && req.method === 'POST') {",
+      "    await aiMemoryBranches['POST /api/ai/summarize'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, cliOneShot, geminiKeyFor, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/log' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {",
+      "    await aiMemoryBranches['POST /api/companion/insight'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot, completeWithUserAi, userAiVisionBlocker });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/ai' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/companion/cost' && req.method === 'GET') {",
+      "    await aiVoiceBranches['GET /api/companion/cost'](req, res, { json, err500, reqPath, urlObj, isRemote }, { companionLookSparks, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/ai' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/chatgpt/delete' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/chatgpt/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/chatgpt/cancel' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/chatgpt/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/chatgpt/ask' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/chatgpt/ask'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/chatgpt/conversation' && req.method === 'GET') {",
+      "    await codexBranches['GET /api/chatgpt/conversation'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptStore });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/chatgpt' && req.method === 'GET') {",
+      "    await codexBranches['GET /api/chatgpt'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptPayload, _chatgptStore });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex/unlink' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/codex/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexChanged, _codexLinkStatus });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex/link' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/codex/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, _codexChanged, _codexLinkStatus });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex/link' && req.method === 'GET') {",
+      "    await codexBranches['GET /api/codex/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexLinkStatus });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex/decide' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/codex/decide'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex/permission' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/codex/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge, _codexBridgeAuth });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex/event' && req.method === 'POST') {",
+      "    await codexBranches['POST /api/codex/event'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge, _codexBridgeAuth });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex/thread' && req.method === 'GET') {",
+      "    await codexBranches['GET /api/codex/thread'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexApp, _codexBridge });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/codex' && req.method === 'GET') {",
+      "    await codexBranches['GET /api/codex'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexApp, _codexPayload, _syncCodexDemand });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/run/stop' && req.method === 'POST') {",
+      "    await claudeCodeRunBranches['POST /api/claude/run/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/folder' && req.method === 'POST') {",
+      "    await claudeCodeRunBranches['POST /api/claude/folder'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/run' && req.method === 'POST') {",
+      "    await claudeCodeRunBranches['POST /api/claude/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeRunner });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/attach' && req.method === 'POST') {",
+      "    await claudeCodeRunBranches['POST /api/claude/attach'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeAttach });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/history/delete' && req.method === 'POST') {",
+      "    await claudeCodeRunBranches['POST /api/claude/history/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeHistory });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/history' && req.method === 'GET') {",
+      "    await claudeCodeRunBranches['GET /api/claude/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeHistory });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/plan' && req.method === 'GET') {",
+      "    await claudeCodeBranches['GET /api/claude/plan'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/agent' && req.method === 'GET') {",
+      "    await claudeCodeBranches['GET /api/claude/agent'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/transcript-image' && req.method === 'GET') {",
+      "    await claudeCodeBranches['GET /api/claude/transcript-image'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/transcript' && req.method === 'GET') {",
+      "    await claudeCodeBranches['GET /api/claude/transcript'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/session-commands' && req.method === 'GET') {",
+      "    await claudeCodeSessionBranches['GET /api/claude/session-commands'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/commands' && req.method === 'GET') {",
+      "    await claudeCodeRunBranches['GET /api/claude/commands'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeCommands });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/projects' && req.method === 'GET') {",
+      "    await claudeCodeRunBranches['GET /api/claude/projects'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/unlink' && req.method === 'POST') {",
+      "    await claudeCodeRunBranches['POST /api/claude/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/link' && req.method === 'POST') {",
+      "    await claudeCodeBranches['POST /api/claude/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/link' && req.method === 'GET') {",
+      "    await claudeCodeRunBranches['GET /api/claude/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeLinkStatus });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/decide' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/decide'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/reply' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/reply'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeInbox });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/answer' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/answer'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/turn-end' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/turn-end'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeInbox });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/question' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/question'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/mod/inbox' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/mod/inbox'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeInbox });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/mod/permission' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/mod/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeHoldPermission });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/permission' && req.method === 'POST') {",
+      "    await claudeCodeBranches['POST /api/claude/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeHoldPermission });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/mod' && req.method === 'GET') {",
+      "    await claudeCodeSessionBranches['GET /api/claude/mod'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeModReply });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/mod' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/mod'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeModReply });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/event' && req.method === 'POST') {",
+      "    await claudeCodeSessionBranches['POST /api/claude/event'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude/budget' && req.method === 'POST') {",
+      "    await claudeCodeRunBranches['POST /api/claude/budget'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshClaude, writeHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/claude' && req.method === 'GET') {",
+      "    await claudeCodeBranches['GET /api/claude'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeFresh, refreshClaude });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/bit/messages' && req.method === 'GET') {",
+      "    await aiVoiceBranches['GET /bit/messages'](req, res, { json, err500, reqPath, urlObj, isRemote }, { bitMessages });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/ai/pc-cancel' && req.method === 'POST') {",
+      "    await aiBranches['POST /ai/pc-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/actions/perf' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/ai/deck-cancel' && req.method === 'POST') {",
+      "    await aiMemoryBranches['POST /ai/deck-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deckConfirms });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/actions/perf' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/ai/deck-run' && req.method === 'POST') {",
+      "    await aiMemoryBranches['POST /ai/deck-run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deckConfirms, deckRegistry, ratingVotes });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/actions/perf' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/ai/pc-run' && req.method === 'POST') {",
+      "    await aiBranches['POST /ai/pc-run'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/actions/perf' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/actions/undo' && req.method === 'POST') {",
+      "    await aiMemoryBranches['POST /api/ai/actions/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiActionLog, performAiUndo });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/actions' && req.method === 'GET') {",
+      "    await aiMemoryBranches['GET /api/ai/actions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiActionLog });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/memory' && req.method === 'DELETE') {",
+      "    await aiMemoryBranches['DELETE /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/memory' && req.method === 'POST') {",
+      "    await aiMemoryBranches['POST /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/memory' && req.method === 'GET') {",
+      "    await aiMemoryBranches['GET /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/turn' && req.method === 'GET') {",
+      "    await aiBranches['GET /api/ai/turn'](req, res, { json, err500, reqPath, urlObj, isRemote });"
+     ],
+     "before": "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {",
+      "    await aiBranches['POST /api/ai/turn/stop'](req, res, { json, err500, reqPath, urlObj, isRemote });"
+     ],
+     "before": "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "const { branches: aiBranches } = require('./ai/routes.js');"
+     ],
+     "before": "const { branches: claudeCodeBranches } = require('./claude-code/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: aiDictationBranches } = require('./ai/routes-dictation.js');"
+     ],
+     "before": "const { branches: smartHomeCamerasBranches } = require('./smart-home/routes-cameras.js');"
+    },
+    {
+     "lines": [
+      "const { branches: aiLocalBranches } = require('./ai/routes-local.js');"
+     ],
+     "before": "const { branches: widgetSdkImagesBranches } = require('./widget-sdk/routes-images.js');"
+    },
+    {
+     "lines": [
+      "const { branches: aiMemoryBranches } = require('./ai/routes-memory.js');"
+     ],
+     "before": "const { branches: aiVoiceBranches } = require('./ai/routes-voice.js');"
+    },
+    {
+     "lines": [
+      "const { branches: aiVoiceBranches } = require('./ai/routes-voice.js');"
+     ],
+     "before": "const { branches: transferBranches } = require('./transfer/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: claudeCodeBranches } = require('./claude-code/routes.js');"
+     ],
+     "before": "const { branches: updatesBranches } = require('./updates/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: claudeCodeRunBranches } = require('./claude-code/routes-run.js');"
+     ],
+     "before": "const { branches: widgetSdkCallsBranches } = require('./widget-sdk/routes-calls.js');"
+    },
+    {
+     "lines": [
+      "const { branches: claudeCodeSessionBranches } = require('./claude-code/routes-session.js');"
+     ],
+     "before": "const { branches: widgetSdkCallsBranches } = require('./widget-sdk/routes-calls.js');"
+    },
+    {
+     "lines": [
+      "const { branches: codexBranches } = require('./codex/routes.js');"
+     ],
+     "before": "const { branches: lookBranches } = require('./look/routes.js');"
+    }
+   ],
+   "hands": [
+    "AI_MODELS",
+    "PORT",
+    "_audioToWav16k",
+    "_chatgptAsker",
+    "_chatgptPayload",
+    "_chatgptStore",
+    "_claudeAttach",
+    "_claudeBridge",
+    "_claudeBridgeAuth",
+    "_claudeCommands",
+    "_claudeFresh",
+    "_claudeHistory",
+    "_claudeHoldPermission",
+    "_claudeInbox",
+    "_claudeLinkStatus",
+    "_claudeModReply",
+    "_claudeRunner",
+    "_codexApp",
+    "_codexBridge",
+    "_codexBridgeAuth",
+    "_codexChanged",
+    "_codexLinkStatus",
+    "_codexPayload",
+    "_deckConfirms",
+    "_sttDeviceLabel",
+    "_sttDeviceWhenReady",
+    "_sttInputArgs",
+    "_sttVia",
+    "_syncCodexDemand",
+    "_transcribeAudio",
+    "_whisperReady",
+    "aiActionLog",
+    "aiMemory",
+    "bitMessages",
+    "cliOneShot",
+    "companionLookSparks",
+    "completeWithUserAi",
+    "getFfmpegPath",
+    "performAiUndo",
+    "ratingVotes",
+    "refreshClaude",
+    "refreshWakeWordWatch",
+    "speakOnServer",
+    "stopServerSpeak",
+    "userAiVisionBlocker"
+   ],
+   "listed": [
+    "./ai/routes.js",
+    "./ai/routes-dictation.js",
+    "./ai/routes-local.js",
+    "./ai/routes-memory.js",
+    "./ai/routes-voice.js",
+    "./claude-code/routes.js",
+    "./claude-code/routes-run.js",
+    "./claude-code/routes-session.js",
+    "./codex/routes.js"
+   ]
   }
  ]
 }

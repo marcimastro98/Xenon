@@ -7289,8 +7289,6 @@ const { chatWithLocalServer } = require('./ai/chat-local-server.js');
 // below always loaded them. A line below names a table this file still calls.
 featureRoutes.loadTables();
 const { branches: deckBranches } = require('./deck/routes.js');
-const { branches: aiBranches } = require('./ai/routes.js');
-const { branches: claudeCodeBranches } = require('./claude-code/routes.js');
 const { branches: updatesBranches } = require('./updates/routes.js');
 const { branches: performanceBranches } = require('./performance/routes.js');
 const { branches: systemBranches } = require('./system/routes.js');
@@ -7301,12 +7299,8 @@ const { branches: searchBranches } = require('./search/routes.js');
 const { branches: storeCatalogBranches } = require('./store-catalog/routes.js');
 const { branches: storeSupportersBranches } = require('./store-supporters/routes.js');
 const { branches: pairedBranches } = require('./paired/routes.js');
-const { branches: claudeCodeSessionBranches } = require('./claude-code/routes-session.js');
-const { branches: claudeCodeRunBranches } = require('./claude-code/routes-run.js');
 const { branches: widgetSdkCallsBranches } = require('./widget-sdk/routes-calls.js');
 const { branches: widgetSdkPackagesBranches } = require('./widget-sdk/routes-packages.js');
-const { branches: aiMemoryBranches } = require('./ai/routes-memory.js');
-const { branches: aiVoiceBranches } = require('./ai/routes-voice.js');
 const { branches: transferBranches } = require('./transfer/routes.js');
 const { branches: transferPhoneBranches } = require('./transfer/routes-phone.js');
 const { branches: pairedAccessBranches } = require('./paired/routes-access.js');
@@ -7320,12 +7314,9 @@ const { branches: storeCatalogPacksBranches } = require('./store-catalog/routes-
 const { branches: storeSupportersUnlockBranches } = require('./store-supporters/routes-unlock.js');
 const { branches: performanceModeBranches } = require('./performance/routes-mode.js');
 const { branches: timeBranches } = require('./time/routes.js');
-const { branches: codexBranches } = require('./codex/routes.js');
 const { branches: lookBranches } = require('./look/routes.js');
 const { branches: settingsBranches } = require('./settings/routes.js');
-const { branches: aiDictationBranches } = require('./ai/routes-dictation.js');
 const { branches: smartHomeCamerasBranches } = require('./smart-home/routes-cameras.js');
-const { branches: aiLocalBranches } = require('./ai/routes-local.js');
 const { branches: widgetSdkImagesBranches } = require('./widget-sdk/routes-images.js');
 const { branches: settingsSaveBranches } = require('./settings/routes-save.js');
 const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
@@ -7333,19 +7324,24 @@ const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
 // The names of this file the tables of routes are handed (feature-routes.js),
 // read for each request. tools/restructure/dispatch-move.mjs writes the list.
 const routeHands = () => ({
-  BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, _captureCovers, _captureExport,
-  _captureFolder, _captureGallery, _captureHost, _captures, _deskPageSync, _footballPayload, _geminiOneShot, _loadFootballInfo, _menuHotkey,
-  _persistLighting, _replay, _saveTimers, _syncSessionWatch, _transcripts, _xenonMenuState, applySecondScreenMode, batteryMonitor,
-  broadcastHaDeckStates, buildHaState, buildSbState, buildWlState, captureScreenshot, chooseCaptureFolder, collectSensors, deckChroma,
-  deckHa, deckObs, deckRegistry, deckSb, deckUnifi, deckVoicemeeter, deckWaveLink, defaultCaptureFolder, drawShell, embeddedBrowser,
-  featureUnlock, geminiKeyFor, getAudioInfo, getCurrentLyrics, getMediaInfo, getNetworkInfo, getSlideshowDir, getSystemInfo, getWeather,
-  guardian, haQuery, helperArrived, helperInstall, layersEdit, layersHost, layersPeek, lyricsForPlayingKey, lyricsOffsets,
-  lyricsTranslateBlocker, lyricsTranslator, makeMarkClips, mediaAction, openDiscordChat, readHubSettings, readHubSettingsForUpdate,
-  readNotes, refreshDiscordWatch, refreshExternalFeeds, refreshFootball, refreshHaWatch, refreshHotkeyListener, refreshObsWatch,
-  refreshStocks, remoteAccess, remoteHttpsInstaller, replayDiskInfo, roastSparks, saveNotesGuarded, saveStreamConfig, saveVitalsState,
-  screenCapture, screenMenu, secondScreen, sendCaptureToPhone, setDefaultAudioDevice, setMediaPreferredSource, setMicMute, smallTaskModel,
-  svvExec, tilePlay, transcodeMp4BackgroundToWebm, transferEnabled, updateCaptureSettings, updateEvents, updateTasks, vitalsNag,
-  writeEvents, writeHubSettings, writeNotes, writeTasks,
+  AI_MODELS, BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, PORT, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, _audioToWav16k,
+  _captureCovers, _captureExport, _captureFolder, _captureGallery, _captureHost, _captures, _chatgptAsker, _chatgptPayload, _chatgptStore,
+  _claudeAttach, _claudeBridge, _claudeBridgeAuth, _claudeCommands, _claudeFresh, _claudeHistory, _claudeHoldPermission, _claudeInbox,
+  _claudeLinkStatus, _claudeModReply, _claudeRunner, _codexApp, _codexBridge, _codexBridgeAuth, _codexChanged, _codexLinkStatus,
+  _codexPayload, _deckConfirms, _deskPageSync, _footballPayload, _geminiOneShot, _loadFootballInfo, _menuHotkey, _persistLighting, _replay,
+  _saveTimers, _sttDeviceLabel, _sttDeviceWhenReady, _sttInputArgs, _sttVia, _syncCodexDemand, _syncSessionWatch, _transcribeAudio,
+  _transcripts, _whisperReady, _xenonMenuState, aiActionLog, aiMemory, applySecondScreenMode, batteryMonitor, bitMessages,
+  broadcastHaDeckStates, buildHaState, buildSbState, buildWlState, captureScreenshot, chooseCaptureFolder, cliOneShot, collectSensors,
+  companionLookSparks, completeWithUserAi, deckChroma, deckHa, deckObs, deckRegistry, deckSb, deckUnifi, deckVoicemeeter, deckWaveLink,
+  defaultCaptureFolder, drawShell, embeddedBrowser, featureUnlock, geminiKeyFor, getAudioInfo, getCurrentLyrics, getFfmpegPath,
+  getMediaInfo, getNetworkInfo, getSlideshowDir, getSystemInfo, getWeather, guardian, haQuery, helperArrived, helperInstall, layersEdit,
+  layersHost, layersPeek, lyricsForPlayingKey, lyricsOffsets, lyricsTranslateBlocker, lyricsTranslator, makeMarkClips, mediaAction,
+  openDiscordChat, performAiUndo, ratingVotes, readHubSettings, readHubSettingsForUpdate, readNotes, refreshClaude, refreshDiscordWatch,
+  refreshExternalFeeds, refreshFootball, refreshHaWatch, refreshHotkeyListener, refreshObsWatch, refreshStocks, refreshWakeWordWatch,
+  remoteAccess, remoteHttpsInstaller, replayDiskInfo, roastSparks, saveNotesGuarded, saveStreamConfig, saveVitalsState, screenCapture,
+  screenMenu, secondScreen, sendCaptureToPhone, setDefaultAudioDevice, setMediaPreferredSource, setMicMute, smallTaskModel, speakOnServer,
+  stopServerSpeak, svvExec, tilePlay, transcodeMp4BackgroundToWebm, transferEnabled, updateCaptureSettings, updateEvents, updateTasks,
+  userAiVisionBlocker, vitalsNag, writeEvents, writeHubSettings, writeNotes, writeTasks,
 });
 
 const handleRequest = async (req, res) => {
@@ -7603,25 +7599,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {
     await performanceModeBranches['POST /api/performance/plan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _aiPerformancePlan, perfStats, readHubSettings });
 
-  } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {
-    await aiBranches['POST /api/ai/turn/stop'](req, res, { json, err500, reqPath, urlObj, isRemote });
-  } else if (reqPath === '/api/ai/turn' && req.method === 'GET') {
-    await aiBranches['GET /api/ai/turn'](req, res, { json, err500, reqPath, urlObj, isRemote });
-  } else if (reqPath === '/api/ai/memory' && req.method === 'GET') {
-    await aiMemoryBranches['GET /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory, readHubSettings });
-
-  } else if (reqPath === '/api/ai/memory' && req.method === 'POST') {
-    await aiMemoryBranches['POST /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory });
-
-  } else if (reqPath === '/api/ai/memory' && req.method === 'DELETE') {
-    await aiMemoryBranches['DELETE /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory });
-
-  } else if (reqPath === '/api/ai/actions' && req.method === 'GET') {
-    await aiMemoryBranches['GET /api/ai/actions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiActionLog });
-
-  } else if (reqPath === '/api/ai/actions/undo' && req.method === 'POST') {
-    await aiMemoryBranches['POST /api/ai/actions/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiActionLog, performAiUndo });
-
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
     await performanceBranches['POST /api/gamemode/install-presentmon'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
@@ -7646,18 +7623,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/actions/run' && req.method === 'POST') {
     await deckKeysBranches['POST /actions/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });
 
-  } else if (reqPath === '/ai/pc-run' && req.method === 'POST') {
-    await aiBranches['POST /ai/pc-run'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/ai/deck-run' && req.method === 'POST') {
-    await aiMemoryBranches['POST /ai/deck-run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deckConfirms, deckRegistry, ratingVotes });
-
-  } else if (reqPath === '/ai/deck-cancel' && req.method === 'POST') {
-    await aiMemoryBranches['POST /ai/deck-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deckConfirms });
-
-  } else if (reqPath === '/ai/pc-cancel' && req.method === 'POST') {
-    await aiBranches['POST /ai/pc-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath === '/actions/perf' && req.method === 'POST') {
     await performanceModeBranches['POST /actions/perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfRegistry });
 
@@ -7672,9 +7637,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/update/notice-seen' && req.method === 'POST') {
     await updatesUpdateBranches['POST /update/notice-seen'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveNoticeSeen });
-
-  } else if (reqPath === '/bit/messages' && req.method === 'GET') {
-    await aiVoiceBranches['GET /bit/messages'](req, res, { json, err500, reqPath, urlObj, isRemote }, { bitMessages });
 
   } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {
     // Filed, imported from the old mail, shown, read. Everything is rebuilt in
@@ -7810,132 +7772,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/community/rate' && req.method === 'POST') {
     await storeCatalogBranches['POST /api/community/rate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
 
-  } else if (reqPath === '/api/claude' && req.method === 'GET') {
-    await claudeCodeBranches['GET /api/claude'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeFresh, refreshClaude });
-
-  } else if (reqPath === '/api/claude/budget' && req.method === 'POST') {
-    await claudeCodeRunBranches['POST /api/claude/budget'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshClaude, writeHubSettings });
-
-  } else if (reqPath === '/api/claude/event' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/event'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth });
-
-  } else if (reqPath === '/api/claude/mod' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/mod'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeModReply });
-
-  } else if (reqPath === '/api/claude/mod' && req.method === 'GET') {
-    await claudeCodeSessionBranches['GET /api/claude/mod'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeModReply });
-
-  } else if (reqPath === '/api/claude/permission' && req.method === 'POST') {
-    await claudeCodeBranches['POST /api/claude/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeHoldPermission });
-
-  } else if (reqPath === '/api/claude/mod/permission' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/mod/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeHoldPermission });
-
-  } else if (reqPath === '/api/claude/mod/inbox' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/mod/inbox'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeInbox });
-
-  } else if (reqPath === '/api/claude/question' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/question'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth });
-
-  } else if (reqPath === '/api/claude/turn-end' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/turn-end'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeInbox });
-
-  } else if (reqPath === '/api/claude/answer' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/answer'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });
-
-  } else if (reqPath === '/api/claude/reply' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/reply'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeInbox });
-
-  } else if (reqPath === '/api/claude/decide' && req.method === 'POST') {
-    await claudeCodeSessionBranches['POST /api/claude/decide'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });
-
-  } else if (reqPath === '/api/claude/link' && req.method === 'GET') {
-    await claudeCodeRunBranches['GET /api/claude/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeLinkStatus });
-
-  } else if (reqPath === '/api/claude/link' && req.method === 'POST') {
-    await claudeCodeBranches['POST /api/claude/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT });
-
-  } else if (reqPath === '/api/claude/unlink' && req.method === 'POST') {
-    await claudeCodeRunBranches['POST /api/claude/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT });
-
-  } else if (reqPath === '/api/claude/projects' && req.method === 'GET') {
-    await claudeCodeRunBranches['GET /api/claude/projects'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });
-
-  } else if (reqPath === '/api/claude/commands' && req.method === 'GET') {
-    await claudeCodeRunBranches['GET /api/claude/commands'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeCommands });
-
-  } else if (reqPath === '/api/claude/session-commands' && req.method === 'GET') {
-    await claudeCodeSessionBranches['GET /api/claude/session-commands'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });
-
-  } else if (reqPath === '/api/claude/transcript' && req.method === 'GET') {
-    await claudeCodeBranches['GET /api/claude/transcript'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/claude/transcript-image' && req.method === 'GET') {
-    await claudeCodeBranches['GET /api/claude/transcript-image'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/claude/agent' && req.method === 'GET') {
-    await claudeCodeBranches['GET /api/claude/agent'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/claude/plan' && req.method === 'GET') {
-    await claudeCodeBranches['GET /api/claude/plan'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/claude/history' && req.method === 'GET') {
-    await claudeCodeRunBranches['GET /api/claude/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeHistory });
-
-  } else if (reqPath === '/api/claude/history/delete' && req.method === 'POST') {
-    await claudeCodeRunBranches['POST /api/claude/history/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeHistory });
-
-  } else if (reqPath === '/api/claude/attach' && req.method === 'POST') {
-    await claudeCodeRunBranches['POST /api/claude/attach'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeAttach });
-
-  } else if (reqPath === '/api/claude/run' && req.method === 'POST') {
-    await claudeCodeRunBranches['POST /api/claude/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeRunner });
-
-  } else if (reqPath === '/api/claude/folder' && req.method === 'POST') {
-    await claudeCodeRunBranches['POST /api/claude/folder'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });
-
-  } else if (reqPath === '/api/claude/run/stop' && req.method === 'POST') {
-    await claudeCodeRunBranches['POST /api/claude/run/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });
-
-  } else if (reqPath === '/api/codex' && req.method === 'GET') {
-    await codexBranches['GET /api/codex'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexApp, _codexPayload, _syncCodexDemand });
-
-  } else if (reqPath === '/api/codex/thread' && req.method === 'GET') {
-    await codexBranches['GET /api/codex/thread'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexApp, _codexBridge });
-
-  } else if (reqPath === '/api/codex/event' && req.method === 'POST') {
-    await codexBranches['POST /api/codex/event'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge, _codexBridgeAuth });
-
-  } else if (reqPath === '/api/codex/permission' && req.method === 'POST') {
-    await codexBranches['POST /api/codex/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge, _codexBridgeAuth });
-
-  } else if (reqPath === '/api/codex/decide' && req.method === 'POST') {
-    await codexBranches['POST /api/codex/decide'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge });
-
-  } else if (reqPath === '/api/codex/link' && req.method === 'GET') {
-    await codexBranches['GET /api/codex/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexLinkStatus });
-
-  } else if (reqPath === '/api/codex/link' && req.method === 'POST') {
-    await codexBranches['POST /api/codex/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, _codexChanged, _codexLinkStatus });
-
-  } else if (reqPath === '/api/codex/unlink' && req.method === 'POST') {
-    await codexBranches['POST /api/codex/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexChanged, _codexLinkStatus });
-
-  } else if (reqPath === '/api/chatgpt' && req.method === 'GET') {
-    await codexBranches['GET /api/chatgpt'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptPayload, _chatgptStore });
-
-  } else if (reqPath === '/api/chatgpt/conversation' && req.method === 'GET') {
-    await codexBranches['GET /api/chatgpt/conversation'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptStore });
-
-  } else if (reqPath === '/api/chatgpt/ask' && req.method === 'POST') {
-    await codexBranches['POST /api/chatgpt/ask'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
-
-  } else if (reqPath === '/api/chatgpt/cancel' && req.method === 'POST') {
-    await codexBranches['POST /api/chatgpt/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
-
-  } else if (reqPath === '/api/chatgpt/delete' && req.method === 'POST') {
-    await codexBranches['POST /api/chatgpt/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
-
   } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {
     await smartHomeCamerasBranches['GET /api/unifiprotect/snapshot/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckUnifi, readHubSettings });
 
@@ -7962,12 +7798,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/lock' && req.method === 'POST') {
     await systemBranches['POST /lock'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/companion/cost' && req.method === 'GET') {
-    await aiVoiceBranches['GET /api/companion/cost'](req, res, { json, err500, reqPath, urlObj, isRemote }, { companionLookSparks, readHubSettings });
-
-  } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
-    await aiMemoryBranches['POST /api/companion/insight'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot, completeWithUserAi, userAiVisionBlocker });
 
   } else if (reqPath === '/api/ai' && req.method === 'POST') {
     try {
@@ -8473,77 +8303,8 @@ const handleRequest = async (req, res) => {
       res.end(JSON.stringify({ error: e.message }));
     }
 
-  } else if (reqPath === '/api/ai/summarize' && req.method === 'POST') {
-    await aiMemoryBranches['POST /api/ai/summarize'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, cliOneShot, geminiKeyFor, readHubSettings });
-
   } else if (reqPath === '/api/log' && req.method === 'POST') {
     await engineBranches['POST /api/log'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/stt/start' && req.method === 'POST') {
-    await aiDictationBranches['POST /api/stt/start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceWhenReady, _sttInputArgs, _sttVia, getFfmpegPath });
-
-  } else if (reqPath === '/api/stt/stop' && req.method === 'POST') {
-    await aiDictationBranches['POST /api/stt/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceLabel, _sttVia, _transcribeAudio, geminiKeyFor, readHubSettings });
-
-  } else if (reqPath === '/api/ai/cli/mcp' && req.method === 'POST') {
-    await aiBranches['POST /api/ai/cli/mcp'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/ai/xenon/balance' && req.method === 'GET') {
-    await aiBranches['GET /api/ai/xenon/balance'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/ai/cli/status' && req.method === 'GET') {
-    await aiBranches['GET /api/ai/cli/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/ai/cli/models' && req.method === 'GET') {
-    await aiBranches['GET /api/ai/cli/models'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/ai/models' && req.method === 'GET') {
-    await aiVoiceBranches['GET /api/ai/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
-
-  } else if (reqPath === '/api/transcribe' && req.method === 'POST') {
-    await aiBranches['POST /api/transcribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _audioToWav16k, _transcribeAudio, geminiKeyFor, readHubSettings });
-
-  } else if (reqPath === '/api/tts' && req.method === 'POST') {
-    await aiVoiceBranches['POST /api/tts'](req, res, { json, err500, reqPath, urlObj, isRemote }, { AI_MODELS, getFfmpegPath, readHubSettings });
-
-  } else if (reqPath === '/api/speak' && req.method === 'POST') {
-    await aiVoiceBranches['POST /api/speak'](req, res, { json, err500, reqPath, urlObj, isRemote }, { geminiKeyFor, speakOnServer });
-
-  } else if (reqPath === '/api/speak/stop' && req.method === 'POST') {
-    await aiVoiceBranches['POST /api/speak/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { stopServerSpeak });
-
-  } else if (reqPath === '/api/ai-local/scan' && req.method === 'GET') {
-    await aiBranches['GET /api/ai-local/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings, writeHubSettings });
-
-  } else if (reqPath === '/api/ai-local/status' && req.method === 'GET') {
-    await aiLocalBranches['GET /api/ai-local/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
-
-  } else if (reqPath === '/api/ai-local/capabilities' && req.method === 'GET') {
-    await aiBranches['GET /api/ai-local/capabilities'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
-
-  } else if (reqPath === '/api/ai-local/models' && req.method === 'GET') {
-    await aiBranches['GET /api/ai-local/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
-
-  } else if (reqPath === '/api/ai-local/pull' && req.method === 'POST') {
-    return await aiLocalBranches['POST /api/ai-local/pull'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
-
-  } else if (reqPath === '/api/ai-local/ollama-start' && req.method === 'POST') {
-    await aiBranches['POST /api/ai-local/ollama-start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
-
-  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'GET') {
-    await aiBranches['GET /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'POST') {
-    await aiBranches['POST /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/ai-local/whisper-install' && req.method === 'POST') {
-    await aiLocalBranches['POST /api/ai-local/whisper-install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshWakeWordWatch });
-
-  } else if (reqPath === '/api/wake/status' && req.method === 'GET') {
-    await aiVoiceBranches['GET /api/wake/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _whisperReady });
-
-  } else if (reqPath === '/api/chime' && req.method === 'POST') {
-    await aiBranches['POST /api/chime'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
     await lookBranches['DELETE /font/*'](req, res, { json, err500, reqPath, urlObj, isRemote });

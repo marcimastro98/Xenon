@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { bodiesBack, engineSource, extractedFrom } from './engine-source.mjs';
+import { bodiesBack, engineSource, extractedFrom, testsBack } from './engine-source.mjs';
 
 // Xenon talks to its native helpers over a long-lived stdin/stdout pipe: the
 // index host, the file-search host, the phone host, the screen host, the
@@ -121,7 +121,7 @@ test('a route body in a table that writes to a child stdin is read by the test a
     const own = readFileSync(join(SERVER_DIR, '..', file), 'utf8');
     const tables = [...new Set(records.map((record) => record.file))];
     const inTables = tables.reduce((sum, table) => sum + writes(readFileSync(join(SERVER_DIR, '..', table), 'utf8')), 0);
-    assert.equal(writes(bodiesBack(file, own)), writes(own) + inTables, `${file}: a write to a child stdin in one of its tables is not read back`);
+    assert.equal(writes(bodiesBack(file, testsBack(file, own))), writes(own) + inTables, `${file}: a write to a child stdin in one of its tables is not read back`);
   }
 });
 
