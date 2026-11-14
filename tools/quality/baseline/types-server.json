@@ -1,6 +1,6 @@
 {
   "note": "Type errors per \"file code\". Written by tools/quality/typecheck.mjs: numbers only go down.",
-  "total": 1125,
+  "total": 1124,
   "counts": {
     "packages/core/src/bit-player.js TS2322": 3,
     "packages/mcp/bin/xenon-mcp.js TS2353": 1,
@@ -93,8 +93,6 @@
     "server/discord/rpc-sign-in.js TS2339": 2,
     "server/disk/routes.js TS2739": 2,
     "server/embedded-browser-adblock.js TS2810": 2,
-    "server/embedded-browser.js TS2339": 4,
-    "server/embedded-browser.js TS2810": 1,
     "server/feature-unlock.js TS2741": 1,
     "server/ffmpeg-install/ffmpeg-install.js TS2345": 1,
     "server/ffmpeg-install/ffmpeg-install.js TS2810": 1,
@@ -267,7 +265,10 @@
     "server/widget-sdk/routes-calls.js TS2322": 1,
     "server/widget-sdk/routes-calls.js TS2345": 1,
     "server/widget-sdk/tile-fetch.js TS2339": 1,
+    "server/windows-tiles/browser-connection.js TS2339": 2,
+    "server/windows-tiles/browser-connection.js TS2810": 1,
     "server/windows-tiles/browser-profile.js TS2810": 12,
+    "server/windows-tiles/browser-tile-state.js TS2339": 1,
     "server/winnotif.js TS2554": 1
   }
 }

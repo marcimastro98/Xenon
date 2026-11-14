@@ -462,7 +462,13 @@
       {"file":"server/windows-tiles/browser-page-shims.js","about":"The two scripts the browser tile runs in every page before the page's own: one hides that the browser is driven, one reports whether the page plays sound.","names":["STEALTH_SHIM","AUDIO_SHIM"]},
       {"file":"server/windows-tiles/browser-render-size.js","about":"How big and how often the browser tile's picture is drawn: the frame rate cap, the size limits and the sharpness for a small tile.","names":["MAX_STREAM_FPS","FRAME_INTERVAL_MS","clampDim","MIN_SUPERSAMPLE","MAX_FRAME_PX","renderScale"]},
       {"file":"server/windows-tiles/browser-profile.js","about":"Looks after the browser tile's own profile folder: ends a browser left over from a crash, clears its locks, and starts the profile over when it was spoiled.","names":["pidFilePath","reapStaleProfilePosix","reapStaleProfileEdge","clearProfileLocks","sweepProfileEdge","FINGERPRINT_GENERATION","resetPoisonedProfile"]},
-      {"file":"server/windows-tiles/browser-launch.js","about":"Starts the hidden browser behind the browser tile with its command line, reads the port it listens on, and ends it with everything it started.","names":["readDevToolsPort","killProcessTree","edgeArgs","spawnEdge","defaultLaunch"]}
+      {"file":"server/windows-tiles/browser-launch.js","about":"Starts the hidden browser behind the browser tile with its command line, reads the port it listens on, and ends it with everything it started.","names":["readDevToolsPort","killProcessTree","edgeArgs","spawnEdge","defaultLaunch"]},
+      {"file":"server/windows-tiles/browser-tile-state.js","about":"What is read off one tile of the embedded browser and what is waiting on it: its page on top, the size its stream is asked at, who waits for its next frame, and its pending repaint after a resize.","names":["activeSession","clearResizeSettle","screencastParams","nextFrame","releaseFrameWaiters"],"inner":{"factory":"createEmbeddedBrowser","make":"makeTileState"}},
+      {"file":"server/windows-tiles/browser-page-setup.js","about":"What the embedded browser does to a page it has just attached or wants to hear and see: it presents itself as the installed Edge, adds the audio gate, sets the size, opens or closes the sound, and forces one frame.","names":["setPageMuted","applyAudio","setupPage","forceFrame"],"inner":{"factory":"createEmbeddedBrowser","make":"makePageSetup"}},
+      {"file":"server/windows-tiles/browser-stream.js","about":"The picture stream of one tile of the embedded browser: started on the page on top, stopped, started again when it never paints, and Edge restarted only when no tile paints any more.","names":["startScreencast","recoverStalledStream","escalateStall","anotherTilePaints","stopScreencast"],"inner":{"factory":"createEmbeddedBrowser","make":"makeStream"}},
+      {"file":"server/windows-tiles/browser-targets.js","about":"What Edge tells the embedded browser about its pages: a frame to show, an address that changed, a window a page opened or closed, and the pages no tile owns, which are closed.","names":["onEvent","tileOwningTarget","onTargetCreated","attachPopup","onTargetGone","scheduleOrphanSweep","sweepOrphanTargets"],"inner":{"factory":"createEmbeddedBrowser","make":"makeTargets"}},
+      {"file":"server/windows-tiles/browser-tile-actions.js","about":"What a tile of the embedded browser can be asked once it is open: a new size, a key or a pointer, back and forward, a reload, its site data wiped, and to close.","names":["setSize","input","navHistory","closeActivePopup","reload","clearData","closeTile"],"inner":{"factory":"createEmbeddedBrowser","make":"makeTileActions"}},
+      {"file":"server/windows-tiles/browser-connection.js","about":"The embedded browser's one Edge and its DevTools socket: started when a tile needs it and tried again when the start fails, asked a command with a time limit, primed for protected video, and stopped whole when idle, hung or shut down.","names":["teardown","killBrowser","armIdle","attemptLaunch","ensureBrowser","warmUpWidevine","widevineGate","send"],"inner":{"factory":"createEmbeddedBrowser","make":"makeConnection"}}
     ],
     "server/discord-rpc.js": [
       {"file":"server/discord/rpc-sign-in.js","about":"Signing Xenon in to the Discord app on this PC: the addresses, the permissions asked for, and a failed sign-in said plainly.","names":["API","TOKEN_URL","REVOKE_URL","REDIRECT_URI","SCOPES","NOTIF_SCOPE","notifScopeState","errDetail","loginCloseError","authorizeError"]},
@@ -850,6 +856,10 @@
     ],
     "server/claude-run.js": [
       {"factory":"createRunner","object":"held","names":["extraFolders","seq","projectCache","emitScheduled"],"kept":[],"bare":[],"after":4}
+    ],
+    "server/embedded-browser.js": [
+      {"factory":"createEmbeddedBrowser","object":"edge","names":["lastStallRestartAt","proc","ws","ready","userAgent","widevineReady","nextId","idleTimer"],"kept":[],"bare":[],"after":7},
+      {"factory":"createEmbeddedBrowser","object":"orphanSweep","names":["initialTargetId","sweepTimer"],"kept":[],"bare":[],"after":7}
     ]
   }
 }

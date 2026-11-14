@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 182,
+  "count": 181,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -41,7 +41,6 @@
     "server/discord-rpc.js": 980,
     "server/disk-categories.js": 312,
     "server/diskspace.js": 335,
-    "server/embedded-browser.js": 892,
     "server/enable-sensors.ps1": 449,
     "server/file-transfer.js": 557,
     "server/filesearch.js": 701,
