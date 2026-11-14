@@ -486,7 +486,7 @@ function createDiscordProvider(deps) {
   // their slider in Discord's own UI. This never leaves the machine: it changes
   // what this client plays, not what anyone else hears, and it is not a moderation
   // action — a member with no permissions can do it to anybody.
-
+  //
   // Remember (or forget) that a user is sitting on a non-default local setting.
   // Only the socket hold in bumpIdle() reads this; it is not a cache of Discord's
   // state, so a missed entry costs an earlier idle-close, never a wrong value.
@@ -662,7 +662,7 @@ function createDiscordProvider(deps) {
   // the provider. Playing a sound targets the voice channel the user is CURRENTLY
   // in (the same effect as clicking the sound in Discord's own soundboard panel);
   // it needs no extra scope beyond the voice ones already granted.
-
+  //
   // The channel the user is currently connected to (guild voice channel), read on
   // demand so a soundboard play lands in the right place. Uses the watch's learned
   // id when live (covers DM/group calls), else asks Discord directly. null = none.
@@ -769,7 +769,7 @@ function createDiscordProvider(deps) {
   // of polling. Speaking is tracked in-memory and merged onto the last snapshot
   // without an RPC round-trip (SPEAKING events fire rapidly). Settings/channel
   // changes trigger a debounced full recompute.
-
+  //
   // Push an "offline" state (de-duplicated) when the socket is lost. `linked` tells
   // the widget whether the ACCOUNT is still linked: a dropped pipe (Discord app
   // closed) keeps the token → linked:true (show the account, just offline); a token
