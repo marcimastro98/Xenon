@@ -58,7 +58,7 @@ One row per tile on the dashboard.
 | **Notifications** | The PC's notifications shown on the dashboard, and opening the app they came from. | `server/winnotif.js` `server/notifications.ps1` `server/linux-notif.js` `server/notification-open/**` `server/js/notifications-widget.js` `server/js/notification-open.js` and 1 more |
 | **News, stocks, football** | The three tickers and where their data comes from. | `server/ticker/**` `server/stocks*.js` `server/football*.js` `server/news*.js` `server/js/stock-widget.js` `server/js/football-widget/**` and 7 more |
 | **Browser, second screen, slideshow** | Tiles that show something else: a web page, another screen, pictures, the open apps. | `server/windows-tiles/**` `server/embedded-browser*.js` `server/second-screen.js` `server/browser-surface-sync.js` `server/slideshow-folder.js` `server/windows.ps1` and 13 more |
-| **Vitals and the pet** | Reminders to take a break, and Bit as a pet that reacts to the PC. | `server/vitals/**` `server/vitals-*.js` `server/vitals-nag.ps1` `server/js/vitals*.js` `server/components/VitalsPet/**` `server/components/VitalsWidget/**` |
+| **Vitals and the pet** | Reminders to take a break, and Bit as a pet that reacts to the PC. | `server/vitals/**` `server/vitals-*.js` `server/vitals-nag.ps1` `server/js/vitals-pet/**` `server/js/vitals*.js` `server/components/VitalsPet/**` and 1 more |
 
 ## Bit and AI
 

@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5927,
+  "total": 5926,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -1144,9 +1144,11 @@
     "server/js/vitals-pet-core.js complexity/useMathMinMax": 1,
     "server/js/vitals-pet-core.js complexity/useOptionalChain": 5,
     "server/js/vitals-pet.js complexity/useArrowFunction": 1,
-    "server/js/vitals-pet.js complexity/useOptionalChain": 19,
-    "server/js/vitals-pet.js style/useConst": 1,
-    "server/js/vitals-pet.js suspicious/useIterableCallbackReturn": 3,
+    "server/js/vitals-pet.js complexity/useOptionalChain": 12,
+    "server/js/vitals-pet.js suspicious/useIterableCallbackReturn": 1,
+    "server/js/vitals-pet/effects.js complexity/useOptionalChain": 4,
+    "server/js/vitals-pet/effects.js suspicious/useIterableCallbackReturn": 2,
+    "server/js/vitals-pet/saved.js complexity/useOptionalChain": 3,
     "server/js/vitals.js complexity/useArrowFunction": 1,
     "server/js/vitals.js complexity/useOptionalChain": 10,
     "server/js/vitals.js suspicious/useIterableCallbackReturn": 2,

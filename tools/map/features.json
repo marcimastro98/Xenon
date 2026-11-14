@@ -766,6 +766,7 @@
         "server/vitals/**",
         "server/vitals-*.js",
         "server/vitals-nag.ps1",
+        "server/js/vitals-pet/**",
         "server/js/vitals*.js",
         "server/components/VitalsPet/**",
         "server/components/VitalsWidget/**"
