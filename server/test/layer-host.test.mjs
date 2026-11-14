@@ -673,8 +673,12 @@ test('a widget turned off stays off, open in the menu or not', () => {
   assert.equal(slotsOf(document)[0].hasAttribute('data-peek'), false);
 });
 
+// The tests of edit mode give the window a list of their own, so they hold however many scripts the editor is made of.
+const EDIT_LIST = /const EDIT_SCRIPTS = Object\.freeze\(\[[^\]]*\]\);/g;
+const withEditor = (...scripts) => SRC.replace(EDIT_LIST, () => `const EDIT_SCRIPTS = Object.freeze([${scripts.map((script) => `'${script}'`).join(', ')}]);`);
+
 function editBoot(search, layers, opts) {
-  const b = boot(search, layers, opts);
+  const b = boot(search, layers, { src: withEditor('js/layer-edit.js'), ...opts });
   b.document.head = b.document.createElement('head');
   b.document.documentElement.appendChild(b.document.head);
   const editor = { started: [], stopped: 0 };
@@ -689,9 +693,9 @@ function editBoot(search, layers, opts) {
 }
 
 test('the editor made of several scripts loads them one after the other, each asked for when the one before has run', () => {
-  const LIST = "Object.freeze(['js/layer-edit.js'])";
-  assert.equal(SRC.split(LIST).length, 2, 'the list of the scripts of the editor is written once');
-  const src = SRC.replace(LIST, "Object.freeze(['js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit.js'])");
+  assert.equal(SRC.match(EDIT_LIST).length, 1, 'the list of the scripts of the editor is written once');
+  assert.match(SRC.match(EDIT_LIST)[0], /'js\/layer-edit\.js'\]\);$/, 'and the editor itself is its last script');
+  const src = withEditor('js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit.js');
   const { host, atom, document, editor, ctx } = editBoot('?layer=desktop:', { enabled: true, widgets: [W()] }, { src });
   atom('weather');
   host.place();

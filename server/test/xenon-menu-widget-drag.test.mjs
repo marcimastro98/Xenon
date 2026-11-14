@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -56,13 +57,13 @@ test('widgets in tabs share one box on the map', () => {
 });
 
 test('nothing jumps after the drop: the corner rule is gone from the menu', () => {
-  const src = fs.readFileSync(new URL('../js/xenon-menu-widget-view.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/xenon-menu-widget-view.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /cornerNear|dropRect|clearSpot/);
 });
 
 test('the picture has no window drawn in it: the widget is alone on its screen', () => {
-  const src = fs.readFileSync(new URL('../js/xenon-menu-widget-view.js', import.meta.url), 'utf8');
-  const css = fs.readFileSync(new URL('../components/XenonMenu/XenonMenuWidgets.css', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/xenon-menu-widget-view.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../components/XenonMenu/XenonMenuWidgets.css', import.meta.url), 'utf8');
   assert.doesNotMatch(src + css, /xm-fakewin/);
 });
 
@@ -94,6 +95,6 @@ test('"Put it back" returns everything as it was when editing began, and only th
 });
 
 test('a drag never makes tabs: they come from their button alone', () => {
-  const src = fs.readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /layerGroup[^\n]*join/);
 });
