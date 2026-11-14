@@ -15,7 +15,6 @@ const LayerWhen = require('../js/layer-when.js');
 require('../js/deck-shortcuts.js');
 const LayerPages = require('../layer-pages.js');
 const { previewPath } = require('../tile-previews.js');
-require('../widget-options/options.js');
 
 function available(host) {
   return !!(host && typeof host.available === 'function' && host.available());
