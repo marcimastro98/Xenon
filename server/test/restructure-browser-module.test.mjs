@@ -207,20 +207,42 @@ test('the dashboard is asked what its Settings search would offer, and the quest
   assert.equal(answer(null), 'no settings search');
 });
 
-test('the dashboard is opened wide and made narrower, and asked before and after which look its fitting rows chose', () => {
+test('the dashboard is opened wide and made narrower, and asked before and after whether its fitting rows follow their width', async () => {
   const page = PAGES.find((entry) => entry.resize);
   assert.equal(page.file, 'server/index.html');
   assert.ok(page.resize.width < page.width, 'narrower than it was opened');
-  const row = (name, fit, wide) => ({ className: name, clientWidth: wide, dataset: { fitLevels: '3', fit }, closest: () => ({ getAttribute: () => 'system' }) });
-  const rows = [row('system-tabs', '2', 377), row('hidden-row', '0', 0)];
-  const window = { FitRow: { overflows: (one) => one.clientWidth < 100 } };
-  const document = { querySelectorAll: (selector) => (selector === '[data-fit-levels]' ? rows : []) };
-  const answer = vm.runInNewContext(`(${page.probe})()`, { window, document });
-  assert.deepEqual(JSON.parse(JSON.stringify(answer)), [{ row: 'system-tabs', of: 'system', levels: '3', fit: '2', cutOff: false }], 'a row that is not shown is not asked');
-  // Another level after the resize is a difference the compare tells.
+  // A row that fits from level `fits` on; `late` frames pass before the page has fitted it.
+  const row = (name, wide, fits, fit) => ({ className: name, clientWidth: wide, fits, dataset: { fitLevels: '3', fit }, closest: () => ({ getAttribute: () => 'system' }) });
+  const ask = async (rows, eachFrame = () => {}) => {
+    let frames = 0;
+    const window = { FitRow: { overflows: (one) => Number(one.dataset.fit) < one.fits } };
+    const document = { querySelectorAll: (selector) => (selector === '[data-fit-levels]' ? rows : []) };
+    const requestAnimationFrame = (run) => { frames += 1; eachFrame(frames); setImmediate(run); };
+    const answer = await vm.runInNewContext(`(${page.probe})()`, { window, document, requestAnimationFrame });
+    return { answer: JSON.parse(JSON.stringify(answer)), frames, left: rows.map((one) => one.dataset.fit) };
+  };
+  const rested = { row: 'system-tabs', of: 'system', levels: '3', compact: true, lowest: true, cutOff: false };
+  // What the row holds decides the level: the same row with a shorter and a longer text gives one answer.
+  const short = await ask([row('system-tabs', 377, 1, '1'), row('hidden-row', 0, 0, '0'), row('not-fitted-yet', 300, 0, undefined)]);
+  const long = await ask([row('system-tabs', 377, 2, '2')]);
+  assert.deepEqual(short.answer, [rested], 'a row that is not shown or not fitted yet is not asked');
+  assert.deepEqual(long.answer, short.answer, 'level 1 and level 2 are the same answer when each is the lowest that fits');
+  assert.deepEqual(short.left, ['1', '0', undefined], 'the levels tried are put back');
+  assert.equal(long.frames, 5, 'five frames with one answer');
+  // A row the page has not fitted again yet: read until it is, not on the first frame.
+  const slow = row('system-tabs', 377, 2, '0');
+  const waited = await ask([slow], (frames) => { if (frames === 3) slow.dataset.fit = '2'; });
+  assert.deepEqual(waited.answer, [rested]);
+  assert.equal(waited.frames, 8, 'three frames at the old level, then five at the new one');
+  // A row that never follows is told, after the limit and not forever.
+  const stuck = await ask([row('system-tabs', 377, 2, '0')]);
+  assert.deepEqual(stuck.answer, [{ ...rested, compact: false, lowest: false, cutOff: true }]);
+  const restless = row('system-tabs', 377, 0, '0');
+  assert.equal((await ask([restless], (frames) => { restless.fits = frames % 2; })).frames, 120, 'an answer that never rests ends the wait at the limit');
+  // A row that stopped following its width after the resize is a difference the compare tells.
   const view = (probe) => ({ name: page.name, address: '/', pageErrors: [], consoleErrors: [], failedRequests: [], globals: [], declared: {}, scripts: [], stylesheets: [], rules: 'r', ruleCount: 1, probe });
   const recording = (probe) => ({ engine: { name: 'chromium' }, views: [view(probe)], settings: {} });
-  const was = { before: [{ row: 'system-tabs', fit: '0' }], after: [{ row: 'system-tabs', fit: '2' }] };
+  const was = { before: [{ ...rested, compact: false }], after: [rested] };
   assert.deepEqual(compareRecordings(recording(was), recording(was), { moves: [] }), []);
-  assert.match(compareRecordings(recording(was), recording({ ...was, after: was.before }), { moves: [] }).join(' '), /dashboard made narrower: the page's own question is answered differently/);
+  assert.match(compareRecordings(recording(was), recording({ ...was, after: stuck.answer }), { moves: [] }).join(' '), /dashboard made narrower: the page's own question is answered differently/);
 });

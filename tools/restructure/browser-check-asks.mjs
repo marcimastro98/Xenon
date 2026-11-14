@@ -30,13 +30,42 @@ export function editorStarted() {
   });
 }
 
-// The rows that pick a more compact look when space runs out (js/fit-row.js), as the page shows them: the level
-// each one chose and whether anything in it is still cut off. Asked before and after the window is made narrower,
-// so that a row which stopped following its width, or follows it to another level, is a difference. The width in
-// pixels is left out: the level is what the user sees.
-export function fitRows() {
-  return [...document.querySelectorAll('[data-fit-levels]')].filter((row) => row.clientWidth > 0).map((row) => ({
+// The rows that pick a more compact look when space runs out (js/fit-row.js), as the page shows them. Asked before
+// and after the window is made narrower, so that a row which stopped following its width is a difference.
+//
+// The level itself is not the answer: it depends on what the row holds that day. The system tabs end with how long
+// the PC has been up, and at 1280 wide "Up for 21h 17m" rests at level 1 where "Up for 32h 30m" rests at level 2, so
+// two recordings made at different hours disagreed about a row that was right both times. What does not depend on
+// the day is asked: whether the row left its roomy look (`compact`), whether the level it rests at is the lowest
+// one that fits what it holds now (`lowest`, worked out the way fit-row.js does and put back), and whether anything
+// is cut off. A fit takes a frame and may cause another, so the answer is read every frame until it has been the
+// same for STILL frames in a row, FRAMES at most.
+export async function fitRows() {
+  const STILL = 5;
+  const FRAMES = 120;
+  const lowestOf = (row, levels) => {
+    const now = row.dataset.fit;
+    let found = levels - 1;
+    for (let level = 0; level < levels; level += 1) {
+      row.dataset.fit = String(level);
+      if (!window.FitRow.overflows(row)) { found = level; break; }
+    }
+    row.dataset.fit = now;
+    return String(found);
+  };
+  const read = () => [...document.querySelectorAll('[data-fit-levels]')].filter((row) => row.clientWidth > 0 && row.dataset.fit !== undefined).map((row) => ({
     row: String(row.className), of: row.closest('[data-dashboard-widget]')?.getAttribute('data-dashboard-widget') ?? null,
-    levels: row.dataset.fitLevels, fit: row.dataset.fit ?? null, cutOff: window.FitRow.overflows(row),
+    levels: row.dataset.fitLevels, compact: row.dataset.fit !== '0', lowest: row.dataset.fit === lowestOf(row, Number(row.dataset.fitLevels) + 1),
+    cutOff: window.FitRow.overflows(row),
   }));
+  let answer = [];
+  let last = '';
+  for (let frames = 0, still = 0; frames < FRAMES && still < STILL; frames += 1) {
+    answer = read();
+    const text = JSON.stringify(answer);
+    still = text === last ? still + 1 : 1;
+    last = text;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  return answer;
 }
