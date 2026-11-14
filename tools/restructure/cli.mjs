@@ -257,9 +257,9 @@ async function main(argv) {
   const args = readArgs(tail);
   if (command === 'carry') return carry();
   const needsFile = { analyze: 1, remainder: 1, apply: 1 }[command] ?? 0;
-  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'inner', 'gather', 'bare', 'paths', 'spread', 'branches', 'verify', 'relist', 'remainder'].includes(command);
+  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'wire', 'inner', 'gather', 'bare', 'paths', 'spread', 'branches', 'verify', 'relist', 'remainder'].includes(command);
   const aimed = args.flags.from && args.flags.to && args.rest.length;
-  const incomplete = ((command === 'extract' || command === 'paths') && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1))
+  const incomplete = ((command === 'extract' || command === 'paths') && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1)) || (command === 'wire' && !(aimed && args.rest.length <= 2))
     || (command === 'state' && !(aimed && args.flags.object && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))))
     || (command === 'branches' && !(args.flags.from && (args.flags.survey || (args.flags.to && (args.flags.under || args.rest.length)))))
     || (command === 'spread' && !(args.flags.from && args.flags.name && args.rest.length > 1 && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))));
@@ -276,6 +276,7 @@ async function main(argv) {
     if (command === 'relist') return runRelist({ root: REPO_ROOT, parser, base: args.flags.base || 'HEAD', dryRun: Boolean(args.flags['dry-run']) });
     if (command === 'state') return runState(parser, args);
     if (command === 'lift') return runLift(parser, args);
+    if (command === 'wire') return (await import('./wire.mjs')).runWire(parser, REPO_ROOT, args); // usage: the first lines of wire.mjs
     if (command === 'inner') return (await import('./inner.mjs')).runInner(parser, REPO_ROOT, args);
     if (command === 'gather') return (await import('./gather.mjs')).runGather(parser, REPO_ROOT, args);
     if (command === 'bare') return (await import('./bare.mjs')).runBare(parser, REPO_ROOT, args);

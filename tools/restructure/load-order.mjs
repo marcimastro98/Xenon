@@ -31,13 +31,14 @@ export function loadedBefore(log) {
 
 /**
  * @param {string[]} before @param {string[]} after
+ * @param {Set<string>} [expected] new files that are meant to load now: the modules of start-up statements (`wire`, `lift`)
  * @returns {string[]} what differs, one sentence each: the first place the two orders part, and files only one has
  */
-export function orderProblems(before, after) {
+export function orderProblems(before, after, expected = new Set()) {
   const problems = [];
   const [had, has] = [new Set(before), new Set(after)];
   const gone = before.filter((file) => !has.has(file));
-  const added = after.filter((file) => !had.has(file));
+  const added = after.filter((file) => !had.has(file) && !expected.has(file));
   if (gone.length) problems.push(`no longer loaded while the engine starts: ${gone.slice(0, 8).join(', ')}`);
   if (added.length) problems.push(`newly loaded while the engine starts: ${added.slice(0, 8).join(', ')}`);
   const [a, b] = [before.filter((file) => has.has(file)), after.filter((file) => had.has(file))];
@@ -87,9 +88,14 @@ async function main() {
   }
   const [before, after] = logs.map((log) => loadedBefore(log));
   if (!before || !after) { console.log('one of the two engines never finished loading: nothing was compared'); process.exitCode = 1; return; }
-  const problems = orderProblems(before, after);
+  // A module that holds start-up statements taken out of the engine file is new on purpose: it loads where they stood.
+  const made = Object.values(JSON.parse(readFileSync(path.join(HERE, 'extracted.json'), 'utf8')).sources ?? {}).flat()
+    .filter((entry) => entry.wire || entry.lift).map((entry) => entry.file);
+  const fresh = after.filter((file) => made.includes(file) && !before.includes(file));
+  const problems = orderProblems(before, after, new Set(fresh));
   console.log(problems.length ? problems.join('\n')
-    : `the engine loads its ${after.length} files in the same order as at ${base}`);
+    : `the engine loads its ${after.length - fresh.length} files in the same order as at ${base}`
+      + (fresh.length ? `, and ${fresh.length} new modules of start-up statements where those statements stood: ${fresh.join(', ')}` : ''));
   process.exitCode = problems.length ? 1 : 0;
 }
 

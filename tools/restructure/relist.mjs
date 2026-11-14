@@ -110,7 +110,7 @@ export function planRelist({ read, show, ledger, problems, base }) {
     }
     const made = (ledger.sources[pinned] ?? []).filter((entry) => show(entry.file) === null);
     if (made.length === 0) { refuse(`it differs from ${base} and no move out of it is recorded: it changed by hand`); continue; }
-    const rewritten = made.filter((entry) => entry.state || entry.lift || entry.paths || entry.inner || entry.block);
+    const rewritten = made.filter((entry) => entry.state || entry.lift || entry.wire || entry.paths || entry.inner || entry.block);
     if (rewritten.length) { refuse(`${rewritten.map((entry) => entry.file).join(', ')} came out of it by a rewrite, which changes the words that were read`); continue; }
     changes.push({ pinned, was: [...hashes][0], now: textHash(text), lists: [...lists],
       modules: made.map((entry) => ({ file: entry.file, hash: textHash(read(entry.file)) })) });

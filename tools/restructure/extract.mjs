@@ -19,6 +19,8 @@ import { planInnerFor } from './inner.mjs';
 import { proveInner } from './inner-proof.mjs';
 import { appendLedger, groupsOf, LEDGER, protectedNames, quietModules, readLedger } from './ledger.mjs';
 import { planLiftFor, proveLift, repoFileReader } from './lift.mjs';
+import { planWireFor, wireSpelled } from './wire.mjs';
+import { proveWire } from './wire-proof.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { planPathsFor, provePaths } from './paths.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
@@ -178,6 +180,7 @@ export function replay({ root, parser, base, show = gitShow }) {
       let plan;
       try {
         if (entry.lift) plan = planLiftFor({ ...step, name: entry.names[0] });
+        else if (entry.wire) plan = planWireFor({ ...step, ...entry.wire });
         else if (entry.paths) plan = planPathsFor({ ...step, names: entry.names });
         else if (entry.inner) plan = planInnerFor({ ...step, ...entry.inner, names: entry.names, ownModules });
         else if (entry.block) plan = planBlockFor({ ...step, ...entry.block, name: entry.names[0] });
@@ -201,11 +204,13 @@ export function replay({ root, parser, base, show = gitShow }) {
       const texts = { before: text, after: plan.newSource, moduleText: plan.moduleText, plan };
       const proof = entry.paths ? provePaths({ ...texts, parser, source, target: entry.file })
         : entry.lift ? proveLift({ ...texts, parser, source, target: entry.file, fileOf: repoFileReader(root) })
+        : entry.wire ? proveWire({ ...texts, parser, source, target: entry.file, fileOf: repoFileReader(root) })
         : entry.inner ? proveInner({ ...texts, parser, source, target: entry.file, ...entry.inner })
         : entry.block ? proveBlockFor({ ...texts, parser, source, target: entry.file, about: entry.about, ...entry.block, name: entry.names[0] })
         : entry.state ? proveState({ ...texts, parser, source }) : proveMove({ ...texts, paths: { source, target: entry.file, fileOf: repoFileReader(root) } });
       // The paths a move spelled again are in the list (engine-source.mjs reads them): the list says what the tool does.
-      const plain = !entry.lift && !entry.paths && !entry.inner && !entry.state && !entry.block;
+      if (entry.wire && JSON.stringify(wireSpelled(plan)) !== JSON.stringify(entry.spelled ?? null)) problems.push(`${entry.file}: the list does not record the paths the step spells again ("spelled")`);
+      const plain = !entry.lift && !entry.wire && !entry.paths && !entry.inner && !entry.state && !entry.block;
       if (plain && JSON.stringify(spelledOf(plan)) !== JSON.stringify(entry.spelled ?? null)) {
         problems.push(`${entry.file}: the list does not record the paths the move spells again ("spelled")`);
       }

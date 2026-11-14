@@ -137,11 +137,12 @@ export function protectedBetween(root, source) {
 /**
  * The modules the tool made out of a file that run nothing when they load: a require of one may go when nobody
  * uses it. A lifted value's module (lift.mjs) does run code, on the line where the file requires it, and is left out.
- * @param {{ file: string, lift?: boolean }[]} entries a file's entries, or the ones before a step being redone
+ * So does the module of a run of load-time statements (wire.mjs).
+ * @param {{ file: string, lift?: boolean, wire?: any }[]} entries a file's entries, or the ones before a step being redone
  * @returns {Set<string>}
  */
 export function quietModules(entries) {
-  return new Set(entries.filter((entry) => !entry.lift).map((entry) => entry.file));
+  return new Set(entries.filter((entry) => !entry.lift && !entry.wire).map((entry) => entry.file));
 }
 
 /**

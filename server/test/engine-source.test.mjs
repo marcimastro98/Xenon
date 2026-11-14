@@ -48,13 +48,14 @@ test('every module on the list exists, under the line limit, in a feature folder
 });
 
 test('a moved module loads without starting anything and gives out its names', () => {
-  for (const { file, names } of entries) {
-    const made = require(join(ROOT, file));
+  for (const { file, names, wire } of entries) {
+    // The module of a run of start-up statements (tools/restructure wire) does start things, as the engine does on that line: it is read, not loaded.
+    const made = wire ? null : require(join(ROOT, file));
     const text = readFileSync(join(ROOT, file), 'utf8');
     const exported = /\nmodule\.exports = \{([^}]*)\};\n$/.exec(text);
     assert.ok(exported, `${file} ends with one module.exports`);
     const list = exported[1].split(',').map((name) => name.trim()).filter(Boolean);
-    assert.deepEqual(Object.keys(made), list, `${file} exports what its last line says`);
+    if (made) assert.deepEqual(Object.keys(made), list, `${file} exports what its last line says`);
     for (const name of list) assert.ok(names.includes(name), `${file} exports only what was moved into it (${name})`);
     assert.ok(!/require\('\.\.\/server\.js'\)/.test(text), `${file} never requires the file it came from`);
   }

@@ -36,7 +36,7 @@ const glueLine = (name, source, target) => {
 };
 
 // What in a statement means "the file this code sits in", or could run later than the statement itself.
-function readShape(node, K, found = { functions: 0, self: 0, requires: [], oddRequires: 0 }) {
+export function readShape(node, K, found = { functions: 0, self: 0, requires: [], oddRequires: 0 }) {
   const FUNCTIONS = [K.FunctionDeclaration, K.FunctionExpression, K.ArrowFunction, K.MethodDeclaration, K.GetAccessor, K.SetAccessor,
     K.Constructor, K.ClassDeclaration, K.ClassExpression];
   const visit = (at, parent) => {

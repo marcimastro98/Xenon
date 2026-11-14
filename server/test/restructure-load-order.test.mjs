@@ -26,6 +26,10 @@ test('two orders are the same or the first place they part is named, with the fi
   assert.equal(swapped.length, 3, 'with the next files of both orders, to read on');
   assert.deepEqual(orderProblems(['a', 'b'], ['a', 'b', 'n']), ['newly loaded while the engine starts: n']);
   assert.deepEqual(orderProblems(['a', 'g', 'b'], ['a', 'b']), ['no longer loaded while the engine starts: g']);
+  // A module of start-up statements is new on purpose; any other new file is still named, and so is a changed order around it.
+  assert.deepEqual(orderProblems(['a', 'b'], ['a', 'n', 'b'], new Set(['n'])), []);
+  assert.deepEqual(orderProblems(['a', 'b'], ['a', 'n', 'b', 'm'], new Set(['n'])), ['newly loaded while the engine starts: m']);
+  assert.equal(orderProblems(['a', 'b'], ['b', 'n', 'a'], new Set(['n']))[0], 'the order parts at place 1: a was loaded there, now b is');
 });
 
 test('the preload writes every file down once, in the order of loading, and says when the engine file is through', () => {
