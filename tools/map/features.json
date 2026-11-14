@@ -541,6 +541,7 @@
         "server/benchmark.js",
         "server/linux-fps.js",
         "server/actions/perf-registry.js",
+        "server/js/performance/**",
         "server/js/performance*.js",
         "server/js/perf-*.js",
         "server/js/game-*.js",

@@ -18,7 +18,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.DriverPerf = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
-  const SCRIPTS = Object.freeze(['js/perf-settings.js', 'js/performance.js']);
+  const SCRIPTS = Object.freeze(['js/perf-settings.js', 'js/performance/session-state.js', 'js/performance/app-choice.js', 'js/performance/readings.js', 'js/performance/drawn.js', 'js/performance.js']);
   const SCREEN_PATH = '/api/performance/screen';
   const STATE_PATH = '/api/performance/state';
   // What the user set, as opposed to what a session writes while it runs: a

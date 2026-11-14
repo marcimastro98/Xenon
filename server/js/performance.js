@@ -32,95 +32,21 @@
 
 (function () {
   let _closeBanner = null;
-  let _sheetEl = null;
+  const {
+    state, tr, surface, nobodyLooking, windowsLevers, closesApps, _procKey, _boostTarget, _fmtMB,
+    _cancelAutoRestore, _idleEligible, _busyNow, _activityListeners, onActivityChange, activity,
+  } = window.PerformanceSessionState;
   let _sheetLetGo = null;
-  let _suppressBanner = false; // "don't ask again" for this page session
-  let _snoozedActivities = new Set(); // already asked: not again until the game closes or a settings change
-  let _lastActivity = 'other'; // last foreground activity we reacted to (transition tracking)
-  let _reevaluate = true;      // weigh the next activity even if it did not change (load, refresh())
-  let _lastActivityProcess = ''; // bare process name of the last non-'other' activity (priority target)
-  let _lastServerActivity = 'other'; // last raw status payload, so onObs can re-classify
-  let _lastProcess = '';
-  let _gameRunning = false;    // server-side PID liveness: false = the game truly exited
-  let _gameProcess = '';       // the running game's bare process name, from the server
-  let _obsStreaming = false;   // live OBS streaming/recording flag (via the obs SSE event)
-  let _autoRestoreTimer = null; // pending auto-restore once an auto session's activity ends
-  let _sheetWindows = [];      // windows listed on the open sheet (for choice learning)
-  let _sheetStats = null;      // process stats snapshot behind the open sheet (for impact)
-  let _sheetMeta = { by: 'manual' }; // how the open sheet was triggered: manual, or auto (then it auto-restores)
 
-  // Conservative no-AI preselection: per activity, only categories that are
-  // never the activity itself, and only when the app actually costs real RAM.
-  // Deliberately narrow — Discord stays untouched while gaming, music stays
-  // untouched while coding; the learning counters adapt the rest over time.
-  const PERF_SAFE_CLOSE = {
-    music: ['spotify', 'itunes', 'musicbee', 'aimp', 'winamp', 'tidal', 'deezer'],
-    launchers: ['steam', 'epicgameslauncher', 'battle.net', 'galaxyclient', 'ubisoftconnect', 'riotclientux', 'playnite', 'eadesktop'],
-    office: ['winword', 'excel', 'powerpnt', 'outlook', 'thunderbird', 'onenote'],
-  };
-  const ACTIVITY_SAFE_CATEGORIES = {
-    gaming: ['office'],
-    coding: ['launchers'],
-    writing: ['launchers', 'music'],
-    streaming: ['office'],
-    creating: ['launchers'],
-    meeting: ['launchers', 'music'],
-  };
-  const PRESELECT_MIN_MB = 200;       // ignore lightweight apps — not worth closing
+  const {
+    currentPerf, persist, defaultApps, effectiveApps, classify, deterministicPreselect, learnedBias,
+    _recordChoices,
+  } = window.PerformanceAppChoice;
   const AUTO_RESTORE_DELAY_MS = 45000; // grace before an auto session restores (alt-tab safe)
   const AUTO_RESTORE_QUICK_MS = 4000;  // the game actually CLOSED — restore promptly
 
-  const tr = (key, fallback) => (typeof t === 'function' && t(key)) || fallback;
-
-  // The page that shows this mode when it is not a dashboard (driver-perf.js).
-  const surface = () => window.PerfModeSurface || null;
-  // Periodic checks run on the surface someone looks at. The driver page is
-  // hidden by design and is the only owner while there is no dashboard.
-  const nobodyLooking = () => !surface() && document.hidden;
-
-  function currentPerf() {
-    return normalizePerformance(hubSettings.performance);
-  }
-
-  // Persist a runtime patch WITHOUT calling refresh() (would recurse). Merges the
-  // nested `opts`/`applied`/`activityApps` shallowly so callers can patch one key.
-  function persist(patch) {
-    const cur = currentPerf();
-    const next = {
-      ...cur, ...patch,
-      opts: { ...cur.opts, ...(patch.opts || {}) },
-      applied: { ...cur.applied, ...(patch.applied || {}) },
-      activityApps: patch.activityApps || cur.activityApps,
-    };
-    hubSettings = normalizeSettings({ ...hubSettings, performance: next });
-    saveHubSettings();
-  }
 
   // ── Activity classification (defaults + user customization) ───────
-  function defaultApps(activity) {
-    return (PERF_DEFAULT_APPS[activity] || []).slice();
-  }
-
-  function effectiveApps(activity) {
-    return perfActivityApps(currentPerf(), activity);
-  }
-
-  // Map a foreground process (+ the server's full-screen verdict) to an activity,
-  // honouring the user's custom lists. A user-listed game always wins; otherwise
-  // the server's full-screen detection drives 'gaming'. A live OBS stream counts
-  // as 'streaming' even when the focus is on an untracked window.
-  function classify(process, serverActivity) {
-    const p = String(process || '').toLowerCase().replace(/\.exe$/, '');
-    if (p && effectiveApps('gaming').includes(p)) return 'gaming';
-    if (serverActivity === 'gaming') return 'gaming';
-    for (const act of ['streaming', 'meeting', 'creating', 'coding', 'writing']) {
-      if (p && effectiveApps(act).includes(p)) return act;
-    }
-    if (_obsStreaming) return 'streaming';
-    return 'other';
-  }
-
-  let _stateSig = '';
   // Reflect the persisted "active" state onto the DOM. Safe to call repeatedly.
   function applyState() {
     const p = currentPerf();
@@ -138,42 +64,15 @@
     // session changes listen for this. applyState runs on every settings apply,
     // so it is told only when something they show has changed.
     const sig = [!!p.active, document.body.classList.contains('perf-mode'), p.barAlways].join('|');
-    if (sig === _stateSig) return;
-    _stateSig = sig;
+    if (sig === state._stateSig) return;
+    state._stateSig = sig;
     // Guarded: the widgets-only driver page and the tests run this without one.
     if (typeof CustomEvent === 'function' && typeof window.dispatchEvent === 'function') {
       window.dispatchEvent(new CustomEvent('xenon:perf-change', { detail: { active: !!p.active } }));
     }
   }
 
-  // The System tile's button is "Migliora" while nothing runs and "Ripristina"
-  // while a session does. body.perf-active changes nothing you can see, so this
-  // button was the only place a running session could have shown itself. The
-  // i18n attributes move with the text so a language switch keeps the right label.
-  function _syncSystemButtons(p) {
-    const on = !!p.active;
-    document.querySelectorAll('.sys-optimize-btn').forEach((btn) => {
-      if (btn.classList.contains('is-active') === on && btn.dataset.perfSynced) return;
-      btn.dataset.perfSynced = '1';
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      const titleKey = on ? 'settings_perf_restore_title' : 'sys_optimize';
-      btn.setAttribute('data-i18n-title', titleKey);
-      btn.title = on ? tr(titleKey, 'Performance Mode is on. Tap to restore') : tr(titleKey, 'Optimize performance');
-      const label = btn.querySelector('span');
-      if (label) {
-        const key = on ? 'settings_perf_restore' : 'sys_optimize_short';
-        label.setAttribute('data-i18n', key);
-        label.textContent = on ? tr(key, 'Restore') : tr(key, 'Optimize');
-      }
-    });
-  }
-
-  // The power plan, process priority and the background app list exist only on
-  // Windows. Anything else would only come back as a failure. XenonPlatform is ''
-  // until the server has said.
-  const windowsLevers = () => !window.XenonPlatform || window.XenonPlatform === 'win32';
-  const closesApps = (p) => p.opts.manageApps && windowsLevers();
+  const { _syncSystemButtons, _optRow, renderApps, _perfNote } = window.PerformanceDrawn;
 
   // ── Server helpers ────────────────────────────────────────────────
   async function powerPlan(method, value) {
@@ -205,46 +104,7 @@
     return geminiKeyReady(hubSettings);
   }
 
-  async function fetchWindows() {
-    try {
-      const res = await fetch(SERVER + '/windows');
-      const data = await res.json();
-      const list = Array.isArray(data && data.windows) ? data.windows : [];
-      return list.filter(w => w && w.id && !w.active && typeof w.app === 'string');
-    } catch { return []; }
-  }
-
-  // Real measurements: system memory pressure + per-process RAM/CPU, keyed by
-  // bare lowercase process name. Null when the probe fails (graceful fallback).
-  async function fetchStats() {
-    try {
-      const res = await fetch(SERVER + '/api/performance/stats');
-      const d = await res.json();
-      if (!d || !d.ok) return null;
-      const byProc = {};
-      for (const a of (Array.isArray(d.apps) ? d.apps : [])) {
-        byProc[String(a.proc || '').toLowerCase()] = { memMB: Number(a.memMB) || 0, cpuPct: Number(a.cpuPct) || 0 };
-      }
-      return { byProc, totalMB: Number(d.totalMB) || 0, freeMB: Number(d.freeMB) || 0 };
-    } catch { return null; }
-  }
-
-  // What Core Shield can do on this PC and what it did this session. It runs on the
-  // server, which sees the game and the busy apps. Null when the server did not say.
-  async function fetchShield() {
-    try {
-      const res = await fetch(SERVER + '/api/performance/shield');
-      const d = await res.json();
-      return d && d.ok ? d : null;
-    } catch { return null; }
-  }
-
-  function _procKey(name) {
-    return String(name || '').toLowerCase().trim().replace(/\.exe$/, '');
-  }
-
-  // The game while one runs: the last activity app may be the editor someone Alt-Tabbed to.
-  const _boostTarget = () => (_gameRunning && _gameProcess) || _lastActivityProcess;
+  const { fetchWindows, fetchStats, fetchShield, fetchActivity } = window.PerformanceReadings;
 
   // The tweaks that need no choice, for a session with no sheet: what the user saved.
   function savedEffective(p) {
@@ -254,55 +114,6 @@
       priorityBoost: p.opts.priorityBoost && !!_boostTarget(),
       shield: p.opts.shield,
     };
-  }
-
-  function _fmtMB(mb) {
-    return mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB';
-  }
-
-  // No-AI preselection: safe category for this activity + costs real RAM.
-  function deterministicPreselect(activity, windows, stats) {
-    const cats = ACTIVITY_SAFE_CATEGORIES[activity] || [];
-    const safe = new Set(cats.flatMap(c => PERF_SAFE_CLOSE[c] || []));
-    const out = [];
-    for (const w of windows) {
-      const proc = _procKey(w.app);
-      if (!safe.has(proc)) continue;
-      const mem = stats && stats.byProc[proc] ? stats.byProc[proc].memMB : 0;
-      if (mem >= PRESELECT_MIN_MB) out.push(w.app);
-    }
-    return out;
-  }
-
-  // Learning bias from past sheet choices: 1 = user reliably closes this app,
-  // -1 = user reliably keeps it (overrides any preselection), 0 = no signal.
-  function learnedBias(proc, perf) {
-    const c = (perf.appChoices || {})[proc];
-    if (!c) return 0;
-    if (c.closed >= 2 && c.closed > c.kept) return 1;
-    if (c.kept >= 2 && c.kept >= c.closed) return -1;
-    return 0;
-  }
-
-  // Update the keep/close counters from what the user actually applied.
-  function _recordChoices(selected) {
-    if (!_sheetWindows.length) return;
-    const chosen = new Set(selected.map(a => _procKey(a.name)));
-    const next = { ...currentPerf().appChoices };
-    for (const w of _sheetWindows) {
-      const proc = _procKey(w.app);
-      if (!proc) continue;
-      const c = next[proc] || { kept: 0, closed: 0 };
-      next[proc] = chosen.has(proc)
-        ? { kept: c.kept, closed: Math.min(99, c.closed + 1) }
-        : { kept: Math.min(99, c.kept + 1), closed: c.closed };
-    }
-    persist({ appChoices: next });
-  }
-
-  async function fetchActivity() {
-    try { const res = await fetch(SERVER + '/api/gamemode/status'); const d = await res.json(); return classify(d && d.foreground && d.foreground.process, d && d.activity); }
-    catch { return 'other'; }
   }
 
   async function fetchPlan(p, activity, appNames) {
@@ -369,7 +180,7 @@
           if (r && r.ok && r.path) {
             closed.push({ name: r.app || a.name || '', path: r.path });
             // Measured impact: the RAM this app held when the sheet was opened.
-            const s = _sheetStats && _sheetStats.byProc[_procKey(r.app || a.name)];
+            const s = state._sheetStats && state._sheetStats.byProc[_procKey(r.app || a.name)];
             if (s) freedMB += s.memMB;
           } else if (!r || !r.ok) ok = false;
         } catch { ok = false; }
@@ -439,11 +250,11 @@
   }
 
   function _scheduleAutoRestore(delayMs = AUTO_RESTORE_DELAY_MS) {
-    if (_autoRestoreTimer) return;
-    _autoRestoreTimer = setTimeout(async () => {
-      _autoRestoreTimer = null;
+    if (state._autoRestoreTimer) return;
+    state._autoRestoreTimer = setTimeout(async () => {
+      state._autoRestoreTimer = null;
       const p = currentPerf();
-      const cur = _lastActivity;
+      const cur = state._lastActivity;
       const stillEnabled = cur !== 'other' && p.autoActivities && p.autoActivities[cur];
       if (p.active && p.activatedBy === 'auto' && !stillEnabled) await restore({ auto: true });
     }, delayMs);
@@ -454,14 +265,10 @@
   // sitting out the rest of it just leaves Performance Mode on for no reason —
   // reschedule the pending restore to fire promptly instead.
   function _expediteAutoRestore() {
-    if (!_autoRestoreTimer) return;
-    clearTimeout(_autoRestoreTimer);
-    _autoRestoreTimer = null;
+    if (!state._autoRestoreTimer) return;
+    clearTimeout(state._autoRestoreTimer);
+    state._autoRestoreTimer = null;
     _scheduleAutoRestore(AUTO_RESTORE_QUICK_MS);
-  }
-
-  function _cancelAutoRestore() {
-    if (_autoRestoreTimer) { clearTimeout(_autoRestoreTimer); _autoRestoreTimer = null; }
   }
 
   // ── a session must not outlive the app it was started for ─────────
@@ -482,8 +289,6 @@
   const STALE_POLL_MS = 5 * 60 * 1000;   // the slow sweep, for a session already stale at load
   const STALE_FIRST_MS = 15000;          // …but ask soon after the dashboard settles
   const STALE_RECHECK_MS = 30000;        // an app that is merely restarting gets a second chance
-  let _stalePoll = null;
-  let _staleRecheck = null;
 
   // Is the app the session was started for still running?
   //
@@ -514,8 +319,8 @@
     if (!isRecheck) {
       // Ask once more in a moment: an app that is restarting is briefly absent,
       // and ending somebody's session by mistake is worse than ending it late.
-      if (_staleRecheck) return;
-      _staleRecheck = setTimeout(() => { _staleRecheck = null; _checkStale(true); }, STALE_RECHECK_MS);
+      if (state._staleRecheck) return;
+      state._staleRecheck = setTimeout(() => { state._staleRecheck = null; _checkStale(true); }, STALE_RECHECK_MS);
       return;
     }
     // The session may have been ended, or re-pointed at another app, while we
@@ -534,16 +339,16 @@
   function _syncStaleWatch() {
     const p = currentPerf();
     const want = !!(p.active && p.applied && p.applied.boostedProc);
-    if (want && !_stalePoll) {
+    if (want && !state._stalePoll) {
       // Gated on the tab being visible, like every other periodic client work:
       // with nobody looking, a session ending a few minutes later costs nothing.
       const tick = () => { if (!nobodyLooking()) _checkStale(false); };
       setTimeout(tick, STALE_FIRST_MS);
-      _stalePoll = setInterval(tick, STALE_POLL_MS);
-    } else if (!want && _stalePoll) {
-      clearInterval(_stalePoll);
-      _stalePoll = null;
-      if (_staleRecheck) { clearTimeout(_staleRecheck); _staleRecheck = null; }
+      state._stalePoll = setInterval(tick, STALE_POLL_MS);
+    } else if (!want && state._stalePoll) {
+      clearInterval(state._stalePoll);
+      state._stalePoll = null;
+      if (state._staleRecheck) { clearTimeout(state._staleRecheck); state._staleRecheck = null; }
     }
   }
 
@@ -557,42 +362,31 @@
   // counts as busy restarts the count, so it never ends under a game.
   const IDLE_END_MS = 20 * 60 * 1000;
   const IDLE_TICK_MS = 60 * 1000;
-  let _idleSince = 0;
-  let _idleTimer = null;
-
-  function _idleEligible(p) {
-    return !!(p.active && p.activatedBy === 'manual' && !(p.applied && p.applied.boostedProc));
-  }
-
-  function _busyNow(p) {
-    if (_gameRunning) return true;
-    return _lastActivity !== 'other' && !!(p.autoActivities && p.autoActivities[_lastActivity]);
-  }
 
   async function _idleTick() {
     const p = currentPerf();
     if (!_idleEligible(p)) return;
-    if (_busyNow(p)) { _idleSince = 0; return; }
+    if (_busyNow(p)) { state._idleSince = 0; return; }
     const now = Date.now();
-    if (!_idleSince) { _idleSince = now; return; }
+    if (!state._idleSince) { state._idleSince = now; return; }
     // A surface nobody is looking at leaves this to the one that is: restore()
     // relaunches closed apps, and two surfaces doing it at once would do it twice.
     if (nobodyLooking()) return;
-    if (now - _idleSince < IDLE_END_MS) return;
-    _idleSince = 0;
+    if (now - state._idleSince < IDLE_END_MS) return;
+    state._idleSince = 0;
     await restore({ auto: true });   // toasts, so it is never a silent change
   }
 
   function _syncIdleWatch() {
     const want = _idleEligible(currentPerf());
-    if (want && !_idleTimer) {
-      _idleSince = 0;
-      _idleTimer = setInterval(() => { _idleTick().catch(() => {}); }, IDLE_TICK_MS);
+    if (want && !state._idleTimer) {
+      state._idleSince = 0;
+      state._idleTimer = setInterval(() => { _idleTick().catch(() => {}); }, IDLE_TICK_MS);
       _idleTick().catch(() => {});
-    } else if (!want && _idleTimer) {
-      clearInterval(_idleTimer);
-      _idleTimer = null;
-      _idleSince = 0;
+    } else if (!want && state._idleTimer) {
+      clearInterval(state._idleTimer);
+      state._idleTimer = null;
+      state._idleSince = 0;
     }
   }
 
@@ -676,7 +470,7 @@
       const selected = collectSelectedApps();
       _recordChoices(selected); // learn which apps this user keeps vs closes
       closeSheet();
-      applyOptimizations(effective, selected, _sheetMeta);
+      applyOptimizations(effective, selected, state._sheetMeta);
     });
     actions.appendChild(cancel);
     actions.appendChild(apply);
@@ -686,30 +480,16 @@
     return overlay;
   }
 
-  function _optRow(opt, label) {
-    const row = document.createElement('label');
-    row.className = 'perf-sheet-opt';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.dataset.opt = opt;
-    const name = document.createElement('span');
-    name.className = 'perf-sheet-opt-label';
-    name.textContent = label;
-    row.appendChild(cb);
-    row.appendChild(name);
-    return row;
-  }
-
   function openSheet() {
     if (_sheetLetGo) return;
-    _sheetEl.hidden = false;
+    state._sheetEl.hidden = false;
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('perf-sheet', true);
-    _sheetLetGo = window.DialogFocus.hold(_sheetEl, { start: _sheetEl.querySelector('.perf-btn-primary'), onEsc: dismissSheet });
+    _sheetLetGo = window.DialogFocus.hold(state._sheetEl, { start: state._sheetEl.querySelector('.perf-btn-primary'), onEsc: dismissSheet });
   }
 
   function closeSheet() {
-    if (!_sheetEl || _sheetEl.hidden) return;
-    _sheetEl.hidden = true;
+    if (!state._sheetEl || state._sheetEl.hidden) return;
+    state._sheetEl.hidden = true;
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('perf-sheet', false);
     _sheetLetGo();
     _sheetLetGo = null;
@@ -720,20 +500,20 @@
   // doesn't keep re-opening the sheet. Applying instead goes through closeSheet
   // (no snooze), so auto mode still re-optimizes on the next, fresh session.
   function dismissSheet() {
-    if (_sheetMeta && _sheetMeta.by === 'auto' && _sheetMeta.activity) {
-      _snoozedActivities.add(_sheetMeta.activity);
+    if (state._sheetMeta && state._sheetMeta.by === 'auto' && state._sheetMeta.activity) {
+      state._snoozedActivities.add(state._sheetMeta.activity);
     }
     closeSheet();
   }
 
   function collectEffective() {
     const p = currentPerf();
-    const pa = _sheetEl && _sheetEl.querySelector('[data-opt="pauseAnimations"]');
-    const pp = _sheetEl && _sheetEl.querySelector('[data-opt="powerPlan"]');
-    const prioRow = _sheetEl && _sheetEl.querySelector('.perf-sheet-opt-priority');
-    const prioCb = _sheetEl && _sheetEl.querySelector('[data-opt="priorityBoost"]');
-    const shieldRow = _sheetEl && _sheetEl.querySelector('.perf-sheet-opt-shield');
-    const shieldCb = _sheetEl && _sheetEl.querySelector('[data-opt="shield"]');
+    const pa = state._sheetEl && state._sheetEl.querySelector('[data-opt="pauseAnimations"]');
+    const pp = state._sheetEl && state._sheetEl.querySelector('[data-opt="powerPlan"]');
+    const prioRow = state._sheetEl && state._sheetEl.querySelector('.perf-sheet-opt-priority');
+    const prioCb = state._sheetEl && state._sheetEl.querySelector('[data-opt="priorityBoost"]');
+    const shieldRow = state._sheetEl && state._sheetEl.querySelector('.perf-sheet-opt-shield');
+    const shieldCb = state._sheetEl && state._sheetEl.querySelector('[data-opt="shield"]');
     const powerPlan = (pp && pp.checked) ? (p.opts.powerPlan !== 'none' ? p.opts.powerPlan : 'high') : 'none';
     const priorityBoost = !!(prioCb && prioCb.checked && prioRow && !prioRow.hidden);
     const shield = !!(shieldCb && shieldCb.checked && shieldRow && !shieldRow.hidden);
@@ -741,57 +521,9 @@
   }
 
   function collectSelectedApps() {
-    if (!_sheetEl) return [];
-    const checks = _sheetEl.querySelectorAll('.perf-sheet-apps-list input[type="checkbox"]:checked');
+    if (!state._sheetEl) return [];
+    const checks = state._sheetEl.querySelectorAll('.perf-sheet-apps-list input[type="checkbox"]:checked');
     return Array.from(checks).map(c => ({ id: c.dataset.id, name: c.dataset.name }));
-  }
-
-  // Render the closable-app checklist. Pre-checked: the AI's picks when
-  // available, else the conservative deterministic preselect — in both cases
-  // corrected by what this user has reliably kept/closed before. Each row shows
-  // the app's measured RAM so the choice is informed.
-  function renderApps(appsList, windows, preselect, stats, perf) {
-    appsList.textContent = '';
-    const pre = new Set((Array.isArray(preselect) ? preselect : []).map(n => String(n).toLowerCase()));
-    if (!windows.length) {
-      const li = document.createElement('li');
-      li.className = 'perf-sheet-apps-empty';
-      li.textContent = tr('perf_sheet_apps_empty', 'No background apps to close.');
-      appsList.appendChild(li);
-      return;
-    }
-    for (const w of windows) {
-      const proc = _procKey(w.app);
-      const li = document.createElement('li');
-      const label = document.createElement('label');
-      label.className = 'perf-sheet-app';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.dataset.id = String(w.id);
-      cb.dataset.name = String(w.app || '');
-      cb.checked = pre.has(String(w.app || '').toLowerCase());
-      const bias = learnedBias(proc, perf || currentPerf());
-      if (bias === 1) cb.checked = true;
-      else if (bias === -1) cb.checked = false; // the user's own habit beats any suggestion
-      const name = document.createElement('span');
-      name.className = 'perf-sheet-app-name';
-      name.textContent = w.app || w.title || '—';
-      const ttl = document.createElement('span');
-      ttl.className = 'perf-sheet-app-title';
-      ttl.textContent = w.title || '';
-      label.appendChild(cb);
-      label.appendChild(name);
-      label.appendChild(ttl);
-      const s = stats && stats.byProc[proc];
-      if (s && s.memMB >= 50) {
-        const mem = document.createElement('span');
-        mem.className = 'perf-sheet-app-mem';
-        mem.textContent = _fmtMB(s.memMB);
-        label.appendChild(mem);
-      }
-      li.appendChild(label);
-      appsList.appendChild(li);
-    }
   }
 
   // Open the chooser. Always available (manual / System-panel / voice): the sheet
@@ -801,12 +533,12 @@
   // activity } when an automatic-mode session opens the sheet so its Apply still
   // tags the session 'auto' (and it auto-restores when the activity ends).
   async function optimize(meta) {
-    _sheetMeta = (meta && meta.by === 'auto') ? { by: 'auto', activity: meta.activity || 'other' } : { by: 'manual' };
+    state._sheetMeta = (meta && meta.by === 'auto') ? { by: 'auto', activity: meta.activity || 'other' } : { by: 'manual' };
     // No dashboard, no sheet: the safe, reversible tweaks the user saved.
     if (surface()) {
       const p = currentPerf();
       if (p.active) return;
-      await applyOptimizations(savedEffective(p), [], _sheetMeta);
+      await applyOptimizations(savedEffective(p), [], state._sheetMeta);
       return;
     }
     // Loading state on the System-panel button while we fetch apps + ask the AI
@@ -827,8 +559,8 @@
       closesApps(p) ? fetchStats() : Promise.resolve(null),
       fetchShield(),
     ]);
-    _sheetWindows = windows;
-    _sheetStats = stats;
+    state._sheetWindows = windows;
+    state._sheetStats = stats;
     let plan = null;
     let activity = 'other';
     if (closesApps(p) && windows.length) {
@@ -839,32 +571,32 @@
       }
     }
 
-    if (!_sheetEl) _sheetEl = buildSheet();
+    if (!state._sheetEl) state._sheetEl = buildSheet();
 
     // Pre-set the option toggles from the saved defaults.
-    const pa = _sheetEl.querySelector('[data-opt="pauseAnimations"]');
-    const pp = _sheetEl.querySelector('[data-opt="powerPlan"]');
+    const pa = state._sheetEl.querySelector('[data-opt="pauseAnimations"]');
+    const pp = state._sheetEl.querySelector('[data-opt="powerPlan"]');
     if (pa) pa.checked = p.opts.pauseAnimations;
     if (pp) pp.checked = p.opts.powerPlan !== 'none';
     // Priority boost only makes sense when we know which app to boost; show that
     // row only when an activity app has been detected this session.
-    const prioRow = _sheetEl.querySelector('.perf-sheet-opt-priority');
-    const prioCb = _sheetEl.querySelector('[data-opt="priorityBoost"]');
+    const prioRow = state._sheetEl.querySelector('.perf-sheet-opt-priority');
+    const prioCb = state._sheetEl.querySelector('[data-opt="priorityBoost"]');
     if (prioRow) prioRow.hidden = !_boostTarget();
     if (prioCb) prioCb.checked = p.opts.priorityBoost && !!_boostTarget();
     // Core Shield needs enough cores and the OS tool for it, so the server says.
     const canShield = !!(shield && shield.available);
-    const shieldRow = _sheetEl.querySelector('.perf-sheet-opt-shield');
-    const shieldCb = _sheetEl.querySelector('[data-opt="shield"]');
+    const shieldRow = state._sheetEl.querySelector('.perf-sheet-opt-shield');
+    const shieldCb = state._sheetEl.querySelector('[data-opt="shield"]');
     if (shieldRow) shieldRow.hidden = !canShield;
     if (shieldCb) shieldCb.checked = p.opts.shield && canShield;
 
-    const intro = _sheetEl.querySelector('.perf-sheet-intro');
+    const intro = state._sheetEl.querySelector('.perf-sheet-intro');
     intro.textContent = (plan && plan.explanation) || '';
     intro.hidden = !intro.textContent;
 
-    const appsWrap = _sheetEl.querySelector('.perf-sheet-apps');
-    const appsList = _sheetEl.querySelector('.perf-sheet-apps-list');
+    const appsWrap = state._sheetEl.querySelector('.perf-sheet-apps');
+    const appsList = state._sheetEl.querySelector('.perf-sheet-apps-list');
     if (closesApps(p)) {
       appsWrap.hidden = false;
       appsWrap.querySelector('.perf-sheet-apps-head').hidden = !windows.length;
@@ -888,9 +620,9 @@
   function answer(choice) {
     if (choice === 'optimize') { hideBanner(); return optimize(); }
     if (choice === 'restore') { hideBanner(); return currentPerf().active ? restore() : undefined; }
-    if (choice === 'ignore') { _snoozedActivities.add(_lastActivity); hideBanner(); return undefined; }
+    if (choice === 'ignore') { state._snoozedActivities.add(state._lastActivity); hideBanner(); return undefined; }
     if (choice === 'never') {
-      _suppressBanner = true;
+      state._suppressBanner = true;
       persist({ autoSuggest: false });
       if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
       hideBanner();
@@ -898,10 +630,9 @@
     return undefined;
   }
 
-  let _suggesting = false;
   function showBanner(activity) {
     const s = surface();
-    if (s) { _suggesting = true; s.suggest(activity); return; }
+    if (s) { state._suggesting = true; s.suggest(activity); return; }
     hideBanner();
     const parts = window.AlertToasts.perfPrompt(activity, { t: tr }, answer);
     if (parts) _closeBanner = window.XenonBitCard.ask(parts, { bit: window.XenonReleaseNotes.bit });
@@ -909,37 +640,17 @@
 
   function hideBanner() {
     const s = surface();
-    if (s) { if (_suggesting) { _suggesting = false; s.hide(); } return; }
+    if (s) { if (state._suggesting) { state._suggesting = false; s.hide(); } return; }
     if (!_closeBanner) return;
     _closeBanner();
     _closeBanner = null;
   }
 
-  // The notice that an optimize or restore finished, the same one the alerts window
-  // shows. `note` is { key, activity, freed, moved }.
-  function _perfNote(note, kind) {
-    const s = surface();
-    if (s) { s.toast(note, kind); return; }
-    window.XenonToast.show(window.AlertToasts.perfNote(note, kind, { t: tr }));
-  }
-
-  // React to a (classified) activity transition. In 'suggest' mode this shows
-  // the question; in 'auto' mode it applies the safe tweaks directly, or opens the
-  // confirmation sheet when app-closing is enabled (a real choice to make). Auto
-  // sessions also retire themselves: when their activity ends (and no other
-  // enabled one took over), everything is restored after a grace period.
-  // Subscribers notified on every CLASSIFIED activity transition, regardless of
-  // whether the optimizer itself acts (Smart context profiles hooks in here so
-  // there is a single activity concept). Kept lightweight; listeners must not throw.
-  const _activityListeners = [];
-  function onActivityChange(fn) { if (typeof fn === 'function') _activityListeners.push(fn); }
-  function activity() { return _lastActivity; }
-
   function _react(a) {
-    const changed = a !== _lastActivity;
-    if (!changed && !_reevaluate) return;
-    _reevaluate = false;
-    _lastActivity = a;
+    const changed = a !== state._lastActivity;
+    if (!changed && !state._reevaluate) return;
+    state._reevaluate = false;
+    state._lastActivity = a;
     if (changed) {
       for (let i = 0; i < _activityListeners.length; i++) {
         try { _activityListeners[i](a); } catch (e) { /* a listener must never break detection */ }
@@ -954,7 +665,7 @@
     }
 
     if (!suggestible) { hideBanner(); return; }
-    if (!p.enabled || p.active || _suppressBanner || _snoozedActivities.has(a)) return;
+    if (!p.enabled || p.active || state._suppressBanner || state._snoozedActivities.has(a)) return;
     if (p.autoMode === 'auto') {
       // Auto mode applies the safe reversible tweaks by itself. But when app
       // closing is enabled there's a real choice to make (which apps, plus the
@@ -967,38 +678,38 @@
     if (!p.autoSuggest) return;
     // One question per game: Alt-Tab out and back is the same game, whatever
     // became of the card (answered, closed, timed out).
-    _snoozedActivities.add(a);
+    state._snoozedActivities.add(a);
     showBanner(a);
   }
 
   // Preferred entry: classify the live status (activity + foreground process)
   // through the user's custom lists, then react.
   function onStatus(serverActivity, process, gameRunning, gameProcess) {
-    _lastServerActivity = serverActivity;
-    _lastProcess = process;
-    const wasGameRunning = _gameRunning;
-    if (typeof gameRunning === 'boolean') _gameRunning = gameRunning;
-    _gameProcess = _procKey(gameProcess);
+    state._lastServerActivity = serverActivity;
+    state._lastProcess = process;
+    const wasGameRunning = state._gameRunning;
+    if (typeof gameRunning === 'boolean') state._gameRunning = gameRunning;
+    state._gameProcess = _procKey(gameProcess);
     const a = classify(process, serverActivity);
     const p = String(process || '').toLowerCase().replace(/\.exe$/, '');
-    if (a !== 'other' && p) _lastActivityProcess = p; // remember the app to boost
+    if (a !== 'other' && p) state._lastActivityProcess = p; // remember the app to boost
     _react(a);
     // Game process died (as opposed to just losing focus): any pending
     // auto-restore can stop waiting out the Alt-Tab grace, and a session that
     // was started FOR that app — including a manual one, which has no other way
     // to end — starts counting its way out.
-    if (wasGameRunning && !_gameRunning) { _snoozedActivities.delete('gaming'); _expediteAutoRestore(); _checkStale(false); }
+    if (wasGameRunning && !state._gameRunning) { state._snoozedActivities.delete('gaming'); _expediteAutoRestore(); _checkStale(false); }
     // A game or opted-in activity between two idle ticks still counts as busy.
-    if (_idleTimer && _busyNow(currentPerf())) _idleSince = 0;
+    if (state._idleTimer && _busyNow(currentPerf())) state._idleSince = 0;
   }
 
   // Live OBS state (obs SSE event): going on-air counts as a streaming session
   // even when the focus sits on an untracked window, so re-classify on change.
   function onObs(d) {
     const now = !!(d && (d.obsStreaming || d.obsRecording));
-    if (now === _obsStreaming) return;
-    _obsStreaming = now;
-    _react(classify(_lastProcess, _lastServerActivity));
+    if (now === state._obsStreaming) return;
+    state._obsStreaming = now;
+    _react(classify(state._lastProcess, state._lastServerActivity));
   }
 
   // Compat shims for callers without the process name.
@@ -1014,7 +725,7 @@
   // (the next status tick asks again if it still applies), or it outlived the
   // activity. That tick is always weighed, even when it reads 'other': otherwise
   // an automatic session running across the change never scheduled its restore.
-  function refresh() { applyState(); hideBanner(); _lastActivity = 'other'; _reevaluate = true; _snoozedActivities.clear(); }
+  function refresh() { applyState(); hideBanner(); state._lastActivity = 'other'; state._reevaluate = true; state._snoozedActivities.clear(); }
   function init() { applyState(); }
 
   window.PerfMode = { init, refresh, optimize, restore, quick, answer, onStatus, onActivity, onActivityChange, activity, onGaming, onObs, applyState, defaultApps, effectiveApps };

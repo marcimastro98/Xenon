@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5925,
+  "total": 5924,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -838,8 +838,11 @@
     "server/js/perf-widget.js complexity/useArrowFunction": 1,
     "server/js/perf-widget.js complexity/useOptionalChain": 1,
     "server/js/performance.js complexity/useArrowFunction": 1,
-    "server/js/performance.js complexity/useOptionalChain": 36,
-    "server/js/performance.js style/useConst": 1,
+    "server/js/performance.js complexity/useOptionalChain": 25,
+    "server/js/performance/app-choice.js complexity/useOptionalChain": 2,
+    "server/js/performance/drawn.js complexity/useOptionalChain": 1,
+    "server/js/performance/readings.js complexity/useOptionalChain": 6,
+    "server/js/performance/session-state.js complexity/useOptionalChain": 2,
     "server/js/phone-view.js complexity/useArrowFunction": 1,
     "server/js/phone-view.js complexity/useOptionalChain": 9,
     "server/js/phone-view.js suspicious/useIterableCallbackReturn": 5,

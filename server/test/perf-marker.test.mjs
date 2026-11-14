@@ -159,7 +159,7 @@ test('the marker sits with the clock, so both chromes show it, and can be hidden
 test('Performance Mode tells the bar only when something it shows changed', () => {
   const src = read('../js/performance.js');
   const fn = src.slice(src.indexOf('  function applyState() {'), src.indexOf('\n  }\n', src.indexOf('  function applyState() {')));
-  assert.match(fn, /if \(sig === _stateSig\) return;/);
+  assert.match(fn, /if \(sig === state\._stateSig\) return;/);
   assert.match(fn, /window\.dispatchEvent\(new CustomEvent\('xenon:perf-change'/);
   assert.match(fn, /p\.barAlways/);
 });

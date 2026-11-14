@@ -99,7 +99,7 @@
     "server/js/notifications-widget.js": 461,
     "server/js/onboarding.js": 309,
     "server/js/perf-widget.js": 348,
-    "server/js/performance.js": 1027,
+    "server/js/performance.js": 738,
     "server/js/phone-view.js": 787,
     "server/js/phone-widget.js": 720,
     "server/js/preset-share.js": 5050,
