@@ -32,37 +32,7 @@ const { createAppIcons } = require('./linux-app-icons.js');
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
 
-// --- Memory: /proc/meminfo, because os.freemem() means something else here ---
-// os.freemem() is MemFree, which excludes the page cache the kernel would hand
-// straight back — so `total - free` counts every cached file as used and the
-// RAM tile reads far higher than anything the user's own tools show. On Windows
-// the same call is ullAvailPhys and already accounts for that, which is why the
-// figure was right there and wrong the moment the port reached a second OS.
-// MemAvailable is the kernel's own answer to "how much could a new workload
-// get", which is exactly the Windows meaning, and it has been in /proc/meminfo
-// since 3.14. Where it is missing the classic approximation stands in.
-function parseMemInfo(out) {
-  const kb = (label) => {
-    const m = new RegExp(`^${label}:\\s+(\\d+)\\s*kB`, 'm').exec(String(out || ''));
-    return m ? Number(m[1]) * 1024 : null;
-  };
-  const total = kb('MemTotal');
-  if (!total) return null;
-  let available = kb('MemAvailable');
-  if (available === null) {
-    const free = kb('MemFree'), buffers = kb('Buffers'), cached = kb('Cached');
-    if (free === null) return null;
-    available = free + (buffers || 0) + (cached || 0);
-  }
-  return { used: Math.max(0, Math.min(total, total - available)), total };
-}
-
-async function memory() {
-  let raw = null;
-  try { raw = await fsp.readFile('/proc/meminfo', 'utf8'); } catch { /* not procfs */ }
-  const parsed = raw === null ? null : parseMemInfo(raw);
-  return parsed || { used: os.totalmem() - os.freemem(), total: os.totalmem() };
-}
+const { parseMemInfo, memory } = require('./platform/linux-memory.js');
 
 const { run, mapLimit, readText } = require('./platform/linux-read.js');
 
@@ -353,25 +323,7 @@ async function sendKeys(combo) {
   catch { return { ok: false, error: 'ydotool_failed' }; }
 }
 
-// --- Showing the desktop: Bit's "I'll hide your windows" (vitals-nag.js) -----
-// X11 has a standard for it: _NET_SHOWING_DESKTOP, which `wmctrl -k on` sets on
-// every EWMH window manager (GNOME, KDE, Xfce, Cinnamon, MATE…). Wayland has no
-// protocol for one app to hide the others; KDE's KWin still answers its own
-// global shortcut over D-Bus ("Show Desktop", Meta+D, src/useractions.cpp), so
-// Plasma works there too. GNOME on Wayland exposes nothing an app may call, so
-// it is the one desktop where this is not possible.
-function linuxSession(env = process.env) {
-  const wayland = !!(env.WAYLAND_DISPLAY || String(env.XDG_SESSION_TYPE || '').toLowerCase() === 'wayland');
-  const desktop = String(env.XDG_CURRENT_DESKTOP || env.DESKTOP_SESSION || '').toLowerCase();
-  return { wayland, kde: /kde|plasma/.test(desktop) };
-}
-
-// → 'wmctrl' | 'kwin' | '' (cannot here), given which tools answer.
-function pickHideTool(session, has) {
-  if (!session.wayland && has.wmctrl) return 'wmctrl';
-  if (session.kde && has.dbusSend) return 'kwin';
-  return '';
-}
+const { linuxSession, pickHideTool } = require('./platform/linux-hide-tool.js');
 
 let _hideProbe = null;
 // Why it cannot, when it cannot: 'wayland' (no desktop API) or 'needs_wmctrl'.
@@ -412,46 +364,7 @@ async function notify(title, text) {
   await run('notify-send', ['--app-name=Xenon', '--', String(title), String(text)], 5000);
 }
 
-// --- Per-process CPU/RAM for the `processes` stream -------------------------
-// One read of /proc/<pid>/stat per process carries BOTH the cumulative CPU time
-// and the resident set, so this needs no external tool and no second file.
-//
-// Per-process GPU is deliberately absent rather than approximated. It exists on
-// Linux only through DRM fdinfo (i915/amdgpu, recent kernels) or `nvidia-smi
-// pmon`, each covering one vendor and neither covering a hybrid laptop
-// correctly. `gpuAvail: false` makes the widget hide the column and say why,
-// which is the honest answer; a column of zeros would read as "nothing is using
-// the GPU" and be worse than no column at all.
-//
-// /proc/[pid]/stat fields are 1-indexed in proc(5). comm (field 2) is wrapped in
-// parentheses AND may itself contain spaces and parentheses — "((sd-pam))" is
-// real — so it is cut at the LAST ')' rather than tokenised.
-const USER_HZ = 100;   // fixed by the kernel ABI for /proc/[pid]/stat, not by CONFIG_HZ
-
-function parseProcStat(text) {
-  const line = String(text || '').trim();
-  const open = line.indexOf('(');
-  const close = line.lastIndexOf(')');
-  if (open < 0 || close < open) return null;
-  const pid = Number(line.slice(0, open).trim());
-  const name = line.slice(open + 1, close);
-  if (!Number.isInteger(pid) || pid <= 0 || !name) return null;
-  // After the closing paren the first token is field 3 (state), so field N sits
-  // at index N-3: ppid=4 -> 1, utime=14 -> 11, stime=15 -> 12, starttime=22 -> 19, rss=24 -> 21.
-  const rest = line.slice(close + 1).trim().split(/\s+/);
-  const utime = Number(rest[11]);
-  const stime = Number(rest[12]);
-  const rssPages = Number(rest[21]);
-  if (!Number.isFinite(utime) || !Number.isFinite(stime)) return null;
-  return {
-    pid,
-    ppid: Number(rest[1]) || 0,
-    name,
-    startTicks: Number(rest[19]) || 0,
-    cpuMs: ((utime + stime) / USER_HZ) * 1000,
-    rssPages: Number.isFinite(rssPages) && rssPages > 0 ? rssPages : 0,
-  };
-}
+const { parseProcStat } = require('./platform/linux-proc-stat.js');
 
 // The page size is needed to turn stat's rss (in pages) into bytes, and Node
 // exposes no sysconf(_SC_PAGESIZE). Deriving it once from OUR OWN process — where

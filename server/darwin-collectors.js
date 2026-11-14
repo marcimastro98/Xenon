@@ -45,50 +45,10 @@ const path = require('path');
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
 
-const { run, runSoft, isFiniteNum } = require('./platform/darwin-read.js');
+const { run, runSoft } = require('./platform/darwin-read.js');
 
 
-// --- Memory: vm_stat, because os.freemem() does not mean the same thing here --
-// On Windows os.freemem() is ullAvailPhys, which already counts the standby
-// pages the OS would hand back on demand. On macOS it is the Mach free_count
-// and nothing else, and this OS deliberately keeps that near zero: measured on
-// an idle 8 GB M2, os.freemem() answered 0.06 GB, so `total - free` reported
-// 99% used and the RAM tile sat there permanently. It is the same figure on
-// every Mac, which makes it useless rather than merely wrong.
-//
-// The replacement is Activity Monitor's own "Memory Used" — App Memory + Wired
-// + Compressed — so the number on the dashboard is the number the user can
-// check against Apple's own tool. Compressed memory is REAL occupancy (this
-// machine had 698k pages compressed into 154k) and counting it as free would
-// understate the pressure exactly when it matters.
-function parseVmStat(out, totalBytes) {
-  const text = String(out || '');
-  const pageSize = Number((/page size of (\d+) bytes/.exec(text) || [])[1]) || 4096;
-  const pages = (label) => {
-    const m = new RegExp(`^${label}:\\s+(\\d+)\\.?\\s*$`, 'm').exec(text);
-    return m ? Number(m[1]) : null;
-  };
-  const anonymous = pages('Anonymous pages');
-  const wired = pages('Pages wired down');
-  const compressor = pages('Pages occupied by compressor');
-  const purgeable = pages('Pages purgeable');
-  const total = isFiniteNum(totalBytes) && totalBytes > 0 ? totalBytes : null;
-  if (anonymous === null || wired === null || total === null) return null;
-  // Purgeable pages are anonymous but reclaimable on demand — Apple excludes
-  // them from App Memory, and so do we. `compressor` is absent on older vm_stat
-  // builds; treating it as zero understates by that much rather than refusing
-  // to report at all.
-  const used = (Math.max(0, anonymous - (purgeable || 0)) + wired + (compressor || 0)) * pageSize;
-  return { used: Math.min(total, used), total };
-}
-
-async function memory() {
-  const out = await runSoft('vm_stat', [], 4000);
-  const parsed = out === null ? null : parseVmStat(out, os.totalmem());
-  // A machine whose vm_stat we cannot read still gets a reading, just the old
-  // pessimistic one — never a blank tile.
-  return parsed || { used: os.totalmem() - os.freemem(), total: os.totalmem() };
-}
+const { parseVmStat, memory } = require('./platform/darwin-memory.js');
 
 const { ratioToPct, parseMacmon, parseHelperTemps } = require('./platform/darwin-sensor-text.js');
 
@@ -222,31 +182,7 @@ function liveSensors() {
 // is running, so it is resolved once and memoised for the process lifetime.
 const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null, gpuClockMHz: null, vramClockMHz: null };
 
-function parseDisplaysJson(raw) {
-  let doc;
-  try { doc = JSON.parse(raw); } catch { return { gpuName: null, vramTotal: null }; }
-  const list = doc && Array.isArray(doc.SPDisplaysDataType) ? doc.SPDisplaysDataType : [];
-  // Switchable-graphics Intel Macs list BOTH GPUs, and the integrated one can
-  // come first. The discrete card is the one with dedicated VRAM — an iGPU
-  // only ever reports spdisplays_vram_shared — so it wins over a first-listed
-  // iGPU instead of taking whatever enumeration order gives. Apple Silicon
-  // lists exactly one entry and is untouched by the preference.
-  let card = null;
-  for (const c of list) {
-    if (!c || typeof c !== 'object') continue;
-    if (!card || (String(c.spdisplays_vram || '').trim() && !String(card.spdisplays_vram || '').trim())) card = c;
-  }
-  if (!card) return { gpuName: null, vramTotal: null };
-  const gpuName = String(card.sppci_model || card._name || '').trim() || null;
-  // Discrete cards report e.g. "8 GB"; Apple Silicon reports nothing at all
-  // because the GPU shares system memory -- null is the honest answer there.
-  const vramRaw = String(card.spdisplays_vram || card.spdisplays_vram_shared || '').trim();
-  const m = vramRaw.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
-  const vramTotal = m
-    ? Math.round(Number(m[1]) * (m[2].toUpperCase() === 'GB' ? 1073741824 : 1048576))
-    : null;
-  return { gpuName, vramTotal };
-}
+const { parseDisplaysJson } = require('./platform/darwin-displays.js');
 
 let gpuStaticPromise = null;
 function gpuStatic() {
