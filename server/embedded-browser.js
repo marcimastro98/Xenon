@@ -1,4 +1,23 @@
 'use strict';
+// Embedded-browser host for the dashboard "Browser" widget.
+//
+// We drive ONE headless Microsoft Edge instance through the Chrome DevTools
+// Protocol (CDP). Each dashboard browser tile gets its own CDP *target* (a real
+// page) attached over a single browser-level WebSocket using flatten sessions.
+// The page is rendered off-screen and streamed to the tile via
+// `Page.startScreencast`, which is change-driven: a static page emits almost no
+// frames, so an open-but-idle tile costs ~nothing. Pointer/keyboard input flows
+// back and is injected with `Input.dispatch*`.
+//
+// Why a server proxy (not the client talking to CDP directly): keeping CDP on
+// the server keeps the raw DevTools endpoint off the browser's trust surface,
+// lets us validate every navigation/input, avoids needing `--remote-allow-origins`
+// (a Node `ws` client sends no Origin, so Edge accepts it), and fits the project's
+// loopback-only, allowlisted security posture. The debug port is bound to
+// 127.0.0.1 only.
+//
+// WebSocket: the `ws` library (a direct dependency) — Node's built-in client is
+// avoided for the same compression-handling reason documented in actions/streamerbot.js.
 const path = require('path');
 
 const DEFAULT_WS = (() => {
