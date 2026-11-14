@@ -44,7 +44,6 @@ const path = require('path');
 // Shared with linux-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
-require('./packet-loss');
 
 const { run, runSoft, isFiniteNum } = require('./platform/darwin-read.js');
 

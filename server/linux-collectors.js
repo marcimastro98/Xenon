@@ -31,7 +31,6 @@ const { createAppIcons } = require('./linux-app-icons.js');
 // Shared with darwin-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
-require('./packet-loss');
 
 // --- Memory: /proc/meminfo, because os.freemem() means something else here ---
 // os.freemem() is MemFree, which excludes the page cache the kernel would hand
