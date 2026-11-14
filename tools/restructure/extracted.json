@@ -627,7 +627,8 @@
       {"file":"server/actions/home-assistant-calls.js","about":"What Home Assistant is asked to do: a Deck action turned into a service call, a service called, the connection tried, and the dashboards listed.","names":["runAction","callService","test","listDashboards"],"inner":{"factory":"createHomeAssistant","make":"makeCalls"}}
     ],
     "server/actions/voicemeeter.js": [
-      {"file":"server/actions/voicemeeter-params.js","about":"What a Voicemeeter action may name and set: the editions with their strips and buses, the parameter names that are safe to send, the range of a gain, and where the Voicemeeter library is looked for.","names":["EDITIONS","editionFor","busLabels","busIndex","stripCount","GAIN_MIN","GAIN_MAX","clampGain","PARAM_INDEXED_RE","PARAM_FLAT_RE","isSafeParam","paramName","nextFlag","nextGain","DLL_NAME","dllCandidates"]}
+      {"file":"server/actions/voicemeeter-params.js","about":"What a Voicemeeter action may name and set: the editions with their strips and buses, the parameter names that are safe to send, the range of a gain, and where the Voicemeeter library is looked for.","names":["EDITIONS","editionFor","busLabels","busIndex","stripCount","GAIN_MIN","GAIN_MAX","clampGain","PARAM_INDEXED_RE","PARAM_FLAT_RE","isSafeParam","paramName","nextFlag","nextGain","DLL_NAME","dllCandidates"]},
+      {"file":"server/actions/voicemeeter-actions.js","about":"What a Deck action does to Voicemeeter: a strip or a bus muted, soloed or routed, a gain set or nudged, a macro button pressed, each through a parameter name the client has checked.","names":["runAction","flip","nudge"],"inner":{"factory":"createClient","make":"makeActions"}}
     ],
     "server/actions/unifi.js": [
       {"file":"server/actions/unifi-settings.js","about":"Cleans the UniFi Protect settings as they are saved: the address of the console, the cameras and their layout and angles, the alerts, and the sign-in, which is kept on a save without one and never sent back to the screen.","names":["unifiBaseUrl","isCameraId","UNIFI_MAX_CAMERAS","UNIFI_MAX_COLUMNS","UNIFI_FITS","UNIFI_ASPECTS","UNIFI_ROTATIONS","UNIFI_MAX_ZOOM","UNIFI_DEFAULT_REFRESH_MS","clampUnifiPan","UNIFI_NOTIFY_KINDS","normalizeUnifiNotify","normalizeCameraIds","normalizeUnifiAngles","normalizeUnifiLayout","normalizeUnifi","unifiSameDestination","preserveUnifiCreds","redactUnifiCreds","isConfigured","compactCamera"]}
@@ -959,6 +960,9 @@
     "server/actions/home-assistant.js": [
       {"factory":"createHomeAssistant","object":"haMaps","names":["areaMap","deviceMap"],"kept":[],"bare":[],"after":4},
       {"factory":"createHomeAssistant","object":"haLink","names":["ws","ready","idleTimer","pingTimer","retryTimer","reconnectDelay","msgId","watching"],"kept":[],"bare":[],"after":4}
+    ],
+    "server/actions/voicemeeter.js": [
+      {"factory":"createClient","object":"vmSession","names":["loggedIn","lastError","cachedType"],"kept":[],"bare":[],"after":1}
     ]
   }
 }

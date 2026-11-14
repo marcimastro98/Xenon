@@ -45,15 +45,19 @@ const {
   paramName, nextFlag, nextGain, DLL_NAME, dllCandidates,
 } = require('./voicemeeter-params.js');
 
+const { makeActions } = require('./voicemeeter-actions.js');
+
 function createClient(deps = {}) {
   const platform = deps.platform || process.platform;
   const exists = deps.fileExists || ((p) => { try { return fs.existsSync(p); } catch { return false; } });
   const loadKoffi = deps.loadKoffi || (() => require('koffi'));
 
   let lib = null, fns = null, dllPath = null;
-  let loggedIn = false;
-  let lastError = null;
-  let cachedType = 0;
+  const vmSession = {
+    loggedIn: false,
+    lastError: null,
+    cachedType: 0,
+  };
 
   function resolveDll() {
     for (const p of dllCandidates()) if (exists(p)) return p;
@@ -62,9 +66,9 @@ function createClient(deps = {}) {
 
   function load() {
     if (fns) return true;
-    if (platform !== 'win32') { lastError = 'voicemeeter_windows_only'; return false; }
+    if (platform !== 'win32') { vmSession.lastError = 'voicemeeter_windows_only'; return false; }
     dllPath = resolveDll();
-    if (!dllPath) { lastError = 'voicemeeter_not_installed'; return false; }
+    if (!dllPath) { vmSession.lastError = 'voicemeeter_not_installed'; return false; }
     try {
       const koffi = loadKoffi();
       lib = koffi.load(dllPath);
@@ -80,28 +84,28 @@ function createClient(deps = {}) {
       };
       return true;
     } catch (e) {
-      lastError = 'voicemeeter_dll_failed: ' + (e && e.message ? e.message : e);
+      vmSession.lastError = 'voicemeeter_dll_failed: ' + (e && e.message ? e.message : e);
       lib = null; fns = null;
       return false;
     }
   }
 
   function login() {
-    if (loggedIn) return true;
+    if (vmSession.loggedIn) return true;
     if (!load()) return false;
     try {
       const rc = fns.login();
       // 0 = logged in, 1 = logged in but Voicemeeter is not running. Both keep
       // the session: re-logging in on every press leaks one per key.
-      if (rc !== 0 && rc !== 1) { lastError = 'voicemeeter_login_rc_' + rc; return false; }
-      loggedIn = true;
+      if (rc !== 0 && rc !== 1) { vmSession.lastError = 'voicemeeter_login_rc_' + rc; return false; }
+      vmSession.loggedIn = true;
       // The first read after a login is stale by design — the API says to poll
       // IsParametersDirty until it clears before trusting a value. One call is
       // enough in practice and costs nothing.
       try { fns.dirty(); } catch { /* not fatal */ }
       return true;
     } catch (e) {
-      lastError = 'voicemeeter_login_failed: ' + (e && e.message ? e.message : e);
+      vmSession.lastError = 'voicemeeter_login_failed: ' + (e && e.message ? e.message : e);
       return false;
     }
   }
@@ -112,20 +116,20 @@ function createClient(deps = {}) {
     try {
       const out = [0];
       const rc = fns.getType(out);
-      if (rc !== 0) { lastError = 'voicemeeter_not_running'; cachedType = 0; return null; }
-      cachedType = Number(out[0]) || 0;
-      const ed = editionFor(cachedType);
-      if (!ed) { lastError = 'voicemeeter_unknown_type_' + cachedType; return null; }
+      if (rc !== 0) { vmSession.lastError = 'voicemeeter_not_running'; vmSession.cachedType = 0; return null; }
+      vmSession.cachedType = Number(out[0]) || 0;
+      const ed = editionFor(vmSession.cachedType);
+      if (!ed) { vmSession.lastError = 'voicemeeter_unknown_type_' + vmSession.cachedType; return null; }
       return ed;
     } catch (e) {
-      lastError = 'voicemeeter_type_failed: ' + (e && e.message ? e.message : e);
+      vmSession.lastError = 'voicemeeter_type_failed: ' + (e && e.message ? e.message : e);
       return null;
     }
   }
 
   function getParam(name) {
     if (!isSafeParam(name)) return { ok: false, error: 'voicemeeter_bad_param' };
-    if (!login()) return { ok: false, error: lastError || 'voicemeeter_unavailable' };
+    if (!login()) return { ok: false, error: vmSession.lastError || 'voicemeeter_unavailable' };
     try {
       const out = [0];
       const rc = fns.getFloat(name, out);
@@ -140,7 +144,7 @@ function createClient(deps = {}) {
     if (!isSafeParam(name)) return { ok: false, error: 'voicemeeter_bad_param' };
     const v = Number(value);
     if (!Number.isFinite(v)) return { ok: false, error: 'voicemeeter_bad_value' };
-    if (!login()) return { ok: false, error: lastError || 'voicemeeter_unavailable' };
+    if (!login()) return { ok: false, error: vmSession.lastError || 'voicemeeter_unavailable' };
     try {
       const rc = fns.setFloat(name, v);
       if (rc !== 0) return { ok: false, error: 'voicemeeter_write_failed' };
@@ -153,7 +157,7 @@ function createClient(deps = {}) {
   function macroButton(index, mode) {
     const i = Number(index);
     if (!Number.isInteger(i) || i < 0 || i > 79) return { ok: false, error: 'voicemeeter_bad_macro' };
-    if (!login()) return { ok: false, error: lastError || 'voicemeeter_unavailable' };
+    if (!login()) return { ok: false, error: vmSession.lastError || 'voicemeeter_unavailable' };
     try {
       let want = 1;
       if (mode === 'off') want = 0;
@@ -179,7 +183,7 @@ function createClient(deps = {}) {
     if (platform !== 'win32') return { ok: true, available: false, running: false, reason: 'voicemeeter_windows_only' };
     if (!resolveDll()) return { ok: true, available: false, running: false, reason: 'voicemeeter_not_installed' };
     const ed = edition();
-    if (!ed) return { ok: true, available: true, running: false, reason: lastError || 'voicemeeter_not_running' };
+    if (!ed) return { ok: true, available: true, running: false, reason: vmSession.lastError || 'voicemeeter_not_running' };
     const strips = [];
     for (let i = 0; i < ed.strips; i++) {
       // A strip carries the name its owner typed in Voicemeeter. Falling back to
@@ -251,96 +255,14 @@ function createClient(deps = {}) {
   }
 
   function close() {
-    if (!loggedIn || !fns) return;
+    if (!vmSession.loggedIn || !fns) return;
     try { fns.logout(); } catch { /* ignore */ }
-    loggedIn = false;
+    vmSession.loggedIn = false;
   }
 
-  // ── The Deck actions ──────────────────────────────────────────────────────
-  async function runAction(action) {
-    const a = action || {};
-    // validateAction (js/deck-actions.js) returns the params FLAT on the action,
-    // the same shape every other provider here reads. Reaching for a .params
-    // bag that never exists made every key answer bad_strip.
-    const p = a;
-    const ed = edition();
-    if (!ed) return { ok: false, error: lastError || 'voicemeeter_not_running' };
+  const { runAction } = makeActions({ vmSession, edition, getParam, setParam, macroButton });
 
-    const stripIdx = () => {
-      const i = Number(p.strip);
-      if (!Number.isInteger(i) || i < 0 || i >= ed.strips) return -1;
-      return i;
-    };
-
-    switch (a.type) {
-      case 'vmStripMute': {
-        const i = stripIdx();
-        if (i < 0) return { ok: false, error: 'voicemeeter_bad_strip' };
-        return flip(paramName('strip', i, 'Mute'), p.mode);
-      }
-      case 'vmStripGain': {
-        const i = stripIdx();
-        if (i < 0) return { ok: false, error: 'voicemeeter_bad_strip' };
-        return nudge(paramName('strip', i, 'Gain'), p.mode, p.value);
-      }
-      case 'vmStripBus': {
-        const i = stripIdx();
-        if (i < 0) return { ok: false, error: 'voicemeeter_bad_strip' };
-        // The bus is stored as its LABEL (A1, B2) because that is what the
-        // buttons say and what survives a move between editions.
-        if (busIndex(p.bus, ed.id) < 0) return { ok: false, error: 'voicemeeter_bad_bus' };
-        return flip(paramName('strip', i, String(p.bus).toUpperCase()), p.mode);
-      }
-      case 'vmBusMute': {
-        const b = busIndex(p.bus, ed.id);
-        if (b < 0) return { ok: false, error: 'voicemeeter_bad_bus' };
-        return flip(paramName('bus', b, 'Mute'), p.mode);
-      }
-      case 'vmBusGain': {
-        const b = busIndex(p.bus, ed.id);
-        if (b < 0) return { ok: false, error: 'voicemeeter_bad_bus' };
-        return nudge(paramName('bus', b, 'Gain'), p.mode, p.value);
-      }
-      case 'vmMacro':
-        return macroButton(p.index, p.mode);
-      case 'vmParam': {
-        // The escape hatch, and the reason this integration is one file: every
-        // control in Voicemeeter is a named parameter, so anything the named
-        // actions above do not cover can still be bound without new code.
-        const name = String(p.param || '').trim();
-        if (!isSafeParam(name)) return { ok: false, error: 'voicemeeter_bad_param' };
-        if (p.mode === 'toggle') return flip(name, 'toggle');
-        if (p.mode === 'up' || p.mode === 'down') return nudge(name, p.mode, p.value);
-        return setParam(name, p.value);
-      }
-      default:
-        return { ok: false, error: 'voicemeeter_unknown_action' };
-    }
-  }
-
-  function flip(name, mode) {
-    if (!name) return { ok: false, error: 'voicemeeter_bad_param' };
-    if (mode === 'on' || mode === 'off') return setParam(name, nextFlag(mode, 0));
-    const cur = getParam(name);
-    if (!cur.ok) return cur;
-    return setParam(name, nextFlag('toggle', cur.value));
-  }
-
-  function nudge(name, mode, value) {
-    if (!name) return { ok: false, error: 'voicemeeter_bad_param' };
-    if (mode === 'set') {
-      const v = clampGain(value);
-      if (v == null) return { ok: false, error: 'voicemeeter_bad_value' };
-      return setParam(name, v);
-    }
-    const cur = getParam(name);
-    if (!cur.ok) return cur;
-    const v = nextGain(mode === 'down' ? 'down' : 'up', cur.value, value);
-    if (v == null) return { ok: false, error: 'voicemeeter_bad_value' };
-    return setParam(name, v);
-  }
-
-  return { state, values, dirty, runAction, edition, getParam, setParam, macroButton, close, get lastError() { return lastError; } };
+  return { state, values, dirty, runAction, edition, getParam, setParam, macroButton, close, get lastError() { return vmSession.lastError; } };
 }
 
 module.exports = {
