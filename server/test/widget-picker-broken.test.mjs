@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { listPackages } = require('../sdk-widgets.js');
@@ -85,7 +86,7 @@ test('every explained reason is one listPackages can actually emit', () => {
   const body = table.slice(0, table.indexOf('\n  };'));
   const explained = [...body.matchAll(/^\s{4}([a-z_]+):/gm)].map((m) => m[1]);
   assert.ok(explained.length, 'the table has entries');
-  const SDK = readFileSync(new URL('../sdk-widgets.js', import.meta.url), 'utf8');
+  const SDK = engineSource('server/sdk-widgets.js');
   for (const reason of explained) {
     assert.match(SDK, new RegExp("reason: '" + reason + "'"),
       `${reason} is a reason sdk-widgets.js emits`);

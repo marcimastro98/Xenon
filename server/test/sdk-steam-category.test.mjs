@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -50,7 +51,7 @@ test('every mirror of the category list carries it', () => {
   // Five places have to agree or the grant is silently unusable: the server
   // allowlist, the bridge that dispatches, the settings list the permission
   // dialog is built from, the docs, and the label the user actually reads.
-  assert.match(read('server/sdk-widgets.js'), /steam: Object\.freeze\(\['launchSteamGame'\]\)/);
+  assert.match(engineSource('server/sdk-widgets.js'), /steam: Object\.freeze\(\['launchSteamGame'\]\)/);
   assert.match(read('server/js/custom-widget.js'), /steam: \['launchSteamGame'\]/);
   assert.match(read('server/js/settings.js'), /'spotify', 'steam'|'steam', 'obs'/);
   assert.match(read('docs/WIDGET_SDK.md'), /\| `steam` \| `\{ type: 'launchSteamGame', gameId \}`/);

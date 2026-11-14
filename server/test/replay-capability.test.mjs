@@ -136,7 +136,7 @@ test('the catalog: a sensitive capture key, hidden options, labels in every lang
   for (const k of ['deck_act_replay', 'deck_param_replay_seconds', 'deck_opt_save', 'replay_saved', 'replay_on', 'replay_on_msg', 'replay_failed', 'replay_retry', 'replay_no_encoder']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }
-  const sdk = readFileSync(path.join(HERE, '..', 'sdk-widgets.js'), 'utf8');
+  const sdk = engineSource('server/sdk-widgets.js');
   const block = sdk.slice(sdk.indexOf('const SDK_ACTION_CATEGORIES'), sdk.indexOf('});', sdk.indexOf('const SDK_ACTION_CATEGORIES')));
   // Only in `capture`, and SDK_ACTION_LIMITS lets it save, never turn the replay on or off.
   assert.equal((block.match(/'replay'/g) || []).length, 1);

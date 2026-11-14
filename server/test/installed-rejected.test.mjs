@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
@@ -23,7 +24,7 @@ test('a folder name with a space or dots is not a usable package id', () => {
 });
 
 test('every rejection reason the scan can emit has a user-facing message', () => {
-  const src = readFileSync(new URL('../sdk-widgets.js', import.meta.url), 'utf8');
+  const src = engineSource('server/sdk-widgets.js');
   const ui = readFileSync(new URL('../js/installed-manager.js', import.meta.url), 'utf8');
   // Reasons reachable from the FOLDER scan (listPackages + normalizeManifest).
   // Payload-only reasons (bad_files, bad_path, file_too_large…) belong to the
