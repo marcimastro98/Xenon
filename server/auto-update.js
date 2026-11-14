@@ -33,21 +33,16 @@
 const {
   MIN_AGE_MS, IDLE_MIN_SEC, normVer, hasNoAutoMarker, inNightWindow, decide,
 } = require('./updates/auto-update-decide.js');
-const FIRST_TICK_MS = 2 * 60 * 1000;
-const TICK_MS = 10 * 60 * 1000;
-const RECHECK_MS = 6 * 60 * 60 * 1000;
-const COUNTDOWN_MS = 60 * 1000;
-const POSTPONE_MS = 60 * 60 * 1000;
-const PREPARE_RETRY_MS = 60 * 60 * 1000;
-const PREPARE_MAX_TRIES = 5;
-const APPLY_TIMEOUT_MS = 15 * 60 * 1000;
+const {
+  FIRST_TICK_MS, TICK_MS, RECHECK_MS, COUNTDOWN_MS, POSTPONE_MS, PREPARE_RETRY_MS,
+  PREPARE_MAX_TRIES, APPLY_TIMEOUT_MS,
+} = require('./updates/auto-update-limits.js');
 
-// A prepare failure that says the release itself is wrong. Retrying cannot fix
-// it, so the version is treated like a failed install: manual only.
-const PERMANENT_PREPARE_ERRORS = new Set([
-  'signature_invalid', 'integrity_mismatch', 'version_mismatch', 'invalid_build', 'unexpected_archive',
-]);
+const { makeCountdown } = require('./updates/auto-update-countdown.js');
 
+const { makeState } = require('./updates/auto-update-state.js');
+
+const { makeSteps } = require('./updates/auto-update-steps.js');
 
 /**
  * The loop. Every effect is a dependency, so the tests drive it with a fake
@@ -77,132 +72,46 @@ function createAutoUpdater(deps) {
   const broadcast = d.broadcast || (() => {});
   const su = d.selfUpdate;
 
-  let record = { version: '', state: 'idle', at: 0, reason: '', failedVersion: '' };
-  let release = null;           // last successful checkRelease() answer
-  let lastCheckAt = 0;
-  let prepareTries = { version: '', count: 0, blockedUntil: 0 };
-  let postponedUntil = 0;
-  let countdown = null;         // { version, endsAt, timer }
-  let tickTimer = null;
-  let ticking = false;
-  let stopped = false;
-  let lastDecision = { action: 'wait', reason: 'starting' };
-  let lastBlockers = [];
-  let started = false;
+  const auState = {
+    record: { version: '', state: 'idle', at: 0, reason: '', failedVersion: '' },
+    release: null,           // last successful checkRelease() answer
+    lastCheckAt: 0,
+    prepareTries: { version: '', count: 0, blockedUntil: 0 },
+    postponedUntil: 0,
+    countdown: null,         // { version, endsAt, timer }
+    tickTimer: null,
+    ticking: false,
+    stopped: false,
+    lastDecision: { action: 'wait', reason: 'starting' },
+    lastBlockers: [],
+    started: false,
+  };
 
   async function persist() {
-    try { await d.store.write(record); } catch (e) { log('auto-update: could not save state: ' + (e && e.message)); }
+    try { await d.store.write(auState.record); } catch (e) { log('auto-update: could not save state: ' + (e && e.message)); }
   }
 
   function schedule(ms) {
-    if (stopped) return;
-    if (tickTimer) clearT(tickTimer);
-    tickTimer = setT(() => { tickTimer = null; tick(); }, ms);
-    if (tickTimer && typeof tickTimer.unref === 'function') tickTimer.unref();
+    if (auState.stopped) return;
+    if (auState.tickTimer) clearT(auState.tickTimer);
+    auState.tickTimer = setT(() => { auState.tickTimer = null; tick(); }, ms);
+    if (auState.tickTimer && typeof auState.tickTimer.unref === 'function') auState.tickTimer.unref();
   }
 
-  // What happened to the attempt the PREVIOUS process started. The applier
-  // replaces this process, so success is only visible from the new one.
-  async function reconcile() {
-    let saved = null;
-    try { saved = await d.store.read(); } catch { saved = null; }
-    if (saved && typeof saved === 'object') {
-      record = {
-        version: normVer(saved.version),
-        state: String(saved.state || 'idle'),
-        at: Number(saved.at) || 0,
-        reason: String(saved.reason || ''),
-        failedVersion: normVer(saved.failedVersion),
-      };
-    }
-    if (record.state !== 'applying') return;
-    if (normVer(d.currentVersion) === record.version) {
-      record = { ...record, state: 'done', reason: '', at: now() };
-      log('auto-update: now running ' + record.version);
-    } else {
-      let result = null;
-      try { result = await d.readLastResult(); } catch { result = null; }
-      const reason = (result && result.ok === false && result.reason) ? String(result.reason) : 'not_applied';
-      record = { ...record, state: 'failed', reason, failedVersion: record.version, at: now() };
-      log('auto-update: ' + record.version + ' did not install (' + reason + '); it will not be retried automatically');
-    }
-    await persist();
-  }
+  const {
+    reconcile, currentRelease, checkRunningApply, doPrepare,
+  } = makeSteps({ d, now, log, broadcast, su, auState, persist });
 
-  async function currentRelease() {
-    const stale = !lastCheckAt || now() - lastCheckAt >= RECHECK_MS;
-    try {
-      const r = await d.checkRelease(stale);
-      if (r && r.ok) { release = r; if (stale) lastCheckAt = now(); }
-      else if (stale) lastCheckAt = now() - RECHECK_MS + PREPARE_RETRY_MS;   // offline: try again in an hour
-    } catch { if (stale) lastCheckAt = now() - RECHECK_MS + PREPARE_RETRY_MS; }
-    return release;
-  }
-
-  async function buildState(withSignals) {
-    const rel = release || {};
-    const latest = normVer(rel.latest);
-    let blockers = [];
-    let idleSec = null;
-    if (withSignals) {
-      try {
-        const sig = await d.signals();
-        blockers = Array.isArray(sig && sig.blockers) ? sig.blockers : [];
-        idleSec = sig && typeof sig.idleSec === 'number' ? sig.idleSec : null;
-      } catch { blockers = ['signals_unavailable']; }
-    }
-    let staged = null;
-    try { staged = su.staged(); } catch { staged = null; }
-    return {
-      enabled: !!d.isEnabled(),
-      supported: !!su.supported(),
-      needsElevation: typeof su.needsElevation === 'function' ? !!su.needsElevation() : false,
-      current: d.currentVersion,
-      latest,
-      publishedAt: rel.publishedAt || '',
-      noAuto: !!rel.noAuto,
-      failedVersion: record.failedVersion,
-      stagedVersion: staged && staged.version ? staged.version : '',
-      prepareBlockedUntil: prepareTries.version === latest ? prepareTries.blockedUntil : 0,
-      postponedUntil,
-      blockers,
-      idleSec,
-      localHour: localHour(),
-      minAgeMs: d.minAgeMs,
-      idleMinSec: d.idleMinSec,
-    };
-  }
-
-  // An apply this process started that never finished: the applier failed
-  // before it stopped the server (update-result.json says so), or it vanished.
-  async function checkRunningApply() {
-    if (record.state !== 'applying') return false;
-    let result = null;
-    try { result = await d.readLastResult(); } catch { result = null; }
-    const at = result && Date.parse(result.at || '');
-    if (result && result.ok === false && Number.isFinite(at) && at >= record.at - 1000) {
-      record = { ...record, state: 'failed', reason: String(result.reason || 'failed'), failedVersion: record.version, at: now() };
-    } else if (su.lastSpawnError && su.lastSpawnError()) {
-      record = { ...record, state: 'failed', reason: 'spawn_failed', failedVersion: record.version, at: now() };
-    } else if (now() - record.at > APPLY_TIMEOUT_MS) {
-      record = { ...record, state: 'failed', reason: 'apply_timeout', failedVersion: record.version, at: now() };
-    } else {
-      return true;   // still running: this process is about to be replaced
-    }
-    log('auto-update: ' + record.version + ' failed (' + record.reason + '); manual update only for this version');
-    broadcast('update_auto', { phase: 'failed', version: record.version, reason: record.reason });
-    await persist();
-    return false;
-  }
+  const { buildState, status, safeNow } = makeState({ d, now, localHour, su, auState });
 
   async function tick() {
-    if (stopped || ticking) return;
-    ticking = true;
+    if (auState.stopped || auState.ticking) return;
+    auState.ticking = true;
     let next = TICK_MS;
     try {
-      if (countdown) return;   // the countdown owns the next step
+      if (auState.countdown) return;   // the countdown owns the next step
       if (await checkRunningApply()) return;
-      if (!d.isEnabled()) { lastDecision = { action: 'hold', reason: 'disabled' }; return; }
+      if (!d.isEnabled()) { auState.lastDecision = { action: 'hold', reason: 'disabled' }; return; }
       if (su.isPreparing && su.isPreparing()) return;                 // a manual prepare is running
       if (su.applyInFlight && su.applyInFlight()) return;             // a manual apply is running
       await currentRelease();
@@ -226,167 +135,45 @@ function createAutoUpdater(deps) {
       } else if (dec.action === 'apply') {
         startCountdown(st.latest);
       }
-      lastDecision = dec;
-      lastBlockers = dec.blockers || [];
+      auState.lastDecision = dec;
+      auState.lastBlockers = dec.blockers || [];
     } catch (e) {
       log('auto-update: tick failed: ' + (e && e.message));
     } finally {
-      ticking = false;
-      if (!countdown) schedule(next);
+      auState.ticking = false;
+      if (!auState.countdown) schedule(next);
     }
   }
 
-  async function doPrepare(version) {
-    const rel = release || {};
-    if (prepareTries.version !== version) prepareTries = { version, count: 0, blockedUntil: 0 };
-    prepareTries.count++;
-    log('auto-update: downloading ' + version);
-    try {
-      await su.prepare({ tag: rel.tag || ('v' + version), version });
-      prepareTries = { version, count: 0, blockedUntil: 0 };
-      record = { ...record, version, state: 'ready', reason: '', at: now() };
-      await persist();
-      log('auto-update: ' + version + ' downloaded and verified');
-    } catch (e) {
-      const code = String((e && e.message) || e || 'prepare_failed');
-      if (code === 'prepare_in_flight' || code === 'apply_in_flight') { prepareTries.count--; return; }
-      if (PERMANENT_PREPARE_ERRORS.has(code) || prepareTries.count >= PREPARE_MAX_TRIES) {
-        record = { ...record, version, state: 'failed', reason: code, failedVersion: version, at: now() };
-        await persist();
-        log('auto-update: ' + version + ' cannot be prepared (' + code + '); manual update only');
-        return;
-      }
-      prepareTries.blockedUntil = now() + PREPARE_RETRY_MS;
-      log('auto-update: download of ' + version + ' failed (' + code + '); retrying in an hour');
-    }
-  }
-
-  function startCountdown(version) {
-    const endsAt = now() + COUNTDOWN_MS;
-    countdown = { version, endsAt, timer: null };
-    broadcast('update_auto', { phase: 'countdown', version, endsAt, seconds: Math.round(COUNTDOWN_MS / 1000) });
-    log('auto-update: installing ' + version + ' in ' + Math.round(COUNTDOWN_MS / 1000) + 's unless postponed');
-    countdown.timer = setT(() => { finishCountdown(); }, COUNTDOWN_MS);
-    if (countdown.timer && typeof countdown.timer.unref === 'function') countdown.timer.unref();
-  }
-
-  function cancelCountdown(reason) {
-    if (!countdown) return;
-    const version = countdown.version;
-    if (countdown.timer) clearT(countdown.timer);
-    countdown = null;
-    broadcast('update_auto', { phase: 'cancelled', version, reason });
-  }
-
-  async function finishCountdown() {
-    if (!countdown || stopped) return;
-    const version = countdown.version;
-    countdown.timer = null;
-    try {
-      // Everything again: the minute of countdown is exactly when someone may
-      // have sat down, started a game or begun sending a file.
-      const st = await buildState(true);
-      const dec = decide(st, now());
-      if (dec.action !== 'apply' || normVer(st.latest) !== normVer(version)) {
-        lastDecision = dec;
-        lastBlockers = dec.blockers || [];
-        cancelCountdown(dec.reason);
-        schedule(2 * 60 * 1000);
-        return;
-      }
-      countdown = null;
-      record = { ...record, version: normVer(version), state: 'applying', reason: '', at: now() };
-      await persist();
-      broadcast('update_auto', { phase: 'applying', version });
-      log('auto-update: installing ' + version);
-      const r = su.apply({ quiet: true, hidden: true, port: d.port });
-      if (!r || !r.ok) {
-        const code = String((r && r.error) || 'apply_failed');
-        if (code === 'apply_in_flight' || code === 'prepare_in_flight') {
-          record = { ...record, state: 'ready', at: now() };
-        } else {
-          record = { ...record, state: 'failed', reason: code, failedVersion: normVer(version), at: now() };
-          broadcast('update_auto', { phase: 'failed', version, reason: code });
-        }
-        await persist();
-      }
-      // On success the applier stops this process within seconds. If it does
-      // not, the next tick's checkRunningApply() finds out why.
-      schedule(60 * 1000);
-    } catch (e) {
-      countdown = null;
-      log('auto-update: install step failed: ' + (e && e.message));
-      schedule(TICK_MS);
-    }
-  }
-
-  // "Postpone by an hour" from any dashboard.
-  function postpone() {
-    postponedUntil = now() + POSTPONE_MS;
-    const had = !!countdown;
-    cancelCountdown('postponed');
-    if (had || !tickTimer) schedule(POSTPONE_MS);
-    return { ok: true, postponedUntil };
-  }
+  const {
+    startCountdown, cancelCountdown, postpone,
+  } = makeCountdown({ d, now, setT, clearT, log, broadcast, su, auState, persist, schedule, buildState });
 
   // The toggle moved. Off cancels a countdown at once; on looks again soon.
   function settingsChanged() {
-    if (!started || stopped) return;
-    if (!d.isEnabled()) { cancelCountdown('disabled'); lastDecision = { action: 'hold', reason: 'disabled' }; return; }
-    if (!countdown && !ticking) schedule(5 * 1000);
-  }
-
-  function status() {
-    const rel = release || {};
-    let staged = null;
-    try { staged = su.staged(); } catch { staged = null; }
-    const published = Date.parse(rel.publishedAt || '');
-    const minAge = Number.isFinite(d.minAgeMs) ? d.minAgeMs : MIN_AGE_MS;
-    return {
-      enabled: !!d.isEnabled(),
-      current: normVer(d.currentVersion),
-      latest: normVer(rel.latest),
-      staged: staged && staged.version ? normVer(staged.version) : '',
-      action: lastDecision.action,
-      reason: lastDecision.reason,
-      blockers: lastBlockers.slice(),
-      eligibleAt: Number.isFinite(published) ? published + minAge : 0,
-      countdownEndsAt: countdown ? countdown.endsAt : 0,
-      postponedUntil: postponedUntil > now() ? postponedUntil : 0,
-      last: { version: record.version, state: record.state, reason: record.reason, at: record.at },
-    };
-  }
-
-  // Is this a moment the app itself could restart (the native shell update)?
-  // Same conditions as the backend, minus everything about releases.
-  async function safeNow() {
-    let sig = null;
-    try { sig = await d.signals(); } catch { return false; }
-    const blockers = Array.isArray(sig && sig.blockers) ? sig.blockers : [];
-    if (blockers.length) return false;
-    const idleMin = Number.isFinite(d.idleMinSec) ? d.idleMinSec : IDLE_MIN_SEC;
-    if (sig && typeof sig.idleSec === 'number') return sig.idleSec >= idleMin;
-    return inNightWindow(localHour());
+    if (!auState.started || auState.stopped) return;
+    if (!d.isEnabled()) { cancelCountdown('disabled'); auState.lastDecision = { action: 'hold', reason: 'disabled' }; return; }
+    if (!auState.countdown && !auState.ticking) schedule(5 * 1000);
   }
 
   async function start() {
-    if (started) return;
-    started = true;
+    if (auState.started) return;
+    auState.started = true;
     await reconcile();
-    if (record.state === 'done' || record.state === 'failed') {
-      broadcast('update_auto', { phase: record.state, version: record.version, reason: record.reason });
+    if (auState.record.state === 'done' || auState.record.state === 'failed') {
+      broadcast('update_auto', { phase: auState.record.state, version: auState.record.version, reason: auState.record.reason });
     }
     schedule(FIRST_TICK_MS);
   }
 
   function stop() {
-    stopped = true;
-    if (tickTimer) { clearT(tickTimer); tickTimer = null; }
-    if (countdown && countdown.timer) clearT(countdown.timer);
-    countdown = null;
+    auState.stopped = true;
+    if (auState.tickTimer) { clearT(auState.tickTimer); auState.tickTimer = null; }
+    if (auState.countdown && auState.countdown.timer) clearT(auState.countdown.timer);
+    auState.countdown = null;
   }
 
-  return { start, stop, tick, postpone, settingsChanged, status, safeNow, _record: () => ({ ...record }) };
+  return { start, stop, tick, postpone, settingsChanged, status, safeNow, _record: () => ({ ...auState.record }) };
 }
 
 module.exports = {

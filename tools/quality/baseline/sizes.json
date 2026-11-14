@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 166,
+  "count": 165,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -22,7 +22,6 @@
     "server/actions/registry.js": 709,
     "server/ai-cli.js": 348,
     "server/ai-models.js": 314,
-    "server/auto-update.js": 396,
     "server/claude-link.js": 461,
     "server/codex-appserver.js": 370,
     "server/codex-link.js": 355,
