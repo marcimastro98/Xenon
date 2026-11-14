@@ -61,9 +61,9 @@ export function targetReasons(root, move) {
 export const everyPage = (root) => [...listPages(root).map((page) => ({ page, html: readFileSync(path.join(root, page), 'utf8') })), ...builtPages(root)];
 
 // A script Node loads too is one file there: what Node reaches in it cannot be in another script (browser-node-loads.mjs).
-function nodeReasons(root, parser, ledger, move) {
-  const scripts = runOf(ledger, move.from).filter((part) => part.endsWith('.js') && existsSync(path.join(root, part)))
-    .map((file) => ({ file, text: readFileSync(path.join(root, file), 'utf8') }));
+function nodeReasons(root, parser, ledger, move, tree) {
+  const scripts = runOf(ledger, move.from).filter((part) => part.endsWith('.js')).map((file) => ({ file, text: tree.get(file) }))
+    .filter((script) => script.text !== null);
   if (!scripts.some((script) => script.file === move.from)) return [];
   const keeps = nodeKeeps(root, move.from, analyzeRun(scripts, parser), scripts.length - 1);
   return move.names.filter((name) => keeps.has(name))
@@ -73,6 +73,25 @@ function nodeReasons(root, parser, ledger, move) {
 const diskTree = (root) => ({
   get: (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } },
 });
+
+/**
+ * A plan of several moves tried without writing: what the moves so far would have written, and the lines they
+ * would have added to the list of moves. The next move of the plan is worked out from these, as it will be for real.
+ * @returns {{ texts: Map<string, string>, moves: any[] }}
+ */
+export const newPlan = () => ({ texts: new Map(), moves: [] });
+
+/** @param {string} root @param {ReturnType<typeof newPlan> | null} [plan] @returns {{ get: (file: string) => string | null }} the files as the next move finds them */
+export function treeOf(root, plan = null) {
+  const disk = diskTree(root);
+  return plan ? { get: (file) => (plan.texts.has(file) ? plan.texts.get(file) : disk.get(file)) } : disk;
+}
+
+/** @param {string} root @param {ReturnType<typeof newPlan> | null} [plan] @returns {{ note: string, moves: any[] }} the list of moves as the next move finds it */
+export function ledgerOf(root, plan = null) {
+  const ledger = readBrowserLedger(root);
+  return plan ? { ...ledger, moves: [...ledger.moves, ...plan.moves] } : ledger;
+}
 
 function undo(root, files, made, before) {
   for (const file of files.keys()) {
@@ -84,12 +103,15 @@ function undo(root, files, made, before) {
 }
 
 /**
- * @param {{ root: string, parser: any, move: any, dryRun?: boolean }} job
+ * @param {{ root: string, parser: any, move: any, dryRun?: boolean, plan?: ReturnType<typeof newPlan> | null }} job
+ *   `plan` with `dryRun`: the moves tried before this one, which it then joins (a move of a plan is judged after the ones before it)
  * @returns {{ record: any, made: string[], lines: Record<string, number> }} the line added to the list of moves, the new
  *   files and the length of every file written. Throws a Refusal before anything is written, an Error after a failed check (files put back).
  */
-export function perform({ root, parser, move, dryRun = false }) {
-  const ledger = readBrowserLedger(root);
+export function perform({ root, parser, move, dryRun = false, plan = null }) {
+  if (plan && !dryRun) throw new Error('a plan is for a dry run: a real move reads the disk');
+  const ledger = ledgerOf(root, plan);
+  const tree = treeOf(root, plan);
   // The tests are held to the reader by server/test/restructure-browser-state.test.mjs, once the first move is done.
   const reasons = move.kind === 'module' ? moduleReasons({ root, parser, file: move.file, ledger, pages: everyPage(root) }).reasons.map((reason) => reason.text)
     : move.kind === 'inline' ? uncheckedPages([move.from]).map((page) => `the page check never opens ${page}: add it to tools/restructure/browser-check-pages.mjs first`)
@@ -98,13 +120,15 @@ export function perform({ root, parser, move, dryRun = false }) {
     reasons.push(...targetReasons(root, move));
     const kept = keptNames(root, move.from);
     for (const name of move.names ?? []) if (kept.has(name)) reasons.push(`${name} stays in ${move.from}: ${kept.get(name)} reads it there`);
-    if (move.kind === 'script') reasons.push(...nodeReasons(root, parser, ledger, move));
+    if (move.kind === 'script') reasons.push(...nodeReasons(root, parser, ledger, move, tree));
   }
   if (reasons.length) throw new Refusal(reasons);
-  const tree = diskTree(root);
   const { files, made, record } = applyMove(tree, move, { parser, pages: listPages(root), earlier: ledger.moves });
   const lines = Object.fromEntries([...files].map(([file, text]) => [file, text.split('\n').length - 1]));
-  if (dryRun) return { record, made, lines };
+  if (dryRun) {
+    if (plan) { for (const [file, text] of files) plan.texts.set(file, text); plan.moves.push(record); }
+    return { record, made, lines };
+  }
 
   const before = new Map([...files.keys()].map((file) => [file, tree.get(file)]));
   for (const [file, text] of files) {

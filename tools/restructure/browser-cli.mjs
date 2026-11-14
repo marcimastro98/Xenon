@@ -22,7 +22,7 @@ import path from 'node:path';
 import { readCounts, saveCounts } from '../quality/baseline-file.mjs';
 import { analyzeRun, assignedAtHome, orderProblems, stayReasons } from './browser-analyze.mjs';
 import { keptNames, mentionsOf } from './browser-consumers.mjs';
-import { everyPage, perform, replay, showAt } from './browser-extract.mjs';
+import { everyPage, ledgerOf, newPlan, perform, replay, showAt, treeOf } from './browser-extract.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { candidates } from './browser-module.mjs';
 import { nodeKeeps } from './browser-node-loads.mjs';
@@ -54,11 +54,12 @@ function readArgs(argv) {
  * Every top-level statement of a script with the reason it stays, or none when it may move.
  * A `const` that needs something which itself stays is found by trying: all that may move
  * is placed in a script before, and what then reads a value too early stays as well.
- * @param {string} file @param {any} parser
+ * @param {string} file @param {any} parser @param {ReturnType<typeof newPlan> | null} [plan] the moves a dry run tried before this question
  * @returns {{ records: any[], why: Map<any, string[]> }}
  */
-export function movable(file, parser) {
-  const scripts = runOf(readBrowserLedger(REPO_ROOT), file).filter((part) => part.endsWith('.js')).map((part) => ({ file: part, text: read(part) }));
+export function movable(file, parser, plan = null) {
+  const tree = treeOf(REPO_ROOT, plan);
+  const scripts = runOf(ledgerOf(REPO_ROOT, plan), file).filter((part) => part.endsWith('.js')).map((part) => ({ file: part, text: tree.get(part) ?? read(part) }));
   const run = analyzeRun(scripts, parser);
   const own = run.records.filter((record) => record.fileIndex === scripts.length - 1);
   const kept = keptNames(REPO_ROOT, file);
@@ -110,7 +111,7 @@ function showAnalysis(parser, { flags, rest }) {
   return 0;
 }
 
-function toMove(job, parser) {
+function toMove(job, parser, plan) {
   if (job.css) {
     return { kind: 'style', from: posix(job.css), parts: job.cuts.map((cut) => {
       const [at, name] = String(cut).split(':');
@@ -119,16 +120,18 @@ function toMove(job, parser) {
   }
   if (job.inline) return { kind: 'inline', from: posix(job.inline), file: posix(job.to), about: job.about, nth: Number(job.nth ?? 0) };
   const from = posix(job.from);
-  const { records, why } = movable(from, parser);
+  const { records, why } = movable(from, parser, plan);
   const picked = resolvePicks(records, job.picks, (record) => why.get(record).length === 0);
   if (picked.unknown.length) throw new Refusal(picked.unknown.map((pick) => `${from} has no ${pick} at its top level, or its two ends are the wrong way round`));
   return { kind: 'script', from, file: posix(job.to), about: job.about, names: picked.names, skipped: picked.skipped };
 }
 
 function runMoves(parser, jobs, dryRun) {
+  // Tried without writing, a move is still judged after the ones before it in the plan, as it will be for real.
+  const plan = dryRun ? newPlan() : null;
   for (const job of jobs) {
-    const move = toMove(job, parser);
-    const done = perform({ root: REPO_ROOT, parser, move, dryRun });
+    const move = toMove(job, parser, plan);
+    const done = perform({ root: REPO_ROOT, parser, move, dryRun, plan });
     const sizes = done.made.map((file) => `${file} (${done.lines[file]} lines)`).join(', ');
     console.log(`${dryRun ? 'would write' : 'wrote'} ${sizes}; ${move.from} ${dryRun ? 'would be' : 'is'} ${done.lines[move.from]} lines.`);
     if (move.skipped?.length) console.log(`  left in place inside the ranges: ${move.skipped.join(', ')}`);
