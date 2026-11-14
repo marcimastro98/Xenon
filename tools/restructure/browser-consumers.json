@@ -6,6 +6,10 @@
       "list": "exported",
       "how": "The voice panel of the screen: load() adds each stylesheet, then each script of SCRIPTS with a tag of its own and waits for it before the next."
     },
+    "server/js/screen-companion.js": {
+      "list": "exported",
+      "how": "The Game Companion card of the alerts window: open() adds the card's stylesheet and markup, then each script of SCRIPTS the voice panel has not loaded already, each after the one before it has run (server/test/screen-companion.test.mjs)."
+    },
     "server/js/driver-perf.js": {
       "list": "exported",
       "how": "Performance Mode with no dashboard: load() asks for each script of SCRIPTS after the one before it has run (server/test/driver-perf-load.test.mjs)."

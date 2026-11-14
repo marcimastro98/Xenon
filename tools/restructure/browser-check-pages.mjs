@@ -6,7 +6,7 @@
 
 import { createHash } from 'node:crypto';
 
-import { editorStarted, fitRows, loadPerformanceMode } from './browser-check-asks.mjs';
+import { editorStarted, fitRows, loadPerformanceMode, openCompanion } from './browser-check-asks.mjs';
 import { REFUSED } from './browser-check-engine.mjs';
 import { liteWidgets } from './browser-lists.mjs';
 import { readTopLevel } from './top-level.mjs';
@@ -72,6 +72,7 @@ export const PAGES = [
   { name: 'scene', file: 'server/scene.html', path: '/scene', ...DESK },
   { name: 'alerts', file: 'server/screen-alerts.html', path: '/screen-alerts', ...DESK },
   { name: 'alerts with the voice panel', file: 'server/screen-alerts.html', path: '/screen-alerts', first: callBit, holds: 'server/js/screen-bit.js', ...DESK },
+  { name: 'alerts with the Game Companion card', file: 'server/screen-alerts.html', path: '/screen-alerts', first: openCompanion, holds: 'server/js/screen-companion.js', ...DESK },
   { name: 'search window', file: 'server/spotlight.html', path: '/spotlight', ...DESK },
   { name: 'drawing sheet', file: 'server/draw.html', path: '/draw', ...DESK },
   { name: 'widgets-only driver', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, ...DESK },

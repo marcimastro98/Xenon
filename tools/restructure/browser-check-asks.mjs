@@ -1,4 +1,4 @@
-// What the page check asks a page to do before it reads it, for two scripts that load
+// What the page check asks a page to do before it reads it, for three scripts that load
 // other scripts only when the app has a reason to (`loaders` in browser-consumers.json),
 // and what it asks a page whose window changed size.
 // Each function runs in the page, so it uses nothing from this file.
@@ -28,6 +28,14 @@ export function editorStarted() {
     };
     look();
   });
+}
+
+// The Game Companion card of the alerts window (js/screen-companion.js): the window loads the card's scripts the
+// first time a key, its shortcut or the voice opens it. Opened here the way the engine's message does, with a game
+// that is not running. Whether the card then shows follows the settings of the copy; its scripts are loaded either way.
+export function openCompanion() {
+  const told = (shown) => (window.GameCompanion ? `loaded, ${shown ? 'shown' : 'not shown'}` : 'not loaded');
+  return window.ScreenCompanion.open({ game: 'sample.exe' }).then(told, (error) => `not loaded: ${error?.message || error}`);
 }
 
 // The rows that pick a more compact look when space runs out (js/fit-row.js), as the page shows them. Asked before

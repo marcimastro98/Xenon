@@ -190,10 +190,12 @@ test('every script that loads its own list is asked to by a page of the page che
     assert.ok(rows[ownRowOf(list)]?.js.length > 0, `${list} holds a list of its own`);
     for (const file of rows[ownRowOf(list)].js) assert.ok(fs.existsSync(path.join(ROOT, file)), `${list} lists ${file}, which is a file of the repo`);
   }
-  assert.deepEqual(ASKED_LISTS, ['server/js/screen-bit.js', 'server/js/driver-perf.js', 'server/js/layer-host.js']);
+  assert.deepEqual(ASKED_LISTS, ['server/js/screen-bit.js', 'server/js/screen-companion.js', 'server/js/driver-perf.js', 'server/js/layer-host.js']);
   // Each list ends with the scripts its last script is made of today, in the order a page loads them.
   const perfMode = ['server/js/perf-settings.js', ...partsOf('server/js/performance.js')];
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/driver-perf.js'), 'utf8'), 'server/js/driver-perf.js')[OWN_ROW].js.slice(-perfMode.length), perfMode);
+  const card = partsOf('server/js/game-companion.js');
+  assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/screen-companion.js'), 'utf8'), 'server/js/screen-companion.js')[OWN_ROW].js.slice(-card.length), card);
   const editor = partsOf('server/js/layer-edit.js');
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, WRITTEN), 'utf8'), WRITTEN).EDIT_SCRIPTS.js.slice(-editor.length), editor);
 });

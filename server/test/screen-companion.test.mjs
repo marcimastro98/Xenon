@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { readFileSync } from './native-source.mjs';
+import { partsOf } from './browser-source.mjs'; // the card's script comes with the scripts cut out of it
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
@@ -24,7 +25,8 @@ test('the card brings the dashboard\'s own files, in the dashboard\'s order', ()
   const at = ScreenCompanion.SCRIPTS.map((f) => INDEX.indexOf(`src="${f}`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
-  assert.equal(ScreenCompanion.SCRIPTS.at(-1), 'js/game-companion.js');
+  const CARD = partsOf('server/js/game-companion.js').map((file) => file.slice('server/'.length));
+  assert.deepEqual(ScreenCompanion.SCRIPTS.slice(-CARD.length), CARD, 'the card itself last, right after the scripts cut out of it');
   assert.ok(!ScreenCompanion.SCRIPTS.includes('js/ai.js'), 'the card never pulls in the chat');
   for (const f of ['shared/src/bit-spark.js', 'js/xenon-credits.js']) {
     assert.ok(ScreenCompanion.SCRIPTS.includes(f), 'a look on Sparks says its price here too: ' + f);
@@ -196,7 +198,7 @@ test('Bit and the card share the same files: opened after Bit, only the card\'s 
   const before = b.added.length;
   await b.api.open({});
   const extra = b.added.slice(before);
-  assert.deepEqual(extra, [...ScreenCompanion.CSS, 'markup:gc-overlay', 'js/game-companion.js']);
+  assert.deepEqual(extra, [...ScreenCompanion.CSS, 'markup:gc-overlay', ...partsOf('server/js/game-companion.js').map((file) => file.slice('server/'.length))]);
 });
 
 test('a minute after the card closes the page reloads, unless something is still up', async () => {
