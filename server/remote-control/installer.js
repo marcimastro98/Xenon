@@ -1,7 +1,6 @@
 'use strict';
 
 const defaultRunner = require('./runner');
-require('./service');
 
 const {
   WIN_SERVICES, PACKAGES, LINUX_PM, LINUX_PACKAGES, MAC_PACKAGES,
