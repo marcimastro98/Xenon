@@ -610,7 +610,13 @@
     ],
     "server/actions/wavelink.js": [
       {"file":"server/actions/wavelink-shape.js","about":"Turns what Wave Link 2 and Wave Link 3 send into the same channels, mixes and outputs, with every volume as a percentage, and works out which mixes an action means.","names":["normSlider","isWaveLinkApp","appIdentity","clampVolume","pctFromUnit","unitFromPct","meterPct","compactChannel","V2_MIX_LOCAL","V2_MIX_STREAM","v2Mixes","adaptV2Channels","adaptV3Channels","adaptV3Mixes","adaptV3Outputs","mergeChannelPatch","resolveMixTargets"]},
-      {"file":"server/actions/wavelink-ports.js","about":"Where Wave Link listens on this PC and how long to wait for it: the hosts and ports of both versions, the port file Wave Link 3 publishes, and the timings of the connection.","names":["WL_HOSTS","WL_START_PORT","WL_PORT_SPAN","WL_APP_NAME","WL3_ORIGIN","WL3_PACKAGE_RE","WL3_PORT_FILE","WL3_METER_TYPES","IDLE_MS","PING_MS","REQ_TIMEOUT_MS","PROBE_TIMEOUT_MS","readPublishedPort"]}
+      {"file":"server/actions/wavelink-ports.js","about":"Where Wave Link listens on this PC and how long to wait for it: the hosts and ports of both versions, the port file Wave Link 3 publishes, and the timings of the connection.","names":["WL_HOSTS","WL_START_PORT","WL_PORT_SPAN","WL_APP_NAME","WL3_ORIGIN","WL3_PACKAGE_RE","WL3_PORT_FILE","WL3_METER_TYPES","IDLE_MS","PING_MS","REQ_TIMEOUT_MS","PROBE_TIMEOUT_MS","readPublishedPort"]},
+      {"file":"server/actions/wavelink-socket.js","about":"Finding Wave Link's socket and listening to it: the published port of Wave Link 3 or the scanned ports of Wave Link 2, each address asked who it is, every frame read (the answer to a request, or a push), and the reason kept when none answers.","names":["rawSend","handleMessage","socketFor","probeEndpoint","FAIL_RANK","findSocket"],"inner":{"factory":"createWaveLink","make":"makeSocket"}},
+      {"file":"server/actions/wavelink-pushes.js","about":"What Wave Link pushes without being asked: a change of a channel, a mix, an output or a level, in either dialect, merged into what is known about the mixer.","names":["applyNotification","applyV2Notification","applyV3Notification"],"inner":{"factory":"createWaveLink","make":"makePushes"}},
+      {"file":"server/actions/wavelink-ingest.js","about":"What Wave Link sends, kept: the levels, a partial change merged into a channel's record, the channels of either dialect turned into the one list the dashboard shows.","names":["v3Raw","ingestMeters","mergeV3Raw","reindexV2","ingestV2Channels","ingestV3Channels"],"inner":{"factory":"createWaveLink","make":"makeIngest"}},
+      {"file":"server/actions/wavelink-seed.js","about":"Reading the whole mixer from Wave Link: the channels, the outputs and the mixes of either dialect, the levels asked for, and the connection held open and read again while somebody watches.","names":["refreshChannels","refreshOutputs","seedState","setMeters","seedAndHold","startWatchConn","ensureSeeded"],"inner":{"factory":"createWaveLink","make":"makeSeed"}},
+      {"file":"server/actions/wavelink-actions.js","about":"What a Deck action does to Wave Link: a volume, a mute, an output, a mix or a monitor switch, written the way each dialect wants it.","names":["pushV2Input","pushV2Output","runAction"],"inner":{"factory":"createWaveLink","make":"makeActions"}},
+      {"file":"server/actions/wavelink-reads.js","about":"What is read from the Wave Link client: the channels, the mixes, a channel's icon, the state the tile shows, whether there is a connection, and the connection tried.","names":["listChannels","listMixes","iconFor","snapshot","isConnected","test"],"inner":{"factory":"createWaveLink","make":"makeReads"}}
     ],
     "server/actions/home-assistant.js": [
       {"file":"server/actions/home-assistant-address.js","about":"The addresses of a Home Assistant server, worked out from the one the user typed, and the bounded download of a camera picture from it.","names":["HA_WS_MAX_PAYLOAD","haWsUrl","haHttpOrigin","HA_SNAPSHOT_MAX_BYTES","haHttpGetBuffer","isConfigured"]},
@@ -942,6 +948,10 @@
     ],
     "server/discord-rpc.js": [
       {"factory":"createDiscordProvider","object":"watchState","names":["watching","notifState","watchChannelId","currentVoiceChannelId"],"kept":[],"bare":[],"after":5}
+    ],
+    "server/actions/wavelink.js": [
+      {"factory":"createWaveLink","object":"wlLink","names":["ws","ready","idleTimer","pingTimer","retryTimer","reconnectDelay","reqId","goodPort","goodHost","watching"],"kept":[],"bare":[],"after":2},
+      {"factory":"createWaveLink","object":"wlMixer","names":["dialect","identity","seeded","wantMeters","mixes","outputs","meterSubs","monitorMix","switchState","micConnected","outputRaw"],"kept":[],"bare":[],"after":2}
     ]
   }
 }
