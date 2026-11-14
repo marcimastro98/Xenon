@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
 import { redoBranches } from './branches.mjs';
+import { diskTree, dropOnDisk } from './dead-requires-disk.mjs';
 import { planExtraction, Refusal } from './extract-plan.mjs';
 import { gathersToRedo, redoGathers } from './gather.mjs';
 import { planInnerFor } from './inner.mjs';
@@ -43,7 +44,9 @@ function planFor({ root, parser, text, source, target, about, names, withDeps, o
  * @param {string[]} job.names declarations to move
  * @param {boolean} [job.withDeps] also move what they need from the old file
  * @param {boolean} [job.dryRun] plan and prove, write nothing
- * @returns {{ moved: string[], imported: string[], lines: number, sourceLines: number, target: string }}
+ * @returns {{ moved: string[], imported: string[], lines: number, sourceLines: number, target: string,
+ *   bare?: { dropped: { spec: string, why: string }[], kept: { spec: string, why: string }[] } }}
+ *   `bare`: the requires the moved code was the last user of, taken out when proven dead (dead-requires.mjs) or left with the reason;
  *   throws a Refusal before anything is written, an Error after a failed check (files put back)
  */
 export function extract(job) {
@@ -51,7 +54,8 @@ export function extract(job) {
   const before = readFileSync(path.join(root, source), 'utf8');
   const entries = readLedger(root).sources[source] ?? [];
   const earlier = entries.map((entry) => entry.file);
-  const plan = planFor({ ...job, text: before, ownModules: quietModules(entries) });
+  const bare = dropOnDisk({ root, parser: job.parser, source, target, plan: planFor({ ...job, text: before, ownModules: quietModules(entries) }) });
+  const { plan } = bare;
   const requires = plan.requires.map((module) => module.file).filter(Boolean);
   const reasons = targetReasons({ root, source, target, requires });
   if (reasons.length) throw new Refusal(reasons);
@@ -60,6 +64,7 @@ export function extract(job) {
   const count = (text) => text.split('\n').length - 1;
   const result = { moved: plan.moved, imported: plan.imported, target,
     lines: count(plan.moduleText), sourceLines: count(before) - count(plan.newSource) };
+  if (bare.dropped.length || bare.kept.length) result.bare = { dropped: bare.dropped, kept: bare.kept };
   if (dryRun) return result;
 
   const folder = path.dirname(path.join(root, target));
@@ -76,7 +81,7 @@ export function extract(job) {
     if (madeFolder && readdirSync(folder).length === 0) rmdirSync(folder);
     throw new Error(`the move failed its checks and was undone:\n${problems.join('\n')}`);
   }
-  appendLedger(root, source, { file: target, about, names: plan.moved });
+  appendLedger(root, source, { file: target, about, names: plan.moved, ...(bare.dropped.length ? { bare: bare.dropped.map((row) => row.spec) } : {}) });
   return result;
 }
 
@@ -126,6 +131,7 @@ export function replay({ root, parser, base, show = gitShow }) {
   const problems = [];
   const files = [];
   let replayed = 0;
+  let tree = null;
   const ledger = readLedger(root);
   for (const group of groupsOf(ledger)) {
     const source = group[0];
@@ -168,6 +174,13 @@ export function replay({ root, parser, base, show = gitShow }) {
         problems.push(`${entry.file}: the recorded ${entry.lift ? 'lift' : entry.state ? 'rewrite' : 'move'} cannot be redone from ${base}: ${error.message}`);
         stopped = true;
         break;
+      }
+      if (entry.bare) {
+        // A require the step recorded as taken out: asked again of the tree on disk, with the line back in its place.
+        tree ??= diskTree(root);
+        const redone = dropOnDisk({ root, parser, plan, source, target: entry.file, only: entry.bare, tree });
+        problems.push(...redone.problems.map((p) => `${entry.file}: ${p}`));
+        plan = redone.plan;
       }
       const texts = { before: text, after: plan.newSource, moduleText: plan.moduleText, plan };
       const proof = entry.paths ? provePaths({ ...texts, parser, source, target: entry.file })

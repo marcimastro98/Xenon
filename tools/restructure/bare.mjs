@@ -10,7 +10,7 @@ import path from 'node:path';
 import { judgeBareRequires } from './bare-requires.mjs';
 
 // Tests and other people's code are not the app: their lines are not judged, and what they ask for does not count.
-const OUTSIDE = /^server\/(?:test|vendor)\/|\/node_modules\/|^server\/js\/vendor\//;
+export const OUTSIDE = /^server\/(?:test|vendor)\/|\/node_modules\/|^server\/js\/vendor\//;
 const posix = (file) => String(file).split(path.sep).join('/');
 
 /** @param {string} root @returns {string[]} the JavaScript of the server that git tracks, repo-relative */

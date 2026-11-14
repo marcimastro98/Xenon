@@ -79,7 +79,8 @@ test('a move out of a file in a feature folder is written next to it, recorded, 
       'module.exports = { tidy, SEP };', ''].join('\n'), 'each require is spelled from the folder the code is in now');
     const left = readFileSync(path.join(root, OLD), 'utf8');
     assert.ok(left.includes("const { tidy } = require('./demo-tidy.js');"), 'the old file asks its neighbour for the name');
-    assert.deepEqual(readLedger(root).sources, { [OLD]: [{ file: NEW, about: 'Joins and cleans a name.', names: ['tidy', 'SEP'] }] });
+    assert.ok(!left.includes("\nrequire('"),'the two files only the moved code used only declare: their requires leave with it');
+    assert.deepEqual(readLedger(root).sources, { [OLD]: [{ file: NEW, about: 'Joins and cleans a name.', names: ['tidy', 'SEP'], bare: ['../lib', './near'] }] });
     assert.equal(answerOf(root), answerOf(untouched), 'run for real, both give the same');
     assert.equal(answerOf(root), 'A/X!');
 

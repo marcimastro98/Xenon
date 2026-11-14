@@ -117,13 +117,19 @@ function factsOfText(file, text, parser) {
  * @param {(file: string) => string | null} job.read the text of a file, null when there is no such file (a folder is no file)
  * @param {any} job.parser from parser.mjs
  * @param {(file: string) => string} [job.real] the one name of a file that can be reached under two (a linked folder)
+ * @param {Map<string, { text: string | null, facts: any }>} [job.known] what an earlier call read of each file: a file whose text is the same is not read again
  * @returns {{ rows: { file: string, line: number, spec: string, verdict: 'dead' | 'stays', why: string }[], unseen: { file: string, line: number }[] }}
  *   `unseen`: uses of `require` that were not followed; while there is one, rules 2 and 3 prove nothing for the files it could reach
  */
-export function judgeBareRequires({ files, read, parser, real = (file) => file }) {
+export function judgeBareRequires({ files, read, parser, real = (file) => file, known }) {
   const facts = new Map();
   const factsOf = (file) => {
-    if (!facts.has(file)) facts.set(file, factsOfText(file, read(file), parser));
+    if (!facts.has(file)) {
+      const text = read(file);
+      const before = known?.get(file);
+      facts.set(file, before && before.text === text ? before.facts : factsOfText(file, text, parser));
+      known?.set(file, { text, facts: facts.get(file) });
+    }
     return facts.get(file);
   };
   const resolve = (spec, from) => {

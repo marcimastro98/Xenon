@@ -53,6 +53,7 @@ import { readMap } from '../map/map.mjs';
 import { analyze, toJson } from './analyze.mjs';
 import { moveBranches, renderSurvey, surveyBranches } from './branches.mjs';
 import { ROUTES, TOOLS } from './branches-kinds.mjs';
+import { bareLines } from './dead-requires.mjs';
 import { extract, replay } from './extract.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { groupsOf, protectedNames, readLedger } from './ledger.mjs';
@@ -125,6 +126,7 @@ function runExtractions(parser, jobs, dryRun) {
     console.log(`${dryRun ? 'would move' : 'moved'} ${done.moved.length} declarations to ${done.target} (${done.lines} lines); `
       + `${posix(job.from)} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines and requires ${done.imported.length} names back.`);
     if (dryRun) console.log(`  ${done.moved.join(', ')}`);
+    for (const line of bareLines(done.bare, dryRun)) console.log(line);
   }
   if (!dryRun) console.log('Next: node tools/restructure/cli.mjs verify, then carry, then npm run sizes -- --update and npm run map.');
   return 0;

@@ -5,6 +5,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, wr
 import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
+import { bareLines } from './dead-requires.mjs';
+import { dropOnDisk } from './dead-requires-disk.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { planInner } from './inner-plan.mjs';
 import { proveInner } from './inner-proof.mjs';
@@ -34,14 +36,16 @@ export function planInnerFor({ root, parser, text, source, target, about, factor
  * @param {string} job.factory the top-level function the functions leave @param {string} job.make the function the new module gives
  * @param {string[]} job.names functions declared in the factory's body
  * @param {boolean} [job.dryRun] plan and prove, write nothing
- * @returns {{ moved: string[], returned: string[], passed: string[], lines: number, sourceLines: number, target: string }}
+ * @returns {{ moved: string[], returned: string[], passed: string[], lines: number, sourceLines: number, target: string,
+ *   bare?: { dropped: { spec: string, why: string }[], kept: { spec: string, why: string }[] } }} `bare` as in extract.mjs;
  *   throws a Refusal before anything is written, an Error after a failed check (files put back)
  */
 export function moveInner(job) {
   const { root, parser, source, target, about, factory, make, dryRun = false } = job;
   const before = readFileSync(path.join(root, source), 'utf8');
   const entries = readLedger(root).sources[source] ?? [];
-  const plan = planInnerFor({ ...job, text: before, ownModules: quietModules(entries) });
+  const bare = dropOnDisk({ root, parser, source, target, plan: planInnerFor({ ...job, text: before, ownModules: quietModules(entries) }) });
+  const { plan } = bare;
   const reasons = targetReasons({ root, source, target, requires: plan.requires.map((module) => module.file).filter(Boolean) });
   if (reasons.length) throw new Refusal(reasons);
   const proof = proveInner({ before, after: plan.newSource, moduleText: plan.moduleText, plan, parser, source, target, factory, make });
@@ -49,6 +53,7 @@ export function moveInner(job) {
   const count = (text) => text.split('\n').length - 1;
   const result = { moved: plan.moved, returned: plan.returned, passed: plan.passed, target,
     lines: count(plan.moduleText), sourceLines: count(before) - count(plan.newSource) };
+  if (bare.dropped.length || bare.kept.length) result.bare = { dropped: bare.dropped, kept: bare.kept };
   if (dryRun) return result;
 
   const folder = path.dirname(path.join(root, target));
@@ -65,7 +70,7 @@ export function moveInner(job) {
     if (madeFolder && readdirSync(folder).length === 0) rmdirSync(folder);
     throw new Error(`the move failed its checks and was undone:\n${problems.join('\n')}`);
   }
-  appendLedger(root, source, { file: target, about, names: plan.moved, inner: { factory, make } });
+  appendLedger(root, source, { file: target, about, names: plan.moved, inner: { factory, make }, ...(bare.dropped.length ? { bare: bare.dropped.map((row) => row.spec) } : {}) });
   return result;
 }
 
@@ -85,6 +90,7 @@ export function runInner(parser, root, { flags, rest }) {
   console.log(`${dryRun ? 'would move' : 'moved'} ${done.moved.join(', ')} out of ${flags.factory} to ${done.target} (${done.lines} lines); `
     + `${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines.`);
   console.log(`  ${flags.make} is handed ${done.passed.join(', ') || 'nothing'} and gives back ${done.returned.join(', ')}.`);
+  for (const line of bareLines(done.bare, dryRun)) console.log(line);
   if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');
   return 0;
 }
