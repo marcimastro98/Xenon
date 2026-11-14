@@ -5047,8 +5047,6 @@ const { settingsBoot } = require('./settings/boot-state.js');
 
 const { gameSessionsEnabled } = require('./performance/game-sessions-switch.js');
 
-const { settingsStore } = require('./settings/store-state.js');
-
 const { geminiKeyFor } = require('./ai/gemini-key-for.js');
 
 const { smallTaskModel } = require('./ai/small-task-model.js');
@@ -5062,22 +5060,6 @@ const { backupSupersededLayout } = require('./grid/layout-backup.js');
 const { writeHubSettings } = require('./settings/write.js');
 
 const { getSlideshowDir } = require('./windows-tiles/slideshow-dir.js');
-
-// ── settings store: serialized read-modify-write ────────────────────────────
-// writeFileAtomic serializes the file WRITE, but every settings mutator runs
-// `read prev → merge → write` as separate awaits. Two saves arriving close
-// together from different surfaces (the Xeneon Edge screen, a desktop browser,
-// the native app, an embedded iframe) could both read the SAME prev and the
-// last writer would clobber the other's change — even the merge that keeps the
-// newest per-vital timestamp only defends against a stale INCOMING, not against
-// a stale PREV read during the interleave. That was the "Bit / Vitals out of
-// sync across surfaces" bug (measured: 4 of 5 concurrent refills were lost, and
-// two concurrent saves could even assign the same rev, breaking the monotonic
-// rev the SSE cross-surface sync relies on). Run every settings mutation through
-// this promise-chain mutex so each one observes the previous one's committed
-// result. fn runs after the previous settles (fulfilled OR rejected), and a
-// rejected run never poisons the chain.
-settingsStore.writeChain = Promise.resolve();
 
 const { withHubSettingsLock } = require('./settings/write-lock.js');
 
