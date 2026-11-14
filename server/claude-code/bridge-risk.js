@@ -5,6 +5,10 @@
 const path = require('node:path');
 const { str } = require('./bridge-clamp.js');
 
+// Tool calls whose blast radius is wide enough that the tile alone is not
+// enough of a prompt — these escalate to the fullscreen overlay immediately
+// rather than after URGENT_AFTER_MS (bridge-limits.js). Deliberately conservative:
+// this only changes how loudly we ASK, never whether we ask.
 const DESTRUCTIVE_TOOLS = new Set(['Bash', 'Write', 'Edit', 'NotebookEdit', 'KillShell']);
 const DESTRUCTIVE_RE = /\b(rm\s+-[rf]|rmdir|del\s+\/|format\s|mkfs|dd\s+if=|git\s+(reset\s+--hard|clean\s+-[a-z]*f|push\s+.*--force)|drop\s+(table|database)|truncate\s+table|shutdown|Remove-Item)/i;
 

@@ -53,10 +53,7 @@ const MAX_AGENT_TOKENS = 10_000_000;
 // ride along after them.
 const MAX_FOLLOWUP_CHARS = 6000;
 
-// Tool calls whose blast radius is wide enough that the tile alone is not
-// enough of a prompt — these escalate to the fullscreen overlay immediately
-// rather than after URGENT_AFTER_MS. Deliberately conservative: this only
-// changes how loudly we ASK, never whether we ask.
+// How much of a question or a plan the tile keeps.
 const MAX_QUESTIONS = 4;    // matches AskUserQuestion's own cap
 const MAX_OPTIONS = 5;      // 4 authored, plus one spare
 const MAX_TYPED = 2000;     // an "Other" answer typed on the tile
