@@ -20,6 +20,11 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const API = 'https://www.googleapis.com/youtube/v3';
 
+// A link the dashboard shows as-is must be https, never javascript: or data:.
+function httpsOnly(u, fallback) {
+  try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : fallback; } catch { return fallback; }
+}
+
 const normalizeStreamYouTube = makeCredsNormalizer({ channel: 120, channelId: 60 });
 
 // deps (all optional, injectable for tests):
@@ -774,8 +779,3 @@ function createYouTubeProvider(deps) {
 }
 
 module.exports = { createYouTubeProvider, normalizeStreamYouTube };
-
-// A link the dashboard shows as-is must be https, never javascript: or data:.
-function httpsOnly(u, fallback) {
-  try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : fallback; } catch { return fallback; }
-}
