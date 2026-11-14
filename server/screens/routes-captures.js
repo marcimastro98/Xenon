@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const { serveFileRange } = require('../http-range.js');
 const CaptureCovers = require('../capture-covers.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
+const { revealInFileManager } = require('../files/reveal-in-file-manager.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -180,6 +181,27 @@ const branches = {
       }
       const r = await _captureCovers.save(id, png);
       if (r.ok) broadcastSSE('captures', { changed: true });
+      json(r);
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /captures/delete|/captures/reveal|/captures/copy|/captures/trim': async (req, _res, { json, err500, reqPath }, { _captureGallery, _captures }) => {
+    // delete / reveal / copy / trim, by id. Loopback-only (REMOTE_DENY) and in
+    // CSRF_MUTATION_PATHS: each one acts on a file on this PC.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      const id = String((body && body.id) || '');
+      let r;
+      if (reqPath === '/captures/delete') r = await _captures.remove(id);
+      else if (reqPath === '/captures/trim') r = await _captureGallery.trim(id, { start: body.start, end: body.end });
+      else if (reqPath === '/captures/copy') r = await _captureGallery.copy(id);
+      else {
+        const e = _captures.get(id);
+        if (e) revealInFileManager(e.file);
+        r = e ? { ok: true } : { ok: false, error: 'not_found' };
+      }
+      // Every open gallery (a phone's too) shows the change.
+      if (r.ok && (reqPath === '/captures/delete' || reqPath === '/captures/trim')) broadcastSSE('captures', { changed: true });
       json(r);
     } catch (e) { err500(e.message); }
   },

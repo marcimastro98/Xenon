@@ -59,6 +59,18 @@ const branches = {
       json(r);
     } catch (e) { err500(e.message); }
   },
+
+  'POST /api/push/subscribe': async (req, _res, { json, err500, remote }, { webPush }) => {
+    // The browser has just been given an address by its push service and is
+    // handing it over. It is tied to the DEVICE that presented it, so a revoke
+    // can take it away again; on the PC itself there is no device, and the
+    // empty id is a real value meaning "this machine".
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const deviceId = (remote && remote.device && remote.device.id) || '';
+      json(await webPush.subscribe(body.subscription || body, { deviceId }));
+    } catch (e) { err500(e.message); }
+  },
 };
 
 module.exports = { branches };

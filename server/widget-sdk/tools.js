@@ -2,6 +2,8 @@
 // widget passes the same check as any widget that is installed, and nothing is granted to it
 // here.
 
+// biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
+
 const aiPictures = require('../ai-attached-pictures.js');
 const { externalizeInlineScripts } = require('../ai-widget-scripts.js');
 const sdkWidgets = require('../sdk-widgets.js');
@@ -76,6 +78,14 @@ const branches = {
         const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
         fnResult = payload ? aiMyWidgets.readOwn(payload) : { ok: false, error: 'not_found' };
       }
+      return fnResult;
+  },
+
+  'sdk_reference': async ({ fnArgs }) => {
+      let fnResult;
+      // Read-only grounding for create_widget: the code-authoritative SDK
+      // allowlists plus docs/WIDGET_SDK.md by section.
+      fnResult = await require('../ai-knowledge.js').getSdkReference(fnArgs.section || '');
       return fnResult;
   },
 };

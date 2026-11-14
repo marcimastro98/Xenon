@@ -7,11 +7,21 @@ const { _sttPending } = require('./stt-pending.js');
 const { privateTmpFile } = require('../private-tmp.js');
 const wakeWord = require('../wakeword.js');
 const {
-  _sttSilenceDb, STT_AFTER_SPEECH_SILENCE_GRACE_MS, STT_START_SILENCE_GRACE_MS,
+  _sttSilenceDb, STT_AFTER_SPEECH_SILENCE_GRACE_MS, STT_START_SILENCE_GRACE_MS, _sttLooksLikeSpeech,
 } = require('./stt-gate.js');
 const { _sttGain } = require('./mic-gain.js');
 const { spawn } = require('node:child_process');
 const { broadcastSSE } = require('../http/sse-clients.js');
+const aiLocal = require('../ai-local.js');
+const fs = require('node:fs');
+const { _pcmRmsStats, _dbFromRms } = require('../wav/pcm-loudness.js');
+const { hasVoice, wavPcm } = require('../stt-voice-gate.js');
+const aiOpenai = require('../ai-openai.js');
+const { providerModelFor } = require('./provider-models.js');
+const aiCli = require('../ai-cli.js');
+const path = require('node:path');
+
+const SERVER_DIR = path.join(__dirname, '..');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -131,6 +141,116 @@ const branches = {
       process.stdout.write(`[STT] Recording id=${id} via=${_sttVia()} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ id }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+  },
+
+  'POST /api/stt/stop': async (req, res, _context, { _sttDeviceLabel, _sttVia, _transcribeAudio, geminiKeyFor, readHubSettings }) => {
+    try {
+      const stopBody = JSON.parse(await readBody(req) || '{}');
+      const id = String(stopBody.id || '').trim();
+      const apiKey = await geminiKeyFor(stopBody.key);
+      const sttLang = String(stopBody.lang || 'en').toLowerCase().slice(0, 2);
+      const sttProvider = aiLocal.sanitizeProvider(stopBody.provider);
+      // mode 'audio' → return the raw recording so the caller can send it straight
+      // to the chat model (transcribe + answer in one call). Default → transcribe here.
+      // mode 'test'  → mic self-test: report the device/level we captured and whether
+      // it passed the speech gate, with no transcription and no API key needed.
+      const audioMode = stopBody.mode === 'audio';
+      const testMode  = stopBody.mode === 'test';
+      const rec = _sttPending.get(id);
+      if (!rec) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'not_found' })); return;
+      }
+      // Stop ffmpeg gracefully — send 'q' then close stdin (EOF)
+      try { rec.ffmpegProc.stdin.write('q'); rec.ffmpegProc.stdin.end(); } catch {}
+      await Promise.race([rec.recordingSaved, new Promise(r => setTimeout(r, 6000))]);
+      _sttPending.delete(id);
+      // Mic released → let the wake-word listener come back (after a settle
+      // delay; no-op unless the feature is enabled and wanted).
+      if (_sttPending.size === 0) wakeWord.resumeSoon();
+      let wavData = null;
+      try { wavData = await fs.promises.readFile(rec.wavPath); } catch {}
+      fs.promises.unlink(rec.wavPath).catch(() => {});
+      // Whole-clip RMS — used both for logging and as a speech gate below.
+      let clipStats = { rms: 0, peak: 0 };
+      if (wavData && wavData.length > 44) {
+        clipStats = _pcmRmsStats(wavData.slice(44), 16000, 80);
+        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData.length} rms=${clipStats.rms.toFixed(1)} peak=${clipStats.peak.toFixed(1)}\n`);
+      } else {
+        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData ? wavData.length : 0}\n`);
+      }
+      // Mic self-test: surface exactly which device was captured and how loud it
+      // was, so a user (or a bug report screenshot) can tell whether the voice
+      // capture path actually hears them — independent of the browser mic meter,
+      // which reads a different device than this server-side recorder.
+      if (testMode) {
+        const heard = !!(wavData && wavData.length > 44 && clipStats.rms > 0 && _sttLooksLikeSpeech(clipStats));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          test: true,
+          heard,
+          via: _sttVia(),
+          device: _sttDeviceLabel(),
+          db: Math.round(_dbFromRms(clipStats.rms)),
+          gain: _sttGain(),
+        })); return;
+      }
+      if (!wavData || wavData.length < 100) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
+      }
+      if (!_sttLooksLikeSpeech(clipStats) || !hasVoice(wavPcm(wavData))) {
+        process.stdout.write(`[STT] Below speech floor (rms=${clipStats.rms.toFixed(1)}, peak=${clipStats.peak.toFixed(1)}) → empty\n`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
+      }
+      if (audioMode) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ audio: wavData.toString('base64'), mimeType: 'audio/wav' })); return;
+      }
+      let sttText;
+      // Each provider hears the user the way /api/transcribe does, so none of
+      // them quietly needs a Gemini key: local whisper for Ollama, Claude (no
+      // speech API), Xenon credits and a Claude Code / Codex subscription;
+      // OpenAI's own speech model, with its server-only key, for ChatGPT.
+      // Before this, the voice orb sent Claude and ChatGPT to Gemini and failed
+      // without a Gemini key.
+      if (sttProvider === 'openai') {
+        const s = await readHubSettings().catch(() => null);
+        const openaiKey = String((s && s.openaiApiKey) || '').trim();
+        if (!openaiKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_key' })); return;
+        }
+        process.stdout.write(`[STT] OpenAI transcribe lang=${sttLang}\n`);
+        try {
+          sttText = await aiOpenai.stt({ apiKey: openaiKey, wavBuffer: wavData, lang: sttLang, model: providerModelFor('openai', 'stt', s) });
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      } else if (sttProvider === 'ollama' || sttProvider === 'localapi' || sttProvider === 'anthropic' || sttProvider === 'xenon' || aiCli.isCliProvider(sttProvider)) {
+        process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
+        try {
+          sttText = await aiLocal.localStt(wavData, sttLang, SERVER_DIR);
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      } else {
+        if (!apiKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_key' })); return;
+        }
+        process.stdout.write(`[STT] Transcribing lang=${sttLang}\n`);
+        sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey, sttLang);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ text: sttText }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));

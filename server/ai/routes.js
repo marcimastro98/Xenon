@@ -13,6 +13,12 @@ const aiLocal = require('../ai-local.js');
 const { chimeRequested } = require('./chime-play.js');
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { hub } = require('../settings/current.js');
+const { hasVoice, wavPcm } = require('../stt-voice-gate.js');
+const aiOpenai = require('../ai-openai.js');
+const { providerModelFor } = require('./provider-models.js');
+const path = require('node:path');
+
+const SERVER_DIR = path.join(__dirname, '..');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -188,6 +194,70 @@ const branches = {
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+  },
+
+  'POST /api/transcribe': async (req, res, _context, { _audioToWav16k, _transcribeAudio, geminiKeyFor, readHubSettings }) => {
+    try {
+      const tRaw = await readBodyBuffer(req, 30 * 1024 * 1024);
+      const tBody = JSON.parse(tRaw.toString('utf8') || '{}');
+      const apiKey = await geminiKeyFor(tBody.key);
+      const tProvider = aiLocal.sanitizeProvider(tBody.provider);
+      const audioB64 = typeof tBody.audio === 'string' ? tBody.audio.slice(0, 20 * 1024 * 1024) : '';
+      const rawMime = typeof tBody.mimeType === 'string' ? tBody.mimeType : 'audio/webm';
+      const safeLang = String(tBody.lang || 'auto').toLowerCase().slice(0, 5).replace(/[^a-z-]/g, '') || 'auto';
+
+      // A clip with no voice stops here, for every provider. Without ffmpeg it
+      // cannot be measured, and the model's own NO_SPEECH answer is what is left.
+      let wavBuffer = null;
+      let decodeError = null;
+      if (audioB64) {
+        try { wavBuffer = await _audioToWav16k(Buffer.from(audioB64, 'base64')); }
+        catch (e) { decodeError = e; console.warn('[STT] clip not measured:', e.message); }
+      }
+      if (wavBuffer && !hasVoice(wavPcm(wavBuffer))) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ text: '' })); return;
+      }
+
+      // Non-Gemini STT: decode → transcode to 16kHz mono WAV via ffmpeg, then
+      // transcribe. Ollama and Claude (no speech API) use local whisper.cpp;
+      // ChatGPT uses OpenAI Whisper with its server-only key. No Gemini key
+      // required. Errors degrade gracefully (HTTP 200, empty text).
+      if (tProvider === 'ollama' || tProvider === 'localapi' || tProvider === 'anthropic' || tProvider === 'xenon' || tProvider === 'openai' || aiCli.isCliProvider(tProvider)) {
+        if (!audioB64) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_params' })); return;
+        }
+        let openaiKey = '';
+        if (tProvider === 'openai') {
+          const s = await readHubSettings().catch(() => null);
+          openaiKey = String((s && s.openaiApiKey) || '').trim();
+          if (!openaiKey) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ text: '', error: 'no_key' })); return; }
+        }
+        try {
+          if (!wavBuffer) throw decodeError;
+          const text = tProvider === 'openai'
+            ? await aiOpenai.stt({ apiKey: openaiKey, wavBuffer, lang: safeLang, model: providerModelFor('openai', 'stt') })
+            : await aiLocal.localStt(wavBuffer, safeLang, SERVER_DIR);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text })); return;
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      }
+
+      if (!apiKey || !audioB64) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_params' })); return;
+      }
+      const tText = await _transcribeAudio(audioB64, rawMime, apiKey, safeLang);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ text: tText }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
     }
   },
 };

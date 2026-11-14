@@ -8,6 +8,18 @@ const { DECK_MAX_BYTES } = require('./limits.js');
 const deckStore = require('../js/deck-store.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { normalizeDeckStore } = require('./store-normalize.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { streams } = require('../streaming/providers.js');
+const { discordLink } = require('../discord/link.js');
+const lighting = require('../lighting.js');
+const claudeLink = require('../claude-link.js');
+const { DATA_DIR } = require('../engine/paths.js');
+const { nativeCollectors } = require('../system/native-collectors.js');
+const { SVV } = require('../audio/svv-path.js');
+const { streamingLive } = require('../streaming/live.js');
+
+const SERVER_DIR = path.join(__dirname, '..');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -129,6 +141,67 @@ const branches = {
       if (Number.isInteger(at)) routeHotkeyIndex(at);
       json({ ok: true });
     } catch (e) { err500(e.message); }
+  },
+
+  'GET /deck-popup': async (_req, _res, { sendPage }) => {
+    // Virtual Deck popup document (main-PC window). Same loopback trust as '/';
+    // no-store so the popup never boots from a stale entry document.
+    await sendPage(await fs.promises.readFile(path.join(SERVER_DIR, 'deck-popup.html'), 'utf8'));
+  },
+
+  'GET /actions/catalog': async (_req, _res, { json, err500 }, { PORT, capabilityRunner, deckVoicemeeter, keySendAvailable, nativeMedia, phoneKeysAvailable, readHubSettings }) => {
+    try {
+      const { ACTION_CATALOG } = require('../js/deck-actions.js');
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const rc = (s.remoteControl && typeof s.remoteControl === 'object') ? s.remoteControl : {};
+      // "configured" = la presenza delle credenziali Sunshine (le scrive
+      // configureSunshine al termine del setup). I flag *Installed non vengono
+      // mai persistiti, quindi non sono un segnale affidabile.
+      const remoteConfigured = !!(rc.sunshineUser && rc.sunshinePass);
+      // Twitch actions are only useful when logged in — surface that so the editor
+      // can hide them until the user connects (mirrors obs/remote gating).
+      const tw = await streams.twitch.status().catch(() => ({ connected: false }));
+      const yt = await streams.youtube.status().catch(() => ({ connected: false }));
+      const dc = await discordLink.rpc.status().catch(() => ({ connected: false }));
+      const sp = await streams.spotify.status().catch(() => ({ connected: false }));
+      const haCfg = (s.homeAssistant && typeof s.homeAssistant === 'object') ? s.homeAssistant : {};
+      // Lighting actions surface only when the user actually has controllable
+      // lighting — the iCUE bridge, an external provider with devices, or Chroma.
+      const ls = lighting.getStatus();
+      const lightingConfigured = !!(ls.available || (ls.devices && ls.devices.length) || (ls.providers && ls.providers.some((p) => (p.devices || []).length)));
+      // Capability probe: on Linux there is no PowerShell and no SoundVolumeView,
+      // but the audio actions still work when a PipeWire mixer answers, so report
+      // what is actually usable rather than the Windows assumption.
+      // Claude Code keys are offered only once the hooks are installed. Without
+      // them a run's permission prompts land in a terminal the user isn't
+      // looking at, and a key that starts invisible work is worse than no key.
+      const claudeLinked = await claudeLink.status(DATA_DIR, PORT).then(r => !!(r && r.linked)).catch(() => false);
+      const powershellAvailable = process.platform === 'win32';
+      const audioControlAvailable = nativeCollectors
+        ? await nativeCollectors.audioAvailable()
+        : fs.existsSync(SVV);
+      // Per-app volume is a narrower capability than "audio works": Windows has
+      // it through SoundVolumeView and Linux through PipeWire's per-stream
+      // nodes, but macOS exposes no per-process mixer to a shell at all (see
+      // docs/MACOS_PORTABILITY.md). The editor hides those keys rather than
+      // offering three that always fail.
+      const appAudioAvailable = audioControlAvailable && process.platform !== 'darwin';
+      // Media transport is its own capability rather than a PowerShell one: it
+      // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
+      // is optional, so the answer is "is there a media host" — not "which OS".
+      const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
+      json({ catalog: ACTION_CATALOG, platform: process.platform, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || streamingLive.obsWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable(), ...capabilityRunner.probes() } });
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /deck/client-step': async (req, _res, { json }, { deckShortcutRunner }) => {
+    // The Virtual Deck window or a Deck on a widget layer cannot open the AI
+    // chat or the mixer: a dashboard (or the screen, in "widgets only") claims
+    // the step. In CSRF_MUTATION_PATHS, denied to paired devices.
+    try {
+      const body = JSON.parse(await readBody(req, 8 * 1024) || '{}');
+      json(await deckShortcutRunner.handOff(require('../js/deck-actions.js').validateAction(body && body.action)));
+    } catch { json({ ok: false, error: 'failed' }); }
   },
 };
 

@@ -7,6 +7,11 @@ const { readBody } = require('../http/read-body.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { widgetSnapshot: widgetGameSessions } = require('../game-sessions.js');
 const { gameSessionsEnabled } = require('./game-sessions-switch.js');
+const { execFile } = require('node:child_process');
+const path = require('node:path');
+const { PRESENTMON_URL, PRESENTMON_SHA256 } = require('./presentmon-download.js');
+
+const SERVER_DIR = path.join(__dirname, '..');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -57,6 +62,45 @@ const branches = {
     // `gameSessions` (js/custom-widget.js loader). Names and numbers, no paths.
     const limit = Number(urlObj.searchParams.get('limit')) || 20;
     json(widgetGameSessions(_gameSessions, { enabled: gameSessionsEnabled(), limit }));
+  },
+
+  'POST /api/gamemode/install-presentmon': async (_req, _res, { json, err500 }) => {
+    // One-click download of the classic single-binary PresentMon CLI (the same
+    // pinned v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
+    // The server runs this exe elevated for an ETW session, so the bytes are held
+    // to a pinned SHA-256 before they take the name fpsmon.js launches: the file
+    // lands as .download, is hashed, and only a match is moved into place.
+    try {
+      // PresentMon is a Windows ETW tool: there is no build to fetch anywhere
+      // else, and the download itself is written in PowerShell. Refusing by name
+      // beats letting the client discover it through a spawn failure.
+      if (process.platform !== 'win32') { json({ ok: false, error: 'unsupported_platform' }); }
+      else if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
+      else {
+        const ps = [
+          "$ErrorActionPreference='Stop';",
+          "$dir=$env:PM_DIR; $exe=Join-Path $dir 'PresentMon.exe'; $part=\"$exe.download\";",
+          "if(-not(Test-Path $dir)){New-Item -ItemType Directory -Path $dir -Force | Out-Null};",
+          '[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;',
+          "Invoke-WebRequest -Uri $env:PM_URL -OutFile $part -Headers @{'User-Agent'='XenonEdgeHub'} -TimeoutSec 120 -UseBasicParsing;",
+          "if(-not(Test-Path $part)){throw 'download did not produce PresentMon.exe'};",
+          "$got=(Get-FileHash -LiteralPath $part -Algorithm SHA256).Hash;",
+          "if($got -ne $env:PM_SHA){Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue; throw \"checksum mismatch (expected $env:PM_SHA, got $got)\"};",
+          "Move-Item -LiteralPath $part -Destination $exe -Force",
+        ].join(' ');
+        await new Promise((resolve, reject) =>
+          execFile('powershell.exe',
+            ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ps],
+            { windowsHide: true, timeout: 180000, env: { ...process.env, PM_DIR: path.join(SERVER_DIR, 'presentmon'), PM_URL: PRESENTMON_URL, PM_SHA: PRESENTMON_SHA256 } },
+            (psErr) => psErr ? reject(psErr) : resolve()
+          )
+        );
+        try { fpsMonitor.reload(); } catch { /* monitor will retry on its own */ }
+        json({ ok: true, installed: true });
+      }
+    } catch (e) {
+      err500('PresentMon non installato: ' + (e && e.message ? e.message : 'download fallito'));
+    }
   },
 };
 

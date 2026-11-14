@@ -132,6 +132,24 @@ const branches = {
     // Settings "Test connection": init a Chroma session then release it.
     try { json(await deckChroma.test()); } catch (e) { json({ ok: false, error: 'chroma_failed' }); }
   },
+
+  'POST /api/lighting/native/preview': async (req, _res, { json, err500 }) => {
+    // Guided setup: light part of one output so the user sees where each fan
+    // ends. { device, output, done: [counts], lit, whole } or { stop: true }.
+    // Transient (ends by itself after a few seconds), never persisted.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (body.stop === true) { await lighting.setNativePreview('', 0, null); return json({ ok: true }); }
+      const count = (n) => Math.max(0, Math.min(256, Math.round(Number(n)) || 0));
+      const opts = {
+        done: (Array.isArray(body.done) ? body.done : []).slice(0, 32).map(count),
+        lit: count(body.lit),
+        whole: body.whole === true,
+      };
+      const ok = await lighting.setNativePreview(String(body.device || '').slice(0, 160), Number(body.output), opts);
+      json({ ok });
+    } catch (e) { err500(e.message); }
+  },
 };
 
 module.exports = { branches };

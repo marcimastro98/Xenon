@@ -43,6 +43,20 @@ const branches = {
       }
       return fnResult;
   },
+
+  'deck_action_catalog': async () => {
+      let fnResult;
+      // Read-only grounding for configure_deck: the full typed-action catalog
+      // (compact), the live-state sources and the slider targets.
+      // `info` is what the action does, the same sentence the Deck editor shows.
+      const info = await require('../ai-creation-labels.js').englishByPrefix('deck_info_');
+      const catalog = require('../js/deck-actions.js').ACTION_CATALOG
+        .filter(a => !a.hidden)
+        .map(a => ({ type: a.type, group: a.group, ...(info[a.type] ? { info: info[a.type] } : {}), params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));
+      const dm = require('../js/deck-model.js');
+      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sensorMetrics: dm.DECK_SENSOR_METRICS, vitalsMeters: dm.DECK_VITALS_METERS, sliderTargets: dm.SLIDER_TARGETS };
+      return fnResult;
+  },
 };
 
 module.exports = { branches };

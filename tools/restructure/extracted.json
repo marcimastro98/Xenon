@@ -437,7 +437,31 @@
       {"file":"server/widget-sdk/routes-packages.js","about":"","keys":["GET /sdk/export/*","GET /sdk/check/*","DELETE /sdk/widget/*"],"after":292},
       {"file":"server/paired/routes-access.js","about":"","keys":["GET /api/remote-access/status","POST /api/remote-access/https","POST /api/remote-access/https/setup","POST /api/remote-access/pair"],"after":292},
       {"file":"server/streaming/tools.js","about":"","keys":["spotify_control"],"after":298},
-      {"file":"server/discord/tools.js","about":"What the assistant does in a Discord voice call: mute, deafen, join and leave.","keys":["discord_voice"],"after":298}
+      {"file":"server/discord/tools.js","about":"What the assistant does in a Discord voice call: mute, deafen, join and leave.","keys":["discord_voice"],"after":298},
+      {"file":"server/widget-sdk/routes.js","about":"","keys":["GET /shell-driver","GET /sdk-service","POST /sdk/widgets/example"],"after":301},
+      {"file":"server/search/routes.js","about":"","keys":["GET /spotlight"],"after":301},
+      {"file":"server/menu/routes.js","about":"","keys":["GET /menu"],"after":301},
+      {"file":"server/alerts/routes.js","about":"","keys":["GET /screen-alerts","GET /draw"],"after":301},
+      {"file":"server/deck/routes-keys.js","about":"","keys":["GET /deck-popup","GET /actions/catalog","POST /deck/client-step"],"after":301},
+      {"file":"server/ambient/routes.js","about":"The page the engine answers with for the scene window: the animated background on a screen of its own.","keys":["GET /scene"],"after":301},
+      {"file":"server/paired/routes.js","about":"","keys":["GET /pair","GET /sw.js"],"after":301},
+      {"file":"server/paired/routes-access.js","about":"","keys":["GET /api/remote-access/whoami"],"after":301},
+      {"file":"server/paired/routes-push.js","about":"","keys":["POST /api/push/subscribe"],"after":301},
+      {"file":"server/engine/routes.js","about":"","keys":["GET /","GET /status","GET /sse"],"after":301},
+      {"file":"server/lights/routes-control.js","about":"","keys":["POST /api/lighting/native/preview"],"after":301},
+      {"file":"server/performance/routes.js","about":"","keys":["POST /api/gamemode/install-presentmon"],"after":301},
+      {"file":"server/install/routes.js","about":"","keys":["POST /api/native/install"],"after":301},
+      {"file":"server/ai/routes-dictation.js","about":"","keys":["POST /api/stt/stop"],"after":301},
+      {"file":"server/ai/routes.js","about":"","keys":["POST /api/transcribe"],"after":301},
+      {"file":"server/ai/routes-local.js","about":"What the engine answers about the AI that runs on this computer: whether it is there, fetching a model, installing Whisper.","keys":["GET /api/ai-local/status","POST /api/ai-local/pull","POST /api/ai-local/whisper-install"],"after":301},
+      {"file":"server/windows-tiles/routes-tiles.js","about":"","keys":["GET /slideshow/file"],"after":301},
+      {"file":"server/transfer/routes-phone.js","about":"","keys":["POST /api/transfer/upload"],"after":301},
+      {"file":"server/transfer/routes.js","about":"","keys":["POST /api/transfer/settings"],"after":301},
+      {"file":"server/deck/tools.js","about":"","keys":["deck_action_catalog"],"after":301},
+      {"file":"server/ai/tools-knowledge.js","about":"What the assistant does when asked about Xenon itself: it answers from the facts written for it, not from a guess.","keys":["xenon_knowledge"],"after":301},
+      {"file":"server/widget-sdk/tools.js","about":"","keys":["sdk_reference"],"after":301},
+      {"file":"server/screens/routes-captures.js","about":"","keys":["POST /captures/delete|/captures/reveal|/captures/copy|/captures/trim"],"after":301},
+      {"file":"server/widget-sdk/routes-images.js","about":"The pictures the engine fetches for a widget so its frame can show them from the engine's own address: map tiles kept in memory, artwork kept on disk.","keys":["GET /sdk/tile/*|/sdk/asset/*"],"after":301}
     ]
   }
 }

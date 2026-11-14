@@ -3,6 +3,10 @@
 
 const { readBody } = require('../http/read-body.js');
 const { _altGrKeys } = require('../deck/altgr-keys.js');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const SERVER_DIR = path.join(__dirname, '..');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -41,6 +45,13 @@ const branches = {
     // The menu's sections (xenon-menu.js), the same for the screen and the
     // dashboard panel (a paired phone's too). Read-only, never a path.
     try { json({ ...(await _xenonMenuState()), altGrKeys: _altGrKeys() }); } catch (e) { err500(e.message); }
+  },
+
+  'GET /menu': async (_req, _res, { sendPage }) => {
+    // The Xenon menu over the main screen (js/screen-menu-page.js), shown by the
+    // shell while it is open (screen-menu.js). Denied to a paired device in
+    // remote-access.js.
+    await sendPage(await fs.promises.readFile(path.join(SERVER_DIR, 'menu.html'), 'utf8'));
   },
 };
 

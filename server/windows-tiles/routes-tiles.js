@@ -150,6 +150,44 @@ const branches = {
       json(await secondScreen.removeDisplay());
     } catch (e) { err500(e.message); }
   },
+
+  'GET /slideshow/file': async (req, res, { err500, urlObj }, { getSlideshowDir }) => {
+    // Stream the Nth image of the configured folder. The index is the ONLY thing
+    // the caller supplies; slideshow-folder.js resolves it against its own
+    // enumeration of the folder named in the settings, so no caller-supplied path
+    // ever reaches an fs call. Out of range or vanished → 404, because a folder
+    // legitimately changes while a slideshow is running.
+    try {
+      const dir = await getSlideshowDir();
+      const hit = await slideshowFolder.resolveFile(dir, urlObj.searchParams.get('i'));
+      if (!hit) { res.writeHead(404); res.end(); return; }
+      const stat = await fs.promises.stat(hit.abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+      // The upload path caps each image; a folder is not curated by us, so cap it
+      // here too. 413 rather than 404 so the tile can tell "too big" from "gone" —
+      // both make it step to the next image, but only one is worth explaining.
+      if (stat.size > slideshowFolder.MAX_BYTES) { res.writeHead(413); res.end(); return; }
+      // Not `immutable` like /uploads/: an uploaded asset has a unique generated
+      // name, but index N of a folder means a different file the moment the user
+      // adds or deletes one. Revalidate against mtime+size instead.
+      const etag = `"${stat.size}-${Math.round(stat.mtimeMs)}"`;
+      // Honor the revalidation the ETag invites: without this, every playlist
+      // wrap re-streamed unchanged bodies (up to 20 MB each) forever.
+      if (req.headers['if-none-match'] === etag) { res.writeHead(304); res.end(); return; }
+      res.writeHead(200, {
+        'Content-Type': hit.mime,
+        'Content-Length': String(stat.size),
+        'Cache-Control': 'private, no-cache',
+        'ETag': etag,
+      });
+      // pipeline, not pipe: a client that goes away must close the file too,
+      // or each aborted load leaks a descriptor (and on Windows a lock).
+      require('stream').pipeline(fs.createReadStream(hit.abs), res, () => {});
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+  },
 };
 
 module.exports = { branches };

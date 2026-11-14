@@ -220,6 +220,12 @@ const branches = {
       });
     } catch (e) { err500(e.message); }
   },
+
+  'GET /api/remote-access/whoami': async (_req, _res, { json, isRemote, remote }) => {
+    // Lets the phone show which device it is registered as. Loopback callers
+    // get `null` — they are not a paired device and never will be.
+    json({ device: isRemote && remote.device ? { id: remote.device.id, name: remote.device.name } : null });
+  },
 };
 
 module.exports = { branches };

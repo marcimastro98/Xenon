@@ -10,6 +10,10 @@ const { isBlockedOpenPath } = require('../actions/registry.js');
 const { openExternalPath } = require('../deck/open-external-path.js');
 const { revealInFileManager } = require('../files/reveal-in-file-manager.js');
 const { serveFileRange } = require('../http-range.js');
+const { DATA_DIR } = require('../engine/paths.js');
+const path = require('node:path');
+
+const SERVER_DIR = path.join(__dirname, '..');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -179,6 +183,22 @@ const branches = {
       if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
       else err500(e.message);
     }
+  },
+
+  'POST /api/transfer/settings': async (req, _res, { json, err500 }, { updateTransferSettings }) => {
+    // The ONLY writer of the fileTransfer settings block. Loopback-only, so a
+    // paired phone can never aim future arrivals at a folder of its choosing.
+    // In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, 8192) || '{}');
+      if (typeof body.inboxDir === 'string' && body.inboxDir.trim()) {
+        const check = await fileTransferLib.validInboxDir(body.inboxDir.trim(), {
+          dataDir: DATA_DIR, appRoot: path.join(SERVER_DIR, '..'),
+        });
+        if (!check.ok) { json({ ok: false, error: check.error }); return; }
+      }
+      json(await updateTransferSettings(body));
+    } catch (e) { err500(e.message); }
   },
 };
 

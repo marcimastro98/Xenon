@@ -518,7 +518,7 @@ require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with
 const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
-const LayerPage = require('./layer-page.js'); // the light layer page plus its tiles' files
+require('./layer-page.js'); // the light layer page plus its tiles' files
 const assetVersion = require('./asset-version.js'); // a version on every page's CSS/JS URLs
 const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
@@ -539,7 +539,7 @@ require('./ai-widget-scripts');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
 const { withThinking, applyThinking } = require('./ai-gemini-thinking');
-const { hasVoice, wavPcm, transcriptionPrompt } = require('./stt-voice-gate');
+const { transcriptionPrompt } = require('./stt-voice-gate');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
 require('./ai-provider-creds');
@@ -612,8 +612,8 @@ const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_d
 require('./ai-rate-store');  // Bit votes on a Store entry, after a card
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
-const screenAlertsPage = require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
-const scenePage = require('./scene-page');  // the desktop scene: wallpaper and screensaver
+require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
+require('./scene-page');  // the desktop scene: wallpaper and screensaver
 require('./ai-preset-critique');  // hub design advice joins the critique (Xenon credits)
 require('./version-ping');
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
@@ -634,9 +634,7 @@ const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update'); require('./helper-first-install.js');
-const { createNativeInstallerFetch } = require('./native-installer');
-const { nativeInstall } = require('./updates/native-install-state.js');
-const { PRESENTMON_URL, PRESENTMON_SHA256 } = require('./performance/presentmon-download.js');
+require('./native-installer');
 const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
@@ -1805,7 +1803,6 @@ const {
   STREAM_CONFIG_KEYS,
 } = require('./streaming/config-files.js');
 const { UPLOADS_DIR } = require('./engine/uploads-dir.js');
-const { EXAMPLE_WIDGETS } = require('./widget-sdk/example-widgets.js');
 
 // Short-lived cache of the validated package scan, shared by the hot SDK paths
 // (fetch proxy, webhook ingress, deck macros) so they don't re-read manifests
@@ -1930,10 +1927,6 @@ async function _sweepSdkAssets() {
 { const t = setTimeout(_sweepSdkAssets, 60_000); t.unref && t.unref(); }
 { const t = setInterval(_sweepSdkAssets, 60 * 60 * 1000); t.unref && t.unref(); }
 
-
-const { sdkTileCacheGet, sdkTileGate } = require('./widget-sdk/tile-cache.js');
-
-const { sdkTileFetch } = require('./widget-sdk/tile-fetch.js');
 
 const { sdkHandlerDispatch, sdkHandlerShutdown } = require('./widget-sdk/handler-calls.js');
 
@@ -2191,8 +2184,6 @@ const { writeFileAtomic } = require('./atomic-write');
 // transfer download all answer through it, so seeking cannot work in one place
 // and quietly not in another.
 const { serveFileRange } = require('./http-range');
-
-const { TRANSFER_DISK_HEADROOM } = require('./transfer/limits.js');
 
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
@@ -2493,12 +2484,10 @@ let _sttAvfIndex    = null; // macOS avfoundation audio device index, as a strin
 let _sttLinuxFormat = null; // 'pulse' | 'alsa' — which one this ffmpeg knows
 let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
 
-const { _sttLooksLikeSpeech, STT_DEVICE_DELAY_MS } = require('./ai/stt-gate.js');
+const { STT_DEVICE_DELAY_MS } = require('./ai/stt-gate.js');
 const { _sttDeviceWaiters, _sttPending, _sweepStaleStt } = require('./ai/stt-pending.js');
 setInterval(_sweepStaleStt, 60000).unref();
 
-
-const { _pcmRmsStats, _dbFromRms } = require('./wav/pcm-loudness.js');
 
 const { mediaChoice } = require('./media/preferred-source.js');
 let mediaReaderRestUntil = 0;
@@ -5388,6 +5377,7 @@ const { branches: streamingToolsBranches } = require('./streaming/tools.js');
 const { branches: smartHomeToolsBranches } = require('./smart-home/tools.js');
 const { branches: storeCatalogToolsRatingBranches } = require('./store-catalog/tools-rating.js');
 const { branches: discordToolsBranches } = require('./discord/tools.js');
+const { branches: aiToolsKnowledgeBranches } = require('./ai/tools-knowledge.js');
 
 async function runAiTool(fnName, fnArgs, deps) {
   const {
@@ -5478,23 +5468,11 @@ async function runAiTool(fnName, fnArgs, deps) {
         else if (end && end.ok) fnResult = { ok: true, id: fnResult.id, name: fnResult.name, kind: fnResult.kind, ...end };
       }
     } else if (fnName === 'deck_action_catalog') {
-      // Read-only grounding for configure_deck: the full typed-action catalog
-      // (compact), the live-state sources and the slider targets.
-      // `info` is what the action does, the same sentence the Deck editor shows.
-      const info = await require('./ai-creation-labels.js').englishByPrefix('deck_info_');
-      const catalog = require('./js/deck-actions.js').ACTION_CATALOG
-        .filter(a => !a.hidden)
-        .map(a => ({ type: a.type, group: a.group, ...(info[a.type] ? { info: info[a.type] } : {}), params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));
-      const dm = require('./js/deck-model.js');
-      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sensorMetrics: dm.DECK_SENSOR_METRICS, vitalsMeters: dm.DECK_VITALS_METERS, sliderTargets: dm.SLIDER_TARGETS };
+      fnResult = await deckToolsBranches['deck_action_catalog']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'xenon_knowledge') {
-      // Read-only grounding about Xenon itself (setup, features, troubleshooting)
-      // so app questions get answered from curated facts, not guesses.
-      fnResult = require('./ai-knowledge.js').lookup(fnArgs.query || fnArgs.topic || '');
+      fnResult = await aiToolsKnowledgeBranches['xenon_knowledge']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'sdk_reference') {
-      // Read-only grounding for create_widget: the code-authoritative SDK
-      // allowlists plus docs/WIDGET_SDK.md by section.
-      fnResult = await require('./ai-knowledge.js').getSdkReference(fnArgs.section || '');
+      fnResult = await widgetSdkToolsBranches['sdk_reference']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'marketplace_search') {
       fnResult = await storeCatalogToolsBranches['marketplace_search']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'marketplace_install') {
@@ -9960,6 +9938,9 @@ const { branches: streamingSpotifyBranches } = require('./streaming/routes-spoti
 const { branches: aiDictationBranches } = require('./ai/routes-dictation.js');
 const { branches: smartHomeCamerasBranches } = require('./smart-home/routes-cameras.js');
 const { branches: screensCapturesBranches } = require('./screens/routes-captures.js');
+const { branches: ambientBranches } = require('./ambient/routes.js');
+const { branches: aiLocalBranches } = require('./ai/routes-local.js');
+const { branches: widgetSdkImagesBranches } = require('./widget-sdk/routes-images.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -10117,156 +10098,43 @@ const handleRequest = async (req, res) => {
   }
 
   if (reqPath === '/' && req.method === 'GET') {
-    // A layer window on THIS machine whose surface holds Store widgets and tiles
-    // the light page can carry gets that page (~130 MB less per window), with
-    // those tiles' files added; any other built-in tile needs the whole
-    // dashboard. js/layers-model.js owns the rule, and the page reloads by the
-    // same one when the user adds or removes a tile there.
-    const query = new URL(req.url, 'http://127.0.0.1').searchParams;
-    // "Widgets only" (js/usage-mode.js): the app's own window (`shell=main`, set
-    // by the splash) gets the small driver page instead of the dashboard, and the
-    // shell hides the window when it sees that URL load. `full=1` is the tray's
-    // "Show Xenon": the user asked for the dashboard this once.
-    if (!isRemote && query.get('shell') === 'main' && query.get('full') !== '1'
-        && UsageMode.widgetsOnly(hub.settings.usageMode)) {
-      res.writeHead(302, { Location: '/shell-driver', 'Cache-Control': 'no-store' });
-      res.end();
-      return;
-    }
-    const layerKey = query.get('layer');
-    if (!isRemote && LayersModel.isSurfaceKey(layerKey) && !LayersModel.needsDashboard(hub.settings.layers, layerKey)) {
-      const lite = await fs.promises.readFile(path.join(__dirname, 'layer-lite.html'), 'utf8');
-      const tiles = LayersModel.liteTilesFor(hub.settings.layers, layerKey);
-      const dashboard = LayerPage.needsDashboardHtml(tiles) ? await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8') : '';
-      await sendPage(LayerPage.compose(lite, tiles, dashboard));
-      return;
-    }
-    let html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
-    // A paired device is told so SYNCHRONOUSLY, in the document itself, before
-    // any script runs — a flag arriving later over /status would be too late for
-    // anything that decides at load time. It carries no privileges: the client
-    // reads it only to know which chrome it is wearing and to explain a refusal.
-    // `assetKey` rides along because it is needed at the same moment and by the
-    // same reasoning: custom-widget.js builds an SDK iframe's src at mount time
-    // and the sandboxed document it loads cannot present a cookie for its own
-    // stylesheet and script (see remote-access.js). It is a capability for the
-    // widget asset tree and nothing else.
-    //
-    // `inlineJson`, not bare JSON.stringify: inside a <script> element the
-    // parser looks for `</script` before it looks for anything JavaScript, and
-    // JSON.stringify escapes neither `<` nor `/`. The device name is chosen by
-    // whoever redeems the pairing code and is only length-clamped, so a name of
-    // `</script>…` closes the element early. Today that is self-inflicted — this
-    // document is served only to the device whose token produced the name — but
-    // "the sink is currently harmless" is not a property that survives someone
-    // adding a third field or reusing the marker somewhere else. Escaped at the
-    // sink, which is the only place that stays true. U+2028/2029 go too: they
-    // are line terminators to a JS parser and not to JSON.
-    if (isRemote) {
-      const inlineJson = (v) => JSON.stringify(v == null ? '' : v)
-        .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
-        .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-      html = html.replace('<meta charset="UTF-8">',
-        '<meta charset="UTF-8">\n<script>window.__xenonRemote = { device: ' +
-        inlineJson(remote.device && remote.device.name) + ', assetKey: ' +
-        inlineJson(remote.device && remote.device.assetKey) + ' };</script>');
-    }
-    // Never let the WebView serve a stale entry document: index.html carries the
-    // early boot-scale recovery script, so a cached copy would pin an old fix.
-    // The doc is tiny and loopback-served, so no-store costs nothing, and it is
-    // what makes the versioned CSS/JS URLs in it safe to keep.
-    await sendPage(html);
+    await engineBranches['GET /'](req, res, { json, err500, reqPath, urlObj, isRemote, remote, sendPage });
 
   } else if (reqPath === '/pair' && req.method === 'GET') {
-    // The pairing page — the ONE document reachable before a device has a
-    // token. Deliberately self-contained (no dashboard scripts, no settings, no
-    // state) so the pre-auth surface stays as small as it reads.
-    const html = await fs.promises.readFile(path.join(__dirname, 'pair.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    await pairedBranches['GET /pair'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/sw.js' && req.method === 'GET') {
-    // The service worker, served from the ROOT on purpose: a worker's default
-    // scope is its own directory, so one under /public/ could only control
-    // /public/. The version is stamped in here rather than read by the worker,
-    // which is what makes a Xenon update drop the previous shell cache whole.
-    try {
-      const src = await fs.promises.readFile(path.join(__dirname, 'sw.js'), 'utf8');
-      res.writeHead(200, {
-        'Content-Type': 'text/javascript; charset=utf-8',
-        // Never cached by the browser: this file decides what everything else
-        // caches, so a stale copy of it is the one that cannot be recovered from.
-        'Cache-Control': 'no-store',
-        'Service-Worker-Allowed': '/',
-      });
-      res.end(src.replace('__XENON_VERSION__', APP_VERSION));
-    } catch (e) { err500(e.message); }
+    await pairedBranches['GET /sw.js'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/manifest.webmanifest' && req.method === 'GET') {
     await pairedBranches['GET /manifest.webmanifest'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/shell-driver' && req.method === 'GET') {
-    // The hidden page of "widgets only" (js/shell-driver.js). Denied to a paired
-    // device in remote-access.js; loopback only, like '/'.
-    await sendPage(await fs.promises.readFile(path.join(__dirname, 'shell-driver.html'), 'utf8'));
+    await widgetSdkBranches['GET /shell-driver'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/sdk-service' && req.method === 'GET') {
-    // "Widgets only": the hidden page that runs the Store widgets' background
-    // frames (js/sdk-service.js), held by the driver page. Denied to a paired
-    // device in remote-access.js; loopback only, like '/'.
-    await sendPage(await fs.promises.readFile(path.join(__dirname, 'sdk-service.html'), 'utf8'));
+    await widgetSdkBranches['GET /sdk-service'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/screen-alerts' && req.method === 'GET') {
-    // "Widgets only": the small click-through window that shows the dashboard's
-    // pop-ups on the main screen (js/screen-alerts.js). Denied to a paired device
-    // in remote-access.js; loopback only, like '/'. Bit's voice panel comes
-    // from index.html (screen-alerts-page.js).
-    const [page, dashboard] = await Promise.all([
-      fs.promises.readFile(path.join(__dirname, 'screen-alerts.html'), 'utf8'),
-      fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8').catch(() => ''),
-    ]);
-    await sendPage(screenAlertsPage.compose(page, dashboard));
+    await alertsBranches['GET /screen-alerts'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/scene' && req.method === 'GET') {
-    // The desktop scene (js/screen-scene.js): the Ambient scene as the animated
-    // wallpaper or the screensaver, one shell window per screen. Denied to a
-    // paired device in remote-access.js; the overlays come from index.html
-    // (scene-page.js). The key is read by the page, never by this route.
-    const [page, dashboard] = await Promise.all([
-      fs.promises.readFile(path.join(__dirname, 'scene.html'), 'utf8'),
-      fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8').catch(() => ''),
-    ]);
-    await sendPage(scenePage.compose(page, dashboard));
+    await ambientBranches['GET /scene'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/draw' && req.method === 'GET') {
-    // The drawing sheet on macOS and Linux (js/screen-draw-page.js), shown by
-    // the shell while drawing is on (screen-draw-shell.js). Denied to a paired
-    // device in remote-access.js.
-    await sendPage(await fs.promises.readFile(path.join(__dirname, 'draw.html'), 'utf8'));
+    await alertsBranches['GET /draw'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/menu' && req.method === 'GET') {
-    // The Xenon menu over the main screen (js/screen-menu-page.js), shown by the
-    // shell while it is open (screen-menu.js). Denied to a paired device in
-    // remote-access.js.
-    await sendPage(await fs.promises.readFile(path.join(__dirname, 'menu.html'), 'utf8'));
+    await menuBranches['GET /menu'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/deck-popup' && req.method === 'GET') {
-    // Virtual Deck popup document (main-PC window). Same loopback trust as '/';
-    // no-store so the popup never boots from a stale entry document.
-    await sendPage(await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8'));
+    await deckKeysBranches['GET /deck-popup'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/layer-i18n.js' && req.method === 'GET') {
     await widgetOptionsBranches['GET /layer-i18n.js'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/spotlight' && req.method === 'GET') {
-    // Spotlight popup document (main-PC window, opened by the global hotkey).
-    // Same loopback trust as '/'; no-store like /deck-popup.
-    // Bit's chat in that window is the dashboard's panel, cut from index.html.
-    const [html, dashboard] = await Promise.all([
-      fs.promises.readFile(path.join(__dirname, 'spotlight.html'), 'utf8'),
-      fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8'),
-    ]);
-    await sendPage(screenAlertsPage.compose(html, dashboard));
+    await searchBranches['GET /spotlight'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
 
   } else if (reqPath === '/deck/popup/open' && req.method === 'POST') {
     await deckKeysBranches['POST /deck/popup/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDeckPopupWindow });
@@ -10278,10 +10146,7 @@ const handleRequest = async (req, res) => {
     await engineBranches['GET /ping'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/status' && req.method === 'GET') {
-    // Any site can read a ?cb= answer, so it says Xenon is on and nothing else:
-    // the full status names the game and the app in front. The plain GET and
-    // the SSE broadcast keep it (loopback/Origin-guarded).
-    json(jsonpCb ? { ok: true } : statusPayload());
+    await engineBranches['GET /status'](req, res, { json, err500, reqPath, urlObj, isRemote, jsonpCb }, { statusPayload });
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
     // The OS colour scheme, for the "Auto" appearance. The embedded WebView's
@@ -10414,21 +10279,7 @@ const handleRequest = async (req, res) => {
     await lightsControlBranches['POST /api/lighting/native/layout'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/native/preview' && req.method === 'POST') {
-    // Guided setup: light part of one output so the user sees where each fan
-    // ends. { device, output, done: [counts], lit, whole } or { stop: true }.
-    // Transient (ends by itself after a few seconds), never persisted.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      if (body.stop === true) { await lighting.setNativePreview('', 0, null); return json({ ok: true }); }
-      const count = (n) => Math.max(0, Math.min(256, Math.round(Number(n)) || 0));
-      const opts = {
-        done: (Array.isArray(body.done) ? body.done : []).slice(0, 32).map(count),
-        lit: count(body.lit),
-        whole: body.whole === true,
-      };
-      const ok = await lighting.setNativePreview(String(body.device || '').slice(0, 160), Number(body.output), opts);
-      json({ ok });
-    } catch (e) { err500(e.message); }
+    return await lightsControlBranches['POST /api/lighting/native/preview'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/lighting/native/scan' && req.method === 'POST') {
     await lightsControlBranches['POST /api/lighting/native/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
@@ -10462,42 +10313,7 @@ const handleRequest = async (req, res) => {
     await aiMemoryBranches['POST /api/ai/actions/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiActionLog, performAiUndo });
 
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
-    // One-click download of the classic single-binary PresentMon CLI (the same
-    // pinned v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
-    // The server runs this exe elevated for an ETW session, so the bytes are held
-    // to a pinned SHA-256 before they take the name fpsmon.js launches: the file
-    // lands as .download, is hashed, and only a match is moved into place.
-    try {
-      // PresentMon is a Windows ETW tool: there is no build to fetch anywhere
-      // else, and the download itself is written in PowerShell. Refusing by name
-      // beats letting the client discover it through a spawn failure.
-      if (process.platform !== 'win32') { json({ ok: false, error: 'unsupported_platform' }); }
-      else if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
-      else {
-        const ps = [
-          "$ErrorActionPreference='Stop';",
-          "$dir=$env:PM_DIR; $exe=Join-Path $dir 'PresentMon.exe'; $part=\"$exe.download\";",
-          "if(-not(Test-Path $dir)){New-Item -ItemType Directory -Path $dir -Force | Out-Null};",
-          '[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;',
-          "Invoke-WebRequest -Uri $env:PM_URL -OutFile $part -Headers @{'User-Agent'='XenonEdgeHub'} -TimeoutSec 120 -UseBasicParsing;",
-          "if(-not(Test-Path $part)){throw 'download did not produce PresentMon.exe'};",
-          "$got=(Get-FileHash -LiteralPath $part -Algorithm SHA256).Hash;",
-          "if($got -ne $env:PM_SHA){Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue; throw \"checksum mismatch (expected $env:PM_SHA, got $got)\"};",
-          "Move-Item -LiteralPath $part -Destination $exe -Force",
-        ].join(' ');
-        await new Promise((resolve, reject) =>
-          execFile('powershell.exe',
-            ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ps],
-            { windowsHide: true, timeout: 180000, env: { ...process.env, PM_DIR: path.join(__dirname, 'presentmon'), PM_URL: PRESENTMON_URL, PM_SHA: PRESENTMON_SHA256 } },
-            (psErr) => psErr ? reject(psErr) : resolve()
-          )
-        );
-        try { fpsMonitor.reload(); } catch { /* monitor will retry on its own */ }
-        json({ ok: true, installed: true });
-      }
-    } catch (e) {
-      err500('PresentMon non installato: ' + (e && e.message ? e.message : 'download fallito'));
-    }
+    await performanceBranches['POST /api/gamemode/install-presentmon'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/icue/sharpen' && req.method === 'POST') {
     await lightsBranches['POST /api/icue/sharpen'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -10602,48 +10418,7 @@ const handleRequest = async (req, res) => {
     await performanceModeBranches['POST /actions/perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfRegistry });
 
   } else if (reqPath === '/actions/catalog' && req.method === 'GET') {
-    try {
-      const { ACTION_CATALOG } = require('./js/deck-actions.js');
-      const s = (await readHubSettings().catch(() => null)) || {};
-      const rc = (s.remoteControl && typeof s.remoteControl === 'object') ? s.remoteControl : {};
-      // "configured" = la presenza delle credenziali Sunshine (le scrive
-      // configureSunshine al termine del setup). I flag *Installed non vengono
-      // mai persistiti, quindi non sono un segnale affidabile.
-      const remoteConfigured = !!(rc.sunshineUser && rc.sunshinePass);
-      // Twitch actions are only useful when logged in — surface that so the editor
-      // can hide them until the user connects (mirrors obs/remote gating).
-      const tw = await streams.twitch.status().catch(() => ({ connected: false }));
-      const yt = await streams.youtube.status().catch(() => ({ connected: false }));
-      const dc = await discordLink.rpc.status().catch(() => ({ connected: false }));
-      const sp = await streams.spotify.status().catch(() => ({ connected: false }));
-      const haCfg = (s.homeAssistant && typeof s.homeAssistant === 'object') ? s.homeAssistant : {};
-      // Lighting actions surface only when the user actually has controllable
-      // lighting — the iCUE bridge, an external provider with devices, or Chroma.
-      const ls = lighting.getStatus();
-      const lightingConfigured = !!(ls.available || (ls.devices && ls.devices.length) || (ls.providers && ls.providers.some((p) => (p.devices || []).length)));
-      // Capability probe: on Linux there is no PowerShell and no SoundVolumeView,
-      // but the audio actions still work when a PipeWire mixer answers, so report
-      // what is actually usable rather than the Windows assumption.
-      // Claude Code keys are offered only once the hooks are installed. Without
-      // them a run's permission prompts land in a terminal the user isn't
-      // looking at, and a key that starts invisible work is worse than no key.
-      const claudeLinked = await claudeLink.status(DATA_DIR, PORT).then(r => !!(r && r.linked)).catch(() => false);
-      const powershellAvailable = process.platform === 'win32';
-      const audioControlAvailable = nativeCollectors
-        ? await nativeCollectors.audioAvailable()
-        : fs.existsSync(SVV);
-      // Per-app volume is a narrower capability than "audio works": Windows has
-      // it through SoundVolumeView and Linux through PipeWire's per-stream
-      // nodes, but macOS exposes no per-process mixer to a shell at all (see
-      // docs/MACOS_PORTABILITY.md). The editor hides those keys rather than
-      // offering three that always fail.
-      const appAudioAvailable = audioControlAvailable && process.platform !== 'darwin';
-      // Media transport is its own capability rather than a PowerShell one: it
-      // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
-      // is optional, so the answer is "is there a media host" — not "which OS".
-      const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
-      json({ catalog: ACTION_CATALOG, platform: process.platform, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || streamingLive.obsWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable(), ...capabilityRunner.probes() } });
-    } catch (e) { err500(e.message); }
+    await deckKeysBranches['GET /actions/catalog'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, capabilityRunner, deckVoicemeeter, keySendAvailable, nativeMedia, phoneKeysAvailable, readHubSettings });
 
   } else if (reqPath === '/api/voicemeeter/state' && req.method === 'GET') {
     await audioVolumeBranches['GET /api/voicemeeter/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckVoicemeeter });
@@ -10771,47 +10546,7 @@ const handleRequest = async (req, res) => {
     await updatesBranches['GET /api/native/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/native/install' && req.method === 'POST') {
-    // One-click install of the native kiosk app from the dashboard (offered to
-    // iCUE/browser users). The installer runs SILENTLY and, under the LocalSystem
-    // service, in the user's session through a scheduled task, so nobody sees what
-    // is executed: it is downloaded HERE and checked against the release's
-    // Ed25519-signed SHA256SUMS with the pinned key (native-installer.js) before
-    // install-native.ps1 is ever started. A download that does not verify is
-    // deleted and reported as an error; nothing runs. The script gets the verified
-    // path and its signed hash and re-checks the hash before launching.
-    // Do NOT pass detached:true here — Windows PowerShell (powershell.exe) fails to
-    // initialize its host when started with DETACHED_PROCESS (no console), so the
-    // script silently never runs (the install button looked like it hung). stdio:
-    // 'ignore' + unref() already detach enough: the child outlives the request.
-    try {
-      await readBody(req);
-      if (process.platform !== 'win32') { json({ ok: false, error: 'windows_only' }); return; }
-      const script = path.join(__dirname, 'install-native.ps1');
-      try { await fs.promises.access(script); } catch { json({ ok: false, error: 'helper_missing' }); return; }
-      // A second tap while a download is in flight joins it rather than starting a
-      // second writer on the same file.
-      if (nativeInstall.inFlight) { json({ ok: true }); return; }
-      const statusFile = path.join(DATA_DIR, 'native-install-status.json');
-      const writeStatus = (state, error) => fs.promises.writeFile(
-        statusFile, JSON.stringify({ state, error: error || '', at: new Date().toISOString() })
-      ).catch(() => { /* non-fatal: the poll just falls back to a timeout */ });
-      // Reset the progress marker so the dashboard's poll starts clean and never
-      // reads a stale 'error'/'done' from a previous attempt. The download is now
-      // ours, so we report it; the PS script takes over at installing -> done/error.
-      await writeStatus('downloading', '');
-      json({ ok: true });
-      nativeInstall.inFlight = (async () => {
-        const got = await createNativeInstallerFetch({ destDir: path.join(DATA_DIR, 'native-installer') }).fetchVerified();
-        if (!got.ok) { await writeStatus('error', got.error); return; }
-        const child = spawn('powershell.exe', [
-          '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
-          '-InstallerPath', got.path, '-ExpectedSha256', got.sha256,
-        ], { windowsHide: true, stdio: 'ignore' });
-        child.on('error', () => { writeStatus('error', 'helper_missing'); });
-        child.unref();
-      })().catch(() => writeStatus('error', 'download_failed'))
-        .finally(() => { nativeInstall.inFlight = null; });
-    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await installBranches['POST /api/native/install'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/native/install-status' && req.method === 'GET') {
     await updatesBranches['GET /api/native/install-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -12151,113 +11886,7 @@ const handleRequest = async (req, res) => {
     await aiDictationBranches['POST /api/stt/start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceWhenReady, _sttInputArgs, _sttVia, getFfmpegPath });
 
   } else if (reqPath === '/api/stt/stop' && req.method === 'POST') {
-    try {
-      const stopBody = JSON.parse(await readBody(req) || '{}');
-      const id = String(stopBody.id || '').trim();
-      const apiKey = await geminiKeyFor(stopBody.key);
-      const sttLang = String(stopBody.lang || 'en').toLowerCase().slice(0, 2);
-      const sttProvider = aiLocal.sanitizeProvider(stopBody.provider);
-      // mode 'audio' → return the raw recording so the caller can send it straight
-      // to the chat model (transcribe + answer in one call). Default → transcribe here.
-      // mode 'test'  → mic self-test: report the device/level we captured and whether
-      // it passed the speech gate, with no transcription and no API key needed.
-      const audioMode = stopBody.mode === 'audio';
-      const testMode  = stopBody.mode === 'test';
-      const rec = _sttPending.get(id);
-      if (!rec) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'not_found' })); return;
-      }
-      // Stop ffmpeg gracefully — send 'q' then close stdin (EOF)
-      try { rec.ffmpegProc.stdin.write('q'); rec.ffmpegProc.stdin.end(); } catch {}
-      await Promise.race([rec.recordingSaved, new Promise(r => setTimeout(r, 6000))]);
-      _sttPending.delete(id);
-      // Mic released → let the wake-word listener come back (after a settle
-      // delay; no-op unless the feature is enabled and wanted).
-      if (_sttPending.size === 0) wakeWord.resumeSoon();
-      let wavData = null;
-      try { wavData = await fs.promises.readFile(rec.wavPath); } catch {}
-      fs.promises.unlink(rec.wavPath).catch(() => {});
-      // Whole-clip RMS — used both for logging and as a speech gate below.
-      let clipStats = { rms: 0, peak: 0 };
-      if (wavData && wavData.length > 44) {
-        clipStats = _pcmRmsStats(wavData.slice(44), 16000, 80);
-        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData.length} rms=${clipStats.rms.toFixed(1)} peak=${clipStats.peak.toFixed(1)}\n`);
-      } else {
-        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData ? wavData.length : 0}\n`);
-      }
-      // Mic self-test: surface exactly which device was captured and how loud it
-      // was, so a user (or a bug report screenshot) can tell whether the voice
-      // capture path actually hears them — independent of the browser mic meter,
-      // which reads a different device than this server-side recorder.
-      if (testMode) {
-        const heard = !!(wavData && wavData.length > 44 && clipStats.rms > 0 && _sttLooksLikeSpeech(clipStats));
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          test: true,
-          heard,
-          via: _sttVia(),
-          device: _sttDeviceLabel(),
-          db: Math.round(_dbFromRms(clipStats.rms)),
-          gain: _sttGain(),
-        })); return;
-      }
-      if (!wavData || wavData.length < 100) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
-      }
-      if (!_sttLooksLikeSpeech(clipStats) || !hasVoice(wavPcm(wavData))) {
-        process.stdout.write(`[STT] Below speech floor (rms=${clipStats.rms.toFixed(1)}, peak=${clipStats.peak.toFixed(1)}) → empty\n`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
-      }
-      if (audioMode) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ audio: wavData.toString('base64'), mimeType: 'audio/wav' })); return;
-      }
-      let sttText;
-      // Each provider hears the user the way /api/transcribe does, so none of
-      // them quietly needs a Gemini key: local whisper for Ollama, Claude (no
-      // speech API), Xenon credits and a Claude Code / Codex subscription;
-      // OpenAI's own speech model, with its server-only key, for ChatGPT.
-      // Before this, the voice orb sent Claude and ChatGPT to Gemini and failed
-      // without a Gemini key.
-      if (sttProvider === 'openai') {
-        const s = await readHubSettings().catch(() => null);
-        const openaiKey = String((s && s.openaiApiKey) || '').trim();
-        if (!openaiKey) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'missing_key' })); return;
-        }
-        process.stdout.write(`[STT] OpenAI transcribe lang=${sttLang}\n`);
-        try {
-          sttText = await aiOpenai.stt({ apiKey: openaiKey, wavBuffer: wavData, lang: sttLang, model: providerModelFor('openai', 'stt', s) });
-        } catch (e) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ text: '', error: e.message })); return;
-        }
-      } else if (sttProvider === 'ollama' || sttProvider === 'localapi' || sttProvider === 'anthropic' || sttProvider === 'xenon' || aiCli.isCliProvider(sttProvider)) {
-        process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
-        try {
-          sttText = await aiLocal.localStt(wavData, sttLang, __dirname);
-        } catch (e) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ text: '', error: e.message })); return;
-        }
-      } else {
-        if (!apiKey) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'missing_key' })); return;
-        }
-        process.stdout.write(`[STT] Transcribing lang=${sttLang}\n`);
-        sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey, sttLang);
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ text: sttText }));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiDictationBranches['POST /api/stt/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceLabel, _sttVia, _transcribeAudio, geminiKeyFor, readHubSettings });
 
   } else if (reqPath === '/api/ai/cli/mcp' && req.method === 'POST') {
     await aiBranches['POST /api/ai/cli/mcp'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -12275,67 +11904,7 @@ const handleRequest = async (req, res) => {
     await aiVoiceBranches['GET /api/ai/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/transcribe' && req.method === 'POST') {
-    try {
-      const tRaw = await readBodyBuffer(req, 30 * 1024 * 1024);
-      const tBody = JSON.parse(tRaw.toString('utf8') || '{}');
-      const apiKey = await geminiKeyFor(tBody.key);
-      const tProvider = aiLocal.sanitizeProvider(tBody.provider);
-      const audioB64 = typeof tBody.audio === 'string' ? tBody.audio.slice(0, 20 * 1024 * 1024) : '';
-      const rawMime = typeof tBody.mimeType === 'string' ? tBody.mimeType : 'audio/webm';
-      const safeLang = String(tBody.lang || 'auto').toLowerCase().slice(0, 5).replace(/[^a-z-]/g, '') || 'auto';
-
-      // A clip with no voice stops here, for every provider. Without ffmpeg it
-      // cannot be measured, and the model's own NO_SPEECH answer is what is left.
-      let wavBuffer = null;
-      let decodeError = null;
-      if (audioB64) {
-        try { wavBuffer = await _audioToWav16k(Buffer.from(audioB64, 'base64')); }
-        catch (e) { decodeError = e; console.warn('[STT] clip not measured:', e.message); }
-      }
-      if (wavBuffer && !hasVoice(wavPcm(wavBuffer))) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ text: '' })); return;
-      }
-
-      // Non-Gemini STT: decode → transcode to 16kHz mono WAV via ffmpeg, then
-      // transcribe. Ollama and Claude (no speech API) use local whisper.cpp;
-      // ChatGPT uses OpenAI Whisper with its server-only key. No Gemini key
-      // required. Errors degrade gracefully (HTTP 200, empty text).
-      if (tProvider === 'ollama' || tProvider === 'localapi' || tProvider === 'anthropic' || tProvider === 'xenon' || tProvider === 'openai' || aiCli.isCliProvider(tProvider)) {
-        if (!audioB64) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'missing_params' })); return;
-        }
-        let openaiKey = '';
-        if (tProvider === 'openai') {
-          const s = await readHubSettings().catch(() => null);
-          openaiKey = String((s && s.openaiApiKey) || '').trim();
-          if (!openaiKey) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ text: '', error: 'no_key' })); return; }
-        }
-        try {
-          if (!wavBuffer) throw decodeError;
-          const text = tProvider === 'openai'
-            ? await aiOpenai.stt({ apiKey: openaiKey, wavBuffer, lang: safeLang, model: providerModelFor('openai', 'stt') })
-            : await aiLocal.localStt(wavBuffer, safeLang, __dirname);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ text })); return;
-        } catch (e) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ text: '', error: e.message })); return;
-        }
-      }
-
-      if (!apiKey || !audioB64) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'missing_params' })); return;
-      }
-      const tText = await _transcribeAudio(audioB64, rawMime, apiKey, safeLang);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ text: tText }));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiBranches['POST /api/transcribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _audioToWav16k, _transcribeAudio, geminiKeyFor, readHubSettings });
 
   } else if (reqPath === '/api/tts' && req.method === 'POST') {
     await aiVoiceBranches['POST /api/tts'](req, res, { json, err500, reqPath, urlObj, isRemote }, { AI_MODELS, getFfmpegPath, readHubSettings });
@@ -12350,15 +11919,7 @@ const handleRequest = async (req, res) => {
     await aiBranches['GET /api/ai-local/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings, writeHubSettings });
 
   } else if (reqPath === '/api/ai-local/status' && req.method === 'GET') {
-    try {
-      const settings = await readHubSettings().catch(() => null);
-      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
-      const status = await aiLocal.localStatus(baseUrl, __dirname);
-      json({ status });
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiLocalBranches['GET /api/ai-local/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/ai-local/capabilities' && req.method === 'GET') {
     await aiBranches['GET /api/ai-local/capabilities'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
@@ -12367,47 +11928,7 @@ const handleRequest = async (req, res) => {
     await aiBranches['GET /api/ai-local/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/ai-local/pull' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const model = aiLocal.sanitizeModel(body.model);
-      const settings = await readHubSettings().catch(() => null);
-      // Resolve 'auto' exactly as the chat path does (resolveModel + hardwareScan)
-      // so the model we pull is the same one the chat will request — otherwise
-      // 'auto' could download qwen2.5:3b while chat asks for qwen2.5:7b → 404.
-      // Use the persisted scan, or probe now if the user never ran a manual scan,
-      // so the safety gate below always has real hardware figures to reason about.
-      let scan = settings && settings.hardwareScan;
-      if (!scan || typeof scan !== 'object') { scan = await aiLocal.scanHardware().catch(() => null); }
-      const concrete = aiLocal.resolveModel(model, scan);
-      // SAFETY GATE — refuse the download (never pull) when the hardware can't run
-      // the model. Incompatible machines are blocked outright; otherwise the model
-      // must fit either VRAM or RAM. This keeps a weak PC from downloading gigabytes
-      // only to crash the GPU on the first inference.
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
-      if (scan && scan.tier === 'incompatible') {
-        res.write(`data: ${JSON.stringify({ error: 'Il tuo hardware non è adatto all’AI locale (serve almeno ~8 GB di RAM o ~4 GB di VRAM). Non è stato scaricato nulla: usa Xenon AI in cloud (Gemini).', done: true })}\n\n`);
-        return res.end();
-      }
-      // A model the local table does not know can still be gated, using the
-      // requirements the download catalog published for it. The local table wins
-      // where it has an entry, and junk figures are dropped rather than trusted
-      // (see _sanitizedReq in ai-local.js) — a remote file may raise the bar for
-      // a model we never sized, never lower it for one we did.
-      const safety = aiLocal.modelSafety(concrete, scan, aiModels.ollamaRequirements(concrete));
-      if (!safety.ok) {
-        res.write(`data: ${JSON.stringify({ error: safety.reason, done: true })}\n\n`);
-        return res.end();
-      }
-      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
-      await aiLocal.pullModel(baseUrl, concrete, (p) => {
-        res.write(`data: ${JSON.stringify(p)}\n\n`);
-      });
-      res.write(`data: ${JSON.stringify({ status: 'success', done: true })}\n\n`);
-      res.end();
-    } catch (e) {
-      try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
-      catch { res.writeHead(500); res.end(); }
-    }
+    return await aiLocalBranches['POST /api/ai-local/pull'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/ai-local/ollama-start' && req.method === 'POST') {
     await aiBranches['POST /api/ai-local/ollama-start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
@@ -12419,22 +11940,7 @@ const handleRequest = async (req, res) => {
     await aiBranches['POST /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai-local/whisper-install' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
-      await aiLocal.installWhisper(__dirname, (p) => {
-        res.write(`data: ${JSON.stringify(p)}\n\n`);
-      });
-      res.write(`data: ${JSON.stringify({ status: 'success', done: true })}\n\n`);
-      res.end();
-      // Whisper just became available → drop the negative probe cache and let
-      // the wake word start if enabled.
-      whisperProbe.lastAt = 0;
-      refreshWakeWordWatch();
-    } catch (e) {
-      try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
-      catch { res.writeHead(500); res.end(); }
-    }
+    await aiLocalBranches['POST /api/ai-local/whisper-install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshWakeWordWatch });
 
   } else if (reqPath === '/api/wake/status' && req.method === 'GET') {
     await aiVoiceBranches['GET /api/wake/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _whisperReady });
@@ -12488,41 +11994,7 @@ const handleRequest = async (req, res) => {
     await windowsTilesTilesBranches['GET /slideshow/folder'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSlideshowDir });
 
   } else if (reqPath === '/slideshow/file' && req.method === 'GET') {
-    // Stream the Nth image of the configured folder. The index is the ONLY thing
-    // the caller supplies; slideshow-folder.js resolves it against its own
-    // enumeration of the folder named in the settings, so no caller-supplied path
-    // ever reaches an fs call. Out of range or vanished → 404, because a folder
-    // legitimately changes while a slideshow is running.
-    try {
-      const dir = await getSlideshowDir();
-      const hit = await slideshowFolder.resolveFile(dir, urlObj.searchParams.get('i'));
-      if (!hit) { res.writeHead(404); res.end(); return; }
-      const stat = await fs.promises.stat(hit.abs);
-      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
-      // The upload path caps each image; a folder is not curated by us, so cap it
-      // here too. 413 rather than 404 so the tile can tell "too big" from "gone" —
-      // both make it step to the next image, but only one is worth explaining.
-      if (stat.size > slideshowFolder.MAX_BYTES) { res.writeHead(413); res.end(); return; }
-      // Not `immutable` like /uploads/: an uploaded asset has a unique generated
-      // name, but index N of a folder means a different file the moment the user
-      // adds or deletes one. Revalidate against mtime+size instead.
-      const etag = `"${stat.size}-${Math.round(stat.mtimeMs)}"`;
-      // Honor the revalidation the ETag invites: without this, every playlist
-      // wrap re-streamed unchanged bodies (up to 20 MB each) forever.
-      if (req.headers['if-none-match'] === etag) { res.writeHead(304); res.end(); return; }
-      res.writeHead(200, {
-        'Content-Type': hit.mime,
-        'Content-Length': String(stat.size),
-        'Cache-Control': 'private, no-cache',
-        'ETag': etag,
-      });
-      // pipeline, not pipe: a client that goes away must close the file too,
-      // or each aborted load leaks a descriptor (and on Windows a lock).
-      require('stream').pipeline(fs.createReadStream(hit.abs), res, () => {});
-    } catch (e) {
-      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
-      else err500(e.message);
-    }
+    await windowsTilesTilesBranches['GET /slideshow/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSlideshowDir });
 
   } else if (reqPath === '/search' && req.method === 'GET') {
     await searchFilesBranches['GET /search'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
@@ -12556,13 +12028,7 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/deck/press' && req.method === 'POST') {
     await deckKeysBranches['POST /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });
   } else if (reqPath === '/deck/client-step' && req.method === 'POST') {
-    // The Virtual Deck window or a Deck on a widget layer cannot open the AI
-    // chat or the mixer: a dashboard (or the screen, in "widgets only") claims
-    // the step. In CSRF_MUTATION_PATHS, denied to paired devices.
-    try {
-      const body = JSON.parse(await readBody(req, 8 * 1024) || '{}');
-      json(await deckShortcutRunner.handOff(require('./js/deck-actions.js').validateAction(body && body.action)));
-    } catch { json({ ok: false, error: 'failed' }); }
+    await deckKeysBranches['POST /deck/client-step'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });
 
   } else if (reqPath === '/deck/shortcut-claim' && req.method === 'POST') {
     await deckKeysBranches['POST /deck/shortcut-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });
@@ -12676,118 +12142,7 @@ const handleRequest = async (req, res) => {
     await diskBranches['POST /api/devclean/compact'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });
 
   } else if (reqPath === '/api/transfer/upload' && req.method === 'POST') {
-    // The ONLY route in this server that streams a request body to disk.
-    // readBody/readBodyBuffer would make a 2 GB video 2 GB of RSS, and every
-    // other upload here does exactly that — this is the one that cannot.
-    //
-    // `req` is untouched at this point: nothing in handleRequest reads a body
-    // before the dispatch chain, so the stream still holds every byte. If that
-    // ever changes, this route breaks silently — file-transfer-routes.test.mjs
-    // pins it.
-    //
-    // Not multipart: parseMultipartBackground works on an already-buffered
-    // Buffer, and a streaming multipart parser is a state machine over chunk
-    // boundaries that this repo should not grow. The filename rides in the
-    // query as a LABEL, the /api/claude/attach shape.
-    if (!transferEnabled()) {
-      res.writeHead(403, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'disabled' }));
-      return;
-    }
-    const declaredLength = Number(req.headers['content-length']) || 0;
-    // Cap one: answered before a byte is read. This is the common case and it
-    // costs nothing. Cap two lives inside receiveStream and counts the bytes as
-    // they arrive, because a Content-Length is a claim and chunked encoding
-    // carries none at all. Cap three is the quota, inside begin().
-    const began = fileTransfer.begin({
-      name: urlObj.searchParams.get('name') || '',
-      // Derived from which door this arrived at, never from the request: a
-      // phone must not be able to claim it is the PC, and has no reason to.
-      direction: isRemote ? 'in' : 'out',
-      from: isRemote ? ((remote.device && remote.device.name) || 'device') : 'PC',
-      declaredLength,
-    });
-    if (began.error) {
-      res.writeHead(began.status || 400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: began.error, max: began.max }));
-      return;
-    }
-    // Cap four: never let a transfer be the thing that fills the system drive.
-    // statfs is best-effort — an older runtime or an exotic filesystem answers
-    // with a throw, and "unknown" must mean "carry on", not "refuse".
-    try {
-      const vfs = await fs.promises.statfs(DATA_DIR);
-      const free = Number(vfs.bavail) * Number(vfs.bsize);
-      if (Number.isFinite(free) && declaredLength && (free - declaredLength) < TRANSFER_DISK_HEADROOM) {
-        fileTransfer.abort(began.id);
-        res.writeHead(507, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'no_space' }));
-        return;
-      }
-    } catch { /* the filesystem cannot say; proceed and let ENOSPC speak */ }
-
-    let received = 0;
-    try {
-      // The row appears on every other surface the moment the upload starts,
-      // so a phone sending from the sofa shows up on the PC as it happens.
-      broadcastTransfer();
-
-      // The streaming core lives in file-transfer.js (receiveStream): bounded
-      // during the stream rather than from Content-Length, request kept alive
-      // so an over-size body can still be answered, temp removed on any
-      // failure. It is there rather than here so it can be exercised against a
-      // real socket in the tests.
-      const out = await fileTransferLib.receiveStream(req, began.target, {
-        limit: began.limit,
-        onProgress: (n) => {
-          received = n;
-          if (fileTransfer.noteProgress(began.id, n)) {
-            broadcastSSE('transfer_progress', { id: began.id, received: n, total: declaredLength, done: false });
-          }
-        },
-      });
-      received = out.bytes;
-      const rec = await fileTransfer.commit(began.id, received);
-      broadcastSSE('transfer_progress', { id: began.id, received, total: received, done: true });
-      // Delivery is a copy made AFTER the file is safely stored, so a folder
-      // that was renamed or filled up degrades to "kept in Xenon's inbox" and
-      // never fails a transfer that already succeeded.
-      const delivered = await deliverTransfer(rec).catch(() => null);
-      fileTransfer.prune().catch(() => {});
-      broadcastTransfer();
-      // Push is PC → phone only, opt-in, and never carries the file name: a
-      // lock screen is a public surface. A file the user just sent FROM the
-      // phone in their hand is not something to wake them for.
-      if (rec.direction === 'out' && transferSettings().notifyPhone) {
-        webPushNotify({
-          title: 'Xenon',
-          body: transferPushBody(),
-          tag: 'transfer',
-          url: '/',
-        }, { urgency: 'normal', ttl: 3600 }).catch(() => {});
-      }
-      json({ ok: true, id: rec.id, name: rec.name, size: rec.size, delivered: !!delivered });
-    } catch (e) {
-      // receiveStream has already removed the temp file and left `req` alive.
-      fileTransfer.abort(began.id);
-      if (Number.isFinite(e && e.received)) received = e.received;
-      broadcastSSE('transfer_progress', { id: began.id, received, total: declaredLength, done: true, failed: true });
-      broadcastTransfer();
-      if (res.headersSent) { try { res.end(); } catch { /* already gone */ } return; }
-      const code = e && e.code;
-      if (code === 'XFER_ABORTED' || code === 'ECONNRESET' || code === 'ERR_STREAM_PREMATURE_CLOSE') {
-        // The phone slept or the wifi went. There is nobody left to answer.
-        try { res.end(); } catch { /* socket already closed */ }
-        return;
-      }
-      const status = code === 'XFER_TOO_BIG' ? 413 : (code === 'ENOSPC' ? 507 : 500);
-      const error = code === 'XFER_TOO_BIG' ? 'too_big' : (code === 'ENOSPC' ? 'no_space' : 'write_failed');
-      res.writeHead(status, { 'Content-Type': 'application/json', 'Connection': 'close' });
-      res.end(JSON.stringify({ ok: false, error, max: began.limit }));
-      // Only once the refusal has actually flushed. Destroying the socket any
-      // earlier is what turns a clear 413 into "network error".
-      res.on('finish', () => { try { req.destroy(); } catch { /* already gone */ } });
-    }
+    await transferPhoneBranches['POST /api/transfer/upload'](req, res, { json, err500, reqPath, urlObj, isRemote, remote }, { broadcastTransfer, deliverTransfer, fileTransfer, transferEnabled, transferPushBody, transferSettings, webPushNotify });
 
   } else if (reqPath === '/api/transfer/list' && req.method === 'GET') {
     await transferBranches['GET /api/transfer/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { transferState });
@@ -12835,24 +12190,7 @@ const handleRequest = async (req, res) => {
     || (reqPath === '/captures/reveal' && req.method === 'POST')
     || (reqPath === '/captures/copy' && req.method === 'POST')
     || (reqPath === '/captures/trim' && req.method === 'POST')) {
-    // delete / reveal / copy / trim, by id. Loopback-only (REMOTE_DENY) and in
-    // CSRF_MUTATION_PATHS: each one acts on a file on this PC.
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      const id = String((body && body.id) || '');
-      let r;
-      if (reqPath === '/captures/delete') r = await _captures.remove(id);
-      else if (reqPath === '/captures/trim') r = await _captureGallery.trim(id, { start: body.start, end: body.end });
-      else if (reqPath === '/captures/copy') r = await _captureGallery.copy(id);
-      else {
-        const e = _captures.get(id);
-        if (e) revealInFileManager(e.file);
-        r = e ? { ok: true } : { ok: false, error: 'not_found' };
-      }
-      // Every open gallery (a phone's too) shows the change.
-      if (r.ok && (reqPath === '/captures/delete' || reqPath === '/captures/trim')) broadcastSSE('captures', { changed: true });
-      json(r);
-    } catch (e) { err500(e.message); }
+    await screensCapturesBranches['POST /captures/delete|/captures/reveal|/captures/copy|/captures/trim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureGallery, _captures });
 
   } else if (reqPath === '/captures/clips' && req.method === 'POST') {
     await screensCaptureBranches['POST /captures/clips'](req, res, { json, err500, reqPath, urlObj, isRemote }, { makeMarkClips });
@@ -12879,19 +12217,7 @@ const handleRequest = async (req, res) => {
     await transferBranches['GET /api/transfer/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, fileTransfer, transferInboxDir, transferSettings });
 
   } else if (reqPath === '/api/transfer/settings' && req.method === 'POST') {
-    // The ONLY writer of the fileTransfer settings block. Loopback-only, so a
-    // paired phone can never aim future arrivals at a folder of its choosing.
-    // In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req, 8192) || '{}');
-      if (typeof body.inboxDir === 'string' && body.inboxDir.trim()) {
-        const check = await fileTransferLib.validInboxDir(body.inboxDir.trim(), {
-          dataDir: DATA_DIR, appRoot: path.join(__dirname, '..'),
-        });
-        if (!check.ok) { json({ ok: false, error: check.error }); return; }
-      }
-      json(await updateTransferSettings(body));
-    } catch (e) { err500(e.message); }
+    await transferBranches['POST /api/transfer/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateTransferSettings });
 
   } else if (reqPath === '/api/transfer/settings/pick' && req.method === 'POST') {
     await transferBranches['POST /api/transfer/settings/pick'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseTransferFolder, updateTransferSettings });
@@ -13147,88 +12473,7 @@ const handleRequest = async (req, res) => {
     await widgetSdkCallsBranches['POST /sdk/secret'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
 
   } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {
-    // Same-origin image proxy for map/radar tiles, and for widget artwork. The
-    // widget points an <img>/Leaflet tile layer straight at this URL — allowed
-    // by the widget CSP's `img-src 'self'` with NO relaxation — so a slippy map
-    // paints at native speed instead of base64-ing every tile over the fetch
-    // bridge at ~1 req/s. Same trust boundary as the fetch proxy (allowlisted +
-    // user-GRANTED host, guardedLookup SSRF block, size cap) plus a bounded
-    // cache + per-package gate. Read-only, images only, and secrets are NEVER
-    // injected here.
-    //
-    // TWO PATHS, ONE DOOR. `/sdk/asset/` differs from `/sdk/tile/` in exactly
-    // one respect: where the answer is kept. Tiles live in a small memory LRU,
-    // because a radar frame is stale in minutes and worthless tomorrow; artwork
-    // goes to disk, because an album cover is the same next week and re-fetching
-    // it is the whole cost worth avoiding. Everything before that — the host
-    // check, the SSRF guard, the redirect handling, the image-only rule, the
-    // rate gate — is the same code on both, deliberately: a second route would
-    // be a second copy of a security model to keep in step, and the day they
-    // drift one of them is the weaker door.
-    //
-    // Asked for by a widget author caching album, game and video art, who had
-    // hit the store's 16 KB per value / 256 KB total ceiling doing it in base64.
-    try {
-      if (!sdkFeatureEnabled()) { res.writeHead(404); res.end(); return; }
-      const persist = reqPath.startsWith('/sdk/asset/');
-      const prefix = persist ? '/sdk/asset/' : '/sdk/tile/';
-      const pkgId = decodeURIComponent(reqPath.slice(prefix.length));
-      if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { res.writeHead(404); res.end(); return; }
-      const scan = await sdkPackagesCached();
-      const pkg = scan.packages.find(p => p.id === pkgId);
-      if (!pkg) { res.writeHead(404); res.end(); return; }
-      const grants = sdkGrantsFor(pkgId);
-      // A user-filled slot can host a tile server too (a self-hosted map on the
-      // LAN), so the same resolved hosts apply here as on the fetch proxy.
-      const filled = sdkWidgets.resolveUserHosts(pkg, grants.userHosts);
-      const v = sdkWidgets.validateProxyRequest(pkg, { url: urlObj.searchParams.get('u') || '', method: 'GET' }, filled.hosts);
-      if (!v.ok) { res.writeHead(400); res.end(); return; }
-      let host = '';
-      try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* validated */ }
-      if (!grants.hosts.includes(host) && !filled.hosts.includes(host)) { res.writeHead(403); res.end(); return; }
-      const serve = (contentType, buffer, hit) => {
-        res.writeHead(200, {
-          'Content-Type': contentType,
-          // A cover is worth keeping in the browser too; a radar frame is not.
-          'Cache-Control': persist ? 'public, max-age=86400' : 'public, max-age=600',
-          'Content-Security-Policy': "default-src 'none'; sandbox",
-          'X-Content-Type-Options': 'nosniff',
-          [persist ? 'X-Xenon-Asset' : 'X-Xenon-Tile']: hit ? 'hit' : 'miss',
-        });
-        res.end(buffer);
-      };
-      if (persist) {
-        const hit = await sdkAssets.get(pkgId, v.url).catch(() => null);
-        if (hit && hit.buffer) { serve(hit.contentType, hit.buffer, true); return; }
-        // A failure remembered briefly, so a render loop does not re-ask a dead
-        // url every frame. Short-lived on purpose: artwork 404s are usually a
-        // CDN mid-rename, and an hour of blank tiles is punishment enough.
-        if (hit && hit.negative) { res.writeHead(hit.status, { 'Cache-Control': 'no-store' }); res.end(); return; }
-      } else {
-        const cached = sdkTileCacheGet(v.url);
-        if (cached) { serve(cached.contentType, cached.buffer, true); return; }
-      }
-      // Only a MISS is gated: a cache hit costs nothing outbound, and a widget
-      // painting from its own cache must never be throttled. A miss on the
-      // persistent path costs a fetch AND a file, so it needs the gate more than
-      // a tile does, not less.
-      const release = sdkTileGate(pkgId);
-      if (!release) { res.writeHead(429); res.end(); return; }
-      try {
-        const tile = await sdkTileFetch(v.url, { memoryCache: !persist });
-        if (persist) await sdkAssets.put(pkgId, v.url, tile.contentType, tile.buffer).catch(() => {});
-        serve(tile.contentType, tile.buffer, false);
-      } catch (e) {
-        if (persist) {
-          const st = Number(e && e.status);
-          await sdkAssets.putNegative(pkgId, v.url, st >= 400 && st < 600 ? st : 502).catch(() => {});
-        }
-        throw e;
-      } finally { release(); }
-    } catch (e) {
-      const st = e && Number(e.status);
-      res.writeHead(st >= 400 && st < 600 ? st : 502); res.end();
-    }
+    await widgetSdkImagesBranches['GET /sdk/tile/*|/sdk/asset/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAssets, sdkPackagesCached });
 
   } else if (req.method === 'POST' && reqPath.startsWith('/sdk/hook/')) {
     await widgetSdkCallsBranches['POST /sdk/hook/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
@@ -13246,28 +12491,7 @@ const handleRequest = async (req, res) => {
     await widgetSdkBranches['POST /sdk/deck-states'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
-    // One-click install of a bundled reference widget: copies the example
-    // package from the app tree into DATA_DIR/widgets. The requested id is
-    // resolved through a fixed allowlist map — never interpolated into a
-    // path — so request input still never reaches the filesystem directly;
-    // an unknown/missing id falls back to the original default.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const folder = (typeof body.id === 'string' && Object.hasOwn(EXAMPLE_WIDGETS, body.id))
-        ? EXAMPLE_WIDGETS[body.id] : EXAMPLE_WIDGETS['hello-xenon'];
-      const src = path.join(__dirname, 'sdk-example', folder);
-      const dest = path.join(SDK_WIDGETS_DIR, folder);
-      await fs.promises.mkdir(dest, { recursive: true });
-      for (const name of await fs.promises.readdir(src)) {
-        if (!/^[A-Za-z0-9._-]+$/.test(name)) continue;
-        await fs.promises.copyFile(path.join(src, name), path.join(dest, name));
-      }
-      await recordWidgetOrigin(folder, 'builtin');   // shipped example, not the user's work
-      await refreshSdkScan();   // the new package is visible to hot paths immediately
-      json({ ok: true });
-    } catch {
-      json({ ok: false, error: 'install_failed' });
-    }
+    await widgetSdkBranches['POST /sdk/widgets/example'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, refreshSdkScan });
 
   } else if (reqPath === '/sdk/install' && req.method === 'POST') {
     await widgetSdkPackagesBranches['POST /sdk/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { dropSdkGrant, installWidgetPayload, isCatalogUpdateOf, refreshSdkScan, sdkPackagesCached, trialVault, widgetExportable });
@@ -13487,9 +12711,7 @@ const handleRequest = async (req, res) => {
     await pairedAccessBranches['POST /api/remote-access/redeem'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _peerIp, remoteAccess });
 
   } else if (reqPath === '/api/remote-access/whoami' && req.method === 'GET') {
-    // Lets the phone show which device it is registered as. Loopback callers
-    // get `null` — they are not a paired device and never will be.
-    json({ device: isRemote && remote.device ? { id: remote.device.id, name: remote.device.name } : null });
+    await pairedAccessBranches['GET /api/remote-access/whoami'](req, res, { json, err500, reqPath, urlObj, isRemote, remote });
 
   } else if (reqPath === '/api/remote-access/rename' && req.method === 'POST') {
     await pairedAccessBranches['POST /api/remote-access/rename'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteAccess });
@@ -13504,15 +12726,7 @@ const handleRequest = async (req, res) => {
     await pairedPushBranches['POST /api/push/key'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });
 
   } else if (reqPath === '/api/push/subscribe' && req.method === 'POST') {
-    // The browser has just been given an address by its push service and is
-    // handing it over. It is tied to the DEVICE that presented it, so a revoke
-    // can take it away again; on the PC itself there is no device, and the
-    // empty id is a real value meaning "this machine".
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const deviceId = (remote && remote.device && remote.device.id) || '';
-      json(await webPush.subscribe(body.subscription || body, { deviceId }));
-    } catch (e) { err500(e.message); }
+    await pairedPushBranches['POST /api/push/subscribe'](req, res, { json, err500, reqPath, urlObj, isRemote, remote }, { webPush });
 
   } else if (reqPath === '/api/push/unsubscribe' && req.method === 'POST') {
     await pairedPushBranches['POST /api/push/unsubscribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });
@@ -13524,15 +12738,7 @@ const handleRequest = async (req, res) => {
     await pairedPushBranches['POST /api/push/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPushNotify });
 
   } else if (reqPath === '/sse' && req.method === 'GET') {
-    // Server-Sent Events stream — replaces client-side polling for status, media,
-    // system and audio data. Keepalive pings prevent proxy connection timeouts.
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
-    openSseClient(req, res, isRemote, remote);
+    await engineBranches['GET /sse'](req, res, { json, err500, reqPath, urlObj, isRemote, remote }, { openSseClient });
   } else {
     res.writeHead(404); res.end();
   }
