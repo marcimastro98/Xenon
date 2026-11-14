@@ -29,30 +29,11 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 
-const vcard = require('./phone-vcard');
-const numbers = require('./phone-numbers');
-const messages = require('./phone-messages');
 
-const RETRY_MS = 20 * 1000;          // after a host death, before trying again
-const REQ_TIMEOUT_MS = 30 * 1000;    // a Bluetooth pull is slow, but not this slow
-const CONTACTS_TTL_MS = 30 * 60 * 1000;
-const CALLS_TTL_MS = 2 * 60 * 1000;
-// The floor under a FORCED refresh. Two jobs, and the second is the important
-// one: it keeps the read endpoints from being a way to pump the Bluetooth
-// channel. A cross-site request cannot read the JSON that comes back, but it
-// could still ask for `?refresh=1` in a loop and keep the phone's phonebook
-// server busy — which is a channel other software on the machine also wants.
-// With a floor, that attack degrades to "serves the cache", so these stay
-// ordinary reads instead of needing a mutation guard.
-const REFRESH_MIN_MS = 10 * 1000;
-const STATUS_TTL_MS = 15 * 1000;
-const MAX_CONTACTS = 2000;
-const MAX_CALLS = 100;
-const MESSAGES_TTL_MS = 60 * 1000;
-const MAX_MESSAGES = 40;
-// Longer than any SMS and short enough to travel in one OBEX packet, which is
-// what the helper's single-packet PUT requires. Checked here as well as there.
-const MAX_MESSAGE_CHARS = 1000;
+const {
+  RETRY_MS, REQ_TIMEOUT_MS, CONTACTS_TTL_MS, CALLS_TTL_MS, MAX_CONTACTS, MAX_CALLS, MESSAGES_TTL_MS,
+  MAX_MESSAGES, MAX_MESSAGE_CHARS,
+} = require('./transfer/paired-phone-limits.js');
 
 // Where the Bluetooth side of this actually exists. Windows today, because the
 // helper is where the RFCOMM/OBEX client lives and only the Windows helper has
@@ -86,6 +67,12 @@ function platformAllowed(platform) {
   if (!raw) return false;
   return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).includes(platform);
 }
+
+const { makeLists } = require('./transfer/paired-phone-lists.js');
+
+const { makeStatus } = require('./transfer/paired-phone-status.js');
+
+const { makeCalls } = require('./transfer/paired-phone-calls.js');
 
 function createPhone(opts) {
   const o = opts || {};
@@ -240,297 +227,25 @@ function createPhone(opts) {
 
   // ── Call state ───────────────────────────────────────────────────────────
 
-  // The structural signal. `incoming` here is the OS saying a call is ringing
-  // right now, which is a fact rather than the notification-text guess the card
-  // used to depend on — so this is what starts the ring, and the mirrored toast
-  // is left to supply the one thing this cannot: who is calling.
-  function applyCallState(env) {
-    const incoming = env.incoming === true;
-    const active = env.active === true;
-    if (incoming === state.incoming && active === state.active) return;
-    state.incoming = incoming;
-    state.active = active;
-    broadcast('phone', publicState());
-    try { onCallState({ incoming, active, resolve }); } catch { /* a listener must never break the feed */ }
-  }
+  const {
+    resolve, deviceName, canAnswer, canHangUp, canDial, answer, hangUp, dial,
+  } = makeCalls({ supported, cache, enabled, request });
 
-  function publicState() {
-    return {
-      incoming: state.incoming,
-      active: state.active,
-      contacts: cache.contacts.list.length,
-      calls: cache.calls.list.length,
-      stale: staleness(),
-    };
-  }
-
-  function staleness() {
-    const now = Date.now();
-    return {
-      contacts: cache.contacts.at ? now - cache.contacts.at : -1,
-      calls: cache.calls.at ? now - cache.calls.at : -1,
-    };
-  }
+  const {
+    applyCallState, publicState, status,
+  } = makeStatus({ supported, broadcast, getSettings, onCallState, cache, state, enabled, helperPresent, request, resolve });
 
   // ── Reads ────────────────────────────────────────────────────────────────
-
-  async function status(force) {
-    if (!enabled()) return { ok: false, enabled: false, reason: 'disabled', supported };
-    if (!supported) return { ok: false, enabled: true, reason: 'platform_unsupported', supported: false };
-    if (!helperPresent()) return { ok: false, enabled: true, reason: 'helper_missing', supported: true };
-    const now = Date.now();
-    if (!force && cache.status.value && now - cache.status.at < STATUS_TTL_MS) {
-      return { ok: true, enabled: true, ...cache.status.value, state: publicState() };
-    }
-    try {
-      const value = await request('status', {}, 15000);
-      // `hide` is the user's own setting, not a capability, but the widget
-      // needs both in one read and asking twice would just be a second request.
-      value.hide = (getSettings() || {}).hide === true;
-      cache.status = { at: now, value, error: '' };
-      // The host answers with the live booleans too; adopting them keeps a
-      // dashboard that opened mid-call correct without waiting for the next
-      // change event, which may be a minute away.
-      applyCallState(value);
-      return { ok: true, enabled: true, ...value, state: publicState() };
-    } catch (e) {
-      cache.status.error = String((e && e.message) || 'phone_error');
-      return { ok: false, enabled: true, reason: cache.status.error, state: publicState() };
-    }
-  }
-
-  async function contacts(force) {
-    if (!enabled()) return { ok: false, reason: 'disabled', list: [] };
-    const now = Date.now();
-    if (force && cache.contacts.at && now - cache.contacts.at < REFRESH_MIN_MS) force = false;
-    if (!force && cache.contacts.at && now - cache.contacts.at < CONTACTS_TTL_MS) {
-      return { ok: true, list: cache.contacts.list, total: cache.contacts.total, at: cache.contacts.at, cached: true };
-    }
-    try {
-      const out = await request('contacts', { max: MAX_CONTACTS });
-      const list = vcard.parseContacts(out && out.vcf).sort(byName);
-      cache.contacts = {
-        at: Date.now(),
-        list,
-        index: numbers.buildIndex(list),
-        total: Number.isFinite(out && out.total) ? out.total : list.length,
-        error: '',
-      };
-      // The call log is pulled first and the phonebook is lazy, so rows the
-      // phone sent without a name were resolved against an index that did not
-      // exist yet. Re-resolve the cached log now rather than leaving bare
-      // numbers on screen until its own TTL runs out.
-      if (cache.calls.list.length) cache.calls.list = cache.calls.list.map(withName);
-      return { ok: true, list, total: cache.contacts.total, at: cache.contacts.at, cached: false };
-    } catch (e) {
-      const reason = String((e && e.message) || 'phone_error');
-      cache.contacts.error = reason;
-      // Last good copy, plainly labelled. An empty list would read as "you have
-      // no contacts", which is a different and much worse statement.
-      return { ok: false, reason, list: cache.contacts.list, total: cache.contacts.total, at: cache.contacts.at, cached: true };
-    }
-  }
-
-  async function calls(force) {
-    if (!enabled()) return { ok: false, reason: 'disabled', list: [] };
-    const now = Date.now();
-    if (force && cache.calls.at && now - cache.calls.at < REFRESH_MIN_MS) force = false;
-    if (!force && cache.calls.at && now - cache.calls.at < CALLS_TTL_MS) {
-      return { ok: true, list: cache.calls.list, at: cache.calls.at, cached: true };
-    }
-    try {
-      // The COMBINED book, once. Direction rides on each entry's timestamp
-      // parameter, so pulling ich/och/mch separately would be three extra
-      // Bluetooth round trips for information already in this one.
-      const out = await request('calls', { book: 'cch', max: MAX_CALLS });
-      const list = vcard.parseCallLog(out && out.vcf, 'cch').map(withName);
-      cache.calls = { at: Date.now(), list, error: '' };
-      return { ok: true, list, at: cache.calls.at, cached: false };
-    } catch (e) {
-      const reason = String((e && e.message) || 'phone_error');
-      cache.calls.error = reason;
-      return { ok: false, reason, list: cache.calls.list, at: cache.calls.at, cached: true };
-    }
-  }
 
   // ── Messages ─────────────────────────────────────────────────────────────
 
   const FOLDERS = ['inbox', 'sent'];
 
-  function msgCache(folder) {
-    if (!cache.messages.has(folder)) cache.messages.set(folder, { at: 0, list: [], error: '' });
-    return cache.messages.get(folder);
-  }
-
-  async function messageList(folder, force) {
-    if (!enabled()) return { ok: false, reason: 'disabled', list: [] };
-    const key = FOLDERS.includes(String(folder)) ? String(folder) : 'inbox';
-    const slot = msgCache(key);
-    const now = Date.now();
-    if (force && slot.at && now - slot.at < REFRESH_MIN_MS) force = false;
-    if (!force && slot.at && now - slot.at < MESSAGES_TTL_MS) {
-      return { ok: true, folder: key, list: slot.list, at: slot.at, cached: true };
-    }
-    try {
-      const out = await request('messages', { folder: key, max: MAX_MESSAGES });
-      // Two containers, one shape. Windows returns the MAP listing XML; on
-      // Linux obexd has already parsed it and returns D-Bus rows. Which one
-      // arrived is the transport's business, so it says so rather than being
-      // guessed at from the payload.
-      const parsed = (out && out.obex)
-        ? messages.parseObexMessages(out.rows)
-        : messages.parseListing(out && out.xml);
-      // The phone often knows the sender's name already; when it does not, the
-      // phonebook fills it in exactly as it does for the call log.
-      const list = parsed.map(withName);
-      slot.at = Date.now();
-      slot.list = list;
-      slot.error = '';
-      return { ok: true, folder: key, list, at: slot.at, cached: false };
-    } catch (e) {
-      const reason = String((e && e.message) || 'phone_error');
-      slot.error = reason;
-      // The last good list, plainly labelled. On Windows this path is REACHED
-      // ROUTINELY and is not a fault: Phone Link holds the same channel while
-      // it runs, so "busy" is a state to report, never something to fight over.
-      return { ok: false, reason, folder: key, list: slot.list, at: slot.at, cached: true };
-    }
-  }
-
-  // One message, fetched on open. Deliberately not cached: a body is the part
-  // of this feature most worth not keeping around, and it is one round trip.
-  async function messageBody(folder, handle) {
-    if (!enabled()) return { ok: false, reason: 'disabled' };
-    const key = FOLDERS.includes(String(folder)) ? String(folder) : 'inbox';
-    // A bounded, generic check here; the SHAPE is the transport's business.
-    // Windows handles are MAP hex ids and the helper re-asserts that; on Linux
-    // they are obexd object paths, which that transport re-resolves against a
-    // fresh listing before using. Hard-coding one shape at this level would
-    // refuse the other, and loosening the transport's own check to compensate
-    // is exactly the wrong direction.
-    const id = String(handle == null ? '' : handle).trim();
-    if (!id || id.length > 256 || /[\s"'`\\]|\.\./.test(id)) return { ok: false, reason: 'bad_handle' };
-    try {
-      const out = await request('message', { folder: key, handle: id });
-      const parsed = messages.parseMessage(out && out.bmsg);
-      if (!parsed) return { ok: false, reason: 'phone_error' };
-      if (!parsed.name) {
-        const hit = numbers.lookup(cache.contacts.index, parsed.number);
-        if (hit) parsed.name = hit.name;
-      }
-      return { ok: true, folder: key, handle: id, message: parsed };
-    } catch (e) {
-      return { ok: false, reason: String((e && e.message) || 'phone_error') };
-    }
-  }
-
-  async function sendMessage(rawNumber, rawText) {
-    if (!enabled()) return { ok: false, error: 'disabled' };
-    const number = numbers.dialable(rawNumber);
-    if (!number) return { ok: false, error: 'bad_number' };
-    const text = String(rawText == null ? '' : rawText).trim();
-    if (!text) return { ok: false, error: 'empty_message' };
-    if (text.length > MAX_MESSAGE_CHARS) return { ok: false, error: 'message_too_long' };
-    try {
-      await request('send', { number, text }, 20000);
-      // The phone writes the message into its own sent folder a moment later,
-      // so the cached copy is dropped rather than left looking stale.
-      msgCache('sent').at = 0;
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: String((e && e.message) || 'phone_error') };
-    }
-  }
-
-  // The call log names most callers itself, but not all of them: an entry whose
-  // contact was added after the call carries only a number. Resolving against
-  // the phonebook fills those in without inventing anything — an unmatched
-  // number stays a number.
-  function withName(row) {
-    if (row.name) return row;
-    const hit = numbers.lookup(cache.contacts.index, row.number);
-    return hit ? { ...row, name: hit.name } : row;
-  }
-
-  function byName(a, b) {
-    const an = (a.name || '').toLowerCase();
-    const bn = (b.name || '').toLowerCase();
-    if (an && bn) return an.localeCompare(bn);
-    if (an) return -1;
-    if (bn) return 1;
-    return 0;
-  }
-
-  // Public name resolution, for the incoming-call card and anything else that
-  // holds a number and wants a person.
-  function resolve(number) {
-    return numbers.lookup(cache.contacts.index, number);
-  }
-
-  // The phone's own name, as the user sees it on the device. Read from the last
-  // status rather than fetched, because the caller is a ringing call: a round
-  // trip here would delay the card by exactly the seconds it exists for.
-  function deviceName() {
-    const v = cache.status.value;
-    return (v && typeof v.device === 'string' && v.device) || '';
-  }
-
-  // What the platform actually allows, as the helper reported it. Both are
-  // false everywhere today and the card renders from them anyway, so the day
-  // one platform can answer a call, nothing above this line has to change.
-  function canAnswer() {
-    const v = cache.status.value;
-    return !!(v && v.canAnswer === true);
-  }
-
-  function canHangUp() {
-    const v = cache.status.value;
-    return !!(v && v.canHangUp === true);
-  }
-
-  // Whether a Deck key or an AI tool that dials would work right now. Cached,
-  // never probed: the action catalog is fetched while the Deck editor is open,
-  // and a Bluetooth round trip there would stall the whole key list.
-  function canDial() {
-    const v = cache.status.value;
-    return !!(supported && v && v.canDial === true);
-  }
+  const {
+    contacts, calls, messageList, messageBody, sendMessage,
+  } = makeLists({ cache, enabled, request, FOLDERS });
 
   // ── Actions ──────────────────────────────────────────────────────────────
-
-  // Answering and hanging up. Both exist for exactly one platform today, which
-  // is why they are ops rather than assumptions: `canAnswer` comes back from
-  // the transport, the card renders from it, and here the capability is checked
-  // again before anything is attempted — a button the client should not have
-  // drawn must still be refused by the server.
-  async function answer() {
-    if (!enabled()) return { ok: false, error: 'disabled' };
-    if (!canAnswer()) return { ok: false, error: 'unavailable' };
-    try { await request('answer', {}, 15000); return { ok: true }; }
-    catch (e) { return { ok: false, error: String((e && e.message) || 'phone_error') }; }
-  }
-
-  async function hangUp() {
-    if (!enabled()) return { ok: false, error: 'disabled' };
-    if (!canHangUp()) return { ok: false, error: 'unavailable' };
-    try { await request('hangup', {}, 15000); return { ok: true }; }
-    catch (e) { return { ok: false, error: String((e && e.message) || 'phone_error') }; }
-  }
-
-  async function dial(rawNumber) {
-    if (!enabled()) return { ok: false, error: 'disabled' };
-    // Validated here as well as at the boundary: this is the one call in the
-    // feature that reaches the outside world and costs the user money, so what
-    // reaches the phone is a number and nothing else.
-    const number = numbers.dialable(rawNumber);
-    if (!number) return { ok: false, error: 'bad_number' };
-    try {
-      await request('dial', { number }, 15000);
-      return { ok: true, number };
-    } catch (e) {
-      return { ok: false, error: String((e && e.message) || 'phone_error') };
-    }
-  }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
 
