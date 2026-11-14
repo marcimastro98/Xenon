@@ -39,9 +39,12 @@ export function diskTree(root) {
     }
     return texts.get(file);
   };
-  // server/shared is a link to packages/core: one file, one name.
+  // server/shared is a link to packages/core: one file, one name. The root is resolved too:
+  // on macOS the temp folder is itself a link, and a path measured from the unresolved root climbs out of it.
+  let realRoot = root;
+  try { realRoot = realpathSync(root); } catch { /* a root that is not there: every read below answers null */ }
   const real = (file) => {
-    try { return posix(path.relative(root, realpathSync(path.join(root, file)))); } catch { return file; }
+    try { return posix(path.relative(realRoot, realpathSync(path.join(root, file)))); } catch { return file; }
   };
   return { files: serverFilesOnDisk(root), read, real, known: new Map() };
 }
