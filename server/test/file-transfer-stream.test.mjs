@@ -16,6 +16,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,6 +27,7 @@ import { dirname, join } from 'node:path';
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FT = require(join(HERE, '..', 'file-transfer.js'));
+const { refuseUpload } = require(join(HERE, '..', 'transfer', 'refuse-upload.js'));
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-xstream-'));
@@ -50,9 +52,8 @@ function serve(target, opts) {
       seen.error = e;
       if (res.headersSent) { try { res.end(); } catch { /* gone */ } return; }
       const status = e.code === 'XFER_TOO_BIG' ? 413 : 500;
-      res.writeHead(status, { 'Content-Type': 'application/json', 'Connection': 'close' });
-      res.end(JSON.stringify({ ok: false, error: e.code === 'XFER_TOO_BIG' ? 'too_big' : 'failed' }));
-      res.on('finish', () => { try { req.destroy(); } catch { /* gone */ } });
+      seen.socket = req.socket;
+      refuseUpload(req, res, status, { ok: false, error: e.code === 'XFER_TOO_BIG' ? 'too_big' : 'failed' }, { lingerMs: o.lingerMs });
     }
   });
   return new Promise((resolve) => {
@@ -120,6 +121,43 @@ test('an over-size body gets a 413 the client can actually read', async () => {
   assert.equal(h.seen.error.code, 'XFER_TOO_BIG');
   assert.deepEqual(fs.readdirSync(dir), [],
     'neither the file nor its .part may survive a refused upload');
+});
+
+// The answer alone is not enough: closing while the sender is still sending makes the system
+// reset the connection, and the reset can reach the sender before the answer is read. So the
+// connection stays open, reading and dropping, for as long as it was told to.
+test('a refused upload keeps its connection open while the sender is still sending', async () => {
+  const dir = tmpDir();
+  const h = await serve(path.join(dir, 'toobig.bin'), { limit: 1024, lingerMs: 600 });
+  const socket = net.connect(h.port, '127.0.0.1');
+  let text = '';
+  let answeredAt = 0;
+  socket.setEncoding('utf8');
+  socket.on('data', (chunk) => { text += chunk; if (!answeredAt && text.includes('too_big')) answeredAt = Date.now(); });
+  socket.on('error', () => { /* the close at the end of the wait may arrive as a reset */ });
+  const closed = new Promise((resolve) => socket.once('close', () => resolve(Date.now())));
+  // A body announced as 1 MB of which only the first 64 KB ever leave: a sender in mid-flight.
+  socket.write(['POST / HTTP/1.1', 'Host: x', 'Content-Type: application/octet-stream', 'Content-Length: 1048576', '', ''].join('\r\n'));
+  socket.write(Buffer.alloc(64 * 1024));
+  const closedAt = await closed;
+  await close(h);
+
+  assert.ok(text.startsWith('HTTP/1.1 413 '), 'the sender read the refusal');
+  assert.ok(answeredAt > 0 && closedAt - answeredAt >= 400, `closed ${closedAt - answeredAt} ms after the answer, the wait is 600`);
+  assert.deepEqual(fs.readdirSync(dir), []);
+});
+
+test('a refused upload whose sender finishes leaves the connection alone', async () => {
+  const dir = tmpDir();
+  const h = await serve(path.join(dir, 'toobig.bin'), { limit: 1024, lingerMs: 150 });
+  const res = await post(h.port, Buffer.alloc(64 * 1024));
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const destroyed = h.seen.socket.destroyed;
+  h.server.closeAllConnections();
+  await close(h);
+
+  assert.equal(res.status, 413);
+  assert.equal(destroyed, false, 'the body ended cleanly, so nothing had to be cut');
 });
 
 test('the limit is enforced on the bytes, not on Content-Length', async () => {
