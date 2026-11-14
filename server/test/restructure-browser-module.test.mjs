@@ -176,7 +176,28 @@ test('a page may have a question of its own, and its answer must stay the same',
   assert.equal(asked({ deck: 'deck~two', drawn: true }), '');
   assert.equal(asked({ deck: null, drawn: true }), 'wide: the page\'s own question is answered differently ({"deck":"deck~two","drawn":true} before, {"deck":null,"drawn":true} now)');
   assert.match(asked(undefined), /answered differently \(.* before, undefined now\)/, 'a question no longer asked is not an answer');
-  const one = PAGES.find((entry) => entry.probe);
-  assert.equal(one.file, 'server/deck-popup.html', 'the window of a second deck is asked whose deck it shows');
+  const one = PAGES.find((entry) => entry.probe && entry.file === 'server/deck-popup.html');
+  assert.ok(one, 'the window of a second deck is asked whose deck it shows');
   assert.match(one.path, /\?instance=deck~[a-z0-9]+$/);
+});
+
+test('the dashboard is asked what its Settings search would offer, and the question changes nothing', () => {
+  const asked = PAGES.filter((entry) => entry.file === 'server/index.html');
+  assert.deepEqual(asked.map((entry) => typeof entry.probe), ['function', 'function'], 'on the wide screen and on the phone');
+  const entry = (more = {}) => ({ id: 'look|settings_theme', kind: 'row', cat: 'look', labelKey: 'settings_theme', hintKey: 'settings_theme_hint', cardKey: 'settings_look', catKey: 'settings_cat_look', fields: [1, 2, 3], ...more });
+  const list = [{ id: 'cat:look', kind: 'cat', cat: 'look', labelKey: 'settings_cat_look', catKey: 'settings_cat_look', fields: [1] }, entry(), entry({ id: 'look|settings_save', kind: 'action', hintKey: undefined })];
+  const answer = (entries) => {
+    const frozen = entries && entries.map((one) => Object.freeze({ ...one, fields: Object.freeze([...one.fields]) }));
+    const before = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    Object.defineProperty(globalThis, 'window', { value: Object.freeze(frozen ? { SettingsSearch: Object.freeze({ _build: () => frozen }) } : {}), configurable: true });
+    try { return asked[0].probe(); } finally { if (before) Object.defineProperty(globalThis, 'window', before); else delete globalThis.window; }
+  };
+  const whole = answer(list);
+  assert.deepEqual(whole.kinds, { cat: 1, row: 1, action: 1 });
+  assert.deepEqual(answer(list), whole, 'the same page gives the same answer');
+  for (const change of [{ labelKey: 'settings_other' }, { hintKey: '' }, { cardKey: 'settings_other' }, { catKey: 'settings_other' }, { fields: [1, 2] }, { id: 'look|settings_theme#2' }]) {
+    assert.notEqual(answer([list[0], entry(change), list[2]]).sum, whole.sum, `a row with another ${Object.keys(change)[0]} is another answer`);
+  }
+  assert.notDeepEqual(answer(list.slice(0, 2)), whole, 'a row less is another answer');
+  assert.equal(answer(null), 'no settings search');
 });

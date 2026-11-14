@@ -28,6 +28,22 @@ function callBit() {
   return window.ScreenBit.load().then(() => 'loaded', (error) => `not loaded: ${error?.message || error}`);
 }
 
+// What the search of Settings would offer on this page: every row, button and section it finds, with the name it
+// gives each, the place it puts it under and how many words it can be found by. The page's own function is asked
+// (js/settings-search.js hands it out as `_build`); it reads the page and changes nothing. Runs in the page.
+function settingsSearchRows() {
+  const build = window.SettingsSearch?._build;
+  if (typeof build !== 'function') return 'no settings search';
+  const kinds = {};
+  let sum = 0;
+  for (const entry of build()) {
+    kinds[entry.kind] = (kinds[entry.kind] || 0) + 1;
+    const line = [entry.id, entry.kind, entry.labelKey, entry.hintKey || '', entry.cardKey || '', entry.catKey || '', entry.fields.length].join('|');
+    for (const letter of line) sum = (Math.imul(sum, 31) + letter.codePointAt(0)) >>> 0;
+  }
+  return { kinds, sum };
+}
+
 /**
  * `file` is the page's own file, `path` where the engine serves it. The dashboard is opened on the wide
  * screen it is made for and on a phone held upright. `widgets` marks the page the engine builds per
@@ -38,8 +54,8 @@ function callBit() {
  * names the script whose list those files are in (browser-lists.mjs).
  */
 export const PAGES = [
-  { name: 'dashboard wide', file: 'server/index.html', path: '/', width: 2560, height: 720 },
-  { name: 'dashboard phone', file: 'server/index.html', path: '/', width: 390, height: 844 },
+  { name: 'dashboard wide', file: 'server/index.html', path: '/', probe: settingsSearchRows, width: 2560, height: 720 },
+  { name: 'dashboard phone', file: 'server/index.html', path: '/', probe: settingsSearchRows, width: 390, height: 844 },
   { name: 'desktop widgets', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, ...DESK },
   { name: 'deck window', file: 'server/deck-popup.html', path: '/deck-popup', ...DESK },
   { name: 'deck window of a second deck', file: 'server/deck-popup.html', path: '/deck-popup?instance=deck~two', probe: deckOfTheWindow, ...DESK },
