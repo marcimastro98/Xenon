@@ -150,7 +150,7 @@ async function fetchNetwork() {
   } catch { } finally {
     // Deadline + `finally`: this one has no SSE path behind it, so a single hung
     // request would freeze the network stats until a manual reload (see
-    // fetchWithDeadline in utils.js).
+    // fetchWithDeadline in utils/page-and-text.js).
     fetchingNetwork = false;
   }
 }

@@ -72,7 +72,7 @@
 
   // The reorderable island segments, in their default display order. A new id
   // must also be added to the canonical list in normalizeTopbarClock (client
-  // settings.js AND its server.js twin) and labelled in TOPBAR_ISLAND_LABELS,
+  // settings/normalize-topbar.js AND its server/topbar/settings-normalize.js twin) and labelled in TOPBAR_ISLAND_LABELS,
   // or it is dropped on the next settings save.
   const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex', 'perf'];
 

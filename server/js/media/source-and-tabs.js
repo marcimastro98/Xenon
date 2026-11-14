@@ -112,7 +112,7 @@ function mediaAutoTab() {
 
 function _aiHasKey() {
   if (typeof hubSettings !== 'object' || !hubSettings) return false;
-  // Provider-aware readiness (mirrors ai.js _aiProviderReady): local always ok;
+  // Provider-aware readiness (mirrors ai/providers-and-errors.js _aiProviderReady): local always ok;
   // ChatGPT/Claude use the server-only *Set flags; Gemini uses its browser key.
   const p = hubSettings.aiProvider;
   if (p === 'ollama' || p === 'localapi') return true;

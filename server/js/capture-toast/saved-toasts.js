@@ -4,7 +4,7 @@
 'use strict';
 
 (() => {
-  // apiJson (utils.js): the page's global `api` is the Deck store's object
+  // apiJson (utils/page-and-text.js): the page's global `api` is the Deck store's object
   // (deck-store.js), not a function, so calling it threw and every button here
   // did nothing.
   function run(body) {

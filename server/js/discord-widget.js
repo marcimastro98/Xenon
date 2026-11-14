@@ -429,7 +429,7 @@
   // green ring on the avatar while they speak, a struck-through microphone or
   // headphones after the name when they muted or deafened themselves. Names are dynamic Discord data, so textContent (via el),
   // never innerHTML; the avatar address is built server-side from checked values
-  // (discord-rpc.js avatarUrl). Reused by the current-call strip and the
+  // (server/discord/rpc-shapes.js avatarUrl). Reused by the current-call strip and the
   // per-channel roster.
   //
   // The chip is built once and its live state is applied separately

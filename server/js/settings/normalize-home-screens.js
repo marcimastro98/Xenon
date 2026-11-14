@@ -3,7 +3,7 @@
 
 // Per-camera view transforms (rotation / flip / digital zoom+pan), shared by the
 // UniFi and Home Assistant camera stores — same contract, different id shape.
-// Mirrors server/actions/unifi.js normalizeUnifiAngles / home-assistant.js
+// Mirrors server/actions/unifi-settings.js normalizeUnifiAngles / server/actions/home-assistant-settings.js
 // normalizeHaCamAngles. Identity entries (no rot/flip, zoom ≤ 1) are dropped.
 function normalizeCamAngles(value, isId) {
   const rots = [0, 90, 180, 270];
@@ -44,7 +44,7 @@ function normalizeHomeAssistant(value) {
     ? src.entities.filter(isEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, 100)
     : [];
   // Camera selection + per-camera view transforms — mirror server/actions/
-  // home-assistant.js (normalizeHomeAssistant / normalizeHaCamAngles). Opt-in:
+  // home-assistant-settings.js (normalizeHomeAssistant / normalizeHaCamAngles). Opt-in:
   // the `cameras` array is BOTH the selection and the display order.
   const cameras = Array.isArray(src.cameras)
     ? src.cameras.filter(isCam).filter((v, i, a) => a.indexOf(v) === i).slice(0, 60)
@@ -86,7 +86,7 @@ function normalizeUnifi(value) {
   const fits = ['cover', 'contain'];
   const aspects = ['16:9', '4:3', '1:1'];
   const angles = normalizeCamAngles(src.angles, isCam);
-  // Notification prefs — mirror server/actions/unifi.js normalizeUnifiNotify. When
+  // Notification prefs — mirror server/actions/unifi-settings.js normalizeUnifiNotify. When
   // the block is absent (fresh/upgrade) a sensible starter set is enabled so turning
   // notifications on isn't silent; once present, the exact choices are honoured.
   const notifyKinds = ['person', 'vehicle', 'package', 'animal', 'motion', 'ring'];
@@ -106,7 +106,7 @@ function normalizeUnifi(value) {
     password: typeof src.password === 'string' ? src.password.slice(0, 200) : '',
     cameras: camIds(src.cameras),
     passwordSet: src.passwordSet === true || (typeof src.password === 'string' && src.password.length > 0),
-    // Display-layout prefs — mirror server/actions/unifi.js normalizeUnifiLayout.
+    // Display-layout prefs — mirror server/actions/unifi-settings.js normalizeUnifiLayout.
     columns: Number.isFinite(cols) ? Math.min(6, Math.max(0, Math.round(cols))) : 0,
     fit: fits.includes(src.fit) ? src.fit : 'cover',
     aspect: aspects.includes(src.aspect) ? src.aspect : '16:9',
@@ -215,7 +215,7 @@ function normalizeOnboarding(value) {
 // Read the screen choice out of a settings blob, accepting the key it used to
 // live under. `surface` is the theme's panel COLOUR — a string — so an object
 // there can only be the legacy choice, and a string there is never one. The
-// twin lives in server.js; see the note on surfaceChoiceFrom there for what the
+// twin lives in server/settings/normalize-surface.js; see the note on surfaceChoiceFrom there for what the
 // collision actually broke.
 function surfaceChoiceFrom(source) {
   const s = source && typeof source === 'object' ? source : {};

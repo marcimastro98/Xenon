@@ -178,7 +178,7 @@ function onTimerInputKeydown(e) {
 // way to add one is folded away, never hidden.
 //
 // There is exactly one add row on the dashboard — a Timer copy is cloned without
-// it (stripTimerClone in dashboard-layout.js) — so this is one flag, not one per
+// it (stripTimerClone in dashboard-layout/clones.js) — so this is one flag, not one per
 // instance, and it rides on dashboardLayout beside topbarHidden.
 function _timerAddSection() { return document.querySelector('[data-timerf="add-section"]'); }
 

@@ -447,7 +447,7 @@
 
   // A hotkey step in a SHARED profile is a shortcut, never typing. Dropping
   // typeText was not enough on its own: `hotkey` accepts a bare letter, digit,
-  // space or Enter (server/actions/registry.js normalizeKeys), so a key of
+  // space or Enter (server/actions/registry-values.js normalizeKeys), so a key of
   // chained one-letter "combos" could spell a command into whatever has focus
   // and press Enter on it. A combo travels only when it holds a real modifier
   // (Ctrl, Alt, Win, or the Mac names for them), or when it presses a key that
@@ -2363,7 +2363,7 @@
       } catch { return false; }
     }
     // Put a shared top bar on this dashboard. TopbarShare.read keeps known fields
-    // only; applyTopbarSetup (settings.js) writes through normalizeSettings.
+    // only; applyTopbarSetup (settings/topbar-clock.js) writes through normalizeSettings.
     function applyTopbar(data) {
       const share = window.TopbarShare ? TopbarShare.read(data) : null;
       if (!share || typeof applyTopbarSetup !== 'function') return false;

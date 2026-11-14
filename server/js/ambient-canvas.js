@@ -393,7 +393,7 @@
       },
       update(item) {
         const d = (typeof lastNetworkData !== 'undefined') ? lastNetworkData : null;
-        // formatBandwidth (utils.js) gives { value, unit }, as on the System tile.
+        // formatBandwidth (utils/time-and-format.js) gives { value, unit }, as on the System tile.
         const fmt = (bps) => {
           if (typeof formatBandwidth !== 'function' || !Number.isFinite(bps)) return '--';
           const b = formatBandwidth(bps);

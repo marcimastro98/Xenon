@@ -573,7 +573,7 @@
     scheduleZoomRelayout();
   }
 
-  // Called by settings.js (syncNativeZoomControl) with the persisted value.
+  // Called by settings/native-shell.js (syncNativeZoomControl) with the persisted value.
   function setNativeZoom(scale) {
     if (!isNative) return;
     applyNativeZoomCss(scale);

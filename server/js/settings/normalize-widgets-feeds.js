@@ -12,7 +12,7 @@
 // use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
 // leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
 // Addresses the user typed into a manifest's userHosts slots, keyed by slot id.
-// Same reasoning as SDK_HOST_RE: keep the shape, let sdk-widgets.js
+// Same reasoning as SDK_HOST_RE: keep the shape, let server/widget-sdk/manifest-parts.js
 // resolveUserHosts be the authority — it re-validates host and scope on every
 // proxied request, so nothing here can widen the allowlist. What this DOES have
 // to get right is round-tripping the value unharmed: a key silently dropped on
@@ -104,7 +104,7 @@ function normalizeSdkWidgets(value) {
   return { enabled: v.enabled === true, assign, grants, suspended };
 }
 
-// Stock (Borsa) config — mirrors server/stocks.js normalizeStocks. Watchlist
+// Stock (Borsa) config — mirrors server/ticker/stocks-settings.js normalizeStocks. Watchlist
 // symbols are cleaned to the ticker charset; provider keys are handled separately
 // (server-only, redacted). Known-key rebuild, bounded.
 function normalizeStocksClient(value) {
@@ -131,7 +131,7 @@ function normalizeStocksClient(value) {
   return { watchlist, provider, refreshSec, alertPercent, tile: { chart: tile.chart !== false, sparklines: tile.sparklines !== false } };
 }
 
-// Football (Calcio) config — mirrors server/football.js normalizeFootball. Team
+// Football (Calcio) config — mirrors server/ticker/football-settings.js normalizeFootball. Team
 // ids are numeric strings; the Premium key is handled separately (server-only,
 // redacted). Known-key rebuild, bounded.
 function normalizeFootballClient(value) {

@@ -19,7 +19,7 @@
 
   const hasMinutes = (t) => /T\d{2}:\d{2}$/.test(String(t || ''));
 
-  // The hour in the user's clock (Settings → Time format, through utils.js
+  // The hour in the user's clock (Settings → Time format, through utils/time-and-format.js
   // plainHourParts): bare on the axis ("17", "5 PM"), with its minutes where it
   // stands alone over the chart ("17:00", "5:00 PM").
   function hourText(date, minutes = false) {

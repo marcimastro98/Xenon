@@ -53,7 +53,7 @@ function onVisiblePage(el) {
 
 // Limited-edition stock, derived rather than trusted. `catalog.json` publishes
 // `total` + `claimed`; `left` and `soldOut` are ADDED by the server proxy
-// (community-catalog.js → normalizeLimited) and refreshed from the hub. Any
+// (server/store-catalog/catalog-entry-clean.js → normalizeLimited) and refreshed from the hub. Any
 // surface reading a catalog that did not pass through that proxy — the website's
 // static demo is one, and it is the one visitors see — therefore has neither,
 // and printing `lim.left` straight into the string put "undefined of 50 left" in

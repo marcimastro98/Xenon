@@ -1325,7 +1325,7 @@
   // Edit-mode toolbar: key-size segmented control, auto-fit toggle, manual grid
   // steppers (only when auto-fit is off), and a now-playing dock toggle. Each
   // control mutates the persisted config and re-renders.
-  // Downscale a picked decoration image (shared rasterToCanvas core, utils.js)
+  // Downscale a picked decoration image (shared rasterToCanvas core, utils/time-and-format.js)
   // to a data: URL for the deck config. A moving picture keeps moving, as in
   // the key-image reader: kept as-is when it fits 1 MB, else made into a
   // smaller GIF (anim-picture.js); a still only when even that fails.

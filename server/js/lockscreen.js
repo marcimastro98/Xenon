@@ -86,7 +86,7 @@ function getLockUpcomingEvents(limit = 3) {
   const now = Date.now();
   return calendarEvents
     // Same rule as the Upcoming list: a whole-day event runs to the end of its
-    // last day, not from its 00:00 start (calendar.js, eventActiveUntil).
+    // last day, not from its 00:00 start (calendar/month-grid.js, eventActiveUntil).
     .filter(event => Number.isFinite(Date.parse(event.startsAt)) && eventActiveUntil(event) >= now - 60000)
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
     .slice(0, limit);

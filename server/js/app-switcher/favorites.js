@@ -3,7 +3,7 @@
 
 // Only ever show a cached favorite icon that is a plain base64 raster data URI.
 // The server normalizes it, but the localStorage mirror is user-editable and a
-// restored backup is outside data, so guard here too (utils.js safeImageDataUri).
+// restored backup is outside data, so guard here too (utils/page-and-text.js safeImageDataUri).
 // The <img> elements are also built with DOM properties, never by putting the
 // value into markup, so even a value that slipped past this check stays a URL.
 function safeIconSrc(value) {

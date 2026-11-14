@@ -31,7 +31,7 @@ async function fetchAudio() {
     setOnline();
   } catch { setOffline(); } finally {
     // Deadline + `finally`: without both, one hung request retires this poller
-    // for the whole page (see fetchWithDeadline in utils.js).
+    // for the whole page (see fetchWithDeadline in utils/page-and-text.js).
     fetchingAudio = false;
   }
 }

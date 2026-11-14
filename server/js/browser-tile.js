@@ -1114,7 +1114,7 @@
   // LAN address is the dangerous half: a top-level navigation stamps
   // `Sec-Fetch-Site: none`, which the server's CSRF gate used to accept, so
   // `/notes?save=` and friends were reachable from a sandboxed widget. Mirrors
-  // isForbiddenProxyHost/isPrivateNetworkHost in sdk-widgets.js; the check is
+  // isForbiddenProxyHost/isPrivateNetworkHost in server/widget-sdk/proxy-request.js; the check is
   // repeated in custom-widget.js so the user is never prompted to approve an
   // address that would be refused here anyway.
   function sdkBlockedHost(host) {

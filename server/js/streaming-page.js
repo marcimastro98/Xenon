@@ -111,7 +111,7 @@
   // Discord-only: the notification-mirroring opt-in, on the provider card because
   // the re-link its extra scope needs happens right here. Reads the shared
   // script-scope `hubSettings` (NOT window.hubSettings — never assigned) and saves
-  // through settings.js's global updateDiscordNotifications. OFF by default.
+  // through settings/notifications.js's global updateDiscordNotifications. OFF by default.
   function buildDiscordNotifBlock(st) {
     const box = el('div', 'streaming-notif');
     const dn = (typeof hubSettings === 'object' && hubSettings && hubSettings.discordNotifications) || { enabled: false, hide: false };
@@ -332,7 +332,7 @@
   // ── Dashboard widget: the full Twitch panel ───────────────────────────────
   // One unified widget with three manageable sections (actions / chat),
   // tagged as dashboard "cards" so they hide/reorder like the System panel cards.
-  // Called from dashboard-layout.js applyDashboardLayout (streamRender step). The
+  // Called from dashboard-layout/edit-mode.js applyDashboardLayout (streamRender step). The
   // skeleton is built ONCE per tile (idempotent) so the per-poll content update
   // and the layout-card controls don't fight each other; only dynamic content
   // (live state, viewer count, chat) is refreshed in place.

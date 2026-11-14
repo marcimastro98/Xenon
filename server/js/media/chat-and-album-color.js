@@ -28,7 +28,7 @@ function syncChatCopyPane(pane) {
   }
   if (srcStatus) { st.className = srcStatus.className; st.innerHTML = srcStatus.innerHTML; }
 
-  // Pending-attachment strip. Unlike the log it is NOT an innerHTML copy: ai.js
+  // Pending-attachment strip. Unlike the log it is NOT an innerHTML copy: ai/attachments.js
   // renders every .ai-attach-preview from the shared _aiPendingImages, so the
   // thumbnails and their remove buttons stay live in a copy. Without it a paste
   // into this pane would add an attachment the user could never see or remove.
@@ -86,7 +86,7 @@ function buildChatCopyInput() {
 function sendChatFromCopy(input) {
   const text = (input.value || '').trim();
   // Mirrors the primary composer: a pasted image with no caption is sendable.
-  // _aiPendingImages is a top-level binding in ai.js — both files are classic
+  // _aiPendingImages is a top-level binding in ai/screen-capture.js — both files are classic
   // scripts, so it resolves through the shared global scope at call time.
   const pending = typeof _aiPendingImages !== 'undefined' ? _aiPendingImages.length : 0;
   if (!text && pending === 0) return;

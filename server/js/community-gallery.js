@@ -64,7 +64,7 @@
   const dropClosed = (entry) => !!(entry && entry.limited && entry.limited.active === false);
   // "No copy is coming out of this drop right now" — the one question every CTA
   // site below actually asks. Sold out and closed differ only in what we SAY.
-  // Stock is DERIVED (limitedStock in utils.js), never read raw: `soldOut` and
+  // Stock is DERIVED (limitedStock in utils/time-and-format.js), never read raw: `soldOut` and
   // `left` are added by the server proxy, so a catalog read that skipped it
   // showed a drop with every copy claimed as available — and printed
   // "undefined of 50 left" under it.

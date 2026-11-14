@@ -2,7 +2,7 @@
 'use strict';
 
 // A forecast that failed now says WHICH link broke. The server answers ok:false
-// with an `error` (server.js getWeather) instead of a 500, because "unavailable"
+// with an `error` (server/weather/get-weather.js getWeather) instead of a 500, because "unavailable"
 // alone is indistinguishable from a bug in Xenon: the same blank tile means the
 // PC never got its coordinates, or the city was not found, or the weather
 // services were down — three different things to do about it, and the user was

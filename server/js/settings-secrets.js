@@ -3,7 +3,7 @@
 // Shared by the server's redact/preserve helpers (stream-creds.js,
 // stocks-creds.js, football-creds.js, news-creds.js, ai-provider-creds.js
 // require their group from here) and by the dashboard, which must keep the same
-// values out of its localStorage mirror (settings.js saveLocalHubSettings).
+// values out of its localStorage mirror (settings/save.js saveLocalHubSettings).
 // Before this list existed the browser kept its own hand-written copy, and keys
 // added later on the server (the stock, football and news keys, the OBS and
 // Streamer.bot passwords) were written to localStorage in plain text.
@@ -43,7 +43,7 @@
 
   // A copy of `settings` with every secret above blanked, plus the private link
   // of each calendar feed (that link is the calendar's password; the server
-  // keeps it, see ics-feeds.js redactCalendarFeedUrls). The `*Set` flags are
+  // keeps it, see server/time/ics-feed-settings.js redactCalendarFeedUrls). The `*Set` flags are
   // left alone so "saved" placeholders still show. Returns the same object when
   // there is nothing to blank, so the common case allocates nothing.
   function stripSettingsSecrets(settings) {

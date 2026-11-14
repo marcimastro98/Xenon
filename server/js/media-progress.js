@@ -1,6 +1,6 @@
 'use strict';
 // The Playback widget's progress line: how far into the track, how long it is,
-// and a tap or drag to jump. It reads the shared media clock in media.js
+// and a tap or drag to jump. It reads the shared media clock in media/now-playing.js
 // (currentMediaPositionMs), so it never asks the host for anything; its one
 // ticker runs once a second, and only while a line is on screen and the track
 // is playing. A track with no length (a live stream, a radio) shows no line.

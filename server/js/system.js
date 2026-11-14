@@ -17,7 +17,7 @@ async function fetchWeather() {
       params.set('mode', 'auto');
     }
     // The deadline is load-bearing, not a nicety — see fetchWithDeadline in
-    // utils.js for what a hung request does to a flag-guarded poller. This is
+    // utils/page-and-text.js for what a hung request does to a flag-guarded poller. This is
     // the tile it was reported on.
     const res = await fetchWithDeadline(`${SERVER}/weather?${params.toString()}`, WEATHER_FETCH_TIMEOUT_MS);
     if (!res.ok) throw new Error('Weather unavailable');

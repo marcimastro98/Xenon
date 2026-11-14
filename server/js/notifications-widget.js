@@ -53,7 +53,7 @@
 
   function persist(field, value) {
     // A widget on the screen has read-only settings: this block goes alone to
-    // the server (utils.js saveTileSetting); the dashboard saves as before.
+    // the server (utils/page-and-text.js saveTileSetting); the dashboard saves as before.
     if (typeof isLayerPage === 'function' && isLayerPage() && typeof saveTileSetting === 'function') {
       saveTileSetting({ windowsNotifications: { ...wn(), [field]: value } }).then(() => renderWidgets());
     } else if (typeof updateWindowsNotifications === 'function') updateWindowsNotifications(field, value);

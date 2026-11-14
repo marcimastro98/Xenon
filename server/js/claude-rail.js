@@ -34,7 +34,7 @@
 
   /**
    * @param {object} h
-   * @param {Function} h.el  DOM factory (utils.js makeEl)
+   * @param {Function} h.el  DOM factory (utils/page-and-text.js makeEl)
    * @param {Function} h.t   i18n
    * @param {object} s       live session record
    * @param {{title:string, sub:string[], slot:number}} who  from ClaudeIdent.describe

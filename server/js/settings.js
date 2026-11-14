@@ -574,7 +574,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // NOT `surface`: that key is the theme's main panel colour, and both used to
   // be written into the same object literal in normalizeSettings — the choice
   // won, the colour was destroyed, and Settings then threw on it. See
-  // surfaceChoiceFrom() and its twin in server.js.
+  // surfaceChoiceFrom() and its twin in server/settings/normalize-surface.js.
   surfaceChoice: Object.freeze({ kind: 'auto', asked: false, monitor: '', label: '' }),
   language: '', // '' means "use browser language or 'en'"; set to a SUPPORTED_LANGS code to persist across browser resets
   // Second-screen capture preferences (client-owned). fps/quality tune the live

@@ -95,7 +95,7 @@ function renderGroupTile(gridItem, group) {
   tile.style.setProperty('--deck-mount-alpha',
     (shownRoot && shownRoot.style.getPropertyValue('--deck-mount-alpha')) || '1');
   // Same reason, for the tile's own drop shadow: a group showing a Deck that has no
-  // faceplate has nothing on screen to cast it (see stampDeckMount in deck.js).
+  // faceplate has nothing on screen to cast it (see stampDeckMount in deck/look-stamps.js).
   tile.toggleAttribute('data-deck-bare', !!(shownRoot && shownRoot.dataset.plate === 'none'));
   // A Deck with the Theme faceplate is drawn as a tile, so the group keeps its own surface.
   tile.toggleAttribute('data-deck-themeplate', !!(shownRoot && shownRoot.dataset.plate === 'theme'));

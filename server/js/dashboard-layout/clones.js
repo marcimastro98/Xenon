@@ -104,7 +104,7 @@ function stripTimerClone(clone) {
 // primary chat pane at runtime (the message log, status line, attachment preview
 // and the full input row with voice/capture/reset). Those are singletons wired by
 // id to the one shared AI session. Copies instead get a read-only log mirror plus
-// a thin forwarding input, injected by media.js (mirrorChatCopies). The now-playing
+// a thin forwarding input, injected by media/source-and-tabs.js (mirrorChatCopies). The now-playing
 // preview / no-key notice (data-chatf) stay in the clone and are looped per-instance.
 // A Discord clone drops the BUILT markup, not a sub-control: discord-widget.js
 // builds each tile's body once into `.discord-widget-mount` and marks it

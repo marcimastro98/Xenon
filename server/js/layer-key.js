@@ -17,7 +17,7 @@
   const SCROLL_SLACK = 2;
   const EDGE_GAP = 8;
   const COLOR_RE = /^#[0-9a-f]{3,8}$/i;
-  // Schemes that cannot run script, as deck.js's safeIconSrc.
+  // Schemes that cannot run script, as deck/key-face.js's safeIconSrc.
   const SRC_RE = /^(https?:\/\/|data:image\/|blob:)/i;
   const tr = (key, fallback) => (typeof t === 'function' ? t(key, fallback) : fallback);
   const host = () => window.LayerHost;

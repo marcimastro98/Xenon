@@ -90,7 +90,7 @@ function _aiHandlePaste(e) {
 
 // Render the pending-attachment strip into EVERY chat instance: the primary one
 // (#ai-attach-preview, moved into the Chat tile by initMediaChat) plus the mirror
-// strip media.js injects into each duplicated chat pane. _aiPendingImages is a
+// strip media/source-and-tabs.js injects into each duplicated chat pane. _aiPendingImages is a
 // singleton, so each strip is a full render of the same list — not a DOM clone —
 // which keeps every remove button wired to the live array.
 function _aiUpdateAttachPreview() {

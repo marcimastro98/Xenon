@@ -37,7 +37,7 @@ const WEATHER_FORECAST_DAY_CHOICES = Object.freeze([1, 2, 3, 4, 5, 6, 7]);
 const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
 // How the tile draws current conditions: the big animated card, or one line
 // (icon, temperature, feels-like) so hours and days get the space (GitHub #130).
-// Mirrored in server.js normalizeSettingsWeather.
+// Mirrored in server/weather/normalize-settings.js normalizeSettingsWeather.
 const WEATHER_TILE_HEROES = Object.freeze(['full', 'compact']);
 const WEATHER_TILE_LOOKS = Object.freeze(['new', 'classic', 'custom']); // the 5.x tile, the 4.11 cards, or a widget of the user's
 // Individually toggleable weather fields: the 3 hero chips + the 8 detail

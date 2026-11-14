@@ -62,7 +62,7 @@ async function pollStatus() {
   } catch { setOffline(); }
 }
 
-// Mic mixer shares buildAppMixerRow + the delegated handlers wired in volume.js
+// Mic mixer shares buildAppMixerRow + the delegated handlers wired in volume/speaker-and-apps.js
 // (wireAppMixer covers both the speaker-apps and mic-apps containers).
 function renderMicApps(apps) {
   const host = document.getElementById('mic-apps');
@@ -71,7 +71,7 @@ function renderMicApps(apps) {
   if (appMixBusy() && host.querySelector('.app-mix-slider')) return;
   if (!apps.length) { host.hidden = true; host.innerHTML = ''; host.dataset.mixKey = ''; return; }
   // Same dirty-check as renderSpeakerApps: skip the per-tick innerHTML rebuild when
-  // the app set/levels are unchanged (appMixKey is defined in volume.js).
+  // the app set/levels are unchanged (appMixKey is defined in volume/speaker-and-apps.js).
   const key = appMixKey(apps);
   if (key === host.dataset.mixKey && host.querySelector('.app-mix-slider')) { host.hidden = false; return; }
   host.dataset.mixKey = key;

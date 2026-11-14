@@ -178,7 +178,7 @@ const ACTION_CATALOG = [
   // the user name their own mixes and have any number of them. The picker still
   // OFFERS local/stream/all, so a key configured under Wave Link 2 keeps its
   // stored value and keeps working — those three resolve by position (see
-  // resolveMixTargets in actions/wavelink.js).
+  // resolveMixTargets in server/actions/wavelink-shape.js).
   { type: 'wlInputVolume',  group: 'wavelink', labelKey: 'deck_act_wlInputVolume',  params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'wlMix' }, { name: 'value', kind: 'text' }] },
   { type: 'wlInputMute',    group: 'wavelink', labelKey: 'deck_act_wlInputMute',    params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'wlMix' }] },
   { type: 'wlOutputVolume', group: 'wavelink', labelKey: 'deck_act_wlOutputVolume', params: [{ name: 'mix', kind: 'wlMix' }, { name: 'value', kind: 'text' }] },

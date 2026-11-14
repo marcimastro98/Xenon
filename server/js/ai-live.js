@@ -10,7 +10,7 @@
 // touches getUserMedia (which never resolves on the Xeneon Edge WebView), so it
 // works identically on the Edge and in a desktop browser.
 //
-// Reuses ai.js globals: _aiVoiceModeEnter/_aiVoiceModeExit, _aiVoiceState,
+// Reuses globals of ai/voice-mode.js and ai/client-actions.js: _aiVoiceModeEnter/_aiVoiceModeExit, _aiVoiceState,
 // _aiVoiceSetUser/_aiVoiceSetReply, _aiExecuteClientAction, hubSettings, t, $.
 
 let _liveWs = null;

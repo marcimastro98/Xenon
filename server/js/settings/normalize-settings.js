@@ -51,7 +51,7 @@ function normalizeSettings(source) {
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: value.idleAnimationPause !== false,
     bootSplash: value.bootSplash !== false,
-    // Sensor cadence (ms). Mirrors normalizeSensorRate in server.js: both sides
+    // Sensor cadence (ms). Mirrors normalizeSensorRate in server/system/settings-normalize.js: both sides
     // persist this key, so both have to rebuild it the same way or a save from
     // one would strip what the other wrote.
     sensorRateMs: SENSOR_RATE_MS.includes(Math.round(Number(value.sensorRateMs))) ? Math.round(Number(value.sensorRateMs)) : 5000,
@@ -94,7 +94,7 @@ function normalizeSettings(source) {
     hubMessages: value.hubMessages !== false,
     catalogDrops: value.catalogDrops !== false,
     monthlyDrops: value.monthlyDrops !== false,
-    // Mirror of normalizeHubSettings in server.js — keep in step.
+    // Mirror of normalizeHubSettings in server/settings/normalize-hub-settings.js — keep in step.
     whatsNewSeen: typeof value.whatsNewSeen === 'string' ? value.whatsNewSeen.trim().slice(0, 64) : '',
     releaseNotesSeen: typeof value.releaseNotesSeen === 'string' ? value.releaseNotesSeen.trim().slice(0, 32) : '',
     updateFailSeen: typeof value.updateFailSeen === 'string' ? value.updateFailSeen.trim().slice(0, 64) : '',

@@ -2,7 +2,7 @@
 // Song lyrics: the shared engine behind the Media tile's Lyrics sheet and the
 // Lyrics widget. It owns the one fetch of GET /api/lyrics per track (the server
 // reads the current track itself and asks LRCLIB), and the timing: which line is
-// active at the projected playback position (media.js currentMediaPositionMs).
+// active at the projected playback position (media/now-playing.js currentMediaPositionMs).
 //
 // Timing runs on ONE setTimeout aimed at the next line change, re-aimed on every
 // media tick — no requestAnimationFrame loop, so a playing song costs a handful

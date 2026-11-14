@@ -85,7 +85,7 @@ function setTileStyle(id, style) {
   saveDashboardLayout(layout, { status: false });
 }
 
-// Downscale a raster image (shared rasterToCanvas core, utils.js) to keep
+// Downscale a raster image (shared rasterToCanvas core, utils/time-and-format.js) to keep
 // uploaded tile assets small; GIFs are kept as-is so their animation survives
 // (a canvas re-encode would flatten them). Any failure falls back to the
 // original file — the /tile-asset endpoint enforces the hard size cap.

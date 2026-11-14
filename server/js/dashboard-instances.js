@@ -389,7 +389,7 @@ const _tileDecorExports = {
   normalizeTileDecor,
   TILE_DECOR_FITS, TILE_OVERLAY_ANCHORS,
   TILE_FRAME_PRESETS, TILE_OVERLAY_PRESETS, TILE_MAX_OVERLAYS,
-  // The image-src allowlist, exported so the render path (dashboard-layout.js
+  // The image-src allowlist, exported so the render path (dashboard-layout/presets-section-and-tile-decor.js
   // safeTileImageSrc) re-invokes the SAME validator at the DOM edge instead of
   // keeping a hand-copied regex pair that could drift.
   tileImageSrc: (v) => _tileImageSrc(v),

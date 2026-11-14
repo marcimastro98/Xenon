@@ -20,7 +20,7 @@
 // on AI. See docs/superpowers/specs/performance-mode.md.
 //
 // Relies on globals (shared <script> lexical scope): hubSettings, normalizeSettings,
-// saveHubSettings, setSettingsStatus, syncPerformanceControls (settings.js),
+// saveHubSettings, setSettingsStatus, syncPerformanceControls (settings.js and settings/*.js),
 // normalizePerformance (perf-settings.js), SERVER, t.
 //
 // "Widgets only" has no dashboard: its hidden driver page runs this same file

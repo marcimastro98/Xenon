@@ -737,7 +737,7 @@
   }
 
   // ── Dashboard widget render ───────────────────────────────────────────────
-  // Called by dashboard-layout.js `applyDashboardLayout` (remoteRender step).
+  // Called by dashboard-layout/edit-mode.js `applyDashboardLayout` (remoteRender step).
   // Renders all [data-dashboard-widget="remote"] tiles in the DOM — both the
   // primary tile and any duplicated copies. Each tile's inner `.remote-widget-mount`
   // is the live host for renderControlPanel (or the disabled notice).
@@ -801,7 +801,7 @@
     mounts.forEach(m => render(m, status));
   }
 
-  // Expose globally — settings.js calls window.RemoteControl.init() from
+  // Expose globally — settings/controls.js calls window.RemoteControl.init() from
   // syncSettingsControls() when the remote tab is shown.
   // getStatus() returns the last cached /remote/status response so Deck keys
   // can derive remoteConnected/remoteActive without an extra network call.
@@ -812,7 +812,7 @@
   // renderControlPanel and refreshStatus are also exposed so the dashboard widget
   // render path can call them directly.
   // renderWidgets re-renders all [data-dashboard-widget="remote"] tiles; called by
-  // applyDashboardLayout (remoteRender step in dashboard-layout.js).
+  // applyDashboardLayout (remoteRender step in dashboard-layout/edit-mode.js).
   window.RemoteControl = {
     init,
     isMounted: () => state._mounted,

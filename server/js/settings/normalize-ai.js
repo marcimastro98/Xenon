@@ -20,7 +20,7 @@ function normalizeCodexWidget(value) {
   return { approvals: v.approvals !== false, waitSec: Number.isFinite(w) ? Math.max(30, Math.min(540, w)) : 90 };
 }
 
-// "Ask ChatGPT" tile. Same model-name rule as ai-cli.js sanitizeModel on the
+// "Ask ChatGPT" tile. Same model-name rule as server/ai/cli-limits.js sanitizeModel on the
 // server: 'default', or a name that starts with a letter or digit.
 function normalizeChatgptWidget(value) {
   const m = String((value && value.model) || '').trim();
@@ -37,7 +37,7 @@ function normalizeChatgptWidget(value) {
 // field writes. So the case fold matters most here — `AUTO` stored as a pin from
 // this function is what the server then dutifully sends to the provider. The four
 // others repeat the rule; test/ai-model-sentinel-sync.test.mjs holds them level.
-// Mirror of ai-cli.js sanitizeModel: 'default' (the program chooses) or a
+// Mirror of server/ai/cli-limits.js sanitizeModel: 'default' (the program chooses) or a
 // model name that starts with a letter or digit, so it can never read as a flag.
 function normalizeCliModel(value) {
   const v = typeof value === 'string' ? value.trim() : '';

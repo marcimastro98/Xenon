@@ -1,5 +1,5 @@
 'use strict';
-// The richer decor layers of a tile (buildTileDecor in dashboard-layout.js):
+// The richer decor layers of a tile (buildTileDecor in dashboard-layout/tile-shapes.js):
 // tinted frames, overlays with colour, glow and motion, a drawn pattern, an
 // inner/outer glow and an edge bar. Values arrive already normalized
 // (tile-decor-schema.js); the string builders are pure so tests can read them.

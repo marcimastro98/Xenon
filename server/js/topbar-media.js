@@ -10,7 +10,7 @@
 // row (eye toggle to turn it off, drag to reorder it in the capsule) for free;
 // there is deliberately no separate setting of its own.
 //
-// Fed by js/media.js (applyMedia / refreshMediaEmpty) with the same context
+// Fed by js/media/now-playing.js (applyMedia / refreshMediaEmpty) with the same context
 // object the media tile renders from, so there is no second polling path and the
 // two surfaces can never disagree. Crucially media.js syncs this BEFORE its own
 // "is there a media tile?" guard: the topbar controls must keep working for a

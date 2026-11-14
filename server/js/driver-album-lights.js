@@ -13,7 +13,7 @@
   if (root) root.DriverAlbumLights = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   // The server drops the ~80 KB thumbnail from a broadcast while the track is
-  // unchanged (server.js mediaForBroadcast), so the cover is kept per track,
+  // unchanged (server/media/cover-memory.js mediaForBroadcast), so the cover is kept per track,
   // with the same key.
   const trackKey = (d) => `${(d && d.title) || ''}|${(d && (d.artist || d.album)) || ''}`;
 
@@ -24,7 +24,7 @@
     return { key, thumb: key === prev.key ? prev.thumb : '' };
   }
 
-  // What media.js pushAlbumToLighting sends for the same pair.
+  // What media/chat-and-album-color.js pushAlbumToLighting sends for the same pair.
   function bodyFor(pair) {
     const color = (pair && pair.led) || null;
     if (!color) return { clear: true };

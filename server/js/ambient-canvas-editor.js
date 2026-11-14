@@ -10,7 +10,7 @@
 // and the pages. A scene is not started from nothing here: that is Xenon Maker.
 //
 // The working copy is plain scene JSON; the normalizer (js/ambient-scene.js)
-// runs on every repaint and on save, which goes through settings.js
+// runs on every repaint and on save, which goes through settings/ambient-scenes.js
 // (saveAmbientScene). Every listener is added on open and removed on close.
 
 (function () {

@@ -17,7 +17,7 @@
     _screensAt: 0,
   };
 
-  // Published by settings.js once /version answers (see applyPlatformGating).
+  // Published by settings/platform-usage.js once /version answers (see applyPlatformGating).
   // This panel is no longer hidden off Windows, so the words in it have to be
   // right on three systems instead of one.
   function platform() { return window.XenonPlatform || ''; }

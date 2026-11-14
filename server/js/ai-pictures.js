@@ -4,7 +4,7 @@
 // (ai-attached-pictures.js). The model still sees each attachment as it was
 // sent; this is a second, smaller copy that fits every slot taking an image.
 // A moving picture stays moving (anim-picture.js); a still one is made smaller
-// as WebP until it fits. Needs AnimPicture and rasterToCanvas (utils.js).
+// as WebP until it fits. Needs AnimPicture and rasterToCanvas (utils/time-and-format.js).
 
 const AI_PICTURE_MAX_CHARS = 400000;   // the server's PICTURE_MAX_CHARS
 const AI_PICTURE_EDGES = [1600, 1200, 900, 640];

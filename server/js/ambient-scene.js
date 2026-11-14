@@ -16,7 +16,7 @@
 // js/custom-bg.js is for backgrounds: the client (settings.js) deep-normalizes
 // through it on load, the packager validates exports through it, and node:test
 // covers it directly — so client, export and docs can never drift. The server
-// only round-trips a bounded array (sanitizeAmbientScenes in server.js), same as
+// only round-trips a bounded array (sanitizeAmbientScenes in server/ambient/scenes-sanitize.js), same as
 // customThemes: the client re-validates on hydrate, which is the security edge.
 //
 // Positions are PERCENTAGES of the stage (0–100), never pixels — a scene must

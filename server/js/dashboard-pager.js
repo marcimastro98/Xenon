@@ -243,7 +243,7 @@
     return dot;
   }
 
-  // Rename the page you are on, from Layout mode. settingsPrompt (settings.js)
+  // Rename the page you are on, from Layout mode. settingsPrompt (settings/modal.js)
   // rather than the native prompt(): the Edge WebView does not answer that one
   // reliably, which is exactly why the helper exists. An empty answer is a
   // reset, not a blank name — DashboardPages.rename resolves what that means.

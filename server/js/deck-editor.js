@@ -93,7 +93,7 @@
     { labelKey: 'deck_cat_color', list: ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚪', '⚫', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬜', '⬛'] },
   ];
 
-  // Downscale an uploaded image (shared rasterToCanvas core, utils.js) to a
+  // Downscale an uploaded image (shared rasterToCanvas core, utils/time-and-format.js) to a
   // small square-ish icon (max 192px on the long edge) and re-encode as PNG.
   // Keeps the stored data URL tiny so it survives in localStorage and stays
   // crisp on a key. Resolves to a data URL — the original image's when the

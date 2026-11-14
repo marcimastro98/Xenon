@@ -5,7 +5,7 @@
 // at the bar: the ready-made looks, the buttons (order, side, hidden, each
 // one's icon, label and colours) and, in Minimal and None, the side rails. The
 // controls are the Settings page's own (js/topbar-look-settings.js,
-// renderTopbarActionsEditor in settings.js), so both places write the same keys
+// renderTopbarActionsEditor in settings/topbar-editors.js), so both places write the same keys
 // and repaint together. Everything else stays one tap away under "All options".
 // Listeners are added on open and removed on close; leaving Layout mode closes it.
 (function () {

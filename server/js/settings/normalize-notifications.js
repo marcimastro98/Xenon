@@ -2,7 +2,7 @@
 // calls and the paired phone.
 'use strict';
 
-// Mirror of normalizeSnowflakeList in server.js — keep in step. Bounded and
+// Mirror of normalizeSnowflakeList in server/discord/snowflake-list.js — keep in step. Bounded and
 // deduped: this list is used as a DOM key in the Discord widget, and the server
 // rebuilds the blob from whatever the browser sends.
 function normalizeSnowflakeList(value, max = 50) {
@@ -173,7 +173,7 @@ function normalizeWindowsNotifications(value) {
   return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
 }
 
-// Incoming calls — mirrors normalizeCalls in server.js, key for key. Both sides
+// Incoming calls — mirrors normalizeCalls in server/settings/normalize-notifications.js, key for key. Both sides
 // persist this, so both sides rebuild it from known keys with the same defaults;
 // a key only one side models is a key that gets wiped on the next save.
 function normalizeCallsClient(value) {
@@ -206,7 +206,7 @@ function normalizeCallsClient(value) {
   return { enabled: v.enabled === true, push: v.push !== false, sound: v.sound !== false, disabledApps, apps };
 }
 
-// The paired phone — mirrors normalizePhone in server.js, key for key, for the
+// The paired phone — mirrors normalizePhone in server/settings/normalize-notifications.js, key for key, for the
 // reason spelled out above normalizeCallsClient: POST /settings rebuilds the
 // whole blob from what the browser sent, so a key modelled on only one side is
 // a key that switches itself off the next time the user changes anything else.

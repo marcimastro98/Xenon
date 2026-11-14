@@ -41,7 +41,7 @@ const LayerLiteTiles = (function () {
   }
 
   // The user's order, size and visibility for one card, read the way
-  // dashboard-layout.js applyDashboardCards() reads them. The server normalized
+  // dashboard-layout/apply-widgets.js applyDashboardCards() reads them. The server normalized
   // them; they are checked again because they land in the DOM.
   function cardPrefs(settings, group, id, index) {
     const layout = settings && settings.dashboardLayout;

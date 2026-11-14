@@ -8,7 +8,7 @@
 // from the Codex feed, the same numbers as the Codex tile).
 //
 // Text safety: the user's words render through textContent; the model's
-// through _aiRenderMarkdown (js/ai.js), which escapes first and only emits
+// through _aiRenderMarkdown (js/ai/markdown.js), which escapes first and only emits
 // http(s)/mailto links. Nothing else reaches innerHTML.
 (function () {
   const el = makeEl;
@@ -193,7 +193,7 @@
       const main = el('button', 'cg-row-main');
       main.type = 'button';
       main.appendChild(el('span', 'cg-row-title', c.title || '…'));
-      // timeParts() (utils.js) carries Settings → Time format; a bare locale
+      // timeParts() (utils/time-and-format.js) carries Settings → Time format; a bare locale
       // format would ignore the user's 12/24-hour choice.
       let when = '';
       try { when = new Intl.DateTimeFormat(t('locale'), timeParts({ day: 'numeric', month: 'short' })).format(new Date(c.updatedAt)); } catch { when = ''; }

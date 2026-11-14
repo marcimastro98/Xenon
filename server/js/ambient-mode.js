@@ -411,7 +411,7 @@ if (typeof window !== 'undefined') (function () {
 
   function armIdleTimer() {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
-    // cfg() comes out of normalizeAmbientMode (settings.js) — idleMinutes is
+    // cfg() comes out of normalizeAmbientMode (settings/normalize-ambient-weather.js) — idleMinutes is
     // already clamped to the allowed set, so a plain numeric read suffices.
     const minutes = Number(cfg().idleMinutes) || 0;
     if (!cfg().enabled || minutes <= 0) return;
@@ -517,7 +517,7 @@ if (typeof window !== 'undefined') (function () {
     }
   });
 
-  // Called from settings.js after EVERY applyHubSettings — which runs on any
+  // Called from settings/apply.js at the end of EVERY applyHubSettings — which runs on any
   // settings save from any surface. Only react when ambientMode itself changed:
   // blindly re-arming here would restart the idle countdown on every incidental
   // save (vitals state, theme tweaks, SSE re-hydrates), so the screensaver

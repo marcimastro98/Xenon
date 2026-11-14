@@ -8,7 +8,7 @@
 // ── Media visualiser ────────────────────────────────────────────────────────
 // The switch is the consent: turning it on is what starts the helper's peak
 // metering, so there is no second place to enable anything (see the note on
-// audioLevelsWanted in server.js). saveHubSettings reaches the server, which
+// audioLevelsWanted in server/audio/levels-wanted.js). saveHubSettings reaches the server, which
 // re-reads that gate on every save and starts or stops the meter child.
 function mediaVisualizerMode() {
   const v = hubSettings && hubSettings.mediaVisualizer;

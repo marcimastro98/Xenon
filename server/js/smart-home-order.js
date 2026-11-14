@@ -1,6 +1,6 @@
 // Room and device order for the Smart Home tile and its Settings picker, plus
 // how the tile shows its devices. Pure functions shared by the browser
-// (smart-home.js, settings.js) and the server (normalizeHomeAssistant), so the
+// (smart-home.js, settings/normalize-home-screens.js) and the server (normalizeHomeAssistant), so the
 // order the user sets is read by one rule everywhere.
 //
 //   areaOrder: area names, first = top. Areas not named follow in the order the

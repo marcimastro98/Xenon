@@ -53,7 +53,7 @@ let hubSettings = {};
     const f = hubSettings && hubSettings.aiFeatures;
     return !!(f && f.enabled === true && f.guardian === true);
   };
-  // The hardware unit, as js/system.js hwTempIsF() reads it.
+  // The hardware unit, as js/system/readings.js hwTempIsF() reads it.
   function hwTempIsF() {
     const hs = hubSettings || {};
     return hs.hwTempUnit === 'f' || hs.hwTempUnit === 'c' ? hs.hwTempUnit === 'f' : hs.tempUnit === 'f';

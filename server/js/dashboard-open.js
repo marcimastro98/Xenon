@@ -31,7 +31,7 @@
   const ENTRY_ID = /^[a-z0-9][a-z0-9_-]{0,60}$/;
   // Settings categories the shell may ask for: the ones the Xenon menu opens
   // (xenon-menu.js `settings:<cat>`) and a tile's Set up button on a widget on
-  // the screen (utils.js openSettingsCategory), mirrored by SETTINGS_CATS in spec.rs.
+  // the screen (utils/page-and-text.js openSettingsCategory), mirrored by SETTINGS_CATS in spec.rs.
   const SETTINGS_CATS = ['ambient', 'appearance', 'capture', 'general', 'notifications',
     'ai', 'smarthome', 'spotify', 'streaming', 'unifi', 'slideshow'];
   // The screens that open alone in the Xenon menu's window (js/sheet-page.js).

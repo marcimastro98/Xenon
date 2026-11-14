@@ -109,7 +109,7 @@
   // A widget that talks to hardware on YOUR network — a NAS, Docker, a printer —
   // cannot know its address in advance, so its manifest declares a labelled
   // blank and the user types the address in the permission dialog. These three
-  // mirror sdk-widgets.js (HOSTNAME_RE / isForbiddenProxyHost /
+  // mirror server/widget-sdk/proxy-request.js (HOSTNAME_RE / isForbiddenProxyHost /
   // isPrivateNetworkHost) so the field can say "that address won't work" while
   // the user is still looking at it, instead of letting Allow succeed and the
   // widget silently fail later. The SERVER is the authority — resolveUserHosts
@@ -154,7 +154,7 @@
     const scheme = v.scheme === 'https' ? 'https://' : '';
     return scheme + v.host + (v.port ? ':' + v.port : '');
   }
-  // Client mirror of sdk-widgets.js resolveUserHosts — the extra hostnames the
+  // Client mirror of server/widget-sdk/manifest-parts.js resolveUserHosts — the extra hostnames the
   // bridge accepts for this package, plus the ready-to-use base each slot hands
   // the widget. Same skip-invalid-quietly rule: a value that no longer passes
   // reads as "not configured", never as an error.
@@ -2808,7 +2808,7 @@
     }
   }
 
-  // Theme changed (called from settings.js after applyHubSettings).
+  // Theme changed (called from settings/apply.js at the end of applyHubSettings).
   function refreshTheme() {
     for (const [, entry] of frames) {
       if (entry.ready) post(entry, { type: 'theme', theme: themePayload(entry) });

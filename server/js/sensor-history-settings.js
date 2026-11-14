@@ -48,7 +48,7 @@
     host.replaceChildren(label, seg);
   }
 
-  // Called from syncSensorHistoryControls (js/settings.js) on every Settings render.
+  // Called from syncSensorHistoryControls (js/settings/game-mode.js) on every Settings render.
   function sync() {
     const host = document.getElementById('settings-senshist-every');
     if (!host || !window.SensorHistory) return;

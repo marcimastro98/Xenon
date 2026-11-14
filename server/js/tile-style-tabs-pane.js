@@ -1,7 +1,7 @@
 // The Tabs tab of the per-tile style editor, shown only for a tab group: the
 // bar's background and, for each of the group's tabs, its colours when it is
 // selected and when it is not. The group tile repaints on every change
-// (dashboard-tabgroups.js paintGroupTabs). `ctx` is the editor's.
+// (dashboard-tabgroups/group-tile.js paintGroupTabs). `ctx` is the editor's.
 (() => {
   'use strict';
 

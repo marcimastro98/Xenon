@@ -2,7 +2,7 @@
 // (dashboard-layout.js) and the Deck well (deck.js). Its own file because the
 // Virtual Deck popup and the light layer page load deck.js without
 // dashboard-layout.js: a Deck with a background image used to throw there and
-// draw nothing. Needs cssUrl() from utils.js.
+// draw nothing. Needs cssUrl() from utils/page-and-text.js.
 
 // A normalized {c1,c2,angle} gradient → a CSS linear-gradient(), '' when unset.
 function tileGradCss(grad) {
