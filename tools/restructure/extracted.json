@@ -544,7 +544,11 @@
       {"file":"server/transfer/file-kinds.js","about":"What kind of file a transferred file is: the closed list of types served as themselves, the ones always served as a plain download, and the ones that get a thumbnail.","names":["MEDIA_MIME","FORCED_OCTET","THUMBABLE","downloadMimeFor","isThumbable","kindOf"]},
       {"file":"server/transfer/file-names.js","about":"The name of a transferred file: the label a person sees, never a path, the extension by shape, the name it is delivered under and the download header.","names":["MAX_LABEL","MAX_NAME_BYTES","EXT_RE","stripDangerous","clampUtf8","label","extOf","deliveryName","contentDisposition"]},
       {"file":"server/transfer/inbox-delivery.js","about":"Delivers a received file into the folder the user chose on the PC: the folder checked, a free name found, and the file marked as coming from outside.","names":["FILE_RE","underPath","validInboxDir","deliverToInbox","ZONE_IDENTIFIER","markFromInternet"]},
-      {"file":"server/transfer/receive-stream.js","about":"Writes an upload to disk as it arrives, counting its bytes against the size limit, and leaves nothing behind when it fails.","names":["DEFAULT_MAX_BYTES","receiveStream"]}
+      {"file":"server/transfer/receive-stream.js","about":"Writes an upload to disk as it arrives, counting its bytes against the size limit, and leaves nothing behind when it fails.","names":["DEFAULT_MAX_BYTES","receiveStream"]},
+      {"file":"server/transfer/inflight-limits.js","about":"How often an upload in flight tells its progress, and after how long without a byte it is given up.","names":["PROGRESS_MIN_MS","INFLIGHT_STALE_MS"]},
+      {"file":"server/transfer/inflight-uploads.js","about":"The uploads of the transfer store that have not finished: the room each one holds against the quota, its progress, the list shown while it runs, and the reaping of one whose connection died.","names":["reservedBytes","noteProgress","inflightList","abort","sweepInflight"],"inner":{"factory":"createFileTransfer","make":"makeInflight"}},
+      {"file":"server/transfer/store-records.js","about":"The finished files of the transfer store: a record made from an upload, where its copy went, what the list shows of it, its removal and its return, and retention, which removes only a copy the user also has elsewhere.","names":["restore","commit","markDelivered","publicOf","list","absOf","remove","discardBlob","prune","stats"],"inner":{"factory":"createFileTransfer","make":"makeRecords"}},
+      {"file":"server/transfer/store-load.js","about":"The transfer store read at start: the manifest checked record by record against the files that are really there, so a crash leaves a missing file and never one nobody can see or delete.","names":["init"],"inner":{"factory":"createFileTransfer","make":"makeLoad"}}
     ],
     "server/call-detect.js": [
       {"file":"server/transfer/call-phrases.js","about":"The words in a notification that mean a call is ringing, that it is not, and that it is a video call, in the languages the apps use.","names":["RING_PHRASES","NOT_RINGING","VIDEO_PHRASES"]},
@@ -860,6 +864,10 @@
     "server/embedded-browser.js": [
       {"factory":"createEmbeddedBrowser","object":"edge","names":["lastStallRestartAt","proc","ws","ready","userAgent","widevineReady","nextId","idleTimer"],"kept":[],"bare":[],"after":7},
       {"factory":"createEmbeddedBrowser","object":"orphanSweep","names":["initialTargetId","sweepTimer"],"kept":[],"bare":[],"after":7}
+    ],
+    "server/file-transfer.js": [
+      {"factory":"createFileTransfer","object":"caps","names":["maxBytes","quotaBytes","keepMs"],"kept":["maxBytes","quotaBytes","keepMs"],"bare":[],"after":4},
+      {"factory":"createFileTransfer","object":"shelf","names":["records","usedBytes","loaded"],"kept":[],"bare":[],"after":4}
     ]
   }
 }
