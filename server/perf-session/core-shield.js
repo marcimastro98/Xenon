@@ -11,8 +11,6 @@
 // Everything moved is written down (ledger.js), so a server that dies mid-game puts the
 // apps back at its next start.
 
-require('./process-names');
-
 const {
   BUSY_SHARE, PRESSURE_SAMPLES, APP_MIN_CORES, MAX_APPS, MIN_SAMPLE_MS, coresUsed, parentOf,
   withDescendants, untouchable, appOf, inFront, moveRule, busiestApps,
