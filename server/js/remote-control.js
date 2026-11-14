@@ -8,78 +8,21 @@
   const POLL_INTERVAL_MS = 3000;
   const POLL_MAX_ATTEMPTS = 40; // ~2 min before giving up
 
-  let _mounted = false;
+  const {
+    state, platform, platformKey, api, loadRemoteScreens, getMounts, toolsInstalled, stepsDone,
+    refreshStatus, installTool,
+  } = window.RemoteControlStatus;
 
   // ── Platform ──────────────────────────────────────────────────────────────
-  // Published by settings.js once /version answers (see applyPlatformGating).
-  // This panel is no longer hidden off Windows, so the words in it have to be
-  // right on three systems instead of one.
-  function platform() { return window.XenonPlatform || ''; }
-
-  // Suffix a key with the platform, falling back to the bare key. Undefined —
-  // /version has not landed yet — deliberately yields the bare key, which is
-  // the Windows wording: it is what shipped, and a flash of the wrong package
-  // manager beats a flash of a missing string.
-  function platformKey(key) {
-    const p = platform();
-    if (p === 'linux') return `${key}_linux`;
-    if (p === 'darwin') return `${key}_mac`;
-    return key;
-  }
-
   // ── API helper ────────────────────────────────────────────────────────────
-  async function api(path, method = 'GET', body) {
-    const res = await fetch(path, {
-      method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return res.json().catch(() => ({}));
-  }
-
   // ── State ─────────────────────────────────────────────────────────────────
-  // `_status` caches the last known /remote/status response so we can
-  // re-render without a fresh network call when the wizard step changes.
-  let _status = null;
-  // Whether the user has consented and the wizard is revealed.
-  let _wizardOpen = false;
-  // Ongoing Tailscale-login poll handle — cleared on success/timeout/error.
-  let _pollTimer = null;
-  // The monitor list changes rarely; cache the fetch so the dashboard widget
-  // (re-rendered on every layout pass) hits /remote/screens once per minute
-  // instead of once per render. The short TTL (vs a session-lifetime cache)
-  // means a hot-plugged/removed monitor shows up on the next render within a
-  // minute. Reset on an empty/failed result so a later render retries.
-  const SCREENS_TTL_MS = 60000;
-  let _screensPromise = null;
-  let _screensAt = 0;
-  function loadRemoteScreens() {
-    if (_screensPromise && Date.now() - _screensAt < SCREENS_TTL_MS) return _screensPromise;
-    _screensAt = Date.now();
-    _screensPromise = api('/remote/screens').then(s => {
-      const list = Array.isArray(s) ? s : [];
-      if (!list.length) _screensPromise = null;
-      return list;
-    }).catch(() => { _screensPromise = null; return []; });
-    return _screensPromise;
-  }
 
   // ── Mount helpers ─────────────────────────────────────────────────────────
-  function getMounts() {
-    return Array.from(document.querySelectorAll('[data-remotef="mount"]'));
-  }
-
   // ── Render dispatcher ─────────────────────────────────────────────────────
-  // Branches to the control panel (feature already configured) or the setup
-  // wizard (first-time / incomplete setup).
-  function toolsInstalled(status) {
-    return !!(status && status.installed && status.installed.sunshine && status.installed.tailscale);
-  }
-
   // The setup stays on screen until it is closed: the two tools being installed
   // is only its first step, and the panel has no way to sign in or pair.
   function render(host, status) {
-    if (toolsInstalled(status) && !_wizardOpen) {
+    if (toolsInstalled(status) && !state._wizardOpen) {
       renderControlPanel(host, status);
     } else {
       renderWizard(host, status);
@@ -374,7 +317,7 @@
     // Signing in and pairing live in the setup, and the setup lives in Settings.
     if (host.closest('#settings-overlay')) {
       secondaryRow.appendChild(button('settings-btn' + (isReady || isBlocked ? '' : ' primary'), 'remote.setup_open', () => {
-        _wizardOpen = true;
+        state._wizardOpen = true;
         renderAll();
       }));
     }
@@ -397,7 +340,7 @@
     const page = document.createElement('div');
     page.className = 'remote-page';
 
-    if (_wizardOpen) {
+    if (state._wizardOpen) {
       page.appendChild(buildWizard(status));
       // Nothing to enable or disable until the tools are on this PC.
       if (toolsInstalled(status)) page.appendChild(buildControls(status));
@@ -410,37 +353,9 @@
   }
 
   // ── Pieces of a Settings page (SettingsPage.css) ──────────────────────────
-  function el(tag, className, key) {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (key) node.setAttribute('data-i18n', key);
-    return node;
-  }
-
-  function section(titleKey) {
-    const box = el('section', 'settings-section');
-    box.appendChild(el('div', 'settings-section-title', titleKey));
-    return box;
-  }
-
-  function button(className, key, onClick) {
-    const btn = el('button', className, key);
-    btn.type = 'button';
-    btn.addEventListener('click', () => onClick(btn));
-    return btn;
-  }
-
-  function keyRow(...keys) {
-    const row = el('div', 'settings-row settings-row-keys');
-    row.append(...keys);
-    return row;
-  }
-
-  function statusLine() {
-    const line = el('div', 'remote-status');
-    line.hidden = true;
-    return line;
-  }
+  const {
+    el, section, button, keyRow, statusLine, buildIntro, buildStepShell, localizeSubtree,
+  } = window.RemoteControlPagePieces;
 
   // The cause rides along when the server has one: a generic line alone would
   // hide the real failure.
@@ -449,18 +364,6 @@
   }
 
   // ── What this is, and the consent ─────────────────────────────────────────
-  function buildIntro() {
-    const box = section('remote.intro_title');
-    // Where the software comes from, named honestly per platform. Telling a
-    // Linux user their packages arrive "via winget, Microsoft's official
-    // package manager" is worse than saying nothing: it describes a machine
-    // they are not sitting at.
-    for (const key of ['remote.intro_p1', platformKey('remote.intro_p2'), 'remote.intro_p3']) {
-      box.appendChild(el('p', 'settings-note', key));
-    }
-    return box;
-  }
-
   function buildWarnings() {
     const box = section('remote.warnings_title');
     const list = el('ul', 'remote-warn-list');
@@ -475,23 +378,13 @@
     for (const key of items) list.appendChild(el('li', null, key));
     box.appendChild(list);
     box.appendChild(keyRow(button('settings-btn primary', 'remote.consent_btn', () => {
-      _wizardOpen = true;
+      state._wizardOpen = true;
       renderAll();
     })));
     return box;
   }
 
   // ── Setup ─────────────────────────────────────────────────────────────────
-  function stepsDone(status) {
-    const s = status || {};
-    return [
-      toolsInstalled(s),
-      !!(s.tailscale && s.tailscale.connected),
-      !!s.sunshineResponding,
-      Array.isArray(s.connectedClients) && s.connectedClients.length > 0,
-    ];
-  }
-
   // The first step not done yet holds the page's one main action, and the steps
   // after it wait with their names only: their controls could not work yet.
   function buildWizard(status) {
@@ -502,7 +395,7 @@
     head.appendChild(el('div', 'settings-section-title', 'remote.wizard_title'));
     if (toolsInstalled(status)) {
       head.appendChild(button('settings-btn', 'remote.setup_close', () => {
-        _wizardOpen = false;
+        state._wizardOpen = false;
         renderAll();
       }));
     }
@@ -685,30 +578,7 @@
   }
 
   // ── Step shell builder ────────────────────────────────────────────────────
-  function buildStepShell(num, titleKey, done, current) {
-    const step = el('div', 'settings-step' + (done ? ' done' : '') + (current ? ' current' : ''));
-    const head = el('div', 'settings-step-head');
-    const numEl = el('span', 'settings-step-num');
-    numEl.textContent = done ? '✓' : num;
-    head.append(numEl, el('span', 'settings-step-title', titleKey));
-    step.append(head, el('div', 'settings-step-body'));
-    return step;
-  }
-
   // ── Actions ───────────────────────────────────────────────────────────────
-
-  async function refreshStatus() {
-    try {
-      _status = await api('/remote/status');
-    } catch {
-      _status = null;
-    }
-    return _status;
-  }
-
-  async function installTool(tool) {
-    return api('/remote/install', 'POST', { tool });
-  }
 
   async function tailscaleLogin(statusEl, btn) {
     try {
@@ -723,7 +593,7 @@
 
     // Poll until connected or timeout
     let attempts = 0;
-    clearTimeout(_pollTimer);
+    clearTimeout(state._pollTimer);
 
     function poll() {
       attempts++;
@@ -741,7 +611,7 @@
           if (btn) btn.disabled = false;
           return;
         }
-        _pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+        state._pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
       }).catch(() => {
         statusEl.className = 'remote-status error';
         statusEl.textContent = t('remote.network_error');
@@ -749,7 +619,7 @@
       });
     }
 
-    _pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+    state._pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
   }
 
   async function configureSunshine(statusEl, btn) {
@@ -863,7 +733,7 @@
   function renderAll() {
     const mounts = getMounts();
     if (!mounts.length) return;
-    mounts.forEach(m => render(m, _status));
+    mounts.forEach(m => render(m, state._status));
   }
 
   // ── Dashboard widget render ───────────────────────────────────────────────
@@ -878,20 +748,20 @@
     // trigger the /remote/screens probe.
     const tiles = Array.from(document.querySelectorAll('[data-dashboard-widget="remote"]')).filter(el => el.closest('.pager-page, .layer-slot'));
     if (!tiles.length) return;
-    const configured = toolsInstalled(_status);
+    const configured = toolsInstalled(state._status);
     tiles.forEach(tile => {
       const mount = tile.querySelector('.remote-widget-mount');
       if (!mount) return;
       if (!configured) {
         // If status is not yet known, kick a fetch so a later layout pass will
         // show the right content; show the disabled notice in the meantime.
-        if (!_status) {
+        if (!state._status) {
           refreshStatus().then(() => renderWidgets());
         }
         renderWidgetDisabled(mount);
         return;
       }
-      renderControlPanel(mount, _status);
+      renderControlPanel(mount, state._status);
     });
   }
 
@@ -912,22 +782,6 @@
   }
 
   // ── Scoped i18n pass (mirrors lighting-page.js pattern) ──────────────────
-  // Runs ONLY on our injected subtree to avoid triggering a settings-modal
-  // re-render (which would call renderSettingsModal → syncSettingsControls →
-  // RemoteControl.init → here, causing an infinite cycle).
-  function localizeSubtree(root) {
-    if (!root || typeof t !== 'function') return;
-    root.querySelectorAll('[data-i18n]').forEach(el => {
-      el.textContent = t(el.getAttribute('data-i18n'));
-    });
-    root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
-    });
-    root.querySelectorAll('[data-i18n-title]').forEach(el => {
-      el.title = t(el.getAttribute('data-i18n-title'));
-    });
-  }
-
   // ── Public init ───────────────────────────────────────────────────────────
   async function init(host) {
     // Guard: if there's no remote-control mount anywhere on the page
@@ -939,7 +793,7 @@
     }
     if (!mounts.length) return;
 
-    _mounted = true;
+    state._mounted = true;
 
     // Fetch status; render immediately with whatever we have (may be null on
     // first call — each step degrades gracefully to "not installed" state).
@@ -951,7 +805,7 @@
   // syncSettingsControls() when the remote tab is shown.
   // getStatus() returns the last cached /remote/status response so Deck keys
   // can derive remoteConnected/remoteActive without an extra network call.
-  // isConfigured() returns true once _status confirms both tools are installed.
+  // isConfigured() returns true once state._status confirms both tools are installed.
   // Starts false (unknown) — the editor's refreshCapabilities() fetch is the
   // authoritative first-open path; this getter covers any caller that needs a
   // synchronous check after the settings panel has already fetched /remote/status.
@@ -961,9 +815,9 @@
   // applyDashboardLayout (remoteRender step in dashboard-layout.js).
   window.RemoteControl = {
     init,
-    isMounted: () => _mounted,
-    getStatus: () => _status,
-    isConfigured: () => toolsInstalled(_status),
+    isMounted: () => state._mounted,
+    getStatus: () => state._status,
+    isConfigured: () => toolsInstalled(state._status),
     refreshStatus,
     renderControlPanel,
     renderWidgets,

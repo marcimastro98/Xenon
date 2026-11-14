@@ -274,6 +274,7 @@
       "what": "Using the PC from another device through Sunshine, Moonlight and Tailscale.",
       "files": [
         "server/remote-control/**",
+        "server/js/remote-control/**",
         "server/js/remote-control.js",
         "server/components/RemoteControlSettings/**"
       ]

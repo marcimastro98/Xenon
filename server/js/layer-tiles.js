@@ -114,7 +114,7 @@
     tasks: { ...AGENDA, markup: ['agenda', 'tasks'] },
     timer: { ...AGENDA, markup: ['agenda', 'timer'] },
     notes: { ...AGENDA, markup: ['agenda', 'notes'] },
-    remote: tile('remote', 'RemoteControl', ['js/custom-select.js', 'js/remote-control.js'], {}, 'RemoteControlSettings',
+    remote: tile('remote', 'RemoteControl', ['js/custom-select.js', 'js/remote-control/status.js', 'js/remote-control/page-pieces.js', 'js/remote-control.js'], {}, 'RemoteControlSettings',
       ['components/CustomSelect/CustomSelect.css']),
     twitch: tile('twitch', 'StreamingPage', ['js/twitch-chat.js', 'js/streaming-page.js'],
       { status: 'onStatus', obs: 'onObs', obs_preview: 'onObsPreview' }, 'TwitchPanel'),
