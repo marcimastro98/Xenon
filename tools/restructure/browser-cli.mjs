@@ -27,7 +27,7 @@ import { analyzeRun, assignedAtHome, orderProblems, stayReasons } from './browse
 import { keptNames, mentionsOf } from './browser-consumers.mjs';
 import { everyPage, ledgerOf, newPlan, perform, replay, showAt, treeOf } from './browser-extract.mjs';
 import { innerMoveOf, showInner, showSurvey } from './browser-inner-cli.mjs';
-import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
+import { innerFilesOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { candidates } from './browser-module.mjs';
 import { nodeKeeps } from './browser-node-loads.mjs';
 import { resolvePicks } from './browser-plan.mjs';
@@ -122,7 +122,7 @@ function toMove(job, parser, plan) {
       return { file: `${path.posix.dirname(posix(job.css))}/${name}`, at: Number(at) };
     }) };
   }
-  if (job.inner) return innerMoveOf(parser, { ...job, inner: posix(job.inner), to: posix(job.to) }, (file) => treeOf(REPO_ROOT, plan).get(file));
+  if (job.inner) return innerMoveOf(parser, { ...job, inner: posix(job.inner), to: posix(job.to) }, (file) => treeOf(REPO_ROOT, plan).get(file), innerFilesOf(ledgerOf(REPO_ROOT, plan), posix(job.inner)));
   if (job.inline) return { kind: 'inline', from: posix(job.inline), file: posix(job.to), about: job.about, nth: Number(job.nth ?? 0) };
   const from = posix(job.from);
   const { records, why } = movable(from, parser, plan);

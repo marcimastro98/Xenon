@@ -98,7 +98,11 @@ test('a value that asks the page, calls something or names what stays is refused
   refused('  const PROBE = [1] + 1;', '`\\[1\\]` is computed with, and is not a number or a string');
   refused('  const PROBE = [...SIZES.slice(1)];', '`SIZES\\.slice\\(1\\)` is copied from something that is not a name or a list written out');
   refused('  const { length: PROBE } = SIZES;', '`\\{ length: PROBE \\}` takes its names out of a value');
-  assert.match(whyConst('  const FIRST = 1, PROBE = FIRST;'), /FIRST, PROBE \(server\/js\/leaf\.js:8\) reads FIRST, which it declares itself/, 'two names on one line that read each other: kept simple, refused');
+  // Two names of one statement: the first has its value when the second asks for it, and not the other way round.
+  assert.equal(whyConst('  const FIRST = 1, PROBE = FIRST * 2;'), '');
+  assert.match(whyConst('  const PROBE = FIRST, FIRST = 1;'), /PROBE, FIRST \(server\/js\/leaf\.js:8\) reads FIRST before its own statement has given it a value/);
+  assert.match(whyConst('  const PROBE = PROBE;'), /PROBE \(server\/js\/leaf\.js:8\) reads PROBE before its own statement has given it a value/);
+  assert.match(whyConst('  const FIRST = [1], PROBE = FIRST * 2;'), /FIRST, PROBE \(server\/js\/leaf\.js:8\) computes with FIRST \(line 8\), which is not a number or a string written out/);
   assert.match(whyConst('  const PROBE = () => arguments.length;'), /PROBE \(server\/js\/leaf\.js:8\) says `arguments` in an arrow, which is the wrapper's/);
   for (const name of ['window', 'document', 'localStorage', 'SERVER']) {
     assert.match(whyConst(`  const PROBE = { page: ${name} };`), new RegExp(`PROBE \\(server/js/leaf\\.js:8\\) reads ${name} while the script loads, a name of the page: it could be another value when read earlier`));

@@ -37,6 +37,7 @@
 
 import { createReach, readFixed } from './browser-inner-fixed.mjs';
 import { anchorOf, isFunction, lineOf, mayTravel, ownReasons } from './browser-inner-judge.mjs';
+import { kindsIn, markTaken, takesOf, takeText } from './browser-inner-takes.mjs';
 import { headerOf, MAX_LINES } from './browser-plan.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
@@ -84,15 +85,15 @@ function wordsIn(K, node) {
  * Reads a script that is one wrapper around all its code.
  * @param {string} text @param {string} file @param {any} parser
  * @returns {{ problems: string[], open: number, close: number, indent: string, strictFile: boolean, strictInside: boolean,
- *   records: any[], bindings: Map<string, any>, twice: Set<string>, words: Set<string>, reach: (record: any) => Set<any> }}
+ *   records: any[], bindings: Map<string, any>, twice: Set<string>, words: Set<string>, reach: (record: any) => Set<any>, taken: Map<string, any> }}
  *   `open` and `close` are the 0-based lines of the wrapper's two lines; a record's line n (1-based, as top-level.mjs
  *   counts) is line `open + n` (0-based) of the file. `words`: eval, with, as the whole script says them.
  *   A `const` record carries `fixed`, what browser-inner-fixed.mjs reads of its value.
- *   `reach` answers which statements could reach one while the script loads.
+ *   `reach` answers which statements could reach one while the script loads. `taken` is empty here: browser-inner-takes.mjs fills it.
  */
 export function readWrapper(text, file, parser) {
   const { K } = parser;
-  const none = { open: 0, close: 0, indent: '  ', strictFile: false, strictInside: false, records: [], bindings: new Map(), twice: new Set(), words: new Set(), reach: () => new Set() };
+  const none = { open: 0, close: 0, indent: '  ', strictFile: false, strictInside: false, records: [], bindings: new Map(), twice: new Set(), words: new Set(), reach: () => new Set(), taken: new Map() };
   if (text.includes('\r')) return { ...none, problems: [`${file} has Windows line endings: code files are LF here (.gitattributes), fix the checkout first`] };
   const tree = parser.parse(text, file);
   const statements = real(parser, tree.statements);
@@ -137,7 +138,18 @@ export function readWrapper(text, file, parser) {
   });
   const firstLine = inside.length ? lines[lineAt(starts, inside[0].getStart(tree))] : '  ';
   return { problems, open, close, indent: /^[ \t]*/.exec(firstLine)[0], strictFile: statements.some((node) => node !== code[0] && isStrict(K, node)),
-    strictInside: isStrict(K, inside[0]), records, bindings, twice, words: new Set(records.flatMap((record) => [...record.words])), reach: createReach(records, bindings) };
+    strictInside: isStrict(K, inside[0]), records, bindings, twice, words: new Set(records.flatMap((record) => [...record.words])), reach: createReach(records, bindings), taken: new Map() };
+}
+
+/**
+ * A wrapper read with the names it takes back from the scripts made of it before: a script made now may take them too (browser-inner-takes.mjs).
+ * @param {string} text @param {string} file @param {any} parser @param {{ file: string, text: string }[]} earlier those scripts, in the order they load
+ * @returns {ReturnType<typeof readWrapper>}
+ */
+export function readWrapperWith(text, file, parser, earlier) {
+  const shell = readWrapper(text, file, parser);
+  if (shell.problems.length) return shell;
+  return markTaken(shell, text, new Map(earlier.map((part) => [windowNameOf(file, part.file), kindsIn(readWrapper(part.text, part.file, parser))])));
 }
 
 /**
@@ -146,13 +158,14 @@ export function readWrapper(text, file, parser) {
  * @param {string} job.source repo-relative old script @param {string} job.target repo-relative new script
  * @param {string} job.about one sentence saying what the new script does: its first comment
  * @param {string[]} job.names functions and written-out constants declared in the wrapper
+ * @param {{ file: string, text: string }[]} [job.earlier] the scripts made of this wrapper before, in the order they load: the new one may take their names
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, targetText: string, moved: string[], gives: string[], name: string, ranges: number[][],
- *   glue: { at: number, lines: string[] } }} `ranges` are 1-based lines of the old script, `glue.at` the 0-based line of the
+ *   glue: { at: number, lines: string[] }, takes: { from: string, names: string[] }[] }} `ranges` are 1-based lines of the old script, `glue.at` the 0-based line of the
  *   new text of the old script where the line that takes the functions back stands. Throws a Refusal with every reason.
  */
-export function planInnerScript({ text, parser, source, target, about, names, maxLines = MAX_LINES }) {
-  const shell = readWrapper(text, source, parser);
+export function planInnerScript({ text, parser, source, target, about, names, earlier = [], maxLines = MAX_LINES }) {
+  const shell = readWrapperWith(text, source, parser, earlier);
   if (shell.problems.length) throw new Refusal(shell.problems);
   const name = windowNameOf(source, target);
   const reasons = [];
@@ -173,7 +186,7 @@ export function planInnerScript({ text, parser, source, target, about, names, ma
     reasons.push(...ownReasons(shell, record, label).map((reason) => reason.text));
     for (const used of record.uses.keys()) {
       const own = shell.bindings.get(used);
-      if (!own || movedSet.has(own.record)) continue;
+      if (!own || movedSet.has(own.record) || shell.taken.has(used)) continue;
       const what = own.kind === 'function' ? 'a function of the wrapper that stays: move it too, or leave both'
         : STATE.has(own.kind) ? `a ${own.kind} of the wrapper that changes while the page runs: the new script could not follow it`
           : mayTravel(own.record) ? 'a constant of the wrapper that stays, and its value is written out: name it too, or leave both'
@@ -207,6 +220,9 @@ export function planInnerScript({ text, parser, source, target, about, names, ma
   // The new script: first comment, a wrapper in the old script's mode, the moved text, the one name on window.
   const body = [...headerOf(about, shell.strictFile).split('\n').slice(0, -1), OPENS[1]];
   if (shell.strictInside) body.push(`${shell.indent}'use strict';`, '');
+  const takes = takesOf(shell, moved, earlier.map((part) => windowNameOf(source, part.file)));
+  for (const take of takes) body.push(...takeText(take.names, take.from, shell.indent));
+  if (takes.length) body.push('');
   // Two constants that stood on lines next to each other stay next to each other.
   const touches = (record, before) => record.kind === 'const' && before.kind === 'const' && before.line[1] + 1 === topOf(record);
   moved.forEach((record, i) => {
@@ -220,5 +236,5 @@ export function planInnerScript({ text, parser, source, target, about, names, ma
     throw new Refusal([`${target} would be ${body.length} lines, the limit for a new file is ${maxLines}: move less per file, split by what the code does`]);
   }
   return { newSource: kept.join('\n'), targetText: `${body.join('\n')}\n`, moved: movedNames, gives, name,
-    ranges: moved.map((record) => [shell.open + topOf(record) + 1, shell.open + record.range[1] + 1]), glue: { at, lines: glue } };
+    ranges: moved.map((record) => [shell.open + topOf(record) + 1, shell.open + record.range[1] + 1]), glue: { at, lines: glue }, takes };
 }

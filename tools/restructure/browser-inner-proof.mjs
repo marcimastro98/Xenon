@@ -6,10 +6,12 @@
 // this way still runs nothing while it loads but constants whose value is written out
 // and the one line that leaves its name on `window`, its code still takes nothing from
 // the wrapper it left, and the old script still takes the names back before anything
-// of it can reach one.
+// of it can reach one. A script may begin by taking names from the scripts of the same
+// wrapper that load before it (browser-inner-takes.mjs): the same line, read the same way.
 
 import { isFunction, lineOf, ownReasons } from './browser-inner-judge.mjs';
 import { CLOSES, OPENS, readWrapper, SECTION_TITLE, windowNameOf } from './browser-inner-plan.mjs';
+import { kindsIn, markTaken, takeLines, takeText } from './browser-inner-takes.mjs';
 import { MAX_LINES } from './browser-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
 
@@ -28,14 +30,15 @@ function withoutBlankEnd(lines) {
 /**
  * Reads a script made of functions and constants taken out of a wrapper.
  * @param {string} text @param {string} file @param {string} name the name it must leave on window @param {any} parser
- * @returns {{ problems: string[], shell: ReturnType<typeof readWrapper>, functions: Map<string, any>, gives: string[] }}
+ * @param {Map<string, Map<string, any>>} [known] the names on window of the scripts that load before it, with what each of their names holds
+ * @returns {{ problems: string[], shell: ReturnType<typeof readWrapper>, functions: Map<string, any>, gives: string[], takes: { from: string, names: string[] }[] }}
  *   `functions`: what it declares by name, function declarations and written-out constants (a constant of two names is there twice),
- *   `gives`: the names in its one object
+ *   `gives`: the names in its one object, `takes`: the names its first lines take from earlier scripts
  */
-export function readInnerScript(text, file, name, parser) {
+export function readInnerScript(text, file, name, parser, known = new Map()) {
   const shell = readWrapper(text, file, parser);
   const functions = new Map();
-  if (shell.problems.length) return { problems: shell.problems, shell, functions, gives: [] };
+  if (shell.problems.length) return { problems: shell.problems, shell, functions, gives: [], takes: [] };
   const problems = [];
   const lines = text.split('\n');
   const head = lines.slice(0, shell.open);
@@ -54,7 +57,14 @@ export function readInnerScript(text, file, name, parser) {
   if (!object || !gives.every((given) => PLAIN_NAME.test(given)) || !same(codeOf(lines, shell, last), wrapNames(gives, `window.${name} = {`, '};').map((line) => shell.indent + line))) {
     problems.push(`${file} must end with \`window.${name} = { ... };\` naming its functions as they are, and nothing else`);
   }
-  for (const record of records.slice(0, -1)) {
+  // Only its first lines may take names, and only names its code uses.
+  const taking = takeLines(shell, text);
+  const lead = [];
+  while (taking.some((entry) => entry.record === records[lead.length])) lead.push(taking.find((entry) => entry.record === records[lead.length]));
+  markTaken(shell, text, known, (line) => lead.some((entry) => entry.record === line.record));
+  const takes = lead.map(({ from, names }) => ({ from, names }));
+  for (const taken of shell.taken.keys()) if (!records.some((record) => record.uses.has(taken))) problems.push(`${file} takes ${taken} from window.${shell.taken.get(taken).from} and does not use it`);
+  for (const record of records.slice(lead.length, -1)) {
     if (!isFunction(record) && record.kind !== 'const') {
       problems.push(`${file}:${lineOf(shell, record)} is not a function declaration or a constant: a script made of moved code runs nothing while it loads`);
       continue;
@@ -66,7 +76,7 @@ export function readInnerScript(text, file, name, parser) {
   for (const given of gives) if (!functions.has(given)) problems.push(`${file} leaves ${given} on window.${name}, which is not one of its functions or constants`);
   if (new Set(gives).size !== gives.length) problems.push(`${file} names a function twice in window.${name}`);
   for (const word of ['eval', 'with']) if (shell.words.has(word)) problems.push(`${file} says \`${word}\``);
-  return { problems, shell, functions, gives };
+  return { problems, shell, functions, gives, takes };
 }
 
 /**
@@ -104,9 +114,28 @@ function earlyUses(shell, taker, source) {
     .map((record) => `${source}:${shell.open + record.line[0] + 1} could use ${taker.names.join(', ')} before the line that takes ${taker.names.length === 1 ? 'it' : 'them'} back`);
 }
 
-// What must hold between a wrapper and one script made of its functions, on any day.
-function pairProblems({ now, text, source, target, made, others }) {
+// The scripts made of one wrapper, read in the order they load: each may take from the ones before it.
+function readParts(source, parts, parser) {
+  const known = new Map();
+  const read = parts.map((part) => {
+    const name = windowNameOf(source, part.file);
+    const made = name ? readInnerScript(part.text, part.file, name, parser, known) : null;
+    if (made) known.set(name, kindsIn(made.shell));
+    return { ...part, name, made };
+  });
+  return { read, known };
+}
+const givers = (read) => read.filter((part) => part.made).map((part) => ({ file: part.file, name: part.name, gives: part.made.gives }));
+
+// What must hold between a wrapper and one script made of its functions, on any day. `before`: the scripts that load before that one.
+function pairProblems({ now, text, source, target, made, others, before }) {
   const problems = [];
+  for (const take of made.takes) {
+    const part = before.find((entry) => entry.name === take.from);
+    if (!part) problems.push(`${target} takes names from window.${take.from}: no script made of ${source} that loads before it leaves that name`);
+    else if (!same(take.names, part.gives.filter((given) => take.names.includes(given)))) problems.push(`${target} takes ${take.names.join(', ')} from ${part.file}, which hands over ${part.gives.join(', ')}, in that order`);
+  }
+  if (!same(made.takes.map((take) => take.from), before.map((part) => part.name).filter((from) => made.takes.some((take) => take.from === from)))) problems.push(`${target} does not take from the earlier scripts once each, in the order they load`);
   const name = windowNameOf(source, target);
   const takers = takersOf(now, text, name);
   if (takers.length !== 1) return [`${source} must take the functions of ${target} back on one line, \`const { ... } = window.${name};\`: ${takers.length} such lines`];
@@ -122,6 +151,9 @@ function pairProblems({ now, text, source, target, made, others }) {
     for (const used of record.uses.keys()) {
       if (made.functions.has(used)) continue;
       const own = now.bindings.get(used);
+      const from = made.shell.taken.get(used)?.from;
+      if (from && own && now.taken.get(used)?.from !== from) problems.push(`${target}: ${fn} takes ${used} from window.${from}, and the wrapper of ${source} means something else by that name (line ${now.open + own.record.line[0] + 1})`);
+      if (from) continue;
       if (own) problems.push(`${target}: ${fn} uses ${used}, which the wrapper of ${source} declares (line ${now.open + own.record.line[0] + 1}): out of the wrapper it means something else`);
       else if (others.has(used)) problems.push(`${target}: ${fn} uses ${used}, a function of ${others.get(used)}: out of the wrapper nothing has that name`);
     }
@@ -143,9 +175,10 @@ function pairProblems({ now, text, source, target, made, others }) {
 export function proveInnerMove({ before, after, made, plan, parser, source, target, earlier = [] }) {
   const name = windowNameOf(source, target);
   if (!name) return [`${target} is not ${source.replace(/\.js$/, '')}/<what it does>.js`];
-  const was = readWrapper(before, source, parser);
-  const now = readWrapper(after, source, parser);
-  const script = readInnerScript(made, target, name, parser);
+  const { read, known } = readParts(source, earlier, parser);
+  const was = markTaken(readWrapper(before, source, parser), before, known);
+  const now = markTaken(readWrapper(after, source, parser), after, known);
+  const script = readInnerScript(made, target, name, parser, known);
   const unread = [...was.problems, ...now.problems, ...script.problems];
   if (unread.length) return unread;
   const problems = [];
@@ -160,7 +193,8 @@ export function proveInnerMove({ before, after, made, plan, parser, source, targ
   const movedLines = plan.ranges.flatMap(([from, to]) => old.slice(from - 1, to)).filter((line) => !blank(line));
   const body = fresh.slice(script.shell.open + 1, script.shell.close).filter((line) => !blank(line));
   const objectLines = wrapNames(script.gives, `window.${name} = {`, '};').length;
-  if (!same(body.slice(script.shell.strictInside ? 1 : 0, body.length - objectLines), movedLines)) problems.push(`${target} does not hold the moved lines unchanged and in order`);
+  const takeLinesHeld = script.takes.reduce((sum, take) => sum + takeText(take.names, take.from, '').length, 0);
+  if (!same(body.slice((script.shell.strictInside ? 1 : 0) + takeLinesHeld, body.length - objectLines), movedLines)) problems.push(`${target} does not hold the moved lines unchanged and in order`);
 
   // 2. Each function or constant of the new script was one of the wrapper, declared once, never assigned again, and the lines taken are its lines.
   //    A constant was a value written out there too, and nothing above its line could reach it while the script loaded.
@@ -179,11 +213,15 @@ export function proveInnerMove({ before, after, made, plan, parser, source, targ
     if (!mine || !old.slice(first - 1, mine[0] - 1).every((line) => SECTION_TITLE.test(line))) problems.push(`the lines taken out of ${source} are not the lines of ${fn}`);
     if (was.records.some((entry) => (entry.uses.get(fn)?.write ?? 0) > 0)) problems.push(`${source} assigned ${fn} again`);
     if (own.record.words.has('arguments.callee')) problems.push(`${fn} says arguments.callee`);
+    // A name of the wrapper it still uses is one both took from the same earlier script: the same value on both sides.
     for (const used of record.uses.keys()) {
-      if (!script.functions.has(used) && was.bindings.has(used)) problems.push(`${fn} used ${used}, which the wrapper of ${source} declared (line ${was.open + was.bindings.get(used).record.line[0] + 1})`);
+      const from = script.shell.taken.get(used)?.from;
+      if (!script.functions.has(used) && was.bindings.has(used) && !(from && was.taken.get(used)?.from === from)) problems.push(`${fn} used ${used}, which the wrapper of ${source} declared (line ${was.open + was.bindings.get(used).record.line[0] + 1})`);
     }
     taken.add(fn);
   }
+  // Above the line that took a name back nothing could reach it: a function that leaves with the name would no longer fail there.
+  for (const taker of new Set([...script.shell.taken.keys()].map((used) => was.taken.get(used)?.record).filter(Boolean))) problems.push(...earlyUses(was, taker, source));
   const held = new Set(script.functions.values()).size;
   if (plan.ranges.length !== held) problems.push(`${plan.ranges.length} runs of lines left ${source} and ${target} holds ${held} functions and constants`);
   for (const word of ['eval', 'with']) if (was.words.has(word)) problems.push(`${source} says \`${word}\`, which reads names nobody can list`);
@@ -198,8 +236,8 @@ export function proveInnerMove({ before, after, made, plan, parser, source, targ
   }
 
   // 4. What holds from now on holds today.
-  const others = new Map(earlier.flatMap((part) => [...readInnerScript(part.text, part.file, windowNameOf(source, part.file), parser).functions.keys()].map((fn) => [fn, part.file])));
-  problems.push(...pairProblems({ now, text: after, source, target, made: script, others }));
+  const others = new Map(read.flatMap((part) => [...(part.made?.functions.keys() ?? [])].map((fn) => [fn, part.file])));
+  problems.push(...pairProblems({ now, text: after, source, target, made: script, others, before: givers(read) }));
   return problems;
 }
 
@@ -212,15 +250,13 @@ export function innerStateProblems({ source, text, parts, parser }) {
   const now = readWrapper(text, source, parser);
   if (now.problems.length) return now.problems.map((problem) => `${problem} (functions were taken out of its wrapper: it must stay one)`);
   const problems = [];
-  const read = parts.map((part) => {
-    const name = windowNameOf(source, part.file);
-    return name ? { ...part, made: readInnerScript(part.text, part.file, name, parser) } : { ...part, made: null };
-  });
-  for (const part of read) {
+  const { read, known } = readParts(source, parts, parser);
+  markTaken(now, text, known);
+  for (const [at, part] of read.entries()) {
     if (!part.made) { problems.push(`${part.file} is not ${source.replace(/\.js$/, '')}/<what it does>.js`); continue; }
     if (part.made.problems.length) { problems.push(...part.made.problems); continue; }
     const others = new Map(read.filter((other) => other !== part && other.made).flatMap((other) => [...other.made.functions.keys()].map((fn) => [fn, other.file])));
-    problems.push(...pairProblems({ now, text, source, target: part.file, made: part.made, others }));
+    problems.push(...pairProblems({ now, text, source, target: part.file, made: part.made, others, before: givers(read.slice(0, at)) }));
   }
   return problems;
 }

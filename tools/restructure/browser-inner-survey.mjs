@@ -9,7 +9,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { heldFunctions, isFunction } from './browser-inner-judge.mjs';
-import { readWrapper } from './browser-inner-plan.mjs';
+import { readWrapperWith } from './browser-inner-plan.mjs';
+import { innerFilesOf } from './browser-ledger.mjs';
 
 const OURS = /^server\/(?:js|components)\/.+\.js$/;
 const VENDOR = /(^|\/)vendor\//;
@@ -44,14 +45,15 @@ export function groupsOf(free) {
 
 /**
  * @param {string} text @param {string} file @param {any} parser
+ * @param {{ file: string, text: string }[]} [earlier] the scripts made of its wrapper before, in load order: what it takes back from them may be taken again
  * @returns {any} `{ file, lines, wrapped: false, why }` or `{ file, lines, wrapped: true, all, free, along, held: { kind: tally }, ifState, ifConst, ifBoth,
  *   ifEarly, rows }` where a tally is `{ functions, lines }` and counts functions; `along` counts the constants that may leave; `ifEarly`
  *   is what would leave without the rule about statements above a constant. `rows` has one entry per function and per constant whose
  *   value is written out: `{ name, what: 'function' | 'const', lines: [from, to], stays: string[], kind }`
  */
-export function surveyScript(text, file, parser) {
+export function surveyScript(text, file, parser, earlier = []) {
   const lines = text.split('\n').length - 1;
-  const shell = readWrapper(text, file, parser);
+  const shell = readWrapperWith(text, file, parser, earlier);
   if (shell.problems.length) return { file, lines, wrapped: false, why: shell.problems[0] };
   const whole = [...shell.words].filter((word) => word === 'eval' || word === 'with');
   const why = heldFunctions(shell);
@@ -81,7 +83,9 @@ export function ourScripts(root) {
  */
 export function surveyAll(root, parser, ledger) {
   const made = new Set(ledger.moves.filter((move) => ['script', 'inner', 'inline'].includes(move.kind)).map((move) => move.file));
-  const scripts = ourScripts(root).filter((file) => !made.has(file)).map((file) => surveyScript(readFileSync(path.join(root, file), 'utf8'), file, parser));
+  const read = (file) => readFileSync(path.join(root, file), 'utf8');
+  const scripts = ourScripts(root).filter((file) => !made.has(file))
+    .map((file) => surveyScript(read(file), file, parser, innerFilesOf(ledger, file).map((part) => ({ file: part, text: read(part) }))));
   return { scripts: scripts.sort((a, b) => b.lines - a.lines || a.file.localeCompare(b.file)), made: made.size };
 }
 

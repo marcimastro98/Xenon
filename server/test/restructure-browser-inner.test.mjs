@@ -161,14 +161,18 @@ test('one way of splitting per script: not a module, not a script split by its d
   assert.match(split, /functions were taken out of the wrapper of server\/js\/leaf\.js: its scripts are made that way/);
 });
 
-test('a second script of the same wrapper loads after the first, and cannot use what the first took', (t) => {
+test('a second script of the same wrapper loads after the first, and takes from it what its code uses', (t) => {
   if (!parser) return t.skip(SKIP);
   const first = move(script(TOP, STATE, KEYS, '  function shout(el) { return keyOf(el).toUpperCase(); }', '', '  function calm(text) { return String(text).trim(); }', '',
     REST.slice(0, -3), '  window.Leaf = { bump, keyOf, shout, calm };', '})();', ''));
   const files = { [FILE]: first.files.get(FILE), [TARGET]: first.files.get(TARGET), [PAGE]: first.files.get(PAGE) };
   const again = (names) => applyMove(treeOf(files), { kind: 'inner', from: FILE, file: 'server/js/leaf/words.js', about: 'The words of the leaf.', names }, { parser, pages: [PAGE], earlier: [first.record] });
-  assert.match(refusal(() => again(['shout'])), /shout .* uses keyOf \(line 7\), a const of the wrapper that stays: the new script would not have it/);
+  // The rules of that line have their own file, restructure-browser-inner-takes.test.mjs.
+  const taking = again(['shout']);
+  assert.match(taking.files.get('server/js/leaf/words.js'), /\(\(\) => \{\n {2}const \{ keyOf \} = window\.LeafKeys;\n\n {2}function shout\(el\)/);
+  assert.deepEqual(taking.record.takes, { LeafKeys: ['keyOf'] });
   const second = again(['calm']);
+  assert.equal('takes' in second.record, false, 'a script that takes nothing is recorded as before');
   assert.match(second.files.get(PAGE), /<script src="js\/leaf\/keys\.js"><\/script>\n<script src="js\/leaf\/words\.js"><\/script>\n<script src="js\/leaf\.js"><\/script>/);
   assert.equal(second.record.name, 'LeafWords');
   assert.equal(readWrapper(second.files.get(FILE), FILE, parser).records.filter((record) => record.kind === 'const' && /^(keyOf|calm)$/.test(record.names[0])).length, 2);

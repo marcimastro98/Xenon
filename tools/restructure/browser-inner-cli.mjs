@@ -8,15 +8,16 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { withConstants } from './browser-inner-judge.mjs';
-import { readWrapper, windowNameOf } from './browser-inner-plan.mjs';
+import { readWrapperWith, windowNameOf } from './browser-inner-plan.mjs';
 import { renderSurvey, surveyAll, surveyScript } from './browser-inner-survey.mjs';
-import { readBrowserLedger } from './browser-ledger.mjs';
+import { innerFilesOf, readBrowserLedger } from './browser-ledger.mjs';
 import { Refusal } from './extract-plan.mjs';
 
 /** @param {string} root @param {any} parser @param {{ flags: any, rest: string[] }} args @returns {number} exit code */
 export function showInner(root, parser, { flags, rest }) {
   const file = rest[0];
-  const found = surveyScript(readFileSync(path.join(root, file), 'utf8'), file, parser);
+  const read = (part) => readFileSync(path.join(root, part), 'utf8');
+  const found = surveyScript(read(file), file, parser, innerFilesOf(readBrowserLedger(root), file).map((part) => ({ file: part, text: read(part) })));
   if (flags.json) { console.log(JSON.stringify(found, null, 1)); return 0; }
   if (!found.wrapped) { console.error(found.why); return 1; }
   console.log(`${file}: ${found.lines} lines, ${found.all.functions} functions in its wrapper (${found.all.lines} lines). ${found.free.functions} may leave (${found.free.lines} lines), and ${found.along.functions} constants whose value is written out (${found.along.lines} lines).`);
@@ -40,19 +41,21 @@ export function showSurvey(root, parser, { flags }) {
  * @param {{ inner: string, to: string, about: string, names: string[], recorded?: string }} job `names`: functions and constants, or `group:N` as
  *   `browser inner <script>` numbers them. The written-out constants the named functions use go along without being named.
  * @param {(file: string) => string | null} read the files as the move will find them
+ * @param {string[]} [earlier] the scripts made of the same wrapper before, in load order
  * @returns {any} the move for browser-extract.mjs
  */
-export function innerMoveOf(parser, job, read) {
+export function innerMoveOf(parser, job, read, earlier = []) {
   const from = job.inner;
   const names = [];
-  const groups = job.names.some((pick) => pick.startsWith('group:')) ? surveyScript(read(from) ?? '', from, parser).groups ?? [] : [];
+  const parts = earlier.map((file) => ({ file, text: read(file) ?? '' }));
+  const groups = job.names.some((pick) => pick.startsWith('group:')) ? surveyScript(read(from) ?? '', from, parser, parts).groups ?? [] : [];
   for (const pick of job.names) {
     if (!pick.startsWith('group:')) { names.push(pick); continue; }
     const group = groups[Number(pick.slice('group:'.length)) - 1];
     if (!group) throw new Refusal([`${from} has no ${pick}: \`browser inner ${from}\` lists the groups`]);
     names.push(...group.names);
   }
-  const shell = readWrapper(read(from) ?? '', from, parser);
+  const shell = readWrapperWith(read(from) ?? '', from, parser, parts);
   const all = shell.problems.length ? names : withConstants(shell, names);
   if (all.length > names.length) console.log(`Going along, constants the named functions use: ${all.slice(names.length).join(', ')}`);
   const move = { kind: 'inner', from, file: job.to, about: job.about, names: all };

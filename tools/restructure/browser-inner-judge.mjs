@@ -8,6 +8,7 @@
 // back stands higher, and the error would be gone. So such a constant stays.
 
 import { kindOfName } from './browser-inner-fixed.mjs';
+import { takenReadReasons } from './browser-inner-takes.mjs';
 
 const STATE = new Set(['let', 'var']);
 
@@ -21,10 +22,12 @@ export const lineOf = (shell, record) => shell.open + record.line[0] + 1;
 // What a constant reads while its own line runs.
 function readReasons(shell, record, label) {
   const reasons = [];
-  for (const { name, how } of record.fixed.reads) {
+  for (const { name, how, by } of record.fixed.reads) {
     const own = shell.bindings.get(name);
     if (!own) { reasons.push({ kind: 'const', text: `${label} reads ${name} while the script loads, a name of the page: it could be another value when read earlier` }); continue; }
-    if (own.record === record) { reasons.push({ kind: 'const', text: `${label} reads ${name}, which it declares itself` }); continue; }
+    if (shell.taken.has(name)) { reasons.push(...takenReadReasons(shell, record, { name, how }, label, (other) => lineOf(shell, other)).map((text) => ({ kind: 'const', text }))); continue; }
+    // `const A = 1, B = A;` gives A its value before B asks for it.
+    if (own.record === record && record.names.indexOf(name) >= record.names.indexOf(by)) { reasons.push({ kind: 'const', text: `${label} reads ${name} before its own statement has given it a value` }); continue; }
     // A name that cannot travel is found by whoever asks what the constant uses.
     if (!mayTravel(own.record)) continue;
     const there = `(line ${lineOf(shell, own.record)})`;
@@ -88,7 +91,7 @@ export function heldFunctions(shell, { free = new Set() } = {}) {
     const reasons = ownReasons(shell, record, label, { early: !free.has('early') });
     for (const name of record.uses.keys()) {
       const own = shell.bindings.get(name);
-      if (!own || own.record === record || travels(own.record) || free.has(own.kind)) continue;
+      if (!own || own.record === record || travels(own.record) || free.has(own.kind) || shell.taken.has(name)) continue;
       const what = STATE.has(own.kind) ? `a ${own.kind} of the wrapper that changes while the page runs` : `a ${own.kind === 'statement' ? 'name a statement' : own.kind} of the wrapper${own.kind === 'statement' ? ' leaves there' : ''}`;
       reasons.push({ kind: STATE.has(own.kind) ? 'state' : own.kind === 'const' ? 'const' : 'other', text: `${label} uses ${name}, ${what} (line ${lineOf(shell, own.record)}), which stays` });
     }
