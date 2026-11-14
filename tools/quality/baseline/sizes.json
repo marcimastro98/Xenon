@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 185,
+  "count": 184,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -100,7 +100,6 @@
     "server/js/layers-model.js": 695,
     "server/js/layers-shell.js": 330,
     "server/js/lighting-map.js": 329,
-    "server/js/lyrics-core.js": 323,
     "server/js/lyrics-view.js": 367,
     "server/js/lyrics-widget.js": 528,
     "server/js/main.js": 1116,

@@ -57,7 +57,7 @@
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
       css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/MediaPanelBackdrop.css', 'components/MediaPanel/MediaPanelTitles.css', 'components/MediaPanel/MediaPanelSpotify.css', 'components/MediaPanel/MediaPanelSizes.css', 'components/MediaPanel/LiquidPlayer.css', 'components/MediaPanel/LiquidPlayerSpotify.css', 'components/LyricsView/LyricsView.css'],
-      js: ['js/album-theme.js', 'js/media/source-and-tabs.js', 'js/media/chat-and-album-color.js', 'js/media/now-playing.js', 'js/media/source-apps.js', 'js/media.js', 'js/media-spotify.js', 'js/media-progress.js', 'js/lyrics-core.js',
+      js: ['js/album-theme.js', 'js/media/source-and-tabs.js', 'js/media/chat-and-album-color.js', 'js/media/now-playing.js', 'js/media/source-apps.js', 'js/media.js', 'js/media-spotify.js', 'js/media-progress.js', 'js/lyrics-core/timing.js', 'js/lyrics-core.js',
         'js/lyrics-view.js', 'js/media-lyrics.js', 'js/media-viz.js'],
       markup: ['media'],
     },
@@ -99,7 +99,7 @@
     disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk-intelligence.js', 'js/disk-widget/treemap.js', 'js/disk-widget.js'],
       { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
     devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
-    lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core.js', 'js/lyrics-view.js', 'js/lyrics-translation.js', 'js/lyrics-stage.js',
+    lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core/timing.js', 'js/lyrics-core.js', 'js/lyrics-view.js', 'js/lyrics-translation.js', 'js/lyrics-stage.js',
       'js/lyrics-widget-options.js', 'js/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
     smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home-order.js', 'js/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home.js'],
       { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/SmartHomePanel/SmartHomePanelControls.css', 'components/CustomSelect/CustomSelect.css']),

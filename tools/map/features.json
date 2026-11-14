@@ -439,6 +439,7 @@
         "server/spotify-launch.js",
         "server/js/media*.js",
         "server/js/media/**",
+        "server/js/lyrics-core/**",
         "server/js/lyrics-*.js",
         "server/js/spotify-*.js",
         "server/js/album-theme.js",
