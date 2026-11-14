@@ -13,7 +13,7 @@
   if (root && root.document) root.LayerCut = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   const MAX_RECTS = 24;   // what the shell reads per list (layers/spec.rs MAX_RECTS)
-  const MAX_STEPS = 6;    // per corner; more adds rects, not a visible difference
+  const MAX_STEPS = 11;   // per corner: one tile alone spends the whole budget (2 * 11 + 1)
   const MIN_RADIUS = 2;   // under this a square cut is the same to the eye
 
   // Whether this window's drawing is cut to its rectangles: the Windows shell only.
@@ -31,13 +31,14 @@
 
   // The box as horizontal bands: `steps` at the top, the middle, `steps` at the bottom.
   // A band takes the inset of its outer edge, the larger one, rounded up, so it stays
-  // inside the curve. Band edges are whole pixels so neighbours never leave a gap
-  // (give the box in device pixels).
+  // inside the curve. Band edges sit at equal angles on the curve, so each step moves
+  // in and down by about the same amount instead of one big jump at the top. They are
+  // whole pixels so neighbours never leave a gap (give the box in device pixels).
   function roundedCut(box, radius, steps) {
     const r = radiusOf(box, radius);
     const n = Math.max(0, Math.floor(steps) || 0);
     if (r < MIN_RADIUS || n === 0) return [box];
-    const edge = (i) => Math.round((i * r) / n);
+    const edge = (i) => Math.round(r * (1 - Math.cos((i / n) * (Math.PI / 2))));
     const top = [];
     const bottom = [];
     for (let i = 0; i < n; i++) {
