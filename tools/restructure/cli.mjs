@@ -57,6 +57,7 @@ import { ROUTES, TOOLS } from './branches-kinds.mjs';
 import { bareLines } from './dead-requires.mjs';
 import { extract, replay } from './extract.mjs';
 import { Refusal } from './extract-plan.mjs';
+import { moveRefusal } from './extract-try.mjs';
 import { groupsOf, protectedNames, readLedger } from './ledger.mjs';
 import { liftValue } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
@@ -243,7 +244,7 @@ function showRemainder(parser, { flags, rest }) {
   };
   const map = { ownerOfSpec, words: featureWords(readMap().features, JSON.parse(readSource('tools/restructure/feature-words.json')).words),
     kept: protectedNames(REPO_ROOT, file, analysis.records).names };
-  if (flags.movable) { console.log(renderMovable(analysis, map)); return 0; }
+  if (flags.movable) { console.log(renderMovable(analysis, map, moveRefusal({ root: REPO_ROOT, text: readSource(file), source: file, analysis }))); return 0; }
   const rows = remainder(analysis, map);
   console.log(flags.json ? JSON.stringify(rows, null, 1) : `${file}: ${analysis.lineCount} lines left.\n\n${renderRemainder(rows)}`);
   return 0;

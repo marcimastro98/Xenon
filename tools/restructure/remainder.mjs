@@ -3,6 +3,8 @@
 // requires, then from words in its name, then from the declarations around it: a guide for
 // choosing the next extraction, not a proof.
 
+import { movableSets } from './extract-try.mjs';
+
 // Owners that say nothing about which feature the code serves.
 const GENERIC = new Set(['engine-core', 'helpers-shared', 'shared-core', 'platform', 'tools', 'tests', 'project', 'quality-tools']);
 const STATE_CODES = new Set(['is-shared-state', 'reassigns', 'changes-in-place', 'reads-state']);
@@ -121,9 +123,11 @@ export function renderRemainder(rows) {
  * The declarations that can move now, under the feature they most likely serve.
  * @param {{ records: any[], bindings: Map<string, any> }} analysis
  * @param {Parameters<typeof featuresOf>[1]} map
+ * @param {(names: string[]) => string | null} [refusal] from extract-try.mjs: asks the planner. With it, a feature whose
+ *   declarations do not all move in one step is shown as the steps that do, and one refused even alone with the reason
  * @returns {string} per feature: first line, number of lines and names of each declaration
  */
-export function renderMovable(analysis, map) {
+export function renderMovable(analysis, map, refusal) {
   const groups = new Map();
   for (const [record, id] of featuresOf(analysis, map)) {
     if (!record.movable || record.names.length === 0 || record.names.some((name) => map.kept?.has(name))) continue;
@@ -132,6 +136,13 @@ export function renderMovable(analysis, map) {
   }
   const lines = (record) => record.range[1] - record.range[0] + 1;
   const row = (r) => `  ${String(r.line[0]).padStart(6)}  ${String(lines(r)).padStart(4)}  ${r.names.join(', ')}`;
-  return [...groups].map(([id, list]) => [`${id}: ${list.length} declarations, ${list.reduce((sum, r) => sum + lines(r), 0)} lines`,
-    ...list.map(row)].join('\n')).join('\n\n');
+  const total = (list) => `${list.length} declarations, ${list.reduce((sum, r) => sum + lines(r), 0)} lines`;
+  return [...groups].map(([id, list]) => {
+    const { sets, alone } = refusal ? movableSets(list, (r) => r.names, refusal) : { sets: [list], alone: [] };
+    const moving = sets.flat();
+    const head = `${id}: ${total(moving)}${sets.length > 1 ? `, in ${sets.length} steps: one new require cannot stand above the first use of all of them` : ''}`;
+    const body = sets.length > 1 ? sets.flatMap((set, i) => [`  step ${i + 1}: ${total(set)}`, ...set.map(row)]) : moving.map(row);
+    const refused = alone.flatMap(({ item, reason }) => [`  not now: ${row(item).trim()}`, `      ${reason}`]);
+    return [head, ...body, ...refused].join('\n');
+  }).join('\n\n');
 }
