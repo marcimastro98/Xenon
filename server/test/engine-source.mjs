@@ -88,6 +88,14 @@ export function blocksBack(file, text) {
 }
 
 /**
+ * @param {string} [source]
+ * @returns {string} the file with the lines of its blocks back and nothing else undone: what a test of the block step compares with
+ */
+export function blocksInPlace(source = ENGINE) {
+  return once(`blocks back: ${source}`, () => blocksBack(source, oldPlaces(source)));
+}
+
+/**
  * @param {string} text a module @param {Record<string, string>} spelled new spelling of a path to the old one
  * @returns {string} the text with every `require('<new>')` asking for the old spelling again, the module's own first lines included
  */
@@ -242,8 +250,10 @@ export function declarationSource(name, source = ENGINE) {
   const file = fileDeclaring(name, source);
   const holder = valueHolder(name, source);
   // A part of a cut object is not in the text handed out as a whole; asked for by name, it is read as its module has it.
-  const text = PARTS.has(name) || BLOCKS.get(file) === name ? oldPlaces(file) : read(file);
-  const lines = (holder ? oldDeclarations(text, holder) : oldNames(text, stateRewrites(source), gatheredIn(source))).split('\n');
+  const block = BLOCKS.get(file) === name;
+  const text = PARTS.has(name) || block ? oldPlaces(file) : read(file);
+  // The function of a block is new: it has no older spelling, so it is read letter for letter as its module has it.
+  const lines = (block ? text : holder ? oldDeclarations(text, holder) : oldNames(text, stateRewrites(source), gatheredIn(source))).split('\n');
   const escaped = name.replace(/[$]/g, '\\$&');
   const opening = new RegExp(`^(?:(?:async\\s+)?function\\*?\\s+${escaped}\\s*\\(|(?:const|let|var|class)\\s+${escaped}\\b)`);
   const first = lines.findIndex((line) => opening.test(line));

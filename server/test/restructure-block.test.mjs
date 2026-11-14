@@ -21,7 +21,7 @@ import { replay } from '../../tools/restructure/extract.mjs';
 import { Refusal, wrapComment } from '../../tools/restructure/extract-plan.mjs';
 import { LEDGER, PROTECTED, readLedger } from '../../tools/restructure/ledger.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
-import { engineSource, extractedFrom } from './engine-source.mjs';
+import { blocksInPlace, engineSource, extractedFrom } from './engine-source.mjs';
 
 const parser = parserAvailable() ? await openParser() : null;
 after(() => parser?.close());
@@ -198,6 +198,8 @@ test('a step is written, recorded, redone by the replay, and the function answer
 test('every block taken out of the engine is one quiet function, and the text handed to the other tests has its lines back', () => {
   const blocks = extractedFrom().filter((entry) => entry.block);
   const engine = engineSource();
+  // The engine with its blocks back and nothing else undone: the text handed out also has older names in those lines.
+  const placed = blocksInPlace();
   const require = createRequire(import.meta.url);
   for (const { file: module, names, block } of blocks) {
     const text = readFileSync(path.join(REPO, module), 'utf8');
@@ -206,6 +208,7 @@ test('every block taken out of the engine is one quiet function, and the text ha
     assert.ok(!/\brequire\(/.test(text), `${module} requires nothing: everything is handed to it`);
     assert.deepEqual(Object.keys(require(path.join(REPO, module))), names);
     assert.ok(!engine.includes(`await ${names[0]}(`), `the call of ${names[0]} is not in the text handed out`);
-    assert.equal(engine.split(`if (${block.test}) {\n${made.body[0]}\n`).length - 1, 1, `the lines of ${module} are back under their test, once`);
+    // All the lines, not the first: two functions of the engine may open the same test with the same line.
+    assert.equal(placed.split(`if (${block.test}) {\n${made.body.join('\n')}\n`).length - 1, 1, `the lines of ${module} are back under their test, once`);
   }
 });
