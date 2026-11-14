@@ -691,6 +691,14 @@
       {"file":"server/disk-space/overview.js","about":"The overview of one drive built from the living index: sizes, categories, kinds, old files and duplicates, reused while it is fresh, with today's point in the drive's history.","names":["buildOverview","cleanKinds","scheduleDupes","currentVersion","overview"],"inner":{"factory":"createDiskSpace","make":"makeOverview"}},
       {"file":"server/disk-space/status.js","about":"What the disk space module says of itself: the state the widget draws, and the figures Bit may read and explain.","names":["status","insights"],"inner":{"factory":"createDiskSpace","make":"makeStatus"}},
       {"file":"server/disk-space/xdg-user-dirs.js","about":"Reads the folders a Linux desktop names in user-dirs.dirs, so that a Documents folder with a translated name is protected like the English one.","names":["parseXdgUserDirs"]}
+    ],
+    "server/stream-youtube.js": [
+      {"file":"server/streaming/youtube-endpoints.js","about":"Where the YouTube provider talks to Google: the addresses of sign-in and of the API, the permission it asks for, and the rule that a link shown as it is must be https.","names":["SCOPE","DEVICE_URL","TOKEN_URL","REVOKE_URL","API","httpsOnly"]},
+      {"file":"server/streaming/youtube-chat.js","about":"The live chat of the broadcast on air: which chat it is, a page of its messages held for as long as YouTube asked, and a message sent to it.","names":["chatId","chatMessages","sendChat"],"inner":{"factory":"createYouTubeProvider","make":"makeChat"}},
+      {"file":"server/streaming/youtube-library.js","about":"What a signed-in viewer can browse on YouTube: liked videos, the videos of a playlist, the feed of subscriptions, a search, the channels followed, a channel's videos and playlists, and the address a playlist opens at.","names":["likedVideos","playlistVideos","subscriptionsFeed","searchVideos","subscriptionChannels","channelVideos","channelPlaylists","resolvePlaylistUrl"],"inner":{"factory":"createYouTubeProvider","make":"makeLibrary"}},
+      {"file":"server/streaming/youtube-live.js","about":"The creator's broadcast on YouTube: found, its status and health read, made, started, ended, renamed, cancelled, its privacy set and its stream key read.","names":["findBroadcast","streamHealth","broadcastStatus","updateBroadcastTitle","transitionBroadcast","ensureStream","createBroadcast","cancelBroadcast","setPrivacy","streamKey"],"inner":{"factory":"createYouTubeProvider","make":"makeLive"}},
+      {"file":"server/streaming/youtube-video-rows.js","about":"How the YouTube lists are read: the cache of a list, a thumbnail that must be https, a duration in seconds, the token of a page, and one video or channel made into the row the dashboard shows.","names":["cacheGet","cacheSet","thumb","isoSeconds","pageArg","pageQs","nextToken","detailsFor","videoDetail","channelIdOf","mapVideo"],"inner":{"factory":"createYouTubeProvider","make":"makeVideoRows"}},
+      {"file":"server/streaming/youtube-sign-in.js","about":"Signing in to YouTube from a screen with no keyboard: the code shown, the wait for the phone, the token renewed, the channel's name, what the dashboard is told, and signing out.","names":["configured","startDeviceLogin","pollDeviceToken","refresh","fetchChannel","status","logout"],"inner":{"factory":"createYouTubeProvider","make":"makeSignIn"}}
     ]
   },
   "spreads": {
@@ -868,6 +876,10 @@
     "server/file-transfer.js": [
       {"factory":"createFileTransfer","object":"caps","names":["maxBytes","quotaBytes","keepMs"],"kept":["maxBytes","quotaBytes","keepMs"],"bare":[],"after":4},
       {"factory":"createFileTransfer","object":"shelf","names":["records","usedBytes","loaded"],"kept":[],"bare":[],"after":4}
+    ],
+    "server/stream-youtube.js": [
+      {"factory":"createYouTubeProvider","object":"onAir","names":["liveCtx"],"kept":[],"bare":[],"after":0},
+      {"factory":"createYouTubeProvider","object":"chatMemory","names":["chatIdMissAt","chatCache"],"kept":[],"bare":[],"after":0}
     ]
   }
 }
