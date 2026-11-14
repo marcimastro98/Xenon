@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -708,7 +709,7 @@ test('the plaintext token is never written to disk', async () => {
   await api.load();
   const { code } = api.startPairing();
   const r = await api.redeem(code, { name: 'Pixel' });
-  const raw = fs.readFileSync(path.join(dir, ra.STORE_FILENAME), 'utf8');
+  const raw = readFileSync(path.join(dir, ra.STORE_FILENAME), 'utf8');
   assert.equal(raw.includes(r.token), false, 'the token itself is on disk');
   assert.equal(raw.includes(ra.hashToken(r.token)), true, 'the hash should be');
 });
@@ -911,7 +912,7 @@ test('a device paired before the capability existed is given one on load', async
 
   // Rewrite the store the way a build without this feature left it.
   const file = path.join(dir, ra.STORE_FILENAME);
-  const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const raw = JSON.parse(readFileSync(file, 'utf8'));
   delete raw.devices[0].assetKey;
   fs.writeFileSync(file, JSON.stringify(raw));
 
@@ -1036,12 +1037,12 @@ test('the served document carries the asset key, and one helper uses it', () => 
   assert.ok(src.includes('window.__xenonRemote = { device: '), 'the remote marker must still be injected');
   assert.ok(src.includes(", assetKey: '") || src.includes("+ ', assetKey: '"), 'and it must carry assetKey');
 
-  const client = fs.readFileSync(path.join(HERE, '..', 'js', 'custom-widget.js'), 'utf8');
+  const client = readFileSync(path.join(HERE, '..', 'js', 'custom-widget.js'), 'utf8');
   assert.ok(client.includes('function sdkAssetBase('), 'one helper decides the asset base');
   // Every SDK frame must go through it. A second hand-built literal would be a
   // widget that loads unstyled on a phone and correctly everywhere else.
   for (const f of ['custom-widget.js', 'ambient-mode.js', 'ambient-canvas.js']) {
-    const s = fs.readFileSync(path.join(HERE, '..', 'js', f), 'utf8');
+    const s = readFileSync(path.join(HERE, '..', 'js', f), 'utf8');
     assert.ok(!s.includes("frame.src = '/sdk/widget/'"), f + ' must not build the asset base by hand');
   }
 });

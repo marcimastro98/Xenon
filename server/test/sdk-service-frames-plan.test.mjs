@@ -4,7 +4,7 @@
 // showed, and switching other packages off in the top bar did not free a place.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const src = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');

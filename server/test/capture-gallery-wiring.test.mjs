@@ -8,7 +8,7 @@
 // a trim, and wires the voice to 'gallery_open'.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 

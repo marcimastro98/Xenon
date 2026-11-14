@@ -8,7 +8,7 @@
 // user's Panel border dial) and the look's name never reached the frame either.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -18,7 +18,8 @@ const SRC = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'ut
 /** The real computedHex + lookMode + themePayload, for a tile with these computed tokens. */
 function payloadFor(tokens, hubSettings = {}, withFrame = true) {
   const start = SRC.indexOf('  function computedHex(');
-  const end = SRC.indexOf('  function langCode(');
+  // To the end of themePayload, the last of the three: what stands after it is not part of the payload.
+  const end = SRC.indexOf('\n  }\n', SRC.indexOf('  function themePayload(')) + 5;
   assert.ok(start > 0 && end > start, 'computedHex / themePayload not found');
   const make = new Function('ThemePalette', 'getComputedStyle', 'window', 'hubSettings', `
     const surfaceAppearance = () => 'dark';

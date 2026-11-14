@@ -4,7 +4,7 @@
 // for every stream.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const CUSTOM = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
 const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8');

@@ -5,7 +5,7 @@
 // Settings search finds it by the words people use for that.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 

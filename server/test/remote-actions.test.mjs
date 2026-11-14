@@ -8,6 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -20,12 +21,12 @@ const access = require('../remote-access.js');
 const { ACTION_CATALOG } = require('../js/deck-actions.js');
 const registry = require('../actions/registry.js');
 const SERVER = engineSource();
-const DECK = fs.readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
-const MAIN = fs.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+const MAIN = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
-const SMART_HOME = fs.readFileSync(new URL('../js/smart-home.js', import.meta.url), 'utf8');
-const WIDGETS = fs.readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
-const CLAUDE_TILE = fs.readFileSync(new URL('../js/claude-widget.js', import.meta.url), 'utf8');
+const SMART_HOME = readFileSync(new URL('../js/smart-home.js', import.meta.url), 'utf8');
+const WIDGETS = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const CLAUDE_TILE = readFileSync(new URL('../js/claude-widget.js', import.meta.url), 'utf8');
 
 const OBS = { type: 'openApp', path: 'C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe' };
 const STORE = {

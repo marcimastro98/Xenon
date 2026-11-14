@@ -9,7 +9,7 @@
 // fader now do the same, and a press asks at once instead of waiting 8s.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 

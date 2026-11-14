@@ -9,7 +9,7 @@
 // the same fault. Every other token is unregistered and computes as written.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -20,7 +20,8 @@ const CSS = readFileSync(new URL('../styles/global.css', import.meta.url), 'utf8
 /** The real computedHex + themePayload, run against a frame with these computed tokens. */
 function payloadFor(tokens) {
   const start = SRC.indexOf('  function computedHex(');
-  const end = SRC.indexOf('  function langCode(');
+  // To the end of themePayload, the last of the three: what stands after it is not part of the payload.
+  const end = SRC.indexOf('\n  }\n', SRC.indexOf('  function themePayload(')) + 5;
   assert.ok(start > 0 && end > start, 'computedHex / themePayload not found');
   const make = new Function('ThemePalette', 'getComputedStyle', 'window', 'hubSettings', `
     const surfaceAppearance = () => 'dark';

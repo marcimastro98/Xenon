@@ -3,7 +3,7 @@
 // host reads the tile's computed values and sends them in the theme message.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -14,7 +14,8 @@ const SRC = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'ut
 /** The real themePayload, for a frame on a tile with these controls and computed tokens. */
 function payloadFor(controls, tokens) {
   const start = SRC.indexOf('  function computedHex(');
-  const end = SRC.indexOf('  function langCode(');
+  // To the end of themePayload, the last of the three: what stands after it is not part of the payload.
+  const end = SRC.indexOf('\n  }\n', SRC.indexOf('  function themePayload(')) + 5;
   assert.ok(start > 0 && end > start, 'themePayload not found');
   const make = new Function('ThemePalette', 'getComputedStyle', 'window', 'hubSettings', `
     const surfaceAppearance = () => 'dark';

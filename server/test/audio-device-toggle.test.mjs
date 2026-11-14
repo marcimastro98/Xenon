@@ -12,7 +12,7 @@
 // follows the real default output rather than a flag the key set itself.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { createRegistry, pickToggleDevice } from '../actions/registry.js';

@@ -7,7 +7,7 @@
 // pointerup fell through to Tap instead. A right click now fires Hold.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 const M = createRequire(import.meta.url)('../js/deck-model.js');
 

@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +17,7 @@ const DeckModel = require('../js/deck-model.js');
 const DeckActions = require('../js/deck-actions.js');
 const DEPS = { model: DeckModel, actions: DeckActions };
 const here = path.dirname(fileURLToPath(import.meta.url));
-const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
+const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
 
 const key = (title, tap, extra) => Object.assign({ kind: 'action', title, icon: { type: 'emoji', value: '★' }, triggers: { tap } }, extra);
 const profileOf = (keys) => ({ name: 'DESK', root: { pages: [{ keys }] } });

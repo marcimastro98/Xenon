@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 // tools/demo/maker.js: the Xenon Maker's preview channel in the browser demo.
 // The demo has no server, so it lists a Maker widget the way the app's folder
