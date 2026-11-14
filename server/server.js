@@ -443,8 +443,8 @@ require('./ics-feeds.js');
 // results, and the transfer widget's received files.
 const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnected } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
-const { createPerfSession } = require('./perf-session');
-const { shieldWish } = require('./perf-session/shield-wish');
+require('./perf-session');
+require('./perf-session/shield-wish');
 require('./actions/streamerbot');
 require('./actions/home-assistant');
 require('./actions/home-assistant-query');
@@ -620,7 +620,7 @@ require('./sensor-service/engine-reader.js');
 const {
   DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT, DECK_WINDOW_SCRIPT,
 } = require('./deck/script-paths.js');
-const { PERFORMANCE_SCRIPT, PROCESSES_SCRIPT } = require('./performance/script-paths.js');
+const { PROCESSES_SCRIPT } = require('./performance/script-paths.js');
 const { PERF_PRIORITY_SCRIPT } = require('./performance/script-paths.js');
 const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
 // How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
@@ -2740,16 +2740,12 @@ async function findFfplay() {
   try { await fs.promises.access(candidate); return candidate; } catch { return ''; }
 }
 
-const perfSession = createPerfSession({ collectors: nativeCollectors, dataDir: DATA_DIR });
+const { perfSession } = require('./perf-session/engine-session.js');
 const widgetOptionsStore = require('./widget-options/index.js').createWidgetOptions({
   dataDir: DATA_DIR, packages: async () => (await sdkPackagesCached()).packages, announce: (pkg) => broadcastSSE('sdk_options', { pkg }),
 });
 
-// The sheet's numbers from the process table. PowerShell only answers when the table
-// cannot be read.
-async function perfStats() {
-  return (await perfSession.stats()) || runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000);
-}
+const { perfStats } = require('./performance/perf-stats.js');
 
 // Performance Mode runner: guided, reversible app management. Side-effects are
 // injected so the allowlist/validation stays the only execution path. The
@@ -3763,6 +3759,8 @@ const { refreshWakeWordWatch } = require('./ai/wake-word-watch.js');
 const {
   updateScreenAlertsSetting, updateUsageModeSetting,
 } = require('./settings/usage-and-alerts-settings.js');
+
+const { gameSessionFacts, syncCoreShield } = require('./performance/core-shield-sync.js');
 
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
@@ -7988,20 +7986,6 @@ function syncBackgroundHold() {
   diskSpace.hold(on);
   // A ringing call stays as quick as ever, that switch is why the reader may be running.
   winNotif.setPace(on && !hub.settings?.calls?.enabled);
-}
-
-// What a game session records, on every path of the status tick.
-function gameSessionFacts(running, game) {
-  return { running, game, perf: { active: hub.settings?.performance?.active === true, moved: perfSession.shield.movedCount() } };
-}
-
-function syncCoreShield() {
-  perfSession.shield.sync(shieldWish(hub.settings?.performance, {
-    running: gameDetect.isGameRunning(),
-    pid: gameDetect.getGameDiag().gamePid,
-    name: gameDetect.getGameProcess(),
-    foregroundPid: gameDetect.getForegroundPid(),
-  }));
 }
 
 function broadcastStatusNow() {

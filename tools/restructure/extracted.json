@@ -488,7 +488,10 @@
       {"file":"server/screens/second-screen-mode.js","about":"Setting the size of the second screen's picture: the virtual display is made when it is missing, and the person is told when a restart is needed.","names":["applySecondScreenMode"]},
       {"file":"server/screens/second-screen-client.js","about":"One screen connected to watch the PC's picture: what it may ask (the list of screens, start, stop, size, touches) and the stop of the capture when it goes away.","names":["_handleSecondScreenClient"]},
       {"file":"server/windows-tiles/tile-play-offers.js","about":"Handing a channel or a video the assistant found to the one dashboard that shows the tile, made when the engine starts.","names":["tilePlay"],"wire":{"first":"tilePlay","last":"tilePlay"}},
-      {"file":"server/windows-tiles/play-in-tile.js","about":"Playing a channel or a video in a tile when the assistant is asked to: what was meant is searched for first, then handed to the dashboard that shows the tile.","names":["playInTile"]}
+      {"file":"server/windows-tiles/play-in-tile.js","about":"Playing a channel or a video in a tile when the assistant is asked to: what was meant is searched for first, then handed to the dashboard that shows the tile.","names":["playInTile"]},
+      {"file":"server/perf-session/engine-session.js","about":"The engine's own Performance Mode session, made when the engine starts: the process table, priorities, the culprit finder and Core Shield, each working only when asked.","names":["perfSession"],"wire":{"first":"perfSession","last":"perfSession"}},
+      {"file":"server/performance/perf-stats.js","about":"The numbers of the Performance Mode sheet, read from the process table; PowerShell answers only when the table cannot be read.","names":["perfStats"]},
+      {"file":"server/performance/core-shield-sync.js","about":"Telling Core Shield what the settings and the running game ask of it, and what a game session records about Performance Mode.","names":["gameSessionFacts","syncCoreShield"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
