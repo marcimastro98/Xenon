@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Runs every check a restructure commit has to pass, in order, and stops at the first
-// that fails: the moves redone from a base commit, the saved type and lint numbers
+// that fails: the moves redone from a base commit, no comment deleted on the way, the saved type and lint numbers
 // carried along, the map, the sizes, types, lint, the tests, a real start of the
 // server, real requests against a throwaway copy, the rules of a settings save asked of
 // one, every plain GET route asked before and after (the base commit against the working
@@ -40,6 +40,7 @@ const MINUTE = 60_000;
 export function gateSteps(base = 'HEAD') {
   return [
     { name: 'verify', argv: ['tools/restructure/cli.mjs', 'verify', '--base', base], minutes: 10 },
+    { name: 'comments', argv: ['tools/restructure/lost-comments.mjs'], minutes: 2 },
     { name: 'carry', argv: ['tools/restructure/cli.mjs', 'carry'], minutes: 10 },
     { name: 'map', argv: ['tools/map/map.mjs'], minutes: 2, npm: 'map' },
     { name: 'sizes', argv: ['tools/quality/sizes.mjs', '--update'], minutes: 2, npm: 'sizes' },

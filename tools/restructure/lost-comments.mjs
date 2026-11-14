@@ -8,7 +8,8 @@
 // the comment block right above it, and when that block is the header of the file the header
 // is gone and every proof still passes. This check reads the diff instead: a comment line
 // that was removed must come back somewhere among the added lines, in any file. It exits 1
-// when one did not, so it can stand in a routine.
+// when one did not, so it can stand in a routine: it is the `comments` step of the gate,
+// right after `verify`. A hand edit that rewrites a comment starts the gate `--from carry`.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -18,6 +19,14 @@ import { fileURLToPath } from 'node:url';
 // that moved to another indent, or was joined to its neighbour, is still the same comment.
 const bare = (line) => line.replace(/^\s*(\/\/|\*)?\s*/, '').replace(/\s+/g, ' ').trim();
 const isComment = (line) => /^\s*\/\//.test(line);
+
+// A step that turns variables into fields of one object writes the new name in the comments
+// too: the same line with one or two words changed is the same comment, kept.
+function renamedIn(text, addedWords) {
+  const words = text.split(' ');
+  if (words.length < 4) return false;
+  return addedWords.some((other) => other.length === words.length && words.filter((word, i) => word !== other[i]).length <= 2);
+}
 
 // The removed comment lines of a unified diff that no added line holds. A line of three
 // letters or fewer (a bare `//`, a rule of dashes cut short) says nothing and is skipped.
@@ -30,10 +39,11 @@ export function lostComments(diffText) {
     else if (line.startsWith('-')) removed.push(line.slice(1).replace(/\r$/, ''));
   }
   const allAdded = [...added].join(' ');
+  const addedWords = [...added].map((text) => text.split(' '));
   return removed.filter((line) => {
     if (!isComment(line)) return false;
     const text = bare(line);
-    return text.length > 3 && !added.has(text) && !allAdded.includes(text);
+    return text.length > 3 && !added.has(text) && !allAdded.includes(text) && !renamedIn(text, addedWords);
   });
 }
 

@@ -58,6 +58,16 @@ test('code that was removed is not the business of this check, nor is an empty c
   assert.deepEqual(lost, []);
 });
 
+test('a comment that only names a variable by its new name is the same comment', () => {
+  const lost = lostComments(diff(
+    '-  // No-op only when the session never armed (no _liveActive) at all.',
+    '-  // This one says something else entirely and is gone for good.',
+    '+  // No-op only when the session never armed (no liveVoice.active) at all.',
+    '+  // A new line with as many words as the one that is gone.',
+  ));
+  assert.deepEqual(lost, ['  // This one says something else entirely and is gone for good.']);
+});
+
 test('a file with Windows line ends is read the same way', () => {
   const lost = lostComments('-// kept as it was\r\n+// kept as it was\r\n-// this one is gone\r\n');
   assert.deepEqual(lost, ['// this one is gone']);

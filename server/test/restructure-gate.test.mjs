@@ -12,7 +12,7 @@ const scripts = JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8')).
 
 test('every check is on the list, the proof first and the server last among the slow ones', () => {
   const names = gateSteps().map((step) => step.name);
-  assert.deepEqual(names, ['verify', 'carry', 'map', 'sizes', 'typecheck', 'lint', 'test', 'boot', 'requests', 'save', 'chat', 'routes', 'personal', 'whitespace']);
+  assert.deepEqual(names, ['verify', 'comments', 'carry', 'map', 'sizes', 'typecheck', 'lint', 'test', 'boot', 'requests', 'save', 'chat', 'routes', 'personal', 'whitespace']);
 });
 
 test('the base commit goes to verify and to the route check, and nowhere else', () => {
