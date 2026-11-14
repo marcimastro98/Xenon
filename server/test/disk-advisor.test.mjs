@@ -24,7 +24,9 @@ const PARTS = [
   between('  function el(tag, cls, text) {', '  // Paths are shown inside'),
   between('  function btn(cls, label, onClick, title) {', '  function withTransition('),
   between('  function closeAdvisorModal() {', '  // ── AI report markdown'),
-  between('  function advisorHead() {', '  function childrenOf('),
+  between('  function advisorRiskWords(risk) {', '  function advisorRecoveryItems('),
+  between('  function advisorRecoveryItems(a) {', '  // A treemap with dozens'),
+  between('  function advisorHead() {', '  async function openTreeNode('),
   between('  function renderConfirm() {', '  function renderCleaning() {'),
 ].join('\n');
 
@@ -71,21 +73,24 @@ function rig({ analysis = ANALYSIS, aiReady = true, withFocus = true } = {}) {
     openSettingsCategory: (id) => calls.push(['settings', id]),
     beginReview: (id) => calls.push(['review', id]),
     runAdvisorAi: () => calls.push(['ask']),
-    overview: {
-      root: 'C:\\',
-      tree: [{ p: 'C:\\', s: 900 }, { p: 'C:\\Games', s: 500 }],
-      topFiles: [{ n: 'movie.mkv', p: 'C:\\Video\\movie.mkv', s: 40 }],
-      categories: { temp: { items: [{ i: 1, p: 'C:\\t', s: 1, kind: 'file' }] } },
+    // What the widget knows while the page runs is one object (js/disk-widget/known.js).
+    diskState: {
+      overview: {
+        root: 'C:\\',
+        tree: [{ p: 'C:\\', s: 900 }, { p: 'C:\\Games', s: 500 }],
+        topFiles: [{ n: 'movie.mkv', p: 'C:\\Video\\movie.mkv', s: 40 }],
+        categories: { temp: { items: [{ i: 1, p: 'C:\\t', s: 1, kind: 'file' }] } },
+      },
+      status: { roots: [{ i: 0 }] },
+      selRoot: 0,
+      activeView: 'overview',
+      advisorModal: null,
+      advisorAiRequest: 0,
+      confirmCat: 'temp',
+      selectedIds: new Set([1]),
+      cleaning: false,
     },
-    status: { roots: [{ i: 0 }] },
-    selRoot: 0,
-    activeView: 'overview',
-    advisorModal: null,
-    advisorAiRequest: 0,
     advisorLetGo: null,
-    confirmCat: 'temp',
-    selectedIds: new Set([1]),
-    cleaning: false,
     riskLabel: (risk) => risk,
     selectedSummary: () => ({ bytes: 1, count: 1 }),
     categoryItems: () => [{ i: 1, p: 'C:\\t', s: 1, kind: 'file' }],
@@ -171,7 +176,7 @@ test('Review closes the window and goes to the tile', () => {
   const row = r.all('diskw-modal-cat')[3];
   r.one('diskw-modal-review', row).click();
   assert.equal(r.one('diskw-advisor-modal'), null);
-  assert.equal(r.ctx.activeView, 'clean');
+  assert.equal(r.ctx.diskState.activeView, 'clean');
   assert.deepEqual(r.calls.at(-1), ['review', 'recycleBin']);
 });
 
@@ -217,7 +222,7 @@ test('the tile asks with Cancel on the left, the action on the right, and one wa
 });
 
 test('no sparkle or check mark as a picture in the window', () => {
-  const code = between('  function advisorHead() {', '  function childrenOf(') + between('  async function runAdvisorAi(', '  function advisorHead() {');
+  const code = between('  function advisorHead() {', '  async function openTreeNode(') + between('  async function runAdvisorAi(', '  function advisorHead() {');
   assert.ok(!/[✦✓▰▤]/.test(code));
 });
 

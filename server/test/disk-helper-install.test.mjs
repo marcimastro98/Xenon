@@ -38,9 +38,10 @@ function card({ status, remote = false, api = async () => ({ ok: true }), refres
   const calls = { api: [], refresh: 0 };
   const el = (tag, cls, text) => node(tag, cls, text);
   const tr = (key) => `<${key}>`;
-  const fn = new Function('el', 'tr', 'status', 'window', 'api', 'refresh',
+  // The tile reads the status from the one object that holds what it knows (js/disk-widget/known.js).
+  const fn = new Function('el', 'tr', 'diskState', 'window', 'api', 'refresh',
     body + '\nreturn renderHelperHint;')(
-    el, tr, status, { __xenonRemote: remote ? {} : undefined },
+    el, tr, { status }, { __xenonRemote: remote ? {} : undefined },
     async (...a) => { calls.api.push(a); return api(...a); },
     async () => { calls.refresh++; await refresh(); });
   const hint = fn();
@@ -96,7 +97,7 @@ test('a failure is named under the button and the button comes back', async () =
 });
 
 test('the tile renders that card, and the server says when it can be used', () => {
-  assert.match(WIDGET, /if \(!status\.helper\) \{\n\s+mount\.appendChild\(renderHelperHint\(\)\);/);
+  assert.match(WIDGET, /if \(!diskState\.status\.helper\) \{\n\s+mount\.appendChild\(renderHelperHint\(\)\);/);
   const route = cut(SERVER, "reqPath === '/disk/status' && req.method === 'GET'", '\n  } else if (');
   assert.match(route, /canInstallHelper: process\.platform === 'win32'/);
   // The route the button uses stays closed to paired devices.
