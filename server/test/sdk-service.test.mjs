@@ -4,7 +4,7 @@
 // granted Deck action (js/driver-sdk-host.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
+import { partsOf, readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
@@ -154,10 +154,11 @@ test('only the hidden host answers: the page, its order, the route and the phone
   const html = read('../sdk-service.html');
   assert.match(html, /<html lang="en" data-sdk-service>/);
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
+  // The widget host is listed as the scripts it is made of today: a part of it loads right before it.
   assert.deepEqual(scripts, ['shared/src/constants.js', 'js/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
     'js/theme-palette.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/deck-actions.js',
-    'js/dialog-focus.js', 'js/approval-keys.js', 'js/custom-widget.js', 'js/widget-feed.js', 'js/sdk-service.js']);
+    'js/dialog-focus.js', 'js/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/widget-feed.js', 'js/sdk-service.js']);
   assert.doesNotMatch(html, /stylesheet/);
   assert.match(engineSource(), /reqPath === '\/sdk-service' && req\.method === 'GET'[\s\S]{0,400}'sdk-service\.html'/);
   assert.equal(remotePathAllowed('/sdk-service', 'GET'), false, 'a phone would run every Deck action twice');

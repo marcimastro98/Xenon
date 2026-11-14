@@ -80,8 +80,9 @@ test('re-applying a style clears the markers first, so they never go stale', () 
 });
 
 // The Deck's own way of going transparent: the "None" faceplate.
-const stampDeckMount = new Function(cut(DECK, '  function stampDeckMount(tile) {', '  // True while the dashboard Layout editor is open.')
-  + '\nreturn stampDeckMount;')();
+// Cut at the function's own end, not at what happens to stand after it.
+const stampDeckMount = new Function(cut(DECK, '  function stampDeckMount(tile) {', '\n  }\n')
+  + '\n  }\nreturn stampDeckMount;')();
 
 function deckTile(plate, inGroup) {
   const tile = fakeEl();
