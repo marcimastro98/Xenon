@@ -133,6 +133,18 @@ test('a statement above a constant that could reach it while the script loads ke
   assert.match(why(above('  const TWICE = [LIMIT];')), /LIMIT \(server\/js\/leaf\.js:7\): line 4 could use it while the script loads/, 'a written-out constant that reads it above its line');
   assert.equal(why(above("  console.log('up');")), '', 'code that reaches none of them is no reason');
   assert.equal(why(above('  const start = () => bump();')), '', 'nor is a function nobody calls yet: a constant that only builds a value runs nothing');
+  // A function put on window is not called by being put there. It reaches the constants only when something between the two runs code.
+  const handed = '  window.LeafUp = () => bump();';
+  const under = (...lines) => script(TOP, handed, lines, SIZES, COUNT, LABEL, SIZE_OF, REST);
+  assert.equal(why(under()), '', 'handed to the page, called by nobody yet');
+  assert.equal(why(under('  let seen = { at: 0 };', '  const quiet = () => bump();', '  function later() { return bump(); }', '  window.LeafDown = function () { return bump(); };')), '',
+    'values written out, functions and other functions put on window run nothing either');
+  const called = /line 4 could use it while the script loads, above the line that declares it/;
+  assert.match(why(under("  console.log('up');")), called, 'a statement between the two runs code: it may call what the page was handed');
+  assert.match(why(under('  let seen = read();')), called, 'so does a value that is worked out');
+  assert.match(why(under('  let seen;')), called, 'and a statement the tool cannot read as a written-out value counts as running code');
+  assert.match(why(above('  document.up = () => bump();')), called, 'put anywhere but on window, a setter could run');
+  assert.match(why(above('  window.LeafUp = start(() => bump());')), called, 'and a call that makes the function runs code');
   // Below the constants the same statement is fine, and the line that takes the names back still stands above it.
   const below = script(TOP, SIZES, '  const first = sizeOf(0);', COUNT, LABEL, SIZE_OF, REST);
   assert.match(why(below), /label \(server\/js\/leaf\.js:12\): line 8 could use it/, 'label is declared under the statement that calls it');

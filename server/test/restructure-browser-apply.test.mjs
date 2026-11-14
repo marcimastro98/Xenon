@@ -84,6 +84,15 @@ test('who names a script is asked of the files git does not know yet too, and ne
   assert.deepEqual(named(), ['page server/index.html', 'code tools/shots.mjs'], 'a new file counts before it is added to git');
 });
 
+test('a path written from where its file stands names the file it leads to, not a browser script of the same name', (t) => {
+  const root = repo(t, { 'server/js/one.js': ONE, 'server/one.js': 'module.exports = {};\n', [PAGE]: HTML,
+    'server/test/engine.test.mjs': "const { a } = require('../one.js');\n", 'server/test/page.test.mjs': "const { b } = require('../js/one.js');\n",
+    'server/test/gone.test.mjs': "const { c } = require('./one.js');\n" });
+  const loads = mentionsOf(root, 'server/js/one.js').filter((mention) => mention.kind === 'test').map((mention) => `${mention.file} ${mention.loads.length}`);
+  assert.deepEqual(loads, ['server/test/gone.test.mjs 1', 'server/test/page.test.mjs 1'],
+    'server/one.js is another file; a path that leads to no file is still counted, so nothing is missed');
+});
+
 test('a recording keeps the moves of the tree it shows, and the compare reads those instead of the checkout', (t) => {
   const move = { kind: 'inner', from: 'server/js/leaf.js', file: 'server/js/leaf/keys.js', about: 'Keys.', names: ['key'], gives: ['key'], name: 'LeafKeys' };
   const root = repo(t, { [LEDGER]: `${JSON.stringify({ moves: [] })}\n` });

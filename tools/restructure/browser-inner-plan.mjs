@@ -36,7 +36,7 @@
 // Pure: text in, text out, or a refusal.
 
 import { readDecisions } from './browser-inner-decides.mjs';
-import { createReach, readFixed } from './browser-inner-fixed.mjs';
+import { atLoad, createReach, readFixed } from './browser-inner-fixed.mjs';
 import { anchorOf, isFunction, lineOf, mayTravel, ownReasons } from './browser-inner-judge.mjs';
 import { retakesOf } from './browser-inner-retakes.mjs';
 import { kindsIn, markTaken, takeLines, takesOf, takeText } from './browser-inner-takes.mjs';
@@ -139,6 +139,7 @@ export function readWrapper(text, file, parser) {
     record.words = wordsIn(K, nodes[index]);
     Object.assign(record, readDecisions(K, nodes[index], (node) => lineAt(bodyStarts, node.getStart(bodyTree)) + 1));
     record.fixed = record.kind === 'const' ? readFixed(K, nodes[index]) : null;
+    record.atLoad = atLoad(K, nodes[index]);
     for (const name of record.names) {
       if (bindings.has(name)) twice.add(name);
       else bindings.set(name, { name, record, kind: record.kind });

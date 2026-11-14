@@ -163,6 +163,27 @@ export function kindOfName(bindings, name) {
 }
 
 /**
+ * What a statement of the wrapper does while the script loads, for the rule about a constant used above its line.
+ * @param {Record<string, number>} K SyntaxKind @param {any} statement
+ * @returns {'makes' | 'still' | 'runs'} `makes`: `window.<Name> = <a function or an arrow>`, which runs nothing and hands the function to the page;
+ *   `still`: a function declaration, or a `const`/`let`/`var` whose value is written out (readFixed finds nothing against it); `runs`: anything else
+ */
+export function atLoad(K, statement) {
+  if (statement.kind === K.FunctionDeclaration) return 'still';
+  if (statement.kind === K.VariableStatement) {
+    const written = statement.declarationList.declarations.every((declaration) => declaration.initializer);
+    return written && readFixed(K, statement).reasons.length === 0 ? 'still' : 'runs';
+  }
+  const made = statement.kind === K.ExpressionStatement ? statement.expression : null;
+  if (made?.kind !== K.BinaryExpression || made.operatorToken.kind !== K.EqualsToken) return 'runs';
+  const { left } = made;
+  let right = made.right;
+  while (right.kind === K.ParenthesizedExpression) right = right.expression;
+  const onWindow = left.kind === K.PropertyAccessExpression && left.expression.kind === K.Identifier && left.expression.text === 'window' && left.name.kind === K.Identifier;
+  return onWindow && [K.ArrowFunction, K.FunctionExpression].includes(right.kind) ? 'makes' : 'runs';
+}
+
+/**
  * Who could reach a statement while the script loads, through any chain of uses.
  * @param {any[]} records of the wrapper @param {Map<string, any>} bindings
  * @returns {(target: any) => Set<any>} the records that use the target, or use something that does (the target itself is not in the set)

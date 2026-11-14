@@ -105,6 +105,12 @@ function holder(root, other) {
   return made;
 }
 
+// A path written from where its file stands (./, ../) that is a file of the repo, and not the one asked about.
+function isAnotherFile(root, from, folders, file) {
+  const meant = path.posix.normalize(path.posix.join(path.posix.dirname(from), folders, path.posix.basename(file)));
+  return meant !== file && existsSync(path.join(root, meant));
+}
+
 /**
  * @param {string} root
  * @param {string} file repo-relative browser file
@@ -128,6 +134,8 @@ export function mentionsOf(root, file) {
       // `js/settings.js` and `../js/settings.js` are this file; `remote-control/settings.js` is another one.
       const folders = match[1].split('/').filter((part) => part && part !== '.' && part !== '..').join('/');
       if (folders && !`/${path.posix.dirname(file)}`.endsWith(`/${folders}`)) continue;
+      // `require('../capture.js')` in server/test is server/capture.js when that file is there, whatever a browser file is called.
+      if (/^\.{1,2}\//.test(match[1]) && isAnotherFile(root, other, match[1], file)) continue;
       const line = text.slice(0, match.index).split('\n').length;
       if (!tagLines.has(line)) lines.push(line);
       if (LOADS.test(text.slice(Math.max(0, match.index - 40), match.index))) loads.push(line);

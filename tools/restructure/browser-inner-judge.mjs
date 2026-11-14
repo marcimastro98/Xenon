@@ -72,8 +72,10 @@ export function ownReasons(shell, record, label, { early = true, decides = true 
   reasons.push(...readReasons(shell, record, label));
   if (!early) return reasons;
   const reachers = shell.reach(record);
+  // A function put on window is not called by being put there: it reaches the constant only when a statement between the two runs code.
+  const called = (other) => other.atLoad !== 'makes' || shell.records.some((between) => between.index > other.index && between.index < record.index && between.atLoad === 'runs');
   const above = shell.records.find((other) => other.index < record.index && (mayTravel(other)
-    ? isWrittenOut(other) && other.fixed.reads.some((read) => record.names.includes(read.name)) : reachers.has(other)));
+    ? isWrittenOut(other) && other.fixed.reads.some((read) => record.names.includes(read.name)) : reachers.has(other) && called(other)));
   if (above) reasons.push({ kind: 'early', text: `${label}: line ${lineOf(shell, above)} could use it while the script loads, above the line that declares it: today that is an error, after the move it would not be` });
   return reasons;
 }
