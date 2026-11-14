@@ -1,0 +1,4081 @@
+{
+ "not settings at all": {
+  "nothing": "as with nothing stored",
+  "null": "as with nothing stored",
+  "a text": "as with nothing stored",
+  "a number": "as with nothing stored",
+  "a list": "as with nothing stored",
+  "a list of settings": "as with nothing stored",
+  "true": "as with nothing stored"
+ },
+ "nothing stored": {
+  "keys": [
+   "appearance",
+   "autoPalette",
+   "styleMode",
+   "retroScanlines",
+   "accent",
+   "dynamicAlbumTheme",
+   "background",
+   "surface",
+   "surfaceAlt",
+   "controlColor",
+   "text",
+   "accentText",
+   "successColor",
+   "warningColor",
+   "dangerColor",
+   "infoColor",
+   "paletteVariants",
+   "contrastGuard",
+   "panelAlpha",
+   "bgDim",
+   "bgBlur",
+   "idleAnimationPause",
+   "bootSplash",
+   "hybridGpuAnimationPause",
+   "uiRoundness",
+   "glassBlur",
+   "glassSaturate",
+   "clockScale",
+   "clockDateScale",
+   "clockDateFormat",
+   "panelBorderStrength",
+   "tileShadowStrength",
+   "mutedText",
+   "lineColor",
+   "backgroundMedia",
+   "uiFont",
+   "lockWidgets",
+   "ambientMode",
+   "weather",
+   "tempUnit",
+   "hwTempUnit",
+   "mediaVisualizer",
+   "mediaLyrics",
+   "lyricsOffsetMs",
+   "lyricsTranslate",
+   "lyricsReading",
+   "lyricsTranslateCap",
+   "sdkAiDailyCap",
+   "spotifyStartMinimized",
+   "lyricsStage",
+   "clockFormat",
+   "topbarStyle",
+   "topbarRails",
+   "topbarRailsAutoHide",
+   "topbarClock",
+   "topbarLook",
+   "layers",
+   "sensorRateMs",
+   "sensorSources",
+   "gameIgnore",
+   "weekStart",
+   "upcomingCount",
+   "upcomingDays",
+   "upcomingColumns",
+   "swipeNavigation",
+   "swipeHomeGesture",
+   "nativeZoom",
+   "hideOnRdp",
+   "audioSetCommunications",
+   "autoOpenBrowser",
+   "versionPing",
+   "hubMessages",
+   "catalogDrops",
+   "monthlyDrops",
+   "autoUpdate",
+   "autoUpdateWidgets",
+   "catalogStats",
+   "ratingAsks",
+   "usageStats",
+   "batteryAskDevices",
+   "whatsNewSeen",
+   "releaseNotesSeen",
+   "updateFailSeen",
+   "discordInviteSeen",
+   "firstRunDay",
+   "lastUsageDay",
+   "usageDays",
+   "supportAskSeen",
+   "supportAskSeenDay",
+   "supportAppealYear",
+   "shareNudgeSeen",
+   "discordFavChannels",
+   "discordCollapsedGuilds",
+   "browserAdblock",
+   "dashboardLayout",
+   "dashboardLayoutVersion",
+   "dashboardPresets",
+   "customThemes",
+   "ambientScenes",
+   "contentInstalls",
+   "geminiApiKey",
+   "obsHost",
+   "obsPort",
+   "obsPassword",
+   "obsAutoLaunch",
+   "streamerbotHost",
+   "streamerbotPort",
+   "streamerbotPassword",
+   "browserTiles",
+   "browserFavorites",
+   "appFavorites",
+   "aiProvider",
+   "ollamaModel",
+   "ollamaUrl",
+   "localApiUrl",
+   "localApiModel",
+   "localApiKey",
+   "localApiVision",
+   "openaiApiKey",
+   "openaiModel",
+   "openaiSttModel",
+   "openaiTtsModel",
+   "anthropicApiKey",
+   "anthropicModel",
+   "xenonModel",
+   "xenonEffort",
+   "claudeCodeModel",
+   "codexModel",
+   "geminiModel",
+   "geminiModelPro",
+   "geminiModelTts",
+   "geminiModelLive",
+   "hardwareScan",
+   "aiTtsEnabled",
+   "aiMicSensitivity",
+   "aiChatHidden",
+   "aiMemory",
+   "aiProReasoning",
+   "aiLiveVoice",
+   "aiVoiceAmbient",
+   "aiEdgeGlow",
+   "usageMode",
+   "aiFeatures",
+   "sensorHistory",
+   "gameSessions",
+   "perfHud",
+   "fanLabels",
+   "proactive",
+   "notifications",
+   "vitals",
+   "discordNotifications",
+   "windowsNotifications",
+   "calls",
+   "phone",
+   "wakeWord",
+   "searchSettings",
+   "pageHotkeys",
+   "diskSettings",
+   "bgAurora",
+   "bgGrid",
+   "bgStatic",
+   "bgCustom",
+   "slideshow",
+   "claudeWidget",
+   "codexWidget",
+   "chatgptWidget",
+   "lighting",
+   "calendarFeeds",
+   "stocks",
+   "twelveDataKey",
+   "finnhubKey",
+   "football",
+   "sportsDbKey",
+   "news",
+   "newsDataKey",
+   "claude",
+   "ticker",
+   "homeAssistant",
+   "unifi",
+   "chroma",
+   "signalrgb",
+   "wavelink",
+   "remoteControl",
+   "remoteAccess",
+   "fileTransfer",
+   "capture",
+   "surfaceChoice",
+   "gameMode",
+   "bgGuard",
+   "safeMode",
+   "performance",
+   "contextProfiles",
+   "secondScreen",
+   "sdkWidgets",
+   "rev",
+   "storeId",
+   "onboarding",
+   "language"
+  ],
+  "values": {
+   "appearance": "dark",
+   "autoPalette": false,
+   "styleMode": "glass",
+   "retroScanlines": true,
+   "accent": "#6ee787",
+   "dynamicAlbumTheme": true,
+   "background": "#14181c",
+   "surface": null,
+   "surfaceAlt": null,
+   "controlColor": null,
+   "text": "#f0f3f1",
+   "accentText": null,
+   "successColor": null,
+   "warningColor": null,
+   "dangerColor": null,
+   "infoColor": null,
+   "paletteVariants": null,
+   "contrastGuard": true,
+   "panelAlpha": 0.54,
+   "bgDim": 0.48,
+   "bgBlur": 0,
+   "idleAnimationPause": true,
+   "bootSplash": true,
+   "hybridGpuAnimationPause": true,
+   "uiRoundness": 1,
+   "glassBlur": 22,
+   "glassSaturate": 160,
+   "clockScale": 1,
+   "clockDateScale": 1,
+   "clockDateFormat": "full",
+   "panelBorderStrength": 1,
+   "tileShadowStrength": 0,
+   "mutedText": null,
+   "lineColor": null,
+   "backgroundMedia": null,
+   "uiFont": null,
+   "lockWidgets": {
+    "clock": true,
+    "weather": true,
+    "media": true,
+    "calendar": true
+   },
+   "ambientMode": {
+    "enabled": true,
+    "idleMinutes": 0,
+    "sceneId": "builtin",
+    "wallpaper": false,
+    "saverMinutes": 0,
+    "screens": [],
+    "byScreen": {},
+    "openOnStartup": false
+   },
+   "weather": {
+    "mode": "auto",
+    "city": "",
+    "provider": "auto",
+    "refreshMin": 30,
+    "forecastDays": 3,
+    "tile": {
+     "hero": "full",
+     "look": "new",
+     "metrics": true,
+     "hourly": true,
+     "forecast": true,
+     "fields": {
+      "feels": true,
+      "wind": true,
+      "rain": true,
+      "aqi": true,
+      "humidity": true,
+      "pm25": true,
+      "pm10": true,
+      "no2": true,
+      "pollen": true,
+      "pressure": true,
+      "visibility": true,
+      "uv": true,
+      "clouds": true
+     }
+    }
+   },
+   "tempUnit": "c",
+   "hwTempUnit": "auto",
+   "mediaVisualizer": "off",
+   "mediaLyrics": true,
+   "lyricsOffsetMs": 0,
+   "lyricsTranslate": false,
+   "lyricsReading": true,
+   "lyricsTranslateCap": 200,
+   "sdkAiDailyCap": 50,
+   "spotifyStartMinimized": false,
+   "lyricsStage": false,
+   "clockFormat": "auto",
+   "topbarStyle": "full",
+   "topbarRails": {
+    "left": true,
+    "right": true
+   },
+   "topbarRailsAutoHide": true,
+   "topbarClock": {
+    "version": 2,
+    "align": "center",
+    "items": [
+     {
+      "id": "time",
+      "hidden": false
+     },
+     {
+      "id": "date",
+      "hidden": false
+     },
+     {
+      "id": "weather",
+      "hidden": false
+     },
+     {
+      "id": "media",
+      "hidden": false
+     },
+     {
+      "id": "vitals",
+      "hidden": true
+     },
+     {
+      "id": "dots",
+      "hidden": false
+     },
+     {
+      "id": "badges",
+      "hidden": false
+     },
+     {
+      "id": "claude",
+      "hidden": false
+     },
+     {
+      "id": "codex",
+      "hidden": false
+     },
+     {
+      "id": "perf",
+      "hidden": false
+     }
+    ],
+    "actions": [
+     {
+      "id": "lock",
+      "hidden": false,
+      "side": "left"
+     },
+     {
+      "id": "ambient",
+      "hidden": false,
+      "side": "left"
+     },
+     {
+      "id": "xenon",
+      "hidden": false,
+      "side": "left"
+     },
+     {
+      "id": "search",
+      "hidden": false,
+      "side": "left"
+     },
+     {
+      "id": "mini",
+      "hidden": false,
+      "side": "left"
+     },
+     {
+      "id": "layout",
+      "hidden": false,
+      "side": "right"
+     },
+     {
+      "id": "settings",
+      "hidden": false,
+      "side": "right"
+     },
+     {
+      "id": "apps",
+      "hidden": false,
+      "side": "right"
+     },
+     {
+      "id": "favorites",
+      "hidden": false,
+      "side": "right"
+     }
+    ],
+    "hiddenSources": [],
+    "takeovers": true,
+    "mediaTakeover": false,
+    "pageLabels": false
+   },
+   "topbarLook": {
+    "version": 1,
+    "surface": "theme",
+    "border": "theme",
+    "shape": "rounded",
+    "size": "normal",
+    "buttonStyle": "plate",
+    "labels": "auto",
+    "clockFont": "theme",
+    "separator": "line",
+    "gap": "normal",
+    "toastPlace": "auto",
+    "railLeft": "show",
+    "railRight": "show",
+    "railAlign": "center",
+    "railMotion": "slide",
+    "railPeek": "handle",
+    "color": "",
+    "opacity": 70,
+    "blur": 10,
+    "railDelay": 10,
+    "shadow": true,
+    "colonBlink": true,
+    "accent": "xenon",
+    "buttons": {}
+   },
+   "layers": {
+    "enabled": false,
+    "screens": "auto",
+    "excludeFromCapture": true,
+    "hidden": [],
+    "overlayKey": "ctrl+shift+f9",
+    "menuKey": "alt+shift+x",
+    "menuPad": true,
+    "pages": [],
+    "page": "",
+    "widgets": []
+   },
+   "sensorRateMs": 5000,
+   "sensorSources": {},
+   "gameIgnore": [],
+   "weekStart": "mon",
+   "upcomingCount": 5,
+   "upcomingDays": 0,
+   "upcomingColumns": 0,
+   "swipeNavigation": true,
+   "swipeHomeGesture": true,
+   "nativeZoom": 1,
+   "hideOnRdp": false,
+   "audioSetCommunications": true,
+   "autoOpenBrowser": true,
+   "versionPing": false,
+   "hubMessages": true,
+   "catalogDrops": true,
+   "monthlyDrops": true,
+   "autoUpdate": true,
+   "autoUpdateWidgets": true,
+   "catalogStats": false,
+   "ratingAsks": true,
+   "usageStats": false,
+   "batteryAskDevices": true,
+   "whatsNewSeen": "",
+   "releaseNotesSeen": "",
+   "updateFailSeen": "",
+   "discordInviteSeen": false,
+   "firstRunDay": "",
+   "lastUsageDay": "",
+   "usageDays": 0,
+   "supportAskSeen": false,
+   "supportAskSeenDay": "",
+   "supportAppealYear": 0,
+   "shareNudgeSeen": false,
+   "discordFavChannels": [],
+   "discordCollapsedGuilds": [],
+   "browserAdblock": false,
+   "dashboardLayout": {
+    "gridCols": 24,
+    "widgets": {
+     "media": {
+      "x": 0,
+      "y": 0,
+      "w": 8,
+      "h": 8,
+      "visible": true,
+      "page": "dashboard"
+     },
+     "agenda": {
+      "x": 8,
+      "y": 0,
+      "w": 8,
+      "h": 8,
+      "visible": true,
+      "page": "dashboard"
+     },
+     "system": {
+      "x": 16,
+      "y": 0,
+      "w": 8,
+      "h": 8,
+      "visible": true,
+      "page": "dashboard"
+     },
+     "mic": {
+      "x": 0,
+      "y": 8,
+      "w": 6,
+      "h": 4,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "audio": {
+      "x": 6,
+      "y": 8,
+      "w": 6,
+      "h": 4,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "notes": {
+      "x": 12,
+      "y": 8,
+      "w": 6,
+      "h": 4,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "tasks": {
+      "x": 18,
+      "y": 8,
+      "w": 6,
+      "h": 4,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "calendar": {
+      "x": 0,
+      "y": 12,
+      "w": 6,
+      "h": 4,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "timer": {
+      "x": 6,
+      "y": 12,
+      "w": 6,
+      "h": 4,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "chat": {
+      "x": 8,
+      "y": 0,
+      "w": 8,
+      "h": 8,
+      "visible": true,
+      "page": "dashboard"
+     },
+     "deck": {
+      "x": 0,
+      "y": 12,
+      "w": 8,
+      "h": 6,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "remote": {
+      "x": 8,
+      "y": 12,
+      "w": 8,
+      "h": 6,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "twitch": {
+      "x": 16,
+      "y": 12,
+      "w": 8,
+      "h": 4,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "obs": {
+      "x": 16,
+      "y": 16,
+      "w": 8,
+      "h": 6,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "youtube": {
+      "x": 16,
+      "y": 22,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "twitchwatch": {
+      "x": 0,
+      "y": 64,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "youtubelive": {
+      "x": 16,
+      "y": 32,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "discord": {
+      "x": 16,
+      "y": 26,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "spotify": {
+      "x": 16,
+      "y": 34,
+      "w": 8,
+      "h": 16,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "browser": {
+      "x": 0,
+      "y": 18,
+      "w": 12,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "secondscreen": {
+      "x": 12,
+      "y": 18,
+      "w": 12,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "weather": {
+      "x": 16,
+      "y": 8,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "smarthome": {
+      "x": 0,
+      "y": 18,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "streamerbot": {
+      "x": 8,
+      "y": 18,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "wavelink": {
+      "x": 0,
+      "y": 18,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "lighting": {
+      "x": 8,
+      "y": 46,
+      "w": 8,
+      "h": 12,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "notifications": {
+      "x": 16,
+      "y": 18,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "stocks": {
+      "x": 0,
+      "y": 28,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "football": {
+      "x": 8,
+      "y": 28,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "news": {
+      "x": 0,
+      "y": 38,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "claude": {
+      "x": 16,
+      "y": 28,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "openaicodex": {
+      "x": 16,
+      "y": 38,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "chatgpt": {
+      "x": 16,
+      "y": 48,
+      "w": 8,
+      "h": 12,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "vitals": {
+      "x": 8,
+      "y": 38,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "unifi": {
+      "x": 8,
+      "y": 18,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "slideshow": {
+      "x": 0,
+      "y": 48,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "fans": {
+      "x": 16,
+      "y": 38,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "power": {
+      "x": 16,
+      "y": 46,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "battery": {
+      "x": 0,
+      "y": 56,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "perf": {
+      "x": 8,
+      "y": 74,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "search": {
+      "x": 8,
+      "y": 56,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "disk": {
+      "x": 16,
+      "y": 54,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "devclean": {
+      "x": 0,
+      "y": 64,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "lyrics": {
+      "x": 8,
+      "y": 64,
+      "w": 6,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "transfer": {
+      "x": 8,
+      "y": 64,
+      "w": 8,
+      "h": 10,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "phone": {
+      "x": 16,
+      "y": 64,
+      "w": 8,
+      "h": 12,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "screen": {
+      "x": 16,
+      "y": 76,
+      "w": 8,
+      "h": 12,
+      "visible": false,
+      "page": "dashboard"
+     },
+     "custom": {
+      "x": 0,
+      "y": 28,
+      "w": 8,
+      "h": 8,
+      "visible": false,
+      "page": "dashboard"
+     }
+    },
+    "groups": {
+     "media-group": {
+      "id": "media-group",
+      "members": [
+       "media",
+       "agenda"
+      ],
+      "active": "media",
+      "x": 0,
+      "y": 0,
+      "w": 8,
+      "h": 8,
+      "page": "dashboard",
+      "seeded": true,
+      "autoTabByMedia": true
+     }
+    },
+    "pages": [
+     {
+      "id": "dashboard",
+      "name": "",
+      "nameKey": "page_dashboard"
+     }
+    ],
+    "cards": {
+     "main": {
+      "cpu": {
+       "order": 0,
+       "size": "normal",
+       "visible": true
+      },
+      "gpu": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      },
+      "ram": {
+       "order": 2,
+       "size": "normal",
+       "visible": true
+      },
+      "disk": {
+       "order": 3,
+       "size": "normal",
+       "visible": true
+      }
+     },
+     "net": {
+      "ping": {
+       "order": 0,
+       "size": "normal",
+       "visible": true
+      },
+      "fps": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      },
+      "latency": {
+       "order": 2,
+       "size": "normal",
+       "visible": true
+      },
+      "bandwidth": {
+       "order": 3,
+       "size": "normal",
+       "visible": true
+      }
+     },
+     "audio": {
+      "volume": {
+       "order": 0,
+       "size": "wide",
+       "visible": true
+      },
+      "speaker": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      },
+      "microphone": {
+       "order": 2,
+       "size": "normal",
+       "visible": true
+      }
+     },
+     "twitch": {
+      "info": {
+       "order": 0,
+       "size": "normal",
+       "visible": true
+      },
+      "actions": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      },
+      "chat": {
+       "order": 2,
+       "size": "normal",
+       "visible": true
+      }
+     },
+     "obs": {
+      "preview": {
+       "order": 0,
+       "size": "normal",
+       "visible": true
+      },
+      "controls": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      },
+      "scenes": {
+       "order": 2,
+       "size": "normal",
+       "visible": true
+      },
+      "audio": {
+       "order": 3,
+       "size": "normal",
+       "visible": true
+      }
+     },
+     "youtube": {
+      "player": {
+       "order": 0,
+       "size": "normal",
+       "visible": true
+      },
+      "library": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      }
+     },
+     "youtubelive": {
+      "info": {
+       "order": 0,
+       "size": "normal",
+       "visible": true
+      },
+      "actions": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      },
+      "chat": {
+       "order": 2,
+       "size": "normal",
+       "visible": true
+      }
+     },
+     "twitchwatch": {
+      "player": {
+       "order": 0,
+       "size": "normal",
+       "visible": true
+      },
+      "library": {
+       "order": 1,
+       "size": "normal",
+       "visible": true
+      },
+      "chat": {
+       "order": 2,
+       "size": "normal",
+       "visible": false
+      }
+     }
+    },
+    "tabs": {
+     "order": [
+      "main",
+      "net"
+     ],
+     "active": "main"
+    },
+    "calendarTabs": {
+     "order": [
+      "calendar",
+      "tasks",
+      "timer"
+     ],
+     "active": "calendar"
+    },
+    "mediaView": {
+     "active": "media"
+    },
+    "topbarHidden": false,
+    "timerAddCollapsed": false,
+    "portrait": {
+     "custom": false,
+     "items": {}
+    }
+   },
+   "dashboardLayoutVersion": 6,
+   "dashboardPresets": [],
+   "customThemes": [],
+   "ambientScenes": [],
+   "contentInstalls": [],
+   "geminiApiKey": "",
+   "obsHost": "",
+   "obsPort": 4455,
+   "obsPassword": "",
+   "obsAutoLaunch": true,
+   "streamerbotHost": "",
+   "streamerbotPort": 8080,
+   "streamerbotPassword": "",
+   "browserTiles": {},
+   "browserFavorites": [],
+   "appFavorites": [],
+   "aiProvider": "gemini",
+   "ollamaModel": "auto",
+   "ollamaUrl": "http://localhost:11434",
+   "localApiUrl": "http://127.0.0.1:8080",
+   "localApiModel": "auto",
+   "localApiKey": "",
+   "localApiVision": false,
+   "openaiApiKey": "",
+   "openaiModel": "auto",
+   "openaiSttModel": "auto",
+   "openaiTtsModel": "auto",
+   "anthropicApiKey": "",
+   "anthropicModel": "auto",
+   "xenonModel": "sonnet",
+   "xenonEffort": "medium",
+   "claudeCodeModel": "default",
+   "codexModel": "default",
+   "geminiModel": "auto",
+   "geminiModelPro": "auto",
+   "geminiModelTts": "auto",
+   "geminiModelLive": "auto",
+   "hardwareScan": null,
+   "aiTtsEnabled": true,
+   "aiMicSensitivity": 50,
+   "aiChatHidden": false,
+   "aiMemory": true,
+   "aiProReasoning": false,
+   "aiLiveVoice": false,
+   "aiVoiceAmbient": false,
+   "aiEdgeGlow": "auto",
+   "usageMode": "",
+   "aiFeatures": {
+    "enabled": false,
+    "genesis": false,
+    "gameCompanion": false,
+    "guardian": false,
+    "ambient": false,
+    "pcControl": false
+   },
+   "sensorHistory": {
+    "enabled": false,
+    "everyMin": 5
+   },
+   "gameSessions": {
+    "enabled": true
+   },
+   "perfHud": {
+    "fps": true,
+    "low1": true,
+    "low01": true,
+    "frame": true,
+    "graph": true,
+    "cpu": true,
+    "cpuTemp": false,
+    "cpuClock": false,
+    "cpuPower": false,
+    "gpu": true,
+    "gpuTemp": true,
+    "gpuClock": false,
+    "gpuPower": false,
+    "vram": false,
+    "ram": false,
+    "ping": false,
+    "loss": false,
+    "layout": "column"
+   },
+   "fanLabels": {},
+   "proactive": {
+    "thermal": true,
+    "recap": true,
+    "morning": true,
+    "anomaly": true
+   },
+   "notifications": {
+    "enabled": true,
+    "popups": true,
+    "sounds": true,
+    "quiet": "auto",
+    "onScreen": true
+   },
+   "vitals": {
+    "enabled": true,
+    "topbar": false,
+    "reminders": true,
+    "awayPause": true,
+    "naturalBreaks": true,
+    "pet": {
+     "enabled": false,
+     "tone": "spicy",
+     "effects": true,
+     "sounds": true,
+     "lighting": false,
+     "monitors": false,
+     "minimize": false,
+     "lock": false,
+     "quietInGame": true,
+     "position": "floating",
+     "aiRoasts": false,
+     "roastSparksCap": 0,
+     "nightQuiet": true,
+     "quietFrom": 23,
+     "quietTo": 7,
+     "thresholds": {
+      "decay": 5,
+      "gameover": 8,
+      "overlay": 10,
+      "minimize": 15,
+      "lock": 20
+     }
+    },
+    "items": {
+     "hydration": {
+      "on": true,
+      "min": 45
+     },
+     "energy": {
+      "on": true,
+      "min": 180
+     },
+     "stamina": {
+      "on": true,
+      "min": 60
+     },
+     "focus": {
+      "on": true,
+      "min": 25
+     },
+     "posture": {
+      "on": false,
+      "min": 45
+     }
+    },
+    "state": {
+     "last": {
+      "hydration": 0,
+      "energy": 0,
+      "stamina": 0,
+      "focus": 0,
+      "posture": 0
+     },
+     "xp": 0,
+     "day": "",
+     "fills": 0,
+     "log": [],
+     "awayCreditAt": 0,
+     "pet": {
+      "snoozeUntil": 0,
+      "muteDay": "",
+      "ep": {}
+     },
+     "mem": {
+      "streak": 0,
+      "bestStreak": 0,
+      "lastFillDay": "",
+      "locksTotal": 0,
+      "gameoversTotal": 0
+     }
+    }
+   },
+   "discordNotifications": {
+    "enabled": false,
+    "hide": false
+   },
+   "windowsNotifications": {
+    "enabled": false,
+    "hide": false,
+    "toast": true,
+    "excluded": []
+   },
+   "calls": {
+    "enabled": false,
+    "push": true,
+    "sound": true,
+    "disabledApps": [],
+    "apps": []
+   },
+   "phone": {
+    "enabled": false,
+    "ring": true,
+    "hide": true
+   },
+   "wakeWord": {
+    "enabled": false
+   },
+   "searchSettings": {
+    "indexRoots": [
+     "<where file search starts>"
+    ],
+    "hotkeyEnabled": false,
+    "hotkeyCombo": "alt+space",
+    "aiFullContext": false,
+    "recentInTile": false
+   },
+   "pageHotkeys": [],
+   "diskSettings": {
+    "devFolders": [],
+    "installerAgeDays": 30
+   },
+   "bgAurora": {
+    "enabled": true,
+    "intensity": 55,
+    "speed": 50
+   },
+   "bgGrid": {
+    "enabled": true,
+    "color": "#6ee787",
+    "intensity": 45,
+    "speed": 50
+   },
+   "bgStatic": {
+    "style": "none",
+    "intensity": 100
+   },
+   "bgCustom": {
+    "enabled": false,
+    "name": "",
+    "code": "",
+    "assets": {},
+    "fps": 30
+   },
+   "slideshow": {
+    "images": [],
+    "source": "library",
+    "folder": "",
+    "shuffle": false,
+    "pauseGame": true,
+    "intervalMs": 6000,
+    "fit": "cover"
+   },
+   "claudeWidget": {
+    "approvals": true,
+    "questions": true,
+    "topbar": true
+   },
+   "codexWidget": {
+    "approvals": true,
+    "waitSec": 90
+   },
+   "chatgptWidget": {
+    "model": "default"
+   },
+   "lighting": {
+    "enabled": false,
+    "lightsOut": false,
+    "brightness": 1,
+    "pauseDuringGame": true,
+    "devices": {},
+    "effects": {
+     "temperature": false,
+     "volume": false,
+     "musicAlbum": false,
+     "timer": {
+      "enabled": false,
+      "color": "#ff0000",
+      "style": "blink",
+      "durationMs": 1800
+     },
+     "notification": {
+      "enabled": false,
+      "color": "#ff0000",
+      "style": "blink",
+      "durationMs": 1800
+     },
+     "reminder": {
+      "enabled": false,
+      "color": "#ff0000",
+      "style": "blink",
+      "durationMs": 1800
+     },
+     "vitals": {
+      "enabled": true,
+      "color": "#ff2b2b",
+      "style": "blink",
+      "durationMs": 4000
+     }
+    },
+    "animation": {
+     "style": "none",
+     "color": "#1ed760",
+     "speed": 50,
+     "palette": [
+      "#1ed760",
+      "#0066ff"
+     ]
+    },
+    "manualColor": "",
+    "providers": {},
+    "deviceModes": {},
+    "native": {
+     "enabled": false,
+     "layouts": {},
+     "scanned": {}
+    }
+   },
+   "calendarFeeds": [],
+   "stocks": {
+    "watchlist": [
+     {
+      "symbol": "FTSEMIB.MI",
+      "name": "FTSE MIB"
+     },
+     {
+      "symbol": "^GSPC",
+      "name": "S&P 500"
+     },
+     {
+      "symbol": "AAPL",
+      "name": "Apple"
+     },
+     {
+      "symbol": "BTC-EUR",
+      "name": "Bitcoin"
+     }
+    ],
+    "provider": "auto",
+    "refreshSec": 60,
+    "alertPercent": 2,
+    "tile": {
+     "chart": true,
+     "sparklines": true
+    }
+   },
+   "twelveDataKey": "",
+   "finnhubKey": "",
+   "football": {
+    "teams": [
+     {
+      "id": "133670",
+      "name": "Napoli",
+      "league": "Italian Serie A",
+      "leagueId": "4332"
+     },
+     {
+      "id": "133681",
+      "name": "Inter Milan",
+      "league": "Italian Serie A",
+      "leagueId": "4332"
+     },
+     {
+      "id": "133682",
+      "name": "Roma",
+      "league": "Italian Serie A",
+      "leagueId": "4332"
+     },
+     {
+      "id": "4480",
+      "type": "league",
+      "name": "UEFA Champions League",
+      "league": "UEFA Champions League"
+     }
+    ],
+    "refreshSec": 120,
+    "alerts": true,
+    "tile": {
+     "results": true,
+     "standings": true
+    }
+   },
+   "sportsDbKey": "",
+   "news": {
+    "feeds": [
+     {
+      "id": "bbc",
+      "type": "source",
+      "name": "BBC News"
+     },
+     {
+      "id": "guardian",
+      "type": "source",
+      "name": "The Guardian"
+     },
+     {
+      "id": "tech",
+      "type": "topic",
+      "name": "Technology",
+      "query": "technology"
+     }
+    ],
+    "refreshSec": 600,
+    "tile": {
+     "images": true
+    }
+   },
+   "newsDataKey": "",
+   "claude": {
+    "plan": "custom",
+    "weeklyTokenBudget": 0,
+    "refreshSec": 60,
+    "tile": {
+     "reactor": true,
+     "projects": true,
+     "cost": true
+    }
+   },
+   "ticker": {
+    "enabled": false,
+    "position": "bottom",
+    "speed": 50,
+    "sources": {
+     "stocks": true,
+     "football": true,
+     "news": true
+    }
+   },
+   "homeAssistant": {
+    "url": "",
+    "token": "",
+    "entities": [],
+    "cameras": [],
+    "energyEntities": [],
+    "camAngles": {},
+    "areaOrder": [],
+    "tileView": "auto"
+   },
+   "unifi": {
+    "host": "",
+    "username": "",
+    "password": "",
+    "cameras": [],
+    "columns": 0,
+    "fit": "cover",
+    "aspect": "16:9",
+    "order": [],
+    "refreshMs": 1500,
+    "angles": {},
+    "notify": {
+     "enabled": false,
+     "types": {
+      "person": true,
+      "vehicle": true,
+      "package": false,
+      "animal": false,
+      "motion": false,
+      "ring": true
+     },
+     "cooldownSec": 45
+    }
+   },
+   "chroma": {
+    "enabled": false
+   },
+   "signalrgb": {
+    "enabled": false
+   },
+   "wavelink": {
+    "enabled": false,
+    "port": 0
+   },
+   "remoteControl": {
+    "enabled": false,
+    "onDemand": false,
+    "sunshineInstalled": false,
+    "tailscaleInstalled": false,
+    "sunshineUser": "",
+    "sunshinePass": "",
+    "selectedMonitors": [],
+    "selectedScreen": ""
+   },
+   "remoteAccess": {
+    "enabled": "<undefined>",
+    "https": "<undefined>"
+   },
+   "fileTransfer": {
+    "enabled": true,
+    "inboxDir": "",
+    "autoDeliver": true,
+    "maxFileMb": 2048,
+    "quotaMb": 8192,
+    "keepDays": 14,
+    "notifyPhone": false
+   },
+   "capture": {
+    "fps": 60,
+    "height": 0,
+    "quality": "normal",
+    "badge": true,
+    "autoMarks": true,
+    "maxGB": 0,
+    "folder": "",
+    "shotFolder": "",
+    "benchFolder": "",
+    "bugFolder": "",
+    "bugLogs": "",
+    "replay": false,
+    "replaySeconds": 30,
+    "replayWhen": "gaming",
+    "replayAudio": "sound",
+    "replayClips": "marks",
+    "replayKey": "ctrl+shift+f10",
+    "recordAudio": "sound",
+    "recordWebcam": "off"
+   },
+   "surfaceChoice": {
+    "kind": "auto",
+    "asked": false,
+    "monitor": "",
+    "label": ""
+   },
+   "gameMode": true,
+   "bgGuard": true,
+   "safeMode": false,
+   "performance": "<undefined>",
+   "contextProfiles": "<undefined>",
+   "secondScreen": "<undefined>",
+   "sdkWidgets": "<undefined>",
+   "rev": 0,
+   "storeId": "",
+   "onboarding": {
+    "seenVersion": 0
+   },
+   "language": ""
+  }
+ },
+ "one key stored": {
+  "appearance": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"light\"",
+    "appearance=\"light\""
+   ],
+   [
+    "\"auto\"",
+    "appearance=\"auto\" | autoPalette=true"
+   ]
+  ],
+  "autoPalette": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "autoPalette=true"
+   ]
+  ],
+  "styleMode": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"liquid\"",
+    "styleMode=\"liquid\""
+   ],
+   [
+    "\"retro\"",
+    "styleMode=\"retro\""
+   ],
+   [
+    "\"comic\"",
+    "styleMode=\"comic\""
+   ]
+  ],
+  "retroScanlines": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "retroScanlines=false"
+   ]
+  ],
+  "accent": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "accent=\"#110000\""
+   ],
+   [
+    "150",
+    "accent=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "accent=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "accent=\"#ffffff\""
+   ]
+  ],
+  "dynamicAlbumTheme": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "dynamicAlbumTheme=false"
+   ]
+  ],
+  "background": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "background=\"#110000\""
+   ],
+   [
+    "150",
+    "background=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "background=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "background=\"#ffffff\""
+   ]
+  ],
+  "surface": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "surface=\"#110000\""
+   ],
+   [
+    "150",
+    "surface=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "surface=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "surface=\"#ffffff\""
+   ],
+   [
+    "{kind:\"phone\",asked:true}",
+    "surfaceChoice={\"kind\":\"phone\",\"asked\":true,\"monitor\":\"Rig Screen\",\"label\":\"Rig\"}"
+   ]
+  ],
+  "surfaceAlt": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "surfaceAlt=\"#110000\""
+   ],
+   [
+    "150",
+    "surfaceAlt=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "surfaceAlt=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "surfaceAlt=\"#ffffff\""
+   ]
+  ],
+  "controlColor": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "controlColor=\"#110000\""
+   ],
+   [
+    "150",
+    "controlColor=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "controlColor=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "controlColor=\"#ffffff\""
+   ]
+  ],
+  "text": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "text=\"#110000\""
+   ],
+   [
+    "150",
+    "text=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "text=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "text=\"#ffffff\""
+   ]
+  ],
+  "accentText": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "accentText=\"#110000\""
+   ],
+   [
+    "150",
+    "accentText=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "accentText=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "accentText=\"#ffffff\""
+   ]
+  ],
+  "successColor": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "successColor=\"#110000\""
+   ],
+   [
+    "150",
+    "successColor=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "successColor=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "successColor=\"#ffffff\""
+   ]
+  ],
+  "warningColor": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "warningColor=\"#110000\""
+   ],
+   [
+    "150",
+    "warningColor=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "warningColor=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "warningColor=\"#ffffff\""
+   ]
+  ],
+  "dangerColor": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "dangerColor=\"#110000\""
+   ],
+   [
+    "150",
+    "dangerColor=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "dangerColor=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "dangerColor=\"#ffffff\""
+   ]
+  ],
+  "infoColor": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "infoColor=\"#110000\""
+   ],
+   [
+    "150",
+    "infoColor=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "infoColor=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "infoColor=\"#ffffff\""
+   ]
+  ],
+  "paletteVariants": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "contrastGuard": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "contrastGuard=false"
+   ]
+  ],
+  "panelAlpha": [
+   [
+    "null false -1 0 \"\" []",
+    "panelAlpha=0.18"
+   ],
+   [
+    "true 1 2 3 5 7 8 10 14 24 30 1.5 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "panelAlpha=1"
+   ],
+   [
+    "0.5",
+    "panelAlpha=0.5"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "bgDim": [
+   [
+    "null false -1 0 \"\" []",
+    "bgDim=0.05"
+   ],
+   [
+    "true 1 2 3 5 7 8 10 14 24 30 1.5 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "bgDim=0.9"
+   ],
+   [
+    "0.5",
+    "bgDim=0.5"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "bgBlur": [
+   [
+    "13 different answers",
+    "sha256:661da4f676264271 (2368 chars)"
+   ]
+  ],
+  "idleAnimationPause": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "idleAnimationPause=false"
+   ]
+  ],
+  "bootSplash": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "bootSplash=false"
+   ]
+  ],
+  "hybridGpuAnimationPause": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "hybridGpuAnimationPause=false"
+   ]
+  ],
+  "uiRoundness": [
+   [
+    "null false -1 0 \"\" []",
+    "uiRoundness=0"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "2 3 5 7 8 10 14 24 30 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "uiRoundness=2"
+   ],
+   [
+    "0.5",
+    "uiRoundness=0.5"
+   ],
+   [
+    "1.5",
+    "uiRoundness=1.5"
+   ]
+  ],
+  "glassBlur": [
+   [
+    "16 different answers",
+    "sha256:0fe14f4525041177 (2377 chars)"
+   ]
+  ],
+  "glassSaturate": [
+   [
+    "null true false -1 0 1 2 3 5 7 8 10 14 24 30 0.5 1.5 100 \"\" \"12\" \"24\" []",
+    "glassSaturate=100"
+   ],
+   [
+    "150",
+    "glassSaturate=150"
+   ],
+   [
+    "1000 2000 4455 70000 1000000000000 2027 \"123456789012345678\" \"8080\"",
+    "glassSaturate=220"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "clockScale": [
+   [
+    "null false -1 0 0.5 \"\" []",
+    "clockScale=0.8"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "2 3 5 7 8 10 14 24 30 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "clockScale=2"
+   ],
+   [
+    "1.5",
+    "clockScale=1.5"
+   ]
+  ],
+  "clockDateScale": [
+   [
+    "null false -1 0 0.5 \"\" []",
+    "clockDateScale=0.8"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "2 3 5 7 8 10 14 24 30 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "clockDateScale=2"
+   ],
+   [
+    "1.5",
+    "clockDateScale=1.5"
+   ]
+  ],
+  "clockDateFormat": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"medium\"",
+    "clockDateFormat=\"medium\""
+   ],
+   [
+    "\"short\"",
+    "clockDateFormat=\"short\""
+   ]
+  ],
+  "panelBorderStrength": [
+   [
+    "null false -1 0 \"\" []",
+    "panelBorderStrength=0"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "2 3 5 7 8 10 14 24 30 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "panelBorderStrength=2"
+   ],
+   [
+    "0.5",
+    "panelBorderStrength=0.5"
+   ],
+   [
+    "1.5",
+    "panelBorderStrength=1.5"
+   ]
+  ],
+  "tileShadowStrength": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true 1",
+    "tileShadowStrength=1"
+   ],
+   [
+    "2 3 5 7 8 10 14 24 30 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "tileShadowStrength=2"
+   ],
+   [
+    "0.5",
+    "tileShadowStrength=0.5"
+   ],
+   [
+    "1.5",
+    "tileShadowStrength=1.5"
+   ]
+  ],
+  "mutedText": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "mutedText=\"#110000\""
+   ],
+   [
+    "150",
+    "mutedText=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "mutedText=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "mutedText=\"#ffffff\""
+   ]
+  ],
+  "lineColor": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "lineColor=\"#110000\""
+   ],
+   [
+    "150",
+    "lineColor=\"#115500\""
+   ],
+   [
+    "\"#ff8800\"",
+    "lineColor=\"#ff8800\""
+   ],
+   [
+    "\"#FFF\"",
+    "lineColor=\"#ffffff\""
+   ]
+  ],
+  "backgroundMedia": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "uiFont": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "lockWidgets": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "ambientMode": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:false}",
+    "ambientMode={\"enabled\":false,\"idleMinutes\":0,\"sceneId\":\"builtin\",\"wallpaper\":false,\"saverMinutes\":0,\"screens\":[],\"byScreen\":{},\"openOnStartup\":false}"
+   ]
+  ],
+  "weather": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "tempUnit": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"f\"",
+    "tempUnit=\"f\""
+   ]
+  ],
+  "hwTempUnit": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"f\"",
+    "hwTempUnit=\"f\""
+   ],
+   [
+    "\"c\"",
+    "hwTempUnit=\"c\""
+   ]
+  ],
+  "mediaVisualizer": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true \"wave\"",
+    "mediaVisualizer=\"wave\""
+   ],
+   [
+    "\"minimal\"",
+    "mediaVisualizer=\"minimal\""
+   ]
+  ],
+  "mediaLyrics": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "mediaLyrics=false"
+   ]
+  ],
+  "lyricsOffsetMs": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "-1",
+    "lyricsOffsetMs=0"
+   ],
+   [
+    "100",
+    "lyricsOffsetMs=100"
+   ],
+   [
+    "150",
+    "lyricsOffsetMs=200"
+   ],
+   [
+    "1000",
+    "lyricsOffsetMs=1000"
+   ],
+   [
+    "2000 2027",
+    "lyricsOffsetMs=2000"
+   ],
+   [
+    "4455 70000 1000000000000 \"123456789012345678\" \"8080\"",
+    "lyricsOffsetMs=3000"
+   ]
+  ],
+  "lyricsTranslate": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "lyricsTranslate=true"
+   ]
+  ],
+  "lyricsReading": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "lyricsReading=false"
+   ]
+  ],
+  "lyricsTranslateCap": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "sdkAiDailyCap": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "100",
+    "sdkAiDailyCap=100"
+   ]
+  ],
+  "spotifyStartMinimized": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "spotifyStartMinimized=true"
+   ]
+  ],
+  "lyricsStage": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "lyricsStage=true"
+   ]
+  ],
+  "clockFormat": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"12\"",
+    "clockFormat=\"12\""
+   ],
+   [
+    "\"24\"",
+    "clockFormat=\"24\""
+   ]
+  ],
+  "topbarStyle": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"minimal\"",
+    "topbarStyle=\"minimal\""
+   ]
+  ],
+  "topbarRails": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "topbarRailsAutoHide": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "topbarRailsAutoHide=false"
+   ]
+  ],
+  "topbarClock": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "topbarLook": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "layers": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "layers=sha256:46627bd32da46e38 (173 chars)"
+   ]
+  ],
+  "sensorRateMs": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "1000",
+    "sensorRateMs=1000"
+   ],
+   [
+    "2000",
+    "sensorRateMs=2000"
+   ]
+  ],
+  "sensorSources": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "gameIgnore": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "[1,\"a\",null]",
+    "gameIgnore=[\"a\"]"
+   ],
+   [
+    "three ids",
+    "gameIgnore=[\"123456789012345678\",\"nope\",\"223456789012345678\"]"
+   ]
+  ],
+  "weekStart": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"sun\"",
+    "weekStart=\"sun\""
+   ]
+  ],
+  "upcomingCount": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "3",
+    "upcomingCount=3"
+   ],
+   [
+    "8",
+    "upcomingCount=8"
+   ],
+   [
+    "10",
+    "upcomingCount=10"
+   ]
+  ],
+  "upcomingDays": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "7",
+    "upcomingDays=7"
+   ],
+   [
+    "14",
+    "upcomingDays=14"
+   ],
+   [
+    "30",
+    "upcomingDays=30"
+   ]
+  ],
+  "upcomingColumns": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true 1",
+    "upcomingColumns=1"
+   ],
+   [
+    "2",
+    "upcomingColumns=2"
+   ]
+  ],
+  "swipeNavigation": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "swipeNavigation=false"
+   ]
+  ],
+  "swipeHomeGesture": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "swipeHomeGesture=false"
+   ]
+  ],
+  "nativeZoom": [
+   [
+    "null false -1 0 0.5 \"\" []",
+    "nativeZoom=0.6"
+   ],
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "2",
+    "nativeZoom=2"
+   ],
+   [
+    "3 5 7 8 10 14 24 30 100 150 1000 2000 4455 70000 1000000000000 2027 \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "nativeZoom=2.5"
+   ],
+   [
+    "1.5",
+    "nativeZoom=1.5"
+   ]
+  ],
+  "hideOnRdp": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "hideOnRdp=true"
+   ]
+  ],
+  "audioSetCommunications": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "audioSetCommunications=false"
+   ]
+  ],
+  "autoOpenBrowser": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "autoOpenBrowser=false"
+   ]
+  ],
+  "versionPing": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "versionPing=true"
+   ]
+  ],
+  "hubMessages": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "hubMessages=false"
+   ]
+  ],
+  "catalogDrops": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "catalogDrops=false"
+   ]
+  ],
+  "monthlyDrops": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "monthlyDrops=false"
+   ]
+  ],
+  "autoUpdate": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "autoUpdate=false"
+   ]
+  ],
+  "autoUpdateWidgets": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "autoUpdateWidgets=false"
+   ]
+  ],
+  "catalogStats": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "catalogStats=true"
+   ]
+  ],
+  "ratingAsks": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "ratingAsks=false"
+   ]
+  ],
+  "usageStats": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "usageStats=true"
+   ]
+  ],
+  "batteryAskDevices": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "batteryAskDevices=false"
+   ]
+  ],
+  "whatsNewSeen": [
+   [
+    "45 different answers",
+    "sha256:8fd867096c97f3b9 (2752 chars)"
+   ]
+  ],
+  "releaseNotesSeen": [
+   [
+    "45 different answers",
+    "sha256:3423b0f110f09c5c (2896 chars)"
+   ]
+  ],
+  "updateFailSeen": [
+   [
+    "45 different answers",
+    "sha256:57ad9571baa7564f (2840 chars)"
+   ]
+  ],
+  "discordInviteSeen": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "discordInviteSeen=true"
+   ]
+  ],
+  "firstRunDay": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"2026-01-05\"",
+    "firstRunDay=\"2026-01-05\""
+   ],
+   [
+    "\"2026-13-45\"",
+    "firstRunDay=\"2026-13-45\""
+   ]
+  ],
+  "lastUsageDay": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"2026-01-05\"",
+    "lastUsageDay=\"2026-01-05\""
+   ],
+   [
+    "\"2026-13-45\"",
+    "lastUsageDay=\"2026-13-45\""
+   ]
+  ],
+  "usageDays": [
+   [
+    "21 different answers",
+    "sha256:1383039381778347 (2473 chars)"
+   ]
+  ],
+  "supportAskSeen": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "supportAskSeen=true"
+   ]
+  ],
+  "supportAskSeenDay": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"2026-01-05\"",
+    "supportAskSeenDay=\"2026-01-05\""
+   ],
+   [
+    "\"2026-13-45\"",
+    "supportAskSeenDay=\"2026-13-45\""
+   ]
+  ],
+  "supportAppealYear": [
+   [
+    "20 different answers",
+    "sha256:82cb260e745cf4f6 (2660 chars)"
+   ]
+  ],
+  "shareNudgeSeen": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "shareNudgeSeen=true"
+   ]
+  ],
+  "discordFavChannels": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "three ids",
+    "discordFavChannels=[\"123456789012345678\",\"223456789012345678\"]"
+   ]
+  ],
+  "discordCollapsedGuilds": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "three ids",
+    "discordCollapsedGuilds=[\"123456789012345678\",\"223456789012345678\"]"
+   ]
+  ],
+  "browserAdblock": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "browserAdblock=true"
+   ]
+  ],
+  "dashboardLayout": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "dashboardLayoutVersion": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "7 8 10 14 24 30 100 150 1000 2000 4455 70000 1000000000000 2027 Infinity \"12\" \"24\" \"123456789012345678\" \"8080\"",
+    "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)"
+   ]
+  ],
+  "dashboardPresets": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "[1,\"a\",null]",
+    "dashboardPresets=[1,\"a\",null]"
+   ],
+   [
+    "three ids",
+    "dashboardPresets=[\"123456789012345678\",\"123456789012345678\",\"nope\",\"223456789012345678\"]"
+   ]
+  ],
+  "customThemes": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "[1,\"a\",null]",
+    "customThemes=[1,\"a\",null]"
+   ],
+   [
+    "three ids",
+    "customThemes=[\"123456789012345678\",\"123456789012345678\",\"nope\",\"223456789012345678\"]"
+   ]
+  ],
+  "ambientScenes": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "contentInstalls": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "geminiApiKey": [
+   [
+    "70 different answers",
+    "sha256:3fcb114b3796daee (2749 chars)"
+   ]
+  ],
+  "obsHost": [
+   [
+    "70 different answers",
+    "sha256:1aeaee1203d72541 (2364 chars)"
+   ]
+  ],
+  "obsPort": [
+   [
+    "21 different answers",
+    "sha256:1f69d71c392e2ee2 (2367 chars)"
+   ]
+  ],
+  "obsPassword": [
+   [
+    "70 different answers",
+    "sha256:c32546a8889ab4ea (2676 chars)"
+   ]
+  ],
+  "obsAutoLaunch": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "obsAutoLaunch=false"
+   ]
+  ],
+  "streamerbotHost": [
+   [
+    "70 different answers",
+    "sha256:e6a909dfdac00d68 (2980 chars)"
+   ]
+  ],
+  "streamerbotPort": [
+   [
+    "21 different answers",
+    "sha256:f0c30316cedd084b (2599 chars)"
+   ]
+  ],
+  "streamerbotPassword": [
+   [
+    "70 different answers",
+    "sha256:79fb3b23609655ad (3292 chars)"
+   ]
+  ],
+  "browserTiles": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "browserFavorites": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "appFavorites": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "aiProvider": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"ollama\"",
+    "aiProvider=\"ollama\""
+   ]
+  ],
+  "ollamaModel": [
+   [
+    "60 different answers",
+    "sha256:b8049d85133edd54 (2517 chars)"
+   ]
+  ],
+  "ollamaUrl": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "localApiUrl": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "localApiModel": [
+   [
+    "68 different answers",
+    "sha256:ff02a148c3edb906 (2801 chars)"
+   ]
+  ],
+  "localApiKey": [
+   [
+    "70 different answers",
+    "sha256:80d843d4254d6977 (2672 chars)"
+   ]
+  ],
+  "localApiVision": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "localApiVision=true"
+   ]
+  ],
+  "openaiApiKey": [
+   [
+    "70 different answers",
+    "sha256:46733117b801a70f (2749 chars)"
+   ]
+  ],
+  "openaiModel": [
+   [
+    "61 different answers",
+    "sha256:4cdd328a7759086b (2517 chars)"
+   ]
+  ],
+  "openaiSttModel": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"auto:flash\"",
+    "openaiSttModel=\"auto:flash\""
+   ]
+  ],
+  "openaiTtsModel": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"auto:flash\"",
+    "openaiTtsModel=\"auto:flash\""
+   ]
+  ],
+  "anthropicApiKey": [
+   [
+    "70 different answers",
+    "sha256:a29649867d3ea5bb (2980 chars)"
+   ]
+  ],
+  "anthropicModel": [
+   [
+    "61 different answers",
+    "sha256:07d56e42a8335504 (2700 chars)"
+   ]
+  ],
+  "xenonModel": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "xenonEffort": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "claudeCodeModel": [
+   [
+    "64 different answers",
+    "sha256:4306f25fee6d7646 (2760 chars)"
+   ]
+  ],
+  "codexModel": [
+   [
+    "64 different answers",
+    "sha256:ea707d2cf7004a7a (2440 chars)"
+   ]
+  ],
+  "geminiModel": [
+   [
+    "61 different answers",
+    "sha256:660cf64feb145a27 (2517 chars)"
+   ]
+  ],
+  "geminiModelPro": [
+   [
+    "61 different answers",
+    "sha256:78c3b892fd4bf7e8 (2700 chars)"
+   ]
+  ],
+  "geminiModelTts": [
+   [
+    "61 different answers",
+    "sha256:cdba17187ca2482d (2700 chars)"
+   ]
+  ],
+  "geminiModelLive": [
+   [
+    "61 different answers",
+    "sha256:0472e8dd8b7fb398 (2761 chars)"
+   ]
+  ],
+  "hardwareScan": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "[] [1,\"a\",null] three ids {} {enabled:true} {enabled:false} {enabled:\"yes\",extra:1} nested {topbar:false} {topbar:true} {kind:\"phone\",asked:true}",
+    "hardwareScan={\"ram\":0,\"vram\":0,\"cores\":0,\"tier\":\"incompatible\",\"recommended\":\"auto\"}"
+   ]
+  ],
+  "aiTtsEnabled": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "aiTtsEnabled=false"
+   ]
+  ],
+  "aiMicSensitivity": [
+   [
+    "16 different answers",
+    "sha256:8e3db4b56d6b4506 (2604 chars)"
+   ]
+  ],
+  "aiChatHidden": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "aiChatHidden=true"
+   ]
+  ],
+  "aiMemory": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "aiMemory=false"
+   ]
+  ],
+  "aiProReasoning": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "aiProReasoning=true"
+   ]
+  ],
+  "aiLiveVoice": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "aiLiveVoice=true"
+   ]
+  ],
+  "aiVoiceAmbient": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "aiVoiceAmbient=true"
+   ]
+  ],
+  "aiEdgeGlow": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"off\"",
+    "aiEdgeGlow=\"off\""
+   ],
+   [
+    "\"main\"",
+    "aiEdgeGlow=\"main\""
+   ],
+   [
+    "\"second\"",
+    "aiEdgeGlow=\"second\""
+   ],
+   [
+    "\"all\"",
+    "aiEdgeGlow=\"all\""
+   ]
+  ],
+  "usageMode": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "aiFeatures": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "aiFeatures={\"enabled\":true,\"genesis\":false,\"gameCompanion\":false,\"guardian\":false,\"ambient\":false,\"pcControl\":false}"
+   ]
+  ],
+  "sensorHistory": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "sensorHistory={\"enabled\":true,\"everyMin\":5}"
+   ]
+  ],
+  "gameSessions": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:false}",
+    "gameSessions={\"enabled\":false}"
+   ]
+  ],
+  "perfHud": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "fanLabels": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "proactive": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "notifications": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:false}",
+    "notifications={\"enabled\":false,\"popups\":true,\"sounds\":true,\"quiet\":\"auto\",\"onScreen\":true}"
+   ]
+  ],
+  "vitals": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:false}",
+    "vitals=sha256:39640daf67dbe6a4 (842 chars)"
+   ],
+   [
+    "{topbar:true}",
+    "topbarClock=sha256:b4921a22888e5639 (838 chars) | vitals=sha256:bf43c428eced044e (840 chars)"
+   ]
+  ],
+  "discordNotifications": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "discordNotifications={\"enabled\":true,\"hide\":false}"
+   ]
+  ],
+  "windowsNotifications": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "windowsNotifications={\"enabled\":true,\"hide\":false,\"toast\":true,\"excluded\":[]}"
+   ]
+  ],
+  "calls": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "calls={\"enabled\":true,\"push\":true,\"sound\":true,\"disabledApps\":[],\"apps\":[]}"
+   ]
+  ],
+  "phone": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "phone={\"enabled\":true,\"ring\":true,\"hide\":true}"
+   ]
+  ],
+  "wakeWord": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "wakeWord={\"enabled\":true}"
+   ]
+  ],
+  "searchSettings": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "pageHotkeys": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "diskSettings": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "bgAurora": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:false}",
+    "bgAurora={\"enabled\":false,\"intensity\":55,\"speed\":50}"
+   ]
+  ],
+  "bgGrid": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:false}",
+    "bgGrid={\"enabled\":false,\"color\":\"#6ee787\",\"intensity\":45,\"speed\":50}"
+   ]
+  ],
+  "bgStatic": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "bgCustom": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "slideshow": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "claudeWidget": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{topbar:false}",
+    "topbarClock=sha256:d9495e545dd35842 (836 chars) | claudeWidget={\"approvals\":true,\"questions\":true,\"topbar\":false}"
+   ]
+  ],
+  "codexWidget": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "chatgptWidget": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "chatgptWidget={\"model\":\"false\"}"
+   ],
+   [
+    "0",
+    "chatgptWidget={\"model\":\"0\"}"
+   ],
+   [
+    "NaN",
+    "chatgptWidget={\"model\":\"NaN\"}"
+   ]
+  ],
+  "lighting": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "lighting=sha256:485089b7a0860635 (665 chars)"
+   ]
+  ],
+  "calendarFeeds": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "stocks": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "twelveDataKey": [
+   [
+    "70 different answers",
+    "sha256:66ac4fd1cd2cd82f (2913 chars)"
+   ]
+  ],
+  "finnhubKey": [
+   [
+    "70 different answers",
+    "sha256:c2a40808f9648c3c (2682 chars)"
+   ]
+  ],
+  "football": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "sportsDbKey": [
+   [
+    "70 different answers",
+    "sha256:1411324494ef1104 (2698 chars)"
+   ]
+  ],
+  "news": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "newsDataKey": [
+   [
+    "70 different answers",
+    "sha256:7800441cd997d355 (2759 chars)"
+   ]
+  ],
+  "claude": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "ticker": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "ticker={\"enabled\":true,\"position\":\"bottom\",\"speed\":50,\"sources\":{\"stocks\":true,\"football\":true,\"news\":true}}"
+   ]
+  ],
+  "homeAssistant": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "unifi": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "chroma": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "chroma={\"enabled\":true}"
+   ]
+  ],
+  "signalrgb": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "signalrgb={\"enabled\":true}"
+   ]
+  ],
+  "wavelink": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "wavelink={\"enabled\":true,\"port\":0}"
+   ]
+  ],
+  "remoteControl": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:true}",
+    "remoteControl=sha256:d1ea1e85154ca676 (164 chars)"
+   ]
+  ],
+  "remoteAccess": [
+   [
+    "null",
+    "remoteAccess={\"enabled\":null,\"https\":null}"
+   ],
+   [
+    "every other value",
+    "remoteAccess={\"enabled\":false,\"https\":false}"
+   ],
+   [
+    "0",
+    "remoteAccess={\"enabled\":0,\"https\":0}"
+   ],
+   [
+    "NaN",
+    "remoteAccess={\"enabled\":\"<NaN>\",\"https\":\"<NaN>\"}"
+   ],
+   [
+    "\"\"",
+    "remoteAccess={\"enabled\":\"\",\"https\":\"\"}"
+   ],
+   [
+    "{enabled:true}",
+    "remoteAccess={\"enabled\":true,\"https\":false}"
+   ]
+  ],
+  "fileTransfer": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{enabled:false}",
+    "fileTransfer={\"enabled\":false,\"inboxDir\":\"\",\"autoDeliver\":true,\"maxFileMb\":2048,\"quotaMb\":8192,\"keepDays\":14,\"notifyPhone\":false}"
+   ]
+  ],
+  "capture": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "surfaceChoice": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "{kind:\"phone\",asked:true}",
+    "surfaceChoice={\"kind\":\"phone\",\"asked\":true,\"monitor\":\"Rig Screen\",\"label\":\"Rig\"}"
+   ]
+  ],
+  "gameMode": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "gameMode=false"
+   ]
+  ],
+  "bgGuard": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "false",
+    "bgGuard=false"
+   ]
+  ],
+  "safeMode": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "true",
+    "safeMode=true"
+   ]
+  ],
+  "performance": [
+   [
+    "12 different answers",
+    "sha256:078a4397c52dab35 (2881 chars)"
+   ]
+  ],
+  "contextProfiles": [
+   [
+    "12 different answers",
+    "sha256:8af3f192d3f2adc8 (2925 chars)"
+   ]
+  ],
+  "secondScreen": [
+   [
+    "12 different answers",
+    "sha256:8795cce489554131 (2892 chars)"
+   ]
+  ],
+  "sdkWidgets": [
+   [
+    "12 different answers",
+    "sha256:8b7af046dd5c7afc (2870 chars)"
+   ]
+  ],
+  "rev": [
+   [
+    "19 different answers",
+    "sha256:d75e35d424ab7990 (2411 chars)"
+   ]
+  ],
+  "storeId": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"ffffffffffffffffffffffffffffffff\"",
+    "storeId=\"ffffffffffffffffffffffffffffffff\""
+   ]
+  ],
+  "onboarding": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ]
+  ],
+  "language": [
+   [
+    "every other value",
+    "as with nothing stored"
+   ],
+   [
+    "\"it\"",
+    "news=sha256:28e01433a3aa1a35 (212 chars) | language=\"it\""
+   ],
+   [
+    "\"en\"",
+    "language=\"en\""
+   ]
+  ]
+ },
+ "every key stored with the same value": {
+  "0": "sha256:6c0e00434ec9d3c1 (16219 chars)",
+  "1": "sha256:89f0cb44d5118cb0 (16205 chars)",
+  "2": "sha256:894ed4d203d43b09 (16205 chars)",
+  "3": "sha256:94eb80e6c92ca1b6 (16207 chars)",
+  "5": "sha256:57dab1fbffdf1438 (16207 chars)",
+  "7": "sha256:8084b805bb3fb56e (16218 chars)",
+  "8": "sha256:a71fd9497da93958 (16218 chars)",
+  "10": "sha256:e3b1af421ef9ef4f (16249 chars)",
+  "14": "sha256:4406d7ac6cf659f6 (16249 chars)",
+  "24": "sha256:cfe8537438ce0d1b (16248 chars)",
+  "30": "sha256:d588f8455415762f (16249 chars)",
+  "100": "sha256:f531c65840aaab87 (16329 chars)",
+  "150": "sha256:715494937eff349c (16328 chars)",
+  "1000": "sha256:b8923f4ba8a6d5a6 (16306 chars)",
+  "2000": "sha256:98f340723b8a3b4f (16306 chars)",
+  "2027": "sha256:d7d0346f41390444 (16306 chars)",
+  "4455": "sha256:31162389eb7d00e9 (16306 chars)",
+  "70000": "sha256:6c6c6b515da843c8 (16332 chars)",
+  "null": "sha256:b2ce498846bef060 (16243 chars)",
+  "true": "sha256:8e9422f9b35966cc (16260 chars)",
+  "false": "sha256:48fda78672828368 (16264 chars)",
+  "-1": "sha256:46ebb01c470f3ee6 (16247 chars)",
+  "0.5": "sha256:171008a0f783efb6 (16275 chars)",
+  "1.5": "sha256:122333eb55cb1fa1 (16267 chars)",
+  "1000000000000": "sha256:4ad04fc5da4b8042 (16517 chars)",
+  "NaN": "sha256:7479fd324b37a341 (16233 chars)",
+  "Infinity": "sha256:f5bdf29936a925c0 (16378 chars)",
+  "\"\"": "sha256:35094082dff295c9 (16239 chars)",
+  "\"light\"": "sha256:dc57dc781ace971f (16321 chars)",
+  "\"dark\"": "sha256:34fad14cc9538dfb (16295 chars)",
+  "\"auto\"": "sha256:f799bdc746f7b354 (16295 chars)",
+  "\"liquid\"": "sha256:f666cfef03d0150c (16346 chars)",
+  "\"glass\"": "sha256:7bcf574736fe8fd1 (16320 chars)",
+  "\"retro\"": "sha256:6805553ab8981895 (16320 chars)",
+  "\"comic\"": "sha256:ce618e6e34720908 (16320 chars)",
+  "\"full\"": "sha256:788245831b9db904 (16295 chars)",
+  "\"medium\"": "sha256:7f77a7fc1326115e (16347 chars)",
+  "\"short\"": "sha256:320565cdd325e7ac (16321 chars)",
+  "\"f\"": "sha256:dd8cb1a8d0904634 (16217 chars)",
+  "\"c\"": "sha256:908d5536ff651ef7 (16217 chars)",
+  "\"off\"": "sha256:a652eada95ce3dc3 (16269 chars)",
+  "\"minimal\"": "sha256:38ea880db3931bec (16377 chars)",
+  "\"wave\"": "sha256:e7fd1891bd8755e0 (16296 chars)",
+  "\"12\"": "sha256:5783797267f6d3e4 (16251 chars)",
+  "\"24\"": "sha256:b0a124c61695a2b3 (16251 chars)",
+  "\"mon\"": "sha256:0f94f109d8b5eccb (16270 chars)",
+  "\"sun\"": "sha256:fe4a1d7b6f52d64c (16270 chars)",
+  "\"main\"": "sha256:c1c96f7d6cfad13d (16295 chars)",
+  "\"second\"": "sha256:66fdbe548aa6a9a1 (16347 chars)",
+  "\"all\"": "sha256:2d6d95d6e4d7479c (16269 chars)",
+  "\"it\"": "sha256:5ba23741ab0d34a4 (16235 chars)",
+  "\"en\"": "sha256:d0f718008060c639 (16247 chars)",
+  "\"on\"": "sha256:4009d4abd1419a09 (16245 chars)",
+  "\"#ff8800\"": "sha256:9b2241d75a866cf0 (16399 chars)",
+  "\"#FFF\"": "sha256:992eeb58aa3b4603 (16351 chars)",
+  "\"not-a-colour\"": "sha256:34e99c87f4ff5fca (16495 chars)",
+  "\"2026-01-05\"": "sha256:c6c6137483adbe02 (16475 chars)",
+  "\"2026-13-45\"": "sha256:197f20912d67c504 (16475 chars)",
+  "\"5.1.0\"": "sha256:24c2258ade1b9a00 (16314 chars)",
+  "\"http://192.0.2.10:8123\"": "sha256:03487a44b880bbd3 (16589 chars)",
+  "\"https://service.example/path\"": "sha256:b977119391b01757 (16685 chars)",
+  "\"192.0.2.10\"": "sha256:843285bde61c1efd (16443 chars)",
+  "\"gemini\"": "sha256:d45ddab8564391a3 (16345 chars)",
+  "\"ollama\"": "sha256:0017918b7caf9991 (16345 chars)",
+  "\"local\"": "sha256:9e6220f1f14752cb (16320 chars)",
+  "\"gpt-rig-1\"": "sha256:0082142f6db9f31b (16420 chars)",
+  "\"auto:flash\"": "sha256:4800c76303cd6fcf (16457 chars)",
+  "\"  padded  \"": "sha256:b0e30325cf2a5d7f (16353 chars)",
+  "\"123456789012345678\"": "sha256:9a149f8656c808ed (16669 chars)",
+  "\"ffffffffffffffffffffffffffffffff\"": "sha256:0c025552d86bec20 (17027 chars)",
+  "5000 letters": "sha256:a9121765fd9d8cc0 (18421 chars)",
+  "\"8080\"": "sha256:106ccdd971f5f072 (16315 chars)",
+  "[]": "sha256:733a3758998a5be7 (16268 chars)",
+  "[1,\"a\",null]": "sha256:1abf289736ab5ead (16369 chars)",
+  "three ids": "sha256:4ac45f63465a3685 (17598 chars)",
+  "{}": "sha256:472afd61ff46431e (16455 chars)",
+  "{enabled:true}": "sha256:c30896606554cfab (16496 chars)",
+  "{enabled:false}": "sha256:4fd786879db264c8 (16522 chars)",
+  "{enabled:\"yes\",extra:1}": "sha256:eed6c9e67657b6ac (16555 chars)",
+  "nested": "sha256:a36206a4fda853e9 (16643 chars)",
+  "{topbar:false}": "sha256:011e9629462fa4f6 (16511 chars)",
+  "{topbar:true}": "sha256:ab0b72b23a106bd5 (16507 chars)",
+  "{kind:\"phone\",asked:true}": "sha256:c8d79d6ff28f0567 (16724 chars)"
+ },
+ "one value changed inside a key": {
+  "lockWidgets": "4 questions, sha256:8488a2242a964585 (507 chars)",
+  "ambientMode": "12 questions, sha256:6b0b02df3f151707 (1538 chars)",
+  "weather": "37 questions, sha256:73604426b6504aad (2834 chars)",
+  "topbarRails": "2 questions, sha256:e5e16291a5b033aa (189 chars)",
+  "topbarClock": "112 questions, sha256:c0683c638732eb2d (9485 chars)",
+  "topbarLook": "65 questions, sha256:521f82f9acaae246 (3983 chars)",
+  "layers": "15 questions, sha256:34be9bc05c82e41f (1019 chars)",
+  "sensorSources": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "gameIgnore": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "discordFavChannels": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "discordCollapsedGuilds": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "dashboardLayout": "160 questions, sha256:0e5df0bc5cd6f907 (8479 chars)",
+  "dashboardPresets": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "customThemes": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "ambientScenes": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "contentInstalls": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "browserTiles": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "browserFavorites": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "appFavorites": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "aiFeatures": "6 questions, sha256:2c4a016108094782 (1031 chars)",
+  "sensorHistory": "4 questions, sha256:de8cc08f4ecaf7db (257 chars)",
+  "gameSessions": "1 questions, sha256:f830ba8d37aac998 (85 chars)",
+  "perfHud": "20 questions, sha256:fea96d2044d089a8 (1841 chars)",
+  "fanLabels": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "proactive": "4 questions, sha256:3f0297c89b6707af (503 chars)",
+  "notifications": "7 questions, sha256:644b01103ddf2485 (742 chars)",
+  "vitals": "113 questions, sha256:1d08303f8198817c (9818 chars)",
+  "discordNotifications": "2 questions, sha256:62f6a154064b2c8a (211 chars)",
+  "windowsNotifications": "3 questions, sha256:c8fac25c0aa9689a (400 chars)",
+  "calls": "3 questions, sha256:9642adbc05d214c2 (396 chars)",
+  "phone": "3 questions, sha256:2b058139ab4deefc (309 chars)",
+  "wakeWord": "1 questions, sha256:4b0862b9916f52af (80 chars)",
+  "searchSettings": "6 questions, sha256:8ff472a9230b1dcb (1080 chars)",
+  "pageHotkeys": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "diskSettings": "3 questions, sha256:beac5c1e7c816953 (322 chars)",
+  "bgAurora": "7 questions, sha256:b5e27d88283ece91 (749 chars)",
+  "bgGrid": "10 questions, sha256:5403148c5eb05f5c (1019 chars)",
+  "bgStatic": "6 questions, sha256:14bb0a4e5600a325 (359 chars)",
+  "bgCustom": "10 questions, sha256:a442e6adfab2c83e (1029 chars)",
+  "slideshow": "14 questions, sha256:7a445e61c4bd6ef7 (1601 chars)",
+  "claudeWidget": "3 questions, sha256:e45bef454a7b3807 (406 chars)",
+  "codexWidget": "4 questions, sha256:5395bb081ada5d70 (397 chars)",
+  "chatgptWidget": "3 questions, sha256:1e5b72e59386ca27 (228 chars)",
+  "lighting": "68 questions, sha256:5237c5e8e165add0 (4872 chars)",
+  "calendarFeeds": "0 questions, sha256:e3b0c44298fc1c14 (0 chars)",
+  "stocks": "35 questions, sha256:16d0e07f1db7e533 (3294 chars)",
+  "football": "54 questions, sha256:270832734ef848e7 (5399 chars)",
+  "news": "34 questions, sha256:583b0ef5c26f6d0a (3620 chars)",
+  "claude": "12 questions, sha256:208b29c688d25d12 (1575 chars)",
+  "ticker": "10 questions, sha256:ba9f9e485613e241 (1316 chars)",
+  "homeAssistant": "9 questions, sha256:ee8f08a8980be277 (747 chars)",
+  "unifi": "31 questions, sha256:cfbe8ae3da16a7e4 (2566 chars)",
+  "chroma": "1 questions, sha256:9ade4a892cbf3c75 (78 chars)",
+  "signalrgb": "1 questions, sha256:a84247c9c764fe2f (81 chars)",
+  "wavelink": "4 questions, sha256:692aac0e8e6205b1 (324 chars)",
+  "remoteControl": "13 questions, sha256:b8a0511d25ee86be (1208 chars)",
+  "remoteAccess": "6 questions, sha256:116e12d954c5456f (597 chars)",
+  "fileTransfer": "15 questions, sha256:a34cc4011c19685f (2630 chars)",
+  "capture": "51 questions, sha256:c6b95e9fa5706cbf (3392 chars)",
+  "surfaceChoice": "10 questions, sha256:361f14d20037a220 (888 chars)",
+  "onboarding": "3 questions, sha256:d8365d4d5fc71396 (220 chars)"
+ },
+ "the settings of a person": {
+  "whole": [
+   "appearance=\"light\"",
+   "autoPalette=true",
+   "styleMode=\"retro\"",
+   "retroScanlines=false",
+   "accent=\"#12ab34\"",
+   "background=\"#101820\"",
+   "surface=\"#202830\"",
+   "text=\"#f0f0f0\"",
+   "panelAlpha=0.7",
+   "bgDim=0.4",
+   "bgBlur=6",
+   "uiRoundness=1.5",
+   "glassBlur=20",
+   "clockScale=1.4",
+   "clockDateFormat=\"short\"",
+   "weather=sha256:2919e301726c857b (348 chars)",
+   "tempUnit=\"f\"",
+   "hwTempUnit=\"c\"",
+   "mediaVisualizer=\"minimal\"",
+   "mediaLyrics=false",
+   "lyricsOffsetMs=300",
+   "lyricsTranslate=true",
+   "clockFormat=\"24\"",
+   "topbarStyle=\"minimal\"",
+   "topbarRailsAutoHide=false",
+   "topbarClock=sha256:7ade8d61a866bf19 (837 chars)",
+   "layers=sha256:2b4065cba8512255 (174 chars)",
+   "weekStart=\"sun\"",
+   "upcomingCount=8",
+   "upcomingDays=14",
+   "upcomingColumns=2",
+   "swipeNavigation=false",
+   "nativeZoom=1.25",
+   "hideOnRdp=true",
+   "versionPing=true",
+   "hubMessages=false",
+   "autoUpdate=false",
+   "catalogStats=true",
+   "usageStats=true",
+   "batteryAskDevices=false",
+   "whatsNewSeen=\"5.1.0\"",
+   "releaseNotesSeen=\"5.0.0\"",
+   "updateFailSeen=\"5.0.1\"",
+   "discordInviteSeen=true",
+   "firstRunDay=\"2026-01-05\"",
+   "lastUsageDay=\"2026-01-06\"",
+   "usageDays=12",
+   "supportAskSeen=true",
+   "supportAskSeenDay=\"2026-02-01\"",
+   "supportAppealYear=2026",
+   "shareNudgeSeen=true",
+   "discordFavChannels=[\"123456789012345678\",\"223456789012345678\"]",
+   "browserAdblock=true",
+   "dashboardLayout=sha256:de126a2192c55a4a (5426 chars)",
+   "geminiApiKey=\"rig-key-gemini\"",
+   "obsHost=\"192.0.2.10\"",
+   "obsPort=4466",
+   "obsPassword=\"rig-obs\"",
+   "obsAutoLaunch=false",
+   "streamerbotHost=\"192.0.2.11\"",
+   "streamerbotPort=65535",
+   "streamerbotPassword=\"rig-sb\"",
+   "browserFavorites=[{\"label\":\"\",\"url\":\"https://service.example/\"}]",
+   "appFavorites=[{\"key\":\"rig-notes\",\"app\":\"Rig Notes\",\"title\":\"Rig Notes\",\"icon\":\"\",\"path\":\"rig-notes.exe\"}]",
+   "aiProvider=\"ollama\"",
+   "ollamaModel=\"rig-model:1b\"",
+   "ollamaUrl=\"http://127.0.0.1:11434\"",
+   "localApiUrl=\"http://127.0.0.1:1234\"",
+   "localApiModel=\"rig-local\"",
+   "localApiKey=\"rig-key-local\"",
+   "localApiVision=true",
+   "openaiApiKey=\"rig-key-openai\"",
+   "anthropicApiKey=\"rig-key-anthropic\"",
+   "aiTtsEnabled=false",
+   "aiMicSensitivity=80",
+   "aiChatHidden=true",
+   "aiMemory=false",
+   "aiProReasoning=true",
+   "aiLiveVoice=true",
+   "aiEdgeGlow=\"second\"",
+   "aiFeatures={\"enabled\":true,\"genesis\":false,\"gameCompanion\":false,\"guardian\":false,\"ambient\":false,\"pcControl\":true}",
+   "fanLabels={\"mb|Fan #3\":\"Rig top fan\"}",
+   "vitals=sha256:5482d7dff4fea92a (863 chars)",
+   "claudeWidget={\"approvals\":true,\"questions\":true,\"topbar\":false}",
+   "chatgptWidget={\"model\":\"gpt-rig-1\"}",
+   "lighting=sha256:334c8b9dace2f941 (666 chars)",
+   "calendarFeeds=[{\"id\":\"rig-feed\",\"name\":\"Rig calendar\",\"url\":\"https://calendar.example/rig.ics\",\"color\":\"#1ed760\",\"reminders\":false,\"enabled\":true}]",
+   "stocks=sha256:703b684265ff5fdb (172 chars)",
+   "twelveDataKey=\"rig-key-twelve\"",
+   "finnhubKey=\"rig-key-finnhub\"",
+   "football={\"teams\":[{\"id\":\"900001\",\"name\":\"Rig United\",\"league\":\"Rig League\",\"leagueId\":\"9001\"}],\"refreshSec\":300,\"alerts\":true,\"tile\":{\"results\":true,\"standings\":true}}",
+   "sportsDbKey=\"rig-key-sports\"",
+   "news={\"feeds\":[{\"id\":\"rig\",\"type\":\"topic\",\"name\":\"Rig topic\",\"query\":\"rig\"}],\"refreshSec\":900,\"tile\":{\"images\":true}}",
+   "newsDataKey=\"rig-key-news\"",
+   "claude={\"plan\":\"custom\",\"weeklyTokenBudget\":123456,\"refreshSec\":60,\"tile\":{\"reactor\":true,\"projects\":true,\"cost\":true}}",
+   "homeAssistant={\"url\":\"http://192.0.2.20:8123\",\"token\":\"rig-token\",\"entities\":[],\"cameras\":[],\"energyEntities\":[],\"camAngles\":{},\"areaOrder\":[],\"tileView\":\"auto\"}",
+   "unifi=sha256:612d102c92b39441 (300 chars)",
+   "chroma={\"enabled\":true}",
+   "signalrgb={\"enabled\":true}",
+   "remoteControl=sha256:fb423d62e892cb8a (175 chars)",
+   "remoteAccess={\"enabled\":true,\"https\":true}",
+   "fileTransfer={\"enabled\":true,\"inboxDir\":\"\",\"autoDeliver\":true,\"maxFileMb\":2048,\"quotaMb\":8192,\"keepDays\":9,\"notifyPhone\":false}",
+   "capture=sha256:8a457bddb9cf6393 (325 chars)",
+   "surfaceChoice={\"kind\":\"both\",\"asked\":true,\"monitor\":\"Rig Screen\",\"label\":\"Rig\"}",
+   "gameMode=false",
+   "bgGuard=false",
+   "safeMode=true",
+   "performance={\"mode\":\"eco\",\"fps\":30}",
+   "contextProfiles={\"rules\":[{\"app\":\"rig.exe\",\"page\":2}]}",
+   "secondScreen={\"fps\":15}",
+   "sdkWidgets={\"enabled\":true,\"grants\":{\"rig.widget\":{\"streams\":[\"system\"],\"actions\":[],\"hosts\":[]}}}",
+   "rev=41",
+   "storeId=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+   "language=\"it\""
+  ],
+  "one key of them": {
+   "appearance": "appearance=\"light\"",
+   "autoPalette": "autoPalette=true",
+   "styleMode": "styleMode=\"retro\"",
+   "retroScanlines": "retroScanlines=false",
+   "accent": "accent=\"#12ab34\"",
+   "background": "background=\"#101820\"",
+   "surface": "surface=\"#202830\"",
+   "text": "text=\"#f0f0f0\"",
+   "panelAlpha": "panelAlpha=0.7",
+   "bgDim": "bgDim=0.4",
+   "bgBlur": "bgBlur=6",
+   "uiRoundness": "uiRoundness=1.5",
+   "glassBlur": "glassBlur=20",
+   "clockScale": "clockScale=1.4",
+   "clockDateFormat": "clockDateFormat=\"short\"",
+   "tempUnit": "tempUnit=\"f\"",
+   "hwTempUnit": "hwTempUnit=\"c\"",
+   "mediaVisualizer": "mediaVisualizer=\"minimal\"",
+   "mediaLyrics": "mediaLyrics=false",
+   "lyricsOffsetMs": "lyricsOffsetMs=300",
+   "lyricsTranslate": "lyricsTranslate=true",
+   "clockFormat": "clockFormat=\"24\"",
+   "topbarStyle": "topbarStyle=\"minimal\"",
+   "topbarRailsAutoHide": "topbarRailsAutoHide=false",
+   "weekStart": "weekStart=\"sun\"",
+   "upcomingCount": "upcomingCount=8",
+   "upcomingDays": "upcomingDays=14",
+   "upcomingColumns": "upcomingColumns=2",
+   "swipeNavigation": "swipeNavigation=false",
+   "nativeZoom": "nativeZoom=1.25",
+   "hideOnRdp": "hideOnRdp=true",
+   "versionPing": "versionPing=true",
+   "hubMessages": "hubMessages=false",
+   "autoUpdate": "autoUpdate=false",
+   "catalogStats": "catalogStats=true",
+   "usageStats": "usageStats=true",
+   "batteryAskDevices": "batteryAskDevices=false",
+   "whatsNewSeen": "whatsNewSeen=\"5.1.0\"",
+   "releaseNotesSeen": "releaseNotesSeen=\"5.0.0\"",
+   "updateFailSeen": "updateFailSeen=\"5.0.1\"",
+   "discordInviteSeen": "discordInviteSeen=true",
+   "firstRunDay": "firstRunDay=\"2026-01-05\"",
+   "lastUsageDay": "lastUsageDay=\"2026-01-06\"",
+   "usageDays": "usageDays=12",
+   "supportAskSeen": "supportAskSeen=true",
+   "supportAskSeenDay": "supportAskSeenDay=\"2026-02-01\"",
+   "supportAppealYear": "supportAppealYear=2026",
+   "shareNudgeSeen": "shareNudgeSeen=true",
+   "discordFavChannels": "discordFavChannels=[\"123456789012345678\",\"223456789012345678\"]",
+   "browserAdblock": "browserAdblock=true",
+   "dashboardLayoutVersion": "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)",
+   "dashboardLayout": "as with nothing stored",
+   "geminiApiKey": "geminiApiKey=\"rig-key-gemini\"",
+   "obsHost": "obsHost=\"192.0.2.10\"",
+   "obsPort": "obsPort=4466",
+   "obsPassword": "obsPassword=\"rig-obs\"",
+   "obsAutoLaunch": "obsAutoLaunch=false",
+   "streamerbotHost": "streamerbotHost=\"192.0.2.11\"",
+   "streamerbotPort": "streamerbotPort=65535",
+   "streamerbotPassword": "streamerbotPassword=\"rig-sb\"",
+   "browserFavorites": "browserFavorites=[{\"label\":\"\",\"url\":\"https://service.example/\"}]",
+   "appFavorites": "appFavorites=[{\"key\":\"rig-notes\",\"app\":\"Rig Notes\",\"title\":\"Rig Notes\",\"icon\":\"\",\"path\":\"rig-notes.exe\"}]",
+   "aiProvider": "aiProvider=\"ollama\"",
+   "ollamaModel": "ollamaModel=\"rig-model:1b\"",
+   "ollamaUrl": "ollamaUrl=\"http://127.0.0.1:11434\"",
+   "localApiUrl": "localApiUrl=\"http://127.0.0.1:1234\"",
+   "localApiModel": "localApiModel=\"rig-local\"",
+   "localApiKey": "localApiKey=\"rig-key-local\"",
+   "localApiVision": "localApiVision=true",
+   "openaiApiKey": "openaiApiKey=\"rig-key-openai\"",
+   "anthropicApiKey": "anthropicApiKey=\"rig-key-anthropic\"",
+   "aiTtsEnabled": "aiTtsEnabled=false",
+   "aiMicSensitivity": "aiMicSensitivity=80",
+   "aiChatHidden": "aiChatHidden=true",
+   "aiMemory": "aiMemory=false",
+   "aiProReasoning": "aiProReasoning=true",
+   "aiLiveVoice": "aiLiveVoice=true",
+   "aiEdgeGlow": "aiEdgeGlow=\"second\"",
+   "aiFeatures": "aiFeatures={\"enabled\":true,\"genesis\":false,\"gameCompanion\":false,\"guardian\":false,\"ambient\":false,\"pcControl\":true}",
+   "fanLabels": "fanLabels={\"mb|Fan #3\":\"Rig top fan\"}",
+   "vitals": "topbarClock=sha256:b4921a22888e5639 (838 chars) | vitals=sha256:5482d7dff4fea92a (863 chars)",
+   "claudeWidget": "topbarClock=sha256:d9495e545dd35842 (836 chars) | claudeWidget={\"approvals\":true,\"questions\":true,\"topbar\":false}",
+   "chatgptWidget": "chatgptWidget={\"model\":\"gpt-rig-1\"}",
+   "lighting": "lighting=sha256:334c8b9dace2f941 (666 chars)",
+   "calendarFeeds": "calendarFeeds=[{\"id\":\"rig-feed\",\"name\":\"Rig calendar\",\"url\":\"https://calendar.example/rig.ics\",\"color\":\"#1ed760\",\"reminders\":false,\"enabled\":true}]",
+   "stocks": "stocks=sha256:703b684265ff5fdb (172 chars)",
+   "twelveDataKey": "twelveDataKey=\"rig-key-twelve\"",
+   "finnhubKey": "finnhubKey=\"rig-key-finnhub\"",
+   "football": "football={\"teams\":[{\"id\":\"900001\",\"name\":\"Rig United\",\"league\":\"Rig League\",\"leagueId\":\"9001\"}],\"refreshSec\":300,\"alerts\":true,\"tile\":{\"results\":true,\"standings\":true}}",
+   "sportsDbKey": "sportsDbKey=\"rig-key-sports\"",
+   "news": "news={\"feeds\":[{\"id\":\"rig\",\"type\":\"topic\",\"name\":\"Rig topic\",\"query\":\"rig\"}],\"refreshSec\":900,\"tile\":{\"images\":true}}",
+   "newsDataKey": "newsDataKey=\"rig-key-news\"",
+   "claude": "claude={\"plan\":\"custom\",\"weeklyTokenBudget\":123456,\"refreshSec\":60,\"tile\":{\"reactor\":true,\"projects\":true,\"cost\":true}}",
+   "homeAssistant": "homeAssistant={\"url\":\"http://192.0.2.20:8123\",\"token\":\"rig-token\",\"entities\":[],\"cameras\":[],\"energyEntities\":[],\"camAngles\":{},\"areaOrder\":[],\"tileView\":\"auto\"}",
+   "unifi": "unifi=sha256:612d102c92b39441 (300 chars)",
+   "chroma": "chroma={\"enabled\":true}",
+   "signalrgb": "signalrgb={\"enabled\":true}",
+   "remoteControl": "remoteControl=sha256:fb423d62e892cb8a (175 chars)",
+   "remoteAccess": "remoteAccess={\"enabled\":true,\"https\":true}",
+   "fileTransfer": "fileTransfer={\"enabled\":true,\"inboxDir\":\"\",\"autoDeliver\":true,\"maxFileMb\":2048,\"quotaMb\":8192,\"keepDays\":9,\"notifyPhone\":false}",
+   "capture": "capture=sha256:8a457bddb9cf6393 (325 chars)",
+   "surfaceChoice": "surfaceChoice={\"kind\":\"both\",\"asked\":true,\"monitor\":\"Rig Screen\",\"label\":\"Rig\"}",
+   "gameMode": "gameMode=false",
+   "bgGuard": "bgGuard=false",
+   "safeMode": "safeMode=true",
+   "performance": "performance={\"mode\":\"eco\",\"fps\":30}",
+   "contextProfiles": "contextProfiles={\"rules\":[{\"app\":\"rig.exe\",\"page\":2}]}",
+   "secondScreen": "secondScreen={\"fps\":15}",
+   "sdkWidgets": "sdkWidgets={\"enabled\":true,\"grants\":{\"rig.widget\":{\"streams\":[\"system\"],\"actions\":[],\"hosts\":[]}}}",
+   "weather": "weather=sha256:2919e301726c857b (348 chars)",
+   "layers": "layers=sha256:2b4065cba8512255 (174 chars)",
+   "rev": "rev=41",
+   "storeId": "storeId=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+   "onboarding": "as with nothing stored",
+   "language": "news=sha256:28e01433a3aa1a35 (212 chars) | language=\"it\"",
+   "somethingUnknown": "as with nothing stored"
+  }
+ },
+ "the layout and its version": {
+  "no version, no layout": "as with nothing stored",
+  "no version, a layout of the user": "as with nothing stored",
+  "no version, a broken layout": "as with nothing stored",
+  "0, no layout": "as with nothing stored",
+  "0, a layout of the user": "as with nothing stored",
+  "0, a broken layout": "as with nothing stored",
+  "one before, no layout": "as with nothing stored",
+  "one before, a layout of the user": "as with nothing stored",
+  "one before, a broken layout": "as with nothing stored",
+  "current, no layout": "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)",
+  "current, a layout of the user": "dashboardLayout=sha256:de126a2192c55a4a (5426 chars)",
+  "current, a broken layout": "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)",
+  "one after, no layout": "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)",
+  "one after, a layout of the user": "dashboardLayout=sha256:de126a2192c55a4a (5426 chars)",
+  "one after, a broken layout": "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)",
+  "current as text, no layout": "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)",
+  "current as text, a layout of the user": "dashboardLayout=sha256:de126a2192c55a4a (5426 chars)",
+  "current as text, a broken layout": "dashboardLayout=sha256:df45c15146ef69d3 (5426 chars)",
+  "a word, no layout": "as with nothing stored",
+  "a word, a layout of the user": "as with nothing stored",
+  "a word, a broken layout": "as with nothing stored",
+  "null, no layout": "as with nothing stored",
+  "null, a layout of the user": "as with nothing stored",
+  "null, a broken layout": "as with nothing stored"
+ },
+ "keys read together": {
+  "the screen choice under its old name": "surfaceChoice={\"kind\":\"phone\",\"asked\":true,\"monitor\":\"Rig Screen\",\"label\":\"Rig\"}",
+  "the old name next to the new one": "surfaceChoice={\"kind\":\"screen\",\"asked\":false,\"monitor\":\"\",\"label\":\"\"}",
+  "a colour under the old name stays a colour": "surface=\"#202830\" | surfaceChoice={\"kind\":\"both\",\"asked\":false,\"monitor\":\"\",\"label\":\"\"}",
+  "automatic appearance without a palette choice": "appearance=\"auto\" | autoPalette=true",
+  "automatic appearance with the palette switched off": "appearance=\"auto\"",
+  "the language of a first news list": "news=sha256:28e01433a3aa1a35 (212 chars) | language=\"it\"",
+  "a language with a stored news list": "news={\"feeds\":[{\"id\":\"rig\",\"type\":\"topic\",\"name\":\"Rig topic\",\"query\":\"rig\"}],\"refreshSec\":600,\"tile\":{\"images\":true}} | language=\"it\"",
+  "the bar items a widget hid": "topbarClock=sha256:7ade8d61a866bf19 (837 chars) | vitals=sha256:bf43c428eced044e (840 chars) | claudeWidget={\"approvals\":true,\"questions\":true,\"topbar\":false}",
+  "a key the settings do not have": "as with nothing stored"
+ }
+}
