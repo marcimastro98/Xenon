@@ -88,7 +88,7 @@ test('at most 32 buttons are kept', () => {
 test('the dashboard and the server read the same rules', () => {
   assert.match(SETTINGS, /topbarLook: TopbarLook\.normalize\(value\.topbarLook\),/);
   assert.match(SETTINGS, /topbarLook: TopbarLook\.normalize\(null\),/);
-  assert.match(SERVER, /const TopbarLook = require\('\.\/js\/topbar-look\.js'\);/);
+  assert.match(SERVER, /const TopbarLook = require\('\.\.?\/js\/topbar-look\.js'\);/);
   assert.match(SERVER, /topbarLook: TopbarLook\.normalize\(source\.topbarLook\),/);
   assert.match(SERVER, /topbarLook: TopbarLook\.DEFAULTS,/);
   // Loaded before settings.js, whose defaults are built at load time.

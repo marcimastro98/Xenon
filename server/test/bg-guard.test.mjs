@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { createGuard, guardStep, LIMITS, LEVEL_FPS, LEVEL_RES, LEVEL_STILL } = require('../js/bg-guard.js');
 const { buildSrcdoc } = require('../js/custom-bg.js');
@@ -163,8 +164,10 @@ test('with the guard off, a heavy background is left alone', () => {
 // The bgGuard line of each normalizer, read from the shipped source and run
 // against the same inputs: both must keep an explicit off, and default to on.
 function ruleFrom(file, param) {
-  const src = readFileSync(new URL(file, import.meta.url), 'utf8');
-  const m = /^\s*bgGuard: (.+),\s*$/m.exec(src);
+  // The engine's line is in the module its settings check moved to. The line wanted is the one
+  // that reads the stored value, not the value a new install starts with.
+  const src = file === '../server.js' ? engineSource() : readFileSync(new URL(file, import.meta.url), 'utf8');
+  const m = new RegExp(String.raw`^\s*bgGuard: (.*\b${param}\.bgGuard\b.*),\s*$`, 'm').exec(src);
   assert.ok(m, 'no bgGuard line in ' + file);
   return new Function(param, 'return ' + m[1] + ';');
 }

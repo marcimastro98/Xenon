@@ -13,6 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const SRC = readFileSync(new URL('../js/calendar.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -66,7 +67,7 @@ test('the widget actually applies both, and the settings carry them', () => {
   assert.match(body, /at < until/, 'and the horizon actually filters');
 
   for (const file of ['../js/settings.js', '../server.js']) {
-    const src = readFileSync(new URL(file, import.meta.url), 'utf8');
+    const src = file === '../server.js' ? engineSource() : readFileSync(new URL(file, import.meta.url), 'utf8');
     assert.match(src, /upcomingCount/, file + ' does not normalize upcomingCount');
     assert.match(src, /upcomingDays/, file + ' does not normalize upcomingDays');
   }

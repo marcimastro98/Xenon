@@ -65,7 +65,7 @@ test('semantic theme roles are carried by client, server and preset persistence'
 // than growing a second copy of the rules that can drift.
 test('paletteVariants is carried by client, server and preset persistence', () => {
   for (const parts of [['js', 'settings.js'], ['js', 'preset-share.js'], ['server.js']]) {
-    assert.match(read(...parts), /\bpaletteVariants\b/, parts.join('/'));
+    assert.match(parts[0] === 'server.js' ? engineSource() : read(...parts), /\bpaletteVariants\b/, parts.join('/'));
   }
   assert.match(read('js', 'settings.js'), /ThemePalette\.normalizeVariants/);
   assert.match(engineSource(), /themePalette\.normalizeVariants/);
