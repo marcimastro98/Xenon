@@ -1,22 +1,15 @@
 'use strict';
 
-const os = require('node:os');
 const defaultRunner = require('./runner');
 require('./service');
-
-// The account the server runs as, which is the one that needs to be able to
-// drive tailscaled. Sanitised to the shell-safe shape a username has anyway,
-// because this value is interpolated into an elevated command line; anything
-// unexpected yields '' and the operator step is simply skipped.
-function currentUser() {
-  let name = '';
-  try { name = os.userInfo().username || ''; } catch { name = process.env.USER || ''; }
-  return /^[A-Za-z0-9._-]+$/.test(name) ? name : '';
-}
 
 const {
   WIN_SERVICES, PACKAGES, LINUX_PM, LINUX_PACKAGES, MAC_PACKAGES,
 } = require('./installer-packages.js');
+
+const { makeInstallSteps } = require('./installer-steps.js');
+
+const { makeSunshineSteps } = require('./installer-sunshine.js');
 
 function createInstaller({ runner = defaultRunner, platform = process.platform } = {}) {
   // Every platform has an honest counterpart to winget, and the earlier port was
@@ -143,163 +136,13 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
     return result;
   }
 
-  function manual(why) {
-    return { code: 1, stdout: '', stderr: why, reason: 'manual_install_required' };
-  }
+  const {
+    manual, installWin, installMac, installLinux,
+  } = makeInstallSteps({ runner, which, linuxPm, flatpakReady });
 
-  function installWin(id) {
-    return runner.runElevated('winget', [
-      'install', '-e', '--id', id,
-      '--silent', '--accept-package-agreements', '--accept-source-agreements',
-    ]);
-  }
-
-  async function installMac(name) {
-    const spec = MAC_PACKAGES[name];
-    if (!spec || !(await which('brew'))) return manual('Homebrew is not installed');
-
-    // Sunshine is not in homebrew-core; it lives in LizardByte's own tap, and
-    // `brew install` on an untapped formula fails with "No available formula".
-    // Tapping twice is harmless.
-    if (spec.tap) await runner.run('brew', ['tap', spec.tap], { timeoutMs: 5 * 60 * 1000 });
-
-    // Deliberately NOT elevated: brew refuses to run under sudo, and on a Mac
-    // it owns its own prefix, so there is nothing to elevate for.
-    const r = await runner.run('brew',
-      ['install', ...(spec.cask ? ['--cask'] : []), spec.brew],
-      { timeoutMs: 15 * 60 * 1000 });
-    if (r.code !== 0) return r;
-
-    // The daemon is the exception. Installing a LaunchDaemon writes outside the
-    // brew prefix, so this — and only this — raises the admin dialog. Its
-    // failure is not the install's failure: the package is there either way,
-    // and the setup re-probes.
-    //
-    // NOT elevated any more, on purpose. Homebrew's prefix (/opt/homebrew) is
-    // owned by the user, so running `brew` as root means root executes Ruby and
-    // binaries that any program running as the user could have rewritten — a
-    // local privilege escalation dressed up as a password prompt (and brew
-    // itself refuses to run as root for the same reason). runner.runElevated
-    // now refuses user-owned binaries outright. So the service is started as
-    // the user; if tailscaled needs root on this Mac, the panel re-probes and
-    // the user gets the documented `sudo brew services start` hint instead.
-    if (spec.service) {
-      const sr = await runner.run('brew', ['services', 'start', spec.brew], { timeoutMs: 5 * 60 * 1000 })
-        .catch(() => null);
-      if (!sr || sr.code !== 0) {
-        return { ...r, serviceHint: `sudo brew services start ${spec.brew}` };
-      }
-    }
-    return r;
-  }
-
-  async function installLinux(name) {
-    const spec = LINUX_PACKAGES[name];
-    if (!spec) return manual('no Linux recipe for this package');
-
-    // Flatpak first where it exists: it is the project's own build and the only
-    // route that does not modify the system. Unless the caller needs a package
-    // that can see the host filesystem — see `preferNative` above.
-    if (!spec.preferNative && await flatpakReady(name)) {
-      const r = await runner.run('flatpak',
-        ['install', '-y', '--noninteractive', 'flathub', spec.flatpak],
-        { timeoutMs: 15 * 60 * 1000 });
-      if (r.code === 0) return r;
-      // Fall through to the distribution package rather than give up: a filtered
-      // Flathub remote can carry the app in search and still refuse the install.
-    }
-
-    if (!(await which('pkexec'))) return manual('pkexec is not available');
-    const pm = await linuxPm();
-    if (!pm) return manual('no supported package manager found');
-
-    // ONE elevation for every step. Split up, the user authenticates three times
-    // for what they experienced as a single button; and a daemon left disabled,
-    // or a user left without the operator grant, both read as a broken feature
-    // right after an install that reported success.
-    //
-    // `post` is joined with `;` and not `&&` on purpose: it is follow-up
-    // configuration, so a failure there must not make the install itself report
-    // failure — the package IS installed, and the setup re-probes anyway.
-    const parts = [LINUX_PM[pm](spec.pkg).join(' ')];
-    if (spec.service) parts.push(`systemctl enable --now ${spec.service}`);
-    // A step whose substitution came up empty is dropped, not run blank:
-    // `tailscale set --operator=` would clear the grant rather than give it.
-    const user = currentUser();
-    const post = (spec.post || [])
-      .filter((p) => !p.includes('%USER%') || user)
-      .map((p) => `; ${p.replace('%USER%', user)}`);
-    const cmd = parts.join(' && ') + post.join('');
-    return runner.runElevated('sh', ['-c', cmd], { timeoutMs: 15 * 60 * 1000 });
-  }
-
-  // ── Sunshine must be patched before remote control is switched on ─────────
-  // CVE-2026-32253 (critical: the web UI / pairing certificate check could be
-  // bypassed) and the September 2026 advisories are fixed in v2026.914.233613.
-  // An older Sunshine is a remotely reachable desktop-control service with a
-  // known bypass, so enabling remote control on top of one is refused.
-  //
-  // Version sources, in order of reliability: the package manager that
-  // installed it (winget / brew / flatpak), then the binary itself —
-  // `sunshine --version` logs "Sunshine version: vX.Y.Z" at startup and exits.
-  async function sunshineVersion() {
-    const pick = (text, re) => {
-      const m = String(text || '').match(re);
-      return m ? m[1] : '';
-    };
-    const VER = '(\\d+\\.\\d+\\.\\d+)';
-    let v = '';
-    if (isWin) {
-      const r = await runner.run('winget', ['list', '-e', '--id', PACKAGES.sunshine]).catch(() => null);
-      if (r && r.code === 0) v = pick(r.stdout, new RegExp('LizardByte\\.Sunshine\\s+v?' + VER, 'i'));
-      if (!v) {
-        const b = await runner.run('C:\\Program Files\\Sunshine\\sunshine.exe', ['--version'], { timeoutMs: 15000 }).catch(() => null);
-        if (b) v = pick(`${b.stdout}\n${b.stderr}`, new RegExp('version:?\\s*v?' + VER, 'i'));
-      }
-      return v;
-    }
-    if (isMac) {
-      if (await which('brew')) {
-        const r = await runner.run('brew', ['list', '--versions', 'sunshine']).catch(() => null);
-        if (r && r.code === 0) v = pick(r.stdout, new RegExp('^sunshine\\s+v?' + VER, 'im'));
-      }
-    } else if (LINUX_PACKAGES.sunshine.flatpak && await which('flatpak')) {
-      const r = await runner.run('flatpak', ['info', LINUX_PACKAGES.sunshine.flatpak]).catch(() => null);
-      if (r && r.code === 0) v = pick(r.stdout, new RegExp('^\\s*Version:\\s*v?' + VER, 'im'));
-    }
-    if (!v) {
-      const bin = await which('sunshine');
-      if (bin) {
-        const b = await runner.run(bin, ['--version'], { timeoutMs: 15000 }).catch(() => null);
-        if (b) v = pick(`${b.stdout}\n${b.stderr}`, new RegExp('version:?\\s*v?' + VER, 'i'));
-      }
-    }
-    return v;
-  }
-
-  // Upgrade through whichever route installed it. A hand-installed native
-  // package on Linux has no route we can drive, so it is left to the user.
-  async function upgradeSunshine() {
-    if (isWin) {
-      return runner.runElevated('winget', [
-        'upgrade', '-e', '--id', PACKAGES.sunshine,
-        '--silent', '--accept-package-agreements', '--accept-source-agreements',
-      ]);
-    }
-    if (isMac) {
-      if (!(await which('brew'))) return manual('Homebrew is not installed');
-      // As the user, never elevated: see installMac.
-      return runner.run('brew', ['upgrade', 'sunshine'], { timeoutMs: 15 * 60 * 1000 });
-    }
-    const fp = LINUX_PACKAGES.sunshine.flatpak;
-    if (fp && await which('flatpak')) {
-      const info = await runner.run('flatpak', ['info', fp]).catch(() => null);
-      if (info && info.code === 0) {
-        return runner.run('flatpak', ['update', '-y', '--noninteractive', fp], { timeoutMs: 15 * 60 * 1000 });
-      }
-    }
-    return manual('Sunshine was not installed through a package manager Xenon can update');
-  }
+  const {
+    sunshineVersion, upgradeSunshine,
+  } = makeSunshineSteps({ runner, isWin, isMac, which, manual });
 
   /**
    * Resolve { ok: true, version } when Sunshine is absent or at least

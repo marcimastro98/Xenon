@@ -561,7 +561,10 @@
     ],
     "server/remote-control/installer.js": [
       {"file":"server/remote-control/installer-packages.js","about":"Which package gives Sunshine and Tailscale on Windows, on each Linux package manager and on macOS, and the Windows services they install.","names":["WIN_SERVICES","PACKAGES","LINUX_PM","LINUX_PACKAGES","MAC_PACKAGES"]},
-      {"file":"server/remote-control/installer-version.js","about":"The oldest Sunshine that remote control works with, and how two version numbers are compared.","names":["SUNSHINE_MIN_VERSION","parseVersion","versionLess"]}
+      {"file":"server/remote-control/installer-version.js","about":"The oldest Sunshine that remote control works with, and how two version numbers are compared.","names":["SUNSHINE_MIN_VERSION","parseVersion","versionLess"]},
+      {"file":"server/remote-control/installer-user.js","about":"The account the server runs as, in the shell-safe shape a user name has, or nothing.","names":["currentUser"]},
+      {"file":"server/remote-control/installer-steps.js","about":"How a package is installed on each system: winget on Windows, Homebrew on macOS, and flatpak or the distribution's package manager on Linux.","names":["manual","installWin","installMac","installLinux"],"inner":{"factory":"createInstaller","make":"makeInstallSteps"}},
+      {"file":"server/remote-control/installer-sunshine.js","about":"How the version of the installed Sunshine is read on each system, and how an old one is upgraded with the package manager that installed it.","names":["sunshineVersion","upgradeSunshine"],"inner":{"factory":"createInstaller","make":"makeSunshineSteps"}}
     ],
     "server/remote-control/tailscale.js": [
       {"file":"server/remote-control/tailscale-status.js","about":"Reads what the Tailscale program says: the status of this PC on its network, its name there, a sign-in link, whether certificates are on, and whether an error means a missing right.","names":["PERMISSION_RE","isPermissionError","DNS_NAME_RE","NO_BACKEND","normalizeDnsName","parseStatus","AUTH_URL_RE","safeAuthUrl","certsEnabledFor"]},
