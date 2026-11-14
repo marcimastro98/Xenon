@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 187,
+  "count": 186,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -28,7 +28,6 @@
     "server/auto-update.js": 396,
     "server/claude-bridge.js": 1363,
     "server/claude-link.js": 461,
-    "server/claude-run.js": 404,
     "server/codex-appserver.js": 370,
     "server/codex-link.js": 355,
     "server/components/DashboardGrid/DashboardGrid.css": 990,

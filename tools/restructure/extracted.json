@@ -335,7 +335,10 @@
       {"file":"server/claude-code/run-project-folder.js","about":"Finds the folder a Claude Code project works in, read from the start of its newest transcript, and says whether a path is a folder.","names":["HEAD_BYTES","readCwdFromTranscript","newestTranscript","isDir"]},
       {"file":"server/claude-code/run-caches.js","about":"The two answers the Claude Code runner works out once and remembers: where the program is, and which options it accepts.","names":["execCache","optionsCache"],"state":{"object":"runCaches","props":{"execCache":"exec","optionsCache":"options"},"kept":[],"bare":[]}},
       {"file":"server/claude-code/run-executable.js","about":"Finds the Claude Code program on this computer without a shell, and reads from its own --help which options it accepts.","names":["HELP_TIMEOUT_MS","RUN_MODES","isFile","whichRaw","resolveExecutable","helpText","parseOptions","cliOptions"]},
-      {"file":"server/claude-code/run-text.js","about":"The text the Claude Code runner takes in and shows: control characters stripped and a length kept, the short id of a project folder, and the one line that says what a tool call touches.","names":["MAX_DETAIL","str","projectId","toolDetail"]}
+      {"file":"server/claude-code/run-text.js","about":"The text the Claude Code runner takes in and shows: control characters stripped and a length kept, the short id of a project folder, and the one line that says what a tool call touches.","names":["MAX_DETAIL","str","projectId","toolDetail"]},
+      {"file":"server/claude-code/run-limits.js","about":"How much a run started from the dashboard may take: prompt, output, projects, folders, time and the efforts a run can ask for.","names":["MAX_PROMPT","MAX_RUNS","MAX_OUTPUT_CHARS","MAX_PROJECTS","MAX_FOLDERS","MAX_FOLDER_PATH","RUN_TTL_MS","PROJECT_TTL_MS","START_TIMEOUT_MS","MAX_ACTIVITY","EFFORTS"]},
+      {"file":"server/claude-code/run-projects.js","about":"Where a run may start: the projects Claude Code already worked in, read from its transcripts, and the folders added by hand.","names":["loadFolders","addFolder","listProjects"],"inner":{"factory":"createRunner","make":"makeProjects"}},
+      {"file":"server/claude-code/run-events.js","about":"What a run's stream of events leaves in its record: the text said, the session, the cost and the tool calls with how they ended.","names":["appendOut","consumeEvent","toolStarted","toolEnded"],"inner":{"factory":"createRunner","make":"makeEvents"}}
     ],
     "server/linux-collectors.js": [
       {"file":"server/platform/linux-read.js","about":"The small tools every Linux reader uses: run a command, read a text file, split lines, tell a number, do several things a few at a time.","names":["run","isNum","splitLines","mapLimit","readText"]},
@@ -799,6 +802,9 @@
       {"factory":"createDiskSpace","object":"lastScan","names":["lastSummary","summaryLoaded"],"kept":[],"bare":[],"after":0},
       {"factory":"createDiskSpace","object":"cleanRuns","names":["jobSeq"],"kept":[],"bare":[],"after":0},
       {"factory":"createDiskSpace","object":"saved","names":["snapshots","history","persistTimer"],"kept":[],"bare":[],"after":0}
+    ],
+    "server/claude-run.js": [
+      {"factory":"createRunner","object":"held","names":["extraFolders","seq","projectCache","emitScheduled"],"kept":[],"bare":[],"after":4}
     ]
   }
 }

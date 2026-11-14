@@ -25,27 +25,14 @@
 //
 // Runs are in-memory and per-boot, like the bridge. Nothing here writes to disk.
 
-const path = require('path');
-const fsp = require('fs').promises;
 const { spawn } = require('child_process');
-const { writeFileAtomic } = require('./atomic-write');
+require('./atomic-write');
 
-const MAX_PROMPT = 4000;          // one touchscreen dictation, generously
-const MAX_RUNS = 2;               // concurrent; the quota is shared and finite
-const MAX_OUTPUT_CHARS = 24000;   // per run, oldest text dropped first
-const MAX_PROJECTS = 40;
-const MAX_FOLDERS = 20;           // folders the user added by hand
-const MAX_FOLDER_PATH = 500;
-const RUN_TTL_MS = 30 * 60 * 1000;
-const PROJECT_TTL_MS = 60 * 1000; // project list cache
 const {
-  readCwdFromTranscript, newestTranscript, isDir,
-} = require('./claude-code/run-project-folder.js');
-const START_TIMEOUT_MS = 20 * 60 * 1000;
-const MAX_ACTIVITY = 6;           // tool calls kept per run
+  MAX_PROMPT, MAX_RUNS, MAX_OUTPUT_CHARS, RUN_TTL_MS, START_TIMEOUT_MS, EFFORTS,
+} = require('./claude-code/run-limits.js');
+const { readCwdFromTranscript } = require('./claude-code/run-project-folder.js');
 const { str, projectId, toolDetail } = require('./claude-code/run-text.js');
-
-const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 const { runCaches } = require('./claude-code/run-caches.js');
 
@@ -53,97 +40,32 @@ const {
   RUN_MODES, whichRaw, resolveExecutable, parseOptions, cliOptions,
 } = require('./claude-code/run-executable.js');
 
+const { makeProjects } = require('./claude-code/run-projects.js');
+
+const { makeEvents } = require('./claude-code/run-events.js');
+
 function createRunner(opts) {
   const o = opts || {};
   const now = typeof o.now === 'function' ? o.now : () => Date.now();
   const onChange = typeof o.onChange === 'function' ? o.onChange : () => {};
   const projectsDirOf = typeof o.projectsDir === 'function' ? o.projectsDir : () => '';
   const foldersFile = typeof o.foldersFile === 'string' ? o.foldersFile : '';
-  let extraFolders = null;    // [{ path, at }] added by hand, loaded on first use
+  const held = {
+    extraFolders: null,    // [{ path, at }] added by hand, loaded on first use
+    seq: 0,
+    projectCache: { at: 0, list: [] },
+    emitScheduled: false,
+  };
 
   const runs = new Map();     // id -> record
-  let seq = 0;
-  let projectCache = { at: 0, list: [] };
-  let emitScheduled = false;
 
   function emit() {
-    if (emitScheduled) return;
-    emitScheduled = true;
-    setImmediate(() => { emitScheduled = false; try { onChange(); } catch { /* never let a listener break a run */ } });
+    if (held.emitScheduled) return;
+    held.emitScheduled = true;
+    setImmediate(() => { held.emitScheduled = false; try { onChange(); } catch { /* never let a listener break a run */ } });
   }
 
-  async function loadFolders() {
-    if (extraFolders) return extraFolders;
-    extraFolders = [];
-    if (!foldersFile) return extraFolders;
-    try {
-      const raw = JSON.parse(await fsp.readFile(foldersFile, 'utf8'));
-      for (const f of Array.isArray(raw) ? raw : []) {
-        if (f && typeof f.path === 'string' && path.isAbsolute(f.path)) {
-          extraFolders.push({ path: f.path, at: Number(f.at) || 0 });
-        }
-      }
-    } catch { /* no file yet, or unreadable: start with none */ }
-    extraFolders = extraFolders.slice(-MAX_FOLDERS);
-    return extraFolders;
-  }
-
-  // A folder the user typed in: kept only if it is an absolute path to a real
-  // directory that is not a filesystem root. Returns the project it becomes.
-  async function addFolder(raw) {
-    const text = str(raw, MAX_FOLDER_PATH).replace(/^"(.*)"$/, '$1');
-    if (!text || !path.isAbsolute(text)) return { ok: false, error: 'bad_folder' };
-    const dir = path.resolve(text);
-    if (path.parse(dir).root === dir) return { ok: false, error: 'bad_folder' };
-    if (!(await isDir(dir))) return { ok: false, error: 'folder_missing' };
-    const list = await loadFolders();
-    const key = dir.toLowerCase();
-    const rest = list.filter(f => f.path.toLowerCase() !== key);
-    extraFolders = rest.concat([{ path: dir, at: now() }]).slice(-MAX_FOLDERS);
-    if (foldersFile) {
-      try { await writeFileAtomic(foldersFile, JSON.stringify(extraFolders)); }
-      catch { return { ok: false, error: 'save_failed' }; }
-    }
-    projectCache = { at: 0, list: [] };
-    return { ok: true, id: projectId(dir), name: path.basename(dir) || dir, path: dir };
-  }
-
-  async function listProjects(force) {
-    const t = now();
-    if (!force && projectCache.list.length && (t - projectCache.at) < PROJECT_TTL_MS) return projectCache.list;
-
-    const root = projectsDirOf();
-    const out = [];
-    if (root) {
-      let entries = [];
-      try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { entries = []; }
-      const dirs = entries.filter(e => e.isDirectory()).slice(0, MAX_PROJECTS * 3);
-      const seen = new Set();
-      for (const ent of dirs) {
-        const transcript = await newestTranscript(path.join(root, ent.name));
-        if (!transcript) continue;
-        const cwd = await readCwdFromTranscript(transcript);
-        if (!cwd) continue;
-        const key = cwd.toLowerCase();
-        if (seen.has(key)) continue;
-        if (!(await isDir(cwd))) continue;      // moved or deleted → not offerable
-        seen.add(key);
-        let lastAt = 0;
-        try { lastAt = (await fsp.stat(transcript)).mtimeMs; } catch { /* keep 0 */ }
-        out.push({ id: projectId(cwd), name: path.basename(cwd) || cwd, path: cwd, lastAt });
-        if (out.length >= MAX_PROJECTS) break;
-      }
-    }
-    const seenPaths = new Set(out.map(p => p.path.toLowerCase()));
-    for (const f of await loadFolders()) {
-      if (seenPaths.has(f.path.toLowerCase()) || !(await isDir(f.path))) continue;
-      seenPaths.add(f.path.toLowerCase());
-      out.push({ id: projectId(f.path), name: path.basename(f.path) || f.path, path: f.path, lastAt: f.at });
-    }
-    out.sort((a, b) => b.lastAt - a.lastAt);     // most recently worked in first
-    projectCache = { at: t, list: out };
-    return out;
-  }
+  const { addFolder, listProjects } = makeProjects({ now, projectsDirOf, foldersFile, held });
 
   function activeCount() {
     let n = 0;
@@ -151,59 +73,7 @@ function createRunner(opts) {
     return n;
   }
 
-  function appendOut(rec, text) {
-    if (!text) return;
-    rec.output += text;
-    if (rec.output.length > MAX_OUTPUT_CHARS) rec.output = rec.output.slice(-MAX_OUTPUT_CHARS);
-  }
-
-  // Best-effort reading of the stream-json event feed. The shapes are Claude
-  // Code's, not ours, so anything unrecognised is ignored rather than guessed
-  // at — except the final `result`, which is the authoritative answer and is
-  // what the tile shows if nothing else parsed.
-  function consumeEvent(rec, ev) {
-    if (!ev || typeof ev !== 'object') return;
-    if (ev.type === 'system' && ev.subtype === 'init' && typeof ev.session_id === 'string') {
-      rec.sessionId = str(ev.session_id, 80);
-      return;
-    }
-    if (ev.type === 'assistant' && ev.message && Array.isArray(ev.message.content)) {
-      for (const block of ev.message.content) {
-        if (block && block.type === 'text' && typeof block.text === 'string') appendOut(rec, block.text);
-        if (block && block.type === 'tool_use') toolStarted(rec, block);
-      }
-      return;
-    }
-    if (ev.type === 'user' && ev.message && Array.isArray(ev.message.content)) {
-      for (const block of ev.message.content) {
-        if (block && block.type === 'tool_result') toolEnded(rec, block);
-      }
-      return;
-    }
-    if (ev.type === 'result') {
-      if (typeof ev.session_id === 'string') rec.sessionId = str(ev.session_id, 80);
-      if (typeof ev.result === 'string' && ev.result.trim()) { rec.output = ''; appendOut(rec, ev.result); }
-      if (typeof ev.total_cost_usd === 'number') rec.costUsd = ev.total_cost_usd;
-      if (ev.is_error === true) rec.error = rec.error || 'run_error';
-    }
-  }
-
-  // The tool log the console shows for a run, the same shape as a live
-  // session's `activity`: { tool, detail, ok, ms }. Keyed by the tool_use id so
-  // a block seen twice is one call.
-  function toolStarted(rec, block) {
-    const id = str(block.id, 80);
-    if (id && rec.activity.some((a) => a.id === id)) return;
-    rec.activity.push({ id, tool: str(block.name, 80) || 'tool', detail: toolDetail(block.input), ok: null, ms: 0, at: now() });
-    if (rec.activity.length > MAX_ACTIVITY) rec.activity.shift();
-  }
-
-  function toolEnded(rec, block) {
-    const a = rec.activity.find((x) => x.id && x.id === block.tool_use_id);
-    if (!a || a.ok !== null) return;
-    a.ok = block.is_error !== true;
-    a.ms = Math.max(0, now() - a.at);
-  }
+  const { consumeEvent } = makeEvents({ now });
 
   function settle(rec, state, error) {
     if (rec.state !== 'running') return;
@@ -264,7 +134,7 @@ function createRunner(opts) {
       return { ok: false, error: 'spawn_failed' };
     }
 
-    const id = 'r' + (++seq) + '-' + now().toString(36);
+    const id = 'r' + (++held.seq) + '-' + now().toString(36);
     const rec = {
       id,
       projectId: proj.id,
