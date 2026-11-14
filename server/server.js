@@ -16,7 +16,6 @@ const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
-const crypto = require('crypto');
 const path = require('path');
 // Files the server creates are the user's alone on Linux and macOS (settings
 // with API keys, tokens, recordings, exports): a umask of 022 would make them
@@ -70,7 +69,7 @@ const TileMaterial = require('./js/tile-material.js'); // the materials style_ti
 const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 const SettingsAi = require('./settings-ai'); // change_setting: the allowlisted Settings switches
-const TileSettings = require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
+require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
 const VitalsState = require('./vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
 const CaptureCovers = require('./capture-covers');
 const { createCaptureTranscripts } = require('./capture-transcripts');
@@ -101,20 +100,9 @@ const {
   DASHBOARD_WIDGET_IDS, DASHBOARD_GRID_COLUMNS, DASHBOARD_LAYOUT_VERSION, DEFAULT_DASHBOARD_LAYOUT,
 } = require('./grid/layout-defaults.js');
 
-const { clampNumber, normalizeHex } = require('./settings/values.js');
-
-const { normalizeTopbarRails, normalizeTopbarClock } = require('./topbar/settings-normalize.js');
-
 const { normalizeMedia } = require('./media/normalize.js');
 
-const {
-  normalizeNotifications, normalizeDiscordNotifications, normalizeWindowsNotifications,
-  normalizeCalls, normalizePhone,
-} = require('./settings/normalize-notifications.js');
-
-const {
-  normalizeServerBrowserTiles, normalizeServerBrowserFavorites, normalizeServerAppFavorites,
-} = require('./settings/normalize-favorites.js');
+const { normalizeNotifications } = require('./settings/normalize-notifications.js');
 
 const { readPwshJson, parseJsonOutput } = require('./powershell/read-json.js');
 
@@ -131,51 +119,11 @@ const { SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
 
 const { findFirstFile } = require('./ffmpeg-install/lookup.js');
 
-const { SETTINGS_STORE_ID_RE, _SETTINGS_READ_BUSY } = require('./settings/store-file.js');
-
-const {
-  sanitizeDashboardPresets, SDK_WIDGETS_SETTINGS_MAX, sanitizeServerPassthrough,
-} = require('./settings/normalize-passthrough.js');
-
-const { normalizeSurfaceChoice, surfaceChoiceFrom } = require('./settings/normalize-surface.js');
-
-const { DAY_RE, localDay } = require('./settings/usage-day.js');
-
-const {
-  normalizeServerAiFeatures, normalizeProactive, normalizeWakeWord,
-} = require('./ai/settings-normalize.js');
-
-const { SETTINGS_MIN_PANEL_ALPHA } = require('./look/background-values.js');
-
-const { sanitizeSettingsUiFont } = require('./look/font-setting.js');
-
-const { normalizeSearchSettings } = require('./search/settings-normalize.js');
-
-const { normalizePageHotkeys } = require('./grid/page-hotkeys-normalize.js');
-
-const { normalizeDiskSettings } = require('./disk/settings-normalize.js');
-
-const { normalizeTicker } = require('./ticker/settings-normalize.js');
-
-const { WL_OFF_STATE, normalizeWaveLinkSettings } = require('./audio/wavelink-values.js');
-
-const { normalizeSnowflakeList } = require('./discord/snowflake-list.js');
-
-const { normalizeSensorRate, normalizeServerFanLabels } = require('./system/settings-normalize.js');
-
-const { normalizeServerOnboarding } = require('./first-run/settings-normalize.js');
-
-const { normalizeGameSessionsSetting } = require('./performance/settings-normalize.js');
-
-const { normalizeClaudeWidget } = require('./claude-code/settings-normalize.js');
-
-const { normalizeCodexWidget } = require('./codex/settings-normalize.js');
+const { WL_OFF_STATE } = require('./audio/wavelink-values.js');
 
 const { WEATHER_LANGS } = require('./weather/setting-values.js');
 
-const { cloneDashboardLayout } = require('./grid/layout-normalize-parts.js');
-
-const { CALENDAR_FEED_PALETTE, normalizeEvents } = require('./time/events-normalize.js');
+const { normalizeEvents } = require('./time/events-normalize.js');
 
 const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/timer-values.js');
 
@@ -463,7 +411,7 @@ const deckStore = require('./js/deck-store'); // pure per-instance Deck merge he
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
 require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
-const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
+require('./slideshow-folder');          // the slideshow's "folder on this PC" source
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
 const { createDevClean } = require('./devclean');
@@ -477,14 +425,14 @@ const { createLivingIndex } = require('./living-index');       // the Living Ind
 const { createPhone } = require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
 const { createLinuxIndex } = require('./linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
-const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
+require('./js/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
-const GameIgnore = require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
-const SensorHistory = require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
+require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
+require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
 const SensorSourceAi = require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
-const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
+require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
 require('./layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
@@ -493,7 +441,7 @@ const { seedReadings } = require('./sse-seed.js'); // what a new feed client sta
 const UsageMode = require('./js/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
 const PerfHud = require('./js/perf-hud.js'); // what the Game performance tile shows (shared with the client)
 const ScreenSceneModel = require('./js/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
-const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
+require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
@@ -528,7 +476,7 @@ const { createPerfSession } = require('./perf-session');
 const { shieldWish } = require('./perf-session/shield-wish');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
-const { createHomeAssistant, normalizeHomeAssistant } = require('./actions/home-assistant');
+const { createHomeAssistant } = require('./actions/home-assistant');
 const { createHaQuery } = require('./actions/home-assistant-query');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
@@ -539,15 +487,13 @@ const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
-const { normalizeRemoteControl } = require('./remote-control/settings');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-const { createUnifiProtect, normalizeUnifi } = require('./actions/unifi');
+const { createUnifiProtect } = require('./actions/unifi');
 const { createUnifiEvents } = require('./unifi-events');
 const stocks = require('./stocks');
 require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const football = require('./football');
 require('./football-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-const news = require('./news');
 require('./news-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const claudeUsage = require('./claude-usage');
 const claudeBridge = require('./claude-bridge');
@@ -608,8 +554,8 @@ const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
 const { createLyricsOffsets } = require('./lyrics-offsets');
-const { createLyricsTranslator, cleanCap: cleanLyricsTranslateCap } = require('./lyrics-translator');
-const { createSdkAi, cleanDailyCap: cleanSdkAiDailyCap } = require('./sdk-ai');
+const { createLyricsTranslator } = require('./lyrics-translator');
+const { createSdkAi } = require('./sdk-ai');
 const { createRoastSparks } = require('./vitals-roast-sparks.js');
 const { createBitMessages } = require('./bit-messages.js');
 const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
@@ -1500,21 +1446,8 @@ function refreshLivingIndex() {
   const cfg = (hub.settings && hub.settings.searchSettings) || {};
   try { livingIndex.setRoots(usableIndexRoots(cfg.indexRoots)); } catch { /* helper absent */ }
 }
-const { sanitizeSettingsBackgroundMedia } = require('./look/background-media.js');
-
-const { sanitizeCustomThemes } = require('./look/custom-themes.js');
-
-const { normalizeHardwareScan } = require('./ai/hardware-scan-normalize.js');
-
-const { normalizeVitals } = require('./vitals/settings-normalize.js');
 
 const { volumeDetailsProbe, diskModelsProbe, getDiskDetails } = require('./disk/drive-details.js');
-
-const { sanitizeAmbientScenes } = require('./ambient/scenes-sanitize.js');
-
-const { normalizeBgCustom } = require('./look/background-custom-normalize.js');
-
-const { normalizeSlideshow } = require('./windows-tiles/slideshow-normalize.js');
 
 const { SETTINGS_FILE } = require('./settings/settings-file.js');
 
@@ -1524,17 +1457,9 @@ const { normalizeLockWidgets } = require('./settings/normalize-lock-widgets.js')
 
 const { normalizeAmbientMode } = require('./ambient/normalize-mode.js');
 
-const { normalizeSettingsWeather } = require('./weather/normalize-settings.js');
+const { normalizeHubSettings } = require('./settings/normalize-hub-settings.js');
 
-const {
-  normalizeBgAurora, normalizeBgStatic, normalizeBgGrid,
-} = require('./look/normalize-backgrounds.js');
-
-const { normalizeFileTransfer } = require('./transfer/normalize-settings.js');
-
-const { normalizeLighting } = require('./lights/normalize-settings.js');
-
-const { normalizeDashboardLayout } = require('./grid/layout-normalize.js');
+const { readHubSettings, readHubSettingsForUpdate } = require('./settings/read.js');
 
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
@@ -4488,23 +4413,6 @@ async function chooseSensorSource(args) {
   });
   return { ok: true, metric: plan.metric, now: current()[plan.metric] || 'auto' };
 }
-// POST /settings/tile: the fields a tile keeps in the settings, saved from a
-// layer page (which never writes the whole blob). Same lock, rev bump and
-// broadcast as change_setting; the notifications reader follows its switch.
-async function saveTileSettings(body) {
-  const plan = TileSettings.plan(body);
-  if (plan.error) return { ok: false, ...plan };
-  let rev = null;
-  await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const written = await writeHubSettings({ ...cur, ...TileSettings.apply(cur, plan.patch), rev: nextSettingsRev(cur.rev) });
-    hub.settings = written;
-    rev = written.rev;
-    broadcastSSE('settings', { rev });
-  });
-  if (plan.patch.windowsNotifications) { refreshWinNotifWatch(); winNotif.applyExclusions(); }
-  return { ok: true, rev };
-}
 // POST /sdk/grant: Allow pressed on a widget on the PC's screen (sdk-grant.js).
 async function saveSdkGrant(body) {
   const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
@@ -4514,22 +4422,6 @@ async function saveSdkGrant(body) {
   await withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const written = await writeHubSettings({ ...cur, ...SdkGrant.apply(cur, plan), rev: nextSettingsRev(cur.rev) });
-    hub.settings = written;
-    rev = written.rev;
-    broadcastSSE('settings', { rev });
-  });
-  return { ok: true, rev };
-}
-// POST /api/vitals/state: the Vitals widget's state saved from a layer page,
-// merged like the /settings save. Same lock, rev bump and broadcast.
-async function saveVitalsState(body) {
-  const plan = VitalsState.plan(body);
-  if (plan.error) return { ok: false, ...plan };
-  let rev = null;
-  await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const vitals = cur.vitals && typeof cur.vitals === 'object' ? cur.vitals : {};
-    const written = await writeHubSettings({ ...cur, vitals: { ...vitals, state: VitalsState.mergeState(vitals.state, plan.state) }, rev: nextSettingsRev(cur.rev) });
     hub.settings = written;
     rev = written.rev;
     broadcastSSE('settings', { rev });
@@ -5314,352 +5206,7 @@ const { settingsBoot } = require('./settings/boot-state.js');
 
 const { gameSessionsEnabled } = require('./performance/game-sessions-switch.js');
 
-// One day of real use, counted once. Called when a dashboard connects, which is
-// the only signal that someone actually LOOKED at Xenon: the engine starts at
-// logon on machines nobody opens, and counting launches would hand those the
-// same credit as a person using it daily.
-//
-// Writes at most once per day, and only when something changed.
-async function noteUsageDay() {
-  try {
-    const today = localDay();
-    const cur = hub.settings || {};
-    if (cur.lastUsageDay === today) return;               // already counted today
-    await withHubSettingsLock(async () => {
-      const prev = await readHubSettingsForUpdate();
-      if (prev.lastUsageDay === today) return;            // another surface got there first
-      const next = {
-        ...prev,
-        firstRunDay: prev.firstRunDay || today,
-        lastUsageDay: today,
-        usageDays: (Number(prev.usageDays) || 0) + 1,
-      };
-      hub.settings = await writeHubSettings(next);
-    });
-  } catch { /* a counter is never worth failing a page load over */ }
-}
-
-function normalizeHubSettings(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  // One-time migration: saved layouts older than the current version are
-  // replaced with the new default on upgrade (other settings preserved).
-  const layoutVersion = Number(source.dashboardLayoutVersion) || 0;
-  const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
-  return {
-    appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
-    autoPalette: source.autoPalette === true || (source.autoPalette == null && source.appearance === 'auto'),
-    styleMode: ['liquid', 'glass', 'retro', 'comic'].includes(source.styleMode) ? source.styleMode : 'glass',
-    retroScanlines: source.retroScanlines !== false,
-    accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
-    // Album-art accent toggle. Must be round-tripped here (mirrors the client's
-    // normalizeSettings): without it the known-key rebuild strips a saved `false`,
-    // so the feature re-enabled itself on every restart. Default ON via !== false.
-    dynamicAlbumTheme: source.dynamicAlbumTheme !== false,
-    background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
-    surface: normalizeHex(source.surface, null),
-    surfaceAlt: normalizeHex(source.surfaceAlt, null),
-    controlColor: normalizeHex(source.controlColor, null),
-    text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
-    accentText: normalizeHex(source.accentText, null),
-    successColor: normalizeHex(source.successColor, null),
-    warningColor: normalizeHex(source.warningColor, null),
-    dangerColor: normalizeHex(source.dangerColor, null),
-    infoColor: normalizeHex(source.infoColor, null),
-    // Dual-palette theme ({ light, dark }). Both sides persist the field, so both
-    // rebuild it through the same engine — otherwise a restart, another surface or
-    // a backup restore would strip or corrupt the pair.
-    paletteVariants: themePalette.normalizeVariants(source.paletteVariants),
-    contrastGuard: source.contrastGuard !== false,
-    panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
-    bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
-    bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
-    idleAnimationPause: source.idleAnimationPause !== false,
-    bootSplash: source.bootSplash !== false,
-    hybridGpuAnimationPause: source.hybridGpuAnimationPause !== false,
-    uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
-    glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
-    glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
-    clockScale: clampNumber(source.clockScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockScale),
-    clockDateScale: clampNumber(source.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
-    clockDateFormat: ['full', 'medium', 'short'].includes(source.clockDateFormat) ? source.clockDateFormat : 'full',
-    panelBorderStrength: clampNumber(source.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
-    tileShadowStrength: clampNumber(source.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength),
-    mutedText: normalizeHex(source.mutedText, null),
-    lineColor: normalizeHex(source.lineColor, null),
-    backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
-    uiFont: sanitizeSettingsUiFont(source.uiFont),
-    lockWidgets: normalizeLockWidgets(source.lockWidgets),
-    ambientMode: normalizeAmbientMode(source.ambientMode),
-    weather: normalizeSettingsWeather(source.weather),
-    tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
-    hwTempUnit: ['auto', 'c', 'f'].includes(source.hwTempUnit) ? source.hwTempUnit : 'auto',
-    mediaVisualizer: ['off', 'minimal', 'wave'].includes(source.mediaVisualizer) ? source.mediaVisualizer : (source.mediaVisualizer === true ? 'wave' : 'off'),
-    mediaLyrics: source.mediaLyrics !== false,
-    lyricsOffsetMs: Math.round(clampNumber(source.lyricsOffsetMs, -3000, 3000, 0) / 100) * 100,
-    lyricsTranslate: source.lyricsTranslate === true,
-    lyricsReading: source.lyricsReading !== false,
-    lyricsTranslateCap: cleanLyricsTranslateCap(source.lyricsTranslateCap),
-    sdkAiDailyCap: cleanSdkAiDailyCap(source.sdkAiDailyCap),
-    spotifyStartMinimized: source.spotifyStartMinimized === true,
-    lyricsStage: source.lyricsStage === true,
-    clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
-    topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
-    topbarRails: normalizeTopbarRails(source.topbarRails),
-    topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
-    topbarClock: normalizeTopbarClock(source.topbarClock, source),
-    topbarLook: TopbarLook.normalize(source.topbarLook),
-    layers: LayersModel.normalize(source.layers),
-    // Sensor cadence (ms). Drives the system broadcast AND the caches under it:
-    // broadcasting faster alone would only re-send readings up to 5s old.
-    sensorRateMs: normalizeSensorRate(source.sensorRateMs),
-    // Which sensor feeds CPU/GPU temperature and watts; {} = Automatic for all.
-    // Same rule as the browser's normalizeSettings (js/sensor-sources.js).
-    sensorSources: SensorSources.normalizeSensorSources(source.sensorSources),
-    gameIgnore: GameIgnore.normalizeGameIgnore(source.gameIgnore),
-    weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
-    upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
-    upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
-    upcomingColumns: [0, 1, 2].includes(Number(source.upcomingColumns)) ? Number(source.upcomingColumns) : 0,
-    swipeNavigation: source.swipeNavigation !== false,
-    swipeHomeGesture: source.swipeHomeGesture !== false,
-    nativeZoom: clampNumber(source.nativeZoom, 0.6, 2.5, DEFAULT_HUB_SETTINGS.nativeZoom),
-    hideOnRdp: source.hideOnRdp === true,
-    audioSetCommunications: source.audioSetCommunications !== false,
-    autoOpenBrowser: source.autoOpenBrowser !== false,
-    versionPing: source.versionPing === true,
-    // `!== false` on purpose: absent means on, so existing installs keep getting
-    // announcements and drop cards rather than being silently switched off by an
-    // update. See the note on the defaults above.
-    hubMessages: source.hubMessages !== false,
-    catalogDrops: source.catalogDrops !== false,
-    monthlyDrops: source.monthlyDrops !== false,
-    autoUpdate: source.autoUpdate !== false,
-    autoUpdateWidgets: source.autoUpdateWidgets !== false,
-    catalogStats: source.catalogStats === true,
-    ratingAsks: source.ratingAsks !== false,
-    usageStats: source.usageStats === true,
-    batteryAskDevices: source.batteryAskDevices !== false,
-    // The release id the What's New modal was dismissed for, and the Discord
-    // card's flag. Both `=== true`/bounded-string rather than `!== false`: an
-    // absent key means "never dismissed", which is the honest reading of a blob
-    // written before v4.11.6 — the client promotes the legacy localStorage value
-    // over it on first hydrate when there is one.
-    whatsNewSeen: typeof source.whatsNewSeen === 'string' ? source.whatsNewSeen.trim().slice(0, 64) : '',
-    releaseNotesSeen: typeof source.releaseNotesSeen === 'string' ? source.releaseNotesSeen.trim().slice(0, 32) : '',
-    updateFailSeen: typeof source.updateFailSeen === 'string' ? source.updateFailSeen.trim().slice(0, 64) : '',
-    discordInviteSeen: source.discordInviteSeen === true,
-    // Usage history. Server-owned; the POST guard below keeps a client save from
-    // touching them. Bounded so a hand-edited file cannot make the ask unreachable
-    // (a negative count) or claim a decade of use.
-    firstRunDay: DAY_RE.test(String(source.firstRunDay || '')) ? String(source.firstRunDay) : '',
-    lastUsageDay: DAY_RE.test(String(source.lastUsageDay || '')) ? String(source.lastUsageDay) : '',
-    usageDays: clampNumber(Math.floor(Number(source.usageDays) || 0), 0, 100000, 0),
-    supportAskSeen: source.supportAskSeen === true,
-    supportAskSeenDay: DAY_RE.test(String(source.supportAskSeenDay || '')) ? String(source.supportAskSeenDay) : '',
-    supportAppealYear: clampNumber(Math.floor(Number(source.supportAppealYear) || 0), 0, 9999, 0),
-    shareNudgeSeen: source.shareNudgeSeen === true,
-    // Snowflakes only, deduped and capped. This list is echoed straight back to
-    // every surface and used as a DOM key, so anything that is not a Discord id
-    // has no business surviving a round trip through the store.
-    discordFavChannels: normalizeSnowflakeList(source.discordFavChannels),
-    discordCollapsedGuilds: normalizeSnowflakeList(source.discordCollapsedGuilds),
-    browserAdblock: source.browserAdblock === true,
-    dashboardLayout: resetLayout
-      ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
-      : normalizeDashboardLayout(source.dashboardLayout),
-    dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
-    // Client-owned saved presets (widget/tab-group/page templates). Re-validated
-    // by the client (DashboardPresets); the server just round-trips a bounded
-    // array so they survive a restart instead of being stripped.
-    dashboardPresets: sanitizeDashboardPresets(source.dashboardPresets),
-    // Client-owned imported themes (Aspetto → Temi gallery). Re-validated on the
-    // client (normalizeCustomThemes); the server just round-trips a bounded array
-    // so they survive a restart instead of being stripped.
-    customThemes: sanitizeCustomThemes(source.customThemes),
-    ambientScenes: sanitizeAmbientScenes(source.ambientScenes),
-    contentInstalls: contentInstalls.normalizeContentInstalls(source.contentInstalls),
-    geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
-    obsHost: String(source.obsHost || '').trim().slice(0, 200),
-    obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
-    obsPassword: String(source.obsPassword || '').slice(0, 200),
-    obsAutoLaunch: typeof source.obsAutoLaunch === 'boolean' ? source.obsAutoLaunch : true,
-    streamerbotHost: String(source.streamerbotHost || '').trim().slice(0, 200),
-    streamerbotPort: Math.max(1, Math.min(65535, parseInt(source.streamerbotPort, 10) || 8080)),
-    streamerbotPassword: String(source.streamerbotPassword || '').slice(0, 200),
-    // Per-instance Browser-widget URLs (client-owned). Round-tripped so they
-    // survive a browser-storage reset; the relay re-validates before navigating.
-    browserTiles: normalizeServerBrowserTiles(source.browserTiles),
-    // Global Browser-widget favorites (client-owned). Round-tripped so the shared
-    // quick-access list survives a browser-storage reset; the relay re-validates
-    // http/https before navigating.
-    browserFavorites: normalizeServerBrowserFavorites(source.browserFavorites),
-    // App-switcher favorites (client-owned). Round-tripped so starred apps survive a
-    // browser-storage reset; /windows/launch re-validates the path before launching.
-    appFavorites: normalizeServerAppFavorites(source.appFavorites),
-    aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
-    ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
-    ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
-    localApiUrl: aiLocalServer.sanitizeUrl(source.localApiUrl),
-    localApiModel: aiLocalServer.sanitizeModel(source.localApiModel),
-    localApiKey: String(source.localApiKey || '').trim().slice(0, 200),
-    localApiVision: source.localApiVision === true,
-    // ChatGPT (OpenAI) + Claude (Anthropic). Keys are server-only secrets
-    // (preserve-on-save + redact-on-wire, see the secrets chain below); models
-    // are validated by each provider module.
-    openaiApiKey: String(source.openaiApiKey || '').trim().slice(0, 200),
-    openaiModel: aiOpenai.sanitizeModel(source.openaiModel),
-    // Speech slots are validated against the model KIND, not just the id shape:
-    // a chat model in the TTS field is an error at the moment the user speaks.
-    openaiSttModel: aiOpenai.sanitizeSpeechModel(source.openaiSttModel, 'stt'),
-    openaiTtsModel: aiOpenai.sanitizeSpeechModel(source.openaiTtsModel, 'tts'),
-    anthropicApiKey: String(source.anthropicApiKey || '').trim().slice(0, 200),
-    anthropicModel: aiAnthropic.sanitizeModel(source.anthropicModel),
-    xenonModel: aiXenon.sanitizeModel(source.xenonModel),
-    xenonEffort: aiXenon.sanitizeEffort(source.xenonEffort),
-    claudeCodeModel: aiCli.sanitizeModel(source.claudeCodeModel),
-    codexModel: aiCli.sanitizeModel(source.codexModel),
-    // Gemini, one per role. Same sanitizer for all four: `auto`/`auto:<family>`
-    // or a concrete id, anything else falls back to `auto`.
-    geminiModel: aiGemini.sanitizeModel(source.geminiModel),
-    geminiModelPro: aiGemini.sanitizeModel(source.geminiModelPro),
-    geminiModelTts: aiGemini.sanitizeModel(source.geminiModelTts),
-    geminiModelLive: aiGemini.sanitizeModel(source.geminiModelLive),
-    hardwareScan: normalizeHardwareScan(source.hardwareScan),
-    aiTtsEnabled: source.aiTtsEnabled !== false,
-    aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
-    aiChatHidden: source.aiChatHidden === true,
-    aiMemory: source.aiMemory !== false, // persistent AI memory — ON unless explicitly disabled
-    aiProReasoning: source.aiProReasoning === true, // advanced reasoning — OFF unless explicitly enabled
-    aiLiveVoice: source.aiLiveVoice === true, // Voce Live realtime — OFF unless explicitly enabled
-    aiVoiceAmbient: source.aiVoiceAmbient === true, // ambient voice presentation — OFF (full room) unless enabled
-    aiEdgeGlow: ['auto', 'main', 'second', 'all', 'off'].includes(source.aiEdgeGlow) ? source.aiEdgeGlow : 'auto',
-    usageMode: UsageMode.normalize(source.usageMode),
-
-    aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
-    sensorHistory: SensorHistory.normalizeSensorHistory(source.sensorHistory),
-    gameSessions: normalizeGameSessionsSetting(source.gameSessions),
-    perfHud: PerfHud.normalizePerfHud(source.perfHud),
-    // User fan names for the Fans widget ("mb|Fan #3" → "Radiatore alto").
-    // Client-owned but flat enough to validate explicitly at this boundary.
-    fanLabels: normalizeServerFanLabels(source.fanLabels),
-    proactive: normalizeProactive(source.proactive),
-    notifications: normalizeNotifications(source.notifications),
-    vitals: normalizeVitals(source.vitals),
-    discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
-    windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
-    calls: normalizeCalls(source.calls),
-    phone: normalizePhone(source.phone),
-    wakeWord: normalizeWakeWord(source.wakeWord),
-    // The server is the one side that knows the machine, so it supplies the
-    // never-set default; the browser's copy of this normalizer keeps whatever
-    // the server already chose.
-    searchSettings: normalizeSearchSettings(source.searchSettings, POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()),
-    pageHotkeys: normalizePageHotkeys(source.pageHotkeys),
-    diskSettings: normalizeDiskSettings(source.diskSettings),
-    bgAurora: normalizeBgAurora(source.bgAurora),
-    bgGrid: normalizeBgGrid(source.bgGrid),
-    bgStatic: normalizeBgStatic(source.bgStatic),
-    bgCustom: normalizeBgCustom(source.bgCustom),
-    slideshow: normalizeSlideshow(source.slideshow),
-    claudeWidget: normalizeClaudeWidget(source.claudeWidget),
-    codexWidget: normalizeCodexWidget(source.codexWidget),
-    chatgptWidget: { model: aiCli.sanitizeModel(source.chatgptWidget && source.chatgptWidget.model) },
-    lighting: normalizeLighting(source.lighting),
-    calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
-    stocks: stocks.normalizeStocks(source.stocks),
-    twelveDataKey: String(source.twelveDataKey || '').trim().slice(0, 120),
-    finnhubKey: String(source.finnhubKey || '').trim().slice(0, 120),
-    football: football.normalizeFootball(source.football),
-    sportsDbKey: String(source.sportsDbKey || '').trim().slice(0, 60),
-    // The language goes in so a FIRST feed set is built in it. Nothing else in
-    // here reads it: an existing list is the user's and is never rewritten.
-    news: news.normalizeNews(source.news, source.language),
-    newsDataKey: String(source.newsDataKey || '').trim().slice(0, 120),
-    claude: claudeUsage.normalizeClaude(source.claude),
-    ticker: normalizeTicker(source.ticker),
-    homeAssistant: normalizeHomeAssistant(source.homeAssistant),
-    unifi: normalizeUnifi(source.unifi),
-    // Razer Chroma / Elgato Wave Link — local hardware SDKs, opt-in (no secrets,
-    // just an enable flag; Wave Link optionally pins a port, 0 = auto-scan).
-    chroma: { enabled: !!(source.chroma && source.chroma.enabled === true) },
-    // SignalRGB scene switcher — opt-in enable flag (Windows-only; no secrets).
-    signalrgb: { enabled: !!(source.signalrgb && source.signalrgb.enabled === true) },
-    wavelink: normalizeWaveLinkSettings(source.wavelink),
-    remoteControl: normalizeRemoteControl(source.remoteControl),
-    // Paired-device access: one boolean, and nothing else lives here. The
-    // devices and their tokens are in DATA_DIR/remote-devices.json, NOT in
-    // settings — settings.json is mirrored to the browser and to localStorage
-    // on every surface, which is the last place a credential should sit.
-    remoteAccess: {
-      enabled: source.remoteAccess && source.remoteAccess.enabled === true,
-      https: source.remoteAccess && source.remoteAccess.https === true,
-    },
-    fileTransfer: normalizeFileTransfer(source.fileTransfer),
-    capture: CaptureSettings.normalizeCaptureSettings(source.capture),
-    surfaceChoice: normalizeSurfaceChoice(surfaceChoiceFrom(source)),
-    // Client-managed settings (the client owns their full schema and re-validates
-    // on load): round-trip them so they survive a server restart instead of being
-    // stripped. A bounded passthrough keeps settings.json safe.
-    gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
-    bgGuard: typeof source.bgGuard === 'boolean' ? source.bgGuard : true,
-    // Safe mode: temporarily disables third-party widgets and custom theming
-    // (nothing is uninstalled). Client-enforced; persisted so it survives restarts.
-    safeMode: source.safeMode === true,
-    performance: sanitizeServerPassthrough(source.performance),
-    // Smart context profiles (client-owned schema; the client re-validates on load).
-    contextProfiles: sanitizeServerPassthrough(source.contextProfiles),
-    // Second-screen capture prefs (client-owned; the client re-validates on load).
-    secondScreen: sanitizeServerPassthrough(source.secondScreen),
-    // Third-party widget SDK: feature flag + per-tile package assignments + the
-    // per-package permission grants (client-owned schema; the client re-validates
-    // on load, and the bridge enforces grants before any action is dispatched).
-    // Its own, larger cap: the client keeps up to 32 grants, each carrying its
-    // streams, actions, hosts, hooks, handlers and filled-in addresses — about
-    // 330 bytes typical and over 2 KB for a widget that asks for everything. At
-    // the shared 8000 the whole object was DROPPED past roughly two dozen
-    // widgets, taking every grant and assignment with it in silence.
-    sdkWidgets: sanitizeServerPassthrough(source.sdkWidgets, SDK_WIDGETS_SETTINGS_MAX),
-    // Monotonic save revision (client-owned): round-tripped so the client's
-    // boot-time merge can compare it against the local copy and avoid clobbering
-    // a newer local layout with a stale server one.
-    rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
-    // Identity of THIS settings store — see the mint in writeHubSettings.
-    storeId: SETTINGS_STORE_ID_RE.test(String(source.storeId || '')) ? String(source.storeId) : '',
-    // First-run tutorial state (client-owned): round-tripped so a Xeneon Edge
-    // WebView localStorage wipe can't make the tour reappear every boot.
-    onboarding: normalizeServerOnboarding(source.onboarding),
-    // Persisted UI language ('' = follow the browser). Round-tripped so the
-    // user's choice survives a browser-storage reset (e.g. a Windows restart).
-    language: WEATHER_LANGS.has(source.language) ? source.language : '',
-  };
-}
-
 const { settingsStore } = require('./settings/store-state.js');
-
-async function readHubSettings() {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const raw = await fs.promises.readFile(SETTINGS_FILE, 'utf8');
-      const parsed = normalizeHubSettings(JSON.parse(raw));
-      if (parsed.storeId) settingsStore.id = parsed.storeId;
-      return parsed;
-    } catch (e) {
-      if (e.code === 'ENOENT') return null;
-      if (!_SETTINGS_READ_BUSY.has(e.code) || attempt >= 5) throw e;
-      await new Promise((r) => setTimeout(r, 40 * (attempt + 1)));
-    }
-  }
-}
-
-// For a read that a write is built on. Only a missing file (a new install)
-// starts from the factory settings. Any other failure, a file that does not
-// parse or a read that keeps failing, fails the write instead: these writers
-// used to start from the factory settings whenever the read failed, and then
-// saved that, which replaced everything the user had built with the default
-// layout, theme and pages. POST /settings has always failed closed this way.
-async function readHubSettingsForUpdate() {
-  return (await readHubSettings()) || { ...DEFAULT_HUB_SETTINGS };
-}
 
 // The server-side half of "the Gemini key never leaves this machine" (see
 // ai-provider-creds.js). The client still sends a `key` field — every AI request
@@ -5679,48 +5226,9 @@ async function geminiKeyFor(bodyKey) {
 
 const { backupSupersededLayout } = require('./grid/layout-backup.js');
 
-const {
-  cleanupUnreferencedTileAssets, cleanupUnreferencedSlideshowAssets,
-} = require('./grid/asset-sweep.js');
-
-async function writeHubSettings(settings) {
-  // Large scene pictures go to files of their own (scene-images.js), so a
-  // settings save stops carrying megabytes of pictures. Before the normalizer,
-  // so the scene size limits count what is really stored (a path), and a
-  // backup that carries the pictures inside is not cut down on restore.
-  let moved = null;
-  if (settings && Array.isArray(settings.ambientScenes)) {
-    moved = await sceneImages.externalize(settings.ambientScenes, UPLOADS_DIR).catch(() => null);
-    if (moved && moved.changed) settings = { ...settings, ambientScenes: moved.scenes };
-  }
-  const safe = normalizeHubSettings(settings);
-  // Mint the store id on the first write that lacks one, which covers a fresh
-  // install and an existing one updating into this build. `settingsStore.id`
-  // first, so only a store this process has never seen gets a new value.
-  if (!safe.storeId) safe.storeId = settingsStore.id || crypto.randomBytes(16).toString('hex');
-  settingsStore.id = safe.storeId;
-  // The rev moves past the one the saving screen holds, so that screen also
-  // picks up the lighter copy on the broadcast instead of sending the pictures
-  // again with every save.
-  if (moved && moved.changed) safe.rev = (Number(safe.rev) || 0) + 1;
-  // Compact: indentation made the file a fifth bigger and every save slower,
-  // and nobody reads this file by hand.
-  await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe));
-  sceneImages.sweepUnused(UPLOADS_DIR, safe.ambientScenes, { snapshotsDir: storeSnapshots.snapshotsDir(DATA_DIR) }).catch(() => {});
-  // Reclaim any per-tile decoration images no surviving tile references (grace-
-  // windowed so a just-uploaded asset isn't swept before its layout save lands).
-  // Saved presets count as references too — inserting one must still find its images.
-  cleanupUnreferencedTileAssets(safe.dashboardLayout, safe.dashboardPresets);
-  // Slideshow images are disk-backed uploads too, referenced from safe.slideshow.
-  cleanupUnreferencedSlideshowAssets(safe.slideshow);
-  // A folder-source slideshow keeps its enumeration in memory; pointing the setting
-  // at a different folder must show the new count now, not up to a TTL later.
-  slideshowFolder.invalidate();
-  slideshowCache.folder = (safe.slideshow && typeof safe.slideshow.folder === 'string') ? safe.slideshow.folder : '';
-  return safe;
-}
-
 const { slideshowCache } = require('./windows-tiles/slideshow-cache.js');
+const { writeHubSettings } = require('./settings/write.js');
+
 async function getSlideshowDir() {
   if (slideshowCache.folder !== null) return slideshowCache.folder;
   const s = (await readHubSettings().catch(() => null)) || {};
@@ -5743,31 +5251,15 @@ async function getSlideshowDir() {
 // result. fn runs after the previous settles (fulfilled OR rejected), and a
 // rejected run never poisons the chain.
 settingsStore.writeChain = Promise.resolve();
-// Bit's Vitals tools write like a tap on the bar: one locked read-modify-write,
-// a new rev, and every surface told to read the settings again.
-async function updateVitalsSettings(change) {
-  const saved = await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const next = change(cur);
-    if (!next) return cur;
-    hub.settings = await writeHubSettings({ ...next, rev: nextSettingsRev(cur.rev) });
-    return hub.settings;
-  });
-  if (saved !== null) broadcastSSE('settings', { rev: saved.rev });
-  return saved;
-}
 
 const { withHubSettingsLock } = require('./settings/write-lock.js');
 
-// What the person has read of an update, from any surface (POST /update/notice-seen).
-async function saveNoticeSeen(seen) {
-  await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const saved = await writeHubSettings({ ...cur, ...seen, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-  });
-}
+const {
+  updateVitalsSettings, updateGameSessionsSetting, updatePerfHudSetting, updateHubSettingKey,
+  updateAiEdgeGlowSetting,
+} = require('./settings/change-one.js');
+
+const { noteUsageDay } = require('./settings/count-usage-day.js');
 
 // One read-modify-write of hubSettings.layers for the capability runner (AI,
 // Deck keys): the edit sees the committed value, and nothing is written when it
@@ -5793,31 +5285,6 @@ async function updateLayersSetting(edit) {
     // a new menu shortcut takes the place of the old one.
     if (_layerHotkeys() !== keys) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
     return { ...res, layers: saved.layers };
-  });
-}
-
-// The Xenon AI edge-glow screens, set by voice (capabilities/ai-glow.js): the
-// main dashboard re-hydrates from the broadcast and re-sends the glow.
-async function updateGameSessionsSetting(on) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const saved = await writeHubSettings({ ...cur, gameSessions: { enabled: !!on }, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    return saved.gameSessions.enabled;
-  });
-}
-
-// What the Game performance tile shows (js/perf-hud.js), from the AI or a Deck
-// key. Returns the saved parts.
-async function updatePerfHudSetting(change) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const perfHud = PerfHud.applyPerfHudChange(cur.perfHud, change);
-    const saved = await writeHubSettings({ ...cur, perfHud, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    return saved.perfHud;
   });
 }
 
@@ -5951,32 +5418,6 @@ async function _xenonMenuState() {
   });
 }
 
-// One top-level setting changed by a Deck key, Bit or an SDK action. `change`
-// gets the stored value and returns the next one, inside the lock, so a toggle
-// never reads a value another press is about to replace; the normalizer in
-// writeHubSettings decides what survives. Nothing that changes nothing is written.
-async function updateHubSettingKey(key, change) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const next = change(cur[key]);
-    if (JSON.stringify(next) === JSON.stringify(cur[key])) return cur[key];
-    const saved = await writeHubSettings({ ...cur, [key]: next, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    return saved[key];
-  });
-}
-
-async function updateAiEdgeGlowSetting(mode) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const saved = await writeHubSettings({ ...cur, aiEdgeGlow: mode, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    return saved.aiEdgeGlow;
-  });
-}
-
 // The animated wallpaper and the PC screensaver, by voice or a Deck key
 // (capabilities/desktop-scene.js). A toggle is decided inside the lock, so two
 // quick presses never read the same value.
@@ -6031,19 +5472,6 @@ async function updateNotificationsSetting(change) {
     refreshWinNotifWatch();
   }
   return saved;
-}
-
-// Performance Mode's own block, saved by the "widgets only" driver page
-// (js/driver-perf.js), which has no POST /settings of its own. Already
-// normalized (perf-screen.js stateFrom); the rest of the settings stay.
-async function updatePerformanceSetting(performance) {
-  return withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const saved = await writeHubSettings({ ...cur, performance, rev: nextSettingsRev(cur.rev) });
-    hub.settings = saved;
-    broadcastSSE('settings', { rev: saved.rev });
-    return saved;
-  });
 }
 
 async function updateUsageModeSetting(mode) {
@@ -6419,6 +5847,10 @@ const { backgroundHeld } = require('./performance/background-held.js');
 const { _guardHelperMediaBlindSpot, mediaScriptArgs } = require('./media/helper-blind-spot.js');
 
 const { refreshWinNotifWatch } = require('./notification-open/watch-refresh.js');
+
+const {
+  saveTileSettings, saveVitalsState, saveNoticeSeen, updatePerformanceSetting,
+} = require('./settings/save-from-page.js');
 
 const { phoneSettings } = require('./transfer/phone-settings.js');
 
