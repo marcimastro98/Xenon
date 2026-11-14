@@ -26,7 +26,6 @@
 // Runs are in-memory and per-boot, like the bridge. Nothing here writes to disk.
 
 const { spawn } = require('child_process');
-require('./atomic-write');
 
 const {
   MAX_PROMPT, MAX_RUNS, MAX_OUTPUT_CHARS, RUN_TTL_MS, START_TIMEOUT_MS, EFFORTS,
