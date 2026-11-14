@@ -1,4 +1,8 @@
 'use strict';
+// Server-side action registry: the single allowlisted dispatcher for Deck key
+// actions. ALL execution flows through here — validation/normalisation happens
+// at this boundary, and the OS side-effects are INJECTED so security decisions
+// live in one testable place. Reuses the shared catalog validator.
 const { validateAction, validateGesture } = require('../js/deck-actions.js');
 const { scopeTimerLabel } = require('./widget-timers');
 const { obsRequest } = require('./obs.js');
@@ -13,12 +17,10 @@ const {
   isHttpUrl, normalizeUrl, pctValue, mediaSeekPosition, normalizeKeys, isAppUserModelId,
   isSteamAppId,
 } = require('./registry-values.js');
-
 const {
   isAllowedAppPath, parseLaunchArgs, appPathTakesArgs, completeDarwinBundle, completePosixTypedPath,
   completeWindowsEnvPath,
 } = require('./registry-app-paths.js');
-
 const { isBlockedOpenPath, isRunnableScriptPath } = require('./registry-open-paths.js');
 
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,
@@ -702,8 +704,6 @@ function createRegistry(deps) {
   return { run };
 }
 
-const {
-  resolveOutputDevice, pickToggleDevice, pickFirstConnected,
-} = require('./registry-audio-devices.js');
+const { resolveOutputDevice, pickToggleDevice, pickFirstConnected } = require('./registry-audio-devices.js');
 
 module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, parseLaunchArgs, appPathTakesArgs,completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice, pickToggleDevice, pickFirstConnected };
