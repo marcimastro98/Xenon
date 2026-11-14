@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { bodiesBack, cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, stateRewrites, wholeObjects } from './engine-source.mjs';
+import { bodiesBack, cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, oldSpellings, stateRewrites, wholeObjects } from './engine-source.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -18,8 +18,11 @@ const entries = extractedFrom();
 const rewrites = stateRewrites();
 // Modules of places next to the engine say SERVER_DIR where server.js said __dirname: the readers hand out the old word.
 const placeModules = new Set(entries.filter((entry) => entry.paths).map((entry) => entry.file));
+// A function that asks for a module inside its body has the path spelled for its new folder: the readers hand out the old spelling.
+const spelled = new Map(entries.filter((entry) => entry.spelled).map((entry) => [entry.file, entry.spelled]));
 const asWritten = (file) => {
-  const text = readFileSync(join(ROOT, file), 'utf8');
+  const onDisk = readFileSync(join(ROOT, file), 'utf8');
+  const text = spelled.has(file) ? oldSpellings(onDisk, spelled.get(file)) : onDisk;
   return oldNames(wholeObjects(file, bodiesBack(file, placeModules.has(file) ? oldPathsText(text) : text)), rewrites);
 };
 // The parts a big list was cut into: the readers hand out the list in one piece, and a part only when asked by name.

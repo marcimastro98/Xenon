@@ -128,7 +128,8 @@ export function cutObjects(source = ENGINE) {
 
 /**
  * @param {string} [source] repo-relative file code was taken out of
- * @returns {{ file: string, about: string, names: string[] }[]} the modules moved out of it unchanged, oldest first
+ * @returns {{ file: string, about: string, names: string[], spelled?: Record<string, string> }[]} the modules moved out of it unchanged, oldest first
+ *   (`spelled`: the paths its code asks for, new spelling to old, when they were spelled for the new folder)
  */
 export function extractedFrom(source = ENGINE) {
   return ledgerOf(source).filter((entry) => !entry.state);
