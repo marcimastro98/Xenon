@@ -22,7 +22,7 @@
     "server/actions/home-assistant.js": 413,
     "server/actions/registry.js": 709,
     "server/actions/voicemeeter.js": 352,
-    "server/actions/wavelink.js": 757,
+    "server/actions/wavelink.js": 755,
     "server/ai-cli.js": 348,
     "server/ai-models.js": 314,
     "server/auto-update.js": 396,

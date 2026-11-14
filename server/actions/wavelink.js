@@ -65,7 +65,7 @@ const {
 } = require('./wavelink-shape.js');
 
 // ── lazy connection ──────────────────────────────────────────────────────────
-
+//
 // getConfig: async () -> { enabled, port? }. Returns a client whose socket is
 // shared, idle-closed, and (via watch) auto-reconnected.
 function createWaveLink(getConfig, opts) {
@@ -277,7 +277,6 @@ function createWaveLink(getConfig, opts) {
   }
 
   // ── discovery ──────────────────────────────────────────────────────────────
-
   function socketFor(host, port, origin) {
     const authority = host.includes(':') ? '[' + host + ']' : host;
     const url = 'ws://' + authority + ':' + port;
@@ -393,7 +392,6 @@ function createWaveLink(getConfig, opts) {
   }
 
   // ── seeding ────────────────────────────────────────────────────────────────
-
   async function refreshChannels() {
     if (dialect === 3) {
       const r = await request('getChannels').catch(() => null);
@@ -493,7 +491,7 @@ function createWaveLink(getConfig, opts) {
   }
 
   // ── writes ─────────────────────────────────────────────────────────────────
-
+  //
   // 2.x replaces the WHOLE input object, so every field is echoed back with only
   // the targeted one changed. 3.x accepts a partial patch (measured: sending
   // {id, level} left name, mute, mixes and effects untouched), so it sends only
