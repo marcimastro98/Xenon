@@ -960,7 +960,9 @@
       {"file":"server/ai/tools-knowledge.js","about":"What the assistant does when asked about Xenon itself: it answers from the facts written for it, not from a guess.","keys":["xenon_knowledge"],"after":301},
       {"file":"server/widget-sdk/tools.js","about":"","keys":["sdk_reference"],"after":301},
       {"file":"server/screens/routes-captures.js","about":"","keys":["POST /captures/delete|/captures/reveal|/captures/copy|/captures/trim"],"after":301},
-      {"file":"server/widget-sdk/routes-images.js","about":"The pictures the engine fetches for a widget so its frame can show them from the engine's own address: map tiles kept in memory, artwork kept on disk.","keys":["GET /sdk/tile/*|/sdk/asset/*"],"after":301}
+      {"file":"server/widget-sdk/routes-images.js","about":"The pictures the engine fetches for a widget so its frame can show them from the engine's own address: map tiles kept in memory, artwork kept on disk.","keys":["GET /sdk/tile/*|/sdk/asset/*"],"after":301},
+      {"file":"server/settings/routes-save.js","about":"The save of the whole settings: POST /settings.","keys":["POST /settings"],"after":373},
+      {"file":"server/discord/routes.js","about":"","keys":["POST /stream/discord/login","POST /stream/discord/logout"],"after":373}
     ]
   },
   "gathers": {

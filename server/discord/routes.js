@@ -6,6 +6,7 @@ const { discordLink } = require('./link.js');
 const { normalizeDiscordNotifications } = require('../settings/normalize-notifications.js');
 const { hub } = require('../settings/current.js');
 const { discordMirror } = require('./mirrored.js');
+const { stopDiscordWatch } = require('./watch-stop.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -80,6 +81,40 @@ const branches = {
     // loopback-only like every route, and NEVER a JSONP candidate.
     const dn = normalizeDiscordNotifications(hub.settings && hub.settings.discordNotifications);
     json({ ok: true, enabled: dn.enabled, hide: dn.hide, state: discordLink.rpc.notifStatus(), items: discordMirror.notifications });
+  },
+
+  'POST /stream/discord/login': async (req, _res, { json }, { refreshDiscordWatch }) => {
+    // Blocks until the user approves the consent dialog in the Discord client (or
+    // it times out) — a single round-trip, unlike the device-code providers. The
+    // watch is torn down BEFORE login, not after: Discord may serve only one
+    // concurrent RPC client, so a live watch holding the pipe made the login
+    // socket fail with a misleading "Discord isn't running". refreshDiscordWatch
+    // re-arms cleanly on the fresh token afterwards.
+    try {
+      await readBody(req);
+      stopDiscordWatch();
+      const r = await discordLink.rpc.login();
+      refreshDiscordWatch();
+      json(r);
+    } catch (e) {
+      // JSON, never a bare 500: the page reads the reason from the body, and a
+      // plain-text error left it with nothing but "Could not start login".
+      console.error('[discord] login route failed:', e && e.message);
+      json({ ok: false, error: 'login_failed', detail: String((e && e.message) || e).slice(0, 200) });
+    }
+  },
+
+  'POST /stream/discord/logout': async (req, _res, { json, err500 }, { refreshDiscordWatch }) => {
+    // Watch down FIRST: logout's close() would otherwise schedule a reconnect
+    // racing the revoke, and the dying watch held the (possibly single) pipe.
+    try {
+      await readBody(req);
+      stopDiscordWatch();
+      const r = await discordLink.rpc.logout();
+      discordMirror.notifications = [];
+      refreshDiscordWatch();
+      json(r);
+    } catch (e) { err500(e.message); }
   },
 };
 
