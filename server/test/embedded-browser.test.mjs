@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import './keep-loop-alive.mjs';
 import { engineSource } from './engine-source.mjs';
+import { browserSource } from './browser-source.mjs';
 const require = createRequire(import.meta.url);
 const eb = require('../embedded-browser.js');
 
@@ -614,7 +615,7 @@ test('the reasons a hung Edge fails with are ones the tile retries on', () => {
   assert.match(src, /killBrowser\('hung_closed'\)/);
   assert.match(src, /killBrowser\('stalled_closed'\)/);
   assert.ok(retried.test('cdp_timeout') && retried.test('hung_closed') && retried.test('stalled_closed'));
-  assert.match(require('node:fs').readFileSync(new URL('../js/browser-tile.js', import.meta.url), 'utf8'),
+  assert.match(browserSource('server/js/browser-tile.js'),
     /return \/timeout\|connect\|launch\|exited\|closed\|port\|socket\|failed\/i\.test/);
 });
 
