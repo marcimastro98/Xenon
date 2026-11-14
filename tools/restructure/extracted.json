@@ -620,6 +620,19 @@
       {"file":"server/sensor-history/guardian-store.js","about":"The sensor history's store: read from disk once and made safe, written whole, handed to and taken from a backup.","names":["normalizeStore","normalizeApps","load","persist","exportStore","importStore"],"inner":{"factory":"createGuardian","make":"makeStore"}},
       {"file":"server/sensor-history/guardian-sampling.js","about":"What the sensor history counts: a reading into its hour and day, the seconds of the app in front, and a warning when something runs hot.","names":["bucketFor","creditUsage","pruneApps","usageTick","maybeAlert","sample"],"inner":{"factory":"createGuardian","make":"makeSampling"}},
       {"file":"server/sensor-history/guardian-answers.js","about":"What the sensor history answers when it is asked: the charts, the energy, one metric over time and the digest.","names":["series","appsInRange","getHistory","getEnergy","getEnergySummary","queryHistory","getDigest"],"inner":{"factory":"createGuardian","make":"makeAnswers"}}
+    ],
+    "server/diskspace.js": [
+      {"file":"server/disk-space/limits.js","about":"The limits of the disk space module: how long a scan and a delete may take, and how much is listed, hashed and deleted at a time.","names":["SCAN_TIMEOUT_MS","CLIENT_DIRS_MAX","CLIENT_FILES_MAX","CATEGORY_ITEMS_MAX","HASH_FILE_MAX","HASH_TOTAL_MAX","DUPE_GROUPS_MAX","DELETE_BATCH_MAX","SHELL_DELETE_TIMEOUT_MS","IN_USE_RCS","DESCEND_MAX_DEPTH","DU_WALK_CAP"]},
+      {"file":"server/disk-space/delete-guard.js","about":"What the disk space module may delete: the guard's view of this machine, a path looked at again just before it goes, and whether anything here can put a file in the bin.","names":["guardCtx","isContainerDir","probeFlags","remainingBytes","guardDelete","helperPresent","canRecycle"],"inner":{"factory":"createDiskSpace","make":"makeDeleteGuard"}},
+      {"file":"server/disk-space/volumes.js","about":"The drives and volumes the disk space module can offer as places to index, asked for without holding a request and remembered for a while.","names":["refreshDrives","listDrives","refreshVolumes","addableRoots"],"inner":{"factory":"createDiskSpace","make":"makeVolumes"}},
+      {"file":"server/disk-space/browse.js","about":"Looking inside an overview: the ids that stand for its folders and files, the overview as the browser gets it, one folder opened, and a file shown in its folder. A path never comes in from the browser.","names":["browseIds","insideRoot","registerBrowsePath","registerFilePath","resolveRoot","toClientOverview","reveal","browse"],"inner":{"factory":"createDiskSpace","make":"makeBrowse"}},
+      {"file":"server/disk-space/scan.js","about":"The full scan through the helper: started and stopped, what came back sorted into the categories, same-size files proven duplicates, and the summary kept for the next start.","names":["catCtx","loadSummary","killScan","byPathAsc","buildCategories","verifyDupeCandidates","persistSummary","startScan","cancelScan"],"inner":{"factory":"createDiskSpace","make":"makeScan"}},
+      {"file":"server/disk-space/saved-overviews.js","about":"The last overview of each drive and the drive's history, kept on disk: read once, written a little after they change, and shown marked as old while the index cannot answer yet.","names":["loadPersisted","schedulePersist","persistNow","snapshotOf","snapshot"],"inner":{"factory":"createDiskSpace","make":"makeSavedOverviews"}},
+      {"file":"server/disk-space/clean-job.js","about":"One cleanup as it runs: each item checked again and put in the bin a batch at a time, a folder in use opened up, the progress told as it goes, and the helper call behind every delete.","names":["cleanSnapshot","emitClean","runCleanJob","cancelClean","runShellDelete"],"inner":{"factory":"createDiskSpace","make":"makeCleanJob"}},
+      {"file":"server/disk-space/clean.js","about":"A cleanup asked for: the items found again by their ids, each one passed by the guard, and the job started; and a folder emptied into the bin for the Deck.","names":["clean","trashUnder"],"inner":{"factory":"createDiskSpace","make":"makeClean"}},
+      {"file":"server/disk-space/overview.js","about":"The overview of one drive built from the living index: sizes, categories, kinds, old files and duplicates, reused while it is fresh, with today's point in the drive's history.","names":["buildOverview","cleanKinds","scheduleDupes","currentVersion","overview"],"inner":{"factory":"createDiskSpace","make":"makeOverview"}},
+      {"file":"server/disk-space/status.js","about":"What the disk space module says of itself: the state the widget draws, and the figures Bit may read and explain.","names":["status","insights"],"inner":{"factory":"createDiskSpace","make":"makeStatus"}},
+      {"file":"server/disk-space/xdg-user-dirs.js","about":"Reads the folders a Linux desktop names in user-dirs.dirs, so that a Documents folder with a translated name is protected like the English one.","names":["parseXdgUserDirs"]}
     ]
   },
   "spreads": {
@@ -781,6 +794,11 @@
   "gathers": {
     "server/guardian.js": [
       {"factory":"createGuardian","object":"state","names":["store","timer","usageTimer","sampling","lastSampleAt","lastPersistAt","lastCreditAt","lastDraw","lastUsageAt","lastApp","lastAppGame","usageDirty"],"kept":[],"bare":[],"after":0}
+    ],
+    "server/diskspace.js": [
+      {"factory":"createDiskSpace","object":"lastScan","names":["lastSummary","summaryLoaded"],"kept":[],"bare":[],"after":0},
+      {"factory":"createDiskSpace","object":"cleanRuns","names":["jobSeq"],"kept":[],"bare":[],"after":0},
+      {"factory":"createDiskSpace","object":"saved","names":["snapshots","history","persistTimer"],"kept":[],"bare":[],"after":0}
     ]
   }
 }

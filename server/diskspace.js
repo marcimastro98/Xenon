@@ -18,42 +18,37 @@
 // full SHA-256 (async streams, bounded per-file and per-scan) and only
 // verified groups are shown as duplicates.
 
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const crypto = require('crypto');
-const DiskCategories = require('./disk-categories');
-const DiskGuard = require('./disk-guard');
-const DiskIntelligence = require('./js/disk-intelligence');
-const DiskHistory = require('./disk-history');
-const DiskKinds = require('./disk-kinds');
+require('./disk-categories');
+require('./disk-guard');
+require('./js/disk-intelligence');
+require('./disk-history');
+require('./disk-kinds');
 const { createDupeVerifier } = require('./disk-dupes');
 const { userTempDirs } = require('./disk-space/temp-dirs.js');
-const { writeFileAtomic } = require('./atomic-write');
+require('./atomic-write');
 
 const SUMMARY_FILE = 'disk-summary.json';
-const SCAN_TIMEOUT_MS = 15 * 60 * 1000;   // a wedged scan must not hang forever
-const CLIENT_DIRS_MAX = 1500;             // treemap payload bound
-const CLIENT_FILES_MAX = 200;
-const CATEGORY_ITEMS_MAX = 5000;          // per category, size-ordered
-const HASH_FILE_MAX = 200 * 1024 * 1024;  // never hash a file beyond this
-const HASH_TOTAL_MAX = 2 * 1024 * 1024 * 1024; // …or more than this per scan
-const DUPE_GROUPS_MAX = 40;
-const DELETE_BATCH_MAX = 16;
-// A shell-delete call is bounded, but generously. Recycling a folder on the
-// same volume is one rename, but EMPTYING the Bin really deletes per-file: a
-// 38 GB Bin is legitimately many minutes of work, and the old 120s bound
-// killed the helper mid-operation — every attempt emptied two minutes' worth
-// and then reported empty_failed while the Bin visibly shrank.
-const SHELL_DELETE_TIMEOUT_MS = 30 * 60 * 1000;
-// SHFileOperation answers with these when something INSIDE the tree is held
-// open by a running program (an npm debug log, a uv .lock): the move of a
-// folder is one rename, so one open file refuses the whole folder. These are
-// the signal to descend and recycle the children individually instead.
-const IN_USE_RCS = new Set([5 /* ERROR_ACCESS_DENIED */, 32 /* SHARING_VIOLATION */, 120 /* DE_ACCESSDENIEDSRC */]);
-const DESCEND_MAX_DEPTH = 4;
-const DU_WALK_CAP = 120000;   // bounded remaining-size walk after a partial clear
+
+const { makeDeleteGuard } = require('./disk-space/delete-guard.js');
+
+const { makeVolumes } = require('./disk-space/volumes.js');
+
+const { makeBrowse } = require('./disk-space/browse.js');
+
+const { makeScan } = require('./disk-space/scan.js');
+
+const { makeSavedOverviews } = require('./disk-space/saved-overviews.js');
+
+const { makeCleanJob } = require('./disk-space/clean-job.js');
+
+const { makeClean } = require('./disk-space/clean.js');
+
+const { makeOverview } = require('./disk-space/overview.js');
+
+const { makeStatus } = require('./disk-space/status.js');
 
 function createDiskSpace(opts) {
   const o = opts || {};
@@ -177,27 +172,6 @@ function createDiskSpace(opts) {
     : IS_MAC ? [path.join(userProfile, '.Trash')]
       : [path.join(process.env.XDG_DATA_HOME || path.join(userProfile, '.local', 'share'), 'Trash')];
 
-  function guardCtx(root) {
-    return DiskGuard.buildGuardCtx({
-      platform: PLATFORM,
-      windir, programFiles, programFilesX86,
-      documents: known('Documents'), pictures: known('Pictures'), desktop: known('Desktop'),
-      music: known('Music'),
-      // macOS calls it Movies; the guard key stays `videos` so the refusal
-      // reason does not change per platform.
-      videos: known(IS_MAC ? 'Movies' : 'Videos'),
-      dataDir, appRoot, userProfile, root,
-      // Consulted only to exempt a path from the POSIX system-root list.
-      tempDirs,
-      // The localised names, in addition to the English ones above.
-      extraProtected: [
-        ['documents', xdgDirs.documents], ['pictures', xdgDirs.pictures],
-        ['desktop', xdgDirs.desktop], ['music', xdgDirs.music],
-        ['videos', xdgDirs.videos], ['documents', xdgDirs.templates],
-        ['documents', xdgDirs.publicshare],
-      ].filter(([, p]) => !!p).map(([key, p]) => ({ key, path: p })),
-    });
-  }
   // ── container directories: the contents are disposable, the folder is not ──
   // %TEMP% is the case that matters. Windows and every running app resolve that
   // path from the environment, so recycling the FOLDER would be a real breakage
@@ -212,99 +186,12 @@ function createDiskSpace(opts) {
     [...tempDirs, ...(IS_MAC ? [path.join(userProfile, 'Library', 'Developer', 'Xcode', 'DerivedData')] : [])]
       .map((d) => String(d).toLowerCase().replace(/[\\/]+$/, '')),
   );
-  function isContainerDir(p) {
-    return containerDirs.has(String(p || '').toLowerCase().replace(/[\\/]+$/, ''));
-  }
-
-  // Live existence/reparse probe, shared by the selection check and the
-  // descend path: lstat sees symlinks, but an NTFS junction needs the realpath
-  // comparison (a junction must never become a delete of its target).
-  async function probeFlags(p) {
-    let flags = { exists: false, isReparse: false, isDir: false, size: 0 };
-    try {
-      const st = await fs.promises.lstat(p);
-      flags = { exists: true, isReparse: st.isSymbolicLink(), isDir: st.isDirectory(), size: st.size };
-      // WINDOWS ONLY. This catches a junction or a mounted volume, neither of
-      // which lstat reports as a link there. Off Windows the same comparison is
-      // not a stricter test, it is a broken one: realpath resolves the WHOLE
-      // path, so it differs from the input whenever any ANCESTOR is a symlink —
-      // and on macOS /var is a symlink to /private/var, which is where the
-      // user's temp directory lives. Every directory in the temp category came
-      // back `reparse` and the guard refused it: measured, the largest and most
-      // useful cleanup target on the platform could never be cleaned. The
-      // symlink bit above is the whole answer on POSIX.
-      if (IS_WIN && !flags.isReparse && st.isDirectory()) {
-        const real = await fs.promises.realpath(p).catch(() => p);
-        if (real.toLowerCase() !== p.toLowerCase()) flags.isReparse = true;
-      }
-    } catch { /* stays exists:false */ }
-    return flags;
-  }
-
-  // Bounded "what is left" walk for a partially-cleared folder: after the
-  // children were recycled around a locked file, the leftover is typically a
-  // few KB — walking it is cheap and makes the freed-bytes number honest.
-  async function remainingBytes(root) {
-    let total = 0, seen = 0;
-    async function walk(dir) {
-      if (seen >= DU_WALK_CAP) return;
-      let entries;
-      try { entries = await fs.promises.readdir(dir, { withFileTypes: true }); } catch { return; }
-      for (const e of entries) {
-        if (seen++ >= DU_WALK_CAP) return;
-        const p = path.join(dir, e.name);
-        try {
-          if (e.isSymbolicLink()) continue;
-          if (e.isDirectory()) await walk(p);
-          else if (e.isFile()) total += (await fs.promises.lstat(p)).size;
-        } catch { /* vanished mid-walk */ }
-      }
-    }
-    await walk(root);
-    return seen >= DU_WALK_CAP ? null : total;   // null = too big to answer honestly
-  }
 
   // OneDrive is guarded as an extra protected prefix via a tiny wrapper.
   const oneDrive = IS_WIN ? (process.env.OneDrive || '') : '';
-  function guardDelete(abs, gctx, flags) {
-    // Belt and braces: a stale cached enumeration must not be able to address
-    // the container itself even if it once held it as an item.
-    if (isContainerDir(abs)) return { ok: false, reason: 'container_root' };
-    if (oneDrive) {
-      const p = String(abs || '').toLowerCase().replace(/\//g, '\\');
-      const od = oneDrive.toLowerCase().replace(/\//g, '\\').replace(/\\+$/, '');
-      if (p === od || p.startsWith(od + '\\')) return { ok: false, reason: 'protected:oneDrive' };
-    }
-    return DiskGuard.guardDelete(abs, gctx, flags);
-  }
-
-  async function catCtx() {
-    const s = (await Promise.resolve(getSettings()).catch(() => ({}))) || {};
-    return {
-      platform: PLATFORM,
-      tempDirs, localAppData, userProfile, windir, trashDirs,
-      // The guard's own list, so "what the categories refuse to offer" and
-      // "what the guard refuses to delete" can never drift apart. A category
-      // that always comes back `protected:system` is worse than no category.
-      systemDirs: DiskGuard.SYSTEM_PREFIXES,
-      devFolders: Array.isArray(s.devFolders) ? s.devFolders.filter((d) => typeof d === 'string') : [],
-      downloads,
-      installerAgeDays: Number.isFinite(s.installerAgeDays) ? s.installerAgeDays : 30,
-      now: Date.now(),
-    };
-  }
-
-  function helperPresent() {
-    try { return !!helperExe && fs.existsSync(helperExe); } catch { return false; }
-  }
-
-  // Whether a reversible delete can be performed at all. The helper is one way;
-  // an injected runner (Linux, via `gio trash`) is another, and gating cleanup
-  // on the BINARY rather than on the capability meant a platform with a working
-  // trash was still told to install a companion it has no build of.
-  function canRecycle() {
-    return helperPresent() || !!shellDeleteRunner;
-  }
+  const {
+    guardCtx, isContainerDir, probeFlags, remainingBytes, guardDelete, helperPresent, canRecycle,
+  } = makeDeleteGuard({ dataDir, helperExe, appRoot, shellDeleteRunner, PLATFORM, IS_WIN, IS_MAC, userProfile, windir, programFiles, programFilesX86, tempDirs, xdgDirs, known, containerDirs, oneDrive });
 
   // ── scan state ───────────────────────────────────────────────────────────
   const scan = {
@@ -319,15 +206,23 @@ function createDiskSpace(opts) {
     error: null, doneAt: 0, cancelled: false, timer: null,
     buf: '',
   };
-  let lastSummary = null;      // persisted lite summary for at-rest rendering
-  let summaryLoaded = false;
+  const lastScan = {
+    lastSummary: null,      // persisted lite summary for at-rest rendering
+    summaryLoaded: false,
+  };
 
-  // ── clean-job state ──────────────────────────────────────────────────────
-  // A single cleanup at a time (a second request while one runs is refused
-  // with `busy`), tracked here so status() can re-expose it to a reloaded page
-  // and _gracefulShutdown can cancel it. `jobSeq` gives each run an id so a
-  // late progress event from a previous run can't paint over a new one.
-  let jobSeq = 0;
+  const {
+    catCtx, loadSummary, killScan, byPathAsc, persistSummary, startScan, cancelScan,
+  } = makeScan({ helperExe, getSettings, summaryFile, PLATFORM, IS_WIN, cmpKey, trimSep, isBelow, userProfile, localAppData, windir, tempDirs, downloads, trashDirs, isContainerDir, helperPresent, scan, lastScan });
+
+  const cleanRuns = {
+    // ── clean-job state ──────────────────────────────────────────────────────
+    // A single cleanup at a time (a second request while one runs is refused
+    // with `busy`), tracked here so status() can re-expose it to a reloaded page
+    // and _gracefulShutdown can cancel it. `jobSeq` gives each run an id so a
+    // late progress event from a previous run can't paint over a new one.
+    jobSeq: 0,
+  };
   const cleanJob = {
     id: 0, running: false, cat: '', root: null,
     total: 0, totalBytes: 0,          // what this run set out to remove
@@ -339,28 +234,6 @@ function createDiskSpace(opts) {
   };
   const liveDeleteProcs = new Set();  // shell-delete children in flight (no job object)
 
-  function cleanSnapshot() {
-    if (cleanJob.phase === 'idle') return null;
-    return {
-      id: cleanJob.id, running: cleanJob.running, cat: cleanJob.cat, root: cleanJob.root,
-      total: cleanJob.total, totalBytes: cleanJob.totalBytes,
-      processed: cleanJob.processed, deleted: cleanJob.deleted,
-      freedBytes: cleanJob.freed, refusedCount: cleanJob.refusedCount,
-      phase: cleanJob.phase, permanent: cleanJob.permanent, cancelled: cleanJob.cancelled,
-      startedAt: cleanJob.startedAt, doneAt: cleanJob.doneAt,
-      report: cleanJob.report,
-    };
-  }
-  function emitClean() { try { onCleanProgress(cleanSnapshot()); } catch { /* never break a delete */ } }
-
-  async function loadSummary() {
-    if (summaryLoaded) return;
-    summaryLoaded = true;
-    try {
-      const parsed = JSON.parse(await fs.promises.readFile(summaryFile, 'utf8'));
-      if (parsed && parsed.v === 1) lastSummary = parsed;
-    } catch { /* none yet */ }
-  }
 
   // ── which drive letters exist ────────────────────────────────────────────
   // Never synchronously: this runs on the /disk/status request path, which the
@@ -371,761 +244,15 @@ function createDiskSpace(opts) {
   // holds a response open twice.
   const DRIVES_TTL_MS = 30000;
   const drivesCache = { at: 0, list: [], pending: null };
-  function refreshDrives() {
-    if (drivesCache.pending) return drivesCache.pending;
-    const letters = [];
-    for (let c = 65; c <= 90; c++) letters.push(String.fromCharCode(c));
-    drivesCache.pending = Promise.all(letters.map(async (letter) => {
-      try { await fs.promises.access(letter + ':\\'); return letter; } catch { return null; }
-    })).then((found) => {
-      drivesCache.list = found.filter(Boolean);
-      drivesCache.at = Date.now();
-      return drivesCache.list;
-    }).catch(() => drivesCache.list).finally(() => { drivesCache.pending = null; });
-    return drivesCache.pending;
-  }
-  function listDrives() {
-    if (IS_WIN) {
-      if (!drivesCache.at) return refreshDrives();          // first call waits
-      if (Date.now() - drivesCache.at >= DRIVES_TTL_MS) refreshDrives();  // in background
-      return Promise.resolve(drivesCache.list);
-    }
-    return Promise.resolve([]);   // no letters here; see addableRoots()
-  }
 
   // ── volumes offered as one-tap index roots (POSIX) ───────────────────────
   // Same stale-while-revalidate shape as the letter probe above, for the same
   // reason: this sits on the /disk/status path the widget polls, and `df`
   // blocks on a stalled network mount.
   const volumesCache = { at: 0, list: [], pending: null };
-  function refreshVolumes() {
-    if (volumesCache.pending) return volumesCache.pending;
-    volumesCache.pending = Promise.resolve()
-      .then(() => getVolumes())
-      .then((rows) => {
-        volumesCache.list = (Array.isArray(rows) ? rows : [])
-          .map((d) => ({
-            letter: '',
-            path: String((d && d.drive) || ''),
-            drive: String((d && d.drive) || ''),
-            label: String((d && d.label) || '').trim().slice(0, 80),
-            model: '',
-            fileSystem: String((d && d.fileSystem) || '').trim().slice(0, 24),
-            driveType: String((d && d.driveType) || '').trim().slice(0, 40),
-          }))
-          .filter((d) => d.path.startsWith('/'));
-        volumesCache.at = Date.now();
-        return volumesCache.list;
-      })
-      .catch(() => volumesCache.list)
-      .finally(() => { volumesCache.pending = null; });
-    return volumesCache.pending;
-  }
-
-  // The volumes the widget may offer as "add this to the index". One shape on
-  // both platforms: `path` is what the client sends back, and it is the only
-  // field it needs. `letter` stays populated on Windows because that is what
-  // the existing client falls back to.
-  async function addableRoots(metadata) {
-    if (IS_WIN) {
-      const letters = await listDrives();
-      return letters.map((letter) => ({
-        letter,
-        path: letter + ':\\',
-        ...metadata(letter + ':'),
-      }));
-    }
-    if (!getVolumes) return [];
-    if (!volumesCache.at) return refreshVolumes();
-    if (Date.now() - volumesCache.at >= DRIVES_TTL_MS) refreshVolumes();
-    return volumesCache.list;
-  }
-
-  function killScan(reason) {
-    const p = scan.proc;
-    scan.proc = null;
-    scan.running = false;
-    if (scan.timer) { clearTimeout(scan.timer); scan.timer = null; }
-    if (reason) scan.error = reason;
-    // Mark the run finished HERE, not in the child's exit handler: that handler
-    // bails out on `scan.proc === proc`, which is already false by now. Without
-    // this, a timeout, a spawn error or a cancel left status() reporting
-    // "not running, no result, no error" forever — the failure was invisible.
-    scan.doneAt = Date.now();
-    if (p) {
-      // stdin close is the cancel signal (the helper watches for EOF).
-      try { p.stdin.end(); } catch {}
-      const force = setTimeout(() => { try { p.kill(); } catch {} }, 2000);
-      force.unref();
-      p.once('exit', () => clearTimeout(force));
-    }
-  }
-
-  // Ancestor-before-descendant order for the classified-ancestor skip below.
-  // That skip only works when the parent is seen FIRST, and neither the scan
-  // stream nor the Living Index returns directories in path order: with
-  // "…\Default\Cache\Cache_Data" classified before "…\Default\Cache", both
-  // became items and the category counted the same gigabytes twice while
-  // offering two overlapping rows. A plain ascending path sort is enough — a
-  // real ancestor is always a strict prefix of its descendants, so it always
-  // sorts first.
-  function byPathAsc(list) {
-    return [...(list || [])].sort((a, b) => {
-      const x = String((a && a.p) || '').toLowerCase();
-      const y = String((b && b.p) || '').toLowerCase();
-      return x < y ? -1 : x > y ? 1 : 0;
-    });
-  }
-
-  // Classify everything the scan reported and build the category item lists
-  // the clean endpoint resolves ids against. Dirs first (a cache DIR is one
-  // item, not thousands of files), then detail files not already covered by a
-  // classified ancestor dir.
-  async function buildCategories() {
-    const ctx = await catCtx();
-    const cats = {};
-    const add = (cat, p, s, m, kind) => {
-      const c = cats[cat] || (cats[cat] = { bytes: 0, count: 0, items: [] });
-      c.bytes += s; c.count++;
-      c.items.push({ p, s, m, kind });
-    };
-    const classifiedDirs = [];
-    for (const d of byPathAsc(scan.dirs)) {
-      const r = DiskCategories.classify({ path: d.p, name: path.basename(d.p), isDir: true, size: d.s, mtime: d.m }, ctx);
-      if (!r) continue;
-      // A container is skipped WITHOUT joining classifiedDirs, so its children
-      // stay eligible and become the items instead of it.
-      if (isContainerDir(d.p)) continue;
-      // Skip a dir whose classified ANCESTOR is already an item — deleting the
-      // ancestor covers it, and double-counting would inflate the category.
-      const key = cmpKey(d.p);
-      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
-      classifiedDirs.push(key);
-      add(r.cat, d.p, d.s, d.m, 'dir');
-    }
-    for (const f of scan.detailFiles) {
-      const key = cmpKey(f.p);
-      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
-      const ext = path.extname(f.n).replace(/^\./, '');
-      const r = DiskCategories.classify({ path: f.p, name: f.n, isDir: false, size: f.s, mtime: f.m, ext }, ctx);
-      if (!r) continue;
-      add(r.cat, f.p, f.s, f.m, 'file');
-    }
-    for (const c of Object.values(cats)) {
-      c.items.sort((a, b) => b.s - a.s);
-      if (c.items.length > CATEGORY_ITEMS_MAX) c.items = c.items.slice(0, CATEGORY_ITEMS_MAX);
-      c.items.forEach((it, i) => { it.i = i; });
-    }
-    scan.categories = cats;
-  }
-
-  // Verify same-size candidates by full SHA-256, async and bounded. Only
-  // verified groups become "duplicates" — a same-size pair alone is a guess.
-  async function verifyDupeCandidates(candidates) {
-    const groups = (candidates || []).slice(0, DUPE_GROUPS_MAX);
-    let hashedBytes = 0;
-    const verified = [];
-    for (const g of groups) {
-      if (!g || !Array.isArray(g.paths) || g.paths.length < 2) continue;
-      if (g.s > HASH_FILE_MAX) continue;
-      // Skip a group that would overflow the per-scan hash budget, but keep
-      // going — later groups are not size-ordered, so a smaller one may still
-      // fit the remaining budget. `break` here silently dropped every group
-      // after the first oversized one, under-reporting verified duplicates.
-      if (hashedBytes + g.s * g.paths.length > HASH_TOTAL_MAX) continue;
-      const byHash = new Map();
-      for (const p of g.paths) {
-        try {
-          const h = await new Promise((resolve, reject) => {
-            const hash = crypto.createHash('sha256');
-            fs.createReadStream(p).on('data', (c) => hash.update(c)).on('end', () => resolve(hash.digest('hex'))).on('error', reject);
-          });
-          hashedBytes += g.s;
-          const arr = byHash.get(h) || [];
-          arr.push(p);
-          byHash.set(h, arr);
-        } catch { /* vanished or unreadable — skip the file */ }
-      }
-      for (const paths of byHash.values()) {
-        if (paths.length >= 2) verified.push({ s: g.s, paths, wasted: g.s * (paths.length - 1) });
-      }
-    }
-    verified.sort((a, b) => b.wasted - a.wasted);
-    return verified;
-  }
-
-  async function persistSummary() {
-    const byCategory = {};
-    for (const [cat, c] of Object.entries(scan.categories)) byCategory[cat] = { bytes: c.bytes, count: c.count };
-    lastSummary = {
-      v: 1, at: Date.now(), root: scan.root,
-      bytes: scan.progress.bytes, files: scan.progress.files, dirs: scan.progress.dirs,
-      byCategory,
-      dupesWasted: scan.dupes.reduce((a, g) => a + g.wasted, 0),
-    };
-    try { await writeFileAtomic(summaryFile, JSON.stringify(lastSummary)); } catch {}
-  }
-
-  function startScan(rootRaw) {
-    if (!helperPresent()) return { ok: false, error: 'helper_missing' };
-    // The mac helper has no `disk-scan` mode, and spawning it would exit
-    // non-zero into a generic "scan failed" the user cannot act on. Refuse with
-    // a reason instead: the Living Index serves the whole map on that platform,
-    // so nothing is actually lost here.
-    if (!IS_WIN) return { ok: false, error: 'scan_unsupported' };
-    if (scan.running) return { ok: false, error: 'already_running' };
-    // Root: a plain drive letter, strictly validated (default C:).
-    const m = /^([A-Za-z]):?\\?$/.exec(String(rootRaw || 'C').trim());
-    if (!m) return { ok: false, error: 'bad_root' };
-    const root = m[1].toUpperCase() + ':\\';
-
-    scan.running = true;
-    scan.root = root;
-    scan.startedAt = Date.now();
-    scan.progress = { dirs: 0, files: 0, bytes: 0 };
-    scan.dirs = [];
-    scan.detailFiles = [];
-    scan.topFiles = [];
-    scan.dupeCandidates = [];
-    scan.dupes = [];
-    scan.categories = {};
-    scan.error = null;
-    scan.doneAt = 0;
-    scan.cancelled = false;
-    scan.buf = '';
-
-    // Detail roots: where per-file listing matters (installers + temp files).
-    // Segment-safe, so a sibling that merely shares a prefix (D:\Datax against
-    // D:\Data) is not swept in — the same test buildOverview makes below.
-    const scanRootKey = cmpKey(trimSep(root));
-    const detailRoots = [downloads, ...tempDirs].filter((d) => {
-      const key = cmpKey(trimSep(d));
-      return key === scanRootKey || isBelow(key, scanRootKey);
-    });
-    let proc;
-    try {
-      proc = spawn(helperExe, ['disk-scan', root, ...detailRoots], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
-    } catch {
-      scan.running = false;
-      return { ok: false, error: 'spawn_failed' };
-    }
-    scan.proc = proc;
-    scan.timer = setTimeout(() => killScan('timeout'), SCAN_TIMEOUT_MS);
-    scan.timer.unref();
-
-    proc.stdout.setEncoding('utf8');
-    proc.stdout.on('data', (chunk) => {
-      scan.buf += chunk;
-      let nl;
-      while ((nl = scan.buf.indexOf('\n')) !== -1) {
-        const line = scan.buf.slice(0, nl).trim();
-        scan.buf = scan.buf.slice(nl + 1);
-        if (!line.startsWith('XEDSK ')) continue;
-        let ev;
-        try { ev = JSON.parse(Buffer.from(line.slice(6), 'base64').toString('utf8')); }
-        catch { continue; }
-        if (ev.event === 'progress') scan.progress = { dirs: ev.dirs, files: ev.files, bytes: ev.bytes };
-        else if (ev.event === 'dirs') scan.dirs.push(...(ev.items || []));
-        else if (ev.event === 'files') scan.detailFiles.push(...(ev.items || []));
-        else if (ev.event === 'topfiles') scan.topFiles = ev.items || [];
-        else if (ev.event === 'dupes') scan.dupeCandidates = ev.groups || [];
-        else if (ev.event === 'done') {
-          scan.progress = { dirs: ev.dirs, files: ev.files, bytes: ev.bytes };
-          scan.cancelled = !!ev.cancelled;
-        }
-      }
-    });
-    proc.on('error', () => killScan('scan_failed'));
-    proc.on('exit', async () => {
-      if (scan.proc === proc) {
-        scan.proc = null;
-        if (scan.timer) { clearTimeout(scan.timer); scan.timer = null; }
-        try {
-          if (!scan.cancelled && !scan.error) {
-            await buildCategories();
-            scan.dupes = await verifyDupeCandidates(scan.dupeCandidates);
-            await persistSummary();
-          }
-        } catch { /* partial state is still shown */ }
-        scan.running = false;
-        scan.doneAt = Date.now();
-      }
-    });
-    return { ok: true };
-  }
-
-  function cancelScan() {
-    if (!scan.running) return { ok: true };
-    scan.cancelled = true;
-    killScan(null);
-    return { ok: true };
-  }
-
-  // ── status (what the widget renders) ─────────────────────────────────────
-  async function status() {
-    await loadSummary();
-    const out = {
-      ok: true,
-      // The question the widget is really asking is "can you analyse my disk?",
-      // and the helper is only one of the two answers. Off Windows the map is
-      // built from the Living Index (see buildOverview, and startScan's own
-      // `scan_unsupported` refusal), so a machine with a working index was
-      // still being told to install a native companion — on Linux, with a
-      // sentence naming INSTALL.bat, a file that platform does not have.
-      // The wire name stays `helper` because the client keys on it.
-      helper: helperPresent() || !!(livingIndex && livingIndex.available()),
-      running: scan.running,
-      progress: scan.progress,
-      last: lastSummary,
-    };
-    // Living-Index state + the configured roots (by index — the wire contract)
-    // + which drive letters exist, so the widget can offer them as one-tap
-    // additions.
-    out.index = livingIndex ? await livingIndex.stats() : { on: false };
-    const details = (await getDriveDetails().catch(() => ({}))) || {};
-    const metadata = (drive) => {
-      const raw = details[String(drive || '').toUpperCase()] || {};
-      return {
-        drive: String(drive || '').slice(0, 2).toUpperCase(),
-        label: String(raw.label || '').trim().slice(0, 80),
-        model: String(raw.model || '').trim().slice(0, 120),
-        fileSystem: String(raw.fileSystem || '').trim().slice(0, 24),
-        driveType: String(raw.driveType || '').trim().slice(0, 40),
-      };
-    };
-    const volumes = await addableRoots(metadata);
-    // Annotating a configured root with its volume's label. On Windows the key
-    // is the drive letter; off Windows it is the longest mount path the root
-    // sits under, which is what makes a root inside /Volumes/Backup read as
-    // that volume rather than as `/`.
-    const annotate = (rootPath) => {
-      if (IS_WIN) {
-        const match = /^([A-Za-z]:)/.exec(rootPath);
-        return metadata(match ? match[1] : '');
-      }
-      let best = null;
-      for (const v of volumes) {
-        if (rootPath === v.path || rootPath.startsWith(v.path.replace(/\/+$/, '') + '/')) {
-          if (!best || v.path.length > best.path.length) best = v;
-        }
-      }
-      return best
-        ? { drive: best.path, label: best.label, model: '', fileSystem: best.fileSystem, driveType: best.driveType }
-        : { drive: '', label: '', model: '', fileSystem: '', driveType: '' };
-    };
-    out.roots = ((await getIndexRoots().catch(() => [])) || []).map((p, i) => {
-      const rootPath = String(p || '');
-      return { i, path: rootPath, ...annotate(rootPath) };
-    });
-    out.driveDetails = volumes;
-    // Legacy field: bare drive letters, which only exist on Windows. The client
-    // falls back to it when driveDetails is absent, so it stays.
-    out.drives = await listDrives();
-    // Whether a full scan is possible at all. The Living Index is the primary
-    // path on every platform; the scan is the fallback for a machine without
-    // it, and it needs the helper's `disk-scan` mode, which only the Windows
-    // helper has. Saying so lets the widget not offer a button that refuses.
-    out.canScan = IS_WIN;
-    // A running (or just-finished) cleanup so a reloaded page re-attaches to it
-    // instead of showing a spinner that resolves against nothing.
-    out.clean = cleanSnapshot();
-    if (!scan.running && scan.doneAt) {
-      const dirsBySize = [...scan.dirs].sort((a, b) => b.s - a.s).slice(0, CLIENT_DIRS_MAX);
-      out.result = {
-        root: scan.root,
-        cancelled: scan.cancelled,
-        error: scan.error,
-        bytes: scan.progress.bytes, files: scan.progress.files, dirs: scan.progress.dirs,
-        tree: dirsBySize,
-        topFiles: scan.topFiles.slice(0, CLIENT_FILES_MAX),
-        dupes: scan.dupes.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths })),
-        categories: Object.fromEntries(Object.entries(scan.categories).map(([cat, c]) => [cat, {
-          bytes: c.bytes, count: c.count,
-          items: c.items.slice(0, 500).map((it) => ({ i: it.i, p: it.p, s: it.s, m: it.m, kind: it.kind })),
-        }])),
-      };
-    }
-    return out;
-  }
-
-  // ── clean (category + ids → guard → helper recycle delete) ───────────────
-  // Two enumeration sources, one contract: with `body.root` (an index into the
-  // configured roots) the ids resolve against that root's cached overview
-  // (the Living-Index path); without it, against the legacy scan. Either way
-  // no path ever comes from the wire and the guard re-checks everything.
-  //
-  // Runs as a background JOB: this returns as soon as the work is accepted, and
-  // the actual deletion streams progress over SSE and lands in cleanJob.report.
-  // Emptying the Recycle Bin is fast and stays synchronous.
-  async function clean(body) {
-    if (!canRecycle()) return { ok: false, error: 'helper_missing' };
-    if (cleanJob.running) return { ok: false, error: 'busy' };
-    const cat = String((body && body.category) || '');
-
-    // Emptying the Recycle Bin is its own explicit, permanent action. It is a
-    // real per-file deletion, so a large Bin takes minutes — it runs as the
-    // same background job (permanent:true), not inside the HTTP response.
-    if (cat === 'recycleBin') {
-      const id = ++jobSeq;
-      const binKey = (body && body.root != null) ? String(await resolveRoot(body.root) || '').toLowerCase() : null;
-      cleanJob.id = id;
-      cleanJob.running = true;
-      cleanJob.cat = cat;
-      cleanJob.root = (body && body.root != null) ? body.root : null;
-      cleanJob.total = 0;
-      cleanJob.totalBytes = 0;
-      cleanJob.processed = 0;
-      cleanJob.deleted = 0;
-      cleanJob.freed = 0;
-      cleanJob.refusedCount = 0;
-      cleanJob.phase = 'processing';
-      cleanJob.permanent = true;
-      cleanJob.cancelled = false;
-      cleanJob.startedAt = Date.now();
-      cleanJob.doneAt = 0;
-      cleanJob.report = null;
-      emitClean();
-      (async () => {
-        let report;
-        try {
-          const res = await runShellDelete({ emptyRecycleBin: true });
-          report = res.ok ? { ok: true, emptied: true } : { ok: false, error: 'empty_failed' };
-        } catch { report = { ok: false, error: 'empty_failed' }; }
-        if (cleanJob.id === id) {
-          if (report.ok && binKey) overviews.delete(binKey);
-          cleanJob.report = report;
-          cleanJob.running = false;
-          cleanJob.phase = 'done';
-          cleanJob.doneAt = Date.now();
-          emitClean();
-        }
-      })();
-      return { ok: true, started: true, id };
-    }
-
-    let c, sourceRoot, overviewKey = null;
-    if (body && body.root != null) {
-      const rootPath = await resolveRoot(body.root);
-      if (!rootPath) return { ok: false, error: 'bad_root' };
-      overviewKey = cmpKey(rootPath);
-      const ov = overviews.get(overviewKey);
-      if (!ov) return { ok: false, error: 'no_overview' };
-      // A snapshot taken while the index was still walking the drive has
-      // partial sizes and partial item lists — deleting against it acts on
-      // wrong data (empirically: uv\cache listed at 291 MB of its real
-      // 1.96 GB mid-build). Refuse; the widget re-offers when the map is real.
-      if (ov.index && ov.index.building === true) return { ok: false, error: 'index_building' };
-      c = ov.categories[cat];
-      sourceRoot = rootPath;
-    } else {
-      if (scan.running) return { ok: false, error: 'scan_running' };
-      c = scan.categories[cat];
-      sourceRoot = scan.root;
-    }
-    if (!c) return { ok: false, error: 'unknown_category' };
-    const ids = Array.isArray(body.ids) ? body.ids.slice(0, CATEGORY_ITEMS_MAX) : [];
-    if (!ids.length) return { ok: false, error: 'no_items' };
-
-    // Resolve + guard the whole selection up front, so the job's `total` is the
-    // number we will actually attempt (a refused-by-guard item never counts as
-    // work to do). Resolve by stable id, never array position.
-    const gctx = guardCtx(sourceRoot);
-    const approved = [];
-    const refused = [];
-    const byId = new Map(c.items.map((it) => [it.i, it]));
-    for (const rawId of ids) {
-      const idx = Number(rawId);
-      const item = Number.isInteger(idx) && idx >= 0 ? byId.get(idx) : null;
-      if (!item) { refused.push({ id: rawId, reason: 'unknown_id' }); continue; }
-      const flags = await probeFlags(item.p);
-      const verdict = guardDelete(item.p, gctx, flags);
-      if (verdict.ok) approved.push(item);
-      else refused.push({ path: item.p, reason: verdict.reason });
-    }
-    if (!approved.length) return { ok: false, error: 'nothing_approved', refused };
-
-    // Accept the job. Everything past here runs in the background; the HTTP
-    // caller gets { ok, started, id } immediately.
-    const id = ++jobSeq;
-    cleanJob.id = id;
-    cleanJob.running = true;
-    cleanJob.cat = cat;
-    cleanJob.root = (body && body.root != null) ? body.root : null;
-    cleanJob.total = approved.length;
-    cleanJob.totalBytes = approved.reduce((sum, it) => sum + (it.s || 0), 0);
-    cleanJob.processed = 0;
-    cleanJob.deleted = 0;
-    cleanJob.freed = 0;
-    cleanJob.refusedCount = refused.length;
-    cleanJob.phase = 'processing';
-    cleanJob.permanent = false;
-    cleanJob.cancelled = false;
-    cleanJob.startedAt = Date.now();
-    cleanJob.doneAt = 0;
-    cleanJob.report = null;
-    emitClean();
-
-    runCleanJob({ id, approved, refused, c, overviewKey, gctx })
-      .catch(() => { /* runCleanJob settles cleanJob itself */ });
-    return { ok: true, started: true, id };
-  }
-
-  // The actual deletion loop, off the request path. Streams progress and always
-  // settles cleanJob (running:false, a report) exactly once.
-  async function runCleanJob({ id, approved, refused, c, overviewKey, gctx }) {
-    // One locked cache file must not make a large cleanup look like a total
-    // failure after Windows already recycled everything else. Small batches
-    // isolate failures; a failed batch is split until the stubborn path is
-    // identified. The live filesystem remains the final source of truth.
-    const attempted = new Set();
-    const shellFailed = [];
-    // Top-level items we had to open up because something inside was in use.
-    const descended = new Set();
-
-    // Recycling a folder is ONE rename, so one file held open by a running
-    // program (an npm debug log, uv's .lock) refuses the entire folder — the
-    // empirically-proven "2 GB cache never moves" case. When Windows answers
-    // with an in-use code for a single directory, open it up and recycle its
-    // children individually: everything movable moves, and only the locked
-    // subtree stays behind. Every child is re-checked against the guard —
-    // descending must never reach further than the approved item could.
-    async function descendInto(dirPath, depth) {
-      if (cleanJob.cancelled || depth > DESCEND_MAX_DEPTH) return;
-      let entries;
-      try { entries = await fs.promises.readdir(dirPath, { withFileTypes: true }); } catch { return; }
-      const files = [];
-      const dirs = [];
-      for (const e of entries) {
-        const p = path.join(dirPath, e.name);
-        const flags = await probeFlags(p);
-        if (!flags.exists) continue;
-        if (guardDelete(p, gctx, flags).ok !== true) continue;   // silently keep what the guard protects
-        if (flags.isDir) dirs.push(p); else files.push(p);
-      }
-      // Files in one call; on refusal isolate per file like the main loop.
-      for (let i = 0; i < files.length && !cleanJob.cancelled; i += DELETE_BATCH_MAX) {
-        const batch = files.slice(i, i + DELETE_BATCH_MAX);
-        const res = await runShellDelete({ paths: batch });
-        if (!res.ok || res.aborted === true) {
-          for (const p of batch) {
-            const r1 = await runShellDelete({ paths: [p] });
-            if (!r1.ok || r1.aborted === true) {
-              shellFailed.push({ path: p, reason: (IN_USE_RCS.has(r1.rc) || r1.aborted === true) ? 'in_use' : 'shell_refused' });
-            }
-          }
-        }
-      }
-      // Directories one by one; any refusal recurses a level deeper until the
-      // depth bound, so the locked leaf is isolated as precisely as possible.
-      for (const p of dirs) {
-        if (cleanJob.cancelled) return;
-        const res = await runShellDelete({ paths: [p] });
-        if (res.ok && res.aborted !== true) continue;
-        if (depth < DESCEND_MAX_DEPTH) await descendInto(p, depth + 1);
-        else {
-          const inUse = IN_USE_RCS.has(res.rc) || res.aborted === true;
-          shellFailed.push({ path: p, reason: inUse ? 'in_use' : 'shell_refused' });
-        }
-      }
-    }
-
-    async function deleteBatch(items) {
-      if (cleanJob.cancelled) return;
-      const pending = [];
-      for (const it of items) {
-        // Re-probe AND re-guard LIVE at the batch boundary — not just for
-        // existence. The up-front guard in clean() ran moments ago; between
-        // then and now the path could have been swapped to a junction/symlink,
-        // and recycling a reparse point must never become a delete of its
-        // target. Mirrors descendInto's per-child check so a top-level item is
-        // held to the same live test as a descended one. A vanished item counts
-        // as attempted (verified gone below); a now-refused one is reported, not
-        // deleted.
-        const flags = await probeFlags(it.p);
-        if (!flags.exists) { attempted.add(it); continue; }
-        if (guardDelete(it.p, gctx, flags).ok !== true) {
-          shellFailed.push({ path: it.p, reason: 'guard_refused' });
-          continue;
-        }
-        pending.push(it);
-      }
-      if (!pending.length) return;
-      const res = await runShellDelete({ paths: pending.map((it) => it.p) });
-      pending.forEach((it) => attempted.add(it));
-      if (res.ok) return;
-      if (pending.length === 1) {
-        const it = pending[0];
-        // A refused DIRECTORY is always opened up, whatever the code: the
-        // shell answers in-use (5/32/120), rc 0 + aborted (FOF_NOERRORUI turns
-        // the error dialog into a silent cancel), or 124 DE_INVALIDFILES for a
-        // tree holding hardlinks whose target is loaded by a running process
-        // (uv's archive cache, empirically). Descending isolates the exact
-        // locked leaf and moves everything else; the guard re-checks every
-        // child, so this never reaches further than the approved item could.
-        if (it.kind === 'dir') {
-          descended.add(it);
-          await descendInto(it.p, 0);
-        } else {
-          const inUse = IN_USE_RCS.has(res.rc) || res.aborted === true;
-          shellFailed.push({ path: it.p, reason: inUse ? 'in_use' : 'shell_refused' });
-        }
-        return;
-      }
-      const mid = Math.ceil(pending.length / 2);
-      await deleteBatch(pending.slice(0, mid));
-      await deleteBatch(pending.slice(mid));
-    }
-
-    try {
-      for (let i = 0; i < approved.length; i += DELETE_BATCH_MAX) {
-        if (cleanJob.cancelled) break;
-        const batch = approved.slice(i, i + DELETE_BATCH_MAX);
-        await deleteBatch(batch);
-        // Progress is measured on what has been ATTEMPTED (moved or proven
-        // stubborn), not on batch index, so a re-split batch still counts once.
-        cleanJob.processed = Math.min(attempted.size, approved.length);
-        emitClean();
-      }
-
-      // Verify what is actually gone and report partial success honestly. A
-      // descended container that still exists is measured: what it lost is
-      // freed space, what it kept is reported as in use.
-      let deleted = 0, freed = 0;
-      const gone = new Set();
-      const remaining = [];
-      for (const it of attempted) {
-        try { await fs.promises.lstat(it.p); }
-        catch { deleted++; freed += it.s; gone.add(it); }
-        if (gone.has(it)) continue;
-        if (descended.has(it)) {
-          const left = await remainingBytes(it.p);
-          const clearedHere = left == null ? 0 : Math.max(0, (it.s || 0) - left);
-          if (clearedHere > 0) {
-            freed += clearedHere;
-            remaining.push({ path: it.p, reason: 'partly_in_use', freedBytes: clearedHere });
-            continue;
-          }
-        }
-        remaining.push({ path: it.p, reason: 'still_present' });
-      }
-      // Order matters for the per-path dedup below (the Map keeps the LAST
-      // entry): specific reasons (in_use, partly_in_use, shell_refused) must
-      // win over the generic still_present, so `remaining` goes first.
-      const allRefused = [...refused, ...remaining, ...shellFailed];
-      // A cancelled run reports the not-yet-attempted items as such, so the
-      // count the user sees adds up to the whole selection.
-      if (cleanJob.cancelled) {
-        for (const it of approved) {
-          if (!attempted.has(it)) allRefused.push({ path: it.p, reason: 'cancelled' });
-        }
-      }
-      const uniqueRefused = [...new Map(allRefused.map((entry) => {
-        const key = entry.path ? 'path:' + String(entry.path).toLowerCase() : 'id:' + String(entry.id);
-        return [key, entry];
-      })).values()];
-
-      cleanJob.deleted = deleted;
-      cleanJob.freed = freed;
-      cleanJob.refusedCount = uniqueRefused.length;
-
-      // Success = bytes actually left the drive, whether items vanished whole
-      // or a container was cleared around a locked file (deleted 0, freed 2 GB
-      // is a SUCCESS the old `if (deleted)` gate reported as total failure).
-      if (freed > 0) {
-        // Drop the deleted items so a second click can't re-address them, and
-        // subtract only what this run verified as gone (bytes/count describe
-        // the whole category, the in-memory item list is capped).
-        c.items = c.items.filter((it) => !gone.has(it));
-        c.bytes = Math.max(0, c.bytes - freed);
-        c.count = Math.max(0, c.count - deleted);
-        if (overviewKey) overviews.delete(overviewKey);
-        else await persistSummary();
-      }
-
-      cleanJob.report = freed > 0
-        ? {
-            ok: true, deleted, attempted: attempted.size, freedBytes: freed,
-            toRecycleBin: true, partial: uniqueRefused.length > 0,
-            cancelled: cleanJob.cancelled, refused: uniqueRefused,
-          }
-        : {
-            ok: false, error: cleanJob.cancelled ? 'cancelled' : 'delete_failed',
-            deleted: 0, freedBytes: 0, cancelled: cleanJob.cancelled, refused: uniqueRefused,
-          };
-    } catch (e) {
-      cleanJob.report = { ok: false, error: 'clean_failed', deleted: cleanJob.deleted, freedBytes: cleanJob.freed };
-    } finally {
-      // A stale progress event from a superseded run must never revive this.
-      if (cleanJob.id === id) {
-        cleanJob.running = false;
-        cleanJob.phase = 'done';
-        cleanJob.doneAt = Date.now();
-        emitClean();
-      }
-    }
-  }
-
-  function cancelClean() {
-    if (!cleanJob.running) return { ok: true, idle: true };
-    cleanJob.cancelled = true;
-    // The current shell-delete batch is allowed to finish (killing it mid-move
-    // could orphan a half-done operation); the loop stops before the next one.
-    emitClean();
-    return { ok: true };
-  }
-
-  // The Recycle-Bin delete for a caller outside the Disk widget's categories
-  // (Dev cleanup's stale editor workspace folders). Same last gate: every path
-  // is re-probed and must pass the guard against `root`, the folder the caller
-  // enumerated. Returns the paths actually moved.
-  async function trashUnder(root, paths) {
-    const gctx = guardCtx(root);
-    const allowed = [];
-    for (const p of Array.isArray(paths) ? paths : []) {
-      if (guardDelete(p, gctx, await probeFlags(p)).ok) allowed.push(p);
-    }
-    if (!allowed.length) return { ok: false, moved: [] };
-    const res = await runShellDelete({ paths: allowed });
-    const moved = [];
-    for (const p of allowed) if (!(await probeFlags(p)).exists) moved.push(p);
-    return { ok: !!(res && res.ok) && moved.length === allowed.length, moved };
-  }
-
-  function runShellDelete(payload) {
-    if (shellDeleteRunner) {
-      return Promise.resolve().then(() => shellDeleteRunner(payload)).catch(() => ({ ok: false }));
-    }
-    return new Promise((resolve) => {
-      let proc;
-      try {
-        proc = spawn(helperExe, ['shell-delete'], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
-      } catch { resolve({ ok: false }); return; }
-      // Tracked so _gracefulShutdown can wait a beat and then kill: a
-      // shell-delete child has no job object, so process.exit would orphan it
-      // (the bug that kept moving files after the server was killed).
-      liveDeleteProcs.add(proc);
-      let out = '';
-      let settled = false;
-      const done = (r) => { if (!settled) { settled = true; liveDeleteProcs.delete(proc); resolve(r); } };
-      proc.stdout.setEncoding('utf8');
-      proc.stdout.on('data', (ch) => { out += ch; });
-      const timer = setTimeout(() => { try { proc.kill(); } catch {} done({ ok: false }); }, SHELL_DELETE_TIMEOUT_MS);
-      proc.on('exit', () => {
-        clearTimeout(timer);
-        try { done(JSON.parse(out.trim() || '{}')); } catch { done({ ok: false }); }
-      });
-      proc.on('error', () => { clearTimeout(timer); done({ ok: false }); });
-      // EPIPE on a child that died before reading the payload arrives as an
-      // 'error' event on the stream, not as a throw from write() — unhandled,
-      // it takes the whole server down. The exit handler already settles this
-      // call, so there is nothing to do but not crash.
-      proc.stdin.on('error', () => {});
-      try {
-        proc.stdin.write(JSON.stringify(payload) + '\n');
-        proc.stdin.end();
-      } catch { /* exit handler resolves */ }
-    });
-  }
+  const {
+    listDrives, addableRoots,
+  } = makeVolumes({ getVolumes, IS_WIN, DRIVES_TTL_MS, drivesCache, volumesCache });
 
   // ── Living-Index overviews (the no-scan path) ────────────────────────────
   // One overview per configured root, computed on demand from the live index.
@@ -1135,6 +262,10 @@ function createDiskSpace(opts) {
   // cached category lists — the same opaque-id contract as the scan path.
   const OVERVIEW_TTL_MS = 30 * 1000;
   const overviews = new Map();   // rootLower -> { at, version, root, total, files, tree, topFiles, dupes, categories, ... }
+  const {
+    cleanSnapshot, emitClean, runCleanJob, cancelClean, runShellDelete,
+  } = makeCleanJob({ helperExe, shellDeleteRunner, onCleanProgress, probeFlags, remainingBytes, guardDelete, persistSummary, cleanJob, liveDeleteProcs, overviews });
+
   const overviewBuilds = new Map(); // rootLower -> Promise (dedupe UI + AI requests)
   const STALE_MIN_BYTES = 500 * 1024 * 1024;   // "large and untouched": at least this big…
   const STALE_AFTER_DAYS = 365;                // …and not modified for this long
@@ -1150,519 +281,31 @@ function createDiskSpace(opts) {
   // drive) instead of a spinner. Display only: it is never a cleanup target.
   const SNAPSHOT_FILE = 'disk-snapshot.json';
   const HISTORY_FILE = 'disk-history.json';
-  let snapshots = null;           // rootLower -> client overview
-  let history = null;             // disk-history.js shape
-  let persistTimer = null;
+  const saved = {
+    snapshots: null,           // rootLower -> client overview
+    history: null,             // disk-history.js shape
+    persistTimer: null,
+  };
 
-  async function loadPersisted() {
-    if (snapshots && history) return;
-    snapshots = new Map();
-    history = DiskHistory.normalize(null);
-    try {
-      const raw = JSON.parse(await fs.promises.readFile(path.join(dataDir, SNAPSHOT_FILE), 'utf8'));
-      if (raw && raw.v === 1 && raw.roots && typeof raw.roots === 'object') {
-        for (const [k, v] of Object.entries(raw.roots)) {
-          if (v && typeof v === 'object' && typeof v.root === 'string') snapshots.set(k, v);
-        }
-      }
-    } catch { /* absent or corrupt: nothing to show yet */ }
-    try {
-      history = DiskHistory.normalize(JSON.parse(await fs.promises.readFile(path.join(dataDir, HISTORY_FILE), 'utf8')));
-    } catch { /* absent or corrupt: history starts today */ }
-  }
+  const {
+    resolveRoot, toClientOverview, reveal, browse,
+  } = makeBrowse({ revealExternal, livingIndex, getIndexRoots, IS_WIN, SEP, cmpKey, trimSep, isBelow, overviews });
 
-  function schedulePersist() {
-    if (persistTimer) return;
-    persistTimer = setTimeout(() => { persistTimer = null; void persistNow(); }, 5000);
-    if (persistTimer.unref) persistTimer.unref();
-  }
+  const {
+    clean, trashUnder,
+  } = makeClean({ cmpKey, guardCtx, probeFlags, guardDelete, canRecycle, scan, cleanRuns, cleanJob, overviews, emitClean, runCleanJob, runShellDelete, resolveRoot });
 
-  async function persistNow() {
-    if (!snapshots || !history) return;
-    const roots = {};
-    for (const [k, v] of snapshots) roots[k] = v;
-    try { await writeFileAtomic(path.join(dataDir, SNAPSHOT_FILE), JSON.stringify({ v: 1, roots })); } catch { /* next build retries */ }
-    try { await writeFileAtomic(path.join(dataDir, HISTORY_FILE), JSON.stringify(history)); } catch { /* next build retries */ }
-  }
+  const {
+    loadPersisted, schedulePersist, persistNow, snapshotOf, snapshot,
+  } = makeSavedOverviews({ dataDir, cmpKey, SNAPSHOT_FILE, HISTORY_FILE, saved, resolveRoot });
 
-  // Drill-down and file ids live only with one cached overview. The browser may
-  // display paths, but it can navigate or reveal only by an opaque id minted
-  // here; a path never travels client→server and cannot escape the root.
-  function browseIds(ov) {
-    if (ov._browseIds) return ov._browseIds;
-    const state = { next: 0, byId: new Map(), byPath: new Map(), nextFile: 0, fileById: new Map(), fileByPath: new Map() };
-    Object.defineProperty(ov, '_browseIds', { value: state, enumerable: false });
-    return state;
-  }
+  const {
+    overview,
+  } = makeOverview({ onDiskUpdate, livingIndex, cmpKey, trimSep, isBelow, tempDirs, downloads, isContainerDir, catCtx, byPathAsc, OVERVIEW_TTL_MS, overviews, overviewBuilds, STALE_MIN_BYTES, STALE_AFTER_DAYS, dupeVerifier, saved, resolveRoot, toClientOverview, loadPersisted, schedulePersist, snapshotOf });
 
-  function insideRoot(ov, rawPath) {
-    const value = trimSep(rawPath);
-    const key = cmpKey(value);
-    const rootKey = cmpKey(trimSep(ov.root));
-    return value && (key === rootKey || isBelow(key, rootKey)) ? value : '';
-  }
-
-  function registerBrowsePath(ov, rawPath) {
-    // `trimSep`, not a bare strip: a POSIX root is "/" and stripping it left
-    // the empty string, which failed the guard below and minted no id for the
-    // root itself — the drill-down had nothing to start from.
-    // This test ADMITS a path into the id space, so it is the strict one: an
-    // id minted here is what /disk/browse resolves against, and nothing
-    // outside the root may ever get one.
-    const value = insideRoot(ov, rawPath);
-    if (!value) return '';
-    const state = browseIds(ov);
-    const key = cmpKey(value);
-    const known = state.byPath.get(key);
-    if (known) return known;
-    const id = 'n' + (state.next++).toString(36);
-    state.byPath.set(key, id);
-    state.byId.set(id, value);
-    return id;
-  }
-
-  // The file twin: an id the widget can hand back to "show in folder". Same
-  // admission rule as a folder id.
-  function registerFilePath(ov, rawPath) {
-    const value = insideRoot(ov, rawPath);
-    if (!value) return '';
-    const state = browseIds(ov);
-    const key = cmpKey(value);
-    const known = state.fileByPath.get(key);
-    if (known) return known;
-    const id = 'f' + (state.nextFile++).toString(36);
-    state.fileByPath.set(key, id);
-    state.fileById.set(id, value);
-    return id;
-  }
-
-  async function resolveRoot(rawIndex) {
-    const roots = (await getIndexRoots().catch(() => [])) || [];
-    const i = Number(rawIndex);
-    if (!Number.isInteger(i) || i < 0 || i >= roots.length) return null;
-    return roots[i];
-  }
-
-  async function buildOverview(root) {
-    // Which of the detail roots sit inside the root being scanned. Off Windows
-    // this answered "none" unless a temp dir equalled the root exactly, so the
-    // index was asked for no detail files at all and the temp and downloads
-    // categories came back empty on every Mac and every Linux box.
-    const rl = cmpKey(trimSep(root));
-    const detailRoots = [downloads, ...tempDirs].filter((dr) => {
-      const drl = cmpKey(trimSep(dr));
-      return drl === rl || isBelow(drl, rl);
-    });
-    const now = Date.now();
-
-    let sz, bigDirs, topFiles, dupeGroups, detailFiles, indexMeta;
-    let kinds = null, staleFiles = null, version = null;
-    const combined = typeof livingIndex.overview === 'function'
-      ? await livingIndex.overview(root, {
-        dirMinBytes: 10 * 1024 * 1024,
-        dirMax: 4000,
-        topMax: CLIENT_FILES_MAX,
-        dupeMinBytes: 10 * 1024 * 1024,
-        dupeMax: DUPE_GROUPS_MAX,
-        detailRoots,
-        detailMax: 5000,
-        staleMinBytes: STALE_MIN_BYTES,
-        staleBefore: now - STALE_AFTER_DAYS * 86400000,
-        staleMax: 50,
-      })
-      : null;
-    if (combined) {
-      sz = { total: combined.total, files: combined.files };
-      bigDirs = combined.dirs || [];
-      topFiles = combined.topFiles || [];
-      dupeGroups = combined.groups || [];
-      detailFiles = combined.detailFiles || [];
-      indexMeta = {
-        building: combined.building === true,
-        capped: combined.capped === true,
-        detailCapped: combined.detailCapped === true,
-      };
-      kinds = cleanKinds(combined.kinds);
-      staleFiles = Array.isArray(combined.staleFiles) ? combined.staleFiles : null;
-      version = Number.isFinite(combined.version) ? combined.version : null;
-    } else {
-      // Compatibility with a helper that predates the combined overview
-      // protocol. The helper updater replaces it on the next restart.
-      [sz, bigDirs, topFiles, dupeGroups] = await Promise.all([
-        livingIndex.sizes(root),
-        livingIndex.dirs(root, 10 * 1024 * 1024, 4000),
-        livingIndex.top(root, CLIENT_FILES_MAX),
-        livingIndex.dupes(root, 10 * 1024 * 1024, DUPE_GROUPS_MAX),
-      ]);
-      detailFiles = [];
-      for (const dr of detailRoots) {
-        const files = await livingIndex.list(dr, 5000);
-        if (files) detailFiles.push(...files);
-      }
-      indexMeta = { building: false, capped: false, detailCapped: false };
-    }
-    if (!sz) return null;
-
-    // Categories: classify the big dirs (caches/build dirs are dirs)…
-    const ctx = await catCtx();
-    const cats = {};
-    const add = (cat, p, s, m, kind) => {
-      const c = cats[cat] || (cats[cat] = { bytes: 0, count: 0, items: [] });
-      c.bytes += s; c.count++;
-      c.items.push({ p, s, m, kind });
-    };
-    const classifiedDirs = [];
-    for (const d of byPathAsc(bigDirs)) {
-      const r = DiskCategories.classify({ path: d.p, name: path.basename(d.p), isDir: true, size: d.s, mtime: d.m }, ctx);
-      if (!r) continue;
-      if (isContainerDir(d.p)) continue;   // its children are the items
-      const key = cmpKey(d.p);
-      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
-      classifiedDirs.push(key);
-      add(r.cat, d.p, d.s, d.m, 'dir');
-    }
-    // …then per-file detail where files classify individually (installers in
-    // Downloads, loose temp files), asked from the index only for the detail
-    // roots that live under THIS root.
-    for (const f of detailFiles) {
-      const key = cmpKey(f.p);
-      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
-      const ext = path.extname(f.n).replace(/^\./, '');
-      const r = DiskCategories.classify({ path: f.p, name: f.n, isDir: false, size: f.s, mtime: f.m, ext }, ctx);
-      if (!r) continue;
-      add(r.cat, f.p, f.s, f.m, 'file');
-    }
-    for (const c of Object.values(cats)) {
-      c.items.sort((a, b) => b.s - a.s);
-      if (c.items.length > CATEGORY_ITEMS_MAX) c.items = c.items.slice(0, CATEGORY_ITEMS_MAX);
-      c.items.forEach((it, i) => { it.i = i; });
-    }
-
-    // Duplicates: what the hash cache already proves, at once. The rest is
-    // verified in the background (see scheduleDupes) and pushed when done.
-    const quick = await dupeVerifier.cachedOnly(dupeGroups || []);
-
-    let volume = null;
-    try {
-      const v = await fs.promises.statfs(root);
-      const capacity = Number(v.bsize) * Number(v.blocks);
-      const free = Number(v.bsize) * Number(v.bavail);
-      if (Number.isFinite(capacity) && capacity > 0 && Number.isFinite(free)) {
-        volume = { capacity, free: Math.max(0, free), used: Math.max(0, capacity - free) };
-      }
-    } catch { /* a configured folder can disappear between requests */ }
-
-    const tree = (bigDirs || []).sort((a, b) => b.s - a.s).slice(0, CLIENT_DIRS_MAX);
-    // Today's point in the drive's history, and what that history says. Only
-    // from a complete index: a half-built one would record a fake drop and
-    // then a fake growth when it finishes.
-    let insightsOut = null;
-    if (volume && !indexMeta.building) {
-      await loadPersisted();
-      const hk = cmpKey(trimSep(root));
-      history = DiskHistory.record(history, hk, { root, capacity: volume.capacity, used: volume.used, tree }, now);
-      const pts = history.roots[hk] || [];
-      insightsOut = {
-        growth: DiskHistory.growth(pts, now, 7),
-        forecast: DiskHistory.forecast(pts, now),
-        historyDays: pts.length,
-      };
-    }
-
-    return {
-      at: now, version, root,
-      total: sz.total || 0, files: sz.files || 0,
-      volume,
-      index: indexMeta,
-      tree,
-      topFiles: topFiles || [],
-      staleFiles,
-      kinds,
-      insights: insightsOut,
-      dupes: quick.groups.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths })),
-      dupesPending: quick.pending > 0,
-      _dupeCandidates: dupeGroups || [],
-      categories: cats,
-    };
-  }
-
-  // Only the known kinds, as non-negative numbers: this travels to the client.
-  function cleanKinds(raw) {
-    if (!raw || typeof raw !== 'object') return null;
-    const out = {};
-    for (const k of DiskKinds.KINDS) {
-      const v = Number(raw[k]);
-      out[k] = Number.isFinite(v) && v > 0 ? v : 0;
-    }
-    return out;
-  }
-
-  // The background half of the duplicate check, for the overview just cached.
-  // When it proves more than the overview shows, the cached overview is
-  // updated and the dashboard told (`onDiskUpdate`), which refetches it.
-  function scheduleDupes(key, built) {
-    if (!built.dupesPending) return;
-    void dupeVerifier.verify(built._dupeCandidates).then((out) => {
-      if (overviews.get(key) !== built) return;   // superseded meanwhile
-      built.dupes = out.groups.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths }));
-      built.dupesPending = out.pending > 0;
-      try { onDiskUpdate({ root: built.root, what: 'dupes' }); } catch { /* best effort */ }
-      // A pass bounded by its budget leaves work; the next overview continues it.
-    }).catch(() => {});
-  }
-
-  async function currentVersion() {
-    try {
-      const s = await livingIndex.stats();
-      return s && Number.isFinite(s.version) ? s.version : null;
-    } catch { return null; }
-  }
-
-  // Overview for the Nth configured root. Wire shape: index in, display data
-  // out; the client acts via {root, category, ids} against this cache.
-  async function overview(rawIndex, refresh) {
-    if (!livingIndex || !livingIndex.available()) return { ok: false, error: 'index_off' };
-    const root = await resolveRoot(rawIndex);
-    if (!root) return { ok: false, error: 'bad_root' };
-    const key = cmpKey(root);
-    const cached = overviews.get(key);
-    if (!refresh && cached) {
-      if (Date.now() - cached.at < OVERVIEW_TTL_MS) return toClientOverview(cached);
-      // Older than the TTL but nothing changed since: still the truth.
-      if (cached.version != null && (await currentVersion()) === cached.version) return toClientOverview(cached);
-    }
-    let pending = overviewBuilds.get(key);
-    if (!pending) {
-      pending = buildOverview(root).finally(() => overviewBuilds.delete(key));
-      overviewBuilds.set(key, pending);
-    }
-    const built = await pending;
-    if (!built) return { ok: false, error: 'index_unavailable' };
-    if (overviews.get(key) !== built) {
-      overviews.set(key, built);
-      scheduleDupes(key, built);
-    }
-    const client = toClientOverview(built);
-    if (!built.index.building) {
-      await loadPersisted();
-      snapshots.set(key, snapshotOf(client));
-      schedulePersist();
-    }
-    return client;
-  }
-
-  // The persisted copy: display data only. Category item lists and every id are
-  // dropped — they belong to a live overview, and a snapshot must never be
-  // something a cleanup or a drill-down can be aimed at.
-  function snapshotOf(client) {
-    return {
-      root: client.root, total: client.total, files: client.files,
-      volume: client.volume, index: client.index, generatedAt: client.generatedAt,
-      kinds: client.kinds, insights: client.insights,
-      tree: client.tree.map(({ p, s, n, m }) => ({ p, s, n, m })),
-      topFiles: client.topFiles.slice(0, 50).map(({ p, n, s, m }) => ({ p, n, s, m })),
-      staleFiles: (client.staleFiles || []).map(({ p, n, s, m }) => ({ p, n, s, m })),
-      dupes: client.dupes.map(({ s, wasted, paths }) => ({ s, wasted, paths: paths.map((x) => x.p) })),
-      categories: Object.fromEntries(Object.entries(client.categories).map(([cat, c]) => [cat, { bytes: c.bytes, count: c.count }])),
-    };
-  }
-
-  // The last persisted overview of a root, marked stale, for the time the
-  // index cannot answer yet. Read only.
-  async function snapshot(rawIndex) {
-    const root = await resolveRoot(rawIndex);
-    if (!root) return { ok: false, error: 'bad_root' };
-    await loadPersisted();
-    const snap = snapshots.get(cmpKey(root));
-    if (!snap) return { ok: false, error: 'no_snapshot' };
-    return { ok: true, stale: true, ...snap };
-  }
-
-  function toClientOverview(ov) {
-    const rootId = registerBrowsePath(ov, ov.root);
-    const withId = (f) => ({ ...f, id: registerFilePath(ov, f.p) });
-    return {
-      ok: true,
-      root: ov.root, total: ov.total, files: ov.files,
-      rootId,
-      volume: ov.volume,
-      index: ov.index,
-      generatedAt: ov.at,
-      kinds: ov.kinds || null,
-      insights: ov.insights || null,
-      tree: ov.tree.map((dir) => ({ ...dir, id: registerBrowsePath(ov, dir.p) })),
-      topFiles: ov.topFiles.map(withId),
-      staleFiles: ov.staleFiles ? ov.staleFiles.map(withId) : null,
-      dupes: ov.dupes.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths.map((p) => ({ p, id: registerFilePath(ov, p) })) })),
-      dupesPending: ov.dupesPending === true,
-      categories: Object.fromEntries(Object.entries(ov.categories).map(([cat, c]) => [cat, {
-        bytes: c.bytes, count: c.count,
-        listedCount: Math.min(500, c.items.length),
-        listedBytes: c.items.slice(0, 500).reduce((sum, it) => sum + it.s, 0),
-        truncated: c.items.length > 500 || c.count > c.items.length,
-        items: c.items.slice(0, 500).map((it) => ({ i: it.i, p: it.p, s: it.s, m: it.m, kind: it.kind })),
-      }])),
-    };
-  }
-
-  // "Show in folder" for a file or folder the widget is displaying, by the
-  // opaque id this overview minted. Re-stat'ed first; reveals, never opens:
-  // showing where something is runs nothing, so no extension gate is needed
-  // (the same reasoning as /search/reveal).
-  async function reveal(rawIndex, rawId) {
-    const root = await resolveRoot(rawIndex);
-    if (!root) return { ok: false, error: 'bad_root' };
-    const ov = overviews.get(cmpKey(root));
-    if (!ov) return { ok: false, error: 'no_overview' };
-    const id = String(rawId || '');
-    const ids = browseIds(ov);
-    let target = '';
-    if (/^f[a-z0-9]+$/.test(id)) target = ids.fileById.get(id) || '';
-    else if (/^n[a-z0-9]+$/.test(id)) target = ids.byId.get(id) || '';
-    if (!target) return { ok: false, error: 'bad_id' };
-    try { await fs.promises.stat(target); } catch { return { ok: false, error: 'not_found' }; }
-    if (typeof revealExternal !== 'function') return { ok: false, error: 'unavailable' };
-    try {
-      // A folder is shown selected inside its parent, the same way a file is.
-      revealExternal(target, path.dirname(target));
-    } catch { return { ok: false, error: 'reveal_failed' }; }
-    return { ok: true };
-  }
-
-  // One-level live drill-down. `node` is an opaque id from this overview (or a
-  // previous browse response), never a client path. New helpers answer in one
-  // pass; the cached overview remains a truthful fallback during an update.
-  async function browse(rawIndex, rawNode) {
-    if (!livingIndex || !livingIndex.available()) return { ok: false, error: 'index_off' };
-    const root = await resolveRoot(rawIndex);
-    if (!root) return { ok: false, error: 'bad_root' };
-    const ov = overviews.get(cmpKey(root));
-    if (!ov) return { ok: false, error: 'no_overview' };
-    const node = String(rawNode || '');
-    if (!/^n[a-z0-9]+$/.test(node)) return { ok: false, error: 'bad_node' };
-    const target = browseIds(ov).byId.get(node);
-    if (!target) return { ok: false, error: 'bad_node' };
-
-    let snapshot = typeof livingIndex.browse === 'function'
-      ? await livingIndex.browse(target, { childMax: 64, fileMax: 64 })
-      : null;
-    if (!snapshot) {
-      const targetKey = cmpKey(trimSep(target));
-      // The parent of "/x" is "/", not "" — slicing at the separator index
-      // loses a POSIX root that the Windows shape ("C:\x" → "C:") never hits.
-      const parentKey = (p) => {
-        const cut = p.lastIndexOf(SEP);
-        if (cut < 0) return '';
-        return cut === 0 && !IS_WIN ? '/' : p.slice(0, cut);
-      };
-      const children = ov.tree.filter((dir) => {
-        const p = cmpKey(trimSep(dir.p));
-        return p.includes(SEP) && parentKey(p) === targetKey;
-      }).slice(0, 64);
-      const directFiles = ov.topFiles.filter((file) =>
-        parentKey(cmpKey(file.p)) === targetKey).slice(0, 64);
-      const rootEntry = ov.tree.find((dir) => cmpKey(trimSep(dir.p)) === targetKey);
-      snapshot = {
-        path: target,
-        total: rootEntry ? rootEntry.s : (targetKey === cmpKey(trimSep(ov.root)) ? ov.total : 0),
-        files: rootEntry ? rootEntry.n : 0,
-        directBytes: directFiles.reduce((sum, file) => sum + (Number(file.s) || 0), 0),
-        children,
-        directFiles,
-        fallback: true,
-      };
-    }
-
-    const children = (Array.isArray(snapshot.children) ? snapshot.children : [])
-      .filter((dir) => dir && dir.p)
-      .slice(0, 64)
-      .map((dir) => ({
-        id: registerBrowsePath(ov, dir.p),
-        p: String(dir.p), s: Number(dir.s) || 0,
-        n: Number(dir.n) || 0, m: Number(dir.m) || 0,
-      }))
-      .filter((dir) => dir.id);
-    const directFiles = (Array.isArray(snapshot.directFiles) ? snapshot.directFiles : [])
-      .filter((file) => file && file.p)
-      .slice(0, 64)
-      .map((file) => ({
-        id: registerFilePath(ov, String(file.p)),
-        p: String(file.p), n: String(file.n || path.basename(file.p)),
-        s: Number(file.s) || 0, m: Number(file.m) || 0,
-      }));
-    const total = Math.max(0, Number(snapshot.total) || 0);
-    const represented = children.reduce((sum, dir) => sum + dir.s, 0) +
-      directFiles.reduce((sum, file) => sum + file.s, 0);
-    return {
-      ok: true,
-      node,
-      path: target,
-      total,
-      files: Math.max(0, Number(snapshot.files) || 0),
-      directBytes: Math.max(0, Number(snapshot.directBytes) || 0),
-      otherBytes: Math.max(0, total - represented),
-      children,
-      directFiles,
-      fallback: snapshot.fallback === true,
-    };
-  }
-
-  // ── AI insight (read-only; the AI can explain, never delete) ─────────────
-  async function insights(rawIndex) {
-    await loadSummary();
-    const s = await status();
-    const out = { helper: s.helper, lastScanAt: lastSummary ? lastSummary.at : null };
-    // Living-Index path: current stats plus the requested configured root
-    // (default first). The AI receives a root INDEX, never an arbitrary path.
-    if (s.index && s.index.on && s.index.ready && s.roots && s.roots.length) {
-      const requested = Number(rawIndex);
-      const rootRec = Number.isInteger(requested)
-        ? s.roots.find((r) => r.i === requested)
-        : null;
-      const selected = rootRec || s.roots[0];
-      const ov = await overview(selected.i).catch(() => null);
-      if (ov && ov.ok) {
-        out.rootIndex = selected.i;
-        out.root = ov.root;
-        out.drive = {
-          drive: selected.drive,
-          label: selected.label,
-          model: selected.model,
-          fileSystem: selected.fileSystem,
-          driveType: selected.driveType,
-        };
-        out.livingIndex = {
-          files: s.index.files,
-          ramMB: s.index.ramMB,
-          capped: s.index.capped === true,
-          roots: s.roots.map((r) => ({ index: r.i, path: r.path })),
-        };
-        out.totalBytes = ov.total;
-        out.volume = ov.volume;
-        out.categories = Object.fromEntries(Object.entries(ov.categories).map(([k, v]) => [k, { bytes: v.bytes, count: v.count }]));
-        out.topFolders = ov.tree.slice(0, 15).map((d) => ({ path: d.p, bytes: d.s }));
-        out.topFiles = ov.topFiles.slice(0, 15).map((f) => ({ path: f.p, bytes: f.s, modified: f.m ? new Date(f.m).toISOString() : '' }));
-        out.duplicatesWastedBytes = ov.dupes.reduce((a, g) => a + g.wasted, 0);
-        out.advice = DiskIntelligence.analyze(ov);
-        out.note = 'consistent snapshot from the living index; cleanup re-checks every target against the live filesystem';
-        return out;
-      }
-    }
-    if (s.result) {
-      out.totalBytes = s.result.bytes;
-      out.categories = Object.fromEntries(Object.entries(s.result.categories).map(([k, v]) => [k, { bytes: v.bytes, count: v.count }]));
-      out.topFolders = s.result.tree.slice(0, 15).map((d) => ({ path: d.p, bytes: d.s }));
-      out.topFiles = s.result.topFiles.slice(0, 15).map((f) => ({ path: f.p, bytes: f.s, modified: f.m ? new Date(f.m).toISOString() : '' }));
-      out.duplicatesWastedBytes = s.result.dupes.reduce((a, g) => a + g.wasted, 0);
-    } else if (lastSummary) {
-      out.totalBytes = lastSummary.bytes;
-      out.categories = lastSummary.byCategory;
-      out.note = 'summary of the previous scan; run a new scan from the disk widget for details';
-    } else {
-      out.note = 'no scan has been run yet; the user starts one from the disk widget';
-    }
-    return out;
-  }
+  const {
+    status, insights,
+  } = makeStatus({ livingIndex, getIndexRoots, getDriveDetails, IS_WIN, helperPresent, scan, lastScan, loadSummary, listDrives, addableRoots, cleanSnapshot, overview });
 
   function hold(on) { held = on === true; }
 
@@ -1675,7 +318,7 @@ function createDiskSpace(opts) {
     cleanJob.cancelled = true;
     // Ends the background hash pass between files and saves what it learned.
     void dupeVerifier.stop();
-    if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; void persistNow(); }
+    if (saved.persistTimer) { clearTimeout(saved.persistTimer); saved.persistTimer = null; void persistNow(); }
     for (const proc of liveDeleteProcs) {
       try { proc.stdin.end(); } catch {}
       const kill = setTimeout(() => { try { proc.kill(); } catch {} }, 1500);
@@ -1690,29 +333,6 @@ function createDiskSpace(opts) {
   };
 }
 
-// Pure parser for ~/.config/user-dirs.dirs (xdg-user-dirs). Exported so the
-// rule that protects a non-English user's real document folder is unit-tested
-// on every platform, not only where the file exists.
-// Returns { documents, pictures, desktop, ... } with absolute paths.
-function parseXdgUserDirs(text, home) {
-  const out = {};
-  const sep = '/';
-  const homeAbs = String(home || '').replace(/\/+$/, '');
-  for (const line of String(text == null ? '' : text).split(/\r?\n/)) {
-    // Shell assignments, one per line: XDG_DOCUMENTS_DIR="$HOME/Documenti"
-    const m = /^\s*XDG_([A-Z]+)_DIR\s*=\s*"(.*)"\s*$/.exec(line);
-    if (!m) continue;
-    let value = m[2];
-    if (value === '$HOME' || value === '$HOME/') value = homeAbs;
-    else if (value.startsWith('$HOME/')) value = homeAbs + sep + value.slice('$HOME/'.length);
-    value = value.replace(/\/+$/, '');
-    // Absolute only, and never the home directory itself: xdg-user-dirs writes
-    // "$HOME" for a disabled entry, and protecting the whole home would leave
-    // nothing cleanable at all.
-    if (!value.startsWith(sep) || value === homeAbs) continue;
-    out[m[1].toLowerCase()] = value;
-  }
-  return out;
-}
+const { parseXdgUserDirs } = require('./disk-space/xdg-user-dirs.js');
 
 module.exports = { createDiskSpace, parseXdgUserDirs };
