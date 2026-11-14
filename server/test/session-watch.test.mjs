@@ -209,8 +209,10 @@ test('server: the Deck "Lights off" key goes dark and the watch follows native l
   for (const msg of ['WM_QUERYENDSESSION', 'WM_ENDSESSION', 'PBT_APMSUSPEND', 'ENDSESSION_CLOSEAPP']) assert.ok(script.includes(msg), msg);
 });
 
-// The real host: it must compile, sit quietly, and leave when the server goes.
-test('session-watch.ps1 starts and exits when stdin closes', { skip: process.platform !== 'win32' }, async () => {
+// The real host: it must compile, sit quietly, and leave when the server goes. A busy machine
+// can still be compiling the host's C# when stdin closes (a CI runner took over 8 s once), so
+// the wait is long: what is proven is that it leaves by itself, not how fast.
+test('session-watch.ps1 starts and exits when stdin closes', { skip: process.platform !== 'win32', timeout: 90000 }, async () => {
   const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', SCRIPT], {
     windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -220,7 +222,9 @@ test('session-watch.ps1 starts and exits when stdin closes', { skip: process.pla
   assert.equal(child.exitCode, null, 'still running: ' + stderr);
   const exited = new Promise((r) => child.once('exit', r));
   child.stdin.end();
-  const code = await Promise.race([exited, new Promise((r) => setTimeout(() => r('timeout'), 8000))]);
+  let timer;
+  const code = await Promise.race([exited, new Promise((r) => { timer = setTimeout(() => r('timeout'), 60000); })]);
+  clearTimeout(timer);
   if (code === 'timeout') child.kill();
   assert.equal(code, 0, 'exited on its own: ' + stderr);
 });
