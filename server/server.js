@@ -6371,15 +6371,7 @@ function startTasksReopenClock() {
 // read/write functions and the backup bundle all speak a flattened text view so
 // existing consumers (iCUE widget, older backups) keep working unchanged.
 
-const { notesRev } = require('./time/notes-rev-state.js');
-
 const { readNotes, writeNotes, saveNotesGuarded } = require('./time/notes-store.js');
-
-// Guarded save, serialized: the baseRev check and the rev bump inside
-// writeNotes must not interleave across awaits, or two concurrent saves with
-// the same baseRev would BOTH pass the guard and one silently clobber the
-// other — the exact lost update the guard exists to refuse.
-notesRev.saveChain = Promise.resolve();
 
 // ── Timers ────────────────────────────────────────────────────────────────────
 

@@ -9,7 +9,12 @@ const notesRev = {
   // calendar events keep last-writer-wins on purpose: only notes had the
   // reported cross-surface clobber, and their edits are append-mostly.
   rev: -1, // -1 = not yet loaded from disk
-  saveChain: undefined, // given its first value where the engine loads
+  // Guarded save, serialized: the baseRev check and the rev bump inside
+  // writeNotes must not interleave across awaits, or two concurrent saves with
+  // the same baseRev would BOTH pass the guard and one silently clobber the
+  // other — the exact lost update the guard exists to refuse.
+  // Its first value is given here, so the store works whoever loads it.
+  saveChain: /** @type {Promise<unknown>} */ (Promise.resolve()),
 };
 
 module.exports = { notesRev };
