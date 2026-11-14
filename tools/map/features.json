@@ -594,6 +594,7 @@
         "server/js/guardian-history/**",
         "server/js/guardian-history.js",
         "server/js/history-chart.js",
+        "server/js/history-chart/**",
         "server/js/macos-fda.js",
         "server/components/SystemPanel/**",
         "server/components/FansWidget/**",
