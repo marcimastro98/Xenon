@@ -71,7 +71,7 @@
       streams: { perf: 'onPerf', system: 'onSystem', perf_net: 'onNet' },
     },
     battery: tile('battery', 'BatteryWidget', ['js/battery-widget.js'], { battery: 'onSSE' }),
-    fans: tile('fans', 'FansWidget', ['js/sensor-access.js', 'js/fans-widget.js'], { system: 'onSSE' }),
+    fans: tile('fans', 'FansWidget', ['js/sensor-access.js', 'js/fans-widget/readings.js', 'js/fans-widget.js'], { system: 'onSSE' }),
     power: tile('power', 'PowerWidget', ['js/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js', 'js/sensor-access.js', 'js/power-widget.js'],
       { system: 'onSSE', homeassistant: 'onHaSSE' }, null, ['components/GuardianHistory/GuardianHistory.css']),
     stocks: tile('stocks', 'StockWidget', ['js/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),

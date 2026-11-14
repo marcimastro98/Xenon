@@ -589,6 +589,7 @@
         "server/js/system/**",
         "server/js/network.js",
         "server/js/fans-widget.js",
+        "server/js/fans-widget/**",
         "server/js/battery-widget.js",
         "server/js/power-widget.js",
         "server/js/sensor-*.js",
