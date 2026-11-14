@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5926,
+  "total": 5925,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -1285,7 +1285,6 @@
     "server/lights/secrets.js complexity/useOptionalChain": 4,
     "server/lights/settings-normalize.js complexity/useOptionalChain": 4,
     "server/linux-foreground.js complexity/useOptionalChain": 1,
-    "server/linux-index.js style/useConst": 1,
     "server/linux-media.js complexity/useOptionalChain": 1,
     "server/linux-media.js suspicious/noAssignInExpressions": 1,
     "server/linux-mpris.js complexity/useOptionalChain": 1,

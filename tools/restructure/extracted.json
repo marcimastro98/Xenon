@@ -499,7 +499,10 @@
     ],
     "server/linux-index.js": [
       {"file":"server/search/linux-index-query.js","about":"Answers a file search from the Linux file index: how well a name matches what was typed, and the matches in order.","names":["foldName","matchTier","PATH_TIER","entryTier","byTierThenNewest","queryEntries","queryIndex"]},
-      {"file":"server/search/linux-index-overview.js","about":"What the Linux file index says about disk space: the overview of a drive by kind of file, and the contents of one folder with sizes.","names":["isUnder","overviewFrom","browseFrom"]}
+      {"file":"server/search/linux-index-overview.js","about":"What the Linux file index says about disk space: the overview of a drive by kind of file, and the contents of one folder with sizes.","names":["isUnder","overviewFrom","browseFrom"]},
+      {"file":"server/search/linux-index-rules.js","about":"What the Linux index walks by: the folders never searched, the paths that are not really files, how deep a measured folder is recorded, and the file system calls that return a promise.","names":["fsp","SKIP_DIRS","SKIP_PREFIXES","AGG_DEPTH","isSkippedPath"]},
+      {"file":"server/search/linux-index-walks.js","about":"The two walks of the Linux index: a root walked for its files, and a skipped folder walked for its size alone, both stopping when the scan is replaced and waiting while the index is held.","names":["holdEnds","sizeWalk","walkRoot"],"inner":{"factory":"createLinuxIndex","make":"makeWalks"}},
+      {"file":"server/search/linux-index-questions.js","about":"What the Linux index is asked: a search, how far the walk has come, the overview of a drive and the views cut from it, the files of a folder, and the contents of a folder.","names":["query","stats","overview","sizes","dirs","top","dupes","list","browse"],"inner":{"factory":"createLinuxIndex","make":"makeQuestions"}}
     ],
     "server/ics-feeds.js": [
       {"file":"server/time/ics-parse.js","about":"Reads the text of an iCalendar file (RFC 5545) into events: folded lines, dates with their time zone, escaped text.","names":["_unfold","_parseLine","_p2","_p4","_dtfCache","_dtfFor","_tzOffsetMs","_zonedWallToUtcMs","_parseIcsDate","_unescapeText","_finalizeVEvent","MAX_EVENTS_PER_FEED","MAX_EXDATES_PER_EVENT","parseIcs"]},
@@ -972,6 +975,9 @@
     ],
     "server/living-index.js": [
       {"factory":"createLivingIndex","object":"indexState","names":["wantedRoots","notBefore","startTimer","held","stopped"],"kept":["notBefore"],"bare":[],"after":0}
+    ],
+    "server/linux-index.js": [
+      {"factory":"createLinuxIndex","object":"ixState","names":["roots","entries","aggs","building","ready","capped","cappedRoots","stats_","scanToken","version","scanning","rescanTimer","stopped","notBefore","startTimer","held","waitingWalks"],"kept":["notBefore"],"bare":[],"after":2}
     ]
   }
 }

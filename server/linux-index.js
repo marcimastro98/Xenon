@@ -29,44 +29,12 @@
 //     whose whole point is to sit in the background.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const fs = require('fs');
-const fsp = fs.promises;
-const path = require('path');
+const { fsp, SKIP_DIRS, SKIP_PREFIXES, AGG_DEPTH } = require('./search/linux-index-rules.js');
 require('./disk-kinds'); // nothing is taken from it here, but it runs code when it loads
 
-// Directory names never worth SEARCHING: caches and build output, which are
-// large, numerous, and never what someone types a filename to find. They are
-// still MEASURED (see sizeWalk): they are exactly what the disk widget's
-// cleanup categories are about, and skipping them outright meant browser
-// caches, package caches, build output and the Trash could never appear on
-// Linux at all.
-const SKIP_DIRS = new Set([
-  'node_modules', '.git', '.svn', '.hg', '.cache', '__pycache__',
-  '.venv', 'venv', '.tox', '.gradle', '.m2', '.npm', '.cargo', '.rustup',
-  'target', '.next', '.nuxt', '.turbo', 'dist-cache', '.pnpm-store',
-  '.local/share/Trash', 'Trash',
-]);
-
-// Absolute prefixes that are not really files: kernel and runtime interfaces
-// where a walk either loops, blocks, or reports sizes that mean nothing.
-const SKIP_PREFIXES = ['/proc', '/sys', '/dev', '/run', '/snap', '/var/lib/docker'];
-
 const DEFAULT_MAX_ENTRIES = 300000;
-// A measured-only subtree is recorded as one row per directory down to this
-// depth below the skipped folder, deeper folders folding into their ancestor.
-// Deep enough for every POSIX category path in disk-categories.js
-// (~/.cache/google-chrome/Default/Cache is 3 below .cache), shallow enough that
-// a node_modules tree costs a few hundred rows instead of its 100k files.
-const AGG_DEPTH = 5;
 const DEFAULT_MAX_AGG = 60000;
 const DEFAULT_RESCAN_MS = 10 * 60 * 1000;
-
-function isSkippedPath(abs) {
-  for (const p of SKIP_PREFIXES) {
-    if (abs === p || abs.startsWith(p + '/')) return true;
-  }
-  return false;
-}
 
 // ── Pure query core (exported for tests) ─────────────────────────────────────
 // An entry is { p, n, s, m, d } — path, name, size, mtime ms, isDir. `nl` is
@@ -87,140 +55,48 @@ const { overviewFrom, browseFrom } = require('./search/linux-index-overview.js')
 
 // ── The index ────────────────────────────────────────────────────────────────
 
+const { makeWalks } = require('./search/linux-index-walks.js');
+
+const { makeQuestions } = require('./search/linux-index-questions.js');
+
 function createLinuxIndex(o = {}) {
   const maxEntries = o.maxEntries || DEFAULT_MAX_ENTRIES;
   const maxAgg = o.maxAgg || DEFAULT_MAX_AGG;
   const rescanMs = o.rescanMs || DEFAULT_RESCAN_MS;
 
-  let roots = [];
-  let entries = [];        // the live, queryable set
-  let aggs = [];           // measured-only folders (caches, build output): disk map, never search
-  let building = false;
-  let ready = false;
-  let capped = false;
-  let cappedRoots = [];    // the roots the cap left incomplete — swapped in with `entries`
-  let stats_ = { files: 0, dirs: 0, bytes: 0 };
-  let scanToken = 0;       // invalidates a walk whose roots changed under it
-  let version = 0;        // bumped each time a finished walk is swapped in
-  let scanning = false;    // a walk is in flight — distinct from `building`, which is what a query reports
-  let rescanTimer = null;
-  let stopped = false;
-  let notBefore = Date.now() + (o.startDelayMs || 0);   // see living-index.js
-  let startTimer = null;
-  let held = false;
-  let waitingWalks = [];   // walks standing still until the game ends
+  const ixState = {
+    roots: [],
+    entries: [],        // the live, queryable set
+    aggs: [],           // measured-only folders (caches, build output): disk map, never search
+    building: false,
+    ready: false,
+    capped: false,
+    cappedRoots: [],    // the roots the cap left incomplete — swapped in with `entries`
+    stats_: { files: 0, dirs: 0, bytes: 0 },
+    scanToken: 0,       // invalidates a walk whose roots changed under it
+    version: 0,        // bumped each time a finished walk is swapped in
+    scanning: false,    // a walk is in flight — distinct from `building`, which is what a query reports
+    rescanTimer: null,
+    stopped: false,
+    notBefore: undefined, // given its first value further down, where it was declared
+    startTimer: null,
+    held: false,
+    waitingWalks: [],   // walks standing still until the game ends
+  };
+  ixState.notBefore = Date.now() + (o.startDelayMs || 0);   // see living-index.js
 
-  const holdEnds = () => new Promise((resume) => { waitingWalks.push(resume); });
+  const { walkRoot } = makeWalks({ maxEntries, maxAgg, ixState });
 
   function resumeWalks() {
-    for (const resume of waitingWalks.splice(0)) resume();
-  }
-
-  // false = this walk did not see the whole root (the entry cap stopped it, or
-  // the scan was superseded). The caller records which roots those were, so the
-  // UI can name the folder search cannot see rather than only saying that some
-  // limit was reached.
-  // A SKIP_DIRS subtree, measured but not searchable: one row per directory
-  // down to AGG_DEPTH below `top` (deeper folders roll into their ancestor),
-  // each carrying the bytes and file count directly inside it. Separate from
-  // `entries` and its cap, so a big node_modules can never cost search a file
-  // and a query can never surface a cache file. false = superseded.
-  async function sizeWalk(top, token, out) {
-    const rows = new Map();
-    const rowFor = (p, n, m) => {
-      let r = rows.get(p);
-      if (!r) {
-        r = { p, n, nl: foldName(n), s: 0, m, d: true, x: true, fc: 0 };
-        rows.set(p, r);
-        out.push(r);
-      }
-      return r;
-    };
-    let topM = 0;
-    try { topM = (await fsp.lstat(top)).mtimeMs; } catch { /* keep 0 */ }
-    rowFor(top, path.basename(top), topM);
-    const stack = [{ dir: top, owner: top, depth: 0 }];
-    while (stack.length) {
-      if (held) await holdEnds();
-      if (token !== scanToken || stopped) return false;
-      const { dir, owner, depth } = stack.pop();
-      let dirents;
-      try { dirents = await fsp.readdir(dir, { withFileTypes: true }); } catch { continue; }
-      const row = rows.get(owner);
-      for (const de of dirents) {
-        if (de.isSymbolicLink()) continue;
-        const abs = path.join(dir, de.name);
-        if (de.isDirectory()) {
-          if (isSkippedPath(abs)) continue;
-          let child = owner;
-          if (depth + 1 <= AGG_DEPTH && out.length < maxAgg) {
-            let m = 0;
-            try { m = (await fsp.lstat(abs)).mtimeMs; } catch { /* keep 0 */ }
-            rowFor(abs, de.name, m);
-            child = abs;
-          }
-          stack.push({ dir: abs, owner: child, depth: depth + 1 });
-          continue;
-        }
-        let size = 0;
-        try { size = (await fsp.lstat(abs)).size; } catch { continue; }
-        row.s += size;
-        row.fc++;
-        stats_.files++;
-        stats_.bytes += size;
-      }
-    }
-    return true;
-  }
-
-  async function walkRoot(root, token, acc, aggAcc) {
-    // An explicit stack, not recursion: a deep tree would otherwise be bounded
-    // by the JS call stack rather than by the entry cap, and blow up on the
-    // machines with the most files — exactly the ones this has to survive.
-    const stack = [root];
-    while (stack.length) {
-      if (held) await holdEnds();
-      if (token !== scanToken || stopped) return false;
-      const dir = stack.pop();
-      if (isSkippedPath(dir)) continue;
-      let dirents;
-      try {
-        dirents = await fsp.readdir(dir, { withFileTypes: true });
-      } catch {
-        continue; // unreadable (permissions, races) — skip, never fail the walk
-      }
-      for (const de of dirents) {
-        if (acc.length >= maxEntries) { capped = true; return false; }
-        const abs = path.join(dir, de.name);
-        // Symlinks are recorded but never followed: following them is how a
-        // walk ends up in a cycle, and how a link into / turns a home-directory
-        // index into a whole-filesystem one.
-        if (de.isSymbolicLink()) continue;
-        const isDir = de.isDirectory();
-        if (isDir && isSkippedPath(abs)) continue;
-        if (isDir && SKIP_DIRS.has(de.name)) {
-          if (!(await sizeWalk(abs, token, aggAcc))) return false;
-          continue;
-        }
-        let size = 0, mtime = 0;
-        try {
-          const st = await fsp.lstat(abs);
-          size = isDir ? 0 : st.size;
-          mtime = st.mtimeMs;
-        } catch { /* vanished between readdir and lstat — record what we have */ }
-        acc.push({ p: abs, n: de.name, nl: foldName(de.name), s: size, m: mtime, d: isDir });
-        if (isDir) { stats_.dirs++; stack.push(abs); } else { stats_.files++; stats_.bytes += size; }
-      }
-    }
-    return true;
+    for (const resume of ixState.waitingWalks.splice(0)) resume();
   }
 
   async function rebuild() {
-    const token = ++scanToken;
-    scanning = true;
-    building = true;
-    capped = false;
-    stats_ = { files: 0, dirs: 0, bytes: 0 };
+    const token = ++ixState.scanToken;
+    ixState.scanning = true;
+    ixState.building = true;
+    ixState.capped = false;
+    ixState.stats_ = { files: 0, dirs: 0, bytes: 0 };
     const acc = [];
     const aggAcc = [];
     // Collected locally and published with `entries` below, for the same reason
@@ -228,8 +104,8 @@ function createLinuxIndex(o = {}) {
     // behind for a query to read.
     const incomplete = [];
     try {
-      for (const r of roots) {
-        if (token !== scanToken || stopped) return;
+      for (const r of ixState.roots) {
+        if (token !== ixState.scanToken || ixState.stopped) return;
         try {
           const st = await fsp.stat(r);
           if (!st.isDirectory()) continue;
@@ -239,36 +115,36 @@ function createLinuxIndex(o = {}) {
         // index as the root that was cut short, and are named the same way.
         if (!(await walkRoot(r, token, acc, aggAcc))) incomplete.push(r);
       }
-      if (token !== scanToken || stopped) return;
+      if (token !== ixState.scanToken || ixState.stopped) return;
       // Swapped in one assignment, never mutated in place: a query that runs
       // during a rescan sees the previous complete index or the new one, never a
       // half-built list that would silently return "no results" for a file that
       // is there.
-      entries = acc;
-      aggs = aggAcc;
-      version++;
-      cappedRoots = incomplete;
-      building = false;
-      ready = true;
+      ixState.entries = acc;
+      ixState.aggs = aggAcc;
+      ixState.version++;
+      ixState.cappedRoots = incomplete;
+      ixState.building = false;
+      ixState.ready = true;
     } finally {
       // Only the walk that is still current clears the flag — a superseded one
       // must not hand the newcomer's in-flight mark away. `finally` rather than
       // the tail, so a throw cannot leave the mark set forever (which would
       // stop every future rescan).
-      if (token === scanToken) scanning = false;
+      if (token === ixState.scanToken) ixState.scanning = false;
     }
   }
 
   function scheduleRescan() {
-    if (rescanTimer) clearInterval(rescanTimer);
-    if (!roots.length || stopped) { rescanTimer = null; return; }
+    if (ixState.rescanTimer) clearInterval(ixState.rescanTimer);
+    if (!ixState.roots.length || ixState.stopped) { ixState.rescanTimer = null; return; }
     // A periodic rewalk rather than a recursive watch. Node can watch
     // recursively on Linux, but one inotify watch per directory runs into
     // fs.inotify.max_user_watches (8192 by default on many distros) on exactly
     // the large home directories this is for, and failing that limit is silent.
     // A rewalk costs a burst of I/O every few minutes and cannot be defeated by
     // a sysctl.
-    rescanTimer = setInterval(() => {
+    ixState.rescanTimer = setInterval(() => {
       // Never pre-empt the walk already running. rebuild() bumps scanToken and
       // walkRoot aborts the instant the token moves, so on any machine where a
       // full walk takes longer than rescanMs — a large or network-backed home, a
@@ -277,19 +153,19 @@ function createLinuxIndex(o = {}) {
       // forever, overview() stayed null, and the disk was walked continuously.
       // Skipping the tick is right rather than queueing one: the walk in flight
       // is already producing exactly the fresh index this tick wanted.
-      if (scanning || held) return;
+      if (ixState.scanning || ixState.held) return;
       rebuild().catch(() => {});
     }, rescanMs);
-    if (rescanTimer.unref) rescanTimer.unref();
+    if (ixState.rescanTimer.unref) ixState.rescanTimer.unref();
   }
 
   function walkWhenDue() {
-    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
-    if (stopped || !roots.length) return;
-    const wait = notBefore - Date.now();
-    if (wait <= 0) { rebuild().catch(() => { building = false; }); return; }
-    startTimer = setTimeout(walkWhenDue, wait);
-    if (startTimer.unref) startTimer.unref();
+    if (ixState.startTimer) { clearTimeout(ixState.startTimer); ixState.startTimer = null; }
+    if (ixState.stopped || !ixState.roots.length) return;
+    const wait = ixState.notBefore - Date.now();
+    if (wait <= 0) { rebuild().catch(() => { ixState.building = false; }); return; }
+    ixState.startTimer = setTimeout(walkWhenDue, wait);
+    if (ixState.startTimer.unref) ixState.startTimer.unref();
   }
 
   function setRoots(next) {
@@ -297,112 +173,44 @@ function createLinuxIndex(o = {}) {
       .map((r) => String(r || '').trim())
       .filter((r) => r.startsWith('/'))
       .slice(0, 8);
-    const same = clean.length === roots.length && clean.every((r, i) => r === roots[i]);
+    const same = clean.length === ixState.roots.length && clean.every((r, i) => r === ixState.roots[i]);
     if (same) return;
-    roots = clean;
-    entries = [];
-    aggs = [];
-    ready = false;
-    building = clean.length > 0;
+    ixState.roots = clean;
+    ixState.entries = [];
+    ixState.aggs = [];
+    ixState.ready = false;
+    ixState.building = clean.length > 0;
     scheduleRescan();
     walkWhenDue();
   }
 
   function hold(on) {
-    held = on === true;
-    if (!held) resumeWalks();
+    ixState.held = on === true;
+    if (!ixState.held) resumeWalks();
   }
 
-  function available() { return roots.length > 0; }
+  function available() { return ixState.roots.length > 0; }
 
-  async function query(q) {
-    if (!available()) return null;
-    notBefore = 0;   // someone is asking: nothing left to wait for
-    if (startTimer) walkWhenDue();
-    try {
-      return { ...queryIndex(entries, q || {}), building };
-    } catch { return null; }
-  }
+  const {
+    query, stats, overview, sizes, dirs, top, dupes, list, browse,
+  } = makeQuestions({ maxEntries, ixState, walkWhenDue, available });
 
-  async function stats() {
-    if (!roots.length) return { on: false };
-    return {
-      on: true,
-      // `helper: true` is the honest answer to the question the field asks —
-      // "is there a backend behind this?" — even though the backend is this
-      // module and not an external binary. The UI uses it to decide whether to
-      // offer the index at all.
-      helper: true,
-      ready, building, held,
-      files: stats_.files, dirs: stats_.dirs, bytes: stats_.bytes, version,
-      // Rough: the record plus its two strings, which is what actually grows.
-      ramMB: Math.round(((entries.length + aggs.length) * 220) / (1024 * 1024)),
-      maxEntries,
-      roots: roots.slice(),
-      capped,
-      cappedRoots: cappedRoots.slice(),
-      progress: building ? { files: stats_.files, dirs: stats_.dirs } : null,
-    };
-  }
-
-  // ── Disk map ───────────────────────────────────────────────────────────────
-  // All served from the one walk. Each answers null when there is no index, so
-  // diskspace.js falls back exactly as it does for an absent helper.
-  async function overview(root, opts) {
-    if (!available() || !ready) return null;
-    try { return { ...overviewFrom(entries, String(root || ''), opts || {}, aggs), capped, building, version }; } catch { return null; }
-  }
-  async function sizes(root) {
-    const ov = await overview(root, { dirMax: 0, topMax: 0, dupeMax: 0 });
-    return ov ? { total: ov.total, files: ov.files } : null;
-  }
-  async function dirs(root, minBytes, max) {
-    const ov = await overview(root, { dirMinBytes: minBytes || 0, dirMax: max || 4000, topMax: 0, dupeMax: 0 });
-    return ov ? ov.dirs : null;
-  }
-  async function top(root, max) {
-    const ov = await overview(root, { dirMax: 0, topMax: max || 200, dupeMax: 0 });
-    return ov ? ov.topFiles : null;
-  }
-  async function dupes(root, minBytes, max) {
-    const ov = await overview(root, { dirMax: 0, topMax: 0, dupeMinBytes: minBytes || 0, dupeMax: max || 100 });
-    return ov ? ov.groups : null;
-  }
-  // Files directly inside one directory — no descent, which is what makes this
-  // different from top(): the caller wants that folder's own contents.
-  async function list(dir, max) {
-    if (!available() || !ready) return null;
-    const d = String(dir || '').replace(/\/+$/, '') || '/';
-    const out = [];
-    for (const e of entries) {
-      if (e.d) continue;
-      const parent = e.p.slice(0, e.p.lastIndexOf('/')) || '/';
-      if (parent !== d) continue;
-      out.push({ p: e.p, n: e.n, s: e.s, m: e.m });
-      if (out.length >= (max || 5000)) break;
-    }
-    return out;
-  }
-  async function browse(dir, opts) {
-    if (!available() || !ready) return null;
-    try { return { ...browseFrom(entries, String(dir || ''), opts || {}, aggs), version, building }; } catch { return null; }
-  }
 
   function stop() {
-    stopped = true;
-    scanToken++;
-    if (rescanTimer) { clearInterval(rescanTimer); rescanTimer = null; }
-    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+    ixState.stopped = true;
+    ixState.scanToken++;
+    if (ixState.rescanTimer) { clearInterval(ixState.rescanTimer); ixState.rescanTimer = null; }
+    if (ixState.startTimer) { clearTimeout(ixState.startTimer); ixState.startTimer = null; }
     hold(false);
-    entries = [];
-    aggs = [];
+    ixState.entries = [];
+    ixState.aggs = [];
   }
 
   return {
     available, query, stats, setRoots, hold, stop,
     overview, sizes, dirs, list, top, dupes,
     browse,
-    _entryCount() { return entries.length; },
+    _entryCount() { return ixState.entries.length; },
     _rebuild() { return rebuild(); },
   };
 }
