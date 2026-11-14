@@ -26,85 +26,25 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
 const { writeFileAtomic } = require('./atomic-write');
 
 const STATUSLINE_SCRIPT = path.join(__dirname, 'claude-statusline.js');
-const STATE_FILE = 'claude-bridge.json';   // inside DATA_DIR
+const { readJson, readState, writeState, ensureToken } = require('./claude-code/link-record.js');
 const BACKUP_SUFFIX = '.xenon-backup';
 
-// The Xenon mod for Claude Code (integrations/claude-code/). Installing it is a
-// settings entry, not a spawned `claude`: Claude Code reads extraKnownMarketplaces
-// and enabledPlugins in the user's settings, clones the marketplace on its next
-// start and enables the plugin. The marketplace name must equal the one in the
-// repo's .claude-plugin/marketplace.json.
-const MOD_MARKETPLACE = 'xenon';
-const MOD_REPO = 'marcimastro98/Xenon';
-const MOD_PLUGIN_ID = 'xenon@xenon';
-// The mod's own manifest defaults, written once so the first run does not depend
-// on how Claude Code treats an option with no stored value.
-const MOD_DEFAULT_OPTIONS = { band: true, approvals: false, approvalWaitSec: 30 };
+const { MOD_PLUGIN_ID, isPlainObject, addMod, removeMod } = require('./claude-code/link-mod.js');
 
-// Non-blocking lifecycle events. Kept to a short timeout: these must never slow
-// a tool call down, and Claude Code treats a timeout as a non-blocking error and
-// carries on regardless.
-//
-// THE RULE FOR ADDING ONE: every entry here is a synchronous HTTP POST inside
-// the user's turn, so it is paid for in latency on somebody's machine, forever.
-// An event earns its place only when the widget SHOWS something it could not
-// show without it. That is why `FileChanged` and `MessageDisplay` are not here
-// despite being useful-sounding: during a build they would be hundreds of posts
-// per second in exchange for one line of UI.
-//
-// What each of these is for, so the next person can judge a removal:
-//   SessionStart/SessionEnd  a session appearing and going, with its reason
-//   UserPromptSubmit         the headline ("what did I ask it to do")
-//   Pre/PostToolUse          the current action, and the activity history
-//   PostToolUseFailure       a step that failed, told apart from one that worked
-//   Notification             WHY a session is waiting, instead of a bare "waiting"
-//   SubagentStart/Stop       fan-out, which otherwise looks like one stuck session
-//   Pre/PostCompact          explains the context gauge collapsing
-//   StopFailure              a turn that ended on an API error, not on an answer
-const EVENT_HOOKS = Object.freeze([
-  'SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse',
-  'PostToolUseFailure', 'Notification', 'SubagentStart', 'SubagentStop',
-  'PreCompact', 'PostCompact', 'StopFailure',
-]);
-const EVENT_TIMEOUT_SEC = 5;
-// The blocking one. Claude Code waits for our answer here, so the timeout is
-// generous — the bridge resolves well before it (APPROVAL_TTL_MS) and hands the
-// decision back to the terminal rather than letting this expire.
-const PERMISSION_EVENT = 'PermissionRequest';
-const PERMISSION_TIMEOUT_SEC = 600;
-// Stop is a lifecycle event AND the delivery point for a follow-up typed on the
-// dashboard, so it goes to its own endpoint: /api/claude/event answers 204 with
-// no body on purpose, and the ability to influence a session must live in one
-// named place rather than becoming a property of the generic ingest. Nobody is
-// waited on here — the queued text is already in hand — so the timeout only has
-// to cover a local round trip.
-const TURN_END_EVENT = 'Stop';
-const TURN_END_TIMEOUT_SEC = 10;
-// AskUserQuestion, intercepted on PreToolUse so the user can answer it from the
-// touchscreen before the terminal prompt is even drawn. Scoped with a matcher so
-// it is the ONLY tool that can block on this path — every other PreToolUse keeps
-// the 5-second lifecycle hook above and is never slowed down by it.
-const QUESTION_EVENT = 'PreToolUse';
-const QUESTION_MATCHER = 'AskUserQuestion';
-const QUESTION_TIMEOUT_SEC = 600;
+const {
+  EVENT_HOOKS, EVENT_TIMEOUT_SEC, PERMISSION_EVENT, PERMISSION_TIMEOUT_SEC, TURN_END_EVENT,
+  TURN_END_TIMEOUT_SEC, QUESTION_EVENT, QUESTION_MATCHER, QUESTION_TIMEOUT_SEC, isOurHandler,
+  isOurStatusLine, stripOurHooks, ourHandler, expectedHandlers, installedHandlers,
+} = require('./claude-code/link-hook-events.js');
 
 function configDir() {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 }
 function settingsPath() {
   return path.join(configDir(), 'settings.json');
-}
-
-async function readJson(file) {
-  try {
-    const raw = await fs.promises.readFile(file, 'utf8');
-    const parsed = JSON.parse(raw);
-    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null;
-  } catch { return null; }
 }
 
 // The user's permissions.defaultMode in Claude Code's own settings. Read-only:
@@ -115,142 +55,7 @@ async function defaultMode() {
   return typeof m === 'string' ? m : '';
 }
 
-// ── hub-side state (token + what we replaced) ────────────────────────────────
-async function readState(dataDir) {
-  const s = await readJson(path.join(dataDir, STATE_FILE));
-  return s || {};
-}
-async function writeState(dataDir, state) {
-  await writeFileAtomic(path.join(dataDir, STATE_FILE), JSON.stringify(state, null, 2));
-}
 
-// The token is created once and reused, so relinking (or changing port) doesn't
-// invalidate a config the user already has on disk.
-async function ensureToken(dataDir) {
-  const state = await readState(dataDir);
-  if (typeof state.token === 'string' && state.token.length >= 32) return state.token;
-  const token = crypto.randomBytes(24).toString('hex');
-  await writeState(dataDir, { ...state, token });
-  return token;
-}
-
-// ── identifying our own entries ──────────────────────────────────────────────
-function isOurHandler(h, port) {
-  if (!h || typeof h !== 'object' || h.type !== 'http') return false;
-  const url = String(h.url || '');
-  // Match any port: a stale entry from a previous port must still be removable.
-  return /^http:\/\/127\.0\.0\.1:\d+\/api\/claude\//.test(url)
-    || url.indexOf(`http://127.0.0.1:${port}/api/claude/`) === 0;
-}
-function isOurStatusLine(sl) {
-  if (!sl || typeof sl !== 'object') return false;
-  return String(sl.command || '').indexOf('claude-statusline.js') !== -1;
-}
-
-// Strip our handlers out of a hooks tree, dropping any group or event that ends
-// up empty. Returns a NEW object — the caller's copy is never mutated in place.
-function stripOurHooks(hooks, port) {
-  if (!hooks || typeof hooks !== 'object') return {};
-  const out = {};
-  for (const event of Object.keys(hooks)) {
-    const groups = Array.isArray(hooks[event]) ? hooks[event] : [];
-    const kept = [];
-    for (const g of groups) {
-      if (!g || typeof g !== 'object') continue;
-      const handlers = Array.isArray(g.hooks) ? g.hooks.filter(h => !isOurHandler(h, port)) : [];
-      if (handlers.length) kept.push({ ...g, hooks: handlers });
-    }
-    if (kept.length) out[event] = kept;
-  }
-  return out;
-}
-
-function ourHandler(url, timeoutSec, token) {
-  return {
-    type: 'http',
-    url,
-    timeout: timeoutSec,
-    headers: { 'X-Xenon-Bridge': token },
-  };
-}
-
-// ── status ───────────────────────────────────────────────────────────────────
-// One entry per handler link() installs. A link is COMPLETE only when every one
-// of these is present with the current port and token, and nothing of ours is
-// left over from an older set. Counting our handlers was not enough: a link made
-// by an older Xenon (no AskUserQuestion interceptor, Stop still on /event) had 8
-// of the 15 and was reported as linked, so questions never reached the tile and
-// follow-ups were never delivered, with nothing on screen to say why.
-function expectedHandlers() {
-  const list = EVENT_HOOKS.map((event) => ({ event, path: '/event', matcher: '' }));
-  list.push({ event: PERMISSION_EVENT, path: '/permission', matcher: '' });
-  list.push({ event: TURN_END_EVENT, path: '/turn-end', matcher: '' });
-  list.push({ event: QUESTION_EVENT, path: '/question', matcher: QUESTION_MATCHER });
-  return list;
-}
-
-// Our handlers as installed: which event, which endpoint, which port, which token.
-function installedHandlers(hooks) {
-  const out = [];
-  for (const event of Object.keys(hooks || {})) {
-    const groups = Array.isArray(hooks[event]) ? hooks[event] : [];
-    for (const g of groups) {
-      const handlers = (g && Array.isArray(g.hooks)) ? g.hooks : [];
-      for (const h of handlers) {
-        if (!isOurHandler(h, 0)) continue;
-        const m = /^http:\/\/127\.0\.0\.1:(\d+)\/api\/claude(\/[a-z-]+)/.exec(String(h.url || ''));
-        out.push({
-          event,
-          matcher: String((g && g.matcher) || ''),
-          path: m ? m[2] : '',
-          port: m ? Number(m[1]) : 0,
-          token: String((h.headers && h.headers['X-Xenon-Bridge']) || ''),
-        });
-      }
-    }
-  }
-  return out;
-}
-
-function isPlainObject(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
-
-// Adds the mod to a settings object. Anything the user already decided stays:
-// a "xenon" marketplace of another source, a plugin they switched off, options
-// they set. Returns the same object it was given.
-function addMod(settings) {
-  const markets = isPlainObject(settings.extraKnownMarketplaces) ? { ...settings.extraKnownMarketplaces } : {};
-  if (markets[MOD_MARKETPLACE] && !(markets[MOD_MARKETPLACE].source && markets[MOD_MARKETPLACE].source.repo === MOD_REPO)) {
-    return settings;                                // the name is theirs: not ours to reuse
-  }
-  markets[MOD_MARKETPLACE] = { source: { source: 'github', repo: MOD_REPO } };
-  settings.extraKnownMarketplaces = markets;
-
-  const enabled = isPlainObject(settings.enabledPlugins) ? { ...settings.enabledPlugins } : {};
-  if (enabled[MOD_PLUGIN_ID] === undefined) enabled[MOD_PLUGIN_ID] = true;
-  settings.enabledPlugins = enabled;
-
-  const configs = isPlainObject(settings.pluginConfigs) ? { ...settings.pluginConfigs } : {};
-  if (!configs[MOD_PLUGIN_ID]) configs[MOD_PLUGIN_ID] = { options: { ...MOD_DEFAULT_OPTIONS } };
-  settings.pluginConfigs = configs;
-  return settings;
-}
-
-// Removes what addMod added, and only the marketplace if it is still ours.
-function removeMod(settings) {
-  for (const key of ['enabledPlugins', 'pluginConfigs']) {
-    if (!isPlainObject(settings[key])) continue;
-    const next = { ...settings[key] };
-    delete next[MOD_PLUGIN_ID];
-    if (Object.keys(next).length) settings[key] = next; else delete settings[key];
-  }
-  if (isPlainObject(settings.extraKnownMarketplaces)) {
-    const next = { ...settings.extraKnownMarketplaces };
-    const m = next[MOD_MARKETPLACE];
-    if (m && m.source && m.source.repo === MOD_REPO) delete next[MOD_MARKETPLACE];
-    if (Object.keys(next).length) settings.extraKnownMarketplaces = next; else delete settings.extraKnownMarketplaces;
-  }
-  return settings;
-}
 
 async function status(dataDir, port) {
   const file = settingsPath();

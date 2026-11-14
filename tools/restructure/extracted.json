@@ -820,6 +820,11 @@
       {"file":"server/codex/script-paths.js","about":"Where the script Codex runs as our hook sits in the install.","names":["HOOK_SCRIPT"],"paths":true},
       {"file":"server/codex/link-command.js","about":"The command line Codex runs our hook with: quoted for a POSIX shell, and on Windows the bare path of a small .cmd in the data folder that holds the quoted node and script, because Codex wraps the line in one pair of quotes.","names":["quotePosix","CMD_SAFE_PATH","wrapperPath","wrapperBody","hookCommand"]},
       {"file":"server/codex/link-hooks-edit.js","about":"Our handlers in Codex's hooks.json: the events they are wanted for, one handler built, a handler told ours from the user's own, where ours stand, the file with ours put in where they stood, and the file without them.","names":["OURS_RE","PERMISSION","LIFECYCLE","EXPECTED","ourHandler","isOurHandler","isOurCommand","sameHandler","locateOurs","withOurHooks","withoutOurHooks"]}
+    ],
+    "server/claude-link.js": [
+      {"file":"server/claude-code/link-record.js","about":"The link's own record in the data folder: a JSON file read without throwing, the record read and written, and the token and the port kept in it.","names":["STATE_FILE","readJson","readState","writeState","ensureToken"]},
+      {"file":"server/claude-code/link-hook-events.js","about":"Our hooks in Claude Code's settings: the events they are wanted for with their waits, one handler built, a handler and a status line told ours from the user's own, the settings without ours, and the handlers wanted and found.","names":["EVENT_HOOKS","EVENT_TIMEOUT_SEC","PERMISSION_EVENT","PERMISSION_TIMEOUT_SEC","TURN_END_EVENT","TURN_END_TIMEOUT_SEC","QUESTION_EVENT","QUESTION_MATCHER","QUESTION_TIMEOUT_SEC","isOurHandler","isOurStatusLine","stripOurHooks","ourHandler","expectedHandlers","installedHandlers"]},
+      {"file":"server/claude-code/link-mod.js","about":"The mod put in and taken out of Claude Code's settings by entries alone: our marketplace, the plugin switched on and its default options, adding only what is absent and removing only what is still ours.","names":["MOD_MARKETPLACE","MOD_REPO","MOD_PLUGIN_ID","MOD_DEFAULT_OPTIONS","isPlainObject","addMod","removeMod"]}
     ]
   },
   "spreads": {
