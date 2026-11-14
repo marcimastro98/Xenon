@@ -7,6 +7,7 @@
 import path from 'node:path';
 
 import { analyze, FILE_BOUND } from './analyze.mjs';
+import { constantReasons, markConstants } from './inner-constants.mjs';
 import { proveMove } from './verify.mjs';
 
 const HANDED_OVER = new Set(['function', 'const', 'class', 'require']);
@@ -29,7 +30,9 @@ function scopeOf(text, parser, name, functionName) {
   for (const parameter of node.parameters) collect(parameter.name);
   const body = text.split('\n').slice(open + 1, close).map((line) => (line.startsWith('  ') ? line.slice(2) : line));
   const file = analyze(text, parser, name);
-  return { file, params, open, inner: analyze(`${body.join('\n')}\n`, parser, name, { registrations: [], afterLoad: [] }) };
+  const bodyText = `${body.join('\n')}\n`;
+  const inner = analyze(bodyText, parser, name, { registrations: [], afterLoad: [] });
+  return { file, params, open, inner, reach: markConstants(inner, bodyText, parser, name) };
 }
 
 // Where a require leads, as one spelling: './runner' in server/x/ and '../x/runner.js' in server/y/ are the same file.
@@ -88,7 +91,7 @@ export function proveInner({ before, after, moduleText, plan, parser, source, ta
   const inside = made.inner.records;
   if (inside.length === 0) return [...problems, `${make} is empty`];
   const gives =/^return \{([\s\S]*)\};$/.exec(moduleText.split('\n').slice(made.open + inside.at(-1).line[0], made.open + inside.at(-1).line[1] + 1).map((line) => line.trim()).join(' '));
-  if (inside.slice(0, -1).some((record) => record.kind !== 'function') || !gives) problems.push(`${make} is more than the moved functions and what it gives back`);
+  if (inside.slice(0, -1).some((record) => record.kind !== 'function' && record.kind !== 'const') || !gives) problems.push(`${make} is more than the moved functions and what it gives back`);
   else if (!sameSet(namesIn(gives[1]), taken)) problems.push(`${make} gives back ${namesIn(gives[1]).join(', ')} and the factory takes ${taken.join(', ')}`);
   const movedNames = inside.slice(0, -1).flatMap((record) => record.names);
 
@@ -98,7 +101,7 @@ export function proveInner({ before, after, moduleText, plan, parser, source, ta
   for (const record of inside.slice(0, -1)) {
     for (const name of record.uses.keys()) {
       if (movedNames.includes(name)) {
-        if (was.inner.bindings.get(name)?.kind !== 'function') problems.push(`${name} was not a function of ${factory}`);
+        if (!['function', 'const'].includes(was.inner.bindings.get(name)?.kind)) problems.push(`${name} was not a function of ${factory}, nor a constant`);
       } else if (made.params.includes(name)) {
         const own = was.inner.bindings.get(name);
         const fixed = own ? HANDED_OVER.has(own.kind) && !own.reassigned : was.params.includes(name) && !written(was, name);
@@ -112,6 +115,17 @@ export function proveInner({ before, after, moduleText, plan, parser, source, ta
         problems.push(`${name} meant something of ${source} and means nothing in ${target}`);
       }
     }
+  }
+
+  // 4b. What left is what it was, and a constant that left is one whose value is written out and reads the same at the
+  // moment the factory calls the new module (inner-constants.mjs, asked of the old file).
+  const left = new Set(movedNames.map((name) => was.inner.bindings.get(name)?.record).filter(Boolean));
+  for (const record of inside.slice(0, -1)) {
+    const old = was.inner.bindings.get(record.names[0])?.record;
+    if (old?.kind !== record.kind || !sameSet(old.names, record.names)) { problems.push(`${record.names.join(', ')} is not in ${make} what it was in ${factory}`); continue; }
+    if (old.kind !== 'const') continue;
+    problems.push(...constantReasons({ inner: was.inner, params: was.params, file: was.file, reach: was.reach, record: old, label: old.names.join(', '),
+      movedSet: left, factory, real: (line) => was.open + line + 1 }));
   }
 
   // 5. The functions are taken back before the factory can use one, and after everything handed over exists.

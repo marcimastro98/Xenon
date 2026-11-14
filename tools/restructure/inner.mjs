@@ -8,7 +8,8 @@ import { analyze } from './analyze.mjs';
 import { bareLines } from './dead-requires.mjs';
 import { dropOnDisk } from './dead-requires-disk.mjs';
 import { Refusal } from './extract-plan.mjs';
-import { planInner } from './inner-plan.mjs';
+import { constantsAlong } from './inner-constants.mjs';
+import { leaveReasons, planInner, readBody } from './inner-plan.mjs';
 import { proveInner } from './inner-proof.mjs';
 import { appendLedger, protectedNames, quietModules, readLedger } from './ledger.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
@@ -34,17 +35,24 @@ export function planInnerFor({ root, parser, text, source, target, about, factor
  * @param {string} job.source repo-relative file of the factory @param {string} job.target repo-relative new module
  * @param {string} job.about one sentence: the new file's first comment
  * @param {string} job.factory the top-level function the functions leave @param {string} job.make the function the new module gives
- * @param {string[]} job.names functions declared in the factory's body
+ * @param {string[]} job.names functions declared in the factory's body, and constants of it to move and have handed back
  * @param {boolean} [job.dryRun] plan and prove, write nothing
  * @returns {{ moved: string[], returned: string[], passed: string[], lines: number, sourceLines: number, target: string,
- *   bare?: { dropped: { spec: string, why: string }[], kept: { spec: string, why: string }[] } }} `bare` as in extract.mjs;
+ *   bare?: { dropped: { spec: string, why: string }[], kept: { spec: string, why: string }[] },
+ *   along?: { added: string[], left: { name: string, why: string }[] } }} `bare` as in extract.mjs; `along`: the constants that
+ *   went without being named, and the written-out ones the moved code uses that stayed, each with why (inner-constants.mjs);
  *   throws a Refusal before anything is written, an Error after a failed check (files put back)
  */
 export function moveInner(job) {
   const { root, parser, source, target, about, factory, make, dryRun = false } = job;
   const before = readFileSync(path.join(root, source), 'utf8');
   const entries = readLedger(root).sources[source] ?? [];
-  const bare = dropOnDisk({ root, parser, source, target, plan: planInnerFor({ ...job, text: before, ownModules: quietModules(entries) }) });
+  // The constants only the moved code uses go along without being named. The step records every name, so redone it adds none.
+  const body = readBody(before, parser, source, factory);
+  const along = constantsAlong({ inner: body.inner, names: job.names, factory, real: body.real,
+    reasonsOf: (record, movedSet) => leaveReasons({ body, record, movedSet, source, factory }) });
+  const names = [...job.names, ...along.added];
+  const bare = dropOnDisk({ root, parser, source, target, plan: planInnerFor({ ...job, names, text: before, ownModules: quietModules(entries) }) });
   const { plan } = bare;
   const reasons = targetReasons({ root, source, target, requires: plan.requires.map((module) => module.file).filter(Boolean) });
   if (reasons.length) throw new Refusal(reasons);
@@ -54,6 +62,7 @@ export function moveInner(job) {
   const result = { moved: plan.moved, returned: plan.returned, passed: plan.passed, target,
     lines: count(plan.moduleText), sourceLines: count(before) - count(plan.newSource) };
   if (bare.dropped.length || bare.kept.length) result.bare = { dropped: bare.dropped, kept: bare.kept };
+  if (along.added.length || along.left.length) result.along = along;
   if (dryRun) return result;
 
   const folder = path.dirname(path.join(root, target));
@@ -90,6 +99,8 @@ export function runInner(parser, root, { flags, rest }) {
   console.log(`${dryRun ? 'would move' : 'moved'} ${done.moved.join(', ')} out of ${flags.factory} to ${done.target} (${done.lines} lines); `
     + `${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines.`);
   console.log(`  ${flags.make} is handed ${done.passed.join(', ') || 'nothing'} and gives back ${done.returned.join(', ')}.`);
+  if (done.along?.added.length) console.log(`  ${dryRun ? 'would take' : 'took'} along ${done.along.added.join(', ')}: constants only the moved code uses, their values written out.`);
+  for (const row of done.along?.left ?? []) console.log(`  ${dryRun ? 'would leave' : 'left'} ${row.name} in ${flags.factory}: ${row.why}.`);
   for (const line of bareLines(done.bare, dryRun)) console.log(line);
   if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');
   return 0;

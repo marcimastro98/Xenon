@@ -167,7 +167,7 @@ test('the call stands after the constants it hands over and before the first use
 test('what a hand-over would not keep is refused, with the reason', (t) => {
   if (!parser) return t.skip(SKIP);
   assert.match(refusal(SOURCE, ['count']), /count \(server\/demo\.js:10\) uses calls, a variable of createThing that can be assigned again/);
-  assert.match(refusal(SOURCE, ['seen']), /seen is not a function declared once in the body of createThing/);
+  assert.match(refusal(SOURCE, ['calls']), /calls is not a function declared once in the body of createThing, nor a constant/);
   assert.match(refusal(SOURCE, ['nowhere']), /nowhere is not a function declared once/);
   assert.match(refusal(SOURCE, ['find']), /^$/, 'find alone can go: fetchAll keeps using it');
   assert.match(refusal(SOURCE, ['find'], { make: 'createThing' }), /createThing is a word server\/demo\.js already uses/);
@@ -227,7 +227,8 @@ test('the command writes both files and records the step, a dry run writes nothi
     const job = { root, parser, source: OLD, target: NEW, about: ABOUT, factory: 'createThing', make: 'makeSteps', names: ['find', 'fetchAll'] };
 
     const tried = moveInner({ ...job, dryRun: true });
-    assert.deepEqual([tried.moved, tried.returned, tried.passed], [['find', 'fetchAll'], ['fetchAll'], ['runner', 'limit', 'seen']]);
+    // `seen` is a `new Map()` only find uses: it goes along without being named (restructure-inner-constants.test.mjs has the rules).
+    assert.deepEqual([tried.moved, tried.returned, tried.passed, tried.along], [['seen', 'find', 'fetchAll'], ['fetchAll'], ['runner', 'limit'], { added: ['seen'], left: [] }]);
     assert.throws(() => moveInner({ ...job, target: 'server/paired/demo-steps.js' }), Refusal, 'what leaves a file in a feature folder stays next to it');
     assert.throws(() => moveInner({ ...job, names: ['count'] }), Refusal);
     assert.equal(existsSync(join(root, NEW)), false, 'a dry run and a refusal write nothing');
@@ -236,8 +237,8 @@ test('the command writes both files and records the step, a dry run writes nothi
 
     const done = moveInner(job);
     assert.deepEqual(done, { ...tried, target: NEW });
-    assert.deepEqual(readLedger(root).sources, { [OLD]: [{ file: NEW, about: ABOUT, names: ['find', 'fetchAll'], inner: { factory: 'createThing', make: 'makeSteps' } }] });
-    assert.match(readFileSync(join(root, OLD), 'utf8'), /\n {2}const \{ fetchAll \} = makeSteps\(\{ runner, limit, seen \}\);\n/);
+    assert.deepEqual(readLedger(root).sources, { [OLD]: [{ file: NEW, about: ABOUT, names: ['seen', 'find', 'fetchAll'], inner: { factory: 'createThing', make: 'makeSteps' } }] });
+    assert.match(readFileSync(join(root, OLD), 'utf8'), /\n {2}const \{ fetchAll \} = makeSteps\(\{ runner, limit \}\);\n/);
     const load = createRequire(join(root, 'server', 'x.js'));
     const run = (name) => {
       const thing = load(name).createThing({ runner: (place) => place.length, limit: 2 });

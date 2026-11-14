@@ -15,12 +15,15 @@
 // No rule here asks for a judgement: a function moves when everything it takes from outside itself
 // is a function moved with it, an argument of the factory nobody assigns again, a function or a
 // constant of the factory's body, a module the file requires, or a name no file declares.
+// A constant of the body can be named too and moves with the functions when its value is written
+// out (inner-constants.mjs); one the factory still uses comes back by the same line as the functions.
 // Pure: text in, text out, or a refusal.
 
 import path from 'node:path';
 
 import { analyze, FILE_BOUND } from './analyze.mjs';
 import { MAX_LINES, placeRequire, Refusal, wrapComment } from './extract-plan.mjs';
+import { constantReasons, markConstants } from './inner-constants.mjs';
 import { requireLines, wrapNames } from './module-requires.mjs';
 import { requireEdits } from './require-edits.mjs';
 import { lineAt, lineStarts } from './top-level.mjs';
@@ -56,6 +59,35 @@ export function readFactory(text, parser, source, factory) {
   }
   const body = lines.slice(open + 1, close).map((line) => (line.startsWith('  ') ? line.slice(2) : line));
   return { open, close, params: node.parameters.flatMap((parameter) => paramNames(K, parameter.name)), bodyText: `${body.join('\n')}\n` };
+}
+
+/**
+ * The file, the factory and the factory's body, read once for the plan and for whoever asks what could go along.
+ * @param {string} text @param {any} parser @param {string} source @param {string} factory
+ * @returns {{ file: any, shell: ReturnType<typeof readFactory>, inner: any, reach: (record: any) => Set<any>, real: (line: number) => number }}
+ *   `inner` is the body with every `const` marked by inner-constants.mjs; `real` gives a line of the body as a line of the file
+ */
+export function readBody(text, parser, source, factory) {
+  const file = analyze(text, parser, source);
+  const shell = readFactory(text, parser, source, factory);
+  const inner = analyze(shell.bodyText, parser, source, { registrations: [], afterLoad: [] });
+  return { file, shell, inner, reach: markConstants(inner, shell.bodyText, parser, source), real: (line) => shell.open + line + 1 };
+}
+
+/**
+ * Why one function or constant of the body cannot leave with the others that do.
+ * @param {{ body: ReturnType<typeof readBody>, record: any, movedSet: Set<any>, source: string, factory: string, passed?: Set<string>, needed?: Set<string> }} ask
+ *   `passed` and `needed` collect what it would be handed and what the new module would require
+ * @returns {string[]}
+ */
+export function leaveReasons({ body, record, movedSet, source, factory, passed = new Set(), needed = new Set() }) {
+  const { inner, file, shell, reach, real } = body;
+  const label = `${record.names.join(', ')} (${source}:${real(record.line[0])})`;
+  const reasons = record.sharesLine ? [`${label} shares a line with another statement`] : [];
+  if (record.kind === 'const') reasons.push(...constantReasons({ inner, params: shell.params, file, reach, record, label, movedSet, factory, real }));
+  else if (inner.bindings.get(record.names[0]).reassigned) reasons.push(`${label} is assigned again in ${factory}: the factory would keep a copy that never changes`);
+  const movedNames = [...movedSet].flatMap((moved) => moved.names);
+  return [...reasons, ...sortUses({ record, label, inner, file, shell, movedNames, source, factory, passed, needed })];
 }
 
 // Why a function cannot leave the factory, read off what it takes from outside itself.
@@ -118,7 +150,7 @@ function placeCall({ inner, moved, movedSet, passed, factory, source, real }) {
  * @param {string} job.about one sentence saying what the new file does: its first comment
  * @param {string} job.factory the top-level function whose body the functions leave
  * @param {string} job.make the name of the function the new module gives
- * @param {string[]} job.names functions declared in the factory's body
+ * @param {string[]} job.names functions declared in the factory's body, and constants of it whose value is written out
  * @param {(spec: string, from: string, to: string) => any} job.rewrite from module-requires.mjs
  * @param {Set<string>} [job.protectedNames] @param {number[][]} [job.protectedStretches] @param {Set<string>} [job.ownModules] as in extract-plan.mjs
  * @param {number} [job.maxLines]
@@ -135,13 +167,11 @@ export function planInner(job) {
   if (!/^[A-Za-z_]\w*$/.test(make ?? '')) throw new Refusal(['--make needs the name of the function the new module gives, for example makeInstallSteps']);
   if (new RegExp(`\\b${make}\\b`).test(text)) throw new Refusal([`${make} is a word ${source} already uses: give the new function another name`]);
   if (protectedNames.has(factory)) throw new Refusal([`${factory} is part of the security prelude and stays as it is`]);
-  const file = analyze(text, parser, source);
-  const shell = readFactory(text, parser, source, factory);
-  const inner = analyze(shell.bodyText, parser, source, { registrations: [], afterLoad: [] });
-  const real = (line) => shell.open + line + 1;
+  const bodyRead = readBody(text, parser, source, factory);
+  const { file, shell, inner, real } = bodyRead;
   const declared = (name) => inner.records.filter((record) => record.names.includes(name));
-  const wrong = names.filter((name) => declared(name).length !== 1 || declared(name)[0].kind !== 'function');
-  if (wrong.length) throw new Refusal(wrong.map((name) => `${name} is not a function declared once in the body of ${factory}`));
+  const wrong = names.filter((name) => declared(name).length !== 1 || !['function', 'const'].includes(declared(name)[0].kind));
+  if (wrong.length) throw new Refusal(wrong.map((name) => `${name} is not a function declared once in the body of ${factory}, nor a constant`));
 
   const moved = [...new Set(names.map((name) => inner.bindings.get(name).record))].sort((a, b) => a.index - b.index);
   const movedSet = new Set(moved);
@@ -149,13 +179,7 @@ export function planInner(job) {
   const staying = inner.records.filter((record) => !movedSet.has(record));
   const passed = new Set();
   const needed = new Set();
-  const reasons = [];
-  for (const record of moved) {
-    const label = `${record.names[0]} (${source}:${real(record.line[0])})`;
-    if (record.sharesLine) reasons.push(`${label} shares a line with another statement`);
-    if (inner.bindings.get(record.names[0]).reassigned) reasons.push(`${label} is assigned again in ${factory}: the factory would keep a copy that never changes`);
-    reasons.push(...sortUses({ record, label, inner, file, shell, movedNames, source, factory, passed, needed }));
-  }
+  const reasons = moved.flatMap((record) => leaveReasons({ body: bodyRead, record, movedSet, source, factory, passed, needed }));
   const returned = movedNames.filter((name) => staying.some((record) => record.uses.has(name)));
   if (returned.length === 0) reasons.push(`nothing left in ${factory} uses ${movedNames.join(', ')}: delete dead code instead of moving it`);
   if (reasons.length) throw new Refusal(reasons);
