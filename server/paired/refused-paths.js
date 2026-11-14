@@ -169,7 +169,12 @@ const REMOTE_DENY = new Set([
 ]);
 
 // Prefix denials, for routes that carry an id tail.
-const REMOTE_DENY_PREFIXES = [];
+const REMOTE_DENY_PREFIXES = [
+  // The door Claude Code and Codex build widgets through (mcp-dev.js): pairing a client,
+  // answering its questions, calling its tools. All of it belongs to the person at the PC.
+  // The route refuses a paired device too; this makes the gate refuse first.
+  '/api/mcp/dev/',
+];
 
 // The management endpoints are loopback-only by being denied here rather than
 // by a check inside each handler: a phone must never be able to enrol another
