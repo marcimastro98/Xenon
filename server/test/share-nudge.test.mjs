@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
-import { engineSource } from './engine-source.mjs';
+import { engineSource, settingsSaveSource } from './engine-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -48,8 +48,7 @@ test('the dismissal lives in hub settings, never in localStorage', () => {
 test('the server stores it, and a stale client save cannot un-dismiss it', () => {
   assert.match(SERVER, /shareNudgeSeen: false,/, 'a default on disk');
   assert.match(SERVER, /shareNudgeSeen: source\.shareNudgeSeen === true,/, 'normalised like the ask');
-  const post = SERVER.slice(SERVER.indexOf("reqPath === '/settings' && req.method === 'POST'"));
-  const block = post.slice(0, post.indexOf('} else if (reqPath'));
+  const block = settingsSaveSource();
   assert.match(block, /if \(prev\.shareNudgeSeen === true\) incoming\.shareNudgeSeen = true;/);
 });
 

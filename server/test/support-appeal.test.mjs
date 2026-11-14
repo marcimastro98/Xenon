@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { appStringsSource, textsOf } from './i18n-source.mjs';
-import { engineSource } from './engine-source.mjs';
+import { engineSource, settingsSaveSource } from './engine-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -116,8 +116,7 @@ test('the server stores both, and a stale client save cannot rewind them', () =>
   assert.match(SERVER, /supportAppealYear: 0,/);
   assert.match(SERVER, /supportAskSeenDay: DAY_RE\.test\(String\(source\.supportAskSeenDay \|\| ''\)\)/, 'normalised');
   assert.match(SERVER, /supportAppealYear: clampNumber\(Math\.floor\(Number\(source\.supportAppealYear\) \|\| 0\), 0, 9999, 0\),/);
-  const post = SERVER.slice(SERVER.indexOf("reqPath === '/settings' && req.method === 'POST'"));
-  const block = post.slice(0, post.indexOf('} else if (reqPath'));
+  const block = settingsSaveSource();
   assert.match(block, /if \(prev\.supportAskSeenDay\) incoming\.supportAskSeenDay = prev\.supportAskSeenDay;/);
   assert.match(block, /if \(Number\(prev\.supportAppealYear\) > \(Number\(incoming\.supportAppealYear\) \|\| 0\)\) \{\n\s*incoming\.supportAppealYear = prev\.supportAppealYear;/);
 });

@@ -209,3 +209,17 @@ export function declarationSource(name, source = ENGINE) {
   if (last === -1) throw new Error(`the end of ${name} was not found in ${file}`);
   return lines.slice(first, last + 1).join('\n');
 }
+
+/**
+ * What a save of the whole settings does, as text: the route POST /settings from its test to the
+ * next route, followed by the checks it runs between its read and its write (keepStoredOnSave, cut out
+ * of the route by hand: the list names its module with "hand": true, and no recorded step redoes it).
+ * @param {string} [source]
+ * @returns {string}
+ */
+export function settingsSaveSource(source = ENGINE) {
+  const engine = engineSource(source);
+  const start = engine.indexOf("reqPath === '/settings' && req.method === 'POST'");
+  if (start === -1) throw new Error('POST /settings is not where this reader looks');
+  return `${engine.slice(start, engine.indexOf('} else if (reqPath', start + 200))}\n${declarationSource('keepStoredOnSave', source)}`;
+}

@@ -23,15 +23,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { engineSource } from './engine-source.mjs';
+import { engineSource, settingsSaveSource } from './engine-source.mjs';
 
 const SERVER = engineSource();
 
-const POST = (() => {
-  const start = SERVER.indexOf("reqPath === '/settings' && req.method === 'POST'");
-  assert.ok(start > 0, 'the settings writer is still where this test looks');
-  return SERVER.slice(start, SERVER.indexOf('} else if (reqPath', start + 200));
-})();
+const POST = settingsSaveSource();
+assert.ok(POST.startsWith("reqPath === '/settings' && req.method === 'POST'"), 'the settings writer is still where this test looks');
 
 test('a save that does not carry the layout version inherits the stored one', () => {
   assert.match(POST,

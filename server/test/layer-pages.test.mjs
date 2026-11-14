@@ -212,7 +212,7 @@ test('server.js: the games page rides the status tick and a generic save never o
   const SERVER = engineSource().replace(/\r\n/g, '\n');
   assert.match(SERVER, /const _gamePageSync = LayerPages\.createGamePageSync\(\{\n {2}current: \(\) => _serverHubSettings && _serverHubSettings\.layers,\n {2}update: \(edit\) => updateLayersSetting\(edit\),/);
   assert.match(SERVER, /try \{ _gamePageSync\(st\.gameRunning\); \} catch \{\}/);
-  assert.match(SERVER, /if \(prev && prev\.layers && typeof prev\.layers === 'object'\) \{\n {8}incoming\.layers = prev\.layers;/);
+  assert.match(SERVER, /if \(prev && prev\.layers && typeof prev\.layers === 'object'\) \{\n +incoming\.layers = prev\.layers;/);
 });
 
 test('a desktop holds one page at most; 0 unties it and bad numbers are refused', () => {

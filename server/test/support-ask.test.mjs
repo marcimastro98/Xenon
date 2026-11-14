@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
-import { engineSource } from './engine-source.mjs';
+import { engineSource, settingsSaveSource } from './engine-source.mjs';
 
 const CARD = readFileSync(new URL('../js/support-card.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
@@ -52,8 +52,7 @@ test('a day is counted when a dashboard connects, once, and not per launch', () 
 // rebuilding them from defaults would reset the clock — and let a once-per-install
 // ask come round again.
 test('a client save cannot reset the usage history', () => {
-  const post = SERVER.slice(SERVER.indexOf("reqPath === '/settings' && req.method === 'POST'"));
-  const block = post.slice(0, post.indexOf('} else if (reqPath'));
+  const block = settingsSaveSource();
   assert.match(block, /if \(prev\.firstRunDay\) incoming\.firstRunDay = prev\.firstRunDay;/);
   assert.match(block, /if \(prev\.lastUsageDay\) incoming\.lastUsageDay = prev\.lastUsageDay;/);
   assert.match(block, /if \(Number\(prev\.usageDays\) > 0\) incoming\.usageDays = prev\.usageDays;/);
