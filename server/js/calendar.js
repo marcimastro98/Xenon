@@ -176,8 +176,8 @@ function showCalendar() {
   renderCalendar();
   updateCalendarMiniPlayer();
   if (!showCalendar._notifAsked && 'Notification' in window && Notification.permission === 'default') {
-    showCalendar._notifAsked = true;
-    try { Promise.resolve(Notification.requestPermission()).catch(() => {}); } catch {}
+    showCalendar._notifAsked = true;  // asked at the first touch, not at load: a prompt nobody asked for is quieted or refused
+    document.addEventListener('pointerdown', () => { try { Promise.resolve(Notification.requestPermission()).catch(() => {}); } catch {} }, { once: true });
   }
 }
 
