@@ -587,9 +587,9 @@ function mergeSearch(q, named, about) {
   return out;
 }
 
-module.exports = { createTwitchProvider, normalizeStreamTwitch, streamMatches, mergeSearch };
-
 // A link the dashboard shows as-is must be https, never javascript: or data:.
 function httpsOnly(u, fallback) {
   try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : fallback; } catch { return fallback; }
 }
+
+module.exports = { createTwitchProvider, normalizeStreamTwitch, streamMatches, mergeSearch };
