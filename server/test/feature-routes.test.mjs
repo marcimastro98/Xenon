@@ -103,6 +103,24 @@ test('a table answers the whole addresses its keys name, and no address a key on
   assert.equal(featureRoutes.has('GET', '/t/one'), false);
 });
 
+test('the names of server.js are asked for once, at the first request a table answers, and not before', async () => {
+  const list = freshList();
+  const got = [];
+  list.loadTables([{ branches: { 'GET /t/one': async (_req, _res, _ctx, engine) => { got.push(engine); } } }]);
+  let asked = 0;
+  const names = () => { asked += 1; return { store: 2 }; };
+  assert.equal(await list.run('GET', '/t/none', {}, {}, {}, names), false);
+  assert.equal(asked, 0, 'an address no table answers asks for nothing');
+  await list.run('GET', '/t/one', {}, {}, {}, names);
+  await list.run('GET', '/t/one', {}, {}, {}, names);
+  assert.equal(asked, 1);
+  assert.equal(got[0], got[1], 'every request is handed the same object');
+  assert.deepEqual(got[0], { store: 2 });
+  assert.ok(Object.isFrozen(got[0]), 'and no function can put a name of its own in it for the next request');
+  await list.run('GET', '/t/one', {}, {}, {}, () => ({ store: 3 }));
+  assert.deepEqual(got[2], { store: 3 }, 'another list is another object');
+});
+
 test('two functions for one address stop the engine from starting', () => {
   const again = { branches: { 'GET /t/one': async () => {} } };
   assert.throws(() => freshList().loadTables([again, { branches: { 'POST|GET /t/one': async () => {} } }]), /feature-routes\.js: two functions answer GET \/t\/one/);

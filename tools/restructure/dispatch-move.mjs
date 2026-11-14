@@ -17,7 +17,7 @@
 // A branch that reads `return await table[...]` counts as one that reads `await table[...]`: the chain is the last
 // thing the handler does and what the handler gives back is read by nobody (runGuarded, request-boundary.js; a test
 // in restructure-dispatch-real.test.mjs keeps both true).
-// The names of the file the calls handed over go into `routeHands`, which the handler reads for each request.
+// The names of the file the calls handed over go into `routeHands`, which feature-routes.js reads once: a name assigned again while the engine runs is refused.
 //
 // Every cut is recorded in dispatch-moves.json with the line it stood next to, so the old file can be had back
 // (`chainBack`): the step proves itself by putting its own cuts back and comparing byte for byte.
@@ -29,6 +29,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { analyze } from './analyze.mjs';
 import { ROUTES } from './branches-kinds.mjs';
 import { ownOf, readHead, readRequire } from './branches-text.mjs';
 import { canMatch, ENGINE, exactRoutes, knownOf, readDispatch } from './dispatch-read.mjs';
@@ -145,8 +146,20 @@ export function moveProblems({ before, after, listBefore, listAfter, step, modul
 }
 
 /**
+ * @param {string} engineText @param {any} parser @param {string[]} names
+ * @returns {string[]} the ones of `names` that are a `let` or a `var` of the file, or are assigned to anywhere in it
+ */
+export function assignedAgain(engineText, parser, names) {
+  const { bindings } = analyze(engineText, parser, ENGINE);
+  return names.filter((name) => {
+    const found = bindings.get(name);
+    return Boolean(found) && (found.kind === 'let' || found.kind === 'var' || found.reassigned);
+  });
+}
+
+/**
  * What must hold of the two files whatever steps made them: every address a table answers has one answer, no test of
- * the chain can answer it instead, and every name a table's function is handed is one `routeHands` holds.
+ * the chain can answer it instead, every name a table's function is handed is one `routeHands` holds, and none of them is assigned again (they are read once).
  * @param {{ engineText: string, listText: string, moduleTextOf: (spec: string) => string, parser: any, claimed?: string[], known?: object }} job
  * @returns {string[]}
  */
@@ -155,6 +168,7 @@ export function standingProblems({ engineText, listText, moduleTextOf, parser, c
   const { rows, lines } = readDispatch(engineText, parser);
   const lookup = rows.findIndex((row) => row.test === LOOKUP_TEST);
   const hands = new Set(readHands(lines).names);
+  problems.push(...assignedAgain(engineText, parser, [...hands]).map((name) => `${name} is assigned again while the engine runs, and routeHands is read once: it would keep the first value`));
   const answered = new Set(claimed);
   for (const spec of readListed(listText).specs) {
     const moduleText = moduleTextOf(spec);

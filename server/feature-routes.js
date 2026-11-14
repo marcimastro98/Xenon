@@ -121,12 +121,22 @@ function loadTables(files = TABLE_FILES()) {
 
 const has = (method, path) => ROUTES.has(`${method} ${path}`) || TABLES.has(`${method} ${path}`);
 
-// Each handler writes its own answer and catches its own errors. `engine` holds
-// the names of server.js a table's function is handed.
+// The names of server.js a table's function is handed. Each is a const or a function there, never a name
+// assigned again (tools/restructure/dispatch-move.mjs refuses one that is), so one object serves every
+// request. It is made at the first request: some of the names are declared below the list.
+const HANDS = new WeakMap();
+function handsOf(engine) {
+  if (typeof engine !== 'function') return engine;
+  if (!HANDS.has(engine)) HANDS.set(engine, Object.freeze(engine()));
+  return HANDS.get(engine);
+}
+
+// Each handler writes its own answer and catches its own errors. `engine` is
+// the function of server.js that lists the names it hands over.
 async function run(method, path, req, res, ctx, engine) {
   const handler = ROUTES.get(`${method} ${path}`) ?? TABLES.get(`${method} ${path}`);
   if (!handler) return false;
-  await handler(req, res, ctx, engine);
+  await handler(req, res, ctx, handsOf(engine));
   return true;
 }
 

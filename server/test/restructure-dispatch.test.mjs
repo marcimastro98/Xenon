@@ -6,7 +6,7 @@ import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { callLine, headLine, requireLine } from '../../tools/restructure/branches-text.mjs';
-import { applyMove, featureRoutesClaimed, LOOKUP_TEST, moveProblems, planMove } from '../../tools/restructure/dispatch-move.mjs';
+import { applyMove, assignedAgain, featureRoutesClaimed, LOOKUP_TEST, moveProblems, planMove } from '../../tools/restructure/dispatch-move.mjs';
 import { canMatch, exactRoutes, knownOf, readDispatch, renderDispatch } from '../../tools/restructure/dispatch-read.mjs';
 import { chainBack, cut, handsLines, listBack, listLine, readHands, readListed, uncut, unmark, waitingLine } from '../../tools/restructure/dispatch-undo.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
@@ -33,7 +33,7 @@ const ENGINE = ["const featureRoutes = require('./feature-routes.js');", 'const 
   "  if (reqPath === '/' && req.method === 'GET') {", callLine('cBranches', 'GET /'), '',
   ...branch("reqPath === '/a/one' && req.method === 'GET'", callLine('aBranches', 'GET /a/one', undefined, ['store'])),
   ...branch("reqPath === '/c/page' && req.method === 'GET'", callLine('cBranches', 'GET /c/page')),
-  ...branch(LOOKUP_TEST, '    await featureRoutes.run(req.method, reqPath, req, res, {}, routeHands());'),
+  ...branch(LOOKUP_TEST, '    await featureRoutes.run(req.method, reqPath, req, res, {}, routeHands);'),
   ...branch("SAID[reqPath] && req.method === 'POST'", '    SAID[reqPath]();'),
   ...branch("reqPath.startsWith('/b/') && !unlocked()", '    res.writeHead(403); res.end();'),
   ...branch("reqPath === '/b/two' && req.method === 'POST'", callLine('bBranches', 'POST /b/two')),
@@ -217,6 +217,20 @@ test('a step that would leave an address with two answers, or a name nobody hand
   assert.ok(moveProblems({ ...proof, after: kept }).some((line) => /of the chain can still answer POST \/d\/x, which \.\/d\/routes\.js answers/.test(line)));
   const bare = step.engineText.replace('  other,\n', '');
   assert.ok(moveProblems({ ...proof, after: bare }).some((line) => /is handed other, which routeHands does not hold/.test(line)));
+});
+
+test('a name handed to the tables that is assigned again is told apart: the names are read once', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const file = ['const fixed = 1;', 'function made() {}', "const asked = require('./asked.js');", 'let counted = 0;', 'const filled = [];', 'let quiet = null;',
+    'function later() { counted += 1; filled.push(1); }', ''].join('\n');
+  assert.deepEqual(assignedAgain(file, parser, ['fixed', 'made', 'asked', 'counted', 'filled', 'quiet', 'elsewhere']), ['counted', 'quiet'],
+    'a let is one whether or not a line assigns to it; a list that is filled in place stays the same list');
+  const made = plan(['dBranches']);
+  const step = applyMove({ engineText: ENGINE, listText: LIST, moves: made.moves });
+  const proof = { before: ENGINE, after: step.engineText, listBefore: LIST, listAfter: step.listText, step: step.step, moduleTextOf, parser, known: knownOf(step.engineText, parser) };
+  assert.deepEqual(moveProblems(proof), []);
+  const again = `${step.engineText}\nlet other = 1;\n`;
+  assert.ok(moveProblems({ ...proof, after: again }).some((line) => /^other is assigned again while the engine runs, and routeHands is read once/.test(line)));
 });
 
 test('the addresses the older features answer are read from their files', () => {

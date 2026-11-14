@@ -7302,7 +7302,7 @@ const { branches: widgetSdkImagesBranches } = require('./widget-sdk/routes-image
 const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
 
 // The names of this file the tables of routes are handed (feature-routes.js),
-// read for each request. tools/restructure/dispatch-move.mjs writes the list.
+// read once, at the first request. tools/restructure/dispatch-move.mjs writes the list.
 const routeHands = () => ({
   AI_MODELS, BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, PORT, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, TRANSFER_UNDO_MS,
   _aiPerformancePlan, _audioToWav16k, _captureCovers, _captureExport, _captureFolder, _captureGallery, _captureHost, _captures,
@@ -7521,7 +7521,7 @@ const handleRequest = async (req, res) => {
 
   } else if (featureRoutes.has(req.method, reqPath)) {
     // A route that lives in its feature's routes.js (feature-routes.js).
-    await featureRoutes.run(req.method, reqPath, req, res, { json, err500, reqPath, urlObj, isRemote, jsonpCb, remote, sendPage, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath }, routeHands());
+    await featureRoutes.run(req.method, reqPath, req, res, { json, err500, reqPath, urlObj, isRemote, jsonpCb, remote, sendPage, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath }, routeHands);
 
   } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {
     await deckBranches['DELETE /deck/sounds/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
