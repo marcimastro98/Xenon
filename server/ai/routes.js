@@ -262,4 +262,8 @@ const branches = {
   },
 };
 
+// The page asks the hardware scan by POST: the scan saves in the settings, and
+// a paired device may not change anything with a GET. GET stays for this PC.
+branches['POST /api/ai-local/scan'] = branches['GET /api/ai-local/scan'];
+
 module.exports = { branches };

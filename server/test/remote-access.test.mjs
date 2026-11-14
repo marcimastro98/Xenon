@@ -146,6 +146,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     .sort();
 
   assert.deepEqual(refused, [
+    // The hardware scan saves in the settings: the page asks it by POST.
+    'GET /api/ai-local/scan',
     // The Claude Code mod /xenon check, token-gated like the ingest below.
     'GET /api/claude/mod',
     // Pairing admin — loopback-only so a phone cannot enrol another phone or
@@ -461,6 +463,23 @@ test('no GET reachable from a paired device can mutate anything', () => {
   for (const p of ['/toggle', '/volume/set', '/speaker/mute', '/media/playpause', '/mic/volume']) {
     assert.equal(ra.remotePathAllowed(p, 'POST'), true, 'POST ' + p + ' must still work');
   }
+});
+
+// The hardware scan for local models answers a GET and saves what it found in
+// the settings, so a page on another site must not be able to start it.
+test('the hardware scan for local models is on the list of GETs that change something', () => {
+  const src = engineSource();
+  const block = src.slice(src.indexOf('const CSRF_MUTATION_PATHS = new Set(['));
+  const list = block.slice(0, block.indexOf(']);'));
+  assert.ok(list.includes("'/api/ai-local/scan'"), 'the engine list does not name the scan');
+  assert.ok(ra.DEFAULT_GET_MUTATORS.has('/api/ai-local/scan'), 'the fallback list does not name the scan');
+  assert.equal(ra.remotePathAllowed('/api/ai-local/scan', 'GET'), false);
+  // The page still reaches it, by POST, from the PC and from a paired device.
+  assert.equal(ra.remotePathAllowed('/api/ai-local/scan', 'POST'), true);
+  const routes = readFileSync(new URL('../ai/routes.js', import.meta.url), 'utf8');
+  assert.ok(routes.includes("branches['POST /api/ai-local/scan'] = branches['GET /api/ai-local/scan'];"), 'no POST spelling of the scan');
+  const page = readFileSync(new URL('../js/settings/ai-local.js', import.meta.url), 'utf8');
+  assert.ok(page.includes("fetch('/api/ai-local/scan', { method: 'POST' })"), 'the page does not ask by POST');
 });
 
 test('an unpaired device reaches exactly two paths, and is sent to pair from the root', () => {

@@ -200,9 +200,9 @@ const DEFAULT_GET_MUTATORS = new Set([
   // navigation to it. /api/phone, /contacts, /calls, /messages and /message are
   // deliberately absent: they are reads a paired device is meant to make.
   '/api/phone/dial', '/api/phone/send',
-  // The gallery's new copies: a paired device makes them, by POST only (each
-  // writes a file or runs the encoder or whisper on the PC).
-  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe',
+  // The gallery's new copies: a paired device makes them, by POST only (each writes a file or runs
+  // the encoder or whisper on the PC). Last, the hardware scan for local models: it saves in the settings.
+  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe', '/api/ai-local/scan',
 ]);
 let _getMutators = DEFAULT_GET_MUTATORS;
 

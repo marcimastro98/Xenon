@@ -87,7 +87,7 @@ async function aiLocalScan() {
   const hwStats = $('ai-hw-stats');
   if (hwStats) hwStats.textContent = '…';
   try {
-    const data = await (await fetch('/api/ai-local/scan')).json();
+    const data = await (await fetch('/api/ai-local/scan', { method: 'POST' })).json();
     const scan = data && data.scan ? data.scan : data;
     renderAiHwScan(scan);
     hubSettings = normalizeSettings({ ...hubSettings, hardwareScan: scan });

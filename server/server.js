@@ -6130,8 +6130,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // Writing down what is said in a video (whisper, on this PC).
   '/captures/transcribe',
   // A vertical, smaller or GIF copy of a video, and stopping one.
-  '/captures/export',
-  '/captures/export-cancel',
+  '/captures/export', '/captures/export-cancel',
+  '/api/ai-local/scan', // the hardware scan for local models: it saves what it found in the settings
 ]);
 
 function isAllowedRequest(req) {

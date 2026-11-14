@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### 🔒 Security
+- **A website open in your browser can no longer start the hardware scan for local AI models.** The scan saves what it finds in your settings, and it answered a plain read, so a page on another site could have made your PC run it. Xenon now refuses that request when it comes from another site. Nothing changes when you press Scan in Settings.
 - **A paired phone or tablet can no longer press the keyboard shortcuts of the PC.** The two addresses a Linux desktop calls when you press one of your Xenon shortcuts also answered a paired device. One opened the search window on the PC; the other ran the Deck key behind that shortcut without the rules a paired device is held to (for example a key that places a call). Both now answer only on the PC itself.
 - **Restoring a backup no longer changes access for paired devices.** A backup made on another PC, or before you turned access on or off, could flip that switch on this PC without closing or opening the connection properly. The switch now stays as it is here; you change it only in Settings on the PC.
 - **Restoring a backup keeps your saved keys even when the settings file is busy.** If Xenon could not read its settings at the moment of the restore, it went ahead as if nothing was saved and dropped the keys and passwords stored on this PC. It now stops and tells you that the settings were not restored, so you can try again.
