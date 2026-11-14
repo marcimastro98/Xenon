@@ -1,6 +1,6 @@
 {
   "note": "Type errors per \"file code\". Written by tools/quality/typecheck.mjs: numbers only go down.",
-  "total": 1126,
+  "total": 1125,
   "counts": {
     "packages/core/src/bit-player.js TS2322": 3,
     "packages/mcp/bin/xenon-mcp.js TS2353": 1,
@@ -104,6 +104,7 @@
     "server/hid/index.js TS2339": 1,
     "server/http-range.js TS2339": 7,
     "server/http/read-body.js TS2339": 2,
+    "server/install/startup-task-refresh.js TS2353": 1,
     "server/js/bg-guard.js TS2339": 1,
     "server/js/capability-catalog.js TS2339": 1,
     "server/js/custom-bg.js TS2304": 2,
@@ -216,10 +217,10 @@
     "server/second-screen.js TS2339": 3,
     "server/self-update.js TS2810": 1,
     "server/sensor-service/migrate.js TS2339": 3,
-    "server/server.js TS2322": 49,
+    "server/server.js TS2322": 48,
     "server/server.js TS2339": 39,
     "server/server.js TS2345": 1,
-    "server/server.js TS2353": 14,
+    "server/server.js TS2353": 13,
     "server/server.js TS2554": 2,
     "server/server.js TS2739": 5,
     "server/server.js TS2741": 2,

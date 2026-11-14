@@ -168,7 +168,7 @@
     "server/remote-control/tailscale.js": 306,
     "server/sdk-widgets.js": 476,
     "server/self-update.js": 441,
-    "server/server.js": 14376,
+    "server/server.js": 13824,
     "server/stream-spotify.js": 1055,
     "server/stream-twitch.js": 595,
     "server/stream-youtube.js": 781,

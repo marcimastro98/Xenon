@@ -98,8 +98,7 @@ const {
 const { WEATHER_PROVIDERS, weatherProviderOrder } = require('./weather/providers.js');
 
 const {
-  DASHBOARD_WIDGET_IDS, DASHBOARD_CARD_IDS, DASHBOARD_CARD_SIZES, DASHBOARD_GRID_COLUMNS,
-  DASHBOARD_GRID_MAX_ROW, DASHBOARD_LAYOUT_VERSION, DEFAULT_DASHBOARD_LAYOUT,
+  DASHBOARD_WIDGET_IDS, DASHBOARD_GRID_COLUMNS, DASHBOARD_LAYOUT_VERSION, DEFAULT_DASHBOARD_LAYOUT,
 } = require('./grid/layout-defaults.js');
 
 const { clampNumber, normalizeHex } = require('./settings/values.js');
@@ -174,22 +173,13 @@ const { normalizeCodexWidget } = require('./codex/settings-normalize.js');
 
 const { WEATHER_LANGS } = require('./weather/setting-values.js');
 
-const {
-  LEGACY_SEEDED_GROUPS, cloneDashboardLayout, DASHBOARD_GEOM_FALLBACK, normalizeDashboardItem,
-  reindexDashboardCollection, normalizeDashboardTabs, normalizeCalendarTabs, normalizeMediaView,
-} = require('./grid/layout-normalize-parts.js');
-
-const { scaleDashboardLayoutUnits } = require('./grid/layout-unit-migration.js');
+const { cloneDashboardLayout } = require('./grid/layout-normalize-parts.js');
 
 const {
   collectTileAssetRefs, TILE_ASSET_GC_GRACE_MS, TILE_ASSET_GC_MIN_INTERVAL_MS,
 } = require('./grid/tile-asset-refs.js');
 
 const { collectSlideshowAssetRefs } = require('./windows-tiles/slideshow-asset-refs.js');
-
-const { _nextListSeq } = require('./time/list-seq.js');
-
-const { normalizeTasks } = require('./time/tasks-normalize.js');
 
 const { CALENDAR_FEED_PALETTE, normalizeEvents } = require('./time/events-normalize.js');
 
@@ -199,10 +189,9 @@ const { _parseAvfAudioDevices, _ffmpegKnowsFormat } = require('./ai/stt-device-p
 
 const {
   MEDIA_HOST_RETRY_MS, MEDIA_HELPER_BAD_MS, MEDIA_CACHE_MS, MEDIA_READER_REST_MS,
-  SOUND_ROWS_REUSE_MS,
 } = require('./media/timings.js');
 
-const { sanitizeMediaSourcePreference, liveMediaSnapshot } = require('./media/snapshot.js');
+const { liveMediaSnapshot } = require('./media/snapshot.js');
 
 const { _sleep, readObsInstallDir, launchObs } = require('./streaming/obs-launch.js');
 
@@ -212,7 +201,7 @@ const { appAudioTarget } = require('./audio/app-target.js');
 
 const { cpuSnapshot, getCpuName } = require('./system/cpu.js');
 
-const { collectorNum, normalizeGpuFans, SENSOR_ACCESS } = require('./system/sensor-values.js');
+const { collectorNum, SENSOR_ACCESS } = require('./system/sensor-values.js');
 
 const {
   RAM_INFO_RETRY_MS, NETWORK_FRESH_MS, IDLE_POLL_MS, IDLE_POLL_FAST_MS, IDLE_AWAY_SEC,
@@ -226,10 +215,6 @@ const { joinDiskDetails } = require('./disk/details-shape.js');
 const { DECK_SOUND_EXTS } = require('./deck/limits.js');
 
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
-
-const {
-  INSTALLED_APPS_TTL_MS, _enumStartMenuLnks, _enumStoreApps,
-} = require('./search/installed-apps-windows.js');
 
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
@@ -298,6 +283,8 @@ async function _sdkWidgetKeys() {
     };
   });
 }
+const { getInstalledApps } = require('./search/installed-apps-list.js');
+
 const capabilityRunner = capabilities.createCapabilities({
   fps: fpsMonitor,
   // What this machine can tell a widget's rule (the menu hides the rest and says why).
@@ -490,7 +477,7 @@ const featureRoutes = require('./feature-routes.js');           // the routes ad
 const { createFeatureUnlock } = require('./feature-unlock');
 const { createTrialPass } = require('./trial-pass');
 const { createTrialVault } = require('./trial-vault');
-const { listPosixApps } = require('./installed-apps');               // macOS/Linux apps for the search's Applications tier
+require('./installed-apps');               // macOS/Linux apps for the search's Applications tier
 const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
@@ -619,7 +606,7 @@ const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');;
-const startupTask = require('./startup-task');
+require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
@@ -678,15 +665,7 @@ async function loadWhatsNew() {
 
 const { audioCache } = require('./audio/device-cache.js');
 
-const { GEMINI_MODEL_KEYS } = require('./ai/gemini-model-keys.js');
-
-// Reads the in-memory settings mirror (`hub.settings`, kept fresh by every
-// writer) rather than the disk, because these are read per AI request and several
-// of the callers below are small sync helpers that only ever receive an API key.
-function geminiModelFor(role) {
-  const s = hub.settings || {};
-  return aiModels.resolve('gemini', role, s[GEMINI_MODEL_KEYS[role]], s.geminiApiKey);
-}
+const { geminiModelFor } = require('./ai/gemini-model-for.js');
 
 const AI_MODELS = Object.freeze({
   get chat() { return geminiModelFor('chat'); },
@@ -1064,7 +1043,7 @@ const { HELPER_EXE } = require('./engine/paths.js');
 const { MEDIAREMOTE_DIR } = require('./media/script-paths.js');
 const { CPU_TEMP_SCRIPT, ENABLE_SENSORS_SCRIPT } = require('./system/script-paths.js');
 const sensorService = require('./sensor-service/reader.js').instance();
-const { GPU_SCRIPT, NETWORK_SCRIPT, DISK_IO_SCRIPT } = require('./system/script-paths.js');
+const { NETWORK_SCRIPT } = require('./system/script-paths.js');
 const {
   DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT, DECK_WINDOW_SCRIPT,
 } = require('./deck/script-paths.js');
@@ -1157,34 +1136,7 @@ const mcpDev = createMcpDev({
 });
 const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
 const { ICON_PACKS_DIR, SOUND_PACKS_DIR } = require('./deck/pack-places.js');
-const {
-  _installedApps, INDEX_START_DELAY_MS, _spotlightPopupPids,
-} = require('./search/spotlight-state.js');
-
-function getInstalledApps() {
-  const now = Date.now();
-  if (now - _installedApps.at < INSTALLED_APPS_TTL_MS) return Promise.resolve(_installedApps.list);
-  if (_installedApps.inflight) return _installedApps.inflight;
-  // macOS and Linux: .app bundles and .desktop entries (installed-apps.js).
-  // Off Windows this tier used to answer nothing, so an app's name found its
-  // files and never the app.
-  const enumerate = process.platform === 'win32'
-    ? Promise.all([_enumStartMenuLnks(), _enumStoreApps()])
-    : listPosixApps({ lang: String(process.env.LANG || '').slice(0, 2) }).then((apps) => [apps, []]);
-  _installedApps.inflight = enumerate
-    .then(([lnks, store]) => {
-      // Same display name in both worlds (a Store app plus a desktop shortcut):
-      // the Store entry wins — it launches even when the lnk is stale.
-      const byName = new Map();
-      for (const a of [...lnks, ...store]) byName.set(a.name.toLowerCase(), a);
-      _installedApps.list = [...byName.values()];
-      _installedApps.at = Date.now();
-      _installedApps.inflight = null;
-      return _installedApps.list;
-    })
-    .catch(() => { _installedApps.inflight = null; return _installedApps.list; });
-  return _installedApps.inflight;
-}
+const { INDEX_START_DELAY_MS, _spotlightPopupPids } = require('./search/spotlight-state.js');
 
 const livingIndex = process.platform === 'linux'
   ? createLinuxIndex({ startDelayMs: INDEX_START_DELAY_MS })
@@ -1573,8 +1525,6 @@ const { sanitizeSettingsBackgroundMedia } = require('./look/background-media.js'
 
 const { sanitizeCustomThemes } = require('./look/custom-themes.js');
 
-const { normalizeDashboardPages } = require('./grid/pages-normalize.js');
-
 const { normalizeHardwareScan } = require('./ai/hardware-scan-normalize.js');
 
 const { normalizeVitals } = require('./vitals/settings-normalize.js');
@@ -1604,6 +1554,8 @@ const {
 const { normalizeFileTransfer } = require('./transfer/normalize-settings.js');
 
 const { normalizeLighting } = require('./lights/normalize-settings.js');
+
+const { normalizeDashboardLayout } = require('./grid/layout-normalize.js');
 
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
@@ -1730,12 +1682,8 @@ function openDeckPopupWindow(instanceRaw, topmost) {
   }
   return { ok: true };
 }
-const {
-  NOTES_FILE, NOTES_JSON, EVENTS_FILE, TASKS_FILE, TIMERS_FILE,
-} = require('./time/store-files.js');
-const {
-  normalizeNotesState, notesToText, textToNotesState, _notesRevOf,
-} = require('./time/notes-state.js');
+const { NOTES_FILE, EVENTS_FILE, TASKS_FILE, TIMERS_FILE } = require('./time/store-files.js');
+const { notesToText, textToNotesState } = require('./time/notes-state.js');
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
 // injected into the AI system prompt so the assistant remembers across sessions.
 const aiMemory = createAiMemory({ dataDir: DATA_DIR });
@@ -2346,18 +2294,15 @@ function runMediaHostRequest(action, timeout = 8000, position) {
   });
 }
 
-// Track/playback changed at the OS level (pushed by the native helper):
-// invalidate the cache and broadcast right away instead of waiting for the
-// next 2s poll tick. The tiny debounce coalesces bursts into one refresh.
-let _mediaPushTimer = null;
+const { mediaNow } = require('./media/now-state.js');
 function _onMediaChangedPush() {
-  if (_mediaPushTimer) return;
-  _mediaPushTimer = setTimeout(async () => {
-    _mediaPushTimer = null;
-    mediaCache.updatedAt = 0;
+  if (mediaNow.pushTimer) return;
+  mediaNow.pushTimer = setTimeout(async () => {
+    mediaNow.pushTimer = null;
+    mediaNow.cache.updatedAt = 0;
     try { await broadcastMediaNow(); } catch {}
   }, 150);
-  _mediaPushTimer.unref();
+  mediaNow.pushTimer.unref();
 }
 
 const { _normalizeTimer } = require('./time/timer-normalize.js');
@@ -2439,25 +2384,14 @@ setInterval(() => {
   }
 }, 1500).unref();
 
-let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
+const { sensorReads } = require('./system/sensor-reads-state.js');
 const { sensorCache } = require('./system/sensor-cache.js');
-let mediaCache = { data: null, updatedAt: 0 };
 const {
   WEATHER_CACHE_MAX_ENTRIES, weatherCache, weatherPending, weatherLocationCache,
   newestWeatherForLocation,
 } = require('./weather/cache.js');
-let gpuPending = null;
-let cpuTempPending = null;
-let mediaPending = null;
 let audioPending = null;
-// STT via ffmpeg — WASAPI preferred (fast init), dshow fallback; avfoundation
-// on macOS, where the device is addressed by index rather than by name.
-let _sttDeviceReady = false;
-let _sttUseWasapi   = false;
-let _sttDshowDevice = null;
-let _sttAvfIndex    = null; // macOS avfoundation audio device index, as a string
-let _sttLinuxFormat = null; // 'pulse' | 'alsa' — which one this ffmpeg knows
-let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
+const { sttDevice } = require('./ai/stt-device-state.js');
 
 const { STT_DEVICE_DELAY_MS } = require('./ai/stt-gate.js');
 const { _sttDeviceWaiters, _sttPending, _sweepStaleStt } = require('./ai/stt-pending.js');
@@ -2465,10 +2399,6 @@ setInterval(_sweepStaleStt, 60000).unref();
 
 
 const { mediaChoice } = require('./media/preferred-source.js');
-let mediaReaderRestUntil = 0;
-let mediaListProbe = null;
-let mediaHoldUntil = 0;
-let _soundRows = { rows: null, at: 0 };
 const heardPlayer = createHeardPlayer(F);
 const musicNow = createMusicFact();
 const {
@@ -2477,16 +2407,9 @@ const {
 const { WEATHER_FORECAST_MAX_DAYS } = require('./weather/forecast-shape.js');
 const { artworkCache } = require('./media/artwork-cache.js');
 
-function setMediaPreferredSource(value) {
-  const next = sanitizeMediaSourcePreference(value);
-  if (next !== mediaChoice.source) {
-    mediaChoice.source = next;
-    mediaCache.updatedAt = 0;
-  }
-  return mediaChoice.source;
-}
+const { setMediaPreferredSource } = require('./media/preferred-source-set.js');
 
-const { readSoundVolumeRows, readSoundingRows } = require('./audio/volume-rows.js');
+const { readSoundVolumeRows } = require('./audio/volume-rows.js');
 
 const { FETCH_JSON_MAX_BYTES } = require('./http/fetch-json-limit.js');
 function fetchJson(url, timeout = 2500, extraHeaders) {
@@ -2640,51 +2563,26 @@ const { normalizeOpenMeteo } = require('./weather/open-meteo.js');
 
 const { GEO_IP_SOURCES, normalizeGeoIpValue } = require('./weather/geo-ip.js');
 const { WEATHER_GEO_FILE } = require('./weather/geo-file.js');
-let weatherAutoLocation = { value: null, updatedAt: 0 };
-let weatherGeoLoad = null; // shared promise — concurrent boot fetches read the file once
-async function loadPersistedAutoLocation() {
-  try {
-    const raw = JSON.parse(await fs.promises.readFile(WEATHER_GEO_FILE, 'utf8'));
-    const lat = Number(raw && raw.lat);
-    const lon = Number(raw && raw.lon);
-    if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      weatherAutoLocation = {
-        value: {
-          lat, lon,
-          location: String(raw.location || ''),
-          region: String(raw.region || ''),
-          country: String(raw.country || ''),
-        },
-        updatedAt: Number(raw.updatedAt) || 0,
-      };
-    }
-  } catch { /* first run or unreadable — resolve fresh below */ }
-}
-let weatherGeoRefresh = null; // in-flight lookup, shared across concurrent callers
-let weatherGeoFailAt = 0;     // last failed lookup — skip retrying for a cooldown
-// Which source answered / how the last attempt went. Diagnostics only: it rides
-// the failure payload of /weather so a support report says WHY instead of just
-// "unavailable" — the whole reason this class of bug took three reports to place.
-let weatherGeoSource = '';
-let weatherGeoAttempts = '';
+const { weatherGeo } = require('./weather/auto-place-state.js');
+const { loadPersistedAutoLocation } = require('./weather/auto-place-load.js');
 async function resolveAutoLocation() {
-  if (!weatherGeoLoad) weatherGeoLoad = loadPersistedAutoLocation();
-  await weatherGeoLoad;
-  if (weatherAutoLocation.value && (Date.now() - weatherAutoLocation.updatedAt) < WEATHER_CACHE_MS) {
-    return weatherAutoLocation.value;
+  if (!weatherGeo.load) weatherGeo.load = loadPersistedAutoLocation();
+  await weatherGeo.load;
+  if (weatherGeo.place.value && (Date.now() - weatherGeo.place.updatedAt) < WEATHER_CACHE_MS) {
+    return weatherGeo.place.value;
   }
   // After a failed lookup, don't pay the fetch timeout again on every forecast
   // refresh — serve the last known place immediately and retry after a cooldown.
-  if (Date.now() - weatherGeoFailAt < WEATHER_GEO_FAIL_COOLDOWN_MS) {
-    return weatherAutoLocation.value || null;
+  if (Date.now() - weatherGeo.failAt < WEATHER_GEO_FAIL_COOLDOWN_MS) {
+    return weatherGeo.place.value || null;
   }
   // Concurrent misses (several surfaces/languages refreshing at the same tick)
   // share one lookup: these are free, rate-limited services, and a burst of
   // parallel requests is exactly what gets throttled. The sources are tried in
   // order and the FIRST usable answer wins — a later one is never consulted, so
   // the normal case still costs exactly one request, as it did before.
-  if (!weatherGeoRefresh) {
-    weatherGeoRefresh = (async () => {
+  if (!weatherGeo.refresh) {
+    weatherGeo.refresh = (async () => {
       const attempts = [];
       for (const source of GEO_IP_SOURCES) {
         let value = null;
@@ -2697,22 +2595,22 @@ async function resolveAutoLocation() {
           attempts.push(`${source.name}:${String((e && e.code) || 'error').slice(0, 24)}`);
         }
         if (!value) continue;
-        weatherAutoLocation = { value, updatedAt: Date.now() };
-        weatherGeoSource = source.name;
-        weatherGeoAttempts = attempts.join(', ');
-        writeFileAtomic(WEATHER_GEO_FILE, JSON.stringify({ ...value, updatedAt: weatherAutoLocation.updatedAt }))
+        weatherGeo.place = { value, updatedAt: Date.now() };
+        weatherGeo.source = source.name;
+        weatherGeo.attempts = attempts.join(', ');
+        writeFileAtomic(WEATHER_GEO_FILE, JSON.stringify({ ...value, updatedAt: weatherGeo.place.updatedAt }))
           .catch(() => { /* best-effort — memory copy still serves this run */ });
         return value;
       }
-      weatherGeoAttempts = attempts.join(', ');
-      weatherGeoFailAt = Date.now();
+      weatherGeo.attempts = attempts.join(', ');
+      weatherGeo.failAt = Date.now();
       return null;
-    })().finally(() => { weatherGeoRefresh = null; });
+    })().finally(() => { weatherGeo.refresh = null; });
   }
-  const fresh = await weatherGeoRefresh;
+  const fresh = await weatherGeo.refresh;
   // Lookup failed: reuse the last known coordinates even past their TTL, so the
   // forecast stays pinned to one place instead of drifting to wttr's IP guess.
-  return fresh || weatherAutoLocation.value || null;
+  return fresh || weatherGeo.place.value || null;
 }
 
 // Provider fetchers — each resolves to a normalized object or null (never throws),
@@ -2816,7 +2714,7 @@ async function getWeather(lang = 'en', requestedLocation = null) {
         ok: false,
         error: hasCoords ? 'providers_down' : (location.mode === 'manual' ? 'city_not_found' : 'no_location'),
         providers: tried,
-        geo: location.mode === 'manual' ? '' : (weatherGeoSource || weatherGeoAttempts || 'none'),
+        geo: location.mode === 'manual' ? '' : (weatherGeo.source || weatherGeo.attempts || 'none'),
         locationMode: location.mode,
         requestedCity: location.city,
         updatedAt: Date.now(),
@@ -2869,9 +2767,9 @@ function getCpuUsage() {
 async function getCpuTemp() {
   const age = Date.now() - sensorCache.reading.updatedAt;
   if (age < sensorRateMs()) return sensorCache.reading.cpuTemp;
-  if (cpuTempPending) return cpuTempPending;
+  if (sensorReads.cpuTempPending) return sensorReads.cpuTempPending;
 
-  cpuTempPending = (async () => {
+  sensorReads.cpuTempPending = (async () => {
     try {
       const data = nativeCollectors ? await nativeCollectors.cpuTemp() : ((await sensorService.cpu(sensorRateMs())) || await runCollector(CPU_TEMP_SCRIPT, [], 10000));
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
@@ -2904,48 +2802,11 @@ async function getCpuTemp() {
     } catch {
       sensorCache.reading.updatedAt = Date.now();
     }
-    cpuTempPending = null;
+    sensorReads.cpuTempPending = null;
     return sensorCache.reading.cpuTemp;
   })();
 
-  return cpuTempPending;
-}
-
-async function getGpuInfo() {
-  const age = Date.now() - gpuCache.updatedAt;
-  if (age < sensorRateMs()) return gpuCache;
-  if (gpuPending) return gpuPending;
-  gpuPending = (async () => {
-  try {
-    const data = nativeCollectors ? await nativeCollectors.gpu() : await runCollector(GPU_SCRIPT, [], 12000);
-    gpuCache = {
-      gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
-      gpuName: data.gpuName || gpuCache.gpuName || null,
-      gpuTemp: (data.gpuTemp === null || data.gpuTemp === undefined) ? gpuCache.gpuTemp : data.gpuTemp,
-      vramUsed: (data.vramUsed === null || data.vramUsed === undefined) ? gpuCache.vramUsed : data.vramUsed,
-      vramTotal: (data.vramTotal === null || data.vramTotal === undefined) ? gpuCache.vramTotal : data.vramTotal,
-      gpuWatts: collectorNum(data.gpuWatts) ?? gpuCache.gpuWatts,
-      gpuFanRpm: collectorNum(data.gpuFanRpm) === null ? gpuCache.gpuFanRpm : Math.round(collectorNum(data.gpuFanRpm)),
-      gpuFanPct: collectorNum(data.gpuFanPct) === null ? gpuCache.gpuFanPct : Math.round(collectorNum(data.gpuFanPct)),
-      // Per-fan RPM straight from the card's tachometers. `null` means the read
-      // carried no answer at all (keep the last list); an empty array means the
-      // card reported no fans (drop it) — see normalizeGpuFans.
-      gpuFans: normalizeGpuFans(data.gpuFans) ?? gpuCache.gpuFans,
-      // Core and memory clock in MHz. Held like every other reading here: a read
-      // that carried no answer keeps the last one rather than blinking the tile
-      // to "—" for a cycle, which is what a card reporting [N/A] intermittently
-      // would otherwise do.
-      gpuClockMHz: collectorNum(data.gpuClockMHz) === null ? gpuCache.gpuClockMHz : Math.round(collectorNum(data.gpuClockMHz)),
-      vramClockMHz: collectorNum(data.vramClockMHz) === null ? gpuCache.vramClockMHz : Math.round(collectorNum(data.vramClockMHz)),
-      updatedAt: Date.now(),
-    };
-  } catch {
-    gpuCache.updatedAt = Date.now();
-  }
-  gpuPending = null;
-  return gpuCache;
-  })();
-  return gpuPending;
+  return sensorReads.cpuTempPending;
 }
 
 // ── Sensor sources ──────────────────────────────────────────────────────────
@@ -2970,29 +2831,24 @@ async function collectSensors(ids) {
   return { known: raw.lhm === true, sensors: SensorSources.normalizeSensorCatalog(list) };
 }
 
-// The chosen sensors' readings, at the same cadence as the readings they
-// replace. Nothing chosen = nothing read: an install that never opened the
-// picker pays nothing for this feature.
-let _chosenSensors = { key: '', readings: null, at: 0 };
-let _chosenSensorsPending = null;
 function readChosenSensors(sources) {
   const ids = [...new Set(Object.values(sources))];
   if (!ids.length) return Promise.resolve([]);
   const key = ids.join('|');
-  if (key === _chosenSensors.key && Date.now() - _chosenSensors.at < sensorRateMs()) return Promise.resolve(_chosenSensors.readings);
-  if (_chosenSensorsPending) return _chosenSensorsPending;
-  _chosenSensorsPending = collectSensors(ids)
+  if (key === sensorReads.chosen.key && Date.now() - sensorReads.chosen.at < sensorRateMs()) return Promise.resolve(sensorReads.chosen.readings);
+  if (sensorReads.chosenPending) return sensorReads.chosenPending;
+  sensorReads.chosenPending = collectSensors(ids)
     .then((r) => (r.known ? r.sensors : null))
     .catch(() => null)
     .then((readings) => {
       // A failed read keeps the last good one for the same choice, so a worker
       // restart does not blink the tile back to the automatic sensor.
-      const keep = readings === null && key === _chosenSensors.key ? _chosenSensors.readings : readings;
-      _chosenSensors = { key, readings: keep, at: Date.now() };
+      const keep = readings === null && key === sensorReads.chosen.key ? sensorReads.chosen.readings : readings;
+      sensorReads.chosen = { key, readings: keep, at: Date.now() };
       return keep;
     })
-    .finally(() => { _chosenSensorsPending = null; });
-  return _chosenSensorsPending;
+    .finally(() => { sensorReads.chosenPending = null; });
+  return sensorReads.chosenPending;
 }
 
 
@@ -3058,7 +2914,7 @@ const firstSystemReading = createFirstReading();
 // What getSystemInfo can say without waiting for a source that has not answered yet.
 function knownSystemSources() {
   return Promise.all([
-    gpuCache, getAllDisksInfo({ waitForDetails: false }), ramInfo.known(), sensorCache.reading.cpuTemp,
+    sensorReads.gpuCache, getAllDisksInfo({ waitForDetails: false }), ramInfo.known(), sensorCache.reading.cpuTemp,
     nativeCollectors ? nativeCollectors.memory() : null,
   ]);
 }
@@ -3177,29 +3033,20 @@ async function getSystemInfo({ partialOk = false } = {}) {
   return SensorSources.applySensorSources(info, sources, readings, { cpuTemp: sensorCache.reading.cpuTempSource });
 }
 
-// --- Network info: bandwidth requires a delta between two readings ---
-let _netPrev = null; // { rx, tx, t }
-// Per-interface previous counters, keyed by the collector's stable id. Its own
-// map rather than a field on _netPrev: an interface can appear (a VPN comes up)
-// or vanish (a dock is unplugged) between two polls, and the totals must not
-// care. A vanished id is dropped so the map cannot grow forever on a laptop
-// that sees a new virtual adapter per container.
-let _netPrevIfaces = new Map();  // id -> { rx, tx, t }
-let _netPending = null;
+const { netReadings } = require('./system/network-state.js');
 const _packetLoss = createPacketLoss();
 
-const { bytesPerSec, DISK_SECTOR } = require('./system/rates.js');
-let _netLast = null;
+const { bytesPerSec } = require('./system/rates.js');
 async function getNetworkInfo() {
-  if (_netLast && Date.now() - _netLast.at < NETWORK_FRESH_MS) return _netLast.reading;
+  if (netReadings.last && Date.now() - netReadings.last.at < NETWORK_FRESH_MS) return netReadings.last.reading;
   // In-flight dedup: with two dashboards open the 3s polls interleave, and two
-  // concurrent runs would both rewrite _netPrev — corrupting the bandwidth
+  // concurrent runs would both rewrite netReadings.prev — corrupting the bandwidth
   // delta — while doubling the collector work. Latecomers share the result.
-  if (_netPending) return _netPending;
-  _netPending = _getNetworkInfoRaw()
-    .then((reading) => { _netLast = { at: Date.now(), reading }; return reading; })
-    .finally(() => { _netPending = null; });
-  return _netPending;
+  if (netReadings.pending) return netReadings.pending;
+  netReadings.pending = _getNetworkInfoRaw()
+    .then((reading) => { netReadings.last = { at: Date.now(), reading }; return reading; })
+    .finally(() => { netReadings.pending = null; });
+  return netReadings.pending;
 }
 async function _getNetworkInfoRaw() {
   // PresentMon's FPS wins anyway when it is available, so tell the collector to
@@ -3214,16 +3061,16 @@ async function _getNetworkInfoRaw() {
   const tx = Number(data.txBytes) || 0;
 
   let downBps = null, upBps = null;
-  if (_netPrev && now > _netPrev.t) {
-    const dt = (now - _netPrev.t) / 1000; // seconds
-    const dRx = rx - _netPrev.rx;
-    const dTx = tx - _netPrev.tx;
+  if (netReadings.prev && now > netReadings.prev.t) {
+    const dt = (now - netReadings.prev.t) / 1000; // seconds
+    const dRx = rx - netReadings.prev.rx;
+    const dTx = tx - netReadings.prev.tx;
     if (dt > 0 && dRx >= 0 && dTx >= 0) {
       downBps = Math.round(dRx / dt);
       upBps   = Math.round(dTx / dt);
     }
   }
-  _netPrev = { rx, tx, t: now };
+  netReadings.prev = { rx, tx, t: now };
 
   // Per-interface throughput, the same delta one level down. Asked for on
   // Discord by someone building a monitoring widget who wants his NAS link, his
@@ -3241,7 +3088,7 @@ async function _getNetworkInfoRaw() {
     seenIds.add(id);
     const nrx = Number(n.rxBytes) || 0;
     const ntx = Number(n.txBytes) || 0;
-    const prev = _netPrevIfaces.get(id);
+    const prev = netReadings.prevIfaces.get(id);
     const dt = prev ? (now - prev.t) / 1000 : 0;
     interfaces.push({
       id,
@@ -3257,12 +3104,12 @@ async function _getNetworkInfoRaw() {
       rxBytes: nrx,
       txBytes: ntx,
     });
-    _netPrevIfaces.set(id, { rx: nrx, tx: ntx, t: now });
+    netReadings.prevIfaces.set(id, { rx: nrx, tx: ntx, t: now });
   }
   // Forget adapters that are gone, so the map tracks the machine rather than
   // its history.
-  for (const id of Array.from(_netPrevIfaces.keys())) {
-    if (!seenIds.has(id)) _netPrevIfaces.delete(id);
+  for (const id of Array.from(netReadings.prevIfaces.keys())) {
+    if (!seenIds.has(id)) netReadings.prevIfaces.delete(id);
   }
 
   // Prefer PresentMon's real in-game FPS (works in exclusive fullscreen);
@@ -3299,90 +3146,16 @@ async function _getNetworkInfoRaw() {
   };
 }
 
-// --- Per-disk I/O ----------------------------------------------------------
-// Asked for on Discord for an SDK monitoring widget: throughput and IOPS per
-// physical disk, with a model and a volume so a person can tell which is which.
-//
-// Pulled, never polled. Every platform's counters are cumulative, so the rate
-// is the same inter-poll delta the network interfaces use — and the same rule
-// about what an unknown rate is: null, never 0.
-//
-// `_diskPrev` is keyed by the collector's id. A disk that is unplugged is
-// forgotten on the next read, and one that appears reports null until it has
-// two readings of its own.
-let _diskPrev = new Map();     // id -> { rb, wb, ro, wo, t }
-let _diskPending = null;
-
-function getDiskIo() {
-  if (_diskPending) return _diskPending;
-  _diskPending = _getDiskIoRaw().finally(() => { _diskPending = null; });
-  return _diskPending;
-}
-
-async function _getDiskIoRaw() {
-  let rows = [];
-  try {
-    if (nativeCollectors) {
-      rows = await nativeCollectors.diskIo();
-    } else {
-      const out = await runCollector(DISK_IO_SCRIPT, [], 8000);
-      rows = (out && Array.isArray(out.disks)) ? out.disks : [];
-    }
-  } catch { rows = []; }
-  if (!Array.isArray(rows)) rows = [];
-
-  const now = Date.now();
-  const seen = new Set();
-  const disks = [];
-  for (const d of rows) {
-    const id = String((d && d.id) || '').slice(0, 120);
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    // Linux counts sectors, Windows and macOS count bytes. Normalise here so
-    // the SDK sees one unit and nobody has to know which OS answered.
-    const rb = Number.isFinite(Number(d.readBytes)) ? Number(d.readBytes)
-      : (Number(d.sectorsRead) || 0) * DISK_SECTOR;
-    const wb = Number.isFinite(Number(d.writeBytes)) ? Number(d.writeBytes)
-      : (Number(d.sectorsWritten) || 0) * DISK_SECTOR;
-    const ro = Number(d.readsCompleted) || 0;
-    const wo = Number(d.writesCompleted) || 0;
-    const prev = _diskPrev.get(id);
-    const dt = prev ? (now - prev.t) / 1000 : 0;
-    disks.push({
-      id,
-      model: String((d && d.model) || id).slice(0, 120),
-      serial: String((d && d.serial) || '').slice(0, 80),
-      kind: d && (d.kind === 'ssd' || d.kind === 'hdd') ? d.kind : '',
-      sizeBytes: Number.isFinite(Number(d.sizeBytes)) && Number(d.sizeBytes) > 0 ? Number(d.sizeBytes) : null,
-      volumes: Array.isArray(d.volumes) ? d.volumes.slice(0, 16).map((v) => ({
-        mount: String((v && v.mount) || '').slice(0, 160),
-        label: String((v && v.label) || '').slice(0, 80),
-        fstype: String((v && v.fstype) || '').slice(0, 24),
-      })) : [],
-      temperature: Number.isFinite(Number(d && d.temperature)) ? Number(d.temperature) : null,
-      readBytesPerSec: bytesPerSec(rb, prev && prev.rb, dt),
-      writeBytesPerSec: bytesPerSec(wb, prev && prev.wb, dt),
-      readIops: bytesPerSec(ro, prev && prev.ro, dt),
-      writeIops: bytesPerSec(wo, prev && prev.wo, dt),
-      readBytes: rb,
-      writeBytes: wb,
-    });
-    _diskPrev.set(id, { rb, wb, ro, wo, t: now });
-  }
-  for (const id of Array.from(_diskPrev.keys())) {
-    if (!seen.has(id)) _diskPrev.delete(id);
-  }
-  return { ok: true, disks };
-}
+const { getDiskIo } = require('./system/disk-io.js');
 
 const { applyStickyThumb, mediaForBroadcast } = require('./media/cover-memory.js');
 
 async function getMediaInfo(force = false) {
-  if (!force && Date.now() < mediaHoldUntil) return mediaCache.data;
-  const age = Date.now() - mediaCache.updatedAt;
-  if (!force && mediaCache.data && age < cacheLife(mediaCache.data, MEDIA_CACHE_MS)) return liveMediaSnapshot(mediaCache.data, age);
-  if (mediaPending) return mediaPending;
-  mediaPending = (async () => {
+  if (!force && Date.now() < mediaNow.holdUntil) return mediaNow.cache.data;
+  const age = Date.now() - mediaNow.cache.updatedAt;
+  if (!force && mediaNow.cache.data && age < cacheLife(mediaNow.cache.data, MEDIA_CACHE_MS)) return liveMediaSnapshot(mediaNow.cache.data, age);
+  if (mediaNow.pending) return mediaNow.pending;
+  mediaNow.pending = (async () => {
   try {
     if (mediaListDown()) { probeMediaList(); return await mediaStandIn('media reader resting'); }
     const read = normalizeMedia(await runMediaRequest('info', 12000));
@@ -3391,50 +3164,43 @@ async function getMediaInfo(force = false) {
     // Aged from when the host answered: an online cover lookup can take seconds.
     const readAt = Date.now();
     const hydrated = applyStickyThumb(await hydrateArtwork(data));
-    mediaCache = { data: hydrated, updatedAt: readAt };
+    mediaNow.cache = { data: hydrated, updatedAt: readAt };
     return liveMediaSnapshot(hydrated, Date.now() - readAt);
   } catch (e) {
-    mediaReaderRestUntil = Date.now() + MEDIA_READER_REST_MS;
+    mediaNow.readerRestUntil = Date.now() + MEDIA_READER_REST_MS;
     return mediaStandIn(e.message);
   }
-  })().finally(() => { mediaPending = null; });
-  return mediaPending;
+  })().finally(() => { mediaNow.pending = null; });
+  return mediaNow.pending;
 }
 
-const mediaListDown = () => mediaReaderRestUntil > 0;
+const { mediaListDown, soundingRows } = require('./media/sounding-rows.js');
 
 // A list that failed is asked again on the side: a wedged one answers after its whole
 // timeout, and a song starting meanwhile must not wait for that to be seen.
 function probeMediaList() {
-  if (mediaListProbe || Date.now() < mediaReaderRestUntil) return;
-  mediaListProbe = runMediaRequest('info', 12000)
+  if (mediaNow.listProbe || Date.now() < mediaNow.readerRestUntil) return;
+  mediaNow.listProbe = runMediaRequest('info', 12000)
     .then((read) => {
       if (readFailed(normalizeMedia(read))) throw new Error(read.error);
-      mediaReaderRestUntil = 0;
-      mediaCache.updatedAt = 0;
+      mediaNow.readerRestUntil = 0;
+      mediaNow.cache.updatedAt = 0;
     })
-    .catch(() => { mediaReaderRestUntil = Date.now() + MEDIA_READER_REST_MS; })
-    .finally(() => { mediaListProbe = null; });
+    .catch(() => { mediaNow.readerRestUntil = Date.now() + MEDIA_READER_REST_MS; })
+    .finally(() => { mediaNow.listProbe = null; });
 }
 
 async function mediaStandIn(error) {
-  if (cachedReadUsable(mediaCache, Date.now())) {
+  if (cachedReadUsable(mediaNow.cache, Date.now())) {
     // Aged like a cache hit: the raw copy carries a position seconds old,
     // which the lyrics would read as a seek back.
-    return liveMediaSnapshot(mediaCache.data, Date.now() - mediaCache.updatedAt);
+    return liveMediaSnapshot(mediaNow.cache.data, Date.now() - mediaNow.cache.updatedAt);
   }
   const fallback = applyStickyThumb(await hydrateArtwork(normalizeMedia(await getMediaFallback(error))));
   // Begun before a press, this read has not heard it.
-  if (Date.now() < mediaHoldUntil) return mediaCache.data;
-  mediaCache = { data: fallback, updatedAt: Date.now() };
+  if (Date.now() < mediaNow.holdUntil) return mediaNow.cache.data;
+  mediaNow.cache = { data: fallback, updatedAt: Date.now() };
   return fallback;
-}
-
-async function soundingRows() {
-  if (_soundRows.rows && Date.now() - _soundRows.at < SOUND_ROWS_REUSE_MS) return _soundRows.rows;
-  const rows = await readSoundingRows();
-  _soundRows = { rows, at: Date.now() };
-  return rows;
 }
 
 // Who is making sound right now, or paused a moment ago, as a media read; null until an
@@ -3462,15 +3228,15 @@ const sendMediaCommand = createMediaSender({
   tell: (action) => tellApp(action, heardPlayer.name(), runMediaKeyScript),
   press: (action) => pressMediaKey(action, runMediaKeyScript),
   // A read from the sound names a player the list does not know: it would reach another.
-  listResting: () => mediaListDown() || (mediaCache.data && mediaCache.data.fallback === true),
+  listResting: () => mediaListDown() || (mediaNow.cache.data && mediaNow.cache.data.fallback === true),
 });
 
 async function mediaAction(action) {
   const data = await (nativeMedia ? runMediaRequest(action, 5000) : sendMediaCommand(action));
-  const pressed = data && data.told && action === 'playpause' ? afterPress(mediaCache.data) : null;
-  mediaCache = pressed ? { data: pressed, updatedAt: Date.now() } : { ...mediaCache, updatedAt: 0 };
-  if (pressed) mediaHoldUntil = Date.now() + PRESS_HOLDS_MS;
-  _soundRows.at = 0;
+  const pressed = data && data.told && action === 'playpause' ? afterPress(mediaNow.cache.data) : null;
+  mediaNow.cache = pressed ? { data: pressed, updatedAt: Date.now() } : { ...mediaNow.cache, updatedAt: 0 };
+  if (pressed) mediaNow.holdUntil = Date.now() + PRESS_HOLDS_MS;
+  mediaNow.soundRows.at = 0;
   return data;
 }
 
@@ -3481,10 +3247,10 @@ async function mediaSeek(position) {
   }
   try {
     const data = await runMediaRequest('seek', 5000, seconds);
-    mediaCache.updatedAt = 0;
+    mediaNow.cache.updatedAt = 0;
     return normalizeMediaSeekResult(data, seconds);
   } catch {
-    mediaCache.updatedAt = 0;
+    mediaNow.cache.updatedAt = 0;
     return { ok: false, error: 'unavailable' };
   }
 }
@@ -5035,11 +4801,7 @@ async function captureScreenshot(monitor, opts) {
   }
 }
 
-// ── Server-side audio output (voice + chimes) ──────────────────────────────
-// Plays through the system default device so audio works regardless of which
-// window has focus (the browser WebView blocks autoplay without a user gesture).
-let _speakProc = null;
-let _speakGenToken = 0; // incremented on each stopServerSpeak to abort in-flight generation
+const { speakState } = require('./ai/speak-state.js');
 
 // Duck/restore helpers — lower device volume so music quiets while Xenon speaks,
 // then restore to the saved level. Safe to call multiple times (guarded by flag).
@@ -5062,8 +4824,8 @@ function _restoreSpeakerVolume() {
 }
 
 function stopServerSpeak() {
-  _speakGenToken++;
-  if (_speakProc) { try { _speakProc.kill(); } catch {} _speakProc = null; }
+  speakState.genToken++;
+  if (speakState.proc) { try { speakState.proc.kill(); } catch {} speakState.proc = null; }
   _restoreSpeakerVolume(); // restore if ducked during interrupted TTS
 }
 
@@ -5131,17 +4893,17 @@ const { _spawnWavPlayer } = require('./wav/player.js');
 // instead of flapping the volume on every sentence.
 function _playWavFile(wavPath, myToken, { duck = true, broadcast = true, restore = true } = {}) {
   return new Promise((resolve) => {
-    if (_speakGenToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
+    if (speakState.genToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
     if (duck) _duckSpeakerVolume(); // lower music/media volume while Xenon speaks
     if (broadcast) broadcastSSE('speak_start', {}); // tell the UI the voice is actually starting now
     const psProc = _spawnWavPlayer(wavPath);
-    _speakProc = psProc;
+    speakState.proc = psProc;
     let _settled = false;
     const done = () => {
       if (_settled) return;
       _settled = true;
       clearTimeout(_guard);
-      if (_speakProc === psProc) _speakProc = null;
+      if (speakState.proc === psProc) speakState.proc = null;
       // The PowerShell one-liner only deletes the wav on a CLEAN PlaySync() exit;
       // a barge-in / guard kill terminates it first, so always unlink here too
       // (a no-op if the script already removed it) — otherwise every tap-to-
@@ -5165,7 +4927,7 @@ function _playWavFile(wavPath, myToken, { duck = true, broadcast = true, restore
 function speakOnServer(text, langPrefix, apiKey, provider) {
   return new Promise(async (resolve) => {
     stopServerSpeak();
-    const myToken = _speakGenToken;
+    const myToken = speakState.genToken;
     const clean = String(text || '').slice(0, 2000);
     if (!clean) return resolve();
 
@@ -5205,10 +4967,10 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
       const gWavPath = privateTmpFile('xenon-gtts-', '.wav');
       try {
         const wavBuf = await synth(clean);
-        if (_speakGenToken !== myToken) return resolve();
+        if (speakState.genToken !== myToken) return resolve();
         if (!wavBuf || wavBuf.length === 0) return resolve();
         await fs.promises.writeFile(gWavPath, wavBuf);
-        if (_speakGenToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
+        if (speakState.genToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
         await _playWavFile(gWavPath, myToken);
       } catch (e) {
         process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} failed (${e.message})\n`);
@@ -5223,7 +4985,7 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     // volume is restored once, after the last (or on a barge-in cancel).
     const writeChunk = async (t, idx) => {
       const buf = await synth(t);
-      if (_speakGenToken !== myToken || !buf || !buf.length) return null;
+      if (speakState.genToken !== myToken || !buf || !buf.length) return null;
       const p = privateTmpFile(`xenon-gtts-${idx}-`, '.wav');
       await fs.promises.writeFile(p, buf);
       return p;
@@ -5233,7 +4995,7 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     try {
       nextPath = await writeChunk(chunks[0], 0).catch(() => null);
       for (let i = 0; i < chunks.length; i++) {
-        if (_speakGenToken !== myToken) break;
+        if (speakState.genToken !== myToken) break;
         const curPath = nextPath;
         nextPath = null; // consumed below (played wavs are unlinked by _playWavFile)
         // Kick off the next sentence's synth BEFORE playing the current one.
@@ -5706,8 +5468,8 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   return stat;
 }
 
-const DashboardInstances = require('./js/dashboard-instances.js');
-const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
+require('./js/dashboard-instances.js');
+require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
 
 
 const { hub } = require('./settings/current.js');
@@ -5716,6 +5478,8 @@ const { goToPageMiss } = require('./grid/go-to-page-miss.js');
 const { _overlayHotkey } = require('./widget-options/overlay-hotkey.js');
 
 const { sensorRateMs } = require('./system/sensor-rate.js');
+
+const { getGpuInfo } = require('./system/gpu-read.js');
 
 const {
   sdkFeatureEnabled, sdkPkgSuspended, sdkGrantsFor, sdkStreamGranted, _sdkStreamGranted,
@@ -5732,119 +5496,6 @@ const { _sttGain } = require('./ai/mic-gain.js');
 hub.settings = { ...DEFAULT_HUB_SETTINGS };
 
 const { settingsBoot } = require('./settings/boot-state.js');
-
-function normalizeDashboardGeom(sourceItem, fallbackItem) {
-  const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
-  const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : DASHBOARD_GEOM_FALLBACK;
-  const intIn = (v, min, max, dfl) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : dfl; };
-  const out = {
-    x: intIn(s.x, 0, DASHBOARD_GRID_COLUMNS - 1, fb.x),
-    y: intIn(s.y, 0, DASHBOARD_GRID_MAX_ROW, fb.y),
-    w: intIn(s.w, 1, DASHBOARD_GRID_COLUMNS, fb.w),
-    h: intIn(s.h, 1, DASHBOARD_GRID_MAX_ROW, fb.h),
-    visible: s.visible === undefined ? fb.visible : s.visible !== false,
-  };
-  const style = DashboardInstances.normalizeTileStyle(s.style);
-  if (style) out.style = style;
-  return out;
-}
-
-function normalizeDashboardGroups(value, widgets, pageIds, copies) {
-  const copyIds = new Set((Array.isArray(copies) ? copies : []).map(c => c.id));
-  const isInstance = (m) => (widgets && widgets[m]) || copyIds.has(m);
-  const out = {};
-  const src = value && typeof value === 'object' ? value : {};
-  const used = new Set();
-  Object.keys(src).forEach(gid => {
-    const g = src[gid] && typeof src[gid] === 'object' ? src[gid] : {};
-    let members = Array.isArray(g.members) ? g.members.filter(m => isInstance(m) && !used.has(m)) : [];
-    members = members.filter((m, i) => members.indexOf(m) === i);
-    if (members.length < 2) return;
-    members.forEach(m => used.add(m));
-    const id = String(gid).slice(0, 64);
-    out[id] = {
-      id, members,
-      active: members.includes(g.active) ? g.active : members[0],
-      x: Math.max(0, Math.round(Number(g.x)) || 0),
-      y: Math.max(0, Math.round(Number(g.y)) || 0),
-      w: Math.max(1, Math.round(Number(g.w)) || 8),
-      h: Math.max(1, Math.round(Number(g.h)) || 8),
-      page: pageIds.includes(g.page) ? g.page : pageIds[0],
-      seeded: g.seeded === true,
-      autoTabByMedia: g.autoTabByMedia === true,
-    };
-    const style = DashboardInstances.normalizeTileStyle(g.style);
-    // Tab colours of a tab that left the group are dropped with it.
-    if (style && style.tabs && style.tabs.items) {
-      Object.keys(style.tabs.items).forEach(mid => { if (!members.includes(mid)) delete style.tabs.items[mid]; });
-      if (!Object.keys(style.tabs.items).length) delete style.tabs.items;
-      if (!Object.keys(style.tabs).length) delete style.tabs;
-    }
-    if (style && (style.mode === 'custom' || Object.keys(style).length > 1)) out[id].style = style;
-  });
-  return out;
-}
-
-function normalizeDashboardLayout(value) {
-  const source = scaleDashboardLayoutUnits(value && typeof value === 'object' ? value : {});
-  const layout = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
-  const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
-
-  DASHBOARD_WIDGET_IDS.forEach(widgetId => {
-    const fb = DEFAULT_DASHBOARD_LAYOUT.widgets[widgetId];
-    const geom = normalizeDashboardGeom(sourceWidgets[widgetId], fb);
-    const srcPage = sourceWidgets[widgetId] && sourceWidgets[widgetId].page;
-    // Keep ANY saved page id (incl. user-created pages); it's clamped to a real
-    // page below against the actual page list. Validating here against the static
-    // default ids would wrongly reset widgets added to a user page back to their
-    // default page — making "+ add" land on the wrong page.
-    geom.page = (typeof srcPage === 'string' && srcPage) ? srcPage : ((fb && fb.page) || 'dashboard');
-    layout.widgets[widgetId] = geom;
-  });
-
-  Object.keys(DASHBOARD_CARD_IDS).forEach(groupId => {
-    const sourceCards = source.cards && source.cards[groupId] && typeof source.cards[groupId] === 'object'
-      ? source.cards[groupId]
-      : {};
-    DASHBOARD_CARD_IDS[groupId].forEach(cardId => {
-      layout.cards[groupId][cardId] = normalizeDashboardItem(
-        sourceCards[cardId],
-        DEFAULT_DASHBOARD_LAYOUT.cards[groupId][cardId],
-        DASHBOARD_CARD_IDS[groupId].length - 1,
-        DASHBOARD_CARD_SIZES,
-      );
-    });
-    reindexDashboardCollection(layout.cards[groupId]);
-  });
-
-  layout.pages = normalizeDashboardPages(source.pages);
-  const pageIds = layout.pages.map(p => p.id);
-  const firstPage = pageIds[0];
-  DASHBOARD_WIDGET_IDS.forEach(widgetId => {
-    if (!pageIds.includes(layout.widgets[widgetId].page)) layout.widgets[widgetId].page = firstPage;
-  });
-
-  // Extra placements (duplicated widgets). Validated against known widgets/pages.
-  layout.copies = DashboardInstances.normalizeCopies(source.copies, layout.widgets, pageIds);
-
-  // Fall back to the seeded groups when the source has none, otherwise the
-  // welcome media-group is lost. A reset takes today's; a saved layout from
-  // before groups existed keeps the chat where its owner always had it.
-  layout.groups = normalizeDashboardGroups(
-    source.groups !== undefined ? source.groups : (source.widgets ? LEGACY_SEEDED_GROUPS : DEFAULT_DASHBOARD_LAYOUT.groups),
-    layout.widgets, pageIds, layout.copies);
-
-  layout.tabs = normalizeDashboardTabs(source.tabs);
-  layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
-  layout.mediaView = normalizeMediaView(source.mediaView);
-  layout.topbarHidden = source.topbarHidden === true;
-  layout.timerAddCollapsed = source.timerAddCollapsed === true;
-  layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
-  // The vertical layout's own geometry; validated against the ids above, so it
-  // must stay last. Same rule as the client (js/dashboard-portrait.js).
-  layout.portrait = DashboardPortrait.normalizePortrait(source.portrait, layout);
-  return layout;
-}
 
 const { gameSessionsEnabled } = require('./performance/game-sessions-switch.js');
 
@@ -6960,6 +6611,10 @@ const { CAPTURE_FOLDER_TITLES } = require('./screens/capture-folder-titles.js');
 
 const { stepsLanguage } = require('./screens/steps-language.js');
 
+const { _writeTasksNow } = require('./time/tasks-write-now.js');
+
+const { _saveTimers } = require('./time/timers-save.js');
+
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
 // assignment is immediately visible to subsequent deckRegistry.run() calls.
@@ -7483,32 +7138,11 @@ function wakeWordWanted() {
   }
   return !!(w && w.enabled) && _whisperReady();
 }
-// Single source of truth for the STT/wake microphone input argv — the wake
-// listener must always open the same device the STT recorder binds.
-function _sttInputArgs() {
-  // avfoundation addresses inputs as "<video>:<audio>"; the empty video half is
-  // what keeps this an audio-only capture.
-  if (_sttAvfIndex !== null) return ['-f', 'avfoundation', '-i', `:${_sttAvfIndex}`];
-  if (_sttLinuxFormat) return ['-f', _sttLinuxFormat, '-i', 'default'];
-  if (_sttUseWasapi) return ['-f', 'wasapi', '-i', 'default'];
-  return _sttDshowDevice ? ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`] : null;
-}
-// How the mic is being captured, for the logs and the mic-test readout.
-function _sttVia() {
-  if (_sttAvfIndex !== null) return 'avfoundation';
-  if (_sttLinuxFormat) return _sttLinuxFormat;
-  return _sttUseWasapi ? 'wasapi' : 'dshow';
-}
-function _sttDeviceLabel() {
-  if (_sttAvfIndex !== null) return audioCache.micLabel || `Input ${_sttAvfIndex}`;
-  if (_sttLinuxFormat) return audioCache.micLabel || `Default (${_sttLinuxFormat})`;
-  if (_sttUseWasapi) return audioCache.micLabel || 'Default (WASAPI)';
-  return _sttDshowDevice || 'unknown';
-}
+const { _sttInputArgs, _sttVia, _sttDeviceLabel } = require('./ai/stt-input.js');
 wakeWord.init({
   getFfmpegPath,
   getInputArgs: () => {
-    if (_sttDeviceReady) return _sttInputArgs();
+    if (sttDevice.ready) return _sttInputArgs();
     _startSttDevice();
     return null;
   },
@@ -7647,16 +7281,6 @@ function withTasksWrite(fn) {
   return run;
 }
 
-async function _writeTasksNow(tasks) {
-  const safe = normalizeTasks(tasks);
-  await writeFileAtomic(TASKS_FILE, JSON.stringify(safe));
-  agendaState.tasksSeq = _nextListSeq(agendaState.tasksSeq);
-  // Every dashboard repaints its Tasks tile from this, and so does the SDK
-  // `tasks` stream.
-  broadcastSSE('tasks', { tasks: safe, seq: agendaState.tasksSeq });
-  return safe;
-}
-
 function writeTasks(tasks) {
   return withTasksWrite(() => _writeTasksNow(tasks));
 }
@@ -7695,86 +7319,19 @@ function startTasksReopenClock() {
 // read/write functions and the backup bundle all speak a flattened text view so
 // existing consumers (iCUE widget, older backups) keep working unchanged.
 
-// Monotonic notes revision — every write bumps it and every read/broadcast
-// carries it. A save posts the rev it was based on (baseRev), so a stale
-// surface (one that missed newer broadcasts — dead SSE, or the beforeunload
-// beacon of a long-idle page) can't clobber fresher content (GitHub #72).
-// Lazily seeded from the persisted store so it survives restarts. Tasks and
-// calendar events keep last-writer-wins on purpose: only notes had the
-// reported cross-surface clobber, and their edits are append-mostly.
-let _notesRev = -1; // -1 = not yet loaded from disk
+const { notesRev } = require('./time/notes-rev-state.js');
 
-async function _ensureNotesRev() {
-  if (_notesRev >= 0) return _notesRev;
-  try {
-    _notesRev = _notesRevOf(JSON.parse(await fs.promises.readFile(NOTES_JSON, 'utf8')));
-  } catch {
-    _notesRev = 0;
-  }
-  return _notesRev;
-}
-
-async function readNotes() {
-  try {
-    const raw = await fs.promises.readFile(NOTES_JSON, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (_notesRev < 0) _notesRev = _notesRevOf(parsed);
-    const state = normalizeNotesState(parsed);
-    state.rev = _notesRev;
-    return state;
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
-  if (_notesRev < 0) _notesRev = 0;
-  // First run after upgrade: promote the legacy single-blob notes.txt to one note.
-  try {
-    const legacy = await fs.promises.readFile(NOTES_FILE, 'utf8');
-    if (legacy && legacy.trim()) {
-      return await writeNotes(textToNotesState(legacy));
-    }
-  } catch (e) {
-    if (e.code !== 'ENOENT') { /* unreadable legacy file → start empty rather than fail */ }
-  }
-  return { v: 1, activeId: '', notes: [], rev: _notesRev };
-}
-
-async function writeNotes(state) {
-  const safe = normalizeNotesState(state);
-  await _ensureNotesRev();
-  safe.rev = ++_notesRev;
-  await writeFileAtomic(NOTES_JSON, JSON.stringify(safe));
-  // Live-sync: the dashboard notes widgets on every surface + granted SDK streams.
-  broadcastSSE('notes', safe);
-  return safe;
-}
+const { readNotes, writeNotes, saveNotesGuarded } = require('./time/notes-store.js');
 
 // Guarded save, serialized: the baseRev check and the rev bump inside
 // writeNotes must not interleave across awaits, or two concurrent saves with
 // the same baseRev would BOTH pass the guard and one silently clobber the
 // other — the exact lost update the guard exists to refuse.
-let _notesSaveChain = Promise.resolve();
-function saveNotesGuarded(body) {
-  const run = _notesSaveChain.then(async () => {
-    const baseRev = Number(body && body.baseRev);
-    if (Number.isFinite(baseRev) && baseRev < await _ensureNotesRev()) {
-      return { ok: false, stale: true, ...(await readNotes()) };
-    }
-    const saved = await writeNotes({ notes: body.notes, activeId: body.activeId });
-    return { ok: true, ...saved };
-  });
-  _notesSaveChain = run.catch(() => {}); // a failed save must never wedge the chain
-  return run;
-}
+notesRev.saveChain = Promise.resolve();
 
 // ── Timers ────────────────────────────────────────────────────────────────────
 
 const { timerState } = require('./time/timer-list.js');
-
-async function _saveTimers() {
-  try {
-    await writeFileAtomic(TIMERS_FILE, JSON.stringify(timerState.list, null, 2));
-  } catch {}
-}
 
 function _checkTimers() {
   let changed = false;
@@ -7905,31 +7462,22 @@ function _syncFpsMonitor() {
 }
 
 const { stocksState } = require('./ticker/stocks-state.js');
-let _stocksRefreshing = false;
-let _stocksLastFetch = 0;
-let _stocksSig = null;
+const { stocksRefresh } = require('./ticker/stocks-refresh-state.js');
 
-// Push only when the data actually changed (refreshedAt excluded): a closed
-// market re-fetch then costs the clients zero repaints and zero SSE traffic.
-function _pushStocks() {
-  const sig = JSON.stringify(stocksState.cache.quotes) + '|' + stocksState.cache.provider;
-  if (sig === _stocksSig) return;
-  _stocksSig = sig;
-  broadcastSSE('stocks', stocksState.cache);
-}
+const { _pushStocks } = require('./ticker/stocks-push.js');
 const _stocksAlerts = stocks.createAlertTracker();
 
 
 async function refreshStocks() {
-  if (_stocksRefreshing) return stocksState.cache;
-  _stocksLastFetch = Date.now();
+  if (stocksRefresh.refreshing) return stocksState.cache;
+  stocksRefresh.lastFetch = Date.now();
   const cfg = _stocksSettings();
   if (!Array.isArray(cfg.watchlist) || !cfg.watchlist.length) {
     stocksState.cache = { quotes: [], provider: 'yahoo', refreshedAt: Date.now() };
     _pushStocks();
     return stocksState.cache;
   }
-  _stocksRefreshing = true;
+  stocksRefresh.refreshing = true;
   try {
     const opts = _stocksProviderOpts();
     const quotes = await stocks.fetchQuotes(cfg.watchlist, opts);
@@ -7946,7 +7494,7 @@ async function refreshStocks() {
     }
     _pushStocks();
   } catch { /* keep last good cache */ }
-  finally { _stocksRefreshing = false; }
+  finally { stocksRefresh.refreshing = false; }
   return stocksState.cache;
 }
 
@@ -7963,106 +7511,37 @@ setTimeout(() => { if (sseClients.size) refreshStocks().catch(() => {}); }, 5000
 setInterval(() => {
   if (sseClients.size === 0) return;
   const period = Math.max(30, Number(_stocksSettings().refreshSec) || 60) * 1000;
-  if (Date.now() - _stocksLastFetch < period) return;
+  if (Date.now() - stocksRefresh.lastFetch < period) return;
   refreshStocks().catch(() => {});
 }, 10000).unref();
 
-// ── Football (Calcio) ────────────────────────────────────────────────────────
-// In-memory only. Each favorite team's next fixture + last result (with live
-// scores when a Premium key is set) is pulled from TheSportsDB on a client-gated
-// timer, then pushed over SSE ('football'). A followed team's goal / final whistle
-// fires a 'football_alert' event (→ client toast + LED, gated by Notifiche).
-let _footballCache = { teams: [], live: false, refreshedAt: 0 };
-let _footballRefreshing = false;
-let _footballLastFetch = 0;
-let _footballSig = null;
+const { footballState } = require('./ticker/football-state.js');
 
-// The identity map is part of the signature: it lands after the fixtures on a
-// cold start, and without it in the dedup the crests would only reach an already
-// connected dashboard on the next score change.
-function _footballPayload() {
-  return { teams: _footballCache.teams, live: _footballCache.live, refreshedAt: _footballCache.refreshedAt, info: _footballInfo };
-}
-function _pushFootball() {
-  const sig = JSON.stringify(_footballCache.teams) + '|' + _footballCache.live + '|' + JSON.stringify(_footballInfo);
-  if (sig === _footballSig) return;
-  _footballSig = sig;
-  broadcastSSE('football', _footballPayload());
-}
 const _footballAlerts = football.createAlertTracker();
-const { FOOTBALL_INFO_FILE, FOOTBALL_INFO_TTL_MS } = require('./ticker/football-caches.js');
 
-let _footballInfo = {};        // id → info
-let _footballInfoAt = {};      // id → ms stamp of the fetch
-let _footballInfoLoaded = false;
-let _footballInfoWarming = false;
 
-async function _loadFootballInfo() {
-  if (_footballInfoLoaded) return;
-  _footballInfoLoaded = true;
-  try {
-    const raw = JSON.parse(await fs.promises.readFile(FOOTBALL_INFO_FILE, 'utf8'));
-    if (raw && typeof raw.info === 'object' && raw.info) _footballInfo = raw.info;
-    if (raw && typeof raw.at === 'object' && raw.at) _footballInfoAt = raw.at;
-  } catch { /* first run, or an unreadable cache → refetch on the next warm */ }
-}
-// Fetch identity only for followed clubs that have none or whose copy is a day
-// old. At rest this is zero requests; a newly added club costs exactly one.
-async function _warmFootballInfo(favorites) {
-  if (_footballInfoWarming) return;
-  await _loadFootballInfo();
-  const list = Array.isArray(favorites) ? favorites : [];
-  const now = Date.now();
-  let changed = false;
-
-  // Prune first, and unconditionally: an identity is only kept for a club still
-  // being followed. Doing it inside the fetch path meant unfollowing everything
-  // left the file exactly as it was, forever, because there was then nothing
-  // stale to go and fetch.
-  const keep = new Set(list.filter(f => f && f.type !== 'league').map(f => football.cleanId(f.id)).filter(Boolean));
-  for (const id of Object.keys(_footballInfo)) {
-    if (!keep.has(id)) { delete _footballInfo[id]; delete _footballInfoAt[id]; changed = true; }
-  }
-
-  const stale = Array.from(keep).filter(id => !(_footballInfo[id] && now - (_footballInfoAt[id] || 0) < FOOTBALL_INFO_TTL_MS));
-  if (stale.length) {
-    _footballInfoWarming = true;
-    try {
-      const fetched = await football.fetchTeamInfo(stale, {
-        ..._footballOpts(),
-        lang: (hub.settings && hub.settings.language) || 'en',
-      });
-      for (const [id, teamInfo] of Object.entries(fetched || {})) {
-        _footballInfo[id] = teamInfo;
-        _footballInfoAt[id] = now;
-        changed = true;
-      }
-    } catch { /* identity is a nicety; fixtures must not fail with it */ }
-    finally { _footballInfoWarming = false; }
-  }
-  if (changed) {
-    await writeFileAtomic(FOOTBALL_INFO_FILE, JSON.stringify({ info: _footballInfo, at: _footballInfoAt })).catch(() => {});
-  }
-}
+const {
+  _footballPayload, _pushFootball, _loadFootballInfo, _warmFootballInfo,
+} = require('./ticker/football-push.js');
 
 
 async function refreshFootball() {
-  if (_footballRefreshing) return _footballCache;
-  _footballLastFetch = Date.now();
+  if (footballState.refreshing) return footballState.cache;
+  footballState.lastFetch = Date.now();
   const cfg = _footballSettings();
   if (!Array.isArray(cfg.teams) || !cfg.teams.length) {
-    _footballCache = { teams: [], live: false, refreshedAt: Date.now() };
+    footballState.cache = { teams: [], live: false, refreshedAt: Date.now() };
     // Following nothing means holding no identities either.
     _warmFootballInfo([]).then(_pushFootball).catch(() => {});
     _pushFootball();
-    return _footballCache;
+    return footballState.cache;
   }
-  _footballRefreshing = true;
+  footballState.refreshing = true;
   try {
     const data = await football.fetchFixtures(cfg.teams, _footballOpts());
-    if (data.teams.length) _footballCache = { teams: data.teams, live: data.live, refreshedAt: Date.now() };
+    if (data.teams.length) footballState.cache = { teams: data.teams, live: data.live, refreshedAt: Date.now() };
     // Alerts: a goal or full-time transition for a followed team (deduped).
-    const alerts = _footballAlerts.evaluate(_footballCache.teams, { alerts: cfg.alerts !== false });
+    const alerts = _footballAlerts.evaluate(footballState.cache.teams, { alerts: cfg.alerts !== false });
     for (const a of alerts) broadcastSSE('football_alert', a);
     if (alerts.length) {
       const master = hub.settings && hub.settings.notifications;
@@ -8070,11 +7549,11 @@ async function refreshFootball() {
     }
     _pushFootball();
   } catch { /* keep last good cache */ }
-  finally { _footballRefreshing = false; }
+  finally { footballState.refreshing = false; }
   // Identity second, and never blocking the fixtures: the scores are what the
   // user is waiting for, and a crest arriving a beat later pushes on its own.
   _warmFootballInfo(cfg.teams).then(_pushFootball).catch(() => {});
-  return _footballCache;
+  return footballState.cache;
 }
 
 // Client-gated cadence (mirrors stocks): a light heartbeat that only fetches once
@@ -8083,7 +7562,7 @@ setTimeout(() => { if (sseClients.size) refreshFootball().catch(() => {}); }, 60
 setInterval(() => {
   if (sseClients.size === 0) return;
   const period = Math.max(60, Number(_footballSettings().refreshSec) || 120) * 1000;
-  if (Date.now() - _footballLastFetch < period) return;
+  if (Date.now() - footballState.lastFetch < period) return;
   refreshFootball().catch(() => {});
 }, 15000).unref();
 
@@ -8111,8 +7590,7 @@ setInterval(() => {
 // actually changed (the reader hands us a signature). No alerts, no disk writes.
 const _claudeReader = claudeUsage.createReader();
 const { claudeState } = require('./claude-code/tile-state.js');
-let _claudeRefreshing = false;
-let _claudeLastFetch = 0;
+const { claudeRefresh } = require('./claude-code/refresh-state.js');
 
 const _claudeBridge = claudeBridge.createBridge({
   onChange: () => _claudeBridgeChanged(),
@@ -8244,23 +7722,15 @@ async function _claudeHoldPermission(res, data, opts) {
 // endpoints reject — which is the safe direction, and the window is a few ms.
 claudeLink.ensureToken(DATA_DIR).then((t) => { claudeState.bridgeToken = t; }).catch(() => {});
 
-// A Claude Code link that is there but incomplete is repaired once at boot and
-// again whenever the widget asks: an older Xenon wrote a smaller hook set, and
-// something may rewrite settings.json after us. Without this the widget reported
-// "connected" over a link that could not deliver a question or a follow-up.
-// Only an existing link is touched (repairLink never connects on its own), and
-// the time of the last repair is exposed so the widget can say that sessions
-// already open must be restarted to pick it up.
-let _claudeLinkRepairedAt = 0;
 async function _claudeLinkStatus() {
   const st = await claudeLink.repairLink(DATA_DIR, PORT);
   if (st && st.repaired) {
-    _claudeLinkRepairedAt = Date.now();
+    claudeRefresh.linkRepairedAt = Date.now();
     claudeState.bridgeToken = await claudeLink.ensureToken(DATA_DIR);
     console.log('[claude] Claude Code link updated to the current hook set: '
       + (st.repairedMissing || []).length + ' missing, ' + (st.repairedOutdated || 0) + ' out of date');
   }
-  return { ...st, repairedAt: _claudeLinkRepairedAt };
+  return { ...st, repairedAt: claudeRefresh.linkRepairedAt };
 }
 _claudeLinkStatus().catch(() => {});
 
@@ -8331,14 +7801,14 @@ function _claudeBroadcast(usage) {
 }
 
 async function refreshClaude() {
-  if (_claudeRefreshing) return claudeState.cache;
-  _claudeRefreshing = true;
-  _claudeLastFetch = Date.now();
+  if (claudeRefresh.refreshing) return claudeState.cache;
+  claudeRefresh.refreshing = true;
+  claudeRefresh.lastFetch = Date.now();
   try {
     const usage = await _claudeReader.getUsage(Date.now());
     _claudeBroadcast(usage);
   } catch { /* keep last good cache */ }
-  finally { _claudeRefreshing = false; }
+  finally { claudeRefresh.refreshing = false; }
   return claudeState.cache;
 }
 
@@ -8351,7 +7821,7 @@ setInterval(() => {
   if (sseClients.size === 0) return;
   if (!_feedWidgetInUse('claude')) return;
   const period = Math.max(20, Number(_claudeSettings().refreshSec) || 60) * 1000;
-  if (Date.now() - _claudeLastFetch < period) return;
+  if (Date.now() - claudeRefresh.lastFetch < period) return;
   refreshClaude().catch(() => {});
 }, 10000).unref();
 
@@ -8382,10 +7852,7 @@ const _codexApp = codexAppServer.createAppServer({
   log: (m) => console.log('[codex] ' + m),
 });
 const { codexState } = require('./codex/tile-state.js');
-let _codexPushTimer = null;
-let _codexSig = '';
-let _codexLinkCache = null;
-let _codexLinkRepairedAt = 0;
+const { codexRefresh } = require('./codex/refresh-state.js');
 
 const { _codexWanted } = require('./codex/wanted.js');
 function _syncCodexDemand() {
@@ -8401,11 +7868,11 @@ const { _codexBridgeAuth } = require('./codex/bridge-auth.js');
 async function _codexLinkStatus({ fresh = false } = {}) {
   const trust = await _codexApp.hooksStatus({ fresh }).catch(() => null);
   const st = await codexLink.status(DATA_DIR, { trust });
-  _codexLinkCache = {
+  codexRefresh.linkCache = {
     linked: st.linked, complete: st.complete, unparsable: st.unparsable, trust: st.trust,
-    exists: st.exists, linkedAt: st.linkedAt, repairedAt: _codexLinkRepairedAt,
+    exists: st.exists, linkedAt: st.linkedAt, repairedAt: codexRefresh.linkRepairedAt,
   };
-  return { ...st, repairedAt: _codexLinkRepairedAt };
+  return { ...st, repairedAt: codexRefresh.linkRepairedAt };
 }
 async function _codexRefreshLink() {
   await _codexLinkStatus().catch(() => {});
@@ -8419,7 +7886,7 @@ codexLink.ensureToken(DATA_DIR, PORT)
   .then((t) => { codexState.bridgeToken = t; return codexLink.repairLink(DATA_DIR, PORT); })
   .then((st) => {
     if (st && st.repaired) {
-      _codexLinkRepairedAt = Date.now();
+      codexRefresh.linkRepairedAt = Date.now();
       console.log('[codex] Codex hooks pointed at a path that moved; updated (trust them again in Codex /hooks)');
     }
     return _codexLinkStatus();
@@ -8431,7 +7898,7 @@ function _codexPayload() {
   return {
     app,
     live: _codexBridge.snapshot(),
-    link: _codexLinkCache,
+    link: codexRefresh.linkCache,
     cfg: _codexCfg(),
     // What an SDK widget granted the `codex` stream receives: built here, an
     // allowlist of numbers (codex-bridge.js sdkProjection). main.js forwards only
@@ -8444,18 +7911,18 @@ function _codexBroadcast() {
   const payload = _codexPayload();
   const { refreshedAt, live, ...rest } = payload;
   const sig = live.sig + '|' + JSON.stringify(rest);
-  if (sig === _codexSig) return payload;
-  _codexSig = sig;
+  if (sig === codexRefresh.sig) return payload;
+  codexRefresh.sig = sig;
   broadcastSSE('codex', payload);
   return payload;
 }
 function _codexChanged() {
-  if (_codexPushTimer || sseClients.size === 0) return;
-  _codexPushTimer = setTimeout(() => {
-    _codexPushTimer = null;
+  if (codexRefresh.pushTimer || sseClients.size === 0) return;
+  codexRefresh.pushTimer = setTimeout(() => {
+    codexRefresh.pushTimer = null;
     try { _codexBroadcast(); } catch { /* a repaint must never break ingest */ }
   }, 300);
-  if (typeof _codexPushTimer.unref === 'function') _codexPushTimer.unref();
+  if (typeof codexRefresh.pushTimer.unref === 'function') codexRefresh.pushTimer.unref();
 }
 
 // ── "Ask ChatGPT" tile ───────────────────────────────────────────────────────
@@ -8508,6 +7975,8 @@ const { CAPTURE_CHECK_MARKER } = require('./updates/capture-check-marker.js');
 const { desiredBindHost, BIND_HOST } = require('./paired/bind-host.js');
 
 const { helperArrived, ensureHelperUpToDate } = require('./updates/helper-up-to-date.js');
+
+const { refreshStartupTaskState } = require('./install/startup-task-refresh.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -9477,16 +8946,16 @@ async function _initSttDevice() {
           const lbl = audioCache.micLabel.toLowerCase();
           chosen = devices.find(d => d.name.toLowerCase().includes(lbl));
         }
-        _sttAvfIndex = (chosen || devices[0]).index;
-        process.stdout.write(`[STT] avfoundation input [${_sttAvfIndex}] "${(chosen || devices[0]).name}"\n`);
+        sttDevice.avfIndex = (chosen || devices[0]).index;
+        process.stdout.write(`[STT] avfoundation input [${sttDevice.avfIndex}] "${(chosen || devices[0]).name}"\n`);
       } else {
         process.stdout.write('[STT] No avfoundation audio input found (ffmpeg missing, or Microphone permission not granted)\n');
       }
     } catch (e) {
       process.stdout.write('[STT] Device init error: ' + e.message + '\n');
     }
-    _sttDeviceReady = true;
-    _boundMicLabel = audioCache.micLabel || (_sttAvfIndex !== null ? `__avf_${_sttAvfIndex}__` : null);
+    sttDevice.ready = true;
+    sttDevice.micLabel = audioCache.micLabel || (sttDevice.avfIndex !== null ? `__avf_${sttDevice.avfIndex}__` : null);
     _sttDeviceWaiters.splice(0).forEach(cb => cb());
     return;
   }
@@ -9497,15 +8966,15 @@ async function _initSttDevice() {
     // mixer, and it captures while the sound server holds the device — a raw
     // alsa grab usually cannot, because the card is already open.
     try {
-      if (await _ffmpegKnowsFormat(ffmpeg, 'pulse')) _sttLinuxFormat = 'pulse';
-      else if (await _ffmpegKnowsFormat(ffmpeg, 'alsa')) _sttLinuxFormat = 'alsa';
-      if (_sttLinuxFormat) process.stdout.write(`[STT] ${_sttLinuxFormat} input "default"\n`);
+      if (await _ffmpegKnowsFormat(ffmpeg, 'pulse')) sttDevice.linuxFormat = 'pulse';
+      else if (await _ffmpegKnowsFormat(ffmpeg, 'alsa')) sttDevice.linuxFormat = 'alsa';
+      if (sttDevice.linuxFormat) process.stdout.write(`[STT] ${sttDevice.linuxFormat} input "default"\n`);
       else process.stdout.write('[STT] ffmpeg knows neither pulse nor alsa: voice input is unavailable\n');
     } catch (e) {
       process.stdout.write('[STT] Device init error: ' + e.message + '\n');
     }
-    _sttDeviceReady = true;
-    _boundMicLabel = audioCache.micLabel || (_sttLinuxFormat ? `__${_sttLinuxFormat}__` : null);
+    sttDevice.ready = true;
+    sttDevice.micLabel = audioCache.micLabel || (sttDevice.linuxFormat ? `__${sttDevice.linuxFormat}__` : null);
     _sttDeviceWaiters.splice(0).forEach(cb => cb());
     return;
   }
@@ -9525,7 +8994,7 @@ async function _initSttDevice() {
   } catch {}
 
   if (wasapiOk) {
-    _sttUseWasapi = true;
+    sttDevice.useWasapi = true;
     process.stdout.write('[STT] WASAPI available: fast init\n');
   } else {
     // WASAPI not supported — enumerate DirectShow devices as fallback
@@ -9537,8 +9006,8 @@ async function _initSttDevice() {
           const lbl = audioCache.micLabel.toLowerCase();
           chosen = names.find(d => d.toLowerCase().includes(lbl));
         }
-        _sttDshowDevice = chosen || names[0];
-        process.stdout.write(`[STT] WASAPI unavailable, dshow: "${_sttDshowDevice}"\n`);
+        sttDevice.dshowDevice = chosen || names[0];
+        process.stdout.write(`[STT] WASAPI unavailable, dshow: "${sttDevice.dshowDevice}"\n`);
       } else {
         process.stdout.write('[STT] No audio input method found\n');
       }
@@ -9547,8 +9016,8 @@ async function _initSttDevice() {
     }
   }
 
-  _sttDeviceReady = true;
-  _boundMicLabel = audioCache.micLabel || _sttDshowDevice || (wasapiOk ? '__wasapi_default__' : null);
+  sttDevice.ready = true;
+  sttDevice.micLabel = audioCache.micLabel || sttDevice.dshowDevice || (wasapiOk ? '__wasapi_default__' : null);
   _sttDeviceWaiters.splice(0).forEach(cb => cb());
 }
 
@@ -9562,7 +9031,7 @@ function _startSttDevice() {
 function _sttDeviceWhenReady() {
   _startSttDevice();
   return new Promise(resolve => {
-    if (_sttDeviceReady) resolve();
+    if (sttDevice.ready) resolve();
     else _sttDeviceWaiters.push(resolve);
   });
 }
@@ -9576,13 +9045,13 @@ function _sttDeviceWhenReady() {
 // by index. Debounced and skipped while a recording is live.
 let _sttRebindTimer = null;
 function _maybeRebindSttDevice() {
-  if (!_sttDeviceReady || _sttUseWasapi) return;          // wasapi follows "default" already
-  if (!audioCache.micLabel || audioCache.micLabel === _boundMicLabel) return;
+  if (!sttDevice.ready || sttDevice.useWasapi) return;          // wasapi follows "default" already
+  if (!audioCache.micLabel || audioCache.micLabel === sttDevice.micLabel) return;
   if (_sttRebindTimer) return;
   _sttRebindTimer = setTimeout(async () => {
     _sttRebindTimer = null;
     if (_sttPending.size > 0) { _maybeRebindSttDevice(); return; } // try again after the current capture
-    if (!audioCache.micLabel || audioCache.micLabel === _boundMicLabel) return;
+    if (!audioCache.micLabel || audioCache.micLabel === sttDevice.micLabel) return;
     process.stdout.write(`[STT] Default mic changed to "${audioCache.micLabel}": rebinding capture device\n`);
     try {
       await _initSttDevice();
@@ -9807,8 +9276,8 @@ data: ${JSON.stringify({ ...st, seed: true })}
   try { if (stocksState.cache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(stocksState.cache)}\n\n`); } catch (e) { /* ignore */ }
   if (!stocksState.cache.quotes.length || Date.now() - stocksState.cache.refreshedAt > 5 * 60 * 1000) refreshStocks().catch(() => {});
   // Seed the current football fixtures/results, then kick a refresh if stale.
-  try { if (_footballCache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballPayload())}\n\n`); } catch (e) { /* ignore */ }
-  if (!_footballCache.teams.length || Date.now() - _footballCache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
+  try { if (footballState.cache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballPayload())}\n\n`); } catch (e) { /* ignore */ }
+  if (!footballState.cache.teams.length || Date.now() - footballState.cache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
   // Seed the current news headlines, then kick a refresh if empty/stale
   // (display-only feed: only when the widget/ticker actually uses it).
   try { if (newsState.cache.items.length) res.write(`event: news\ndata: ${JSON.stringify(newsState.cache)}\n\n`); } catch (e) { /* ignore */ }
@@ -12734,7 +12203,7 @@ const embeddedWss = new WebSocketServer({ noServer: true });
 const liveWss = new WebSocketServer({ noServer: true });
 // The feed only speaks: a window has nothing to send, so nothing big is accepted.
 const feedWss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 1024 });
-let _embConnSeq = 0;
+const { embeddedConn } = require('./windows-tiles/embedded-conn-state.js');
 
 const { _packWsFrame } = require('./windows-tiles/ws-frame.js');
 
@@ -12817,7 +12286,7 @@ function _applyBrowserSync(localId, connId, url, userInitiated) {
 }
 
 function _handleEmbeddedClient(client) {
-  const connId = 'c' + (++_embConnSeq);
+  const connId = 'c' + (++embeddedConn.seq);
   const myTiles = new Set();                 // server-namespaced tile ids owned by this client
   const myLocalIds = new Set();              // logical tile ids open here (for cross-surface sync cleanup)
   const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
@@ -13166,27 +12635,6 @@ function _handleLiveClient(client) {
 }
 
 const { startupTaskCheck } = require('./install/startup-task-state.js');
-async function refreshStartupTaskState() {
-  const res = await startupTask.checkStartupTask({ dataDir: DATA_DIR }).catch(() => null);
-  if (!res) return startupTaskCheck.last;
-  startupTaskCheck.last = { ...res, at: Date.now() };
-  // Both halves belong in the log, and for opposite reasons: a repair is a
-  // change made to this PC without the user asking, and an unrepaired problem is
-  // the reason Xenon will not be there tomorrow.
-  if (res.repaired.length) {
-    startupLog.write('startup task: put back ' + res.repaired.join(', ')
-      + ' on "' + startupTask.TASK_NAME + '": something had changed settings this install owns.');
-  }
-  if (res.failed) {
-    startupLog.write('startup task: could not repair "' + startupTask.TASK_NAME + '": ' + res.failed);
-  }
-  if (res.problems.includes('disabled')) {
-    startupLog.write('startup task: "' + startupTask.TASK_NAME + '" is switched OFF.'
-      + ' Xenon will not start at the next sign-in until it is switched back on'
-      + ' (Task Manager > Startup apps). Xenon never switches it off itself.');
-  }
-  return startupTaskCheck.last;
-}
 
 const { helperInstall } = require('./audio/helper-install-state.js');
 
