@@ -2861,6 +2861,1057 @@
     "./claude-code/routes-session.js",
     "./codex/routes.js"
    ]
+  },
+  {
+   "modules": [
+    {
+     "local": "storeCatalogBranches",
+     "spec": "./store-catalog/routes.js"
+    },
+    {
+     "local": "storeCatalogPacksBranches",
+     "spec": "./store-catalog/routes-packs.js"
+    },
+    {
+     "local": "storeSupportersBranches",
+     "spec": "./store-supporters/routes.js"
+    },
+    {
+     "local": "storeSupportersUnlockBranches",
+     "spec": "./store-supporters/routes-unlock.js"
+    },
+    {
+     "local": "updatesBranches",
+     "spec": "./updates/routes.js"
+    },
+    {
+     "local": "updatesUpdateBranches",
+     "spec": "./updates/routes-update.js"
+    },
+    {
+     "local": "widgetSdkBranches",
+     "spec": "./widget-sdk/routes.js"
+    },
+    {
+     "local": "widgetSdkCallsBranches",
+     "spec": "./widget-sdk/routes-calls.js"
+    },
+    {
+     "local": "widgetSdkPackagesBranches",
+     "spec": "./widget-sdk/routes-packages.js"
+    },
+    {
+     "local": "performanceBranches",
+     "spec": "./performance/routes.js"
+    },
+    {
+     "local": "performanceModeBranches",
+     "spec": "./performance/routes-mode.js"
+    },
+    {
+     "local": "systemBranches",
+     "spec": "./system/routes.js"
+    },
+    {
+     "local": "searchBranches",
+     "spec": "./search/routes.js"
+    },
+    {
+     "local": "searchFilesBranches",
+     "spec": "./search/routes-files.js"
+    },
+    {
+     "local": "deckBranches",
+     "spec": "./deck/routes.js"
+    },
+    {
+     "local": "deckKeysBranches",
+     "spec": "./deck/routes-keys.js"
+    }
+   ],
+   "cuts": [
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/claim' && req.method === 'POST') {",
+      "    await widgetSdkPackagesBranches['POST /sdk/claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, sdkPackagesCached, widgetOriginOf });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/install' && req.method === 'POST') {",
+      "    await widgetSdkPackagesBranches['POST /sdk/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { dropSdkGrant, installWidgetPayload, isCatalogUpdateOf, refreshSdkScan, sdkPackagesCached, trialVault, widgetExportable });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {",
+      "    await widgetSdkBranches['POST /sdk/widgets/example'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, refreshSdkScan });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/deck-states' && req.method === 'POST') {",
+      "    await widgetSdkBranches['POST /sdk/deck-states'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/state/get' && req.method === 'GET') {",
+      "    await deckBranches['GET /state/get'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/state/set' && req.method === 'POST') {",
+      "    await deckBranches['POST /state/set'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/handler-ack' && req.method === 'POST') {",
+      "    await widgetSdkBranches['POST /sdk/handler-ack'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/secret' && req.method === 'POST') {",
+      "    await widgetSdkCallsBranches['POST /sdk/secret'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/store' && req.method === 'POST') {",
+      "    await widgetSdkCallsBranches['POST /sdk/store'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {",
+      "    await widgetSdkCallsBranches['POST /sdk/fetch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {",
+      "    await widgetSdkPackagesBranches['GET /sdk/widgets'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshSdkScan, widgetCatalogVersionOf, widgetExportable, widgetOptionsStore, widgetOriginOf });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/ai' && req.method === 'POST') {",
+      "    await widgetSdkCallsBranches['POST /sdk/ai'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAi, sdkPackagesCached });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/calls' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/features/devclean/unlock' && req.method === 'POST') {",
+      "    await storeSupportersUnlockBranches['POST /api/features/devclean/unlock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/features/devclean/preview' && req.method === 'GET') {",
+      "    await storeSupportersUnlockBranches['GET /api/features/devclean/preview'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {",
+      "    await storeSupportersUnlockBranches['GET /api/features/devclean'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/features/lyrics/unlock' && req.method === 'POST') {",
+      "    await storeSupportersUnlockBranches['POST /api/features/lyrics/unlock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/features/lyrics/trial' && req.method === 'POST') {",
+      "    await storeSupportersUnlockBranches['POST /api/features/lyrics/trial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/features/lyrics' && req.method === 'GET') {",
+      "    await storeSupportersUnlockBranches['GET /api/features/lyrics'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/pages/hotkey-press' && req.method === 'POST') {",
+      "    await deckKeysBranches['POST /pages/hotkey-press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { routeHotkeyIndex });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/pages/hotkey-status' && req.method === 'GET') {",
+      "    await deckBranches['GET /pages/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search/hotkey-press' && req.method === 'POST') {",
+      "    await searchBranches['POST /search/hotkey-press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { routeSpotlightHotkey });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {",
+      "    await searchBranches['GET /search/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/shortcut-claim' && req.method === 'POST') {",
+      "    await deckKeysBranches['POST /deck/shortcut-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/client-step' && req.method === 'POST') {",
+      "    await deckKeysBranches['POST /deck/client-step'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/press' && req.method === 'POST') {",
+      "    await deckKeysBranches['POST /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });"
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/press' && req.method === 'GET') {",
+      "    await deckKeysBranches['GET /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });"
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/spotlight/claimed' && req.method === 'POST') {",
+      "    await searchBranches['POST /spotlight/claimed'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/macos/fda-settings' && req.method === 'POST') {",
+      "    await systemBranches['POST /macos/fda-settings'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/index/status' && req.method === 'GET') {",
+      "    await searchFilesBranches['GET /index/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { livingIndex });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search/icon' && req.method === 'GET') {",
+      "    await searchFilesBranches['GET /search/icon'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search/reveal' && req.method === 'POST') {",
+      "    await searchFilesBranches['POST /search/reveal'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search/open' && req.method === 'POST') {",
+      "    await searchFilesBranches['POST /search/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search/thumb' && req.method === 'GET') {",
+      "    await searchFilesBranches['GET /search/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search/recent' && req.method === 'GET') {",
+      "    await searchFilesBranches['GET /search/recent'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/search' && req.method === 'GET') {",
+      "    await searchFilesBranches['GET /search'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/disk/status' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/sound-packs' && req.method === 'GET') {",
+      "    await deckBranches['GET /deck/sound-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sound-pack' && req.method === 'POST') {",
+      "    await storeCatalogPacksBranches['POST /sound-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/icon-packs' && req.method === 'GET') {",
+      "    await storeCatalogPacksBranches['GET /icon-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/icon-pack/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/icon-pack' && req.method === 'POST') {",
+      "    await storeCatalogPacksBranches['POST /icon-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });",
+      ""
+     ],
+     "before": "  } else if (req.method === 'GET' && reqPath.startsWith('/icon-pack/')) {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/lock' && req.method === 'POST') {",
+      "    await systemBranches['POST /lock'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/ai' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck-config' && req.method === 'POST') {",
+      "    await deckKeysBranches['POST /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { withDeckWrite, writeDeckStore });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck-config' && req.method === 'GET') {",
+      "    await deckBranches['GET /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/rate' && req.method === 'POST') {",
+      "    await storeCatalogBranches['POST /api/community/rate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/rating-close' && req.method === 'POST') {",
+      "    await storeCatalogBranches['POST /api/community/rating-close'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/rating-state' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/rating-state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/ratings' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/ratings'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/limited-status'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/trial/tried' && req.method === 'POST') {",
+      "    await storeSupportersUnlockBranches['POST /api/community/trial/tried'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/trial/check' && req.method === 'POST') {",
+      "    await storeSupportersUnlockBranches['POST /api/community/trial/check'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/trial' && req.method === 'GET') {",
+      "    await storeSupportersUnlockBranches['GET /api/community/trial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/sparks/forget' && req.method === 'POST') {",
+      "    await storeSupportersBranches['POST /api/community/sparks/forget'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/sparks/save' && req.method === 'POST') {",
+      "    await storeSupportersBranches['POST /api/community/sparks/save'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/sparks/owned' && req.method === 'GET') {",
+      "    await storeSupportersBranches['GET /api/community/sparks/owned'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/sparks' && req.method === 'GET') {",
+      "    await storeSupportersBranches['GET /api/community/sparks'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/buy' && req.method === 'POST') {",
+      "    await storeSupportersBranches['POST /api/community/buy'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/supporter/forget' && req.method === 'POST') {",
+      "    await storeSupportersBranches['POST /api/community/supporter/forget'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/supporter/save' && req.method === 'POST') {",
+      "    await storeSupportersBranches['POST /api/community/supporter/save'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/supporter' && req.method === 'GET') {",
+      "    await storeSupportersBranches['GET /api/community/supporter'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/update' && req.method === 'POST') {",
+      "    await storeSupportersBranches['POST /api/community/update'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/redeem' && req.method === 'POST') {",
+      "    await storeSupportersUnlockBranches['POST /api/community/redeem'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialVault });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/code' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/code'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/messages' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/messages'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/support-goal' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/support-goal'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/installs' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/installs'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/poll' && req.method === 'POST') {",
+      "    await storeCatalogBranches['POST /api/community/poll'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/installed' && req.method === 'POST') {",
+      "    await storeCatalogBranches['POST /api/community/installed'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/community/catalog' && req.method === 'GET') {",
+      "    await storeCatalogBranches['GET /api/community/catalog'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/native/install-status' && req.method === 'GET') {",
+      "    await updatesBranches['GET /api/native/install-status'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/backup/export' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/native/status' && req.method === 'GET') {",
+      "    await updatesBranches['GET /api/native/status'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/native/install' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/update/auto/postpone' && req.method === 'POST') {",
+      "    await updatesUpdateBranches['POST /update/auto/postpone'](req, res, { json, err500, reqPath, urlObj, isRemote }, { autoUpdater });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/native/install' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/widgets/auto-update' && req.method === 'GET') {",
+      "    await storeCatalogPacksBranches['GET /api/widgets/auto-update'](req, res, { json, err500, reqPath, urlObj, isRemote }, { widgetAutoUpdater });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/native/install' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/update/auto-status' && req.method === 'GET') {",
+      "    await updatesUpdateBranches['GET /update/auto-status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { autoUpdater, selfUpdate });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/native/install' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/update/apply' && req.method === 'POST') {",
+      "    await updatesUpdateBranches['POST /update/apply'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, selfUpdate });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/native/install' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/update/prepare' && req.method === 'POST') {",
+      "    await updatesUpdateBranches['POST /update/prepare'](req, res, { json, err500, reqPath, urlObj, isRemote }, { selfUpdate });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/native/install' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/update/self-status' && req.method === 'GET') {",
+      "    await updatesUpdateBranches['GET /update/self-status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { selfUpdate });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/native/install' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/update/check' && req.method === 'GET') {",
+      "    await updatesUpdateBranches['GET /update/check'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/startup-task' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/update/notice-seen' && req.method === 'POST') {",
+      "    await updatesUpdateBranches['POST /update/notice-seen'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveNoticeSeen });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/whatsnew' && req.method === 'GET') {",
+      "    await updatesUpdateBranches['GET /whatsnew'](req, res, { json, err500, reqPath, urlObj, isRemote }, { loadWhatsNew });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/version' && req.method === 'GET') {",
+      "    await updatesBranches['GET /version'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/actions/catalog' && req.method === 'GET') {",
+      "    await deckKeysBranches['GET /actions/catalog'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, capabilityRunner, deckVoicemeeter, keySendAvailable, nativeMedia, phoneKeysAvailable, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/actions/perf' && req.method === 'POST') {",
+      "    await performanceModeBranches['POST /actions/perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfRegistry });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/actions/run' && req.method === 'POST') {",
+      "    await deckKeysBranches['POST /actions/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/app-icon' && req.method === 'GET') {",
+      "    await deckBranches['GET /deck/app-icon'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/apps/store' && req.method === 'GET') {",
+      "    await deckBranches['GET /apps/store'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/sounds' && req.method === 'GET') {",
+      "    await deckBranches['GET /deck/sounds'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/sound-upload' && req.method === 'POST') {",
+      "    await deckBranches['POST /deck/sound-upload'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/sound' && req.method === 'GET') {",
+      "    await deckBranches['GET /deck/sound'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {",
+      "    await performanceBranches['POST /api/gamemode/install-presentmon'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {",
+      "    await performanceModeBranches['POST /api/performance/plan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _aiPerformancePlan, perfStats, readHubSettings });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/performance/state' && req.method === 'POST') {",
+      "    await performanceModeBranches['POST /api/performance/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updatePerformanceSetting });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk/grant' && req.method === 'POST') {",
+      "    await widgetSdkPackagesBranches['POST /sdk/grant'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveSdkGrant });",
+      ""
+     ],
+     "before": "  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/performance/screen' && req.method === 'POST') {",
+      "    await performanceBranches['POST /api/performance/screen'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/settings/tile' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/performance/shield' && req.method === 'GET') {",
+      "    await performanceModeBranches['GET /api/performance/shield'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/settings/tile' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/performance/powerplan' && req.method === 'POST') {",
+      "    await performanceModeBranches['POST /api/performance/powerplan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/settings/tile' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/performance/powerplan' && req.method === 'GET') {",
+      "    await performanceModeBranches['GET /api/performance/powerplan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/settings/tile' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/performance/stats' && req.method === 'GET') {",
+      "    await performanceModeBranches['GET /api/performance/stats'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfStats });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/settings/tile' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {",
+      "    await performanceBranches['GET /api/gamemode/status'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/settings/tile' && req.method === 'POST') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/api/processes/history' && req.method === 'GET') {",
+      "    await performanceModeBranches['GET /api/processes/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _processesHistory });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/disks/io' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {",
+      "    await systemBranches['POST /system/enable-sensors'](req, res, { json, err500, reqPath, urlObj, isRemote });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/disks/io' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/perf/sessions' && req.method === 'GET') {",
+      "    await performanceBranches['GET /perf/sessions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _gameSessions });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/disks/io' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/perf' && req.method === 'GET') {",
+      "    await performanceBranches['GET /perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _perfStream });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/api/disks/io' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck/popup/open' && req.method === 'POST') {",
+      "    await deckKeysBranches['POST /deck/popup/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDeckPopupWindow });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/spotlight' && req.method === 'GET') {",
+      "    await searchBranches['GET /spotlight'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/deck-popup' && req.method === 'GET') {",
+      "    await deckKeysBranches['GET /deck-popup'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/sdk-service' && req.method === 'GET') {",
+      "    await widgetSdkBranches['GET /sdk-service'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "  } else if (reqPath === '/shell-driver' && req.method === 'GET') {",
+      "    await widgetSdkBranches['GET /shell-driver'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });",
+      ""
+     ],
+     "before": "  } else if (reqPath === '/ping' && req.method === 'GET') {"
+    },
+    {
+     "lines": [
+      "const { branches: storeCatalogBranches } = require('./store-catalog/routes.js');"
+     ],
+     "before": "const { branches: storeSupportersBranches } = require('./store-supporters/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: storeSupportersBranches } = require('./store-supporters/routes.js');"
+     ],
+     "before": "const { branches: pairedBranches } = require('./paired/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: storeSupportersUnlockBranches } = require('./store-supporters/routes-unlock.js');"
+     ],
+     "before": "const { branches: performanceModeBranches } = require('./performance/routes-mode.js');"
+    },
+    {
+     "lines": [
+      "const { branches: updatesBranches } = require('./updates/routes.js');"
+     ],
+     "before": "const { branches: performanceBranches } = require('./performance/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: updatesUpdateBranches } = require('./updates/routes-update.js');"
+     ],
+     "before": "const { branches: remoteControlBranches } = require('./remote-control/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: widgetSdkBranches } = require('./widget-sdk/routes.js');"
+     ],
+     "before": "const { branches: engineBranches } = require('./engine/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: performanceBranches } = require('./performance/routes.js');"
+     ],
+     "before": "const { branches: systemBranches } = require('./system/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: performanceModeBranches } = require('./performance/routes-mode.js');"
+     ],
+     "before": "const { branches: timeBranches } = require('./time/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: systemBranches } = require('./system/routes.js');"
+     ],
+     "before": "const { branches: installBranches } = require('./install/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: searchBranches } = require('./search/routes.js');"
+     ],
+     "before": "const { branches: pairedBranches } = require('./paired/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: searchFilesBranches } = require('./search/routes-files.js');"
+     ],
+     "before": "const { branches: diskBranches } = require('./disk/routes.js');"
+    },
+    {
+     "lines": [
+      "const { branches: deckKeysBranches } = require('./deck/routes-keys.js');"
+     ],
+     "before": "const { branches: storeCatalogPacksBranches } = require('./store-catalog/routes-packs.js');"
+    }
+   ],
+   "hands": [
+    "_aiPerformancePlan",
+    "_gameSessions",
+    "_perfStream",
+    "_processesHistory",
+    "autoUpdater",
+    "capabilityRunner",
+    "deckPress",
+    "deckShortcutRunner",
+    "devClean",
+    "dropSdkGrant",
+    "fileSearch",
+    "iconPackStore",
+    "installWidgetPayload",
+    "isCatalogUpdateOf",
+    "keySendAvailable",
+    "livingIndex",
+    "loadWhatsNew",
+    "nativeMedia",
+    "openDeckPopupWindow",
+    "perfRegistry",
+    "perfSession",
+    "perfStats",
+    "phoneKeysAvailable",
+    "recordWidgetOrigin",
+    "refreshSdkScan",
+    "routeHotkeyIndex",
+    "routeSpotlightHotkey",
+    "saveNoticeSeen",
+    "saveSdkGrant",
+    "sdkAi",
+    "sdkPackagesCached",
+    "selfUpdate",
+    "soundPackStore",
+    "trialPass",
+    "trialVault",
+    "updatePerformanceSetting",
+    "widgetAutoUpdater",
+    "widgetCatalogVersionOf",
+    "widgetExportable",
+    "widgetOptionsStore",
+    "widgetOriginOf",
+    "withDeckWrite",
+    "writeDeckStore"
+   ],
+   "listed": [
+    "./store-catalog/routes.js",
+    "./store-catalog/routes-packs.js",
+    "./store-supporters/routes.js",
+    "./store-supporters/routes-unlock.js",
+    "./updates/routes.js",
+    "./updates/routes-update.js",
+    "./widget-sdk/routes.js",
+    "./widget-sdk/routes-calls.js",
+    "./widget-sdk/routes-packages.js",
+    "./performance/routes.js",
+    "./performance/routes-mode.js",
+    "./system/routes.js",
+    "./search/routes.js",
+    "./search/routes-files.js",
+    "./deck/routes.js",
+    "./deck/routes-keys.js"
+   ]
   }
  ]
 }

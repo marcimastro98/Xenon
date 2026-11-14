@@ -9,6 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
+import { engineSource } from './engine-source.mjs';
 import { createRequire } from 'node:module';
 import { appStringsSource, languagesWith } from './i18n-source.mjs';
 
@@ -18,7 +19,8 @@ const BRIDGE = readFileSync(new URL('../js/custom-widget.js', import.meta.url));
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url));
 const I18N = appStringsSource();
 const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url));
-const SERVER = readFileSync(new URL('../server.js', import.meta.url));
+// The engine as text wherever its code lives now: a route's test may stand in a table's list.
+const SERVER = engineSource();
 const { SDK_STREAMS } = require('../sdk-widgets.js');
 const { widgetSnapshot, normalizeSession, compareSessions } = require('../game-sessions.js');
 const { remotePathAllowed } = require('../remote-access.js');

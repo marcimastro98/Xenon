@@ -197,6 +197,10 @@ test('a table stays, with the reason said, when leaving could change which lines
   assert.match(why('dBranches', more), /0 branches call 'GET\|POST \/d\/both', one was expected/);
   const other = ENGINE.replace("reqPath === '/d/both' && (req.method === 'GET' || req.method === 'POST')", "reqPath === '/d/other' && (req.method === 'GET' || req.method === 'POST')");
   assert.match(why('dBranches', other), /calls 'GET\|POST \/d\/both' and its test asks for something else/);
+  // A test a side copy of the engine finds by its text and switches off: out of the chain, the copy would answer the address.
+  const pinned = planMove({ engineText: ENGINE, listText: LIST, moduleTextOf, locals: ['dBranches'], parser, known: knownOf(ENGINE, parser),
+    pinned: ["reqPath === '/d/both' && (req.method === 'GET' || req.method === 'POST')"] });
+  assert.match(pinned.refused[0].why, /a side copy of the engine cuts the test on line \d+ out by its text/);
   assert.throws(() => plan(['dBranches'], ENGINE.replace(LOOKUP_TEST, 'nothing()')), /has no branch that asks feature-routes\.js/);
   assert.deepEqual(plan(null).moves.map((move) => move.local), ['aBranches', 'dBranches'], 'asked for every table, the ones that can leave do');
 });

@@ -7289,15 +7289,8 @@ const { chatWithLocalServer } = require('./ai/chat-local-server.js');
 // below always loaded them. A line below names a table this file still calls.
 featureRoutes.loadTables();
 const { branches: deckBranches } = require('./deck/routes.js');
-const { branches: updatesBranches } = require('./updates/routes.js');
-const { branches: performanceBranches } = require('./performance/routes.js');
-const { branches: systemBranches } = require('./system/routes.js');
 const { branches: installBranches } = require('./install/routes.js');
-const { branches: widgetSdkBranches } = require('./widget-sdk/routes.js');
 const { branches: engineBranches } = require('./engine/routes.js');
-const { branches: searchBranches } = require('./search/routes.js');
-const { branches: storeCatalogBranches } = require('./store-catalog/routes.js');
-const { branches: storeSupportersBranches } = require('./store-supporters/routes.js');
 const { branches: pairedBranches } = require('./paired/routes.js');
 const { branches: widgetSdkCallsBranches } = require('./widget-sdk/routes-calls.js');
 const { branches: widgetSdkPackagesBranches } = require('./widget-sdk/routes-packages.js');
@@ -7305,14 +7298,9 @@ const { branches: transferBranches } = require('./transfer/routes.js');
 const { branches: transferPhoneBranches } = require('./transfer/routes-phone.js');
 const { branches: pairedAccessBranches } = require('./paired/routes-access.js');
 const { branches: pairedPushBranches } = require('./paired/routes-push.js');
-const { branches: searchFilesBranches } = require('./search/routes-files.js');
 const { branches: diskBranches } = require('./disk/routes.js');
-const { branches: updatesUpdateBranches } = require('./updates/routes-update.js');
 const { branches: remoteControlBranches } = require('./remote-control/routes.js');
-const { branches: deckKeysBranches } = require('./deck/routes-keys.js');
 const { branches: storeCatalogPacksBranches } = require('./store-catalog/routes-packs.js');
-const { branches: storeSupportersUnlockBranches } = require('./store-supporters/routes-unlock.js');
-const { branches: performanceModeBranches } = require('./performance/routes-mode.js');
 const { branches: timeBranches } = require('./time/routes.js');
 const { branches: lookBranches } = require('./look/routes.js');
 const { branches: settingsBranches } = require('./settings/routes.js');
@@ -7324,24 +7312,30 @@ const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
 // The names of this file the tables of routes are handed (feature-routes.js),
 // read for each request. tools/restructure/dispatch-move.mjs writes the list.
 const routeHands = () => ({
-  AI_MODELS, BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, PORT, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, _audioToWav16k,
-  _captureCovers, _captureExport, _captureFolder, _captureGallery, _captureHost, _captures, _chatgptAsker, _chatgptPayload, _chatgptStore,
-  _claudeAttach, _claudeBridge, _claudeBridgeAuth, _claudeCommands, _claudeFresh, _claudeHistory, _claudeHoldPermission, _claudeInbox,
-  _claudeLinkStatus, _claudeModReply, _claudeRunner, _codexApp, _codexBridge, _codexBridgeAuth, _codexChanged, _codexLinkStatus,
-  _codexPayload, _deckConfirms, _deskPageSync, _footballPayload, _geminiOneShot, _loadFootballInfo, _menuHotkey, _persistLighting, _replay,
-  _saveTimers, _sttDeviceLabel, _sttDeviceWhenReady, _sttInputArgs, _sttVia, _syncCodexDemand, _syncSessionWatch, _transcribeAudio,
-  _transcripts, _whisperReady, _xenonMenuState, aiActionLog, aiMemory, applySecondScreenMode, batteryMonitor, bitMessages,
-  broadcastHaDeckStates, buildHaState, buildSbState, buildWlState, captureScreenshot, chooseCaptureFolder, cliOneShot, collectSensors,
-  companionLookSparks, completeWithUserAi, deckChroma, deckHa, deckObs, deckRegistry, deckSb, deckUnifi, deckVoicemeeter, deckWaveLink,
-  defaultCaptureFolder, drawShell, embeddedBrowser, featureUnlock, geminiKeyFor, getAudioInfo, getCurrentLyrics, getFfmpegPath,
-  getMediaInfo, getNetworkInfo, getSlideshowDir, getSystemInfo, getWeather, guardian, haQuery, helperArrived, helperInstall, layersEdit,
-  layersHost, layersPeek, lyricsForPlayingKey, lyricsOffsets, lyricsTranslateBlocker, lyricsTranslator, makeMarkClips, mediaAction,
-  openDiscordChat, performAiUndo, ratingVotes, readHubSettings, readHubSettingsForUpdate, readNotes, refreshClaude, refreshDiscordWatch,
-  refreshExternalFeeds, refreshFootball, refreshHaWatch, refreshHotkeyListener, refreshObsWatch, refreshStocks, refreshWakeWordWatch,
-  remoteAccess, remoteHttpsInstaller, replayDiskInfo, roastSparks, saveNotesGuarded, saveStreamConfig, saveVitalsState, screenCapture,
-  screenMenu, secondScreen, sendCaptureToPhone, setDefaultAudioDevice, setMediaPreferredSource, setMicMute, smallTaskModel, speakOnServer,
-  stopServerSpeak, svvExec, tilePlay, transcodeMp4BackgroundToWebm, transferEnabled, updateCaptureSettings, updateEvents, updateTasks,
-  userAiVisionBlocker, vitalsNag, writeEvents, writeHubSettings, writeNotes, writeTasks,
+  AI_MODELS, BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, PORT, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, _aiPerformancePlan,
+  _audioToWav16k, _captureCovers, _captureExport, _captureFolder, _captureGallery, _captureHost, _captures, _chatgptAsker, _chatgptPayload,
+  _chatgptStore, _claudeAttach, _claudeBridge, _claudeBridgeAuth, _claudeCommands, _claudeFresh, _claudeHistory, _claudeHoldPermission,
+  _claudeInbox, _claudeLinkStatus, _claudeModReply, _claudeRunner, _codexApp, _codexBridge, _codexBridgeAuth, _codexChanged,
+  _codexLinkStatus, _codexPayload, _deckConfirms, _deskPageSync, _footballPayload, _gameSessions, _geminiOneShot, _loadFootballInfo,
+  _menuHotkey, _perfStream, _persistLighting, _processesHistory, _replay, _saveTimers, _sttDeviceLabel, _sttDeviceWhenReady, _sttInputArgs,
+  _sttVia, _syncCodexDemand, _syncSessionWatch, _transcribeAudio, _transcripts, _whisperReady, _xenonMenuState, aiActionLog, aiMemory,
+  applySecondScreenMode, autoUpdater, batteryMonitor, bitMessages, broadcastHaDeckStates, buildHaState, buildSbState, buildWlState,
+  capabilityRunner, captureScreenshot, chooseCaptureFolder, cliOneShot, collectSensors, companionLookSparks, completeWithUserAi, deckChroma,
+  deckHa, deckObs, deckPress, deckRegistry, deckSb, deckShortcutRunner, deckUnifi, deckVoicemeeter, deckWaveLink, defaultCaptureFolder,
+  devClean, drawShell, dropSdkGrant, embeddedBrowser, featureUnlock, fileSearch, geminiKeyFor, getAudioInfo, getCurrentLyrics,
+  getFfmpegPath, getMediaInfo, getNetworkInfo, getSlideshowDir, getSystemInfo, getWeather, guardian, haQuery, helperArrived, helperInstall,
+  iconPackStore, installWidgetPayload, isCatalogUpdateOf, keySendAvailable, layersEdit, layersHost, layersPeek, livingIndex, loadWhatsNew,
+  lyricsForPlayingKey, lyricsOffsets, lyricsTranslateBlocker, lyricsTranslator, makeMarkClips, mediaAction, nativeMedia,
+  openDeckPopupWindow, openDiscordChat, perfRegistry, perfSession, perfStats, performAiUndo, phoneKeysAvailable, ratingVotes,
+  readHubSettings, readHubSettingsForUpdate, readNotes, recordWidgetOrigin, refreshClaude, refreshDiscordWatch, refreshExternalFeeds,
+  refreshFootball, refreshHaWatch, refreshHotkeyListener, refreshObsWatch, refreshSdkScan, refreshStocks, refreshWakeWordWatch,
+  remoteAccess, remoteHttpsInstaller, replayDiskInfo, roastSparks, routeHotkeyIndex, routeSpotlightHotkey, saveNotesGuarded, saveNoticeSeen,
+  saveSdkGrant, saveStreamConfig, saveVitalsState, screenCapture, screenMenu, sdkAi, sdkPackagesCached, secondScreen, selfUpdate,
+  sendCaptureToPhone, setDefaultAudioDevice, setMediaPreferredSource, setMicMute, smallTaskModel, soundPackStore, speakOnServer,
+  stopServerSpeak, svvExec, tilePlay, transcodeMp4BackgroundToWebm, transferEnabled, trialPass, trialVault, updateCaptureSettings,
+  updateEvents, updatePerformanceSetting, updateTasks, userAiVisionBlocker, vitalsNag, widgetAutoUpdater, widgetCatalogVersionOf,
+  widgetExportable, widgetOptionsStore, widgetOriginOf, withDeckWrite, writeDeckStore, writeEvents, writeHubSettings, writeNotes,
+  writeTasks,
 });
 
 const handleRequest = async (req, res) => {
@@ -7511,21 +7505,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/manifest.webmanifest' && req.method === 'GET') {
     await pairedBranches['GET /manifest.webmanifest'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/shell-driver' && req.method === 'GET') {
-    await widgetSdkBranches['GET /shell-driver'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
-  } else if (reqPath === '/sdk-service' && req.method === 'GET') {
-    await widgetSdkBranches['GET /sdk-service'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
-  } else if (reqPath === '/deck-popup' && req.method === 'GET') {
-    await deckKeysBranches['GET /deck-popup'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
-  } else if (reqPath === '/spotlight' && req.method === 'GET') {
-    await searchBranches['GET /spotlight'](req, res, { json, err500, reqPath, urlObj, isRemote, sendPage });
-
-  } else if (reqPath === '/deck/popup/open' && req.method === 'POST') {
-    await deckKeysBranches['POST /deck/popup/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDeckPopupWindow });
-
   } else if (reqPath === '/ping' && req.method === 'GET') {
     await engineBranches['GET /ping'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
@@ -7547,18 +7526,6 @@ const handleRequest = async (req, res) => {
     // light, since light is the wrong half of the guess.
     json(await osTheme.read());
 
-  } else if (reqPath === '/perf' && req.method === 'GET') {
-    await performanceBranches['GET /perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _perfStream });
-
-  } else if (reqPath === '/perf/sessions' && req.method === 'GET') {
-    await performanceBranches['GET /perf/sessions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _gameSessions });
-
-  } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {
-    await systemBranches['POST /system/enable-sensors'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/processes/history' && req.method === 'GET') {
-    await performanceModeBranches['GET /api/processes/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _processesHistory });
-
   } else if (reqPath === '/api/disks/io' && req.method === 'GET') {
     await diskBranches['GET /api/disks/io'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getDiskIo });
 
@@ -7569,74 +7536,11 @@ const handleRequest = async (req, res) => {
     // A route that lives in its feature's routes.js (feature-routes.js).
     await featureRoutes.run(req.method, reqPath, req, res, { json, err500, reqPath, urlObj, isRemote, jsonpCb, remote, sendPage, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath }, routeHands());
 
-  } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
-    await performanceBranches['GET /api/gamemode/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/performance/stats' && req.method === 'GET') {
-    await performanceModeBranches['GET /api/performance/stats'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfStats });
-
-  } else if (reqPath === '/api/performance/powerplan' && req.method === 'GET') {
-    await performanceModeBranches['GET /api/performance/powerplan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });
-
-  } else if (reqPath === '/api/performance/powerplan' && req.method === 'POST') {
-    await performanceModeBranches['POST /api/performance/powerplan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });
-
-  } else if (reqPath === '/api/performance/shield' && req.method === 'GET') {
-    await performanceModeBranches['GET /api/performance/shield'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });
-
-  } else if (reqPath === '/api/performance/screen' && req.method === 'POST') {
-    await performanceBranches['POST /api/performance/screen'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath === '/settings/tile' && req.method === 'POST') {
     await settingsBranches['POST /settings/tile'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveTileSettings });
 
-  } else if (reqPath === '/sdk/grant' && req.method === 'POST') {
-    await widgetSdkPackagesBranches['POST /sdk/grant'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveSdkGrant });
-
-  } else if (reqPath === '/api/performance/state' && req.method === 'POST') {
-    await performanceModeBranches['POST /api/performance/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updatePerformanceSetting });
-
-  } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {
-    await performanceModeBranches['POST /api/performance/plan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _aiPerformancePlan, perfStats, readHubSettings });
-
-  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
-    await performanceBranches['POST /api/gamemode/install-presentmon'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/deck/sound' && req.method === 'GET') {
-    await deckBranches['GET /deck/sound'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
-
-  } else if (reqPath === '/deck/sound-upload' && req.method === 'POST') {
-    await deckBranches['POST /deck/sound-upload'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/deck/sounds' && req.method === 'GET') {
-    await deckBranches['GET /deck/sounds'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {
     await deckBranches['DELETE /deck/sounds/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/apps/store' && req.method === 'GET') {
-    await deckBranches['GET /apps/store'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/deck/app-icon' && req.method === 'GET') {
-    await deckBranches['GET /deck/app-icon'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/actions/run' && req.method === 'POST') {
-    await deckKeysBranches['POST /actions/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });
-
-  } else if (reqPath === '/actions/perf' && req.method === 'POST') {
-    await performanceModeBranches['POST /actions/perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfRegistry });
-
-  } else if (reqPath === '/actions/catalog' && req.method === 'GET') {
-    await deckKeysBranches['GET /actions/catalog'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, capabilityRunner, deckVoicemeeter, keySendAvailable, nativeMedia, phoneKeysAvailable, readHubSettings });
-
-  } else if (reqPath === '/version' && req.method === 'GET') {
-    await updatesBranches['GET /version'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/whatsnew' && req.method === 'GET') {
-    await updatesUpdateBranches['GET /whatsnew'](req, res, { json, err500, reqPath, urlObj, isRemote }, { loadWhatsNew });
-
-  } else if (reqPath === '/update/notice-seen' && req.method === 'POST') {
-    await updatesUpdateBranches['POST /update/notice-seen'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveNoticeSeen });
 
   } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {
     // Filed, imported from the old mail, shown, read. Everything is rebuilt in
@@ -7649,38 +7553,11 @@ const handleRequest = async (req, res) => {
       res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
     }
 
-  } else if (reqPath === '/update/check' && req.method === 'GET') {
-    await updatesUpdateBranches['GET /update/check'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath === '/api/startup-task' && req.method === 'GET') {
     await installBranches['GET /api/startup-task'](req, res, { json, err500, reqPath, urlObj, isRemote }, { startupTaskCheck });
 
-  } else if (reqPath === '/update/self-status' && req.method === 'GET') {
-    await updatesUpdateBranches['GET /update/self-status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { selfUpdate });
-
-  } else if (reqPath === '/update/prepare' && req.method === 'POST') {
-    await updatesUpdateBranches['POST /update/prepare'](req, res, { json, err500, reqPath, urlObj, isRemote }, { selfUpdate });
-
-  } else if (reqPath === '/update/apply' && req.method === 'POST') {
-    await updatesUpdateBranches['POST /update/apply'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, selfUpdate });
-
-  } else if (reqPath === '/update/auto-status' && req.method === 'GET') {
-    await updatesUpdateBranches['GET /update/auto-status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { autoUpdater, selfUpdate });
-
-  } else if (reqPath === '/api/widgets/auto-update' && req.method === 'GET') {
-    await storeCatalogPacksBranches['GET /api/widgets/auto-update'](req, res, { json, err500, reqPath, urlObj, isRemote }, { widgetAutoUpdater });
-
-  } else if (reqPath === '/update/auto/postpone' && req.method === 'POST') {
-    await updatesUpdateBranches['POST /update/auto/postpone'](req, res, { json, err500, reqPath, urlObj, isRemote }, { autoUpdater });
-
-  } else if (reqPath === '/api/native/status' && req.method === 'GET') {
-    await updatesBranches['GET /api/native/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath === '/api/native/install' && req.method === 'POST') {
     await installBranches['POST /api/native/install'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/native/install-status' && req.method === 'GET') {
-    await updatesBranches['GET /api/native/install-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/backup/export' && req.method === 'GET') {
     await settingsBranches['GET /backup/export'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildBackup });
@@ -7697,81 +7574,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/settings' && req.method === 'POST') {
     await settingsSaveBranches['POST /settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexChanged, _syncCodexDemand, _syncSessionWatch, autoUpdater, batteryMonitor, deckChroma, deckUnifi, embeddedBrowser, phone, refreshClaude, refreshDiscordWatch, refreshFootball, refreshHaWatch, refreshHotkeyListener, refreshLivingIndex, refreshObsWatch, refreshSbWatch, refreshStocks, refreshUnifiEventsWatch, refreshWakeWordWatch, refreshWlWatch, widgetAutoUpdater });
 
-  } else if (reqPath === '/api/community/catalog' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/catalog'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/installed' && req.method === 'POST') {
-    await storeCatalogBranches['POST /api/community/installed'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/poll' && req.method === 'POST') {
-    await storeCatalogBranches['POST /api/community/poll'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/installs' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/installs'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/support-goal' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/support-goal'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/messages' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/messages'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/code' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/code'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/redeem' && req.method === 'POST') {
-    await storeSupportersUnlockBranches['POST /api/community/redeem'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialVault });
-
-  } else if (reqPath === '/api/community/update' && req.method === 'POST') {
-    await storeSupportersBranches['POST /api/community/update'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/supporter' && req.method === 'GET') {
-    await storeSupportersBranches['GET /api/community/supporter'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/supporter/save' && req.method === 'POST') {
-    await storeSupportersBranches['POST /api/community/supporter/save'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/supporter/forget' && req.method === 'POST') {
-    await storeSupportersBranches['POST /api/community/supporter/forget'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/buy' && req.method === 'POST') {
-    await storeSupportersBranches['POST /api/community/buy'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/sparks' && req.method === 'GET') {
-    await storeSupportersBranches['GET /api/community/sparks'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/sparks/owned' && req.method === 'GET') {
-    await storeSupportersBranches['GET /api/community/sparks/owned'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/sparks/save' && req.method === 'POST') {
-    await storeSupportersBranches['POST /api/community/sparks/save'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/sparks/forget' && req.method === 'POST') {
-    await storeSupportersBranches['POST /api/community/sparks/forget'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/trial' && req.method === 'GET') {
-    await storeSupportersUnlockBranches['GET /api/community/trial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });
-
-  } else if (reqPath === '/api/community/trial/check' && req.method === 'POST') {
-    await storeSupportersUnlockBranches['POST /api/community/trial/check'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });
-
-  } else if (reqPath === '/api/community/trial/tried' && req.method === 'POST') {
-    await storeSupportersUnlockBranches['POST /api/community/trial/tried'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });
-
-  } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/limited-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/ratings' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/ratings'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/community/rating-state' && req.method === 'GET') {
-    await storeCatalogBranches['GET /api/community/rating-state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
-
-  } else if (reqPath === '/api/community/rating-close' && req.method === 'POST') {
-    await storeCatalogBranches['POST /api/community/rating-close'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
-
-  } else if (reqPath === '/api/community/rate' && req.method === 'POST') {
-    await storeCatalogBranches['POST /api/community/rate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
-
   } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {
     await smartHomeCamerasBranches['GET /api/unifiprotect/snapshot/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckUnifi, readHubSettings });
 
@@ -7784,20 +7586,11 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/startup/auto-open' && req.method === 'POST') {
     await installBranches['POST /startup/auto-open'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/deck-config' && req.method === 'GET') {
-    await deckBranches['GET /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/deck-config' && req.method === 'POST') {
-    await deckKeysBranches['POST /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { withDeckWrite, writeDeckStore });
-
   } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {
     await timeBranches['PATCH /api/timers/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
 
   } else if (reqPath.startsWith('/api/timers/') && req.method === 'DELETE') {
     await timeBranches['DELETE /api/timers/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
-
-  } else if (reqPath === '/lock' && req.method === 'POST') {
-    await systemBranches['POST /lock'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai' && req.method === 'POST') {
     try {
@@ -8309,75 +8102,14 @@ const handleRequest = async (req, res) => {
   } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
     await lookBranches['DELETE /font/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/icon-pack' && req.method === 'POST') {
-    await storeCatalogPacksBranches['POST /icon-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
-
-  } else if (reqPath === '/icon-packs' && req.method === 'GET') {
-    await storeCatalogPacksBranches['GET /icon-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
-
   } else if (req.method === 'GET' && reqPath.startsWith('/icon-pack/')) {
     await storeCatalogPacksBranches['GET /icon-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/icon-pack/')) {
     await storeCatalogPacksBranches['DELETE /icon-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
 
-  } else if (reqPath === '/sound-pack' && req.method === 'POST') {
-    await storeCatalogPacksBranches['POST /sound-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
-
-  } else if (reqPath === '/deck/sound-packs' && req.method === 'GET') {
-    await deckBranches['GET /deck/sound-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
-
   } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {
     await storeCatalogPacksBranches['DELETE /sound-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
-
-  } else if (reqPath === '/search' && req.method === 'GET') {
-    await searchFilesBranches['GET /search'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
-
-  } else if (reqPath === '/search/recent' && req.method === 'GET') {
-    await searchFilesBranches['GET /search/recent'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
-
-  } else if (reqPath === '/search/thumb' && req.method === 'GET') {
-    await searchFilesBranches['GET /search/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
-
-  } else if (reqPath === '/search/open' && req.method === 'POST') {
-    await searchFilesBranches['POST /search/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
-
-  } else if (reqPath === '/search/reveal' && req.method === 'POST') {
-    await searchFilesBranches['POST /search/reveal'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
-
-  } else if (reqPath === '/search/icon' && req.method === 'GET') {
-    await searchFilesBranches['GET /search/icon'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
-
-  } else if (reqPath === '/index/status' && req.method === 'GET') {
-    await searchFilesBranches['GET /index/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { livingIndex });
-
-  } else if (reqPath === '/macos/fda-settings' && req.method === 'POST') {
-    await systemBranches['POST /macos/fda-settings'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/spotlight/claimed' && req.method === 'POST') {
-    await searchBranches['POST /spotlight/claimed'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/deck/press' && req.method === 'GET') {
-    await deckKeysBranches['GET /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });
-  } else if (reqPath === '/deck/press' && req.method === 'POST') {
-    await deckKeysBranches['POST /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });
-  } else if (reqPath === '/deck/client-step' && req.method === 'POST') {
-    await deckKeysBranches['POST /deck/client-step'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });
-
-  } else if (reqPath === '/deck/shortcut-claim' && req.method === 'POST') {
-    await deckKeysBranches['POST /deck/shortcut-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });
-
-  } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {
-    await searchBranches['GET /search/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/search/hotkey-press' && req.method === 'POST') {
-    await searchBranches['POST /search/hotkey-press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { routeSpotlightHotkey });
-
-  } else if (reqPath === '/pages/hotkey-status' && req.method === 'GET') {
-    await deckBranches['GET /pages/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/pages/hotkey-press' && req.method === 'POST') {
-    await deckKeysBranches['POST /pages/hotkey-press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { routeHotkeyIndex });
 
   } else if (reqPath === '/disk/status' && req.method === 'GET') {
     await diskBranches['GET /disk/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
@@ -8405,24 +8137,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/disk/clean/cancel' && req.method === 'POST') {
     await diskBranches['POST /disk/clean/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
-
-  } else if (reqPath === '/api/features/lyrics' && req.method === 'GET') {
-    await storeSupportersUnlockBranches['GET /api/features/lyrics'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
-
-  } else if (reqPath === '/api/features/lyrics/trial' && req.method === 'POST') {
-    await storeSupportersUnlockBranches['POST /api/features/lyrics/trial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
-
-  } else if (reqPath === '/api/features/lyrics/unlock' && req.method === 'POST') {
-    await storeSupportersUnlockBranches['POST /api/features/lyrics/unlock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
-
-  } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {
-    await storeSupportersUnlockBranches['GET /api/features/devclean'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
-
-  } else if (reqPath === '/api/features/devclean/preview' && req.method === 'GET') {
-    await storeSupportersUnlockBranches['GET /api/features/devclean/preview'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });
-
-  } else if (reqPath === '/api/features/devclean/unlock' && req.method === 'POST') {
-    await storeSupportersUnlockBranches['POST /api/features/devclean/unlock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
 
   } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {
     // The gate lives here, not only in the tile: every Dev cleanup route
@@ -8532,9 +8246,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath.startsWith('/api/mcp/dev/')) {
     await mcpDevBranches['* /api/mcp/dev/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { handleMcpDevRoute });
 
-  } else if (reqPath === '/sdk/ai' && req.method === 'POST') {
-    await widgetSdkCallsBranches['POST /sdk/ai'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAi, sdkPackagesCached });
-
   } else if (reqPath === '/api/calls' && req.method === 'GET') {
     await transferPhoneBranches['GET /api/calls'](req, res, { json, err500, reqPath, urlObj, isRemote }, { keySendAvailable, keySendProblem });
 
@@ -8565,44 +8276,11 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/phone/dial' && req.method === 'POST') {
     await transferPhoneBranches['POST /api/phone/dial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
-  } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
-    await widgetSdkPackagesBranches['GET /sdk/widgets'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshSdkScan, widgetCatalogVersionOf, widgetExportable, widgetOptionsStore, widgetOriginOf });
-
-  } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
-    await widgetSdkCallsBranches['POST /sdk/fetch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
-
-  } else if (reqPath === '/sdk/store' && req.method === 'POST') {
-    await widgetSdkCallsBranches['POST /sdk/store'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
-
-  } else if (reqPath === '/sdk/secret' && req.method === 'POST') {
-    await widgetSdkCallsBranches['POST /sdk/secret'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
-
   } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {
     await widgetSdkImagesBranches['GET /sdk/tile/*|/sdk/asset/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAssets, sdkPackagesCached });
 
   } else if (req.method === 'POST' && reqPath.startsWith('/sdk/hook/')) {
     await widgetSdkCallsBranches['POST /sdk/hook/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
-
-  } else if (reqPath === '/sdk/handler-ack' && req.method === 'POST') {
-    await widgetSdkBranches['POST /sdk/handler-ack'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/state/set' && req.method === 'POST') {
-    await deckBranches['POST /state/set'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/state/get' && req.method === 'GET') {
-    await deckBranches['GET /state/get'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/sdk/deck-states' && req.method === 'POST') {
-    await widgetSdkBranches['POST /sdk/deck-states'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
-    await widgetSdkBranches['POST /sdk/widgets/example'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, refreshSdkScan });
-
-  } else if (reqPath === '/sdk/install' && req.method === 'POST') {
-    await widgetSdkPackagesBranches['POST /sdk/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { dropSdkGrant, installWidgetPayload, isCatalogUpdateOf, refreshSdkScan, sdkPackagesCached, trialVault, widgetExportable });
-
-  } else if (reqPath === '/sdk/claim' && req.method === 'POST') {
-    await widgetSdkPackagesBranches['POST /sdk/claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, sdkPackagesCached, widgetOriginOf });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {
     await widgetSdkPackagesBranches['GET /sdk/export/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { widgetExportable });

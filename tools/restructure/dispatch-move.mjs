@@ -11,7 +11,9 @@
 //   * every whole-address key of the table has one branch whose test is that key and whose body is the one call;
 //   * no test that stood before the branch, and none that stands before the branch asking feature-routes.js,
 //     can be true for the same method and address (dispatch-read.mjs `canMatch`; "it depends" counts as "can");
-//   * no other branch or table answers the same method and address.
+//   * no other branch or table answers the same method and address;
+//   * no test of it is one a side copy of the engine cuts out by its text (side-copy-cuts.mjs): out of the chain,
+//     the cut would find nothing and the copy would answer an address it must not.
 // A branch that reads `return await table[...]` counts as one that reads `await table[...]`: the chain is the last
 // thing the handler does and what the handler gives back is read by nobody (runGuarded, request-boundary.js; a test
 // in restructure-dispatch-real.test.mjs keeps both true).
@@ -32,6 +34,7 @@ import { ownOf, readHead, readRequire } from './branches-text.mjs';
 import { canMatch, ENGINE, exactRoutes, knownOf, readDispatch } from './dispatch-read.mjs';
 import { chainBack, cut, handsLines, listBack, readHands, readListed, unmark } from './dispatch-undo.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
+import { CUTS } from './side-copy-cuts.mjs';
 
 export const LIST = 'server/feature-routes.js';
 export const MOVES = 'tools/restructure/dispatch-moves.json';
@@ -45,9 +48,10 @@ const tableKeys = (moduleText) => moduleText.split('\n').map(readHead).filter(Bo
  * @param {string} job.engineText @param {string} job.listText @param {(spec: string) => string} job.moduleTextOf by the path as required
  * @param {string[] | null} job.locals the tables asked for by their name in the engine file, null for every one
  * @param {any} job.parser @param {string[]} [job.claimed] `METHOD /address` pairs something else already answers
+ * @param {string[]} [job.pinned] texts of the engine file something finds by reading it: a test in one of them stays
  * @returns {{ moves: { local: string, spec: string, rows: any[], routes: string[], own: string[] }[], refused: { local: string, why: string }[], rows: any[], lookup: number }}
  */
-export function planMove({ engineText, listText, moduleTextOf, locals, parser, claimed = [], known = {} }) {
+export function planMove({ engineText, listText, moduleTextOf, locals, parser, claimed = [], known = {}, pinned = CUTS.map((made) => made[0]) }) {
   const { rows, lines } = readDispatch(engineText, parser);
   const lookup = rows.findIndex((row) => row.test === LOOKUP_TEST);
   if (lookup < 0) throw new Error(`the chain has no branch that asks feature-routes.js (${LOOKUP_TEST})`);
@@ -61,7 +65,7 @@ export function planMove({ engineText, listText, moduleTextOf, locals, parser, c
   const refused = [];
   for (const local of wanted) {
     const spec = required.get(local);
-    const why = spec ? whyNot({ local, spec, rows, lines, lookup, taken, listed, waiting, moduleText: moduleTextOf(spec), parser, known }) : { why: 'the file requires no table under that name' };
+    const why = spec ? whyNot({ local, spec, rows, lines, lookup, taken, listed, waiting, moduleText: moduleTextOf(spec), parser, known, pinned }) : { why: 'the file requires no table under that name' };
     if (why.why) { refused.push({ local, why: why.why }); continue; }
     for (const route of why.routes) taken.add(route);
     moves.push({ local, spec, rows: why.rows, routes: why.routes, own: [...new Set(why.rows.flatMap((row) => row.call.own))].sort() });
@@ -69,7 +73,7 @@ export function planMove({ engineText, listText, moduleTextOf, locals, parser, c
   return { moves, refused, rows, lookup };
 }
 
-function whyNot({ local, spec, rows, lines, lookup, taken, listed, waiting, moduleText, parser, known }) {
+function whyNot({ local, spec, rows, lines, lookup, taken, listed, waiting, moduleText, parser, known, pinned }) {
   if (listed.has(spec)) return { why: 'feature-routes.js answers for its file already' };
   if (!waiting.has(spec)) return { why: `feature-routes.js does not load its file: write \`inChain(require('${spec}')),\` in TABLE_FILES at the place server.js loads it` };
   const keys = tableKeys(moduleText);
@@ -80,6 +84,7 @@ function whyNot({ local, spec, rows, lines, lookup, taken, listed, waiting, modu
     if (calls.length !== 1) return { why: `${calls.length} branches call '${key}', one was expected` };
     const [row] = calls;
     if (row.key !== key) return { why: `the branch on line ${row.line} calls '${key}' and its test asks for something else` };
+    if (pinned.some((text) => text.includes(row.test))) return { why: `a side copy of the engine cuts the test on line ${row.line} out by its text (side-copy-cuts.mjs)` };
     if (row.at === 0) return { why: `'${key}' is the first branch of the chain, which the others hang from` };
     const plain = lines.slice(row.from, row.body).join('\n') === `  } else if (${row.test}) {` && lines.slice(row.body + 1, row.to + 1).every((line) => line === '');
     if (!plain) return { why: `the branch on line ${row.line} is not its test and its call, with nothing but empty lines after` };
