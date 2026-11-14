@@ -39,6 +39,8 @@ const UTF8 = String.raw`,\s*'utf-?8'`;
 const SPACED = String.raw`,\s*`;
 // Where readFileSync comes from when it is not imported by name: fs.readFileSync, require('node:fs').readFileSync.
 const FS = String.raw`(?:(?:fs|require\('(?:node:)?fs'\))\.)?`;
+// What a join starts from: a name (HERE, ROOT, __dirname) or the test's own folder spelled out.
+const FROM = String.raw`(?:\w+|dirname\(\s*fileURLToPath\(\s*import\.meta\.url\s*\)\s*\)|import\.meta\.dirname)`;
 const quoted = (text) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
 // Folders of server/ that hold no script a test would read by name.
@@ -77,8 +79,9 @@ export function readsOf(source = ENGINE, { bare = true } = {}) {
   return [
     // readFileSync(new URL('../server.js', import.meta.url), 'utf8'), with or without fileURLToPath(...)
     new RegExp(String.raw`${FS}readFileSync\(\s*(?:fileURLToPath\(\s*)?new URL\('\.\.\/${whole}',\s*import\.meta\.url\)\)?${UTF8}\s*\)`, 'g'),
-    // readFileSync(join(HERE, '..', 'server.js'), 'utf8'), readFileSync(path.join(ROOT, 'server', 'server.js'), 'utf8')
-    new RegExp(String.raw`${FS}readFileSync\(\s*(?:path\.)?join\(\s*\w+,\s*(?:'\.\.',\s*|'server',\s*)?${pieces}\)${UTF8}\s*\)`, 'g'),
+    // readFileSync(join(HERE, '..', 'server.js'), 'utf8'), readFileSync(path.join(ROOT, 'server', 'server.js'), 'utf8'),
+    // readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'server.js'), 'utf8')
+    new RegExp(String.raw`${FS}readFileSync\(\s*(?:path\.)?join\(\s*${FROM},\s*(?:'\.\.',\s*|'server',\s*)?${pieces}\)${UTF8}\s*\)`, 'g'),
     // read('../server.js'), read('server.js'), read('server/server.js'), read('server', 'server.js'), src('server.js')
     new RegExp(String.raw`\b(?:read|src|source|readLf)\((?:'\.\.\/${whole}'|${bare ? `'${whole}'|` : ''}'server\/${whole}'|'server',\s*${pieces})\)`, 'g'),
   ];
@@ -122,9 +125,12 @@ export function stillNames(text, source = ENGINE) {
   // The name alone or after a folder: 'lighting.js' and '../lighting.js', not 'js/driver-lighting.js'.
   const named = new RegExp(`'(?:[^'\\n]*\\/)?${quoted(path.posix.basename(source))}'`);
   const call = `engineSource('${source}')`;
-  return text.split('\n').some((line) => !/^\s*(?:\/\/|\*)/.test(line) && !/\b(?:require|import)\b/.test(line)
+  return text.split('\n').some((line) => !/^\s*(?:\/\/|\*)/.test(line) && !LOADS.test(line)
     && named.test(line.split(call).join('')));
 }
+
+// A line that loads the file as code. `import.meta.url` loads nothing: a read built on it is still a read.
+const LOADS = /\b(?:require|import)\b(?!\.meta)/;
 
 function valueAfter(args, option) {
   const at = args.indexOf(option);

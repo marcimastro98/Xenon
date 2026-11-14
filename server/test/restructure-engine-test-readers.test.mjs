@@ -77,6 +77,8 @@ test('--source: every spelling of "read that file as text" becomes engineSource(
     "readFileSync(join(HERE, '..', 'lighting.js'), 'utf8')",
     "fs.readFileSync(path.join(ROOT, 'server', 'lighting.js'), 'utf8')",
     "readFileSync(join(SERVER_DIR, 'lighting.js'), 'utf8')",
+    "readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'lighting.js'), 'utf8')",
+    "readFileSync(join(import.meta.dirname, '..', 'lighting.js'), 'utf8')",
     "require('node:fs').readFileSync(new URL('../lighting.js', import.meta.url), 'utf8')",
     "require('fs').readFileSync(path.join(ROOT, 'server', 'lighting.js'), 'utf8')",
     "read('../lighting.js')", "read('lighting.js')", "read('server/lighting.js')", "read('server', 'lighting.js')",
@@ -93,6 +95,7 @@ test('--source: a file in a folder is found whether its path is given whole or f
     "readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8')",
     "readFileSync(join(HERE, '..', 'actions', 'registry.js'), 'utf8')",
     "readFileSync(join(HERE, '..', 'actions/registry.js'), 'utf8')",
+    "readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'actions', 'registry.js'), 'utf8')",
     "readFileSync(path.join(ROOT, 'server', 'actions', 'registry.js'), 'utf8')",
     "read('../actions/registry.js')", "read('actions/registry.js')", "read('server/actions/registry.js')",
     "read('server', 'actions', 'registry.js')", "read('server', 'actions/registry.js')",
@@ -147,6 +150,10 @@ test('--source: a test that still names the file in a string is listed for a per
   assert.equal(stillNames("const text = engineSource('server/lighting.js');\n", source), false);
   assert.equal(stillNames("const lighting = require('../lighting.js');\n", source), false);
   assert.equal(stillNames("import * as lighting from '../lighting.js';\n", source), false);
+  assert.equal(stillNames("const lighting = await import('../lighting.js');\n", source), false);
+  // import.meta.url loads nothing: a read built on it that the tool did not change is one a person looks at.
+  assert.equal(stillNames("const BYTES = readFileSync(new URL('../lighting.js', import.meta.url));\n", source), true);
+  assert.equal(stillNames("const text = readText(join(dirname(fileURLToPath(import.meta.url)), '..', 'lighting.js'));\n", source), true);
   assert.equal(stillNames("// read('../lighting.js') was here\n", source), false);
   assert.equal(stillNames("const page = read('../js/driver-lighting.js');\n", source), false);
 });
