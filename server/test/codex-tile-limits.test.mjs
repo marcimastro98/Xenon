@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 // Codex sends extra limit buckets (seen: "gpt-reserve") that its own usage menu
 // never shows. The tile lists the main one, and another only while it blocks.
