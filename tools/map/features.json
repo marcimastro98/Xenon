@@ -765,6 +765,7 @@
         "server/js/browser-tile/**",
         "server/js/browser-tile.js",
         "server/js/second-screen-tile.js",
+        "server/js/second-screen-tile/**",
         "server/js/slideshow-widget.js",
         "server/js/app-switcher.js",
         "server/js/app-switcher/**",
