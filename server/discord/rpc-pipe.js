@@ -9,6 +9,9 @@ const path = require('node:path');
 // IPC frame opcodes (see the RPC transport docs).
 const OP_HANDSHAKE = 0, OP_FRAME = 1, OP_CLOSE = 2, OP_PING = 3, OP_PONG = 4;
 const PIPE_COUNT = 10;          // discord-ipc-0 .. discord-ipc-9
+// No message of the app comes near this. A length past it, or below zero, is not a frame:
+// the bytes are not what this code thinks they are, and reading on would loop or fill memory.
+const MAX_FRAME_BYTES = 16 * 1024 * 1024;
 
 // Frame a payload: [op int32 LE][len int32 LE][utf8 json].
 function encodeFrame(op, payload) {
@@ -20,14 +23,24 @@ function encodeFrame(op, payload) {
 }
 
 // A stateful frame decoder: feed it chunks, it invokes onMessage(op, data) per
-// complete frame and buffers partial ones across chunk boundaries.
-function createDecoder(onMessage) {
+// complete frame and buffers partial ones across chunk boundaries. A frame whose length
+// cannot be true ends the reading for good: what was kept is dropped, later chunks are
+// ignored and onBroken() is called once, for the caller to close the pipe.
+function createDecoder(onMessage, onBroken) {
   let buf = Buffer.alloc(0);
+  let broken = false;
   return function push(chunk) {
+    if (broken) return;
     buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
     while (buf.length >= 8) {
       const op = buf.readInt32LE(0);
       const len = buf.readInt32LE(4);
+      if (len < 0 || len > MAX_FRAME_BYTES) {
+        broken = true;
+        buf = Buffer.alloc(0);
+        if (onBroken) onBroken();
+        return;
+      }
       if (buf.length < 8 + len) break;
       const body = buf.subarray(8, 8 + len);
       buf = buf.subarray(8 + len);
@@ -110,6 +123,6 @@ function connectPipe() {
 }
 
 module.exports = {
-  OP_HANDSHAKE, OP_FRAME, OP_CLOSE, OP_PING, OP_PONG, PIPE_COUNT, encodeFrame, createDecoder,
+  OP_HANDSHAKE, OP_FRAME, OP_CLOSE, OP_PING, OP_PONG, PIPE_COUNT, MAX_FRAME_BYTES, encodeFrame, createDecoder,
   pipePath, trustedIpcSocket, connectPipe,
 };

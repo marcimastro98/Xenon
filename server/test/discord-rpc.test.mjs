@@ -178,6 +178,52 @@ test('encodeFrame / createDecoder round-trip, incl. split across chunks', () => 
   assert.deepEqual(got[1], [1, { cmd: 'AUTHENTICATE', nonce: 'n1' }]);
 });
 
+// A length that cannot be true used to hang the engine (minus eight left the buffer where it
+// was, so the loop never ended) or keep every later byte in memory (two billion to wait for).
+const frameOfLength = (len) => {
+  const head = Buffer.alloc(8);
+  head.writeInt32LE(1, 0);
+  head.writeInt32LE(len, 4);
+  return Buffer.concat([head, Buffer.from('{}')]);
+};
+
+test('createDecoder stops at a frame whose length cannot be true', () => {
+  for (const len of [-8, -1, -2147483648, 16 * 1024 * 1024 + 1, 2147483647]) {
+    const got = [];
+    let broken = 0;
+    const push = dc.createDecoder((op, data) => got.push([op, data]), () => { broken += 1; });
+    push(dc.encodeFrame(1, { cmd: 'BEFORE' }));
+    push(frameOfLength(len));
+    push(dc.encodeFrame(1, { cmd: 'AFTER' }));
+    assert.deepEqual(got, [[1, { cmd: 'BEFORE' }]], 'length ' + len + ': what came before is delivered, nothing after');
+    assert.equal(broken, 1, 'length ' + len + ': the caller is told once');
+  }
+  // The largest frame allowed is still read, and nobody has to be listening for the bad ones.
+  const quiet = dc.createDecoder(() => {});
+  quiet(frameOfLength(-8));
+  quiet(dc.encodeFrame(1, { cmd: 'AFTER' }));
+});
+
+test('a pipe that sends such a frame is closed, and the command waiting on it fails', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000, username: 'me' } }));
+  const sock = fakePipe();
+  let destroyed = 0;
+  const answer = sock.write;
+  // The first command after sign-in is answered with a broken frame instead of a reply.
+  sock.write = (buf) => {
+    const msg = JSON.parse(buf.subarray(8, 8 + buf.readInt32LE(4)).toString('utf8'));
+    if (buf.readInt32LE(0) === 1 && msg.cmd !== 'AUTHENTICATE') { queueMicrotask(() => sock.emit('data', frameOfLength(-8))); return true; }
+    return answer(buf);
+  };
+  sock.destroy = () => { destroyed += 1; queueMicrotask(() => sock.emit('close')); };
+  const p = dc.createDiscordProvider({ clientId: 'id', clientSecret: 'secret', tokensFile, connect: () => Promise.resolve(sock) });
+  const out = await p.listSoundboardSounds();
+  assert.deepEqual(out, [], 'the list degrades to empty, as when Discord is closed');
+  assert.ok(destroyed >= 1, 'the pipe was closed');
+  p.close();
+});
+
 // ── Registry dispatch ────────────────────────────────────────────────────────
 
 test('registry routes every discord action through deps.discord', async () => {
@@ -265,6 +311,12 @@ test('provider.runAction rejects a bad channel without connecting', async () => 
 
 // A minimal fake IPC pipe that speaks the handshake→READY→AUTHENTICATE dance and
 // answers each command with a success frame echoing its nonce.
+// Waits for something the provider does in its own time, up to five seconds, instead of
+// guessing how long that takes on a busy machine. The assertion after it still decides.
+const until = async (seen) => {
+  for (let i = 0; i < 500 && !seen(); i++) await new Promise((r) => setTimeout(r, 10));
+};
+
 function fakePipe(onCommand) {
   const sock = new EventEmitter();
   sock.destroy = () => {};
@@ -737,14 +789,14 @@ test('provider.watchVoice pushes state, then flips speaking live on a SPEAKING e
   const p = dc.createDiscordProvider({ clientId: 'id', clientSecret: 'secret', tokensFile, connect: () => Promise.resolve(sock) });
   const states = [];
   const stop = p.watchVoice((s) => states.push(s));
-  await new Promise((r) => setTimeout(r, 40));
+  await until(() => states[states.length - 1]?.members);
   const first = states[states.length - 1];
   assert.equal(first.ok, true);
   assert.equal(first.channel.name, 'General');
   assert.equal(first.members[0].speaking, false);
   // A SPEAKING_START DISPATCH (no nonce) flips the member without any refetch.
   sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'SPEAKING_START', data: { channel_id: '111', user_id: '900' } }));
-  await new Promise((r) => setTimeout(r, 10));
+  await until(() => states[states.length - 1].members[0].speaking);
   assert.equal(states[states.length - 1].members[0].speaking, true);
   stop();
   p.close();
@@ -776,7 +828,7 @@ test('provider.watchVoice subscribes VOICE_STATE_* and refreshes the roster on a
   const p = dc.createDiscordProvider({ clientId: 'id', clientSecret: 'secret', tokensFile, connect: () => Promise.resolve(sock) });
   const states = [];
   const stop = p.watchVoice((s) => states.push(s));
-  await new Promise((r) => setTimeout(r, 40));
+  await until(() => states[states.length - 1]?.members?.length === 1);
   assert.equal(states[states.length - 1].members.length, 1);
   // Membership events are subscribed per-channel alongside speaking.
   for (const evt of ['VOICE_STATE_CREATE', 'VOICE_STATE_UPDATE', 'VOICE_STATE_DELETE']) {
@@ -786,7 +838,7 @@ test('provider.watchVoice subscribes VOICE_STATE_* and refreshes the roster on a
   // the (now larger) roster and pushes it to the widget.
   roster.push({ user: { id: '901', username: 'bob' }, nick: 'Bob', voice_state: {} });
   sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'VOICE_STATE_CREATE', data: { channel_id: '111', user: { id: '901' } } }));
-  await new Promise((r) => setTimeout(r, 360));   // > the 300ms VOICE_STATE debounce
+  await until(() => states[states.length - 1].members.length === 2);   // after the 300ms VOICE_STATE debounce
   assert.equal(states[states.length - 1].members.length, 2);
   assert.ok(states[states.length - 1].members.some((m) => m.id === '901'));
   stop();
@@ -822,7 +874,7 @@ test('watchVoice subscribes NOTIFICATION_CREATE when wanted and delivers project
   sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'NOTIFICATION_CREATE', data: {
     title: 'luca', body: 'hey', icon_url: 'https://cdn.discordapp.com/a.png', channel_id: '199737254929760257',
   } }));
-  await new Promise((r) => setTimeout(r, 10));
+  await until(() => got.length > 0);
   assert.deepEqual(got, [{ title: 'luca', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257', messageType: null }]);
   stop();
   p.close();

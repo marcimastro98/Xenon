@@ -20,6 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Approvals from Codex work when Xenon sits in a folder with a `~` in its name.** Xenon told Codex to run its helper with a command Codex on Windows cannot start whenever the path had a character outside a short safe list, and `~` was missing from that list. It is the character Windows uses in shortened folder names, and it is safe there.
 - **With Xenon on another port, the offer of the native app asks the right Xenon.** The row that offers the native app, and the logo of the app's home bar, always called port 3030, whatever port Xenon was started on. They now call the Xenon that served the page. On the usual port nothing changes, and the online demo no longer tries to reach a Xenon on your own PC.
 - **A file too large for a transfer says so on the phone.** Sometimes the phone showed a network error instead of "too large" and tried the same file again. Xenon now keeps listening for a moment after it answers, so the answer arrives.
+- **A damaged message from the Discord app can no longer freeze Xenon.** If the Discord app on this PC sent a message with an impossible size, Xenon could stop answering or keep filling memory. It now closes that connection and opens a new one when needed.
 
 ## [v5.1.0] - 12-11-2026
 

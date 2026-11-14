@@ -205,7 +205,8 @@ function createDiscordProvider(deps) {
         _connectPipe().then((s) => {
           if (settled) { try { s.destroy(); } catch { /* ignore */ } return; }
           sock = s;
-          const decode = createDecoder(handleMessage);
+          // A frame that cannot be one closes the pipe: 'close' below fails what is waiting.
+          const decode = createDecoder(handleMessage, () => { try { s.destroy(); } catch { /* already gone */ } });
           s.on('data', decode);
           s.on('error', () => fail(new Error('discord_closed')));
           s.on('close', () => { if (!settled) fail(new Error('discord_closed')); else close(); });
@@ -335,7 +336,7 @@ function createDiscordProvider(deps) {
             if (data.evt === 'ERROR' || !(data.data && data.data.code)) reject(authorizeError(data.data));
             else resolve(data.data.code);
           }
-        });
+        }, () => { try { s.destroy(); } catch { /* already gone */ } });
         s.on('data', decode);
         s.on('error', () => { clearTimeout(timer); reject(new Error('discord_closed')); });
         // A graceful pipe close before the AUTHORIZE reply (e.g. a bad client_id)
