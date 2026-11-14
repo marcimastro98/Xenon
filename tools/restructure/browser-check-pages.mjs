@@ -6,7 +6,7 @@
 
 import { createHash } from 'node:crypto';
 
-import { editorStarted, loadPerformanceMode } from './browser-check-asks.mjs';
+import { editorStarted, fitRows, loadPerformanceMode } from './browser-check-asks.mjs';
 import { REFUSED } from './browser-check-engine.mjs';
 import { liteWidgets } from './browser-lists.mjs';
 import { readTopLevel } from './top-level.mjs';
@@ -57,11 +57,13 @@ function settingsSearchRows() {
  * page's own, asked in the page once it has loaded: what a module does cannot be asked by name from outside.
  * `first` is something the page is asked to do before it is read, for the files it loads only when asked; `holds`
  * names the script whose list those files are in (browser-lists.mjs). `edit` opens the page of desktop widgets once,
- * with its first group of widgets and edit mode on.
+ * with its first group of widgets and edit mode on. `resize` gives the window another size once the page has loaded:
+ * the page's question is then asked before and after.
  */
 export const PAGES = [
   { name: 'dashboard wide', file: 'server/index.html', path: '/', probe: settingsSearchRows, width: 2560, height: 720 },
   { name: 'dashboard phone', file: 'server/index.html', path: '/', probe: settingsSearchRows, width: 390, height: 844 },
+  { name: 'dashboard made narrower', file: 'server/index.html', path: '/', probe: fitRows, width: 2560, height: 720, resize: DESK },
   { name: 'desktop widgets', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, ...DESK },
   { name: 'desktop widgets in edit mode', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, edit: true, first: editorStarted, holds: 'server/js/layer-host.js', ...DESK },
   { name: 'deck window', file: 'server/deck-popup.html', path: '/deck-popup', ...DESK },
@@ -222,6 +224,8 @@ export function recordPage(browser, port, page, settleMs, parser, known) {
   return openPage(browser, port, page, settleMs, async (tab, seen) => {
     const asked = page.first ? await tab.evaluate(page.first) : null;
     if (page.first) await tab.waitForTimeout(settleMs);
+    const before = page.resize ? await tab.evaluate(page.probe) : null;
+    if (page.resize) { await tab.setViewportSize(page.resize); await tab.waitForTimeout(settleMs); }
     const held = await tab.evaluate(readPage);
     const names = await declaredNames(held.scripts.filter((address) => !held.modules.includes(address)), parser, known);
     const modules = held.modules.length ? await tab.evaluate(importAll, held.modules) : [];
@@ -235,7 +239,7 @@ export function recordPage(browser, port, page, settleMs, parser, known) {
       ...(modules.length ? { modules: modules.map((made) => (made.error ? { address: plain(made.address), error: plain(made.error) } : { ...made, address: plain(made.address) })) } : {}),
       ...(held.widgets === null ? {} : { widgets: held.widgets }),
       ...(page.first ? { asked } : {}),
-      ...(page.probe ? { probe: await tab.evaluate(page.probe) } : {}),
+      ...(page.probe ? { probe: page.resize ? { before, after: await tab.evaluate(page.probe) } : await tab.evaluate(page.probe) } : {}),
     };
   });
 }

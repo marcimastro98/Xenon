@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
 
 import { PAGES } from '../../tools/restructure/browser-check-pages.mjs';
 import { replay } from '../../tools/restructure/browser-extract.mjs';
@@ -182,7 +183,8 @@ test('a page may have a question of its own, and its answer must stay the same',
 });
 
 test('the dashboard is asked what its Settings search would offer, and the question changes nothing', () => {
-  const asked = PAGES.filter((entry) => entry.file === 'server/index.html');
+  const every = PAGES.filter((entry) => entry.file === 'server/index.html');
+  const asked = every.filter((entry) => !entry.resize);
   assert.deepEqual(asked.map((entry) => typeof entry.probe), ['function', 'function'], 'on the wide screen and on the phone');
   const entry = (more = {}) => ({ id: 'look|settings_theme', kind: 'row', cat: 'look', labelKey: 'settings_theme', hintKey: 'settings_theme_hint', cardKey: 'settings_look', catKey: 'settings_cat_look', fields: [1, 2, 3], ...more });
   const list = [{ id: 'cat:look', kind: 'cat', cat: 'look', labelKey: 'settings_cat_look', catKey: 'settings_cat_look', fields: [1] }, entry(), entry({ id: 'look|settings_save', kind: 'action', hintKey: undefined })];
@@ -203,4 +205,22 @@ test('the dashboard is asked what its Settings search would offer, and the quest
   assert.equal(answer([list[0], entry({ fields: [] }), list[2]]).found, 2, 'a row no word finds is another answer');
   assert.notDeepEqual(answer(list.slice(0, 2)), whole, 'a row less is another answer');
   assert.equal(answer(null), 'no settings search');
+});
+
+test('the dashboard is opened wide and made narrower, and asked before and after which look its fitting rows chose', () => {
+  const page = PAGES.find((entry) => entry.resize);
+  assert.equal(page.file, 'server/index.html');
+  assert.ok(page.resize.width < page.width, 'narrower than it was opened');
+  const row = (name, fit, wide) => ({ className: name, clientWidth: wide, dataset: { fitLevels: '3', fit }, closest: () => ({ getAttribute: () => 'system' }) });
+  const rows = [row('system-tabs', '2', 377), row('hidden-row', '0', 0)];
+  const window = { FitRow: { overflows: (one) => one.clientWidth < 100 } };
+  const document = { querySelectorAll: (selector) => (selector === '[data-fit-levels]' ? rows : []) };
+  const answer = vm.runInNewContext(`(${page.probe})()`, { window, document });
+  assert.deepEqual(JSON.parse(JSON.stringify(answer)), [{ row: 'system-tabs', of: 'system', levels: '3', fit: '2', cutOff: false }], 'a row that is not shown is not asked');
+  // Another level after the resize is a difference the compare tells.
+  const view = (probe) => ({ name: page.name, address: '/', pageErrors: [], consoleErrors: [], failedRequests: [], globals: [], declared: {}, scripts: [], stylesheets: [], rules: 'r', ruleCount: 1, probe });
+  const recording = (probe) => ({ engine: { name: 'chromium' }, views: [view(probe)], settings: {} });
+  const was = { before: [{ row: 'system-tabs', fit: '0' }], after: [{ row: 'system-tabs', fit: '2' }] };
+  assert.deepEqual(compareRecordings(recording(was), recording(was), { moves: [] }), []);
+  assert.match(compareRecordings(recording(was), recording({ ...was, after: was.before }), { moves: [] }).join(' '), /dashboard made narrower: the page's own question is answered differently/);
 });

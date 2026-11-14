@@ -1,5 +1,6 @@
 // What the page check asks a page to do before it reads it, for two scripts that load
-// other scripts only when the app has a reason to (`loaders` in browser-consumers.json).
+// other scripts only when the app has a reason to (`loaders` in browser-consumers.json),
+// and what it asks a page whose window changed size.
 // Each function runs in the page, so it uses nothing from this file.
 
 // Performance Mode with no dashboard (js/driver-perf.js): the driver page loads the
@@ -27,4 +28,15 @@ export function editorStarted() {
     };
     look();
   });
+}
+
+// The rows that pick a more compact look when space runs out (js/fit-row.js), as the page shows them: the level
+// each one chose and whether anything in it is still cut off. Asked before and after the window is made narrower,
+// so that a row which stopped following its width, or follows it to another level, is a difference. The width in
+// pixels is left out: the level is what the user sees.
+export function fitRows() {
+  return [...document.querySelectorAll('[data-fit-levels]')].filter((row) => row.clientWidth > 0).map((row) => ({
+    row: String(row.className), of: row.closest('[data-dashboard-widget]')?.getAttribute('data-dashboard-widget') ?? null,
+    levels: row.dataset.fitLevels, fit: row.dataset.fit ?? null, cutOff: window.FitRow.overflows(row),
+  }));
 }
