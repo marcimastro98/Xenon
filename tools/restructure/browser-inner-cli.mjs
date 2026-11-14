@@ -7,7 +7,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { windowNameOf } from './browser-inner-plan.mjs';
+import { withConstants } from './browser-inner-judge.mjs';
+import { readWrapper, windowNameOf } from './browser-inner-plan.mjs';
 import { renderSurvey, surveyAll, surveyScript } from './browser-inner-survey.mjs';
 import { readBrowserLedger } from './browser-ledger.mjs';
 import { Refusal } from './extract-plan.mjs';
@@ -18,11 +19,11 @@ export function showInner(root, parser, { flags, rest }) {
   const found = surveyScript(readFileSync(path.join(root, file), 'utf8'), file, parser);
   if (flags.json) { console.log(JSON.stringify(found, null, 1)); return 0; }
   if (!found.wrapped) { console.error(found.why); return 1; }
-  console.log(`${file}: ${found.lines} lines, ${found.all.functions} functions in its wrapper (${found.all.lines} lines). ${found.free.functions} may leave (${found.free.lines} lines).`);
-  for (const row of found.rows) console.log(`${row.stays.length ? 'stays' : 'moves'} ${String(row.lines[0]).padStart(6)}-${String(row.lines[1]).padEnd(6)} ${row.name}${row.stays.length ? `  # ${row.stays[0]}` : ''}`);
+  console.log(`${file}: ${found.lines} lines, ${found.all.functions} functions in its wrapper (${found.all.lines} lines). ${found.free.functions} may leave (${found.free.lines} lines), and ${found.along.functions} constants whose value is written out (${found.along.lines} lines).`);
+  for (const row of found.rows) console.log(`${row.stays.length ? 'stays' : 'moves'} ${String(row.lines[0]).padStart(6)}-${String(row.lines[1]).padEnd(6)} ${row.what === 'const' ? 'const ' : ''}${row.name}${row.stays.length ? `  # ${row.stays[0]}` : ''}`);
   console.log(`Groups that use nothing of each other (each can be a script of its own, \`group:N\` names one):`);
   for (const [at, group] of found.groups.entries()) console.log(`  group:${at + 1}  ${String(group.lines).padStart(4)} lines  ${group.names.join(', ')}`);
-  console.log(`If the wrapper's lets and vars could be shared ${found.ifState.functions} functions (${found.ifState.lines} lines) could leave; if its constants could go along ${found.ifConst.functions} (${found.ifConst.lines}), only written-out values and functions ${found.ifFixed.functions} (${found.ifFixed.lines}); both ${found.ifBoth.functions} (${found.ifBoth.lines}).`);
+  console.log(`If the wrapper's lets and vars could be shared ${found.ifState.functions} functions (${found.ifState.lines} lines) could leave; if every constant could go along ${found.ifConst.functions} (${found.ifConst.lines}); both ${found.ifBoth.functions} (${found.ifBoth.lines}). Without the rule about statements above a constant: ${found.ifEarly.functions} (${found.ifEarly.lines}).`);
   return 0;
 }
 
@@ -36,7 +37,8 @@ export function showSurvey(root, parser, { flags }) {
 
 /**
  * @param {any} parser
- * @param {{ inner: string, to: string, about: string, names: string[], recorded?: string }} job `names`: functions, or `group:N` as `browser inner <script>` numbers them
+ * @param {{ inner: string, to: string, about: string, names: string[], recorded?: string }} job `names`: functions and constants, or `group:N` as
+ *   `browser inner <script>` numbers them. The written-out constants the named functions use go along without being named.
  * @param {(file: string) => string | null} read the files as the move will find them
  * @returns {any} the move for browser-extract.mjs
  */
@@ -50,7 +52,10 @@ export function innerMoveOf(parser, job, read) {
     if (!group) throw new Refusal([`${from} has no ${pick}: \`browser inner ${from}\` lists the groups`]);
     names.push(...group.names);
   }
-  const move = { kind: 'inner', from, file: job.to, about: job.about, names };
+  const shell = readWrapper(read(from) ?? '', from, parser);
+  const all = shell.problems.length ? names : withConstants(shell, names);
+  if (all.length > names.length) console.log(`Going along, constants the named functions use: ${all.slice(names.length).join(', ')}`);
+  const move = { kind: 'inner', from, file: job.to, about: job.about, names: all };
   if (job.recorded) Object.defineProperty(move, 'recorded', { value: JSON.parse(readFileSync(job.recorded, 'utf8')), enumerable: false });
   if (!windowNameOf(from, job.to)) throw new Refusal([`${job.to} must be ${from.replace(/\.js$/, '')}/<what it does>.js in lowercase kebab-case: the name it leaves on window is read off its place`]);
   return move;

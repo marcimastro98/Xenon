@@ -15,11 +15,17 @@
 //     })();
 //
 // No rule here asks for a judgement. A function moves when every name it takes
-// from outside itself is a function moved with it, or a name the old wrapper does
-// not declare (then it is read from the page at the moment of the call, in the new
-// script exactly as in the old one). It stays when it uses anything else the
-// wrapper declares, when anything assigns it again, or when it says
+// from outside itself is a function or a constant moved with it, or a name the old
+// wrapper does not declare (then it is read from the page at the moment of the call,
+// in the new script exactly as in the old one). It stays when it uses anything else
+// the wrapper declares, when anything assigns it again, or when it says
 // `arguments.callee`. A script that says `eval` or `with` is left whole.
+//
+// A `const` of the wrapper goes along when its value is written out
+// (browser-inner-fixed.mjs): the new script declares it in the place it had among
+// the moved lines, and names it in the one object only when code that stays uses it
+// too. The old script then takes it back on the same line as the functions, so a
+// list or an object is one and the same on both sides.
 //
 // A function declaration can be called from the wrapper's first line; a `const`
 // cannot. So the line that takes the functions back stands where the first moved
@@ -29,6 +35,8 @@
 // names, and the new script runs in the same mode (strict or not) as the old one.
 // Pure: text in, text out, or a refusal.
 
+import { createReach, readFixed } from './browser-inner-fixed.mjs';
+import { anchorOf, isFunction, lineOf, mayTravel, ownReasons } from './browser-inner-judge.mjs';
 import { headerOf, MAX_LINES } from './browser-plan.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
@@ -38,6 +46,7 @@ import { lineAt, lineStarts, readTopLevel } from './top-level.mjs';
 export const OPENS = ['(function () {', '(() => {'];
 export const CLOSES = ['})();', '}());'];
 const STATE = new Set(['let', 'var']);
+export { heldFunctions } from './browser-inner-judge.mjs';
 /** A comment line that opens a section of a script (`// ── Painting ──`): it names what follows it there, and stays when the function under it leaves. */
 export const SECTION_TITLE = /^\s*\/\/\s*[─━═=-]{2,}/;
 
@@ -75,13 +84,15 @@ function wordsIn(K, node) {
  * Reads a script that is one wrapper around all its code.
  * @param {string} text @param {string} file @param {any} parser
  * @returns {{ problems: string[], open: number, close: number, indent: string, strictFile: boolean, strictInside: boolean,
- *   records: any[], bindings: Map<string, any>, twice: Set<string>, words: Set<string> }}
+ *   records: any[], bindings: Map<string, any>, twice: Set<string>, words: Set<string>, reach: (record: any) => Set<any> }}
  *   `open` and `close` are the 0-based lines of the wrapper's two lines; a record's line n (1-based, as top-level.mjs
  *   counts) is line `open + n` (0-based) of the file. `words`: eval, with, as the whole script says them.
+ *   A `const` record carries `fixed`, what browser-inner-fixed.mjs reads of its value.
+ *   `reach` answers which statements could reach one while the script loads.
  */
 export function readWrapper(text, file, parser) {
   const { K } = parser;
-  const none = { open: 0, close: 0, indent: '  ', strictFile: false, strictInside: false, records: [], bindings: new Map(), twice: new Set(), words: new Set() };
+  const none = { open: 0, close: 0, indent: '  ', strictFile: false, strictInside: false, records: [], bindings: new Map(), twice: new Set(), words: new Set(), reach: () => new Set() };
   if (text.includes('\r')) return { ...none, problems: [`${file} has Windows line endings: code files are LF here (.gitattributes), fix the checkout first`] };
   const tree = parser.parse(text, file);
   const statements = real(parser, tree.statements);
@@ -118,9 +129,7 @@ export function readWrapper(text, file, parser) {
   const twice = new Set();
   records.forEach((record, index) => {
     record.words = wordsIn(K, nodes[index]);
-    // A constant that is a value written out, or a function under a const: the survey asks what it would free if it could go along.
-    record.fixed = record.kind === 'const' && (record.selfContained || nodes[index].declarationList.declarations.every((made) => made.name.kind === K.Identifier
-      && made.initializer && [K.ArrowFunction, K.FunctionExpression].includes(made.initializer.kind)));
+    record.fixed = record.kind === 'const' ? readFixed(K, nodes[index]) : null;
     for (const name of record.names) {
       if (bindings.has(name)) twice.add(name);
       else bindings.set(name, { name, record, kind: record.kind });
@@ -128,73 +137,7 @@ export function readWrapper(text, file, parser) {
   });
   const firstLine = inside.length ? lines[lineAt(starts, inside[0].getStart(tree))] : '  ';
   return { problems, open, close, indent: /^[ \t]*/.exec(firstLine)[0], strictFile: statements.some((node) => node !== code[0] && isStrict(K, node)),
-    strictInside: isStrict(K, inside[0]), records, bindings, twice, words: new Set(records.flatMap((record) => [...record.words])) };
-}
-
-// Why a function cannot leave on its own account, whatever moves with it. `kind` sorts the reasons for the survey.
-function ownReasons(shell, record, label) {
-  const name = record.names[0];
-  const reasons = [];
-  if (record.sharesLine) reasons.push({ kind: 'other', text: `${label} shares a line with another statement` });
-  if (shell.twice.has(name)) reasons.push({ kind: 'other', text: `${label} is declared twice in the wrapper` });
-  if (shell.records.some((other) => (other.uses.get(name)?.write ?? 0) > 0)) {
-    reasons.push({ kind: 'reassigned', text: `${label} is assigned again in the script: the old script would keep a copy that never changes` });
-  }
-  if (record.words.has('arguments.callee')) reasons.push({ kind: 'other', text: `${label} says arguments.callee` });
-  return reasons;
-}
-
-/**
- * Every function declared in the wrapper, with what keeps it there.
- * @param {ReturnType<typeof readWrapper>} shell
- * @param {{ free?: Set<string>, along?: boolean }} [options] questions asked for the survey, never for a move. `free`: kinds of wrapper
- *   names ('let', 'var', 'const', 'class', 'statement') counted as if a function could take them along; `along`: the constants that
- *   are a value written out or a function are judged like functions, and are in the answer
- * @returns {Map<any, { kind: string, text: string, needs?: string }[]>} per function record its reasons, empty when it may move
- *   together with every function it uses that may move too
- */
-export function heldFunctions(shell, { free = new Set(), along = false } = {}) {
-  const judged = (record) => (record.kind === 'function' && record.names.length === 1) || (along && record.fixed);
-  const functions = shell.records.filter(judged);
-  const why = new Map();
-  for (const record of functions) {
-    const label = `${record.names[0]} (line ${shell.open + record.line[0] + 1})`;
-    const reasons = ownReasons(shell, record, label);
-    for (const name of record.uses.keys()) {
-      const own = shell.bindings.get(name);
-      if (!own || own.record === record || judged(own.record) || free.has(own.kind)) continue;
-      const what = STATE.has(own.kind) ? `a ${own.kind} of the wrapper that changes while the page runs` : `a ${own.kind === 'statement' ? 'name a statement' : own.kind} of the wrapper${own.kind === 'statement' ? ' leaves there' : ''}`;
-      reasons.push({ kind: STATE.has(own.kind) ? 'state' : own.kind === 'const' ? 'const' : 'other', text: `${label} uses ${name}, ${what} (line ${shell.open + own.record.line[0] + 1}), which stays` });
-    }
-    why.set(record, reasons);
-  }
-  // A function that uses a function which stays, stays too.
-  for (let again = true; again;) {
-    again = false;
-    for (const record of functions) {
-      if (why.get(record).length) continue;
-      const held = [...record.uses.keys()].map((name) => shell.bindings.get(name)).find((own) => own && judged(own.record) && own.record !== record && (why.get(own.record)?.length ?? 1) > 0);
-      if (!held) continue;
-      why.get(record).push({ kind: 'needs', needs: held.name, text: `${record.names[0]} (line ${shell.open + record.line[0] + 1}) uses ${held.kind === 'function' ? 'the function ' : ''}${held.name}, which stays` });
-      again = true;
-    }
-  }
-  return why;
-}
-
-// Where the line that takes the functions back can stand: at the first moved function, or above the first
-// statement that could reach a moved function while the script loads.
-function anchorOf(shell, moved, movedSet) {
-  const reaches = new Set(moved);
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const record of shell.records) {
-      if (reaches.has(record)) continue;
-      if ([...record.uses.keys()].some((name) => shell.bindings.has(name) && reaches.has(shell.bindings.get(name).record))) { reaches.add(record); grew = true; }
-    }
-  }
-  const user = shell.records.find((record) => !movedSet.has(record) && record.kind !== 'function' && reaches.has(record));
-  return Math.min(moved[0].index, user ? user.index : shell.records.length);
+    strictInside: isStrict(K, inside[0]), records, bindings, twice, words: new Set(records.flatMap((record) => [...record.words])), reach: createReach(records, bindings) };
 }
 
 /**
@@ -202,7 +145,7 @@ function anchorOf(shell, moved, movedSet) {
  * @param {string} job.text the old script @param {any} job.parser from parser.mjs
  * @param {string} job.source repo-relative old script @param {string} job.target repo-relative new script
  * @param {string} job.about one sentence saying what the new script does: its first comment
- * @param {string[]} job.names functions declared in the wrapper
+ * @param {string[]} job.names functions and written-out constants declared in the wrapper
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, targetText: string, moved: string[], gives: string[], name: string, ranges: number[][],
  *   glue: { at: number, lines: string[] } }} `ranges` are 1-based lines of the old script, `glue.at` the 0-based line of the
@@ -218,23 +161,24 @@ export function planInnerScript({ text, parser, source, target, about, names, ma
   for (const word of ['eval', 'with']) if (shell.words.has(word)) reasons.push(`${source} says \`${word}\`, which reads names nobody can list: the script stays whole`);
   if (name && new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(text)) reasons.push(`${name} is a word ${source} already uses: give the new script another name`);
   const declared = (wanted) => shell.records.filter((record) => record.names.includes(wanted));
-  const wrong = names.filter((wanted) => declared(wanted).length !== 1 || declared(wanted)[0].kind !== 'function' || declared(wanted)[0].names.length !== 1);
-  reasons.push(...wrong.map((wanted) => `${wanted} is not a function declared once in the wrapper of ${source}`));
+  const wrong = names.filter((wanted) => declared(wanted).length !== 1 || !(isFunction(declared(wanted)[0]) || declared(wanted)[0].kind === 'const'));
+  reasons.push(...wrong.map((wanted) => `${wanted} is not a function or a constant declared once in the wrapper of ${source}`));
   if (reasons.length) throw new Refusal(reasons);
 
   const moved = [...new Set(names.map((wanted) => shell.bindings.get(wanted).record))].sort((a, b) => a.index - b.index);
   const movedSet = new Set(moved);
-  const movedNames = moved.map((record) => record.names[0]);
+  const movedNames = moved.flatMap((record) => record.names);
   for (const record of moved) {
-    const label = `${record.names[0]} (${source}:${shell.open + record.line[0] + 1})`;
+    const label = `${record.names.join(', ')} (${source}:${lineOf(shell, record)})`;
     reasons.push(...ownReasons(shell, record, label).map((reason) => reason.text));
     for (const used of record.uses.keys()) {
       const own = shell.bindings.get(used);
       if (!own || movedSet.has(own.record)) continue;
       const what = own.kind === 'function' ? 'a function of the wrapper that stays: move it too, or leave both'
         : STATE.has(own.kind) ? `a ${own.kind} of the wrapper that changes while the page runs: the new script could not follow it`
-          : `a ${own.kind === 'statement' ? 'name a statement of the wrapper leaves there' : `${own.kind} of the wrapper`} that stays: the new script would not have it`;
-      reasons.push(`${label} uses ${used} (line ${shell.open + own.record.line[0] + 1}), ${what}`);
+          : mayTravel(own.record) ? 'a constant of the wrapper that stays, and its value is written out: name it too, or leave both'
+            : `a ${own.kind === 'statement' ? 'name a statement of the wrapper leaves there' : `${own.kind} of the wrapper`} that stays: the new script would not have it`;
+      reasons.push(`${label} uses ${used} (line ${lineOf(shell, own.record)}), ${what}`);
     }
   }
   const staying = shell.records.filter((record) => !movedSet.has(record));
@@ -248,7 +192,7 @@ export function planInnerScript({ text, parser, source, target, about, names, ma
   // A function takes the comment above it along, but not the title of the section it happened to open.
   const topOf = (record) => { let top = record.range[0]; while (top < record.line[0] && SECTION_TITLE.test(lines[shell.open + top])) top += 1; return top; };
   const rangeLines = (record) => lines.slice(shell.open + topOf(record), shell.open + record.range[1] + 1);
-  const anchor = shell.records[anchorOf(shell, moved, movedSet)];
+  const anchor = shell.records[anchorOf(shell, moved)];
   const glue = wrapNames(gives, 'const {', `} = window.${name};`).map((line) => shell.indent + line);
   if (anchor && (!movedSet.has(anchor) || blank(rangeLines(anchor).at(-1)))) glue.push('');
   const glueLine = anchor ? shell.open + (movedSet.has(anchor) ? topOf(anchor) : anchor.range[0]) : shell.close;
@@ -263,15 +207,17 @@ export function planInnerScript({ text, parser, source, target, about, names, ma
   // The new script: first comment, a wrapper in the old script's mode, the moved text, the one name on window.
   const body = [...headerOf(about, shell.strictFile).split('\n').slice(0, -1), OPENS[1]];
   if (shell.strictInside) body.push(`${shell.indent}'use strict';`, '');
+  // Two constants that stood on lines next to each other stay next to each other.
+  const touches = (record, before) => record.kind === 'const' && before.kind === 'const' && before.line[1] + 1 === topOf(record);
   moved.forEach((record, i) => {
     const piece = rangeLines(record);
     while (piece.length && blank(piece.at(-1))) piece.pop();
-    if (i > 0) body.push('');
+    if (i > 0 && !touches(record, moved[i - 1])) body.push('');
     body.push(...piece);
   });
   body.push('', ...wrapNames(gives, `window.${name} = {`, '};').map((line) => shell.indent + line), CLOSES[0]);
   if (body.length > maxLines) {
-    throw new Refusal([`${target} would be ${body.length} lines, the limit for a new file is ${maxLines}: move fewer functions per file, split by what they do`]);
+    throw new Refusal([`${target} would be ${body.length} lines, the limit for a new file is ${maxLines}: move less per file, split by what the code does`]);
   }
   return { newSource: kept.join('\n'), targetText: `${body.join('\n')}\n`, moved: movedNames, gives, name,
     ranges: moved.map((record) => [shell.open + topOf(record) + 1, shell.open + record.range[1] + 1]), glue: { at, lines: glue } };

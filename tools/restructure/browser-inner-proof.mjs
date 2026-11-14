@@ -3,10 +3,12 @@
 // the places it says it wrote to.
 //
 // The same reading is the standing check (`browser verify`, the tests): a script made
-// this way still runs nothing while it loads but the one line that leaves its name on
-// `window`, its functions still take nothing from the wrapper they left, and the old
-// script still takes them back before anything of it can call one.
+// this way still runs nothing while it loads but constants whose value is written out
+// and the one line that leaves its name on `window`, its code still takes nothing from
+// the wrapper it left, and the old script still takes the names back before anything
+// of it can reach one.
 
+import { isFunction, lineOf, ownReasons } from './browser-inner-judge.mjs';
 import { CLOSES, OPENS, readWrapper, SECTION_TITLE, windowNameOf } from './browser-inner-plan.mjs';
 import { MAX_LINES } from './browser-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
@@ -24,10 +26,11 @@ function withoutBlankEnd(lines) {
 }
 
 /**
- * Reads a script made of functions taken out of a wrapper.
+ * Reads a script made of functions and constants taken out of a wrapper.
  * @param {string} text @param {string} file @param {string} name the name it must leave on window @param {any} parser
  * @returns {{ problems: string[], shell: ReturnType<typeof readWrapper>, functions: Map<string, any>, gives: string[] }}
- *   `functions`: its function declarations by name, `gives`: the names in its one object
+ *   `functions`: what it declares by name, function declarations and written-out constants (a constant of two names is there twice),
+ *   `gives`: the names in its one object
  */
 export function readInnerScript(text, file, name, parser) {
   const shell = readWrapper(text, file, parser);
@@ -52,13 +55,16 @@ export function readInnerScript(text, file, name, parser) {
     problems.push(`${file} must end with \`window.${name} = { ... };\` naming its functions as they are, and nothing else`);
   }
   for (const record of records.slice(0, -1)) {
-    if (record.kind === 'function' && record.names.length === 1 && !record.sharesLine) { functions.set(record.names[0], record); continue; }
-    problems.push(`${file}:${shell.open + record.line[0] + 1} is not a function declaration: a script made of moved functions runs nothing while it loads`);
+    if (!isFunction(record) && record.kind !== 'const') {
+      problems.push(`${file}:${lineOf(shell, record)} is not a function declaration or a constant: a script made of moved code runs nothing while it loads`);
+      continue;
+    }
+    for (const declared of record.names) functions.set(declared, record);
+    // A constant is judged in its new place as it was in the old one: a value written out, of names declared above it here.
+    problems.push(...ownReasons(shell, record, `${file}: ${record.names.join(', ')}`).map((reason) => reason.text));
   }
-  for (const twice of shell.twice) problems.push(`${file} declares ${twice} twice`);
-  for (const given of gives) if (!functions.has(given)) problems.push(`${file} leaves ${given} on window.${name}, which is not one of its functions`);
+  for (const given of gives) if (!functions.has(given)) problems.push(`${file} leaves ${given} on window.${name}, which is not one of its functions or constants`);
   if (new Set(gives).size !== gives.length) problems.push(`${file} names a function twice in window.${name}`);
-  for (const [fn, record] of functions) if (record.words.has('arguments.callee')) problems.push(`${file}: ${fn} says arguments.callee`);
   for (const word of ['eval', 'with']) if (shell.words.has(word)) problems.push(`${file} says \`${word}\``);
   return { problems, shell, functions, gives };
 }
@@ -120,7 +126,7 @@ function pairProblems({ now, text, source, target, made, others }) {
       else if (others.has(used)) problems.push(`${target}: ${fn} uses ${used}, a function of ${others.get(used)}: out of the wrapper nothing has that name`);
     }
     if (!takes.includes(fn) && now.records.some((record) => record.uses.has(fn))) problems.push(`${source} still uses ${fn}, which it does not take back from ${target}`);
-    if (now.records.some((entry) => (entry.uses.get(fn)?.write ?? 0) > 0)) problems.push(`${source} assigns ${fn} again: the function in ${target} would not change with it`);
+    if (now.records.some((entry) => (entry.uses.get(fn)?.write ?? 0) > 0)) problems.push(`${source} assigns ${fn} again: the ${isFunction(record) ? 'function' : 'constant'} in ${target} would not change with it`);
   }
   problems.push(...earlyUses(now, taker, source));
   return problems;
@@ -156,11 +162,16 @@ export function proveInnerMove({ before, after, made, plan, parser, source, targ
   const objectLines = wrapNames(script.gives, `window.${name} = {`, '};').length;
   if (!same(body.slice(script.shell.strictInside ? 1 : 0, body.length - objectLines), movedLines)) problems.push(`${target} does not hold the moved lines unchanged and in order`);
 
-  // 2. Each function of the new script was a function of the wrapper, declared once, never assigned again, and the lines taken are its lines.
+  // 2. Each function or constant of the new script was one of the wrapper, declared once, never assigned again, and the lines taken are its lines.
+  //    A constant was a value written out there too, and nothing above its line could reach it while the script loaded.
   const taken = new Set();
   for (const [fn, record] of script.functions) {
     const own = was.bindings.get(fn);
-    if (own?.kind !== 'function' || was.twice.has(fn) || own.record.sharesLine) { problems.push(`${fn} was not a function declared once, on lines of its own, in the wrapper of ${source}`); continue; }
+    if (own?.kind !== record.kind || was.twice.has(fn) || own.record.sharesLine || own.record.names.join() !== record.names.join()) {
+      problems.push(`${fn} was not a ${isFunction(record) ? 'function' : 'constant'} declared once, on lines of its own, in the wrapper of ${source}`);
+      continue;
+    }
+    if (record.kind === 'const' && fn === record.names[0]) problems.push(...ownReasons(was, own.record, `${record.names.join(', ')} (${source}:${lineOf(was, own.record)})`).map((reason) => reason.text));
     if (!same(withoutBlankEnd(codeOf(old, was, own.record)), withoutBlankEnd(codeOf(fresh, script.shell, record)))) problems.push(`${fn} is not the same text in ${target} as it was in ${source}`);
     // From the comment above the function to the empty lines after it; only the title of a section may stay behind.
     const [first, code, end] = [own.record.range[0], own.record.line[0], own.record.range[1]].map((line) => was.open + line + 1);
@@ -173,7 +184,8 @@ export function proveInnerMove({ before, after, made, plan, parser, source, targ
     }
     taken.add(fn);
   }
-  if (plan.ranges.length !== script.functions.size) problems.push(`${plan.ranges.length} runs of lines left ${source} and ${target} holds ${script.functions.size} functions`);
+  const held = new Set(script.functions.values()).size;
+  if (plan.ranges.length !== held) problems.push(`${plan.ranges.length} runs of lines left ${source} and ${target} holds ${held} functions and constants`);
   for (const word of ['eval', 'with']) if (was.words.has(word)) problems.push(`${source} says \`${word}\`, which reads names nobody can list`);
   if (new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(before)) problems.push(`${source} already had ${name} as a word`);
   if (was.strictFile !== now.strictFile || was.strictInside !== now.strictInside) problems.push(`${source} changed mode (strict or not)`);
@@ -181,7 +193,7 @@ export function proveInnerMove({ before, after, made, plan, parser, source, targ
   // 3. The other statements of the wrapper are the same statements in the same order.
   const kept = (shell, skip) => shell.records.filter((record) => !skip(record)).map((record) => `${record.kind} ${record.names.join(',')}`);
   const takers = takersOf(now, after, name);
-  if (!same(kept(was, (record) => record.kind === 'function' && taken.has(record.names[0])), kept(now, (record) => takers.some((taker) => taker.record === record)))) {
+  if (!same(kept(was, (record) => (isFunction(record) || record.kind === 'const') && record.names.every((declared) => taken.has(declared))), kept(now, (record) => takers.some((taker) => taker.record === record)))) {
     problems.push(`the wrapper of ${source} does not hold the same statements in the same order as before`);
   }
 

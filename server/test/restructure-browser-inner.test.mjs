@@ -1,7 +1,8 @@
 // Functions taken out of a browser script's wrapper (tools/restructure/browser-inner-plan.mjs):
 // they go unchanged into a script that loads right before, which leaves them on one name of
 // `window`; the old script takes them back on one line. Every rule that lets a function
-// leave, and every reason that keeps one where it is.
+// leave, and every reason that keeps one where it is. The constants that go along have
+// their own file, restructure-browser-inner-constants.test.mjs.
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -99,11 +100,12 @@ test('a function takes the comment above it along, and leaves the title of the s
 test('a function that uses something the wrapper keeps stays, with the line that holds it', (t) => {
   if (!parser) return t.skip(SKIP);
   assert.match(why(SOURCE, ['bump']), /bump \(server\/js\/leaf\.js:20\) uses count \(line 5\), a let of the wrapper that changes while the page runs: the new script could not follow it/);
-  assert.match(why(SOURCE, ['bump']), /uses LIMIT \(line 4\), a const of the wrapper that stays: the new script would not have it/);
+  assert.match(why(SOURCE, ['bump']), /uses LIMIT \(line 4\), a constant of the wrapper that stays, and its value is written out: name it too, or leave both/);
   assert.match(why(SOURCE, ['bump']), /uses keyOf \(line 8\), a function of the wrapper that stays: move it too, or leave both/);
   assert.match(why(SOURCE, ['twice']), /twice .* uses double \(line 16\), a function of the wrapper that stays/);
   const more = (lines, name = 'probe') => why(script(TOP, lines, KEYS, REST.slice(0, -3), `  window.Leaf = { bump, keyOf, ${name} };`, '})();', ''), [name]);
   assert.match(more(['  var seen = 0;', '  function probe() { return seen; }', '  let count = 0;', '  const LIMIT = 3;']), /uses seen \(line 4\), a var of the wrapper that changes/);
+  assert.match(more(["  const box = document.querySelector('.box');", '  function probe() { return box; }', '  let count = 0;', '  const LIMIT = 3;']), /uses box \(line 4\), a const of the wrapper that stays: the new script would not have it/);
   assert.match(more(['  class Box {}', '  function probe() { return new Box(); }', '  let count = 0;', '  const LIMIT = 3;']), /uses Box \(line 4\), a class of the wrapper that stays/);
   assert.match(more(['  if (window.old) { var legacy = 1; }', '  function probe() { return legacy; }', '  let count = 0;', '  const LIMIT = 3;']),
     /uses legacy \(line 4\), a name a statement of the wrapper leaves there that stays/);
@@ -117,9 +119,9 @@ test('a function that is assigned again, shares a line, says arguments.callee or
   assert.match(why(withLine('  if (window.old) keyOf = () => 1;')), /keyOf \(server\/js\/leaf\.js:8\) is assigned again in the script: the old script would keep a copy that never changes/);
   assert.match(why(script(TOP, STATE, '  function one() { return 1; } function two() { return one(); }', REST.slice(0, -3), '  window.Leaf = { bump, two };', '})();', ''), ['one', 'two']), /one .* shares a line with another statement/);
   assert.match(why(withLine('  function again() { return arguments.callee; }\n  window.again = again;'), ['again']), /again .* says arguments\.callee/);
-  assert.match(why(withLine('  function keyOf() { return 2; }'), ['keyOf']), /keyOf is not a function declared once in the wrapper/);
-  assert.match(why(SOURCE, ['LIMIT']), /LIMIT is not a function declared once in the wrapper/);
-  assert.match(why(SOURCE, ['nobody']), /nobody is not a function declared once/);
+  assert.match(why(withLine('  function keyOf() { return 2; }'), ['keyOf']), /keyOf is not a function or a constant declared once in the wrapper/);
+  assert.match(why(SOURCE, ['count']), /count is not a function or a constant declared once in the wrapper/);
+  assert.match(why(SOURCE, ['nobody']), /nobody is not a function or a constant declared once/);
 });
 
 test('a script that says eval or with stays whole, and so does one that is not a plain wrapper', (t) => {

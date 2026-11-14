@@ -45,8 +45,9 @@ test('the new script may hold functions and the one line that names them on wind
   if (!parser) return t.skip(SKIP);
   const plan = planOf();
   const made = (from, to) => proven(SOURCE, plan, { made: swap(plan.targetText, from, to) });
-  assert.match(made('  window.LeafKeys', "  document.title = 'x';\n  window.LeafKeys"), /keys\.js:18 is not a function declaration: a script made of moved functions runs nothing while it loads/);
-  assert.match(made('  window.LeafKeys', '  const cache = new Map();\n  window.LeafKeys'), /keys\.js:18 is not a function declaration/);
+  assert.match(made('  window.LeafKeys', "  document.title = 'x';\n  window.LeafKeys"), /keys\.js:18 is not a function declaration or a constant: a script made of moved code runs nothing while it loads/);
+  assert.match(made('  window.LeafKeys', "  const box = document.querySelector('.box');\n  window.LeafKeys"), /keys\.js: box is not a value that is the same whenever it is worked out: it calls `document\.querySelector\(\)`/);
+  assert.match(made('  window.LeafKeys', '  const cache = new Map();\n  window.LeafKeys'), /does not hold the moved lines unchanged and in order[\s\S]*cache was not a constant declared once, on lines of its own, in the wrapper of server\/js\/leaf\.js/);
   assert.match(made('{ keyOf, twice };', '{ keyOf: twice, twice };'), /must end with `window\.LeafKeys = \{ \.\.\. \};` naming its functions as they are, and nothing else/);
   assert.match(made('{ keyOf, twice };', '{ keyOf, twice, ...window.Other };'), /must end with `window\.LeafKeys/);
   assert.match(made('{ keyOf, twice };', '{ keyOf, twice, bump };'), /leaves bump on window\.LeafKeys, which is not one of its functions/);
@@ -156,24 +157,28 @@ test('the survey counts what may leave, what keeps the rest, and what would free
   if (!parser) return t.skip(SKIP);
   const found = surveyScript(SOURCE, FILE, parser);
   assert.deepEqual([found.all, found.free], [{ functions: 4, lines: 18 }, { functions: 3, lines: 13 }]);
-  assert.deepEqual(found.held, { reassigned: { functions: 0, lines: 0 }, state: { functions: 1, lines: 5 }, const: { functions: 0, lines: 0 }, other: { functions: 0, lines: 0 }, needs: { functions: 0, lines: 0 } });
-  assert.deepEqual([found.ifState.functions, found.ifConst.functions, found.ifFixed.functions, found.ifBoth.functions], [3, 3, 3, 4], 'bump needs the let and the constant both');
-  assert.deepEqual(found.groups, [{ lines: 5, names: ['keyOf'] }, { lines: 8, names: ['twice', 'double'] }]);
-  assert.deepEqual(found.rows.find((row) => row.name === 'bump'), { name: 'bump', lines: [20, 24], kind: 'state',
-    stays: ['bump (line 20) uses count, a let of the wrapper that changes while the page runs (line 5), which stays', 'bump (line 20) uses LIMIT, a const of the wrapper (line 4), which stays'] });
+  const none = { functions: 0, lines: 0 };
+  assert.deepEqual(found.held, { reassigned: none, state: { functions: 1, lines: 5 }, const: none, early: none, other: none, needs: none });
+  assert.deepEqual(found.along, { functions: 1, lines: 1 }, 'LIMIT is a number written out: it may go with whoever uses it');
+  assert.deepEqual([found.ifState.functions, found.ifConst.functions, found.ifBoth.functions, found.ifEarly.functions], [4, 3, 4, 3], 'bump needs only the let now');
+  assert.deepEqual(found.groups, [{ lines: 1, functions: 0, names: ['LIMIT'] }, { lines: 5, functions: 1, names: ['keyOf'] }, { lines: 8, functions: 2, names: ['twice', 'double'] }]);
+  assert.deepEqual(found.rows.find((row) => row.name === 'bump'), { name: 'bump', what: 'function', lines: [20, 24], kind: 'state',
+    stays: ['bump (line 20) uses count, a let of the wrapper that changes while the page runs (line 5), which stays'] });
   const more = SOURCE.replace('  window.Leaf = {', "  const label = (n) => `#${n}`;\n  const box = document.querySelector('.box');\n  function tag(n) { return label(n); }\n  function show() { box.textContent = tag(1); }\n"
     + '  function later() { return show(); }\n  function swap() { keyOf = null; }\n  window.Leaf = {');
   const wide = surveyScript(more, FILE, parser);
-  assert.deepEqual(Object.fromEntries(wide.rows.map((row) => [row.name, row.kind])), { keyOf: 'reassigned', twice: null, double: null, bump: 'state', tag: 'const', show: 'const', later: 'needs', swap: 'needs' });
-  assert.equal(wide.ifConst.functions - wide.free.functions, 3, 'tag, show and later with any constant');
-  assert.equal(wide.ifFixed.functions - wide.free.functions, 1, 'only tag when the constant must be a function or a written-out value: box is read from the page');
+  assert.deepEqual(Object.fromEntries(wide.rows.map((row) => [row.name, row.kind])), { LIMIT: null, keyOf: 'reassigned', twice: null, double: null, bump: 'state', label: null, tag: null, show: 'const', later: 'needs', swap: 'needs' },
+    'tag goes with the arrow it uses; box is read from the page, so show stays');
+  assert.deepEqual(wide.rows.filter((row) => row.what === 'const').map((row) => row.name), ['LIMIT', 'label']);
+  assert.equal(wide.ifConst.functions - wide.free.functions, 2, 'show and later with any constant');
   const shell = readWrapper(more, FILE, parser);
-  assert.deepEqual(groupsOf([...heldFunctions(shell)].filter(([, why]) => why.length === 0).map(([record]) => record)).map((group) => group.map((record) => record.names[0])), [['twice', 'double']]);
+  assert.deepEqual(groupsOf([...heldFunctions(shell)].filter(([, why]) => why.length === 0).map(([record]) => record)).map((group) => group.map((record) => record.names[0])), [['LIMIT'], ['twice', 'double'], ['label', 'tag']]);
   assert.equal(surveyScript('function a() {}\n', FILE, parser).wrapped, false);
   const whole = surveyScript(SOURCE.replace('  window.Leaf = {', '  window.run = (code) => eval(code);\n  window.Leaf = {'), FILE, parser);
   assert.deepEqual([whole.free.functions, whole.whole], [0, ['eval']], 'a script that says eval stays whole');
   const text = renderSurvey({ scripts: [found, wide, surveyScript('function a() {}\n', 'server/js/flat.js', parser)] }, true).join('\n');
   assert.match(text, /2 scripts are one plain wrapper: 12 functions/);
-  assert.match(text, /Can leave today: 5 functions \(21 lines\)\./);
+  assert.match(text, /Can leave today: 6 functions \(22 lines\), and 3 constants whose value is written out \(3 lines\)\./);
+  assert.match(text, /Without the rule that keeps a constant a statement above it could reach: 6 functions/);
   assert.match(text, /Held by code that runs while the script loads: none\./);
 });
