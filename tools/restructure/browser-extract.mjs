@@ -19,7 +19,7 @@ import { applyMove } from './browser-moves.mjs';
 import { nodeKeeps, nodeLoadersOf } from './browser-node-loads.mjs';
 import { wrapperOf } from './browser-unwrap.mjs';
 import { listPages } from './browser-pages.mjs';
-import { builtPages } from './browser-state.mjs';
+import { builtPages, pageHelperState } from './browser-state.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { frozenTest, ownersOf } from './target-rules.mjs';
 import { syntaxProblems } from './verify.mjs';
@@ -144,7 +144,10 @@ export function perform({ root, parser, move, dryRun = false, plan = null }) {
   }
   if (reasons.length) throw new Refusal(reasons);
   const { files, made, record, notes = [] } = applyMove(tree, move, { parser, pages: listPages(root), earlier: ledger.moves });
-  const lines = Object.fromEntries([...files].map(([file, text]) => [file, text.split('\n').length - 1]));
+  // A script that takes a helper of the page under another name needs it there on every page that loads the script it left.
+  const unproven = move.kind === 'inner' ? pageHelperState(root, parser, [{ source: move.from, text: files.get(move.file) }]) : [];
+  if (unproven.length) throw new Refusal(unproven);
+  const lines =Object.fromEntries([...files].map(([file, text]) => [file, text.split('\n').length - 1]));
   if (dryRun) {
     if (plan) { for (const [file, text] of files) plan.texts.set(file, text); plan.moves.push(record); }
     return { record, made, lines, notes };

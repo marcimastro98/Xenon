@@ -168,7 +168,7 @@ test('the survey counts what may leave, what keeps the rest, and what would free
   const found = surveyScript(SOURCE, FILE, parser);
   assert.deepEqual([found.all, found.free], [{ functions: 4, lines: 18 }, { functions: 3, lines: 13 }]);
   const none = { functions: 0, lines: 0 };
-  assert.deepEqual(found.held, { reassigned: none, state: { functions: 1, lines: 5 }, const: none, early: none, other: none, needs: none });
+  assert.deepEqual(found.held, { reassigned: none, state: { functions: 1, lines: 5 }, const: none, early: none, decides: none, other: none, needs: none });
   assert.deepEqual(found.along, { functions: 1, lines: 1 }, 'LIMIT is a number written out: it may go with whoever uses it');
   assert.deepEqual([found.ifState.functions, found.ifConst.functions, found.ifBoth.functions, found.ifEarly.functions], [4, 3, 4, 3], 'bump needs only the let now');
   assert.deepEqual(found.groups, [{ lines: 1, functions: 0, names: ['LIMIT'] }, { lines: 5, functions: 1, names: ['keyOf'] }, { lines: 8, functions: 2, names: ['twice', 'double'] }]);

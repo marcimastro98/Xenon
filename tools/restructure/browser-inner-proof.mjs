@@ -13,6 +13,7 @@ import { isFunction, lineOf, ownReasons } from './browser-inner-judge.mjs';
 import { CLOSES, OPENS, readWrapper, SECTION_TITLE, windowNameOf } from './browser-inner-plan.mjs';
 import { kindsIn, markTaken, takeLines, takeText } from './browser-inner-takes.mjs';
 import { MAX_LINES } from './browser-plan.mjs';
+import { movedBeforeRule } from './browser-page-helpers.mjs';
 import { wrapNames } from './module-requires.mjs';
 
 const PLAIN_NAME = /^[A-Za-z_$][\w$]*$/;
@@ -71,7 +72,7 @@ export function readInnerScript(text, file, name, parser, known = new Map()) {
     }
     for (const declared of record.names) functions.set(declared, record);
     // A constant is judged in its new place as it was in the old one: a value written out, of names declared above it here.
-    problems.push(...ownReasons(shell, record, `${file}: ${record.names.join(', ')}`).map((reason) => reason.text));
+    problems.push(...ownReasons(shell, record, `${file}: ${record.names.join(', ')}`, { decides: !movedBeforeRule(file, record.names) }).map((reason) => reason.text));
   }
   for (const given of gives) if (!functions.has(given)) problems.push(`${file} leaves ${given} on window.${name}, which is not one of its functions or constants`);
   if (new Set(gives).size !== gives.length) problems.push(`${file} names a function twice in window.${name}`);
@@ -205,7 +206,7 @@ export function proveInnerMove({ before, after, made, plan, parser, source, targ
       problems.push(`${fn} was not a ${isFunction(record) ? 'function' : 'constant'} declared once, on lines of its own, in the wrapper of ${source}`);
       continue;
     }
-    if (record.kind === 'const' && fn === record.names[0]) problems.push(...ownReasons(was, own.record, `${record.names.join(', ')} (${source}:${lineOf(was, own.record)})`).map((reason) => reason.text));
+    if (record.kind === 'const' && fn === record.names[0]) problems.push(...ownReasons(was, own.record, `${record.names.join(', ')} (${source}:${lineOf(was, own.record)})`, { decides: !movedBeforeRule(target, record.names) }).map((reason) => reason.text));
     if (!same(withoutBlankEnd(codeOf(old, was, own.record)), withoutBlankEnd(codeOf(fresh, script.shell, record)))) problems.push(`${fn} is not the same text in ${target} as it was in ${source}`);
     // From the comment above the function to the empty lines after it; only the title of a section may stay behind.
     const [first, code, end] = [own.record.range[0], own.record.line[0], own.record.range[1]].map((line) => was.open + line + 1);

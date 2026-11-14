@@ -7,8 +7,10 @@
 // while the script loads is an error today. After a move the line that takes the names
 // back stands higher, and the error would be gone. So such a constant stays.
 
+import { decisionReasons } from './browser-inner-decides.mjs';
 import { kindOfName } from './browser-inner-fixed.mjs';
 import { takenReadReasons } from './browser-inner-takes.mjs';
+import { helperOf, PAGE_HELPERS } from './browser-page-helpers.mjs';
 
 const STATE = new Set(['let', 'var']);
 
@@ -24,6 +26,8 @@ function readReasons(shell, record, label) {
   const reasons = [];
   for (const { name, how, by } of record.fixed.reads) {
     const own = shell.bindings.get(name);
+    // A helper of the page on the list is the same function at any moment (browser-page-helpers.mjs).
+    if (!own && how === 'value' && PAGE_HELPERS.has(name)) continue;
     if (!own) { reasons.push({ kind: 'const', text: `${label} reads ${name} while the script loads, a name of the page: it could be another value when read earlier` }); continue; }
     if (shell.taken.has(name)) { reasons.push(...takenReadReasons(shell, record, { name, how }, label, (other) => lineOf(shell, other)).map((text) => ({ kind: 'const', text }))); continue; }
     // `const A = 1, B = A;` gives A its value before B asks for it.
@@ -47,10 +51,11 @@ function readReasons(shell, record, label) {
 /**
  * Why a function or a constant cannot leave on its own account, whatever moves with it.
  * @param {any} shell from readWrapper @param {any} record @param {string} label how the reasons name it
- * @param {{ early?: boolean }} [ask] `early: false` leaves out the statements above a constant that could reach it (the survey asks what that rule costs)
+ * @param {{ early?: boolean, decides?: boolean }} [ask] `early: false` leaves out the statements above a constant that could reach it, `decides: false`
+ *   the decisions that stay in their script (the survey asks what each rule costs)
  * @returns {{ kind: string, text: string }[]} `kind` sorts the reasons for the survey
  */
-export function ownReasons(shell, record, label, { early = true } = {}) {
+export function ownReasons(shell, record, label, { early = true, decides = true } = {}) {
   const reasons = [];
   if (record.sharesLine) reasons.push({ kind: 'other', text: `${label} shares a line with another statement` });
   if (record.names.some((name) => shell.twice.has(name))) reasons.push({ kind: 'other', text: `${label} is declared twice in the wrapper` });
@@ -59,6 +64,7 @@ export function ownReasons(shell, record, label, { early = true } = {}) {
       : `${label} is assigned to in the script: a constant cannot be, and the error would move with it` });
   }
   if (record.words.has('arguments.callee')) reasons.push({ kind: 'other', text: `${label} says arguments.callee` });
+  if (decides) reasons.push(...decisionReasons(record, label, (line) => shell.open + line + 1, (name) => helperOf(shell, name)).map((text) => ({ kind: 'decides', text })));
   if (record.kind !== 'const') return reasons;
   if (!record.fixed) return reasons;
   reasons.push(...record.fixed.reasons.map((reason) => ({ kind: 'const', text: `${label} is not a value that is the same whenever it is worked out: ${reason}` })));
@@ -77,7 +83,7 @@ export function ownReasons(shell, record, label, { early = true } = {}) {
  * @param {any} shell from readWrapper
  * @param {{ free?: Set<string> }} [options] questions asked for the survey, never for a move. `free`: kinds of wrapper names
  *   ('let', 'var', 'const', 'class', 'statement') counted as if a function could take them along; 'early' leaves out the rule about
- *   statements above a constant
+ *   statements above a constant, 'decides' the rule that keeps a decision in its script
  * @returns {Map<any, { kind: string, text: string, needs?: string }[]>} per record its reasons, empty when it may move
  *   together with everything it uses that may move too
  */
@@ -88,7 +94,7 @@ export function heldFunctions(shell, { free = new Set() } = {}) {
   const why = new Map();
   for (const record of judged) {
     const label = `${record.names.join(', ')} (line ${lineOf(shell, record)})`;
-    const reasons = ownReasons(shell, record, label, { early: !free.has('early') });
+    const reasons = ownReasons(shell, record, label, { early: !free.has('early'), decides: !free.has('decides') });
     for (const name of record.uses.keys()) {
       const own = shell.bindings.get(name);
       if (!own || own.record === record || travels(own.record) || free.has(own.kind) || shell.taken.has(name)) continue;

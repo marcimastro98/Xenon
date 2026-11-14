@@ -11,14 +11,16 @@ import path from 'node:path';
 import { heldFunctions, isFunction } from './browser-inner-judge.mjs';
 import { readWrapperWith } from './browser-inner-plan.mjs';
 import { innerFilesOf } from './browser-ledger.mjs';
+import { helpersIn } from './browser-page-helpers.mjs';
 
 const OURS = /^server\/(?:js|components)\/.+\.js$/;
 const VENDOR = /(^|\/)vendor\//;
 const BIG = 300;
 // The first reason of a function decides where it is counted; a function that only waits for another one comes last.
-const ORDER = ['reassigned', 'state', 'const', 'early', 'other', 'needs'];
+const ORDER = ['reassigned', 'state', 'const', 'early', 'decides', 'other', 'needs'];
 export const HOLDS = { reassigned: 'assigned again', state: 'use a let or var of the wrapper', const: 'use a const of the wrapper that cannot go along',
   early: 'are a constant a statement above it could reach while the script loads',
+  decides: 'hold a decision about markup, an address, an attribute or a style, which stays in its script',
   other: 'use a class or another name of the wrapper, or cannot be read alone', needs: 'only use a function that stays' };
 
 const sizeOf = (records) => records.reduce((sum, record) => sum + record.range[1] - record.range[0] + 1, 0);
@@ -47,8 +49,10 @@ export function groupsOf(free) {
  * @param {string} text @param {string} file @param {any} parser
  * @param {{ file: string, text: string }[]} [earlier] the scripts made of its wrapper before, in load order: what it takes back from them may be taken again
  * @returns {any} `{ file, lines, wrapped: false, why }` or `{ file, lines, wrapped: true, all, free, along, held: { kind: tally }, ifState, ifConst, ifBoth,
- *   ifEarly, rows }` where a tally is `{ functions, lines }` and counts functions; `along` counts the constants that may leave; `ifEarly`
- *   is what would leave without the rule about statements above a constant. `rows` has one entry per function and per constant whose
+ *   ifEarly, ifDecides, decided, helpers, rows }` where a tally is `{ functions, lines }` and counts functions; `along` counts the constants that may leave; `ifEarly`
+ *   is what would leave without the rule about statements above a constant, `ifDecides` without the rule that keeps a decision in its script; `decided`
+ *   counts the functions that hold a decision, whatever else keeps them; `helpers` lists the names proven to write what they are handed as text:
+ *   `{ name, of, writes }`, `of` the helper of the page the name stands for or `window.<Name>` it is taken from, null for a function of the wrapper. `rows` has one entry per function and per constant whose
  *   value is written out: `{ name, what: 'function' | 'const', lines: [from, to], stays: string[], kind }`
  */
 export function surveyScript(text, file, parser, earlier = []) {
@@ -63,10 +67,13 @@ export function surveyScript(text, file, parser, earlier = []) {
   const free = whole.length ? [] : judged.filter((record) => why.get(record).length === 0);
   const freeIf = (kinds) => { const asked = heldFunctions(shell, { free: new Set(kinds) }); return tally(functions.filter((record) => asked.get(record).length === 0)); };
   const held = Object.fromEntries(ORDER.map((kind) => [kind, tally(functions.filter((record) => kindOf(record) === kind))]));
+  const helpers = [...helpersIn(shell)].map(([name, helper]) => ({ name, writes: helper.writes,
+    of: shell.bindings.get(name).record.helpers?.has(name) ? null : shell.taken.has(name) ? `window.${shell.taken.get(name).from}` : String(shell.bindings.get(name).record.fixed?.kinds.get(name)?.same ?? '') }));
   const rows = judged.map((record) => ({ name: record.names.join(', '), what: record.kind, lines: [shell.open + record.range[0] + 1, shell.open + record.range[1] + 1],
     stays: whole.length ? [`the script says \`${whole[0]}\``] : why.get(record).map((reason) => reason.text), kind: whole.length ? 'other' : kindOf(record) }));
   return { file, lines, wrapped: true, whole, all: tally(functions), free: tally(free.filter(isFunction)), along: tally(free.filter((record) => !isFunction(record))), held,
-    ifState: freeIf(['let', 'var']), ifConst: freeIf(['const']), ifBoth: freeIf(['let', 'var', 'const']), ifEarly: freeIf(['early']), rows,
+    ifState: freeIf(['let', 'var']), ifConst: freeIf(['const']), ifBoth: freeIf(['let', 'var', 'const']), ifEarly: freeIf(['early']), ifDecides: freeIf(['decides']), helpers,
+    decided: tally(functions.filter((record) => why.get(record).some((reason) => reason.kind === 'decides'))), rows,
     groups: groupsOf(free).map((group) => ({ lines: sizeOf(group), functions: group.filter(isFunction).length, names: group.flatMap((record) => record.names) })) };
 }
 
@@ -90,6 +97,18 @@ export function surveyAll(root, parser, ledger) {
 }
 
 const add = (a, b) => ({ functions: a.functions + b.functions, lines: a.lines + b.lines });
+
+// Which helpers are proven to write what they are handed as text, and in which scripts.
+function helperLines(scripts) {
+  const by = new Map();
+  for (const script of scripts) {
+    for (const helper of script.helpers) {
+      const what = `${helper.name}, ${!helper.of ? 'a function of the wrapper' : helper.of.startsWith('window.') ? `taken from ${helper.of}` : `another name for ${helper.of}`} (${Object.entries(helper.writes).map(([arg, sinks]) => `${arg}: ${sinks.join(' or ') || 'only tested'}`).join('; ')})`;
+      by.set(what, [...(by.get(what) ?? []), script.file.slice('server/'.length)]);
+    }
+  }
+  return ['Helpers proven to write what they are handed as text, a class or a safe attribute:', ...[...by].sort().map(([what, files]) => `  ${what}: ${files.join(', ')}`)];
+}
 const say = (count) => `${count.functions} functions (${count.lines} lines)`;
 
 /** @param {{ scripts: any[] }} survey @param {boolean} all every wrapped script, not only the ones over the limit @returns {string[]} the survey as lines of text */
@@ -97,9 +116,9 @@ export function renderSurvey({ scripts }, all = false) {
   const wrapped = scripts.filter((script) => script.wrapped && (all || script.lines > BIG));
   const out = [];
   const zero = { functions: 0, lines: 0 };
-  const total = { all: zero, free: zero, along: zero, ifState: zero, ifConst: zero, ifBoth: zero, ifEarly: zero, held: Object.fromEntries(ORDER.map((kind) => [kind, zero])) };
+  const total = { all: zero, free: zero, along: zero, ifState: zero, ifConst: zero, ifBoth: zero, ifEarly: zero, ifDecides: zero, decided: zero, held: Object.fromEntries(ORDER.map((kind) => [kind, zero])) };
   for (const script of wrapped) {
-    for (const key of ['all', 'free', 'along', 'ifState', 'ifConst', 'ifBoth', 'ifEarly']) total[key] = add(total[key], script[key]);
+    for (const key of ['all', 'free', 'along', 'ifState', 'ifConst', 'ifBoth', 'ifEarly', 'ifDecides', 'decided']) total[key] = add(total[key], script[key]);
     for (const kind of ORDER) total.held[kind] = add(total.held[kind], script.held[kind]);
     out.push(`${script.file.padEnd(46)} ${String(script.lines).padStart(5)} lines  ${String(script.all.functions).padStart(4)} functions  can leave ${String(script.free.functions).padStart(3)} (${String(script.free.lines).padStart(4)} l) + ${String(script.along.functions).padStart(3)} constants (${String(script.along.lines).padStart(4)} l)`
       + `  held: ${ORDER.map((kind) => `${kind} ${script.held[kind].functions}`).join(', ')}  if state could go ${script.ifState.lines} l, every constant ${script.ifConst.lines} l, both ${script.ifBoth.lines} l`
@@ -113,6 +132,8 @@ export function renderSurvey({ scripts }, all = false) {
     'Held by code that runs while the script loads: none. The line that takes the functions back is placed above the first statement that could reach one.',
     `If the wrapper's lets and vars could be shared: ${say(total.ifState)} could leave. If every constant could go along, whatever its value: ${say(total.ifConst)}. State and constants both: ${say(total.ifBoth)}.`,
     `Without the rule that keeps a constant a statement above it could reach: ${say(total.ifEarly)}.`,
+    `Without the rule that keeps a decision in its script: ${say(total.ifDecides)}. ${say(total.decided)} hold one, whatever else keeps them.`,
+    ...helperLines(wrapped),
     `Not a plain wrapper${all ? '' : ` and over ${BIG} lines`}: ${handed.length} are handed values when called (they stay whole), ${others.length - handed.length} have no wrapper or are a module.`);
   return out;
 }

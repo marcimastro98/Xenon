@@ -23,9 +23,10 @@ export function showInner(root, parser, { flags, rest }) {
   if (!found.wrapped) { console.error(found.why); return 1; }
   console.log(`${file}: ${found.lines} lines, ${found.all.functions} functions in its wrapper (${found.all.lines} lines). ${found.free.functions} may leave (${found.free.lines} lines), and ${found.along.functions} constants whose value is written out (${found.along.lines} lines).`);
   for (const row of found.rows) console.log(`${row.stays.length ? 'stays' : 'moves'} ${String(row.lines[0]).padStart(6)}-${String(row.lines[1]).padEnd(6)} ${row.what === 'const' ? 'const ' : ''}${row.name}${row.stays.length ? `  # ${row.stays[0]}` : ''}`);
+  for (const helper of found.helpers) console.log(`helper ${helper.name}${!helper.of ? '' : helper.of.startsWith('window.') ? ` (taken from ${helper.of})` : ` (another name for ${helper.of})`}: proven to write ${Object.entries(helper.writes).map(([arg, sinks]) => `${arg} as ${sinks.join(' or ') || 'a test only'}`).join(', ')}`);
   console.log(`Groups that use nothing of each other (each can be a script of its own, \`group:N\` names one):`);
   for (const [at, group] of found.groups.entries()) console.log(`  group:${at + 1}  ${String(group.lines).padStart(4)} lines  ${group.names.join(', ')}`);
-  console.log(`If the wrapper's lets and vars could be shared ${found.ifState.functions} functions (${found.ifState.lines} lines) could leave; if every constant could go along ${found.ifConst.functions} (${found.ifConst.lines}); both ${found.ifBoth.functions} (${found.ifBoth.lines}). Without the rule about statements above a constant: ${found.ifEarly.functions} (${found.ifEarly.lines}).`);
+  console.log(`If the wrapper's lets and vars could be shared ${found.ifState.functions} functions (${found.ifState.lines} lines) could leave; if every constant could go along ${found.ifConst.functions} (${found.ifConst.lines}); both ${found.ifBoth.functions} (${found.ifBoth.lines}). Without the rule about statements above a constant: ${found.ifEarly.functions} (${found.ifEarly.lines}). Without the rule that keeps a decision in its script: ${found.ifDecides.functions} (${found.ifDecides.lines}).`);
   return 0;
 }
 

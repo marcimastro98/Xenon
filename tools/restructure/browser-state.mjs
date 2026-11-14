@@ -14,11 +14,14 @@ import path from 'node:path';
 import { analyzeRun, orderProblems, runsOnLoad } from './browser-analyze.mjs';
 import { consumerProblems } from './browser-consumers.mjs';
 import { nameClashes, namesMade } from './browser-inner-names.mjs';
+import { readWrapper } from './browser-inner-plan.mjs';
 import { innerStateProblems } from './browser-inner-proof.mjs';
+import { ourScripts } from './browser-inner-survey.mjs';
 import { innerFilesOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
-import { BUILT_LIST, LIST_FILES, listRunProblems } from './browser-lists.mjs';
+import { ASKED_LISTS, BUILT_LIST, LIST_FILES, listRunProblems, listsHold } from './browser-lists.mjs';
 import { moduleStateProblems } from './browser-module.mjs';
 import { nodeLoadersOf, nodeLoadProblems } from './browser-node-loads.mjs';
+import { PAGE_HELPERS, pageHelperProblems, pageHelpersRead } from './browser-page-helpers.mjs';
 import { listPages, runProblems, tagsOf } from './browser-pages.mjs';
 import { readStylesheet } from './browser-styles.mjs';
 import { unwrapStateProblems } from './browser-unwrap.mjs';
@@ -41,6 +44,26 @@ export function builtPages(root) {
     page: `the desktop page of ${tiles.length === 1 ? `the widget "${tiles[0]}"` : 'all widgets together'} (built from ${BUILT_LIST})`,
     html: compose(light, tiles, dashboard),
   }));
+}
+
+/**
+ * Holds the list of page helpers to the code (browser-page-helpers.mjs), for every helper on it and for the scripts that take one.
+ * @param {string} root @param {any} parser
+ * @param {{ source: string, text: string }[]} made scripts made of moved code, each with the script whose wrapper it left
+ * @returns {string[]} problems
+ */
+export function pageHelperState(root, parser, made) {
+  const read = (file) => readFileSync(path.join(root, file), 'utf8');
+  const takers = new Map([...PAGE_HELPERS.keys()].map((name) => [name, new Set()]));
+  for (const { source, text } of made) {
+    // A script loaded by a list when asked lands in the pages of the script that holds the list.
+    const hosts = ASKED_LISTS.filter((list) => existsSync(path.join(root, list)) && listsHold(read(list), source));
+    for (const name of pageHelpersRead(readWrapper(text, source, parser))) for (const taker of [source, ...hosts]) takers.get(name).add(taker);
+  }
+  const written = listPages(root).map((page) => ({ page, html: read(page) }));
+  const scripts = [...ourScripts(root).map((file) => ({ file, text: read(file) })), ...written.map(({ page, html }) => ({ file: page, text: html }))];
+  const pages = [...written, ...builtPages(root)];
+  return [...takers].flatMap(([name, files]) => pageHelperProblems({ name, parser, scripts, pages, takers: [...files] }));
 }
 
 const declared = (run) => run.records.flatMap((record) => record.names.map((name) => `${record.kind} ${name}`)).sort();
@@ -73,6 +96,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
   const lists = LIST_FILES.filter((name) => existsSync(path.join(root, name))).map((name) => ({ name, text: read(name) }));
   const problems = [];
   const files = [];
+  const madeOfMoved = [];
   for (const file of splitFiles(ledger)) {
     const run = runOf(ledger, file);
     files.push(...run);
@@ -87,6 +111,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
     }
     const inner = innerFilesOf(ledger, file);
     if (inner.length) {
+      madeOfMoved.push(...inner.map((part) => ({ source: file, text: read(part) })));
       problems.push(...innerStateProblems({ source: file, text: read(file), parts: inner.map((part) => ({ file: part, text: read(part) })), parser }));
       problems.push(...nodeLoadersOf(root, file).slice(0, 1).map((loader) => `${file} is loaded by Node (${loader}), where the scripts made of its functions do not load before it`));
       continue;
@@ -109,6 +134,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
     files.push(move.file);
     problems.push(...moduleStateProblems(move.file, read(move.file), pages, parser));
   }
+  problems.push(...pageHelperState(root, parser, madeOfMoved));
   problems.push(...nameClashes(root, namesMade(ledger.moves)));
   problems.push(...unwrapStateProblems(ledger));
   return { problems, files };

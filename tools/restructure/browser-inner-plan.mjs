@@ -35,10 +35,12 @@
 // names, and the new script runs in the same mode (strict or not) as the old one.
 // Pure: text in, text out, or a refusal.
 
+import { readDecisions } from './browser-inner-decides.mjs';
 import { createReach, readFixed } from './browser-inner-fixed.mjs';
 import { anchorOf, isFunction, lineOf, mayTravel, ownReasons } from './browser-inner-judge.mjs';
 import { kindsIn, markTaken, takesOf, takeText } from './browser-inner-takes.mjs';
 import { headerOf, MAX_LINES } from './browser-plan.mjs';
+import { movedBeforeRule } from './browser-page-helpers.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
 import { lineAt, lineStarts, readTopLevel } from './top-level.mjs';
@@ -88,7 +90,8 @@ function wordsIn(K, node) {
  *   records: any[], bindings: Map<string, any>, twice: Set<string>, words: Set<string>, reach: (record: any) => Set<any>, taken: Map<string, any>, tree: any, inside: any[] }}
  *   `open` and `close` are the 0-based lines of the wrapper's two lines; a record's line n (1-based, as top-level.mjs
  *   counts) is line `open + n` (0-based) of the file. `words`: eval, with, as the whole script says them.
- *   A `const` record carries `fixed`, what browser-inner-fixed.mjs reads of its value.
+ *   A `const` record carries `fixed`, what browser-inner-fixed.mjs reads of its value. Every record carries `decides`, `calls` and `helpers`:
+ *   what browser-inner-decides.mjs reads of its code, with lines counted like the record's own.
  *   `reach` answers which statements could reach one while the script loads. `taken` is empty here: browser-inner-takes.mjs fills it.
  *   `tree` is the script as parsed and `inside` the wrapper's statements in it, one per record: their places are places in `text`.
  */
@@ -123,14 +126,17 @@ export function readWrapper(text, file, parser) {
   // The wrapper's body read as a file of its own: one indent less, line for line.
   const inside = real(parser, made.body.statements);
   const body = lines.slice(open + 1, close).map((line) => (line.startsWith('  ') ? line.slice(2) : line));
-  const bodyTree = parser.parse(`${body.join('\n')}\n`, file);
+  const bodyText = `${body.join('\n')}\n`;
+  const bodyTree = parser.parse(bodyText, file);
   const nodes = real(parser, bodyTree.statements);
   const records = readTopLevel(bodyTree, parser);
   if (nodes.length !== inside.length) return { ...none, problems: [`${file}: the wrapper's code cannot be read line by line (${inside.length} statements in the wrapper, ${nodes.length} read)`] };
   const bindings = new Map();
   const twice = new Set();
+  const bodyStarts = lineStarts(bodyText);
   records.forEach((record, index) => {
     record.words = wordsIn(K, nodes[index]);
+    Object.assign(record, readDecisions(K, nodes[index], (node) => lineAt(bodyStarts, node.getStart(bodyTree)) + 1));
     record.fixed = record.kind === 'const' ? readFixed(K, nodes[index]) : null;
     for (const name of record.names) {
       if (bindings.has(name)) twice.add(name);
@@ -184,7 +190,7 @@ export function planInnerScript({ text, parser, source, target, about, names, ea
   const movedNames = moved.flatMap((record) => record.names);
   for (const record of moved) {
     const label = `${record.names.join(', ')} (${source}:${lineOf(shell, record)})`;
-    reasons.push(...ownReasons(shell, record, label).map((reason) => reason.text));
+    reasons.push(...ownReasons(shell, record, label, { decides: !movedBeforeRule(target, record.names) }).map((reason) => reason.text));
     for (const used of record.uses.keys()) {
       const own = shell.bindings.get(used);
       if (!own || movedSet.has(own.record) || shell.taken.has(used)) continue;

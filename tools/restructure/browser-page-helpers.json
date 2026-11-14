@@ -1,0 +1,16 @@
+{
+  "note": "Functions of the page that a wrapped script may take under another name on a line of its own (`const el = makeEl;`) and carry to a script made of its functions. Each line here is proven on every run of the standing check (tools/restructure/browser-page-helpers.mjs): the function is declared once, at the top level of that file, nothing assigns its name, the file loads before every script that takes it, and its code writes what it is handed as `helper` says. A line that says more than the proof finds fails the check.",
+  "helpers": {
+    "makeEl": {
+      "file": "server/js/utils/page-and-text.js",
+      "helper": {
+        "tag": 0,
+        "writes": {
+          "tag": ["createElement"],
+          "cls": ["className"],
+          "text": ["textContent"]
+        }
+      }
+    }
+  }
+}

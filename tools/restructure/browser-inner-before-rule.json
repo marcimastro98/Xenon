@@ -1,0 +1,15 @@
+{
+  "note": "Functions that left their wrapper before `browser inner` began to keep decisions in their script (tools/restructure/browser-inner-decides.mjs), and hold one: an address, a style from a value that is not written out, an attribute that is not a safe one, innerHTML. They are read without that rule, so the moves that made them can still be redone and checked. Nothing may be added here: a new move is refused instead. A line leaves the list when its function goes back to its script or stops holding the decision. server/test/restructure-browser-inner-decides.test.mjs holds the list to the moves recorded and to this size.",
+  "moved": {
+    "server/js/deck-editor/form-rows.js": ["swatchRow"],
+    "server/js/deck/grid-fit.js": ["positionProfileMenu"],
+    "server/js/deck/key-actions.js": ["lightingAction"],
+    "server/js/deck/key-face.js": ["applyStateStyle", "fillGlyphIcon", "setLabelColor"],
+    "server/js/deck/look-stamps.js": ["stampDeckAlpha", "stampDeckMount"],
+    "server/js/guardian-history/charts.js": ["gameIcon"],
+    "server/js/lighting-page/panels.js": ["animationSection", "eventBlock"],
+    "server/js/remote-access-page/rows.js": ["howToSetUp"],
+    "server/js/unifi-widget/camera-layout.js": ["applyCamAngle", "applyGridVars", "refreshOne"],
+    "server/js/vitals-pet/effects.js": ["serverNag", "setDecay", "setMood"]
+  }
+}

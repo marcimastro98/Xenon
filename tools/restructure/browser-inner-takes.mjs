@@ -23,6 +23,7 @@
 
 import { kindOfName } from './browser-inner-fixed.mjs';
 import { wrapNames } from './module-requires.mjs';
+import { helpersIn } from './browser-page-helpers.mjs';
 
 const TAKE = /^const \{([^{}]*)\} = window\.([A-Za-z_$][\w$]*);$/;
 const PLAIN_NAME = /^[A-Za-z_$][\w$]*$/;
@@ -49,19 +50,23 @@ export function takeLines(shell, text) {
   return found;
 }
 
-/** @param {any} shell of a script made of moved code @returns {Map<string, 'primitive' | 'reference' | null>} what each name it declares holds */
-export const kindsIn = (shell) => new Map([...shell.bindings.keys()].map((name) => [name, kindOfName(shell.bindings, name)]));
+/**
+ * @param {any} shell of a script made of moved code
+ * @returns {Map<string, 'primitive' | 'reference' | null> & { helpers: Map<string, any> }} what each name it declares holds; `helpers`: the ones
+ *   that are a proven helper (browser-inner-decides.mjs), so a script that takes one is held to it too
+ */
+export const kindsIn = (shell) => Object.assign(new Map([...shell.bindings.keys()].map((name) => [name, kindOfName(shell.bindings, name)])), { helpers: helpersIn(shell) });
 
 /**
  * Says which names of a wrapper are taken from a script that loads before it.
  * @param {any} shell from readWrapper @param {string} text of the same script
  * @param {Map<string, Map<string, any>>} known the name on window of every script it may take from, with what each of its names holds
  * @param {(line: { record: any, from: string }) => boolean} [counts] which take lines count: all that name a known script when not given
- * @returns {any} the shell, `taken` filled: name to `{ from, record, kind }`
+ * @returns {any} the shell, `taken` filled: name to `{ from, record, kind, helper }`
  */
 export function markTaken(shell, text, known, counts = (line) => known.has(line.from)) {
   for (const line of takeLines(shell, text).filter(counts)) {
-    for (const name of line.names) shell.taken.set(name, { from: line.from, record: line.record, kind: known.get(line.from)?.get(name) ?? null });
+    for (const name of line.names) shell.taken.set(name, { from: line.from, record: line.record, kind: known.get(line.from)?.get(name) ?? null, helper: known.get(line.from)?.helpers?.get(name) ?? null });
   }
   return shell;
 }
