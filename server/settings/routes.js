@@ -4,6 +4,9 @@
 const { readBody } = require('../http/read-body.js');
 const { localBackupStamp, BACKUP_MAX_BYTES } = require('./backup-format.js');
 const { redactSettingsSecrets } = require('./secrets.js');
+const { createPairedBackupSaves } = require('./backup-save-paired.js');
+
+const pairedSaves = createPairedBackupSaves();
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -57,7 +60,12 @@ const branches = {
         if (!r.ok && r.error === 'picking') { json(r); return; }
         if (r.ok) dir = r.path;
       }
-      json(await saveBackupToDisk(dir));
+      if (!isRemote) { json(await saveBackupToDisk(dir)); return; }
+      // From a paired device: one file a minute, and the name without the folder (backup-save-paired.js).
+      const wait = pairedSaves.wait();
+      if (wait) { json({ ok: false, error: 'too_soon', retryAfterSec: wait }); return; }
+      pairedSaves.started();
+      json(pairedSaves.answer(await saveBackupToDisk(dir)));
     } catch (e) { err500(e.message); }
   },
 
