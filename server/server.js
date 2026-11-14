@@ -451,7 +451,7 @@ require('./actions/home-assistant-query');
 require('./actions/chroma');
 require('./actions/wavelink');
 require('./actions/voicemeeter');
-const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
+const { createEmbeddedBrowser } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 require('./second-screen');
@@ -530,13 +530,7 @@ const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of thei
 
 const { APP_VERSION } = require('./updates/app-version.js');
 
-// Local backend port. Overridable via XENON_PORT for side-by-side debugging;
-// any invalid/out-of-range value falls back to the canonical 3030 so a typo in
-// the env var can never strand the server on a random port with a broken host allowlist.
-const PORT = (() => {
-  const raw = parseInt(process.env.XENON_PORT, 10);
-  return Number.isInteger(raw) && raw > 0 && raw <= 65535 ? raw : 3030;
-})();
+const { PORT } = require('./engine/port.js');
 aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge reaches Xenon's tools
 
 // Node.js without current security fixes (node-version.js): said once at
@@ -820,62 +814,6 @@ function routeHotkeyRelease(index) {
   if (binding && binding.widgetId) _widgetKeys.release(binding.widgetId);
 }
 
-function openSpotlightPopupWindow() {
-  // Reuse: alive popup → just re-pin it topmost (brings it above); else spawn.
-  for (const pid of _spotlightPopupPids) {
-    try {
-      process.kill(pid, 0); // liveness probe only
-      // Raising a window is a Win32 call. Elsewhere the browser's own
-      // activate-on-reuse is all there is, and a popup that is already open
-      // simply stays where the window manager put it.
-      if (POWERSHELL_SUPPORTED) {
-        runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {});
-      }
-      return { ok: true };
-    } catch { _spotlightPopupPids.delete(pid); }
-  }
-  // The same Chromium the embedded-browser tile drives — one detector for both,
-  // so a machine that can show a web tile can also show the Spotlight popup.
-  // The hardcoded Program Files pair only ever existed because this path was
-  // Windows-only; findEdge covers those two and every Linux/macOS install.
-  const edge = findEdge();
-  if (!edge) return { ok: false, error: 'edge_not_found' };
-  const args = [
-    '--app=http://127.0.0.1:' + PORT + '/spotlight',
-    '--user-data-dir=' + path.join(DATA_DIR, 'spotlight-popup-profile'),
-    '--no-first-run', '--no-default-browser-check',
-    '--window-size=760,540',
-  ];
-  let pid = 0;
-  try {
-    const child = spawn(edge, args, { detached: true, stdio: 'ignore' });
-    child.unref();
-    pid = child.pid || 0;
-    _spotlightPopupPids.add(child.pid);
-    child.on('exit', () => _spotlightPopupPids.delete(child.pid));
-  } catch { return { ok: false, error: 'popup_failed' }; }
-  if (POWERSHELL_SUPPORTED) {
-    setTimeout(() => {
-      try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {}); }
-      catch { /* best-effort */ }
-    }, 1500).unref();
-  }
-  return { ok: true };
-}
-
-const { spotlightClaim } = require('./search/spotlight-claim-state.js');
-const { searchShortcut } = require('./search/shortcut-claim.js');
-function routeSpotlightHotkey() {
-  searchShortcut.claimed = false;
-  broadcastSSE('spotlight_hotkey', { at: Date.now() });
-  if (spotlightClaim.timer) clearTimeout(spotlightClaim.timer);
-  spotlightClaim.timer = setTimeout(() => {
-    spotlightClaim.timer = null;
-    if (!searchShortcut.claimed) { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } }
-  }, 450);
-  spotlightClaim.timer.unref();
-}
-
 function _scheduleHotkeyRetry(ms) {
   if (shortcutState.retryTimer) return;   // cancelled in _gracefulShutdown
   const pause = Math.min(HOTKEY_RETRY_MS * (2 ** _hotkey.failures), HOTKEY_RETRY_MAX_MS);
@@ -1147,48 +1085,10 @@ const devClean = createDevClean({
 });
 const { iconPackStore, soundPackStore } = require('./deck/pack-stores.js');
 const { _deckPopupPids } = require('./deck/popup-pids.js');
-const { DECK_POPUP_TOP_SCRIPT } = require('./deck/script-paths.js');
 
-// Open the Virtual Deck as an Edge app-mode window on the main PC. Argv array
-// only; the instance id is charset-validated before it enters the URL. Edge's
-// dedicated profile dir remembers the window's size/position across launches,
-// so no geometry needs persisting. The child is tracked and closed in
-// _gracefulShutdown (stop-what-you-start). Shared by POST /deck/popup/open and
-// the AI's open_virtual_deck tool.
-function openDeckPopupWindow(instanceRaw, topmost) {
-  const instRaw = String(instanceRaw || '').trim();
-  const instance = /^deck(~[a-z0-9]+)?$/.test(instRaw) ? instRaw : '';
-  const edge = ['C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
-    .find((p) => { try { return fs.existsSync(p); } catch { return false; } });
-  if (!edge) return { ok: false, error: 'edge_not_found' };
-  const url = 'http://127.0.0.1:' + PORT + '/deck-popup' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
-  const args = [
-    '--app=' + url,
-    '--user-data-dir=' + path.join(DATA_DIR, 'deck-popup-profile'),
-    '--no-first-run', '--no-default-browser-check',
-    '--window-size=460,560',
-  ];
-  let popupPid = 0;
-  try {
-    const child = spawn(edge, args, { detached: true, stdio: 'ignore' });
-    child.unref();
-    popupPid = child.pid || 0;
-    _deckPopupPids.add(child.pid);
-    child.on('exit', () => _deckPopupPids.delete(child.pid));
-  } catch { return { ok: false, error: 'popup_failed' }; }
-  if (topmost !== false) {
-    // One-shot: after the window settles, pin it above other windows. No loop,
-    // no lingering process — the script exits after one SetWindowPos. The pin
-    // targets the spawned PID (exact title + msedge.exe is only the fallback),
-    // so a browser tab that merely CONTAINS "Xenon Deck" can never be pinned.
-    setTimeout(() => {
-      try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(popupPid), '-Title', 'Xenon Deck'], 8000).catch(() => {}); }
-      catch { /* best-effort */ }
-    }, 1800).unref();
-  }
-  return { ok: true };
-}
+const { routeSpotlightHotkey } = require('./search/spotlight-window.js');
+
+const { openDeckPopupWindow } = require('./deck/popup-window.js');
 const { NOTES_FILE, EVENTS_FILE, TASKS_FILE, TIMERS_FILE } = require('./time/store-files.js');
 const { notesToText, textToNotesState } = require('./time/notes-state.js');
 const { aiMemory } = require('./ai/memory-store.js');
@@ -4568,16 +4468,7 @@ async function _claudeHoldPermission(res, data, opts) {
 // endpoints reject — which is the safe direction, and the window is a few ms.
 claudeLink.ensureToken(DATA_DIR).then((t) => { claudeState.bridgeToken = t; }).catch(() => {});
 
-async function _claudeLinkStatus() {
-  const st = await claudeLink.repairLink(DATA_DIR, PORT);
-  if (st && st.repaired) {
-    claudeRefresh.linkRepairedAt = Date.now();
-    claudeState.bridgeToken = await claudeLink.ensureToken(DATA_DIR);
-    console.log('[claude] Claude Code link updated to the current hook set: '
-      + (st.repairedMissing || []).length + ' missing, ' + (st.repairedOutdated || 0) + ' out of date');
-  }
-  return { ...st, repairedAt: claudeRefresh.linkRepairedAt };
-}
+const { _claudeLinkStatus } = require('./claude-code/link-status.js');
 _claudeLinkStatus().catch(() => {});
 
 // Build the wire payload: the aggregate + the budget config the reactor needs to
