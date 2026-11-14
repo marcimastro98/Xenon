@@ -109,7 +109,7 @@
     "server/js/phone-view.js": 787,
     "server/js/phone-widget.js": 720,
     "server/js/preset-share.js": 5050,
-    "server/js/remote-access-page.js": 688,
+    "server/js/remote-access-page.js": 566,
     "server/js/remote-control.js": 825,
     "server/js/screen-alerts.js": 515,
     "server/js/sdk-island.js": 429,
