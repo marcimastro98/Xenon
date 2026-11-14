@@ -29,19 +29,23 @@ function callBit() {
 }
 
 // What the search of Settings would offer on this page: every row, button and section it finds, with the name it
-// gives each, the place it puts it under and how many words it can be found by. The page's own function is asked
-// (js/settings-search.js hands it out as `_build`); it reads the page and changes nothing. Runs in the page.
+// gives each and the place it puts it under, and how many of them can be found by a word at all. The page's own
+// function is asked (js/settings-search.js hands it out as `_build`); it reads the page and changes nothing. The
+// number of words is left out: it follows the languages loaded, and the two engines open the page in different ones
+// (Chromium in English, WebKit in the language of the PC). Runs in the page.
 function settingsSearchRows() {
   const build = window.SettingsSearch?._build;
   if (typeof build !== 'function') return 'no settings search';
   const kinds = {};
   let sum = 0;
+  let found = 0;
   for (const entry of build()) {
     kinds[entry.kind] = (kinds[entry.kind] || 0) + 1;
-    const line = [entry.id, entry.kind, entry.labelKey, entry.hintKey || '', entry.cardKey || '', entry.catKey || '', entry.fields.length].join('|');
+    const line = [entry.id, entry.kind, entry.labelKey, entry.hintKey || '', entry.cardKey || '', entry.catKey || ''].join('|');
+    if (entry.fields.length) found += 1;
     for (const letter of line) sum = (Math.imul(sum, 31) + letter.codePointAt(0)) >>> 0;
   }
-  return { kinds, sum };
+  return { kinds, sum, found };
 }
 
 /**

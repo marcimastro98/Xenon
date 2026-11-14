@@ -195,9 +195,12 @@ test('the dashboard is asked what its Settings search would offer, and the quest
   const whole = answer(list);
   assert.deepEqual(whole.kinds, { cat: 1, row: 1, action: 1 });
   assert.deepEqual(answer(list), whole, 'the same page gives the same answer');
-  for (const change of [{ labelKey: 'settings_other' }, { hintKey: '' }, { cardKey: 'settings_other' }, { catKey: 'settings_other' }, { fields: [1, 2] }, { id: 'look|settings_theme#2' }]) {
+  for (const change of [{ labelKey: 'settings_other' }, { hintKey: '' }, { cardKey: 'settings_other' }, { catKey: 'settings_other' }, { id: 'look|settings_theme#2' }]) {
     assert.notEqual(answer([list[0], entry(change), list[2]]).sum, whole.sum, `a row with another ${Object.keys(change)[0]} is another answer`);
   }
+  assert.equal(whole.found, 3);
+  assert.deepEqual(answer([list[0], entry({ fields: [1] }), list[2]]), whole, 'how many words is the language\'s business: the engines open the page in different ones');
+  assert.equal(answer([list[0], entry({ fields: [] }), list[2]]).found, 2, 'a row no word finds is another answer');
   assert.notDeepEqual(answer(list.slice(0, 2)), whole, 'a row less is another answer');
   assert.equal(answer(null), 'no settings search');
 });
