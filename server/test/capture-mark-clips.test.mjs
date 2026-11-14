@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { engineSource } from './engine-source.mjs';

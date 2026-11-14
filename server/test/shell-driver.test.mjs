@@ -8,6 +8,7 @@ import { readFileSync } from './native-source.mjs'; // browser files too: it rea
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
+import { partsOf } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
 const UsageMode = require('../js/usage-mode.js');
@@ -137,7 +138,7 @@ test('the driver page carries only what it needs, in order', () => {
   assert.deepEqual(scripts, [
     'shared/src/constants.js', 'js/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/usage-mode.js',
-    'js/native-bridge.js', 'js/screen-scene-model.js', 'js/layers-shell.js', 'js/dashboard-open.js', 'js/update.js', 'js/album-theme.js',
+    'js/native-bridge.js', 'js/screen-scene-model.js', 'js/layers-shell.js', 'js/dashboard-open.js', ...partsOf('server/js/update.js').map((file) => file.slice('server/'.length)), 'js/album-theme.js',
     'js/driver-album-lights.js', 'js/driver-sdk-host.js', 'js/driver-perf.js', 'js/shell-driver.js',
   ]);
   assert.doesNotMatch(HTML, /stylesheet/);

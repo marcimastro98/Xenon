@@ -2,7 +2,7 @@
 // one face instead: the choice survives a save, and the editor offers it in State.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { appStringsSource, textsOf } from './i18n-source.mjs';
 

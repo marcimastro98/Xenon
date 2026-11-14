@@ -15,10 +15,12 @@ function between(from, to) {
   assert.ok(start >= 0 && end > start, from);
   return SRC.slice(start, end);
 }
+// A table of the widget cut to its own end, whatever follows it where it lives.
+const table = (name) => `${between(`  const ${name} = {`, '\n  };\n')}\n  };`;
 
 const PARTS = [
-  between('  const CAT_META = {', '  const VIEW_META ='),
-  between('  const CATEGORY_GUIDE = {', '  function fmtSize('),
+  table('CAT_META'),
+  table('CATEGORY_GUIDE'),
   between('  function el(tag, cls, text) {', '  // Paths are shown inside'),
   between('  function btn(cls, label, onClick, title) {', '  function withTransition('),
   between('  function closeAdvisorModal() {', '  // ── AI report markdown'),

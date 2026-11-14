@@ -9,7 +9,7 @@
 // nobody sees: Invoke-Npm ran with no redirection at all.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const PS1 = readFileSync(new URL('../update-apply.ps1', import.meta.url), 'utf8');

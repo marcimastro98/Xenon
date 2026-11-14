@@ -4,7 +4,7 @@
 // widget handler hears, and the editor's Behaviour card.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
+import { partsOf, readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { languagesWith, textsOf } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
@@ -248,7 +248,7 @@ test('the editor saves only the gestures of the chosen behaviour and loads the c
   assert.match(ED, /behavior\.collect\(key\);/);
   assert.match(ED, /if \(seg\) shown\.forEach\(\(tr\) => seg\.appendChild\(trigBtns\[tr\]\)\);/, 'gestures shown in the behaviour order');
   assert.match(ED, /paneAction\.appendChild\(behavior\.el\);\n    paneAction\.appendChild\(fTrig\);/);
-  assert.match(read('../index.html'), /<script src="js\/deck-editor-behavior\.js"><\/script>\n<script src="js\/deck-editor\.js"><\/script>/);
+  assert.ok(read('../index.html').includes(['server/js/deck-editor-behavior.js', ...partsOf('server/js/deck-editor.js')].map((file) => `<script src="${file.slice('server/'.length)}"></script>`).join('\n')), 'the card, then the editor as the scripts it is made of today');
 });
 
 test('the Behaviour strings exist in all 11 languages', () => {

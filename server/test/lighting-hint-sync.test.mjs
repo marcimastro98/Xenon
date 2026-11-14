@@ -10,7 +10,7 @@
 // effect keys, and the hint actually gated on the mirror.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 

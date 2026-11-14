@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';

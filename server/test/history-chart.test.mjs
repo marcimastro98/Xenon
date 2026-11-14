@@ -3,7 +3,7 @@
 // the screen time beside them (guardian-history.js), and the range in the tab bar.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
+import { partsOf, readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 import { appStringsSource } from './i18n-source.mjs';
@@ -308,8 +308,8 @@ test('the chart engine loads before the History module on the page and in deskto
   const at = (s) => INDEX.indexOf(`<script src="js/${s}"></script>`);
   assert.ok(at('spark-path.js') > 0 && at('spark-path.js') < at('history-chart.js') && at('history-chart.js') < at('guardian-history.js'));
   const tiles = read('../js/layer-tiles.js');
-  assert.match(tiles, /'js\/picker\.js', 'js\/history-chart\.js', 'js\/guardian-history\.js'\]/);
-  assert.match(tiles, /power: tile\('power', 'PowerWidget', \['js\/spark-path\.js', 'js\/history-chart\.js', 'js\/guardian-history\.js'/);
+  const history = partsOf('server/js/guardian-history.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // the scripts the History module is made of today
+  for (const list of [`'js/picker.js', 'js/history-chart.js', ${history}]`, `power: tile('power', 'PowerWidget', ['js/spark-path.js', 'js/history-chart.js', ${history}`]) assert.ok(tiles.includes(list), list);
   assert.match(tiles, /null, \['components\/GuardianHistory\/GuardianHistory\.css'\]\)/);
 });
 
