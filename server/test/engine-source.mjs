@@ -280,7 +280,8 @@ export function declarationSource(name, source = ENGINE) {
   if (oneLine) return lines[first];
   // A value written on the lines after the `=`, or a call whose list goes on after a comma: the lines are
   // indented, and the last of them ends the statement.
-  if (/[=,]\s*$/.test(lines[first])) {
+  // So is a choice between two values, each on a line of its own under the test.
+  if (/[=,]\s*$/.test(lines[first]) || /^\s+[?:]\s/.test(lines[first + 1] ?? '')) {
     let end = first;
     while (end + 1 < lines.length && /^\s+\S/.test(lines[end + 1])) end += 1;
     if (end > first && /;\s*(?:\/\/.*)?$/.test(lines[end])) return lines.slice(first, end + 1).join('\n');

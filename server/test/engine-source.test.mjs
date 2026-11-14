@@ -85,6 +85,11 @@ test('a value written on the lines after its = is read to the line that ends it,
   assert.match(text, /\n {6}: null;$/, 'the last indented line, with its semicolon');
   assert.ok(!text.includes('\n\n') && !/\n\S/.test(text), 'nothing at the margin, no blank line: one statement');
   assert.equal(text.split('\n').length, 9);
+  // A choice between two values, each on a line of its own under the test.
+  const choice = declarationSource('livingIndex');
+  assert.match(choice, /^const livingIndex = process\.platform === 'linux'\n {2}\? /);
+  assert.match(choice, /\n {2}: createLivingIndex\(.*\);$/);
+  assert.equal(choice.split('\n').length, 3);
 });
 
 test('a value that got a module of its own is required by server.js once, on one line, under its own name', () => {
