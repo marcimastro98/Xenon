@@ -5,7 +5,7 @@
 // `relist` records the new fingerprint and pins the new modules next to it, because part of
 // what was read lives there now. Everything else is refused, and a person reads the file
 // again: a hand edit (so also a change to the very function the entry is about), a rewrite
-// (`state`, `lift`, `paths`, and `inner`, which leaves a new call where the functions stood), or a file
+// (`state`, `lift`, `paths`, and `inner` and `block`, which leave a new call where the code stood), or a file
 // that was not the text that was read before the move.
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -76,7 +76,7 @@ export function pinWarnings(sources, read) {
  * @param {object} job
  * @param {(file: string) => string} job.read reads a repo-relative file as it is on disk
  * @param {(file: string) => string | null} job.show the same file at the base revision, null when it had none
- * @param {{ sources: Record<string, { file: string, state?: any, lift?: boolean, paths?: boolean }[]>, gathers?: Record<string, any[]> }} job.ledger extracted.json
+ * @param {{ sources: Record<string, { file: string, state?: any, lift?: boolean, paths?: boolean, inner?: any, block?: any }[]>, gathers?: Record<string, any[]> }} job.ledger extracted.json
  * @param {string[]} job.problems what the replay from the base revision found: any problem refuses everything
  * @param {string} job.base the name of the base revision, for the messages
  * @returns {{ changes: { pinned: string, was: string, now: string, modules: { file: string, hash: string }[], lists: string[] }[], refusals: string[] }}
@@ -110,7 +110,7 @@ export function planRelist({ read, show, ledger, problems, base }) {
     }
     const made = (ledger.sources[pinned] ?? []).filter((entry) => show(entry.file) === null);
     if (made.length === 0) { refuse(`it differs from ${base} and no move out of it is recorded: it changed by hand`); continue; }
-    const rewritten = made.filter((entry) => entry.state || entry.lift || entry.paths || entry.inner);
+    const rewritten = made.filter((entry) => entry.state || entry.lift || entry.paths || entry.inner || entry.block);
     if (rewritten.length) { refuse(`${rewritten.map((entry) => entry.file).join(', ')} came out of it by a rewrite, which changes the words that were read`); continue; }
     changes.push({ pinned, was: [...hashes][0], now: textHash(text), lists: [...lists],
       modules: made.map((entry) => ({ file: entry.file, hash: textHash(read(entry.file)) })) });
