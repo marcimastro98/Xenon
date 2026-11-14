@@ -281,7 +281,10 @@ test('session-watch.ps1 reports what Windows tells its window', { skip: process.
     poster.stdout.on('data', (d) => { out += d; });
     await new Promise((r) => poster.once('exit', r));
     assert.match(out, /posted/, 'the host has a window to post to: ' + out);
-    await new Promise((r) => setTimeout(r, 1500));
+    // The words come through a pipe from another process: wait for the four, up to 20 s on a
+    // busy machine, then a little longer so a fifth that should not be there is seen too.
+    for (let i = 0; i < 80 && words.length < 4; i++) await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, 750));
     assert.deepEqual(words, ['ending', 'ending', 'suspend', 'resume']);
   } finally {
     child.kill();
