@@ -2,7 +2,8 @@
 // is asked here of an engine a few lines long that keeps it, and of one that breaks it and has
 // to be told so: one that asks a model with no key or no message, one that reads any body, one
 // that lets every picture through, one that answers a failing model as if it had worked, one
-// that asks the server a request names, one that does not hear the stop button. The real
+// that asks the server a request names, one that does not hear the stop button, one that asks
+// Ollama for another model or the wrong way, or answers its failure as a success. The real
 // engine is asked by the check itself, in the gate and on every system in CI.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,6 +44,19 @@ function startEngine(settings, broken = '') {
       if (body.provider === 'gemini' && broken !== 'no key') { reply(res, 400, { error: 'missing_key' }); return; }
       const messages = Array.isArray(body.messages) ? body.messages : [];
       if (!messages.length && broken !== 'no message') { reply(res, 400, { error: 'no_messages' }); return; }
+      if (body.provider === 'ollama') {
+        try {
+          const asked = await fetch(`${settings.ollamaUrl}${broken === 'ollama the other way' ? '/v1/chat/completions' : '/api/chat'}`, { method: 'POST',
+            headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: broken === 'ollama other model' ? 'another' : body.model, stream: false,
+              messages: [{ role: 'system', content: 'rules' }, { role: 'user', content: messages.map((message) => message.parts.map((part) => part.text).join(' ')).join(' ') }] }) });
+          const answer = await asked.json();
+          if (asked.status !== 200) reply(res, broken === 'ollama failure as success' ? 200 : 500, { error: `Ollama: ${answer.error}` });
+          else reply(res, 200, { text: answer.message.content, clientActions: [] });
+        } catch (error) {
+          reply(res, 500, { error: String(error) });
+        }
+        return;
+      }
       const pictures = (body.imageParts ?? []).slice(0, broken === 'many pictures' ? 9 : 4)
         .filter((part) => broken === 'any kind' || KINDS.has(part.mimeType)).map((part) => ({ ...part, data: part.data.slice(0, broken === 'long picture' ? 9 * MB : 8 * MB) }));
       const sound = (body.audioParts ?? []).slice(0, broken === 'many clips' ? 5 : 1);
@@ -100,6 +114,8 @@ const RULE = {
   body: 'a body over 10 MB is not read',
   failure: 'a model server that fails is answered 502 with its reason and what was made so far',
   stop: 'the stop button ends a turn that waits for the model',
+  ollama: 'a turn for Ollama is answered with the text of the model',
+  ollamaFails: 'an Ollama that fails is answered 500 with its reason',
 };
 
 test('the rules have one name each, and an engine that keeps them is told so', async () => {
@@ -112,7 +128,8 @@ test('the rules have one name each, and an engine that keeps them is told so', a
 test('an engine that breaks a rule is told which one', async () => {
   const cases = [['no key', [RULE.key]], ['no message', [RULE.empty]], ['any body', [RULE.body]], ['many pictures', [RULE.media]],
     ['any kind', [RULE.media]], ['long picture', [RULE.media]], ['many clips', [RULE.media]], ['failure as success', [RULE.failure]],
-    ['named server', [RULE.server]], ['no key sent', [RULE.plain]], ['deaf to stop', [RULE.stop]]];
+    ['named server', [RULE.server]], ['no key sent', [RULE.plain]], ['deaf to stop', [RULE.stop]],
+    ['ollama other model', [RULE.ollama]], ['ollama the other way', [RULE.ollama, RULE.ollamaFails]], ['ollama failure as success', [RULE.ollamaFails]]];
   for (const [broken, rules] of cases) assert.deepEqual(await notKept(broken), rules, broken);
 });
 
@@ -123,6 +140,7 @@ test('the stand-in notes what a chat carried and keeps no text of it', async () 
   assert.deepEqual([note.asks('marker 77'), note.asks('plain words'), note.asks('rules'), note.asks('nothing')], [true, true, false, false]);
   assert.ok(!JSON.stringify(note).includes('marker'), 'what is kept can be logged: the words are not in it');
   assert.deepEqual(chatNote(null).media, []);
+  assert.deepEqual(chatNote({ messages: [{ role: 'user', content: 'words', images: ['AAAAAA'] }] }).media, [{ mime: '', length: 6 }], 'a picture the way Ollama takes it');
 
   const model = await startStandIn();
   try {
@@ -138,6 +156,19 @@ test('the stand-in notes what a chat carried and keeps no text of it', async () 
     assert.ok(!/\btools?\b|jinja|function.?call/i.test(FAILURE), 'the failure does not read as "tools refused", which the engine would ask again without');
     assert.deepEqual([model.chats.length, model.keys], [2, ['Bearer k', 'Bearer k']]);
     assert.equal((await request(port, { path: '/anything' })).status, 404);
+
+    // The same, asked the way Ollama is asked: kept apart, so the counts above are of the other server alone.
+    model.answer('reply');
+    assert.deepEqual((await request(port, { path: '/api/tags' })).json.models.map((row) => row.name), [MODEL]);
+    assert.ok((await request(port, { method: 'POST', path: '/api/show', body: { model: MODEL } })).json.capabilities.includes('completion'));
+    const native = { method: 'POST', path: '/api/chat', body: { model: MODEL, messages: [{ role: 'user', content: 'a marker 78' }], stream: false } };
+    const said = (await request(port, native)).json;
+    assert.deepEqual([said.message.content, said.message.tool_calls, said.done], [REPLY, undefined, true]);
+    model.answer('fail');
+    const refused = await request(port, native);
+    assert.deepEqual([refused.status, refused.json.error], [500, FAILURE]);
+    assert.ok(!/cuda|out of memory|not found|does not support/i.test(FAILURE), 'the failure reads as none of the ones the engine answers by trying again another way');
+    assert.deepEqual([model.native.length, model.native[0].asks('marker 78'), model.chats.length, model.keys.length], [2, true, 2, 2]);
   } finally {
     await model.close();
   }
@@ -145,7 +176,8 @@ test('the stand-in notes what a chat carried and keeps no text of it', async () 
 
 test('the rig starts with the stand-in as the server of the settings, and nothing else', () => {
   const seed = chatSeed('http://127.0.0.1:1');
-  assert.deepEqual(Object.keys(seed).sort(), ['language', 'localApiKey', 'localApiModel', 'localApiUrl', 'localApiVision']);
+  assert.deepEqual(Object.keys(seed).sort(), ['language', 'localApiKey', 'localApiModel', 'localApiUrl', 'localApiVision', 'ollamaUrl']);
+  assert.equal(seed.ollamaUrl, seed.localApiUrl, 'Ollama is the stand-in too: no turn of the check can reach a real one on this PC');
   assert.equal(seed.localApiUrl, 'http://127.0.0.1:1');
   assert.match(seed.localApiKey, /^rig-secret-/);
 });

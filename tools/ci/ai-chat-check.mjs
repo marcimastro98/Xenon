@@ -5,7 +5,8 @@
 //
 // The engine runs in a rig (engine-rig.mjs): its own data, home and temp folders, this computer
 // only, no connection to anywhere else. The model is a stand-in on 127.0.0.1 (ai-stand-in.mjs),
-// reached as "a server the person runs on this PC" (provider `localapi`). It never offers a tool
+// reached as "a server the person runs on this PC" (provider `localapi`) and, for two rules, as the
+// Ollama of the settings (provider `ollama`). It never offers a tool
 // call, so no tool of the engine runs: nothing here opens a program, writes a file or changes a
 // setting. Every value is invented.
 //
@@ -50,7 +51,7 @@ const shown = (answer) => (answer === 'late' ? 'no answer in time' : answer ? `$
 
 /** The settings the rig starts with: the model server is the stand-in, with a key and with eyes. Pure, so it is tested. */
 export function chatSeed(standInUrl) {
-  return { language: 'en', localApiUrl: standInUrl, localApiModel: MODEL, localApiVision: true, localApiKey: KEY };
+  return { language: 'en', localApiUrl: standInUrl, localApiModel: MODEL, localApiVision: true, localApiKey: KEY, ollamaUrl: standInUrl };
 }
 
 /**
@@ -131,6 +132,23 @@ export const CHAT_RULES = [
     if (!await until(() => model.dropped() === dropped + 1, 5000)) return 'the request to the model went on after the stop';
     if (running?.status !== 200) return `how far the turn got could not be asked (${shown(running)})`;
     return (await rig.ask('POST', '/api/ai/turn/stop', { id: 'rig-turn-nobody-0000001' }))?.json?.ok === false ? '' : 'a stop for a turn nobody started was taken';
+  } },
+  { rule: 'a turn for Ollama is answered with the text of the model, asked once at the Ollama of the settings for the model the turn names', kind: 'keeps', ask: async ({ rig, model }) => {
+    const [before, others] = [model.native.length, model.chats.length];
+    model.answer('reply');
+    const answer = await rig.ask('POST', '/api/ai', { ...turn('rig question 9242'), provider: 'ollama', model: MODEL });
+    if (answer?.status !== 200 || answer.json?.text !== REPLY) return shown(answer);
+    if (!Array.isArray(answer.json.clientActions) || answer.json.clientActions.length) return 'the answer carries something for the page to do, and no tool was asked for';
+    if (model.native.length !== before + 1 || model.chats.length !== others) return `Ollama was asked ${model.native.length - before} times, the other server ${model.chats.length - others}`;
+    const chat = model.native.at(-1);
+    return chat.model === MODEL && chat.system && chat.asks('rig question 9242') ? '' : 'Ollama was not asked with the model of the turn, the rules of the assistant and the words of the person';
+  } },
+  { rule: 'an Ollama that fails is answered 500 with its reason, and the engine goes on', kind: 'keeps', ask: async ({ rig, model }) => {
+    model.answer('fail');
+    const answer = await rig.ask('POST', '/api/ai', { ...turn('rig question 10'), provider: 'ollama', model: MODEL });
+    model.answer('reply');
+    if (answer?.status !== 500 || !String(answer.json?.error ?? '').includes(FAILURE)) return shown(answer);
+    return (await rig.ask('POST', '/api/ai', { ...turn('rig question 11'), provider: 'ollama', model: MODEL }))?.json?.text === REPLY ? '' : 'the next turn was not answered';
   } },
 ];
 
