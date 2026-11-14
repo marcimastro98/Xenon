@@ -32,6 +32,8 @@ const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|psd1|ps1xml|psc1|vbs|v
 // stop. It is kept separate rather than merged so the Windows boundary stays
 // byte-for-byte what it was; a name like .sh or .py is a document there and has
 // been openable since the feature shipped.
+// `.tool` and `.term` at the end: Terminal runs a `.tool` like a `.command`, and
+// `.term` is the older Terminal settings file that can carry a startup command.
 const BLOCKED_OPEN_EXT_POSIX = /\.(command|app|appex|workflow|terminal|action|definition|osax|prefpane|qlgenerator|saver|mdimporter|plugin|bundle|kext|pkg|mpkg|dmg|webloc|fileloc|inetloc|scpt|scptd|applescript|shortcut|sh|bash|zsh|csh|ksh|fish|py|pyw|rb|pl|php|lua|tcl|awk|run|appimage|tool|term)$/i;
 
 // The name the extension test looks at. Trailing separators are dropped first:

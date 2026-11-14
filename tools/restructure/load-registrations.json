@@ -81,9 +81,9 @@
       {
         "statement": "const deckRegistry = createRegistry(deckRegistryDeps);",
         "callees": {
-          "server/actions/registry.js": "d80505dfd543da67c988f7a7c05eb002e30b93c3900c4f602f1fa2d1d893b961",
-          "server/actions/registry-app-paths.js": "219251d85ae7b15d96d7763c3b9a01229fa68b9f4179610eada0709fd558689c",
-          "server/actions/registry-open-paths.js": "475b22617a479fb5fe3ac2363e9fed21b622422ac95143eb3ee1979da701ee32",
+          "server/actions/registry.js": "815937b1c4ee28a86ffb06450de9ed3161bc164752dacef18921adf17a466d5f",
+          "server/actions/registry-app-paths.js": "95d5a7ce29d4eef76b340367e30c4d9504a532562941da11f17a373d466ba85e",
+          "server/actions/registry-open-paths.js": "f6207de9d38676dcb40defbae243773a85c2cdea1f5a6efbc2461c26ccd0cb0d",
           "server/actions/registry-values.js": "0b207071509e48058ab84622c970205734afbbb9bf6443300ff6c2834d7a790d",
           "server/actions/registry-audio-devices.js": "a55d6691bb219369af30b6f5156ee7aa020d40916b3d2a4a3471a801204c5540"
         },

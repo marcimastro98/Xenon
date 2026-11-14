@@ -45,8 +45,6 @@ const {
   paramName, nextFlag, nextGain, DLL_NAME, dllCandidates,
 } = require('./voicemeeter-params.js');
 
-
-
 function createClient(deps = {}) {
   const platform = deps.platform || process.platform;
   const exists = deps.fileExists || ((p) => { try { return fs.existsSync(p); } catch { return false; } });

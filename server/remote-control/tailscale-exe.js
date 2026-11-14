@@ -1,8 +1,8 @@
 'use strict';
 // Where the Tailscale program is looked for on each system.
 
-// Where the CLI lives, per platform, in the order we prefer it. Everything below
-// this list is platform-neutral: `tailscale status --json`, `up` and `cert` are
+// Where the CLI lives, per platform, in the order we prefer it. Everything else
+// (tailscale.js) is platform-neutral: `tailscale status --json`, `up` and `cert` are
 // the same commands with the same output on all three, so the path was the only
 // thing tying this module to Windows.
 //

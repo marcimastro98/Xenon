@@ -20,14 +20,7 @@ const {
   completeWindowsEnvPath,
 } = require('./registry-app-paths.js');
 
-
-
-
-
 const { isBlockedOpenPath, isRunnableScriptPath } = require('./registry-open-paths.js');
-
-// `.tool` and `.term` above: Terminal runs a `.tool` like a `.command`, and
-// `.term` is the older Terminal settings file that can carry a startup command.
 
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,
 //         mediaAction(cmd)->Promise, micMute(mode)->Promise<{muted}>, volume(mode)->Promise,

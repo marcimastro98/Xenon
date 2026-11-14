@@ -9,7 +9,7 @@
 // Linux has no extension convention at all: an app is a .desktop entry, an
 // AppImage, or a plain executable whose name carries no extension
 // (/usr/bin/firefox) — a dotted name is refused so openApp cannot become a
-// second openFile for documents. Takes `platform` like the two gates below, so
+// second openFile for documents. Takes `platform` like the two gates of registry-open-paths.js, so
 // each rule is testable off the OS it targets; before that parameter existed
 // the Linux branch fell back to the Windows list and every openApp key on
 // Linux validated nothing and failed with bad_app_path.

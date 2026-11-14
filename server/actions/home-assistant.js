@@ -14,7 +14,7 @@
 //
 // Cameras are the ONE exception to "everything over the WS": the WS API can't
 // stream image bytes, so a camera snapshot is a plain authenticated HTTP GET to
-// HA's /api/camera_proxy/<entity> (helper below). That single REST path covers
+// HA's /api/camera_proxy/<entity> (haHttpGetBuffer, home-assistant-address.js). That single REST path covers
 // EVERY camera HA supports — TAPO, Reolink, ONVIF, generic MJPEG, Ring… — because
 // HA normalizes them all to the `camera` domain and does the RTSP transcoding
 // itself, exposing a uniform JPEG snapshot.
@@ -26,20 +26,16 @@ require('../js/smart-home-order.js');
 
 // ---- pure helpers (also unit-tested) ---------------------------------------
 
-
 const {
   compactEntity, isEntityId, isCameraEntity, isMediaPlayerEntity,
 } = require('./home-assistant-entity.js');
 
 const { actionToServiceCall } = require('./home-assistant-service.js');
 
-
-
 const {
   normalizeDashboards, normalizeHaCamAngles, normalizeHomeAssistant, haSameDestination,
   preserveHaToken, redactHaToken,
 } = require('./home-assistant-settings.js');
-
 
 // ---- lazy connection --------------------------------------------------------
 

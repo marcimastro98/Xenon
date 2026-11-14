@@ -51,13 +51,10 @@ const CAN_SET_ORIGIN = (() => {
   try { require('ws'); return true; } catch (e) { return false; }
 })();
 
-
 const {
   WL_HOSTS, WL_START_PORT, WL_PORT_SPAN, WL_APP_NAME, WL3_ORIGIN, WL3_METER_TYPES, IDLE_MS, PING_MS,
   REQ_TIMEOUT_MS, PROBE_TIMEOUT_MS, readPublishedPort,
 } = require('./wavelink-ports.js');
-
-
 
 // ── pure helpers (also unit-tested) ──────────────────────────────────────────
 
@@ -66,8 +63,6 @@ const {
   compactChannel, V2_MIX_LOCAL, v2Mixes, adaptV2Channels, adaptV3Channels, adaptV3Mixes,
   adaptV3Outputs, mergeChannelPatch, resolveMixTargets,
 } = require('./wavelink-shape.js');
-
-
 
 // ── lazy connection ──────────────────────────────────────────────────────────
 

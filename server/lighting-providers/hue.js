@@ -23,8 +23,6 @@ const meta = {
 
 const { httpJson, normHost, bridgeIdKey, bridgeIdOf, httpsJson } = require('./hue-bridge.js');
 
-
-
 const { rgbToXy, buildV2State, rgbToHueState } = require('./hue-colour.js');
 
 // Per-bridge API detection, cached: 'v2' with the whole-home grouped_light id, or

@@ -11,7 +11,6 @@ const {
   isPermissionError, NO_BACKEND, normalizeDnsName, parseStatus, safeAuthUrl, certsEnabledFor,
 } = require('./tailscale-status.js');
 
-
 function createTailscale({ runner = defaultRunner, exe = null, exists = null, platform = process.platform } = {}) {
   const fileExists = typeof exists === 'function'
     ? exists

@@ -35,7 +35,7 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
   }
 
   // `sh -c command -v` rather than `which`, which is not installed everywhere;
-  // sh is. Every name passed here comes from the tables above, never from a
+  // sh is. Every name passed here comes from the tables of installer-packages.js, never from a
   // request, so there is nothing to escape.
   const whichCache = new Map();
   async function which(bin) {
