@@ -18,7 +18,7 @@ The program behind everything: it starts, answers the screen, saves settings, up
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/updates/**` `server/self-update.js` `server/auto-update.js` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.js` and 17 more |
+| **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/updates/**` `server/self-update.js` `server/auto-update.js` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.js` and 18 more |
 | **Install and uninstall** | The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux. | `server/install/**` `server/install.ps1` `server/install.sh` `server/uninstall.ps1` `server/uninstall.sh` `server/install-native.ps1` and 6 more |
 | **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/first-run/**` `server/js/onboarding.js` `server/js/onboarding/**` `server/js/usage-*.js` `server/js/usage-ask/**` `server/js/boot-splash.js` and 8 more |
 | **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/paired/**` `server/remote-access.js` `server/remote-https*.js` `server/remote-actions.js` `server/web-push.js` `server/pair.html` and 9 more |
