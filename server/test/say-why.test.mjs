@@ -72,7 +72,7 @@ test('the server answers a failed Discord login in JSON, with the reason', () =>
   const route = cut(S, "  } else if (reqPath === '/stream/discord/login' && req.method === 'POST') {", "\n  } else if (");
   assert.doesNotMatch(route, /err500/);
   assert.match(route, /json\(\{ ok: false, error: 'login_failed', detail: /);
-  const rpc = read('../discord-rpc.js');
+  const rpc = engineSource('server/discord-rpc.js');
   const fn = cut(rpc, '  function loginFail(error, detail) {');
   assert.match(fn, /if \(!\/\^\[a-z\]\[a-z0-9_\]\{0,40\}\$\/\.test\(String\(error \|\| ''\)\)\) \{\n\s+detail = detail \|\| error;\n\s+error = 'login_failed';/);
   // The rule itself: codes pass, sentences do not.

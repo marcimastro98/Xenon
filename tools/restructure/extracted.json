@@ -305,7 +305,13 @@
       {"file":"server/ai/companion-look-sparks.js","about":"What one look of Bit costs in Sparks: the last real cost, or the usual one before any look.","names":["companionLookSparks"]}
     ],
     "server/remote-access.js": [
-      {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]}
+      {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
+      {"file":"server/paired/widget-asset-path.js","about":"The address a paired device loads a widget's files from: the key sits in the path because the cookie cannot go there, and this reads it back out.","names":["WIDGET_ASSET_PREFIX","ASSET_KEY_RE","parseWidgetAssetPath"]},
+      {"file":"server/paired/own-address.js","about":"Says whether the Host and Origin a paired device sent name this PC: an IP address the PC holds now, or its own HTTPS name, and lists the addresses a device can pair at.","names":["isOwnAddressHost","isIpLiteral","isTlsNameHost","originAllowed","ownAddresses","pairingAddresses"]},
+      {"file":"server/paired/tokens-and-codes.js","about":"The secrets of a paired device: its token and how it is hashed and compared, the pairing code a person types, and the cookie that carries the token.","names":["COOKIE_NAME","TOKEN_BYTES","CODE_LENGTH","CODE_ALPHABET","hashToken","newToken","newAssetKey","newCode","canonicalCode","formatCode","safeEqual","readCookie","cookieHeader"]},
+      {"file":"server/paired/rate-limit.js","about":"Limits how often one address or one paired device may ask, and how many requests a dashboard load is allowed.","names":["createRateLimiter","DASHBOARD_LOAD_REQUESTS","DEVICE_RATE_LIMIT"]},
+      {"file":"server/paired/device-store.js","about":"The saved list of paired devices as it is read back from disk: each record cleaned, and the part of a device the settings page may see.","names":["STORE_VERSION","STORE_FILENAME","MAX_DEVICES","DEVICE_NAME_MAX","cleanName","normalizeDeviceStore","publicDevice"]},
+      {"file":"server/paired/device-registry.js","about":"Keeps the paired devices: pairing with a code, looking a device up by its token, renaming, revoking, and forgetting one that has not come back for a long time.","names":["CODE_TTL_MS","CODE_MAX_ATTEMPTS","IDLE_EXPIRY_MS","createRemoteAccess"]}
     ],
     "server/claude-bridge.js": [
       {"file":"server/claude-code/bridge-limits.js","about":"How long the live Claude Code bridge waits and how much it keeps: time limits and size caps for sessions, approvals, questions and follow-ups.","names":["SESSION_STALE_MS","SESSION_RESTING_MS","APPROVAL_TTL_MS","URGENT_AFTER_MS","QUESTION_TTL_MS","FOLLOWUP_TTL_MS","HANDED_TTL_MS","UNDELIVERED_TTL_MS","MAX_SESSIONS","MAX_PENDING","MAX_STR","MAX_INPUT_CHARS","MAX_TODOS","MAX_ACTIVITY","MAX_SUBAGENTS","AGENT_DONE_MS","MAX_AGENT_LAST","MAX_AGENT_TOKENS","MAX_FOLLOWUP_CHARS","MAX_QUESTIONS","MAX_OPTIONS","MAX_TYPED","MAX_PLAN_CHARS","QUESTION_KINDS","PLAN_MODES"]},
@@ -392,6 +398,42 @@
     ],
     "server/bit-messages.js": [
       {"file":"server/ai/bit-message-clean.js","about":"Cleans one message Bit is asked to show before it is kept: its limits, its text, its time, its button and its picture.","names":["ID_RE","ENTRY_RE","KINDS","APP_ACTIONS","STAMP_RE","MAX_STAMPS","SURFACES","TITLE_MAX","LINE_MAX","BODY_MAX","LABEL_MAX","cleanText","cleanTime","cleanAction","cleanMessage","restoreMessage"]}
+    ],
+    "server/web-push.js": [
+      {"file":"server/paired/push-crypto.js","about":"The cryptography of Web Push: the VAPID keys and the signed token (RFC 8292), and the encrypted payload (RFC 8291).","names":["PAYLOAD_MAX_BYTES","RECORD_SIZE","JWT_TTL_SEC","b64u","fromB64u","generateVapidKeys","rawPublicFromJwk","vapidAudience","buildJwt","encryptPayload"]},
+      {"file":"server/paired/push-subscriptions.js","about":"A phone's push subscription as it is accepted and kept: a public HTTPS endpoint, its keys, and the saved list cleaned.","names":["STORE_VERSION","MAX_SUBSCRIPTIONS","MAX_ENDPOINT_LEN","normalizeSubscription","normalizeStore"]},
+      {"file":"server/paired/push-send.js","about":"Sends one encrypted notification to a browser's push service and says whether the subscription is gone.","names":["DEFAULT_TTL","SEND_TIMEOUT_MS","postToService","isGone"]}
+    ],
+    "server/embedded-browser.js": [
+      {"file":"server/windows-tiles/browser-find.js","about":"Finds a Chromium browser on this PC for the browser tile: the places Edge, Chrome and the others install to on each system.","names":["BROWSER_CANDIDATES","findEdge"]},
+      {"file":"server/windows-tiles/browser-address.js","about":"Turns what a person typed in the browser tile's bar into an address: a site when it looks like one, a search otherwise.","names":["looksLikeHost","searchUrl","normalizeUrl"]},
+      {"file":"server/windows-tiles/browser-input.js","about":"Turns a touch, click, wheel or key from the browser tile into the command the browser's debugging protocol takes.","names":["inputToCdp"]},
+      {"file":"server/windows-tiles/browser-page-shims.js","about":"The two scripts the browser tile runs in every page before the page's own: one hides that the browser is driven, one reports whether the page plays sound.","names":["STEALTH_SHIM","AUDIO_SHIM"]},
+      {"file":"server/windows-tiles/browser-render-size.js","about":"How big and how often the browser tile's picture is drawn: the frame rate cap, the size limits and the sharpness for a small tile.","names":["MAX_STREAM_FPS","FRAME_INTERVAL_MS","clampDim","MIN_SUPERSAMPLE","MAX_FRAME_PX","renderScale"]},
+      {"file":"server/windows-tiles/browser-profile.js","about":"Looks after the browser tile's own profile folder: ends a browser left over from a crash, clears its locks, and starts the profile over when it was spoiled.","names":["pidFilePath","reapStaleProfilePosix","reapStaleProfileEdge","clearProfileLocks","sweepProfileEdge","FINGERPRINT_GENERATION","resetPoisonedProfile"]},
+      {"file":"server/windows-tiles/browser-launch.js","about":"Starts the hidden browser behind the browser tile with its command line, reads the port it listens on, and ends it with everything it started.","names":["readDevToolsPort","killProcessTree","edgeArgs","spawnEdge","defaultLaunch"]}
+    ],
+    "server/discord-rpc.js": [
+      {"file":"server/discord/rpc-sign-in.js","about":"Signing Xenon in to the Discord app on this PC: the addresses, the permissions asked for, and a failed sign-in said plainly.","names":["API","TOKEN_URL","REVOKE_URL","REDIRECT_URI","SCOPES","NOTIF_SCOPE","notifScopeState","errDetail","loginCloseError","authorizeError"]},
+      {"file":"server/discord/rpc-voice-values.js","about":"The small sums behind the Discord voice controls: a switch flipped, push-to-talk toggled, a volume nudged, and one person's volume.","names":["USER_VOL_MAX","DEFAULT_USER_VOL","toggleValue","nextPttType","nudgedVolume","userVolumeAbs","userVolumeFor"]},
+      {"file":"server/discord/rpc-shapes.js","about":"What the Discord app sends turned into what the tile draws: the people in a voice channel with their pictures, soundboard sounds, and notifications.","names":["isSnowflake","avatarUrl","channelMembers","isSoundId","parseSoundRef","normNotification","normSound"]},
+      {"file":"server/discord/rpc-pipe.js","about":"The local pipe to the Discord app: where it is, that it belongs to this user, and the framing of each message sent and read.","names":["OP_HANDSHAKE","OP_FRAME","OP_CLOSE","OP_PING","OP_PONG","PIPE_COUNT","encodeFrame","createDecoder","pipePath","trustedIpcSocket","connectPipe"]},
+      {"file":"server/discord/rpc-debug.js","about":"The optional log of what the Discord app sends, switched on for a diagnosis.","names":["RPC_DEBUG","logDispatch"]}
+    ],
+    "server/codex-appserver.js": [
+      {"file":"server/codex/appserver-rpc.js","about":"Talks JSON-RPC with Codex's own app server over its pipes: lines put back together, one request with its time limit, and an answer that means not supported.","names":["REQUEST_TIMEOUT_MS","MAX_LINE","createLineDecoder","isUnsupported","RpcError","createRpc"]},
+      {"file":"server/codex/appserver-clamp.js","about":"Clamps a value Codex sent before it is kept: a trimmed string, a whole number, a percentage.","names":["str","int","pct"]},
+      {"file":"server/codex/appserver-parse-account.js","about":"Reads Codex's answers about the account: who is signed in, the plan limits and credits, the usage per day, the hooks installed and the version.","names":["MAX_BUCKETS","USAGE_DAYS","parseAccount","parseWindow","parseBucket","parseCredits","parseRateLimits","mergeRateLimitUpdate","dayKey","parseUsage","parseHooks","versionFromUserAgent"]},
+      {"file":"server/codex/appserver-parse-threads.js","about":"Reads Codex's recent work: the list of threads with their state, and the messages of one thread with the text a person typed cleaned.","names":["MAX_THREADS","threadStatus","threadSource","parseThreads","cleanUserText","MAX_THREAD_MESSAGES","MAX_MESSAGE_TEXT","keepLines","parseTurns"]}
+    ],
+    "server/linux-index.js": [
+      {"file":"server/search/linux-index-query.js","about":"Answers a file search from the Linux file index: how well a name matches what was typed, and the matches in order.","names":["foldName","matchTier","PATH_TIER","entryTier","byTierThenNewest","queryEntries","queryIndex"]},
+      {"file":"server/search/linux-index-overview.js","about":"What the Linux file index says about disk space: the overview of a drive by kind of file, and the contents of one folder with sizes.","names":["isUnder","overviewFrom","browseFrom"]}
+    ],
+    "server/ics-feeds.js": [
+      {"file":"server/time/ics-parse.js","about":"Reads the text of an iCalendar file (RFC 5545) into events: folded lines, dates with their time zone, escaped text.","names":["_unfold","_parseLine","_p2","_p4","_dtfCache","_dtfFor","_tzOffsetMs","_zonedWallToUtcMs","_parseIcsDate","_unescapeText","_finalizeVEvent","MAX_EVENTS_PER_FEED","MAX_EXDATES_PER_EVENT","parseIcs"]},
+      {"file":"server/time/ics-recurrence.js","about":"Works out when a repeating calendar event happens inside a stretch of days, from its RRULE.","names":["_WEEKDAY","_MAX_OCCURRENCES","_MAX_EVENT_RESULTS","_DAY_MS","_parseRRule","_startEpoch","_instantOf","expandRecurrence"]},
+      {"file":"server/time/ics-feed-settings.js","about":"The calendar feeds a user saved: the list cleaned, and each address kept on the PC while only its host name goes to the page.","names":["MAX_FEEDS","_safeHostname","normalizeCalendarFeeds","redactCalendarFeedUrls","preserveCalendarFeedUrls"]}
     ]
   },
   "spreads": {

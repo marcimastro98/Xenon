@@ -12,9 +12,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const WIDGET = readFileSync(new URL('../js/discord-widget.js', import.meta.url), 'utf8');
-const RPC = readFileSync(new URL('../discord-rpc.js', import.meta.url), 'utf8');
+const RPC = engineSource('server/discord-rpc.js');
 const CSS = readFileSync(new URL('../components/DiscordWidget/DiscordWidget.css', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 

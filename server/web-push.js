@@ -34,29 +34,25 @@
  * server of ours in the middle: the PC talks to the push service directly.
  */
 
-const crypto = require('node:crypto');
-const https = require('node:https');
 const path = require('node:path');
 const fs = require('node:fs');
 const { writeFileAtomic } = require('./atomic-write.js');
 // A subscription endpoint is a URL a client chose. It must name the public
 // internet: a paired phone could otherwise subscribe https://127.0.0.1:<port>/
 // or a LAN address and turn every notification into a blind POST there.
-const { isPublicUrl, publicLookup } = require('./net-guard.js');
+require('./net-guard.js');
 
 const STORE_FILENAME = 'web-push.json';
-const STORE_VERSION = 1;
 
-// A subscription is a URL the push service handed the browser. It is a bearer
-// address: anyone holding it can ask the service to wake that install, which is
-// what VAPID exists to make useless to them.
-const MAX_SUBSCRIPTIONS = 32;
-const MAX_ENDPOINT_LEN = 1024;
-const PAYLOAD_MAX_BYTES = 3000;      // under every service's 4KB record limit
-const RECORD_SIZE = 4096;
-const DEFAULT_TTL = 600;             // 10 minutes: a stale "timer finished" is noise
-const JWT_TTL_SEC = 12 * 3600;       // RFC 8292 caps this at 24h; half is plenty
-const SEND_TIMEOUT_MS = 10_000;
+const {
+  PAYLOAD_MAX_BYTES, b64u, fromB64u, generateVapidKeys, rawPublicFromJwk, vapidAudience, buildJwt,
+  encryptPayload,
+} = require('./paired/push-crypto.js');
+const {
+  STORE_VERSION, MAX_SUBSCRIPTIONS, normalizeSubscription, normalizeStore,
+} = require('./paired/push-subscriptions.js');
+
+const { DEFAULT_TTL, postToService, isGone } = require('./paired/push-send.js');
 // A subscription that keeps failing without ever saying "gone" (a service that
 // is down, a phone that is off) must not be retried forever, and must not be
 // deleted either — the user did not unsubscribe. Park it after this many.
@@ -64,236 +60,15 @@ const MAX_FAILURES = 10;
 
 // ── Encoding ─────────────────────────────────────────────────────────────────
 
-const b64u = (buf) => Buffer.from(buf).toString('base64')
-  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-function fromB64u(s) {
-  const t = String(s || '').replace(/-/g, '+').replace(/_/g, '/');
-  return Buffer.from(t + '='.repeat((4 - (t.length % 4)) % 4), 'base64');
-}
-
 // ── Keys ─────────────────────────────────────────────────────────────────────
-
-/**
- * A fresh VAPID key pair, stored as a JWK because that is the one shape node
- * can turn back into both a signing key and the raw 65-byte public point the
- * browser wants — going through PEM would mean parsing DER by hand to get the
- * point back out.
- */
-function generateVapidKeys() {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-  const jwk = privateKey.export({ format: 'jwk' });
-  return {
-    jwk: { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, d: jwk.d },
-    publicKey: b64u(rawPublicFromJwk(jwk)),
-    _publicKeyObject: publicKey,
-  };
-}
-
-/** The uncompressed SEC1 point (0x04 ‖ X ‖ Y) — what applicationServerKey is. */
-function rawPublicFromJwk(jwk) {
-  const x = fromB64u(jwk.x);
-  const y = fromB64u(jwk.y);
-  if (x.length !== 32 || y.length !== 32) throw new Error('bad_jwk');
-  return Buffer.concat([Buffer.from([0x04]), x, y]);
-}
 
 // ── RFC 8292: the VAPID token ────────────────────────────────────────────────
 
-/**
- * The audience is the ORIGIN of the endpoint, never the whole URL. A token
- * carrying the full path would leak the subscription address into a header the
- * service logs, and would be rejected besides.
- */
-function vapidAudience(endpoint) {
-  const u = new URL(String(endpoint));
-  if (u.protocol !== 'https:') throw new Error('insecure_endpoint');
-  return u.origin;
-}
-
-/**
- * ES256 over {header}.{claims}. The signature MUST be the raw r‖s pair, not the
- * DER structure node signs with by default — `dsaEncoding: 'ieee-p1363'` is the
- * whole difference between a token every push service accepts and one every
- * push service answers 401 to.
- */
-function buildJwt({ audience, subject, jwk, now = Date.now() }) {
-  const header = b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' }));
-  const claims = b64u(JSON.stringify({
-    aud: String(audience),
-    exp: Math.floor(now / 1000) + JWT_TTL_SEC,
-    sub: String(subject),
-  }));
-  const input = header + '.' + claims;
-  const key = crypto.createPrivateKey({ key: jwk, format: 'jwk' });
-  const sig = crypto.sign('sha256', Buffer.from(input), { key, dsaEncoding: 'ieee-p1363' });
-  return input + '.' + b64u(sig);
-}
-
 // ── RFC 8291: the encrypted payload ──────────────────────────────────────────
-
-/**
- * Encrypt `payload` to a subscription's keys, producing the exact body an
- * `aes128gcm` push request carries.
- *
- * The ladder, in the order the RFC builds it:
- *   ecdh   = ECDH(ephemeral private, browser public)
- *   IKM    = HKDF(salt = auth_secret, ikm = ecdh, info = "WebPush: info" ‖ 0 ‖ ua ‖ as)
- *   CEK    = HKDF(salt = random 16, ikm = IKM, info = "Content-Encoding: aes128gcm" ‖ 0)
- *   nonce  = HKDF(same salt and IKM,  info = "Content-Encoding: nonce" ‖ 0)
- *
- * The two HKDF stages are NOT interchangeable: the first mixes in the shared
- * secret and both public keys, the second turns that into this message's key.
- *
- * `salt` and `ephemeral` are injectable so the test suite can pin a known
- * vector — production never passes them.
- */
-function encryptPayload({ payload, p256dh, auth, salt, ephemeral }) {
-  const plaintext = Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload), 'utf8');
-  if (plaintext.length > PAYLOAD_MAX_BYTES) throw new Error('payload_too_large');
-
-  const uaPublic = fromB64u(p256dh);
-  const authSecret = fromB64u(auth);
-  if (uaPublic.length !== 65 || uaPublic[0] !== 0x04) throw new Error('bad_p256dh');
-  if (authSecret.length !== 16) throw new Error('bad_auth');
-
-  const ecdh = ephemeral || crypto.createECDH('prime256v1');
-  if (!ephemeral) ecdh.generateKeys();
-  const asPublic = ecdh.getPublicKey();
-  // Throws on a point that is not on the curve, which is the check that keeps a
-  // forged p256dh from becoming an invalid-curve attack on our ephemeral key.
-  const shared = ecdh.computeSecret(uaPublic);
-
-  const keyInfo = Buffer.concat([Buffer.from('WebPush: info\0', 'utf8'), uaPublic, asPublic]);
-  const ikm = crypto.hkdfSync('sha256', shared, authSecret, keyInfo, 32);
-
-  const useSalt = salt || crypto.randomBytes(16);
-  if (useSalt.length !== 16) throw new Error('bad_salt');
-  const cek = Buffer.from(crypto.hkdfSync('sha256', ikm, useSalt, Buffer.from('Content-Encoding: aes128gcm\0', 'utf8'), 16));
-  const nonce = Buffer.from(crypto.hkdfSync('sha256', ikm, useSalt, Buffer.from('Content-Encoding: nonce\0', 'utf8'), 12));
-
-  // 0x02 is the padding delimiter for the LAST record. We always send exactly
-  // one record, so it is always 0x02 — 0x01 here would be a message the browser
-  // waits forever for the rest of.
-  const record = Buffer.concat([plaintext, Buffer.from([0x02])]);
-  const cipher = crypto.createCipheriv('aes-128-gcm', cek, nonce);
-  const body = Buffer.concat([cipher.update(record), cipher.final(), cipher.getAuthTag()]);
-
-  const header = Buffer.alloc(21);
-  useSalt.copy(header, 0);
-  header.writeUInt32BE(RECORD_SIZE, 16);
-  header.writeUInt8(asPublic.length, 20);
-  return Buffer.concat([header, asPublic, body]);
-}
 
 // ── Subscriptions ────────────────────────────────────────────────────────────
 
-/**
- * Validate what the browser handed us. Everything here arrives from a client,
- * and the endpoint in particular becomes an outbound request from the user's
- * PC — so it is checked the way `/sdk/fetch` checks a host, not the way a
- * settings field is checked.
- */
-function normalizeSubscription(input, { deviceId = '' } = {}) {
-  const s = input && typeof input === 'object' ? input : {};
-  const endpoint = String(s.endpoint || '');
-  if (!endpoint || endpoint.length > MAX_ENDPOINT_LEN) return null;
-  let u;
-  try { u = new URL(endpoint); } catch { return null; }
-  // https only, and no credentials in the URL: both would end up in a log.
-  if (u.protocol !== 'https:') return null;
-  if (u.username || u.password) return null;
-  if (!isPublicUrl(endpoint)) return null;
-  const keys = s.keys && typeof s.keys === 'object' ? s.keys : s;
-  const p256dh = String(keys.p256dh || '');
-  const auth = String(keys.auth || '');
-  try {
-    const pub = fromB64u(p256dh);
-    if (pub.length !== 65 || pub[0] !== 0x04) return null;
-    if (fromB64u(auth).length !== 16) return null;
-  } catch { return null; }
-  return {
-    endpoint, p256dh, auth,
-    deviceId: String(deviceId || '').slice(0, 64),
-    createdAt: 0, lastOkAt: 0, failures: 0,
-  };
-}
-
-function normalizeStore(raw) {
-  const r = raw && typeof raw === 'object' ? raw : {};
-  const jwk = r.keys && typeof r.keys === 'object' ? r.keys : null;
-  const ok = jwk && jwk.kty === 'EC' && jwk.crv === 'P-256'
-    && typeof jwk.x === 'string' && typeof jwk.y === 'string' && typeof jwk.d === 'string';
-  const subs = [];
-  const seen = new Set();
-  for (const s of Array.isArray(r.subs) ? r.subs : []) {
-    const n = normalizeSubscription(s, { deviceId: s && s.deviceId });
-    if (!n || seen.has(n.endpoint)) continue;
-    seen.add(n.endpoint);
-    n.createdAt = Number.isFinite(s.createdAt) && s.createdAt > 0 ? Math.floor(s.createdAt) : 0;
-    n.lastOkAt = Number.isFinite(s.lastOkAt) && s.lastOkAt > 0 ? Math.floor(s.lastOkAt) : 0;
-    n.failures = Number.isFinite(s.failures) && s.failures > 0 ? Math.min(999, Math.floor(s.failures)) : 0;
-    subs.push(n);
-    if (subs.length >= MAX_SUBSCRIPTIONS) break;
-  }
-  return { version: STORE_VERSION, keys: ok ? { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, d: jwk.d } : null, subs };
-}
-
 // ── The transport ────────────────────────────────────────────────────────────
-
-/**
- * POST one encrypted body to one endpoint. Split out from the store so the test
- * suite can drive it against a local server, and so the retry/expiry policy
- * lives in exactly one place above it.
- *
- * `request` is injectable for the same reason; production uses https.request.
- */
-function postToService({ endpoint, body, jwt, vapidPublicKey, ttl = DEFAULT_TTL, urgency = 'normal', request = https.request, timeoutMs = SEND_TIMEOUT_MS }) {
-  return new Promise((resolve) => {
-    let u;
-    try { u = new URL(endpoint); } catch { return resolve({ ok: false, status: 0, error: 'bad_endpoint' }); }
-    if (u.protocol !== 'https:') return resolve({ ok: false, status: 0, error: 'insecure_endpoint' });
-    // Checked again on every send, not only at subscribe time: a store written
-    // by an older build, or edited by hand, must not get a pass.
-    if (!isPublicUrl(endpoint)) return resolve({ ok: false, status: 0, error: 'blocked_endpoint' });
-    let settled = false;
-    let deadline = null;
-    const settle = (v) => { if (!settled) { settled = true; clearTimeout(deadline); resolve(v); } };
-    const req = request({
-      protocol: u.protocol, hostname: u.hostname, port: u.port || 443,
-      path: u.pathname + u.search, method: 'POST',
-      // The connect-time half of the check above: a public-looking name that
-      // resolves to loopback/LAN space is refused here.
-      lookup: publicLookup,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Encoding': 'aes128gcm',
-        'Content-Length': body.length,
-        TTL: String(Math.max(0, Math.min(86400, ttl | 0))),
-        Urgency: urgency === 'high' ? 'high' : 'normal',
-        Authorization: 'vapid t=' + jwt + ', k=' + vapidPublicKey,
-      },
-    }, (res) => {
-      // The answer is a status code; nothing in the body is useful to us and a
-      // service can return a long one, so it is drained rather than collected.
-      res.resume();
-      res.on('end', () => settle({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode }));
-    });
-    req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')); });
-    req.on('error', (e) => settle({ ok: false, status: 0, error: (e && e.code) || 'network' }));
-    // setTimeout above is an idle timeout; a service that trickles its reply
-    // would hold the send open forever. Cap the whole exchange too.
-    deadline = setTimeout(() => {
-      if (typeof req.destroy === 'function') req.destroy(new Error('timeout'));
-      settle({ ok: false, status: 0, error: 'timeout' });
-    }, timeoutMs * 2);
-    if (deadline.unref) deadline.unref();
-    req.end(body);
-  });
-}
-
-/** 404 and 410 are the service saying the subscription no longer exists. */
-const isGone = (status) => status === 404 || status === 410;
 
 // ── The store ────────────────────────────────────────────────────────────────
 

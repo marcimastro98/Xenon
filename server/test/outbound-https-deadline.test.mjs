@@ -62,9 +62,9 @@ const EXEMPT = {
     undeadlined: 0,
     reason: 'calls through mod.request (http or https, hosts the user granted) and caps the whole exchange with its own PROXY_DEADLINE_MS timer.',
   },
-  'web-push.js': {
+  'paired/push-send.js': {
     undeadlined: 0,
-    reason: 'the request function is injected (https.request in production) and the whole send is capped by its own timer at twice SEND_TIMEOUT_MS.',
+    reason: 'the push sender, moved out of web-push.js unchanged: the request function is injected (https.request in production) and the whole send is capped by its own timer at twice SEND_TIMEOUT_MS.',
   },
   'ai-local-server.js': {
     undeadlined: 0,

@@ -125,7 +125,7 @@ test('nothing at all happening is an error, not a quiet success', async () => {
 // ── Wiring ──────────────────────────────────────────────────────────────────
 
 test('the RPC client selects the channel with a checked id, and never throws', async () => {
-  const rpc = read('../discord-rpc.js');
+  const rpc = engineSource('server/discord-rpc.js');
   const at = rpc.indexOf('async function openTextChannel(');
   assert.ok(at > 0);
   const body = rpc.slice(at, rpc.indexOf('\n  }\n', at));

@@ -21,7 +21,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const WIDGET = read('../js/discord-widget.js');
 const SERVER = engineSource();
 const SETTINGS = read('../js/settings.js');
-const RPC = read('../discord-rpc.js');
+const RPC = engineSource('server/discord-rpc.js');
 const CUSTOM = read('../js/custom-widget.js');
 const CSS = read('../components/DiscordWidget/DiscordWidget.css');
 const I18N = appStringsSource();
