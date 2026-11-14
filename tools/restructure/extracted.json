@@ -461,7 +461,9 @@
       {"file":"server/ai/gemini-calls.js","about":"The single questions the engine puts to Gemini with the person's key: one answer, one answer as JSON, a web search with its sources, and the words of a sound clip.","names":["_geminiOneShot","_transcribeAudio","_geminiWebSearch","_geminiGenerateJSON"],"bare":["./stt-voice-gate"]},
       {"file":"server/ai/speak-on-server.js","about":"Reading a text aloud on the PC with Gemini's voice: the sound is made and played by the engine, so it is heard whatever window is in front.","names":["_geminiTtsToWav","speakOnServer"],"bare":["./tts-chunks"]},
       {"file":"server/ai/complete-with-user-ai.js","about":"One answer from the model the person chose in the settings, for the features that need a text and no conversation.","names":["completeWithUserAi"]},
-      {"file":"server/ai/performance-plan.js","about":"The plan the model writes for Performance Mode: which of the running programs can be put aside for what the person is doing.","names":["_aiPerformancePlan"]}
+      {"file":"server/ai/performance-plan.js","about":"The plan the model writes for Performance Mode: which of the running programs can be put aside for what the person is doing.","names":["_aiPerformancePlan"]},
+      {"file":"server/system/packet-loss-count.js","about":"The count of pings sent and lost that the network reading turns into a share of lost packets, made when the engine starts.","names":["_packetLoss"],"wire":{"first":"_packetLoss","last":"_packetLoss"}},
+      {"file":"server/system/network-info.js","about":"The network reading the dashboard shows: the adapter, its address, the speed up and down, the ping and the share of lost packets; two dashboards asking together share one reading.","names":["getNetworkInfo","_getNetworkInfoRaw"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
