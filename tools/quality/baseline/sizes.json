@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 142,
+  "count": 141,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -106,7 +106,6 @@
     "server/js/tile-style-editor.js": 355,
     "server/js/toast-island.js": 573,
     "server/js/toast.js": 521,
-    "server/js/topbar-look-settings.js": 308,
     "server/js/topbar-look.js": 367,
     "server/js/topbar-minimal.js": 1129,
     "server/js/transfer-widget.js": 1020,

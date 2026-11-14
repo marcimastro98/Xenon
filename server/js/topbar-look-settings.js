@@ -9,7 +9,7 @@
 (function () {
   const L = window.TopbarLook;
 
-  const seg = (prefix, values) => values.map((v) => [v, prefix + v.replace(/-/g, '_')]);
+  const { seg, autoHide, BUTTON_NAMES, syncRow, testToast } = window.TopbarLookSettingsRows;
 
   // The fine controls, in the order they appear under "Customize".
   const CUSTOM_ROWS = [
@@ -31,9 +31,6 @@
     { key: 'clockFont', label: 'tbl_clock_font', values: seg('tbl_font_', L.CHOICES.clockFont) },
     { key: 'colonBlink', type: 'toggle', label: 'tbl_colon_blink' },
   ];
-  // The edge rails of Minimal and None. A side that holds Settings or Layout
-  // says so under its switch: the guard in TopbarLook.css keeps it on screen.
-  const autoHide = () => typeof hubSettings === 'undefined' || !hubSettings || hubSettings.topbarRailsAutoHide !== false;
   const keeperNote = (side) => () => (keeperSides().includes(side) ? 'tbl_rail_keeps' : '');
   const RAIL_ROWS = [
     { key: 'railLeft', label: 'tbl_rail_left', note: keeperNote('left'), values: seg('tbl_rail_', L.CHOICES.railLeft) },
@@ -46,11 +43,6 @@
   const NOTIFY_ROWS = [
     { key: 'toastPlace', type: 'select', label: 'tbl_toast_place', hint: 'tbl_toast_place_hint', values: seg('tbl_toast_', L.CHOICES.toastPlace) },
   ];
-  // Names of the buttons for the accent list (keys shared with the button editor).
-  const BUTTON_NAMES = {
-    lock: 'topbar_btn_lock', ambient: 'topbar_btn_ambient', xenon: 'topbar_btn_xenon', search: 'topbar_btn_search',
-    layout: 'topbar_btn_layout', settings: 'topbar_btn_settings', apps: 'topbar_btn_apps',
-  };
 
   // hubSettings is settings.js's top-level `let`: shared by name, not on window.
   const look = () => L.normalize(typeof hubSettings !== 'undefined' && hubSettings ? hubSettings.topbarLook : null);
@@ -191,37 +183,6 @@
     return box;
   }
 
-  function syncNote(el, row, l) {
-    const note = row.note && el.querySelector('.tbl-note');
-    if (!note) return;
-    const key = row.note(l);
-    note.hidden = !key;
-    if (key) { note.setAttribute('data-i18n', key); note.textContent = t(key); } else note.removeAttribute('data-i18n');
-  }
-
-  function syncRow(el, row, l) {
-    el.hidden = typeof row.when === 'function' && !row.when(l);
-    syncNote(el, row, l);
-    if (el._tbSync) return el._tbSync(l);
-    const control = el._tbControl;
-    if (!control) return;
-    if (control._tbSync) return control._tbSync(l);
-    if (control.tagName === 'SELECT') {
-      control.value = l[row.key];
-      if (typeof control._csSync === 'function') control._csSync();
-      return;
-    }
-    // A side that must stay cannot be switched off: its "Off" is greyed out and
-    // the note under the name says why, instead of a choice that does nothing.
-    const locked = row.note ? !!row.note(l) : false;
-    for (const b of control.querySelectorAll('[data-tb-value]')) {
-      const on = locked ? b.dataset.tbValue === 'show' : b.dataset.tbValue === l[row.key];
-      b.classList.toggle('active', on);
-      b.setAttribute('aria-pressed', String(on));
-      b.disabled = locked && b.dataset.tbValue === 'off';
-    }
-  }
-
   // A ready-made look as a card: a small drawing of the bar in that look (the
   // same plates, in the theme's own colours) and its name.
   function presetCard(id) {
@@ -298,10 +259,6 @@
     sync();
     if (window.TopbarButtonOptions) TopbarButtonOptions.sync();
     setSettingsStatus('settings_saved', 'ok');
-  }
-
-  function testToast() {
-    if (window.XenonToast) XenonToast.show({ type: 'info', title: t('tbl_toast_sample_title'), message: t('tbl_toast_sample') });
   }
 
   window.TopbarLookSettings = { sync, set, testToast, mountInto };

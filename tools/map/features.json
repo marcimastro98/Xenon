@@ -816,6 +816,7 @@
       "files": [
         "server/topbar/**",
         "server/js/topbar-*.js",
+        "server/js/topbar-look-settings/**",
         "server/js/topbar-media/**",
         "server/js/status.js",
         "server/components/Topbar/**",
