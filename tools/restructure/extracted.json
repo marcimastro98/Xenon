@@ -646,7 +646,8 @@
     ],
     "server/remote-control/tailscale.js": [
       {"file":"server/remote-control/tailscale-status.js","about":"Reads what the Tailscale program says: the status of this PC on its network, its name there, a sign-in link, whether certificates are on, and whether an error means a missing right.","names":["PERMISSION_RE","isPermissionError","DNS_NAME_RE","NO_BACKEND","normalizeDnsName","parseStatus","AUTH_URL_RE","safeAuthUrl","certsEnabledFor"]},
-      {"file":"server/remote-control/tailscale-exe.js","about":"Where the Tailscale program is looked for on each system.","names":["EXE_CANDIDATES","exeCandidates","EXE"]}
+      {"file":"server/remote-control/tailscale-exe.js","about":"Where the Tailscale program is looked for on each system.","names":["EXE_CANDIDATES","exeCandidates","EXE"]},
+      {"file":"server/remote-control/tailscale-repairs.js","about":"The three repairs of a Tailscale that is installed and not answering: the right to manage it given to the user, the daemon started, and the tray client started, the first two with one question for the administrator's password.","names":["grantOperator","SERVICE_START","startService","GUI_EXE","startClient"],"inner":{"factory":"createTailscale","make":"makeRepairs"},"bare":["./runner"]}
     ],
     "server/capabilities/layers.js": [
       {"file":"server/capabilities/layers-find.js","about":"Finds what a layer request means: the widget it names, the one already placed, its page and its monitor, and how a placed widget is described back.","names":["resolveRef","describe","pageIdFor","choices","monitorFor","placeFor","findPlaced"]},
