@@ -7,11 +7,16 @@
 //     requires the same module);
 //   - a name of the file that means one value for good and has it by then: the
 //     call hands it over (branches-own.mjs);
-//   - something every Node program has (`JSON`, `Buffer`, `setTimeout`).
+//   - something every Node program has (`JSON`, `Buffer`, `setTimeout`);
+//   - `__dirname`, or `require('<a plain text>')`: the two words that mean the folder
+//     of the file, written for the table's folder when the body lands there
+//     (branches-place.mjs).
 // and when it has nothing whose meaning depends on the function around it: no
-// `this`, no `arguments`, no `return` with a value (no `return` at all where the
-// function goes on after the chain), no `var` and no function declared straight in
-// the body (both would be seen by the whole handler today), no label, no `eval`.
+// `this`, no `arguments`, no `return` at all where the function goes on after the
+// chain (where the chain is the last thing the function does, a `return` with a value
+// is marked, `returns`, and the call gives the value back), no `var` and no function
+// declared straight in the body (both would be seen by the whole handler today), no
+// label, no `eval`.
 // The one name a body may assign is the result its kind of chain gives back. A body
 // that sets it once, in a statement of its own straight in the body, is marked (`once`):
 // its function declares the result on one line and sets it once further down, which
@@ -20,6 +25,8 @@
 
 import { ROUTES } from './branches-kinds.mjs';
 import { ownRule } from './branches-own.mjs';
+import { PLACE_WORDS, placeUses } from './branches-place.mjs';
+import { HOME, homeWord, OLD_HOME } from './paths-undo.mjs';
 import { createUseReader } from './scope-uses.mjs';
 import { frameLine, readCall } from './branches-text.mjs';
 import { lineAt, lineStarts } from './top-level.mjs';
@@ -120,17 +127,19 @@ function bodyLines(block, sourceFile, starts, lines) {
  * @param {typeof ROUTES} [job.kind] which chain (branches-kinds.mjs)
  * @returns {{ sourceFile: any, chain: any, locals: Set<string>, branches: { key: string | null, test: string,
  *   line: number, first: number, last: number, lines: number, moved: boolean, block: any, uses: Map<string, any>, handed: string[],
- *   needed: string[], own: string[], holders: string[], once: boolean, reasons: string[] }[] }}
+ *   needed: string[], own: string[], holders: string[], once: boolean, returns: boolean, place: ReturnType<typeof placeUses>, reasons: string[] }[] }}
  *   `first`/`last` are 0-based lines of the body, `handed` the handler values it uses, `needed` the names it uses that its
  *   table would require, `own` the names of the file its call would hand over (sorted), `holders` the names of the file
  *   that cannot be handed and keep it, `once` whether it sets the result of its chain once in a line of its own,
+ *   `returns` whether it gives a value back with `return`, `place` where it says `__dirname` or requires a path,
  *   `reasons` everything that keeps it (one per holder, last);
  *   `moved` is true when the body is one call of a table already
  */
 export function readBranches({ text, parser, analysis, kind = ROUTES, handler = kind.handler }) {
   const chain = kind.chainOf(text, parser, handler);
-  const HANDED = new Set([...kind.leading, ...kind.context]);
+  const HANDED = new Set([...kind.leading, ...kind.context, ...kind.extra]);
   const { sourceFile } = chain;
+  const VALUED = 'a `return` with a value';
   const usesOf = createUseReader(parser.K, parser.NodeFlags);
   const locals = handlerNames(chain.handler, parser);
   const rule = ownRule(analysis, handler);
@@ -139,7 +148,8 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
   const branches = chain.branches.map(({ test, block }) => {
     const at = bodyLines(block, sourceFile, starts, lines);
     const key = kind.keyOf(test);
-    const uses = usesOf(block);
+    const words = [];
+    const uses = usesOf(block, undefined, (node) => { if (PLACE_WORDS.has(node.text)) words.push(node); });
     const reasons = [];
     const holders = [];
     const needed = [];
@@ -155,7 +165,8 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
         if (!HANDED.has(name)) reasons.push(`it uses ${name}, which the handler works out for itself`);
         else if (use.write > 0) reasons.push(`it assigns ${name}`);
         else handed.push(name);
-      } else if (BOUND_TO_PLACE.has(name)) reasons.push(`it uses \`${name}\`, which means another thing in another file or function`);
+      } else if (PLACE_WORDS.has(name)) { if (use.write + use.change > 0) reasons.push(`it assigns or changes \`${name}\``); }
+      else if (BOUND_TO_PLACE.has(name)) reasons.push(`it uses \`${name}\`, which means another thing in another file or function`);
       else if (analysis.bindings.has(name)) {
         if (rule.required(name)) { needed.push(name); if (use.write > 0) reasons.push(`it assigns ${name}`); }
         else if (rule.whyNot(name) === null) own.push(name);
@@ -163,11 +174,18 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
       } else if (!(name in globalThis)) reasons.push(`it uses ${name}, which nothing declares`);
       else if (use.write > 0) reasons.push(`it assigns ${name}`);
     }
-    reasons.push(...placeBound(block, parser, { anyReturn: Boolean(kind.result) }).map((what) => `it has ${what}`));
+    const place = placeUses(words.filter((node) => !locals.has(node.text)), parser, (node) => text.slice(node.getStart(sourceFile), node.end), sourceFile);
+    reasons.push(...place.reasons);
+    if (place.homes.length && at && lines.slice(at.first, at.last + 1).some((line) => homeWord().test(line))) {
+      reasons.push(`it says ${OLD_HOME} and has the word ${HOME} too, which ${OLD_HOME} is written as in a table`);
+    }
+    const bound = placeBound(block, parser, { anyReturn: Boolean(kind.result) });
+    const returns = kind.returns && bound.includes(VALUED);
+    reasons.push(...bound.filter((what) => !(kind.returns && what === VALUED)).map((what) => `it has ${what}`));
     reasons.push(...holders.map((name) => `it needs ${name}, which cannot be handed over: ${rule.whyNot(name)}`));
     return { key, test, line: lineAt(starts, block.getStart(sourceFile)) + 1, first: at?.first ?? -1, last: at?.last ?? -1,
       lines: at ? at.last - at.first + 1 : 0, moved, block, uses, handed, needed, own: own.sort(), holders,
-      once: Boolean(kind.result) && setsOnceAtTop(block, kind.result, uses, parser.K), reasons };
+      once: Boolean(kind.result) && setsOnceAtTop(block, kind.result, uses, parser.K), returns, place, reasons };
   });
   return { sourceFile, chain, locals, branches };
 }

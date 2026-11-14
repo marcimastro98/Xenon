@@ -30,11 +30,12 @@ import { syntaxProblems, unknownNameProblems } from './verify.mjs';
 
 const STRICT = /^(?:\s|\/\/.*|\/\*[\s\S]*?\*\/)*(['"])use strict\1/;
 // A made-up install on each kind of system: the values are compared as text, nothing is read from disk.
-const INSTALLS = [[path.win32, 'C:\\app\\server'], [path.posix, '/opt/app/server']];
+export const INSTALLS = [[path.win32, 'C:\\app\\server'], [path.posix, '/opt/app/server']];
 const SYSTEMS = ['win32', 'darwin', 'linux'];
 
 const up = (source, target) => path.posix.relative(path.posix.dirname(target), path.posix.dirname(source)).split('/');
-const homeLine = (source, target) => `const ${HOME} = path.join(${OLD_HOME}, ${up(source, target).map((part) => `'${part}'`).join(', ')});`;
+/** The line a module one or more folders below `source` works out the folder of `source` with. */
+export const homeLine = (source, target) => `const ${HOME} = path.join(${OLD_HOME}, ${up(source, target).map((part) => `'${part}'`).join(', ')});`;
 const specOf = (source, target) => {
   const from = path.posix.relative(path.posix.dirname(source), target);
   return from.startsWith('.') ? from : `./${from}`;

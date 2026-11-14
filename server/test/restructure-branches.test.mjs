@@ -31,7 +31,7 @@ const proven = (made, more = {}) => proveBranches({ before: SOURCE, after: made.
 test('the lines the command writes are read back as what they say', () => {
   const call = callLine('lightsBranches', 'GET /api/lights/now');
   assert.equal(call, "    await lightsBranches['GET /api/lights/now'](req, res, { json, err500, reqPath, urlObj, isRemote });");
-  assert.deepEqual(readCall(call), { local: 'lightsBranches', key: 'GET /api/lights/now', own: [] });
+  assert.deepEqual(readCall(call), { local: 'lightsBranches', key: 'GET /api/lights/now', own: [], extra: [], returns: false });
   assert.equal(readCall(call.replace('isRemote }', 'isRemote, more }')), null, 'a call that hands over anything else is not one of ours');
   assert.deepEqual(readRequire(requireLine('lightsBranches', './lights/routes.js')), { local: 'lightsBranches', spec: './lights/routes.js' });
   assert.deepEqual(readHead(headLine('POST /x', 'req, _res, { json }')), { key: 'POST /x', params: 'req, _res, { json }' });
@@ -52,7 +52,7 @@ test('a test written one of the other plain ways names its body with a key no ot
   assert.equal(keyOf("reqPath.startsWith('/x/') && (req.method === 'GET' || req.method === 'HEAD')"), null);
   assert.equal(keyOf("reqPath === '/x*' && req.method === 'GET'"), null, 'an address that ends in a star would read like the start of one');
   assert.equal(keyOf("reqPath === '/x|y' && req.method === 'GET'"), null);
-  for (const key of ['POST|GET /x', 'DELETE /x/*', 'GET /x']) assert.deepEqual(readCall(callLine('lightsBranches', key)), { local: 'lightsBranches', key, own: [] });
+  for (const key of ['POST|GET /x', 'DELETE /x/*', 'GET /x']) assert.deepEqual(readCall(callLine('lightsBranches', key)), { local: 'lightsBranches', key, own: [], extra: [], returns: false });
   for (const key of ['GET|POST|PUT /x', 'GET /x/**', 'get /x', 'GET| /x', 'GET x']) assert.equal(readCall(callLine('lightsBranches', key)), null, `${key} is not a key`);
 });
 
@@ -97,7 +97,8 @@ test('every branch is read with what its body takes from outside and what keeps 
   assert.match(of('GET /k').reasons.join('\n'), /it needs turns, which cannot be handed over: it is declared with `let` \(line 52\)/);
   assert.match(of('GET /d').reasons.join('\n'), /it uses secret, which the handler works out for itself/);
   assert.match(of('GET /e').reasons.join('\n'), /it has a `var`/);
-  assert.match(of('GET /f').reasons.join('\n'), /it has a `return` with a value[\s\S]*it has `this`/);
+  assert.equal(of('GET /f').reasons.join('\n'), 'it has `this`', 'a value given back with `return` does not keep a route: its call gives it back');
+  assert.deepEqual([of('GET /f').returns, of('POST /b').returns, of('GET /a').returns], [true, false, false], 'a bare `return;` gives nothing back');
   assert.deepEqual([of('GET /g').needed, of('GET /g').own], [[], ['late']], 'a name required further down is handed over: a table that required it would load its module early');
   assert.match(branches[7].reasons.join('\n'), /its test is not an address, or the start of one, asked with one method or either of two/);
   assert.match(of('GET /i').reasons.join('\n'), /its body is not on lines of its own/);
@@ -155,7 +156,7 @@ test('a required name only the moved body used leaves the file, and an app modul
 test('what would mean something else in another function is refused, with every reason at once', (t) => {
   if (!parser) return t.skip(SKIP);
   const said = refusal(['GET /k', 'GET /d', 'GET /e', 'GET /f', 'GET /i', 'GET /zz']);
-  for (const reason of [/GET \/k \(server\/demo\.js:43\): it needs turns, which cannot be handed over/, /GET \/d .*it uses secret/, /GET \/e .*a `var`/, /GET \/f .*`this`/, /GET \/f .*a `return` with a value/,
+  for (const reason of [/GET \/k \(server\/demo\.js:43\): it needs turns, which cannot be handed over/, /GET \/d .*it uses secret/, /GET \/e .*a `var`/, /GET \/f .*`this`/,
     /GET \/i .*not on lines of its own/, /0 branches of handleRequest answer GET \/zz/]) assert.match(said, reason);
   assert.match(refusal(['GET /a'], { allowed: new Set() }), /protected\.json does not let the bodies of handleRequest move/);
   assert.match(refusal(['GET /a'], { target: 'server/lights/answers.js' }), /is not <feature>\/routes\.js, <feature>\/tools\.js or one of them with -<word>/);

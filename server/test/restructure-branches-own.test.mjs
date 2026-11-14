@@ -32,10 +32,10 @@ const CALL = callLine('lightsBranches', 'GET /c', ROUTES, ['LIMIT', 'helper']);
 
 test('a call hands over plain names of the file and nothing else, and its function takes them under the same names', () => {
   assert.equal(CALL, "    await lightsBranches['GET /c'](req, res, { json, err500, reqPath, urlObj, isRemote }, { LIMIT, helper });");
-  assert.deepEqual(readCall(CALL), { local: 'lightsBranches', key: 'GET /c', own: ['LIMIT', 'helper'] });
+  assert.deepEqual(readCall(CALL), { local: 'lightsBranches', key: 'GET /c', own: ['LIMIT', 'helper'], extra: [], returns: false });
   const tool = callLine('aiToolsBranches', 'count', TOOLS, ['LIMIT']);
   assert.ok(tool.endsWith('latestUserText }, { LIMIT });'));
-  assert.deepEqual(readCall(tool, TOOLS), { local: 'aiToolsBranches', key: 'count', own: ['LIMIT'] });
+  assert.deepEqual(readCall(tool, TOOLS), { local: 'aiToolsBranches', key: 'count', own: ['LIMIT'], extra: [], returns: false });
   for (const other of ['{ helper: other }', '{ helper() }', '{ ...all }', '{ LIMIT }, { helper }', 'helper', '{ }', '{ helper = 1 }', "{ 'helper': helper }", '{ helper.name }', '{ LIMIT,helper }']) {
     assert.equal(readCall(CALL.replace('{ LIMIT, helper }', other)), null, `${other} is not a list of plain names: such a line is not a call of a table`);
   }

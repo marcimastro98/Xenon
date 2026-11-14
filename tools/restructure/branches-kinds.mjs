@@ -4,8 +4,12 @@
 //
 //   routes  the request handler: `if (reqPath === '/x' && req.method === 'GET') {`,
 //           or one of the few other plain ways to ask for an address (ROUTE_TESTS).
-//           A body is handed the request, the answer and five values of the handler;
-//           it gives nothing back, so a bare `return;` in it still ends the request.
+//           A body is handed the request, the answer and five values of the handler,
+//           and after them the few more it uses of those the handler works out before
+//           the chain (`extra`: most bodies use none, so a call names only the ones its
+//           body uses). A bare `return;` in a body still ends the request. A body that
+//           gives a value back with `return` is called with `return await`: the chain is
+//           the last thing the handler does, so the handler gives back the same value.
 //   tools   the function that runs a tool for the assistant: `if (fnName === 'x') {`.
 //           A body is handed twelve values of the function and gives back the one
 //           thing it may assign, the tool's result; it may not `return` at all,
@@ -75,6 +79,8 @@ export const ROUTES = Object.freeze({
   localWord: '',
   leading: Object.freeze(['req', 'res']),
   context: Object.freeze(['json', 'err500', 'reqPath', 'urlObj', 'isRemote']),
+  extra: Object.freeze(['jsonpCb', 'remote', 'sendPage']),
+  returns: true,
   result: null,
   indent: '    ',
   key: String.raw`[A-Z]+(?:\|[A-Z]+)? /[^'\\*|]*\*?`,
@@ -92,6 +98,8 @@ export const TOOLS = Object.freeze({
   localWord: 'Tools',
   leading: Object.freeze([]),
   context: Object.freeze(['fnName', 'fnArgs', 'clientActions', 'runAction', 'phoneRefusal', 'provider', 'remote', 'pictures', 'uiLang', 'surface', 'apiKey', 'latestUserText']),
+  extra: Object.freeze([]),
+  returns: false,
   result: 'fnResult',
   indent: '      ',
   key: '[a-z][a-z0-9_]*',

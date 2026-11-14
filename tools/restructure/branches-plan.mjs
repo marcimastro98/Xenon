@@ -9,17 +9,21 @@
 // gains one line that requires the table, right above the handler, where every
 // module the table needs is loaded already: requiring it runs nothing new. A name
 // from a module the file loads further down is handed over by the call instead,
-// like a name the file declares itself (branches-own.mjs).
+// like a name the file declares itself (branches-own.mjs). A body that says
+// `__dirname` or requires a path is written for the table's folder, and the plan
+// refuses it unless the text reader writes it back as it stood (branches-place.mjs).
 
 import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
 import { calledBeforeItsTable, handlerProblems } from './branches-handler.mjs';
 import { kindOf, ROUTES } from './branches-kinds.mjs';
+import { placedLines } from './branches-place.mjs';
 import { readBranches } from './branches-scope.mjs';
-import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, OPEN_LINE, ownOf, readModule, readRequire, requireLine, SET_ONCE_LINE, typeLine } from './branches-text.mjs';
+import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, HOME_LINE, oldPlaces, OPEN_LINE, ownOf, readModule, readRequire, requireLine, SET_ONCE_LINE, typeLine } from './branches-text.mjs';
 import { MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
+import { HOME, homeWord } from './paths-undo.mjs';
 import { requireEdits } from './require-edits.mjs';
 import { lineStarts } from './top-level.mjs';
 
@@ -49,7 +53,7 @@ const HOLDS_A_PLACE = '_context';
  * @param {string[]} [own] the names of the file its call hands over, which come last
  */
 export function paramsFor(handed, kind = ROUTES, own = []) {
-  const context = kind.context.filter((name) => handed.includes(name));
+  const context = [...kind.context, ...kind.extra].filter((name) => handed.includes(name));
   const parts = kind.leading.map((name) => (handed.includes(name) ? name : `_${name}`));
   parts.push(context.length ? `{ ${context.join(', ')} }` : HOLDS_A_PLACE);
   if (own.length) return [...parts, `{ ${own.join(', ')} }`].join(', ');
@@ -93,7 +97,7 @@ function requiresOf({ moduleBefore, parser, target, needed, bindings, rewriteSpe
 }
 
 // The module: its first comment, its requires, the table with every body it had and the new ones after them.
-function moduleFor({ moduleBefore, about, requireLines, added, target, kind }) {
+function moduleFor({ moduleBefore, about, requireLines, added, target, kind, home }) {
   const before = moduleBefore === null ? { head: wrapComment(about), entries: [], tail: ['', EXPORT_LINE, ''], setOnce: false } : readModule(moduleBefore);
   if (before.kind && before.kind !== kind) throw new Refusal([`${target} is a table of ${before.kind.id}, not of ${kind.id}`]);
   const comment = before.head.filter((_line, index) => before.head.slice(0, index + 1).every((other) => other.startsWith('//')));
@@ -104,7 +108,7 @@ function moduleFor({ moduleBefore, about, requireLines, added, target, kind }) {
   const type = typeLine(kind, entries.some((entry) => ownOf(entry.params, kind).length > 0));
   // The lint line of a result set once: there from the first such body on, and never without one.
   const quiet = before.setOnce || added.some((entry) => entry.once) ? [SET_ONCE_LINE, ''] : [];
-  return [...comment, '', ...quiet, ...requireLines, ...(requireLines.length ? [''] : []), type, OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
+  return [...comment, '', ...quiet, ...requireLines, ...(requireLines.length ? [''] : []), ...(home ? [HOME_LINE, ''] : []), type, OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
 }
 
 // The requires of the file that lost names only the moved bodies used, as edits of `text`, top to bottom.
@@ -194,13 +198,37 @@ export function planBranches(job) {
   if (!hasRequire && new RegExp(String.raw`(?<![\w$.])${table.local.replace(/\$/g, String.raw`\$`)}(?![\w$])`).test(text)) {
     throw new Refusal([`${source} already has the word ${table.local}`]);
   }
-  const needed = [...new Set(picked.flatMap((branch) => branch.needed))];
+  // A body that said `__dirname`: the table works out that folder once, with node's path, and no body may hold the new word already.
+  const hadHome = moduleBefore !== null && readModule(moduleBefore).home;
+  const home = hadHome || picked.some((branch) => branch.place.homes.length > 0);
+  if (home && !hadHome) {
+    const bound = analysis.bindings.get('path');
+    const builtIn = bound?.kind === 'require' && !bound.reassigned && bound.record.require.bindings.some((entry) => entry.local === 'path' && entry.text === '')
+      && !bound.record.require.property && rewrite(bound.record.require.spec, source, target).spec === 'node:path';
+    if (!builtIn) reasons.push(`${source} does not require node's path as \`path\`, which the line that works out ${HOME} is written with`);
+    if (analysis.bindings.has(HOME)) reasons.push(`${source} declares ${HOME} itself`);
+    const holds = moduleBefore === null ? [] : readModule(moduleBefore).entries.filter((entry) => entry.lines.some((line) => homeWord().test(line)));
+    reasons.push(...holds.map((entry) => `${entry.key} in ${target} has the word ${HOME} already`));
+  }
+  const starts = lineStarts(text);
+  const placed = new Map();
+  for (const branch of picked) {
+    const made = placedLines({ text, from: starts[branch.first], to: starts[branch.last] + lines[branch.last].length, place: branch.place, spec: table.spec });
+    const old = lines.slice(branch.first, branch.last + 1);
+    reasons.push(...made.reasons.map((reason) => `${branch.key} (${source}:${branch.line}): ${reason}`));
+    if (oldPlaces(made.lines, { home, spec: table.spec }).join('\n') !== old.join('\n')) {
+      reasons.push(`${branch.key} (${source}:${branch.line}): written for ${target} and read back as text, its lines are not the old ones (a comment or a text that reads like a required path, or the word ${HOME})`);
+    }
+    placed.set(branch, made.lines);
+  }
+  if (reasons.length) throw new Refusal(reasons);
+  const needed = [...new Set([...picked.flatMap((branch) => branch.needed), ...(home && !hadHome ? ['path'] : [])])];
   const required = requiresOf({ moduleBefore, parser, target, needed, bindings: analysis.bindings, rewriteSpec: (spec) => rewrite(spec, source, target) });
-  const home = analysis.bindings.get(handler).record;
+  const above = analysis.bindings.get(handler).record;
   if (required.reasons.length) throw new Refusal(required.reasons);
 
-  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed, kind, branch.own), lines: lines.slice(branch.first, branch.last + 1), once: branch.once }));
-  const moduleText = moduleFor({ moduleBefore, about, requireLines: required.lines, added, target, kind });
+  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed, kind, branch.own), lines: placed.get(branch), once: branch.once }));
+  const moduleText = moduleFor({ moduleBefore, about, requireLines: required.lines, added, target, kind, home });
   const moduleLines = moduleText.split('\n').length - 1;
   if (moduleLines > maxLines) {
     throw new Refusal([`${target} would be ${moduleLines} lines, the limit for a new file is ${maxLines}: put some of the branches in ${kind.fileWord}-<word>.js`]);
@@ -208,9 +236,9 @@ export function planBranches(job) {
 
   // The file: each body becomes its call, bottom up so the lines above keep their numbers; then the require.
   const out = [...lines];
-  for (const branch of picked.toReversed()) out.splice(branch.first, branch.last - branch.first + 1, callLine(table.local, branch.key, kind, branch.own));
+  for (const branch of picked.toReversed()) out.splice(branch.first, branch.last - branch.first + 1, callLine(table.local, branch.key, kind, branch.own, branch.handed, branch.returns));
   if (!hasRequire) {
-    const at = home.range[0] - 1;
+    const at = above.range[0] - 1;
     if (out[at - 1] === '' && readRequire(out[at - 2] ?? '')) out.splice(at - 1, 0, requireLine(table.local, table.spec));
     else out.splice(at, 0, requireLine(table.local, table.spec), '');
   }

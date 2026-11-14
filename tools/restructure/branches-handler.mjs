@@ -4,7 +4,11 @@
 //
 //   - every value a call hands over is declared by the function before the chain,
 //     and one a body uses is never assigned in the function: the body gets it once,
-//     when it is called, and must see what it would have seen in place;
+//     when it is called, and must see what it would have seen in place. One of the
+//     few extra values (branches-kinds.mjs `extra`) may be set above the chain, in a
+//     statement of the function itself: by the time a body is called nothing can set
+//     it again. It may not be set from the chain on, or in a function written above
+//     the chain, which could run while a body waits;
 //   - where a body assigns the result (branches-kinds.mjs `result`), the result
 //     has no value yet when the chain starts and is set again first thing when a
 //     body throws: the call then leaves it exactly as the body in place did;
@@ -46,8 +50,19 @@ export function handlerProblems(chain, parser, kind, handed, textOf) {
   const writes = (node, name) => (usesOf(node).get(name)?.write ?? 0) > 0;
   const has = namesBefore(chain.handler, chain.tryStatement ?? chain.chain, K);
   const problems = [...kind.leading, ...kind.context].filter((name) => !has.has(name)).map((name) => `the function has no ${name} above the chain, and every call hands it over`);
-  problems.push(...handed.filter((name) => statements.some((statement) => writes(statement, name)))
-    .map((name) => `the function assigns ${name}, which a body would be handed once, at its call`));
+  const extra = handed.filter((name) => kind.extra.includes(name));
+  problems.push(...extra.filter((name) => !has.has(name)).map((name) => `the function has no ${name} above the chain, and a body to move uses it`));
+  const FUNCTIONS = new Set([K.FunctionDeclaration, K.FunctionExpression, K.ArrowFunction, K.MethodDeclaration, K.GetAccessor, K.SetAccessor, K.Constructor]);
+  const insideAFunction = (node, name) => {
+    let found = false;
+    const walk = (at) => { if (FUNCTIONS.has(at.kind) && writes(at, name)) found = true; else at.forEachChild(walk); };
+    node.forEachChild(walk);
+    return found;
+  };
+  const from = statements.indexOf(chain.tryStatement ?? chain.chain);
+  // An extra value may be set above the chain, straight in the function; anything else is never assigned at all.
+  const late = (name) => statements.some((statement, index) => writes(statement, name) && (!extra.includes(name) || index >= from || insideAFunction(statement, name)));
+  problems.push(...handed.filter(late).map((name) => `the function assigns ${name}, which a body would be handed once, at its call`));
   if (!kind.result) return problems;
 
   const name = kind.result;

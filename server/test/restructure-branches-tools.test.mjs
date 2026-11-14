@@ -120,7 +120,7 @@ test('a table of tools is said by its file name, and its lines are read back as 
   assert.equal(tableOf(OLD, 'server/screen-notes/tools-more.js').local, 'screenNotesToolsMoreBranches');
   const line = callLine('aiToolsBranches', 'add_note', TOOLS);
   assert.equal(line, `      fnResult = await aiToolsBranches['add_note'](${HANDED});`);
-  assert.deepEqual([readCall(line, TOOLS), readCall(line), readCall(callLine('lightsBranches', 'GET /a'), TOOLS)], [{ local: 'aiToolsBranches', key: 'add_note', own: [] }, null, null]);
+  assert.deepEqual([readCall(line, TOOLS), readCall(line), readCall(callLine('lightsBranches', 'GET /a'), TOOLS)], [{ local: 'aiToolsBranches', key: 'add_note', own: [], extra: [], returns: false }, null, null]);
   assert.deepEqual(entryLines(['      fnResult = 1;'], TOOLS), ['      let fnResult;', '      fnResult = 1;', '      return fnResult;']);
   assert.deepEqual([paramsFor(['fnArgs', 'clientActions'], TOOLS), paramsFor(['uiLang', 'fnArgs'], TOOLS), paramsFor([], TOOLS)], ['{ fnArgs, clientActions }', '{ fnArgs, uiLang }', '']);
 });
