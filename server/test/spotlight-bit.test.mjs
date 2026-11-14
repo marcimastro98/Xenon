@@ -152,7 +152,7 @@ test('one Bit: the separate AI search is gone from the client and the server', (
   for (const old of ['setAiMode', 'runAiSearch', '/search/ai', 'spot-ai']) assert.ok(!spot.includes(old), old);
   assert.ok(!engineSource().includes("'/search/ai'"));
   assert.ok(!engineSource('server/remote-access.js').includes('/search/ai'));
-  assert.ok(!read('../filesearch.js').includes('searchStructured'));
+  assert.ok(!engineSource('server/filesearch.js').includes('searchStructured'));
 });
 
 test('the chat heads show the face and keep the name for screen readers', () => {

@@ -705,6 +705,13 @@
       {"file":"server/transfer/paired-phone-lists.js","about":"What is pulled from the paired phone and kept: the phonebook, the call log, a folder of messages and one message's text, each cached and never pulled on a timer, and a message sent.","names":["contacts","calls","msgCache","messageList","messageBody","sendMessage","withName","byName"],"inner":{"factory":"createPhone","make":"makeLists"},"bare":["./phone-vcard","./phone-messages"]},
       {"file":"server/transfer/paired-phone-status.js","about":"The paired phone's state as the dashboard sees it: whether a call is coming in or running, how old each pull is, and the status read from the phone.","names":["applyCallState","publicState","staleness","status"],"inner":{"factory":"createPhone","make":"makeStatus"}},
       {"file":"server/transfer/paired-phone-calls.js","about":"What can be done with a call on the paired phone, and whether the phone said it can: the name behind a number, the device's name, answering, hanging up and dialling.","names":["resolve","deviceName","canAnswer","canHangUp","canDial","answer","hangUp","dial"],"inner":{"factory":"createPhone","make":"makeCalls"},"bare":["./phone-numbers"]}
+    ],
+    "server/filesearch.js": [
+      {"file":"server/search/search-limits.js","about":"The limits of file search: how long the search process may idle and how long it is given, how many results, rows and stashed answers are kept, and how long a typed query may be.","names":["HOST_IDLE_MS","HOST_RETRY_MS","REQ_TIMEOUT_MS","RESULTS_CACHE_MAX","WDS_MAX","USAGE_SAVE_DEBOUNCE_MS","CATALOG_STASH_MS","CATALOG_STASH_MAX","FOLDERS_MAX","POOL_MAX","QUERY_MAX","PASTED_STAT_MS"]},
+      {"file":"server/search/search-host.js","about":"The process that asks Windows Search: started when a query needs it, taken out of service when its pipe breaks or it has been idle, and its waiting request refused when it goes.","names":["rejectPending","retireHost","bumpIdle","ensureHost"],"inner":{"factory":"createFileSearch","make":"makeHost"}},
+      {"file":"server/search/search-opens.js","about":"What was opened from the search and how often, the signal results are ranked by: read once, written a moment after it changes, and shown as a summary.","names":["loadUsage","scheduleUsageSave","usageSnapshot"],"inner":{"factory":"createFileSearch","make":"makeOpens"}},
+      {"file":"server/search/search-catalog.js","about":"The slow half of a search, Windows Search: asked once per query and kept for a few seconds, so the follow-up collects the answer instead of asking again, and its rows.","names":["catalogKey","startCatalog","catalogItems"],"inner":{"factory":"createFileSearch","make":"makeCatalog"}},
+      {"file":"server/search/search-answers.js","about":"Answering a search: a pasted path, the index, the apps and the catalog merged and ranked by what was opened before, and the list of what was opened lately.","names":["livingMatches","search","pastedTarget","queryText","withTimeout","usagePool","scoreApp","execQuery","publicResult","catalog","recent"],"inner":{"factory":"createFileSearch","make":"makeAnswers"},"bare":["./search-pasted-path"]}
     ]
   },
   "spreads": {
@@ -886,6 +893,9 @@
     "server/stream-youtube.js": [
       {"factory":"createYouTubeProvider","object":"onAir","names":["liveCtx"],"kept":[],"bare":[],"after":0},
       {"factory":"createYouTubeProvider","object":"chatMemory","names":["chatIdMissAt","chatCache"],"kept":[],"bare":[],"after":0}
+    ],
+    "server/filesearch.js": [
+      {"factory":"createFileSearch","object":"tally","names":["usage","usageSaveTimer","usageDirty"],"kept":[],"bare":[],"after":0}
     ]
   }
 }
