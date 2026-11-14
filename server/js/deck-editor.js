@@ -41,371 +41,16 @@
     return '#' + [ch(0), ch(2), ch(4)].map((n) => n.toString(16).padStart(2, '0')).join('');
   }
 
-  // OBS and remote-control capability flags. Both start null (unknown) so their
-  // actions show until we learn they're unavailable. Re-checked every time the
-  // editor opens, so configuring either feature in Settings takes effect without
-  // a full page reload.
-  let obsConfigured = null;
-  let remoteConfigured = null;
-  let twitchConnected = null;
-  let youtubeConnected = null;
-  let streamerbotConfigured = null;
-  let discordConnected = null;
-  let spotifyConnected = null;
-  let homeAssistantConfigured = null;
-  let chromaEnabled = null;
-  let wavelinkEnabled = null;
-  let voicemeeterAvailable = null;
-  let vmStatePromise = null;    // one read of the running mixer feeds both pickers
-  let signalrgbEnabled = null;
-  let lightingConfigured = null;
-  let claudeLinked = null;        // Claude Code hooks installed (gates the claude group)
-  // The whole capabilities block, kept raw so an action can name the one it
-  // needs via `requires` (see actionGateOk). null until the first fetch lands.
-  let serverCaps = null;
-  let claudeProjectsPromise = null;   // the projects a run may be started in
-  let signalRgbEffectsPromise = null;   // SignalRGB effect list ({value,label})
-  let scenesPromise = null;
-  let sourcesPromise = null;
-  let appsPromise = null;
-  let storeAppsPromise = null;
-  let sbActionsPromise = null;
-  let sbCodeTriggersPromise = null;
-  let sbGlobalsPromise = null;
-  let audioDevicesPromise = null;
-  let discordChannelsPromise = null;
-  let discordSoundsPromise = null;
-  let haEntitiesPromise = null;
-  let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
-  let wlChannelsPromise = null;   // Wave Link mixer channel list ({value,label})
-  let wlStatePromise = null;      // one live mixer read, shared by the mix/effect/output pickers
-  let lightDevicesPromise = null;   // lighting hub device list ({value:id,label})
-  let sdkWidgetsPromise = null;
-  let sdkMacroItemsCache = null;   // resolved macro list; the sync gate reads it (null = unknown → hidden)
-  let sdkHandlerItemsCache = null; // resolved handler-action list (same gating idea)
-  function refreshCapabilities() {
-    return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
-      const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
-      const nextRemote = !!(d && d.capabilities && d.capabilities.remoteConfigured);
-      const nextTwitch = !!(d && d.capabilities && d.capabilities.twitchConnected);
-      const nextYouTube = !!(d && d.capabilities && d.capabilities.youtubeConnected);
-      const nextSb = !!(d && d.capabilities && d.capabilities.streamerbotConfigured);
-      const nextDiscord = !!(d && d.capabilities && d.capabilities.discordConnected);
-      const nextSpotify = !!(d && d.capabilities && d.capabilities.spotifyConnected);
-      const nextHa = !!(d && d.capabilities && d.capabilities.homeAssistantConfigured);
-      const nextChroma = !!(d && d.capabilities && d.capabilities.chromaEnabled);
-      const nextWl = !!(d && d.capabilities && d.capabilities.wavelinkEnabled);
-      const nextVm = !!(d && d.capabilities && d.capabilities.voicemeeterAvailable);
-      const nextSignalRgb = !!(d && d.capabilities && d.capabilities.signalrgbEnabled);
-      const nextLighting = !!(d && d.capabilities && d.capabilities.lightingConfigured);
-      const nextClaude = !!(d && d.capabilities && d.capabilities.claudeLinked);
-      serverCaps = (d && d.capabilities) || null;
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextVm !== voicemeeterAvailable || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured || nextClaude !== claudeLinked;
-      obsConfigured = nextObs;
-      remoteConfigured = nextRemote;
-      twitchConnected = nextTwitch;
-      youtubeConnected = nextYouTube;
-      streamerbotConfigured = nextSb;
-      discordConnected = nextDiscord;
-      spotifyConnected = nextSpotify;
-      homeAssistantConfigured = nextHa;
-      chromaEnabled = nextChroma;
-      wavelinkEnabled = nextWl;
-      voicemeeterAvailable = nextVm;
-      signalrgbEnabled = nextSignalRgb;
-      lightingConfigured = nextLighting;
-      claudeLinked = nextClaude;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; wlStatePromise = null; vmStatePromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; claudeProjectsPromise = null; }   // config changed → re-fetch the lists
-      // Compute the set of HA device domains the user actually HAS, so the action
-      // picker offers only the actions relevant to their devices (generic, not
-      // hardcoded). This runs after the fast capability check; the caller does a
-      // background re-render when the returned `changed` flips, so the first paint
-      // isn't blocked on the entity list.
-      // SDK widget macros: the "Widget" category is offered only when at least
-      // one installed package contributes macros (and the SDK is enabled), so it
-      // never shows as an empty group to everyone else. Seed the "previous count"
-      // as 0 (not -1) on the first probe so a disabled/empty SDK — which resolves
-      // to 0 macros — reports no change and doesn't force a spurious re-render.
-      const prevSdk = (sdkMacroItemsCache ? sdkMacroItemsCache.length : 0) + (sdkHandlerItemsCache ? sdkHandlerItemsCache.length : 0);
-      const sdkCheck = Promise.all([sdkMacros(), sdkHandlers()])
-        .then(([m, h]) => (((m ? m.length : 0) + (h ? h.length : 0)) !== prevSdk)).catch(() => false);
-      let haCheck;
-      if (!nextHa) {
-        const had = haDomains; haDomains = null;
-        haCheck = Promise.resolve(changed || had !== null);
-      } else {
-        const prev = haDomains ? [...haDomains].sort().join(',') : null;
-        haCheck = haEntities().then((items) => {
-          haDomains = new Set((items || []).map((it) => { const v = String(it.value); const i = v.indexOf('.'); return i > 0 ? v.slice(0, i) : ''; }).filter(Boolean));
-          return changed || ([...haDomains].sort().join(',') !== prev);
-        }).catch(() => changed);
-      }
-      return Promise.all([haCheck, sdkCheck]).then(([a, b]) => a || b);
-    }).catch(() => false);
-  }
-  // Capabilities are (re)probed every time the editor opens (see open()), so we
-  // do NOT fetch /actions/catalog at module load — a page with no Deck key being
-  // edited shouldn't hit the endpoint at all.
-  function obsScenes() {
-    if (!scenesPromise) scenesPromise = fetch('/obs/scenes').then((r) => r.json()).then((d) => (d && d.scenes) || []).catch(() => []);
-    return scenesPromise;
-  }
-  function obsSources() {
-    if (!sourcesPromise) sourcesPromise = fetch('/obs/sources').then((r) => r.json()).then((d) => (d && d.sources) || []).catch(() => []);
-    return sourcesPromise;
-  }
-  // Live Streamer.bot action list ({value:id, label:name}) for the sbAction picker.
-  function sbActions() {
-    if (!sbActionsPromise) sbActionsPromise = fetch('/streamerbot/actions').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.actions)) ? d.actions : []).map((a) => ({ value: a.id, label: a.name || a.id })))
-      .catch(() => []);
-    return sbActionsPromise;
-  }
-  // Live Streamer.bot code-trigger list ({value:name, label:"Group › name"}) for the
-  // sbCodeTrigger picker. Stored by trigger name (what ExecuteCodeTrigger takes).
-  function sbCodeTriggers() {
-    if (!sbCodeTriggersPromise) sbCodeTriggersPromise = fetch('/streamerbot/codetriggers').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.triggers)) ? d.triggers : []).map((a) => ({ value: a.name, label: (a.group ? a.group + ' › ' : '') + a.name })))
-      .catch(() => []);
-    return sbCodeTriggersPromise;
-  }
-  // Live Streamer.bot global-variable names for the "reflect a global" state picker.
-  function sbGlobals() {
-    if (!sbGlobalsPromise) sbGlobalsPromise = fetch('/streamerbot/globals').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.globals)) ? d.globals : []).map((g) => String(g.name)).filter(Boolean))
-      .catch(() => []);
-    return sbGlobalsPromise;
-  }
-  // Live voice-channel list ({value:id, label:"Guild › Channel"}) for the Discord
-  // join picker. Falls back to [] (→ typed channel-id field) when Discord is off.
-  function discordChannels() {
-    if (!discordChannelsPromise) discordChannelsPromise = fetch('/stream/discord/channels').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.channels)) ? d.channels : []).map((c) => ({ value: c.id, label: (c.guild ? c.guild + ' › ' : '') + (c.name || c.id) })))
-      .catch(() => []);
-    return discordChannelsPromise;
-  }
-  // Live soundboard list for the discordSound picker. Each item's value is the
-  // opaque "guildId|soundId" ref the provider parses back at play time; the label
-  // is "Server › Sound". Falls back to [] (→ read-only field) when Discord is off.
-  function discordSounds() {
-    if (!discordSoundsPromise) discordSoundsPromise = fetch('/stream/discord/sounds').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.sounds)) ? d.sounds : []).map((s) => ({ value: (s.guildId || '') + '|' + s.id, label: (s.guild ? s.guild + ' › ' : '') + (s.name || s.id) })))
-      .catch(() => []);
-    return discordSoundsPromise;
-  }
-  // Installed SignalRGB effects ({value:effectName, label:"Name (kind)"}) for the
-  // signalRgbEffect picker. Empty (→ typed field) when SignalRGB is off/absent.
-  function signalRgbEffects() {
-    if (!signalRgbEffectsPromise) signalRgbEffectsPromise = fetch('/api/signalrgb/effects').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.effects)) ? d.effects : []).map((e) => ({ value: e.value, label: e.label })))
-      .catch(() => []);
-    return signalRgbEffectsPromise;
-  }
-  // Live Home Assistant entity list ({value:entity_id, label:"Area › Name"}) for the
-  // haEntity picker. Falls back to [] (→ typed entity-id field) when HA is off.
-  function haEntities() {
-    if (!haEntitiesPromise) haEntitiesPromise = fetch('/api/homeassistant/entities').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.entities)) ? d.entities : []).map((e) => ({ value: e.id, label: (e.area ? e.area + ' › ' : '') + (e.name || e.id) })))
-      .catch(() => []);
-    return haEntitiesPromise;
-  }
-  // The projects a Claude Code run may be started in ({value:id, label:name}) —
-  // the server's own allowlist, so the editor cannot offer a folder the runner
-  // would refuse.
-  function claudeProjects() {
-    if (!claudeProjectsPromise) {
-      claudeProjectsPromise = fetch('/api/claude/projects').then((r) => r.json())
-        .then((d) => ((d && Array.isArray(d.projects)) ? d.projects : []).map((p) => ({ value: p.id, label: p.name })))
-        .catch(() => []);
-    }
-    return claudeProjectsPromise;
-  }
+  const {
+    state, refreshCapabilities, haEntities, sdkMacros, sdkHandlers, sdkDeckStates,
+  } = window.DeckEditorConnected;
+  const {
+    obsScenes, obsSources, sbActions, sbCodeTriggers, sbGlobals, discordChannels, discordSounds,
+    signalRgbEffects, claudeProjects, wlChannels, wlMixOptions, vmStripOptions, vmBusOptions,
+    wlEffectOptions, wlOutputOptions, lightingLists, lightDevices, audioApps, storeApps, audioDevices,
+  } = window.DeckEditorMenuLists;
 
-  // Live Wave Link mixer channel list ({value:mixId, label:name}) for the wlChannel
-  // picker. Falls back to [] (→ typed mixId field) when Wave Link is off/unreachable.
-  function wlChannels() {
-    if (!wlChannelsPromise) wlChannelsPromise = fetch('/api/wavelink/channels').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.channels)) ? d.channels : []))
-      .catch(() => []);
-    return wlChannelsPromise;
-  }
-  // One read of the live mixer feeds the mix, effect and output-device pickers.
-  function wlState() {
-    if (!wlStatePromise) wlStatePromise = fetch('/api/wavelink/state').then((r) => r.json()).catch(() => null);
-    return wlStatePromise;
-  }
-  // Mixes, with the three words the action contract has always accepted listed
-  // first: a key configured under Wave Link 2 stores 'stream' and must keep
-  // meaning "the stream mix" against a Wave Link 3 mixer, where the mixes carry
-  // the names their owner gave them. On 2.x the named list IS local/stream, so
-  // appending it would show the same two controls twice.
-  function wlMixOptions() {
-    return wlState().then((s) => {
-      const generic = [
-        { value: 'stream', label: t('deck_wl_mix_stream', 'Stream mix') },
-        { value: 'local', label: t('deck_wl_mix_local', 'Personal / local mix') },
-        { value: 'all', label: t('deck_wl_mix_all', 'Every mix') },
-      ];
-      const named = (s && s.capabilities && s.capabilities.namedMixes && Array.isArray(s.mixes))
-        ? s.mixes.map((m) => ({ value: m.id, label: m.name })) : [];
-      return generic.concat(named);
-    });
-  }
-  // The running Voicemeeter, read once. `strips` and `buses` come back sized for
-  // the edition that is actually running, which is the whole point: offering
-  // Bus[7] to somebody on plain Voicemeeter builds a key that writes nowhere.
-  function vmState() {
-    if (!vmStatePromise) vmStatePromise = fetch('/api/voicemeeter/state').then((r) => r.json()).catch(() => null);
-    return vmStatePromise;
-  }
-  function vmStripOptions() {
-    return vmState().then((s) => ((s && Array.isArray(s.strips)) ? s.strips : [])
-      .map((x) => ({ value: String(x.index), label: x.index + ' — ' + x.label })));
-  }
-  // Buses are offered BY LABEL, never by index: A1/B2 are the words on the
-  // mixer's own buttons, and the index behind a label moves between editions.
-  function vmBusOptions() {
-    return vmState().then((s) => ((s && Array.isArray(s.buses)) ? s.buses : [])
-      .map((x) => ({ value: x.label, label: x.label + ' — ' + x.name })));
-  }
 
-  // Effects are per channel, but their ids are unique across the mixer, so the
-  // picker lists them all and qualifies each with the channel it belongs to.
-  function wlEffectOptions() {
-    return wlState().then((s) => {
-      const out = [];
-      for (const c of (s && Array.isArray(s.channels)) ? s.channels : []) {
-        for (const e of Array.isArray(c.effects) ? c.effects : []) out.push({ value: e.id, label: c.name + ' — ' + e.name });
-      }
-      return out;
-    });
-  }
-  function wlOutputOptions() {
-    return wlState().then((s) => {
-      const devs = (s && s.outputs && Array.isArray(s.outputs.devices)) ? s.outputs.devices : [];
-      return devs.map((d) => ({ value: d.id, label: d.name }));
-    });
-  }
-  // Lighting hub device list ({value:id, label:name}) for the lightDevice picker.
-  // Falls back to [] (→ typed id field) when no lighting is configured/reachable.
-  // Also carries the parts of each device with a map, for the lightPart picker.
-  function lightingLists() {
-    if (!lightDevicesPromise) lightDevicesPromise = fetch('/api/lighting/devices').then((r) => r.json())
-      .then((d) => ({
-        devices: (d && Array.isArray(d.devices)) ? d.devices : [],
-        parts: (d && Array.isArray(d.parts)) ? d.parts : [],
-      }))
-      .catch(() => ({ devices: [], parts: [] }));
-    return lightDevicesPromise;
-  }
-  function lightDevices() { return lightingLists().then((l) => l.devices); }
-  // Third-party widget SDK: installed packages (validated manifests) for the
-  // macro picker and the "reflect a widget state" binding. Only fetched when the
-  // SDK is enabled; the settings blob is the classic-script `hubSettings` (bare
-  // name — it is NOT window.hubSettings).
-  function sdkEnabled() {
-    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
-    return !!(hs && hs.enabled);
-  }
-  function sdkPackages() {
-    if (!sdkWidgetsPromise) {
-      sdkWidgetsPromise = (sdkEnabled()
-        ? fetch('/sdk/widgets').then((r) => r.json()).then((d) => ((d && Array.isArray(d.packages)) ? d.packages : []))
-        : Promise.resolve([])
-      ).catch(() => []);
-    }
-    return sdkWidgetsPromise;
-  }
-  // Deck macros contributed by installed packages ({value:'pkg/macroId',
-  // label:'Widget › Macro'}). The server re-checks grants + manifest at run time.
-  function sdkMacros() {
-    return sdkPackages().then((pkgs) => {
-      const out = [];
-      pkgs.forEach((p) => {
-        ((p.deck && p.deck.actions) || []).forEach((m) => out.push({ value: p.id + '/' + m.id, label: p.name + ' › ' + m.name }));
-      });
-      sdkMacroItemsCache = out;
-      return out;
-    });
-  }
-  // Handler actions contributed by installed packages ({value:'pkg/handlerId',
-  // label:'Widget › Handler', params:[declared params]}). The server re-checks
-  // the per-handler grant + manifest at run time.
-  function sdkHandlers() {
-    return sdkPackages().then((pkgs) => {
-      const out = [];
-      pkgs.forEach((p) => {
-        ((p.deck && p.deck.handlers) || []).forEach((h) => out.push({
-          value: p.id + '/' + h.id,
-          label: p.name + ' › ' + h.name,
-          params: Array.isArray(h.params) ? h.params : [],
-        }));
-      });
-      sdkHandlerItemsCache = out;
-      return out;
-    });
-  }
-  // Deck states published by installed packages, for the state-binding picker.
-  function sdkDeckStates() {
-    return sdkPackages().then((pkgs) => {
-      const out = [];
-      pkgs.forEach((p) => {
-        ((p.deck && p.deck.states) || []).forEach((s) => out.push({ value: p.id + '/' + s.id, label: p.name + ' › ' + s.name }));
-      });
-      return out;
-    });
-  }
-  // Lazy fetch of apps with an audio session from /audio/apps. Returns
-  // Promise<{value,label}[]> where value is the durable process name and label is
-  // the friendly display name. /audio/apps is broader than /audio: it lists apps
-  // with an active OR inactive session, so apps that aren't playing right now still
-  // appear. Not reset in refreshCapabilities — the app list is not a capability flag.
-  function audioApps() {
-    if (!appsPromise) appsPromise = fetch('/audio/apps').then((r) => r.json()).then((d) => {
-      const list = (d && Array.isArray(d.apps)) ? d.apps : [];
-      const seen = new Set();
-      const out = [];
-      for (const a of list) {
-        const value = (a && a.proc) ? String(a.proc) : '';
-        if (!value || seen.has(value.toLowerCase())) continue;
-        seen.add(value.toLowerCase());
-        out.push({ value, label: (a && a.name) || value });
-      }
-      return out;
-    }).catch(() => []);
-    return appsPromise;
-  }
-  // Lazy fetch of installed Store/UWP apps from /apps/store. Returns
-  // Promise<{value,label}[]> where value is the AppUserModelID and label the app name.
-  function storeApps() {
-    if (!storeAppsPromise) storeAppsPromise = fetch('/apps/store').then((r) => r.json())
-      .then((d) => (d && Array.isArray(d.apps)) ? d.apps : []).catch(() => []);
-    return storeAppsPromise;
-  }
-
-  // Lazy fetch of the output devices from /audio. Returns
-  // Promise<{value,label}[]> where value is the device id the audioDevice action
-  // needs and label is what the device is called on screen. NOT reset in
-  // refreshCapabilities: the device list is not a capability flag. Re-fetched
-  // per editor open, which is often enough — a headset plugged in mid-edit shows
-  // up the next time the picker is opened.
-  function audioDevices() {
-    if (!audioDevicesPromise) audioDevicesPromise = fetch('/audio').then((r) => r.json()).then((d) => {
-      const list = (d && Array.isArray(d.speakers)) ? d.speakers : [];
-      const out = [];
-      const seen = new Set();
-      for (const s of list) {
-        const value = (s && typeof s.id === 'string') ? s.id : '';
-        if (!value || seen.has(value)) continue;
-        seen.add(value);
-        // `label` is the full "Speakers (Realtek)" reading; `name` is the bare
-        // device. Either is a name a person recognises — the id is not.
-        out.push({ value, label: (s && (s.label || s.name)) || value, isDefault: !!(s && s.isDefault) });
-      }
-      return out;
-    }).catch(() => []);
-    return audioDevicesPromise;
-  }
 
   function close() {
     const m = document.getElementById('deck-editor-backdrop');
@@ -766,7 +411,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; audioDevicesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; wlStatePromise = null; vmStatePromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
+    state.scenesPromise = null; state.sourcesPromise = null; state.appsPromise = null; state.storeAppsPromise = null; state.audioDevicesPromise = null; state.sbActionsPromise = null; state.sbCodeTriggersPromise = null; state.sbGlobalsPromise = null; state.discordChannelsPromise = null; state.discordSoundsPromise = null; state.haEntitiesPromise = null; state.wlChannelsPromise = null; state.wlStatePromise = null; state.vmStatePromise = null; state.lightDevicesPromise = null; state.sdkWidgetsPromise = null; state.signalRgbEffectsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -1505,8 +1150,8 @@
       if (scn) return { source: 'obsScene', scene: scn.params.scene };
       const inp = find((s) => s.type === 'obsMute' && s.params && s.params.source);
       if (inp) return { source: 'obsInputMuted', input: inp.params.source };
-      // Remote-control state bindings (only meaningful when remoteConfigured).
-      if (find((s) => s.type === 'remoteBlock') && remoteConfigured !== false) return { source: 'remoteActive' };
+      // Remote-control state bindings (only meaningful when state.remoteConfigured).
+      if (find((s) => s.type === 'remoteBlock') && state.remoteConfigured !== false) return { source: 'remoteActive' };
       // Discord voice toggles mirror the live mute/deafen flags.
       if (find((s) => s.type === 'discordMute')) return { source: 'discordMuted' };
       if (find((s) => s.type === 'discordDeafen')) return { source: 'discordDeafened' };
@@ -1668,12 +1313,12 @@
       // The same capability that hides the per-app volume KEYS (appVolume,
       // appMute, appMixer): macOS has no per-process mixer a shell can reach,
       // so on a Mac this target was offered and then never moved anything.
-      appVolume: () => !(serverCaps && serverCaps.appAudio === false),
-      spotifyVolume: () => spotifyConnected !== false,
-      obsInput: () => obsConfigured !== false,
-      haLight: () => homeAssistantConfigured !== false && (!haDomains || haDomains.has('light')),
-      discordInput: () => discordConnected !== false,
-      discordOutput: () => discordConnected !== false,
+      appVolume: () => !(state.serverCaps && state.serverCaps.appAudio === false),
+      spotifyVolume: () => state.spotifyConnected !== false,
+      obsInput: () => state.obsConfigured !== false,
+      haLight: () => state.homeAssistantConfigured !== false && (!state.haDomains || state.haDomains.has('light')),
+      discordInput: () => state.discordConnected !== false,
+      discordOutput: () => state.discordConnected !== false,
     };
     // Rebuilt when the capabilities land (they are fetched as the editor opens),
     // so a gate that depends on them is not decided on "unknown".
@@ -1755,7 +1400,7 @@
     paneAction.appendChild(shortcut.el);
 
     // The same key as a small button that stays on the screen.
-    const onScreen = window.DeckEditorPlace.buildCard({ t, section }, existing, serverCaps);
+    const onScreen = window.DeckEditorPlace.buildCard({ t, section }, existing, state.serverCaps);
     if (onScreen) paneAction.appendChild(onScreen);
 
     [fKind, behavior.el, fTrig, fConfirm].forEach((n) => n.classList.add('deck-ed-advanced'));
@@ -2194,44 +1839,44 @@
       // false — a hotkey key on macOS, a per-app volume key where the OS has no
       // per-process mixer. Unknown (before the first fetch) hides nothing, so
       // the picker never flashes a reduced list on Windows.
-      if (a.requires && serverCaps && serverCaps[a.requires] === false) return false;
-      if (a.group === 'obs' && obsConfigured === false) return false;
-      if (a.group === 'remote' && remoteConfigured === false) return false;
+      if (a.requires && state.serverCaps && state.serverCaps[a.requires] === false) return false;
+      if (a.group === 'obs' && state.obsConfigured === false) return false;
+      if (a.group === 'remote' && state.remoteConfigured === false) return false;
       if (a.group === 'stream') {                       // mixes Twitch + YouTube
         const isYt = a.type === 'ytBroadcast';
-        if (isYt && youtubeConnected === false) return false;
-        if (!isYt && twitchConnected === false) return false;
+        if (isYt && state.youtubeConnected === false) return false;
+        if (!isYt && state.twitchConnected === false) return false;
       }
-      if (a.group === 'streamerbot' && streamerbotConfigured === false) return false;
-      if (a.group === 'discord' && discordConnected === false) return false;
-      if (a.group === 'spotify' && spotifyConnected === false) return false;
-      if (a.group === 'chroma' && chromaEnabled === false) return false;
-      if (a.group === 'wavelink' && wavelinkEnabled === false) return false;
+      if (a.group === 'streamerbot' && state.streamerbotConfigured === false) return false;
+      if (a.group === 'discord' && state.discordConnected === false) return false;
+      if (a.group === 'spotify' && state.spotifyConnected === false) return false;
+      if (a.group === 'chroma' && state.chromaEnabled === false) return false;
+      if (a.group === 'wavelink' && state.wavelinkEnabled === false) return false;
       // No opt-in flag for Voicemeeter: the DLL only exists on a machine that
       // installed it, so its presence IS the answer to "do you use this".
-      if (a.group === 'voicemeeter' && voicemeeterAvailable === false) return false;
+      if (a.group === 'voicemeeter' && state.voicemeeterAvailable === false) return false;
       // SignalRGB is a separate opt-in scene switcher: it lives in the lighting
       // group but is gated on its OWN enable flag, not the colour-rig config — so
       // it can be offered even when no iCUE/Hue/WLED rig is set up (and hidden
       // when SignalRGB is off, whatever the rest of the lighting state is).
-      if (a.type === 'signalRgbEffect') return signalrgbEnabled === true;
-      if (a.group === 'lighting' && lightingConfigured === false) return false;
+      if (a.type === 'signalRgbEffect') return state.signalrgbEnabled === true;
+      if (a.group === 'lighting' && state.lightingConfigured === false) return false;
       // Claude Code keys need the hooks: without them a run's permission prompts
       // land in a terminal nobody is watching, so the key would start work you
       // cannot see or approve.
-      if (a.group === 'claude' && claudeLinked === false) return false;
+      if (a.group === 'claude' && state.claudeLinked === false) return false;
       // Widget-SDK contributions: each action type is offered only once the
       // (lazy) package scan found matching entries. No locked-hint row — an
       // empty "Widget" category would be noise for everyone else.
-      if (a.type === 'sdkMacro' && !(sdkMacroItemsCache && sdkMacroItemsCache.length)) return false;
-      if (a.type === 'sdkHandler' && !(sdkHandlerItemsCache && sdkHandlerItemsCache.length)) return false;
+      if (a.type === 'sdkMacro' && !(state.sdkMacroItemsCache && state.sdkMacroItemsCache.length)) return false;
+      if (a.type === 'sdkHandler' && !(state.sdkHandlerItemsCache && state.sdkHandlerItemsCache.length)) return false;
       if (a.group === 'homeassistant') {
-        if (homeAssistantConfigured === false) return false;
+        if (state.homeAssistantConfigured === false) return false;
         // Capability-aware (generic): a device-type action (haLight, haCover…) is
         // offered only when the user actually has a device of that domain. The
         // generic on/off (haToggle) and advanced call-service are always available.
         const ep = a.params && a.params.find((p) => p.kind === 'haEntity' && p.domain);
-        if (ep && haDomains && !haDomains.has(ep.domain)) return false;
+        if (ep && state.haDomains && !state.haDomains.has(ep.domain)) return false;
       }
       return true;
     }
@@ -3358,7 +3003,7 @@
       const mode = behavior.mode();
       const follows = isAction && mode !== 'cycle';
       behavior.el.style.display = isAction ? '' : 'none';
-      fSbState.style.display = (follows && streamerbotConfigured !== false) ? '' : 'none';
+      fSbState.style.display = (follows && state.streamerbotConfigured !== false) ? '' : 'none';
       // Widget-state binding: only once the package scan found published states
       // (or the key already carries one) — hidden noise-free for everyone else.
       fSdkState.style.display = (follows && sdkStatesAvail) ? '' : 'none';

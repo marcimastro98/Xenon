@@ -75,7 +75,7 @@
     "server/js/dashboard-portrait.js": 362,
     "server/js/dashboard-presets.js": 404,
     "server/js/deck-actions.js": 406,
-    "server/js/deck-editor.js": 3630,
+    "server/js/deck-editor.js": 3275,
     "server/js/deck-model.js": 1456,
     "server/js/deck.js": 3646,
     "server/js/devclean-widget.js": 486,
