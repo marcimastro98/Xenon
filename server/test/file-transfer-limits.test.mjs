@@ -125,6 +125,18 @@ test('uploads in flight are listed with their size, or 0 when the size was never
   assert.equal(store.inflightList()[0].received, 64);
 });
 
+test('an upload in flight says the size it was given, whatever the cap is at that moment', async () => {
+  const store = FT.createFileTransfer({ dir: tmpDir(), rand: seqRand(), maxBytes: 500, quotaBytes: 100000 });
+  await store.init();
+  store.begin({ name: 'clip.mp4', from: 'Phone' });
+  store.begin({ name: 'full.bin', declaredLength: 500, from: 'Phone' });
+  const totals = () => store.inflightList().map((row) => row.total);
+  assert.deepEqual(totals(), [0, 500], 'a file exactly as big as the cap has a size like any other');
+  store.limits({ maxBytes: 900 });
+  assert.deepEqual(totals(), [0, 500], 'a size never said must not turn into the cap the upload began under');
+  assert.equal(store.stats().reserved, 1000, 'the room each one holds is what it was');
+});
+
 test('abort() takes an upload off the list and gives its room back', async () => {
   const store = FT.createFileTransfer({ dir: tmpDir(), rand: seqRand(), maxBytes: 100, quotaBytes: 100 });
   await store.init();

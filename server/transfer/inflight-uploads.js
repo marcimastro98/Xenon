@@ -7,7 +7,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { PROGRESS_MIN_MS, INFLIGHT_STALE_MS } = require('./inflight-limits.js');
 
-function makeInflight({ filesDir, now, caps, inflight }) {
+function makeInflight({ filesDir, now, inflight }) {
   function reservedBytes() {
     let n = 0;
     for (const r of inflight.values()) n += r.reserved;
@@ -36,7 +36,7 @@ function makeInflight({ filesDir, now, caps, inflight }) {
     for (const [id, r] of inflight) {
       out.push({
         id, name: r.name, direction: r.direction, from: r.from,
-        received: r.received, total: r.reserved === caps.maxBytes ? 0 : r.reserved, pending: true,
+        received: r.received, total: r.known, pending: true,
       });
     }
     return out;

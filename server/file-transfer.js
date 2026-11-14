@@ -161,7 +161,7 @@ function createFileTransfer(o) {
     usedBytes: 0,
     loaded: false,
   };
-  const inflight = new Map();  // id -> { reserved, at, received, lastEmit, name, ext, direction, from }
+  const inflight = new Map();  // id -> { reserved, known, at, received, lastEmit, name, ext, direction, from }
 
   function limits(next) {
     if (next && Number(next.maxBytes) > 0) caps.maxBytes = Number(next.maxBytes);
@@ -192,7 +192,7 @@ function createFileTransfer(o) {
 
   const {
     reservedBytes, noteProgress, inflightList, abort, sweepInflight,
-  } = makeInflight({ filesDir, now, caps, inflight });
+  } = makeInflight({ filesDir, now, inflight });
 
   async function persist() {
     if (!dir) return;
@@ -234,7 +234,7 @@ function createFileTransfer(o) {
     if (!ID_RE.test(id) || !FILE_RE.test(file)) return { error: 'bad_name', status: 400 };
 
     inflight.set(id, {
-      reserved,
+      reserved, known,   // the room held, and the size said (0 when none was): not the same thing
       at: now(),
       received: 0,
       lastEmit: null,
