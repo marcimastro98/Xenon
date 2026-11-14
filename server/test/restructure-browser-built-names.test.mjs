@@ -35,6 +35,10 @@ test('the script is named where its name stands without the ending, as a whole s
   assert.deepEqual(builtMentions(TEMPLATE, 'server/js/capture.js'), [], 'a part of a longer name is another script');
   assert.deepEqual(builtMentions(TEMPLATE, 'server/js/capture-gallery/words.js'), [], 'a part of the script has a name of its own');
   assert.deepEqual(builtMentions("const KIND = 'capture-gallery';", FILE), [], 'the word alone, in a text that builds no name');
+  // A name built with no folder is the script's only where the text says the script's folder as a piece of a path.
+  const elsewhere = "const fileOf = (spec) => 'server/' + spec + '.js';\nconst held = late(list, 'save');";
+  assert.deepEqual(builtMentions(elsewhere, 'server/js/settings/save.js'), [], 'the word, in a text that builds names for another tree');
+  assert.deepEqual(builtMentions(`${elsewhere}\nconst DIR = path.join(ROOT, 'js', 'settings');`, 'server/js/settings/save.js'), [2]);
   // The folder a template writes decides: `js/i18n/${code}.js` reads js/i18n/it.js and not a js/it.js.
   const languages = "for (const code of ['en', 'it']) load(`../js/i18n/${code}.js`);";
   assert.deepEqual(builtMentions(languages, 'server/js/i18n/it.js'), [1]);
