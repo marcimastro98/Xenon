@@ -19,14 +19,15 @@ export function topStatements(sourceFile, { NodeFlags }) {
  * name is another variable and is left out), in file order.
  * @param {any} sourceFile @param {{K: any, NodeFlags: any}} parser
  * @param {Set<string>} names @param {string} object the name the rewrite will put in front
+ * @param {any[]} [statements] the statements to read instead of the file's own: the body of a factory (gather-plan.mjs)
  * @returns {{ name: string, start: number, end: number, statement: number, how: Set<string>, hidden: boolean }[]}
  *   `statement` is the position of the top-level statement around it, `how` what is done to it (read, write, change),
  *   `hidden` true when a local called `object` is in scope there.
  */
-export function readReferences(sourceFile, parser, names, object) {
+export function readReferences(sourceFile, parser, names, object, statements = topStatements(sourceFile, parser)) {
   const usesOf = createUseReader(parser.K, parser.NodeFlags);
   const byEnd = new Map();
-  topStatements(sourceFile, parser).forEach((statement, index) => {
+  statements.forEach((statement, index) => {
     usesOf(statement, new Set(), (node, how, isLocal) => {
       if (!names.has(node.text)) return;
       let ref = byEnd.get(node.end);
@@ -43,7 +44,7 @@ export function readReferences(sourceFile, parser, names, object) {
 /**
  * Where an identifier stands in a shape a rename would not keep, each as the set of the identifiers' end offsets:
  * `called` (`x()` and x`...`: as `o.x()` the function would get `o` as `this`), `shorthand` (`{ x }`),
- * `named` (`x = () => {}`: a function without a name takes the variable's, and would lose it), `deleted`.
+ * `named` (`x = () => {}` and `({ x = () => {} } = o)`: a function without a name takes the variable's, and would lose it), `deleted`.
  * @param {any} sourceFile @param {{K: any, NodeFlags: any}} parser
  * @returns {{ called: Set<number>, shorthand: Set<number>, named: Set<number>, deleted: Set<number>, withStatement: boolean }}
  */
@@ -66,7 +67,10 @@ export function readForms(sourceFile, { K, NodeFlags }) {
     switch (node.kind) {
       case K.CallExpression: forms.called.add(identifierEnd(node.expression)); break;
       case K.TaggedTemplateExpression: forms.called.add(identifierEnd(node.tag)); break;
-      case K.ShorthandPropertyAssignment: forms.shorthand.add(node.name.end); break;
+      case K.ShorthandPropertyAssignment:
+        forms.shorthand.add(node.name.end);
+        if (nameless(node.objectAssignmentInitializer)) forms.named.add(node.name.end);
+        break;
       case K.DeleteExpression: forms.deleted.add(identifierEnd(node.expression)); break;
       case K.WithStatement: forms.withStatement = true; break;
       case K.BinaryExpression:

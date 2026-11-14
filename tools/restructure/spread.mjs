@@ -228,3 +228,20 @@ export function spreadObject({ root, parser, source, name, parts, dryRun = false
   recordSpread(root, source, { name, parts: parts.map((part) => ({ name: part.name, first: part.first })), after: entries.length });
   return result;
 }
+
+/**
+ * The `spread` command of cli.mjs.
+ * @param {any} parser @param {string} root @param {{ flags: Record<string, any>, rest: string[] }} args
+ * @returns {number} the exit code
+ */
+export function runSpread(parser, root, { flags, rest }) {
+  const posix = (file) => String(file).split('\\').join('/').replace(/^\.\//, '');
+  const dryRun = Boolean(flags['dry-run']);
+  const parts = rest.map((pair) => { const [name, first] = pair.split('='); return { name, first }; });
+  const done = spreadObject({ root, parser, source: posix(flags.from), name: flags.name, parts, dryRun });
+  console.log(`${dryRun ? 'would cut' : 'cut'} ${done.name} into ${done.parts.length} parts; ${posix(flags.from)} ${dryRun ? 'would grow' : 'grew'} by ${done.sourceLines} lines. `
+    + 'Worked out with stand-ins, old and new have the same keys in the same order, the same values, the same things frozen.');
+  for (const part of done.parts) console.log(`  ${part.name}: ${part.keys} keys, from ${part.first}`);
+  if (!dryRun) console.log('Next: move each part with extract, then node tools/restructure/gate.mjs');
+  return 0;
+}

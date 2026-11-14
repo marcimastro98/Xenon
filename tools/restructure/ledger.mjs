@@ -13,7 +13,8 @@ const NOTE = 'What tools/restructure took out of which file, in order. Written b
  * @param {string} root
  * @returns {{ note: string, sources: Record<string, {file: string, about: string, names: string[]}[]>,
  *   spreads?: Record<string, { name: string, parts: { name: string, first: string }[], after: number }[]>,
- *   branches?: Record<string, { file: string, about: string, keys: string[], after: number }[]> }}
+ *   branches?: Record<string, { file: string, about: string, keys: string[], after: number }[]>,
+ *   gathers?: Record<string, { factory: string, object: string, names: string[], kept: string[], bare: string[], after: number }[]> }}
  */
 export function readLedger(root) {
   try {
@@ -31,7 +32,7 @@ function rowsOf(lists) {
 }
 
 function writeLedger(root, ledger) {
-  const more = ['spreads', 'branches'].filter((list) => ledger[list]).map((list) => `,\n  "${list}": {\n${rowsOf(ledger[list])}\n  }`).join('');
+  const more = ['spreads', 'branches', 'gathers'].filter((list) => ledger[list]).map((list) => `,\n  "${list}": {\n${rowsOf(ledger[list])}\n  }`).join('');
   writeFileSync(path.join(root, LEDGER), `{\n  "note": ${JSON.stringify(ledger.note)},\n  "sources": {\n${rowsOf(ledger.sources)}\n  }${more}\n}\n`);
 }
 
@@ -78,11 +79,26 @@ export function recordBranches(root, source, record) {
 }
 
 /**
+ * What a factory remembers, gathered into one object in its body (gather.mjs). It makes no module, so it has a list of
+ * its own: `after` says how many entries the file had then, which is where the replay redoes it.
+ * @param {string} root
+ * @param {string} source repo-relative file with the factory
+ * @param {{ factory: string, object: string, names: string[], kept: string[], bare: string[], after: number }} record
+ */
+export function recordGather(root, source, record) {
+  const ledger = readLedger(root);
+  ledger.gathers ??= {};
+  ledger.gathers[source] ??= [];
+  ledger.gathers[source].push(record);
+  writeLedger(root, ledger);
+}
+
+/**
  * @param {ReturnType<typeof readLedger>} ledger
  * @returns {string[][]} per old file: itself, then every module made out of it, each once
  */
 export function groupsOf(ledger) {
-  const sources = new Set([...Object.keys(ledger.sources), ...Object.keys(ledger.spreads ?? {}), ...Object.keys(ledger.branches ?? {})]);
+  const sources = new Set([...Object.keys(ledger.sources), ...Object.keys(ledger.spreads ?? {}), ...Object.keys(ledger.branches ?? {}), ...Object.keys(ledger.gathers ?? {})]);
   return [...sources].map((source) => [...new Set([source, ...(ledger.sources[source] ?? []).map((entry) => entry.file),
     ...(ledger.branches?.[source] ?? []).map((record) => record.file)])]);
 }

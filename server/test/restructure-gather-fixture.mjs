@@ -1,0 +1,87 @@
+// The factory the gather tests rewrite (tools/restructure, `gather`): every way a name can be
+// written that is the factory's own variable, and every way the same word can be something else.
+export const file = (...lines) => [...lines, ''].join('\n');
+
+export const SOURCE = file(
+  "'use strict';",
+  '',
+  '// Builds the thing.',
+  'function createThing({ runner, limit = 3 } = {}) {',
+  '  const seen = new Map();',
+  '  // How often it was asked.',
+  '  let calls = 0; // counted from zero',
+  '  let last;',
+  "  let label = 'none';",
+  '',
+  '  function count() { calls += 1; return calls; }',
+  '  function note(name) { last = name; label = `${name}:${calls}`; return { last, label, size: seen.size, own: view.label }; }',
+  '  // A parameter and a local of the same name are other variables.',
+  '  function shadow(calls) { const label = calls * 2; return label; }',
+  '  function later(label = calls) { return label; }',
+  '  function kind() { return typeof last; }',
+  '  function swap(pair) { [last, label] = pair; ({ a: calls } = { a: calls + 10 }); return calls++; }',
+  "  function take(from) { ({ calls, label = 'none' } = from); return --calls; }",
+  '  function loops() {',
+  '    let total = 0;',
+  '    for (const calls of [1, 2]) total += calls;',
+  "    try { throw new Error('x'); } catch (last) { total += last.message.length; }",
+  '    last: for (;;) { break last; }',
+  "    return total + (function label() { return typeof label === 'function' ? 1 : 0; })();",
+  '  }',
+  '  // What the first call was allowed.',
+  '  let budget = runner ? limit * 2 : limit;',
+  '  let twice = budget * 2;',
+  '  const view = { calls: () => calls, get last() { return last; }, label, budget: () => budget + twice };',
+  '  return { count, note, shadow, later, kind, swap, take, loops, view, spend: () => { budget -= 1; return seen.size + budget; } };',
+  '}',
+  '',
+  'module.exports = { createThing };',
+);
+
+// The same factory after `gather --object memory`: read line by line against SOURCE.
+export const GATHERED = file(
+  "'use strict';",
+  '',
+  '// Builds the thing.',
+  'function createThing({ runner, limit = 3 } = {}) {',
+  '  const seen = new Map();',
+  '  const memory = {',
+  '    // How often it was asked.',
+  '    calls: 0, // counted from zero',
+  '    last: undefined,',
+  "    label: 'none',",
+  '    budget: undefined, // given its first value further down, where it was declared',
+  '    twice: undefined, // given its first value further down, where it was declared',
+  '  };',
+  '',
+  '  function count() { memory.calls += 1; return memory.calls; }',
+  '  function note(name) { memory.last = name; memory.label = `${name}:${memory.calls}`; return { last: memory.last, label: memory.label, size: seen.size, own: view.label }; }',
+  '  // A parameter and a local of the same name are other variables.',
+  '  function shadow(calls) { const label = calls * 2; return label; }',
+  '  function later(label = memory.calls) { return label; }',
+  '  function kind() { return typeof memory.last; }',
+  '  function swap(pair) { [memory.last, memory.label] = pair; ({ a: memory.calls } = { a: memory.calls + 10 }); return memory.calls++; }',
+  "  function take(from) { ({ calls: memory.calls, label: memory.label = 'none' } = from); return --memory.calls; }",
+  '  function loops() {',
+  '    let total = 0;',
+  '    for (const calls of [1, 2]) total += calls;',
+  "    try { throw new Error('x'); } catch (last) { total += last.message.length; }",
+  '    last: for (;;) { break last; }',
+  "    return total + (function label() { return typeof label === 'function' ? 1 : 0; })();",
+  '  }',
+  '  // What the first call was allowed.',
+  '  memory.budget = runner ? limit * 2 : limit;',
+  '  memory.twice = memory.budget * 2;',
+  '  const view = { calls: () => memory.calls, get last() { return memory.last; }, label: memory.label, budget: () => memory.budget + memory.twice };',
+  '  return { count, note, shadow, later, kind, swap, take, loops, view, spend: () => { memory.budget -= 1; return seen.size + memory.budget; } };',
+  '}',
+  '',
+  'module.exports = { createThing };',
+);
+
+/** What the factory answers when it is used: the same from the old text and the new. */
+export function useThing(createThing) {
+  const thing = createThing({ runner: () => 1, limit: 2 });
+  return [thing.count(), thing.note('a'), thing.shadow(5), thing.later(), thing.kind(), thing.swap(['x', 'y']), thing.take({ calls: 7 }), thing.loops(),
+    thing.view.calls(), thing.view.last, thing.view.label, thing.view.budget(), thing.spend(), thing.count()];
+}

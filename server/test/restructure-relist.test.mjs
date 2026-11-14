@@ -95,6 +95,11 @@ test('nothing is recorded again when the move is not proven, or the file changed
     assert.match(rewritten.refusals[0], /keeper-clean\.js came out of it by a rewrite, which changes the words that were read/, kind);
     assert.deepEqual(rewritten.changes, []);
   }
+  // So does gathering what a factory remembers, which makes no module at all.
+  const gathered = refusals({ ...memory({ disk: { ...listsFor(textHash(READ)), ...moved }, base: { [KEEPER]: READ, [OTHER]: 'other' } }),
+    ledger: { sources: {}, gathers: { [KEEPER]: [{ factory: 'createKeeper', object: 'kept', names: ['held'], kept: [], bare: [], after: 0 }] } } });
+  assert.match(gathered.refusals[0], /keeper\.js: what a factory in it remembers was gathered into one object, a rewrite, which changes the words that were read/);
+  assert.deepEqual(gathered.changes, []);
   const gone = refusals(memory({ disk: { ...listsFor(textHash(READ)), [OTHER]: 'other' }, base: { [KEEPER]: READ, [OTHER]: 'other' } }));
   assert.match(gone.refusals[0], /keeper\.js: it is pinned and cannot be read/);
   assert.deepEqual(refusals(memory({ disk: { ...listsFor(textHash(READ)), [KEEPER]: READ, [OTHER]: 'other' }, base: {} }), ['a problem elsewhere']),

@@ -17,11 +17,17 @@
 // The body of a route may live in a table in a module of its feature, with one
 // call of the table left under the route's test (tools/restructure `branches`).
 // The text handed out here has every body back under its test.
+//
+// What a factory remembers may have been gathered into one object in its body
+// (tools/restructure `gather`: `let held` is `memory.held` now). The text handed
+// out here has the `let`s and their names back, in the factory's file and in the
+// modules made out of it afterwards.
 import { readFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { undoBranchesText } from '../../tools/restructure/branches-text.mjs';
+import { undoGatherText } from '../../tools/restructure/gather-undo.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 import { dropPart, undoSpreadText } from '../../tools/restructure/spread-undo.mjs';
 import { undoStateText } from '../../tools/restructure/state-undo.mjs';
@@ -107,11 +113,20 @@ export function stateRewrites(source = ENGINE) {
 }
 
 /**
- * Code with the names it had before the state rewrites.
- * @param {string} text @param {{ state: any }[]} rewrites
+ * @param {string} [source]
+ * @returns {{ factory: string, object: string, names: string[], kept: string[], bare: string[] }[]} what the factories of
+ *   the file remember, gathered into one object each: the old names are the properties
  */
-export function oldNames(text, rewrites) {
-  return rewrites.reduce((out, entry) => undoStateText(out, entry.state), text);
+export function gatheredIn(source = ENGINE) {
+  return readLedger().gathers?.[source] ?? [];
+}
+
+/**
+ * Code with the names it had before the state rewrites, and before the gathers of the same file when they are given.
+ * @param {string} text @param {{ state: any }[]} rewrites @param {ReturnType<typeof gatheredIn>} [gathered]
+ */
+export function oldNames(text, rewrites, gathered = []) {
+  return gathered.reduce((out, record) => undoGatherText(out, record), rewrites.reduce((out, entry) => undoStateText(out, entry.state), text));
 }
 
 /**
@@ -139,8 +154,9 @@ export function oldDeclarations(text, { state }) {
  */
 export function engineSource(source = ENGINE) {
   const rewrites = stateRewrites(source);
-  return [oldNames(read(source), rewrites),
-    ...ledgerOf(source).map((entry) => (entry.state ? oldDeclarations(read(entry.file), entry) : oldNames(read(entry.file), rewrites)))].join('\n');
+  const gathered = gatheredIn(source);
+  return [oldNames(read(source), rewrites, gathered),
+    ...ledgerOf(source).map((entry) => (entry.state ? oldDeclarations(read(entry.file), entry) : oldNames(read(entry.file), rewrites, gathered)))].join('\n');
 }
 
 /**
@@ -169,7 +185,7 @@ export function declarationSource(name, source = ENGINE) {
   const holder = valueHolder(name, source);
   // A part of a cut object is not in the text handed out as a whole; asked for by name, it is read as its module has it.
   const text = PARTS.has(name) ? oldPlaces(file) : read(file);
-  const lines = (holder ? oldDeclarations(text, holder) : oldNames(text, stateRewrites(source))).split('\n');
+  const lines = (holder ? oldDeclarations(text, holder) : oldNames(text, stateRewrites(source), gatheredIn(source))).split('\n');
   const escaped = name.replace(/[$]/g, '\\$&');
   const opening = new RegExp(`^(?:(?:async\\s+)?function\\*?\\s+${escaped}\\s*\\(|(?:const|let|var|class)\\s+${escaped}\\b)`);
   const first = lines.findIndex((line) => opening.test(line));

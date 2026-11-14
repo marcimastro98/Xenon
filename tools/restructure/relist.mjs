@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { gitShow, replay } from './extract.mjs';
-import { readLedger } from './ledger.mjs';
+import { LEDGER, readLedger } from './ledger.mjs';
 import { textHash } from './load-registrations.mjs';
 
 // Each list, the key of an entry that holds its pinned files, and what names an entry to a person.
@@ -76,7 +76,7 @@ export function pinWarnings(sources, read) {
  * @param {object} job
  * @param {(file: string) => string} job.read reads a repo-relative file as it is on disk
  * @param {(file: string) => string | null} job.show the same file at the base revision, null when it had none
- * @param {{ sources: Record<string, { file: string, state?: any, lift?: boolean, paths?: boolean }[]> }} job.ledger extracted.json
+ * @param {{ sources: Record<string, { file: string, state?: any, lift?: boolean, paths?: boolean }[]>, gathers?: Record<string, any[]> }} job.ledger extracted.json
  * @param {string[]} job.problems what the replay from the base revision found: any problem refuses everything
  * @param {string} job.base the name of the base revision, for the messages
  * @returns {{ changes: { pinned: string, was: string, now: string, modules: { file: string, hash: string }[], lists: string[] }[], refusals: string[] }}
@@ -104,6 +104,10 @@ export function planRelist({ read, show, ledger, problems, base }) {
     const before = show(pinned);
     if (before === null) { refuse(`${base} has no such file`); continue; }
     if (hashes.size !== 1 || !hashes.has(textHash(before))) { refuse(`at ${base} it was already not the text that was read: it changed by hand before any move`); continue; }
+    if ((ledger.gathers?.[pinned] ?? []).length > (JSON.parse(show(LEDGER) ?? '{}').gathers?.[pinned] ?? []).length) {
+      refuse('what a factory in it remembers was gathered into one object, a rewrite, which changes the words that were read');
+      continue;
+    }
     const made = (ledger.sources[pinned] ?? []).filter((entry) => show(entry.file) === null);
     if (made.length === 0) { refuse(`it differs from ${base} and no move out of it is recorded: it changed by hand`); continue; }
     const rewritten = made.filter((entry) => entry.state || entry.lift || entry.paths || entry.inner);

@@ -10,6 +10,7 @@ import path from 'node:path';
 import { analyze } from './analyze.mjs';
 import { redoBranches } from './branches.mjs';
 import { planExtraction, Refusal } from './extract-plan.mjs';
+import { gathersToRedo, redoGathers } from './gather.mjs';
 import { planInnerFor } from './inner.mjs';
 import { proveInner } from './inner-proof.mjs';
 import { appendLedger, groupsOf, LEDGER, protectedNames, quietModules, readLedger } from './ledger.mjs';
@@ -115,8 +116,8 @@ function bodiesToRedo(root, base, show, source) {
 
 /**
  * Redoes every recorded extraction whose module the revision does not have yet,
- * every cut of a frozen object and every move of route bodies it does not have
- * either, starting from the revision's copy of the old file, and compares the
+ * every cut of a frozen object, every move of route bodies and every gather of a
+ * factory's variables it does not have either, starting from the revision's copy of the old file, and compares the
  * result with the files on disk byte for byte.
  * @param {{ root: string, parser: any, base: string, show?: (root: string, rev: string, file: string) => string | null }} job
  * @returns {{ problems: string[], replayed: number, files: string[][] }} `files`: per old file, itself and its modules
@@ -136,11 +137,14 @@ export function replay({ root, parser, base, show = gitShow }) {
     const cuts = cutsToRedo(root, base, show, source);
     const bodies = bodiesToRedo(root, base, show, source);
     const tables = new Map(bodies.map((record) => [record.file, show(root, base, record.file)]));
-    replayed += cuts.length + bodies.length;
-    // What was done to the file between two entries: the cuts first, then the bodies. The two never touch the same lines.
+    const gathers = gathersToRedo(root, base, show, source);
+    replayed += cuts.length + bodies.length + gathers.length;
+    // What was done to the file between two entries: the cuts first, then the bodies (the two never touch the same lines),
+    // then what a factory remembers gathered into one object (never in a file that has cuts or bodies: gather.mjs refuses it).
     const redo = (count) => {
       const cut = redoCuts({ root, parser, source, base, cuts, count, text, problems });
-      return cut === null ? null : redoBranches({ root, parser, source, base, records: bodies, count, text: cut, modules: tables, earlier: entries.slice(0, count), problems });
+      const moved = cut === null ? null : redoBranches({ root, parser, source, base, records: bodies, count, text: cut, modules: tables, earlier: entries.slice(0, count), problems });
+      return moved === null ? null : redoGathers({ root, parser, source, base, records: gathers, count, text: moved, problems });
     };
     let stopped = false;
     for (const entry of entries) {
