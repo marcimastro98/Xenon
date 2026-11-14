@@ -105,6 +105,22 @@ test('every child stdin Xenon writes to has an error handler', () => {
   assert.deepEqual(missing, [], 'a child pipe can crash the server:\n  ' + missing.join('\n  '));
 });
 
+test('a route body in a table that writes to a child stdin is read by the test above', () => {
+  // The tables of route bodies are not on the list above one by one: a body is read back under its test, in the file
+  // its route is in, where the route that started the child stands too. That covers a table only while every write
+  // in it is in that text, so the writes are counted: the file read back holds its own and those of its tables.
+  const ledger = JSON.parse(readFileSync(join(SERVER_DIR, '..', 'tools', 'restructure', 'extracted.json'), 'utf8'));
+  const writes = (text) => text.split('.stdin.write(').length - 1;
+  const listed = new Set(readdirSync(SERVER_DIR).filter((f) => f.endsWith('.js')).map((f) => `server/${f}`));
+  for (const [file, records] of Object.entries(ledger.branches ?? {})) {
+    assert.ok(listed.has(file), `${file} has route bodies in tables and is one of the files read above`);
+    const own = readFileSync(join(SERVER_DIR, '..', file), 'utf8');
+    const tables = [...new Set(records.map((record) => record.file))];
+    const inTables = tables.reduce((sum, table) => sum + writes(readFileSync(join(SERVER_DIR, '..', table), 'utf8')), 0);
+    assert.equal(writes(bodiesBack(file, own)), writes(own) + inTables, `${file}: a write to a child stdin in one of its tables is not read back`);
+  }
+});
+
 test('the long-lived hosts retire on a pipe error instead of ignoring it', () => {
   // A one-shot child (ffmpeg, shell-delete) is settled by its exit handler, so
   // swallowing is right there. A HOST is cached and handed to the next caller,
