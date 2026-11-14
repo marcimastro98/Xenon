@@ -3,7 +3,7 @@
 // the card rectangles it hands the shell so every other click goes through.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
+import { partsOf, readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
@@ -240,7 +240,7 @@ test('in a browser tab there is no shell to signal', async () => {
 test('the page loads what it uses, in order', () => {
   const html = read('../screen-alerts.html');
   const order = ['js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/toast.js',
-    'js/alert-toasts.js', 'js/deck-error-text.js', 'js/capture-toast.js', 'js/call-modal.js', 'js/screen-bit.js', 'js/screen-alerts.js'];
+    'js/alert-toasts.js', 'js/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/screen-bit.js', 'js/screen-alerts.js'];
   const at = order.map((f) => html.indexOf(`src="${f}"`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);

@@ -133,12 +133,13 @@ test('route `/` redirects only the app window, only on this PC, only in "widgets
   assert.equal(remotePathAllowed('/shell-driver', 'GET'), false, 'a phone has nothing to drive');
 });
 
+const served = (file) => partsOf(file).map((part) => part.slice('server/'.length)); // a script and the ones cut out of it, as the page names them
 test('the driver page carries only what it needs, in order', () => {
   const scripts = [...HTML.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(scripts, [
     'shared/src/constants.js', 'js/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/usage-mode.js',
-    'js/native-bridge.js', 'js/screen-scene-model.js', 'js/layers-shell.js', 'js/dashboard-open.js', ...partsOf('server/js/update.js').map((file) => file.slice('server/'.length)), 'js/album-theme.js',
+    'js/native-bridge.js', 'js/screen-scene-model.js', ...served('server/js/layers-shell.js'), 'js/dashboard-open.js', ...served('server/js/update.js'), 'js/album-theme.js',
     'js/driver-album-lights.js', 'js/driver-sdk-host.js', 'js/driver-perf.js', 'js/shell-driver.js',
   ]);
   assert.doesNotMatch(HTML, /stylesheet/);
