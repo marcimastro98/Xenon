@@ -411,7 +411,7 @@ Xenon/
 
 All user data lives in **`server/data/`**: `settings.json` (incl. `geminiApiKey`, `aiProvider`, `lighting`, `remoteControl`), `events.json`, `mcp-clients.json` (connected widget-author tools, token hashes only), `tasks.json`, `timers.json`, `deck.json`, `notes.txt`, `stream-config.json`, `stream-tokens.json`, and `uploads/`.
 
-Paths are centralized via the `DATA_DIR` constant in `server.js`. On startup a one-time migration moves any legacy loose files (from earlier versions that stored them directly in `server/`) into `server/data/`, skipping any file that already exists in the new location so it never clobbers current data.
+Paths are centralized via the `DATA_DIR` constant in `server/engine/paths.js`. On startup a one-time migration moves any legacy loose files (from earlier versions that stored them directly in `server/`) into `server/data/`, skipping any file that already exists in the new location so it never clobbers current data.
 
 Tool binaries are **not** user data and stay in their own folders: `whisper/` (downloaded STT engine + model), `presentmon/`, `openrgb/`, `vendor/` (iCUE SDK), `soundvolumeview-x64/`.
 
@@ -535,7 +535,7 @@ the other needs a live account plus a real incoming call.
 
 | Variable | What it does |
 |---|---|
-| `XENON_CALLS_TEST=1` | Enables `POST /api/calls/test`, which rings a **fake** incoming call. Without the flag the route 404s like any unknown path. It synthesises a notification and feeds it to the real classifier, so it exercises matching, the ring-phrase check, the capability computation, the SSE broadcast and the phone push — not a hand-made card. Body: `{"app":"teams","caller":"Marco Rossi","video":false}`; `app` is one of the ids in `call-detect.js` `DEFAULT_APPS` (`teams`, `zoom`, `discord`, `phonelink`, `whatsapp`, `slack`, `meet`). |
+| `XENON_CALLS_TEST=1` | Enables `POST /api/calls/test`, which rings a **fake** incoming call. Without the flag the route 404s like any unknown path. It synthesises a notification and feeds it to the real classifier, so it exercises matching, the ring-phrase check, the capability computation, the SSE broadcast and the phone push — not a hand-made card. Body: `{"app":"teams","caller":"Marco Rossi","video":false}`; `app` is one of the ids in `server/transfer/call-apps.js` `DEFAULT_APPS` (`teams`, `zoom`, `discord`, `phonelink`, `whatsapp`, `slack`, `meet`). |
 | `XENON_DISCORD_RPC_DEBUG=1` | Logs every Discord RPC dispatch with its event name, channel id and `message.type` — and **no message content**. This is how to confirm whether a ringing DM raises `NOTIFICATION_CREATE` with a type-3 (CALL) message, which is the one assumption in the incoming-call feature that cannot be verified without a live account. |
 
 ```powershell

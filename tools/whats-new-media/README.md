@@ -39,7 +39,7 @@ the cookie gate does not apply. For a clip, drag it into a draft release or issu
 do not need to publish), copy the `user-attachments` URL, and set `mediaType: "video"`.
 
 The allowlist lives in `server/js/update.js` (`isAllowedMediaUrl`) and is mirrored in
-`server/server.js` — https plus `*.githubusercontent.com`, or `github.com/user-attachments/assets/`.
+`server/updates/release-media.js` — https plus `*.githubusercontent.com`, or `github.com/user-attachments/assets/`.
 Anything else is dropped without a word.
 
 ---

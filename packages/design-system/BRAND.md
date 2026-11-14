@@ -150,13 +150,13 @@ so it never needs an `invert()` filter.
 | Orb Violet | `#b69dff` | `--xn-violet` — belongs to the Orb |
 | Orb Ink | `#06080c` | Deep ambient black behind the Orb |
 
-Source: `server/js/settings.js` (`SETTINGS_PRESETS`, `BUILTIN_THEMES`,
+Source: `server/js/settings/default-look.js` (`SETTINGS_PRESETS`), `server/js/settings.js` (`BUILTIN_THEMES`,
 `DEFAULT_HUB_SETTINGS`) and `server/components/AIPanel/AIPanel.css`.
 
 ### Bit's moods — emotion, not decoration
 
 These change only with the pet's state; never borrow them for UI chrome.
-(`MOOD_RGB` in `server/js/vitals-pet.js`, outline `#0d1117`.)
+(`MOOD_RGB` in `server/js/vitals-pet/effects.js`, outline `#0d1117`.)
 
 | Mood | Hex |
 |---|---|
@@ -241,10 +241,10 @@ spectacle on the site; the Orb moves in video.
 
 | Asset | Location |
 |---|---|
-| Bit sprite (exact) | `server/js/vitals-pet.js:34-55` — `BODY`/`EYES`/`FACES`/`MOOD_RGB`. Copy it 1:1; never invent new Bit shapes. |
+| Bit sprite (exact) | `packages/core/src/bit-clips.js` — `BODY`/`EYES`/`MOUTHS`/`BROWS`/`MOOD_RGB`. Copy it 1:1; never invent new Bit shapes. |
 | Bit voice bank | `server/js/vitals-pet-core.js` — per-language tone tiers |
 | Resonance Orb | colours (`--xn-cyan`, `--xn-violet`) in `server/components/AIPanel/AIPanel.css` — video/press asset only; no longer rendered on the site |
-| Colour presets | `server/js/settings.js` — `SETTINGS_PRESETS`, `BUILTIN_THEMES` |
+| Colour presets | `server/js/settings/default-look.js` — `SETTINGS_PRESETS`; `server/js/settings.js` — `BUILTIN_THEMES` |
 | Reusable Bit mark | `docs/images/bit.svg` (scalable, derived from the sprite) |
 | Public site | `docs/site.css` (tokens, fonts, the shared header and footer), `docs/guide.css` (download, help, privacy and every guide), `tools/site-chrome.mjs` (header, footer, breadcrumb and the guide list, written into every page). The home is generated from one template and six dictionaries; the other pages are English sources with `data-i18n` keys and dictionaries in `tools/i18n/`, built into `docs/<lang>/` by `tools/build-page-langs.mjs`. Six languages: en, es, it, ja, ko, zh |
 | Reusable copy | `README.md`, `FEATURES.md` |
