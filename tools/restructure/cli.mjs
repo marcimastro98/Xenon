@@ -19,6 +19,7 @@
 //                                                                  functions declared in a factory's body go unchanged into a function of a new module, handed what they used
 //   node tools/restructure/cli.mjs gather --from <file> --factory <function> --object <name> [--dry-run] [<variable> ...]
 //                                                                  the lets of a factory's body (all, or the ones named) become one constant object where the first stood
+//   node tools/restructure/cli.mjs bare [--json] [<file> ...]       every `require('x');` alone on a line, and whether taking it out can change anything
 //   node tools/restructure/cli.mjs paths --from <file> --to <dir>/<feature>/<file>.js --about "<one sentence>" [--dry-run] <name> [...]
 //                                                                  constants built from __dirname get a module of their own,
 //                                                                  which works out the same folder under the name SERVER_DIR
@@ -251,7 +252,7 @@ async function main(argv) {
   const args = readArgs(tail);
   if (command === 'carry') return carry();
   const needsFile = { analyze: 1, remainder: 1, apply: 1 }[command] ?? 0;
-  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'inner', 'gather', 'paths', 'spread', 'branches', 'verify', 'relist', 'remainder'].includes(command);
+  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'inner', 'gather', 'bare', 'paths', 'spread', 'branches', 'verify', 'relist', 'remainder'].includes(command);
   const aimed = args.flags.from && args.flags.to && args.rest.length;
   const incomplete = ((command === 'extract' || command === 'paths') && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1))
     || (command === 'state' && !(aimed && args.flags.object && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))))
@@ -272,6 +273,7 @@ async function main(argv) {
     if (command === 'lift') return runLift(parser, args);
     if (command === 'inner') return (await import('./inner.mjs')).runInner(parser, REPO_ROOT, args);
     if (command === 'gather') return (await import('./gather.mjs')).runGather(parser, REPO_ROOT, args);
+    if (command === 'bare') return (await import('./bare.mjs')).runBare(parser, REPO_ROOT, args);
     if (command === 'paths') return runPaths(parser, args);
     if (command === 'spread') return runSpread(parser, REPO_ROOT, args);
     if (command === 'branches') return runBranches(parser, args);
