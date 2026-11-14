@@ -693,6 +693,7 @@
         "server/file-transfer.js",
         "server/js/phone-*.js",
         "server/js/call-modal.js",
+        "server/js/transfer-widget/**",
         "server/js/transfer-widget.js",
         "server/components/PhoneView/**",
         "server/components/PhoneWidget/**",
