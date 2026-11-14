@@ -549,7 +549,7 @@ function createDiscordProvider(deps) {
           // Creds still stored: the refresh only failed for now, so the watch must
           // retry. 'not_connected' would stop it with the account still linked.
           creds().then(
-            (left) => fail(new Error(left.accessToken ? 'discord_closed' : 'not_connected')),
+            (left) => fail(new Error(secretRejected ? 'bad_client_secret' : (left.accessToken ? 'discord_closed' : 'not_connected'))),
             () => fail(new Error('not_connected')),
           );
           return;
@@ -605,8 +605,16 @@ function createDiscordProvider(deps) {
         body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token', refresh_token: c.refreshToken }),
       });
       const data = await res.json().catch(() => null);
-      if (res.ok && data && data.access_token) { await persistToken(data); return true; }
-      if (data && String(data.error || '').toLowerCase() === 'invalid_grant') await clearCreds();
+      if (res.ok && data && data.access_token) { await persistToken(data); secretRejected = false; return true; }
+      const oauthErr = String((data && data.error) || '').toLowerCase();
+      if (oauthErr === 'invalid_grant') await clearCreds();
+      // The app's Client Secret was reset in the Developer Portal. Not a blip: no
+      // retry renews the login, and Discord itself is fine, so it must not read as
+      // "open Discord" (it did, retried every 30 s and logged nothing).
+      if (oauthErr === 'invalid_client') {
+        if (!secretRejected) console.error('[discord] Discord refused the Client Secret while renewing the login: reset it in the Developer Portal and save it under Settings > Streaming.');
+        secretRejected = true;
+      }
       return false;
     } catch { return false; }   // network blip: keep creds, fail this attempt
   }
@@ -646,6 +654,7 @@ function createDiscordProvider(deps) {
   // one consent dialog is pending would open a second throwaway socket and a
   // second dialog — refuse it instead.
   let loginBusy = false;
+  let secretRejected = false;  // Discord answered invalid_client to a token renewal
   async function login() {
     if (!configured()) return { ok: false, error: 'no_client' };
     if (loginBusy) return { ok: false, error: 'login_in_progress' };
@@ -756,7 +765,10 @@ function createDiscordProvider(deps) {
   async function status() {
     const c = await creds();
     return {
-      connected: !!c.accessToken, login: c.username, configured: configured(), notif: notifState,
+      // A login whose renewal Discord refuses is no link: the widgets say "connect"
+      // and Settings shows why (secretRejected) next to the Connect button.
+      connected: !!c.accessToken && !secretRejected, login: c.username, configured: configured(), notif: notifState,
+      secretRejected,
       // 'granted' | 'missing' | 'unknown' — read from the grant itself, so the UI
       // can say a re-link is needed the moment the switch goes on rather than
       // after a subscription has been refused. See notifScopeState.
@@ -1256,7 +1268,9 @@ function createDiscordProvider(deps) {
       await recompute();
     } catch (e) {
       const msg = (e && e.message) || '';
-      if (msg === 'not_connected') {     // no/expired token — surface "not linked", don't spin
+      // No/expired token, or a Client Secret Discord refuses: surface "not linked"
+      // (Settings says which), don't spin. Saving new credentials re-arms the watch.
+      if (msg === 'not_connected' || msg === 'bad_client_secret') {
         emitOffline(false);
         if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         return;

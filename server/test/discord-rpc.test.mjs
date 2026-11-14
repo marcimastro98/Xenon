@@ -367,7 +367,6 @@ const tokenAnswer = (status, body) => ({ ok: status >= 200 && status < 300, stat
 for (const [name, answer] of [
   ['a server error', tokenAnswer(503, null)],
   ['a rate limit', tokenAnswer(429, { message: 'You are being rate limited.' })],
-  ['a rejected client', tokenAnswer(401, { error: 'invalid_client' })],
   ['an answer with no token', tokenAnswer(200, {})],
 ]) {
   test(`a failed refresh keeps the Discord link on ${name}`, async () => {
@@ -393,6 +392,36 @@ test('the voice watch stays linked through a failed refresh, and retries', async
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(seen.some((voice) => voice.connected === false), false);
   stop();
+});
+
+// A Client Secret reset in the Developer Portal: Discord answers invalid_client
+// to every renewal. It used to read as "Discord closed" and retry every 30 s for
+// days while the widget said "open Discord".
+test('a refused Client Secret says so, keeps the login and stops retrying', async () => {
+  let calls = 0;
+  const answer = tokenAnswer(401, { error: 'invalid_client' });
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'old', refreshToken: 'r', expiresAt: Date.now() - 1000, username: 'me' } }));
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    fetch: async () => { calls++; return answer; },
+    connect: () => Promise.resolve(fakePipe(() => ({}))),
+  });
+  const seen = [];
+  const stop = p.watchVoice((voice) => seen.push(voice));
+  assert.ok(await waitFor(() => seen.some((voice) => voice.connected === false)));
+  const st = await p.status();
+  assert.equal(st.connected, false);
+  assert.equal(st.secretRejected, true);
+  const r = await p.runAction({ type: 'discordMute', mode: 'mute' });
+  assert.equal(r.ok, false);
+  const after = calls;
+  await new Promise((resolve) => setTimeout(resolve, 2300));
+  assert.equal(calls, after, 'no retry loop against a refused secret');
+  // The login stays stored: saving the new secret renews it, no new link needed.
+  assert.equal(JSON.parse(fs.readFileSync(tokensFile, 'utf8')).discord.refreshToken, 'r');
+  stop();
+  p.close();
 });
 
 test('the voice watch reports unlinked once the refresh token is revoked', async () => {

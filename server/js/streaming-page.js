@@ -111,6 +111,9 @@
     const btn = el('button', 'settings-btn', t('streaming_connect', 'Connect'));
     btn.addEventListener('click', () => startLogin(cfg, card, btn));
     card.appendChild(keyRow(t(cfg.descKey, 'Connect your account to control it from the dashboard.'), btn, 'settings-hint'));
+    // The saved login stopped renewing because Discord refuses the app's secret:
+    // say so here, where the fix is, instead of leaving a bare Connect button.
+    if (st.secretRejected) setNote(card, rpcLoginError({ error: 'bad_client_secret' }));
     card.appendChild(buildCredActions(cfg));
     if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
     return card;
