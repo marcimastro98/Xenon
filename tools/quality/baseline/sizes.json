@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 183,
+  "count": 182,
   "files": {
     "apps/capture/src/linux/tools.rs": 507,
     "apps/native/splash/index.html": 515,
@@ -91,7 +91,6 @@
     "server/js/genesis.js": 374,
     "server/js/gif-read.js": 353,
     "server/js/gif-write.js": 334,
-    "server/js/guardian-history.js": 328,
     "server/js/history-chart.js": 322,
     "server/js/installed-manager.js": 843,
     "server/js/layer-edit.js": 658,

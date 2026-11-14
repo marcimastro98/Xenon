@@ -582,6 +582,7 @@
         "server/js/battery-widget.js",
         "server/js/power-widget.js",
         "server/js/sensor-*.js",
+        "server/js/guardian-history/**",
         "server/js/guardian-history.js",
         "server/js/history-chart.js",
         "server/js/macos-fda.js",
