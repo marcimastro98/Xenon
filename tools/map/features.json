@@ -258,6 +258,7 @@
         "server/js/obs-widget.js",
         "server/js/streamerbot-widget.js",
         "server/js/streaming-page.js",
+        "server/js/streaming-page/**",
         "server/js/live-stream.js",
         "server/js/watch-view.js",
         "server/components/TwitchPanel/**",
