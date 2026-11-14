@@ -633,7 +633,7 @@ const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
-const { createHelperUpdate, HELPER_ASSET, HELPER_ASSET_MAC, MIN_MAC_HELPER, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update'); const { runHelperFirstInstall } = require('./helper-first-install.js');
+const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update'); require('./helper-first-install.js');
 const { createNativeInstallerFetch } = require('./native-installer');
 const { nativeInstall } = require('./updates/native-install-state.js');
 const { PRESENTMON_URL, PRESENTMON_SHA256 } = require('./performance/presentmon-download.js');
@@ -1146,9 +1146,7 @@ const bitMessages = createBitMessages({
   settings: () => hub.settings,
   onChange: () => broadcastSSE('bit-messages', {}),
 });
-const {
-  BIT_MESSAGE_BODY_MAX, COMPANION_TYPICAL_SPARKS, LIVE_MAX_SESSION_MS,
-} = require('./ai/limits.js');
+const { BIT_MESSAGE_BODY_MAX, LIVE_MAX_SESSION_MS } = require('./ai/limits.js');
 
 // Votes on Store entries (rating-votes.js): tickets, real use, and Bit's one ask.
 const ratingVotes = createRatingVotes({
@@ -3646,10 +3644,7 @@ async function completeWithUserAi({ system, user, maxTokens, json = false, tempe
   return { text: String(text || ''), tokens, input: split && split.input, output: split && split.output, sparks };
 }
 
-const { companionState } = require('./ai/companion-state.js');
-function companionLookSparks() {
-  return Number.isFinite(companionState.lastSparks) ? companionState.lastSparks : COMPANION_TYPICAL_SPARKS;
-}
+const { companionLookSparks } = require('./ai/companion-look-sparks.js');
 
 // 'no_ai' when the AI set for Bit cannot answer (no key, no Sparks code), or ''.
 // Checked before any request is made, so a missing key never costs a round trip.
@@ -8558,6 +8553,8 @@ const { batteryWanted } = require('./device-battery/wanted.js');
 const { CAPTURE_CHECK_MARKER } = require('./updates/capture-check-marker.js');
 
 const { desiredBindHost, BIND_HOST } = require('./paired/bind-host.js');
+
+const { helperArrived, ensureHelperUpToDate } = require('./updates/helper-up-to-date.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -14010,40 +14007,7 @@ async function refreshStartupTaskState() {
   return startupTaskCheck.last;
 }
 
-const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
 const { helperInstall } = require('./audio/helper-install-state.js');
-// A helper that just arrived: this version counts as checked, and meters that gave up start fresh now.
-function helperArrived() {
-  writeFileAtomic(HELPER_CHECK_MARKER, APP_VERSION).catch(() => {});
-  audioLevels.reset();
-  refreshAudioLevelsWatch();
-}
-function ensureHelperUpToDate(attempt = 1) {
-  const asset = { win32: HELPER_ASSET, darwin: HELPER_ASSET_MAC }[process.platform]; // Linux has no helper
-  if (!asset || !APP_VERSION) return;
-  try {
-    if (!fs.existsSync(HELPER_EXE)) { // declined or never arrived: never surprise-download, except a carried install's first start
-      if (attempt === 1) runHelperFirstInstall({ dataDir: DATA_DIR, install: () => createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION, asset }).install(), log: (l) => startupLog.write(l), onInstalled: helperArrived }).catch(() => {});
-      return;
-    }
-    let marked = '';
-    try { marked = fs.readFileSync(HELPER_CHECK_MARKER, 'utf8').trim(); } catch { /* first run */ }
-    if (marked && marked === APP_VERSION) return; // already ensured for this version
-    createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION, asset, minVersion: asset === HELPER_ASSET_MAC ? MIN_MAC_HELPER : '' }).refresh().then(status => {
-      // Terminal for this app version → record it so we don't re-check until the next
-      // update. 'skip-not-latest' = the app isn't on the latest release, so pulling
-      // latest's helper could pair a newer helper with an older server; leave it.
-      const done = status === 'up-to-date' || status === 'installed'
-        || status === 'skip-not-latest' || status === 'no-helper';
-      if (done) { writeFileAtomic(HELPER_CHECK_MARKER, APP_VERSION).catch(() => {}); return; }
-      // Transient (assets not attached yet, network, hash mismatch): retry this session,
-      // then at the next boot (the marker stays unwritten).
-      if (attempt < HELPER_REFRESH_MAX_TRIES) {
-        setTimeout(() => { try { ensureHelperUpToDate(attempt + 1); } catch { /* ignore */ } }, HELPER_REFRESH_RETRY_MS).unref();
-      }
-    }).catch(() => { /* best-effort */ });
-  } catch { /* best-effort */ }
-}
 
 // Only where an engine can lag behind the server's list, or (Linux) where its
 // answer is the only list (see capture-host.js).
@@ -14080,8 +14044,7 @@ function ensureCaptureEngine(attempt = 1) {
 let _listenHost = BIND_HOST;
 let _bootStarted = false;
 let _eaddrinuseRetries = 0;
-const EADDRINUSE_MAX_RETRIES = 15;   // ~15 s of retrying before giving up
-const EADDRINUSE_RETRY_MS = 1000;
+const { EADDRINUSE_MAX_RETRIES, EADDRINUSE_RETRY_MS } = require('./paired/listen-retry.js');
 
 // A new install starts on Bit, with the trial Sparks waiting for its first
 // message (welcome-sparks.js), on the model they can pay for: a widget on the

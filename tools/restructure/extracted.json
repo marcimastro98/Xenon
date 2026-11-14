@@ -299,7 +299,10 @@
       {"file":"server/time/events-save.js","about":"Saving the events of the calendar and telling every dashboard.","names":["_saveEvents"]},
       {"file":"server/discord/open-chat.js","about":"Opening a Discord conversation from a mirrored message.","names":["openDiscordChat"]},
       {"file":"server/streaming/tile-play-search.js","about":"Finding what a Twitch or YouTube tile should play from a few words.","names":["tilePlaySearch"]},
-      {"file":"server/paired/bind-host.js","about":"The address the engine listens on: this computer alone, or every network once paired devices are let in.","names":["BIND_HOST_ENV","BIND_LOOPBACK","BIND_SHARED","desiredBindHost","BIND_HOST"]}
+      {"file":"server/paired/bind-host.js","about":"The address the engine listens on: this computer alone, or every network once paired devices are let in.","names":["BIND_HOST_ENV","BIND_LOOPBACK","BIND_SHARED","desiredBindHost","BIND_HOST"]},
+      {"file":"server/updates/helper-up-to-date.js","about":"Keeps the helper program in step with the engine: fetches it on a carried install's first start and replaces an old one after an update.","names":["HELPER_CHECK_MARKER","helperArrived","ensureHelperUpToDate"]},
+      {"file":"server/paired/listen-retry.js","about":"How long the engine keeps asking for its port when another program holds it.","names":["EADDRINUSE_MAX_RETRIES","EADDRINUSE_RETRY_MS"]},
+      {"file":"server/ai/companion-look-sparks.js","about":"What one look of Bit costs in Sparks: the last real cost, or the usual one before any look.","names":["companionLookSparks"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]}
