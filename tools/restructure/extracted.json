@@ -388,7 +388,8 @@
       {"file":"server/ai/stt-devices.js","about":"Finds the microphone ffmpeg records dictation from.","names":["_enumSttDevice","_initSttDevice"]},
       {"file":"server/ai/audio-to-wav.js","about":"Turns a recorded clip into the 16 kHz mono WAV the speech models read.","names":["_audioToWav16k"]},
       {"file":"server/ai/live-pcm-capture.js","about":"Records the microphone as raw sound for a live voice session.","names":["_startLivePcmCapture"]},
-      {"file":"server/mcp/dev-capture.js","about":"Takes the picture of a tile that a coding tool asked to see.","names":["mcpDevCapture"]}
+      {"file":"server/mcp/dev-capture.js","about":"Takes the picture of a tile that a coding tool asked to see.","names":["mcpDevCapture"]},
+      {"file":"server/ai/chat-local-server.js","about":"One chat turn answered by a server the person runs on this PC: its address and key come from the settings, never the request.","names":["chatWithLocalServer"],"block":{"handler":"handleRequest","test":"provider === 'localapi'"}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

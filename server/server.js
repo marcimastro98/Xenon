@@ -7658,6 +7658,7 @@ data: ${JSON.stringify({ ...st, seed: true })}
   try { res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
 }
 
+const { chatWithLocalServer } = require('./ai/chat-local-server.js');
 const { branches: lightsBranches } = require('./lights/routes.js');
 const { branches: tickerBranches } = require('./ticker/routes.js');
 const { branches: deckBranches } = require('./deck/routes.js');
@@ -9069,32 +9070,12 @@ const handleRequest = async (req, res) => {
       }
 
       if (provider === 'localapi') {
-        // A server the user runs on this PC. Its URL and key come from the
-        // settings, never the request. Same tools and reply shape as ChatGPT;
-        // a turn can sit on a slow model for minutes, so stop cuts it at once.
-        const settings = await readHubSettings().catch(() => null);
-        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
-        const systemText = SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
-        try {
-          const result = await aiLocalServer.chat({
-            config: aiLocalServer.configFrom(settings), geminiTools: AI_TOOLS,
-            history: currentMessages, systemText, signal: aiTurns.signal(),
-            executeTool: (fnName, fnArgs) => toolKit.call(fnName, fnArgs, () => executeAiTool(fnName, fnArgs, {
-              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
-              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
-              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
-              pictures: _aiPictures,
-              surface: _aiSurface,
-              remote: isRemote,
-              provider,
-            }).then(r => turnRecord.note(fnName, r)).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage }))),
-          });
-          json({ text: result.text, clientActions: result.clientActions, newContent: turnRecord.message(result.text), toolGroups: toolKit.groups(), toolsOff: result.toolsOff });
-        } catch (e) {
-          if (aiStoppedReply(e, json)) return;
-          res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: e.message, detail: e.detail, clientActions: aiTurns.madeSoFar() }));
-        }
+        await chatWithLocalServer({
+          AI_TOOLS, SYS_BASE, SYS_LANG, SYS_TEXT, SYS_VOICE, _aiPictures, _aiSurface, _latestExplicitlyWantsScreen,
+          _latestLooksLikeClothingWeather, _latestUserText, _uiLang2, apiKey, currentMessages, hasAudio, isRemote,
+          isVoice, json, langName, provider, res, toolKit, turnRecord, aiLocalServer, aiStoppedReply, aiTurns,
+          executeAiTool, readHubSettings,
+        });
         return;
       }
 
