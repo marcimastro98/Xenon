@@ -134,7 +134,7 @@
     "server/js/transfer-widget.js": 1137,
     "server/js/trial-pass-ui.js": 414,
     "server/js/twitchwatch-widget.js": 1071,
-    "server/js/unifi-widget.js": 956,
+    "server/js/unifi-widget.js": 785,
     "server/js/update.js": 1204,
     "server/js/usage-ask.js": 336,
     "server/js/vitals-pet-core.js": 2775,

@@ -105,7 +105,7 @@
       { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/SmartHomePanel/SmartHomePanelControls.css', 'components/CustomSelect/CustomSelect.css']),
     // Seeds itself from /api/lighting/status when drawn; no stream.
     lighting: tile('lighting', 'LightingWidget', ['js/lighting-widget.js'], {}),
-    unifi: tile('unifi', 'UnifiProtect', ['js/unifi-widget/camera-layout.js', 'js/unifi-widget.js'], { unifi_event: 'onNotification' }, 'UnifiPanel'),
+    unifi: tile('unifi', 'UnifiProtect', ['js/unifi-widget/camera-layout.js', 'js/unifi-widget/shown-cameras.js', 'js/unifi-widget/settings-sections.js', 'js/unifi-widget.js'], { unifi_event: 'onNotification' }, 'UnifiPanel'),
     // The Agenda with its tabs (Calendar, Tasks, Timer, Notes), and each tab as
     // a tile of its own: its content is the Agenda's tab, pulled out by
     // layer-lite-tiles.js, which also loads their data and feeds the stream.
