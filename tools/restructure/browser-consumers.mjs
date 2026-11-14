@@ -36,7 +36,7 @@ const blank = (text) => text.replace(/[^\n]/g, ' ');
  *   from its parts ('components/' + name + '/' + name + '.css'), where no search for the file's name finds it
  */
 export function builtListsWith(root, file) {
-  return LIST_FILES.filter((list) => list !== file && existsSync(path.join(root, list)) && listsHold(readFileSync(path.join(root, list), 'utf8'), file));
+  return LIST_FILES.filter((list) => list !== file && existsSync(path.join(root, list)) && listsHold(readFileSync(path.join(root, list), 'utf8'), file, list));
 }
 
 /** Comments blanked out, every line kept, so a file named in a comment is not read as a use of it. */

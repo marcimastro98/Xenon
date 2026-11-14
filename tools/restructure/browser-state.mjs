@@ -57,7 +57,7 @@ export function pageHelperState(root, parser, made) {
   const takers = new Map([...PAGE_HELPERS.keys()].map((name) => [name, new Set()]));
   for (const { source, text } of made) {
     // A script loaded by a list when asked lands in the pages of the script that holds the list.
-    const hosts = ASKED_LISTS.filter((list) => existsSync(path.join(root, list)) && listsHold(read(list), source));
+    const hosts = ASKED_LISTS.filter((list) => existsSync(path.join(root, list)) && listsHold(read(list), source, list));
     for (const name of pageHelpersRead(readWrapper(text, source, parser))) for (const taker of [source, ...hosts]) takers.get(name).add(taker);
   }
   const written = listPages(root).map((page) => ({ page, html: read(page) }));
@@ -101,7 +101,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
     const run = runOf(ledger, file);
     files.push(...run);
     const loaders = pages.filter(({ html }) => tagsOf(html).some((tag) => run.includes(tag.file)));
-    if (loaders.length === 0) problems.push(`no page loads ${file}`);
+    if (loaders.length === 0 && !lists.some((list) => listsHold(list.text, file, list.name))) problems.push(`no page loads ${file}`);
     for (const { page, html } of loaders) problems.push(...runProblems(html, run).map((problem) => `${page} ${problem}`));
     for (const list of lists) problems.push(...listRunProblems(list.text, run, list.name));
     problems.push(...consumerProblems(root, file, { tests }));

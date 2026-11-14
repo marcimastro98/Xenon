@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PAGES, onThisPc, plainFor, serverOf, staysOnCopy, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
-import { addToLists, ASKED_LISTS, BUILT_LIST, listRunProblems, listsHold, OWN_ROW, readLists } from '../../tools/restructure/browser-lists.mjs';
+import { addToLists, ASKED_LISTS, BUILT_LIST, listRunProblems, listsHold, OWN_ROW, ownRowOf, readLists } from '../../tools/restructure/browser-lists.mjs';
 import { applyMove } from '../../tools/restructure/browser-moves.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
 import { listPages, tagsOf } from '../../tools/restructure/browser-pages.mjs';
@@ -185,8 +185,51 @@ test('every script that loads its own list is asked to by a page of the page che
     assert.ok(page && typeof page.first === 'function', `${list}: no page of the check asks it to load its list`);
     const html = fs.readFileSync(path.join(ROOT, page.file), 'utf8');
     assert.ok(tagsOf(html).some((tag) => tag.file === list), `${page.file} loads ${list}`);
-    assert.ok(Object.keys(readLists(fs.readFileSync(path.join(ROOT, list), 'utf8'))).includes(OWN_ROW), `${list} holds a list of its own`);
+    const rows = readLists(fs.readFileSync(path.join(ROOT, list), 'utf8'), list);
+    assert.ok(rows[ownRowOf(list)]?.js.length > 0, `${list} holds a list of its own`);
+    for (const file of rows[ownRowOf(list)].js) assert.ok(fs.existsSync(path.join(ROOT, file)), `${list} lists ${file}, which is a file of the repo`);
   }
+  assert.deepEqual(ASKED_LISTS, ['server/js/screen-bit.js', 'server/js/driver-perf.js', 'server/js/layer-host.js']);
+  assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/driver-perf.js'), 'utf8'), 'server/js/driver-perf.js')[OWN_ROW].js.slice(-2), ['server/js/perf-settings.js', 'server/js/performance.js']);
+  assert.equal(readLists(fs.readFileSync(path.join(ROOT, WRITTEN), 'utf8'), WRITTEN).EDIT_SCRIPTS.js.at(-1), 'server/js/layer-edit.js');
+});
+
+// A script that cannot run outside a page and hands its list to nobody: the list is read out of its text.
+const WRITTEN = 'server/js/layer-host.js';
+const HOST = ["'use strict';", '(function () {', "  const EDIT_SCRIPTS = Object.freeze(['js/chat.js']);   // loaded on first use", '  const root = document.body;',
+  '  window.Host = { load: () => EDIT_SCRIPTS.forEach((src) => root.append(src)) };', '})();', ''].join('\n');
+
+test('a list a script writes for itself and hands to nobody is read out of its text', () => {
+  assert.equal(ownRowOf(WRITTEN), 'EDIT_SCRIPTS');
+  assert.equal(ownRowOf('server/js/screen-bit.js'), OWN_ROW);
+  assert.deepEqual(readLists(HOST, WRITTEN), { EDIT_SCRIPTS: { css: [], js: ['server/js/chat.js'] } });
+  assert.equal(listsHold(HOST, 'server/js/chat.js', WRITTEN), true);
+  assert.equal(listsHold(HOST, 'server/js/other.js', WRITTEN), false);
+  const run = ['server/js/chat/voice.js', 'server/js/chat/ears.js', 'server/js/chat.js'];
+  const done = addToLists(HOST, 'server/js/chat.js', run.slice(0, 2), 'before', WRITTEN);
+  assert.deepEqual(done.reasons, []);
+  assert.ok(done.text.includes("Object.freeze(['js/chat/voice.js', 'js/chat/ears.js', 'js/chat.js']);   // loaded on first use"), 'the new files are written before the old one, the rest of the line as it was');
+  assert.deepEqual(listRunProblems(done.text, run, WRITTEN), []);
+  assert.match(listRunProblems(HOST, run, WRITTEN)[0], /^the row "EDIT_SCRIPTS" of server\/js\/layer-host\.js loads js\/chat\.js where js\/chat\/voice\.js, js\/chat\/ears\.js, js\/chat\.js must follow each other/);
+  assert.match(listRunProblems(done.text.replace("'js/chat/voice.js', 'js/chat/ears.js'", "'js/chat/ears.js', 'js/chat/voice.js'"), run, WRITTEN)[0], /must follow each other with nothing between/, 'the order is part of it');
+  // What the tool cannot read it does not guess.
+  assert.throws(() => readLists(HOST.replace('EDIT_SCRIPTS = Object', 'SCRIPTS_OF_EDIT = Object'), WRITTEN), /does not write the list EDIT_SCRIPTS once/);
+  assert.throws(() => readLists(`${HOST}const EDIT_SCRIPTS = Object.freeze([]);\n`, WRITTEN), /does not write the list EDIT_SCRIPTS once/);
+  assert.throws(() => readLists(HOST.replace("['js/chat.js']", "['js/chat.js', base + 'more.js']"), WRITTEN), /holds base \+ 'more\.js', which is not an address written out in single quotes/);
+  assert.throws(() => readLists(HOST.replace("['js/chat.js']", '["js/chat.js"]'), WRITTEN), /not an address written out in single quotes/);
+});
+
+test('a move writes its files into a list no page names with a tag, and is refused when nothing loads the script at all', (t) => {
+  if (!parser) return t.skip('TypeScript is not installed here (npm run quality:install)');
+  const chat = "'use strict';\n\nfunction say() {}\n\nfunction hear() {\n  say();\n}\n\nhear();\n";
+  const move = { kind: 'script', from: 'server/js/chat.js', file: 'server/js/chat/voice.js', about: 'The voice.', names: ['say'] };
+  const files = { 'server/index.html': '<script src="js/layer-host.js"></script>\n', 'server/js/chat.js': chat, [WRITTEN]: HOST };
+  const done = applyMove({ get: (file) => files[file] ?? null }, move, { parser, pages: ['server/index.html'], earlier: [] });
+  assert.deepEqual(readLists(done.files.get(WRITTEN), WRITTEN).EDIT_SCRIPTS.js, ['server/js/chat/voice.js', 'server/js/chat.js']);
+  assert.equal(done.files.get('server/index.html') ?? files['server/index.html'], files['server/index.html'], 'the page that names neither file is left alone');
+  const alone = { ...files, [WRITTEN]: HOST.replace('js/chat.js', 'js/other.js') };
+  assert.throws(() => applyMove({ get: (file) => alone[file] ?? null }, move, { parser, pages: ['server/index.html'], earlier: [] }),
+    (error) => error instanceof Refusal && /no page loads server\/js\/chat\.js with a tag and no list of files in code holds it/.test(error.reasons.join('\n')));
 });
 
 test('a page asked to load its files first must end the same way before and after', () => {

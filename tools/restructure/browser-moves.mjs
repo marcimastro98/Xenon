@@ -41,17 +41,17 @@ function retag(tree, pages, { old, added, where, before, after }) {
     reasons.push(...problems.map((problem) => `${page} ${problem}`));
     files.set(page, made.html);
   }
-  if (files.size === 0) reasons.push(`no page loads ${old} with a tag: where a new file would load cannot be proven`);
   // A list of files in code (the widgets on the desktop, the voice panel of the screen) gets the new files in every row that holds the old one.
   for (const name of LIST_FILES) {
     const list = tree.get(name);
-    if (list === null || !listsHold(list, old)) continue;
+    if (list === null || !listsHold(list, old, name)) continue;
     const made = addToLists(list, old, added, where, name);
     const problems = [...listRunProblems(list, before, name), ...made.reasons];
     if (problems.length === 0) problems.push(...listRunProblems(made.text, after, name));
     reasons.push(...problems);
     files.set(name, made.text);
   }
+  if (files.size === 0) reasons.push(`no page loads ${old} with a tag and no list of files in code holds it: where a new file would load cannot be proven`);
   if (reasons.length) throw new Refusal(reasons);
   return files;
 }

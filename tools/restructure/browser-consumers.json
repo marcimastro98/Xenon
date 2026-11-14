@@ -1,5 +1,21 @@
 {
   "note": "Who names a split browser file in code and needs more than a tag in a page or the reader of the tests to keep working, and how each does. Read by tools/restructure/browser-consumers.mjs: a file that is named somewhere not listed here cannot be split. `keeps` lists declarations that stay in the file because the consumer reads them there.",
+  "loadersNote": "Scripts that load other scripts themselves, when a page asks them to: no tag in a page names those files, so a split writes the new files into the list, next to the old one, and the checks read the list like a page (tools/restructure/browser-lists.mjs). `list` says how the list is read. \"exported\": the script hands SCRIPTS (and CSS) to Node, and the tool runs it to read them. \"written\": the script cannot run outside a page, so the list is read out of its text, under the name `written` gives, as `const NAME = Object.freeze([...])` holding addresses in single quotes and nothing else. Every script here loads its list in order and waits for each file before the next (its own unit test holds that), and a page of the page check asks it to (browser-check-pages.mjs, `holds`).",
+  "loaders": {
+    "server/js/screen-bit.js": {
+      "list": "exported",
+      "how": "The voice panel of the screen: load() adds each stylesheet, then each script of SCRIPTS with a tag of its own and waits for it before the next."
+    },
+    "server/js/driver-perf.js": {
+      "list": "exported",
+      "how": "Performance Mode with no dashboard: load() asks for each script of SCRIPTS after the one before it has run (server/test/driver-perf-load.test.mjs)."
+    },
+    "server/js/layer-host.js": {
+      "list": "written",
+      "written": "EDIT_SCRIPTS",
+      "how": "The editor of a layer window: asked for when edit mode first goes on, each script after the one before it has run, and the editor starts after the last (server/test/layer-host.test.mjs)."
+    }
+  },
   "known": {
     "server/js/settings.js": {
       "tools/site-shots/scenes.mjs": {

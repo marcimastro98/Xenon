@@ -6,6 +6,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { editorStarted, loadPerformanceMode } from './browser-check-asks.mjs';
 import { REFUSED } from './browser-check-engine.mjs';
 import { liteWidgets } from './browser-lists.mjs';
 import { readTopLevel } from './top-level.mjs';
@@ -55,12 +56,14 @@ function settingsSearchRows() {
  * page leaves for the dashboard on an install that shows the dashboard) where it is. `probe` is a question of the
  * page's own, asked in the page once it has loaded: what a module does cannot be asked by name from outside.
  * `first` is something the page is asked to do before it is read, for the files it loads only when asked; `holds`
- * names the script whose list those files are in (browser-lists.mjs).
+ * names the script whose list those files are in (browser-lists.mjs). `edit` opens the page of desktop widgets once,
+ * with its first group of widgets and edit mode on.
  */
 export const PAGES = [
   { name: 'dashboard wide', file: 'server/index.html', path: '/', probe: settingsSearchRows, width: 2560, height: 720 },
   { name: 'dashboard phone', file: 'server/index.html', path: '/', probe: settingsSearchRows, width: 390, height: 844 },
   { name: 'desktop widgets', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, ...DESK },
+  { name: 'desktop widgets in edit mode', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, edit: true, first: editorStarted, holds: 'server/js/layer-host.js', ...DESK },
   { name: 'deck window', file: 'server/deck-popup.html', path: '/deck-popup', ...DESK },
   { name: 'deck window of a second deck', file: 'server/deck-popup.html', path: '/deck-popup?instance=deck~two', probe: deckOfTheWindow, ...DESK },
   { name: 'menu', file: 'server/menu.html', path: '/menu', ...DESK },
@@ -70,6 +73,7 @@ export const PAGES = [
   { name: 'search window', file: 'server/spotlight.html', path: '/spotlight', ...DESK },
   { name: 'drawing sheet', file: 'server/draw.html', path: '/draw', ...DESK },
   { name: 'widgets-only driver', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, ...DESK },
+  { name: 'widgets-only driver with Performance Mode', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, first: loadPerformanceMode, holds: 'server/js/driver-perf.js', ...DESK },
   { name: 'widget service', file: 'server/sdk-service.html', path: '/sdk-service', ...DESK },
 ];
 
@@ -246,6 +250,7 @@ async function ask(port, path, body) {
  * The page of the widgets on the desktop, once per group of built-in widgets it can carry, so that every
  * script and stylesheet a widget brings is loaded by a real page. The widgets are placed and taken away
  * through the app's own actions; the test copy is first told a window can draw them, as the app's window does.
+ * A page with `edit` is opened once, with the first group and edit mode turned on the same way, and turned off after.
  * @returns {Promise<any[]>} one record per group
  */
 export async function recordWidgetPages(browser, port, page, settleMs, parser, known) {
@@ -253,7 +258,7 @@ export async function recordWidgetPages(browser, port, page, settleMs, parser, k
   const host = await ask(port, '/layers/host', { layers: true, monitors: [] });
   if (host?.layers !== true) throw new Error(`the test copy did not take the report that widgets can be drawn: ${JSON.stringify(host)}`);
   const records = [];
-  for (let at = 0; at < widgets.length; at += GROUP) {
+  for (let at = 0; at < (page.edit ? 1 : widgets.length); at += GROUP) {
     const group = widgets.slice(at, at + GROUP);
     const placed = [];
     try {
@@ -262,12 +267,15 @@ export async function recordWidgetPages(browser, port, page, settleMs, parser, k
         if (done?.ok !== true) throw new Error(`the widget "${widget}" could not be put on the desktop: ${JSON.stringify(done)}`);
         placed.push(done.placed.id);
       }
-      const record = await recordPage(browser, port, { ...page, name: `${page.name} ${at / GROUP + 1}` }, settleMs, parser, known);
+      const editing = page.edit ? await ask(port, '/actions/run', { type: 'layersEdit', mode: 'on' }) : null;
+      if (page.edit && editing?.editing !== true) throw new Error(`edit mode could not be turned on: ${JSON.stringify(editing)}`);
+      const record = await recordPage(browser, port, { ...page, name: page.edit ? page.name : `${page.name} ${at / GROUP + 1}` }, settleMs, parser, known);
       if (record.widgets !== [...group].sort().join(' ')) {
         throw new Error(`${record.name}: the engine answered with ${record.widgets === undefined ? 'the whole dashboard' : `the widgets "${record.widgets}"`}, not the page of ${group.join(' ')}`);
       }
       records.push(record);
     } finally {
+      if (page.edit) await ask(port, '/actions/run', { type: 'layersEdit', mode: 'off' });
       for (const id of placed) await ask(port, '/actions/run', { type: 'layerRemove', target: id });
     }
   }
