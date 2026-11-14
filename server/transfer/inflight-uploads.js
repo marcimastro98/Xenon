@@ -7,7 +7,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { PROGRESS_MIN_MS, INFLIGHT_STALE_MS } = require('./inflight-limits.js');
 
-function makeInflight({ filesDir, now, inflight }) {
+function makeInflight({ filesDir, now, inflight, saveKept }) {
   function reservedBytes() {
     let n = 0;
     for (const r of inflight.values()) n += r.reserved;
@@ -66,6 +66,9 @@ function makeInflight({ filesDir, now, inflight }) {
       await fsp.unlink(path.join(filesDir, rec.file + '.part')).catch(() => {});
       n++;
     }
+    // The sweep runs every five minutes and at shutdown: a list of files the disk refused is
+    // given another try here, so it does not wait for the next file.
+    await saveKept();
     return n;
   }
 

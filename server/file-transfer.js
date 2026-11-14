@@ -41,7 +41,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { writeFileAtomic } = require('./atomic-write.js');
+const { makeKeptWrite } = require('./files/kept-write.js');
 const { parseXdgUserDirs } = require('./diskspace.js');
 
 const STORE_VERSION = 1;
@@ -192,13 +192,14 @@ function createFileTransfer(o) {
 
   const {
     reservedBytes, noteProgress, inflightList, abort, sweepInflight,
-  } = makeInflight({ filesDir, now, inflight });
+  } = makeInflight({ filesDir, now, inflight, saveKept: () => (indexWrite.unsaved() ? persist() : null) });
 
+  // A list the disk refused is kept as not saved and tried again at the next change and at the
+  // next sweep: init() deletes every file the list does not hold.
+  const indexWrite = makeKeptWrite('transfer', 'the list of files');
   async function persist() {
     if (!dir) return;
-    const body = JSON.stringify({ v: STORE_VERSION, records: shelf.records }, null, 2);
-    try { await writeFileAtomic(indexFile, body); }
-    catch { /* the blobs are the truth; a lost index is rebuilt by init() */ }
+    await indexWrite.save(indexFile, JSON.stringify({ v: STORE_VERSION, records: shelf.records }, null, 2));
   }
 
   const { init } = makeLoad({ dir, filesDir, indexFile, shelf, normalizeRecord, persist });
