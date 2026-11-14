@@ -145,6 +145,15 @@
           "sparksOnly"
         ]
       }
+    },
+    "server/js/bit-message-card.js": {
+      "tools/modal-census/census.mjs": {
+        "how": "Patches the text a test browser is served, at `setTimeout(drawFace, FOLD_MS)` inside card. card uses a let of the wrapper and cannot leave, and FOLD_MS stays in the file; the scripts next to it are served as they are.",
+        "keeps": [
+          "FOLD_MS",
+          "card"
+        ]
+      }
     }
   }
 }
