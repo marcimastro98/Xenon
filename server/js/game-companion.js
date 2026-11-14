@@ -26,17 +26,9 @@
     return typeof aiFeatureEnabled === 'function' && aiFeatureEnabled('gameCompanion');
   }
 
-  // Bit on the card. The card is the thing in front while it is open (the user
-  // is at the dashboard, not playing), so like the voice view it moves under
-  // game mode and stops only for the low-GPU choices; hidden, it stops by itself.
-  const CARD_HOLD = ['low-power-gpu', 'perf-mode'];
-  // What the card is doing -> Bit's mood in the head and its pose by the answer.
-  const BIT_STATE = {
-    waiting: { mood: 'idle', pose: ['idle'] },
-    looking: { mood: 'think', pose: ['think', 'think'] },
-    answered: { mood: 'idle', pose: ['happy', 'done'], play: 'nod' },
-    failed: { mood: 'worry', pose: ['worry'] },
-  };
+  const {
+    CARD_HOLD, BIT_STATE, prettyName, freezeBehind, paintCost, PROBLEM_TEXT,
+  } = window.GameCompanionSays;
 
   function showBit(state) {
     if (!window.BitApp) return;
@@ -49,11 +41,6 @@
     }
     const by = document.getElementById('gc-reply-bit');
     if (by) by.innerHTML = BitApp.still(s.pose[0], 18, s.pose[1]);
-  }
-
-  function prettyName(p) {
-    const base = String(p || '').replace(/\.exe$/i, '');
-    return base ? base.charAt(0).toUpperCase() + base.slice(1) : '';
   }
 
   // Called from the status SSE/poll pipeline in main.js with the server's
@@ -118,11 +105,6 @@
       const el = document.getElementById('gc-fps');
       if (el) el.textContent = (d && d.fps != null) ? String(Math.round(d.fps)) : '—';
     } catch { /* transient — keep last value */ }
-  }
-
-  // Nothing paints under the frosted page while the card is up.
-  function freezeBehind(on) {
-    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('game-companion', on);
   }
 
   // Esc and Tab stay with the card. Not on the alerts window, which never takes
@@ -199,21 +181,6 @@
     showBit(state);
   }
 
-  // What a look costs on Sparks, beside the key and before pressing: the
-  // hub's charge for the last look, or the price table until one is made. On
-  // any other AI there is nothing to pay here, so the line stays hidden.
-  function paintCost(sparks) {
-    const el = document.getElementById('gc-cost');
-    const words = document.getElementById('gc-cost-text');
-    if (!el || !words) return;
-    const on = Number.isFinite(sparks) && sparks > 0 && !!(window.XenonCredits && XenonCredits.active());
-    el.hidden = !on;
-    if (!on) return;
-    words.textContent = sparks < 1
-      ? t('gc_cost_under')
-      : t('gc_cost').replace('{n}', XenonCredits.format(sparks));
-  }
-
   async function loadCost() {
     try {
       const r = await fetch(SERVER + '/api/companion/cost');
@@ -222,9 +189,6 @@
     } catch { paintCost(null); }
   }
 
-  // Why Bit could not answer, in words the user can act on. Out of Sparks
-  // comes with the way to recharge, where the Sparks shop exists.
-  const PROBLEM_TEXT = { no_ai: 'gc_need_key', no_vision: 'gc_no_vision', no_credits: 'gc_no_sparks' };
   function showProblem(out, code) {
     if (!out) return;
     out.textContent = t(PROBLEM_TEXT[code] || 'gc_error');
