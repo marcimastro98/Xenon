@@ -496,7 +496,9 @@
       {"file":"server/engine/port.js","about":"The port the engine listens on: 3030, or the one XENON_PORT names for a copy run beside it.","names":["PORT"],"wire":{"first":"PORT","last":"PORT"}},
       {"file":"server/search/spotlight-window.js","about":"Opening the search window, and what the search shortcut does.","names":["openSpotlightPopupWindow","routeSpotlightHotkey"],"tidy":true},
       {"file":"server/deck/popup-window.js","about":"Opening a Deck in a window of its own.","names":["openDeckPopupWindow"]},
-      {"file":"server/claude-code/link-status.js","about":"What the Claude Code tile is told about the link to the terminal.","names":["_claudeLinkStatus"]}
+      {"file":"server/claude-code/link-status.js","about":"What the Claude Code tile is told about the link to the terminal.","names":["_claudeLinkStatus"]},
+      {"file":"server/transfer/engine-phone.js","about":"The engine's phone: calls, messages and contacts of the phone linked to this PC.","names":["phone"],"wire":{"first":"phone","last":"phone"}},
+      {"file":"server/transfer/phone-assistant.js","about":"What the assistant may do with the phone: look a contact up, start a call, write a message.","names":["aiPhoneTool"],"bare":["./call-detect","./ai-pc-apps"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

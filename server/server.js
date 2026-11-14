@@ -357,7 +357,6 @@ const winNotif = require('./winnotif');
 const { lowerPriority } = require('./child-priority');
 const { createMountedDisks } = require('./mounted-disks');
 const calls = require('./calls');
-const callDetect = require('./call-detect');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const signalrgb = require('./signalrgb');
@@ -395,7 +394,7 @@ const { createTrialVault } = require('./trial-vault');
 const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
-const { createPhone } = require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
+require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
 require('./linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/content-installs'); // validated import receipts shared with Settings
@@ -1495,7 +1494,6 @@ const {
 refreshKeySendProbe();
 
 const remoteActions = require('./remote-actions');
-const aiPcApps = require('./ai-pc-apps');
 
 const { _killWorker } = require('./powershell/worker-state.js');
 
@@ -3908,110 +3906,13 @@ calls.init({
   onEvent: (name) => { try { lighting.onEvent(name); } catch { /* lighting optional */ } },
 });
 
-// Whether a Deck key that dials or texts can actually do anything on this
-// machine. Read from the last status the helper gave rather than probed here:
-// the catalog is fetched while the editor is open, and a Bluetooth round trip
-// on that path would stall the whole key list. Off, unsupported or no dialable
-// line all answer false, which is what hides the key instead of offering one
-// that fails when pressed.
-// The AI's three phone tools, in one place because they share one rule: the
-// recipient comes from the user's own phonebook, never from the model.
-//
-// The two write tools are NOT equally guarded, and the difference is what each
-// mistake costs. A wrong call is hung up in two seconds, so a dictated number
-// is allowed there. A wrong TEXT reaches a stranger permanently and cannot be
-// recalled, so `phone_message` refuses anything but a resolved contact — the
-// blast radius of a misheard name becomes "texted the wrong person in your
-// contacts" instead of "texted a number nobody has ever seen".
-async function aiPhoneTool(fnName, args, latestUserText = '') {
-  const a = args && typeof args === 'object' ? args : {};
-  if (phoneSettings().enabled !== true) return { error: 'phone_disabled' };
-
-  // Resolve a spoken name against the phonebook. Substring, case- and
-  // accent-insensitive, so "papa" finds "Papà" — the fold the call classifier
-  // already uses for the same job.
-  const findByName = async (name) => {
-    const needle = callDetect.foldText(name || '');
-    if (!needle) return [];
-    const book = await phone.contacts();
-    return (book.list || []).filter(c => callDetect.foldText(c.name).includes(needle));
-  };
-
-  if (fnName === 'phone_lookup') {
-    if (!a.name) {
-      const log = await phone.calls();
-      if (!log.ok && !log.list.length) return { error: log.reason || 'phone_unavailable' };
-      return { calls: log.list.slice(0, 15).map(c => ({ name: c.name, number: c.number, direction: c.direction, at: c.at })) };
-    }
-    const hits = await findByName(a.name);
-    if (!hits.length) return { matches: [], note: 'nobody in the phonebook matches that name' };
-    return { matches: hits.slice(0, 8).map(c => ({ name: c.name, numbers: c.numbers.map(n => n.value) })) };
-  }
-
-  if (fnName === 'phone_call') {
-    let number = String(a.number || '').trim();
-    let who = '';
-    if (a.name) {
-      const hits = await findByName(a.name);
-      // Ambiguity is handed back rather than resolved by picking the first:
-      // "chiama Marco" with two Marcos is a question, not a call.
-      if (hits.length > 1) return { error: 'ambiguous', matches: hits.slice(0, 8).map(c => c.name) };
-      if (!hits.length && !number) return { error: 'no_such_contact' };
-      if (hits.length === 1 && hits[0].numbers.length) {
-        number = hits[0].numbers[0].value;
-        who = hits[0].name;
-      }
-    }
-    if (!number) return { error: 'no_number' };
-    // A number that is not a contact's must be one the user typed or said in
-    // this request. The tool has no confirmation card, and a number the
-    // assistant read somewhere (a web page, a message) could be a premium-rate
-    // line that costs the user money.
-    if (!who && !aiPcApps.numberSaidByUser(number, latestUserText)) {
-      return { error: 'number_not_from_user', note: 'only a contact, or a number the user gave in this request, can be called' };
-    }
-    const r = await phone.dial(number);
-    return r.ok ? { ok: true, calling: who || number } : { error: r.error || 'dial_failed' };
-  }
-
-  // phone_message
-  const text = String(a.text || '').trim();
-  if (!text) return { error: 'empty_message' };
-  const hits = await findByName(a.name);
-  if (!hits.length) return { error: 'no_such_contact', note: 'a text can only be sent to somebody already in the phonebook' };
-  if (hits.length > 1) return { error: 'ambiguous', matches: hits.slice(0, 8).map(c => c.name) };
-  const to = hits[0].numbers[0];
-  if (!to) return { error: 'contact_has_no_number' };
-  const r = await phone.sendMessage(to.value, text);
-  return r.ok ? { ok: true, sentTo: hits[0].name, text } : { error: r.error || 'send_failed' };
-}
-
 function phoneKeysAvailable() {
   try { return phoneSettings().enabled === true && phone.canDial(); }
   catch { return false; }
 }
-const phone = createPhone({
-  helperExe: HELPER_EXE,
-  broadcast: broadcastSSE,
-  getSettings: phoneSettings,
-  onCallState: (s) => {
-    // Taking over the screen is opt-out on its own: the phonebook and the
-    // dialler are useful on a second screen that should never interrupt.
-    if (phoneSettings().ring === false) return;
-    try {
-      calls.onPhoneState({
-        incoming: s.incoming,
-        active: s.active,
-        device: phone.deviceName(),
-        // Windows reports only THAT a call exists, so the card starts nameless
-        // and a mirrored toast fills it in (see calls.onNotification). Linux
-        // reads the caller off the same D-Bus object as the state, so when it
-        // is there the card is right on its own.
-        caller: s.caller || '',
-      });
-    } catch { /* the ring must never break the phone feed */ }
-  },
-});
+const { phone } = require('./transfer/engine-phone.js');
+
+const { aiPhoneTool } = require('./transfer/phone-assistant.js');
 
 const { refreshAudioLevelsWatch } = require('./audio/levels-wanted.js');
 const { changeSetting } = require('./settings/change-setting.js');
