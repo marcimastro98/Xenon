@@ -21,7 +21,7 @@ const { hub } = require('../settings/current.js');
 // Cost of the change: '[::1]:3030' no longer answers. Every caller in the tree
 // uses 127.0.0.1 (the native app, install.sh, the bootstrap, the docs), so this
 // is a URL nobody dials, and IPv6 loopback cannot be added without a second
-// listener that would also have to duplicate the 'upgrade' handling below.
+// listener that would also have to duplicate the 'upgrade' handling in server.js.
 //
 // XENON_BIND_HOST is the deliberate way back out — set it to '::' to restore
 // the old all-interfaces behaviour, on purpose and in one place.
@@ -31,7 +31,7 @@ const { hub } = require('../settings/current.js');
 // feature: the QR code advertises http://<lan-ip>:3030/pair, and nothing was
 // listening there, so a phone on the same Wi-Fi got "Safari cannot connect".
 // The reasoning above missed that the exposure it describes already HAS a
-// guard — the paired-device door (see isAllowedRequest and the note beside it):
+// guard — the paired-device door (isAllowedRequest in server.js, and the note under it):
 // off by default, deny-by-default allowlist, Host must be an IP literal this
 // machine owns, per-device hashed token. That door is the thing the wider bind
 // exists for, and it is the user's explicit opt-in.
