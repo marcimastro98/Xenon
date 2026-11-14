@@ -11,7 +11,7 @@
 //   await rig.stop();
 
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +23,10 @@ const NO_NETWORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'no-n
 const BOOT_LIMIT_MS = 60_000;
 const POLL_MS = 400;
 const DAILY_PORT = 3030;
+// A port of its own: the gate's other throwaway engines default to 3039, and two checks
+// started by two people at once must not meet there.
+const RIG_PORT = 3046;
+const STOP_LIMIT_MS = 10_000;
 
 /**
  * One request to an engine on this computer.
@@ -101,9 +105,38 @@ export function openStream(port, headers = {}) {
 
 /** @param {string | number | undefined} asked @returns {number} a port that is not the installed app's */
 export function rigPort(asked) {
-  const port = Number(asked || 3039);
+  const port = Number(asked || RIG_PORT);
   if (!Number.isInteger(port) || port < 1024 || port > 65535 || port === DAILY_PORT) throw new Error(`port ${asked}: pick a free port that is not ${DAILY_PORT}, the installed app's`);
   return port;
+}
+
+/**
+ * Ends a process this check started and waits until it is gone. One that does not leave
+ * when asked is ended without asking once `limitMs` has passed, so a failed check leaves
+ * nothing running either.
+ * @param {import('node:child_process').ChildProcess | null} child @param {number} [limitMs]
+ * @returns {Promise<void>}
+ */
+export function stopChild(child, limitMs = STOP_LIMIT_MS) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => {
+    const hard = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone meanwhile */ } }, limitMs);
+    child.once('exit', () => { clearTimeout(hard); resolve(); });
+    child.kill();
+  });
+}
+
+/**
+ * Ends the process `current()` gives when this one ends, whatever ended it: an error nobody
+ * caught must not leave an engine listening. Returns the function that takes the watch off.
+ * @param {() => (import('node:child_process').ChildProcess | null)} current
+ * @param {{ once: Function, off: Function }} [owner] the process that owns the child
+ * @returns {() => void}
+ */
+export function endWithProcess(current, owner = process) {
+  const end = () => { try { current()?.kill('SIGKILL'); } catch { /* gone already */ } };
+  owner.once('exit', end);
+  return () => { owner.off('exit', end); };
 }
 
 /** The environment a rig's engine runs in. Pure, so it is tested. */
@@ -121,7 +154,10 @@ export function rigEnvironment(base, folder, port) {
  * @param {{ port: number, seed?: any }} options `seed` is the settings object, or a function of the rig's folder that gives it
  */
 export async function startRig({ port, seed }) {
-  const folder = copyEngine();
+  // The real path: macOS hands out its temp folder under a link (/var for /private/var) and a
+  // Windows runner under a short name, and a path the engine sends back resolved would not
+  // start with the one a rule built from here.
+  const folder = realpathSync.native(copyEngine());
   const storeFile = path.join(folder, 'server', 'data', 'settings.json');
   if (seed !== undefined) {
     mkdirSync(path.dirname(storeFile), { recursive: true });
@@ -140,7 +176,8 @@ export async function startRig({ port, seed }) {
     }
     return false;
   };
-  const halt = () => (!child || child.exitCode !== null ? Promise.resolve() : new Promise((resolve) => { child.once('exit', resolve); child.kill(); }));
+  const halt = () => stopChild(child);
+  const unwatch = endWithProcess(() => child);
   const rig = {
     folder, port, storeFile,
     up: await start(),
@@ -150,7 +187,11 @@ export async function startRig({ port, seed }) {
     writeStore: (text) => writeFileSync(storeFile, text),
     output: () => output,
     restart: async () => { await halt(); rig.up = await start(); return rig.up; },
-    stop: async () => { await halt(); rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); },
+    stop: async () => {
+      await halt();
+      unwatch();
+      try { rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* a file still held: the system clears its temp folder */ }
+    },
   };
   return rig;
 }

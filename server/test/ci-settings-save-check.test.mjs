@@ -6,16 +6,17 @@
 // check itself, in the gate.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { rigEnvironment, rigPort, streamEvents } from '../../tools/ci/engine-rig.mjs';
+import { endWithProcess, rigEnvironment, rigPort, stopChild, streamEvents } from '../../tools/ci/engine-rig.mjs';
 import { cookiePair, deviceHeaders } from '../../tools/ci/paired-device.mjs';
-import { LAST_RULES, READ_RULES, askRule, crashLines } from '../../tools/ci/settings-save-check.mjs';
+import { LAST_RULES, READ_RULES, askRule, checkReport, crashLines } from '../../tools/ci/settings-save-check.mjs';
 import { DEVICE_RULES } from '../../tools/ci/settings-save-rules-device.mjs';
 import { PC_RULES, same, secretsOf, took, unchanged, without } from '../../tools/ci/settings-save-rules.mjs';
 import { NESTED_SECRETS, SECRET_KEYS, SECRET_MARK, seedSettings } from '../../tools/ci/settings-save-seed.mjs';
@@ -176,9 +177,92 @@ test('a rig engine listens on this computer only, in folders of its own, with th
 });
 
 test('a rig takes a side port and never the one of the installed app', () => {
-  assert.equal(rigPort(undefined), 3039);
+  // Not 3039 either: the gate's other throwaway engines start there when nobody names a port.
+  assert.equal(rigPort(undefined), 3046);
+  assert.equal(rigPort(''), 3046);
   assert.equal(rigPort('3041'), 3041);
   for (const refused of ['3030', 3030, 'http', '80', '70000']) assert.throws(() => rigPort(refused), /installed app/, String(refused));
+});
+
+// A stand-in for a started process: `leaves` says which way of ending it it obeys.
+function standInChild(leaves) {
+  const sent = [];
+  const child = Object.assign(new EventEmitter(), {
+    exitCode: null, signalCode: null, sent,
+    kill(signal) {
+      sent.push(signal ?? 'asked');
+      if (!leaves.includes(signal ?? 'asked')) return true;
+      child.signalCode = signal ?? 'SIGTERM';
+      child.emit('exit', null, child.signalCode);
+      return true;
+    },
+  });
+  return child;
+}
+
+test('an engine that does not leave when asked is ended without asking once the limit has passed', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const stubborn = standInChild(['SIGKILL']);
+  let gone = false;
+  const wait = stopChild(stubborn, 10_000).then(() => { gone = true; });
+  await Promise.resolve();
+  assert.deepEqual(stubborn.sent, ['asked']);
+  assert.equal(gone, false);
+  t.mock.timers.tick(9_999);
+  assert.deepEqual(stubborn.sent, ['asked']);
+  t.mock.timers.tick(1);
+  await wait;
+  assert.deepEqual(stubborn.sent, ['asked', 'SIGKILL']);
+});
+
+test('an engine that leaves when asked is not ended a second time, and one already gone is left alone', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const polite = standInChild(['asked']);
+  await stopChild(polite, 10_000);
+  t.mock.timers.tick(60_000);
+  assert.deepEqual(polite.sent, ['asked']);
+  // Ended by a signal it has no exit code: asking again must not wait for an exit that already happened.
+  await stopChild(polite, 10_000);
+  assert.deepEqual(polite.sent, ['asked']);
+  await stopChild(null);
+});
+
+test('a real process is stopped and waited for, twice over without hanging', async () => {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  await stopChild(child);
+  assert.ok(child.exitCode !== null || child.signalCode !== null);
+  await stopChild(child);
+});
+
+test('the engine ends with the check that started it, until the check has stopped it itself', () => {
+  const sent = [];
+  const child = { kill: (signal) => { sent.push(signal); } };
+  const owner = new EventEmitter();
+  endWithProcess(() => child, owner);
+  owner.emit('exit');
+  assert.deepEqual(sent, ['SIGKILL']);
+
+  const stopped = new EventEmitter();
+  const unwatch = endWithProcess(() => child, stopped);
+  unwatch();
+  assert.equal(stopped.listenerCount('exit'), 0);
+  stopped.emit('exit');
+  assert.deepEqual(sent, ['SIGKILL']);
+
+  // Nothing started yet, or a process that is gone and throws: the end of the check is not disturbed.
+  for (const current of [() => null, () => ({ kill() { throw new Error('gone'); } })]) {
+    const other = new EventEmitter();
+    endWithProcess(current, other);
+    assert.doesNotThrow(() => other.emit('exit'));
+  }
+});
+
+test('the log of a check says where it ran, what the engine printed, every rule and what went wrong', () => {
+  const results = [{ rule: 'first rule', kind: 'guard', problem: '' }, { rule: 'second rule', kind: 'saved', problem: 'the save answered 500' }];
+  const bad = checkReport('listening\nsaved', results, ['second rule: the save answered 500']);
+  assert.ok(bad.startsWith(`Node ${process.version} on ${process.platform}\nlistening\nsaved\n--- 2 rules asked\n`));
+  assert.ok(bad.includes('kept      first rule\nNOT KEPT  second rule\n---\nsecond rule: the save answered 500\n'));
+  assert.ok(checkReport('', results.slice(0, 1), []).endsWith('--- 1 rules asked\nkept      first rule\n---\nevery rule kept\n'));
 });
 
 test('a paired device is told apart by the address it opened and its cookie', () => {

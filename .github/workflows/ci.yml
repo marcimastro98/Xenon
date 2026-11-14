@@ -72,6 +72,13 @@ jobs:
         timeout-minutes: 5
         run: node tools/ci/boot-check.mjs "${{ runner.temp }}/boot.log"
 
+      # A step of its own, so a rule that is not kept on one system reads as that
+      # and not as "the server did not start": 69 real saves sent to a throwaway
+      # copy of the engine, from this computer and as a paired device.
+      - name: A settings save keeps its rules
+        timeout-minutes: 5
+        run: node tools/ci/settings-save-check.mjs --list "${{ runner.temp }}/save.log"
+
       # Exits 1 on a collector whose answer the dashboard would misread. A
       # sensor or a tool the runner does not have is "absent", not a failure.
       - name: Doctor
@@ -86,6 +93,7 @@ jobs:
           name: ci-${{ matrix.os }}-node${{ matrix.node }}
           path: |
             ${{ runner.temp }}/boot.log
+            ${{ runner.temp }}/save.log
             ${{ runner.temp }}/doctor
             server/data/server.log*
           if-no-files-found: ignore

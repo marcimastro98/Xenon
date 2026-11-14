@@ -50,6 +50,7 @@ const GOOD = [
   '      - run: npm run quality:install',
   '      - run: npm test',
   '      - run: node tools/ci/boot-check.mjs',
+  '      - run: node tools/ci/settings-save-check.mjs',
   '      - run: npm run doctor',
   '  native:',
   '    strategy:',
@@ -129,6 +130,8 @@ test('ci.yml must cover the three systems, the Node lines of "engines" and every
   assert.ok(has(GOOD, 'Node 22 is outside', '>=24.22.1'));
   assert.ok(has(broken('      - run: npm test\n', ''), 'never runs "npm test"'));
   assert.ok(has(broken('      - run: npm run doctor\n', ''), 'never runs "npm run doctor"'));
+  // The rules of a settings save are asked of a real engine on each system, not on Windows alone.
+  assert.ok(has(broken('      - run: node tools/ci/settings-save-check.mjs\n', ''), 'never runs "node tools/ci/settings-save-check.mjs"'));
 });
 
 test('the Node lines are read from an "engines" range', () => {

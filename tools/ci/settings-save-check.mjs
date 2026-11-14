@@ -8,8 +8,12 @@
 // The engine runs in a rig (engine-rig.mjs): its own data, home and temp folders, this
 // computer only, no connection to anywhere else. Every value it is given is invented.
 //
-//   node tools/ci/settings-save-check.mjs [--list] [--json]     XENON_PORT picks the port (default 3039)
+//   node tools/ci/settings-save-check.mjs [--list] [--json] [log file]     XENON_PORT picks the port (default 3046)
+//
+// The log file gets what the engine printed and what the check found: on a runner nobody
+// can look at, it is the only way to see why a rule was not kept.
 
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -116,6 +120,12 @@ export function crashLines(output) {
   return String(output || '').split('\n').filter((line) => CRASH.test(line)).map((line) => line.trim().slice(0, 300));
 }
 
+/** What the log file holds: where it ran, the engine's output, every rule and what went wrong. Pure, so it is tested. */
+export function checkReport(output, results, problems) {
+  const rules = results.map((result) => `${result.problem ? 'NOT KEPT' : 'kept    '}  ${result.rule}`);
+  return [`Node ${process.version} on ${process.platform}`, output, `--- ${results.length} rules asked`, ...rules, '---', ...(problems.length ? problems : ['every rule kept']), ''].join('\n');
+}
+
 async function main(argv) {
   const rig = await startRig({ port: rigPort(process.env.XENON_PORT), seed: seedSettings });
   const results = [];
@@ -138,6 +148,8 @@ async function main(argv) {
     await rig.stop();
   }
   problems.push(...results.filter((result) => result.problem).map((result) => `${result.rule}: ${result.problem}`));
+  const logFile = argv.find((arg) => !arg.startsWith('--'));
+  if (logFile) writeFileSync(logFile, checkReport(rig.output(), results, problems));
   if (argv.includes('--json')) console.log(JSON.stringify({ rules: results, problems }, null, 1));
   else {
     if (argv.includes('--list')) for (const result of results) console.log(`${result.problem ? 'NOT KEPT' : 'kept    '}  ${result.rule}`);
