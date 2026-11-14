@@ -44,8 +44,6 @@ const {
 
 const { _project } = require('./notification-open/winnotif-shape.js');
 
-notifWatch.pollMs = POLL_MS;
-
 function init(deps) {
   if (deps && typeof deps.isExcluded === 'function') _isExcluded = deps.isExcluded;
   if (deps && typeof deps.onItem === 'function') _onItem = deps.onItem;

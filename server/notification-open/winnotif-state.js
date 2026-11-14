@@ -12,7 +12,9 @@ const notifWatch = {
   consecutiveFastFails: 0,
   helperDisabled: false,
   lastSpawnWasHelper: false,
-  pollMs: undefined, // given its first value where the engine loads
+  // POLL_MS of winnotif-control.js, written again: that module requires this one, so this one
+  // cannot require it. winnotif-pace-alone.test.mjs keeps the two the same.
+  pollMs: 2000,
   state: 'off',              // 'off'|'starting'|'allowed'|'denied'|'unavailable'
   seq: 0,
   items: [],                 // newest first, capped at FEED_MAX
