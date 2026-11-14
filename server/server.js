@@ -457,8 +457,8 @@ const { createPerfRegistry } = require('./actions/perf-registry');
 const { createPerfSession } = require('./perf-session');
 const { shieldWish } = require('./perf-session/shield-wish');
 require('./actions/streamerbot');
-const { createHomeAssistant } = require('./actions/home-assistant');
-const { createHaQuery } = require('./actions/home-assistant-query');
+require('./actions/home-assistant');
+require('./actions/home-assistant-query');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
 const { createClient: createVoicemeeter } = require('./actions/voicemeeter');
@@ -468,8 +468,8 @@ const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-const { createUnifiProtect } = require('./actions/unifi');
-const { createUnifiEvents } = require('./unifi-events');
+require('./actions/unifi');
+require('./unifi-events');
 const stocks = require('./stocks');
 require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const football = require('./football');
@@ -2517,35 +2517,7 @@ const { setMicMute } = require('./audio/mic-mute.js');
 
 const { deckObs, deckSb } = require('./streaming/deck-clients.js');
 
-// Lazy Home Assistant WebSocket client — same on-demand/idle-close/watch model as
-// OBS. Holds ONE live socket only while the Smart Home tile is on screen AND HA is
-// configured; reads the base URL + long-lived token from live settings on each
-// connection, so saving them in Settings takes effect with no restart.
-const deckHa = createHomeAssistant(async () => {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  return { baseUrl: (s.homeAssistant && s.homeAssistant.url) || '', token: (s.homeAssistant && s.homeAssistant.token) || '' };
-});
-
-// SDK widget reads (history, camera frames) over the same connection.
-const haQuery = createHaQuery(deckHa);
-
-// Lazy UniFi Protect client — logs into the user's UniFi OS console on demand and
-// pulls camera JPEG snapshots for the Cameras tile. No persistent socket: an
-// unused/hidden tile pulls nothing, so it costs nothing. The console password is
-// read fresh from live settings and never leaves the server (only the projected
-// camera list + JPEG bytes reach the browser, via the loopback snapshot proxy).
-const deckUnifi = createUnifiProtect(async () => {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const u = (s && s.unifi) || {};
-  return { host: u.host || '', username: u.username || '', password: u.password || '' };
-});
-
-// UniFi Protect realtime-events client. UNLIKE the snapshot pulls above, this holds
-// ONE live WebSocket to the console's updates stream — but only while a Cameras tile
-// is on screen (SSE clients > 0) AND the user turned notifications on. It reuses
-// deckUnifi's authenticated session (password stays server-side) and surfaces
-// smart-detections (person/vehicle/…), motion and doorbell rings as `unifi_event`.
-const deckUnifiEvents = createUnifiEvents(deckUnifi);
+const { deckHa, haQuery, deckUnifi, deckUnifiEvents } = require('./smart-home/deck-clients.js');
 
 // Lazy Razer Chroma client — opens the local Chroma SDK session on demand, holds
 // it with a heartbeat ONLY while lighting is active, and uninitializes after idle
@@ -2703,62 +2675,9 @@ async function refreshObsWatch() {
 const { haWatching } = require('./smart-home/ha-watching.js');
 const { haWatch } = require('./smart-home/ha-watch-state.js');
 
-const { _haDeckWatchClients, haDeckWatchUnion } = require('./smart-home/deck-watch.js');
-
-// Compact { id: { state, brightness? } } map for the deck-bound entities.
-function buildHaDeckStates() {
-  const states = {};
-  for (const ent of deckHa.snapshot(haDeckWatchUnion())) {
-    const item = { state: ent.state };
-    if (typeof ent.brightness === 'number') item.brightness = ent.brightness;
-    states[ent.id] = item;
-  }
-  return { states };
-}
-
-// Build the payload for the selected entities (from settings) plus connection flag.
-// `energy` carries the Energy widget's own selection (power/energy sensors) so
-// the two surfaces share one SSE event without sharing one entity list.
-async function buildHaState() {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const ha = (s && s.homeAssistant) || {};
-  const configured = !!(ha.url && ha.token);
-  return {
-    configured,
-    connected: configured && deckHa.isConnected(),
-    entities: configured ? deckHa.snapshot(ha.entities || []) : [],
-    energy: configured ? deckHa.snapshot(ha.energyEntities || []) : [],
-    // The room order and tile view the user set, in the payload so every open
-    // surface (and a widget) redraws from one snapshot, not from a settings
-    // re-fetch that may land after it.
-    areaOrder: Array.isArray(ha.areaOrder) ? ha.areaOrder : [],
-    tileView: typeof ha.tileView === 'string' ? ha.tileView : 'auto',
-  };
-}
-
-function broadcastHaDeckStates(force) {
-  if (!_haDeckWatchClients.size) return;
-  const payload = buildHaDeckStates();
-  const sig = JSON.stringify(payload);
-  if (!force && sig === haWatch.deckStatesLast) return;
-  haWatch.deckStatesLast = sig;
-  broadcastSSE('ha_states', payload);
-}
-
-function scheduleHaBroadcast() {
-  if (haWatch.notifyTimer) return;
-  haWatch.notifyTimer = setTimeout(async () => {
-    haWatch.notifyTimer = null;
-    try {
-      const state = await buildHaState();
-      const sig = JSON.stringify(state);
-      if (sig !== haWatch.stateLast) { haWatch.stateLast = sig; broadcastSSE('homeassistant', state); }
-    } catch (e) { /* ignore */ }
-    // Same coalesced beat feeds the deck-bound entity states (separate event so
-    // the deck snapshot stays tiny and independent of the tile's selection).
-    try { broadcastHaDeckStates(false); } catch (e) { /* ignore */ }
-  }, 250);
-}
+const {
+  buildHaState, broadcastHaDeckStates, scheduleHaBroadcast,
+} = require('./smart-home/ha-live-state.js');
 
 // Signature of the HA config the broadcasts depend on — refreshHaWatch runs on
 // every SSE connect/close and every settings save, and must NOT rebroadcast a
@@ -2854,33 +2773,8 @@ function refreshVoicemeeterWatch() {
 }
 
 const { unifiWatching } = require('./smart-home/unifi-events-watching.js');
-const { unifiNotify } = require('./smart-home/unifi-notify-state.js');
-const { _unifiNotifyCooldown, _onUnifiDetection } = require('./smart-home/unifi-detections.js');
 
-async function refreshUnifiEventsWatch() {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const u = (s && s.unifi) || {};
-  const notify = u.notify || {};
-  unifiNotify.snapshot = {
-    enabled: notify.enabled === true,
-    types: (notify.types && typeof notify.types === 'object') ? notify.types : {},
-    cooldownMs: Math.max(5, Math.min(600, Number(notify.cooldownSec) || 45)) * 1000,
-  };
-  const configured = !!(u.host && u.username && u.password);
-  const want = configured && notify.enabled === true && sseClients.size > 0;
-  // Reconnect if the console credentials changed under an active watch (the socket
-  // is bound to the old session); a mere toggle of the type checkboxes doesn't need it.
-  const sig = want ? [u.host, u.username, u.password].join('\u0000') : '';
-  if (want && !unifiWatching.stop) {
-    unifiWatching.stop = deckUnifiEvents.watch(_onUnifiDetection);
-  } else if (!want && unifiWatching.stop) {
-    const stopUnifi = unifiWatching.stop; stopUnifi(); unifiWatching.stop = null;
-    _unifiNotifyCooldown.clear();
-  } else if (want && unifiWatching.stop && sig !== unifiNotify.configSig) {
-    const stopUnifi = unifiWatching.stop; stopUnifi(); unifiWatching.stop = deckUnifiEvents.watch(_onUnifiDetection);
-  }
-  unifiNotify.configSig = sig;
-}
+const { refreshUnifiEventsWatch } = require('./smart-home/unifi-events-watch.js');
 
 const { ensureObsRun } = require('./streaming/obs-ensure-run.js');
 
