@@ -77,6 +77,8 @@ mod scene;
 mod shield;
 mod spec;
 #[cfg(windows)]
+mod screens_win32;
+#[cfg(windows)]
 mod win32;
 mod supports;
 mod page;
@@ -111,6 +113,15 @@ struct Live {
     /// Where the menu's window opened (`menu_window`); nothing for the others.
     #[cfg(windows)]
     opened_at: menu_window::Rect,
+}
+
+/// Windows: hide the layer windows while the screens are off (screens_win32.rs),
+/// listening on the kiosk's window. Once, at startup.
+#[cfg(windows)]
+pub fn watch_screens(app: &AppHandle, window: &tauri::WebviewWindow) {
+    if let Ok(hwnd) = window.hwnd() {
+        screens_win32::watch(app, hwnd.0 as isize);
+    }
 }
 
 /// The open layer windows. Touched only by `sync`, which holds the lock for the

@@ -7,7 +7,7 @@
     "apps/native/splash/index.html": 515,
     "apps/native/splash/words.js": 534,
     "apps/native/src-tauri/posix/xenon-bootstrap.sh": 338,
-    "apps/native/src-tauri/src/lib.rs": 1015,
+    "apps/native/src-tauri/src/lib.rs": 1020,
     "apps/native/src-tauri/windows/xenon-bootstrap.ps1": 714,
     "helper-mac/Sources/xenon-helper/IndexHost.swift": 678,
     "packages/core/src/bit-clips.js": 628,

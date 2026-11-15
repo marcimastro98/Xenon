@@ -19,6 +19,9 @@
 //!   takes the focus, so the key that ends it does not reach the app beneath;
 //!   the focus goes back to that app when the last one closes.
 //!
+//! - screens off (screens_win32.rs): every window here is hidden while Windows
+//!   has the screens switched off, and placed again once they are back.
+//!
 //! - edit mode (a page reports `edit=1`): desktop windows come over every window
 //!   and stay shown until it ends, so the widgets can be dragged; the page then
 //!   reports its whole window as clickable.
@@ -54,7 +57,7 @@ use front::{inside, passing_overlay};
 pub use region::{roll_away, set_region};
 #[cfg(test)]
 use styles::{floating_style, frame_message, same_place};
-pub use sync::apply;
+pub use sync::{apply, set_screens_off};
 pub use wallpaper::set_paused;
 use super::{memory_for, menu_aside};
 
@@ -124,6 +127,9 @@ thread_local! {
 static RAISED: AtomicBool = AtomicBool::new(false);
 /// True while the widgets are being edited: desktop layers sit on top too.
 static EDITING: AtomicBool = AtomicBool::new(false);
+
+/// True while Windows has the screens off (screens_win32.rs): nothing is shown.
+static SCREENS_OFF: AtomicBool = AtomicBool::new(false);
 
 fn lifted() -> bool {
     RAISED.load(Ordering::Relaxed) || EDITING.load(Ordering::Relaxed)

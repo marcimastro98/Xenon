@@ -1,7 +1,7 @@
 // Windows: the styles, size and shape a layer window is given so it stays where it is put.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use super::{Entry, lifted};
+use super::{Entry, lifted, SCREENS_OFF};
 use super::super::roll;
 use super::super::ffi::*;
 
@@ -124,6 +124,7 @@ pub(super) fn cut_region(h: isize, rects: &[[i32; 4]], closing: &[[i32; 4]]) {
 
 /// A shown window with nothing drawn (empty region) keeps its memory Low too.
 pub(super) fn show(e: &Entry, on: bool) {
+    let on = on && !SCREENS_OFF.load(Ordering::Relaxed);
     let visible = unsafe { IsWindowVisible(e.hwnd) } != 0;
     if visible == on {
         return;

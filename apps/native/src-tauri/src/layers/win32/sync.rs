@@ -1,7 +1,7 @@
 // Windows: one sync applied, windows that left forgotten, new ones set up, all of them placed.
 
 use std::sync::atomic::Ordering;
-use super::{EDITING, Entry, lifted, Plan, POS_ONLY, State, STATE};
+use super::{EDITING, Entry, lifted, Plan, POS_ONLY, SCREENS_OFF, State, STATE};
 use super::anchored::{follow, unhook_target};
 use super::front::{set_foreground_hook, watch_front};
 use super::region::watch_cursor;
@@ -98,6 +98,25 @@ fn first_time(st: &mut State, p: &Plan) -> Entry {
     }
     unsafe { SetWindowSubclass(p.hwnd, keep_size, 1, 0) };
     entry
+}
+
+/// The screens went off (hide every window) or are back (each is placed again,
+/// which shows the ones that would be showing: a covered desktop layer stays
+/// hidden, an open screensaver comes back and takes the focus as it did).
+pub fn set_screens_off(off: bool) {
+    if SCREENS_OFF.swap(off, Ordering::SeqCst) == off {
+        return;
+    }
+    STATE.with(|cell| {
+        let Ok(mut st) = cell.try_borrow_mut() else { return };
+        for e in st.entries.iter_mut() {
+            if off {
+                show(e, false);
+            } else {
+                place(e);
+            }
+        }
+    });
 }
 
 fn place(e: &mut Entry) {
