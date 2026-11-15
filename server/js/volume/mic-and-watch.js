@@ -39,7 +39,7 @@ async function fetchAudio() {
 // ── A mixer that is looked at stays live ────────────────────────────────────
 // The server reads the volume of every app (a SoundVolumeView process each time)
 // only while somebody is using the Volume panel: any audio request keeps that
-// going for two minutes, then it stops (audioPollWanted in server.js). Opening the
+// going for two minutes, then it stops (audioPollWanted in server/audio/watched.js). Opening the
 // panel fetches once, so the mixer showed whatever was playing at that moment and
 // then nothing arrived: a game or a call that started later never appeared, and the
 // list sat empty ("it used to show every app, now it shows nothing"). So while a

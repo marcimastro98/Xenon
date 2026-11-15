@@ -1,6 +1,6 @@
 'use strict';
 // How the steps that keep the iCUE session up (connect, list the devices, tick an animation) ask
-// for a repaint without requiring the code that paints, which requires them. lighting.js puts
+// for a repaint without requiring the code that paints, which requires them. server/lights/paint.js puts
 // its apply() here when the engine loads it.
 
 /** @type {{ apply: () => (Promise<void> | void) }} */

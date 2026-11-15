@@ -32,7 +32,7 @@ function profile(name, keyCount) {
   };
 }
 
-// listOtherDeckProfiles lives inside deck.js's IIFE, so it is lifted out and run
+// listOtherDeckProfiles lives inside the IIFE of server/js/deck/store-reads.js, so it is lifted out and run
 // against a store shaped like the report rather than asserted on as text.
 function otherDeckProfiles(store, layout, instanceId) {
   const pick = (name) => {

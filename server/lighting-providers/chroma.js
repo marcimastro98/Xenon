@@ -3,7 +3,7 @@
 // local Chroma SDK client (the same session the direct Deck/SDK actions use). No
 // host/IP of its own: Chroma is a single logical target, so it exposes ONE
 // synthetic device. server.js injects runtime hooks (setRuntime) backed by the
-// deckChroma singleton and gated on the chroma.enabled opt-in — absent/disabled →
+// deckChroma singleton (server/lights/chroma-client.js) and gated on the chroma.enabled opt-in — absent/disabled →
 // every call degrades to a silent no-op. Chroma has no separate brightness
 // channel, so the resolver's baked-in colour is used directly (black arrives as
 // {0,0,0}, which the client renders as CHROMA_STATIC black ≈ off).

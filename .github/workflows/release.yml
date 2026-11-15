@@ -169,7 +169,7 @@ jobs:
     # Replay and the gallery's previews and trims. A separate release asset for
     # the same reason as the helper: it is compiled, so it cannot ride in the
     # source zip the self-update applies. The server fetches it by itself
-    # (server.js ensureCaptureEngine, through helper-update.js) and installs it
+    # (server/screens/capture-engine-install.js ensureCaptureEngine, through helper-update.js) and installs it
     # only when it hashes to its line in the signed SHA256SUMS below.
     # Signing machine for the same reason as the helper (see that job).
     runs-on: [self-hosted, windows, xenon-signing]

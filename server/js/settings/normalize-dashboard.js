@@ -114,7 +114,7 @@ function normalizeDashboardPages(value) {
 }
 
 // Duplicated-widget placements. DashboardInstances loads AFTER settings.js, so
-// the parse-time loadHubSettings() runs with it undefined. Falling back to []
+// the parse-time loadHubSettings() (settings/save.js) runs with it undefined. Falling back to []
 // there was silent data loss, not a safe default: normalizeDashboardGroups drops
 // members it can't resolve and DELETES any group left under two, so a tab group
 // holding a copy (every SDK-widget tab group — they always join as copies) was

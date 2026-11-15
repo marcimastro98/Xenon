@@ -41,7 +41,7 @@ function normalizeAmbientMode(value) {
 // Native canvas Ambient scenes — client-owned array (like customThemes),
 // deep-normalized through the shared AmbientScene module (which also needs
 // DashboardInstances for per-component style/image validation). Both load AFTER
-// settings.js, so at the initial parse-time loadHubSettings() they aren't ready
+// settings.js, so at the initial parse-time loadHubSettings() (settings/save.js) they aren't ready
 // yet: fall back to the RAW array (same idiom as normalizeDashboardLayout's
 // copies) so a scene's styles/images are never stripped on hydrate — the deep
 // normalize runs on the next save/sync once the modules are up. The renderer

@@ -79,7 +79,7 @@ function parseColorName(input) {
   return hexToRgb(raw);
 }
 
-// LEGACY — the volume-flash effect was removed (lighting.js onAudio is a no-op);
+// LEGACY — the volume-flash effect was removed (server/lights/feeds.js onAudio is a no-op);
 // this stays exported only so old settings keep normalizing and the unit test
 // keeps pinning the math. Do not wire new code to it.
 function volumeToColor(volume, accent) {

@@ -1,5 +1,5 @@
 // The `voicemeeter` SDK stream reaches widgets: the server polls the mixer and
-// broadcasts a change (server.js refreshVoicemeeterWatch), the dashboard hands
+// broadcasts a change (server/audio/voicemeeter-watch.js refreshVoicemeeterWatch), the dashboard hands
 // it to granted widgets (main.js), and so do the pages that run widgets
 // without the dashboard (js/widget-feed.js). It was declared and documented but
 // never forwarded, so no widget ever got it.

@@ -1,5 +1,5 @@
 // Every lighting effect drives the LEDs INDEPENDENTLY of the master toggle
-// (see wantsPaint()/shouldConnect() in server/lighting.js), so the Settings page
+// (see wantsPaint()/shouldConnect() in server/lights/paint-rules.js), so the Settings page
 // must surface a failed iCUE session whenever ANY of them is on — not only when
 // the master is on. Gating that hint on `status.enabled` left the users relying
 // on Album → LED or an event flash with the master off staring at dead lights and

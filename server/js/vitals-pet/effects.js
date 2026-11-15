@@ -48,7 +48,7 @@
   // real context. Best-effort with a hard timeout: any failure, empty reply or
   // missing provider falls back to the offline bank — the caller awaits only
   // the TEXT, never the escalation itself. _aiProviderCfg/_aiProviderReady are
-  // ai.js top-level globals (ai.js loads before this script); typeof-guarded
+  // top-level globals of server/js/ai/providers-and-errors.js (loads before this script); typeof-guarded
   // for surfaces that don't load ai.js.
   function roastCtx(kind, vital, deadMs) {
     const mem = memState();

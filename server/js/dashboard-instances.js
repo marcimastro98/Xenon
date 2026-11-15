@@ -12,7 +12,7 @@ function baseWidgetOf(instanceId) {
 // (move) behaviour for it.
 // `discord` is duplicable although its data comes from ONE local connection: a
 // second tile is a second VIEW of it, and each keeps its own open tab (see
-// discord-widget.js `tabOf`). Asked for on Discord by someone who wanted the
+// server/js/discord-widget/tabs.js `tabOf`). Asked for on Discord by someone who wanted the
 // notification feed above and the voice controls below, on one screen.
 const DUPLICABLE_WIDGETS = new Set(['system', 'media', 'mic', 'audio', 'agenda', 'calendar', 'tasks', 'timer', 'notes', 'chat', 'deck', 'remote', 'browser', 'custom', 'discord']);
 function isDuplicable(instanceId) { return DUPLICABLE_WIDGETS.has(baseWidgetOf(instanceId)); }

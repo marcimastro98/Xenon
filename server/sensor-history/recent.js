@@ -49,7 +49,7 @@ function pushRecent(list, reading, metrics, now = Date.now()) {
 }
 
 // 'YYYY-MM-DDTHH:MM' in local time, the key format the charts read
-// (js/history-chart.js bucketDate).
+// (server/js/history-chart/words.js bucketDate).
 function minuteKey(at) {
   const d = new Date(at);
   const p = (n) => String(n).padStart(2, '0');

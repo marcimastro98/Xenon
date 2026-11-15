@@ -123,7 +123,7 @@ function overviewFrom(entries, root, opts = {}, aggs = []) {
 
 // One level of the disk map for one directory: its direct child folders with
 // their totals and its own largest files, the Windows host's `browse` answer.
-// Without it diskspace.js fell back to the overview's tree, which lists only
+// Without it server/disk-space/browse.js fell back to the overview's tree, which lists only
 // folders of 10 MB and more and the 200 largest files of the whole drive, so a
 // folder made of small files opened to "unattributed" space instead of its
 // contents. `aggs` (sizeWalk's measured-only rows) count in a child's total,

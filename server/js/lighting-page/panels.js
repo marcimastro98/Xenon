@@ -7,7 +7,7 @@
   const UI = () => window.LightingUI;
 
   // Does anything want an iCUE session right now? Mirrors shouldConnect() in
-  // server/lighting.js: every effect drives the LEDs on its own, independent of
+  // server/lights/paint-rules.js: every effect drives the LEDs on its own, independent of
   // the master toggle, so gating the "not connected" hint on `enabled` alone hid
   // the failure from exactly the users relying on Album → LED or an event flash
   // with the master off. Keep the two lists in step.
