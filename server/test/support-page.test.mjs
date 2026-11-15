@@ -86,7 +86,7 @@ test('no emoji used as an icon on the page', () => {
   assert.doesNotMatch(PAGE, /\p{Extended_Pictographic}/u);
 });
 
-// js/support-card.js builds its own `.support-card`; the page must not borrow
+// js/store-supporters/support-card.js builds its own `.support-card`; the page must not borrow
 // that class (or the old two-column ones) and pick up the other's rules.
 test('the page uses its own classes, not the support card component\'s', () => {
   assert.doesNotMatch(PAGE, /class="[^"]*\bsupport-(?:card|main|side|cta)\b/);

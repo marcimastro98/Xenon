@@ -10,7 +10,7 @@
 // product, and the person who posted it was not the author. Users are the
 // distribution. This invites them, once.
 //
-// It follows every rule the supporter ask (js/support-card.js) follows, for
+// It follows every rule the supporter ask (js/store-supporters/support-card.js) follows, for
 // the same reasons, and the tests pin them:
 //
 //   * ONCE in the life of an install. The flag is in hub settings, on disk,

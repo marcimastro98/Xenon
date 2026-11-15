@@ -1,6 +1,6 @@
 // May the 7-day trial open this catalog entry? The site's copy of the rule, for the
 // item pages built by tools/build-seo.mjs. The hub decides (trial-redeem.js
-// trialCovers); the app's server/js/trial-pass-ui.js and docs/catalog/index.html
+// trialCovers); the app's server/js/store-supporters/trial-pass-ui.js and docs/catalog/index.html
 // carry the same rule, and server/test/site-trial-rule.test.mjs runs all three on
 // one table so they cannot drift.
 

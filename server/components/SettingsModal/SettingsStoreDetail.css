@@ -252,7 +252,7 @@
 /* "Buy Sparks" is a link styled as a button: no link underline. */
 a.preset-unlock-forget { text-decoration: none; }
 
-/* The pass trial's end card (js/trial-pass-ui.js): the Store pictures of what
+/* The pass trial's end card (js/store-supporters/trial-pass-ui.js): the Store pictures of what
    was used, one full-width way to keep it, then the code and "not now" as plain
    text links. The pictures carry the card, so nothing else is decorated. */
 .trial-end-gets { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin: 2px 0 12px; padding: 0; list-style: none; }

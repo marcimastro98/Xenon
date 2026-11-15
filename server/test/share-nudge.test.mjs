@@ -14,7 +14,7 @@ import { engineSource, settingsSaveSource } from './engine-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
-const CARD = readFileSync(new URL('../js/share-nudge.js', import.meta.url), 'utf8');
+const CARD = readFileSync(new URL('../js/store-supporters/share-nudge.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -65,7 +65,7 @@ test("it is filed as one of Bit's messages, never its own card on screen", () =>
 });
 
 test('the message is loaded, and every string exists in all eleven languages', () => {
-  assert.match(HTML, /<script src="js\/support-card\.js"><\/script>\n<script src="js\/share-nudge\.js"><\/script>/,
+  assert.match(HTML, /<script src="js\/store-supporters\/support-card\.js"><\/script>\n<script src="js\/store-supporters\/share-nudge\.js"><\/script>/,
     'loaded right after the supporter ask, which it defers to');
   for (const key of ['share_nudge_title', 'share_nudge_text', 'share_nudge_go']) {
     const found = new Set();

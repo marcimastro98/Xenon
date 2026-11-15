@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { covers, triedFrom, restoreThemeFor, endedTile, unmarked, endCardItems } = require('../js/trial-pass-ui.js');
+const { covers, triedFrom, restoreThemeFor, endedTile, unmarked, endCardItems } = require('../js/store-supporters/trial-pass-ui.js');
 const { normalizeContentInstalls } = require('../js/store-catalog/content-installs.js');
 
 // The dashboard half of the pass trial: which Store entries get the button,
@@ -104,7 +104,7 @@ test('the end card shows a picture of each thing used, from the Store catalog, w
 
 test('the end card has one main action, "Keep them", last, and the other two as quiet keys', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
-  const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/store-supporters/trial-pass-ui.js', import.meta.url), 'utf8');
   const card = src.slice(src.indexOf('function showEndCard('), src.indexOf('// ── After a conversion'));
   assert.equal((card.match(/settings-btn primary/g) || []).length, 1);
   assert.match(card, /t\('trial_keep', 'Keep them, 5 USD a month'\)/);
@@ -115,21 +115,21 @@ test('the end card has one main action, "Keep them", last, and the other two as 
 
 test('one thing to put back gets the main key, a list of them does not', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
-  const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/store-supporters/trial-pass-ui.js', import.meta.url), 'utf8');
   const card = src.slice(src.indexOf('function showWelcome('), src.indexOf('// ── State'));
   assert.match(card, /missing\.length === 1 \? ' primary' : ''/);
 });
 
 test('putting one thing back leaves the rest of the list on the welcome card', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
-  const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/store-supporters/trial-pass-ui.js', import.meta.url), 'utf8');
   const card = src.slice(src.indexOf('function showWelcome('), src.indexOf('// ── State'));
   assert.match(card, /line\.remove\(\);\s+if \(!body\.querySelector\('\.trial-welcome-row'\)\) close\(\);\s+putBack\(item\.entryId\);/);
 });
 
 test('nothing in the end card or the tile comes from markup', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
-  const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/store-supporters/trial-pass-ui.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /innerHTML|insertAdjacentHTML|document\.write/);
 });
 
@@ -157,7 +157,7 @@ test('export leaves an imported background or font out of a tweaked theme; remov
 
 test('trial content with no trial file comes off; a conversion needs the saved pass', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
-  const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/store-supporters/trial-pass-ui.js', import.meta.url), 'utf8');
   assert.match(src, /status\.state === 'none'\) \{ await tidyOrphans\(\)/);
   assert.match(src, /now\.state !== 'none'\) return;/, 'asked again before taking anything off');
   assert.match(src, /else if \(supporterSaved\) keepAfterConversion\(\)/);

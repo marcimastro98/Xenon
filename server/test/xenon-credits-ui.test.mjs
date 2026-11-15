@@ -313,9 +313,9 @@ test('the offer sits in Settings plans, the catalog perks, the letter, the Decem
   const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
   assert.match(gallery, /\['gallery_sup_perk1', 'support_perk_sparks', 'gallery_sup_perk2'/, 'right after the drops');
   assert.match(gallery, /sparks \? window\.XenonCredits\.offerMark\(\) : icon\('check'/);
-  assert.match(read('../js/support-card.js'), /\['sparks', 'support_perk_sparks'/);
-  assert.match(read('../js/support-appeal.js'), /C\.offerLine\(t\('support_sparks_also'/);
-  assert.match(read('../js/trial-pass-ui.js'), /XenonCredits\.offerLine\(t\('support_sparks_also'/);
+  assert.match(read('../js/store-supporters/support-card.js'), /\['sparks', 'support_perk_sparks'/);
+  assert.match(read('../js/store-supporters/support-appeal.js'), /C\.offerLine\(t\('support_sparks_also'/);
+  assert.match(read('../js/store-supporters/trial-pass-ui.js'), /XenonCredits\.offerLine\(t\('support_sparks_also'/);
 });
 
 test('an offer spark never greys with the viewer\'s own balance', () => {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { smoothLineD } = require('../js/spark-path.js');
+const { smoothLineD } = require('../js/store-supporters/spark-path.js');
 
 // Walk a cubic Bézier and return every y it passes through, so the tests can
 // assert what the CURVE does rather than what its control points suggest.

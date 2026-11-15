@@ -4,7 +4,7 @@
 
 // ── "Don't show again" for the two startup cards ────────────────────────────
 // The What's New modal (js/update.js) and the Discord invite card
-// (js/discord-invite.js) each carry a permanent dismissal. Until v4.11.6 both
+// (js/store-supporters/discord-invite.js) each carry a permanent dismissal. Until v4.11.6 both
 // flags lived ONLY in localStorage, which had two consequences the user never
 // agreed to:
 //
@@ -95,7 +95,7 @@ function rememberSupportAskSeen() {
   saveHubSettings();
 }
 
-// The December appeal (js/support-appeal.js): the last year it was shown, and
+// The December appeal (js/store-supporters/support-appeal.js): the last year it was shown, and
 // the day the one-time ask went away ('' when that predates the field).
 // "I already support Xenon", on either card, is an answer for good: the year the
 // appeal stays away through becomes the last one the field can hold.
@@ -120,7 +120,7 @@ function silenceSupportAppeal() {
   rememberSupportAppeal(SUPPORT_APPEAL_NEVER);
 }
 
-// The share invitation (js/share-nudge.js): same shape, same home on disk.
+// The share invitation (js/store-supporters/share-nudge.js): same shape, same home on disk.
 function shareNudgeDismissed() {
   return !!(hubSettings && hubSettings.shareNudgeSeen === true);
 }

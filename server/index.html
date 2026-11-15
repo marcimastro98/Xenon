@@ -4013,7 +4013,7 @@
         <section class="settings-section">
           <div class="settings-section-title" data-i18n="support_ask_title">Xenon è gratis, e resta gratis</div>
           <p class="settings-note" data-i18n="support_ask_lead">Lo scrive una persona sola, nel tempo libero. Niente pubblicità, niente investitori.</p>
-          <!-- Filled from the supporter hub when the pane opens (js/support-goal.js);
+          <!-- Filled from the supporter hub when the pane opens (js/store-supporters/support-goal.js);
                stays hidden when the count cannot be read. -->
           <div class="support-goal" id="settings-support-goal" hidden>
             <p class="support-goal-line"></p>
@@ -4967,7 +4967,7 @@
 <script src="js/color-picker.js"></script>
 <!-- Monotone-cubic path builder shared by the stat sparklines (utils.js) and the
      sensor-history charts (history-chart.js). Must load before both. -->
-<script src="js/spark-path.js"></script>
+<script src="js/store-supporters/spark-path.js"></script>
 <script src="js/first-run/xenon-loader.js"></script>
 <script src="js/live-stream.js"></script>
 <script src="js/utils/page-and-text.js"></script>
@@ -5038,11 +5038,11 @@
 <script src="js/grid/tab-switcher.js"></script>
 <script src="js/ambient/ambient-freeze.js"></script>
 <script src="js/dialog-focus.js"></script>
-<script src="js/discord-invite.js"></script>
-<script src="js/support-card.js"></script>
-<script src="js/share-nudge.js"></script>
-<script src="js/support-goal.js"></script>
-<script src="js/support-appeal.js"></script>
+<script src="js/store-supporters/discord-invite.js"></script>
+<script src="js/store-supporters/support-card.js"></script>
+<script src="js/store-supporters/share-nudge.js"></script>
+<script src="js/store-supporters/support-goal.js"></script>
+<script src="js/store-supporters/support-appeal.js"></script>
 <script src="js/look/bg-guard.js"></script>
 <script src="js/custom-bg.js"></script>
 <script src="js/slideshow-widget.js"></script>
@@ -5133,7 +5133,7 @@
 <script src="js/settings/calendar-feeds.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/xenon-credits.js"></script>
-<script src="js/sparks-mail.js"></script>
+<script src="js/store-supporters/sparks-mail.js"></script>
 <script src="js/ai/ai-xenon-settings.js"></script>
 <script src="js/ai/ai-local-server-settings.js"></script>
 <script src="js/ai/bit-chat-model.js"></script>
@@ -5403,7 +5403,7 @@
 <script src="js/disk-widget/cleanup-views.js"></script>
 <script src="js/disk-widget/explore-views.js"></script>
 <script src="js/disk-widget.js"></script>
-<script src="js/devclean-pitch.js"></script>
+<script src="js/store-supporters/devclean-pitch.js"></script>
 <script src="js/devclean-widget/says.js"></script>
 <script src="js/devclean-widget.js"></script>
 <script src="js/media/lyrics-widget-options.js"></script>
@@ -5499,7 +5499,7 @@
 <script src="js/installed-manager/refused.js"></script>
 <script src="js/installed-manager/row-facts.js"></script>
 <script src="js/installed-manager.js"></script>
-<script src="js/sparks-store.js"></script>
+<script src="js/store-supporters/sparks-store.js"></script>
 <script src="js/community-gallery/words.js"></script>
 <script src="js/community-gallery/preview.js"></script>
 <script src="js/community-gallery.js"></script>
@@ -5507,15 +5507,15 @@
 <script src="js/store-catalog/store-update-mail.js"></script>
 <!-- The 7-day pass trial: reminders, the end-of-trial clean-up and card. Uses
      PresetShare / CommunityGallery / CustomWidget at call time only. -->
-<script src="js/trial-pass-ui.js"></script>
+<script src="js/store-supporters/trial-pass-ui.js"></script>
 <!-- Share card: composes the postable PNG. Loaded after preset-share.js only for
      readability — openShareDialog() checks window.ShareCard at click time, so the
      order between the two is not load-bearing. -->
 <script src="js/presets/share-card.js"></script>
 <!-- Announcement feed: hub-match.js is the pure targeting filter (unit tested),
      hub-messages.js the surface that renders what survives it. -->
-<script src="js/hub-match.js"></script>
-<script src="js/hub-messages.js"></script>
+<script src="js/store-supporters/hub-match.js"></script>
+<script src="js/store-supporters/hub-messages.js"></script>
 <script src="js/release-notice.js"></script>
 <script src="js/whats-new-scenes.js"></script>
 <script src="js/whats-new/pieces.js"></script>

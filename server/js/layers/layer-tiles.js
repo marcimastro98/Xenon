@@ -33,7 +33,7 @@
       'components/AudioSection/AudioSection.css', 'components/AudioSection/AudioSectionAppMixer.css', 'components/MicPanel/MicPanel.css', 'components/MicPanel/MicPanelAppMixer.css',
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
-    js: ['js/grid/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/ai/audio-feedback.js',
+    js: ['js/grid/fit-row.js', 'js/store-supporters/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/ai/audio-feedback.js',
       'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume.js', 'js/audio/mic.js', 'js/audio/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
@@ -72,7 +72,7 @@
     },
     battery: tile('battery', 'BatteryWidget', ['js/battery-widget.js'], { battery: 'onSSE' }),
     fans: tile('fans', 'FansWidget', ['js/sensor-access.js', 'js/fans-widget/readings.js', 'js/fans-widget.js'], { system: 'onSSE' }),
-    power: tile('power', 'PowerWidget', ['js/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js', 'js/sensor-access.js', 'js/power-widget.js'],
+    power: tile('power', 'PowerWidget', ['js/store-supporters/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js', 'js/sensor-access.js', 'js/power-widget.js'],
       { system: 'onSSE', homeassistant: 'onHaSSE' }, null, ['components/GuardianHistory/GuardianHistory.css']),
     stocks: tile('stocks', 'StockWidget', ['js/ticker/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),
     football: tile('football', 'FootballWidget', ['js/grid/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget/match-pieces.js', 'js/football-widget.js'], { football: 'onSSE' }),
@@ -98,7 +98,7 @@
     search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/search/spotlight-bit.js', 'js/spotlight/result-words.js', 'js/spotlight.js', 'js/search/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css', 'components/Spotlight/SpotlightResults.css']),
     disk: tile('disk', 'DiskWidget', ['js/first-run/xenon-loader.js', 'js/grid/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk/disk-intelligence.js', 'js/disk-widget/treemap.js', 'js/disk-widget/wording.js', 'js/disk-widget/known.js', 'js/disk-widget/presentation.js', 'js/disk-widget/pieces.js', 'js/disk-widget/advisor-report.js', 'js/disk-widget/header.js', 'js/disk-widget/capacity-and-advice.js', 'js/disk-widget/advisor-dialog.js', 'js/disk-widget/space-map.js', 'js/disk-widget/cleanup-views.js', 'js/disk-widget/explore-views.js', 'js/disk-widget.js'],
       { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
-    devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget/says.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
+    devclean: tile('devclean', 'DevCleanWidget', ['js/store-supporters/devclean-pitch.js', 'js/devclean-widget/says.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core/timing.js', 'js/lyrics-core.js', 'js/media/lyrics-view.js', 'js/media/lyrics-translation.js', 'js/media/lyrics-stage.js',
       'js/media/lyrics-widget-options.js', 'js/media/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
     smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home/smart-home-order.js', 'js/smart-home/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home/units.js', 'js/smart-home/pieces.js', 'js/smart-home.js'],
@@ -123,7 +123,7 @@
     // gives it the stream (layer-lite-tiles.js attaches it).
     deck: {
       css: ['components/CustomSelect/CustomSelect.css', 'components/DeckPanel/DeckPanel.css', 'components/DeckPanel/DeckPanelKeys.css', 'components/DeckPanel/DeckPanelKeyStates.css', 'components/DeckPanel/DeckPanelShapes.css', 'components/DeckPanel/DeckPanelWindows.css', 'components/DeckPanel/DeckPanelKeyEditor.css', 'components/DeckPanel/DeckPanelPresetsEffects.css', 'components/DeckPanel/DeckPanelFaceControls.css'],
-      js: ['js/custom-select.js', 'js/spark-path.js', 'js/deck-shortcuts.js', 'js/deck-model.js', 'js/vitals/vitals-core.js', 'js/store-catalog/deck-store.js',
+      js: ['js/custom-select.js', 'js/store-supporters/spark-path.js', 'js/deck-shortcuts.js', 'js/deck-model.js', 'js/vitals/vitals-core.js', 'js/store-catalog/deck-store.js',
         'js/deck-icons.js', 'js/capabilities/capability-catalog.js', 'js/deck-actions.js', 'js/deck/deck-error-text.js', 'js/look/decor-bg.js', 'js/deck/key-face.js', 'js/deck/look-stamps.js', 'js/deck/store-reads.js', 'js/deck/press-feedback.js', 'js/deck/grid-fit.js', 'js/deck/key-actions.js', 'js/deck/profile-names.js', 'js/deck/parts.js', 'js/deck/live-state.js', 'js/deck/nav.js', 'js/deck/edit-tools.js', 'js/deck/style-preview.js', 'js/deck.js',
         'js/deck/deck-feed.js'],
       markup: ['deck'],

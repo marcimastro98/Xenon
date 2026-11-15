@@ -1,4 +1,4 @@
-// The Store's Sparks tab (js/sparks-store.js) and the ways into it.
+// The Store's Sparks tab (js/store-supporters/sparks-store.js) and the ways into it.
 //
 // The rules these tests hold:
 //  - Sparks are bought in one place: the Store's Sparks tab. Settings, the chat,
@@ -84,7 +84,7 @@ function load({ status = 'ok', balance = 376, email = '', supporter = false, wal
     openMediaChat: () => { calls.chat += 1; },
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/sparks-store.js'), ctx);
+  vm.runInNewContext(read('../js/store-supporters/sparks-store.js'), ctx);
   return { S: ctx.SparksStore, ctx, credits, calls, fire: () => onChange && onChange(), listening: () => !!onChange };
 }
 
@@ -208,7 +208,7 @@ test('the plan card: price, the monthly Sparks, one join button', async () => {
   assert.equal(join.target, '_blank');
   assert.equal(join.rel, 'noopener noreferrer');
   assert.equal(join.textContent, 'gallery_supporters_join');
-  const js = read('../js/sparks-store.js');
+  const js = read('../js/store-supporters/sparks-store.js');
   assert.match(js, /const MONTHLY = 300;/, 'the hub AI_INCLUDED_CREDITS');
   assert.match(js, /const MEMBER_USD = 5;/, 'the lowest membership on Buy Me a Coffee');
   assert.ok(!js.includes('MONTHLY_USD'), 'the monthly Sparks are not sold apart, so no price is put on them');
@@ -267,7 +267,7 @@ test('no balance read: the hero has no number, until the first one arrives', asy
 });
 
 test('only the engine\'s own Bit markup reaches innerHTML', () => {
-  const js = read('../js/sparks-store.js');
+  const js = read('../js/store-supporters/sparks-store.js');
   assert.deepEqual(js.match(/innerHTML\s*=\s*[^;]+/g), ['innerHTML = markup']);
   assert.match(js, /window\.BitApp\.icon\('idle'\)/);
 });
@@ -278,7 +278,7 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
   const html = read('../index.html');
   assert.match(html, /id="xai-shop" onclick="XenonCredits\.openShop\(\)"/);
   assert.match(read('../js/ai-bit-chat.js'), /go\.addEventListener\('click', \(\) => XenonCredits\.openShop\(\)\)/);
-  assert.match(read('../js/sparks-mail.js'), /action: \{ type: 'sparks'/);
+  assert.match(read('../js/store-supporters/sparks-mail.js'), /action: \{ type: 'sparks'/);
   assert.match(read('../js/ai/bit-messages.js'), /sparks: \(\) => window\.XenonCredits && window\.XenonCredits\.openShop\(\)/);
   const share = read('../js/preset-share.js');
   assert.match(share, /close\(\);\s*window\.XenonCredits\.openShop\(\);/);
@@ -298,7 +298,7 @@ test('the Store has a Sparks tab, opened from anywhere, its files loaded in orde
   assert.match(gallery, /function openSparks\(\) \{\n\s*if \(overlayEl && window\.SparksStore\) \{ goView\('__sparks'\); return; \}\n\s*open\('__sparks'\);/);
   assert.match(gallery, /window\.CommunityGallery = \{[^}]*\bopenSparks\b/);
   const html = read('../index.html');
-  const store = html.indexOf('<script src="js/sparks-store.js"></script>');
+  const store = html.indexOf('<script src="js/store-supporters/sparks-store.js"></script>');
   assert.ok(store > 0 && store < html.indexOf('<script src="js/community-gallery.js"></script>'), 'the tab is defined before the Store uses it');
   assert.ok(html.includes('<link rel="stylesheet" href="components/SparksStore/SparksStore.css">'));
 });
@@ -314,7 +314,7 @@ test('the tab is laid out for every screen: wraps, no fixed widths, 44px targets
 
 test('every string of the tab is in all 11 languages, placeholders kept, no dash', () => {
   const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
-  const keys = read('../js/sparks-store.js').match(/'sparks_(?:shop|use|plan)_[a-z_]+'/g).map((k) => k.slice(1, -1));
+  const keys = read('../js/store-supporters/sparks-store.js').match(/'sparks_(?:shop|use|plan)_[a-z_]+'/g).map((k) => k.slice(1, -1));
   keys.push('gallery_supporters_join', 'sparks_settings_shop', 'sparks_shop_open', 'sparks_buy_more', 'xc_chip_buy', 'xc_chip_title_none', 'xai_packs_note', 'xai_packs_email', 'xai_buy_toast_msg');
   const PH = { sparks_use_bit_v: ['{haiku}', '{sonnet}', '{opus}'], sparks_plan_price: ['{usd}'], sparks_plan_sparks: ['{n}'], xai_packs_email: ['{email}'], xai_buy_toast_msg: ['{n}', '{balance}'] };
   for (const l of LANGS) {
@@ -333,7 +333,7 @@ test('every string of the tab is in all 11 languages, placeholders kept, no dash
 
 test('every key the Store and the Sparks tab ask for exists in all 11 languages', () => {
   const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
-  for (const f of ['../js/sparks-store.js', '../js/community-gallery.js']) {
+  for (const f of ['../js/store-supporters/sparks-store.js', '../js/community-gallery.js']) {
     // Literal keys only: a prefix joined to a value at runtime ends in '_'.
     const keys = new Set([...read(f).matchAll(/\bt\('([a-z0-9_]*[a-z0-9])'/g)].map((m) => m[1]));
     assert.ok(keys.size > 20, `${f} keys found`);
@@ -351,7 +351,7 @@ test('the rail replaces the old browse bar: kinds, New, the Sparks view, no pack
 });
 
 test('Ask Bit writes the words in the chat box and never sends them', () => {
-  const code = read('../js/sparks-store.js').replace(/\r\n/g, '\n');
+  const code = read('../js/store-supporters/sparks-store.js').replace(/\r\n/g, '\n');
   const src = code.slice(code.indexOf('function openBit('), code.indexOf('// What one widget costs'));
   const box = { value: '', maxLength: 500, events: [], dispatchEvent(e) { this.events.push(e.type); } };
   const calls = [];

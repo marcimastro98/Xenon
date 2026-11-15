@@ -131,7 +131,7 @@
     already.addEventListener('click', () => {
       remember();
       // The thank-you promises they will not be asked again, so the December
-      // appeal (js/support-appeal.js) is silenced for good as well.
+      // appeal (js/store-supporters/support-appeal.js) is silenced for good as well.
       silenceAppeal();
       close();
       thankSupporter();

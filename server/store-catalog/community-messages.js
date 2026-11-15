@@ -8,7 +8,7 @@
 //
 // The privacy shape is the point, so it is worth stating plainly: every message
 // is delivered to EVERY install, and the `match` block is evaluated CLIENT-side
-// (js/hub-messages.js) against what that dashboard already knows about itself.
+// (js/store-supporters/hub-messages.js) against what that dashboard already knows about itself.
 // Nothing about the user is sent to get a targeted message, and the server
 // cannot tell who saw what. That is why targeting exists at all — the correlation
 // firewall around install-id.json (see version-ping.js) stays intact, and this

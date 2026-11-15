@@ -35,7 +35,7 @@ test('the site sells the packs at the app prices, at the app shop link', () => {
 });
 
 test('the monthly Sparks and the membership price match the app Store', () => {
-  const store = read('../js/sparks-store.js');
+  const store = read('../js/store-supporters/sparks-store.js');
   assert.equal(/const SPARKS_MONTHLY = (\d+);/.exec(site)[1], /const MONTHLY = (\d+);/.exec(store)[1]);
   assert.equal(/const MEMBER_USD = (\d+);/.exec(site)[1], /const MEMBER_USD = (\d+);/.exec(store)[1]);
   assert.match(site, /T\('plan\.sparks'\)\.replace\('\{n\}', SPARKS_MONTHLY\)\]/, 'no price on Sparks that are not sold apart, as in the app');

@@ -7,7 +7,7 @@
 // point of the design, not an implementation detail (see the correlation note in
 // server/version-ping.js).
 //
-// Split out of js/hub-messages.js because this is the code that decides who sees
+// Split out of js/store-supporters/hub-messages.js because this is the code that decides who sees
 // what: a bug here shows a message meant for a handful of installs to everyone,
 // and that is not recoverable once sent. UMD like sdk-perf.js so it is unit
 // tested under Node (test/hub-match.test.mjs).

@@ -203,6 +203,18 @@
     {"from":"server/js/deck-store.js","to":"server/js/store-catalog/deck-store.js"},
     {"from":"server/js/place-installed.js","to":"server/js/store-catalog/place-installed.js"},
     {"from":"server/js/rating-card.js","to":"server/js/store-catalog/rating-card.js"},
-    {"from":"server/js/store-update-mail.js","to":"server/js/store-catalog/store-update-mail.js"}
+    {"from":"server/js/store-update-mail.js","to":"server/js/store-catalog/store-update-mail.js"},
+    {"from":"server/js/devclean-pitch.js","to":"server/js/store-supporters/devclean-pitch.js"},
+    {"from":"server/js/discord-invite.js","to":"server/js/store-supporters/discord-invite.js"},
+    {"from":"server/js/hub-match.js","to":"server/js/store-supporters/hub-match.js"},
+    {"from":"server/js/hub-messages.js","to":"server/js/store-supporters/hub-messages.js"},
+    {"from":"server/js/share-nudge.js","to":"server/js/store-supporters/share-nudge.js"},
+    {"from":"server/js/spark-path.js","to":"server/js/store-supporters/spark-path.js"},
+    {"from":"server/js/sparks-mail.js","to":"server/js/store-supporters/sparks-mail.js"},
+    {"from":"server/js/sparks-store.js","to":"server/js/store-supporters/sparks-store.js"},
+    {"from":"server/js/support-appeal.js","to":"server/js/store-supporters/support-appeal.js"},
+    {"from":"server/js/support-card.js","to":"server/js/store-supporters/support-card.js"},
+    {"from":"server/js/support-goal.js","to":"server/js/store-supporters/support-goal.js"},
+    {"from":"server/js/trial-pass-ui.js","to":"server/js/store-supporters/trial-pass-ui.js"}
   ]
 }

@@ -14,7 +14,7 @@ import { engineSource } from './engine-source.mjs';
 const SERVER = engineSource();
 const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const INDEX = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const HUBMSG = readFileSync(new URL('../js/hub-messages.js', import.meta.url), 'utf8');
+const HUBMSG = readFileSync(new URL('../js/store-supporters/hub-messages.js', import.meta.url), 'utf8');
 const DROP = readFileSync(new URL('../js/store-catalog/catalog-drop.js', import.meta.url), 'utf8');
 
 const KEYS = ['hubMessages', 'catalogDrops', 'monthlyDrops'];

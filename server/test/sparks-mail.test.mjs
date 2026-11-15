@@ -1,4 +1,4 @@
-// Bit says so when the Scintille run low or out (js/sparks-mail.js).
+// Bit says so when the Scintille run low or out (js/store-supporters/sparks-mail.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -23,7 +23,7 @@ function load({ provider = 'xenon', status = 'ok', level = 'low' } = {}) {
     },
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/sparks-mail.js'), ctx);
+  vm.runInNewContext(read('../js/store-supporters/sparks-mail.js'), ctx);
   return { S: ctx.SparksMail, filed, fire: () => onChange && onChange() };
 }
 
@@ -63,8 +63,8 @@ test('opened, it says what Scintille are and its button leads to the Sparks shop
 test('the page loads it after the messages and the credits', () => {
   const html = read('../index.html');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
-  assert.ok(at('sparks-mail.js') > at('xenon-credits.js') && at('xenon-credits.js') > 0);
-  assert.ok(at('sparks-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
+  assert.ok(at('store-supporters/sparks-mail.js') > at('xenon-credits.js') && at('xenon-credits.js') > 0);
+  assert.ok(at('store-supporters/sparks-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
 });
 
 test('its lines are in all 11 languages, call Scintille Xenon\'s credits, with no dash', () => {

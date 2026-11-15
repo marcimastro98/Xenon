@@ -34,7 +34,7 @@ const DISCORD = 'https://discord.gg/MBVrw9kZyg';
 // Five USD a month is sold on the membership page, not on the one-off coffee page.
 const SUPPORT = 'https://www.buymeacoffee.com/marcimastro98/membership';
 const TRIAL = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
-// The Sparks a supporter's pass gets each month (MONTHLY in the app's js/sparks-store.js).
+// The Sparks a supporter's pass gets each month (MONTHLY in the app's js/store-supporters/sparks-store.js).
 const SPARKS_MONTHLY = 300;
 // Catalog entries come from the supporter hub, so their links and colours are
 // checked here as the app checks them (server/store-catalog/community-catalog.js): a

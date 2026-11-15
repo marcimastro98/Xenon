@@ -1,4 +1,4 @@
-// Hub message targeting (js/hub-match.js). This is the code that decides who
+// Hub message targeting (js/store-supporters/hub-match.js). This is the code that decides who
 // sees an announcement, and it runs on the user's machine so no identifier ever
 // leaves. A bug here is not recoverable: a message meant for a few installs
 // reaches everyone, and it cannot be unsent.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const HubMatch = require('../js/hub-match.js');
+const HubMatch = require('../js/store-supporters/hub-match.js');
 
 const ctx = (over = {}) => ({
   version: '4.9.0',

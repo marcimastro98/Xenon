@@ -1,4 +1,4 @@
-/* The Store's Sparks tab (js/sparks-store.js): the packs big enough to want,
+/* The Store's Sparks tab (js/store-supporters/sparks-store.js): the packs big enough to want,
    and what Sparks are for, in the Store's own glass cards. */
 .sparks-shop { display: flex; flex-direction: column; gap: 22px; max-width: 1180px; }
 

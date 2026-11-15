@@ -88,6 +88,6 @@ test('the static entry page sells it in Xenon, not as a supporter pack', () => {
   assert.match(seo, /\} else if \(price\) \{\n\s*buttons =\n\s*`<a class="pg-key" href="\/download\.html">Get Xenon<\/a>`/);
   // The price branch comes before the supporter one, which would say "Become a supporter".
   assert.ok(seo.indexOf('} else if (price) {') < seo.indexOf('} else if (locked) {\n    buttons'));
-  const monthly = /const MONTHLY = (\d+);/.exec(read('../js/sparks-store.js'))[1];
+  const monthly = /const MONTHLY = (\d+);/.exec(read('../js/store-supporters/sparks-store.js'))[1];
   assert.equal(/const SPARKS_MONTHLY = (\d+);/.exec(seo)[1], monthly);
 });

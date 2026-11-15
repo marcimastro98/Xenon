@@ -4,14 +4,14 @@
 //
 // Once a year, in December, a short note from the person who makes Xenon, with
 // the one number that says where the project stands: how many people pay for
-// it against how many it takes to cover its costs (js/support-goal.js).
+// it against how many it takes to cover its costs (js/store-supporters/support-goal.js).
 //
 // Why December, and why this shape. The end of the year is when people give,
 // and the appeals that work are personal and concrete: a named person, a real
 // goal and the count so far, instead of a generic donate button. Thunderbird's
 // in-app appeal and Wikipedia's letter from its founder are the models.
 //
-// It is the one-time ask's (js/support-card.js) yearly sibling, keeps all of its
+// It is the one-time ask's (js/store-supporters/support-card.js) yearly sibling, keeps all of its
 // rules, and adds three of its own:
 //   * December only, and at most once per calendar year. The year is stored in
 //     hub settings, on disk, for the same reason the ask's flag is.

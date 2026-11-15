@@ -14,7 +14,7 @@ const FILES = [
   'server/js/i18n.js',
   ...APP_LANGS.map((lang) => `server/js/i18n/${lang}.js`),
   'server/js/store-catalog/buy-sheet-parts.js',
-  'server/js/support-appeal.js',
+  'server/js/store-supporters/support-appeal.js',
   'server/ai-knowledge.js',
   'docs/llms.txt',
   'docs/supporters-overrides.json',

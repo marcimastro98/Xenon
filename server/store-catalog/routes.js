@@ -79,7 +79,7 @@ const branches = {
   'GET /api/community/messages': async (_req, _res, { json, err500, urlObj }) => {
     // Announcement feed — messages.json on the project site, proxied with the
     // same TTL cache + ETag revalidation as the catalog. Every install gets the
-    // WHOLE feed; the `match` block is evaluated client-side (js/hub-messages.js)
+    // WHOLE feed; the `match` block is evaluated client-side (js/store-supporters/hub-messages.js)
     // so targeting costs no identifier and the server cannot tell who saw what.
     // In CSRF_MUTATION_PATHS: a cache miss triggers an outbound fetch. Never a
     // JSONP candidate.

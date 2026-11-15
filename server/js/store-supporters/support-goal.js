@@ -5,7 +5,7 @@
 // One line and one bar, drawn from GET /api/community/support-goal: two public
 // integers the supporter hub publishes (people paying right now, and how many it
 // takes to cover the running costs), cached an hour by the local server. Shared
-// by the December appeal (js/support-appeal.js) and the Settings support page,
+// by the December appeal (js/store-supporters/support-appeal.js) and the Settings support page,
 // so the two can never show different numbers.
 //
 // It never invents a number. When the count cannot be read the element stays

@@ -15,7 +15,7 @@
 //     once; it is saved as this PC's pass, so the switch needs no typing.
 //
 // What the trial installed stays on disk like any unlock, marked as trial in its
-// install receipt; the dashboard takes it off at the end (js/trial-pass-ui.js)
+// install receipt; the dashboard takes it off at the end (js/store-supporters/trial-pass-ui.js)
 // and records what was tried here, so a later conversion can put it back.
 
 const fsp = require('fs').promises;

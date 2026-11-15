@@ -97,7 +97,7 @@
     "server/js/topbar-look.js": 367,
     "server/js/topbar-minimal.js": 1129,
     "server/js/transfer-widget.js": 1020,
-    "server/js/trial-pass-ui.js": 414,
+    "server/js/store-supporters/trial-pass-ui.js": 414,
     "server/js/twitchwatch-widget.js": 1071,
     "server/js/unifi-widget.js": 785,
     "server/js/update.js": 1168,

@@ -110,7 +110,7 @@
       const copyNo = cleanCopyNo(raw.copyNo);
       if (record.source === 'catalog' && copyNo) record.copyNo = copyNo;
       // Installed with the 7-day pass trial: it comes off when the trial ends
-      // (js/trial-pass-ui.js), back to the theme that was on before it.
+      // (js/store-supporters/trial-pass-ui.js), back to the theme that was on before it.
       if (raw.trial === true) {
         record.trial = true;
         const prevThemeId = cleanText(raw.prevThemeId, 80);

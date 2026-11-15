@@ -3433,7 +3433,7 @@
         return;
       }
       if (!pkg) {
-        // The pass trial ended and took this widget off (js/trial-pass-ui.js):
+        // The pass trial ended and took this widget off (js/store-supporters/trial-pass-ui.js):
         // the tile keeps its place, says so, and gets it back on a reinstall.
         const tried = window.TrialPass ? window.TrialPass.endedWidget(assignedId) : null;
         if (tried) {

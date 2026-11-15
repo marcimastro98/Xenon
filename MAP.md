@@ -75,7 +75,7 @@ The catalog of looks and widgets, and what supporters get.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends. | `server/store-supporters/**` `server/js/sparks-*.js` `server/js/spark-path.js` `server/js/support-*.js` `server/js/trial-pass-ui.js` `server/js/xenon-credits.js` and 9 more |
+| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends. | `server/store-supporters/**` `server/js/xenon-credits.js` `server/components/SparksStore/**` `server/components/SupportAsk/**` `server/components/SupportGoal/**` `server/components/XenonCredits/**` and 2 more |
 | **Store** | The catalog: browse, buy, install, rate and update looks, widgets and packs. | `server/store-catalog/**` `server/community-*.js` `server/icon-packs.js` `server/sound-packs.js` `server/js/community-gallery/**` `server/js/community-gallery.js` and 6 more |
 | **Sharing a look** | Export and import of themes, pages and packs as a code, with the safety checks on what comes in. | `server/js/preset-share.js` `server/js/dashboard-presets.js` `server/js/topbar-share.js` `server/js/presets/**` |
 

@@ -3649,7 +3649,7 @@
             }
             if (Number.isFinite(r.trialEndsAt)) {
               // Installed with the trial: the receipt says so, and the end of
-              // the trial takes it off again (js/trial-pass-ui.js).
+              // the trial takes it off again (js/store-supporters/trial-pass-ui.js).
               importSource = { ...importSource, trial: true };
               if (!trialActive()) {
                 toast(tr('trial_started', 'Your 7-day trial is on until {date}.').replace('{date}', trialDate(r.trialEndsAt)), '', 'success');

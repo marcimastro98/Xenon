@@ -13,8 +13,8 @@ import { engineSource, settingsSaveSource } from './engine-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
-const APPEAL = readFileSync(new URL('../js/support-appeal.js', import.meta.url), 'utf8');
-const GOAL = readFileSync(new URL('../js/support-goal.js', import.meta.url), 'utf8');
+const APPEAL = readFileSync(new URL('../js/store-supporters/support-appeal.js', import.meta.url), 'utf8');
+const GOAL = readFileSync(new URL('../js/store-supporters/support-goal.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -196,7 +196,7 @@ test('the count route is local, cached, and a navigation cannot spend it', () =>
 });
 
 test('it is loaded, styled like every other card, and every string exists in all eleven languages', () => {
-  assert.match(HTML, /<script src="js\/support-goal\.js"><\/script>\n<script src="js\/support-appeal\.js"><\/script>/);
+  assert.match(HTML, /<script src="js\/store-supporters\/support-goal\.js"><\/script>\n<script src="js\/store-supporters\/support-appeal\.js"><\/script>/);
   assert.match(HTML, /components\/SupportGoal\/SupportGoal\.css/);
   assert.match(HTML, /id="settings-support-goal" hidden/, 'the Settings copy starts hidden');
   assert.match(SETTINGS, /XenonSupportGoal\.fill\(\$\('settings-support-goal'\)\)/, 'and is filled when the page opens');

@@ -184,7 +184,7 @@ function settingsSetCategory(cat) {
   // request, and the answer only changes when this same pane or an unlock
   // changes it.
   if (cat === 'sdk') syncSupporterCodeBox();
-  // The supporter count under the support buttons (js/support-goal.js). Cached
+  // The supporter count under the support buttons (js/store-supporters/support-goal.js). Cached
   // an hour by the server, so opening the pane again costs nothing.
   if (cat === 'support' && window.XenonSupportGoal) XenonSupportGoal.fill($('settings-support-goal'));
   packSettingsColumns();

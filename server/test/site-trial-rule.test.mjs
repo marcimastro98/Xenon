@@ -13,7 +13,7 @@ import { trialCovers as forItemPages } from '../../tools/trial-covers.mjs';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { covers: forApp } = require('../js/trial-pass-ui.js');
+const { covers: forApp } = require('../js/store-supporters/trial-pass-ui.js');
 const page = readFileSync(join(root, 'docs', 'catalog', 'index.html'), 'utf8').replace(/\r\n/g, '\n');
 const seo = readFileSync(join(root, 'tools', 'build-seo.mjs'), 'utf8').replace(/\r\n/g, '\n');
 

@@ -31,16 +31,16 @@ const HUB_DEFAULTS_INSTALL = Object.freeze({
   firstRunDay: '',          // YYYY-MM-DD, stamped the first time a dashboard connects
   lastUsageDay: '',         // the last day counted, so a day counts exactly once
   usageDays: 0,
-  // The one-time supporter ask (js/support-card.js). Shown once in the life of an
+  // The one-time supporter ask (js/store-supporters/support-card.js). Shown once in the life of an
   // install and never again — on disk, not in localStorage, because a browser set
   // to clear its site data would otherwise bring it back for good.
   supportAskSeen: false,
-  // The day that ask went away, so the December appeal (js/support-appeal.js)
+  // The day that ask went away, so the December appeal (js/store-supporters/support-appeal.js)
   // keeps a month between the two; '' on installs that saw it before the field.
   supportAskSeenDay: '',
   // The last calendar year the December appeal was shown. Once a year, at most.
   supportAppealYear: 0,
-  // The one-time "show off your setup" invitation (js/share-nudge.js). Same
+  // The one-time "show off your setup" invitation (js/store-supporters/share-nudge.js). Same
   // rules as the ask above, same reason it is here and not in localStorage.
   shareNudgeSeen: false,
 });

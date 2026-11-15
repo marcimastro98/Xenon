@@ -11,7 +11,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 import { engineSource, settingsSaveSource } from './engine-source.mjs';
 
-const CARD = readFileSync(new URL('../js/support-card.js', import.meta.url), 'utf8');
+const CARD = readFileSync(new URL('../js/store-supporters/support-card.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -165,7 +165,7 @@ test('monthly is the offer, one-off is the alternative', () => {
 });
 
 test('the card is loaded, styled, and every string exists in all eleven languages', () => {
-  assert.match(HTML, /<script src="js\/support-card\.js"><\/script>/);
+  assert.match(HTML, /<script src="js\/store-supporters\/support-card\.js"><\/script>/);
   assert.match(HTML, /components\/SupportAsk\/SupportAsk\.css/);
   for (const key of ['support_ask_title', 'support_letter_text',
     'support_perk_themes', 'support_perk_discord', 'support_perk_name',

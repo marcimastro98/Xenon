@@ -102,20 +102,13 @@
       "what": "Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends.",
       "files": [
         "server/store-supporters/**",
-        "server/js/sparks-*.js",
-        "server/js/spark-path.js",
-        "server/js/support-*.js",
-        "server/js/trial-pass-ui.js",
         "server/js/xenon-credits.js",
-        "server/js/hub-*.js",
-        "server/js/share-nudge.js",
-        "server/js/discord-invite.js",
-        "server/js/devclean-pitch.js",
         "server/components/SparksStore/**",
         "server/components/SupportAsk/**",
         "server/components/SupportGoal/**",
         "server/components/XenonCredits/**",
-        "server/components/DiscordInvite/**"
+        "server/components/DiscordInvite/**",
+        "server/js/store-supporters/**"
       ]
     },
     {

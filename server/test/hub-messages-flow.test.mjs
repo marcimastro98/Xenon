@@ -1,4 +1,4 @@
-// Announcement channel, end to end (js/hub-messages.js) against DOM stubs, through
+// Announcement channel, end to end (js/store-supporters/hub-messages.js) against DOM stubs, through
 // the real client (js/ai/bit-messages.js) and the real inbox (bit-messages.js).
 //
 // hub-match.js covers WHO matches; this covers what happens next. Every message
@@ -52,9 +52,9 @@ function dashboard({ messages, settings = {}, store = new Map(), file = inboxFil
   const load = (rel) => { const n = Object.keys(g); new Function(...n, read(rel))(...n.map((k) => g[k])); };
 
   load('js/ai/bit-messages.js');
-  load('js/hub-match.js'); g.HubMatch = window.HubMatch;
+  load('js/store-supporters/hub-match.js'); g.HubMatch = window.HubMatch;
   window.XenonToast = { show: (o) => toasts.push(o) };
-  load('js/hub-messages.js');
+  load('js/store-supporters/hub-messages.js');
 
   const stored = () => {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')).messages; } catch { return []; }
@@ -169,7 +169,7 @@ test('the opt-out holds on this device and says what it did', () => {
 });
 
 test('nothing about what this PC has leaves it', () => {
-  const src = read('js/hub-messages.js');
+  const src = read('js/store-supporters/hub-messages.js');
   assert.doesNotMatch(src, /hubmsg-overlay|aria-modal|whenIdle|showModal|showToast/, 'the old pop-ups are gone');
   const check = src.slice(src.indexOf('async function checkDaily()'));
   assert.match(check.slice(0, check.indexOf('\n  }')), /api\('\/api\/community\/messages'\)/, 'a plain GET of the whole feed');

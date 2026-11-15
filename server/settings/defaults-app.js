@@ -30,7 +30,7 @@ const HUB_DEFAULTS_APP = Object.freeze({
   // stays OFF instead of being switched on by an update — it was documented to
   // those users as off-unless-you-choose. Do not relax that test to `!== false`.
   versionPing: true,
-  // Announcements (js/hub-messages.js) and the paid-drop card (js/store-catalog/catalog-drop.js).
+  // Announcements (js/store-supporters/hub-messages.js) and the paid-drop card (js/store-catalog/catalog-drop.js).
   // ON by default and normalized with `!== false`, which is the OPPOSITE of
   // versionPing above and deliberate: these are not a data opt-in, they are a
   // preference about being interrupted, and the honest default for a channel the

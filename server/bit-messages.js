@@ -16,7 +16,7 @@
 // Everything arrives from a page, so it is rebuilt field by field here: pictures
 // only from the hosts the hub feed may use, links only to its hosts, and an action
 // is one of a short list. Nothing here decides who sees what. Targeting stays on
-// the machine (js/hub-messages.js, community-messages.js).
+// the machine (js/store-supporters/hub-messages.js, community-messages.js).
 
 const fs = require('fs');
 const { writeFileAtomic } = require('./atomic-write');
