@@ -28,7 +28,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('../atomic-write');
 
 const PREFIX = 'sceneimg-';
 const MIN_CHARS = 16 * 1024;                     // small pictures cost nothing inline

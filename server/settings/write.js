@@ -3,7 +3,7 @@
 // cleared.
 
 const crypto = require('node:crypto');
-const sceneImages = require('../scene-images.js');
+const sceneImages = require('../ambient/scene-images.js');
 const slideshowFolder = require('../slideshow-folder.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { SETTINGS_FILE } = require('./settings-file.js');

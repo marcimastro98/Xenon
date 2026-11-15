@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const scenePage = require('../scene-page.js');
+const scenePage = require('../ambient/scene-page.js');
 const ScreenSceneModel = require('../js/screen-scene-model.js');
 const ViewerTheme = require('../js/viewer-theme.js');
 const { resolveAmbientScene } = require('../js/ambient-resolve.js');

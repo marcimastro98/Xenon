@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const scenePage = require('../scene-page.js');
+const scenePage = require('./scene-page.js');
 
 const SERVER_DIR = path.join(__dirname, '..');
 

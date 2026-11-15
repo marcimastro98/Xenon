@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const si = require('../scene-images.js');
+const si = require('../ambient/scene-images.js');
 const SERVER = engineSource();
 const SHARE = fs.readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
 

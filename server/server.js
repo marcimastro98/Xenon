@@ -57,7 +57,7 @@ require('./exclusive-hint');
 const { createGameSessions } = require('./game-sessions');
 require('./calendar-reminders');
 const listOps = require('./list-ops');
-const sceneImages = require('./scene-images');
+const sceneImages = require('./ambient/scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
 require('./capture-host');
 const { createCaptures } = require('./captures');
@@ -490,7 +490,7 @@ const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_d
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
 require('./screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
-require('./scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
+require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
 require('./icon-packs');

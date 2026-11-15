@@ -2144,7 +2144,7 @@
         try {
           const uri = await _fetchAsDataUri(src);
           // A picture the scene editor put inside the scene, which the server
-          // keeps in a file of its own (server/scene-images.js): it goes back
+          // keeps in a file of its own (server/ambient/scene-images.js): it goes back
           // exactly as it was, with the limits it always had (the share code
           // size check below), not the ones for uploaded tile pictures.
           if (/^\/uploads\/sceneimg-/.test(src)) return uri;

@@ -7,9 +7,11 @@
     {"from":"server/situations.js","to":"server/capabilities/situations.js","shim":true},
     {"from":"server/startup-task.js","to":"server/install/startup-task.js","shim":true},
     {"from":"server/unifi-events.js","to":"server/smart-home/unifi-events.js","shim":true},
-    {"from":"server/discord-launch.js","to":"server/discord/discord-launch.js","shim":true}
+    {"from":"server/discord-launch.js","to":"server/discord/discord-launch.js","shim":true},
+    {"from":"server/scene-images.js","to":"server/ambient/scene-images.js"},
+    {"from":"server/scene-page.js","to":"server/ambient/scene-page.js"}
   ],
   "patterns": [
-
+    {"feature":"ambient","glob":"server/scene-*.js","at":1}
   ]
 }
