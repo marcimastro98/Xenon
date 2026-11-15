@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { request, rigPort, stopChild } from '../ci/engine-rig.mjs';
 import { copyEngine } from '../ci/request-check.mjs';
 import { loadFacts } from './bare-requires.mjs';
+import { readMoved } from './move-apply.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
 import { copyOfCommit } from './routes-check.mjs';
 
@@ -108,7 +109,10 @@ async function main() {
       rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     }
   }
-  const [before, after] = logs.map((log) => loadedBefore(log));
+  const [loadedAtBase, after] = logs.map((log) => loadedBefore(log));
+  // A file moved whole to its feature's folder (move.mjs) is the same file under its new path.
+  const movedTo = new Map(readMoved(REPO_ROOT).moves.map((move) => [move.from, move.to]));
+  const before = loadedAtBase?.map((file) => movedTo.get(file) ?? file);
   if (!before || !after) { console.log('one of the two engines never finished loading: nothing was compared'); process.exitCode = 1; return; }
   // A module that holds start-up statements taken out of the engine file is new on purpose: it loads where they stood.
   const entries = Object.values(JSON.parse(readFileSync(path.join(HERE, 'extracted.json'), 'utf8')).sources ?? {}).flat();

@@ -1,0 +1,15 @@
+{
+  "note": "Read by tools/restructure/move.mjs. `homes`: the folder of a feature when it is not named like the feature (structure-conventions, section 2: `ai-local.js` goes to `server/ai/`). `features` and `files`: loose files of `server/` that stay where they are on purpose, each with the reason the report prints.",
+  "homes": {
+    "bit": "ai"
+  },
+  "features": {
+    "updates": "the updater: installers and the app's bootstrap name these files, and an install replaces them while it runs them"
+  },
+  "files": {
+    "server/remote-access.js": "the gate lists of paired devices and the order of their checks: every note and review points at this path",
+    "server/disk-categories.js": "the closed list of what may be deleted: left alone with the gate lists",
+    "server/linux-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)",
+    "server/darwin-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)"
+  }
+}
