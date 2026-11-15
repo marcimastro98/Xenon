@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 
 const CSS = readFileSync(new URL('../components/Toast/Toast.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const TOAST = readFileSync(new URL('../js/toast.js', import.meta.url), 'utf8');
-const ISLAND = readFileSync(new URL('../js/toast-island.js', import.meta.url), 'utf8');
+const TOAST = readFileSync(new URL('../js/alerts/toast.js', import.meta.url), 'utf8');
+const ISLAND = readFileSync(new URL('../js/alerts/toast-island.js', import.meta.url), 'utf8');
 
 function rule(selector) {
   const at = CSS.indexOf('\n' + selector + ' {');

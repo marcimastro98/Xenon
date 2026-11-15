@@ -2,7 +2,7 @@
 
 // Drawing on the screen where the capture engine has no sheet of its own
 // (macOS, Linux): the strokes, the tools and the keys of the /draw page
-// (js/screen-draw-page.js). The same rules as the engine's sheet on Windows
+// (js/alerts/screen-draw-page.js). The same rules as the engine's sheet on Windows
 // (apps/capture/src/sketch, win/draw): six colours, pen, highlighter, arrow and
 // box; Shift draws a straight line, Ctrl a box, Ctrl+Shift an arrow; Ctrl+Z
 // undoes, E or Delete clears, R Y G B W K pick a colour, Esc closes. Pure, so

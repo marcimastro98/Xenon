@@ -98,7 +98,7 @@ if (need.notes)  { loadNotes(); }
 if (need.tasks)  { loadTasks(); }
 if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'function') loadTimers(); }
 
-// Server-pushed alerts are worded in js/alert-toasts.js, shared with the
+// Server-pushed alerts are worded in js/alerts/alert-toasts.js, shared with the
 // on-screen alerts window of "Solo widget", so both say the same thing.
 function alertToastCtx() {
   return { t, hwF: typeof hwTempIsF === 'function' && hwTempIsF() };
@@ -344,7 +344,7 @@ function postponeAutoUpdate() {
       try { if (window.LayersShell && typeof window.LayersShell.onVitalsPopup === 'function') window.LayersShell.onVitalsPopup(JSON.parse(e.data)); } catch {}
     });
     // What the Xenon menu shows changed: its panel and the "Main screen" tile
-    // read it again (js/xenon-menu-panel.js, js/screen-tile.js).
+    // read it again (js/xenon-menu-panel.js, js/alerts/screen-tile.js).
     ['settings', 'captures', 'replay', 'recording', 'deck'].forEach((name) => {
       es.addEventListener(name, () => window.dispatchEvent(new Event('xenon-menu-changed')));
     });

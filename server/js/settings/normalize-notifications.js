@@ -24,7 +24,7 @@ function normalizeNotifications(value) {
   // Do-not-disturb mode, mirrored from the server normalizer (server.js).
   // 'auto' (default) holds routine pop-ups back while the screen is immersive,
   // 'always' holds them back the whole time, 'off' never does. Enforced in
-  // js/toast.js, which never holds back an error, warning, reminder or timer.
+  // js/alerts/toast.js, which never holds back an error, warning, reminder or timer.
   const quiet = (v.quiet === 'off' || v.quiet === 'always') ? v.quiet : 'auto';
   // `onScreen`: in "Solo widget" (no dashboard window) the same pop-ups show in
   // a small click-through window on the main screen (/screen-alerts).

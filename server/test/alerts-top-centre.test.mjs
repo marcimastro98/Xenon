@@ -9,13 +9,13 @@ import vm from 'node:vm';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const PAGE = read('screen-alerts.html');
-const SCRIPT = read('js/screen-alerts.js');
-const TOAST = read('js/toast.js');
+const SCRIPT = read('js/alerts/screen-alerts.js');
+const TOAST = read('js/alerts/toast.js');
 const ALERTS_CSS = read('components/ScreenAlerts/ScreenAlerts.css');
 const TOAST_CSS = read('components/Toast/Toast.css');
 const BIT_CSS = read('components/BitMessage/BitMessage.css');
 const NEWS_CSS = read('components/WhatsNew/WhatsNew.css');
-const ISLAND = read('js/toast-island.js');
+const ISLAND = read('js/alerts/toast-island.js');
 
 // The window is cut 10 px around a card, so an outer shadow ends in a straight
 // edge: on the screen it reads as a dark box behind the card. Asked 5 Nov 2026.
@@ -51,8 +51,8 @@ function minimalChrome({ classes = [], alertsWindow = false, panel = '', place =
 }
 
 test('the alerts window loads the island before the toasts that use it', () => {
-  const island = PAGE.indexOf('js/toast-island.js');
-  assert.ok(island > 0 && island < PAGE.indexOf('js/toast.js'));
+  const island = PAGE.indexOf('js/alerts/toast-island.js');
+  assert.ok(island > 0 && island < PAGE.indexOf('js/alerts/toast.js'));
 });
 
 test('the alerts window uses the island without a top bar, the dashboard still needs one', () => {

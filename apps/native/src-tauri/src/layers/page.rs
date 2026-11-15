@@ -31,7 +31,7 @@ pub(super) const LAYER_SHIM: &str = r#"(function () {
 pub(super) const ALERTS_CAPS: &str = "try { window.__XENON_NATIVE_CAPS__ = Object.assign(window.__XENON_NATIVE_CAPS__ || {}, { aiGlow: true }); } catch (e) {}";
 
 /// Windows cuts what the alerts window shows, so a card closes under the cut
-/// (roll.rs, js/alert-roll.js). Elsewhere the window has real alpha and cards fade.
+/// (roll.rs, js/alerts/alert-roll.js). Elsewhere the window has real alpha and cards fade.
 #[cfg(windows)]
 pub(super) const ALERTS_ROLL: &str = "window.__XENON_ROLL_CARDS__ = true;";
 

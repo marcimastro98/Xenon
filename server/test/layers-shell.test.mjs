@@ -495,8 +495,8 @@ test("Bit's vitals popup opens the alerts window with the dashboard up, only whi
 test('wiring: the dashboard and the driver pass the vitals popup on, and the alerts window shows it', () => {
   assert.match(read('../js/main.js'), /addEventListener\('vitals_nag'[\s\S]{0,160}LayersShell\.onVitalsPopup/);
   assert.match(read('../js/shell-driver.js'), /addEventListener\('vitals_nag', onVitalsNag\)/);
-  const alerts = read('../js/screen-alerts.js');
+  const alerts = read('../js/alerts/screen-alerts.js');
   assert.match(alerts, /ALWAYS = Object\.freeze\(\{ vitals_nag: vitalsPopup,/);
   assert.match(alerts, /if \(!always && !routine\(\)\) return;/);
-  assert.match(read('../screen-alerts.html'), /js\/usage-mode\.js[\s\S]*js\/screen-alerts\.js/);
+  assert.match(read('../screen-alerts.html'), /js\/usage-mode\.js[\s\S]*js\/alerts\/screen-alerts\.js/);
 });

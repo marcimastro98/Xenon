@@ -14,7 +14,7 @@
   };
 
   // With no dashboard window the pop-ups need a window of their own: the
-  // on-screen alerts (js/screen-alerts.js), an overlay on the main screen.
+  // on-screen alerts (js/alerts/screen-alerts.js), an overlay on the main screen.
   const ALERTS_SURFACE = Object.freeze({ key: 'alerts:', kind: 'overlay', monitor: '' });
 
   // Drawing on the screen where the capture engine has no sheet (macOS, Linux):

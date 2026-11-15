@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const DashboardOpen = require('../js/dashboard-open.js');
 const ShellDriver = require('../js/shell-driver.js');
-const AlertToasts = require('../js/alert-toasts.js');
+const AlertToasts = require('../js/alerts/alert-toasts.js');
 
 const ID = '0123456789abcdef';
 

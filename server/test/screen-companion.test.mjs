@@ -230,7 +230,7 @@ test('without the card in the page, or when it will not show, nothing breaks', a
 });
 
 test('the alerts window routes the event and counts the card as clickable', () => {
-  const src = read('../js/screen-alerts.js');
+  const src = read('../js/alerts/screen-alerts.js');
   assert.match(src, /game_companion: \(d\) => \{ if \(window\.ScreenCompanion\) window\.ScreenCompanion\.open\(d\); \}/);
   assert.match(src, /const CARDS = '[^']*\.gc-overlay:not\(\[hidden\]\) > \.gc-card[,']/);
   const css = read('../components/ScreenAlerts/ScreenAlerts.css');

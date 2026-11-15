@@ -3,7 +3,7 @@
 // with normal rights, so frame rates need Performance Log Users, active only
 // from the next Windows sign-in (fps-access.js). The Game performance tile and
 // Settings say it; this pop-up reaches everyone else, dashboard and "widgets
-// only" alike (SSE `fps_access`, js/alert-toasts.js fpsAccess).
+// only" alike (SSE `fps_access`, js/alerts/alert-toasts.js fpsAccess).
 //
 // Said when it is true and matters: a game runs and its frames cannot be read.
 // At most once per Xenon version and per case, remembered in DATA_DIR, so it

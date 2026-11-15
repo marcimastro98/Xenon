@@ -101,7 +101,7 @@ html[data-screen-draw] body {
   border-radius: 50%;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.35);
 }
-/* The model's palette (js/screen-draw-model.js), as the engine draws it. */
+/* The model's palette (js/alerts/screen-draw-model.js), as the engine draws it. */
 .sdraw-red { background: rgb(232 64 64); }
 .sdraw-yellow { background: rgb(245 197 24); }
 .sdraw-green { background: rgb(46 184 114); }

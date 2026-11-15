@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from './native-source.mjs';
 
 const require = createRequire(import.meta.url);
-const AlertRoll = require('../js/alert-roll.js');
+const AlertRoll = require('../js/alerts/alert-roll.js');
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function card(rects = ['10,20,300,100']) {
@@ -80,7 +80,7 @@ test('page and shell agree on how long the roll lasts', () => {
 });
 
 test('a stack card stays put until the roll ends, then the others close the gap', () => {
-  const toast = read('js/toast.js');
+  const toast = read('js/alerts/toast.js');
   const dismiss = toast.slice(toast.indexOf('function dismiss(id, dir)'), toast.indexOf('function dismissAll'));
   const rolled = dismiss.indexOf('rollAway(rec.el)');
   assert.ok(rolled > 0 && rolled < dismiss.indexOf('leaveStack(rec.el)'), 'before it leaves the layout');
@@ -88,7 +88,7 @@ test('a stack card stays put until the roll ends, then the others close the gap'
 });
 
 test('the island card leaves after the roll, and news takes the roll back', () => {
-  const island = read('js/toast-island.js');
+  const island = read('js/alerts/toast-island.js');
   const close = island.slice(island.indexOf('async function close(g)'), island.indexOf('async function render'));
   const waited = close.indexOf('await rolling.done');
   assert.ok(waited > 0 && close.indexOf('release(false)', waited) > waited, 'gone only after the roll');
@@ -97,9 +97,9 @@ test('the island card leaves after the roll, and news takes the roll back', () =
 
 test('the window page loads the roll and only Windows turns it on', () => {
   const page = read('screen-alerts.html');
-  const roll = page.indexOf('<script src="js/alert-roll.js"');
-  assert.ok(roll > 0 && roll < page.indexOf('<script src="js/screen-alerts.js"'));
-  const script = read('js/screen-alerts.js');
+  const roll = page.indexOf('<script src="js/alerts/alert-roll.js"');
+  assert.ok(roll > 0 && roll < page.indexOf('<script src="js/alerts/screen-alerts.js"'));
+  const script = read('js/alerts/screen-alerts.js');
   assert.match(script, /window\.__XENON_ROLL_CARDS__ === true/);
   assert.match(script, /card\.closest\('\.is-rolling'\)/);
   const mod = read('../apps/native/src-tauri/src/layers/mod.rs');
@@ -114,7 +114,7 @@ test('a cut window never gets the old title bar painted inside the cut', () => {
 });
 
 test('a card moving under the cut is followed frame by frame', () => {
-  const script = read('js/screen-alerts.js');
+  const script = read('js/alerts/screen-alerts.js');
   const report = script.slice(script.indexOf('function report()'), script.indexOf('function scheduleReport'));
   assert.match(report, /if \(moving\) frame = requestAnimationFrame\(report\)/);
 });

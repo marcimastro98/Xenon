@@ -11,7 +11,7 @@ const { refreshWakeWordWatch } = require('../ai/wake-word-watch.js');
 
 // The usage mode, set by voice or a Deck key (capabilities/usage-mode.js). The
 // shell's main window picks it up on its next load (route `/`).
-// "Avvisi sullo schermo" (js/screen-alerts.js): the rest of `notifications` stays.
+// "Avvisi sullo schermo" (js/alerts/screen-alerts.js): the rest of `notifications` stays.
 async function updateScreenAlertsSetting(on) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();

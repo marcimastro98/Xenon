@@ -273,7 +273,7 @@ test('wired: catalog, AI, SDK capture lists, Deck error text, settings, live toa
   assert.equal(normalizeCaptureSettings({}).autoMarks, true, 'on by default');
   assert.equal(normalizeCaptureSettings({ autoMarks: false }).autoMarks, false);
   assert.match(read('js/main.js'), /addEventListener\('capture_marker'/);
-  assert.match(read('js/screen-alerts.js'), /capture_marker: unlessMenu\(\(d\) =>/);
+  assert.match(read('js/alerts/screen-alerts.js'), /capture_marker: unlessMenu\(\(d\) =>/);
   assert.match(read('index.html'), /id="settings-capture-automarks"/);
 });
 

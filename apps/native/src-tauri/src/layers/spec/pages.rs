@@ -2,7 +2,7 @@
 
 use super::Spec;
 
-/// The on-screen alerts window (server/js/screen-alerts.js), not a widget layer.
+/// The on-screen alerts window (server/js/alerts/screen-alerts.js), not a widget layer.
 pub fn is_alerts(key: &str) -> bool {
     key.starts_with("alerts:")
 }

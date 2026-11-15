@@ -120,7 +120,7 @@ test('the RAM alert keeps its percentage out of the conversion', () => {
   // "RAM nearly full (199%)" to anyone on °F.
   // The wording lives in alert-toasts.js, shared by the dashboard and the
   // "widgets only" alerts window.
-  const A = createRequire(import.meta.url)('../js/alert-toasts.js');
+  const A = createRequire(import.meta.url)('../js/alerts/alert-toasts.js');
   const t = (k) => ({ guardian_alert_mem: 'RAM nearly full ({v}%)', guardian_alert_cpu: 'CPU at {v}°{u}' })[k] || k;
   assert.equal(A.guardianText({ type: 'mem', value: 93 }, { t, hwF: true }), 'RAM nearly full (93%)',
     'the RAM alert is going through the temperature conversion');

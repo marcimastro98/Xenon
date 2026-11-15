@@ -1,7 +1,7 @@
 'use strict';
 
 // Bit on the main screen in "widgets only". There is no dashboard to answer
-// "Hey Xenon", so the on-screen alerts window does (js/screen-alerts.js): on
+// "Hey Xenon", so the on-screen alerts window does (js/alerts/screen-alerts.js): on
 // the first wake it puts in the dashboard's own voice panel (markup served in
 // <template id="screen-bit-markup">, the same CSS and ai.js) and runs the same
 // voice session. It is the dashboard's transparent voice mode: one card at the

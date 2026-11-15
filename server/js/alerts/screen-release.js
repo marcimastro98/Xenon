@@ -1,7 +1,7 @@
 'use strict';
 // After an update with no dashboard ("widgets only"): the alerts window says what
 // happened, as a card in the corner that nothing else closes. A major opens full
-// screen only when asked, on the window's whole surface (js/screen-alerts.js
+// screen only when asked, on the window's whole surface (js/alerts/screen-alerts.js
 // takes `.wn-stage` as a card, so the window takes every click while it is up).
 //
 // A viewer like the rest of this page: what has been read goes to the server

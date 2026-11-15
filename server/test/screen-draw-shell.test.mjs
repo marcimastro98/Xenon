@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 const { createScreenDrawShell } = require('../alerts/screen-draw-shell.js');
 const { createLayersHost } = require('../layers-host.js');
 const draw = require('../capabilities/screen-draw.js');
-const { PALETTE } = require('../js/screen-draw-model.js');
+const { PALETTE } = require('../js/alerts/screen-draw-model.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 function shellWith(can) {
@@ -74,12 +74,12 @@ test('without the engine the capability opens the shell sheet, with the same mod
 
 test('the page loads its model and stops through the same action the Deck runs', () => {
   const html = read('../draw.html');
-  for (const src of ['js/state.js', 'layer-i18n.js', 'js/screen-draw-model.js', 'js/screen-draw-page.js']) {
+  for (const src of ['js/state.js', 'layer-i18n.js', 'js/alerts/screen-draw-model.js', 'js/alerts/screen-draw-page.js']) {
     assert.ok(html.includes(`src="${src}"`), src);
   }
-  assert.ok(html.indexOf('src="js/screen-draw-model.js"') < html.indexOf('src="js/screen-draw-page.js"'));
+  assert.ok(html.indexOf('src="js/alerts/screen-draw-model.js"') < html.indexOf('src="js/alerts/screen-draw-page.js"'));
   assert.doesNotMatch(html, /style="/, 'no inline styles');
-  const page = read('../js/screen-draw-page.js');
+  const page = read('../js/alerts/screen-draw-page.js');
   assert.match(page, /type: 'screenDraw', mode: 'stop'/);
   assert.doesNotMatch(page, /innerHTML/);
   const server = engineSource();

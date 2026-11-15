@@ -254,7 +254,7 @@ test('the panel is a glass sheet on Liquid, and nothing lands over it', () => {
   const sheets = read('../styles/liquid-sheets.css');
   assert.match(sheets, /:is\([^)]*\.widget-palette-overlay/);
   assert.match(sheets, /:is\([^)]*\.widget-palette-modal/);
-  assert.match(read('../js/interrupt-queue.js'), /'\.widget-palette-overlay'/);
+  assert.match(read('../js/alerts/interrupt-queue.js'), /'\.widget-palette-overlay'/);
 });
 
 test('the old plate is gone: no pill, no green glyphs, no outlined boxes', () => {

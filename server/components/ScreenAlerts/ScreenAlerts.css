@@ -1,4 +1,4 @@
-/* The on-screen alerts window of "widgets only" (js/screen-alerts.js): the
+/* The on-screen alerts window of "widgets only" (js/alerts/screen-alerts.js): the
    dashboard's toast cards, unchanged, on a transparent window over the main
    screen. The window shows and takes clicks only where a card is. */
 
@@ -10,7 +10,7 @@ html[data-screen-alerts] body {
   overflow: hidden;
 }
 
-/* Notifications open on the island, the dashboard's one (js/toast-island.js), at
+/* Notifications open on the island, the dashboard's one (js/alerts/toast-island.js), at
    the top centre: a small capsule that grows into the card and draws back in. The
    window covers the work area, so this sits just under the screen's top edge, low
    enough for the 10 px the window keeps around a card. */
@@ -29,7 +29,7 @@ html[data-screen-alerts] .xtoast-stack {
    nothing to soften: a denser fill keeps two lines readable over a game. The
    blur itself goes too: it draws nothing here, and it is the first suspect for
    the white seen behind a card fading out on a see-through window. */
-/* Closing under the cut (js/alert-roll.js): it stays as it is, but takes no more clicks. */
+/* Closing under the cut (js/alerts/alert-roll.js): it stays as it is, but takes no more clicks. */
 html[data-screen-alerts] .is-rolling { pointer-events: none; }
 
 html[data-screen-alerts] .xtoast-stack > .xtoast,

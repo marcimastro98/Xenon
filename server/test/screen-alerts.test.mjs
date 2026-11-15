@@ -1,4 +1,4 @@
-// The on-screen alerts window of "widgets only" (js/screen-alerts.js): which
+// The on-screen alerts window of "widgets only" (js/alerts/screen-alerts.js): which
 // alerts it shows under which settings, the chime it asks the server for, and
 // the card rectangles it hands the shell so every other click goes through.
 import { test } from 'node:test';
@@ -8,9 +8,9 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const AlertToasts = require('../js/alert-toasts.js');
+const AlertToasts = require('../js/alerts/alert-toasts.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/screen-alerts.js');
+const SRC = read('../js/alerts/screen-alerts.js');
 
 const tick = () => new Promise((r) => setImmediate(r));
 
@@ -239,8 +239,8 @@ test('in a browser tab there is no shell to signal', async () => {
 
 test('the page loads what it uses, in order', () => {
   const html = read('../screen-alerts.html');
-  const order = ['js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/toast.js',
-    'js/alert-toasts.js', 'js/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/ai/screen-bit.js', 'js/screen-alerts.js'];
+  const order = ['js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/alerts/toast.js',
+    'js/alerts/alert-toasts.js', 'js/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/ai/screen-bit.js', 'js/alerts/screen-alerts.js'];
   const at = order.map((f) => html.indexOf(`src="${f}"`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);

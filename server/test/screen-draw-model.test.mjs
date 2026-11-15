@@ -1,4 +1,4 @@
-// js/screen-draw-model.js: the strokes and keys of the macOS/Linux drawing
+// js/alerts/screen-draw-model.js: the strokes and keys of the macOS/Linux drawing
 // sheet (draw.html). Pinned here: the same tools, modifiers, keys and limits as
 // the capture engine's sheet on Windows, so the feature is one feature.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const M = require('../js/screen-draw-model.js');
+const M = require('../js/alerts/screen-draw-model.js');
 
 test('six colours with their keys and four tools, as on Windows', () => {
   assert.equal(M.PALETTE.map((p) => p.key).join(''), 'RYGBWK');

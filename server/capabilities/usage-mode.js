@@ -26,7 +26,7 @@ async function setMode(d, action) {
 }
 
 // "Widgets only" shows the dashboard's pop-ups in a small window on the main
-// screen (js/screen-alerts.js); hubSettings.notifications.onScreen turns it off.
+// screen (js/alerts/screen-alerts.js); hubSettings.notifications.onScreen turns it off.
 async function setScreenAlerts(d, action) {
   if (action.alerts !== 'on' && action.alerts !== 'off') return { ok: false, error: 'bad_alerts', choices: ['on', 'off'] };
   if (!available(d.host) || !d.settings || typeof d.settings.setScreenAlerts !== 'function') {

@@ -1062,7 +1062,7 @@
   // landed BEHIND the dialog — a modal nobody could see, over a question nobody
   // could answer past.
   //
-  // The arbiter is the one that knows what is on screen (js/interrupt-queue.js),
+  // The arbiter is the one that knows what is on screen (js/alerts/interrupt-queue.js),
   // so this asks it rather than keeping a poller of its own. It still opens with
   // no delay on a clear dashboard: whenIdle() runs synchronously when nothing is
   // queued and nothing is up. Without the module — a stripped page, a load

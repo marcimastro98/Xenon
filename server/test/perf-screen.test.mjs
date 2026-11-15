@@ -1,6 +1,6 @@
 // Performance Mode with no dashboard ("widgets only"): the hidden driver page
 // runs js/performance.js (js/driver-perf.js), the on-screen alerts window shows
-// the suggestion and the result (js/screen-alerts.js, js/alert-toasts.js), and
+// the suggestion and the result (js/alerts/screen-alerts.js, js/alerts/alert-toasts.js), and
 // the two talk through the server (perf-screen.js, SSE perf_screen).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +15,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\
 const PerfSettings = require('../js/perf-settings.js');
 const perfScreen = require('../performance/perf-screen.js');
 const DriverPerf = require('../js/driver-perf.js');
-const AlertToasts = require('../js/alert-toasts.js');
+const AlertToasts = require('../js/alerts/alert-toasts.js');
 const aiSurface = require('../ai/ai-surface.js');
 const { remotePathAllowed } = require('../remote-access.js');
 
@@ -121,7 +121,7 @@ test('the suggestion is one question, and its keys answer it', () => {
 
 test('both surfaces ask through the same card', () => {
   assert.match(read('../js/performance.js'), /XenonBitCard\.ask\(parts, \{ bit: window\.XenonReleaseNotes\.bit \}\)/);
-  assert.match(read('../js/screen-alerts.js'), /XenonBitCard\.ask\(parts, \{\s+bit: window\.XenonReleaseNotes\.bit,\s+lasts: \{ ms: PERF_PROMPT_MS, over: closePerfPrompt \},/);
+  assert.match(read('../js/alerts/screen-alerts.js'), /XenonBitCard\.ask\(parts, \{\s+bit: window\.XenonReleaseNotes\.bit,\s+lasts: \{ ms: PERF_PROMPT_MS, over: closePerfPrompt \},/);
 });
 
 test('both surfaces tell the result with the same toast', () => {
@@ -143,7 +143,7 @@ test('both surfaces tell the result with the same toast', () => {
 });
 
 test('the alerts window shows perf_screen events and posts the answers', () => {
-  const src = read('../js/screen-alerts.js');
+  const src = read('../js/alerts/screen-alerts.js');
   assert.match(src, /perf_screen: perfScreen,/);
   assert.match(src, /if \(d\.activity\) askPerf\(d\.activity\);/);
   assert.match(src, /AlertToasts\.perfPrompt\(activity, ctx\(\), answerPerf\)/);

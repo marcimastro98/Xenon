@@ -93,7 +93,7 @@ const branches = {
 
   'GET /api/vitals/popup': async (_req, _res, { json }, { vitalsNag }) => {
     // The popup Bit is showing now, for the app's alerts window that opened
-    // just to show it and missed the SSE push (js/screen-alerts.js).
+    // just to show it and missed the SSE push (js/alerts/screen-alerts.js).
     json({ ok: true, popup: vitalsNag.current() });
   },
 

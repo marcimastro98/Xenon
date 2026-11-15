@@ -36,7 +36,7 @@ pub enum Kind {
     /// The Ambient scene over everything after the PC sat idle.
     Saver,
     /// The see-through drawing sheet over the whole screen, off Windows
-    /// (server/js/screen-draw-page.js); Windows draws with the capture engine.
+    /// (server/js/alerts/screen-draw-page.js); Windows draws with the capture engine.
     Draw,
     /// The Xenon menu (server/js/screen-menu-page.js): a normal window with a
     /// title bar, on top only of a game, that the user moves and resizes (menu_window.rs).

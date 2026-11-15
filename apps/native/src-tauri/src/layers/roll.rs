@@ -1,7 +1,7 @@
 //! A card closing on the see-through alerts window, on Windows: the card stays
 //! still and opaque in its page while the window's cut rolls shut over it, up
 //! towards the top of the screen. Nothing transparent ever shows inside the cut,
-//! so no bare window can flash where the card was (js/alert-roll.js).
+//! so no bare window can flash where the card was (js/alerts/alert-roll.js).
 
 /// How long a roll lasts. Pinned equal to the page's (test/alert-roll.test.mjs).
 pub const ROLL_MS: u64 = 220;

@@ -36,8 +36,8 @@
   const toasts = new Map(); // id -> { el, timer, remaining, startedAt, dur, island, info }
 
   // Minimal chrome puts notifications on the clock island, one at a time
-  // (js/toast-island.js); everywhere else they stack here.
-  // Only on the Windows alerts window (js/alert-roll.js): null everywhere else.
+  // (js/alerts/toast-island.js); everywhere else they stack here.
+  // Only on the Windows alerts window (js/alerts/alert-roll.js): null everywhere else.
   function rollAway(el) {
     return window.XenonAlertRoll ? window.XenonAlertRoll.away(el) : null;
   }
@@ -129,7 +129,7 @@
   }
 
   // Dynamic-Island coupling: in minimal-topbar chrome a notification takes the
-  // floating clock island's place (js/toast-island.js), and while its glass holds
+  // floating clock island's place (js/alerts/toast-island.js), and while its glass holds
   // it the body is tagged so the pill and the SDK capsule step aside (see
   // TopbarMinimal.css). No-op in the full topbar (there's no pill to replace).
   // Style "none" keeps the rails but drops the capsule (body.topbar-noisland), so

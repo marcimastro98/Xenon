@@ -20,7 +20,7 @@ const INDEX = read('../index.html');
 const SETTINGS = read('../js/settings.js');
 const SERVER = engineSource();
 const MINIMAL = read('../js/topbar-minimal.js');
-const TOAST = read('../js/toast.js');
+const TOAST = read('../js/alerts/toast.js');
 
 const plain = (v) => JSON.parse(JSON.stringify(v));
 

@@ -2,7 +2,7 @@
 // What changed in a patch or a minor, and an update that did not go through.
 // On the dashboard they are a modal over the page; in "widgets only" a card in the
 // corner that opens in place, because nothing there may cover the user's work
-// until they ask (js/screen-release.js). Same rows, same words.
+// until they ask (js/alerts/screen-release.js). Same rows, same words.
 (function () {
   const REPORT_MOOD = 'work';
   const NEWS_MOOD = 'happy';

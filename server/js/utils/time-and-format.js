@@ -99,7 +99,7 @@ function parseAppFavorites(raw) {
 }
 
 // Generic dashboard toast — thin wrapper over the unified XenonToast system
-// (js/toast.js). Used by Genesis / Guardian / ambient / backup notifications.
+// (js/alerts/toast.js). Used by Genesis / Guardian / ambient / backup notifications.
 // The kicker hints the visual type so e.g. a backup reads as "success".
 const _HUB_TOAST_TYPE = { Backup: 'success', Guardian: 'warning', Genesis: 'info', Xenon: 'info' };
 function showHubToast(kicker, title, meta) {

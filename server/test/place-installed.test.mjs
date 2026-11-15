@@ -130,7 +130,7 @@ test('a refusal is said, with the reason', async () => {
 test('the dashboard loads it after the toasts, and the import says what was installed', () => {
   const html = read('index.html');
   const at = html.indexOf('<script src="js/place-installed.js">');
-  assert.ok(at > html.indexOf('<script src="js/toast.js">'));
+  assert.ok(at > html.indexOf('<script src="js/alerts/toast.js">'));
   assert.ok(at > html.indexOf('<script src="js/deck-error-text.js">'));
   const share = read('js/preset-share.js');
   assert.match(share, /widgetIds: tx\.resources\.widgetIds\.slice\(\)/);

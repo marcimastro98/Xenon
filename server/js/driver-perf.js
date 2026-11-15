@@ -10,7 +10,7 @@
 //
 // What the dashboard draws goes to the on-screen alerts window instead
 // (window.PerfModeSurface -> POST /api/performance/screen -> SSE perf_screen,
-// js/screen-alerts.js), and the choices come back the same way. Its saves are
+// js/alerts/screen-alerts.js), and the choices come back the same way. Its saves are
 // the `performance` block only (POST /api/performance/state): this page has no
 // settings.js and never writes anything else.
 (function (root, factory) {

@@ -185,8 +185,8 @@ let hubSettings = {};
     signalShell(signal);
   }
 
-  // Windows only, and never for someone who asked for less motion: js/toast.js
-  // and js/toast-island.js then leave a card to the shell (js/alert-roll.js).
+  // Windows only, and never for someone who asked for less motion: js/alerts/toast.js
+  // and js/alerts/toast-island.js then leave a card to the shell (js/alerts/alert-roll.js).
   const rollsCards = inShell && window.__XENON_ROLL_CARDS__ === true;
   const calm = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   if (rollsCards) {

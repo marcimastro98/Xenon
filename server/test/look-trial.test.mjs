@@ -196,7 +196,7 @@ test('it runs only from the key on its sheet, never by itself', () => {
 });
 
 test('a window that cannot run it does not count its sheet', () => {
-  assert.match(src('js/screen-release.js'), /highlights\.filter\(\(h\) => h\.go !== 'look'\)\.length/);
+  assert.match(src('js/alerts/screen-release.js'), /highlights\.filter\(\(h\) => h\.go !== 'look'\)\.length/);
 });
 
 function meltIn({ transition = true, body = [], reduced = false, fails = false } = {}) {

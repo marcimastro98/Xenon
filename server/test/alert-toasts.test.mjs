@@ -1,12 +1,12 @@
 // The pop-ups the dashboard and the "widgets only" alerts window share
-// (js/alert-toasts.js): what each alert says, and when there is nothing to say.
+// (js/alerts/alert-toasts.js): what each alert says, and when there is nothing to say.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
 
-const A = createRequire(import.meta.url)('../js/alert-toasts.js');
+const A = createRequire(import.meta.url)('../js/alerts/alert-toasts.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // t() returns the key itself when a string is missing (i18n.js).
@@ -91,8 +91,8 @@ test('wiring: the dashboard builds its pop-ups here, not inline', () => {
   assert.match(timer, /AlertToasts\.timerChime\(/);
   assert.match(read('../js/perf-widget.js'), /AlertToasts\.benchmark\(/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('js/toast.js') < html.indexOf('js/alert-toasts.js'));
-  assert.ok(html.indexOf('js/alert-toasts.js') < html.indexOf('js/main.js'));
+  assert.ok(html.indexOf('js/alerts/toast.js') < html.indexOf('js/alerts/alert-toasts.js'));
+  assert.ok(html.indexOf('js/alerts/alert-toasts.js') < html.indexOf('js/main.js'));
 });
 
 test('"why does it stutter?": every server reason is worded, in all 11 languages, numbers filled', () => {
@@ -115,7 +115,7 @@ test('"why does it stutter?": every server reason is worded, in all 11 languages
   assert.equal(A.stutterWhy({ ok: true, reason: 'nope' }, ctx()), null);
   assert.equal(A.stutterLabel('nope', {}, ctx()), '');
   // Both places that show alerts listen for it.
-  assert.match(read('../js/screen-alerts.js'), /stutter_why: unlessMenu\(\(d\) => show\(AlertToasts\.stutterWhy\(d, ctx\(\)\)\)\)/);
+  assert.match(read('../js/alerts/screen-alerts.js'), /stutter_why: unlessMenu\(\(d\) => show\(AlertToasts\.stutterWhy\(d, ctx\(\)\)\)\)/);
   assert.match(read('../js/main.js'), /addEventListener\('stutter_why'[\s\S]{0,120}PerfWidget\.onStutterWhy/);
 });
 

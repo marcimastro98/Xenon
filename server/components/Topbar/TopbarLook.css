@@ -189,7 +189,7 @@ body.topbar-minimal .edge-rail .topbtn.tb-btn-bg:hover {
 :root[data-tb-gap="wide"] body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg:not(.island-seg-lead) { padding-left: 21px; }
 
 /* Where notifications appear. Any choice but "auto" keeps them out of the
-   Minimal capsule (js/toast.js reads the attribute) and in the stack, placed
+   Minimal capsule (js/alerts/toast.js reads the attribute) and in the stack, placed
    here. A phone keeps its own placement. */
 :root[data-tb-toast-place]:not(.is-phone) body .xtoast-stack { top: 74px; }
 :root[data-tb-toast-place="top-left"]:not(.is-phone) .xtoast-stack { left: 16px; right: auto; transform: none; }

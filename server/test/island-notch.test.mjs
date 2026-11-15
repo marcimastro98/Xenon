@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const N = require('../js/island-notch.js');
+const N = require('../js/alerts/island-notch.js');
 
 // A 600px-wide tile item with a 7px gutter and 18px corners; the pill sits in
 // its middle, 44px tall, ending 46px below the item's top.

@@ -150,13 +150,13 @@ test('the dashboard and the alerts window show the reminder; neither decides it'
   const cal = read('../js/calendar.js');
   assert.doesNotMatch(cal, /function checkReminders|lightingNotify\('reminder'\)/);
   assert.match(cal, /AlertToasts\.reminder\(d, \{ t \}/);
-  const alerts = read('../js/screen-alerts.js');
+  const alerts = read('../js/alerts/screen-alerts.js');
   assert.match(alerts, /calendar_reminder: reminder,/);
   assert.match(alerts, /if \(notifSoundsOn\(\)\) postChime\('reminder'\);/);
 });
 
 test('the reminder card says the same on both', () => {
-  const AlertToasts = require('../js/alert-toasts.js');
+  const AlertToasts = require('../js/alerts/alert-toasts.js');
   const t = (k) => ({ reminder: 'Promemoria', ph_title: 'Titolo evento' })[k] || k;
   const card = AlertToasts.reminder({ title: 'Dentista', startsAt: '2026-10-27T11:00:00Z' }, { t }, (d) => 'mar ' + d.getUTCHours());
   assert.deepEqual(card, { type: 'reminder', kicker: 'Promemoria', title: 'Dentista', message: 'mar 11' });

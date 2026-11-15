@@ -1222,7 +1222,7 @@ const CAPABILITIES = [
       },
     },
   },
-  // The pop-ups of "widgets only" (js/screen-alerts.js). A Settings switch, no key.
+  // The pop-ups of "widgets only" (js/alerts/screen-alerts.js). A Settings switch, no key.
   {
     type: 'screenAlerts', group: 'xenon', hidden: true, labelKey: 'deck_act_screenAlerts',
     params: [{ name: 'alerts', kind: 'select', options: ['on', 'off'] }],

@@ -56,7 +56,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     // both sides and reads a default per id, so an id present on one side only
     // is a crash on the other.
     phone: Object.freeze({ x: 16, y: 64, w: 8, h: 12, visible: false, page: 'dashboard' }),
-    // The Xenon menu on the main screen, from the dashboard (js/screen-tile.js).
+    // The Xenon menu on the main screen, from the dashboard (js/alerts/screen-tile.js).
     screen:   Object.freeze({ x: 16, y: 76, w: 8, h: 12, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),

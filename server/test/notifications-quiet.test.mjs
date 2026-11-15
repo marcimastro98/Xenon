@@ -18,7 +18,7 @@ import { engineSource } from './engine-source.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = engineSource();
 const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');
-const TOAST = readFileSync(join(ROOT, 'js', 'toast.js'), 'utf8');
+const TOAST = readFileSync(join(ROOT, 'js', 'alerts/toast.js'), 'utf8');
 
 // Both normalizers are plain functions over a plain object, so run the real
 // source rather than asserting on its text.

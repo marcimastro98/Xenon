@@ -9,7 +9,7 @@ const LayerSee = require('../js/layer-see.js');
 const { ANCHOR_CORNERS, k, run, cornerKey, cornerOf, choiceRow, toggleRow } = require('./menu-rows.js');
 const { SIZE_PX } = require('../capabilities/layer-anchor.js');
 const { widgetWhenRow } = require('./menu-when.js');
-const { screenName } = require('../js/screen-name.js');
+const { screenName } = require('../js/alerts/screen-name.js');
 const { widgetKeyRows } = require('./menu-widget-keys.js');
 const { optionRows, fitsItself } = require('./menu-widget-options.js');
 

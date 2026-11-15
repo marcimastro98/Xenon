@@ -1,4 +1,4 @@
-// Interrupt arbiter (js/interrupt-queue.js) — the shared busy() test, the
+// Interrupt arbiter (js/alerts/interrupt-queue.js) — the shared busy() test, the
 // priority-ordered single poller and the cross-channel daily budget that keep
 // modals from stacking on top of each other.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const IQ = require('../js/interrupt-queue.js');
+const IQ = require('../js/alerts/interrupt-queue.js');
 
 // ── Minimal stubs: enough surface for busy(), nothing more ──────────────────
 function makeStorage(seed) {

@@ -43,7 +43,7 @@ body.topbar-minimal .topbar-mini > .island-seg-hidden { display: none !important
 
 /* ── Notification island ──────────────────────────────────────
    A heads-up notification takes the clock island's place (Apple Dynamic-Island).
-   js/toast-island.js first fades the pill's contents (.mini-yield), then puts a
+   js/alerts/toast-island.js first fades the pill's contents (.mini-yield), then puts a
    glass of the pill's exact box and look in its place and grows it into the card;
    the pill steps aside in that same frame (body.xtoast-island, rule below) and
    comes back in the frame the glass has shrunk onto it again. The glass and the

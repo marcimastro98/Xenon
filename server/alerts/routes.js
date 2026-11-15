@@ -16,7 +16,7 @@ const branches = {
 
   'GET /screen-alerts': async (_req, _res, { sendPage }) => {
     // "Widgets only": the small click-through window that shows the dashboard's
-    // pop-ups on the main screen (js/screen-alerts.js). Denied to a paired device
+    // pop-ups on the main screen (js/alerts/screen-alerts.js). Denied to a paired device
     // in remote-access.js; loopback only, like '/'. Bit's voice panel comes
     // from index.html (screen-alerts-page.js).
     const [page, dashboard] = await Promise.all([
@@ -27,7 +27,7 @@ const branches = {
   },
 
   'GET /draw': async (_req, _res, { sendPage }) => {
-    // The drawing sheet on macOS and Linux (js/screen-draw-page.js), shown by
+    // The drawing sheet on macOS and Linux (js/alerts/screen-draw-page.js), shown by
     // the shell while drawing is on (screen-draw-shell.js). Denied to a paired
     // device in remote-access.js.
     await sendPage(await fs.promises.readFile(path.join(SERVER_DIR, 'draw.html'), 'utf8'));

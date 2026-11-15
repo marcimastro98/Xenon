@@ -346,18 +346,10 @@
         "server/alerts/**",
         "server/screen-alerts.html",
         "server/draw.html",
-        "server/js/screen-alerts.js",
-        "server/js/screen-draw-*.js",
-        "server/js/screen-release.js",
-        "server/js/screen-tile.js",
-        "server/js/screen-name.js",
-        "server/js/alert-*.js",
-        "server/js/toast*.js",
-        "server/js/island-notch.js",
-        "server/js/interrupt-queue.js",
         "server/components/ScreenAlerts/**",
         "server/components/ScreenDraw/**",
-        "server/components/Toast/**"
+        "server/components/Toast/**",
+        "server/js/alerts/**"
       ]
     },
     {

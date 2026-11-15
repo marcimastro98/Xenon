@@ -7,7 +7,7 @@
 //   Windows  vitals-nag.ps1: Bit's own popup on one or every monitor, and
 //            "show desktop" (Shell.Application MinimizeAll).
 //   macOS    the popup goes to the Xenon app's on-screen alerts window on the
-//            main screen (js/screen-alerts.js), else a Notification Center
+//            main screen (js/alerts/screen-alerts.js), else a Notification Center
 //            banner; hiding = hide the other apps (darwin-collectors.js).
 //   Linux    the same popup route, else notify-send; hiding = show desktop on
 //            X11 and on KDE Plasma (linux-collectors.js). GNOME on Wayland

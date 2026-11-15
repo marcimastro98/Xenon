@@ -11,9 +11,9 @@ const PLAN = [
   '## Context',
   'Why we do it.',
   '### 1. Island shows one at a time',
-  'Edit `morphIsland` in server/js/island-notch.js.',
+  'Edit `morphIsland` in server/js/alerts/island-notch.js.',
   '### 2. Counter badge',
-  'Update server/js/toast.js and the css.',
+  'Update server/js/alerts/toast.js and the css.',
   '### 3. Verify',
   'Run npm test.',
 ].join('\n');
@@ -42,11 +42,11 @@ test('a plan with no steps has no phases', () => {
 
 test('an edit of a phase\'s file moves the roadmap there, and never back', () => {
   const p = parsePhases(PLAN);
-  let at = advance(0, p, [{ tool: 'Read', detail: 'server/js/toast.js', at: 10 }], 5);
+  let at = advance(0, p, [{ tool: 'Read', detail: 'server/js/alerts/toast.js', at: 10 }], 5);
   assert.equal(at, 0);                                            // reading is not working
-  at = advance(at, p, [{ tool: 'Edit', detail: 'C:/x/server/js/toast.js', at: 20 }], 5);
+  at = advance(at, p, [{ tool: 'Edit', detail: 'C:/x/server/js/alerts/toast.js', at: 20 }], 5);
   assert.equal(at, 1);
-  at = advance(at, p, [{ tool: 'Edit', detail: 'C:/x/server/js/island-notch.js', at: 30 }], 5);
+  at = advance(at, p, [{ tool: 'Edit', detail: 'C:/x/server/js/alerts/island-notch.js', at: 30 }], 5);
   assert.equal(at, 1);                                            // phase 0's file again: stays
   assert.equal(advance(0, p, [{ tool: 'Edit', detail: 'toast.js', at: 1 }], 5), 0);   // before the plan
 });

@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { FUNCTIONS } = require('../menu/menu-functions.js');
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const TOAST = read('js/toast.js');
+const TOAST = read('js/alerts/toast.js');
 const PICKER = readFileSync(new URL('../../apps/capture/src/win/picker.rs', import.meta.url), 'utf8');
 
 const tile = (id) => FUNCTIONS.find((f) => f.id === id);

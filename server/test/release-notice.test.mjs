@@ -240,9 +240,9 @@ test('a sheet that leads somewhere closes the stage and goes, on both surfaces',
   assert.match(stage, /leave: \(target\) => \{\s*close\(\);/, 'the stage is gone first: it covers the Store');
   const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
   assert.match(update, /openStore: openStoreFor/);
-  const screen = readFileSync(new URL('../js/screen-release.js', import.meta.url), 'utf8');
+  const screen = readFileSync(new URL('../js/alerts/screen-release.js', import.meta.url), 'utf8');
   assert.match(screen, /openStore: openDashboard/);
-  const alerts = readFileSync(new URL('../js/screen-alerts.js', import.meta.url), 'utf8');
+  const alerts = readFileSync(new URL('../js/alerts/screen-alerts.js', import.meta.url), 'utf8');
   assert.match(alerts, /window\.ScreenRelease\.start\(\{[\s\S]*openDashboard,/);
 });
 
@@ -262,7 +262,7 @@ test('a video plays only on the sheet it belongs to, and not when things stand s
 });
 
 test('every string the two surfaces ask for exists in all 11 languages', () => {
-  const sources = ['update.js', 'whats-new.js', 'release-notes-card.js', 'screen-release.js']
+  const sources = ['update.js', 'whats-new.js', 'release-notes-card.js', 'alerts/screen-release.js']
     .map((f) => readFileSync(new URL(`../js/${f}`, import.meta.url), 'utf8')).join('\n');
   const keys = new Set([...sources.matchAll(/['"]((?:wn|rn)_[a-z0-9_]+)['"]/g)].map((m) => m[1]));
   assert.ok(keys.size > 5, 'the string keys must still be written literally');
@@ -283,7 +283,7 @@ test('Bit can open What\'s New wherever the page that draws it runs', () => {
   assert.equal(surface.SHEET_OK.has('open_whats_new'), true);
   // Widgets only: the alerts window has its own stage, so Bit does not ask for the dashboard.
   assert.equal(surface.clientActionRefusal('open_whats_new', 'screen', true), null);
-  const screen = readFileSync(new URL('../js/screen-release.js', import.meta.url), 'utf8');
+  const screen = readFileSync(new URL('../js/alerts/screen-release.js', import.meta.url), 'utf8');
   assert.match(screen, /window.XenonWhatsNew = { reopen: made.reopen }/);
 });
 
@@ -318,7 +318,7 @@ test('a new install sees the major first, then the notes of the version it start
   const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
   assert.ok(!settings.includes('suppressForFreshInstall'));
   assert.ok(SERVER.includes('json({ ...(await loadWhatsNew()), version: APP_VERSION })'), '/whatsnew hides nothing from a new install');
-  const queue = readFileSync(new URL('../js/interrupt-queue.js', import.meta.url), 'utf8');
+  const queue = readFileSync(new URL('../js/alerts/interrupt-queue.js', import.meta.url), 'utf8');
   assert.ok(queue.includes("'.sp-overlay'"), 'the first-run question holds it back');
 });
 

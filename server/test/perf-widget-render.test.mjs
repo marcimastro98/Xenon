@@ -52,7 +52,7 @@ function mount({ seed = { active: false }, where = 'pager-page', layer = false }
     clearTimeout: (id) => timers.delete(id),
     isLayerPage: () => layer,
     XenonToast: { show: (o) => toasts.push(o) },
-    AlertToasts: createRequire(import.meta.url)('../js/alert-toasts.js'),
+    AlertToasts: createRequire(import.meta.url)('../js/alerts/alert-toasts.js'),
     PerfHud: createRequire(import.meta.url)('../js/perf-hud.js'),
     makeEl: (tag, cls, text) => {
       const n = document.createElement(tag);

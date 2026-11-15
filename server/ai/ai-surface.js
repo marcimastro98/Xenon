@@ -10,7 +10,7 @@
 
 // Client actions that still mean something on the screen surface: closing the
 // panel is Bit's own, the refreshes have nothing on screen to refresh, and What's
-// New has its own stage there (js/screen-release.js).
+// New has its own stage there (js/alerts/screen-release.js).
 const SCREEN_OK = new Set(['close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'open_whats_new']);
 
 // The screen's list, plus what the page in the menu's window can carry out.

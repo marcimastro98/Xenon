@@ -1,6 +1,6 @@
 'use strict';
 // What a person still has to be told after an update, and nothing else: no DOM,
-// no storage, so both surfaces (js/update.js, js/screen-release.js) ask the same
+// no storage, so both surfaces (js/update.js, js/alerts/screen-release.js) ask the same
 // question and the rules can be tested in Node.
 //
 // A major stays until it is closed: `whatsNewSeen` holds the id of the last one

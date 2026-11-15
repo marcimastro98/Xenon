@@ -1067,7 +1067,7 @@
   // A toast does not hide a tile, so `visibility` never fires for one — but it
   // does cover part of the screen, and an interactive widget (a game, a
   // teleprompter) usually wants to pause while one is up and carry on after.
-  // js/toast.js calls this whenever the number of visible toasts crosses zero.
+  // js/alerts/toast.js calls this whenever the number of visible toasts crosses zero.
   //
   // The message carries NO content, and that is the whole design: Windows
   // notification mirroring puts real message text in those cards, and a

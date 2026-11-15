@@ -367,7 +367,7 @@ test('the tile keeps its own card: the sheet\'s parts stay in the sheet', () => 
 test('nothing lands over a request, for either agent', () => {
   const idle = /const OVERLAY_SELECTOR = '([^']+)'/.exec(read('../js/ambient-mode.js'))[1].split(/,\s*/);
   assert.ok(idle.includes('.ask-overlay'), 'a screensaver would start over the request');
-  const queue = read('../js/interrupt-queue.js');
+  const queue = read('../js/alerts/interrupt-queue.js');
   assert.match(queue, /^\s*'\.ask-overlay',$/m, 'a promo card would draw itself over the request');
 });
 

@@ -262,7 +262,7 @@ test('Deck appearance and the mixer hold the keyboard too, also in the Deck popu
 });
 
 test('promos and the screensaver wait for all four windows', () => {
-  for (const file of ['../js/ambient-mode.js', '../js/interrupt-queue.js']) {
+  for (const file of ['../js/ambient-mode.js', '../js/alerts/interrupt-queue.js']) {
     const src = read(file);
     for (const name of ['.deck-ed-backdrop', '.deck-mix-backdrop', '.deck-style-modal']) {
       assert.ok(src.includes(name), `${file} lists ${name}`);

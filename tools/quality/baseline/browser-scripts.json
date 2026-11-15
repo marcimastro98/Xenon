@@ -41,7 +41,7 @@
     "server/js/performance-actions.js": 3,
     "server/js/audio/picker.js": 6,
     "server/js/scene-feed.js": 1,
-    "server/js/screen-alerts.js": 1,
+    "server/js/alerts/screen-alerts.js": 1,
     "server/js/screen-scene.js": 4,
     "server/js/sdk-service.js": 1,
     "server/js/settings.js": 739,

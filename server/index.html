@@ -865,7 +865,7 @@
         <div class="perf-widget-mount"></div>
       </section>
 
-      <!-- Main screen: the Xenon menu's quick actions, widgets and state (js/screen-tile.js, GET /xenon-menu).
+      <!-- Main screen: the Xenon menu's quick actions, widgets and state (js/alerts/screen-tile.js, GET /xenon-menu).
            "The whole menu" opens the same menu as a panel (js/xenon-menu-panel.js). -->
       <section class="panel screen-panel dashboard-widget" data-dashboard-widget="screen" data-dashboard-size="normal" data-dashboard-order="41" data-dashboard-hidden="true">
         <div class="screen-tile-mount"></div>
@@ -1847,7 +1847,7 @@
             <span class="settings-hint" data-i18n="settings_notif_popups_hint">Mostra un toast quando arriva una notifica; se spento restano solo nel widget Notifiche</span>
           </span>
         </label>
-        <!-- "Widgets only" pop-ups (js/screen-alerts.js). Native app with widget layers only. -->
+        <!-- "Widgets only" pop-ups (js/alerts/screen-alerts.js). Native app with widget layers only. -->
         <label class="settings-toggle-row full" id="settings-notif-onscreen-row" hidden>
           <input class="settings-check" id="settings-notif-onscreen" type="checkbox" onchange="updateNotifications('onScreen', this.checked)">
           <span class="settings-label-line">
@@ -4898,7 +4898,7 @@
   </div>
 </div>
 
-<!-- Notifications render into a single stacked container created by js/toast.js
+<!-- Notifications render into a single stacked container created by js/alerts/toast.js
      (XenonToast). The old static #event-toast was replaced by that system. -->
 
 <!-- Game Companion (opt-in, Settings → Funzioni AI): pill + overlay shown while gaming -->
@@ -4974,12 +4974,12 @@
 <script src="js/utils/time-and-format.js"></script>
 <script src="js/utils/stat-spark.js"></script>
 <script src="js/utils.js"></script>
-<script src="js/toast-island.js"></script>
-<script src="js/toast.js"></script>
-<script src="js/alert-toasts.js"></script>
+<script src="js/alerts/toast-island.js"></script>
+<script src="js/alerts/toast.js"></script>
+<script src="js/alerts/alert-toasts.js"></script>
 <!-- Interrupt arbiter: owns busy()/whenIdle()/the daily budget for every modal
      channel. Must load before any channel that waits its turn (catalog-drop). -->
-<script src="js/interrupt-queue.js"></script>
+<script src="js/alerts/interrupt-queue.js"></script>
 <!-- Bit's messages: what every channel files instead of popping up. -->
 <script src="js/bit-message-card/pieces.js"></script>
 <script src="js/bit-message-card.js"></script>
@@ -5177,7 +5177,7 @@
 <script src="js/tile-style-material-pane.js"></script>
 <script src="js/tile-style-editor.js"></script>
 <script src="js/tile-dress.js"></script>
-<script src="js/island-notch.js"></script>
+<script src="js/alerts/island-notch.js"></script>
 <script src="js/topbar-minimal.js"></script>
 <script src="js/topbar-look-settings/rows.js"></script>
 <script src="js/topbar-look-settings.js"></script>
@@ -5473,7 +5473,7 @@
 <script src="js/unifi-widget/settings-sections.js"></script>
 <script src="js/unifi-widget.js"></script>
 <script src="js/surface-picker.js"></script>
-<script src="js/screen-name.js"></script>
+<script src="js/alerts/screen-name.js"></script>
 <script src="js/xenon-menu-map.js"></script>
 <script src="js/view-melt.js"></script>
 <script src="js/usage-ask-plan.js"></script>
@@ -5542,7 +5542,7 @@
 <script src="js/xenon-menu.js"></script>
 <script src="js/menu-gamepad.js"></script>
 <script src="js/xenon-menu-panel.js"></script>
-<script src="js/screen-tile.js"></script>
+<script src="js/alerts/screen-tile.js"></script>
 <script src="js/tile-play.js"></script>
 <script src="js/main.js"></script>
 <!-- Installable app: registers the service worker, and only where that means

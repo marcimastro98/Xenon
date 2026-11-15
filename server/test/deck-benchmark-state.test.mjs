@@ -50,7 +50,7 @@ test('the dashboard lights the key on start, clears it on end, toasts only real 
   assert.deepEqual(JSON.parse(JSON.stringify(m.states)), [{ benchmarkRunning: true }, { benchmarkRunning: false }, { benchmarkRunning: true }]);
   assert.equal(m.toasts.length, 2, 'the connect seed lights the key without a toast');
   // The seed never toasts: the wording (alert-toasts.js) says nothing for it.
-  assert.equal(require('../js/alert-toasts.js').benchmark({ running: true, game: 'g', seed: true }, {}), null);
+  assert.equal(require('../js/alerts/alert-toasts.js').benchmark({ running: true, game: 'g', seed: true }, {}), null);
   assert.match(read('../js/perf-widget.js'), /const toast = window\.AlertToasts\.benchmark\(d, \{ t \}, revealBenchmark\);\n\s+if \(toast\) window\.XenonToast\.show\(toast\);/);
 });
 

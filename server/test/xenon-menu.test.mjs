@@ -645,11 +645,11 @@ test('one interface, two places: the same sections and rows, only screen-only ro
   }
   // Both places draw with the one view, never a copy of their own.
   for (const f of ['js/screen-menu-page.js', 'js/xenon-menu-panel.js']) assert.match(src(f), /XenonMenuView\.create\(/, f);
-  assert.match(src('js/screen-tile.js'), /\/xenon-menu'/, 'the tile reads the same rows');
+  assert.match(src('js/alerts/screen-tile.js'), /\/xenon-menu'/, 'the tile reads the same rows');
 });
 
 test('the tile: no "0 on screen" next to "No widgets yet", labels break between words', () => {
-  assert.match(src('js/screen-tile.js'), /placed\.length \? V\.fill\(t\('xmenu_widgets_count'\)/);
+  assert.match(src('js/alerts/screen-tile.js'), /placed\.length \? V\.fill\(t\('xmenu_widgets_count'\)/);
   const css = src('components/XenonMenu/XenonMenu.css');
   const label = css.match(/\.scr-quick-label \{[^}]*\}/)[0];
   assert.doesNotMatch(label, /overflow-wrap: anywhere/, '"Screensh/ot" in a narrow tile');

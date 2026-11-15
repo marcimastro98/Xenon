@@ -249,7 +249,7 @@ async function _hydrateHubSettingsImpl() {
     // nothing in either surface that needs a decoded image.
     const runFirstRunSurfaces = () => {
       // A fresh install is told what's new too, after this question: the What's
-      // New waits for any first-run overlay (js/interrupt-queue.js).
+      // New waits for any first-run overlay (js/alerts/interrupt-queue.js).
       const cards = window.XenonStartupCards;
       const returning = !!window.XenonReleaseNotice && !!cards && window.XenonReleaseNotice.returningUser({
         asked: getSurfaceChoice().asked, notesSeen: cards.releaseNotesSeen(), tourSeen: getOnboardingSeen(),

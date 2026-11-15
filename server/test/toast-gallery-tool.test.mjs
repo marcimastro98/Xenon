@@ -9,7 +9,7 @@ import { shotList } from '../../tools/toast-gallery/shoot.mjs';
 
 test('the gallery page at the root, the app files under it', () => {
   assert.equal(path.basename(resolveFile('/')), 'gallery.html');
-  assert.equal(resolveFile('/js/toast.js?x=1'), path.join(SERVER_DIR, 'js', 'toast.js'));
+  assert.equal(resolveFile('/js/alerts/toast.js?x=1'), path.join(SERVER_DIR, 'js', 'alerts', 'toast.js'));
 });
 
 test('nothing outside server/, nothing from the data folder', () => {
@@ -24,8 +24,8 @@ test('it really serves the page and the toast script, and 404s the rest', async 
     const base = `http://127.0.0.1:${server.address().port}`;
     const page = await fetch(base + '/');
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /<script src="js\/toast\.js"><\/script>/);
-    const js = await fetch(base + '/js/toast.js');
+    assert.match(await page.text(), /<script src="js\/alerts\/toast\.js"><\/script>/);
+    const js = await fetch(base + '/js/alerts/toast.js');
     assert.equal(js.headers.get('content-type'), 'text/javascript');
     assert.equal((await fetch(base + '/data/settings.json')).status, 404);
     assert.equal((await fetch(base + '/nope.css')).status, 404);

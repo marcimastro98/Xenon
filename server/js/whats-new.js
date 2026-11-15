@@ -1,7 +1,7 @@
 'use strict';
 // What's New of a major version: full screen, one coloured sheet per thing, with
 // Bit walking the stops of the band at the bottom. js/update.js opens it on the
-// dashboard, js/screen-release.js in the alerts window of "widgets only".
+// dashboard, js/alerts/screen-release.js in the alerts window of "widgets only".
 //
 // Bit is mounted straight on the player, like the buy sheet: BitApp holds a Bit
 // under overlay-frozen, which is the state this page is in. Nothing here runs

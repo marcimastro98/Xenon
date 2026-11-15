@@ -1,4 +1,4 @@
-// How a notification leaves the island (js/toast-island.js). Reported 25 Oct
+// How a notification leaves the island (js/alerts/toast-island.js). Reported 25 Oct
 // 2026: as a card closed, the glass always shrank into the clock pill's shape,
 // even when the pill was under Settings, so an empty capsule floated over the
 // overlay and blinked out; with the pill on screen the glass still landed empty
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
-const SRC = readFileSync(new URL('../js/toast-island.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/alerts/toast-island.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/Toast/Toast.css', import.meta.url), 'utf8');
 const PILL_CSS = readFileSync(new URL('../components/TopbarMinimal/TopbarMinimal.css', import.meta.url), 'utf8');
 

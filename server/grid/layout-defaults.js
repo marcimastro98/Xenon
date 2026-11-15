@@ -81,7 +81,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     // Tall rather than wide: it is a list of people, and the keypad wants the
     // height. Hidden until the user adds it, like every opt-in widget.
     phone: Object.freeze({ x: 16, y: 64, w: 8, h: 12, visible: false, page: 'dashboard' }),
-    // The Xenon menu on the main screen, from the dashboard (js/screen-tile.js).
+    // The Xenon menu on the main screen, from the dashboard (js/alerts/screen-tile.js).
     screen:   Object.freeze({ x: 16, y: 76, w: 8, h: 12, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),

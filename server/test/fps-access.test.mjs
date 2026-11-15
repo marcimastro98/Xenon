@@ -183,7 +183,7 @@ test('the pop-up is said in a game, once per version and per case, and remembere
 });
 
 test('the pop-up reads the same on the dashboard and in "widgets only"', () => {
-  const AlertToasts = require('../js/alert-toasts.js');
+  const AlertToasts = require('../js/alerts/alert-toasts.js');
   const ctx = { t: (k, f) => f };
   const s = AlertToasts.fpsAccess({ game: 'Game.exe', access: 'signin' }, ctx);
   assert.equal(s.type, 'warning', 'an info card is silenced in a game');
@@ -194,7 +194,7 @@ test('the pop-up reads the same on the dashboard and in "widgets only"', () => {
   assert.equal(AlertToasts.fpsAccess(null, ctx), null);
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   assert.match(main, /addEventListener\('fps_access'/);
-  const screen = readFileSync(new URL('../js/screen-alerts.js', import.meta.url), 'utf8');
+  const screen = readFileSync(new URL('../js/alerts/screen-alerts.js', import.meta.url), 'utf8');
   assert.match(screen, /fps_access: \(d\) => \{ if \(onScreen\(\)\) show\(AlertToasts\.fpsAccess/);
   const server = engineSource();
   assert.match(server, /_fpsNotice\.onTick\(game\)/);

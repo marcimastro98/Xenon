@@ -165,7 +165,7 @@
 .timer-delete-btn { color: var(--dim-text); }
 .timer-delete-btn:hover { background: color-mix(in srgb, var(--color-danger), transparent 82%); color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger), transparent 70%); }
 
-/* Timer completion now uses the unified XenonToast system (js/toast.js,
+/* Timer completion now uses the unified XenonToast system (js/alerts/toast.js,
    components/Toast/Toast.css) — the old .timer-done-toast pill was removed. */
 
 /* Standalone Timer widget (extracted from the Agenda hub) */

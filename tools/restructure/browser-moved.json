@@ -31,6 +31,18 @@
     {"from":"server/js/screen-companion.js","to":"server/js/ai/screen-companion.js"},
     {"from":"server/js/sheet-chat.js","to":"server/js/ai/sheet-chat.js"},
     {"from":"server/js/sheet-page.js","to":"server/js/ai/sheet-page.js"},
-    {"from":"server/js/sheet-usage.js","to":"server/js/ai/sheet-usage.js"}
+    {"from":"server/js/sheet-usage.js","to":"server/js/ai/sheet-usage.js"},
+    {"from":"server/js/alert-roll.js","to":"server/js/alerts/alert-roll.js"},
+    {"from":"server/js/alert-toasts.js","to":"server/js/alerts/alert-toasts.js"},
+    {"from":"server/js/interrupt-queue.js","to":"server/js/alerts/interrupt-queue.js"},
+    {"from":"server/js/island-notch.js","to":"server/js/alerts/island-notch.js"},
+    {"from":"server/js/screen-alerts.js","to":"server/js/alerts/screen-alerts.js"},
+    {"from":"server/js/screen-draw-model.js","to":"server/js/alerts/screen-draw-model.js"},
+    {"from":"server/js/screen-draw-page.js","to":"server/js/alerts/screen-draw-page.js"},
+    {"from":"server/js/screen-name.js","to":"server/js/alerts/screen-name.js"},
+    {"from":"server/js/screen-release.js","to":"server/js/alerts/screen-release.js"},
+    {"from":"server/js/screen-tile.js","to":"server/js/alerts/screen-tile.js"},
+    {"from":"server/js/toast-island.js","to":"server/js/alerts/toast-island.js"},
+    {"from":"server/js/toast.js","to":"server/js/alerts/toast.js"}
   ]
 }

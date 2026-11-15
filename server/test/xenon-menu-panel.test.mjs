@@ -104,5 +104,5 @@ test('a closed menu lets go of the keyboard', async () => {
 
 test('nothing starts over the menu: a screensaver, a promo', () => {
   assert.match(read('js/ambient-mode.js'), /const OVERLAY_SELECTOR = '[^']*\.xm-scrim/);
-  assert.match(read('js/interrupt-queue.js'), /'\.xm-scrim',/);
+  assert.match(read('js/alerts/interrupt-queue.js'), /'\.xm-scrim',/);
 });

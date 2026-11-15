@@ -9,7 +9,7 @@ import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 
-const AlertToasts = createRequire(import.meta.url)('../js/alert-toasts.js');
+const AlertToasts = createRequire(import.meta.url)('../js/alerts/alert-toasts.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const GUARD = "typeof isLayerPage === 'function' && isLayerPage()";
 
@@ -68,7 +68,7 @@ test('toasts, announcements and update notices stay on the main dashboard', () =
     return src.slice(i, i + 400);
   };
   // A sheet is one screen somebody is using: its toasts answer them.
-  assert.ok(at('toast.js', '  function show(opts) {').includes('if (' + GUARD + ' && !isSheetPage()) return 0;'));
+  assert.ok(at('alerts/toast.js', '  function show(opts) {').includes('if (' + GUARD + ' && !isSheetPage()) return 0;'));
   assert.ok(at('update.js', '  async function boot() {').includes('if (' + GUARD + ') return;'));
   assert.ok(at('support-appeal.js', '  function init() {').includes('if (' + GUARD + ') return;'));
   // The guard sits before the first look, so no check is ever scheduled. The alerts

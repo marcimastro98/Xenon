@@ -37,7 +37,7 @@ body.topbar-minimal.xe-has-ticker.xe-ticker-bottom.layout-editing:not([data-pane
 /* The grid keeps the FULL viewport height: tiles may sit level with the clock
    island, using the whole top band at the pill's sides. A tile that actually
    lies UNDER the pill is not shrunk: the island bites into its top edge, like a
-   notch, and the tile wraps around it (shape and measuring in js/island-notch.js
+   notch, and the tile wraps around it (shape and measuring in js/alerts/island-notch.js
    and js/topbar-minimal.js, recomputed on every fit pass and every pill resize).
      - the item is clipped to the cutout (the clip runs 48px past the tile so
        its drop shadow survives);
@@ -93,7 +93,7 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-s
   transition: border-top-width var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
 }
 /* A group whose tabs fit beside the cutout keeps them at the tile top
-   (.island-beside, js/island-notch.js besideBar): the strip moves sideways out of
+   (.island-beside, js/alerts/island-notch.js besideBar): the strip moves sideways out of
    the cutout if it has to, and only the open member starts below it. Without
    room the whole tile starts under the cutout, as above. */
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .tabgroup > .tabgroup-bar {

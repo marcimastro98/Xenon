@@ -552,7 +552,7 @@
 
   // ── Island notch ─────────────────────────────────────────────────────────
   // A tile under the island keeps its full height and gets a cutout around the
-  // pill (js/island-notch.js has the shape). Three things per tile:
+  // pill (js/alerts/island-notch.js has the shape). Three things per tile:
   //   --island-clear  the old whole-content inset, still used while EDITING, where
   //                   the edit bar and handles sit at the tile top;
   //   --island-inset  how far the content starts below the tile top (run mode);
@@ -770,7 +770,7 @@
 
   // Where the island lives, in viewport px: the SDK capsule when a widget has
   // taken it, else the pill. The cutouts wrap this box only: a notification
-  // (js/toast-island.js) grows out of it and floats OVER the tiles for its few
+  // (js/alerts/toast-island.js) grows out of it and floats OVER the tiles for its few
   // seconds, so the tiles never change shape for one. The capsule is placed from
   // its layout size and anchor, so it is never read mid-transform. The pill IS
   // mid-transform while it returns from receding (a scale), so then its last box
@@ -1024,7 +1024,7 @@
       });
       // While a notification is out the pill is hidden, so a cut around it would
       // wrap nothing: it closes into its centre and the tiles are whole again
-      // (body.xtoast-fold, js/toast.js; it lifts as the card heads home). The inset
+      // (body.xtoast-fold, js/alerts/toast.js; it lifts as the card heads home). The inset
       // stays, so their content does not move for a notification.
       const folded = document.body.classList.contains('xtoast-fold') && !editing;
       const animate = motionOk();

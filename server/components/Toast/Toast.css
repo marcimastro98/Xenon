@@ -123,7 +123,7 @@
   transition-duration: 0.56s, 0.22s, var(--xt-press-ms);
 }
 
-/* ── Notification island (minimal chrome, js/toast-island.js) ─────────────────
+/* ── Notification island (minimal chrome, js/alerts/toast-island.js) ─────────────────
    One glass surface that changes shape: it starts as the clock pill, becomes the
    card (or the next card, or the list) and ends as the pill again. .xisland-bg is
    that shape: the script animates its left/top/width/height/border-radius, never

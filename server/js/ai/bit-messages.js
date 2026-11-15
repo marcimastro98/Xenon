@@ -6,7 +6,7 @@
 // sparks-mail.js, store-update-mail.js, support-card.js, share-nudge.js.
 //
 // It runs on the dashboard and on a phone, and in the alerts window of "widgets
-// only" (js/screen-alerts.js starts it there). A layer page or a sheet shows
+// only" (js/alerts/screen-alerts.js starts it there). A layer page or a sheet shows
 // nothing, but the chat there still reads what Bit said and runs its buttons.
 //
 // Why a card that waits, and never a dialog on arrival: interruptions cost least at
