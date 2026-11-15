@@ -49,6 +49,8 @@ export function wordsOf(text, tokens, item) {
       else if (before === 'fn') words.bound.add(w);
       else if (before === ':' && beforeTwo === ':') words.pathed.add(w);
       else if (doubleColon || c.str(after) === '(' || c.str(after) === '!') words.used.add(w);
+      // (`*mut c_void`, `*const c_char`: what a raw pointer points at is a type, not a name being declared)
+      else if ((before === 'mut' || before === 'const') && beforeTwo === '*') words.used.add(w);
       else if (/^[A-Z]/.test(w)) bare.add(w);
       else if (k < patternEnd) words.bound.add(w);
       else if (colon || BINDERS.has(before) || (before === '|' && beforeTwo !== '|')) words.bound.add(w);
@@ -159,6 +161,7 @@ export const TRAIT_METHODS = {
   FromStr: ['from_str'], Hasher: ['finish', 'write_u64', 'write'], Hash: ['hash'],
   Interface: ['cast', 'as_raw', 'into_raw', 'from_raw', 'from_raw_borrowed'],
   Any: ['type_id', 'downcast_ref', 'downcast'],
+  MainThreadOnly: ['alloc', 'mtm'],
 };
 
 /**

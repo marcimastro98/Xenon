@@ -180,6 +180,9 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
         // Under the cfg of the items that call it: a trait only a Linux function needs is unused elsewhere.
         const callers = commonCfg(moving(f).filter(({ i }) => callsTrait(leaf.name, words[i], plan.traits)).map((m) => m.item.cfg));
         if (calls !== false) out.push({ cfg: union(cfg, calls ? callers.filter((line) => !gate.get(f).includes(line)) : []), vis: '', leaf: deeper(leaf) });
+      } else if (!item.vis && !fileWords.get(f).used.has(boundName(leaf)) && callsTrait(leaf.name, fileWords.get(f), plan.traits)) {
+        // A listed trait the file also names somewhere (in a macro, in a bound) is still imported here for its methods alone.
+        out.push({ cfg, vis: '', leaf: deeper(leaf) });
       }
     }
     return out;
