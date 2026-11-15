@@ -478,7 +478,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}), fps: 30 }),
   // Slideshow widget — either an ordered set of uploaded images/GIFs or a folder on
   // this PC (`source`), plus its playback options. Rules live in
-  // js/slideshow-widget.js (shared with the server).
+  // js/windows-tiles/slideshow-widget.js (shared with the server).
   slideshow: Object.freeze({ images: Object.freeze([]), source: 'library', folder: '', shuffle: false, pauseGame: true, intervalMs: 6000, fit: 'cover' }),
   // Claude Code widget surfaces that appear OUTSIDE its tile, and so show up
   // even when the widget is on another page or not added at all: the permission

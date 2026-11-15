@@ -381,7 +381,7 @@ require('./session-watch');
 const deckStore = require('./js/store-catalog/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals/vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
-require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
+require('./js/windows-tiles/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
 require('./windows-tiles/slideshow-folder');          // the slideshow's "folder on this PC" source
 require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');

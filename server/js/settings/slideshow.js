@@ -4,7 +4,7 @@
 // ── Slideshow widget ──────────────────────────────────────────────────────────
 // Config (ordered images as data: URIs, interval, fit) lives in hubSettings.
 // slideshow; the caps + shape rules are owned by SlideshowWidget.sanitizeSlideshow
-// (js/slideshow-widget.js). Persisting through normalizeSettings + saveHubSettings
+// (js/windows-tiles/slideshow-widget.js). Persisting through normalizeSettings + saveHubSettings
 // means the images ride the settings backup for free, and the widget repaints
 // live. Pre-checks here mirror the sanitizer so nothing gets silently dropped.
 function updateSlideshowCfg(patch) {

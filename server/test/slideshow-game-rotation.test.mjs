@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const SRC = readFileSync(new URL('../js/slideshow-widget.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/windows-tiles/slideshow-widget.js', import.meta.url), 'utf8');
 
 function matches(n, sel) {
   if (sel.includes(',')) return sel.split(',').some((s) => matches(n, s.trim()));

@@ -1,6 +1,6 @@
 'use strict';
 // Slideshow "folder" source — the third storage model behind the Slideshow widget
-// (see js/slideshow-widget.js for the other two: uploaded library files and legacy
+// (see js/windows-tiles/slideshow-widget.js for the other two: uploaded library files and legacy
 // inline data: URIs).
 //
 // A folder source holds ONE string in the settings: the path of a folder on this
@@ -39,13 +39,13 @@ const MIME_BY_EXT = new Map([
   ['.gif', 'image/gif'],
 ]);
 
-// The ceiling is owned by js/slideshow-widget.js along with the rest of the
+// The ceiling is owned by js/windows-tiles/slideshow-widget.js along with the rest of the
 // slideshow rules, so the client's idea of "how many at most" and the server's can
 // never drift apart.
 const {
   SLIDE_FOLDER_MAX_FILES: MAX_FILES,
   SLIDE_FOLDER_MAX_BYTES: MAX_BYTES,
-} = require('../js/slideshow-widget');
+} = require('../js/windows-tiles/slideshow-widget');
 const CACHE_TTL_MS = 30000;      // a folder is re-read at most twice a minute
 const NAME_MAX = 200;            // skip absurd names rather than carry them around
 

@@ -22,7 +22,7 @@ import { readFileSync } from 'node:fs';
 // left corner" while gaming — gaming being when a tile is frozen AND watched.
 
 const CSS = readFileSync(new URL('../components/SlideshowWidget/SlideshowWidget.css', import.meta.url), 'utf8');
-const JS = readFileSync(new URL('../js/slideshow-widget.js', import.meta.url), 'utf8');
+const JS = readFileSync(new URL('../js/windows-tiles/slideshow-widget.js', import.meta.url), 'utf8');
 
 // Every class the widget toggles `hidden` on, with the display it sets (if any).
 const TOGGLED = ['sl-img', 'sl-freeze', 'sl-nav', 'sl-dots', 'sl-pausepip', 'sl-empty-btn'];

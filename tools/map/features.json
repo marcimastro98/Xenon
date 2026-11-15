@@ -650,14 +650,13 @@
         "server/js/browser-tile.js",
         "server/js/second-screen-tile.js",
         "server/js/second-screen-tile/**",
-        "server/js/slideshow-widget.js",
         "server/js/app-switcher.js",
         "server/js/app-switcher/**",
-        "server/js/tile-play.js",
         "server/components/BrowserPanel/**",
         "server/components/SecondScreenPanel/**",
         "server/components/SlideshowWidget/**",
-        "server/components/AppSwitcher/**"
+        "server/components/AppSwitcher/**",
+        "server/js/windows-tiles/**"
       ]
     },
     {

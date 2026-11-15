@@ -26,7 +26,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const folderSrc = require('../windows-tiles/slideshow-folder.js');
-const WIDGET = readFileSync(new URL('../js/slideshow-widget.js', import.meta.url), 'utf8');
+const WIDGET = readFileSync(new URL('../js/windows-tiles/slideshow-widget.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];

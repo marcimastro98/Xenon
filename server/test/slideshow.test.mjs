@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const S = require('../js/slideshow-widget.js');   // the shared sanitizer (client + server own the SAME rules)
+const S = require('../js/windows-tiles/slideshow-widget.js');   // the shared sanitizer (client + server own the SAME rules)
 
 // Build a syntactically-valid image data URI whose base64 body has `bodyLen`
 // chars, so tests can push against the per-image / total size caps precisely.

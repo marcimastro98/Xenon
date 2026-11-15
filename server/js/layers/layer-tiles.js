@@ -77,7 +77,7 @@
     stocks: tile('stocks', 'StockWidget', ['js/ticker/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),
     football: tile('football', 'FootballWidget', ['js/grid/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget/match-pieces.js', 'js/football-widget.js'], { football: 'onSSE' }),
     news: tile('news', 'NewsWidget', ['js/ticker/news-widget.js'], { news: 'onSSE' }),
-    slideshow: tile('slideshow', 'SlideshowWidget', ['js/slideshow-widget.js'], {}),
+    slideshow: tile('slideshow', 'SlideshowWidget', ['js/windows-tiles/slideshow-widget.js'], {}),
     notifications: tile('notifications', 'NotificationsWidget', ['js/notifications/notification-open.js', 'js/notifications/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
     wavelink: tile('wavelink', 'WaveLinkWidget', ['js/audio/wavelink-widget.js'], { wavelink: 'onSSE' }),
     obs: tile('obs', 'ObsWidget', ['js/streaming/obs-widget.js'], { obs: 'onObs', obs_preview: 'onObsPreview' }),

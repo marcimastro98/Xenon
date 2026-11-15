@@ -883,7 +883,7 @@ function postponeAutoUpdate() {
         if (r && r.ok) window.DeckClientRun(data.action);
       }).catch(() => { /* another dashboard, or nobody: the server reports it */ });
     });
-    // What Bit asked to play in a Twitch, YouTube or Browser tile (js/tile-play.js).
+    // What Bit asked to play in a Twitch, YouTube or Browser tile (js/windows-tiles/tile-play.js).
     // Layer windows take part: the tile may live on the screen, not the dashboard.
     if (window.TilePlay) window.TilePlay.listen(es);
     es.addEventListener('xenon_menu_failed', (e) => {

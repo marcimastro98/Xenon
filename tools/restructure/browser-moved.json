@@ -255,6 +255,8 @@
     {"from":"server/js/sdk-service.js","to":"server/js/widget-sdk/sdk-service.js"},
     {"from":"server/js/sdk-topbar-button.js","to":"server/js/widget-sdk/sdk-topbar-button.js"},
     {"from":"server/js/sdk-youtube-player.js","to":"server/js/widget-sdk/sdk-youtube-player.js"},
-    {"from":"server/js/shell-driver.js","to":"server/js/widget-sdk/shell-driver.js"}
+    {"from":"server/js/shell-driver.js","to":"server/js/widget-sdk/shell-driver.js"},
+    {"from":"server/js/slideshow-widget.js","to":"server/js/windows-tiles/slideshow-widget.js"},
+    {"from":"server/js/tile-play.js","to":"server/js/windows-tiles/tile-play.js"}
   ]
 }

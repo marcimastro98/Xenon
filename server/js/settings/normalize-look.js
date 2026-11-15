@@ -130,7 +130,7 @@ function normalizeBgCustom(value) {
 
 // Slideshow config. The rules (MIME allowlist, per-image + total + count caps,
 // interval clamp, fit mode) live in ONE place — SlideshowWidget.sanitizeSlideshow
-// (js/slideshow-widget.js, loaded before this file; the server require()s the same
+// (js/windows-tiles/slideshow-widget.js, loaded before this file; the server require()s the same
 // module) — so client, server and normalizer never drift. Fail-closed: without the
 // module nothing survives, matching normalizeBgAssets above.
 function normalizeSlideshow(value) {

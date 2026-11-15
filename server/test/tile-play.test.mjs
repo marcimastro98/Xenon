@@ -77,8 +77,8 @@ test('the server, both pages and the phone rule are wired', () => {
   assert.match(read('../js/main.js'), /window\.TilePlay\.listen\(es\)/);
   assert.match(read('../js/layers/layer-lite.js'), /TilePlay\.listen\(es\)/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('js/tile-play.js') > 0 && html.indexOf('js/tile-play.js') < html.indexOf('js/main.js'));
-  const client = read('../js/tile-play.js');
+  assert.ok(html.indexOf('js/windows-tiles/tile-play.js') > 0 && html.indexOf('js/windows-tiles/tile-play.js') < html.indexOf('js/main.js'));
+  const client = read('../js/windows-tiles/tile-play.js');
   for (const entry of ['TwitchWatchWidget.playFromSdk', 'YouTubeWidget.playFromSdk', 'BrowserTile.openFromSdk']) {
     assert.ok(client.includes(entry), entry);
   }
