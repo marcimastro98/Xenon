@@ -4459,7 +4459,6 @@ const CSRF_MUTATION_PATHS = new Set([
   '/sdk/grant',
   // A tile's own choices saved from a widget on the screen (tile-settings.js).
   '/settings/tile',
-  '/startup/auto-open',   // asks for a browser tab at every sign-in: never from a page on another site
   // The Vitals widget's state saved from a widget on the screen (vitals-state.js).
   '/api/vitals/state',
   // Performance Mode with no dashboard (perf-screen.js): a page on another site
@@ -4797,6 +4796,7 @@ const CSRF_MUTATION_PATHS = new Set([
   // A vertical, smaller or GIF copy of a video, and stopping one.
   '/captures/export', '/captures/export-cancel',
   '/api/ai-local/scan', // the hardware scan for local models: it saves what it found in the settings
+  '/startup/auto-open',   // asks for a browser tab at every sign-in: never from a page on another site
 ]);
 
 function isAllowedRequest(req) {
