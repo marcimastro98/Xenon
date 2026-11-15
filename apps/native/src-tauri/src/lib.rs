@@ -2658,6 +2658,11 @@ pub fn run() {
             #[cfg(windows)]
             cursor_guard::start(&window);
 
+            // While Windows has the screens off, Xenon's windows on them draw
+            // nothing, and come back a moment after the screens do.
+            #[cfg(windows)]
+            layers::watch_screens(app.handle(), &window);
+
             // While a game runs, stop kiosk touches from stealing its focus; if
             // an activation slips through anyway, hand the focus straight back.
             #[cfg(windows)]

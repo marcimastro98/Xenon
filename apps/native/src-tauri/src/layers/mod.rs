@@ -77,6 +77,8 @@ mod scene;
 mod shield;
 mod spec;
 #[cfg(windows)]
+mod screens_win32;
+#[cfg(windows)]
 mod win32;
 
 /// How the windows behave on this OS: the same `Plan`, `apply` and `set_region`.
@@ -115,6 +117,15 @@ struct Live {
 
 /// Whether this OS draws the Ambient scene as wallpaper and screensaver: the
 /// native caps (lib.rs `scene`) offer only what the backend accepts.
+/// Windows: hide the layer windows while the screens are off (screens_win32.rs),
+/// listening on the kiosk's window. Once, at startup.
+#[cfg(windows)]
+pub fn watch_screens(app: &AppHandle, window: &tauri::WebviewWindow) {
+    if let Ok(hwnd) = window.hwnd() {
+        screens_win32::watch(app, hwnd.0 as isize);
+    }
+}
+
 pub fn draws_scene() -> bool {
     #[cfg(windows)]
     return true;
