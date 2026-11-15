@@ -4,6 +4,7 @@
 // writes the line of the move with `hand: true` (browser-ledger.mjs).
 //
 //   node tools/restructure/browser-by-hand.mjs <plan.json> [--dry-run]
+//   node tools/restructure/browser-by-hand.mjs --restore        puts back what a run stopped halfway left written
 //
 // The plan: { "from": "server/js/leaf.js", "to": "server/js/leaf/rows.js", "about": "One sentence.",
 //   "ranges": [[120, 148], [160, 171]],          lines of the old script, counted from 1, taken as they are and in that order
@@ -20,8 +21,15 @@
 // the wrapper it was not handed, when the new script runs anything while it loads, or
 // when a line of the old script could reach a moved name before the line that takes it.
 // Nothing is written when the check says no.
+//
+// The check reads the checkout, so the cut is written before it is known to hold. What
+// was there is first noted in a file outside the checkout; a run stopped halfway (a time
+// limit, a closed terminal) leaves that note, and the next run, or `--restore` alone,
+// puts every file back that still holds what the stopped run wrote.
 
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -93,14 +101,45 @@ export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {
   return { newSource: kept.join('\n'), targetText, record: { kind: 'inner', from, file: to, about, names: gives, gives, name, ...taken, ...(hands.length ? { hands } : {}), hand: true } };
 }
 
+const LEDGER = 'tools/restructure/extracted-browser.json';
+const readOr = (file) => { try { return readFileSync(file, 'utf8'); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } };
+
+/** @param {string} root @returns {string} where a run in that checkout notes what it is about to write over */
+export function noteFileOf(root) {
+  return path.join(tmpdir(), `xenon-by-hand-${createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 16)}.json`);
+}
+
+/**
+ * Puts back what a run that was stopped halfway left written. A file is put back only while it holds what that run
+ * wrote (the list of moves: while any of the others still does); one changed since is left alone and named.
+ * @param {string} root @param {string} [note] the note of that run @returns {string[]} one line per file touched or left; empty when no run was stopped
+ */
+export function restoreLeftover(root, note = noteFileOf(root)) {
+  const text = readOr(note);
+  if (text === null) return [];
+  const { files } = JSON.parse(text);
+  const now = Object.fromEntries(Object.keys(files).map((file) => [file, readOr(path.join(root, file))]));
+  const intact = Object.entries(files).some(([file, { wrote }]) => wrote !== undefined && now[file] === wrote && wrote !== files[file].was);
+  const said = [];
+  for (const [file, { was, wrote }] of Object.entries(files)) {
+    if (now[file] === was) continue;
+    if (wrote === undefined ? !intact : now[file] !== wrote) { said.push(`${file}: changed since the run that was stopped, left as it is`); continue; }
+    if (was === null) rmSync(path.join(root, file), { force: true }); else writeFileSync(path.join(root, file), was);
+    said.push(`${file}: put back`);
+  }
+  rmSync(note, { force: true });
+  return said;
+}
+
 /**
  * Does one cut in the checkout: the two scripts, the tags in every page and list, the line of the move. Everything is put back when
  * the standing check finds a problem.
- * @param {{ root: string, parser: any, plan: any, dryRun?: boolean }} job
- * @returns {{ record: any, lines: Record<string, number>, problems: string[] }}
+ * @param {{ root: string, parser: any, plan: any, dryRun?: boolean, note?: string, check?: typeof stateProblems }} job `note` and `check` are a test's
+ * @returns {{ record: any, lines: Record<string, number>, problems: string[], restored: string[] }} `restored`: what a run stopped halfway had left, put back first
  */
-export function performByHand({ root, parser, plan, dryRun = false }) {
-  const read = (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } };
+export function performByHand({ root, parser, plan, dryRun = false, note = noteFileOf(root), check = stateProblems }) {
+  const restored = restoreLeftover(root, note);
+  const read = (file) => readOr(path.join(root, file));
   const ledger = readBrowserLedger(root);
   if (read(plan.to) !== null) throw new Refusal([`${plan.to} exists already: give the new code its own file`]);
   const text = read(plan.from);
@@ -111,30 +150,41 @@ export function performByHand({ root, parser, plan, dryRun = false }) {
   files.set(plan.to, cut.targetText).set(plan.from, cut.newSource);
   const lines = Object.fromEntries([...files].map(([file, written]) => [file, written.split('\n').length - 1]));
   const was = new Map([...files.keys()].map((file) => [file, read(file)]));
-  const ledgerWas = read('tools/restructure/extracted-browser.json');
+  const ledgerWas = read(LEDGER);
   const putBack = () => {
     for (const [file, old] of was) { if (old === null) rmSync(path.join(root, file), { force: true }); else writeFileSync(path.join(root, file), old); }
-    writeFileSync(path.join(root, 'tools/restructure/extracted-browser.json'), ledgerWas);
+    writeFileSync(path.join(root, LEDGER), ledgerWas);
   };
+  // The note is whole before the first file changes: written beside its place, then given its name.
+  const noted = { files: { ...Object.fromEntries([...files].map(([file, wrote]) => [file, { was: was.get(file), wrote }])), [LEDGER]: { was: ledgerWas } } };
+  writeFileSync(`${note}.part`, JSON.stringify(noted));
+  renameSync(`${note}.part`, note);
   // The check reads the checkout, so the cut is written first; a check that cannot finish leaves nothing behind either.
   let problems = null;
   try {
     for (const [file, written] of files) { mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); writeFileSync(path.join(root, file), written); }
     writeBrowserLedger(root, { ...ledger, moves: [...ledger.moves, cut.record] });
-    problems = stateProblems({ root, parser, tests: false }).problems;
+    problems = check({ root, parser, tests: false }).problems;
   } finally {
     if (problems === null || problems.length || dryRun) putBack();
+    rmSync(note, { force: true });
   }
-  return { record: cut.record, lines, problems };
+  return { record: cut.record, lines, problems, restored };
 }
 
 async function main(argv) {
   const planFile = argv.find((word) => !word.startsWith('--'));
-  if (!planFile) { console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 15).map((line) => line.replace(/^\/\/ ?/, '')).join('\n')); return 2; }
+  if (argv.includes('--restore')) {
+    const said = restoreLeftover(ROOT);
+    console.log(said.length ? `A run was stopped halfway:\n  ${said.join('\n  ')}` : 'No run was stopped halfway: nothing to put back.');
+    return 0;
+  }
+  if (!planFile) { console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 16).map((line) => line.replace(/^\/\/ ?/, '')).join('\n')); return 2; }
   const dryRun = argv.includes('--dry-run');
   const parser = await openParser();
   try {
     const done = performByHand({ root: ROOT, parser, plan: JSON.parse(readFileSync(planFile, 'utf8')), dryRun });
+    if (done.restored.length) console.log(`A run before this one was stopped halfway:\n  ${done.restored.join('\n  ')}`);
     if (done.problems.length) { console.error(`Not written, the standing check says:\n  ${done.problems.join('\n  ')}`); return 1; }
     console.log(`${dryRun ? 'would write' : 'wrote'} ${done.record.file} (${done.lines[done.record.file]} lines); ${done.record.from} ${dryRun ? 'would be' : 'is'} ${done.lines[done.record.from]} lines.`);
     if (!dryRun) console.log('Next: node --check, the tests that read the script, lost-comments.mjs, browser carry, the gate from carry, the page check in both engines.');

@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import { cutByHand, performByHand } from '../../tools/restructure/browser-by-hand.mjs';
+import { cutByHand, performByHand, restoreLeftover } from '../../tools/restructure/browser-by-hand.mjs';
 import { replay } from '../../tools/restructure/browser-extract.mjs';
 import { innerStateProblems } from '../../tools/restructure/browser-inner-proof.mjs';
 import { innerFilesOf, innerPartsOf, runOf } from '../../tools/restructure/browser-ledger.mjs';
@@ -167,6 +167,63 @@ test('a cut that uses nothing of the wrapper is handed nothing: an object the ol
   assert.equal(on(FILE), after);
   assert.equal(on(PAGE), '<body>\n<script src="js/leaf/rows.js"></script>\n<script src="js/leaf.js"></script>\n</body>\n');
   assert.deepEqual(JSON.parse(on(LEDGER)).moves, [move]);
+});
+
+test('a run stopped halfway leaves a note, and the checkout is put back from it: by --restore, or by the next run', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-browser-cut-stopped-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const note = path.join(root, 'note.json');
+  const page = '<body>\n<script src="js/leaf.js"></script>\n</body>\n';
+  const ledger = JSON.stringify({ moves: [] });
+  const lay = () => {
+    for (const [file, text] of Object.entries({ [FILE]: BEFORE, [PAGE]: page, [LEDGER]: ledger })) { fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), text); }
+    fs.rmSync(path.join(root, ROWS), { force: true });
+  };
+  const on = (file) => { try { return fs.readFileSync(path.join(root, file), 'utf8'); } catch { return null; } };
+  const plan = { from: FILE, to: ROWS, about: 'The rows of the leaf.', ranges: [[7, 12]], hands: ['ICONS', 'state', 'paint'], gives: ['row'] };
+  // A dry run in a process of its own, killed while the standing check runs: nothing in it gets to put anything back.
+  const tool = new URL('../../tools/restructure/browser-by-hand.mjs', import.meta.url).href;
+  const stopped = () => {
+    const code = `const { performByHand } = await import(process.env.TOOL); const job = JSON.parse(process.env.JOB);
+      performByHand({ ...job, parser: null, dryRun: true, check: () => process.kill(process.pid, 'SIGKILL') });`;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', code], { env: { ...process.env, TOOL: tool, JOB: JSON.stringify({ root, plan, note }) }, encoding: 'utf8' });
+    assert.notEqual(run.status, 0, 'the run did not end by itself');
+  };
+
+  lay();
+  for (const args of [['init', '-q'], ['add', '-A']]) assert.equal(spawnSync('git', args, { cwd: root }).status, 0);
+  stopped();
+  assert.equal(on(FILE), AFTER, 'the cut was written when the run was stopped');
+  assert.equal(on(ROWS), MADE);
+  assert.notEqual(on(PAGE), page);
+  assert.notEqual(on(LEDGER), ledger);
+  assert.ok(fs.existsSync(note));
+  assert.deepEqual(restoreLeftover(root, note).sort(), [`${FILE}: put back`, `${PAGE}: put back`, `${ROWS}: put back`, `${LEDGER}: put back`].sort());
+  assert.deepEqual([on(FILE), on(ROWS), on(PAGE), on(LEDGER)], [BEFORE, null, page, ledger], 'the checkout is as it was');
+  assert.equal(fs.existsSync(note), false);
+  assert.deepEqual(restoreLeftover(root, note), [], 'asked again, there is nothing to put back');
+
+  // A file a person changed after the stop is theirs: it is named and left, the rest goes back.
+  stopped();
+  const mine = `${AFTER}// mine\n`;
+  fs.writeFileSync(path.join(root, FILE), mine);
+  const said = restoreLeftover(root, note);
+  assert.ok(said.includes(`${FILE}: changed since the run that was stopped, left as it is`));
+  assert.deepEqual([on(FILE), on(ROWS), on(PAGE), on(LEDGER)], [mine, null, page, ledger]);
+
+  // The next run puts back first, says so, and then cuts the script as it was.
+  lay();
+  stopped();
+  const done = performByHand({ root, parser: null, plan, note, check: () => ({ problems: [] }) });
+  assert.equal(done.restored.length, 4);
+  assert.deepEqual(done.problems, []);
+  assert.deepEqual([on(FILE), on(ROWS)], [AFTER, MADE]);
+  assert.deepEqual(JSON.parse(on(LEDGER)).moves, [MOVE], 'once, not twice');
+  assert.equal(fs.existsSync(note), false, 'a run that ends leaves no note');
+  // A dry run that ends by itself leaves the checkout and no note, as before.
+  lay();
+  performByHand({ root, parser: null, plan, note, dryRun: true, check: () => ({ problems: [] }) });
+  assert.deepEqual([on(FILE), on(ROWS), on(PAGE), on(LEDGER), fs.existsSync(note)], [BEFORE, null, page, ledger, false]);
 });
 
 test('every hand cut on the real list is an inner move, handed names or none, and the test reader hands its file out with its script', () => {
