@@ -682,6 +682,7 @@
         "server/smart-home/**",
         "server/actions/home-assistant*.js",
         "server/actions/unifi*.js",
+        "server/unifi-events.js",
         "server/js/smart-home/**",
         "server/js/smart-home*.js",
         "server/js/unifi-widget/**",
