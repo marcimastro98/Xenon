@@ -7495,12 +7495,7 @@ const _stutterWatch = createStutterWatch({
   culprit: perfSession.culprit,
 });
 const { _exclusiveHint } = require('./performance/engine-exclusive-hint.js');
-// FPS needs a Windows permission since 5.1.0: one pop-up per version (fps-notice.js).
-const _fpsNotice = require('./sensor-service/fps-notice.js').createFpsNotice({
-  access: require('./sensor-service/fps-access.js').instance(), dataDir: DATA_DIR, version: APP_VERSION,
-  readerReady: () => fpsMonitor.backend === 'presentmon' && fpsMonitor.isAvailable(),
-  broadcast: (payload) => broadcastSSE('fps_access', payload),
-});
+const { _fpsNotice } = require('./sensor-service/engine-fps-notice.js');
 const _perfStream = createPerfStream({
   fps: fpsMonitor,
   why: () => _stutterWatch.current(),
