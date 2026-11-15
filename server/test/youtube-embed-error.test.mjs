@@ -22,7 +22,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { appStringsSource } from './i18n-source.mjs';
 
-const WIDGET = readFileSync(new URL('../js/youtube-widget.js', import.meta.url), 'utf8');
+const WIDGET = readFileSync(new URL('../js/streaming/youtube-widget.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 
 // The onError branch is lifted out and RUN, rather than pattern-matched: the
@@ -31,7 +31,7 @@ const I18N = appStringsSource();
 function runOnError(codes) {
   const at = WIDGET.indexOf("} else if (d.event === 'onError') {");
   const end = WIDGET.indexOf("} else if (d.event === 'infoDelivery'", at);
-  assert.ok(at > -1 && end > at, 'js/youtube-widget.js must still handle onError');
+  assert.ok(at > -1 && end > at, 'js/streaming/youtube-widget.js must still handle onError');
   const body = WIDGET.slice(WIDGET.indexOf('{', at) + 1, end);
 
   const refused = new Set();

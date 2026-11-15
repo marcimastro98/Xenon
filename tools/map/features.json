@@ -223,14 +223,8 @@
         "server/stream-config.example.json",
         "server/actions/obs*.js",
         "server/actions/streamerbot*.js",
-        "server/js/twitch*.js",
-        "server/js/youtube*.js",
-        "server/js/obs-widget.js",
-        "server/js/streamerbot-widget.js",
         "server/js/streaming-page.js",
         "server/js/streaming-page/**",
-        "server/js/live-stream.js",
-        "server/js/watch-view.js",
         "server/components/TwitchPanel/**",
         "server/components/TwitchWatchWidget/**",
         "server/components/YouTubeWidget/**",
@@ -239,7 +233,8 @@
         "server/components/StreamerbotWidget/**",
         "server/public/images/twitch/**",
         "server/public/images/youtube/**",
-        "docs/streaming-setup.md"
+        "docs/streaming-setup.md",
+        "server/js/streaming/**"
       ]
     },
     {

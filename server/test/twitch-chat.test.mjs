@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { parseIrcLines, anonNick, MAX_TEXT } = require('../js/twitch-chat.js');
+const { parseIrcLines, anonNick, MAX_TEXT } = require('../js/streaming/twitch-chat.js');
 
 // This parser had shipped for versions inside js/streaming-page.js with no test
 // at all, and it was about to be copied a second time into the watching widget.

@@ -162,7 +162,7 @@ body.layout-editing .tww-card--chat.is-empty { display: flex; flex: 0 0 auto; mi
 .tww-wrap.is-overlay .tww-blocked { position: absolute; left: 18px; right: 18px; top: 14px; z-index: 2; }
 
 /* The controls fade out a few seconds in and come back on a touch. The catcher
-   takes input ONLY while they are hidden (see js/twitchwatch-widget.js). */
+   takes input ONLY while they are hidden (see js/streaming/twitchwatch-widget.js). */
 .tww-idlecatch { display: none; }
 .tww-wrap.is-overlay .tww-idlecatch { display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .tww-wrap.is-overlay.is-idle .tww-idlecatch { pointer-events: auto; cursor: none; }

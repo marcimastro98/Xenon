@@ -1,6 +1,6 @@
 'use strict';
 // Twitch chat, read anonymously over IRC. Shared by the streamer's Twitch tile
-// (js/streaming-page.js) and the watching widget (js/twitchwatch-widget.js).
+// (js/streaming-page.js) and the watching widget (js/streaming/twitchwatch-widget.js).
 //
 // WHY THIS EXISTS RATHER THAN AN EMBED: Twitch publishes a drop-in chat iframe,
 // and using it costs far more than it saves. That iframe is a whole twitch.tv

@@ -1,7 +1,7 @@
 /* YouTube widget: the player and the library you pick from. Two sections
    (player / library) carry data-system-card so they hide/reorder like System
    cards. Rendered into .youtube-widget-mount by youtube-widget.js; how the tile is
-   arranged (normal / cinema / fill / full screen) is decided by js/watch-view.js
+   arranged (normal / cinema / fill / full screen) is decided by js/streaming/watch-view.js
    and written as `data-view` and `.is-screen` / `.is-overlay` on .yt-wrap — the
    same model, and mostly the same rules, as the Twitch watching tile.
    Broadcasting has its own widget and its own stylesheet — see

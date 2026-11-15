@@ -148,7 +148,7 @@ test('every SDK frame creator arms the guard before the frame loads', () => {
 });
 
 test('the player frames are not SDK frames and are not touched', () => {
-  for (const f of ['../js/youtube-widget.js', '../js/twitchwatch-widget.js', '../js/sdk-youtube-player.js']) {
+  for (const f of ['../js/streaming/youtube-widget.js', '../js/streaming/twitchwatch-widget.js', '../js/sdk-youtube-player.js']) {
     assert.ok(!/guardFrame|\.csp\s*=/.test(read(f)), f);
   }
 });

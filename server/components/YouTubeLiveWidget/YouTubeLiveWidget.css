@@ -3,7 +3,7 @@
    widget it was split out of (logo watermark, red accent, card sections); three
    sections (info / actions / chat) carry data-system-card so they hide and
    reorder like System cards. Rendered into .youtubelive-widget-mount by
-   js/youtubelive-widget.js. */
+   js/streaming/youtubelive-widget.js. */
 .youtubelive-panel { display: flex; }
 .youtubelive-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
 

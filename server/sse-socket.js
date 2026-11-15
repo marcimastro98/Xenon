@@ -1,6 +1,6 @@
 'use strict';
 
-// The `/sse` feed over a WebSocket, for the app's own windows (js/live-stream.js
+// The `/sse` feed over a WebSocket, for the app's own windows (js/streaming/live-stream.js
 // says why). It looks like the `res` and `req` of an HTTP stream, so a window on a
 // socket is one more entry in `sseClients`: the same seeds, broadcasts and pings.
 

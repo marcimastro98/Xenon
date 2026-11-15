@@ -16,13 +16,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const WIDGET = readFileSync(new URL('../js/twitchwatch-widget.js', import.meta.url), 'utf8');
+const WIDGET = readFileSync(new URL('../js/streaming/twitchwatch-widget.js', import.meta.url), 'utf8');
 
 // The widget is a browser IIFE and cannot be required here, so loadTab is lifted
 // out and run against stubs — the same trick discord-favourites.test.mjs uses.
 function harness({ connected = true, data = { followed: null, top: null, search: null }, reply } = {}) {
   const at = WIDGET.indexOf("  let bgLoad = '';");
-  assert.notEqual(at, -1, 'js/twitchwatch-widget.js must still declare bgLoad');
+  assert.notEqual(at, -1, 'js/streaming/twitchwatch-widget.js must still declare bgLoad');
   const end = WIDGET.indexOf('\n  }', WIDGET.indexOf('async function loadTab(', at)) + 4;
   const src = WIDGET.slice(at, end);
   assert.ok(src.includes('publishWatch();'), 'loadTab must still end at publishWatch');

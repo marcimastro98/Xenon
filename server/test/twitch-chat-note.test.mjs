@@ -9,13 +9,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const WIDGET = readFileSync(new URL('../js/twitchwatch-widget.js', import.meta.url), 'utf8');
+const WIDGET = readFileSync(new URL('../js/streaming/twitchwatch-widget.js', import.meta.url), 'utf8');
 
 // The widget is a browser IIFE, so pushChat is lifted out and run against stubs,
 // the same trick twitch-live-refresh.test.mjs uses for loadTab.
 function harness() {
   const at = WIDGET.indexOf('  function pushChat(entry) {');
-  assert.notEqual(at, -1, 'js/twitchwatch-widget.js must still declare pushChat');
+  assert.notEqual(at, -1, 'js/streaming/twitchwatch-widget.js must still declare pushChat');
   const end = WIDGET.indexOf('\n  }', at) + 4;
   const src = WIDGET.slice(at, end);
 

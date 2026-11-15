@@ -184,7 +184,7 @@ test('the page loads only what a Store widget needs, in order', () => {
   const html = read('../layer-lite.html');
   assert.match(html, /<html lang="en" data-layer-lite>/);
   // The widget host is listed as the scripts it is made of today: a part of it loads right before it.
-  const order = ['js/look/skin-fonts.js', 'shared/src/constants.js', 'js/live-stream.js',
+  const order = ['js/look/skin-fonts.js', 'shared/src/constants.js', 'js/streaming/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-palette.js',
     'js/look/theme-tokens.js', 'js/layers/layer-tiles.js', 'js/layers/layer-when.js', 'js/layers/layers-model.js', 'js/layers/layer-drag.js', 'js/layers/layer-see.js', 'js/native-bridge.js', 'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/layers/layer-pin.js', 'js/layers/layer-fit.js', 'js/layers/layer-key.js', 'js/layers/layer-cut.js', 'js/layers/layer-host.js', 'js/layers/layer-lite-tiles.js', 'js/tile-play.js', 'js/layers/layer-lite.js'];
   const at = order.map((src) => html.indexOf('src="' + src + '"'));

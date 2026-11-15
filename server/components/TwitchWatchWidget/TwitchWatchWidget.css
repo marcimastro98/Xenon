@@ -1,8 +1,8 @@
 /* Twitch watching widget: the player, the list you pick a channel from, and an
    optional chat. The three sections carry data-system-card so they hide and
    reorder like System cards. Rendered into .twitchwatch-widget-mount by
-   js/twitchwatch-widget.js; how the tile is arranged (normal / cinema / fill /
-   full screen) is decided by js/watch-view.js and written as `data-view` and
+   js/streaming/twitchwatch-widget.js; how the tile is arranged (normal / cinema / fill /
+   full screen) is decided by js/streaming/watch-view.js and written as `data-view` and
    `.is-screen` / `.is-overlay` on .tww-wrap.
    The streamer's Twitch tile is a different widget with a different stylesheet —
    see components/TwitchPanel. */

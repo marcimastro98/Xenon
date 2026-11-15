@@ -600,7 +600,7 @@
 
   function ircSend(line) { try { if (chatSock && chatSock.readyState === 1) chatSock.send(line + '\r\n'); } catch {} }
 
-  // The parsing lives in js/twitch-chat.js, shared with the watching widget and
+  // The parsing lives in js/streaming/twitch-chat.js, shared with the watching widget and
   // unit-tested there — an IRC tag parser written twice is a bug written twice.
   function handleIrc(raw) {
     const r = window.TwitchChat.parseIrcLines(raw);

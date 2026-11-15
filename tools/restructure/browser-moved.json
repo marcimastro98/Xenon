@@ -215,6 +215,14 @@
     {"from":"server/js/support-appeal.js","to":"server/js/store-supporters/support-appeal.js"},
     {"from":"server/js/support-card.js","to":"server/js/store-supporters/support-card.js"},
     {"from":"server/js/support-goal.js","to":"server/js/store-supporters/support-goal.js"},
-    {"from":"server/js/trial-pass-ui.js","to":"server/js/store-supporters/trial-pass-ui.js"}
+    {"from":"server/js/trial-pass-ui.js","to":"server/js/store-supporters/trial-pass-ui.js"},
+    {"from":"server/js/live-stream.js","to":"server/js/streaming/live-stream.js"},
+    {"from":"server/js/obs-widget.js","to":"server/js/streaming/obs-widget.js"},
+    {"from":"server/js/streamerbot-widget.js","to":"server/js/streaming/streamerbot-widget.js"},
+    {"from":"server/js/twitch-chat.js","to":"server/js/streaming/twitch-chat.js"},
+    {"from":"server/js/twitchwatch-widget.js","to":"server/js/streaming/twitchwatch-widget.js"},
+    {"from":"server/js/watch-view.js","to":"server/js/streaming/watch-view.js"},
+    {"from":"server/js/youtube-widget.js","to":"server/js/streaming/youtube-widget.js"},
+    {"from":"server/js/youtubelive-widget.js","to":"server/js/streaming/youtubelive-widget.js"}
   ]
 }

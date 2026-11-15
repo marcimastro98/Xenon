@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const CSS = read('../components/ObsWidget/ObsWidget.css').replace(/\/\*[\s\S]*?\*\//g, '');
-const JS = read('../js/obs-widget.js');
+const JS = read('../js/streaming/obs-widget.js');
 
 test('the widget still hides the picture it does not have', () => {
   assert.match(JS, /pvImg\.hidden = true/);

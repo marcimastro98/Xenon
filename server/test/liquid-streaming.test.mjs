@@ -62,9 +62,9 @@ test('the faders and the seek line have no handle to draw', () => {
     assert.doesNotMatch(body, /box-shadow: (?!none)/);
   }
   // The level is the fill: each widget writes it as the value moves.
-  assert.match(read('../js/obs-widget.js'), /\.obs-audio-slider'\); if \(s\) s\.style\.setProperty\('--fill', pct\)/);
+  assert.match(read('../js/streaming/obs-widget.js'), /\.obs-audio-slider'\); if \(s\) s\.style\.setProperty\('--fill', pct\)/);
   assert.match(read('../js/discord-widget.js'), /range\.style\.setProperty\('--fill', /);
-  assert.match(read('../js/youtube-widget.js'), /seek\.style\.setProperty\('--fill', /);
+  assert.match(read('../js/streaming/youtube-widget.js'), /seek\.style\.setProperty\('--fill', /);
 });
 
 test('the state words are translated in every language the app ships', () => {
@@ -72,10 +72,10 @@ test('the state words are translated in every language the app ships', () => {
     const have = langsDefining(key);
     assert.deepEqual(LANGS.filter((l) => !have.has(l)), [], key);
   }
-  const obs = read('../js/obs-widget.js');
+  const obs = read('../js/streaming/obs-widget.js');
   assert.match(obs, /t\('stream_live', 'Live'\)/);
   assert.match(obs, /t\('obs_recording', 'Recording'\)/);
-  for (const file of ['../js/obs-widget.js', '../js/streaming-page.js', '../js/youtubelive-widget.js']) {
+  for (const file of ['../js/streaming/obs-widget.js', '../js/streaming-page.js', '../js/streaming/youtubelive-widget.js']) {
     assert.doesNotMatch(read(file), /'(?:LIVE|REC)'/, `${file}: no word in capitals by hand`);
   }
 });
@@ -164,7 +164,7 @@ test('YouTube Live chat roles take darker shades on a light surface', () => {
 test('a viewer\'s name colour reaches the CSS as a variable, made readable on light surfaces', () => {
   for (const [js, css, cls] of [
     ['../js/streaming-page.js', '../components/TwitchPanel/TwitchPanel.css', 'twitch-chat-user'],
-    ['../js/twitchwatch-widget.js', '../components/TwitchWatchWidget/TwitchWatchWidget.css', 'tww-chat-user'],
+    ['../js/streaming/twitchwatch-widget.js', '../components/TwitchWatchWidget/TwitchWatchWidget.css', 'tww-chat-user'],
   ]) {
     const src = read(js);
     assert.match(src, /if \(entry\.color\) u\.style\.setProperty\('--name', entry\.color\);/);
@@ -195,13 +195,13 @@ test('Streamer.bot: the state is a word, the tabs are words, no event or value s
   // The glyph is as tall as the name's line, so the two sit on one line whatever follows.
   assert.equal(on('.sbw-evt-ico').height, on('.sbw-evt-line')['line-height']);
   // The classes the widget really sets.
-  const js = read('../js/streamerbot-widget.js');
+  const js = read('../js/streaming/streamerbot-widget.js');
   assert.match(js, /pill\.classList\.toggle\('is-live', connected\)/);
   assert.match(js, /tb\.classList\.toggle\('is-active', /);
 });
 
 test('a tile waiting for an account offers one key in its middle, and only while it waits', () => {
-  for (const [tile, file] of [['yt', 'youtube-widget'], ['tww', 'twitchwatch-widget'], ['ytl', 'youtubelive-widget']]) {
+  for (const [tile, file] of [['yt', 'streaming/youtube-widget'], ['tww', 'streaming/twitchwatch-widget'], ['ytl', 'streaming/youtubelive-widget']]) {
     const key = declsFor(`${LIQUID}.${tile}-setup`);
     assert.equal(key.margin, 'auto', tile);
     assert.equal(key.width, 'auto', tile);
@@ -238,5 +238,5 @@ test('OBS neither set up nor found dims its keys instead of offering Go live', (
   assert.ok(Number(d.opacity) <= 0.5);
   assert.equal(d['pointer-events'], 'none');
   // Only then: OBS running here with no host in Settings still counts as found.
-  assert.match(read('../js/obs-widget.js'), /const off = configured === false && !reachable;[\s\S]*?classList\.toggle\('obs-disconnected', off\)/);
+  assert.match(read('../js/streaming/obs-widget.js'), /const off = configured === false && !reachable;[\s\S]*?classList\.toggle\('obs-disconnected', off\)/);
 });

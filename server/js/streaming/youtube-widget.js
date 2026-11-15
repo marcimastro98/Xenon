@@ -6,7 +6,7 @@
 // (player / library) tagged as dashboard cards, so each hides and reorders like a
 // System card.
 //
-// Broadcasting lives in its own widget now (js/youtubelive-widget.js): going live,
+// Broadcasting lives in its own widget now (js/streaming/youtubelive-widget.js): going live,
 // the viewer count and the live chat have nothing to do with watching, and half a
 // tile of streaming controls on a viewer's dashboard was the complaint that split
 // them. Both read the same connected account, so nothing extra is set up.
@@ -91,7 +91,7 @@
   const cur = () => (player.qi >= 0 ? player.queue[player.qi] : null) || null;
 
   // Normal / cinema / fill / full screen, shared with the Twitch tile (see
-  // js/watch-view.js). Here the side panel of the cinema view is the list, so the
+  // js/streaming/watch-view.js). Here the side panel of the cinema view is the list, so the
   // next video is one tap away without leaving the big picture.
   const view = window.WatchView.createController({
     prefix: 'yt',

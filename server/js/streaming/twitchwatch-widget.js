@@ -83,7 +83,7 @@
   };
 
   // Normal / cinema / fill / full screen, shared with the YouTube tile (see
-  // js/watch-view.js). Only the wrap holding the live player is ever arranged.
+  // js/streaming/watch-view.js). Only the wrap holding the live player is ever arranged.
   const view = window.WatchView.createController({
     prefix: 'tww',
     storageKey: 'xenon.watch.twitch.v1',

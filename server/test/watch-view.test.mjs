@@ -1,4 +1,4 @@
-// How a watching tile (Twitch, YouTube) shows its player — js/watch-view.js.
+// How a watching tile (Twitch, YouTube) shows its player — js/streaming/watch-view.js.
 // effectiveView is the one decision both widgets and their CSS rely on: what
 // the tile really shows given what the user asked for and what is true now.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const WatchView = require('../js/watch-view.js');
+const WatchView = require('../js/streaming/watch-view.js');
 const { effectiveView, sideOnEnter } = WatchView;
 
 test('nothing playing is always the normal tile, whatever was asked for', () => {

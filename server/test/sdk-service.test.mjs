@@ -155,7 +155,7 @@ test('only the hidden host answers: the page, its order, the route and the phone
   assert.match(html, /<html lang="en" data-sdk-service>/);
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
   // The widget host is listed as the scripts it is made of today: a part of it loads right before it.
-  assert.deepEqual(scripts, ['shared/src/constants.js', 'js/live-stream.js',
+  assert.deepEqual(scripts, ['shared/src/constants.js', 'js/streaming/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
     'js/theme-palette.js', 'js/look/theme-tokens.js', 'js/native-bridge.js', 'js/deck-actions.js',
     'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/sdk-service.js']);
