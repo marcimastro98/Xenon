@@ -89,7 +89,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 | **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/capture*.js` `server/recorder.js` `server/replay.js` `server/screen-capture.js` `server/steps-*.js` and 6 more |
 | **Xenon menu** | The menu that opens over the desktop: widgets, screens, looks, the Store. | `server/menu/**` `server/xenon-menu.js` `server/menu-*.js` `server/menu.html` `server/screen-menu.js` `server/js/xenon-menu*.js` and 3 more |
 | **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layer-*.js` `server/layers-*.js` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layer-*.js` and 5 more |
-| **Alerts and drawing** | Notifications at the top centre of the screen, and drawing over the screen. | `server/alerts/**` `server/screen-alerts.html` `server/draw.html` `server/js/screen-alerts.js` `server/js/screen-draw-*.js` `server/js/screen-release.js` and 9 more |
+| **Alerts and drawing** | Notifications at the top centre of the screen, and drawing over the screen. | `server/alerts/**` `server/screen-alerts-page.js` `server/screen-alerts.html` `server/screen-draw-shell.js` `server/draw.html` `server/js/screen-alerts.js` and 11 more |
 
 ## Connected apps
 

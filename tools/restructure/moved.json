@@ -10,11 +10,10 @@
     {"from":"server/discord-launch.js","to":"server/discord/discord-launch.js","shim":true},
     {"from":"server/scene-images.js","to":"server/ambient/scene-images.js","shim":true},
     {"from":"server/scene-page.js","to":"server/ambient/scene-page.js","shim":true},
-    {"from":"server/screen-alerts-page.js","to":"server/alerts/screen-alerts-page.js"},
-    {"from":"server/screen-draw-shell.js","to":"server/alerts/screen-draw-shell.js"}
+    {"from":"server/screen-alerts-page.js","to":"server/alerts/screen-alerts-page.js","shim":true},
+    {"from":"server/screen-draw-shell.js","to":"server/alerts/screen-draw-shell.js","shim":true}
   ],
   "patterns": [
-    {"feature":"alerts","glob":"server/screen-alerts-page.js","at":1},
-    {"feature":"alerts","glob":"server/screen-draw-shell.js","at":3}
+
   ]
 }

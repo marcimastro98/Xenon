@@ -371,7 +371,9 @@
       "what": "Notifications at the top centre of the screen, and drawing over the screen.",
       "files": [
         "server/alerts/**",
+        "server/screen-alerts-page.js",
         "server/screen-alerts.html",
+        "server/screen-draw-shell.js",
         "server/draw.html",
         "server/js/screen-alerts.js",
         "server/js/screen-draw-*.js",
