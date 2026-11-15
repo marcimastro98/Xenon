@@ -251,3 +251,41 @@ test('a static declared inside a macro stays in the parent, and a part reaches i
   const moved = { origin: 'src/win.rs', parts: [{ file: 'src/win/state.rs', about: 'The state.', items: ['call thread_local'] }] };
   assert.throws(() => splitRust({ origin: moved.origin, text: WITH_MACRO, plan: moved, otherWords: new Set() }), /declared inside a macro/);
 });
+
+const WITH_EXTERN = [
+  'pub const SHOWN: u32 = 1;',
+  '',
+  '#[link(name = "user32")]',
+  'extern "system" {',
+  '    // fn Commented(h: isize) -> i32;',
+  '    pub fn GetLength(h: isize) -> i32;',
+  '    fn IsShown(h: isize) -> i32;',
+  '    static mut COUNT: i32;',
+  '}',
+  '',
+  'pub fn length_of(h: isize) -> i32 {',
+  '    unsafe { GetLength(h) + COUNT }',
+  '}',
+  '',
+  'pub fn shown(h: isize) -> bool {',
+  '    unsafe { IsShown(h) as u32 == SHOWN }',
+  '}',
+  '',
+].join('\n');
+
+test('what an extern block declares is a name of the file: a part that calls it imports it from the parent', () => {
+  const plan = { origin: 'src/ffi.rs', parts: [{ file: 'src/ffi/ask.rs', about: 'Asks a window.', items: ['fn length_of', 'fn shown'] }] };
+  const { files } = splitRust({ origin: plan.origin, text: WITH_EXTERN, plan, otherWords: new Set(['length_of', 'shown']) });
+  assert.match(files['src/ffi/ask.rs'], /^use super::\{COUNT, GetLength, IsShown, SHOWN\};$/m);
+  assert.doesNotMatch(files['src/ffi/ask.rs'], /Commented/);
+  assert.match(files['src/ffi.rs'], /^extern "system" \{\n {4}\/\/ fn Commented/m, 'the block stays whole in the parent');
+  assert.match(files['src/ffi.rs'], /^pub use ask::\{length_of, shown\};$/m);
+});
+
+test('an extern block a part of the file still calls into cannot leave for another part', () => {
+  const plan = { origin: 'src/ffi.rs', parts: [
+    { file: 'src/ffi/calls.rs', about: 'The calls.', items: ['extern "system"'] },
+    { file: 'src/ffi/ask.rs', about: 'Asks a window.', items: ['fn length_of', 'fn shown'] },
+  ] };
+  assert.throws(() => splitRust({ origin: plan.origin, text: WITH_EXTERN, plan, otherWords: new Set() }), /declared inside an extern block .* leave that block in src\/ffi\.rs/);
+});

@@ -13,6 +13,8 @@ const NAMED = new Set(['fn', 'struct', 'enum', 'union', 'trait', 'type', 'const'
 const STAYS = (item) => item.kind === 'use' || item.kind === 'inner' || item.kind === 'extern crate' || (item.kind === 'mod' && item.open === undefined);
 const union = (...lists) => [...new Set(lists.flat())];
 const MACRO_STATIC = /\bstatic\s+(?:mut\s+)?([A-Z_][A-Z0-9_]*)\s*:/g;
+const EXTERN_NAME = /\b(?:fn|static(?:\s+mut)?)\s+([A-Za-z_][A-Za-z0-9_]*)/g;
+const withoutComments = (code) => code.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** Which part an item goes to: the index in plan.parts, or -1 to stay. */
 function assign(items, parts) {
@@ -86,6 +88,8 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
     if (NAMED.has(item.kind) && item.name) define(item.name, { item, i, file: where[i] });
     // thread_local! and its like declare statics inside a macro, where no visibility can be added.
     if (item.kind === 'call') for (const found of text.slice(item.start, item.end).matchAll(MACRO_STATIC)) define(found[1], { item, i, file: where[i], macro: true });
+    // The functions and statics of an `extern { }` block are names of the file too; like a macro's, they cannot be opened wider from outside.
+    if (item.kind === 'extern') for (const found of withoutComments(text.slice(item.start, item.end)).matchAll(EXTERN_NAME)) define(found[1], { item, i, file: where[i], macro: true, block: true });
   });
   const leaves = items.flatMap((item) => (item.kind !== 'use' ? [] : useLeaves(item.name).map((leaf) => ({ leaf, item }))));
   const usedByName = mergeWords(items.map((item, i) => (item.kind === 'use' ? mergeWords([]) : words[i]))).used;
@@ -132,7 +136,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
         const everywhere = coversEverything(variants.map((def) => def.item.cfg)) || (g < 0 && leaves.some(({ leaf }) => boundName(leaf) === name));
         const cfgs = everywhere ? [[]] : variants.map((def) => def.item.cfg);
         const vis = variants[0].macro ? '' : variants[0].item.vis;
-        if (g >= 0 && variants[0].macro) throw new Error(`${name} is declared inside a macro in ${plan.parts[g].file} and used from another file: leave that macro in ${origin}.`);
+        if (g >= 0 && variants[0].macro) throw new Error(`${name} is declared inside ${variants[0].block ? 'an extern block' : 'a macro'} in ${plan.parts[g].file} and used from another file: leave that ${variants[0].block ? 'block' : 'macro'} in ${origin}.`);
         if (g >= 0 && !vis) widened.add(name);
         const from = f < 0 ? [modOf[g]] : g < 0 ? up : [...up, modOf[g]];
         // A name the parent hands on to other files is there whenever the item is, not only when the parent's own code uses it.
