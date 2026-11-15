@@ -4,6 +4,7 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { namesOf } from './source-names.mjs';
 
 // Reported on GitHub #130: "there is a (minor) bug on update where all of the
 // opacity settings I set per card reset".
@@ -27,15 +28,7 @@ const SRC = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8');
 const require = createRequire(import.meta.url);
 
 function extractFunction(src, name) {
-  const start = src.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} not found in settings.js`);
-  let depth = 0;
-  const i = src.indexOf('{', start);
-  for (let j = i; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(start, j + 1);
-  }
-  throw new Error(`unbalanced braces while extracting ${name}`);
+  return namesOf(src).one(name);
 }
 
 // `DashboardInstances` is a parameter so each test decides whether the module

@@ -5,6 +5,7 @@ import { readFileSync } from './native-source.mjs'; // browser files too: it rea
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // The screen choice is stored TWICE on purpose — in the native shell's own
 // display.json, which it must be able to read at launch before the backend is
@@ -208,10 +209,8 @@ const lf = (s) => s.replace(/\r\n/g, '\n');
 
 /** The source of a top-level `function <name>(` up to its closing brace. */
 function fnBody(src, name) {
-  const start = lf(src).indexOf(`function ${name}(`);
-  if (start < 0) return '';
-  const end = lf(src).indexOf('\n}\n', start);
-  return end < 0 ? lf(src).slice(start) : lf(src).slice(start, end + 3);
+  const names = namesOf(src);
+  return names.has(name) ? names.one(name) + '\n' : '';
 }
 
 // The choice was originally stored under `surface`, which is ALSO the theme's

@@ -16,6 +16,7 @@ import vm from 'node:vm';
 import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { makeDom } from './mini-dom.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -24,10 +25,7 @@ const UTILS = read('../js/utils.js');
 
 // A top-level function's source, from "function name(" to its closing brace.
 function fnSource(src, name) {
-  const start = src.search(new RegExp(`(async )?function ${name}\\(`));
-  assert.ok(start >= 0, name + ' not found');
-  const end = src.indexOf('\n}\n', start);
-  return src.slice(start, end + 2);
+  return namesOf(src).one(name) + '\n';
 }
 const constLine = (src, name) => {
   const m = src.match(new RegExp(`^const ${name} = .*$`, 'm'));

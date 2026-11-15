@@ -14,6 +14,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
 import { declarationSource, engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const require = createRequire(import.meta.url);
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
@@ -123,10 +124,7 @@ test('on credits, a stop during a busy wait sends nothing more', async () => {
 
 // A function's source out of a file, run in a small context of its own.
 function fnSource(src, name) {
-  const at = src.indexOf(`function ${name}(`);
-  assert.ok(at >= 0, `${name} exists`);
-  const ends = ['\nfunction ', '\nasync function ', '\n// '].map((m) => src.indexOf(m, at + 10)).filter((n) => n > 0);
-  return src.slice(at, Math.min(...ends));
+  return namesOf(src).one(name);
 }
 
 test('every way /api/ai answers turns a stop into { stopped }, with what was made and the balance', () => {

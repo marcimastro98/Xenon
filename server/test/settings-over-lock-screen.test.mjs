@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { namesOf } from './source-names.mjs';
 
 // The lock screen (z 260) sits above Settings (z 220) and its backdrop is
 // see-through: it relies on hiding .shell, and Settings lives outside .shell.
@@ -14,15 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SETTINGS = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8');
 
 function extractFunction(src, name) {
-  const start = src.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} not found`);
-  let depth = 0;
-  const open = src.indexOf('{', start);
-  for (let j = open; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(start, j + 1);
-  }
-  throw new Error(`unbalanced braces while extracting ${name}`);
+  return namesOf(src).one(name);
 }
 
 function harness(ambientOpen) {

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // Asked for on GitHub #130: "Is there a way to not waste that entire screen space
 // (weather widget) on that blue background with a moon (I just want the next
@@ -28,15 +29,7 @@ const I18N = appStringsSource();
 const INDEX = read('index.html');
 
 function extractFunction(src, name) {
-  const start = src.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} not found`);
-  let depth = 0;
-  const open = src.indexOf('{', start);
-  for (let j = open; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(start, j + 1);
-  }
-  throw new Error(`unbalanced braces while extracting ${name}`);
+  return namesOf(src).one(name);
 }
 
 const DEF_TILE = { hero: 'full', look: 'new', metrics: true, hourly: true, forecast: true };

@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...p) => readFileSync(join(ROOT, ...p), 'utf8');
@@ -32,17 +33,9 @@ const renderer = arrayLiteral(
 
 // Slice one top-level `function <name>(…) { … }` out of a source file.
 function fnSource(src, signature, what) {
-  const start = src.indexOf(signature);
-  assert.ok(start >= 0, what + ' implementation not found');
-  const open = src.indexOf('{', start);
-  let depth = 0;
-  let end = -1;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}' && --depth === 0) { end = i + 1; break; }
-  }
-  assert.ok(end > open, what + ' closing brace not found');
-  return src.slice(start, end);
+  const piece = namesOf(src).one(/function\*? ([\w$]+)\(/.exec(signature)[1]).trimStart();
+  assert.ok(piece.startsWith(signature), what + ' implementation not found');
+  return piece;
 }
 
 // normalizeTopbarClock delegates the button list to normalizeTopbarActions, so

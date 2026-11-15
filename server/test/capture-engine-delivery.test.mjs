@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...p) => readFileSync(path.join(ROOT, ...p), 'utf8').replace(/\r\n/g, '\n');
@@ -18,10 +19,7 @@ const RELEASE = read('.github', 'workflows', 'release.yml');
 const INTEGRITY = read('.github', 'workflows', 'release-integrity.yml');
 
 function fnBody(src, name) {
-  const i = src.indexOf(`function ${name}(`);
-  assert.ok(i > 0, `${name} exists`);
-  const j = src.indexOf('\n}\n', i);
-  return src.slice(i, j);
+  return namesOf(src).one(name);
 }
 
 // One top-level job of a workflow, from its key to the next top-level key.

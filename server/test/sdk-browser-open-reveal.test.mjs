@@ -59,8 +59,7 @@ test('no mounted tile means no target — the refusal survives for the real case
 // source. Each one is a guarantee that is invisible at the call site.
 
 test('openFromSdk still prefers a visible tile and only then reveals one', () => {
-  const start = SRC.indexOf('function openFromSdk');
-  const body = SRC.slice(start, SRC.indexOf('\n  }', start));
+  const body = namesOf(SRC, 'browser-tile.js').one('openFromSdk');
   const visibleAt = body.indexOf('if (!target && group.visible) target = group;');
   const revealAt = body.indexOf('target = revealBrowserTile();');
   assert.ok(visibleAt > 0, 'the visible-tile scan is gone');
@@ -70,15 +69,13 @@ test('openFromSdk still prefers a visible tile and only then reveals one', () =>
 });
 
 test('a perf/game pause is not overridden to satisfy a widget', () => {
-  const start = SRC.indexOf('function revealBrowserTile');
-  const body = SRC.slice(start, SRC.indexOf('\n  }', start));
+  const body = namesOf(SRC, 'browser-tile.js').one('revealBrowserTile');
   assert.ok(/if \(perfPaused\) return null;/.test(body),
     'revealBrowserTile must bail while playback/perf mode has the tiles paused');
 });
 
 test('revealing never navigates a tile that stays out of sight', () => {
-  const start = SRC.indexOf('function revealBrowserTile');
-  const body = SRC.slice(start, SRC.indexOf('\n  }', start));
+  const body = namesOf(SRC, 'browser-tile.js').one('revealBrowserTile');
   // Both halves of "bring it into view": the page it lives on, and the tab it is.
   assert.ok(body.includes('pager.goToPage(pageId)'), 'a tile on another page must be scrolled to');
   assert.ok(body.includes('activateGroupTab(pick.group)'), 'a tile behind a tab must be activated');
@@ -86,15 +83,13 @@ test('revealing never navigates a tile that stays out of sight', () => {
 });
 
 test('the tab switch does not turn off the media-driven auto-switch', () => {
-  const start = SRC.indexOf('function activateGroupTab');
-  const body = SRC.slice(start, SRC.indexOf('\n  }', start));
+  const body = namesOf(SRC, 'browser-tile.js').one('activateGroupTab');
   assert.ok(/setGroupActive\(gid, group\.id, false\)/.test(body),
     'fromUser must be false — a widget asking is not the user changing a preference');
 });
 
 test('a hidden group defers the open so the page is not launched at the size floor', () => {
-  const start = SRC.indexOf('function navigateActive');
-  const body = SRC.slice(start, SRC.indexOf('\n  }', start));
+  const body = namesOf(SRC, 'browser-tile.js').one('navigateActive');
   assert.ok(/if \(group\.visible\) openTab\(group, tab\);/.test(body),
     'openTab on a hidden group measures a 0-size stage and sticks at the 64px floor');
   assert.ok(body.includes("relaySend({ type: 'navigate', tile: tab.tileId, url }); return;"),

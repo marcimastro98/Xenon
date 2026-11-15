@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
@@ -24,15 +25,7 @@ const I18N = appStringsSource();
 const CSS = read('components', 'CustomWidget', 'CustomWidget.css');
 
 function extractFunction(src, name) {
-  const start = src.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} not found`);
-  let depth = 0;
-  const open = src.indexOf('{', start);
-  for (let j = open; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(start, j + 1);
-  }
-  throw new Error(`unbalanced braces while extracting ${name}`);
+  return namesOf(src).one(name);
 }
 
 test('the stored assignment key takes a Weather tile and nothing new besides', () => {

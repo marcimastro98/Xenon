@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // revealInFileManager() answers "show me where this is" for BOTH the Spotlight
 // search results and the transfer widget, on three platforms. It shipped with a
@@ -23,15 +24,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = engineSource();
 
 function extractFn(name) {
-  const at = SRC.indexOf('function ' + name + '(');
-  assert.notEqual(at, -1, 'server.js must still declare ' + name);
-  const open = SRC.indexOf('{', at);
-  let depth = 0;
-  for (let i = open; i < SRC.length; i++) {
-    if (SRC[i] === '{') depth++;
-    else if (SRC[i] === '}' && --depth === 0) return SRC.slice(at, i + 1);
-  }
-  throw new Error(name + ' never closes');
+  return namesOf(SRC, 'the engine').one(name);
 }
 
 // Run the real function on a given platform, capturing the spawn it performed.

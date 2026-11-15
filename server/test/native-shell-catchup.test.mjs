@@ -15,6 +15,7 @@ import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -29,12 +30,7 @@ const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']
 
 /** One top-level function of update.js's IIFE, as source. */
 function fnSource(name) {
-  const m = UPDATE.match(new RegExp('\\n  (?:async )?function ' + name + '\\('));
-  assert.ok(m, name + ' exists');
-  const start = m.index + 1;
-  const end = UPDATE.indexOf('\n  }\n', start);
-  assert.ok(end > -1, name + ' ends');
-  return UPDATE.slice(start, end + 4);
+  return namesOf(UPDATE, 'update.js').one(name);
 }
 
 /** One `const NAME = ...;` line of update.js, as source. */

@@ -11,7 +11,7 @@
 // DOM, with the real timers replaced by a queue, so the 10 seconds cost nothing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { namesOf } from './source-names.mjs';
 
 // LF only, so the names below find their lines on a CRLF (Windows) checkout too.

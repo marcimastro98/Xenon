@@ -10,6 +10,7 @@
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const require = createRequire(import.meta.url);
 const SRC = engineSource();
@@ -28,10 +29,7 @@ export const SLICE_KEYS = ['appearance', 'autoPalette', 'styleMode', 'retroScanl
   'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom'];
 
 function functionSource(name) {
-  const at = SRC.indexOf('\nfunction ' + name + '(');
-  if (at < 0) throw new Error('server.js no longer defines ' + name);
-  const end = SRC.indexOf('\n}\n', at);
-  return SRC.slice(at + 1, end + 2);
+  return namesOf(SRC, 'the engine').one(name);
 }
 
 function constSource(name) {

@@ -10,21 +10,16 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { languagesWith } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function fnSource(src, signature) {
-  const start = src.indexOf(signature);
-  assert.ok(start >= 0, signature);
-  const open = src.indexOf('{', start);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}' && --depth === 0) return src.slice(start, i + 1);
-  }
-  throw new Error('no closing brace: ' + signature);
+  const piece = namesOf(src).one(/function\*? ([\w$]+)\(/.exec(signature)[1]).trimStart();
+  assert.ok(piece.startsWith(signature), signature);
+  return piece;
 }
 
 const SETTINGS = read('../js/settings.js');

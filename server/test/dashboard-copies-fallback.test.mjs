@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { namesOf } from './source-names.mjs';
 
 // Regression guard for a real production bug: a tab group holding an SDK widget
 // vanished after some restarts, permanently.
@@ -29,15 +30,7 @@ const SRC = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8');
 
 // Slice a top-level `function name(...) { ... }` out of the source by brace match.
 function extractFunction(src, name) {
-  const start = src.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} not found in settings.js`);
-  let depth = 0;
-  let i = src.indexOf('{', start);
-  for (let j = i; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(start, j + 1);
-  }
-  throw new Error(`unbalanced braces while extracting ${name}`);
+  return namesOf(src).one(name);
 }
 
 // Build the function with DashboardInstances genuinely undefined — the parse-time

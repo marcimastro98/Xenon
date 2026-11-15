@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // The 'audio' SSE tick spawns SoundVolumeView.exe, so every fire is a process +
 // temp-CSV cycle. It used to be gated on `sseClients.size === 0` alone, meaning it
@@ -22,9 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = engineSource();
 
 function sliceFn(src, name) {
-  const start = src.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} not found in server.js`);
-  return src.slice(start, src.indexOf('\n}', start));
+  return namesOf(src).one(name);
 }
 
 test('the audio tick is gated on demand, not merely on a connected dashboard', () => {

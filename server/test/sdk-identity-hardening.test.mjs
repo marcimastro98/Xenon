@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // Four ways a community widget could end up with more than the user approved:
 //   1. a frame that navigates itself away keeps its place on the bridge;
@@ -27,10 +28,9 @@ const CW_SRC = read('../js/custom-widget.js');
 // ── 1. a frame that leaves its page ──────────────────────────────────────────
 
 function sliceFn(src, header) {
-  const start = src.indexOf(header);
-  assert.ok(start >= 0, header + ' not found');
-  const end = src.indexOf('\n  }\n', start);
-  return src.slice(start, end + 4);
+  const piece = namesOf(src).one(/function ([\w$]+)\(/.exec(header)[1]);
+  assert.ok(piece.startsWith(header), header + ' not found');
+  return piece + '\n';
 }
 function loadGuard(origin) {
   const observers = [];

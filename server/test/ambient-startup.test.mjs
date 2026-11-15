@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // Asked for on Discord by someone whose Ambient scene is their whole dashboard:
 // "on startup/restart I need to press the button in the top left for ambient
@@ -31,15 +32,7 @@ const I18N = appStringsSource();
 const INDEX = read('index.html');
 
 function extractFunction(src, name) {
-  const start = src.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} not found`);
-  let depth = 0;
-  const open = src.indexOf('{', start);
-  for (let j = open; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(start, j + 1);
-  }
-  throw new Error(`unbalanced braces while extracting ${name}`);
+  return namesOf(src).one(name);
 }
 
 const DEFAULTS = "{ ambientMode: { enabled: true, idleMinutes: 0, sceneId: 'builtin', openOnStartup: false } }";
