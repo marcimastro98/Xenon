@@ -11,8 +11,10 @@
 //! driver has brought them up.
 //!
 //! The kiosk is not hidden: its timers and the widgets-only driver must keep
-//! running (memory_level.rs). Its page is told instead and holds its ambient
-//! animations (`ambientFreeze('screens-off')`).
+//! running (memory_level.rs). Its page is told instead and draws nothing (the
+//! `screens-off` class) until the screens are back. That covers the same report's
+//! next answer: Xenon only on the Edge, and the Edge stays lit while the main
+//! screen sleeps.
 //!
 //! Windows tells a window through `GUID_CONSOLE_DISPLAY_STATE`, sent at once on
 //! registering and on every change. The kiosk's window receives it, through a
@@ -161,8 +163,13 @@ fn apply(off: bool) {
     }
 }
 
+/// The class stops the page drawing at all (styles/global.css); the freeze
+/// also holds what keys off `overlay-frozen`, such as a background video.
 fn freeze_js(off: bool) -> String {
-    format!("try{{if(typeof window.ambientFreeze==='function')window.ambientFreeze('screens-off',{off})}}catch(e){{}}")
+    format!(
+        "try{{document.documentElement.classList.toggle('screens-off',{off});\
+         if(typeof window.ambientFreeze==='function')window.ambientFreeze('screens-off',{off})}}catch(e){{}}"
+    )
 }
 
 #[cfg(test)]
@@ -189,8 +196,13 @@ mod tests {
     }
 
     #[test]
-    fn the_kiosk_page_holds_its_ambient() {
-        assert_eq!(freeze_js(true), "try{if(typeof window.ambientFreeze==='function')window.ambientFreeze('screens-off',true)}catch(e){}");
-        assert!(freeze_js(false).contains("'screens-off',false"));
+    fn the_kiosk_page_stops_drawing() {
+        assert_eq!(
+            freeze_js(true),
+            "try{document.documentElement.classList.toggle('screens-off',true);\
+             if(typeof window.ambientFreeze==='function')window.ambientFreeze('screens-off',true)}catch(e){}"
+        );
+        assert!(freeze_js(false).contains("classList.toggle('screens-off',false)"));
+        assert!(freeze_js(false).contains("'screens-off',false)"));
     }
 }
