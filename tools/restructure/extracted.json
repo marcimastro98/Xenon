@@ -517,7 +517,8 @@
       {"file":"server/device-battery/engine-monitor.js","about":"The engine's reader of the battery of wireless devices.","names":["batteryMonitor"],"wire":{"first":"batteryMonitor","last":"batteryMonitor"},"spelled":{"../power/index.js":"./power","./index.js":"./device-battery"}},
       {"file":"server/windows-tiles/engine-browser.js","about":"The engine's host of the browser a Browser tile shows.","names":["embeddedBrowser"],"wire":{"first":"embeddedBrowser","last":"embeddedBrowser"}},
       {"file":"server/store-catalog/engine-rating-votes.js","about":"The engine's keeper of the votes on Store entries.","names":["ratingVotes"],"wire":{"first":"ratingVotes","last":"ratingVotes"}},
-      {"file":"server/sensor-service/engine-fps-notice.js","about":"The engine's one pop-up per version about the Windows permission that FPS needs.","names":["_fpsNotice"],"wire":{"first":"_fpsNotice","last":"_fpsNotice"},"spelled":{"./fps-notice.js":"./sensor-service/fps-notice.js","./fps-access.js":"./sensor-service/fps-access.js"}}
+      {"file":"server/sensor-service/engine-fps-notice.js","about":"The engine's one pop-up per version about the Windows permission that FPS needs.","names":["_fpsNotice"],"wire":{"first":"_fpsNotice","last":"_fpsNotice"},"spelled":{"./fps-notice.js":"./sensor-service/fps-notice.js","./fps-access.js":"./sensor-service/fps-access.js"}},
+      {"file":"server/screens/engine-capture-last.js","about":"The engine's memory of the last steps document and bug report, for after a restart.","names":["_captureLast"],"wire":{"first":"_captureLast","last":"_captureLast"}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

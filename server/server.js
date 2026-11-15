@@ -79,7 +79,7 @@ const { createRecorder } = require('./recorder');
 const { createCaptureMarkers } = require('./capture-markers');
 const { createAutoClips } = require('./capture-autoclips');
 const { createStepsRecorder } = require('./steps-recorder');
-const { createCaptureLast } = require('./capture-last.js');
+require('./capture-last.js');
 const StepsDoc = require('./steps-doc');
 const { createReplay, estimateBitrate, ringByteRate } = require('./replay');
 const { createBugReport } = require('./bug-report');
@@ -7394,11 +7394,7 @@ const _recorder = createRecorder({
     ...(e.pruned ? { pruned: e.pruned, limitGB: captureOptions().maxGB } : {}),
   }),
 });
-// "Open" / "Show" the last steps document or bug report after a restart (capture-last.js).
-const _captureLast = createCaptureLast({
-  file: path.join(DATA_DIR, 'capture-last.json'),
-  readFile: (p) => fs.promises.readFile(p, 'utf8'),
-});
+const { _captureLast } = require('./screens/engine-capture-last.js');
 const _stepsRecorder = createStepsRecorder({
   host: _captureHost,
   root: documentsRoot,
