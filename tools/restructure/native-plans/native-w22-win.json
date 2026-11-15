@@ -1,0 +1,14 @@
+[
+  {
+    "origin": "apps/native/src-tauri/src/layers/ffi.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/layers/ffi/ask.rs", "about": "Windows: what a window says of itself when asked: its class, title, process, frame, and the screen it is on.", "lines": [[291, 369]] }
+    ]
+  },
+  {
+    "origin": "apps/native/src-tauri/src/engine_install/tests.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/engine_install/tests/carried.rs", "about": "Tests of placing the engine the app carries: once, again when cut short, never over a newer one.", "lines": [[90, 190]] }
+    ]
+  }
+]
