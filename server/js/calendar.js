@@ -176,8 +176,16 @@ function showCalendar() {
   renderCalendar();
   updateCalendarMiniPlayer();
   if (!showCalendar._notifAsked && 'Notification' in window && Notification.permission === 'default') {
-    showCalendar._notifAsked = true;  // asked at the first touch, not at load: a prompt nobody asked for is quieted or refused
-    document.addEventListener('pointerdown', () => { try { Promise.resolve(Notification.requestPermission()).catch(() => {}); } catch {} }, { once: true });
+    showCalendar._notifAsked = true;  // asked at the first click or key, not at load: a prompt nobody asked for is quieted or refused
+    // A click or a key press is what a browser takes as the person's own act, with mouse, touch, pen
+    // and keyboard alike (pointerdown is not one for touch or pen). The first of the two asks, once.
+    const kinds = ['click', 'keydown'];
+    const ask = (event) => {
+      if (event.type === 'keydown' && ['Shift', 'Control', 'Alt', 'Meta', 'Escape'].includes(event.key)) return;  // not an act a browser counts
+      for (const kind of kinds) document.removeEventListener(kind, ask, true);
+      try { Promise.resolve(Notification.requestPermission()).catch(() => {}); } catch {}
+    };
+    for (const kind of kinds) document.addEventListener(kind, ask, true);
   }
 }
 
