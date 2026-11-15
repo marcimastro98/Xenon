@@ -36,7 +36,7 @@ const { execFile } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const startupLog = require('./startup-log.js');
+const startupLog = require('../startup-log.js');
 
 const TASK_NAME = 'Xenon Edge Widget';
 // Task Scheduler's XML spelling for "no limit". Same value New-ScheduledTaskSettingsSet

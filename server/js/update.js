@@ -1001,7 +1001,7 @@
   // Shown once, then acknowledged.
   // ── Will Xenon still be here after the next sign-in? ───────────────────────
   // The engine checks its own per-logon startup task and puts back the three
-  // conditions the installer owns (see server/startup-task.js). Two things are
+  // conditions the installer owns (see server/install/startup-task.js). Two things are
   // worth a word here, and nothing else is: a repair, because the app changed
   // something on this PC without being asked; and a task that is switched OFF,
   // because that one is the user's to turn back on and until they do, Xenon

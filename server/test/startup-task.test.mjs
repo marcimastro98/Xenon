@@ -18,7 +18,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const st = require('../startup-task.js');
+const st = require('../install/startup-task.js');
 
 const SERVER = engineSource();
 const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
@@ -166,7 +166,7 @@ test('the app task counts as left behind only when the app and its uninstaller a
 });
 
 test('the check removes only that task, by name, and says so in the log', () => {
-  const src = readFileSync(new URL('../startup-task.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../install/startup-task.js', import.meta.url), 'utf8');
   assert.equal(st.APP_TASK_NAME, 'Xenon App');
   assert.match(src, /run\(\['\/Delete', '\/TN', APP_TASK_NAME, '\/F'\]\)/);
   assert.equal((src.match(/'\/Delete'/g) || []).length, 1, 'nothing else is ever deleted');

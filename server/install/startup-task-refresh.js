@@ -2,7 +2,7 @@
 // log what was repaired or is still wrong.
 
 const startupLog = require('../startup-log.js');
-const startupTask = require('../startup-task.js');
+const startupTask = require('./startup-task.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { startupTaskCheck } = require('./startup-task-state.js');
 
