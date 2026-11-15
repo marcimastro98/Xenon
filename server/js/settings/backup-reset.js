@@ -173,24 +173,23 @@ function showPendingBackupSummary() {
   let meta = '';
   if (needs.length) meta = `${tt('settings_backup_needs_setup', 'Da ricollegare:')} ${needs.join(', ')}`;
   if (here.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_needs_here', 'Da riattivare su questo PC:')} ${here.join(', ')}`;
-  // Keys of the Deck that came in without the action the file gave them (settings/backup-keep.js).
+  // Keys of the Deck that came in without the action the file gave them (settings/backup-keep.js),
+  // when the question about them was not answered: the file is no longer in memory after a reload.
   if (heldBack) meta += `${meta ? ' · ' : ''}${tt('settings_backup_deck_actions', 'I tasti del Deck che avviano programmi, scrivono o inviano qualcosa sono arrivati senza azione: impostali di nuovo su questo PC.')}`;
   if (widgets.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_needs_widgets', 'Widget da reinstallare dai loro codici:')} ${widgets.join(', ')}`;
   if (failed.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
   backupToast('settings_backup_imported', meta);
 }
 
+// The import, and its steps inside it: this script adds no name to the shared scope and runs nothing on load.
 async function importBackupFile(input) {
-  const file = input && input.files && input.files[0];
-  if (!file) return;
-  const btn = document.getElementById('settings-backup-import-btn');
-  try {
-    const text = await file.text();
-    JSON.parse(text);   // sanity check locally before shipping it to the server
+  // One import of the file. The file goes inside the request, beside the answer about the Deck keys:
+  // nothing the file says about itself is at the top, where the engine reads that answer.
+  async function send(text, keepDeckActions) {
     const res = await fetch('/backup/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: text,
+      body: `{${keepDeckActions ? '"keepDeckActions":true,' : ''}"bundle":${text}}`,
     });
     const out = await res.json();
     // A partial import (some sections restored, some failed) still reloads —
@@ -198,13 +197,64 @@ async function importBackupFile(input) {
     // after the reload tells the user exactly what didn't make it.
     const restoredAny = out && Array.isArray(out.restored) && out.restored.length > 0;
     if (!out || (out.ok !== true && !restoredAny)) throw new Error((out && out.error) || 'import_failed');
+    return out;
+  }
+
+  function park(out, leftOff) {
+    const listed = Array.isArray(out.needsSetup) ? out.needsSetup : [];
     try {
       sessionStorage.setItem('xenon.backupImportSummary', JSON.stringify({
-        needsSetup: Array.isArray(out.needsSetup) ? out.needsSetup : [],
+        needsSetup: leftOff ? listed.filter((k) => k !== 'deckActions') : listed,
         needsWidgets: Array.isArray(out.needsWidgets) ? out.needsWidgets : [],
         failed: Array.isArray(out.failed) ? out.failed : [],
       }));
     } catch { /* summary toast is best-effort */ }
+  }
+
+  // What the import says it held back of the Deck, read as an answer from outside: counts and short texts.
+  function heldBack(out) {
+    const held = out?.deckActions;
+    if (!held || typeof held !== 'object' || !Number.isInteger(held.keys) || held.keys < 1) return null;
+    const actions = (Array.isArray(held.actions) ? held.actions : []).slice(0, 12)
+      .filter((a) => a && typeof a.type === 'string')
+      .map((a) => ({ type: a.type.slice(0, 40), what: typeof a.what === 'string' ? a.what.slice(0, 160) : '' }));
+    return { keys: held.keys, actions, more: Number.isInteger(held.more) && held.more > 0 ? held.more : 0 };
+  }
+
+  // The question at the PC: these keys start things, keep them? The list is plain text, and the
+  // button in focus is the one that leaves them off. Closing the window leaves them off too.
+  async function ask(held) {
+    if (typeof settingsPrompt !== 'function') return null;
+    const tt = (k, fb) => { const said = typeof window.t === 'function' ? window.t(k) : ''; return said && said !== k ? said : fb; };
+    const lines = held.actions.map((a) => `${tt('deck_act_' + a.type, a.type)}${a.what ? ': ' + a.what : ''}`);
+    if (held.more) lines.push(tt('settings_backup_deck_more', 'and {n} more').replace('{n}', String(held.more)));
+    const yes = await settingsPrompt({
+      type: 'confirm', cautious: true, lines,
+      title: tt('settings_backup_deck_keep_title', 'Deck keys in this backup'),
+      message: tt('settings_backup_deck_keep_ask', 'Keys in this backup that start programs, scripts or shortcuts: {n}. Keep them?').replace('{n}', String(held.keys)),
+      okLabel: tt('settings_backup_deck_keep_yes', 'Keep them'),
+      cancelLabel: tt('settings_backup_deck_keep_no', 'Leave them off'),
+    });
+    return yes === true;
+  }
+
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('settings-backup-import-btn');
+  try {
+    const text = await file.text();
+    JSON.parse(text);   // sanity check locally before shipping it to the server
+    let out = await send(text, false);
+    // Parked before the question: if the page reloads while it is open, the message after the
+    // reload says to import the file again to keep the keys.
+    park(out, false);
+    const held = heldBack(out);
+    const keep = held ? await ask(held) : null;
+    if (keep === true) {
+      // The same file again, with the yes. If that fails the first import still stands, and its message with it.
+      try { out = await send(text, true); park(out, false); }
+      catch (e) { console.error('Backup import (keeping Deck keys) failed:', e); }
+    } else if (keep === false) park(out, true);
     location.reload();
   } catch (e) {
     console.error('Backup import failed:', e);

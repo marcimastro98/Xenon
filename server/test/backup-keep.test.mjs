@@ -100,7 +100,7 @@ test('the import result carries that list after the services, with or without th
   assert.deepEqual(_backupNeedsSetup({ spotify: true }, {}, {}), ['spotify']);
   assert.deepEqual(_backupNeedsSetup(null, {}, {}), []);
   const source = engineSource();
-  assert.match(source, /_backupNeedsSetup\(\s*bundle\.secretsConfigured,\s*[\w.]+ \|\| \{\},\s*await _readStreamTokensSnapshot\(\), d\.settings, d\.deck, await readDeckStore\(\)\.catch\(\(\) => null\)\s*\)/);
+  assert.match(source, /const deckNow = await readDeckStore\(\)\.catch\(\(\) => null\);\s*const needsSetup = _backupNeedsSetup\(bundle\.secretsConfigured, [\w.]+ \|\| \{\}, await _readStreamTokensSnapshot\(\), d\.settings, d\.deck, deckNow\);/);
 });
 
 // A Deck as the dashboard saves it: one profile, one page, keys found by their place.
@@ -146,7 +146,7 @@ test('a Deck key of a backup keeps an action that starts or types only when this
   assert.equal(remoteMayLaunch(NOTES.path, [], written), true);
   // The file itself would have allowed all of it: that is what the import no longer takes.
   assert.deepEqual(remoteMayRun(TOOL, normalizeDeckStore(file)), { ok: true });
-  assert.equal(deckActionsHeldBack(file, written), true);
+  assert.equal(deckActionsHeldBack(file, written)?.keys, 4, 'the Tool key, the steps key, the key of the saved profile and the saved key');
 });
 
 test('a backup restored on the PC that made it loses nothing of its Deck', () => {
@@ -155,7 +155,7 @@ test('a backup restored on the PC that made it loses nothing of its Deck', () =>
     { id: 'f', kind: 'folder', folder: { pages: [{ keys: [{ id: 'g', kind: 'action', triggers: { tap: { steps: [{ action: { type: 'runScript', path: 'C:\\Scripts\\night.ps1' }, delayMs: 50 }] } } }] }] } },
   ], { keyPresets: [{ id: 'h', kind: 'action', triggers: { tap: { type: 'webhook', url: 'https://example.com/hook', method: 'POST' } } }] });
   assert.deepEqual(deckOnImport(store, store), normalizeDeckStore(store));
-  assert.equal(deckActionsHeldBack(store, deckOnImport(store, store)), false);
+  assert.equal(deckActionsHeldBack(store, deckOnImport(store, store)), null);
 });
 
 test('on a PC with no Deck, or one that could not be read, no guarded action comes in', () => {
@@ -182,7 +182,7 @@ test('the list after an import says so, also for a first-format file with no fla
   const source = engineSource();
   const apply = source.slice(source.indexOf('async function applyBackup('));
   const deck = apply.slice(apply.indexOf("await apply('deck'"), apply.indexOf("if (Array.isArray(d.events))"));
-  assert.match(deck, /const cur = await readDeckStore\(\)\.catch\(\(\) => null\);\s*const store = deckOnImport\(d\.deck, cur\);/);
+  assert.match(deck, /const cur = await readDeckStore\(\)\.catch\(\(\) => null\);\s*const store = deckOnImport\(d\.deck, cur, keepDeckActions === true && !remote\);/);
   assert.doesNotMatch(deck, /normalizeDeckStore\(d\.deck\)|fmt/);
 });
 

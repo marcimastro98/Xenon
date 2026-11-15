@@ -37,6 +37,13 @@ function settingsPrompt(opts) {
       msg.textContent = o.message;
       body.appendChild(msg);
     }
+    // Lines under the message, each written as text: they can come from a file somebody else made.
+    if (Array.isArray(o.lines) && o.lines.length) {
+      const list = document.createElement('ul');
+      list.className = 'preset-modal-lines';
+      for (const line of o.lines) { const li = document.createElement('li'); li.textContent = String(line); list.appendChild(li); }
+      body.appendChild(list);
+    }
     let input = null;
     if (!isConfirm) {
       input = document.createElement('input');
@@ -85,7 +92,7 @@ function settingsPrompt(opts) {
     document.body.appendChild(overlay);
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, true);
     const letGo = window.DialogFocus.hold(modal, {
-      start: input || (o.danger === true ? cancel : ok),
+      start: input || (o.danger === true || o.cautious === true ? cancel : ok),   // cautious: a yes worth reading first
       onEsc: () => finish(null),
     });
     if (input) input.select();

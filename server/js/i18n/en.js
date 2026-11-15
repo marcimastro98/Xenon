@@ -7352,5 +7352,10 @@ module.exports = {
   weather_metric_clouds_sub: 'cover',
   settings_backup_needs_here: 'Turn on again on this PC:',
   settings_backup_widget_permissions: 'widget permissions',
-  settings_backup_deck_actions: 'Deck keys that start programs, type or send something came in without their action: set them again on this PC.',
+  settings_backup_deck_actions: 'Deck keys that start programs, type or send something came in without their action. Import the backup again to keep them, or set them again on this PC.',
+  settings_backup_deck_keep_title: 'Deck keys in this backup',
+  settings_backup_deck_keep_ask: 'Keys in this backup that start programs, scripts or shortcuts: {n}. Keep them? Say yes only if the backup is yours.',
+  settings_backup_deck_keep_yes: 'Keep them',
+  settings_backup_deck_keep_no: 'Leave them off',
+  settings_backup_deck_more: 'and {n} more',
 };

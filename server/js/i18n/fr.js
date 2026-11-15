@@ -7163,5 +7163,10 @@ module.exports = {
   weather_metric_clouds_sub: 'couverture',
   settings_backup_needs_here: 'À réactiver sur ce PC :',
   settings_backup_widget_permissions: 'autorisations des widgets',
-  settings_backup_deck_actions: 'Les touches du Deck qui lancent des programmes, écrivent ou envoient quelque chose sont arrivées sans leur action : réglez-les à nouveau sur ce PC.',
+  settings_backup_deck_actions: 'Les touches du Deck qui lancent des programmes, écrivent ou envoient quelque chose sont arrivées sans leur action. Importez à nouveau la sauvegarde pour les garder, ou réglez-les à nouveau sur ce PC.',
+  settings_backup_deck_keep_title: 'Touches du Deck dans cette sauvegarde',
+  settings_backup_deck_keep_ask: 'Touches de cette sauvegarde qui lancent des programmes, des scripts ou des raccourcis : {n}. Les garder ? Répondez oui seulement si la sauvegarde est la vôtre.',
+  settings_backup_deck_keep_yes: 'Les garder',
+  settings_backup_deck_keep_no: 'Les laisser sans action',
+  settings_backup_deck_more: 'et {n} de plus',
 };

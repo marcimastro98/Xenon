@@ -51,7 +51,7 @@ test('the destructive confirm is styled and focused as destructive', () => {
   const body = fn.slice(0, fn.indexOf('\n}'));
   assert.match(body, /o\.danger === true \? 'settings-btn danger' : 'settings-btn primary'/,
     'danger mode dresses the confirm as destructive');
-  assert.match(body, /start: input \|\| \(o\.danger === true \? cancel : ok\)/,
+  assert.match(body, /start: input \|\| \(o\.danger === true \|\| o\.cautious === true \? cancel : ok\)/,
     'and opens with Cancel focused');
   assert.match(RESET, /danger: true/, 'the reset asks in danger mode');
 });

@@ -7186,5 +7186,10 @@ module.exports = {
   weather_metric_clouds_sub: 'Bedeckung',
   settings_backup_needs_here: 'Auf diesem PC wieder einschalten:',
   settings_backup_widget_permissions: 'Widget-Berechtigungen',
-  settings_backup_deck_actions: 'Deck-Tasten, die Programme starten, tippen oder etwas senden, kamen ohne ihre Aktion an: Richte sie auf diesem PC neu ein.',
+  settings_backup_deck_actions: 'Deck-Tasten, die Programme starten, tippen oder etwas senden, kamen ohne ihre Aktion an. Importiere das Backup noch einmal, um sie zu behalten, oder richte sie auf diesem PC neu ein.',
+  settings_backup_deck_keep_title: 'Deck-Tasten in diesem Backup',
+  settings_backup_deck_keep_ask: 'Tasten in diesem Backup, die Programme, Skripte oder Tastenkürzel starten: {n}. Behalten? Sag nur Ja, wenn das Backup von dir ist.',
+  settings_backup_deck_keep_yes: 'Behalten',
+  settings_backup_deck_keep_no: 'Ohne Aktion lassen',
+  settings_backup_deck_more: 'und {n} weitere',
 };

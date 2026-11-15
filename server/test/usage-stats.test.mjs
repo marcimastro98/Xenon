@@ -191,7 +191,7 @@ test('the server and client wire the setting the strict way, local to the PC', (
   assert.match(SERVER, /if \(isRemote\) incoming\.usageStats = !!\(prev && prev\.usageStats === true\);/);
   // So would a backup it posts: /backup/import is refused to a paired device.
   // See paired/refused-paths.js. The import keeps the check all the same.
-  assert.match(SERVER, /applyBackup\(JSON\.parse\(raw \|\| '\{\}'\), \{ remote: isRemote \}\)/);
+  assert.match(SERVER, /applyBackup\(asked\.bundle, \{ remote: isRemote, keepDeckActions: asked\.keepDeckActions && !isRemote \}\)/);
   assert.match(SERVER, /if \(remote\) incoming\.usageStats = !!\(prev && prev\.usageStats === true\);/);
   // Rides the update check; the tier is a boolean, never the code.
   assert.match(SERVER, /usageStats\.maybeSend\(\{ enabled: true, supporter: !!\(st && st\.saved\) \}\)/);

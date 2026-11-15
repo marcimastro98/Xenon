@@ -7217,5 +7217,10 @@ module.exports = {
   weather_metric_clouds_sub: 'cobertura',
   settings_backup_needs_here: 'Vuelve a activar en este PC:',
   settings_backup_widget_permissions: 'permisos de los widgets',
-  settings_backup_deck_actions: 'Las teclas del Deck que abren programas, escriben o envían algo han llegado sin su acción: configúralas de nuevo en este PC.',
+  settings_backup_deck_actions: 'Las teclas del Deck que abren programas, escriben o envían algo han llegado sin su acción. Importa otra vez la copia para conservarlas, o configúralas de nuevo en este PC.',
+  settings_backup_deck_keep_title: 'Teclas del Deck en esta copia',
+  settings_backup_deck_keep_ask: 'Teclas de esta copia que abren programas, scripts o atajos: {n}. ¿Quieres conservarlas? Di que sí solo si la copia es tuya.',
+  settings_backup_deck_keep_yes: 'Conservarlas',
+  settings_backup_deck_keep_no: 'Dejarlas sin acción',
+  settings_backup_deck_more: 'y {n} más',
 };

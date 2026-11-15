@@ -3,6 +3,7 @@
 
 const { readBody } = require('../http/read-body.js');
 const { localBackupStamp, BACKUP_MAX_BYTES } = require('./backup-format.js');
+const { importRequest, REQUEST_ROOM } = require('./backup-request.js');
 const { redactSettingsSecrets } = require('./secrets.js');
 const { createPairedBackupSaves } = require('./backup-save-paired.js');
 
@@ -38,8 +39,10 @@ const branches = {
 
   'POST /backup/import': async (req, _res, { json, err500, isRemote }, { applyBackup }) => {
     try {
-      const raw = await readBody(req, BACKUP_MAX_BYTES);
-      json(await applyBackup(JSON.parse(raw || '{}'), { remote: isRemote }));
+      const raw = await readBody(req, BACKUP_MAX_BYTES + REQUEST_ROOM);
+      const asked = importRequest(JSON.parse(raw || '{}'));
+      // The yes to the Deck keys is given at the PC: this route is refused to paired devices, and the answer is too.
+      json(await applyBackup(asked.bundle, { remote: isRemote, keepDeckActions: asked.keepDeckActions && !isRemote }));
     } catch (e) { err500(e.message); }
   },
 

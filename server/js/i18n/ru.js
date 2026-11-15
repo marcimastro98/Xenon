@@ -7263,5 +7263,10 @@ module.exports = {
   weather_metric_clouds_sub: 'покрытие',
   settings_backup_needs_here: 'Включите снова на этом ПК:',
   settings_backup_widget_permissions: 'разрешения виджетов',
-  settings_backup_deck_actions: 'Клавиши Deck, которые запускают программы, печатают или что-то отправляют, пришли без действия: настройте их снова на этом ПК.',
+  settings_backup_deck_actions: 'Клавиши Deck, которые запускают программы, печатают или что-то отправляют, пришли без действия. Импортируйте резервную копию ещё раз, чтобы сохранить их, или настройте их снова на этом ПК.',
+  settings_backup_deck_keep_title: 'Клавиши Deck в этой копии',
+  settings_backup_deck_keep_ask: 'Клавиши в этой копии, которые запускают программы, скрипты или сочетания клавиш: {n}. Сохранить их? Соглашайтесь, только если это ваша копия.',
+  settings_backup_deck_keep_yes: 'Сохранить',
+  settings_backup_deck_keep_no: 'Оставить без действия',
+  settings_backup_deck_more: 'и ещё {n}',
 };

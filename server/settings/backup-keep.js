@@ -6,34 +6,65 @@
 const { normalizeServerAppFavorites } = require('./normalize-favorites.js');
 const { normalizeDeckStore } = require('../deck/store-normalize.js');
 const { POWERSHELL_SUPPORTED } = require('../powershell/supported.js');
-const { guardedIn, canonical, introduces, FREE } = require('../remote-actions.js');
+const { guardedIn, canonical, FREE } = require('../remote-actions.js');
 
 /** @param {any} value @returns {Record<string, any> | null} the value when it is an object with keys, not a list */
 const plain = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : null);
 const pathKey = (/** @type {any} */ value) => String(value || '').trim().toLowerCase();
 
 const DROPPED = Symbol('dropped');
+// As deep as remote-actions.js looks for the actions a Deck holds (guardedIn). What lies deeper
+// is not seen there, so it is never kept here and always counted: no Deck a person built nests so far.
+const DEPTH = 40;
+// How many actions the question after an import lists by name.
+const LISTED = 8;
+
+/** @typedef {{ keys: Set<object>, actions: Map<string, { type: string, what: string }>, tooDeep: number }} Found */
+/** @returns {Found} */
+const nothingFound = () => ({ keys: new Set(), actions: new Map(), tooDeep: 0 });
 
 /**
- * A copy of one piece of a Deck store without the guarded actions `held` does not list.
+ * One action for the list: its kind, and the program, name or shortcut it carries. Never a web
+ * address, a typed text or a message: those can hold a password, and the list is shown on a screen.
+ * @param {string} action the action as canonical() writes it
+ */
+function named(action) {
+  const read = JSON.parse(action);
+  const what = [read.path, read.name, read.app, read.keys].find((value) => typeof value === 'string' && value.trim()) ?? '';
+  return { type: String(read.type).slice(0, 40), what: what.trim().slice(0, 160) };
+}
+
+/**
+ * A copy of one piece of a Deck store without the guarded actions `held` does not list, and
+ * without anything deeper than DEPTH. What was left out is noted in `found`: the one walk drops
+ * and counts, so the two can never disagree.
  * A step is nothing without its action, so it goes with it. A place in a list is kept and left
  * empty: the keys of a page are found by their place.
- * @param {any} node @param {Set<string>} held
+ * @param {any} node
+ * @param {Set<string> | null} held the actions that stay; null keeps every action (the person said so at the PC)
+ * @param {Found} found
+ * @param {number} [depth] @param {object | null} [key] the key this piece belongs to
  * @returns {any}
  */
-function withoutNewGuarded(node, held) {
+function withoutNewGuarded(node, held, found, depth = 0, key = null) {
   if (!node || typeof node !== 'object') return node;
+  if (depth > DEPTH) { found.tooDeep += 1; return DROPPED; }
   if (Array.isArray(node)) {
-    return node.map((item) => { const kept = withoutNewGuarded(item, held); return kept === DROPPED ? null : kept; });
+    return node.map((item) => { const kept = withoutNewGuarded(item, held, found, depth + 1, key); return kept === DROPPED ? null : kept; });
   }
-  if (typeof node.type === 'string' && !FREE.has(node.type)) {
+  if (held && typeof node.type === 'string' && !FREE.has(node.type)) {
     const action = canonical(node);
-    if (action && !held.has(action)) return DROPPED;
+    if (action && !held.has(action)) {
+      found.keys.add(key ?? node);
+      if (!found.actions.has(action)) found.actions.set(action, named(action));
+      return DROPPED;
+    }
   }
+  const inKey = plain(node.triggers) ? node : key;
   /** @type {Record<string, any>} */
   const out = {};
   for (const name of Object.keys(node)) {
-    const kept = withoutNewGuarded(node[name], held);
+    const kept = withoutNewGuarded(node[name], held, found, depth + 1, inKey);
     if (kept === DROPPED && name === 'action') return DROPPED;
     if (kept !== DROPPED) out[name] = kept;
   }
@@ -48,20 +79,32 @@ function withoutNewGuarded(node, held) {
  * it loses nothing: every guarded action of the file is already here.
  * A key runs with one tap, and a paired device may run whatever a key holds (remoteMayRun,
  * remoteMayLaunch): the file's word alone must not be enough for either.
+ * `keep` is the person's yes, given at the PC after being shown what the keys would start
+ * (backup-request.js): then the actions come in as the file has them. It is never read from the file.
  * @param {any} fromFile the Deck store in the file
  * @param {any} here the Deck store saved on this PC
+ * @param {boolean} [keep]
  */
-function deckOnImport(fromFile, here) {
-  return normalizeDeckStore(withoutNewGuarded(normalizeDeckStore(fromFile), guardedIn(here)));
+function deckOnImport(fromFile, here, keep = false) {
+  return normalizeDeckStore(withoutNewGuarded(normalizeDeckStore(fromFile), keep === true ? null : guardedIn(here), nothingFound()));
 }
 
 /**
- * Whether the Deck of the file holds a guarded action that the Deck of this PC does not hold after
- * the import: the person is told, and sets those keys up again here.
+ * What the Deck of the file holds that the Deck of this PC does not hold after the import, for the
+ * question the page asks at the PC: how many keys, and a short list of what they would start.
+ * `tooDeep` counts what was left out for its depth alone: no answer brings that in.
  * @param {any} fromFile the Deck store in the file
  * @param {any} now the Deck store of this PC after the import
+ * @returns {{ keys: number, actions: { type: string, what: string }[], more: number, tooDeep: number } | null} null when nothing was held back
  */
-const deckActionsHeldBack = (fromFile, now) => !!plain(fromFile) && introduces(now, fromFile);
+function deckActionsHeldBack(fromFile, now) {
+  if (!plain(fromFile)) return null;
+  const found = nothingFound();
+  withoutNewGuarded(normalizeDeckStore(fromFile), guardedIn(now), found);
+  if (!found.keys.size && !found.tooDeep) return null;
+  const actions = [...found.actions.values()];
+  return { keys: found.keys.size, actions: actions.slice(0, LISTED), more: Math.max(0, actions.length - LISTED), tooDeep: found.tooDeep };
+}
 
 /**
  * The favourite apps of a backup, as a settings save would store them, each with its path only when
