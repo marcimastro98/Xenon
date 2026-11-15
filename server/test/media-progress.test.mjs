@@ -1,4 +1,4 @@
-// The Playback widget's progress line (js/media-progress.js) and its Liquid look
+// The Playback widget's progress line (js/media/media-progress.js) and its Liquid look
 // (components/MediaPanel/LiquidPlayer.css): how far into the track, a tap or a drag
 // to jump, one ticker that runs only while it is worth it, and a look that leaves
 // every other style as it was.
@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/media-progress.js');
+const SRC = read('../js/media/media-progress.js');
 const CSS = read('../components/MediaPanel/LiquidPlayer.css');
 const INDEX = read('../index.html');
 
@@ -193,11 +193,11 @@ test('the dashboard and the layer windows load the look after the mixer and the 
   const mixer = INDEX.indexOf('<link rel="stylesheet" href="components/AudioSection/LiquidMixer.css">');
   const player = INDEX.indexOf('<link rel="stylesheet" href="components/MediaPanel/LiquidPlayer.css">');
   assert.ok(mixer > 0 && player > mixer, 'linked once, after LiquidMixer.css');
-  assert.ok(INDEX.indexOf('src="js/media.js"') < INDEX.indexOf('<script src="js/media-progress.js"></script>'));
+  assert.ok(INDEX.indexOf('src="js/media.js"') < INDEX.indexOf('<script src="js/media/media-progress.js"></script>'));
   assert.match(INDEX, /<div class="media-progress" data-mf="media-progress" hidden>\n\s*<input class="media-progress-range" data-mf="media-progress-range" type="range" [^>]*data-i18n-aria-label="spotify_w_seek"/);
   const layers = read('../js/layers/layer-tiles.js');
   assert.match(layers, /'components\/MediaPanel\/LiquidPlayer\.css'/);
-  assert.match(layers, /'js\/media\.js', 'js\/media-spotify\.js', 'js\/media-progress\.js'/);
+  assert.match(layers, /'js\/media\.js', 'js\/media\/media-spotify\.js', 'js\/media\/media-progress\.js'/);
   const media = read('../js/media.js');
   assert.equal(media.split('if (window.MediaProgress) window.MediaProgress.sync();').length - 1, 3, 'a track, no track, and a play/pause tap');
 });

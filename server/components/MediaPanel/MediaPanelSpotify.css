@@ -194,7 +194,7 @@
   .msp-ctl, .msp-item-go, .msp-range::-webkit-slider-thumb { transition: none; }
 }
 
-/* Lyrics button (js/media-lyrics.js): it borrows the look of whichever row it
+/* Lyrics button (js/media/media-lyrics.js): it borrows the look of whichever row it
    sits in, .msp-ctl in the Spotify row or .control-btn after the transport.
    Its icon is drawn with strokes, so the filled-icon rule of .control-btn must
    not paint it solid. The layout it switches on is "Lyrics mode" at the end. */

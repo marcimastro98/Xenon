@@ -207,7 +207,7 @@ test('a PC that cannot do it has no row, and no answer counts as cannot', async 
 });
 
 test('the lyrics hold still with everything else when a session pauses animations', () => {
-  const view = readFileSync(new URL('../js/lyrics-view.js', import.meta.url), 'utf8');
+  const view = readFileSync(new URL('../js/media/lyrics-view.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../components/LyricsView/LyricsView.css', import.meta.url), 'utf8');
   assert.match(view, /const FROZEN = '[^']*\.perf-mode/, 'the global CSS rule does not reach a script animation');
   for (const part of ['.lyv-track', '.lyv-line', '.lyv-dot', '.lyv-w']) assert.ok(css.includes('body.perf-mode ' + part), part);

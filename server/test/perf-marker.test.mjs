@@ -165,7 +165,7 @@ test('Performance Mode tells the bar only when something it shows changed', () =
 });
 
 test('the Media wave names what holds it, and Settings listens', () => {
-  const viz = read('../js/media-viz.js');
+  const viz = read('../js/media/media-viz.js');
   const at = viz.indexOf('  const SILENT_TICKS');
   const fn = viz.slice(at, viz.indexOf('\n  }\n', viz.indexOf('  function holdReason() {')) + 4);
   const body = new Set();

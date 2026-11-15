@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { pickAccent, rgbToHsl, hslToRgb } = require('../js/album-theme.js');
+const { pickAccent, rgbToHsl, hslToRgb } = require('../js/media/album-theme.js');
 
 // Build a flat RGBA pixel array from [r,g,b,count] runs — the same shape
 // pickAccent reads from a canvas ImageData.

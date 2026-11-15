@@ -42,7 +42,7 @@ test('the wallpaper video pauses with the ambient, and one place owns it', () =>
 });
 
 test('the waveform stops under the quiet classes and caps its frame rate', () => {
-  const src = read('media-viz.js');
+  const src = read('media/media-viz.js');
   assert.match(src, /QUIET_CLASSES = \['game-mode', 'perf-mode', 'overlay-frozen'\]/);
   assert.match(src, /MIN_FRAME_MS = 1000 \/ 60/);
 });

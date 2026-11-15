@@ -138,6 +138,18 @@
     {"from":"server/js/tile-style-material-pane.js","to":"server/js/look/tile-style-material-pane.js"},
     {"from":"server/js/tile-style-tabs-pane.js","to":"server/js/look/tile-style-tabs-pane.js"},
     {"from":"server/js/view-melt.js","to":"server/js/look/view-melt.js"},
-    {"from":"server/js/viewer-theme.js","to":"server/js/look/viewer-theme.js"}
+    {"from":"server/js/viewer-theme.js","to":"server/js/look/viewer-theme.js"},
+    {"from":"server/js/album-theme.js","to":"server/js/media/album-theme.js"},
+    {"from":"server/js/lyrics-stage.js","to":"server/js/media/lyrics-stage.js"},
+    {"from":"server/js/lyrics-translation.js","to":"server/js/media/lyrics-translation.js"},
+    {"from":"server/js/lyrics-view.js","to":"server/js/media/lyrics-view.js"},
+    {"from":"server/js/lyrics-widget-options.js","to":"server/js/media/lyrics-widget-options.js"},
+    {"from":"server/js/lyrics-widget.js","to":"server/js/media/lyrics-widget.js"},
+    {"from":"server/js/media-lyrics.js","to":"server/js/media/media-lyrics.js"},
+    {"from":"server/js/media-progress.js","to":"server/js/media/media-progress.js"},
+    {"from":"server/js/media-spotify.js","to":"server/js/media/media-spotify.js"},
+    {"from":"server/js/media-viz.js","to":"server/js/media/media-viz.js"},
+    {"from":"server/js/spotify-settings.js","to":"server/js/media/spotify-settings.js"},
+    {"from":"server/js/spotify-widget.js","to":"server/js/media/spotify-widget.js"}
   ]
 }

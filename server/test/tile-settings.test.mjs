@@ -83,6 +83,6 @@ test('the tiles save their choices through the helper', () => {
   assert.match(read('js/discord-widget.js'), /saveTileSetting\(\{ discordFavChannels: next \}\)/);
   assert.match(read('js/discord-widget.js'), /saveTileSetting\(\{ discordCollapsedGuilds: next \}\)/);
   assert.match(read('js/codex/chatgpt-widget.js'), /saveTileSetting\(\{ chatgptWidget: \{ model: m \} \}\)/);
-  assert.match(read('js/lyrics-widget-options.js'), /saveTileSetting\(patch\)/);
+  assert.match(read('js/media/lyrics-widget-options.js'), /saveTileSetting\(patch\)/);
   assert.match(read('js/notifications-widget.js'), /isLayerPage\(\) && typeof saveTileSetting === 'function'/);
 });

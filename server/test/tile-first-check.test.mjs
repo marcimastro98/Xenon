@@ -8,7 +8,7 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const TILES = [
-  { file: 'lyrics-widget.js', mount: 'lyrics-widget-mount', api: 'LyricsWidget', state: '/api/features/lyrics' },
+  { file: 'media/lyrics-widget.js', mount: 'lyrics-widget-mount', api: 'LyricsWidget', state: '/api/features/lyrics' },
   { file: 'devclean-widget.js', mount: 'devclean-widget-mount', api: 'DevCleanWidget', state: '/api/features/devclean' },
 ];
 

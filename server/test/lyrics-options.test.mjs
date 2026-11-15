@@ -1,4 +1,4 @@
-// The options sheet of the Lyrics tile (js/lyrics-widget-options.js): Esc belongs to it, and the
+// The options sheet of the Lyrics tile (js/media/lyrics-widget-options.js): Esc belongs to it, and the
 // key that opened it gets the keyboard back. It sits over the tile, not over the page, so it
 // holds nothing else.
 import { test } from 'node:test';
@@ -8,8 +8,8 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/lyrics-widget-options.js');
-const TILE = read('../js/lyrics-widget.js');
+const SRC = read('../js/media/lyrics-widget-options.js');
+const TILE = read('../js/media/lyrics-widget.js');
 
 function rig() {
   const { document, descendants } = makeDom();

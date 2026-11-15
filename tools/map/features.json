@@ -398,8 +398,6 @@
         "server/js/media/**",
         "server/js/lyrics-core/**",
         "server/js/lyrics-*.js",
-        "server/js/spotify-*.js",
-        "server/js/album-theme.js",
         "server/components/MediaPanel/**",
         "server/components/LyricsView/**",
         "server/components/LyricsWidget/**",

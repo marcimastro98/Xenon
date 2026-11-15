@@ -1,5 +1,5 @@
 
-/* ── Stage: the tile fills the screen (js/lyrics-stage.js) ────────────────
+/* ── Stage: the tile fills the screen (js/media/lyrics-stage.js) ────────────────
    In place with position:fixed, like an expanded SDK widget; the shell is
    lifted for the same reason (see CustomWidget.css). */
 body.lyw-has-stage .shell { z-index: 70; }
@@ -52,7 +52,7 @@ body.lyw-has-stage .shell { z-index: 70; }
 
 .lyw-stage-close:active { transform: scale(0.94); }
 
-/* ── Options sheet (js/lyrics-widget-options.js) ─────────────────────────── */
+/* ── Options sheet (js/media/lyrics-widget-options.js) ─────────────────────────── */
 .lyrics-widget-mount.has-options > :not(.lyo-sheet) { visibility: hidden; }
 
 .lyo-sheet {

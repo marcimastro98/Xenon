@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
-const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'js', 'spotify-widget.js'), 'utf8');
+const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'js', 'media/spotify-widget.js'), 'utf8');
 
 // Run the real loaders against a stubbed `api`, with the module's own state.
 function harness() {

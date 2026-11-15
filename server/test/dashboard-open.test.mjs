@@ -331,8 +331,8 @@ test('a tile Set up button opens Settings, from a widget on the screen in the me
   assert.deepEqual(await run('?layer=overlay:MON1'), { calls: [], posted: asked, href: toDashboard });
 
   const spec = read('../../apps/native/src-tauri/src/layers/spec.rs');
-  const files = ['discord-widget', 'smart-home', 'spotify-widget', 'streamerbot-widget', 'streaming-page',
-    'twitchwatch-widget', 'youtubelive-widget', 'youtube-widget', 'unifi-widget', 'disk-widget', 'lyrics-view', 'slideshow-widget'];
+  const files = ['discord-widget', 'smart-home', 'media/spotify-widget', 'streamerbot-widget', 'streaming-page',
+    'twitchwatch-widget', 'youtubelive-widget', 'youtube-widget', 'unifi-widget', 'disk-widget', 'media/lyrics-view', 'slideshow-widget'];
   for (const f of files) {
     const src = read(`../js/${f}.js`);
     assert.doesNotMatch(src, /toggleSettings\(\)/, f + ' still opens Settings itself');

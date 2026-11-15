@@ -177,7 +177,7 @@
   .media-panel .media-app-row { display: none; }
 }
 
-/* ── Lyrics mode (js/media-lyrics.js) ─────────────────────────────────────────
+/* ── Lyrics mode (js/media/media-lyrics.js) ─────────────────────────────────────────
    The tile itself becomes the lyrics view: no card on top of it. The cover drops
    to a thumbnail beside the title and stays as the blurred backdrop, darkened
    evenly so it never competes with the words, and the transport, the Spotify
@@ -227,7 +227,7 @@
 }
 
 /* The waveform is part of the cover artwork, and the lyrics sit right over it:
-   no waveform while they are open (js/media-viz.js stops drawing it too). */
+   no waveform while they are open (js/media/media-viz.js stops drawing it too). */
 .media-panel.lyrics-open .media-viz { display: none; }
 
 /* Short tile: the transport moves up beside the title so the lyrics keep the

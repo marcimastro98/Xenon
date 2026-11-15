@@ -165,7 +165,7 @@ test('trial content with no trial file comes off; a conversion needs the saved p
 
 test('a Lyrics widget on the screen opens the trial page by itself: its page has no TrialPass', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
-  const src = readFileSync(new URL('../js/lyrics-widget.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/media/lyrics-widget.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('function startTrial()'), src.indexOf('async function unlock()'));
   assert.match(body, /else window\.open\(window\.Xenon\.constants\.trialUrl\(/, 'a button that does nothing is the bug this guards');
 });

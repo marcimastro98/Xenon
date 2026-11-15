@@ -59,7 +59,7 @@ function load(tiles) {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(read('../js/media-viz.js'), ctx);
+  vm.runInContext(read('../js/media/media-viz.js'), ctx);
   ctx.MediaViz.fire = (type) => (ctx.listeners[type] || []).forEach((fn) => fn());
   return ctx.MediaViz;
 }

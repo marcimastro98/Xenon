@@ -27,7 +27,7 @@ after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
 
 const require = createRequire(import.meta.url);
 const { createSpotifyProvider } = require('../stream-spotify.js');
-const WIDGET = readFileSync(new URL('../js/spotify-widget.js', import.meta.url), 'utf8');
+const WIDGET = readFileSync(new URL('../js/media/spotify-widget.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/SpotifyWidget/SpotifyWidget.css', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 

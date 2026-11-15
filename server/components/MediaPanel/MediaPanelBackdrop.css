@@ -100,7 +100,7 @@
 .media-panel.has-image .media-bg-fallback { opacity: 0; }
 
 /* ── Visualiser ───────────────────────────────────────────────────
-   The waveform of what is actually playing (js/media-viz.js), laid across the
+   The waveform of what is actually playing (js/media/media-viz.js), laid across the
    bottom of the tile. Above the blurred cover, BELOW the content — it is part of
    the artwork, not a control, and it must never sit over the transport buttons.
    Created only when the setting is on, so a default dashboard has no canvas and

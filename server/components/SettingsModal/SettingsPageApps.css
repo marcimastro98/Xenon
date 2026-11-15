@@ -120,7 +120,7 @@
 #settings-overlay .up-reorder-name { gap: 10px; }
 #settings-overlay .up-reorder-moves { gap: 0; }
 
-/* ── Spotify and Streaming: js/spotify-settings.js and js/streaming-page.js ── */
+/* ── Spotify and Streaming: js/media/spotify-settings.js and js/streaming-page.js ── */
 #settings-overlay #settings-spotify-hub { padding: 0; }
 /* While linked, the account comes first and the pitch goes. */
 #settings-overlay .settings-spotify-group:has(.streaming-connected) #settings-spotify-hub { order: -1; }

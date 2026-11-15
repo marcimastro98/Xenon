@@ -15,7 +15,7 @@ import { engineSource } from './engine-source.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
-const VIZ = read('js', 'media-viz.js');
+const VIZ = read('js', 'media/media-viz.js');
 const SERVER = engineSource();
 const CSS = read('components', 'MediaPanel', 'MediaPanel.css');
 
@@ -154,7 +154,7 @@ test('the settings row and its strings ship in every language', () => {
 });
 
 test('the module is loaded and fed', () => {
-  assert.match(read('index.html'), /<script src="js\/media-viz\.js"><\/script>/);
+  assert.match(read('index.html'), /<script src="js\/media\/media-viz\.js"><\/script>/);
   const main = read('js', 'main.js');
   assert.match(main, /MediaViz\.onLevels\(d\)/);
   assert.match(main, /MediaViz\.setPlaying\(/);

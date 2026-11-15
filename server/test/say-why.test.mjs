@@ -63,7 +63,7 @@ test('Twitch and YouTube get the same reason, and so does Spotify', () => {
   const src = read('../js/streaming-page.js');
   assert.match(src, /const r = await postLogin\(cfg\.base \+ '\/login'\);\n    if \(!r \|\| !r\.ok\) \{ btn\.disabled = false; setNote\(card, genericLoginError\(r\)\); return; \}/);
   assert.doesNotMatch(src, /setNote\(card, t\('streaming_error', 'Could not start login\. Try again\.'\)\)/, 'no bare generic note left');
-  const sp = read('../js/spotify-settings.js');
+  const sp = read('../js/media/spotify-settings.js');
   assert.match(sp, /\(code \? ' \(' \+ code \+ '\)' : ''\)/);
 });
 
