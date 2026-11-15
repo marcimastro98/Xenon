@@ -471,7 +471,7 @@ require('./claude-code/claude-subagent.js'); // nothing is taken from it here, b
 const claudeHistory = require('./claude-code/claude-history');
 const claudeCommands = require('./claude-code/claude-commands');
 const claudeAttach = require('./claude-code/claude-attach');
-const codexAppServer = require('./codex-appserver');
+const codexAppServer = require('./codex/codex-appserver');
 const codexBridge = require('./codex/codex-bridge');
 const codexLink = require('./codex-link');
 const chatgptAsk = require('./codex/chatgpt-ask');

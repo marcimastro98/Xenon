@@ -17,7 +17,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
-const ap = require('../codex-appserver.js');
+const ap = require('../codex/codex-appserver.js');
 const fixture = (v) => JSON.parse(readFileSync(join(here, 'fixtures', 'codex-appserver-' + v + '.json'), 'utf8'));
 const VERSIONS = ['0.155', '0.160'];
 

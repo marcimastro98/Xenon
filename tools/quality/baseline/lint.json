@@ -268,7 +268,7 @@
     "server/claude-code/claude-history.js complexity/useOptionalChain": 4,
     "server/claude-link.js complexity/useOptionalChain": 4,
     "server/claude-statusline.js complexity/useOptionalChain": 3,
-    "server/codex-appserver.js complexity/useOptionalChain": 6,
+    "server/codex/codex-appserver.js complexity/useOptionalChain": 6,
     "server/codex-hook.js complexity/useOptionalChain": 3,
     "server/codex-link.js complexity/useOptionalChain": 2,
     "server/codex/appserver-answers.js complexity/useOptionalChain": 4,

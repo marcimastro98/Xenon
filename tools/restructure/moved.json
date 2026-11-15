@@ -188,7 +188,8 @@
     {"from":"server/ai-provider-creds.js","to":"server/ai/ai-provider-creds.js"},
     {"from":"server/bit-messages.js","to":"server/ai/bit-messages.js"},
     {"from":"server/briefing.js","to":"server/ai/briefing.js"},
-    {"from":"server/claude-history.js","to":"server/claude-code/claude-history.js"}
+    {"from":"server/claude-history.js","to":"server/claude-code/claude-history.js"},
+    {"from":"server/codex-appserver.js","to":"server/codex/codex-appserver.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},

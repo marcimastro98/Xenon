@@ -38,28 +38,28 @@ const { spawn } = require('child_process');
 
 const {
   createLineDecoder, isUnsupported, RpcError, createRpc,
-} = require('./codex/appserver-rpc.js');
+} = require('./appserver-rpc.js');
 const {
   IDLE_MS, FAST_FAIL_MS, MAX_FAST_FAILS, PIN_MS, STOP_GRACE_MS,
-} = require('./codex/appserver-limits.js');
+} = require('./appserver-limits.js');
 
 
 const {
   MAX_THREADS, threadStatus, parseThreads, cleanUserText, parseTurns,
-} = require('./codex/appserver-parse-threads.js');
+} = require('./appserver-parse-threads.js');
 
 const {
   USAGE_DAYS, parseAccount, parseRateLimits, mergeRateLimitUpdate, dayKey, parseUsage, parseHooks,
   versionFromUserAgent,
-} = require('./codex/appserver-parse-account.js');
+} = require('./appserver-parse-account.js');
 
 
 
 
 
-const { makeRefresh } = require('./codex/appserver-refresh.js');
+const { makeRefresh } = require('./appserver-refresh.js');
 
-const { makeAnswers } = require('./codex/appserver-answers.js');
+const { makeAnswers } = require('./appserver-answers.js');
 
 // ── the child ───────────────────────────────────────────────────────────────
 // `resolveExe()` → { cmd, pre } | null (ai/cli-places.js resolveCodex);

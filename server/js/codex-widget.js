@@ -12,7 +12,7 @@
 //   USAGE face: tokens per day for the account, today, 7 and 30 days.
 //
 // Where the data comes from, so the empty states can say something true:
-// the plan side from `codex app-server` (server/codex-appserver.js), the live
+// the plan side from `codex app-server` (server/codex/codex-appserver.js), the live
 // side from the hooks server/codex-link.js installs. Every string here is
 // Codex-derived and renders through textContent (makeEl), never innerHTML.
 (function () {

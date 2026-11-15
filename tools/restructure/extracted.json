@@ -684,7 +684,7 @@
       {"file":"server/discord/rpc-voice-reads.js","about":"What Discord is asked about voice: the voice channels, who is in them, the channel the user is in, the soundboard, and the full voice state the tile shows.","names":["selfUserId","enumVoiceChannels","listVoiceChannels","voiceRoster","currentChannelId","listSoundboardSounds","playSoundboard","voiceState"],"inner":{"factory":"createDiscordProvider","make":"makeVoiceReads"}},
       {"file":"server/discord/rpc-voice-actions.js","about":"What can be done to Discord voice: mute, deafen, push to talk, join and leave a channel, open a text channel, the volumes, one person's volume and mute, the audio switches, and the one door every Deck action comes through.","names":["setSelf","setPtt","selectVoice","openTextChannel","leaveVoice","nudgeVolume","setVolumeAbs","noteOverride","memberVoice","userTarget","setUserVolume","setUserMute","toggleAudioFeature","runAction"],"inner":{"factory":"createDiscordProvider","make":"makeVoiceActions"}}
     ],
-    "server/codex-appserver.js": [
+    "server/codex/codex-appserver.js": [
       {"file":"server/codex/appserver-rpc.js","about":"Talks JSON-RPC with Codex's own app server over its pipes: lines put back together, one request with its time limit, and an answer that means not supported.","names":["REQUEST_TIMEOUT_MS","MAX_LINE","createLineDecoder","isUnsupported","RpcError","createRpc"]},
       {"file":"server/codex/appserver-clamp.js","about":"Clamps a value Codex sent before it is kept: a trimmed string, a whole number, a percentage.","names":["str","int","pct"]},
       {"file":"server/codex/appserver-parse-account.js","about":"Reads Codex's answers about the account: who is signed in, the plan limits and credits, the usage per day, the hooks installed and the version.","names":["MAX_BUCKETS","USAGE_DAYS","parseAccount","parseWindow","parseBucket","parseCredits","parseRateLimits","mergeRateLimitUpdate","dayKey","parseUsage","parseHooks","versionFromUserAgent"]},
@@ -1243,7 +1243,7 @@
     "server/store-catalog/rating-votes.js": [
       {"factory":"createRatingVotes","object":"rvState","names":["state","loading","saving","timer","first","ticking","lastTick"],"kept":["saving"],"bare":[],"after":0}
     ],
-    "server/codex-appserver.js": [
+    "server/codex/codex-appserver.js": [
       {"factory":"createAppServer","object":"caRun","names":["child","rpc","state","reason","version","startedAt","fastFails","pinnedUntil","starting","demand","idleTimer","tickTimer","stopped","byRecency"],"kept":[],"bare":[],"after":4}
     ]
   }
