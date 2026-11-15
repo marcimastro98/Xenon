@@ -827,7 +827,6 @@
       "what": "The settings pages, their search, and saving without losing a change.",
       "files": [
         "server/settings/**",
-        "server/settings-rev.js",
         "server/js/settings.js",
         "server/js/settings/**",
         "server/js/settings-*.js",

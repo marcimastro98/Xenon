@@ -4,7 +4,7 @@
 const { broadcastSSE } = require('../http/sse-clients.js');
 const sdkWidgets = require('../sdk-widgets.js');
 const SdkGrant = require('./sdk-grant.js');
-const { nextSettingsRev } = require('../settings-rev.js');
+const { nextSettingsRev } = require('../settings/settings-rev.js');
 const { readHubSettings, readHubSettingsForUpdate } = require('../settings/read.js');
 const { SDK_WIDGETS_DIR } = require('./data-places.js');
 const { hub } = require('../settings/current.js');

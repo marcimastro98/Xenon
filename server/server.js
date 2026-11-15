@@ -534,7 +534,7 @@ try { const w = require('./engine/node-version').nodeWarning(); if (w) console.w
 
 const { AUTO_UPDATE_ASSUME_IDLE } = require('./updates/check-values.js');
 const autoUpdateLib = require('./auto-update');
-const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
+const { nextSettingsRev } = require('./settings/settings-rev');   // shared by every settings writer
 
 const { checkLatestRelease } = require('./updates/latest-release.js');
 

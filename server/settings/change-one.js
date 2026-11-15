@@ -3,7 +3,7 @@
 
 const { broadcastSSE } = require('../http/sse-clients.js');
 const PerfHud = require('../js/performance/perf-hud.js');
-const { nextSettingsRev } = require('../settings-rev.js');
+const { nextSettingsRev } = require('./settings-rev.js');
 const { readHubSettingsForUpdate } = require('./read.js');
 const { hub } = require('./current.js');
 const { writeHubSettings } = require('./write.js');

@@ -256,7 +256,8 @@
     {"from":"server/steps-doc.js","to":"server/screens/steps-doc.js"},
     {"from":"server/steps-recorder.js","to":"server/screens/steps-recorder.js"},
     {"from":"server/filesearch.js","to":"server/search/filesearch.js"},
-    {"from":"server/living-index.js","to":"server/search/living-index.js"}
+    {"from":"server/living-index.js","to":"server/search/living-index.js"},
+    {"from":"server/settings-rev.js","to":"server/settings/settings-rev.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -301,6 +302,7 @@
     {"feature":"capture","glob":"server/screen-capture.js","at":4},
     {"feature":"capture","glob":"server/steps-*.js","at":5},
     {"feature":"search","glob":"server/filesearch.js","at":1},
-    {"feature":"search","glob":"server/living-index.js","at":3}
+    {"feature":"search","glob":"server/living-index.js","at":3},
+    {"feature":"settings","glob":"server/settings-rev.js","at":1}
   ]
 }

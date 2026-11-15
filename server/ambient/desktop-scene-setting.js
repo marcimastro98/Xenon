@@ -2,7 +2,7 @@
 // inside the settings queue.
 
 const { broadcastSSE } = require('../http/sse-clients.js');
-const { nextSettingsRev } = require('../settings-rev.js');
+const { nextSettingsRev } = require('../settings/settings-rev.js');
 const { normalizeLockWidgets } = require('../settings/normalize-lock-widgets.js');
 const { normalizeAmbientMode } = require('./normalize-mode.js');
 const { readHubSettingsForUpdate } = require('../settings/read.js');

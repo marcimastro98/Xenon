@@ -4,7 +4,7 @@
 // biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
 
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
-const { nextSettingsRev } = require('../settings-rev.js');
+const { nextSettingsRev } = require('./settings-rev.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const aiCreationLabels = require('../ai/ai-creation-labels.js');
 

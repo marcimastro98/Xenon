@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { nextSettingsRev } = require('../settings-rev.js');
+const { nextSettingsRev } = require('../settings/settings-rev.js');
 
 // ── The monotonic contract ──────────────────────────────────────────────────
 // Every settings writer assigns the rev through this helper. Two properties
@@ -70,7 +70,7 @@ test('garbage revs degrade to a bump instead of corrupting the counter', () => {
 
 test('server.js assigns settings revs only through nextSettingsRev', () => {
   const src = engineSource();
-  assert.match(src, /require\('\.\/settings-rev'\)/, 'server.js must require the shared helper');
+  assert.match(src, /require\('\.\/settings\/settings-rev'\)/, 'server.js must require the shared helper');
   // Both known writers call it: POST /settings and POST /api/weather/config.
   const calls = src.match(/nextSettingsRev\(/g) || [];
   assert.ok(calls.length >= 2, `expected both settings writers to call it, saw ${calls.length}`);

@@ -2,7 +2,7 @@
 
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { readBody } = require('../http/read-body.js');
-const { nextSettingsRev } = require('../settings-rev.js');
+const { nextSettingsRev } = require('../settings/settings-rev.js');
 const { hub } = require('../settings/current.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 

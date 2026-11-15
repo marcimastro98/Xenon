@@ -3,7 +3,7 @@
 
 const SettingsAi = require('../ai/settings-ai.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const { nextSettingsRev } = require('../settings-rev.js');
+const { nextSettingsRev } = require('./settings-rev.js');
 const { normalizeHubSettings } = require('./normalize-hub-settings.js');
 const { readHubSettingsForUpdate } = require('./read.js');
 const { hub } = require('./current.js');
