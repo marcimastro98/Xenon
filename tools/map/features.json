@@ -588,9 +588,9 @@
         "server/js/lighting-page/**",
         "server/js/lighting-*.js",
         "server/js/lighting-map/**",
-        "server/js/driver-album-lights.js",
         "server/components/LightingPage/**",
-        "server/components/LightingWidget/**"
+        "server/components/LightingWidget/**",
+        "server/js/lighting/**"
       ]
     },
     {

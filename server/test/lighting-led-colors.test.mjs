@@ -158,7 +158,7 @@ test('an event flash or a Deck reaction still takes a device that has a LED map'
 });
 
 test('touching one part of a single-look device keeps the other LEDs looking the same', () => {
-  const src = readFileSync(join(SERVER, 'js', 'lighting-device.js'), 'utf8');
+  const src = readFileSync(join(SERVER, 'js', 'lighting/lighting-device.js'), 'utf8');
   const ctx = { window: {} };
   vm.runInNewContext(src, ctx);
   const { kindOf, wholeDeviceLook } = ctx.window.LightingDevice;

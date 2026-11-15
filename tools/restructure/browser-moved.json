@@ -112,6 +112,12 @@
     {"from":"server/js/layer-when.js","to":"server/js/layers/layer-when.js"},
     {"from":"server/js/layers-model.js","to":"server/js/layers/layers-model.js"},
     {"from":"server/js/widget-feed.js","to":"server/js/layers/widget-feed.js"},
-    {"from":"server/js/widget-options-panel.js","to":"server/js/layers/widget-options-panel.js"}
+    {"from":"server/js/widget-options-panel.js","to":"server/js/layers/widget-options-panel.js"},
+    {"from":"server/js/driver-album-lights.js","to":"server/js/lighting/driver-album-lights.js"},
+    {"from":"server/js/lighting-connections.js","to":"server/js/lighting/lighting-connections.js"},
+    {"from":"server/js/lighting-device.js","to":"server/js/lighting/lighting-device.js"},
+    {"from":"server/js/lighting-setup.js","to":"server/js/lighting/lighting-setup.js"},
+    {"from":"server/js/lighting-ui.js","to":"server/js/lighting/lighting-ui.js"},
+    {"from":"server/js/lighting-widget.js","to":"server/js/lighting/lighting-widget.js"}
   ]
 }

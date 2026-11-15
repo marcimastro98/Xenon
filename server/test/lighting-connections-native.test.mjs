@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const SRC = readFileSync(new URL('../js/lighting-connections.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/lighting/lighting-connections.js', import.meta.url), 'utf8');
 const LINE = "echo 'rule' | sudo tee /etc/udev/rules.d/60-xenon-rgb.rules";
 
 class FakeNode {

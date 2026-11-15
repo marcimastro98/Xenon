@@ -195,7 +195,7 @@ let hubSettings = {};
       }).catch(() => { /* the server tells the key it failed */ });
     }
 
-    // The lights follow the album cover (js/driver-album-lights.js).
+    // The lights follow the album cover (js/lighting/driver-album-lights.js).
     const albumLights = window.DriverAlbumLights && typeof window.extractAlbumAccent === 'function'
       ? window.DriverAlbumLights.create({
         extract: window.extractAlbumAccent,

@@ -36,7 +36,7 @@ const CANDLE_DEFAULT_COLOR = '#ff9329';
 
 // The look a single-look device gives every LED, as a per-LED value: what the
 // other LEDs keep when one part gets its own. null = follows Xenon. Mirrors
-// wholeDeviceLook() in js/lighting-device.js.
+// wholeDeviceLook() in js/lighting/lighting-device.js.
 function wholeDeviceLook(m) {
   const mode = (m && m.mode) || 'follow';
   if (mode === 'color') return m.color || null;

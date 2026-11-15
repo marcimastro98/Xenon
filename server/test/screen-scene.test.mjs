@@ -85,7 +85,7 @@ function feedBox() {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(answers[p]) });
     },
     WidgetFeed: { weatherDelay: () => 900000 },
-    DriverAlbumLights: require('../js/driver-album-lights.js'),
+    DriverAlbumLights: require('../js/lighting/driver-album-lights.js'),
     setTimeout: (fn, ms) => { seq += 1; timers.set(seq, { fn, ms }); return seq; },
     clearTimeout: (id) => { timers.delete(id); },
   };

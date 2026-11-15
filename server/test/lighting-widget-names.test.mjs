@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 // The Lighting tile listed iCUE devices by their raw id ("{e1bc9e47-…}"): the
 // server sends their name as `model`, as Settings already reads it.
 
-const src = readFileSync(new URL('../js/lighting-widget.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const src = readFileSync(new URL('../js/lighting/lighting-widget.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function absorb() {
   const at = src.indexOf('  function absorb(d) {');

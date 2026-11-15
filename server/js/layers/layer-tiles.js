@@ -104,7 +104,7 @@
     smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home-order.js', 'js/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home/units.js', 'js/smart-home/pieces.js', 'js/smart-home.js'],
       { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/SmartHomePanel/SmartHomePanelControls.css', 'components/CustomSelect/CustomSelect.css']),
     // Seeds itself from /api/lighting/status when drawn; no stream.
-    lighting: tile('lighting', 'LightingWidget', ['js/lighting-widget.js'], {}),
+    lighting: tile('lighting', 'LightingWidget', ['js/lighting/lighting-widget.js'], {}),
     unifi: tile('unifi', 'UnifiProtect', ['js/unifi-widget/camera-layout.js', 'js/unifi-widget/shown-cameras.js', 'js/unifi-widget/settings-sections.js', 'js/unifi-widget.js'], { unifi_event: 'onNotification' }, 'UnifiPanel'),
     // The Agenda with its tabs (Calendar, Tasks, Timer, Notes), and each tab as
     // a tile of its own: its content is the Agenda's tab, pulled out by

@@ -1,4 +1,4 @@
-// The lights follow the album cover with no dashboard (js/driver-album-lights.js):
+// The lights follow the album cover with no dashboard (js/lighting/driver-album-lights.js):
 // the hidden driver page of "widgets only" reads the cover's colours from the
 // `media` stream and sends them to the lighting bridge, as media.js does.
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const { coverFor, bodyFor, create } = require('../js/driver-album-lights.js');
+const { coverFor, bodyFor, create } = require('../js/lighting/driver-album-lights.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const settle = () => new Promise((r) => setImmediate(r));
 
