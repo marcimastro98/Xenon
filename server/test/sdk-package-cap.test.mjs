@@ -91,7 +91,7 @@ test('the count travels to the browser', () => {
 // has to survive the search box — the moment it matters is when a search has
 // just emptied the list.
 test('the picker says so, outside the search filter', () => {
-  const fn = CW.slice(CW.indexOf('const broken = (pkgCache'));
+  const fn = CW.slice(CW.indexOf('const broken = (fetched.pkgCache'));
   const body = fn.slice(0, fn.indexOf('body.replaceChildren(frag);'));
   assert.match(body, /if \(broken\.length \|\| skipped\) \{/, 'a skipped count alone opens the notice');
   assert.match(body, /cw_pick_skipped/, 'and names the situation');

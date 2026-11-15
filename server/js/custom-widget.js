@@ -512,8 +512,8 @@
     { id: 'ha-room', name: 'Home Assistant Room', desc: 'Reference SDK widget for Home Assistant: your lights as keys you tap, and a 24-hour trace of your first sensor. Each copy of the tile can show a different room.' },
   ];
 
-  let pkgCache = null;        // last /sdk/widgets result ({packages, invalid})
-  let pkgFetchPromise = null; // in-flight /sdk/widgets fetch (shared by callers)
+  // pkgCache: last /sdk/widgets result ({packages, invalid}); pkgFetchPromise: in-flight /sdk/widgets fetch (shared by callers)
+  const fetched = { pkgCache: null, pkgFetchPromise: null };
 
   // The host limits /sdk/widgets sends (server/sdk-limits/limits.js), kept to the
   // groups and numbers a widget is told about in init.limits; null if absent.
@@ -682,7 +682,7 @@
   }
 
   function packageById(id) {
-    const list = (pkgCache && Array.isArray(pkgCache.packages)) ? pkgCache.packages : [];
+    const list = (fetched.pkgCache && Array.isArray(fetched.pkgCache.packages)) ? fetched.pkgCache.packages : [];
     return list.find(p => p && p.id === id) || null;
   }
 
@@ -711,7 +711,7 @@
     if (!pkgId) return;
     try {
       const d = await api('/sdk/widgets');
-      if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0, limits: hostLimits(d.limits) };
+      if (d && d.ok) fetched.pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0, limits: hostLimits(d.limits) };
     } catch (e) {
       console.warn('[custom-widget] options changed, list not read again', e);
       return;
@@ -743,20 +743,20 @@
     // reloading every widget there moved the pager to whichever page held a
     // widget that focuses itself on load.
     if (force && !listOnly) bumpAssets();
-    if (pkgFetchPromise) {
-      await pkgFetchPromise;
+    if (fetched.pkgFetchPromise) {
+      await fetched.pkgFetchPromise;
       if (!force) return;
-    } else if (pkgCache && !force) {
+    } else if (fetched.pkgCache && !force) {
       return;
     }
-    pkgFetchPromise = (async () => {
+    fetched.pkgFetchPromise = (async () => {
       try {
         const d = await api('/sdk/widgets');
-        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0, limits: hostLimits(d.limits) };
-        else if (!pkgCache) pkgCache = { packages: [], invalid: [], skipped: 0 };
-      } finally { pkgFetchPromise = null; }
+        if (d && d.ok) fetched.pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0, limits: hostLimits(d.limits) };
+        else if (!fetched.pkgCache) fetched.pkgCache = { packages: [], invalid: [], skipped: 0 };
+      } finally { fetched.pkgFetchPromise = null; }
     })();
-    await pkgFetchPromise;
+    await fetched.pkgFetchPromise;
     paint();
     syncServiceFrames();   // background packages may have appeared/gone
     // Let other UI react to the fresh list without a page reload — e.g. Settings'
@@ -2133,7 +2133,7 @@
         api: 1,
         // Every limit the host enforces on this widget (fetch, store, secrets), so it
         // can size its requests without a test fetch. Null before the list loaded (v5.0.0).
-        limits: pkgCache ? pkgCache.limits : null,
+        limits: fetched.pkgCache ? fetched.pkgCache.limits : null,
         pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
         // Which copy of the tile this frame is ("custom", "custom~k3x9"), stable
         // across reloads, so two copies of one widget can keep two layouts in
@@ -3204,7 +3204,7 @@
   // installed packages so they stay reachable once something IS installed
   // (the empty state alone would hide them forever after the first install).
   function missingExamples() {
-    const have = new Set((pkgCache && pkgCache.packages ? pkgCache.packages : []).map(p => p && p.id));
+    const have = new Set((fetched.pkgCache && fetched.pkgCache.packages ? fetched.pkgCache.packages : []).map(p => p && p.id));
     return EXAMPLES.filter(ex => !have.has(ex.id));
   }
 
@@ -3242,7 +3242,7 @@
     // examples, so search and chips treat them identically.
     // Ambient scenes render fullscreen, not in a tile — they're picked in
     // Settings → Ambient, so keep them out of the tile picker.
-    const items = (pkgCache.packages || [])
+    const items = (fetched.pkgCache.packages || [])
       .filter(pkg => pkg && pkg.surface !== 'ambient')
       .filter(pkg => !forWeather || (Array.isArray(pkg.streams) && pkg.streams.includes('weather')))
       .map(pkg => ({
@@ -3382,12 +3382,12 @@
     // there, and hiding the explanation behind the same filter that is hiding
     // the widget would leave the panel saying nothing again.
     // Ids and reasons come from folder names on disk — el() sets textContent.
-    const broken = (pkgCache && Array.isArray(pkgCache.invalid) ? pkgCache.invalid : []).slice(0, PICK_BROKEN_MAX);
+    const broken = (fetched.pkgCache && Array.isArray(fetched.pkgCache.invalid) ? fetched.pkgCache.invalid : []).slice(0, PICK_BROKEN_MAX);
     // Packages the engine stopped short of loading. Not a broken folder — these
     // are installed and fine, and the list simply ends before them. It belongs in
     // the same box for the same reason: somebody is looking for a widget that is
     // not here, and the answer is on this screen or nowhere.
-    const skipped = Math.max(0, Number(pkgCache && pkgCache.skipped) || 0);
+    const skipped = Math.max(0, Number(fetched.pkgCache && fetched.pkgCache.skipped) || 0);
     if (broken.length || skipped) {
       const box = el('div', 'cw-pick-broken');
       box.appendChild(el('div', 'cw-pick-broken-title', t('cw_pick_broken', 'Some installed widgets did not load')));
@@ -3592,13 +3592,13 @@
         });
         return;
       }
-      if (pkgCache === null) {
+      if (fetched.pkgCache === null) {
         showState(body, 'cw_loading', 'Looking for installed widgets…');
         fetchPackages(false);
         return;
       }
       if (!assignedId) {
-        if (!(pkgCache.packages || []).length) {
+        if (!(fetched.pkgCache.packages || []).length) {
           showState(body, 'cw_none', 'No widget packages installed', {
             hint: ['cw_none_hint', 'Install one from the Store, try the built-in examples, or drop a widget folder in server/data/widgets and rescan.'],
             buttons: [
@@ -3892,11 +3892,11 @@
 
   // Package list access for AmbientMode / the Settings scene picker.
   async function getPackages(force, opts) {
-    if (!pkgCache || force) await fetchPackages(!!force, !!(opts && opts.listOnly));
-    return pkgCache || { packages: [], invalid: [], skipped: 0 };
+    if (!fetched.pkgCache || force) await fetchPackages(!!force, !!(opts && opts.listOnly));
+    return fetched.pkgCache || { packages: [], invalid: [], skipped: 0 };
   }
   function cachedPackages() {
-    return (pkgCache && Array.isArray(pkgCache.packages)) ? pkgCache.packages : [];
+    return (fetched.pkgCache && Array.isArray(fetched.pkgCache.packages)) ? fetched.pkgCache.packages : [];
   }
   // Grant helpers for non-tile surfaces: has the package every capability it
   // declares, and an address for every blank it asks the user to fill? (Same

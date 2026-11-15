@@ -53,7 +53,7 @@ test('the limits travel with the widget list into every init', () => {
   assert.match(SERVER, /json\(\{ ok: true, api: sdkWidgets\.SDK_API_VERSION, limits: sdkWidgets\.SDK_LIMITS, packages,/);
   assert.equal((BRIDGE.match(/limits: hostLimits\(d\.limits\) \};/g) || []).length, 2);
   const init = BRIDGE.slice(BRIDGE.indexOf("        type: 'init',"));
-  assert.match(init.slice(0, 400), /limits: pkgCache \? pkgCache\.limits : null,/);
+  assert.match(init.slice(0, 400), /limits: fetched\.pkgCache \? fetched\.pkgCache\.limits : null,/);
 });
 
 test('the bridge keeps only the known groups and numbers', () => {

@@ -9,7 +9,7 @@
 //
 // The rescan has always reported those folders: GET /sdk/widgets returns
 // { packages, invalid } and listPackages fills `invalid` with a reason per
-// folder. The client cached that array (custom-widget.js: `pkgCache`) and
+// folder. The client cached that array (custom-widget.js: `fetched.pkgCache`) and
 // nothing ever rendered it, which is why the symptom was silence.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -94,7 +94,7 @@ test('every explained reason is one listPackages can actually emit', () => {
 });
 
 test('an unrecognised reason still reaches the screen as its code', () => {
-  const fn = CW.slice(CW.indexOf('const broken = (pkgCache'));
+  const fn = CW.slice(CW.indexOf('const broken = (fetched.pkgCache'));
   const body = fn.slice(0, fn.indexOf('body.replaceChildren'));
   assert.match(body, /const said = known \? t\(known\.key, known\.fb\) : code;/,
     'no known sentence falls back to the raw reason, never to nothing');
@@ -106,7 +106,7 @@ test('the notice is outside renderRows, so a search cannot hide it', () => {
   const paint = CW.slice(CW.indexOf('function paintPicker('));
   const fn = paint.slice(0, paint.indexOf('\n  }\n'));
   const renderEnds = fn.indexOf('list.replaceChildren(rows);');
-  const noticeAt = fn.indexOf('const broken = (pkgCache');
+  const noticeAt = fn.indexOf('const broken = (fetched.pkgCache');
   assert.ok(renderEnds > -1 && noticeAt > -1, 'both blocks exist');
   assert.ok(noticeAt > renderEnds, 'the notice is built after the filtered rows, not inside them');
   // Appended to the fragment, not to the list: the list scrolls, this stays put.
@@ -115,14 +115,14 @@ test('the notice is outside renderRows, so a search cannot hide it', () => {
 
 // Folder names and reasons come off the disk, so they are untrusted text.
 test('ids and reasons go through el(), which sets textContent', () => {
-  const fn = CW.slice(CW.indexOf('const broken = (pkgCache'));
+  const fn = CW.slice(CW.indexOf('const broken = (fetched.pkgCache'));
   const body = fn.slice(0, fn.indexOf('body.replaceChildren'));
   assert.doesNotMatch(body, /innerHTML|insertAdjacentHTML/, 'nothing is written as HTML');
   assert.match(body, /el\('div', 'cw-pick-broken-row'/, 'the row is built with el()');
 });
 
 test('a folder full of junk cannot push the widgets off the panel', () => {
-  const fn = CW.slice(CW.indexOf('const broken = (pkgCache'));
+  const fn = CW.slice(CW.indexOf('const broken = (fetched.pkgCache'));
   assert.match(fn.slice(0, 400), /\.slice\(0, PICK_BROKEN_MAX\)/, 'the list is capped');
 });
 
