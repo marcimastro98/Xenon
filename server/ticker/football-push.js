@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const football = require('../football.js');
+const football = require('./football.js');
 const { writeFileAtomic } = require('../atomic-write.js');
 const { hub } = require('../settings/current.js');
 const { _footballOpts } = require('./feed-settings.js');

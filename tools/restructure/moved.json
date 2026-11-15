@@ -39,7 +39,10 @@
     {"from":"server/svv-text.js","to":"server/audio/svv-text.js","shim":true},
     {"from":"server/remote-actions.js","to":"server/paired/remote-actions.js","shim":true},
     {"from":"server/remote-https-setup.js","to":"server/paired/remote-https-setup.js","shim":true},
-    {"from":"server/web-push.js","to":"server/paired/web-push.js","shim":true}
+    {"from":"server/web-push.js","to":"server/paired/web-push.js","shim":true},
+    {"from":"server/football.js","to":"server/ticker/football.js"},
+    {"from":"server/news.js","to":"server/ticker/news.js"},
+    {"from":"server/stocks.js","to":"server/ticker/stocks.js"}
   ],
   "patterns": [
 

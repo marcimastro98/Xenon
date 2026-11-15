@@ -8,9 +8,9 @@ const { normalizeWaveLinkSettings } = require('../audio/wavelink-values.js');
 const { normalizeHomeAssistant } = require('../actions/home-assistant.js');
 const { normalizeRemoteControl } = require('../remote-control/settings.js');
 const { normalizeUnifi } = require('../actions/unifi.js');
-const stocks = require('../stocks.js');
-const football = require('../football.js');
-const news = require('../news.js');
+const stocks = require('../ticker/stocks.js');
+const football = require('../ticker/football.js');
+const news = require('../ticker/news.js');
 const claudeUsage = require('../claude-usage.js');
 const { normalizeFileTransfer } = require('../transfer/normalize-settings.js');
 

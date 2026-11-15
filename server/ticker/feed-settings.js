@@ -1,9 +1,9 @@
 // What the stocks, football and news feeds read from the settings: the lists the user follows
 // and the provider keys.
 
-const stocks = require('../stocks.js');
-const football = require('../football.js');
-const news = require('../news.js');
+const stocks = require('./stocks.js');
+const football = require('./football.js');
+const news = require('./news.js');
 const { hub } = require('../settings/current.js');
 const { _widgetPlaced } = require('../grid/widget-placed.js');
 

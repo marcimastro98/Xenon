@@ -2,9 +2,9 @@
 // smart home, paired devices, screen capture and file transfer.
 
 const CaptureSettings = require('../capture-settings.js');
-const stocks = require('../stocks.js');
-const football = require('../football.js');
-const news = require('../news.js');
+const stocks = require('../ticker/stocks.js');
+const football = require('../ticker/football.js');
+const news = require('../ticker/news.js');
 const claudeUsage = require('../claude-usage.js');
 
 const HUB_DEFAULTS_CONNECTIONS = Object.freeze({

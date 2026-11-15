@@ -17,18 +17,18 @@ const crypto = require('crypto');
 // Outbound address guard: the URL check refuses private/loopback literals and
 // local names, the lookup hook refuses a public name that RESOLVES there (DNS
 // rebinding). Both are needed because Node skips `lookup` for IP literals.
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 const MAX_FEEDS = 12;              // followed sources/topics cap
 const MAX_ITEMS = 40;             // merged headline cap (bounds payload)
 const FETCH_CONCURRENCY = 5;
 const {
   str, safeUrl, decodeEntities, stripTags, parseFeed,
-} = require('./ticker/news-feed-parse.js');
+} = require('./news-feed-parse.js');
 
 // ── small helpers ─────────────────────────────────────────────────────────────
 
-const { isPublicFeedUrl, fetchText, pool } = require('./ticker/news-fetch.js');
+const { isPublicFeedUrl, fetchText, pool } = require('./news-fetch.js');
 
 // A slug id for a topic feed ("Serie A" → "serie-a"); sources carry their own id.
 function topicId(text) {
@@ -79,7 +79,7 @@ const SOURCES = Object.freeze([
 ]);
 const SOURCE_BY_ID = new Map(SOURCES.map(s => [s.id, s]));
 
-const { newsLang, googleNewsUrl } = require('./ticker/news-locales.js');
+const { newsLang, googleNewsUrl } = require('./news-locales.js');
 
 // ── config normalization ──────────────────────────────────────────────────────
 

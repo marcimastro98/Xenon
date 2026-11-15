@@ -3,7 +3,7 @@
 
 const { broadcastSSE } = require('../http/sse-clients.js');
 const lighting = require('../lighting.js');
-const football = require('../football.js');
+const football = require('./football.js');
 const { hub } = require('../settings/current.js');
 const { _footballSettings, _footballOpts } = require('./feed-settings.js');
 const { footballState } = require('./football-state.js');

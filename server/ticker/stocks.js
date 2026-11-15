@@ -13,12 +13,12 @@
 //   • Finnhub (finnhubKey)        — realtime US quotes
 // Yahoo's endpoints are unofficial (no SLA); a keyed provider is the fallback.
 
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 const {
   MAX_SYMBOLS, cleanSymbol, normalizeWatchlist, DEFAULT_STOCKS, isDefaultWatchlist, normalizeStocks,
-} = require('./ticker/stocks-settings.js');
-const { fetchJson, pool } = require('./ticker/stocks-fetch.js');
+} = require('./stocks-settings.js');
+const { fetchJson, pool } = require('./stocks-fetch.js');
 const FETCH_CONCURRENCY = 6;       // Yahoo is per-symbol; keep the burst polite
 
 // Chart ranges the widget exposes → Yahoo range + candle interval. Kept small so
@@ -38,7 +38,7 @@ const DEFAULT_RANGE = '1d';
 
 // ── Yahoo Finance (keyless default) ──────────────────────────────────────────
 
-const { yahooUrl, parseYahooChart, quoteFromYahoo } = require('./ticker/stocks-yahoo.js');
+const { yahooUrl, parseYahooChart, quoteFromYahoo } = require('./stocks-yahoo.js');
 
 // ── Twelve Data (optional, keyed) ────────────────────────────────────────────
 
@@ -200,7 +200,7 @@ async function searchSymbols(query) {
 // per day (no spam on every 60s refresh). `dayKey` is passed in (the caller
 // stamps the date — this module never calls Date.now()).
 
-const { createAlertTracker } = require('./ticker/stocks-alerts.js');
+const { createAlertTracker } = require('./stocks-alerts.js');
 
 module.exports = {
   MAX_SYMBOLS,

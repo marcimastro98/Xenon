@@ -13,19 +13,19 @@
 // limits and unlocks the v2 livescore feed, so followed matches show live scores
 // while they're being played. The key is a SERVER-ONLY secret (football-creds.js).
 
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
 
-const { fetchJson, pool } = require('./ticker/football-fetch.js');
+const { fetchJson, pool } = require('./football-fetch.js');
 const {
   FREE_KEY, cleanId, cleanKey, apiBase, str, intOrNull, safeImg, safeColour, cleanSeason,
-} = require('./ticker/football-clean.js');
+} = require('./football-clean.js');
 const {
   MAX_TEAMS, normalizeTeams, DEFAULT_FOOTBALL, normalizeFootball,
-} = require('./ticker/football-settings.js');
+} = require('./football-settings.js');
 
 const {
   FETCH_CONCURRENCY, searchTeams, parseTeamInfo, fetchTeamInfo,
-} = require('./ticker/football-teams.js');
+} = require('./football-teams.js');
 
 const FREE_TABLE_ROWS = 5;         // rows lookuptable.php returns without a Premium key
 
@@ -39,7 +39,7 @@ const FREE_TABLE_ROWS = 5;         // rows lookuptable.php returns without a Pre
 
 // ── event parsing ─────────────────────────────────────────────────────────────
 
-const { soccerEvents, parseEvent, badgeFor, nameFor } = require('./ticker/football-events.js');
+const { soccerEvents, parseEvent, badgeFor, nameFor } = require('./football-events.js');
 
 
 // ── live scores (Premium key only, v2) ────────────────────────────────────────
@@ -271,7 +271,7 @@ function newsQueries(favorites, lang) {
   return out;
 }
 
-const { createAlertTracker } = require('./ticker/football-alerts.js');
+const { createAlertTracker } = require('./football-alerts.js');
 
 module.exports = {
   MAX_TEAMS,

@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 // the config normalizer (bounds + dedup + symbol cleaning) and the alert tracker
 // (one alert per symbol/direction/day, resets on a new day).
 const require = createRequire(import.meta.url);
-const stocks = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'stocks.js'));
+const stocks = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'ticker/stocks.js'));
 
 test('cleanSymbol keeps real ticker charset, rejects the rest', () => {
   assert.equal(stocks.cleanSymbol('aapl'), 'AAPL');

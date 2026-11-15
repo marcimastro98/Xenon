@@ -3,7 +3,7 @@
 
 const { broadcastSSE } = require('../http/sse-clients.js');
 const lighting = require('../lighting.js');
-const stocks = require('../stocks.js');
+const stocks = require('./stocks.js');
 const { hub } = require('../settings/current.js');
 const { stocksState } = require('./stocks-state.js');
 const { stocksRefresh } = require('./stocks-refresh-state.js');

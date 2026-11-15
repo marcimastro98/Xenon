@@ -3,9 +3,9 @@
 
 // biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
 
-const stocks = require('../stocks.js');
-const football = require('../football.js');
-const news = require('../news.js');
+const stocks = require('./stocks.js');
+const football = require('./football.js');
+const news = require('./news.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

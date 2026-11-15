@@ -49,7 +49,7 @@ test('a team or a competition is added from the search', async () => {
 });
 
 test('news: a known source, otherwise a topic; a feed address only from Settings', async () => {
-  const src = (await import('../news.js')).default.SOURCES[0];
+  const src = (await import('../ticker/news.js')).default.SOURCES[0];
   const bySource = await run({ list: 'news', name: src.name.toUpperCase() });
   assert.equal(bySource.patch.news.feeds.at(-1).type, 'source');
   const topic = await run({ list: 'news', name: 'intelligenza artificiale' });

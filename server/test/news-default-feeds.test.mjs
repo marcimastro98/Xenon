@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const news = require('../news.js');
+const news = require('../ticker/news.js');
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // The default news feeds were Italian for everybody: an English install opened

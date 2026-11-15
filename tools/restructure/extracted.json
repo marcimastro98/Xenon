@@ -720,7 +720,7 @@
     "server/sdk-asset-cache.js": [
       {"file":"server/widget-sdk/asset-cache-plan.js","about":"Decides what the widgets' picture cache keeps: the size and count limits per package and in all, the name a cached file gets, and which files go first.","names":["MAX_BYTES_PER_PKG","MAX_BYTES_TOTAL","MAX_ENTRIES_PER_PKG","MIME_EXT","FILE_RE","keyFor","extFor","planEviction","planGlobalEviction"]}
     ],
-    "server/football.js": [
+    "server/ticker/football.js": [
       {"file":"server/ticker/football-clean.js","about":"Cleans single values of the football data: an id, the API key, a number, a picture address, a colour, a season, the state of a match.","names":["FREE_KEY","cleanId","cleanKey","apiBase","str","intOrNull","safeImg","safeColour","cleanSeason","statusClass"]},
       {"file":"server/ticker/football-settings.js","about":"The football widget's saved settings: the followed teams and the defaults, cleaned.","names":["MAX_TEAMS","normalizeTeams","DEFAULT_FOOTBALL","normalizeFootball","clampInt"]},
       {"file":"server/ticker/football-fetch.js","about":"Fetches JSON from the football service with a size cap and a total deadline, a few requests at a time.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchJson","pool"]},
@@ -728,12 +728,12 @@
       {"file":"server/ticker/football-teams.js","about":"Looks teams up at the football service: a search by name, and a team's badge, colours and ground.","names":["FETCH_CONCURRENCY","searchTeams","parseTeamInfo","fetchTeamInfo"]},
       {"file":"server/ticker/football-alerts.js","about":"Remembers the last score of each match so a goal or a final whistle is announced once.","names":["createAlertTracker"]}
     ],
-    "server/news.js": [
+    "server/ticker/news.js": [
       {"file":"server/ticker/news-feed-parse.js","about":"Reads the headlines out of an RSS or Atom feed without a parser library: tags found by hand, entities decoded, markup stripped, sizes capped.","names":["PARSE_MAX_CHARS","PARSE_MAX_BLOCKS","PARSE_MAX_BLOCK_CHARS","TAG_MAX_CHARS","str","safeUrl","decodeEntities","stripTags","tagNameEnds","findBlocks","tagText","attrValue","firstTag","parseFeed"]},
       {"file":"server/ticker/news-fetch.js","about":"Fetches a news feed's text from a public address only, with a size cap and a total deadline, a few feeds at a time.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","isPublicFeedUrl","fetchText","pool"]},
       {"file":"server/ticker/news-locales.js","about":"The language and country a news search is asked in, and the Google News address for a topic.","names":["NEWS_LOCALES","newsLang","googleNewsUrl"]}
     ],
-    "server/stocks.js": [
+    "server/ticker/stocks.js": [
       {"file":"server/ticker/stocks-settings.js","about":"The stocks widget's saved settings: the watchlist, the data provider and the defaults, cleaned.","names":["MAX_SYMBOLS","PROVIDERS","cleanSymbol","normalizeWatchlist","DEFAULT_STOCKS","isDefaultWatchlist","normalizeStocks","clampInt","clampFloat"]},
       {"file":"server/ticker/stocks-fetch.js","about":"Fetches JSON from a market data service with a size cap and a total deadline, a few requests at a time.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchJson","pool"]},
       {"file":"server/ticker/stocks-yahoo.js","about":"Reads a quote and its small chart out of what Yahoo Finance answers.","names":["yahooUrl","parseYahooChart","quoteFromYahoo","downsample"]},

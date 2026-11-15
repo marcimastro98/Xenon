@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const news = require('../news.js');
+const news = require('../ticker/news.js');
 
 // A feed is parsed on the server's event loop. The old regex scanners rescanned
 // the rest of the document from every opening tag, so unclosed tags made

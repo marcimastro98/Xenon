@@ -2,16 +2,16 @@
 // and the searches.
 
 const { _stocksChartCache, _stocksSearchCache } = require('./stocks-caches.js');
-const stocks = require('../stocks.js');
+const stocks = require('./stocks.js');
 const {
   _stocksProviderOpts, _footballOpts, _footballSettings, _newsSettings, _stocksSettings,
 } = require('./feed-settings.js');
 const {
   _footballStandingsCache, _footballNewsCache, FOOTBALL_NEWS_TTL_MS, _footballSearchCache,
 } = require('./football-caches.js');
-const football = require('../football.js');
+const football = require('./football.js');
 const { hub } = require('../settings/current.js');
-const news = require('../news.js');
+const news = require('./news.js');
 const { refreshNews } = require('./news-refresh.js');
 const { newsState } = require('./news-state.js');
 const { _newsSearchCache } = require('./news-search-cache.js');

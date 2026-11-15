@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 // config normalizer (bounds + dedup + id/badge cleaning) and the alert tracker
 // (transition-based: first observation silent, then goal / full-time transitions).
 const require = createRequire(import.meta.url);
-const football = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'football.js'));
+const football = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'ticker/football.js'));
 
 test('cleanId keeps numeric ids, rejects the rest', () => {
   assert.equal(football.cleanId('133670'), '133670');

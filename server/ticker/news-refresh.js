@@ -2,7 +2,7 @@
 // sends them to the screens only when they changed.
 
 const { broadcastSSE } = require('../http/sse-clients.js');
-const news = require('../news.js');
+const news = require('./news.js');
 const { _newsSettings, _newsOpts } = require('./feed-settings.js');
 const { newsState } = require('./news-state.js');
 

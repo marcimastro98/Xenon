@@ -23,7 +23,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
-const stocks = require(join(here, '..', 'stocks.js'));
+const stocks = require(join(here, '..', 'ticker/stocks.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const WIDGET = read('../js/stock-widget.js');

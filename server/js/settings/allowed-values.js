@@ -18,7 +18,7 @@ const SETTINGS_FONT_TYPES = Object.freeze(new Set(['font/woff2', 'font/woff', 'f
 const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 'otf']));
 
 const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'perf', 'screen', 'custom']);
-// Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
+// Selectable stock-data providers + chart ranges (mirrors server/ticker/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
 const TICKER_POSITIONS = Object.freeze(['bottom', 'top']);
@@ -142,7 +142,7 @@ const MAX_PAGE_HOTKEYS = 8;
 // with it and the dashboard booted empty.
 //
 // The word for "technology" per UI language. A MIRROR of DEFAULT_TOPIC in
-// server/news.js, for the same reason normalizeNewsClient mirrors normalizeNews,
+// server/ticker/news.js, for the same reason normalizeNewsClient mirrors normalizeNews,
 // and pinned in step with it by test/news-default-feeds.test.mjs — the two
 // drifting would put one language in the chip and another in the query.
 const NEWS_DEFAULT_TOPIC = Object.freeze({

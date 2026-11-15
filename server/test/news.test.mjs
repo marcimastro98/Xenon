@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 // Pure-logic tests for the News data module — no network. Covers the config
 // normalizer (source allowlist + topic slug/dedup + bounds) and source search.
 const require = createRequire(import.meta.url);
-const news = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'news.js'));
+const news = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'ticker/news.js'));
 
 test('topicId slugs free text safely', () => {
   assert.equal(news.topicId('Serie A'), 'serie-a');

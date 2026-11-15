@@ -170,7 +170,7 @@ function normalizeFootballClient(value) {
   return { teams, refreshSec, alerts: src.alerts !== false, tile: { results: tile.results !== false, standings: tile.standings !== false } };
 }
 
-// News config — mirrors server/news.js normalizeNews. Feeds are followed sources
+// News config — mirrors server/ticker/news.js normalizeNews. Feeds are followed sources
 // (curated ids) or free-text topics; the NewsData.io key is handled separately
 // (server-only, redacted). Known-key rebuild, bounded.
 //

@@ -306,7 +306,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   news: Object.freeze({
     // The shape only. The list a fresh install actually gets is built in the
     // user's language by defaultNewsFeedsClient(); this is its 'en' answer, and
-    // matches server/news.js DEFAULT_NEWS.
+    // matches server/ticker/news.js DEFAULT_NEWS.
     feeds: Object.freeze([
       Object.freeze({ id: 'bbc', type: 'source', name: 'BBC News' }),
       Object.freeze({ id: 'guardian', type: 'source', name: 'The Guardian' }),

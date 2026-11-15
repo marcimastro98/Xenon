@@ -1,8 +1,8 @@
 // Adds or removes a favourite and tells the screens.
 
 const FavoritesAi = require('../favorites-ai.js');
-const stocks = require('../stocks.js');
-const football = require('../football.js');
+const stocks = require('../ticker/stocks.js');
+const football = require('../ticker/football.js');
 const { readHubSettingsForUpdate } = require('./read.js');
 const { hub } = require('./current.js');
 const { writeHubSettings } = require('./write.js');

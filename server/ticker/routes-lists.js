@@ -3,11 +3,11 @@
 
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { readBody } = require('../http/read-body.js');
-const stocks = require('../stocks.js');
+const stocks = require('./stocks.js');
 const { hub } = require('../settings/current.js');
 const { _footballSettings } = require('./feed-settings.js');
-const football = require('../football.js');
-const news = require('../news.js');
+const football = require('./football.js');
+const news = require('./news.js');
 const { refreshNews } = require('./news-refresh.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
