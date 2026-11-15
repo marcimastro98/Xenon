@@ -21,17 +21,13 @@
     {"from":"server/first-reading.js","to":"server/system/first-reading.js","shim":true},
     {"from":"server/guardian.js","to":"server/system/guardian.js","shim":true},
     {"from":"server/packet-loss.js","to":"server/system/packet-loss.js","shim":true},
-    {"from":"server/agenda-ai.js","to":"server/time/agenda-ai.js"},
-    {"from":"server/calendar-reminders.js","to":"server/time/calendar-reminders.js"},
-    {"from":"server/ics-feeds.js","to":"server/time/ics-feeds.js"},
-    {"from":"server/notes-ai.js","to":"server/time/notes-ai.js"},
-    {"from":"server/timer-actions.js","to":"server/time/timer-actions.js"}
+    {"from":"server/agenda-ai.js","to":"server/time/agenda-ai.js","shim":true},
+    {"from":"server/calendar-reminders.js","to":"server/time/calendar-reminders.js","shim":true},
+    {"from":"server/ics-feeds.js","to":"server/time/ics-feeds.js","shim":true},
+    {"from":"server/notes-ai.js","to":"server/time/notes-ai.js","shim":true},
+    {"from":"server/timer-actions.js","to":"server/time/timer-actions.js","shim":true}
   ],
   "patterns": [
-    {"feature":"time","glob":"server/ics-feeds.js","at":1},
-    {"feature":"time","glob":"server/calendar-reminders.js","at":2},
-    {"feature":"time","glob":"server/timer-actions.js","at":3},
-    {"feature":"time","glob":"server/agenda-ai.js","at":4},
-    {"feature":"time","glob":"server/notes-ai.js","at":5}
+
   ]
 }
