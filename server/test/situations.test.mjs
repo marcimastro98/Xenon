@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createSituations } = require('../situations.js');
+const { createSituations } = require('../capabilities/situations.js');
 const { parseConsentStore, parsePulseOutputs, parseMonitorSources } = require('../mic-use.js');
 const L = require('../js/layers-model.js');
 const W = require('../js/layer-when.js');

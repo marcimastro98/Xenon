@@ -81,7 +81,7 @@
       {
         "statement": "const _situations = createSituations({",
         "callees": {
-          "server/situations.js": "a7c314a5c275167b49579d054b136ec5b2151fc5ce32da4c280a9f88e5e5cdd3",
+          "server/capabilities/situations.js": "d17699082e9983869b6d7273f575e66bf4f09d8371cc9724f57f057d2f64b624",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
         },
         "reason": "createSituations makes empty sets and returns tick, hidden and needs; layers, every reader, isOwnApp, onChange, onPlan, onFacts and warn are first called from tick() or needs(); power/index.js is named inside the battery reader and loaded when that reader first runs, as it is today."

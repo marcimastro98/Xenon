@@ -3,9 +3,10 @@
   "moves": [
     {"from":"server/vitals-ai-tools.js","to":"server/vitals/vitals-ai-tools.js","shim":true},
     {"from":"server/vitals-nag.js","to":"server/vitals/vitals-nag.js","shim":true},
-    {"from":"server/vitals-state.js","to":"server/vitals/vitals-state.js","shim":true}
+    {"from":"server/vitals-state.js","to":"server/vitals/vitals-state.js","shim":true},
+    {"from":"server/situations.js","to":"server/capabilities/situations.js"}
   ],
   "patterns": [
-
+    {"feature":"capabilities","glob":"server/situations.js","at":2}
   ]
 }
