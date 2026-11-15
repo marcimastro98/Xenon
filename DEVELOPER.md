@@ -302,7 +302,7 @@ together.
 | `POST` | `/api/mcp/dev/pair/poll` | The bridge waits for the answer. Body: `{ pairId }`. The token comes back once. |
 | `POST` | `/api/mcp/dev/pair/answer` | The dashboard answers. Body: `{ id, allow }`. |
 | `GET` | `/api/mcp/dev/pairs` | Pairings still waiting, for a dashboard that opens late. |
-| `POST` | `/api/mcp/dev/call` | One tool op. Header `X-Xenon-Mcp-Token`. Body: `{ op, args }` (`server/mcp-dev-tools.js`). |
+| `POST` | `/api/mcp/dev/call` | One tool op. Header `X-Xenon-Mcp-Token`. Body: `{ op, args }` (`server/mcp/mcp-dev-tools.js`). |
 | `POST` | `/api/mcp/dev/report` | The dashboard answers a `mcp_dev_query`. Body: `{ reqId, data }`. |
 | `GET` | `/api/mcp/dev/clients` | Connected tools (name, dates; never the token). |
 | `POST` | `/api/mcp/dev/revoke` | Remove a connected tool. Body: `{ id }`. |

@@ -81,8 +81,6 @@
       "files": [
         "packages/mcp/**",
         "server/mcp/**",
-        "server/mcp-dev.js",
-        "server/mcp-dev-tools.js",
         "server/ai-mcp-bridge.js",
         "server/js/mcp-dev-client.js"
       ]

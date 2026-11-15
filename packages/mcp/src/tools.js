@@ -1,7 +1,7 @@
 'use strict';
 // The tools a coding assistant sees, and what each one does. The list is
 // fixed here (an assistant reads it before Xenon may even be running); each
-// call becomes one op on Xenon (server/mcp-dev-tools.js), with the widget
+// call becomes one op on Xenon (server/mcp/mcp-dev-tools.js), with the widget
 // folder read or written on this side, so Xenon never takes a path.
 const { readWidgetFolder, writeWidgetFolder, widgetId } = require('./folder.js');
 

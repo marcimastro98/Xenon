@@ -1,6 +1,6 @@
 'use strict';
 // ── Claude Code / Codex building widgets: the dashboard's side ──────────────
-// The xenon-mcp bridge pairs and calls through the server (server/mcp-dev.js);
+// The xenon-mcp bridge pairs and calls through the server (server/mcp/mcp-dev.js);
 // this page is where the person says yes to a pairing, and where the tools
 // learn what only the dashboard knows: is the widget on screen and where, what
 // the sandbox refused, what went wrong while it ran. It also places a widget

@@ -13,9 +13,12 @@
     {"from":"server/screen-alerts-page.js","to":"server/alerts/screen-alerts-page.js","shim":true},
     {"from":"server/screen-draw-shell.js","to":"server/alerts/screen-draw-shell.js","shim":true},
     {"from":"server/tile-previews.js","to":"server/grid/tile-previews.js","shim":true},
-    {"from":"server/tile-settings.js","to":"server/grid/tile-settings.js","shim":true}
+    {"from":"server/tile-settings.js","to":"server/grid/tile-settings.js","shim":true},
+    {"from":"server/mcp-dev-tools.js","to":"server/mcp/mcp-dev-tools.js"},
+    {"from":"server/mcp-dev.js","to":"server/mcp/mcp-dev.js"}
   ],
   "patterns": [
-
+    {"feature":"mcp","glob":"server/mcp-dev.js","at":2},
+    {"feature":"mcp","glob":"server/mcp-dev-tools.js","at":3}
   ]
 }

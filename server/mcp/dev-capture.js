@@ -1,6 +1,6 @@
 // Takes the picture of a tile that a coding tool asked to see.
 
-const mcpDevTools = require('../mcp-dev-tools.js');
+const mcpDevTools = require('./mcp-dev-tools.js');
 const { captureScreenshot } = require('../screens/capture-screenshot.js');
 
 // A picture of the screen where the tile is, and only that box.

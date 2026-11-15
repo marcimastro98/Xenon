@@ -520,8 +520,8 @@ const { createRoastSparks } = require('./vitals-roast-sparks.js');
 require('./bit-messages.js');
 require('./rating-votes.js');
 require('./pc-id.js');
-require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
-const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of their tools does
+require('./mcp/mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
+const mcpDevTools = require('./mcp/mcp-dev-tools');      // ...and what each of their tools does
 
 const { APP_VERSION } = require('./updates/app-version.js');
 

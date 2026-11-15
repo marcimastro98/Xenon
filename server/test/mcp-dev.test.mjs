@@ -1,4 +1,4 @@
-// The MCP endpoint's state for widget authors (server/mcp-dev.js): the store
+// The MCP endpoint's state for widget authors (server/mcp/mcp-dev.js): the store
 // of connected tools, pairing with the dashboard's yes, tokens, and the
 // questions the open dashboard answers.
 import { test } from 'node:test';
@@ -10,7 +10,7 @@ import path from 'node:path';
 import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
-const { createMcpDev, cleanName, cleanReport, parseStore, TOKEN_PREFIX, PAIR_TTL_MS, MAX_CLIENTS } = require('../mcp-dev.js');
+const { createMcpDev, cleanName, cleanReport, parseStore, TOKEN_PREFIX, PAIR_TTL_MS, MAX_CLIENTS } = require('../mcp/mcp-dev.js');
 
 function setup() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-mcpdev-'));

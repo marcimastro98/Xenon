@@ -3,7 +3,7 @@
 
 const path = require('node:path');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const { createMcpDev } = require('../mcp-dev.js');
+const { createMcpDev } = require('./mcp-dev.js');
 const { DATA_DIR } = require('../engine/paths.js');
 
 // Claude Code / Codex building widgets through the xenon-mcp bridge

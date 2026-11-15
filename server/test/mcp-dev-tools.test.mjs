@@ -1,4 +1,4 @@
-// What the xenon-mcp tools do on the server (server/mcp-dev-tools.js), with
+// What the xenon-mcp tools do on the server (server/mcp/mcp-dev-tools.js), with
 // fake deps standing in for server.js, plus the real package validator for
 // the starter widget and the screen box maths for screenshots.
 import { test } from 'node:test';
@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { loadServerSettingsSlice, serverDashboardWidgets } from './server-settings-slice.mjs';
 
 const require = createRequire(import.meta.url);
-const T = require('../mcp-dev-tools.js');
+const T = require('../mcp/mcp-dev-tools.js');
 const sdk = require('../sdk-widgets.js');
 
 function deps(over = {}) {
