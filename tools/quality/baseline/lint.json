@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5919,
+  "total": 5917,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -678,7 +678,6 @@
     "server/js/discord-widget/call-people.js suspicious/useIterableCallbackReturn": 1,
     "server/js/discord-widget/channel-list.js complexity/useOptionalChain": 4,
     "server/js/discord-widget/channel-list.js suspicious/useIterableCallbackReturn": 1,
-    "server/js/discord-widget/icons.js suspicious/noDuplicateObjectKeys": 2,
     "server/js/discord-widget/lists.js complexity/useOptionalChain": 4,
     "server/js/discord-widget/notification-feed.js suspicious/useIterableCallbackReturn": 1,
     "server/js/discord-widget/sound-tiles.js complexity/useOptionalChain": 1,
