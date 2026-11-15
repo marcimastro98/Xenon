@@ -45,19 +45,14 @@ function corsairInstallCandidates() {
   return out;
 }
 
-// Memoized: isAvailable() sits on the apply() tick (every 60ms during an event
-// flash) and on /api/lighting/status, and the probe now reads two directories.
-// The path can't change under a running process except right after the installer
-// drops the DLL, so a short TTL picks that up without a restart while keeping the
-// hot path free of synchronous FS.
-let dllProbe = { at: 0, path: null };
+const { bridge } = require('./lights/bridge-state.js');
 const DLL_PROBE_TTL_MS = 30000;
 
 function resolveDllPath() {
   const now = Date.now();
-  if (dllProbe.at && now - dllProbe.at < DLL_PROBE_TTL_MS) return dllProbe.path;
+  if (bridge.dllProbe.at && now - bridge.dllProbe.at < DLL_PROBE_TTL_MS) return bridge.dllProbe.path;
   const found = probeDllPath();
-  dllProbe = { at: now, path: found };
+  bridge.dllProbe = { at: now, path: found };
   return found;
 }
 
@@ -65,7 +60,7 @@ function resolveDllPath() {
 // just fetched — without this the lighting page keeps saying "not installed" for
 // up to DLL_PROBE_TTL_MS after the user pressed the button, which reads as a
 // failed install.
-function refreshAvailability() { dllProbe = { at: 0, path: null }; }
+function refreshAvailability() { bridge.dllProbe = { at: 0, path: null }; }
 
 function probeDllPath() {
   const candidates = [
@@ -86,18 +81,11 @@ function probeDllPath() {
   return null;
 }
 
-let koffi = null, lib = null, fns = null, stateCb = null;
-let connected = false;
-let connecting = false;
-let lastError = null;
-let dllPath = null;
-let devices = [];                 // [{ id, model, type, ledCount, ledIds:[uint32] }]
-let lastWrite = new Map();        // deviceId → "r,g,b" of the last colour written (on-change guard)
 const wokenBoards = new Set();    // motherboards already woken in this iCUE session (see wakeVendorBoard)
 
 const gameDetect = require('./gamedetect');
 
-let config = {
+bridge.config = {
   enabled: false,
   brightness: 1.0,
   pauseDuringGame: true,
@@ -140,26 +128,9 @@ const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'o
 const DYNAMIC_ANIM_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
 const ANIM_STYLES = ['none', 'solid', ...DYNAMIC_ANIM_STYLES];
 const PER_DEVICE_ANIM_STYLES = ['solid', ...DYNAMIC_ANIM_STYLES.filter(s => s !== 'palette' && s !== 'wave')];
-let accent = { r: 30, g: 215, b: 96 };           // updated from settings
-let layers = { base: null, overlay: null, album: null, animation: null, override: null };
-let albumPalette = null;                         // [{r,g,b},…] 2-3 cover colours for the per-LED gradient (null = uniform)
-let overlayUntil = 0;                            // ms timestamp the overlay expires
-let lastVolume = null;                           // last seen speaker volume (for on-change flash)
-let eventAnim = null;                            // { style, color, startMs, durationMs } while a flash plays
-let eventTimer = null;                           // setInterval handle, exists only during a flash
-let deckReaction = null;                         // { style, colorHex } transient Deck LED reaction (never persisted)
-let animTimer = null;                            // ambient-animation ticker; exists only while a dynamic animation paints
 // A native frame is painted in the background: when it fails, forget what was
 // sent so the next apply() paints that device again, and say why.
-native.setWriteErrorHook((id, e) => { lastError = e.message; lastWrite.delete(id); });
-let applyInFlight = false;                       // prevents concurrent apply() calls while an async LED write is in progress
-let applyAgain = false;                          // a change arrived mid-apply: run once more when it ends
-let lastConnectAttempt = 0;                      // throttle for the apply()-driven on-demand (re)connect
-let lastEnumerate = 0;                            // throttle for the apply()-driven re-enumerate when connected-but-empty
-let lastDeviceScan = 0;                           // last enumerate(), stamped at fire time AND on completion (success or not) — throttles the slow rescan below
-let enumerating = false;                          // guards against overlapping enumerate() calls (connect callback + retry)
-let enumeratePending = null;                      // the in-flight enumerate() promise, so a concurrent caller joins it instead of getting an instantly-resolved one (see enumerate())
-let partialEnumRetries = 0;                        // bounded retries when a device enumerated with 0 LEDs (iCUE LINK boot race); reset on a complete enumeration / fresh connect
+native.setWriteErrorHook((id, e) => { bridge.lastError = e.message; bridge.lastWrite.delete(id); });
 const MAX_PARTIAL_ENUM_RETRIES = 6;                // ~12s at CONNECT_RETRY_MS — long enough for iCUE to register LINK cooler/fans after a cold boot, bounded so a genuinely LED-less hub doesn't re-enumerate forever
 const EVENT_DURATION_MS = 1800;
 // One source for the user-configurable flash-duration bounds (mirrored by the
@@ -172,60 +143,58 @@ const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand re
 const DEVICE_RESCAN_MS = 30000;                  // slow rescan for devices that registered after the initial enumeration (one SDK call, only while painting)
 const POWER_HOLD_MS = 60000;                     // painting resumes by itself if the PC did not go off after all (a cancelled shutdown)
 const OFF_COLOR = { r: 0, g: 0, b: 0 };
-let poweredDown = false;                         // the PC is shutting down / sleeping: the lights are back with their hardware
-let powerHoldTimer = null;
 
 function loadLib() {
-  if (lib) return true;
+  if (bridge.lib) return true;
   try {
-    dllPath = resolveDllPath();
-    if (!dllPath) { lastError = 'iCUE SDK DLL not found (set ICUE_SDK_DLL or install iCUE).'; return false; }
-    koffi = require('koffi');
-    lib = koffi.load(dllPath);
-    koffi.struct('CorsairVersion', { major: 'int', minor: 'int', patch: 'int' });
-    koffi.struct('CorsairSessionStateChanged', {
+    bridge.dllPath = resolveDllPath();
+    if (!bridge.dllPath) { bridge.lastError = 'iCUE SDK DLL not found (set ICUE_SDK_DLL or install iCUE).'; return false; }
+    bridge.koffi = require('koffi');
+    bridge.lib = bridge.koffi.load(bridge.dllPath);
+    bridge.koffi.struct('CorsairVersion', { major: 'int', minor: 'int', patch: 'int' });
+    bridge.koffi.struct('CorsairSessionStateChanged', {
       state: 'int', clientVersion: 'CorsairVersion', serverVersion: 'CorsairVersion', serverHostVersion: 'CorsairVersion',
     });
-    koffi.struct('CorsairDeviceInfo', { type: 'int', id: 'char[128]', serial: 'char[128]', model: 'char[128]', ledCount: 'int', channelCount: 'int' });
-    koffi.struct('CorsairDeviceFilter', { deviceTypeMask: 'int' });
-    koffi.struct('CorsairLedPosition', { id: 'uint32', cx: 'double', cy: 'double' });
-    koffi.struct('CorsairLedColor', { id: 'uint32', r: 'uint8', g: 'uint8', b: 'uint8', a: 'uint8' });
-    koffi.proto('void CorsairStateCb(void*, CorsairSessionStateChanged*)');
-    fns = {
-      connect: lib.func('int CorsairConnect(CorsairStateCb*, void*)'),
-      disconnect: lib.func('int CorsairDisconnect()'),
-      getDevices: lib.func('int CorsairGetDevices(CorsairDeviceFilter*, int, _Out_ CorsairDeviceInfo*, _Out_ int*)'),
-      getLedPositions: lib.func('int CorsairGetLedPositions(const char*, int, _Out_ CorsairLedPosition*, _Out_ int*)'),
-      setLedColors: lib.func('int CorsairSetLedColors(const char*, int, CorsairLedColor*)'),
+    bridge.koffi.struct('CorsairDeviceInfo', { type: 'int', id: 'char[128]', serial: 'char[128]', model: 'char[128]', ledCount: 'int', channelCount: 'int' });
+    bridge.koffi.struct('CorsairDeviceFilter', { deviceTypeMask: 'int' });
+    bridge.koffi.struct('CorsairLedPosition', { id: 'uint32', cx: 'double', cy: 'double' });
+    bridge.koffi.struct('CorsairLedColor', { id: 'uint32', r: 'uint8', g: 'uint8', b: 'uint8', a: 'uint8' });
+    bridge.koffi.proto('void CorsairStateCb(void*, CorsairSessionStateChanged*)');
+    bridge.fns = {
+      connect: bridge.lib.func('int CorsairConnect(CorsairStateCb*, void*)'),
+      disconnect: bridge.lib.func('int CorsairDisconnect()'),
+      getDevices: bridge.lib.func('int CorsairGetDevices(CorsairDeviceFilter*, int, _Out_ CorsairDeviceInfo*, _Out_ int*)'),
+      getLedPositions: bridge.lib.func('int CorsairGetLedPositions(const char*, int, _Out_ CorsairLedPosition*, _Out_ int*)'),
+      setLedColors: bridge.lib.func('int CorsairSetLedColors(const char*, int, CorsairLedColor*)'),
       // CorsairProperty is { CorsairDataType type; union { bool; int32; double;
       // char*; {ptr,count} arrays } value; } — 24 bytes on x64 (4-byte type,
       // padding, 8-byte-aligned 16-byte union). It is read from a raw byte
       // buffer (type at offset 0, value at offset 8) instead of a koffi union:
       // only CT_Int32 (battery percent) is ever consumed, and a raw buffer
       // sidesteps output-union decoding entirely. See getBatteryLevels().
-      readProperty: lib.func('int CorsairReadDeviceProperty(const char*, int, uint32, _Out_ uint8_t*)'),
-      freeProperty: lib.func('int CorsairFreeProperty(uint8_t*)'),
+      readProperty: bridge.lib.func('int CorsairReadDeviceProperty(const char*, int, uint32, _Out_ uint8_t*)'),
+      freeProperty: bridge.lib.func('int CorsairFreeProperty(uint8_t*)'),
     };
     return true;
   } catch (e) {
-    lastError = 'SDK load failed: ' + e.message;
-    lib = null; fns = null;
+    bridge.lastError = 'SDK load failed: ' + e.message;
+    bridge.lib = null; bridge.fns = null;
     return false;
   }
 }
 
 function connect() {
-  if (connected || connecting) return true;
+  if (bridge.connected || bridge.connecting) return true;
   if (!loadLib()) return false;
   try {
-    connecting = true;
-    partialEnumRetries = 0; // fresh session gets a fresh re-enumeration budget
-    stateCb = koffi.register((_ctx, evt) => {
+    bridge.connecting = true;
+    bridge.partialEnumRetries = 0; // fresh session gets a fresh re-enumeration budget
+    bridge.stateCb = bridge.koffi.register((_ctx, evt) => {
       let state = -1;
-      try { state = koffi.decode(evt, 'CorsairSessionStateChanged').state; } catch (e) { lastError = 'state decode failed: ' + e.message; }
+      try { state = bridge.koffi.decode(evt, 'CorsairSessionStateChanged').state; } catch (e) { bridge.lastError = 'state decode failed: ' + e.message; }
       const now = (state === CSS_CONNECTED);
-      if (now && !connected) {
-        connected = true; connecting = false;
+      if (now && !bridge.connected) {
+        bridge.connected = true; bridge.connecting = false;
         wokenBoards.clear();
         // Defer ALL SDK calls out of this callback. The SDK invokes us from its
         // own worker thread and blocks that thread until we return; making a
@@ -235,16 +204,16 @@ function connect() {
         // thread, before we enumerate (now itself async/non-blocking).
         setImmediate(async () => { await enumerate(); onConnected(); });
       } else {
-        connected = now; if (now) connecting = false;
+        bridge.connected = now; if (now) bridge.connecting = false;
       }
-    }, koffi.pointer('CorsairStateCb'));
-    const rc = fns.connect(stateCb, null);
-    if (rc !== 0) { lastError = 'CorsairConnect rc=' + rc; connecting = false; return false; }
+    }, bridge.koffi.pointer('CorsairStateCb'));
+    const rc = bridge.fns.connect(bridge.stateCb, null);
+    if (rc !== 0) { bridge.lastError = 'CorsairConnect rc=' + rc; bridge.connecting = false; return false; }
     // Connection completes asynchronously; the callback flips `connected`.
     return true;
   } catch (e) {
-    lastError = 'connect failed: ' + e.message;
-    connecting = false;
+    bridge.lastError = 'connect failed: ' + e.message;
+    bridge.connecting = false;
     return false;
   }
 }
@@ -253,14 +222,14 @@ function connect() {
 // Uses async sleeps so koffi's callback can be marshalled to the JS thread —
 // a busy-spin would starve it and never connect.
 async function ensureConnected(timeoutMs = 1800) {
-  if (connected) return true;
-  if (!config.enabled) return false;
+  if (bridge.connected) return true;
+  if (!bridge.config.enabled) return false;
   connect();
   const start = Date.now();
-  while (!connected && Date.now() - start < timeoutMs) {
+  while (!bridge.connected && Date.now() - start < timeoutMs) {
     await new Promise(r => setTimeout(r, 50));
   }
-  return connected; // the state callback already ran enumerate()/onConnected()
+  return bridge.connected; // the state callback already ran enumerate()/onConnected()
 }
 
 // Invoked once the session reaches Connected: paint immediately so the bridge
@@ -326,12 +295,12 @@ function sdkCall(fn, label, ...args) {
 // transitions the SDK still knows about, and a service that died under us never
 // sends one.
 function noteSdkFailure(e) {
-  lastError = e.message;
+  bridge.lastError = e.message;
   if (e instanceof SdkError && e.rc === CE_NOT_CONNECTED) {
-    connected = false;
-    devices = [];
+    bridge.connected = false;
+    bridge.devices = [];
     wokenBoards.clear();
-    lastWrite.clear();
+    bridge.lastWrite.clear();
   }
 }
 
@@ -347,14 +316,14 @@ function noteSdkFailure(e) {
 // event loop, which is the only thing that can deliver the worker-thread result the
 // real enumeration is awaiting. The process then spins at 100% CPU and never serves
 // another request — it cannot recover on its own. Returning the in-flight promise
-// keeps the chain waiting on real work, so lastDeviceScan is always stamped before
+// keeps the chain waiting on real work, so bridge.lastDeviceScan is always stamped before
 // the next rescan test runs.
 function enumerate() {
-  if (!fns) { devices = []; return Promise.resolve(); }
-  if (enumerating) return enumeratePending;
-  enumerating = true;
-  enumeratePending = enumerateOnce();
-  return enumeratePending;
+  if (!bridge.fns) { bridge.devices = []; return Promise.resolve(); }
+  if (bridge.enumerating) return bridge.enumeratePending;
+  bridge.enumerating = true;
+  bridge.enumeratePending = enumerateOnce();
+  return bridge.enumeratePending;
 }
 
 async function enumerateOnce() {
@@ -362,7 +331,7 @@ async function enumerateOnce() {
     const filter = { deviceTypeMask: -1 };
     const buf = Array(64).fill(null).map(() => ({}));
     const count = [0];
-    await sdkCall(fns.getDevices, 'CorsairGetDevices', filter, 64, buf, count);
+    await sdkCall(bridge.fns.getDevices, 'CorsairGetDevices', filter, 64, buf, count);
     const list = [];
     for (let i = 0; i < count[0]; i++) {
       const d = buf[i];
@@ -372,8 +341,8 @@ async function enumerateOnce() {
       // enumeration: it lands with an empty ledIds, which enumerationComplete()
       // treats as incomplete and boundedReenumerate() retries.
       try {
-        await sdkCall(fns.getLedPositions, 'CorsairGetLedPositions', d.id, d.ledCount, pos, pc);
-      } catch (e) { lastError = e.message; pc[0] = 0; }
+        await sdkCall(bridge.fns.getLedPositions, 'CorsairGetLedPositions', d.id, d.ledCount, pos, pc);
+      } catch (e) { bridge.lastError = e.message; pc[0] = 0; }
       const leds = pos.slice(0, pc[0]);
       const channels = await channelLayout(d.id, d.channelCount, leds.length);
       list.push({
@@ -381,21 +350,21 @@ async function enumerateOnce() {
         segments: topology.buildSegments({ type: d.type, leds, channels }),
       });
     }
-    devices = list;
+    bridge.devices = list;
     wakeVendorBoard();
     // A complete enumeration (every device answered with real LED ids) clears the
     // partial-retry budget, so a later 0-LED reappearance (e.g. an iCUE LINK
     // hot-replug) gets its own fresh round of retries.
-    if (enumerationComplete(list)) partialEnumRetries = 0;
+    if (enumerationComplete(list)) bridge.partialEnumRetries = 0;
   } catch (e) {
     noteSdkFailure(e);
-    devices = [];
+    bridge.devices = [];
   } finally {
     // Stamped on failure too, so a wedged SDK can't turn the slow rescan into a
     // per-tick retry (the fast partial-retry path below stays throttled on its own).
-    lastDeviceScan = Date.now();
-    enumerating = false;
-    enumeratePending = null;
+    bridge.lastDeviceScan = Date.now();
+    bridge.enumerating = false;
+    bridge.enumeratePending = null;
   }
 }
 
@@ -408,12 +377,12 @@ function boardsToWake(list, optOuts, woken) {
 }
 
 function wakeVendorBoard() {
-  const fresh = boardsToWake(devices, config.devices, wokenBoards);
+  const fresh = boardsToWake(bridge.devices, bridge.config.devices, wokenBoards);
   if (!fresh.length || !wantsPaint()) return;
   for (const d of fresh) wokenBoards.add(d.id);
   native.wakeForVendor()
-    .then((woken) => { if (woken) { lastWrite.clear(); apply(); } })
-    .catch((e) => { lastError = e.message; for (const d of fresh) wokenBoards.delete(d.id); });
+    .then((woken) => { if (woken) { bridge.lastWrite.clear(); apply(); } })
+    .catch((e) => { bridge.lastError = e.message; for (const d of fresh) wokenBoards.delete(d.id); });
 }
 
 // --- Channel layout (which LEDs are which fan / pump / RAM stick) ------------
@@ -434,7 +403,7 @@ const channelCache = new Map();   // deviceId → { ledCount, channels }
 async function readInt32ArrayProperty(deviceId, propertyId, index) {
   const buf = Buffer.alloc(CORSAIR_PROPERTY_BYTES);
   const rc = await withSdkTimeout(new Promise((resolve, reject) =>
-    fns.readProperty.async(deviceId, propertyId, index, buf, (err, rc) => err ? reject(err) : resolve(rc))
+    bridge.fns.readProperty.async(deviceId, propertyId, index, buf, (err, rc) => err ? reject(err) : resolve(rc))
   ), 'CorsairReadDeviceProperty');
   if (rc !== 0) return null;
   const dataType = buf.readInt32LE(0);
@@ -443,10 +412,10 @@ async function readInt32ArrayProperty(deviceId, propertyId, index) {
     const count = buf.readUInt32LE(16);
     if (count > MAX_CHANNEL_DEVICES) return null;
     if (!count) return [];
-    return Array.from(koffi.decode(koffi.decode(buf, 8, 'void *'), 'int', count));
+    return Array.from(bridge.koffi.decode(bridge.koffi.decode(buf, 8, 'void *'), 'int', count));
   } finally {
     // Every non-scalar payload is an SDK-side allocation (see getBatteryLevels).
-    if (dataType >= CT_STRING) { try { fns.freeProperty.async(buf, () => {}); } catch { /* best-effort */ } }
+    if (dataType >= CT_STRING) { try { bridge.fns.freeProperty.async(buf, () => {}); } catch { /* best-effort */ } }
   }
 }
 
@@ -481,13 +450,13 @@ const CT_INT32 = 1;
 const CORSAIR_PROPERTY_BYTES = 24; // sizeof(CorsairProperty) on x64 — see fns.readProperty
 
 async function getBatteryLevels() {
-  if (!connected || !fns) return { ok: false, reason: 'icue_off', devices: [] };
+  if (!bridge.connected || !bridge.fns) return { ok: false, reason: 'icue_off', devices: [] };
   const out = [];
-  for (const dev of devices) {
+  for (const dev of bridge.devices) {
     try {
       const buf = Buffer.alloc(CORSAIR_PROPERTY_BYTES);
       const rc = await withSdkTimeout(new Promise((resolve, reject) =>
-        fns.readProperty.async(dev.id, CDPI_BATTERY_LEVEL, 0, buf, (err, rc) => err ? reject(err) : resolve(rc))
+        bridge.fns.readProperty.async(dev.id, CDPI_BATTERY_LEVEL, 0, buf, (err, rc) => err ? reject(err) : resolve(rc))
       ), 'CorsairReadDeviceProperty');
       if (rc !== 0) continue; // wired / unsupported device (CE_NotAllowed etc.)
       const dataType = buf.readInt32LE(0);
@@ -495,7 +464,7 @@ async function getBatteryLevels() {
         // Unexpected payload (string/array): free the SDK-side allocation and
         // skip. Fire-and-forget on the async worker path — no sync FFI on the
         // event loop, and nothing to wait for on a best-effort free.
-        try { fns.freeProperty.async(buf, () => {}); } catch { /* best-effort */ }
+        try { bridge.fns.freeProperty.async(buf, () => {}); } catch { /* best-effort */ }
         continue;
       }
       const percent = buf.readInt32LE(8);
@@ -512,13 +481,13 @@ async function writeDevice(deviceId, color) {
   const dev = paintDevices().find(d => d.id === deviceId);
   if (!dev || !sinkReady(dev)) return;
   const key = `${color.r},${color.g},${color.b}`;
-  if (lastWrite.get(deviceId) === key) return; // unchanged → skip
+  if (bridge.lastWrite.get(deviceId) === key) return; // unchanged → skip
   // A device whose layout never arrived has nothing to write to. Skipping keeps
   // it out of the on-change cache, so it repaints the moment a re-enumeration
   // fills in its LED ids.
   if (!dev.ledIds.length) return;
   // Cached only after the device confirmed the write.
-  if (await pushLeds(dev, dev.ledIds.map(() => color))) lastWrite.set(deviceId, key);
+  if (await pushLeds(dev, dev.ledIds.map(() => color))) bridge.lastWrite.set(deviceId, key);
 }
 
 // Paint a multi-stop gradient across the device's LEDs (album palette). Same
@@ -528,20 +497,20 @@ async function writeDevice(deviceId, color) {
 async function writeDeviceGradient(dev, palette) {
   if (!dev || !sinkReady(dev)) return;
   const key = 'grad:' + palette.map(c => `${c.r},${c.g},${c.b}`).join('|');
-  if (lastWrite.get(dev.id) === key) return; // unchanged → skip
+  if (bridge.lastWrite.get(dev.id) === key) return; // unchanged → skip
   if (!dev.ledIds.length) return; // no layout yet — see writeDevice()
-  if (await pushLeds(dev, fx.paletteGradient(palette, dev.ledIds.length))) lastWrite.set(dev.id, key);
+  if (await pushLeds(dev, fx.paletteGradient(palette, dev.ledIds.length))) bridge.lastWrite.set(dev.id, key);
 }
 
 // Paint the current spatial-animation frame (wave/palette) across the device's
 // LEDs. Same write path as the album gradient. The caller pre-computes the
 // frame key (fx.animationFrameKey — the quantized phase/shift that DEFINES the
-// frame) and checks it against lastWrite BEFORE building the per-LED array, so
+// frame) and checks it against bridge.lastWrite BEFORE building the per-LED array, so
 // unchanged frames cost zero allocations.
 async function writeDeviceAnimGradient(dev, stops, key) {
   if (!dev || !sinkReady(dev) || !stops || !stops.length) return;
   const colors = dev.ledIds.map((_, i) => stops[Math.min(i, stops.length - 1)]);
-  if (await pushLeds(dev, colors)) lastWrite.set(dev.id, key);
+  if (await pushLeds(dev, colors)) bridge.lastWrite.set(dev.id, key);
 }
 
 // Paint the lighting map of a 'custom' device: each LED its own colour or effect,
@@ -551,12 +520,12 @@ async function writeDeviceAnimGradient(dev, stops, key) {
 async function writeDeviceCustom(dev, mode, follow) {
   if (!dev || !sinkReady(dev) || !dev.ledIds.length) return;
   const frame = ledColors.ledFrame(dev.ledIds, mode.leds, {
-    follow, temperature: config.effects.temperature ? layers.base : null, album: effectiveAlbum(),
-    brightness: config.brightness, nowMs: Date.now(),
+    follow, temperature: bridge.config.effects.temperature ? bridge.layers.base : null, album: effectiveAlbum(),
+    brightness: bridge.config.brightness, nowMs: Date.now(),
   });
   const key = 'custom:' + frame.map(c => `${c.r},${c.g},${c.b}`).join('|');
-  if (lastWrite.get(dev.id) === key) return;
-  if (await pushLeds(dev, frame)) lastWrite.set(dev.id, key);
+  if (bridge.lastWrite.get(dev.id) === key) return;
+  if (await pushLeds(dev, frame)) bridge.lastWrite.set(dev.id, key);
 }
 
 // Where a device's colours go: the iCUE SDK, or a controller Xenon drives itself.
@@ -564,23 +533,23 @@ async function writeDeviceCustom(dev, mode, follow) {
 async function pushLeds(dev, colors) {
   // A frame computed just before the PC went to sleep or off must not take the
   // lights back from their hardware.
-  if (poweredDown) return false;
+  if (bridge.poweredDown) return false;
   try {
     if (dev.source === 'native') {
       native.write(dev, colors);   // handed over, never awaited (see lighting-native)
     } else {
       const arr = dev.ledIds.map((id, i) => ({ id, r: colors[i].r, g: colors[i].g, b: colors[i].b, a: 255 }));
-      await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
+      await sdkCall(bridge.fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
     }
     return true;
   } catch (e) {
-    if (dev.source === 'native') lastError = e.message;
+    if (dev.source === 'native') bridge.lastError = e.message;
     else noteSdkFailure(e);
     return false;
   }
 }
 
-function sinkReady(dev) { return dev.source === 'native' ? native.owns(dev.id) : connected; }
+function sinkReady(dev) { return dev.source === 'native' ? native.owns(dev.id) : bridge.connected; }
 
 // Every device this bridge paints per LED: the iCUE ones (while a session is up)
 // and the native controllers. With Xenon driving the motherboard itself, the
@@ -588,54 +557,47 @@ function sinkReady(dev) { return dev.source === 'native' ? native.owns(dev.id) :
 // over the same LEDs.
 function paintDevices() {
   const nativeList = native.devices();
-  const icue = connected ? devices : [];
+  const icue = bridge.connected ? bridge.devices : [];
   if (!nativeList.length) return icue;
   return [...icue.filter(d => !(Number(d.type) & CDT_MOTHERBOARD)), ...nativeList];
 }
 
-// Release: hand control back to iCUE (alpha-0 transparent, confirmed in Task 1)
-// and to every external provider (restore / turn off / neutral).
-// `idleReleased` makes the idle apply() path release ONCE per painting session:
-// without it every 7s system tick would re-send the off command, which on the
-// room-light providers (Home Assistant, Yeelight, Hue) would keep switching off
-// lights the user just turned back on from their app or wall switch.
-let idleReleased = false;
 // keepNative: the native controllers were already darkened (powerDown) and must
 // not be handed back to the board's own effects.
 async function releaseAll({ keepNative = false } = {}) {
-  if (connected) {
-    for (const dev of devices) {
+  if (bridge.connected) {
+    for (const dev of bridge.devices) {
       try {
         if (!dev.ledIds.length) continue;
         const arr = dev.ledIds.map(id => ({ id, r: 0, g: 0, b: 0, a: 0 }));
         // Same timeout guard as every other SDK call — a wedged iCUE service must
-        // not stall the release path (apply() awaits it while holding applyInFlight).
-        await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
+        // not stall the release path (apply() awaits it while holding bridge.applyInFlight).
+        await sdkCall(bridge.fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
       } catch (e) { noteSdkFailure(e); }
     }
   }
   try { external.release(); } catch { /* external is best-effort */ }
   // Native controllers go back to the board's own effects (what it showed before).
   if (!keepNative) {
-    try { await native.release(); } catch (e) { lastError = e.message; }
+    try { await native.release(); } catch (e) { bridge.lastError = e.message; }
   }
-  lastWrite.clear();
-  idleReleased = true;
+  bridge.lastWrite.clear();
+  bridge.idleReleased = true;
 }
 
 function disconnect() {
-  if (animTimer) { clearInterval(animTimer); animTimer = null; }
-  const wasLive = !!(lib && connected);
-  connected = false;
-  connecting = false;
-  lastWrite.clear();
+  if (bridge.animTimer) { clearInterval(bridge.animTimer); bridge.animTimer = null; }
+  const wasLive = !!(bridge.lib && bridge.connected);
+  bridge.connected = false;
+  bridge.connecting = false;
+  bridge.lastWrite.clear();
   // Unregister the koffi callback only once the SDK session is fully torn down,
   // so the SDK can't invoke a freed trampoline mid-teardown.
-  const dropCallback = () => { if (koffi && stateCb) { try { koffi.unregister(stateCb); } catch { /* ignore */ } stateCb = null; } };
+  const dropCallback = () => { if (bridge.koffi && bridge.stateCb) { try { bridge.koffi.unregister(bridge.stateCb); } catch { /* ignore */ } bridge.stateCb = null; } };
   // CorsairDisconnect is a synchronous cross-process call: run it off the event
   // loop so a wedged iCUE service can never block the server on teardown.
   if (wasLive) {
-    try { fns.disconnect.async(() => dropCallback()); }
+    try { bridge.fns.disconnect.async(() => dropCallback()); }
     catch { dropCallback(); }
   } else {
     dropCallback();
@@ -648,19 +610,19 @@ function getDevices() {
     source: d.source || 'icue', ...(d.source === 'native' ? { maker: d.maker, outputs: d.outputs } : {}),
   }));
 }
-function isConnected() { return connected; }
-function getLastError() { return lastError; }
+function isConnected() { return bridge.connected; }
+function getLastError() { return bridge.lastError; }
 
 // SDK is "available" if its client DLL can be resolved — checkable without
 // loading it, so the UI shows controls (and a working master toggle) even while
 // the bridge is OFF. Loaded lib short-circuits the filesystem probe.
-function isAvailable() { return !!lib || resolveDllPath() !== null; }
+function isAvailable() { return !!bridge.lib || resolveDllPath() !== null; }
 
 // The album colour, gated by its effect toggle. `layers.album` always holds the
 // last pushed cover colour (so toggling the effect on shows it without waiting
 // for a re-push); this returns it only when the effect is enabled.
 function effectiveAlbum() {
-  return config.effects.musicAlbum !== false ? layers.album : null;
+  return bridge.config.effects.musicAlbum !== false ? bridge.layers.album : null;
 }
 
 // True when the album effect alone wants the LEDs, independent of the master
@@ -671,7 +633,7 @@ function albumActive() {
 
 // Paused because a game is running (and the user opted into pausing).
 function gamingPaused() {
-  if (!config.pauseDuringGame) return false;
+  if (!bridge.config.pauseDuringGame) return false;
   try { return gameDetect.isGaming(); } catch { return false; }
 }
 
@@ -680,16 +642,16 @@ function gamingPaused() {
 // (manual colour / animation / accent). Temperature, album, volume flash and the
 // event flashes each light up on their own when enabled, even with the master OFF.
 function wantsPaint() {
-  if (poweredDown) return false;
+  if (bridge.poweredDown) return false;
   if (keyLook.isOut()) return true;                                   // a key switched every light off
   if (gamingPaused()) return false;
-  if (config.enabled) return true;                                    // fixed illumination
+  if (bridge.config.enabled) return true;                                    // fixed illumination
   if (keyLook.isHeld()) return true;                                  // a Deck key set the lights
-  if (config.effects.temperature && layers.base) return true;         // steady CPU-temp colour
+  if (bridge.config.effects.temperature && bridge.layers.base) return true;         // steady CPU-temp colour
   if (albumActive()) return true;                                     // steady album colour
-  if (config.effects.volume && layers.overlay && (!overlayUntil || Date.now() <= overlayUntil)) return true; // volume flash window
-  if (eventAnim) return true;                                         // a timer/notification/reminder flash is playing
-  if (deckReaction) return true;                                      // a Deck key LED reaction is active
+  if (bridge.config.effects.volume && bridge.layers.overlay && (!bridge.overlayUntil || Date.now() <= bridge.overlayUntil)) return true; // volume flash window
+  if (bridge.eventAnim) return true;                                         // a timer/notification/reminder flash is playing
+  if (bridge.deckReaction) return true;                                      // a Deck key LED reaction is active
   return false;
 }
 
@@ -697,15 +659,15 @@ function wantsPaint() {
 // a live sink — either an iCUE session or at least one external device. This lets
 // the bridge drive WLED/etc even with no iCUE installed.
 function active() {
-  return wantsPaint() && (connected || external.hasDevices() || native.hasDevices());
+  return wantsPaint() && (bridge.connected || external.hasDevices() || native.hasDevices());
 }
 
 // Should we hold an iCUE session at all? True if the master OR ANY effect is on —
 // so e.g. a timer flash can fire instantly even with the master off. When idle
 // (nothing to paint) apply() releases via alpha-0, so iCUE's own lighting shows.
 function shouldConnect() {
-  const e = config.effects;
-  return config.enabled || !!deckReaction || keyLook.isHeld() || keyLook.isOut() || !!e.temperature || !!e.musicAlbum
+  const e = bridge.config.effects;
+  return bridge.config.enabled || !!bridge.deckReaction || keyLook.isHeld() || keyLook.isOut() || !!e.temperature || !!e.musicAlbum
     || (e.timer && e.timer.enabled !== false)
     || (e.notification && e.notification.enabled !== false)
     || (e.reminder && e.reminder.enabled !== false);
@@ -714,26 +676,26 @@ function shouldConnect() {
 // Bring the iCUE session up / tear it down to match shouldConnect(). Called after
 // any config change. Disconnect hands the LEDs back to iCUE.
 function reconcileConnection() {
-  if (shouldConnect()) { if (!connected && !connecting && isAvailable()) connect(); }
-  else if (connected) { releaseAll(); disconnect(); }
+  if (shouldConnect()) { if (!bridge.connected && !bridge.connecting && isAvailable()) connect(); }
+  else if (bridge.connected) { releaseAll(); disconnect(); }
 }
 
 // --- ambient animation ticker -------------------------------------------------
 // Recompute the animation layer for the current style. Static for 'solid', live
 // sample for the dynamic styles, null for 'none'. Cheap (pure math).
 function refreshAnimationLayer() {
-  const a = config.animation || {};
-  if (!a.style || a.style === 'none') { layers.animation = null; return; }
+  const a = bridge.config.animation || {};
+  if (!a.style || a.style === 'none') { bridge.layers.animation = null; return; }
   // "Fissa" (solid) has no colour of its own — it reuses the manual colour set
   // above (or the accent when none is set), so the user picks the colour once.
-  if (a.style === 'solid') { layers.animation = layers.override || accent; return; }
-  layers.animation = fx.animationColorAt({ style: a.style, color: a.color, speed: a.speed, palette: a.palette, nowMs: Date.now() });
+  if (a.style === 'solid') { bridge.layers.animation = bridge.layers.override || bridge.accent; return; }
+  bridge.layers.animation = fx.animationColorAt({ style: a.style, color: a.color, speed: a.speed, palette: a.palette, nowMs: Date.now() });
 }
 
 // Does any per-device override run a dynamic (looping) animation?
 function anyDeviceAnimationDynamic() {
-  for (const id of Object.keys(config.deviceModes)) {
-    const m = config.deviceModes[id];
+  for (const id of Object.keys(bridge.config.deviceModes)) {
+    const m = bridge.config.deviceModes[id];
     if (m && m.mode === 'animation') {
       const s = (m.anim && m.anim.style) || 'cycle';
       if (DYNAMIC_ANIM_STYLES.includes(s)) return true;
@@ -747,19 +709,19 @@ function anyDeviceAnimationDynamic() {
 // unknown) returns the global colour; other modes compute their own. Returns a
 // brightness-applied {r,g,b}; 'off' returns black.
 function colorForDevice(id, globalColor) {
-  const m = config.deviceModes[id];
+  const m = bridge.config.deviceModes[id];
   if (!m || !m.mode || m.mode === 'follow') return globalColor;
   if (m.mode === 'off') return { r: 0, g: 0, b: 0 };
   // A custom device without a map (an external provider) follows Xenon, like
   // the LEDs of a map nobody painted.
   if (m.mode === 'custom') return globalColor;
-  if (m.mode === 'color') return fx.applyBrightness(fx.parseColorName(m.color || '') || accent, config.brightness);
-  if (m.mode === 'temperature') return layers.base ? fx.applyBrightness(layers.base, config.brightness) : globalColor;
-  if (m.mode === 'album') return layers.album ? fx.applyBrightness(layers.album, config.brightness) : globalColor;
+  if (m.mode === 'color') return fx.applyBrightness(fx.parseColorName(m.color || '') || bridge.accent, bridge.config.brightness);
+  if (m.mode === 'temperature') return bridge.layers.base ? fx.applyBrightness(bridge.layers.base, bridge.config.brightness) : globalColor;
+  if (m.mode === 'album') return bridge.layers.album ? fx.applyBrightness(bridge.layers.album, bridge.config.brightness) : globalColor;
   if (m.mode === 'animation') {
     const a = m.anim || {};
     const c = fx.animationColorAt({ style: a.style || 'cycle', color: a.color || '#1ed760', speed: a.speed || 50, nowMs: Date.now() });
-    return c ? fx.applyBrightness(c, config.brightness) : globalColor;
+    return c ? fx.applyBrightness(c, bridge.config.brightness) : globalColor;
   }
   return globalColor;
 }
@@ -768,12 +730,12 @@ function colorForDevice(id, globalColor) {
 // animation (breathing/cycle) is actively painting somewhere — global OR a
 // per-device override. Idle cost is therefore zero. Idempotent.
 function syncAnimationTicker() {
-  const style = config.animation && config.animation.style;
-  const deckDynamic = !!deckReaction && deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
+  const style = bridge.config.animation && bridge.config.animation.style;
+  const deckDynamic = !!bridge.deckReaction && bridge.deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
   const dynamic = DYNAMIC_ANIM_STYLES.includes(style) || anyDeviceAnimationDynamic() || deckDynamic;
   const shouldRun = dynamic && active() && !keyLook.isOut();
-  if (shouldRun && !animTimer) animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
-  else if (!shouldRun && animTimer) { clearInterval(animTimer); animTimer = null; }
+  if (shouldRun && !bridge.animTimer) bridge.animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
+  else if (!shouldRun && bridge.animTimer) { clearInterval(bridge.animTimer); bridge.animTimer = null; }
 }
 
 function tickAnimation() {
@@ -791,10 +753,10 @@ function tickAnimation() {
 // guarded by connect()'s own connecting flag, and gated on wantsPaint() + an
 // available SDK, so it self-limits to zero cost whenever nothing needs the LEDs.
 function maybeReconnectForPaint() {
-  if (connected || connecting) return;
+  if (bridge.connected || bridge.connecting) return;
   if (!wantsPaint() || external.hasDevices() || native.hasDevices() || !isAvailable()) return;
-  if (Date.now() - lastConnectAttempt < CONNECT_RETRY_MS) return;
-  lastConnectAttempt = Date.now();
+  if (Date.now() - bridge.lastConnectAttempt < CONNECT_RETRY_MS) return;
+  bridge.lastConnectAttempt = Date.now();
   connect();
 }
 
@@ -820,14 +782,14 @@ function enumerationComplete(list) {
 }
 
 function enumerationIncomplete() {
-  return connected && !enumerationComplete(devices);
+  return bridge.connected && !enumerationComplete(bridge.devices);
 }
 
 // Throttled, bounded re-enumeration shared by the apply() tick and the status
 // endpoint. Returns the enumerate() promise when it fires, else undefined.
 // Fire-and-forget safe: enumerate is async (worker thread), never blocks here.
 function boundedReenumerate() {
-  if (!connected) return;
+  if (!bridge.connected) return;
   const now = Date.now();
   // Slow rescan. Neither test above can see a device that never appeared at all:
   // a list holding only the RAM is "complete" by every measure while the iCUE LINK
@@ -842,14 +804,14 @@ function boundedReenumerate() {
   // tick and this branch re-fires forever — the fast partial-retry path below has
   // its own throttle, this one had none. Cadence therefore runs from the start of a
   // scan; the finally re-stamps at completion, which only ever pushes it later.
-  if (now - lastDeviceScan >= DEVICE_RESCAN_MS) { lastEnumerate = now; lastDeviceScan = now; return enumerate(); }
+  if (now - bridge.lastDeviceScan >= DEVICE_RESCAN_MS) { bridge.lastEnumerate = now; bridge.lastDeviceScan = now; return enumerate(); }
   if (!enumerationIncomplete()) return;
   // Empty keeps retrying; a partial list is capped so a genuinely LED-less device
   // doesn't trigger perpetual re-enumeration.
-  if (devices.length > 0 && partialEnumRetries >= MAX_PARTIAL_ENUM_RETRIES) return;
-  if (now - lastEnumerate < CONNECT_RETRY_MS) return;
-  lastEnumerate = now;
-  if (devices.length > 0) partialEnumRetries++;
+  if (bridge.devices.length > 0 && bridge.partialEnumRetries >= MAX_PARTIAL_ENUM_RETRIES) return;
+  if (now - bridge.lastEnumerate < CONNECT_RETRY_MS) return;
+  bridge.lastEnumerate = now;
+  if (bridge.devices.length > 0) bridge.partialEnumRetries++;
   return enumerate();
 }
 
@@ -858,37 +820,37 @@ function boundedReenumerate() {
 function maybeReenumerate() {
   if (!wantsPaint()) return;
   const p = boundedReenumerate();
-  if (p) p.then(() => { if (devices.length) apply(); }).catch(() => { /* lastError set inside */ });
+  if (p) p.then(() => { if (bridge.devices.length) apply(); }).catch(() => { /* lastError set inside */ });
 }
 
 // Compute the final colour and push it to every opted-in device (on-change).
 // Async because writeDevice is now async (koffi FFI call on worker thread).
-// applyInFlight prevents concurrent writes if a previous apply() is still awaiting.
+// bridge.applyInFlight prevents concurrent writes if a previous apply() is still awaiting.
 async function apply() {
   syncAnimationTicker(); // start/stop the ambient loop to match current state (cheap, idempotent)
   maybeReconnectForPaint(); // bring a sink up on demand when an effect wants paint but none is live yet
   maybeReenumerate();       // recover from a connected-but-empty device list (boot race)
   // A change that lands mid-apply is not dropped: it runs right after.
-  if (applyInFlight) { applyAgain = true; return; }
-  applyInFlight = true;
-  applyAgain = false;
+  if (bridge.applyInFlight) { bridge.applyAgain = true; return; }
+  bridge.applyInFlight = true;
+  bridge.applyAgain = false;
   try {
-    if (overlayUntil && Date.now() > overlayUntil) { layers.overlay = null; overlayUntil = 0; }
+    if (bridge.overlayUntil && Date.now() > bridge.overlayUntil) { bridge.layers.overlay = null; bridge.overlayUntil = 0; }
     if (!active()) {
       // Don't cancel a still-live event flash just because no sink is up YET: an
       // on-demand flash (Bit's rage / any effect with no held session) arms before
       // iCUE finishes connecting, and dropping it here is what made the flash never
       // appear. Keep it armed until it paints (sink connects) or its window elapses.
-      if (!eventAnim || fx.eventColorAt({ ...eventAnim, nowMs: Date.now() }) === null) stopEvent(true);
-      if (!idleReleased) await releaseAll();
+      if (!bridge.eventAnim || fx.eventColorAt({ ...bridge.eventAnim, nowMs: Date.now() }) === null) stopEvent(true);
+      if (!bridge.idleReleased) await releaseAll();
       return;
     }
-    idleReleased = false; // painting again — the next idle transition releases once
+    bridge.idleReleased = false; // painting again — the next idle transition releases once
 
     // "Lights off" from a key: every light dark, the Lighting page map included.
     if (keyLook.isOut()) {
       for (const dev of paintDevices()) {
-        if (config.devices[dev.id] !== false) await writeDevice(dev.id, OFF_COLOR);
+        if (bridge.config.devices[dev.id] !== false) await writeDevice(dev.id, OFF_COLOR);
       }
       external.writeWith(() => OFF_COLOR);
       return;
@@ -896,8 +858,8 @@ async function apply() {
 
     // Event flash (transient, top priority). Null = finished → drop it.
     let eventColor = null;
-    if (eventAnim) {
-      eventColor = fx.eventColorAt({ ...eventAnim, nowMs: Date.now() });
+    if (bridge.eventAnim) {
+      eventColor = fx.eventColorAt({ ...bridge.eventAnim, nowMs: Date.now() });
       if (eventColor === null) stopEvent(true);
     }
 
@@ -908,7 +870,7 @@ async function apply() {
     // the master's steady "fixed illumination" and only exists when master is on.
     // What a Deck key set shows as is: no music or temperature colour on top.
     const keyHeld = keyLook.isHeld();
-    const ambient = config.enabled || keyHeld ? (layers.animation || layers.override || accent) : null;
+    const ambient = bridge.config.enabled || keyHeld ? (bridge.layers.animation || bridge.layers.override || bridge.accent) : null;
     // A Deck LED reaction overlays the reactive/ambient layers but stays below an
     // event flash. Like every other effect it is INDEPENDENT of the master toggle
     // (a per-key reaction is itself an explicit opt-in), so it fires even with the
@@ -918,10 +880,10 @@ async function apply() {
     const picked = eventColor
       || deckColor
       || albumCol
-      || (config.effects.temperature && !keyHeld ? layers.base : null)
+      || (bridge.config.effects.temperature && !keyHeld ? bridge.layers.base : null)
       || ambient
       || { r: 0, g: 0, b: 0 };
-    const color = fx.applyBrightness(picked, config.brightness);
+    const color = fx.applyBrightness(picked, bridge.config.brightness);
 
     const resolve = (id) => colorForDevice(id, color);
 
@@ -929,15 +891,15 @@ async function apply() {
     // are showing the album colour get them spread across their LEDs instead of
     // a single uniform tint. Transient flashes (event/Deck) still take the whole
     // device, and per-device fixed modes are untouched.
-    const gradientPal = albumPalette
-      ? albumPalette.map(c => fx.applyBrightness(c, config.brightness))
+    const gradientPal = bridge.albumPalette
+      ? bridge.albumPalette.map(c => fx.applyBrightness(c, bridge.config.brightness))
       : null;
     const globalIsAlbum = !eventColor && !deckColor && picked === albumCol;
     const wantsGradient = (id) => {
       if (!gradientPal) return false;
-      const m = config.deviceModes[id];
+      const m = bridge.config.deviceModes[id];
       const mode = (m && m.mode) ? m.mode : 'follow';
-      return (mode === 'follow' && globalIsAlbum) || (mode === 'album' && !!layers.album);
+      return (mode === 'follow' && globalIsAlbum) || (mode === 'album' && !!bridge.layers.album);
     };
 
     // Spatial ambient animation (wave/palette): when the global colour IS the
@@ -946,21 +908,21 @@ async function apply() {
     // branch; external providers keep the uniform colour so their per-write
     // HTTP/UDP cost stays bounded. Computed once per apply(), shared by every
     // device (LED counts differ → sampled per device below).
-    const animCfg = config.animation || {};
+    const animCfg = bridge.config.animation || {};
     const animNow = Date.now();
-    const globalIsAnim = !eventColor && !deckColor && picked != null && picked === layers.animation
+    const globalIsAnim = !eventColor && !deckColor && picked != null && picked === bridge.layers.animation
       && fx.isSpatialAnimation(animCfg.style);
     const wantsAnimGradient = (id) => {
       if (!globalIsAnim) return false;
-      const m = config.deviceModes[id];
+      const m = bridge.config.deviceModes[id];
       return !m || !m.mode || m.mode === 'follow';
     };
     const animOpts = { style: animCfg.style, color: animCfg.color, speed: animCfg.speed, palette: animCfg.palette, nowMs: animNow };
 
     // Per-LED devices: iCUE (while a session is up) and the native controllers.
     for (const dev of paintDevices()) {
-      if (config.devices[dev.id] === false) continue; // opt-out
-      const dm = config.deviceModes[dev.id];
+      if (bridge.config.devices[dev.id] === false) continue; // opt-out
+      const dm = bridge.config.deviceModes[dev.id];
       // An event flash or a Deck reaction takes the whole device, map or not.
       const keyParts = !eventColor && !deckColor ? keyLook.partsOf(dev.id) : null;
       if (keyParts) { await writeDeviceCustom(dev, { leds: { ...deviceLeds(dev, dm), ...keyParts } }, color); continue; }
@@ -969,11 +931,11 @@ async function apply() {
       if (wantsAnimGradient(dev.id)) {
         // Frame identity (quantized phase/shift + brightness) checked BEFORE
         // building the per-LED array: unchanged frames cost zero allocations.
-        const frameKey = `anim:${animCfg.style}:${fx.animationFrameKey(animOpts, dev.ledIds.length)}:${Math.round(config.brightness * 64)}`;
-        if (lastWrite.get(dev.id) === frameKey) continue;
+        const frameKey = `anim:${animCfg.style}:${fx.animationFrameKey(animOpts, dev.ledIds.length)}:${Math.round(bridge.config.brightness * 64)}`;
+        if (bridge.lastWrite.get(dev.id) === frameKey) continue;
         const stops = fx.animationGradientAt(animOpts, dev.ledIds.length);
         if (stops) {
-          await writeDeviceAnimGradient(dev, stops.map(c => fx.applyBrightness(c, config.brightness)), frameKey);
+          await writeDeviceAnimGradient(dev, stops.map(c => fx.applyBrightness(c, bridge.config.brightness)), frameKey);
           continue;
         }
       }
@@ -985,15 +947,15 @@ async function apply() {
     // across their devices (one stop per lamp).
     external.writeWith(resolve, gradientPal ? (id) => (wantsGradient(id) ? gradientPal : null) : null);
   } finally {
-    applyInFlight = false;
-    if (applyAgain) { applyAgain = false; apply(); }
+    bridge.applyInFlight = false;
+    if (bridge.applyAgain) { bridge.applyAgain = false; apply(); }
   }
 }
 
 // --- data feeds (called from server.js on existing SSE intervals) ---
 function onSystem(info) {
-  if (config.effects.temperature && info && info.cpuTemp != null) {
-    layers.base = fx.tempToColor(Number(info.cpuTemp));
+  if (bridge.config.effects.temperature && info && info.cpuTemp != null) {
+    bridge.layers.base = fx.tempToColor(Number(info.cpuTemp));
   }
   apply();
 }
@@ -1007,7 +969,7 @@ function onStatus() { apply(); } // re-evaluate game-mode idle
 // pause. The bridge stays connected while any event effect is enabled, so the
 // flash is ready to fire instantly. Drives a short self-cancelling loop.
 function startEvent(type) {
-  const cfg = config.effects[type];
+  const cfg = bridge.config.effects[type];
   if (!cfg || typeof cfg !== 'object' || cfg.enabled === false) return;
   if (gamingPaused()) return;
   // Arm the flash FIRST, then ensure a sink. If none is live yet (e.g. Bit's rage
@@ -1016,16 +978,16 @@ function startEvent(type) {
   // iCUE up on the apply() ticks and the armed flash paints once connected. The old
   // early-return here dropped the flash entirely whenever no session was already up —
   // which is exactly why the LEDs never reacted when a vital hit zero.
-  eventAnim = { style: cfg.style || 'blink', color: cfg.color || '#ff0000', startMs: Date.now(), durationMs: clampEventDuration(cfg.durationMs, EVENT_DURATION_MS) };
-  if (!eventTimer) eventTimer = setInterval(() => apply(), EVENT_TICK_MS);
-  if (!connected && !external.hasDevices() && isAvailable()) connect();
+  bridge.eventAnim = { style: cfg.style || 'blink', color: cfg.color || '#ff0000', startMs: Date.now(), durationMs: clampEventDuration(cfg.durationMs, EVENT_DURATION_MS) };
+  if (!bridge.eventTimer) bridge.eventTimer = setInterval(() => apply(), EVENT_TICK_MS);
+  if (!bridge.connected && !external.hasDevices() && isAvailable()) connect();
   apply();
 }
 
 // Stop any running flash. `silent` skips the final repaint (used inside apply()).
 function stopEvent(silent) {
-  eventAnim = null;
-  if (eventTimer) { clearInterval(eventTimer); eventTimer = null; }
+  bridge.eventAnim = null;
+  if (bridge.eventTimer) { clearInterval(bridge.eventTimer); bridge.eventTimer = null; }
   if (!silent) apply();
 }
 
@@ -1038,14 +1000,14 @@ function onEvent(type) {
 function setManualColor(input) {
   const c = fx.parseColorName(input);
   if (!c) return false;
-  layers.override = c;
-  config.manualColor = fx.rgbToHex(c); // persisted
-  lastWrite.clear(); // force a write even if the colour equals the last one painted
+  bridge.layers.override = c;
+  bridge.config.manualColor = fx.rgbToHex(c); // persisted
+  bridge.lastWrite.clear(); // force a write even if the colour equals the last one painted
   refreshAnimationLayer(); // keep "Fissa" (solid) in sync — it reuses the manual colour
   apply();
   return true;
 }
-function clearManual() { layers.override = null; config.manualColor = ''; lastWrite.clear(); refreshAnimationLayer(); apply(); }
+function clearManual() { bridge.layers.override = null; bridge.config.manualColor = ''; bridge.lastWrite.clear(); refreshAnimationLayer(); apply(); }
 
 // Deck LED reaction: a TRANSIENT overlay a Deck key drives (one-shot on press, or
 // while a bound state like mic-mute / OBS-record is active). It sits just below an
@@ -1058,29 +1020,29 @@ function clearManual() { layers.override = null; config.manualColor = ''; lastWr
 function setDeckReaction(input, style) {
   const c = fx.parseColorName(input);
   if (!c) return false;
-  deckReaction = {
+  bridge.deckReaction = {
     style: ['solid', 'breathing', 'cycle'].includes(style) ? style : 'solid',
     colorHex: fx.rgbToHex(c),
   };
-  lastWrite.clear(); // force a repaint even if the colour equals the last one painted
+  bridge.lastWrite.clear(); // force a repaint even if the colour equals the last one painted
   // Master-independent: if nothing else is holding a sink (master off, all effects
   // off), bring up iCUE on demand so the reaction can paint — mirrors startEvent().
   // onConnected() re-applies once the session is up, so the reaction isn't lost.
-  if (!connected && !external.hasDevices() && isAvailable()) connect();
+  if (!bridge.connected && !external.hasDevices() && isAvailable()) connect();
   apply();           // apply() → syncAnimationTicker starts the loop for breathing/cycle
   return true;
 }
 function clearDeckReaction() {
-  if (!deckReaction) return;
-  deckReaction = null;
-  lastWrite.clear();
+  if (!bridge.deckReaction) return;
+  bridge.deckReaction = null;
+  bridge.lastWrite.clear();
   apply();           // composite falls back to the user's configured lighting; ticker self-stops
 }
 // Live colour for the deck reaction: static for 'solid', sampled for breathing/cycle.
 function deckReactionColor() {
-  if (!deckReaction) return null;
-  if (deckReaction.style === 'solid') return fx.parseColorName(deckReaction.colorHex);
-  return fx.animationColorAt({ style: deckReaction.style, color: deckReaction.colorHex, speed: 50, nowMs: Date.now() });
+  if (!bridge.deckReaction) return null;
+  if (bridge.deckReaction.style === 'solid') return fx.parseColorName(bridge.deckReaction.colorHex);
+  return fx.animationColorAt({ style: bridge.deckReaction.style, color: bridge.deckReaction.colorHex, speed: 50, nowMs: Date.now() });
 }
 
 // Set the ambient animation (style/color/speed/palette). 'none' clears it.
@@ -1105,14 +1067,14 @@ const CANDLE_DEFAULT_COLOR = '#ff9329';
 
 function setAnimation(patch) {
   if (!patch || typeof patch !== 'object') return false;
-  const cur = config.animation;
+  const cur = bridge.config.animation;
   const becameCandle = patch.style === 'candle' && cur.style !== 'candle';
   if (typeof patch.style === 'string' && ANIM_STYLES.includes(patch.style)) cur.style = patch.style;
   if (typeof patch.color === 'string') { const c = fx.parseColorName(patch.color); if (c) cur.color = patch.color; }
   if (becameCandle && cur.color === GENERIC_DEFAULT_COLOR) cur.color = CANDLE_DEFAULT_COLOR;
   if (patch.speed != null && Number.isFinite(Number(patch.speed))) cur.speed = Math.max(1, Math.min(100, Number(patch.speed)));
   if (patch.palette !== undefined) { const pal = sanitizePalette(patch.palette); if (pal) cur.palette = pal; }
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   refreshAnimationLayer();
   apply();
   return true;
@@ -1122,7 +1084,7 @@ function setAnimation(patch) {
 // the dashboard colour for that device. Validated; repaints immediately.
 function setDeviceMode(id, patch) {
   if (!id || !patch || typeof patch !== 'object') return false;
-  const cur = config.deviceModes[id] || { mode: 'follow' };
+  const cur = bridge.config.deviceModes[id] || { mode: 'follow' };
   if (typeof patch.mode === 'string' && DEVICE_MODES.includes(patch.mode)) cur.mode = patch.mode;
   if (typeof patch.color === 'string') { const c = fx.parseColorName(patch.color); if (c) cur.color = patch.color; }
   if (patch.anim && typeof patch.anim === 'object') {
@@ -1140,8 +1102,8 @@ function setDeviceMode(id, patch) {
     // sitting in "per part" with no part set.
     if (cur.mode === 'custom' && !Object.keys(cur.leds).length) cur.mode = 'follow';
   }
-  config.deviceModes[String(id).slice(0, 160)] = cur;
-  lastWrite.clear();
+  bridge.config.deviceModes[String(id).slice(0, 160)] = cur;
+  bridge.lastWrite.clear();
   apply();
   return true;
 }
@@ -1181,7 +1143,7 @@ function setPartLook(id, part, look) {
   const value = look === null ? null : ledColors.normalizeLedValue(look);
   if (look !== null && !value) return false;
   keyLook.setPart(id, seg.ledIds, value);
-  lastWrite.delete(id);
+  bridge.lastWrite.delete(id);
   reconcileConnection();
   apply();
   return true;
@@ -1192,7 +1154,7 @@ function setPartLook(id, part, look) {
 // coloured follow it again.
 function holdKeyLook(opts) {
   keyLook.hold(opts);
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   reconcileConnection();
   apply();
 }
@@ -1200,7 +1162,7 @@ function holdKeyLook(opts) {
 // The lights were switched off (or set back to automatic) from a key.
 function releaseKeyLook() {
   if (!keyLook.release()) return;
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   reconcileConnection();
   apply();
 }
@@ -1210,7 +1172,7 @@ function releaseKeyLook() {
 function setLightsOut(on) {
   if (on) keyLook.release();
   if (!keyLook.setOut(on) && !on) return;
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   reconcileConnection();
   apply();
 }
@@ -1222,24 +1184,24 @@ function isLightsOut() { return keyLook.isOut(); }
 // with the PC off. Nothing is painted again until powerUp(), which the wake from
 // sleep calls, or POWER_HOLD_MS later when a shutdown was cancelled.
 async function powerDown() {
-  poweredDown = true;
+  bridge.poweredDown = true;
   syncAnimationTicker();
-  clearTimeout(powerHoldTimer);
-  powerHoldTimer = setTimeout(powerUp, POWER_HOLD_MS);
-  if (powerHoldTimer.unref) powerHoldTimer.unref();
-  try { await native.powerDown(); } catch (e) { lastError = e.message; }
+  clearTimeout(bridge.powerHoldTimer);
+  bridge.powerHoldTimer = setTimeout(powerUp, POWER_HOLD_MS);
+  if (bridge.powerHoldTimer.unref) bridge.powerHoldTimer.unref();
+  try { await native.powerDown(); } catch (e) { bridge.lastError = e.message; }
   await releaseAll({ keepNative: true });
 }
 
 function powerUp() {
-  clearTimeout(powerHoldTimer);
-  powerHoldTimer = null;
-  if (!poweredDown) return;
-  poweredDown = false;
+  clearTimeout(bridge.powerHoldTimer);
+  bridge.powerHoldTimer = null;
+  if (!bridge.poweredDown) return;
+  bridge.poweredDown = false;
   native.resume();
   wokenBoards.clear();
   wakeVendorBoard();
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   apply();
 }
 
@@ -1249,7 +1211,7 @@ function powerUp() {
 function setAlbumColor(input, palette) {
   const c = fx.parseColorName(input);
   if (!c) return false;
-  layers.album = c;            // always store the latest cover colour
+  bridge.layers.album = c;            // always store the latest cover colour
   // Palette: validated hex list, capped at 3. Fewer than 2 usable colours →
   // null, i.e. the classic uniform behaviour.
   let pal = null;
@@ -1257,39 +1219,39 @@ function setAlbumColor(input, palette) {
     pal = palette.slice(0, 3).map(h => fx.parseColorName(h)).filter(Boolean);
     if (pal.length < 2) pal = null;
   }
-  albumPalette = pal;
-  lastWrite.clear();
+  bridge.albumPalette = pal;
+  bridge.lastWrite.clear();
   if (albumActive()) reconcileConnection(); // ensure a session when the album effect is on
   apply();
   return albumActive();
 }
 function clearAlbum() {
-  if (layers.album == null && albumPalette == null) return;
-  layers.album = null;
-  albumPalette = null;
-  lastWrite.clear();
+  if (bridge.layers.album == null && bridge.albumPalette == null) return;
+  bridge.layers.album = null;
+  bridge.albumPalette = null;
+  bridge.lastWrite.clear();
   apply(); // apply() releases to iCUE when nothing else wants the LEDs
 }
 
 // Apply persisted/posted config; (dis)connect to match `enabled`.
 function applyConfig(next) {
   if (!next || typeof next !== 'object') return;
-  if (typeof next.enabled === 'boolean') config.enabled = next.enabled;
+  if (typeof next.enabled === 'boolean') bridge.config.enabled = next.enabled;
   if (next.enabled === true) keyLook.setOut(false);   // switching the lights on in Settings ends a key's "lights off"
   else if (next.enabled === false && next.lightsOut === true) keyLook.setOut(true);   // saved dark by a key: still dark after a restart
-  if (typeof next.brightness === 'number') config.brightness = Math.max(0, Math.min(1, next.brightness));
-  if (typeof next.pauseDuringGame === 'boolean') config.pauseDuringGame = next.pauseDuringGame;
-  if (next.devices && typeof next.devices === 'object') config.devices = next.devices;
+  if (typeof next.brightness === 'number') bridge.config.brightness = Math.max(0, Math.min(1, next.brightness));
+  if (typeof next.pauseDuringGame === 'boolean') bridge.config.pauseDuringGame = next.pauseDuringGame;
+  if (next.devices && typeof next.devices === 'object') bridge.config.devices = next.devices;
   if (next.effects && typeof next.effects === 'object') {
-    if (typeof next.effects.temperature === 'boolean') config.effects.temperature = next.effects.temperature;
-    if (typeof next.effects.volume === 'boolean') config.effects.volume = next.effects.volume;
-    if (typeof next.effects.musicAlbum === 'boolean') config.effects.musicAlbum = next.effects.musicAlbum;
+    if (typeof next.effects.temperature === 'boolean') bridge.config.effects.temperature = next.effects.temperature;
+    if (typeof next.effects.volume === 'boolean') bridge.config.effects.volume = next.effects.volume;
+    if (typeof next.effects.musicAlbum === 'boolean') bridge.config.effects.musicAlbum = next.effects.musicAlbum;
     for (const k of ['timer', 'notification', 'reminder', 'vitals']) {
       const e = next.effects[k];
-      const cur = config.effects[k] || { enabled: true, color: '#ff0000', style: 'blink', durationMs: EVENT_DURATION_MS };
-      if (typeof e === 'boolean') { config.effects[k] = { ...cur, enabled: e }; }
+      const cur = bridge.config.effects[k] || { enabled: true, color: '#ff0000', style: 'blink', durationMs: EVENT_DURATION_MS };
+      if (typeof e === 'boolean') { bridge.config.effects[k] = { ...cur, enabled: e }; }
       else if (e && typeof e === 'object') {
-        config.effects[k] = {
+        bridge.config.effects[k] = {
           enabled: typeof e.enabled === 'boolean' ? e.enabled : cur.enabled,
           color: typeof e.color === 'string' ? e.color : cur.color,
           style: ['blink', 'pulse', 'solid'].includes(e.style) ? e.style : cur.style,
@@ -1301,16 +1263,16 @@ function applyConfig(next) {
   // Restore the persisted manual colour (must run before the animation block so
   // "Fissa" picks it up via refreshAnimationLayer).
   if (typeof next.manualColor === 'string') {
-    config.manualColor = next.manualColor;
+    bridge.config.manualColor = next.manualColor;
     const c = next.manualColor ? fx.parseColorName(next.manualColor) : null;
-    layers.override = c || null;
+    bridge.layers.override = c || null;
   }
   if (next.animation && typeof next.animation === 'object') {
     const a = next.animation;
-    if (typeof a.style === 'string' && ANIM_STYLES.includes(a.style)) config.animation.style = a.style;
-    if (typeof a.color === 'string') { const c = fx.parseColorName(a.color); if (c) config.animation.color = a.color; }
-    if (a.speed != null && Number.isFinite(Number(a.speed))) config.animation.speed = Math.max(1, Math.min(100, Number(a.speed)));
-    if (a.palette !== undefined) { const pal = sanitizePalette(a.palette); if (pal) config.animation.palette = pal; }
+    if (typeof a.style === 'string' && ANIM_STYLES.includes(a.style)) bridge.config.animation.style = a.style;
+    if (typeof a.color === 'string') { const c = fx.parseColorName(a.color); if (c) bridge.config.animation.color = a.color; }
+    if (a.speed != null && Number.isFinite(Number(a.speed))) bridge.config.animation.speed = Math.max(1, Math.min(100, Number(a.speed)));
+    if (a.palette !== undefined) { const pal = sanitizePalette(a.palette); if (pal) bridge.config.animation.palette = pal; }
   }
   refreshAnimationLayer(); // sync the animation layer (incl. "Fissa" → manual colour)
   if (next.deviceModes && typeof next.deviceModes === 'object') {
@@ -1329,11 +1291,11 @@ function applyConfig(next) {
       if (v.leds !== undefined) e.leds = ledColors.normalizeLedColors(v.leds);
       dm[String(id).slice(0, 160)] = e;
     }
-    config.deviceModes = dm;
+    bridge.config.deviceModes = dm;
   }
   if (next.providers && typeof next.providers === 'object') external.applyConfig(next.providers);
   if (next.native && typeof next.native === 'object') configureNative(next.native);
-  if (next.accent && typeof next.accent === 'object') accent = next.accent;
+  if (next.accent && typeof next.accent === 'object') bridge.accent = next.accent;
   reconcileConnection(); // (dis)connect to match master + any enabled effect
   apply();
 }
@@ -1342,10 +1304,10 @@ function applyConfig(next) {
 // more with a Gen2 scan): repaint once they are there.
 function configureNative(next) {
   const enabled = typeof next.enabled === 'boolean' ? next.enabled : undefined;
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   native.configure({ enabled, layouts: next.layouts, scanned: next.scanned })
-    .catch((e) => { lastError = e.message; })
-    .then(() => { lastWrite.clear(); apply(); });
+    .catch((e) => { bridge.lastError = e.message; })
+    .then(() => { bridge.lastWrite.clear(); apply(); });
 }
 
 function setNativeEnabled(on) { configureNative({ enabled: !!on }); }
@@ -1353,28 +1315,28 @@ function setNativeEnabled(on) { configureNative({ enabled: !!on }); }
 // One output's layout from the guided setup (null = forget it and set it up again).
 function setNativeLayout(id, zone, layout) {
   if (!native.setLayout(id, zone, layout)) return false;
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   apply();
   return true;
 }
 
 // The guided setup lights part of one output; opts null ends the preview.
 async function setNativePreview(id, output, opts) {
-  if (opts === null) { native.clearPreview(); lastWrite.clear(); apply(); return true; }
+  if (opts === null) { native.clearPreview(); bridge.lastWrite.clear(); apply(); return true; }
   return native.setPreview(id, output, opts);
 }
 
 async function scanNative() {
   await native.stop();
   await native.start({ rescan: true });
-  lastWrite.clear();
+  bridge.lastWrite.clear();
   apply();
   return native.status();
 }
 
 function setEffectEnabled(effect, enabled) {
   if (['temperature', 'volume', 'musicAlbum', 'timer'].includes(effect)) {
-    config.effects[effect] = !!enabled;
+    bridge.config.effects[effect] = !!enabled;
     reconcileConnection(); // connect/disconnect to match the new effect state
     apply();
     return true;
@@ -1389,7 +1351,7 @@ async function scanExternal() { const r = await external.scan(); apply(); return
 async function addExternalDevice(providerId, host) { const d = await external.addDevice(providerId, host); if (d) apply(); return d; }
 async function pairExternalDevice(providerId, host) { const r = await external.pairDevice(providerId, host); if (r && r.ok) apply(); return r; }
 function removeExternalDevice(providerId, id) { const ok = external.removeDevice(providerId, id); apply(); return ok; }
-function setExternalDeviceOptIn(providerId, id, on) { const ok = external.setDeviceOptIn(providerId, id, on); lastWrite.clear(); apply(); return ok; }
+function setExternalDeviceOptIn(providerId, id, on) { const ok = external.setDeviceOptIn(providerId, id, on); bridge.lastWrite.clear(); apply(); return ok; }
 function getExternalStatus() { return external.getStatus(); }
 function getExternalConfig() { return external.getConfig(); }
 // Inject runtime hooks for integration-backed providers (Home Assistant): the
@@ -1400,15 +1362,15 @@ function setExternalRuntime(providerId, hooks) { external.setRuntime(providerId,
 // { deviceId: bool } shape, unlike getStatus which projects it onto the device list).
 function getConfig() {
   return {
-    enabled: config.enabled,
+    enabled: bridge.config.enabled,
     lightsOut: keyLook.isOut(),
-    brightness: config.brightness,
-    pauseDuringGame: config.pauseDuringGame,
-    devices: { ...config.devices },
-    effects: { ...config.effects },
-    animation: { ...config.animation, palette: (config.animation.palette || []).slice() },
-    manualColor: config.manualColor || '',
-    deviceModes: JSON.parse(JSON.stringify(config.deviceModes)),
+    brightness: bridge.config.brightness,
+    pauseDuringGame: bridge.config.pauseDuringGame,
+    devices: { ...bridge.config.devices },
+    effects: { ...bridge.config.effects },
+    animation: { ...bridge.config.animation, palette: (bridge.config.animation.palette || []).slice() },
+    manualColor: bridge.config.manualColor || '',
+    deviceModes: JSON.parse(JSON.stringify(bridge.config.deviceModes)),
     providers: external.getConfig(),
     native: { enabled: native.status().enabled, layouts: native.getLayouts(), scanned: native.getScanned() },
   };
@@ -1416,7 +1378,7 @@ function getConfig() {
 
 // Project a device's stored mode onto a flat shape for the UI.
 function deviceModeOf(id) {
-  const m = config.deviceModes[id];
+  const m = bridge.config.deviceModes[id];
   return {
     mode: (m && m.mode) || 'follow',
     modeColor: (m && m.color) || null,
@@ -1430,18 +1392,18 @@ function getStatus() {
   providers.forEach(p => (p.devices || []).forEach(d => Object.assign(d, deviceModeOf(d.id))));
   return {
     available: isAvailable(),
-    connected: connected,
-    enabled: config.enabled,
+    connected: bridge.connected,
+    enabled: bridge.config.enabled,
     lightsOut: keyLook.isOut(),
-    devices: getDevices().map(d => ({ ...d, optedIn: config.devices[d.id] !== false, ...deviceModeOf(d.id) })),
-    effects: { ...config.effects },
-    animation: { ...config.animation, palette: (config.animation.palette || []).slice() },
-    manualColor: config.manualColor || '',
-    brightness: config.brightness,
-    pauseDuringGame: config.pauseDuringGame,
+    devices: getDevices().map(d => ({ ...d, optedIn: bridge.config.devices[d.id] !== false, ...deviceModeOf(d.id) })),
+    effects: { ...bridge.config.effects },
+    animation: { ...bridge.config.animation, palette: (bridge.config.animation.palette || []).slice() },
+    manualColor: bridge.config.manualColor || '',
+    brightness: bridge.config.brightness,
+    pauseDuringGame: bridge.config.pauseDuringGame,
     providers,
     native: native.status(),
-    reason: lastError,
+    reason: bridge.lastError,
   };
 }
 

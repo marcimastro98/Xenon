@@ -26,9 +26,10 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const src = readFileSync(join(ROOT, 'server', 'lighting.js'), 'utf8');
+const src = engineSource('server/lighting.js');
 const { _enumerationComplete: complete, _boardsToWake: toWake } = createRequire(import.meta.url)(join(ROOT, 'server', 'lighting.js'));
 
 const dev = (id, ledCount, ledIds) => ({ id, model: id, type: 1, ledCount, ledIds });

@@ -1,6 +1,6 @@
 {
   "note": "Type errors per \"file code\". Written by tools/quality/typecheck.mjs: numbers only go down.",
-  "total": 1118,
+  "total": 1105,
   "counts": {
     "packages/core/src/bit-player.js TS2322": 3,
     "packages/mcp/bin/xenon-mcp.js TS2353": 1,
@@ -165,7 +165,7 @@
     "server/layers-peek.js TS2554": 1,
     "server/lighting-providers/hue-bridge.js TS2554": 2,
     "server/lighting-providers/openrgb.js TS2810": 1,
-    "server/lighting.js TS2339": 24,
+    "server/lighting.js TS2339": 11,
     "server/lighting.js TS2810": 1,
     "server/lights/routes.js TS2339": 1,
     "server/linux-collectors.js TS2339": 1,

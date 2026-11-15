@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5924,
+  "total": 5919,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -1341,8 +1341,6 @@
     "server/lighting-providers/wled.js complexity/useOptionalChain": 3,
     "server/lighting-providers/yeelight.js complexity/useOptionalChain": 2,
     "server/lighting.js complexity/useOptionalChain": 12,
-    "server/lighting.js correctness/noUnusedVariables": 1,
-    "server/lighting.js style/useConst": 4,
     "server/lighting.js suspicious/useIterableCallbackReturn": 2,
     "server/lights/routes-control.js complexity/useOptionalChain": 7,
     "server/lights/routes-control.js correctness/noUnusedVariables": 1,

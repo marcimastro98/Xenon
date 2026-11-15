@@ -13,9 +13,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const server = readFileSync(join(ROOT, 'server', 'lighting.js'), 'utf8');
+const server = engineSource('server/lighting.js');
 const client = readFileSync(join(ROOT, 'server', 'js', 'lighting-page.js'), 'utf8');
 
 // Body of `function NAME(...) { ... }` up to the closing brace at column 0.

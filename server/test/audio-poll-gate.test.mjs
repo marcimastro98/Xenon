@@ -83,7 +83,7 @@ test('lighting is not treated as a live consumer of this tick', () => {
   // will silently go dead whenever nobody is looking at the Volume UI.
   assert.match(SRC, /lighting\.onAudio\(a\);/,
     'the call stays as the seam a future audio effect binds to');
-  const LIGHTING = readFileSync(join(__dirname, '..', 'lighting.js'), 'utf8');
+  const LIGHTING = engineSource('server/lighting.js');
   assert.match(LIGHTING, /function onAudio\(\)\s*\{\s*\/\*[^}]*\*\/\s*\}/,
     'onAudio is still a no-op; if it grows a body, the poll gate must be revisited');
 });

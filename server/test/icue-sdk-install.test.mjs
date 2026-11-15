@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...p) => readFileSync(join(ROOT, ...p), 'utf8');
@@ -20,7 +21,7 @@ const read = (...p) => readFileSync(join(ROOT, ...p), 'utf8');
 const updatePs1 = read('server', 'icue-sdk-update.ps1');
 const installPs1 = read('server', 'install.ps1');
 const installJs = read('server', 'icue-sdk-install.js');
-const lighting = read('server', 'lighting.js');
+const lighting = engineSource('server/lighting.js');
 const gitignore = read('.gitignore');
 
 test('the DLL is never committed to the repo', () => {

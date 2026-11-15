@@ -135,7 +135,7 @@ test('a key\'s "lights off" holds until a key or Settings switches them on', () 
 // Read from source: switching the lights in a test would connect to a real
 // iCUE on a developer's PC and paint the rig.
 test('lighting: lights off shows in the status; Settings master on ends it', () => {
-  const src = read('../lighting.js');
+  const src = engineSource('server/lighting.js');
   assert.match(src, /if \(next\.enabled === true\) keyLook\.setOut\(false\);/);
   assert.match(src, /lightsOut: keyLook\.isOut\(\),/);
   // Saved dark by a key: a restart keeps it dark, and only while the master is off.
@@ -192,7 +192,7 @@ test('lighting: power down darkens the native controllers instead of releasing t
   const down = nat.slice(nat.indexOf('async function powerDown()'), nat.indexOf('function resume()'));
   assert.match(down, /\.blackout\(blackoutLengths\(c\)\)/);
   assert.doesNotMatch(down, /release\(\)/);
-  const src = read('../lighting.js');
+  const src = engineSource('server/lighting.js');
   const pd = src.slice(src.indexOf('async function powerDown()'), src.indexOf('function powerUp()'));
   assert.match(pd, /releaseAll\(\{ keepNative: true \}\)/);
   const rel = src.slice(src.indexOf('async function releaseAll('), src.indexOf('function disconnect()'));

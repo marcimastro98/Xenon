@@ -114,7 +114,7 @@ test('ledFrame: a wave runs across the LEDs that share it, a breathing group mov
 test('every normalizer knows the custom mode and its LED map', () => {
   const server = engineSource();
   const client = readFileSync(join(SERVER, 'js', 'settings.js'), 'utf8');
-  const bridge = readFileSync(join(SERVER, 'lighting.js'), 'utf8');
+  const bridge = engineSource('server/lighting.js');
   for (const [name, src] of [['server.js', server], ['settings.js', client], ['lighting.js', bridge]]) {
     assert.match(src, /(LIGHTING_)?DEVICE_MODES = \[[^\]]*'custom'/, `${name} drops the custom mode`);
   }
@@ -152,7 +152,7 @@ test('the settings.js LED mirror agrees with the server normalizer', () => {
 });
 
 test('an event flash or a Deck reaction still takes a device that has a LED map', () => {
-  const bridge = readFileSync(join(SERVER, 'lighting.js'), 'utf8');
+  const bridge = engineSource('server/lighting.js');
   assert.match(bridge, /dm\.mode === 'custom' && !eventColor && !deckColor/);
   assert.match(bridge, /m\.mode === 'custom' && ledColors\.hasDynamicLeds\(m\.leds\)/, 'looping LED effects must keep the ticker running');
 });
