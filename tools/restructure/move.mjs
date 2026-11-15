@@ -6,6 +6,7 @@
 //   node tools/restructure/move.mjs apply --plan <file.json> [--dry-run]   move a list of { from, to }
 //   node tools/restructure/move.mjs undo                             put back the last step, before its commit
 //   node tools/restructure/move.mjs shims [--dry-run]                leave the one line at every old path (own commit)
+//   node tools/restructure/move.mjs unshim [--dry-run]               take the line away where nothing asks for the old path
 //   node tools/restructure/move.mjs check --base <commit>            installs, old names and lines, against the list
 //
 // It refuses, file by file and with the reason: a frozen path, a file with changes not committed, `x.js` -> `x/`,
@@ -19,8 +20,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { trackedFiles } from '../quality/repo-files.mjs';
-import { applyStep, planStep, readMoved, undoStep, writeShims } from './move-apply.mjs';
-import { archiveList, archiveProblems, leftovers } from './move-check.mjs';
+import { applyStep, planStep, readMoved, removeShims, undoStep, writeShims } from './move-apply.mjs';
+import { archiveList, archiveProblems, leftovers, namedOldPaths } from './move-check.mjs';
 import { readLeft, targets } from './move-plan.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
 
@@ -58,6 +59,14 @@ async function main(args) {
   if (command === 'shims') {
     const made = writeShims(root, args.includes('--dry-run'));
     console.log(`${made.length} old paths ${args.includes('--dry-run') ? 'would get' : 'got'} their line`);
+    return 0;
+  }
+  if (command === 'unshim') {
+    const dryRun = args.includes('--dry-run');
+    const named = await withParser((parser) => namedOldPaths(root, parser));
+    const { gone, kept } = removeShims(root, readLeft(root).shims ?? {}, named, dryRun);
+    for (const { file, why } of kept) console.log(`keeps its line: ${file}\n  ${why}`);
+    console.log(`${gone.length} old paths ${dryRun ? 'would lose' : 'lost'} their line, ${kept.length} keep it`);
     return 0;
   }
   if (command === 'check') {

@@ -45,6 +45,15 @@ export function archiveProblems(before, after, moves) {
   return problems;
 }
 
+/** @param {string} root @param {any} parser @returns {Set<string>} the old paths a file of the repo still names */
+export function namedOldPaths(root, parser) {
+  const { moves } = readMoved(root);
+  const read = (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch { return null; } };
+  const olds = new Set(moves.map((move) => move.from));
+  const sites = moves.length ? findSites({ files: trackedFiles(root), read, parser, moves }) : [];
+  return new Set(sites.filter((site) => !olds.has(site.file)).map((site) => site.move.from));
+}
+
 /**
  * @param {string} root @param {any} parser
  * @returns {string[]} places that still name an old path, and lines at old paths that are not the tool's

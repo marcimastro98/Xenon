@@ -1,5 +1,5 @@
 {
-  "note": "Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true once the old path holds its one line that hands on the module; the line goes in the release named in structure-conventions.",
+  "note": "Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true while the old path holds its one line that hands on the module; `unshimmed` is true once `move.mjs unshim` took the line away because nothing asks for the old path. The old paths that keep their line are in move-left.json, each with its reason.",
   "moves": [
     {"from":"server/vitals-ai-tools.js","to":"server/vitals/vitals-ai-tools.js","shim":true},
     {"from":"server/vitals-nag.js","to":"server/vitals/vitals-nag.js","shim":true},

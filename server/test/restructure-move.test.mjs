@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from 'node:os';
 import path from 'node:path';
 
-import { applyStep, edited, planStep, readMoved, shimText, undoStep, writeShims } from '../../tools/restructure/move-apply.mjs';
+import { applyStep, edited, planStep, readMoved, removeShims, shimText, undoStep, writeShims } from '../../tools/restructure/move-apply.mjs';
 import { archiveProblems } from '../../tools/restructure/move-check.mjs';
 import { dropUnused, putBack } from '../../tools/restructure/move-map.mjs';
 import { ownLoads, targets, whyNot } from '../../tools/restructure/move-plan.mjs';
@@ -234,6 +234,17 @@ test('a step moves, rewrites and lists; undo puts every file back; the line at t
     assert.deepEqual(writeShims(repo.root, false), [], 'a second run writes nothing');
     const again = planStep(repo.root, [MOVE], parser);
     assert.match(again.refused[0].why.join(' '), /not committed/, 'the line at the old path is not a file to move again');
+
+    const none = new Set();
+    assert.deepEqual(removeShims(repo.root, { [MOVE.from]: 'a tool outside loads it' }, none, false), { gone: [], kept: [{ file: MOVE.from, why: 'a tool outside loads it' }] });
+    assert.match(removeShims(repo.root, {}, new Set([MOVE.from]), false).kept[0].why, /still names it/);
+    assert.deepEqual(removeShims(repo.root, {}, none, true).gone, [MOVE.from], 'a dry run says what would go');
+    assert.equal(existsSync(path.join(repo.root, MOVE.from)), true);
+    assert.deepEqual(removeShims(repo.root, {}, none, false).gone, [MOVE.from]);
+    assert.equal(existsSync(path.join(repo.root, MOVE.from)), false);
+    assert.deepEqual(readMoved(repo.root).moves, [{ ...MOVE, unshimmed: true }]);
+    assert.deepEqual(writeShims(repo.root, false), [], 'a line taken away is not written again');
+    assert.deepEqual(removeShims(repo.root, {}, none, false), { gone: [], kept: [] });
   } finally {
     await parser.close();
     rmSync(repo.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

@@ -1,5 +1,5 @@
 {
-  "note": "Read by tools/restructure/move.mjs. `homes`: the folder of a feature when it is not named like the feature (structure-conventions, section 2: `ai-local.js` goes to `server/ai/`). `features` and `files`: loose files of `server/` that stay where they are on purpose, each with the reason the report prints.",
+  "note": "Read by tools/restructure/move.mjs. `homes`: the folder of a feature when it is not named like the feature (structure-conventions, section 2: `ai-local.js` goes to `server/ai/`). `features` and `files`: loose files of `server/` that stay where they are on purpose, each with the reason the report prints. `shims`: old paths that keep their one line after `move.mjs unshim`, because something outside this repo loads them by that path.",
   "homes": {
     "bit": "ai"
   },
@@ -11,5 +11,11 @@
     "server/disk-categories.js": "the closed list of what may be deleted: left alone with the gate lists",
     "server/linux-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)",
     "server/darwin-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)"
+  },
+  "shims": {
+    "server/community-catalog.js": "the checks of the creator skill load it by this path and find the repo by it",
+    "server/community-messages.js": "the launch check of the creator skill loads it by this path",
+    "server/icon-packs.js": "the contract tests of Xenon Maker and the icon check of the creator skill load it by this path",
+    "server/sound-packs.js": "the contract tests of Xenon Maker and the sound check of the creator skill load it by this path"
   }
 }

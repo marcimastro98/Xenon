@@ -17,12 +17,12 @@ export const MOVED = 'tools/restructure/moved.json';
 const EXTRACTED = 'tools/restructure/extracted.json';
 const HASHED = 'tools/restructure/load-registrations.json';
 const textHash = (text) => createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex');
-const NOTE = 'Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true once the old path holds its one line that hands on the module; the line goes in the release named in structure-conventions.';
+const NOTE = 'Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true while the old path holds its one line that hands on the module; `unshimmed` is true once `move.mjs unshim` took the line away because nothing asks for the old path. The old paths that keep their line are in move-left.json, each with its reason.';
 
 const git = (root, args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 });
 const read = (root) => (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch { return null; } };
 
-/** @param {string} root @returns {{ note: string, moves: {from: string, to: string, shim?: true}[] }} */
+/** @param {string} root @returns {{ note: string, moves: {from: string, to: string, shim?: true, unshimmed?: true}[] }} */
 export function readMoved(root) {
   const text = read(root)(MOVED);
   return text ? JSON.parse(text) : { note: NOTE, moves: [] };
@@ -209,7 +209,7 @@ export function writeShims(root, dryRun) {
   const list = readMoved(root);
   const made = [];
   for (const move of list.moves) {
-    if (move.shim || existsSync(path.join(root, move.from))) continue;
+    if (move.shim || move.unshimmed || existsSync(path.join(root, move.from))) continue;
     made.push(move.from);
     if (dryRun) continue;
     writeFileSync(path.join(root, move.from), shimText(move));
@@ -225,4 +225,36 @@ export function writeShims(root, dryRun) {
     git(root, ['add', '--', MOVED, FEATURES, MAP, ...made]);
   }
   return made;
+}
+
+/**
+ * Takes the line away from every old path that nothing asks for any more.
+ * @param {string} root @param {Record<string, string>} keep old paths that keep their line, each with its reason
+ * @param {Set<string>} named old paths a file of the repo still names
+ * @param {boolean} dryRun
+ * @returns {{ gone: string[], kept: {file: string, why: string}[] }}
+ */
+export function removeShims(root, keep, named, dryRun) {
+  const list = readMoved(root);
+  const gone = [];
+  const kept = [];
+  for (const move of list.moves.filter((one) => one.shim)) {
+    const why = keep[move.from] ?? (named.has(move.from) ? 'a file of the repo still names it'
+      : read(root)(move.from) !== shimText(move) ? 'the file there is not the line the tool wrote' : null);
+    if (why) { kept.push({ file: move.from, why }); continue; }
+    gone.push(move.from);
+    if (dryRun) continue;
+    delete move.shim;
+    move.unshimmed = true;
+  }
+  if (!dryRun && gone.length) {
+    for (let at = 0; at < gone.length; at += 50) git(root, ['rm', '-q', '-f', '--', ...gone.slice(at, at + 50)]);
+    // A pattern of the map that named only those lines points at nothing now, for good.
+    const mapped = dropUnused(JSON.parse(read(root)(FEATURES)), trackedFiles(root));
+    writeFileSync(path.join(root, FEATURES), mapText(mapped.map));
+    writeFileSync(path.join(root, MAP), pageText(mapped.map));
+    writeFileSync(path.join(root, MOVED), movedText(list));
+    git(root, ['add', '--', MOVED, FEATURES, MAP]);
+  }
+  return { gone, kept };
 }
