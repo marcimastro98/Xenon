@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const P = require('../../server/lighting-native/fusion2-protocol.js');
-const { gdbusParser, dbusMonitorParser } = require('../../server/linux-session-watch.js');
+const { gdbusParser, dbusMonitorParser } = require('../../server/platform/linux-session-watch.js');
 
 const dir = process.argv[2];
 const file = (name) => path.join(dir, name);

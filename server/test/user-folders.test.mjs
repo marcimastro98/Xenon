@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { resolveUserFolder, replayRingDir } = require('../user-folders.js');
+const { resolveUserFolder, replayRingDir } = require('../platform/user-folders.js');
 
 const regOut = (value, dir) => `\r\nHKEY_CURRENT_USER\\...\\Shell Folders\r\n    ${value}    REG_SZ    ${dir}\r\n`;
 

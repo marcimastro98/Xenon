@@ -15,9 +15,12 @@
     {"from":"server/tile-previews.js","to":"server/grid/tile-previews.js","shim":true},
     {"from":"server/tile-settings.js","to":"server/grid/tile-settings.js","shim":true},
     {"from":"server/mcp-dev-tools.js","to":"server/mcp/mcp-dev-tools.js","shim":true},
-    {"from":"server/mcp-dev.js","to":"server/mcp/mcp-dev.js","shim":true}
+    {"from":"server/mcp-dev.js","to":"server/mcp/mcp-dev.js","shim":true},
+    {"from":"server/linux-session-watch.js","to":"server/platform/linux-session-watch.js"},
+    {"from":"server/user-folders.js","to":"server/platform/user-folders.js"}
   ],
   "patterns": [
-
+    {"feature":"platform","glob":"server/linux-session-watch.js","at":3},
+    {"feature":"platform","glob":"server/user-folders.js","at":6}
   ]
 }

@@ -1029,10 +1029,8 @@
         "server/platform/**",
         "server/linux-collectors.js",
         "server/darwin-collectors.js",
-        "server/linux-session-watch.js",
         "server/session-watch.js",
-        "server/session-watch.ps1",
-        "server/user-folders.js"
+        "server/session-watch.ps1"
       ]
     },
     {

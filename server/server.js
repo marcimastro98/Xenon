@@ -86,7 +86,7 @@ const { createBugReport } = require('./bug-report');
 const { writeZip } = require('./zip-writer');
 const CaptureSettings = require('./capture-settings');
 const { createCaptureFolder } = require('./capture-folder');
-const { resolveUserFolder, replayRingDir } = require('./user-folders');
+const { resolveUserFolder, replayRingDir } = require('./platform/user-folders');
 const { _captureHost } = require('./screens/capture-engine-host.js');
 
 const {
