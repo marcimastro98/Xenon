@@ -84,7 +84,7 @@ test('a name is a duplicate when two different scripts of the page declare it', 
   const found = duplicateNames([
     { file: 'js/first.js', names: ['cssId', 'renderNotes'] },
     { file: 'js/second.js', names: ['cssId', 'tick', 'tick'] },
-    { file: 'js/clock.js', names: ['now'] },
+    { file: 'js/time/clock.js', names: ['now'] },
   ]);
   assert.deepEqual(found, { cssId: ['js/first.js', 'js/second.js'] });
 });

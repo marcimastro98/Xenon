@@ -28,7 +28,7 @@ const LIST = [
   '(function (root, factory) { module.exports = factory(); })(this, function () {',
   "  const tile = (name, global, js, streams, cssName, moreCss) => ({ css: ['components/' + (cssName || global) + '/' + (cssName || global) + '.css'].concat(moreCss || []), js: js });",
   '  const TILES = {',
-  "    clock: { css: ['components/Clock/Clock.css', 'components/Select/Select.css'], js: ['js/select.js', 'js/clock.js'] },",
+  "    clock: { css: ['components/Clock/Clock.css', 'components/Select/Select.css'], js: ['js/select.js', 'js/time/clock.js'] },",
   "    disk: tile('disk', 'Disk', ['js/select.js', 'js/disk.js'], ['system'], null, ['components/Select/Select.css']),",
   "    battery: tile('battery', 'Battery', ['js/battery.js'], []),",
   "    stock: tile('stock', 'Stock', ['js/stock.js'], [], 'Ticker'),",
@@ -45,13 +45,13 @@ test('the list of files per widget is read by running it', () => {
   assert.deepEqual(readLists(LIST).disk, { css: ['server/components/Disk/Disk.css', 'server/components/Select/Select.css'], js: ['server/js/select.js', 'server/js/disk.js'] });
   assert.equal(listsHold(LIST, 'server/components/Ticker/Ticker.css'), true, 'a name the list builds is found by asking it');
   assert.equal(listsHold(LIST, 'server/components/Stock/Stock.css'), false);
-  assert.equal(listsHold(null, 'server/js/clock.js'), false, 'a repo without the list');
+  assert.equal(listsHold(null, 'server/js/time/clock.js'), false, 'a repo without the list');
 });
 
 test('a new script goes right before the old one in every row that holds it', () => {
   const done = addToLists(LIST, 'server/js/select.js', ['server/js/select/a.js', 'server/js/select/b.js'], 'before');
   assert.deepEqual(done.reasons, []);
-  assert.deepEqual(js(done.text, 'clock'), ['select/a.js', 'select/b.js', 'select.js', 'clock.js']);
+  assert.deepEqual(js(done.text, 'clock'), ['select/a.js', 'select/b.js', 'select.js', 'time/clock.js']);
   assert.deepEqual(js(done.text, 'disk'), ['select/a.js', 'select/b.js', 'select.js', 'disk.js']);
   assert.deepEqual(js(done.text, 'battery'), ['battery.js'], 'a row without the file is left alone');
   assert.equal(addToLists(LIST, 'server/js/absent.js', ['server/js/x.js'], 'before').text, LIST);
@@ -72,7 +72,7 @@ test('the parts of a stylesheet go right after it, also where the row builds its
 });
 
 test('a row the tool cannot follow stops the split, and nothing is written', () => {
-  const odd = LIST.replace("js: ['js/select.js', 'js/clock.js']", "js: ['select', 'clock'].map((name) => 'js/' + name + '.js')");
+  const odd = LIST.replace("js: ['js/select.js', 'js/time/clock.js']", "js: ['select', 'clock'].map((name) => 'js/' + name + '.js')");
   const done = addToLists(odd, 'server/js/select.js', ['server/js/select/a.js'], 'before');
   assert.deepEqual(done.reasons, [`the row "clock" of ${BUILT_LIST} builds its js list in a way the tool cannot follow: write js/select.js out in that row first`]);
   assert.equal(done.text, odd);

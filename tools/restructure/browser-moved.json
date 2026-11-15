@@ -6,6 +6,7 @@
     {"from":"server/js/vitals.js","to":"server/js/vitals/vitals.js"},
     {"from":"server/js/news-widget.js","to":"server/js/ticker/news-widget.js"},
     {"from":"server/js/stock-widget.js","to":"server/js/ticker/stock-widget.js"},
-    {"from":"server/js/ticker.js","to":"server/js/ticker/ticker.js"}
+    {"from":"server/js/ticker.js","to":"server/js/ticker/ticker.js"},
+    {"from":"server/js/clock.js","to":"server/js/time/clock.js"}
   ]
 }

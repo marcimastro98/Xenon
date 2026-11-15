@@ -32,7 +32,7 @@ const SETTINGS = read('../js/settings.js');
 const SERVER = engineSource();
 const HTML = read('../index.html');
 const I18N = appStringsSource();
-const CLOCK = read('../js/clock.js');
+const CLOCK = read('../js/time/clock.js');
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 test('every piece of the time scales together', () => {

@@ -12,7 +12,7 @@
     "server/js/audio-feedback.js": 18,
     "server/js/calendar.js": 48,
     "server/js/capability-catalog.js": 2,
-    "server/js/clock.js": 10,
+    "server/js/time/clock.js": 10,
     "server/js/custom-select.js": 9,
     "server/js/dashboard-grid.js": 57,
     "server/js/dashboard-instances.js": 44,

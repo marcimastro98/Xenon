@@ -463,7 +463,6 @@
       "files": [
         "server/time/**",
         "server/actions/widget-timers.js",
-        "server/js/clock.js",
         "server/js/calendar.js",
         "server/js/calendar/**",
         "server/js/tasks.js",
@@ -476,7 +475,8 @@
         "server/components/DayModal/**",
         "server/components/TasksPanel/**",
         "server/components/TimerPanel/**",
-        "server/components/NotesPanel/**"
+        "server/components/NotesPanel/**",
+        "server/js/time/**"
       ]
     },
     {
