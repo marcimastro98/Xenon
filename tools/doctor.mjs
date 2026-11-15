@@ -152,8 +152,8 @@ await probe('audio devices', () => collectors.audioRows(), checks.checkAudioRows
 {
   section('Now playing');
   const host = PLAT === 'darwin'
-    ? require(path.join(ROOT, 'server', 'darwin-media.js')).createDarwinMedia({ dir: path.join(ROOT, 'server', 'mediaremote') })
-    : require(path.join(ROOT, 'server', 'linux-media.js')).createLinuxMedia({});
+    ? require(path.join(ROOT, 'server', 'media/darwin-media.js')).createDarwinMedia({ dir: path.join(ROOT, 'server', 'mediaremote') })
+    : require(path.join(ROOT, 'server', 'media/linux-media.js')).createLinuxMedia({});
   const missing = PLAT === 'darwin'
     ? {
         name: 'mediaremote-adapter',

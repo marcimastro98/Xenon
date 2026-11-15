@@ -18,7 +18,7 @@ import * as dc from '../../tools/doctor-checks.mjs';
 
 const require = createRequire(import.meta.url);
 const darwin = require('../darwin-collectors.js');
-const media = require('../darwin-media.js');
+const media = require('../media/darwin-media.js');
 const linux = require('../linux-collectors.js');
 
 const here = dirname(fileURLToPath(import.meta.url));

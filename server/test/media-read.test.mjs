@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const {
   readFailed, heardApp, heardMedia, reportedApps, nothingHeard, createEarshot, cacheLife, cachedReadUsable,
   createHeardPlayer, createMusicFact, afterPress, PAUSE_KEEPS_MS,
-} = require('../media-read.js');
+} = require('../media/media-read.js');
 
 // The columns server.js reads from SoundVolumeView.
 const F = { NAME: 0, TYPE: 1, DIR: 2, STATE: 7, PROC_PATH: 19, WINDOW_TITLE: 21 };

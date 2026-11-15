@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parseLrc, parsePlain } = require('../lyrics.js');
+const { parseLrc, parsePlain } = require('../media/lyrics.js');
 
 test('parses centiseconds, milliseconds and tenths', () => {
   const lines = parseLrc('[00:01.50]alpha\n[00:02.250]beta\n[01:03.7]gamma');

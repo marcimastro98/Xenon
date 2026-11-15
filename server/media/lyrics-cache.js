@@ -9,7 +9,7 @@
 //
 // Storage, re-validation on load and the atomic, debounced write are json-lru.js.
 
-const { createJsonLru } = require('./json-lru.js');
+const { createJsonLru } = require('../json-lru.js');
 
 const FILE = 'lyrics-cache.json';
 const MAX_ENTRIES = 300;

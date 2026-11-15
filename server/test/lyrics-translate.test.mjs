@@ -9,10 +9,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const T = require('../lyrics-translate.js');
-const { createLyricsTranslator, cleanCap, FAIL_TTL_MS } = require('../lyrics-translator.js');
-const { createLyricsOffsets, cleanOffset } = require('../lyrics-offsets.js');
-const P = require('../lyrics-translate-price.js');
+const T = require('../media/lyrics-translate.js');
+const { createLyricsTranslator, cleanCap, FAIL_TTL_MS } = require('../media/lyrics-translator.js');
+const { createLyricsOffsets, cleanOffset } = require('../media/lyrics-offsets.js');
+const P = require('../media/lyrics-translate-price.js');
 
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const SONG = ['paper boats at noon', '', 'paper boats at noon', 'the kettle hums a tune'];

@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 // minimized when the user asked and the platform can. Asked for on Discord.
 
 const require = createRequire(import.meta.url);
-const L = require('../spotify-launch.js');
+const L = require('../media/spotify-launch.js');
 
 const WIN_EXE = 'C:\\Users\\u\\AppData\\Local\\Microsoft\\WindowsApps\\Spotify.exe';
 

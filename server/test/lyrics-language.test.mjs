@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { isSurelyLang, surelyOtherLang, WORDS, words } = require('../lyrics-language.js');
+const { isSurelyLang, surelyOtherLang, WORDS, words } = require('../media/lyrics-language.js');
 
 const SONGS = {
   it: [

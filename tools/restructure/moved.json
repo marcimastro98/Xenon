@@ -100,9 +100,28 @@
     {"from":"server/disk-history.js","to":"server/disk/disk-history.js","shim":true},
     {"from":"server/disk-kinds.js","to":"server/disk/disk-kinds.js","shim":true},
     {"from":"server/linux-trash.js","to":"server/disk/linux-trash.js","shim":true},
-    {"from":"server/mounted-disks.js","to":"server/disk/mounted-disks.js","shim":true}
+    {"from":"server/mounted-disks.js","to":"server/disk/mounted-disks.js","shim":true},
+    {"from":"server/darwin-media.js","to":"server/media/darwin-media.js"},
+    {"from":"server/linux-media.js","to":"server/media/linux-media.js"},
+    {"from":"server/linux-mpris.js","to":"server/media/linux-mpris.js"},
+    {"from":"server/lyrics-cache.js","to":"server/media/lyrics-cache.js"},
+    {"from":"server/lyrics-language.js","to":"server/media/lyrics-language.js"},
+    {"from":"server/lyrics-offsets.js","to":"server/media/lyrics-offsets.js"},
+    {"from":"server/lyrics-translate-price.js","to":"server/media/lyrics-translate-price.js"},
+    {"from":"server/lyrics-translate.js","to":"server/media/lyrics-translate.js"},
+    {"from":"server/lyrics-translator.js","to":"server/media/lyrics-translator.js"},
+    {"from":"server/lyrics.js","to":"server/media/lyrics.js"},
+    {"from":"server/media-key.js","to":"server/media/media-key.js"},
+    {"from":"server/media-read.js","to":"server/media/media-read.js"},
+    {"from":"server/media-seek-result.js","to":"server/media/media-seek-result.js"},
+    {"from":"server/spotify-launch.js","to":"server/media/spotify-launch.js"}
   ],
   "patterns": [
-
+    {"feature":"media","glob":"server/media-*.js","at":1},
+    {"feature":"media","glob":"server/lyrics*.js","at":4},
+    {"feature":"media","glob":"server/darwin-media.js","at":5},
+    {"feature":"media","glob":"server/linux-media.js","at":6},
+    {"feature":"media","glob":"server/linux-mpris.js","at":7},
+    {"feature":"media","glob":"server/spotify-launch.js","at":9}
   ]
 }

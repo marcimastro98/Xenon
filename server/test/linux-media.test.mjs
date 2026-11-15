@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const lm = require('../linux-media.js');
+const lm = require('../media/linux-media.js');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, 'fixtures', 'linux-playerctl-follow.txt'), 'utf8').split(/\r?\n/);

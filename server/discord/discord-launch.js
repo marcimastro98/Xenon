@@ -26,7 +26,7 @@
 //   instance, which comes to the front: Discord is single-instance everywhere.
 //   Flatpak and Snap installs have no binary in PATH, so they have a line each.
 
-const { runPlan } = require('../spotify-launch');
+const { runPlan } = require('../media/spotify-launch');
 
 // The discord:// link through the shell's protocol handler. A fixed string.
 const WIN_PROTOCOL_ARGS = ['-NoProfile', '-NonInteractive', '-Command',

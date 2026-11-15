@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { buildQueries, trackKey } = require('../lyrics.js');
+const { buildQueries, trackKey } = require('../media/lyrics.js');
 
 const q = (media) => buildQueries({ duration: 200, ...media });
 

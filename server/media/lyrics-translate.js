@@ -1,6 +1,6 @@
 'use strict';
 
-const { AI_LANG_NAMES } = require('./ai/prompt-language.js');
+const { AI_LANG_NAMES } = require('../ai/prompt-language.js');
 
 // ── Lyrics translation: prompt and reply ─────────────────────────────────────
 // Pure helpers, no I/O. The supporter Lyrics widget can show, under each line,

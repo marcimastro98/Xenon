@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { lookup, MAX_REQUESTS } = require('../lyrics.js');
+const { lookup, MAX_REQUESTS } = require('../media/lyrics.js');
 
 const MEDIA = { title: 'Glass Harbor', artist: 'Nova Reyes', duration: 200 };
 const SYNCED = '[00:01.00]first made-up line\n[00:04.00]second made-up line';

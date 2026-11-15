@@ -13,8 +13,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const {
   createLinuxMpris, mprisNamesFrom, propsFrom, recordFrom, pickRecord,
   recordChanged, playerIdFrom, artistFrom, findBusctl,
-} = require(join(ROOT, 'linux-mpris.js'));
-const { shapeNowPlaying } = require(join(ROOT, 'linux-media.js'));
+} = require(join(ROOT, 'media/linux-mpris.js'));
+const { shapeNowPlaying } = require(join(ROOT, 'media/linux-media.js'));
 
 const GETALL = '{"type":"a{sv}","data":[{"PlaybackStatus":{"type":"s","data":"Playing"},"Metadata":{"type":"a{sv}","data":{"mpris:trackid":{"type":"o","data":"/org/xenon/track/1"},"mpris:length":{"type":"x","data":213000000},"mpris:artUrl":{"type":"s","data":"https://example.invalid/cover.jpg"},"xesam:title":{"type":"s","data":"Un titolo con \'apice, virgola, e — trattino"},"xesam:artist":{"type":"as","data":["Primo Artista","Secondo Artista"]},"xesam:album":{"type":"s","data":"Album di prova"}}},"Position":{"type":"x","data":42000000},"CanGoNext":{"type":"b","data":true},"CanSeek":{"type":"b","data":true}}]}';
 

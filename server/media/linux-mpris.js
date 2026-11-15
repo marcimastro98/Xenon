@@ -29,7 +29,7 @@ const { execFile } = require('child_process');
 const {
   MPRIS_PREFIX, unwrap, mprisNamesFrom, cell, propsFrom, playerIdFrom, artistFrom, recordFrom,
   pickRecord, recordChanged,
-} = require('./media/linux-mpris-read.js');
+} = require('./linux-mpris-read.js');
 const OBJECT_PATH = '/org/mpris/MediaPlayer2';
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
 const PROPS_IFACE = 'org.freedesktop.DBus.Properties';

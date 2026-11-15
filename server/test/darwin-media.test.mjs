@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path';
 import { EventEmitter } from 'node:events';
 
 const require = createRequire(import.meta.url);
-const dm = require('../darwin-media.js');
+const dm = require('../media/darwin-media.js');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, 'fixtures', 'darwin-mediaremote-stream.txt'), 'utf8')

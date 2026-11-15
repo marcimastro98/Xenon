@@ -36,7 +36,7 @@ const FRAMEWORK_NAME = 'MediaRemoteAdapter.framework';
 
 const {
   commandCode, commandArgs, appNameFor, parseStreamLine, seconds, artworkUri, shapeNowPlaying,
-} = require('./media/darwin-media-shape.js');
+} = require('./darwin-media-shape.js');
 
 
 const STREAM_RESTART_MS = 5000;      // a died-young child waits before respawning

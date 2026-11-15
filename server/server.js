@@ -45,8 +45,8 @@ const { createDeckSoundPlayer } = require('./deck/deck-sound-player');
 const LayerPages = require('./layer-pages');
 const { createSituations } = require('./capabilities/situations');
 const { createWidgetKeys } = require('./widget-sdk/widget-keys');
-const { readFailed, heardMedia, reportedApps, afterPress, PRESS_HOLDS_MS, cacheLife } = require('./media-read');
-const { pressMediaKey, tellApp, createMediaSender } = require('./media-key.js');
+const { readFailed, heardMedia, reportedApps, afterPress, PRESS_HOLDS_MS, cacheLife } = require('./media/media-read');
+const { pressMediaKey, tellApp, createMediaSender } = require('./media/media-key.js');
 const micUse = require('./audio/mic-use');
 const { isOwnApp } = require('./capabilities/layer-anchor');
 const { createPerfStream } = require('./perf-stream');
@@ -510,11 +510,11 @@ const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 require('./install/startup-task');
-const { normalizeMediaSeekResult } = require('./media-seek-result');
-const lyrics = require('./lyrics');
-const { createLyricsCache } = require('./lyrics-cache');
-const { createLyricsOffsets } = require('./lyrics-offsets');
-const { createLyricsTranslator } = require('./lyrics-translator');
+const { normalizeMediaSeekResult } = require('./media/media-seek-result');
+const lyrics = require('./media/lyrics');
+const { createLyricsCache } = require('./media/lyrics-cache');
+const { createLyricsOffsets } = require('./media/lyrics-offsets');
+const { createLyricsTranslator } = require('./media/lyrics-translator');
 const { createSdkAi } = require('./widget-sdk/sdk-ai');
 const { createRoastSparks } = require('./store-supporters/vitals-roast-sparks.js');
 require('./bit-messages.js');
@@ -1525,12 +1525,12 @@ const { readRamInfo } = require('./system/ram-info.js');
 // never asks for media never spawns anything.
 const nativeMedia =
   process.platform === 'darwin'
-    ? require('./darwin-media').createDarwinMedia({
+    ? require('./media/darwin-media').createDarwinMedia({
         dir: MEDIAREMOTE_DIR,
         onChange: () => _onMediaChangedPush(),
       })
     : process.platform === 'linux'
-      ? require('./linux-media').createLinuxMedia({ onChange: () => _onMediaChangedPush() })
+      ? require('./media/linux-media').createLinuxMedia({ onChange: () => _onMediaChangedPush() })
       : null;
 
 // Run a media request through the persistent host, falling back to the original

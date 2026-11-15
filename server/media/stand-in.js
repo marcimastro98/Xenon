@@ -1,7 +1,7 @@
 // What the media tile shows when no player reports a song: the app that is heard making sound,
 // or the last reading while it is still fresh.
 
-const { heardApp, nothingHeard, cachedReadUsable } = require('../media-read.js');
+const { heardApp, nothingHeard, cachedReadUsable } = require('./media-read.js');
 const { normalizeMedia } = require('./normalize.js');
 const { liveMediaSnapshot } = require('./snapshot.js');
 const { F } = require('../audio/svv-csv.js');

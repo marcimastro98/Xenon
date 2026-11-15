@@ -1,7 +1,7 @@
 // Notices a helper program that keeps reporting nothing playing while Windows has a player
 // open, and hands the media reading back to the script.
 
-const { readFailed } = require('../media-read.js');
+const { readFailed } = require('./media-read.js');
 const {
   MEDIA_HELPER_BAD_MS, MEDIA_BLIND_STREAK, MEDIA_CROSSCHECK_BASE_MS, MEDIA_CROSSCHECK_MAX_MS,
 } = require('./timings.js');

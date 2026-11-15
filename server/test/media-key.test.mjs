@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { MEDIA_KEYS, APP_COMMANDS, pressMediaKey, tellApp, createMediaSender } = require('../media-key.js');
+const { MEDIA_KEYS, APP_COMMANDS, pressMediaKey, tellApp, createMediaSender } = require('../media/media-key.js');
 
 const sender = ({ answer, resting = false, told = false }) => {
   const calls = { asked: 0, pressed: [], told: [] };

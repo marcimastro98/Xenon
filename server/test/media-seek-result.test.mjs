@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { mediaSeekFailure, normalizeMediaSeekResult } = require('../media-seek-result.js');
+const { mediaSeekFailure, normalizeMediaSeekResult } = require('../media/media-seek-result.js');
 
 test('media seek result preserves the stable player/host failure distinction', () => {
   assert.equal(mediaSeekFailure({ ok: false, error: 'not_seekable' }), 'not_seekable');

@@ -7,7 +7,7 @@
 // the next time it plays. The client adds it to the global lyricsOffsetMs (the
 // player's own delay). 0 is not stored: it means "no nudge for this song".
 
-const { createJsonLru } = require('./json-lru.js');
+const { createJsonLru } = require('../json-lru.js');
 
 const FILE = 'lyrics-offsets.json';
 const MAX_ENTRIES = 2000;

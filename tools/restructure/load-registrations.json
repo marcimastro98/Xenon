@@ -41,7 +41,7 @@
       {
         "statement": "const lyricsTranslator = createLyricsTranslator({",
         "callees": {
-          "server/lyrics-translator.js": "62ed975a8027682a8586e5e8c7d2bec5bc1fb32ffd464e496432a7d0753dc13b"
+          "server/media/lyrics-translator.js": "7b292beac774c0bff551d1d9d2408e9dc8bdafd64a1c407889d6692527f3462c"
         },
         "reason": "createLyricsTranslator calls complete and onError only inside request(), which translate() reaches; at creation it builds a cache from its own functions and passes neither callback on."
       },
@@ -62,11 +62,11 @@
       {
         "statement": "const nativeMedia =",
         "callees": {
-          "server/darwin-media.js": "ee8ce3367c2f0b0903a53123b839be010d7105dd760d923f4e1c4c16606186e5",
+          "server/media/darwin-media.js": "d1db87fd50183bb6fa59ddcb61217d132978c16444b7f866d844046a8dabcffe",
           "server/media/darwin-media-shape.js": "f258fdf76e7c5c9f2e9d6a86f6bee86e4a97b99ca5d0fe582d99bbcb47c6203d",
-          "server/linux-media.js": "5987a87e8c99d950afb4a0e110c4cfac1b3beba068058be8b6207bf77597d820",
+          "server/media/linux-media.js": "200ff5bc6aa6819f6e075f7e819f740df44f0c681d7ace640cc705f469619bb1",
           "server/media/linux-media-shape.js": "13b4d2fc9fadbe935b0af418a88912f56e50586ba56c09f3bb9f7dfc27f63d22",
-          "server/linux-mpris.js": "d810bb60fb4b89cefdf32c3908568614128bf14fce53c21efdb3cd16d57a9b67",
+          "server/media/linux-mpris.js": "5235579ca4e2f1b5cbdfd085884825c7f865ceda63ddb5ffd02c10fa3982b737",
           "server/media/linux-mpris-read.js": "0ea18ac7b7face79f1fe39dd2e0d6cef21312e61ea8ae2899b476e38a0e368b3"
         },
         "reason": "createDarwinMedia and createLinuxMedia keep onChange in a variable and return available, start, stop, info and command; onChange is called only from handleLine, retire and command, which run once start() has spawned the reader, and createLinuxMpris, which createLinuxMedia hands it to, calls it only from its poll tick."
@@ -74,7 +74,7 @@
       {
         "statement": "const sendMediaCommand = createMediaSender({",
         "callees": {
-          "server/media-key.js": "9bdc9a316d5dfcc888c3e59f363977cb35184de6664fcd1d3224602d29f6105f"
+          "server/media/media-key.js": "9bdc9a316d5dfcc888c3e59f363977cb35184de6664fcd1d3224602d29f6105f"
         },
         "reason": "createMediaSender returns one async function and does nothing else; request, tell, press and listResting are called only when that function is."
       },

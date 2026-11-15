@@ -18,7 +18,7 @@
 //     one at a time with a short gap.
 
 const https = require('https');
-const { armDeadline } = require('./net-guard');
+const { armDeadline } = require('../net-guard');
 
 const API = 'https://lrclib.net/api';
 const FETCH_TIMEOUT_MS = 10000;
@@ -32,8 +32,8 @@ const REQUEST_GAP_MS = 300;        // LRCLIB asks for 200–500 ms between reque
 const DURATION_TOLERANCE_S = 2;    // same window LRCLIB applies itself
 const {
   fold, cleanTrackTitle, cleanArtist, validDuration, trackKey, buildQueries,
-} = require('./media/lyrics-clean.js');
-const { parseLrc, parsePlain } = require('./media/lyrics-parse.js');
+} = require('./lyrics-clean.js');
+const { parseLrc, parsePlain } = require('./lyrics-parse.js');
 const DEFAULT_RETRY_AFTER_S = 5;
 const SHORT_WAIT_S = 2;            // a Retry-After this short is waited out once, in the lookup
 const MAX_RETRY_AFTER_S = 600;

@@ -52,7 +52,7 @@ const FORMAT = [
 
 const {
   FIELDS, commandArgs, appNameFor, unitDivisor, seconds, parseFollowLine, artUrl, shapeNowPlaying,
-} = require('./media/linux-media-shape.js');
+} = require('./linux-media-shape.js');
 
 const RESTART_MS = 5000;
 const MAX_BACKOFF_MS = 60000;

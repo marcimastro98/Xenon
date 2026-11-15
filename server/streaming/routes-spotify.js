@@ -2,7 +2,7 @@
 // playlists, devices and starting the app.
 
 const { streams } = require('./providers.js');
-const spotifyLaunch = require('../spotify-launch.js');
+const spotifyLaunch = require('../media/spotify-launch.js');
 const { readBody } = require('../http/read-body.js');
 const { spotifyRedirectUri, spotifyCallbackPage } = require('../media/spotify-connect.js');
 const { sdkFeatureEnabled, sdkGrantsFor } = require('../widget-sdk/grants.js');

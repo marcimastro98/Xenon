@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createLyricsCache, MAX_ENTRIES, MISS_TTL_MS, TRANSIENT_TTL_MS } = require('../lyrics-cache.js');
+const { createLyricsCache, MAX_ENTRIES, MISS_TTL_MS, TRANSIENT_TTL_MS } = require('../media/lyrics-cache.js');
 
 const SYNCED = { state: 'synced', lines: [{ t: 0, text: 'made-up line' }], matchId: 3 };
 
