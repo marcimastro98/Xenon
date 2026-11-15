@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -197,6 +198,9 @@ test('a step moves, rewrites and lists; undo puts every file back; the line at t
   files['MAP.md'] = 'old\n';
   files['tools/restructure/move-left.json'] = `${JSON.stringify(LEFT)}\n`;
   files['tools/map/frozen-paths.json'] = JSON.stringify({ paths: ['server/server.js'], whole: [] });
+  const sha = (text) => createHash('sha256').update(text).digest('hex');
+  const hashed = (file, text) => `{ "${file}": "${sha(text)}", "server/safe-write.js": "stale" }\n`;
+  files['tools/restructure/load-registrations.json'] = hashed(MOVE.from, files[MOVE.from]);
   const repo = tempRepo(files);
   const parser = await openParser();
   try {
@@ -210,6 +214,7 @@ test('a step moves, rewrites and lists; undo puts every file back; the line at t
     assert.equal(repo.read('server/pulse-state.js'), "const nag = require('./pulse/pulse-nag.js');\nconst here = __dirname;\n");
     assert.equal(repo.read('server/pulse/index.js'), "const { a } = require('./pulse-nag.js');\n");
     assert.deepEqual(readMoved(repo.root).moves, [MOVE]);
+    assert.equal(repo.read('tools/restructure/load-registrations.json'), hashed(MOVE.to, repo.read(MOVE.to)), 'the sha256 of a file read by hand follows its new text');
     assert.deepEqual(readMoved(repo.root).patterns, [], 'server/pulse-state.js still answers the pattern');
     assert.match(repo.git('status', '--porcelain'), /^R {2}server\/pulse-nag\.js -> server\/pulse\/pulse-nag\.js$/m);
 

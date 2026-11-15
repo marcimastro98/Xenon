@@ -3,6 +3,7 @@
 // wrote is kept beside the repo's git data until the next step, so `undo` can put every file back as HEAD has it.
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -14,6 +15,8 @@ import { findSites, loadsOf, stops } from './move-refs.mjs';
 const posix = path.posix;
 export const MOVED = 'tools/restructure/moved.json';
 const EXTRACTED = 'tools/restructure/extracted.json';
+const HASHED = 'tools/restructure/load-registrations.json';
+const textHash = (text) => createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex');
 const NOTE = 'Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true once the old path holds its one line that hands on the module; the line goes in the release named in structure-conventions.';
 
 const git = (root, args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 });
@@ -134,6 +137,15 @@ export function applyStep(root, step) {
     texts.set(FEATURES, mapText(mapped.map));
     texts.set(MAP, pageText(mapped.map));
   }
+  // A list that holds the sha256 of a file as it was read: a moved file differs by the paths it loads alone, so
+  // an entry that was true of the old text is made true of the new one. A stale entry stays stale.
+  let hashes = texts.get(HASHED) ?? read(root)(HASHED);
+  for (const { from, to } of hashes ? step.moves : []) {
+    const before = read(root)(from);
+    const now = texts.get(from) ?? before;
+    hashes = hashes.split(`${JSON.stringify(to)}: "${textHash(before)}"`).join(`${JSON.stringify(to)}: "${textHash(now)}"`);
+  }
+  if (hashes && hashes !== (texts.get(HASHED) ?? read(root)(HASHED))) texts.set(HASHED, hashes);
   texts.set(MOVED, movedText(list));
   const head = git(root, ['rev-parse', 'HEAD']).trim();
   writeFileSync(journalOf(root), JSON.stringify({ head, moves: step.moves, files: [...texts.keys()], madeList: !existsSync(path.join(root, MOVED)) }));
