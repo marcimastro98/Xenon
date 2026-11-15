@@ -469,3 +469,12 @@ test('the replay shortcut saves the replay, says a failure, and a capture change
   const upd = SERVER.slice(SERVER.indexOf('async function updateCaptureSettings'));
   assert.match(upd.slice(0, 1400), /if \(_replayHotkey\(\) !== replayKey\) \{ try \{ refreshHotkeyListener\(\); \}/);
 });
+
+test('the Linux shortcut writer says in which file the listener it stays out of lives', () => {
+  const writer = readFileSync(join(ROOT, 'deck', 'engine-linux-hotkey.js'), 'utf8');
+  const named = /^\/\/ (\w+) is in (server\/[\w./-]+\.js)\.$/m.exec(writer);
+  assert.ok(named, 'the comment names a function and the file it is in');
+  assert.equal(named[1], 'refreshHotkeyListener');
+  const home = readFileSync(join(ROOT, '..', named[2]), 'utf8');
+  assert.ok(home.includes(`\nfunction ${named[1]}(`), `${named[2]} declares ${named[1]}`);
+});

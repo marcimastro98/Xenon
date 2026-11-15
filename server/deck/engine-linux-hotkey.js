@@ -8,6 +8,7 @@ const { PORT } = require('../engine/port.js');
 // registering is a one-shot write and the state it produces is final until the
 // user changes the combo. Kept out of refreshHotkeyListener's process lifecycle
 // entirely rather than pretended into it.
+// refreshHotkeyListener is in server/server.js.
 const _linuxHotkey = process.platform === 'linux'
   ? require('../linux-hotkey.js').createLinuxHotkey({ port: PORT })
   : null;
