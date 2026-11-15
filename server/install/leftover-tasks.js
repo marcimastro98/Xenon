@@ -10,10 +10,11 @@ const STARTUP_TASK_CHECK_MS = 6 * 60 * 60 * 1000;   // twice a working day is pl
 // Scheduled tasks that only matter at the next sign-in, so nobody waits for them.
 const LEFTOVER_TASKS_DELAY_MS = 60 * 1000;
 function tidyLeftoverTasks() {
-  // The logon task that opens the dashboard in a browser outlives the script it
-  // points at, and a stale one greets the user with a wscript error box at every
-  // sign-in (see reconcileBrowserAutoOpenTask). It reads one scheduled task, and
-  // only writes when something is out of step.
+  // The task older versions registered to open the dashboard in a browser at
+  // sign-in runs a script that no longer ships, and greets the user with an
+  // error box at every sign-in. The engine opens that tab itself now, so the
+  // task is removed, and what it meant is kept (browser-auto-open-task.js).
+  // One read of one task; it writes only where the task is still there.
   reconcileBrowserAutoOpenTask().catch(() => {});
   // OpenRGB was removed from the product. Tear down anything a previous version
   // may have left so it never launches itself again: drop the auto-start

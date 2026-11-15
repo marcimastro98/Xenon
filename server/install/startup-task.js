@@ -215,7 +215,7 @@ async function checkStartupTask({ dataDir, repair = true } = {}) {
 }
 
 module.exports = {
-  TASK_NAME, NO_TIME_LIMIT, REPAIRABLE, APP_TASK_NAME,
+  TASK_NAME, NO_TIME_LIMIT, REPAIRABLE, APP_TASK_NAME, APP_EXE,
   parseTaskXml, taskProblems, repairTaskXml, decodeSchtasksOutput, checkStartupTask,
-  taskCommand, appTaskOrphaned,
+  taskCommand, appTaskOrphaned, readTaskXml, runSchtasks: run,
 };

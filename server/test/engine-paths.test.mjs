@@ -51,7 +51,6 @@ const PLACES = {
   'lights/script-paths.js': { ICUE_SHARPEN_SCRIPT: ['server/icue-sharpen.ps1', true] },
   'vitals/script-paths.js': { VITALS_NAG_SCRIPT: ['server/vitals-nag.ps1', true] },
   'screens/capture-exe.js': { CAPTURE_EXE: [`server/capture/${exe('xenon-capture')}`] },
-  'install/launcher-paths.js': { OPEN_DASHBOARD_VBS: ['server/open-dashboard.vbs'] },
   'updates/whats-new-file.js': { WHATSNEW_FILE: ['server/whatsnew.json', true] },
 };
 

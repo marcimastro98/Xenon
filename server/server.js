@@ -4406,9 +4406,7 @@ const { _geminiOneShot, _transcribeAudio, _geminiWebSearch } = require('./ai/gem
 
 const { completeWithUserAi } = require('./ai/complete-with-user-ai.js');
 
-const {
-  STARTUP_TASK_CHECK_MS, LEFTOVER_TASKS_DELAY_MS, tidyLeftoverTasks,
-} = require('./install/leftover-tasks.js');
+const { STARTUP_TASK_CHECK_MS, LEFTOVER_TASKS_DELAY_MS, tidyLeftoverTasks } = require('./install/leftover-tasks.js');
 
 const { batteryWanted } = require('./device-battery/wanted.js');
 
@@ -4461,6 +4459,7 @@ const CSRF_MUTATION_PATHS = new Set([
   '/sdk/grant',
   // A tile's own choices saved from a widget on the screen (tile-settings.js).
   '/settings/tile',
+  '/startup/auto-open',   // asks for a browser tab at every sign-in: never from a page on another site
   // The Vitals widget's state saved from a widget on the screen (vitals-state.js).
   '/api/vitals/state',
   // Performance Mode with no dashboard (perf-screen.js): a page on another site
@@ -6809,6 +6808,7 @@ function _startListen(host) {
       .then(() => migrateSdkGrantGroups())
       .catch((e) => console.warn('[sdk] grant group migration failed:', e && e.message));
     setTimeout(tidyLeftoverTasks, LEFTOVER_TASKS_DELAY_MS).unref();
+    require('./install/sign-in-open.js').openDashboardAtSignIn({ port: PORT });   // the browser tab of a sign-in start; never rejects
     getAudioInfo().then(info => {
       if (info && info.mic && typeof info.mic.muted === 'boolean') audioCache.muted = info.mic.muted;
       console.log('Speaker cache:', audioCache.speakerId);

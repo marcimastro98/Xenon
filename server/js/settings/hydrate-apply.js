@@ -224,8 +224,8 @@ async function _hydrateHubSettingsImpl() {
       if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
     }
     if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
-    // Bring the logon "open in browser" task in line with the saved intent —
-    // a no-op inside the Edge iframe, so pure-Edge installs never get a tab.
+    // Tell the engine what the "open in the browser at sign-in" switch says: a
+    // no-op in an embedded view, the app and on a paired device, which never get a tab.
     reconcileAutoOpenBrowser();
     // The first-run question, now that the persisted state is authoritative: one,
     // never two in a row. The app that draws widgets asks how Xenon is used, and
