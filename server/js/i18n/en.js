@@ -7352,4 +7352,5 @@ module.exports = {
   weather_metric_clouds_sub: 'cover',
   settings_backup_needs_here: 'Turn on again on this PC:',
   settings_backup_widget_permissions: 'widget permissions',
+  settings_backup_deck_actions: 'Deck keys that start programs, type or send something came in without their action: set them again on this PC.',
 };

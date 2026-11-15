@@ -7186,4 +7186,5 @@ module.exports = {
   weather_metric_clouds_sub: 'Bedeckung',
   settings_backup_needs_here: 'Auf diesem PC wieder einschalten:',
   settings_backup_widget_permissions: 'Widget-Berechtigungen',
+  settings_backup_deck_actions: 'Deck-Tasten, die Programme starten, tippen oder etwas senden, kamen ohne ihre Aktion an: Richte sie auf diesem PC neu ein.',
 };

@@ -7263,4 +7263,5 @@ module.exports = {
   weather_metric_clouds_sub: 'покрытие',
   settings_backup_needs_here: 'Включите снова на этом ПК:',
   settings_backup_widget_permissions: 'разрешения виджетов',
+  settings_backup_deck_actions: 'Клавиши Deck, которые запускают программы, печатают или что-то отправляют, пришли без действия: настройте их снова на этом ПК.',
 };

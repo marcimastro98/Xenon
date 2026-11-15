@@ -4,16 +4,70 @@
 // The secrets have their own module (secrets.js); this is the rest.
 
 const { normalizeServerAppFavorites } = require('./normalize-favorites.js');
+const { normalizeDeckStore } = require('../deck/store-normalize.js');
+const { guardedIn, canonical, introduces, FREE } = require('../remote-actions.js');
 
 /** @param {any} value @returns {Record<string, any> | null} the value when it is an object with keys, not a list */
 const plain = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : null);
 const pathKey = (/** @type {any} */ value) => String(value || '').trim().toLowerCase();
 
+const DROPPED = Symbol('dropped');
+
+/**
+ * A copy of one piece of a Deck store without the guarded actions `held` does not list.
+ * A step is nothing without its action, so it goes with it. A place in a list is kept and left
+ * empty: the keys of a page are found by their place.
+ * @param {any} node @param {Set<string>} held
+ * @returns {any}
+ */
+function withoutNewGuarded(node, held) {
+  if (!node || typeof node !== 'object') return node;
+  if (Array.isArray(node)) {
+    return node.map((item) => { const kept = withoutNewGuarded(item, held); return kept === DROPPED ? null : kept; });
+  }
+  if (typeof node.type === 'string' && !FREE.has(node.type)) {
+    const action = canonical(node);
+    if (action && !held.has(action)) return DROPPED;
+  }
+  /** @type {Record<string, any>} */
+  const out = {};
+  for (const name of Object.keys(node)) {
+    const kept = withoutNewGuarded(node[name], held);
+    if (kept === DROPPED && name === 'action') return DROPPED;
+    if (kept !== DROPPED) out[name] = kept;
+  }
+  return out;
+}
+
+/**
+ * The Deck of a backup as this PC stores it, without the actions that start a program, type,
+ * call out or go live (every action remote-actions.js guards) unless this PC's Deck already holds
+ * exactly that action. A key that loses its action stays where it is, with its face, and does
+ * nothing until the person gives it an action at this PC. Restoring a backup on the PC that made
+ * it loses nothing: every guarded action of the file is already here.
+ * A key runs with one tap, and a paired device may run whatever a key holds (remoteMayRun,
+ * remoteMayLaunch): the file's word alone must not be enough for either.
+ * @param {any} fromFile the Deck store in the file
+ * @param {any} here the Deck store saved on this PC
+ */
+function deckOnImport(fromFile, here) {
+  return normalizeDeckStore(withoutNewGuarded(normalizeDeckStore(fromFile), guardedIn(here)));
+}
+
+/**
+ * Whether the Deck of the file holds a guarded action that the Deck of this PC does not hold after
+ * the import: the person is told, and sets those keys up again here.
+ * @param {any} fromFile the Deck store in the file
+ * @param {any} now the Deck store of this PC after the import
+ */
+const deckActionsHeldBack = (fromFile, now) => !!plain(fromFile) && introduces(now, fromFile);
+
 /**
  * The favourite apps of a backup, as a settings save would store them, each with its path only when
  * this PC already starts that program from a favourite. The path is what the dashboard starts with
  * one tap, and what a paired device may start (remote-actions.js remoteMayLaunch): a file must not
- * be able to name a program for either. A favourite that loses its path is still listed, and gets
+ * be able to name a program for either, and it cannot through a Deck key (deckOnImport above).
+ * A favourite that loses its path is still listed, and gets
  * the path of this PC the next time its app is seen open (js/app-switcher/favorites.js).
  * @param {any} fromFile @param {any} saved the favourites of this PC
  * @returns {Record<string, any>[]}
@@ -98,4 +152,4 @@ function keepThisPcOnImport(incoming, prev) {
   return incoming;
 }
 
-module.exports = { settingsBeforeImport, keepThisPcOnImport, setUpAgainOnImport };
+module.exports = { settingsBeforeImport, keepThisPcOnImport, setUpAgainOnImport, deckOnImport, deckActionsHeldBack };

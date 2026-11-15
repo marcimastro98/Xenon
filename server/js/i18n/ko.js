@@ -7344,6 +7344,7 @@ module.exports = {
   weather_metric_clouds_sub: '운량',
   settings_backup_needs_here: '이 PC에서 다시 켜기:',
   settings_backup_widget_permissions: '위젯 권한',
+  settings_backup_deck_actions: '프로그램을 실행하거나 글자를 입력하거나 무언가를 보내는 Deck 키는 동작 없이 복원되었습니다. 이 PC에서 다시 설정하세요.',
   claude_set_budget: '예산 설정 →',
   claude_empty_title: 'Claude Code 대기 중',
   claude_empty_desc: '이 PC에서 Claude Code 세션을 시작하면 사용량, 프로젝트, 모델이 여기에 표시됩니다.',

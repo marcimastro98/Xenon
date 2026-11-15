@@ -2,7 +2,7 @@
 // to set up again.
 
 const { hasLightingProviderTokens } = require('../lights/secrets.js');
-const { setUpAgainOnImport } = require('./backup-keep.js');
+const { setUpAgainOnImport, deckActionsHeldBack } = require('./backup-keep.js');
 
 // Which secret-backed services are configured — booleans only. Exported with
 // the bundle so the import side can report "these need re-setup" precisely.
@@ -36,9 +36,11 @@ function _backupSecretFlags(settings, tokens) {
 // the import ("re-connect Spotify, re-enter the TwelveData key, …") instead of
 // each feature silently failing later. v1 bundles carry no flags → empty list.
 // What the file had on and this PC keeps as it was (PC Control, widget permissions) is listed
-// after them, read from the file's own settings: a v1 bundle gets that part too.
-function _backupNeedsSetup(flags, settings, tokens, fromFile) {
+// after them, read from the file's own settings: a v1 bundle gets that part too. Last comes
+// 'deckActions', when the file's Deck had keys whose action was not taken (deckOnImport).
+function _backupNeedsSetup(flags, settings, tokens, fromFile, fileDeck, deckNow) {
   const here = setUpAgainOnImport(fromFile, settings);
+  if (deckActionsHeldBack(fileDeck, deckNow)) here.push('deckActions');
   if (!flags || typeof flags !== 'object') return here;
   const local = _backupSecretFlags(settings, tokens);
   return [...Object.keys(local).filter((k) => flags[k] === true && !local[k]), ...here];

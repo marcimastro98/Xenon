@@ -7217,4 +7217,5 @@ module.exports = {
   weather_metric_clouds_sub: 'cobertura',
   settings_backup_needs_here: 'Vuelve a activar en este PC:',
   settings_backup_widget_permissions: 'permisos de los widgets',
+  settings_backup_deck_actions: 'Las teclas del Deck que abren programas, escriben o envían algo han llegado sin su acción: configúralas de nuevo en este PC.',
 };

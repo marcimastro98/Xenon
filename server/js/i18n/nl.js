@@ -7340,6 +7340,7 @@ module.exports = {
   weather_metric_clouds_sub: 'bedekking',
   settings_backup_needs_here: 'Opnieuw aanzetten op deze pc:',
   settings_backup_widget_permissions: 'widgetmachtigingen',
+  settings_backup_deck_actions: 'Deck-toetsen die programma’s starten, typen of iets versturen zijn zonder hun actie aangekomen: stel ze opnieuw in op deze pc.',
   claude_set_budget: 'stel een budget in →',
   claude_empty_title: 'Wachten op Claude Code',
   claude_empty_desc: 'Start een Claude Code-sessie op deze pc: je gebruik, projecten en modellen laten de reactor hier oplichten.',

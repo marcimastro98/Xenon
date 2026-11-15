@@ -10,7 +10,9 @@ import { test } from 'node:test';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { settingsBeforeImport, keepThisPcOnImport, setUpAgainOnImport } = require('../settings/backup-keep.js');
+const { settingsBeforeImport, keepThisPcOnImport, setUpAgainOnImport, deckOnImport, deckActionsHeldBack } = require('../settings/backup-keep.js');
+const { remoteMayRun, remoteMayLaunch } = require('../remote-actions.js');
+const { normalizeDeckStore } = require('../deck/store-normalize.js');
 
 test('a backup cannot switch access for paired devices on at this PC', () => {
   const incoming = keepThisPcOnImport({ remoteAccess: { enabled: true, https: true } }, { remoteAccess: { enabled: false } });
@@ -88,7 +90,90 @@ test('the import result carries that list after the services, with or without th
   assert.deepEqual(_backupNeedsSetup({ spotify: true }, {}, {}), ['spotify']);
   assert.deepEqual(_backupNeedsSetup(null, {}, {}), []);
   const source = engineSource();
-  assert.match(source, /_backupNeedsSetup\(\s*bundle\.secretsConfigured,\s*[\w.]+ \|\| \{\},\s*await _readStreamTokensSnapshot\(\), d\.settings\s*\)/);
+  assert.match(source, /_backupNeedsSetup\(\s*bundle\.secretsConfigured,\s*[\w.]+ \|\| \{\},\s*await _readStreamTokensSnapshot\(\), d\.settings, d\.deck, await readDeckStore\(\)\.catch\(\(\) => null\)\s*\)/);
+});
+
+// A Deck as the dashboard saves it: one profile, one page, keys found by their place.
+const deckOf = (/** @type {any[]} */ keys, extra = {}) => ({
+  configs: { main: { profiles: [{ id: 'p1', root: { pages: [{ keys }] } }] } }, rev: 3, ...extra,
+});
+const keyAt = (/** @type {any} */ store, /** @type {number} */ index) => store.configs.main.profiles[0].root.pages[0].keys[index];
+const NOTES = { type: 'openApp', path: 'C:\\Apps\\Notes\\notes.exe' };
+const TOOL = { type: 'openApp', path: 'C:\\Downloads\\tool.exe' };
+
+test('a Deck key of a backup keeps an action that starts or types only when this PC\'s Deck holds it', () => {
+  const here = deckOf([{ id: 'a', kind: 'action', title: 'Notes', triggers: { tap: NOTES } }]);
+  const file = deckOf([
+    { id: 'a', kind: 'action', title: 'Notes', triggers: { tap: { ...NOTES, label: 'renamed' } } },
+    null,
+    { id: 'b', kind: 'action', title: 'Tool', icon: { type: 'emoji', value: 'T' }, triggers: { tap: TOOL, hold: { type: 'media', cmd: 'next' } } },
+    { id: 'c', kind: 'action', title: 'Both', triggers: { tap: { steps: [
+      { action: { type: 'runScript', path: 'C:\\Downloads\\run.ps1' }, delayMs: 0 },
+      { action: { type: 'volume', mode: 'mute' }, delayMs: 200 },
+      { action: NOTES, delayMs: 0 },
+    ] }, double: { type: 'hotkey', keys: 'ctrl+alt+t' } } },
+  ], { presets: [{ name: 'Saved', root: { pages: [{ keys: [{ id: 'd', kind: 'action', triggers: { tap: { type: 'typeText', text: 'hello' } } }] }] } }], keyPresets: [{ id: 'e', kind: 'action', triggers: { tap: TOOL } }] });
+  const written = deckOnImport(file, here);
+
+  // The action this PC already had is kept, with the file's own spelling of the key.
+  assert.deepEqual(keyAt(written, 0).triggers.tap, { ...NOTES, label: 'renamed' });
+  assert.equal(keyAt(written, 1), null);
+  // A new program: the key stays in its place with its face, the action is gone, the free one stays.
+  assert.deepEqual(keyAt(written, 2), { id: 'b', kind: 'action', title: 'Tool', icon: { type: 'emoji', value: 'T' }, triggers: { hold: { type: 'media', cmd: 'next' } } });
+  // In a list of steps the new script leaves a hole, the free step and the known program stay.
+  assert.deepEqual(keyAt(written, 3).triggers, { tap: { steps: [null, { action: { type: 'volume', mode: 'mute' }, delayMs: 200 }, { action: NOTES, delayMs: 0 }] } });
+  // Saved profiles and saved keys are read the same way.
+  assert.deepEqual(written.presets[0].root.pages[0].keys[0], { id: 'd', kind: 'action', triggers: {} });
+  assert.deepEqual(written.keyPresets[0], { id: 'e', kind: 'action', triggers: {} });
+  assert.equal(written.rev, 3);
+
+  // What a paired device may do with the Deck that was written.
+  assert.deepEqual(remoteMayRun(NOTES, written), { ok: true });
+  for (const action of [TOOL, { type: 'runScript', path: 'C:\\Downloads\\run.ps1' }, { type: 'hotkey', keys: 'ctrl+alt+t' }, { type: 'typeText', text: 'hello' }]) {
+    assert.deepEqual(remoteMayRun(action, written), { ok: false, error: 'needs_pc' }, action.type);
+  }
+  assert.equal(remoteMayLaunch(TOOL.path, [], written), false);
+  assert.equal(remoteMayLaunch(NOTES.path, [], written), true);
+  // The file itself would have allowed all of it: that is what the import no longer takes.
+  assert.deepEqual(remoteMayRun(TOOL, normalizeDeckStore(file)), { ok: true });
+  assert.equal(deckActionsHeldBack(file, written), true);
+});
+
+test('a backup restored on the PC that made it loses nothing of its Deck', () => {
+  const store = deckOf([
+    { id: 'a', kind: 'action', triggers: { tap: NOTES, hold: { type: 'hotkey', keys: 'ctrl+shift+m' } } },
+    { id: 'f', kind: 'folder', folder: { pages: [{ keys: [{ id: 'g', kind: 'action', triggers: { tap: { steps: [{ action: { type: 'runScript', path: 'C:\\Scripts\\night.ps1' }, delayMs: 50 }] } } }] }] } },
+  ], { keyPresets: [{ id: 'h', kind: 'action', triggers: { tap: { type: 'webhook', url: 'https://example.com/hook', method: 'POST' } } }] });
+  assert.deepEqual(deckOnImport(store, store), normalizeDeckStore(store));
+  assert.equal(deckActionsHeldBack(store, deckOnImport(store, store)), false);
+});
+
+test('on a PC with no Deck, or one that could not be read, no guarded action comes in', () => {
+  const file = deckOf([{ id: 'b', kind: 'action', title: 'Tool', triggers: { tap: TOOL, hold: { type: 'media', cmd: 'next' } } }]);
+  for (const here of [null, undefined, {}, 'deck', deckOf([])]) {
+    const written = deckOnImport(file, here);
+    assert.deepEqual(keyAt(written, 0).triggers, { hold: { type: 'media', cmd: 'next' } });
+    assert.equal(remoteMayLaunch(TOOL.path, [], written), false);
+  }
+  // A file whose Deck is not a Deck is stored as an empty one, as before.
+  for (const odd of [null, 'deck', [], 7]) assert.deepEqual(deckOnImport(odd, file).configs, {});
+});
+
+test('the list after an import says so, also for a first-format file with no flags', () => {
+  const { _backupNeedsSetup } = require('../settings/backup-secrets.js');
+  const file = deckOf([{ id: 'b', kind: 'action', triggers: { tap: TOOL } }]);
+  const written = deckOnImport(file, null);
+  assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, undefined, file, written), ['deckActions']);
+  assert.deepEqual(_backupNeedsSetup({ spotify: true }, {}, {}, { aiFeatures: { pcControl: true } }, file, written), ['spotify', 'pcControl', 'deckActions']);
+  // Nothing held back, or a file with no Deck: nothing to say.
+  assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, undefined, file, normalizeDeckStore(file)), []);
+  assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, undefined, undefined, written), []);
+  // The engine takes the Deck of every format through it: nothing in that part asks which format the file is.
+  const source = engineSource();
+  const apply = source.slice(source.indexOf('async function applyBackup('));
+  const deck = apply.slice(apply.indexOf("await apply('deck'"), apply.indexOf("if (Array.isArray(d.events))"));
+  assert.match(deck, /const cur = await readDeckStore\(\)\.catch\(\(\) => null\);\s*const store = deckOnImport\(d\.deck, cur\);/);
+  assert.doesNotMatch(deck, /normalizeDeckStore\(d\.deck\)|fmt/);
 });
 
 test('a favourite app of a backup keeps its path only when this PC already starts that program', () => {
@@ -127,7 +212,7 @@ test('the message after an import says it in every language', () => {
   const words = Object.fromEntries(tables.LANGS.map((code) => [code, tables.parse(readFileSync(new URL(`../js/i18n/${code}.js`, import.meta.url), 'utf8'), code)]));
   assert.equal(tables.LANGS.length, 11);
   for (const code of tables.LANGS) {
-    for (const key of ['settings_backup_needs_here', 'settings_backup_widget_permissions', 'aifeat_pccontrol']) {
+    for (const key of ['settings_backup_needs_here', 'settings_backup_widget_permissions', 'settings_backup_deck_actions', 'aifeat_pccontrol']) {
       assert.ok(typeof words[code][key] === 'string' && words[code][key].trim(), `${code} has its own ${key}`);
       assert.doesNotMatch(words[code][key], /—/, `${code} ${key} has no long dash`);
       if (code !== 'en') assert.notEqual(words[code][key], words.en[key], `${code} ${key} is translated`);
@@ -135,7 +220,7 @@ test('the message after an import says it in every language', () => {
   }
   // The page's own code, run on a parked result: the two things of this PC get their own part.
   const shown = [];
-  const parked = JSON.stringify({ needsSetup: ['spotify', 'pcControl', 'widgetPermissions'], needsWidgets: [], failed: [] });
+  const parked = JSON.stringify({ needsSetup: ['spotify', 'pcControl', 'widgetPermissions', 'deckActions'], needsWidgets: [], failed: [] });
   const sandbox = {
     console,
     sessionStorage: { getItem: () => parked, removeItem: () => {} },
@@ -147,7 +232,7 @@ test('the message after an import says it in every language', () => {
   vm.runInContext(readFileSync(new URL('../js/settings/backup-reset.js', import.meta.url), 'utf8'), sandbox);
   sandbox.backupToast = (/** @type {string} */ key, /** @type {string} */ meta) => shown.push([key, meta]);
   sandbox.showPendingBackupSummary();
-  assert.deepEqual(shown, [['settings_backup_imported', 'Da ricollegare: Spotify · Da riattivare su questo PC: Controllo PC, permessi dei widget']]);
+  assert.deepEqual(shown, [['settings_backup_imported', 'Da ricollegare: Spotify · Da riattivare su questo PC: Controllo PC, permessi dei widget · ' + words.it.settings_backup_deck_actions]]);
 });
 
 test('settings that cannot be read fail the import, a broken file counts as empty', async () => {

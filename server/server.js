@@ -3143,7 +3143,7 @@ const {
 } = require('./settings/backup-format.js');
 
 const { _backupSecretFlags, _backupNeedsSetup } = require('./settings/backup-secrets.js');
-const { settingsBeforeImport, keepThisPcOnImport } = require('./settings/backup-keep.js');
+const { settingsBeforeImport, keepThisPcOnImport, deckOnImport } = require('./settings/backup-keep.js');
 
 const { _buildBackupBackground, _buildBackupFont } = require('./settings/backup-uploads.js');
 
@@ -3372,7 +3372,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
       // Bump rev past the current store so every client (including one holding a
       // newer localStorage copy) adopts the imported deck on its next hydrate.
       const cur = await readDeckStore().catch(() => null);
-      const store = normalizeDeckStore(d.deck);
+      const store = deckOnImport(d.deck, cur);
       store.rev = Math.max(store.rev, (cur && cur.rev) || 0) + 1;
       const saved = await writeDeckStore(store);
       broadcastSSE('deck', { rev: saved.rev });   // open dashboards re-sync the imported decks live
@@ -3400,7 +3400,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
   const needsSetup = _backupNeedsSetup(
     bundle.secretsConfigured,
     hub.settings || {},
-    await _readStreamTokensSnapshot(), d.settings
+    await _readStreamTokensSnapshot(), d.settings, d.deck, await readDeckStore().catch(() => null)
   );
   // SDK widget / Ambient-scene packages live in DATA_DIR/widgets and don't travel
   // in the backup — only their placement in the restored layout does. Report the

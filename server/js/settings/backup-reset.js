@@ -159,7 +159,9 @@ function showPendingBackupSummary() {
     pcControl: ['aifeat_pccontrol', 'Controllo PC'],
     widgetPermissions: ['settings_backup_widget_permissions', 'permessi dei widget'],
   };
-  const asked = Array.isArray(summary.needsSetup) ? summary.needsSetup : [];
+  const listed = Array.isArray(summary.needsSetup) ? summary.needsSetup : [];
+  const heldBack = listed.includes('deckActions');
+  const asked = listed.filter((k) => k !== 'deckActions');
   const needs = asked.filter((k) => !Object.hasOwn(BACKUP_HERE_LABELS, k)).map((k) => BACKUP_SERVICE_LABELS[k] || k);
   const here = asked.filter((k) => Object.hasOwn(BACKUP_HERE_LABELS, k)).map((k) => tt(BACKUP_HERE_LABELS[k][0], BACKUP_HERE_LABELS[k][1]));
   const failed = Array.isArray(summary.failed) ? summary.failed : [];
@@ -171,6 +173,8 @@ function showPendingBackupSummary() {
   let meta = '';
   if (needs.length) meta = `${tt('settings_backup_needs_setup', 'Da ricollegare:')} ${needs.join(', ')}`;
   if (here.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_needs_here', 'Da riattivare su questo PC:')} ${here.join(', ')}`;
+  // Keys of the Deck that came in without the action the file gave them (settings/backup-keep.js).
+  if (heldBack) meta += `${meta ? ' · ' : ''}${tt('settings_backup_deck_actions', 'I tasti del Deck che avviano programmi, scrivono o inviano qualcosa sono arrivati senza azione: impostali di nuovo su questo PC.')}`;
   if (widgets.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_needs_widgets', 'Widget da reinstallare dai loro codici:')} ${widgets.join(', ')}`;
   if (failed.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
   backupToast('settings_backup_imported', meta);
