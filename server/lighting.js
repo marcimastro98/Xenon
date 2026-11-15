@@ -13,8 +13,6 @@
 //     from inside the callback once we reach Connected.
 //   - Releasing LEDs with alpha 0 hands control back to iCUE (verified visually).
 
-const path = require('path');
-const fs = require('fs');
 const fx = require('./lighting-effects');
 const external = require('./lighting-external'); // non-iCUE providers (WLED, …)
 const topology = require('./lighting-topology');  // which LEDs are which fan / pump / RAM stick
@@ -25,61 +23,8 @@ const keyLook = require('./lighting-key-look');   // what a Deck key set: wins o
 const CSS_CONNECTED = 6; // CorsairSessionState::CSS_Connected (confirmed on hardware)
 const CDT_MOTHERBOARD = 0x200; // CorsairDeviceType::CDT_Motherboard
 
-// Resolve the SDK client DLL across installs. The redistributable client DLL is
-// not always shipped under the Corsair path; an env override and a bundled copy
-// take priority so the bridge is self-contained when possible.
-const SDK_DLL_NAME = 'iCUESDK.x64_2019.dll';
-
-// Every folder directly under the Corsair install root, newest first. iCUE has
-// shipped under at least three different folder names ("CUE", "CORSAIR iCUE 5
-// Software", "Corsair iCUE5 Software" as of 5.48) and hardcoding them meant the
-// list silently rotted with each rename. Scanning the root survives the next one.
-function corsairInstallCandidates() {
-  const roots = ['C:\\Program Files\\Corsair', 'C:\\Program Files (x86)\\Corsair'];
-  const out = [];
-  for (const root of roots) {
-    let entries = [];
-    try { entries = fs.readdirSync(root, { withFileTypes: true }); } catch { continue; }
-    for (const e of entries) if (e.isDirectory()) out.push(path.join(root, e.name, SDK_DLL_NAME));
-  }
-  return out;
-}
-
 const { bridge } = require('./lights/bridge-state.js');
-const DLL_PROBE_TTL_MS = 30000;
-
-function resolveDllPath() {
-  const now = Date.now();
-  if (bridge.dllProbe.at && now - bridge.dllProbe.at < DLL_PROBE_TTL_MS) return bridge.dllProbe.path;
-  const found = probeDllPath();
-  bridge.dllProbe = { at: now, path: found };
-  return found;
-}
-
-// Drops the memoized probe so the very next isAvailable() sees a DLL that was
-// just fetched — without this the lighting page keeps saying "not installed" for
-// up to DLL_PROBE_TTL_MS after the user pressed the button, which reads as a
-// failed install.
-function refreshAvailability() { bridge.dllProbe = { at: 0, path: null }; }
-
-function probeDllPath() {
-  const candidates = [
-    process.env.ICUE_SDK_DLL,
-    // Downloaded from Corsair's official release by install.ps1
-    // (Install-ICueSdkIfNeeded). First because it is the only copy whose version
-    // we pin; iCUE 5.48 installs no SDK DLL at all, so on most machines it is
-    // also the ONLY copy. Never committed to the repo — the SDK EULA grants use,
-    // not redistribution.
-    path.join(__dirname, 'icue-sdk', SDK_DLL_NAME),
-    path.join(__dirname, 'vendor', SDK_DLL_NAME),
-    ...corsairInstallCandidates(),
-    // Shipped incidentally by unrelated software. Last resort: it can be years
-    // older than the running iCUE.
-    'C:\\Program Files\\GIGABYTE\\Control Center\\Lib\\MBStorage\\' + SDK_DLL_NAME,
-  ].filter(Boolean);
-  for (const p of candidates) { try { if (fs.existsSync(p)) return p; } catch { /* ignore */ } }
-  return null;
-}
+const { resolveDllPath, refreshAvailability, isAvailable } = require('./lights/sdk-dll.js');
 
 const wokenBoards = new Set();    // motherboards already woken in this iCUE session (see wakeVendorBoard)
 
@@ -612,11 +557,6 @@ function getDevices() {
 }
 function isConnected() { return bridge.connected; }
 function getLastError() { return bridge.lastError; }
-
-// SDK is "available" if its client DLL can be resolved — checkable without
-// loading it, so the UI shows controls (and a working master toggle) even while
-// the bridge is OFF. Loaded lib short-circuits the filesystem probe.
-function isAvailable() { return !!bridge.lib || resolveDllPath() !== null; }
 
 // The album colour, gated by its effect toggle. `layers.album` always holds the
 // last pushed cover colour (so toggling the effect on shows it without waiting
