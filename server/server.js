@@ -457,9 +457,9 @@ require('./screens/screen-capture');
 require('./streaming/stream-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');
 require('./smart-home/unifi-events');
-require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
-require('./football-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
-require('./news-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
+require('./ticker/stocks-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
+require('./ticker/football-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
+require('./ticker/news-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 const claudeUsage = require('./claude-code/claude-usage');
 const claudeBridge = require('./claude-code/claude-bridge');
 const claudeInbox = require('./claude-code/claude-inbox');

@@ -29,9 +29,9 @@ const unifi = require('../actions/unifi.js');
 const stream = require('../streaming/stream-creds.js');
 const ics = require('../time/ics-feeds.js');
 const secrets = require('../js/settings/settings-secrets.js');
-const { redactStockCreds } = require('../stocks-creds.js');
-const { redactFootballCreds } = require('../football-creds.js');
-const { redactNewsCreds } = require('../news-creds.js');
+const { redactStockCreds } = require('../ticker/stocks-creds.js');
+const { redactFootballCreds } = require('../ticker/football-creds.js');
+const { redactNewsCreds } = require('../ticker/news-creds.js');
 const { redactAiProviderCreds } = require('../ai/ai-provider-creds.js');
 const { redactRemoteCreds } = require('../remote-control/settings.js');
 
@@ -255,9 +255,9 @@ test('settings-secrets: stripSettingsSecrets blanks every secret the issue named
 });
 
 test('settings-secrets: the server modules and the dashboard read the same list', () => {
-  for (const f of ['streaming/stream-creds.js', 'stocks-creds.js', 'football-creds.js', 'news-creds.js', 'ai/ai-provider-creds.js']) {
+  for (const f of ['streaming/stream-creds.js', 'ticker/stocks-creds.js', 'ticker/football-creds.js', 'ticker/news-creds.js', 'ai/ai-provider-creds.js']) {
     const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
-    assert.match(src, /require\('\.\.?\/js\/settings\/settings-secrets\.js'\)/, f + ' keeps its own copy of the list');
+    assert.match(src, /require\('\.\.\/js\/settings\/settings-secrets\.js'\)/, f + ' keeps its own copy of the list');
   }
   const save = SETTINGS_JS.slice(SETTINGS_JS.indexOf('function saveLocalHubSettings('));
   const body = save.slice(0, save.indexOf('\n}\n'));

@@ -8,9 +8,9 @@ const { preserveHaToken, redactHaToken } = require('../actions/home-assistant.js
 const { preserveRemoteCreds, redactRemoteCreds } = require('../remote-control/settings.js');
 const { preserveStreamCreds, redactStreamCreds } = require('../streaming/stream-creds.js');
 const { preserveUnifiCreds, redactUnifiCreds } = require('../actions/unifi.js');
-const { preserveStockCreds, redactStockCreds } = require('../stocks-creds.js');
-const { preserveFootballCreds, redactFootballCreds } = require('../football-creds.js');
-const { preserveNewsCreds, redactNewsCreds } = require('../news-creds.js');
+const { preserveStockCreds, redactStockCreds } = require('../ticker/stocks-creds.js');
+const { preserveFootballCreds, redactFootballCreds } = require('../ticker/football-creds.js');
+const { preserveNewsCreds, redactNewsCreds } = require('../ticker/news-creds.js');
 const { redactTransferPaths, preserveTransferPaths } = require('../transfer/settings-paths.js');
 const { redactLightingTokens } = require('../lights/secrets.js');
 

@@ -599,9 +599,6 @@
       "what": "The three tickers and where their data comes from.",
       "files": [
         "server/ticker/**",
-        "server/stocks*.js",
-        "server/football*.js",
-        "server/news*.js",
         "server/js/football-widget/**",
         "server/js/football-widget.js",
         "server/components/StockWidget/**",

@@ -261,7 +261,10 @@
     {"from":"server/community-limited.js","to":"server/store-catalog/community-limited.js"},
     {"from":"server/stream-creds.js","to":"server/streaming/stream-creds.js"},
     {"from":"server/stream-twitch.js","to":"server/streaming/stream-twitch.js"},
-    {"from":"server/stream-youtube.js","to":"server/streaming/stream-youtube.js"}
+    {"from":"server/stream-youtube.js","to":"server/streaming/stream-youtube.js"},
+    {"from":"server/football-creds.js","to":"server/ticker/football-creds.js"},
+    {"from":"server/news-creds.js","to":"server/ticker/news-creds.js"},
+    {"from":"server/stocks-creds.js","to":"server/ticker/stocks-creds.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -310,6 +313,9 @@
     {"feature":"settings","glob":"server/settings-rev.js","at":1},
     {"feature":"streaming","glob":"server/stream-twitch.js","at":1},
     {"feature":"streaming","glob":"server/stream-youtube.js","at":2},
-    {"feature":"streaming","glob":"server/stream-creds.js","at":3}
+    {"feature":"streaming","glob":"server/stream-creds.js","at":3},
+    {"feature":"ticker","glob":"server/stocks*.js","at":1},
+    {"feature":"ticker","glob":"server/football*.js","at":2},
+    {"feature":"ticker","glob":"server/news*.js","at":3}
   ]
 }
