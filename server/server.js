@@ -468,7 +468,7 @@ const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-code/claude-run');
 const claudeTranscript = require('./claude-code/claude-transcript');
 require('./claude-code/claude-subagent.js'); // nothing is taken from it here, but it runs code when it loads
-const claudeHistory = require('./claude-history');
+const claudeHistory = require('./claude-code/claude-history');
 const claudeCommands = require('./claude-code/claude-commands');
 const claudeAttach = require('./claude-code/claude-attach');
 const codexAppServer = require('./codex-appserver');

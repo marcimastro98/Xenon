@@ -13,7 +13,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createSessionStore, _internal } = require('../claude-history.js');
+const { createSessionStore, _internal } = require('../claude-code/claude-history.js');
 
 const OLD = Date.now() - 24 * 3600 * 1000;
 const line = (o) => JSON.stringify(o) + '\n';

@@ -265,7 +265,7 @@
     "server/claude-code/transcript-messages.js suspicious/useIterableCallbackReturn": 1,
     "server/claude-code/usage-aggregate.js complexity/useOptionalChain": 1,
     "server/claude-code/usage-parse.js complexity/useOptionalChain": 4,
-    "server/claude-history.js complexity/useOptionalChain": 4,
+    "server/claude-code/claude-history.js complexity/useOptionalChain": 4,
     "server/claude-link.js complexity/useOptionalChain": 4,
     "server/claude-statusline.js complexity/useOptionalChain": 3,
     "server/codex-appserver.js complexity/useOptionalChain": 6,
