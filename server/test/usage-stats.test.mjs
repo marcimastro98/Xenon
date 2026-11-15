@@ -189,7 +189,8 @@ test('the server and client wire the setting the strict way, local to the PC', (
   assert.match(CLIENT, /usageStats: value\.usageStats === true/);
   // A paired device's save keeps the stored value.
   assert.match(SERVER, /if \(isRemote\) incoming\.usageStats = !!\(prev && prev\.usageStats === true\);/);
-  // So does a backup it posts: /backup/import is open to a paired device.
+  // So would a backup it posts: /backup/import is refused to a paired device.
+  // See paired/refused-paths.js. The import keeps the check all the same.
   assert.match(SERVER, /applyBackup\(JSON\.parse\(raw \|\| '\{\}'\), \{ remote: isRemote \}\)/);
   assert.match(SERVER, /if \(remote\) incoming\.usageStats = !!\(prev && prev\.usageStats === true\);/);
   // Rides the update check; the tier is a boolean, never the code.

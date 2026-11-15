@@ -21,7 +21,7 @@ const MAX_HOTKEY_BINDINGS = 16;
 
 // One pending retry at a time. Without it a single helper crash disabled the
 // global shortcut until the user re-saved settings or restarted the app:
-// refreshHotkeyListener() is only called from POST /settings and at boot.
+// refreshHotkeyListener() is only called from settings writes and at boot.
 const HOTKEY_RETRY_MS = 15000;
 const HOTKEY_RETRY_MAX_MS = 5 * 60 * 1000;
 

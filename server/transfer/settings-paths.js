@@ -22,12 +22,13 @@ function redactTransferPaths(settings) {
 // THIS MACHINE's folder always wins, and an incoming one is dropped rather than
 // preferred. It used to be `incoming || prev`, which made the sentence "its only
 // writer is POST /api/transfer/settings" false: a backup bundle carries the key,
-// /backup/import is reachable from a paired device, and that route performs none
+// /backup/import was reachable from a paired device, and that route performed none
 // of the validation the settings route does — so the one door deliberately left
 // in REMOTE_DENY had a second one beside it. It is also wrong on its own terms,
 // with nothing to do with security: a backup taken on another PC names a folder
 // that need not exist here, and importing it pointed every future arrival at a
 // path on someone else's disk.
+// Today a paired device is refused the import too (paired/refused-paths.js); the rule here stays.
 function preserveTransferPaths(incoming, prev) {
   if (!incoming || !incoming.fileTransfer || typeof incoming.fileTransfer !== 'object') return incoming;
   const prevDir = (prev && prev.fileTransfer && prev.fileTransfer.inboxDir) || '';
