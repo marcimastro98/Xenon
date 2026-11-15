@@ -195,7 +195,9 @@ test('lighting: power down darkens the native controllers instead of releasing t
   const src = engineSource('server/lighting.js');
   const pd = src.slice(src.indexOf('async function powerDown()'), src.indexOf('function powerUp()'));
   assert.match(pd, /releaseAll\(\{ keepNative: true \}\)/);
-  const rel = src.slice(src.indexOf('async function releaseAll('), src.indexOf('function disconnect()'));
+  // The body of releaseAll, to its closing brace: what stands after it depends on the file it lives in.
+  const relAt = src.indexOf('async function releaseAll(');
+  const rel = src.slice(relAt, src.indexOf('\n}', relAt));
   assert.match(rel, /if \(!keepNative\) \{\s*try \{ await native\.release\(\);/);
 });
 
