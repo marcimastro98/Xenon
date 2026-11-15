@@ -29,7 +29,7 @@ const need = (tree, file) => {
 // Every page that loads the old file gets the new tags next to its tag, and the
 // files of the split end up one after the other with nothing between them.
 // The same goes for the list the pages of desktop widgets are built from.
-function retag(tree, pages, { old, added, where, before, after }) {
+export function retag(tree, pages, { old, added, where, before, after }) {
   const files = new Map();
   const reasons = [];
   for (const page of pages) {

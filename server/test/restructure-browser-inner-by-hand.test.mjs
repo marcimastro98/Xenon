@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 
+import { cutByHand, performByHand } from '../../tools/restructure/browser-by-hand.mjs';
 import { replay } from '../../tools/restructure/browser-extract.mjs';
 import { innerStateProblems } from '../../tools/restructure/browser-inner-proof.mjs';
 import { innerFilesOf, innerPartsOf, runOf } from '../../tools/restructure/browser-ledger.mjs';
@@ -78,6 +79,42 @@ test('verify does not redo a hand cut, a tool move cannot be asked to, and the r
   assert.deepEqual(innerFilesOf(ledger, FILE), [ROWS]);
   assert.deepEqual(innerPartsOf(ledger, FILE), [{ file: ROWS, hand: true }]);
   assert.deepEqual(innerPartsOf({ moves: [{ ...MOVE, hand: undefined }] }, FILE), [{ file: ROWS, hand: false }]);
+});
+
+test('the cutting step moves the chosen lines as they are, writes the script in the handed form, and writes nothing the standing check refuses', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const plan = { from: FILE, to: ROWS, about: 'The rows of the leaf.', ranges: [[7, 12]], hands: ['ICONS', 'state', 'paint'], gives: ['row'] };
+  const cut = cutByHand({ ...plan, text: BEFORE });
+  assert.equal(cut.targetText, MADE);
+  assert.equal(cut.newSource, AFTER);
+  assert.deepEqual(cut.record, MOVE);
+  const refused = (change) => { try { cutByHand({ ...plan, text: BEFORE, ...change }); } catch (error) { if (error instanceof Refusal) return error.reasons.join('\n'); throw error; } return ''; };
+  assert.match(refused({ ranges: [[6, 12]] }), /begin or end with an empty line/);
+  assert.match(refused({ ranges: [[7, 12], [10, 12]] }), /overlap the run before them/);
+  assert.match(refused({ to: 'server/js/rows.js' }), /is not server\/js\/leaf\/<what it does>\.js/);
+  assert.match(refused({ at: 9 }), /is inside a run that leaves/);
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-browser-cut-by-hand-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const page = '<body>\n<script src="js/leaf.js"></script>\n</body>\n';
+  // The standing check also proves the page's own helpers where they are declared, so the copy has that script too.
+  const HELPERS = 'server/js/utils/page-and-text.js';
+  const files = { [FILE]: BEFORE, [PAGE]: page, [LEDGER]: JSON.stringify({ moves: [] }), [HELPERS]: fs.readFileSync(new URL(`../../${HELPERS}`, import.meta.url), 'utf8') };
+  for (const [file, text] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), text); }
+  for (const args of [['init', '-q'], ['add', '-A']]) assert.equal(spawnSync('git', args, { cwd: root }).status, 0);
+  const on =(file) => fs.readFileSync(path.join(root, file), 'utf8');
+  // Not handed the state it uses: the standing check says so and the checkout is as it was.
+  const short = performByHand({ root, parser, plan: { ...plan, hands: ['ICONS', 'paint'] } });
+  assert.match(short.problems.join('\n'), /row uses state, which the wrapper of server\/js\/leaf\.js declares/);
+  assert.equal(on(FILE), BEFORE);
+  assert.equal(fs.existsSync(path.join(root, ROWS)), false);
+  assert.deepEqual(JSON.parse(on(LEDGER)).moves, []);
+  const done = performByHand({ root, parser, plan });
+  assert.deepEqual(done.problems, []);
+  assert.equal(on(ROWS), MADE);
+  assert.equal(on(FILE), AFTER);
+  assert.equal(on(PAGE), '<body>\n<script src="js/leaf/rows.js"></script>\n<script src="js/leaf.js"></script>\n</body>\n');
+  assert.deepEqual(JSON.parse(on(LEDGER)).moves, [MOVE]);
 });
 
 test('every hand cut on the real list is an inner move of the handed form, and the test reader hands its file out with its script', () => {
