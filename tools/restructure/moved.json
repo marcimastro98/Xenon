@@ -37,12 +37,11 @@
     {"from":"server/stream-history.js","to":"server/streaming/stream-history.js","shim":true},
     {"from":"server/mic-use.js","to":"server/audio/mic-use.js","shim":true},
     {"from":"server/svv-text.js","to":"server/audio/svv-text.js","shim":true},
-    {"from":"server/remote-actions.js","to":"server/paired/remote-actions.js"},
-    {"from":"server/remote-https-setup.js","to":"server/paired/remote-https-setup.js"},
-    {"from":"server/web-push.js","to":"server/paired/web-push.js"}
+    {"from":"server/remote-actions.js","to":"server/paired/remote-actions.js","shim":true},
+    {"from":"server/remote-https-setup.js","to":"server/paired/remote-https-setup.js","shim":true},
+    {"from":"server/web-push.js","to":"server/paired/web-push.js","shim":true}
   ],
   "patterns": [
-    {"feature":"paired","glob":"server/remote-actions.js","at":3},
-    {"feature":"paired","glob":"server/web-push.js","at":4}
+
   ]
 }
