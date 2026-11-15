@@ -15,7 +15,7 @@ import { findSites, loadsOf, stops } from './move-refs.mjs';
 const posix = path.posix;
 export const MOVED = 'tools/restructure/moved.json';
 const EXTRACTED = 'tools/restructure/extracted.json';
-const HASHED = 'tools/restructure/load-registrations.json';
+export const HASHED = 'tools/restructure/load-registrations.json';
 const textHash = (text) => createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex');
 const NOTE = 'Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true while the old path holds its one line that hands on the module; `unshimmed` is true once `move.mjs unshim` took the line away because nothing asks for the old path. The old paths that keep their line are in move-left.json, each with its reason.';
 
@@ -121,7 +121,7 @@ export function edited(text, edits) {
 // statement. A file this step edits differs by the paths it loads alone: an entry that was true of the old text is
 // made true of the new one, and a line that loads a moved file is spelled as the file now spells it. A stale entry
 // stays stale.
-function readByHand(root, step, texts) {
+export function readByHand(root, step, texts) {
   const was = texts.get(HASHED) ?? read(root)(HASHED);
   if (!was) return null;
   let hashes = was;

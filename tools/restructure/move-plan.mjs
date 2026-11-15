@@ -14,14 +14,14 @@ const ROOT_FILE = /^server\/[^/]+\.js$/;
 // The static route hands out these folders of `server/` to any page (the test of the route in server.js).
 export const SERVED = ['styles', 'components', 'js', 'vendor', 'public', 'shared', 'assets', 'sdk-example', 'data', 'test'];
 // Words whose meaning is the place of the file itself, or that make the file a program started by path.
-const MEANING = [
+export const MEANING = [
   ['__dirname', /\b__dirname\b/], ['__filename', /\b__filename\b/], ['require.resolve', /\brequire\.resolve\b/],
   ['process.argv', /\bprocess\.argv\b/], ['require.main', /\brequire\.main\b/], ['import.meta', /\bimport\.meta\b/],
   ['module.filename or module.paths', /\bmodule\.(filename|path|paths|id|parent)\b/], ['require.cache', /\brequire\.cache\b/],
   ['a require of a name worked out at run time', /\brequire\(\s*(?:[^'"`)\s]|(['"`])[^'"`\n]*\1\s*[^)\s])/],
 ];
 
-const withoutComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/^\s*\/\/.*$/gm, '');
+export const withoutComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/^\s*\/\/.*$/gm, '');
 
 /** @param {string} root @returns {{ homes: Record<string, string>, features: Record<string, string>, files: Record<string, string> }} */
 export function readLeft(root) {

@@ -64,8 +64,10 @@ function main() {
   const text = rev
     ? execFileSync('git', ['show', rev, '-U0', '--format=', '--', 'server'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 })
     : workingDiff(root);
-  const list = join(root, 'tools', 'restructure', 'moved.json');
-  const lost = lostComments(text, existsSync(list) ? JSON.parse(readFileSync(list, 'utf8')).moves : []);
+  const moves = (name) => (existsSync(join(root, 'tools', 'restructure', name)) ? JSON.parse(readFileSync(join(root, 'tools', 'restructure', name), 'utf8')).moves : []);
+  // A comment names a browser script by its file or by the address a page asks for (`js/x.js`): the address is in both.
+  const addresses = moves('browser-moved.json').map((move) => ({ from: move.from.replace(/^server\//, ''), to: move.to.replace(/^server\//, '') }));
+  const lost = lostComments(text, [...moves('moved.json'), ...addresses]);
   console.log(`${rev || 'Working tree'}: ${lost.length} comment lines taken out and not put back.`);
   for (const line of lost) console.log(`    ${line.trim().slice(0, 110)}`);
   if (lost.length) process.exitCode = 1;

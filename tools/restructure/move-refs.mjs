@@ -61,7 +61,7 @@ export function respell(file, spec, to) {
 }
 
 // Every string of a file with the nodes above it, and the top-level constants and functions a path may be built from.
-function stringsOf(tree, K) {
+export function stringsOf(tree, K) {
   const strings = [];
   const consts = new Map();
   const functions = new Map();
@@ -81,7 +81,7 @@ function stringsOf(tree, K) {
 }
 
 // Is this string the thing a `require`, an `import` or a `require.resolve` loads?
-function isLoad(K, node, parent) {
+export function isLoad(K, node, parent) {
   if (!parent) return false;
   if (parent.kind === K.ImportDeclaration || parent.kind === K.ExportDeclaration) return parent.moduleSpecifier === node;
   if (parent.kind !== K.CallExpression || parent.arguments[0] !== node) return false;
@@ -186,7 +186,7 @@ function rootedSites(file, text, patterns, taken) {
 }
 
 // Is this place of an installer, a page or a native source file inside a comment?
-function inComment(file, text, at) {
+export function inComment(file, text, at) {
   const line = text.slice(text.lastIndexOf('\n', at - 1) + 1, at);
   if (/\.(html|htm)$/.test(file) && text.lastIndexOf('<!--', at) > text.lastIndexOf('-->', at)) return true;
   if (/\.(rs|cs|swift|html|htm|nsh|iss)$/.test(file)) return /\/\/|^\s*\/?\*|^\s*;/.test(line);

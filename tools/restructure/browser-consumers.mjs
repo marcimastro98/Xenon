@@ -24,7 +24,7 @@ export const CONSUMERS = 'tools/restructure/browser-consumers.json';
 const READER = 'browser-source.mjs';
 // These follow a split without help: the saved numbers are moved by `browser carry` and
 // `npm run sizes -- --update`, and a new file with no owner in the map is refused before the move.
-const FOLLOW_ALONE = /^tools\/quality\/baseline\/|^tools\/map\/features\.json$/;
+const FOLLOW_ALONE = /^tools\/quality\/baseline\/|^tools\/map\/features\.json$|^tools\/restructure\/browser-move(d|-left)\.json$/;
 /** @param {string} file repo-relative @returns {boolean} true for a file a tool keeps in step with the browser files by itself */
 export const followsAlone = (file) => FOLLOW_ALONE.test(file) || file === CONSUMERS || file === BROWSER_LEDGER;
 const PROSE = /\.(md|txt)$|(^|\/)(LICENSE|CHANGELOG)[^/]*$/;
