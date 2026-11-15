@@ -86,15 +86,9 @@ function refreshMacmon() {
 
 const { HELPER_EXE } = require('./platform/darwin-helper-path.js');
 
-const HELPER_MAX_FAILURES = 3;
-const HELPER_RETRY_MS = 5 * 60 * 1000;
-
-async function runHelper(args, timeoutMs) {
-  if (Date.now() < held.helperDownUntil) return null;
-  const out = await runSoft(HELPER_EXE, args, timeoutMs);
-  if (out === null) { held.helperDownUntil = Date.now() + HELPER_RETRY_MS; return null; }
-  return out;
-}
+const {
+  HELPER_MAX_FAILURES, HELPER_RETRY_MS, runHelper,
+} = require('./platform/darwin-helper-run.js');
 
 async function readHelperTemps() {
   if (held.helperFailures >= HELPER_MAX_FAILURES && Date.now() < held.helperNextTry) return null;
