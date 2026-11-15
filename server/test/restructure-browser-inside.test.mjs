@@ -120,6 +120,14 @@ test('the check refuses a name that can be reached before the line that takes it
   assert.deepEqual(cutAndCheck(waiting, rows(waiting)).problems, []);
 });
 
+test('a `const` could not be used above its own line before either, so the check does not ask who reaches it', { skip: SKIP }, () => {
+  const text = SOURCE.replace("    let active = 'a';", "    let active = 'a';\n    [].forEach((name) => row(name));");
+  const at = lineOf(text, 'const title = opts.title;');
+  const { worked, problems } = cutAndCheck(text, [[at, at]]);
+  assert.deepEqual(worked, { hands: ['opts'], gives: ['title'], at });
+  assert.deepEqual(problems, []);
+});
+
 test('the check refuses `this`, `arguments` and a `return` of the function among the lines that left', { skip: SKIP }, () => {
   const made = (lines) => readInsideScript(['// Sample.', "'use strict';", '', 'window.SampleRows = (wrapper) => {', '    const { t } = wrapper;', '', ...lines, '', '    return { row };', '};', ''].join('\n'), TO, 'SampleRows', parser).problems.join('\n');
   assert.equal(made(['    function row() { return t(this.name) + arguments.length; }']), '');

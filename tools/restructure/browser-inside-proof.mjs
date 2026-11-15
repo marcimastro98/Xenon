@@ -15,7 +15,8 @@
 //   used above its own lines: so nothing that runs before the taking line may use one.
 //   What runs before it: the function's own lines above it, a function written in a call
 //   (but for a listener, a timer or what follows a promise, which wait), and every named
-//   function those reach.
+//   function those reach. A name that was a `const`, a `let` or a class could not be used
+//   above its own line before either, so only the names that were functions or `var` are asked.
 //
 // A listener set off on purpose above the taking line (`.click()`, `dispatchEvent`) is
 // not seen here; the shape check walks the window in two engines and would stop on it.
@@ -44,12 +45,13 @@ function plainNames(node, K) {
 /**
  * Reads a script cut out of a function.
  * @param {string} text @param {string} file @param {string} name its name on window @param {any} parser
- * @returns {{ problems: string[], hands: string[], gives: string[], free: Set<string> }} `free`: the names its lines use and nobody in the script declares
+ * @returns {{ problems: string[], hands: string[], gives: string[], free: Set<string>, lifted: Set<string> }} `free`: the names its lines use and
+ *   nobody in the script declares; `lifted`: the names it gives that could be used above their own lines (a function declaration, a `var`)
  */
 export function readInsideScript(text, file, name, parser) {
   const { K } = parser;
   const read = readScopes(text, file, parser);
-  const none = { hands: [], gives: [], free: new Set() };
+  const none = { hands: [], gives: [], free: new Set(), lifted: new Set() };
   const problems = [];
   if (!text.startsWith('//')) problems.push(`${file} must open with a comment saying what it does`);
   if (text.split('\n').length - 1 > MAX_LINES) problems.push(`${file} is ${text.split('\n').length - 1} lines: a script cut out of a function stays within ${MAX_LINES}`);
@@ -92,7 +94,8 @@ export function readInsideScript(text, file, name, parser) {
     if (use.name === 'wrapper' && use.binding?.kind === 'param' && use.node !== first?.initializer) problems.push(`${where(use.node)} reads \`wrapper\` again: what is handed is taken once, on the first line`);
     if (use.write && use.binding && first && handed.has(use.name) && use.binding.pos === read.startOf(body[0])) problems.push(`${where(use.node)} writes to ${use.name}, which it was handed: it would change its own copy`);
   }
-  return { problems, hands, gives, free: new Set(read.uses.filter((use) => !use.binding).map((use) => use.name)) };
+  const lifted = new Set(gives.filter((give) => ['function', 'var'].includes(read.resolve(give, arrow.body)?.kind)));
+  return { problems, hands, gives, lifted, free: new Set(read.uses.filter((use) => !use.binding).map((use) => use.name)) };
 }
 
 // The line of `fn` that takes the names of `window.<name>` back: `const { … } = window.<name>({ … });`, right in the function.
@@ -189,7 +192,7 @@ export function insideStateProblems({ source, text, parts, parser }) {
     const taken = new Set(taking.gives.map((name) => read.resolve(name, fn.body)).filter((binding) => binding && binding.pos === read.startOf(statement)));
     for (const use of read.uses) {
       if (taken.has(use.binding) && use.write) problems.push(`${source}:${read.lineOf(use.pos)} writes to ${use.name}, which it took from ${part.file}: the script would keep its own`);
-      if (taken.has(use.binding) && before(use.node)) problems.push(`${source}:${read.lineOf(use.pos)} can reach ${use.name} before the line that takes it (${at})`);
+      if (taken.has(use.binding) && made.lifted.has(use.name) && before(use.node)) problems.push(`${source}:${read.lineOf(use.pos)} can reach ${use.name} before the line that takes it (${at})`);
     }
   }
   return problems;
