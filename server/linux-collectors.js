@@ -40,16 +40,16 @@ const {
   EMPTY_GPU, parseGpu, rc6Busy, parseSysfsGpu, betterGpuCandidate, sysfsGpu, NVIDIA_SMI_RETRY_MS,
 } = require('./platform/linux-gpu.js');
 
-let nvidiaSmiMissingAt = 0;
+const { held } = require('./platform/linux-held.js');
 
 async function nvidiaGpu() {
-  if (Date.now() - nvidiaSmiMissingAt < NVIDIA_SMI_RETRY_MS) return null;
+  if (Date.now() - held.nvidiaSmiMissingAt < NVIDIA_SMI_RETRY_MS) return null;
   try {
     return parseGpu(await run('nvidia-smi',
       ['--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.gr,clocks.mem,name',
        '--format=csv,noheader,nounits'], 5000));
   } catch (err) {
-    if (err && err.code === 'ENOENT') nvidiaSmiMissingAt = Date.now();
+    if (err && err.code === 'ENOENT') held.nvidiaSmiMissingAt = Date.now();
     return null;
   }
 }
@@ -78,11 +78,6 @@ const {
 } = require('./platform/linux-hwmon.js');
 
 
-// id → where it was found in the last walk, so a read touches only the files
-// asked for. Some of these reads reach real hardware (drivetemp asks the disk),
-// which is why read mode never re-walks every chip on each tick.
-let _hwmonIndex = new Map();
-let _hwmonIndexAt = 0;
 
 async function listSensors() {
   const out = [];
@@ -107,19 +102,19 @@ async function listSensors() {
     const meta = index.get(e.id);
     if (devices.get(meta.chip).size > 1) { meta.hw = `${meta.chip} ${meta.devKey}`; e.hw = meta.hw; }
   }
-  _hwmonIndex = index;
-  _hwmonIndexAt = Date.now();
+  held.hwmonIndex = index;
+  held.hwmonIndexAt = Date.now();
   return out;
 }
 
 async function readSensors(ids) {
   const wanted = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string');
   if (!wanted.length) return [];
-  const stale = Date.now() - _hwmonIndexAt > HWMON_INDEX_TTL_MS || wanted.some((id) => !_hwmonIndex.has(id));
-  if (stale && Date.now() - _hwmonIndexAt > HWMON_REWALK_MIN_MS) await listSensors();
+  const stale = Date.now() - held.hwmonIndexAt > HWMON_INDEX_TTL_MS || wanted.some((id) => !held.hwmonIndex.has(id));
+  if (stale && Date.now() - held.hwmonIndexAt > HWMON_REWALK_MIN_MS) await listSensors();
   const out = [];
   for (const id of wanted) {
-    const meta = _hwmonIndex.get(id);
+    const meta = held.hwmonIndex.get(id);
     if (!meta) continue;
     let raw;
     try { raw = await readText(meta.file); } catch { continue; }
@@ -203,15 +198,13 @@ const {
 } = require('./platform/linux-audio.js');
 
 
-let audioRowsCache = { rows: null, at: 0 };
-
 async function audioRows() {
   const now = Date.now();
-  if (audioRowsCache.rows && (now - audioRowsCache.at) < AUDIO_ROWS_TTL_MS) {
-    return audioRowsCache.rows;
+  if (held.audioRowsCache.rows && (now - held.audioRowsCache.at) < AUDIO_ROWS_TTL_MS) {
+    return held.audioRowsCache.rows;
   }
   const rows = buildAudioRows(await pwNodes());
-  audioRowsCache = { rows, at: Date.now() };
+  held.audioRowsCache = { rows, at: Date.now() };
   return rows;
 }
 
@@ -227,7 +220,7 @@ async function audioCommand(args) {
   if (!ids.length) throw new Error(`no audio node matches "${list[1]}"`);
   // Drop the cached rows: a volume or mute change must be visible on the very
   // next read, not up to a TTL later.
-  audioRowsCache = { rows: null, at: 0 };
+  held.audioRowsCache = { rows: null, at: 0 };
   for (const id of ids) {
     if (action === '/SetVolume') {
       const pct = Math.max(0, Math.min(100, parseInt(list[2], 10) || 0));
@@ -249,16 +242,14 @@ async function audioCommand(args) {
   }
 }
 
-let _audioProbe = null;
-let _audioProbeAt = 0;
 async function audioAvailable() {
-  if (_audioProbe !== null) {
-    const ok = await _audioProbe;
-    if (ok || Date.now() - _audioProbeAt <= AUDIO_PROBE_RETRY_MS) return ok;
+  if (held.audioProbe !== null) {
+    const ok = await held.audioProbe;
+    if (ok || Date.now() - held.audioProbeAt <= AUDIO_PROBE_RETRY_MS) return ok;
   }
-  _audioProbeAt = Date.now();
-  _audioProbe = pwNodes().then(() => true).catch(() => false);
-  return _audioProbe;
+  held.audioProbeAt = Date.now();
+  held.audioProbe = pwNodes().then(() => true).catch(() => false);
+  return held.audioProbe;
 }
 
 // Lock the screen now — the Deck's lockWorkstation key. loginctl asks the
@@ -287,12 +278,11 @@ async function lock() {
 
 const { ydotoolArgs } = require('./platform/linux-keys.js');
 
-let _keysProbe = null;
 // Which sender this session has, if any. Cached: it is read on the path that
 // decides whether to draw an Answer button, and neither tool appears or
 // disappears while the server runs.
 async function keysTool() {
-  if (_keysProbe !== null) return _keysProbe;
+  if (held.keysProbe !== null) return held.keysProbe;
   const wayland = !!(process.env.WAYLAND_DISPLAY || String(process.env.XDG_SESSION_TYPE || '').toLowerCase() === 'wayland');
   const probe = async (bin, args) => {
     try { await run(bin, args, 3000); return true; } catch { return false; }
@@ -300,10 +290,10 @@ async function keysTool() {
   // Under Wayland xdotool may well be installed and still deliver nothing, so
   // it is not even tried there — offering a button that silently fails is the
   // failure this whole feature is written to avoid.
-  if (!wayland && await probe('xdotool', ['--version'])) _keysProbe = 'xdotool';
-  else if (await probe('ydotool', ['--help'])) _keysProbe = 'ydotool';
-  else _keysProbe = '';
-  return _keysProbe;
+  if (!wayland && await probe('xdotool', ['--version'])) held.keysProbe = 'xdotool';
+  else if (await probe('ydotool', ['--help'])) held.keysProbe = 'ydotool';
+  else held.keysProbe = '';
+  return held.keysProbe;
 }
 
 async function keysAvailable() { return !!(await keysTool()); }
@@ -325,10 +315,9 @@ async function sendKeys(combo) {
 
 const { linuxSession, pickHideTool } = require('./platform/linux-hide-tool.js');
 
-let _hideProbe = null;
 // Why it cannot, when it cannot: 'wayland' (no desktop API) or 'needs_wmctrl'.
 async function hideWindowsTool() {
-  if (_hideProbe) return _hideProbe;
+  if (held.hideProbe) return held.hideProbe;
   const session = linuxSession();
   const answers = async (bin, args) => {
     try { await run(bin, args, 3000); return true; } catch { return false; }
@@ -338,8 +327,8 @@ async function hideWindowsTool() {
     dbusSend: session.kde && await answers('dbus-send', ['--version']),
   };
   const tool = pickHideTool(session, has);
-  _hideProbe = { tool, reason: tool ? '' : (session.wayland ? 'wayland' : 'needs_wmctrl') };
-  return _hideProbe;
+  held.hideProbe = { tool, reason: tool ? '' : (session.wayland ? 'wayland' : 'needs_wmctrl') };
+  return held.hideProbe;
 }
 
 async function hideWindows() {
@@ -366,25 +355,20 @@ async function notify(title, text) {
 
 const { parseProcStat } = require('./platform/linux-proc-stat.js');
 
-// The page size is needed to turn stat's rss (in pages) into bytes, and Node
-// exposes no sysconf(_SC_PAGESIZE). Deriving it once from OUR OWN process — where
-// both spellings of the same number are readable — is exact on 4K x86 and on the
-// 16K/64K ARM kernels a hardcoded 4096 would under-report by 4x or 16x.
-let _pageSize = 0;
 async function pageSize() {
-  if (_pageSize) return _pageSize;
-  _pageSize = 4096;
+  if (held.pageBytes) return held.pageBytes;
+  held.pageBytes = 4096;
   try {
     const self = parseProcStat(await fsp.readFile('/proc/self/stat', 'utf8'));
     const rssBytes = process.memoryUsage().rss;
     if (self && self.rssPages > 0 && rssBytes > 0) {
       const guess = rssBytes / self.rssPages;
       for (const candidate of [4096, 8192, 16384, 65536]) {
-        if (guess >= candidate * 0.75 && guess <= candidate * 1.5) { _pageSize = candidate; break; }
+        if (guess >= candidate * 0.75 && guess <= candidate * 1.5) { held.pageBytes = candidate; break; }
       }
     }
   } catch { /* keep 4096 */ }
-  return _pageSize;
+  return held.pageBytes;
 }
 
 async function sampleProcesses() {
@@ -424,8 +408,6 @@ async function processTable() {
 
 const PROC_STALE_MS = 30000;
 const PROC_PRIME_MS = 250;
-let _procPrev = null;
-let _procPrevAt = 0;
 
 async function processes(top = 8) {
   let curr = await sampleProcesses();
@@ -434,20 +416,20 @@ async function processes(top = 8) {
   // First call, or a gap long enough that the delta would be a guess: prime with
   // a short window so THIS call already answers with real numbers. Paid once per
   // stream start, never in the steady state.
-  if (!_procPrev || !_procPrevAt || now - _procPrevAt > PROC_STALE_MS) {
-    _procPrev = curr;
-    _procPrevAt = now;
+  if (!held.procPrev || !held.procPrevAt || now - held.procPrevAt > PROC_STALE_MS) {
+    held.procPrev = curr;
+    held.procPrevAt = now;
     await new Promise((r) => setTimeout(r, PROC_PRIME_MS));
     curr = await sampleProcesses();
     if (!curr) return { ok: false, error: 'no_procfs' };
     now = Date.now();
   }
-  const windowMs = Math.max(1, now - _procPrevAt);
+  const windowMs = Math.max(1, now - held.procPrevAt);
   const cores = Math.max(1, os.cpus().length);
-  const all = procStats.aggregate(_procPrev, curr, { windowMs, cores });
+  const all = procStats.aggregate(held.procPrev, curr, { windowMs, cores });
   const apps = procStats.topUnion(all, top);
-  _procPrev = curr;
-  _procPrevAt = now;
+  held.procPrev = curr;
+  held.procPrevAt = now;
   const mem = await memory();
   return {
     ok: true,
