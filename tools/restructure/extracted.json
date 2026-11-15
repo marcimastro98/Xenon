@@ -991,7 +991,8 @@
       {"file":"server/lights/sdk-call.js","about":"One call into the iCUE SDK: its time limit, its error, and what a failed call says about the link.","names":["wokenBoards","SDK_OP_TIMEOUT_MS","withSdkTimeout","CE_NAMES","CE_NOT_CONNECTED","SdkError","sdkCall","noteSdkFailure"],"tidy":true},
       {"file":"server/lights/sdk-properties.js","about":"What the iCUE SDK says about a device: the LEDs on each of its channels and its battery.","names":["CDPI_CHANNEL_DEVICE_LED_COUNTS","CDPI_CHANNEL_DEVICE_TYPES","CT_STRING","CT_INT32_ARRAY","MAX_CHANNELS","MAX_CHANNEL_DEVICES","channelCache","readInt32ArrayProperty","channelLayout","CDPI_BATTERY_LEVEL","CT_INT32","CORSAIR_PROPERTY_BYTES","getBatteryLevels"],"tidy":true},
       {"file":"server/lights/sdk-load.js","about":"Loading the iCUE SDK library and letting it go again.","names":["loadLib","disconnect"]},
-      {"file":"server/lights/paint-rules.js","about":"The rules that say whether the bridge paints at all, and which colour a device gets.","names":["DYNAMIC_ANIM_STYLES","effectiveAlbum","albumActive","gamingPaused","wantsPaint","active","shouldConnect","refreshAnimationLayer","anyDeviceAnimationDynamic","colorForDevice","deckReactionColor"],"bare":["./gamedetect"],"tidy":true}
+      {"file":"server/lights/paint-rules.js","about":"The rules that say whether the bridge paints at all, and which colour a device gets.","names":["DYNAMIC_ANIM_STYLES","effectiveAlbum","albumActive","gamingPaused","wantsPaint","active","shouldConnect","refreshAnimationLayer","anyDeviceAnimationDynamic","colorForDevice","deckReactionColor"],"bare":["./gamedetect"],"tidy":true},
+      {"file":"server/lights/sdk-write.js","about":"Writing colours to the devices through the iCUE SDK, and handing them back to iCUE.","names":["CDT_MOTHERBOARD","writeDevice","writeDeviceGradient","writeDeviceAnimGradient","writeDeviceCustom","pushLeds","sinkReady","paintDevices","releaseAll","getDevices"]}
     ]
   },
   "spreads": {
