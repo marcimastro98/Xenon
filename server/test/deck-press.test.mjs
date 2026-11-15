@@ -1,5 +1,5 @@
 // A Deck key placed on the screen: the button runs what the person agreed to and
-// nothing else. These are the promises server/deck-press.js makes: a capability never
+// nothing else. These are the promises server/deck/deck-press.js makes: a capability never
 // stores an agreement, a changed key stops, and only `accept` with what the sheet
 // showed lets it run.
 import { test } from 'node:test';
@@ -9,8 +9,8 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createDeckPress, fingerprint, stepsOf, describeSteps, lookOf } = require('../deck-press.js');
-const { createDeckShortcutRunner } = require('../deck-shortcut-runner.js');
+const { createDeckPress, fingerprint, stepsOf, describeSteps, lookOf } = require('../deck/deck-press.js');
+const { createDeckShortcutRunner } = require('../deck/deck-shortcut-runner.js');
 const { triggerSteps } = require('../js/deck-actions.js');
 const LayersModel = require('../js/layers-model.js');
 const LayerKey = require('../capabilities/layer-key.js');

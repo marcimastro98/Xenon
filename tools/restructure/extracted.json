@@ -499,7 +499,7 @@
       {"file":"server/claude-code/link-status.js","about":"What the Claude Code tile is told about the link to the terminal.","names":["_claudeLinkStatus"]},
       {"file":"server/transfer/engine-phone.js","about":"The engine's phone: calls, messages and contacts of the phone linked to this PC.","names":["phone"],"wire":{"first":"phone","last":"phone"}},
       {"file":"server/transfer/phone-assistant.js","about":"What the assistant may do with the phone: look a contact up, start a call, write a message.","names":["aiPhoneTool"],"bare":["./call-detect","./ai-pc-apps"]},
-      {"file":"server/deck/engine-linux-hotkey.js","about":"The engine's writer of shortcuts into the Linux desktop's own key store; nothing on other systems.","names":["_linuxHotkey"],"wire":{"first":"_linuxHotkey","last":"_linuxHotkey"},"spelled":{"../linux-hotkey.js":"./linux-hotkey"}},
+      {"file":"server/deck/engine-linux-hotkey.js","about":"The engine's writer of shortcuts into the Linux desktop's own key store; nothing on other systems.","names":["_linuxHotkey"],"wire":{"first":"_linuxHotkey","last":"_linuxHotkey"},"spelled":{"./linux-hotkey.js":"./linux-hotkey"}},
       {"file":"server/deck/linux-hotkey-refresh.js","about":"Brings the Linux desktop's shortcut entries in line with the chosen search shortcut and page shortcuts.","names":["refreshLinuxHotkey"]},
       {"file":"server/performance/engine-registry.js","about":"The engine's runner of Performance Mode: closing, reopening and prioritising apps through the one allowlist.","names":["perfRegistry"],"wire":{"first":"perfRegistry","last":"perfRegistry"}},
       {"file":"server/performance/engine-exclusive-hint.js","about":"The engine's one notice per game that exclusive full screen hides the widgets over it.","names":["_exclusiveHint"],"wire":{"first":"_exclusiveHint","last":"_exclusiveHint"}},
@@ -794,7 +794,7 @@
     "server/codex-bridge.js": [
       {"file":"server/codex/bridge-describe.js","about":"Turns a tool call of Codex into what the tile shows: a one-line summary, the files a patch touches, and how loudly it must be asked about.","names":["MAX_STR","MAX_DETAIL","MAX_FILES","str","firstLine","parsePatch","shown","allArgs","fitsOnCard","describeCodexTool","codexRisks","irreversible"]}
     ],
-    "server/linux-hotkey.js": [
+    "server/deck/linux-hotkey.js": [
       {"file":"server/deck/linux-hotkey-accelerator.js","about":"Turns a key combination into the accelerator GNOME understands, reads what gsettings prints about shortcuts, and writes the command the desktop runs on the shortcut.","names":["MODIFIERS","KEY_NAMES","toAccelerator","MOD_ALIASES","MOD_ORDER","normalizeAccel","bindingsFrom","parsePathArray","commandFor"]}
     ],
     "server/version-ping.js": [

@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
-const { createDeckSoundPlayer, playersFor, volumeOf, MAX_CLIPS } = require('../deck-sound-player.js');
+const { createDeckSoundPlayer, playersFor, volumeOf, MAX_CLIPS } = require('../deck/deck-sound-player.js');
 
 // A child process whose fate the test picks: 'play' keeps running (and says
 // "playing" on stdout when asked), 'missing' is ENOENT, 'fail' exits 3.

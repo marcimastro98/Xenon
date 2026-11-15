@@ -9,7 +9,7 @@ const LayersModel = require('../js/layers-model.js');
 const { actionSpec } = require('../js/deck-actions.js');
 const { allKeys, findById, findByTitle, label } = require('./deck-shortcut.js');
 const { pageIdFor, monitorFor } = require('./layers.js');
-const { stepsOf, fingerprint } = require('../deck-press.js');
+const { stepsOf, fingerprint } = require('../deck/deck-press.js');
 
 const CHOICES_MAX = 20;
 // A key's picture rides in the Add list, so only a small one does.

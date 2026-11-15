@@ -13,7 +13,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const {
   createLinuxHotkey, toAccelerator, normalizeAccel, bindingsFrom, parsePathArray, commandFor,
   KEY_PATH, SCHEMA,
-} = require(join(ROOT, 'linux-hotkey.js'));
+} = require(join(ROOT, 'deck/linux-hotkey.js'));
 
 test('a combo becomes a GNOME accelerator', () => {
   assert.equal(toAccelerator('alt+space'), '<Alt>space');

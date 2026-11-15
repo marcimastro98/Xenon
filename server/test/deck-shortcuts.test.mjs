@@ -8,7 +8,7 @@ import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
 const S = require('../js/deck-shortcuts.js');
-const { createDeckShortcutRunner } = require('../deck-shortcut-runner.js');
+const { createDeckShortcutRunner } = require('../deck/deck-shortcut-runner.js');
 const { triggerSteps } = require('../js/deck-actions.js');
 
 // ── combos ──────────────────────────────────────────────────────────────────

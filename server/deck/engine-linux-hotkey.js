@@ -10,7 +10,7 @@ const { PORT } = require('../engine/port.js');
 // entirely rather than pretended into it.
 // refreshHotkeyListener is in server/server.js.
 const _linuxHotkey = process.platform === 'linux'
-  ? require('../linux-hotkey.js').createLinuxHotkey({ port: PORT })
+  ? require('./linux-hotkey.js').createLinuxHotkey({ port: PORT })
   : null;
 
 module.exports = { _linuxHotkey };

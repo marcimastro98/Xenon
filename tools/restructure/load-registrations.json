@@ -100,8 +100,8 @@
       {
         "statement": "const deckShortcutRunner = createDeckShortcutRunner({",
         "callees": {
-          "server/deck-shortcut-runner.js": "1c63762596f3cc816f1744c385aacd903a21e8c5912e24d74bd5320493139a93",
-          "server/deck-sound-player.js": "be8b1234d8e187e0486c4483bca1197ececd93695efb6475a2ad9698218ccc6e",
+          "server/deck/deck-shortcut-runner.js": "97f6cd78a0c275749262b150c63698c4c64b5147ceca69b7e0b85339ddfe0254",
+          "server/deck/deck-sound-player.js": "be8b1234d8e187e0486c4483bca1197ececd93695efb6475a2ad9698218ccc6e",
           "server/js/deck-actions.js": "4b310901a9dbc206c0f44436b0a16db66ec53889accb4b362ffbee22114bb7a5"
         },
         "reason": "createDeckShortcutRunner and createDeckSoundPlayer make empty sets and maps and return their functions; readConfigs, steps, run, broadcast, serverFirst, resolveFile, ffplay and spawn are first called by press, pressKey, handOff or play; deck-actions.js is only asked for its triggerSteps function and is handed nothing."
@@ -109,7 +109,7 @@
       {
         "statement": "const deckPress = createDeckPress({",
         "callees": {
-          "server/deck-press.js": "6c960d9a7b39a01a6f536e27aeaf5736416c8c72517c94ad1da505c5bb0a228c"
+          "server/deck/deck-press.js": "c0ec2fc52578fa003d9dc1937322b645213280894a5466fd2c6b8087ad56a5e6"
         },
         "reason": "createDeckPress declares placed, read, press and accept and returns the last three; layers.get, layers.update, readConfigs and runner are first used when one of them is called."
       }

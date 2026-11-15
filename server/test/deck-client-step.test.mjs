@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
-const { createDeckShortcutRunner } = require('../deck-shortcut-runner.js');
+const { createDeckShortcutRunner } = require('../deck/deck-shortcut-runner.js');
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
 function runner(claimer) {

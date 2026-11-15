@@ -638,12 +638,9 @@
       "what": "Buttons that run actions, with the editor, shortcuts and the one gate every action passes.",
       "files": [
         "server/deck/**",
-        "server/deck-*.js",
         "server/deck-*.ps1",
         "server/deck-popup.html",
         "server/actions/registry*.js",
-        "server/linux-hotkey.js",
-        "server/altgr-keys-windows.js",
         "server/js/deck-editor/**",
         "server/js/deck*.js",
         "server/js/deck/**",

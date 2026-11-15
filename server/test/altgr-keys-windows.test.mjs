@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { typedKeys, altGrKeys, KEYS } = require('../altgr-keys-windows.js');
+const { typedKeys, altGrKeys, KEYS } = require('../deck/altgr-keys-windows.js');
 
 // Two layouts: the first types € on E with AltGr, the second has a dead key on 5.
 function fakeUser32(typed) {

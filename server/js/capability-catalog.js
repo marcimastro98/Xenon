@@ -939,7 +939,7 @@ const CAPABILITIES = [
     },
   },
   {
-    // Never a Store widget's: pressing runs whatever the key does (server/deck-press.js).
+    // Never a Store widget's: pressing runs whatever the key does (server/deck/deck-press.js).
     type: 'layerKey', group: 'xenon', hidden: true, labelKey: 'deck_act_layerKey',
     params: [
       { name: 'key', kind: 'text', maxLen: 80 },

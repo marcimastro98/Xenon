@@ -3,7 +3,7 @@
 // layer widget's instance is the key's id, and its look comes from GET /deck/press.
 // The button is ours, never a widget's, and only a real tap reaches POST /deck/press.
 //
-// The server decides what a tap does (server/deck-press.js): a key the person has
+// The server decides what a tap does (server/deck/deck-press.js): a key the person has
 // not agreed to, or one that changed since, answers key_changed and runs nothing.
 // The sheet then lists every step it would run; only the tap on Allow agrees, and
 // the agreement names what the sheet showed, so a key edited meanwhile is refused.

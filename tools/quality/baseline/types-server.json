@@ -89,7 +89,7 @@
     "server/codex-appserver.js TS2554": 1,
     "server/codex/link-hooks-edit.js TS2769": 1,
     "server/cross-site.js TS8032": 1,
-    "server/deck-shortcut-runner.js TS2810": 1,
+    "server/deck/deck-shortcut-runner.js TS2810": 1,
     "server/deck/open-external-path.js TS2769": 1,
     "server/device-battery/brands/compx.js TS2309": 1,
     "server/device-battery/brands/compx.js TS2339": 1,

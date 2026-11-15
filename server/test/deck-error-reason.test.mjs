@@ -57,9 +57,9 @@ const SERVER = engineSource()
   // What a paired phone may run (needs_pc, pc_only).
   + readFileSync(new URL('../remote-actions.js', import.meta.url), 'utf8')
   // A key run from its keyboard shortcut fails here with its own codes.
-  + readFileSync(new URL('../deck-shortcut-runner.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../deck/deck-shortcut-runner.js', import.meta.url), 'utf8')
   // …and a sound it plays on the PC itself, with its own two.
-  + readFileSync(new URL('../deck-sound-player.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../deck/deck-sound-player.js', import.meta.url), 'utf8')
   // The Vitals key passes on Bit's own refill answer (vitals_off, vital_off).
   + readFileSync(new URL('../vitals/vitals-ai-tools.js', import.meta.url), 'utf8')
   // A notification whose app cannot be started from it (not_launchable).

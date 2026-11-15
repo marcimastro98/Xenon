@@ -2,7 +2,7 @@
 // Key editor: the On the screen card (What it does tab). One button puts this key
 // on the screen as a small button that stays there. The person pressing it here is
 // their agreement to what the key does now, so it answers to the first tap; an edit
-// saved later asks again (server/deck-press.js). Never on a phone: the button is
+// saved later asks again (server/deck/deck-press.js). Never on a phone: the button is
 // pressed at the PC. window.DeckEditorPlace.
 (function () {
   const base = () => (typeof SERVER !== 'undefined' ? SERVER : '');

@@ -21,7 +21,7 @@
 //   soundPlayer              deck-sound-player.js (optional)
 //   serverFirst()            true when this PC shows no dashboard: sounds skip the offer
 const crypto = require('crypto');
-const S = require('./js/deck-shortcuts.js');
+const S = require('../js/deck-shortcuts.js');
 
 const MAX_STEPS = 16;
 const CLAIM_MS = 1500;

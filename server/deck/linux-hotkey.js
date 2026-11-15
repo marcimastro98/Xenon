@@ -67,7 +67,7 @@ const CONFLICT_SCHEMAS = [
 
 const {
   toAccelerator, normalizeAccel, bindingsFrom, parsePathArray, commandFor,
-} = require('./deck/linux-hotkey-accelerator.js');
+} = require('./linux-hotkey-accelerator.js');
 
 
 // ── runtime ─────────────────────────────────────────────────────────────────

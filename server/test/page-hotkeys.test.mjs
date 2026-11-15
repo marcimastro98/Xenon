@@ -13,7 +13,7 @@ import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
-import { createLinuxHotkey, keyPathFor, commandFor, KEY_PATH, KEY_ROOT, SCHEMA, CUSTOM_SCHEMA } from '../linux-hotkey.js';
+import { createLinuxHotkey, keyPathFor, commandFor, KEY_PATH, KEY_ROOT, SCHEMA, CUSTOM_SCHEMA } from '../deck/linux-hotkey.js';
 import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
