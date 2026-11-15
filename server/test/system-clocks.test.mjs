@@ -94,7 +94,8 @@ test('nvidia-smi keeps the model name last, on both platforms', () => {
     ['server/gpu.ps1', /--query-gpu=([a-z0-9_.,]+)/],
     ['server/linux-collectors.js', /--query-gpu=([a-z0-9_.,]+)/],
   ]) {
-    const m = read(file).match(re);
+    // An engine file is read with what was moved out of it put back, so the query is found wherever it lives.
+    const m = (file.endsWith('.js') ? engineSource(file) : read(file)).match(re);
     assert.ok(m, `${file}: no nvidia-smi query found`);
     const fields = m[1].split(',');
     assert.equal(fields[fields.length - 1], 'name', `${file}: name is no longer the last field`);
