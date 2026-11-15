@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const SRC = fs.readFileSync(new URL('../js/audio-feedback.js', import.meta.url), 'utf8');
+const SRC = fs.readFileSync(new URL('../js/ai/audio-feedback.js', import.meta.url), 'utf8');
 
 // audio-feedback.js against a fake Web Audio and hand-driven timers.
 function load({ webAudio = true } = {}) {

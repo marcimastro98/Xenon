@@ -1,5 +1,5 @@
 // Announcement channel, end to end (js/hub-messages.js) against DOM stubs, through
-// the real client (js/bit-messages.js) and the real inbox (bit-messages.js).
+// the real client (js/ai/bit-messages.js) and the real inbox (bit-messages.js).
 //
 // hub-match.js covers WHO matches; this covers what happens next. Every message
 // that matches is filed once, nothing opens on screen when it is, and what the
@@ -51,7 +51,7 @@ function dashboard({ messages, settings = {}, store = new Map(), file = inboxFil
   };
   const load = (rel) => { const n = Object.keys(g); new Function(...n, read(rel))(...n.map((k) => g[k])); };
 
-  load('js/bit-messages.js');
+  load('js/ai/bit-messages.js');
   load('js/hub-match.js'); g.HubMatch = window.HubMatch;
   window.XenonToast = { show: (o) => toasts.push(o) };
   load('js/hub-messages.js');

@@ -1,4 +1,4 @@
-// Bit's empty chat (js/bit-welcome.js): a hello for the time of day and three
+// Bit's empty chat (js/ai/bit-welcome.js): a hello for the time of day and three
 // starters that fit this PC, sent with one tap from any chat copy.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const W = require('../js/bit-welcome.js');
+const W = require('../js/ai/bit-welcome.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
@@ -58,7 +58,7 @@ test('voice ending on an empty chat brings the welcome back', () => {
     },
     _aiRenderWelcomeIfEmpty: () => { shown += 1; },
   };
-  vm.runInNewContext(read('../js/bit-welcome.js'), sandbox);
+  vm.runInNewContext(read('../js/ai/bit-welcome.js'), sandbox);
   wake();
   assert.equal(shown, 0, 'another class changing means nothing');
   classes.add('ai-voice-mode');
@@ -80,7 +80,7 @@ test('a tap on a starter sends its words through the shared session, from any co
     aiSendMessage: (text, voice) => sent.push([text, voice]),
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/bit-welcome.js'), ctx);
+  vm.runInNewContext(read('../js/ai/bit-welcome.js'), ctx);
   const starter = { dataset: { bitAsk: 'Che tempo fa domani?' } };
   listeners.click({ target: { closest: (sel) => (sel === '.bit-starter' ? starter : null) } });
   listeners.click({ target: { closest: () => null } });
@@ -98,7 +98,7 @@ test('the tour starter opens the tour here: nothing goes to the AI, no Sparks ar
     Onboarding: { start: () => { tours += 1; } },
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/bit-welcome.js'), ctx);
+  vm.runInNewContext(read('../js/ai/bit-welcome.js'), ctx);
   const starter = { dataset: { bitRun: 'tour' } };
   listeners.click({ target: { closest: (sel) => (sel === '.bit-starter' ? starter : null) } });
   assert.equal(tours, 1);
@@ -113,7 +113,7 @@ test('the welcome shows only in an empty, ready chat and leaves on the first mes
   const send = ai.slice(ai.indexOf('async function aiSendMessage'));
   assert.match(send.slice(0, 2000), /_aiDropWelcome\(\)/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('<script src="js/bit-welcome.js">') < html.indexOf('<script src="js/ai.js">'), 'loaded before ai.js');
+  assert.ok(html.indexOf('<script src="js/ai/bit-welcome.js">') < html.indexOf('<script src="js/ai.js">'), 'loaded before ai.js');
 });
 
 test('every word of the welcome is in all 11 languages', () => {
@@ -147,7 +147,7 @@ test('a language change rebuilds a shown welcome in the new words and leaves a t
     requestAnimationFrame() {},
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/bit-welcome.js'), ctx);
+  vm.runInNewContext(read('../js/ai/bit-welcome.js'), ctx);
   assert.equal(ctx.BitWelcome.refresh(), false, 'no welcome shown: nothing to do');
   assert.equal(mirrored, 0);
   let fresh = null;
@@ -184,7 +184,7 @@ function fitSandbox(logs) {
     requestAnimationFrame: (fn) => frames.push(fn),
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/bit-welcome.js'), ctx);
+  vm.runInNewContext(read('../js/ai/bit-welcome.js'), ctx);
   return { fit: ctx.BitWelcome.fit, frames };
 }
 
@@ -244,7 +244,7 @@ test('the welcome is fitted wherever it is drawn or copied', () => {
   const mirror = media.slice(media.indexOf('function mirrorChatCopies'), media.indexOf('function syncChatCopyPane'));
   assert.match(mirror, /if \(window\.BitWelcome\) BitWelcome\.fit\(\);/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('<script src="js/fit-row.js">') < html.indexOf('<script src="js/bit-welcome.js">'), 'FitRow is there first');
+  assert.ok(html.indexOf('<script src="js/fit-row.js">') < html.indexOf('<script src="js/ai/bit-welcome.js">'), 'FitRow is there first');
 });
 
 test('a provider that becomes ready shows the welcome, not an empty log', () => {

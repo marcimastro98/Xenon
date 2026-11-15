@@ -162,7 +162,7 @@ fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str,
             report_rects(app, label, url, None);
             false
         }
-        // Bit answering there in "widgets only" (server/js/screen-bit.js):
+        // Bit answering there in "widgets only" (server/js/ai/screen-bit.js):
         // the window lights the edges the way the dashboard does.
         "xenon-app" if alerts && url.path() == "ai-glow" => {
             let h = app.clone();

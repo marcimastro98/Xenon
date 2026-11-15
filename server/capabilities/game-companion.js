@@ -3,7 +3,7 @@
 // with the session time, the FPS and a look at the screen when the user asks.
 // On a dashboard it waits behind its pill; with "widgets only" there is no
 // pill over the game, so a Deck key, its keyboard shortcut or the voice opens
-// the card on the main screen (js/screen-companion.js). Opening costs nothing:
+// the card on the main screen (js/ai/screen-companion.js). Opening costs nothing:
 // the screen is only sent to the AI when the user taps "Analyze screen".
 //
 // deps.companion (injected):

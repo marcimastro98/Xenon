@@ -2,7 +2,7 @@
 // shows the spark and the Scintille left; a tap opens a small panel under the
 // head with the balance, the way to more, and the three creation models with
 // what a widget costs on each. The model is the same setting as Settings → Bit,
-// saved by js/ai-xenon-settings.js (the reasoning stays in Settings). Every copy
+// saved by js/ai/ai-xenon-settings.js (the reasoning stays in Settings). Every copy
 // of the chat tile has its own head, so the buttons are painted by attribute
 // and handled by one listener on the document.
 (function () {

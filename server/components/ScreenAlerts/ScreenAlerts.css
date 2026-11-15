@@ -82,7 +82,7 @@ html[data-screen-alerts] .call-overlay {
   html[data-screen-alerts] .call-overlay { width: min(780px, calc(100vw - 32px)); }
 }
 
-/* The Game Companion card (js/screen-companion.js), opened from a key or the
+/* The Game Companion card (js/ai/screen-companion.js), opened from a key or the
    voice: centred, as the game overlays people know put theirs, without the
    backdrop that dims the dashboard. The full-window layer lets clicks through
    so the pop-ups under it stay usable; only the card takes them. */

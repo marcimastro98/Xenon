@@ -1,4 +1,4 @@
-// What Bit said on its own, in the chat (js/bit-told.js), against a small DOM, and
+// What Bit said on its own, in the chat (js/ai/bit-told.js), against a small DOM, and
 // the way Bit opens a creation it told someone about (open_store_entry).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -47,7 +47,7 @@ function page({ messages = [], summary = '', store = new Map() } = {}) {
     XenonBitCard: { mediaFrame: (media, cls) => { if (!media) return null; const n = new Node('div'); n.className = cls; return n; } },
     BitMessages: { told: async () => messages, run: (m) => ran.push(m.id) },
   };
-  vm.runInNewContext(read('js/bit-told.js'), ctx);
+  vm.runInNewContext(read('js/ai/bit-told.js'), ctx);
   return { chat, ctx, ran, store, told: ctx.window.BitTold, click: (target) => listeners.click({ target }) };
 }
 

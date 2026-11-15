@@ -33,10 +33,10 @@ document.addEventListener('click', (e) => {
   if (btn && !btn.disabled && !btn.classList.contains('ai-undo-done')) _aiUndo(btn.dataset.undoId);
 });
 
-// What Bit said on its own (js/bit-told.js) does not make a chat a conversation.
+// What Bit said on its own (js/ai/bit-told.js) does not make a chat a conversation.
 const _aiTalkNodes = (chat) => chat.querySelectorAll(':scope > :not([data-bit-told])');
 
-// An empty chat shows Bit's welcome with three things to ask (js/bit-welcome.js).
+// An empty chat shows Bit's welcome with three things to ask (js/ai/bit-welcome.js).
 // Nothing to answer with: the chat tile shows its own card (media.js), so the
 // log stays empty here.
 function _aiRenderWelcomeIfEmpty() {

@@ -108,7 +108,7 @@
   }
 
   // Esc and Tab stay with the card. Not on the alerts window, which never takes
-  // the keyboard from the game (js/screen-companion.js).
+  // the keyboard from the game (js/ai/screen-companion.js).
   function holdKeys(ov) {
     if (!window.DialogFocus || window.ScreenCompanion) return;
     letGo = window.DialogFocus.hold(ov.querySelector('.gc-card'), { onEsc: closeOverlay });

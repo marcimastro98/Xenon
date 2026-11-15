@@ -1,5 +1,5 @@
 // The month's drops (js/catalog-drop.js) as Bit's messages, run against DOM stubs
-// with a clock the test moves, through the real client (js/bit-messages.js) and the
+// with a clock the test moves, through the real client (js/ai/bit-messages.js) and the
 // real inbox (bit-messages.js).
 //
 // The rules: the catalog is read once per session; every paid drop of the last
@@ -78,7 +78,7 @@ function dashboard({ hubSettings = {}, packages = [], file = inboxFile() } = {})
     clearTimeout() {},
   };
   const load = (src) => { const n = Object.keys(g); new Function(...n, src)(...n.map((k) => g[k])); };
-  load(read('js/bit-messages.js'));
+  load(read('js/ai/bit-messages.js'));
   load(limitedStockSource() + '\n' + read('js/catalog-drop.js'));
 
   const stored = () => {

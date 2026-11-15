@@ -1,4 +1,4 @@
-// Bit on the main screen in "widgets only" (js/screen-bit.js): the alerts
+// Bit on the main screen in "widgets only" (js/ai/screen-bit.js): the alerts
 // window puts in the dashboard's own voice panel on the first "Hey Xenon"
 // (markup cut from index.html by server/alerts/screen-alerts-page.js), and reloads a
 // minute after the talk to give the memory back.
@@ -11,10 +11,10 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const ScreenBit = require('../js/screen-bit.js');
+const ScreenBit = require('../js/ai/screen-bit.js');
 const { compose, BIT_MARK } = require('../alerts/screen-alerts-page.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/screen-bit.js');
+const SRC = read('../js/ai/screen-bit.js');
 const INDEX = read('../index.html');
 
 // shared/ is the packages/core junction (npm run link:shared).
@@ -25,7 +25,7 @@ test('Bit brings the dashboard\'s own files, in the dashboard\'s order, and no V
   const at = ScreenBit.SCRIPTS.map((f) => INDEX.indexOf(`src="${f}`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
-  assert.ok(!ScreenBit.SCRIPTS.includes('js/ai-live.js'));
+  assert.ok(!ScreenBit.SCRIPTS.includes('js/ai/ai-live.js'));
   assert.equal(ScreenBit.SCRIPTS.at(-3), 'js/ai.js');
   // The chat's confirm cards open here too: a command Bit proposes on the main screen.
   for (const f of ['js/dialog-focus.js', 'js/ai-deck-confirm.js']) assert.ok(ScreenBit.SCRIPTS.includes(f), f);

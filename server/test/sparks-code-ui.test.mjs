@@ -27,7 +27,7 @@ test('Settings: one box for both codes, each saved and removed through its own s
 });
 
 test('Bit: a Sparks code alone is enough to turn Xenon AI on', () => {
-  const ai = read('js/ai-xenon-settings.js');
+  const ai = read('js/ai/ai-xenon-settings.js');
   assert.match(ai, /const hasSparks = supporter \|\| wallet;/);
   assert.match(ai, /show\('xai-use', hasSparks\);/);
   assert.match(ai, /show\('xai-support', !hasSparks\);/);

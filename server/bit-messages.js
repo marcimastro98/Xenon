@@ -3,7 +3,7 @@
 // What Bit has to tell the person: an announcement from the hub, the month's
 // drops, the Sparks running low, an update for something from the Store, the
 // one-time asks. This is the inbox behind the
-// card in the corner (js/bit-messages.js), kept here and not in a page because
+// card in the corner (js/ai/bit-messages.js), kept here and not in a page because
 // "widgets only" has no dashboard and a phone has its own storage: a message read
 // on one screen must be gone from all of them, and the one-a-day limit has to be
 // one limit.

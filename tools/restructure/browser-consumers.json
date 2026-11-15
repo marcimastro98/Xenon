@@ -2,11 +2,11 @@
   "note": "Who names a split browser file in code and needs more than a tag in a page or the reader of the tests to keep working, and how each does. Read by tools/restructure/browser-consumers.mjs: a file that is named somewhere not listed here cannot be split. `keeps` lists declarations that stay in the file because the consumer reads them there.",
   "loadersNote": "Scripts that load other scripts themselves, when a page asks them to: no tag in a page names those files, so a split writes the new files into the list, next to the old one, and the checks read the list like a page (tools/restructure/browser-lists.mjs). `list` says how the list is read. \"exported\": the script hands SCRIPTS (and CSS) to Node, and the tool runs it to read them. \"written\": the script cannot run outside a page, so the list is read out of its text, under the name `written` gives, as `const NAME = Object.freeze([...])` holding addresses in single quotes and nothing else. Every script here loads its list in order and waits for each file before the next (its own unit test holds that), and a page of the page check asks it to (browser-check-pages.mjs, `holds`).",
   "loaders": {
-    "server/js/screen-bit.js": {
+    "server/js/ai/screen-bit.js": {
       "list": "exported",
       "how": "The voice panel of the screen: load() adds each stylesheet, then each script of SCRIPTS with a tag of its own and waits for it before the next."
     },
-    "server/js/screen-companion.js": {
+    "server/js/ai/screen-companion.js": {
       "list": "exported",
       "how": "The Game Companion card of the alerts window: open() adds the card's stylesheet and markup, then each script of SCRIPTS the voice panel has not loaded already, each after the one before it has run (server/test/screen-companion.test.mjs)."
     },
@@ -113,7 +113,7 @@
       "server/test/screen-companion.test.mjs": "Names the file as an address: the card's list must not hold it, and a stand-in page answers when that address is loaded. It never opens the file."
     },
     "server/components/AIPanel/AIPanel.css": {
-      "server/spotlight.html": "Names the sheet only in a comment of its own style block; the window gets the sheet from the list of the screen's voice panel (js/screen-bit.js), which the tool follows."
+      "server/spotlight.html": "Names the sheet only in a comment of its own style block; the window gets the sheet from the list of the screen's voice panel (js/ai/screen-bit.js), which the tool follows."
     },
     "server/js/deck.js": {
       "tools/modal-census/census.mjs": {

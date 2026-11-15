@@ -53,7 +53,7 @@ test('the server stores it, and a stale client save cannot un-dismiss it', () =>
 });
 
 // Filing interrupts nothing; the card waits through a voice session, the lock
-// screen, a game or a scene (js/bit-messages.js quiet()).
+// screen, a game or a scene (js/ai/bit-messages.js quiet()).
 test("it is filed as one of Bit's messages, never its own card on screen", () => {
   assert.doesNotMatch(CARD, /document\.body\.appendChild|getElementById\('share-nudge'\)/, 'no card of its own');
   const gate = CARD.slice(CARD.indexOf('async function maybeShow()'));

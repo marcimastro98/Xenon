@@ -214,7 +214,7 @@ pub fn glow(app: &AppHandle, url: &tauri::Url) {
 }
 
 /// The same from the on-screen alerts window, where Bit answers in "widgets
-/// only" (server/js/screen-bit.js). It names the screens setting, not the
+/// only" (server/js/ai/screen-bit.js). It names the screens setting, not the
 /// screens: only the main webview gets the display list. Plain thread.
 pub(super) fn glow_from_alerts(app: &AppHandle, url: &tauri::Url) {
     let Some(spec) = payload(url).as_deref().and_then(glow::parse_screens) else { return };

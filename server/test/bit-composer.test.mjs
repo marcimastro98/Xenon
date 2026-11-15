@@ -1,4 +1,4 @@
-// Bit's composer has one main button (js/bit-composer.js + AIPanel.css): it
+// Bit's composer has one main button (js/ai/bit-composer.js + AIPanel.css): it
 // dictates while there is nothing to send, sends once there is, stops a reply.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,7 +6,7 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { hasDraft } = require('../js/bit-composer.js');
+const { hasDraft } = require('../js/ai/bit-composer.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('a draft is text that is not only spaces, or an attachment waiting', () => {

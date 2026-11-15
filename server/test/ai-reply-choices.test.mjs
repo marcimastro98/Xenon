@@ -116,7 +116,7 @@ test('the keys of the question card', () => {
 
 test('the question card loads on every surface, says its words in all 11 languages, and Bit knows the format', () => {
   assert.match(read('../index.html'), /<script src="js\/ai-ask-card\.js"><\/script>/);
-  assert.match(read('../js/screen-bit.js'), /'js\/ai-ask-card\.js'/);
+  assert.match(read('../js/ai/screen-bit.js'), /'js\/ai-ask-card\.js'/);
   const i18n = appStringsSource();
   for (const key of ['ai_ask_label', 'ai_ask_own', 'ai_ask_leave', 'ai_ask_pick']) {
     assert.equal(i18n.match(new RegExp(`\\b${key}:`, 'g'))?.length, 11, key);

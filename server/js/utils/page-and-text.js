@@ -14,7 +14,7 @@ function isLayerPage() {
 }
 
 // One screen of the dashboard alone (Settings, the Store, the gallery) in the
-// Xenon menu's own window (`/?panel=sheet`, js/sheet-page.js). It stays as quiet
+// Xenon menu's own window (`/?panel=sheet`, js/ai/sheet-page.js). It stays as quiet
 // as a layer page, but the person is using it: what they do there saves, and
 // what answers them (a toast, the gallery) shows.
 function isSheetPage() {

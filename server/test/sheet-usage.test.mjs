@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { hiddenCategories, navState, leavesActive } = require('../js/sheet-usage.js');
-const SheetChat = require('../js/sheet-chat.js');
+const { hiddenCategories, navState, leavesActive } = require('../js/ai/sheet-usage.js');
+const SheetChat = require('../js/ai/sheet-chat.js');
 
 const onScreen = (...tiles) => ({
   usageMode: 'widgets',

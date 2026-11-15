@@ -1,7 +1,7 @@
 'use strict';
 // How Bit says something: a card at the top that steps aside into the clock and
 // waits there, and a stage over the whole screen for the big announcements. This file only draws;
-// what to show and when is js/bit-messages.js. Every string comes from a feed or a
+// what to show and when is js/ai/bit-messages.js. Every string comes from a feed or a
 // catalog, so all of it goes through textContent.
 (function () {
   const FOLD_MS = 20000;    // an untouched card steps aside to Bit's face

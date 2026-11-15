@@ -1,5 +1,5 @@
 // What happens after someone buys Sparks (js/xenon-credits.js,
-// js/ai-xenon-settings.js, ai-xenon-credits.js). The hub books a purchase within
+// js/ai/ai-xenon-settings.js, ai-xenon-credits.js). The hub books a purchase within
 // a minute; these rules make the app show it without a restart:
 //  - coming back to the dashboard or into Bit's chat reads the balance again,
 //    at most every 10 seconds;
@@ -269,7 +269,7 @@ test('Settings shows the state of the last purchase', () => {
     widgetsFor: (c) => Math.floor(c / 80), widgetCost: () => 80,
     onChange: (fn) => { onChange = fn; }, refresh: async () => {},
   };
-  vm.runInNewContext(read('../js/ai-xenon-settings.js'), ctx);
+  vm.runInNewContext(read('../js/ai/ai-xenon-settings.js'), ctx);
   onChange();
   assert.equal(ids['xai-buy-status'].hidden, true, 'nothing bought from here yet');
 

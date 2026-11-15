@@ -27,14 +27,14 @@
   const SIMPLE = ['update', 'mixer', 'chat', 'dashboard', 'sparks', 'supporters', 'import', 'whatsnew'];
   // What the Store may open on: the scenes, what is meant for the screen, or what you have.
   const STORE_KINDS = ['ambient', '__screen', '__installed'];
-  // One creation of the Store, the button of a message from Bit (js/bit-messages.js).
+  // One creation of the Store, the button of a message from Bit (js/ai/bit-messages.js).
   const ENTRY_ID = /^[a-z0-9][a-z0-9_-]{0,60}$/;
   // Settings categories the shell may ask for: the ones the Xenon menu opens
   // (xenon-menu.js `settings:<cat>`) and a tile's Set up button on a widget on
   // the screen (utils/page-and-text.js openSettingsCategory), mirrored by SETTINGS_CATS in spec.rs.
   const SETTINGS_CATS = ['ambient', 'appearance', 'capture', 'general', 'notifications',
     'ai', 'smarthome', 'spotify', 'streaming', 'unifi', 'slideshow'];
-  // The screens that open alone in the Xenon menu's window (js/sheet-page.js).
+  // The screens that open alone in the Xenon menu's window (js/ai/sheet-page.js).
   const SHEET_SCREENS = ['settings', 'store', 'sparks', 'gallery', 'chat', 'mixer', 'macro', 'import', 'whatsnew'];
   const KEY_ID = /^[\w-]{1,64}$/;
   const ASK_KEY = 'xenon.deckAsk';

@@ -3,7 +3,7 @@
 const { pcmToWav } = require('../wav/pcm-to-wav.js');
 
 // Notes as [Hz, start s, decay?]. wake/close are the timer chimes; the others are
-// the toast cues of js/audio-feedback.js NOTIFY_CUES, one cycle of its
+// the toast cues of js/ai/audio-feedback.js NOTIFY_CUES, one cycle of its
 // RING_PATTERN and the calendar alarm of playReminderSound, played here for the
 // on-screen alerts window, which never gets the click a page needs before it may
 // play audio.

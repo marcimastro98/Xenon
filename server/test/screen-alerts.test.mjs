@@ -240,7 +240,7 @@ test('in a browser tab there is no shell to signal', async () => {
 test('the page loads what it uses, in order', () => {
   const html = read('../screen-alerts.html');
   const order = ['js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/toast.js',
-    'js/alert-toasts.js', 'js/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/screen-bit.js', 'js/screen-alerts.js'];
+    'js/alert-toasts.js', 'js/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/ai/screen-bit.js', 'js/screen-alerts.js'];
   const at = order.map((f) => html.indexOf(`src="${f}"`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
@@ -325,7 +325,7 @@ test('Bit talking is a card too, and the voice runs in the transparent ambient l
 });
 
 test('a Deck shortcut\'s "talk to Xenon AI" step is claimed here and wakes Bit; the others are left alone', async () => {
-  const ScreenBit = require('../js/screen-bit.js');
+  const ScreenBit = require('../js/ai/screen-bit.js');
   const b = await boot({ settings: { usageMode: 'widgets' } });
   let woke = 0;
   b.window.ScreenBit = { claims: ScreenBit.claims, wake: () => { woke += 1; } };

@@ -106,7 +106,7 @@ test('the check files one list, leaves out what updates by itself, and takes bac
 });
 
 test('its button opens the Installed tab, on the dashboard and on the screen', () => {
-  const src = read('../js/bit-messages.js');
+  const src = read('../js/ai/bit-messages.js');
   assert.match(src, /ON_SCREEN = \{[\s\S]*?installed: \(\) => sheet\(\{ open: 'store', kind: '__installed' \}\)/);
   assert.match(src, /ON_DASHBOARD = \{[\s\S]*?installed: \(\) => window\.CommunityGallery && window\.CommunityGallery\.open\('__installed'\)/);
 });
@@ -115,7 +115,7 @@ test('the page loads it after the messages and the Store, and the old daily toas
   const html = read('../index.html');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
   assert.ok(at('store-update-mail.js') > at('community-gallery.js') && at('community-gallery.js') > 0);
-  assert.ok(at('store-update-mail.js') > at('bit-messages.js') && at('bit-messages.js') > 0);
+  assert.ok(at('store-update-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
   assert.doesNotMatch(read('../js/settings.js'), /checkSdkUpdatesDaily/);
 });
 

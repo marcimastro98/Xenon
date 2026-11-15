@@ -21,7 +21,7 @@
 //     showing; before that it is a default layout and the card would be
 //     asking a stranger to advertise.
 //   * Never over a voice session, the lock screen, a game or an Ambient scene.
-//     It is one of Bit's messages (js/bit-messages.js): a card in the corner that
+//     It is one of Bit's messages (js/ai/bit-messages.js): a card in the corner that
 //     covers nothing, one a day, and only when Xenon is not being used for something.
 //
 // It is filed before the supporter ask could be: 14 days is under the ask's

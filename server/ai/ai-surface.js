@@ -1,11 +1,11 @@
 'use strict';
 
 // Where Xenon AI is answering from. 'screen' is Bit on the main screen in
-// "widgets only" (js/screen-bit.js): there is no dashboard there, so a client
+// "widgets only" (js/ai/screen-bit.js): there is no dashboard there, so a client
 // action that only a dashboard can carry out (open Settings, change the theme,
 // turn a page, compose with Genesis...) would do nothing while the model said
 // "done". Those answer `needs_dashboard` instead, and the model says so.
-// 'sheet' is the chat in the Xenon menu's window (js/sheet-chat.js): the dashboard's
+// 'sheet' is the chat in the Xenon menu's window (js/ai/sheet-chat.js): the dashboard's
 // code runs there, so what changes settings works, what needs its tiles does not.
 
 // Client actions that still mean something on the screen surface: closing the

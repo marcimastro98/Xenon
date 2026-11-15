@@ -122,7 +122,7 @@ test('create_widget places the pictures before it builds the files, and every ch
 });
 
 test('the chat sends one picture per attached image, in order, leaving out documents and screen mode', async () => {
-  const C = require('../js/ai-pictures.js');
+  const C = require('../js/ai/ai-pictures.js');
   const big = { mimeType: 'image/png', data: 'A'.repeat(C.AI_PICTURE_MAX_CHARS) };
   const got = await C.aiPicturesForSend([
     { mimeType: 'application/pdf', data: 'JVBERi0=' },

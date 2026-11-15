@@ -279,7 +279,7 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
   assert.match(html, /id="xai-shop" onclick="XenonCredits\.openShop\(\)"/);
   assert.match(read('../js/ai-bit-chat.js'), /go\.addEventListener\('click', \(\) => XenonCredits\.openShop\(\)\)/);
   assert.match(read('../js/sparks-mail.js'), /action: \{ type: 'sparks'/);
-  assert.match(read('../js/bit-messages.js'), /sparks: \(\) => window\.XenonCredits && window\.XenonCredits\.openShop\(\)/);
+  assert.match(read('../js/ai/bit-messages.js'), /sparks: \(\) => window\.XenonCredits && window\.XenonCredits\.openShop\(\)/);
   const share = read('../js/preset-share.js');
   assert.match(share, /close\(\);\s*window\.XenonCredits\.openShop\(\);/);
   assert.ok(!/buyMore\.href/.test(share), 'the unlock window no longer jumps to the shop page');

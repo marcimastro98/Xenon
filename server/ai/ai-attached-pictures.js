@@ -4,7 +4,7 @@
 // assistant creates. The model sees each picture but cannot copy its bytes, so
 // it writes "attached:1" (2, 3, 4 in the order attached) where an image goes;
 // the creation tools swap that for the picture before their usual checks run.
-// The chat fits each picture to PICTURE_MAX_CHARS first (js/ai-pictures.js),
+// The chat fits each picture to PICTURE_MAX_CHARS first (js/ai/ai-pictures.js),
 // keeping a moving one moving, so it fits every slot that takes an image (the
 // background asset cap is the smallest).
 

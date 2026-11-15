@@ -64,7 +64,7 @@ test('the page loads it after the messages and the credits', () => {
   const html = read('../index.html');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
   assert.ok(at('sparks-mail.js') > at('xenon-credits.js') && at('xenon-credits.js') > 0);
-  assert.ok(at('sparks-mail.js') > at('bit-messages.js') && at('bit-messages.js') > 0);
+  assert.ok(at('sparks-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
 });
 
 test('its lines are in all 11 languages, call Scintille Xenon\'s credits, with no dash', () => {

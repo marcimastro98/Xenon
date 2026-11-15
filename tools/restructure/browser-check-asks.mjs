@@ -30,7 +30,7 @@ export function editorStarted() {
   });
 }
 
-// The Game Companion card of the alerts window (js/screen-companion.js): the window loads the card's scripts the
+// The Game Companion card of the alerts window (js/ai/screen-companion.js): the window loads the card's scripts the
 // first time a key, its shortcut or the voice opens it. Opened here the way the engine's message does, with a game
 // that is not running. Whether the card then shows follows the settings of the copy; its scripts are loaded either way.
 export function openCompanion() {

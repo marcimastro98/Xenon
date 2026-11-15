@@ -1,4 +1,4 @@
-// Xenon AI credits in the app (js/xenon-credits.js, js/ai-xenon-settings.js)
+// Xenon AI credits in the app (js/xenon-credits.js, js/ai/ai-xenon-settings.js)
 // and the Settings → Xenon AI page they fill.
 //
 // The rules these tests hold:
@@ -184,7 +184,7 @@ test('Settings → Xenon AI is plain rows: no hero card, no pricing table, no ol
   const css = read('../components/SettingsModal/SettingsModal.css');
   assert.ok(!/\.xai-hero|\.is-best|\.xai-pack-n\b/.test(css), 'the card and pricing-table styles are gone');
 
-  const js = read('../js/ai-xenon-settings.js');
+  const js = read('../js/ai/ai-xenon-settings.js');
   assert.ok(!/packList/.test(js), 'Settings sells nothing itself: the packs are in the Store');
   assert.ok(!/innerHTML/.test(js), 'text goes in as textContent');
 });
@@ -455,7 +455,7 @@ test('Settings says what the balance makes, and when the included Sparks come ba
     state: { status: 'ok', balance: 376, included: 0, monthly: 300, topup: 376, email: '' },
     packList: () => ({ children: [] }), onChange: (fn) => { onChange = fn; }, refresh: async () => {},
   };
-  vm.runInNewContext(read('../js/ai-xenon-settings.js'), ctx);
+  vm.runInNewContext(read('../js/ai/ai-xenon-settings.js'), ctx);
   onChange();
   assert.equal(ids['settings-xenon-split'].textContent, '376|4|Sonnet');
   assert.equal(ids['xai-included'].hidden, false);

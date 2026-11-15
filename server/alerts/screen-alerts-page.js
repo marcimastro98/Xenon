@@ -1,8 +1,8 @@
 'use strict';
 
 // The on-screen alerts window of "widgets only" (screen-alerts.html). Bit
-// answers there too (js/screen-bit.js), with the dashboard's own voice panel,
-// and the Game Companion card opens there (js/screen-companion.js): both are
+// answers there too (js/ai/screen-bit.js), with the dashboard's own voice panel,
+// and the Game Companion card opens there (js/ai/screen-companion.js): both are
 // cut from index.html here, so the two never drift apart.
 const { sliceTile } = require('../layer-page');
 

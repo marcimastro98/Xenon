@@ -115,7 +115,7 @@ test('it never interrupts a voice session, the lock screen, a game or a scene', 
   }
   assert.match(body, /catch \{ return true; \}/, 'if it cannot tell, it does not interrupt');
   // The ask itself is one of Bit's messages, which waits through the same moments
-  // (js/bit-messages.js quiet()).
+  // (js/ai/bit-messages.js quiet()).
   assert.doesNotMatch(CARD, /document\.body\.appendChild|getElementById\('support-ask'\)/, 'no card of its own');
   assert.match(CARD, /window\.XenonSupportAsk = \{[^}]*busyRightNow/, 'kept for the December appeal');
 });

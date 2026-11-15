@@ -18,7 +18,7 @@
 //   * Never to somebody who already supports the project. If a supporter pass is
 //     saved on this machine, this never appears at all.
 //   * Never over a voice session, the lock screen, a game or an Ambient scene.
-//     It is one of Bit's messages (js/bit-messages.js): a card in the corner that
+//     It is one of Bit's messages (js/ai/bit-messages.js): a card in the corner that
 //     covers nothing, one a day, and only when Xenon is not being USED for
 //     something. busyRightNow() stays exported for the December appeal.
 //

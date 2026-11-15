@@ -462,7 +462,7 @@ test('the server routes the provider, keeps the time out of the system text, and
   const html = read('../index.html');
   assert.match(html, /id="settings-xenon-effort"[^>]*onchange="XenonCreditsSettings\.onEffortSelect\(this\.value\)"/);
   assert.ok(html.indexOf('settings-xenon-model') < html.indexOf('settings-xenon-effort'));
-  const ui = read('../js/ai-xenon-settings.js');
+  const ui = read('../js/ai/ai-xenon-settings.js');
   assert.match(ui, /fillSelect\('settings-xenon-effort', EFFORTS, 'settings_xenon_effort_', currentEffort\(\)\)/);
   assert.match(ui, /hubSettings = normalizeSettings\(\{ \.\.\.hubSettings, xenonEffort: value \}\);\n\s*saveHubSettings\(\);/);
   const i18n = appStringsSource();

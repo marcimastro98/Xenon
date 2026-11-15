@@ -57,7 +57,7 @@ function sheetPage({ settingsHidden = true, overlays = [], section = 'now' } = {
     MutationObserver: class { observe() {} },
     Object,
   };
-  vm.runInNewContext(read('../js/sheet-page.js'), ctx);
+  vm.runInNewContext(read('../js/ai/sheet-page.js'), ctx);
   const press = (key = 'Escape', extra = {}) => {
     const e = { key, defaultPrevented: false, ...extra };
     listeners.keydown.forEach((f) => f(e));
@@ -109,7 +109,7 @@ test('the server opens a sheet only where a shell draws the menu, and forgets it
 });
 
 test("What's New in the menu window: the stage counts as the screen, and closing it goes back to the menu", () => {
-  assert.match(read('../js/sheet-page.js'), /const showing = .*.wn-stage/);
+  assert.match(read('../js/ai/sheet-page.js'), /const showing = .*.wn-stage/);
   const m = menu().m;
   assert.equal(m.showSheet({ open: 'whatsnew' }), 'screen');
   assert.deepEqual(m.get().sheet, { open: 'whatsnew' });
@@ -168,8 +168,8 @@ test('the pages are wired: the menu goes to a sheet in place, and the dashboard 
   };
   assert.ok(at(menuHtml, 'dashboard-open.js') < at(menuHtml, 'screen-menu-page.js'));
   const index = read('../index.html');
-  assert.ok(at(index, 'dashboard-open.js') < at(index, 'sheet-page.js'));
-  assert.ok(at(index, 'sheet-page.js') < at(index, 'main.js'));
+  assert.ok(at(index, 'dashboard-open.js') < at(index, 'ai/sheet-page.js'));
+  assert.ok(at(index, 'ai/sheet-page.js') < at(index, 'main.js'));
   assert.match(index, /components\/SheetPage\/SheetPage\.css/);
   assert.match(read('../js/main.js'), /VALID_PANELS = \[.*'sheet'\]/);
   assert.match(read('../js/main.js'), /XenonSheet\.onMenu/);

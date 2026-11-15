@@ -1,7 +1,7 @@
 'use strict';
 
 // Which Settings categories someone with no dashboard sees when Settings opens in
-// the Xenon menu's window (js/sheet-page.js). Pure, so it can be tested alone.
+// the Xenon menu's window (js/ai/sheet-page.js). Pure, so it can be tested alone.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;

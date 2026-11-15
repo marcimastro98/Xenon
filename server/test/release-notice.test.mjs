@@ -294,7 +294,7 @@ test('the menu drawn on the stage has the sections of the real menu', () => {
 });
 
 test('a WebKit without Web Audio still loads the page, in silence', () => {
-  const source = readFileSync(new URL('../js/audio-feedback.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../js/ai/audio-feedback.js', import.meta.url), 'utf8');
   const window = { addEventListener() {} };
   const context = vm.createContext({ window, document: { addEventListener() {} }, localStorage: { getItem: () => null }, console });
   assert.doesNotThrow(() => vm.runInContext(source, context));

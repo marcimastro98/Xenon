@@ -74,7 +74,7 @@
     label: el.classList.contains('settings-nav-label'), cat: el.dataset.settingsCat || '', active: el.classList.contains('active'),
   });
 
-  // Someone with no dashboard sees the settings that apply to them (js/sheet-usage.js).
+  // Someone with no dashboard sees the settings that apply to them (js/ai/sheet-usage.js).
   function applyUsage() {
     const nav = document.getElementById('settings-nav-scroll');
     if (!nav) return;

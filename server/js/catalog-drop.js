@@ -1,5 +1,5 @@
 'use strict';
-// The month's drops, as Bit's messages (js/bit-messages.js). Each PAID creation (a
+// The month's drops, as Bit's messages (js/ai/bit-messages.js). Each PAID creation (a
 // Supporters pack or an available Limited edition) published in the last 30 days
 // that this user does not already have becomes one message, once, and takes its
 // turn: at most one a day, when nothing is going on. Publish A and A arrives;

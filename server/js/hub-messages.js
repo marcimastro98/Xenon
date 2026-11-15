@@ -1,6 +1,6 @@
 'use strict';
 // Hub messages: the app's side of the announcement channel, filed as Bit's
-// messages (js/bit-messages.js). It runs on the dashboard and in the alerts window
+// messages (js/ai/bit-messages.js). It runs on the dashboard and in the alerts window
 // of "widgets only", the two places that show them.
 //
 // The server proxies a static feed (server/store-catalog/community-messages.js) that every

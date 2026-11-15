@@ -93,7 +93,7 @@ test('closing it stops Bit and leaves nothing behind', () => {
 test('while it is up the top centre is its own', () => {
   const css = read('components', 'BitMessage', 'BitMessage.css');
   assert.match(css, /body:has\(> \.bm-ask\) > :is\(\.bm-card:not\(\.bm-ask, \.is-face\), \.rn-corner\) \{ display: none; \}/);
-  assert.match(read('js', 'bit-messages.js'), /WAIT_FOR = '[^']*\.bm-ask'/, 'no new message opens under it');
+  assert.match(read('js', 'ai/bit-messages.js'), /WAIT_FOR = '[^']*\.bm-ask'/, 'no new message opens under it');
   assert.match(read('js', 'toast.js'), /CENTRE_TAKEN = '[^']*\.bm-card:not\(\.is-face\)/, 'notifications go beside it');
 });
 

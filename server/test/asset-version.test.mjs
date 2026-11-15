@@ -9,7 +9,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const assets = require('../asset-version.js');
 const SERVER = engineSource();
-const SCREEN_BIT = fs.readFileSync(new URL('../js/screen-bit.js', import.meta.url), 'utf8');
+const SCREEN_BIT = fs.readFileSync(new URL('../js/ai/screen-bit.js', import.meta.url), 'utf8');
 
 function site(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-assets-'));

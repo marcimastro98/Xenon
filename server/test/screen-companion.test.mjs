@@ -1,5 +1,5 @@
 // The Game Companion card on the main screen in "widgets only"
-// (js/screen-companion.js): it loads on the first open, in the on-screen alerts
+// (js/ai/screen-companion.js): it loads on the first open, in the on-screen alerts
 // window, with the dashboard's own card; the typed question becomes "Ask out
 // loud" (this window never takes the keyboard) and a minute after the card
 // closes the page reloads to give the memory back.
@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const ScreenCompanion = require('../js/screen-companion.js');
+const ScreenCompanion = require('../js/ai/screen-companion.js');
 const { compose, COMPANION_MARK, BIT_MARK } = require('../alerts/screen-alerts-page.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const INDEX = read('../index.html');
@@ -45,7 +45,7 @@ test('the page carries the card cut from index.html, next to Bit\'s panel; a "$"
   assert.match(compose(`<t>${COMPANION_MARK}</t>`, dollar), /\$&\$1 price/);
   assert.equal(compose(`<t>${COMPANION_MARK}</t>`, ''), '<t></t>');
   const html = read('../screen-alerts.html');
-  assert.ok(html.indexOf('js/screen-bit.js') < html.indexOf('js/screen-companion.js'), 'ScreenBit first: its loader');
+  assert.ok(html.indexOf('js/ai/screen-bit.js') < html.indexOf('js/ai/screen-companion.js'), 'ScreenBit first: its loader');
   assert.match(html, /<template id="screen-companion-markup"><!-- companion markup --><\/template>/);
 });
 
@@ -150,8 +150,8 @@ function boot({ markup = true, busy = false, shows = true } = {}) {
   ctx.globalThis = ctx;
   window.document = document;
   vm.createContext(ctx);
-  vm.runInContext(read('../js/screen-bit.js').replace(UMD, 'window'), ctx);
-  vm.runInContext(read('../js/screen-companion.js').replace(UMD, 'window'), ctx);
+  vm.runInContext(read('../js/ai/screen-bit.js').replace(UMD, 'window'), ctx);
+  vm.runInContext(read('../js/ai/screen-companion.js').replace(UMD, 'window'), ctx);
   // The MutationObserver on #gc-overlay fires on `hidden`; the test drives it.
   const setHidden = (h) => { overlay.hidden = h; observers.forEach((o) => o.fn()); };
   const runTimers = () => { const due = timers.splice(0); due.forEach((fn) => fn && fn()); };

@@ -1,4 +1,4 @@
-// The balance in Bit's chat head and the panel it opens (js/bit-chat-model.js).
+// The balance in Bit's chat head and the panel it opens (js/ai/bit-chat-model.js).
 // The rules these tests hold:
 //  - the button shows only on the Scintille, with the spark and what is left;
 //  - a tap opens the panel under that tile's head: the balance, Ricarica (the
@@ -94,7 +94,7 @@ function boot({ provider = 'xenon', model = 'sonnet', balance = 377 } = {}) {
     onModelSelect: (v) => { calls.push(['model', v]); hub.xenonModel = v; },
     renderModels: () => calls.push(['renderModels']),
   };
-  vm.runInNewContext(read('../js/bit-chat-model.js'), ctx);
+  vm.runInNewContext(read('../js/ai/bit-chat-model.js'), ctx);
   const click = (target) => listeners.click({ target });
   const key = (k) => { const e = { key: k, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }; listeners.keydown(e); return e; };
   return { B: ctx.BitChatModel, panes, hub, calls, click, key };
@@ -198,7 +198,7 @@ test('the head carries the back arrow, the button and the panel, in every chat c
   assert.doesNotMatch(head, /data-xenon-credits/, 'one balance in the head, not two');
   assert.match(head, /data-bit-model-panel hidden/);
   assert.doesNotMatch(head.slice(head.indexOf('data-bit-model ')), / id="/, 'no ids: the tile is cloned');
-  assert.ok(html.indexOf('<script src="js/bit-chat-model.js">') > html.indexOf('<script src="js/ai-xenon-settings.js">'));
+  assert.ok(html.indexOf('<script src="js/ai/bit-chat-model.js">') > html.indexOf('<script src="js/ai/ai-xenon-settings.js">'));
   assert.match(read('../js/xenon-credits.js'), /function renderChips\(\) \{[^}]*BitChatModel\.paint\(\)/);
   const i18n = appStringsSource();
   const apply = i18n.slice(i18n.indexOf('function applyTranslations()'), i18n.indexOf('function setLang('));

@@ -117,7 +117,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         // exist this turn — it injects them into the prompt so Xenon can switch
         // by exact name via the switch_deck_profile client action.
         deckProfiles: (window.Deck && window.Deck.listProfiles) ? window.Deck.listProfiles() : [],
-        // Bit on the main screen with no dashboard (js/screen-bit.js): the server
+        // Bit on the main screen with no dashboard (js/ai/screen-bit.js): the server
         // answers the dashboard-only actions with needs_dashboard (ai-surface.js).
         ...(window.AiSurface === 'screen' ? { surface: 'screen' } : {}),
         // Opt-in advanced features: the server only declares the extra tools

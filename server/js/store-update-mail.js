@@ -5,7 +5,7 @@
 // What the person installed from the Store falls behind when a new version is
 // published. The Store says so (the Installed tab, the count on its buttons and
 // in the Xenon menu), but only to someone who looks. This files one of Bit's
-// messages (js/bit-messages.js) naming the update, with a button to the
+// messages (js/ai/bit-messages.js) naming the update, with a button to the
 // Installed tab, where every update has its key. It replaces a toast that came
 // and went once a day.
 //

@@ -64,7 +64,7 @@ pub fn dashboard_page(path: &str, open: Option<&str>, cat: Option<&str>, menu: b
 }
 
 /// What Settings reads about the shell to show the right rows when it opens in
-/// the Xenon menu's window (js/sheet-page.js). Facts only: the switches of the
+/// the Xenon menu's window (js/ai/sheet-page.js). Facts only: the switches of the
 /// main window (see-through, display, zoom) stay out, because this window takes
 /// none of their signals.
 const MENU_CAPS: [&str; 12] = [

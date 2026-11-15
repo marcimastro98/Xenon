@@ -1,4 +1,4 @@
-/* One screen of the dashboard alone in the Xenon menu's window (js/sheet-page.js):
+/* One screen of the dashboard alone in the Xenon menu's window (js/ai/sheet-page.js):
    no dashboard behind it, and the screen fills the window instead of floating. */
 body[data-panel="sheet"] { background: rgb(var(--panel-rgb, 17, 19, 20)); }
 
@@ -60,7 +60,7 @@ body[data-panel="sheet"] .deck-mix-apps { max-width: 720px; }
 body[data-panel="sheet"] #settings-overlay .settings-row:has([onclick="openXenonMenu()"]),
 body[data-panel="sheet"] #settings-overlay .settings-tutorial-group { display: none; }
 
-/* What only the dashboard has, for who has no dashboard (js/sheet-usage.js). The
+/* What only the dashboard has, for who has no dashboard (js/ai/sheet-usage.js). The
    category in use stays: a tile's Set up button or a search result can lead to it. */
 body[data-panel="sheet"] #settings-overlay .sheet-off:not(.active) { display: none; }
 

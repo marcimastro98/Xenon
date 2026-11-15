@@ -2,7 +2,7 @@
 
 // The chat alone in the Xenon menu's window (`/?panel=sheet&open=chat`). It is the
 // dashboard's chat, not a copy: the pane leaves its hidden tile for a full-window
-// sheet, as on a phone (js/bit-chat-full.js), so Settings and the Store open over
+// sheet, as on a phone (js/ai/bit-chat-full.js), so Settings and the Store open over
 // it and Bit's voice overlay opens over those; when voice ends the chat is there.
 // A menu section and back reload the page, so the talk is kept for this window.
 (function (root) {

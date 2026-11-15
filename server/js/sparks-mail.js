@@ -5,7 +5,7 @@
 // The chat already offers the packs under the reply that spends the last of
 // them (ai-bit-chat.js buyRow). Sparks also go where the chat is not open: a
 // creation from the Maker, a voice turn, a reply read on another screen. This
-// files one of Bit's messages for that (js/bit-messages.js).
+// files one of Bit's messages for that (js/ai/bit-messages.js).
 //
 //   * Only on the Scintille provider, with a balance read from the hub.
 //   * One message per level per month (ids carry the month): the included ones

@@ -14,6 +14,23 @@
     {"from":"server/js/disk-intelligence.js","to":"server/js/disk/disk-intelligence.js"},
     {"from":"server/js/mic.js","to":"server/js/audio/mic.js"},
     {"from":"server/js/picker.js","to":"server/js/audio/picker.js"},
-    {"from":"server/js/wavelink-widget.js","to":"server/js/audio/wavelink-widget.js"}
+    {"from":"server/js/wavelink-widget.js","to":"server/js/audio/wavelink-widget.js"},
+    {"from":"server/js/ai-live.js","to":"server/js/ai/ai-live.js"},
+    {"from":"server/js/ai-local-server-settings.js","to":"server/js/ai/ai-local-server-settings.js"},
+    {"from":"server/js/ai-pictures.js","to":"server/js/ai/ai-pictures.js"},
+    {"from":"server/js/ai-xenon-settings.js","to":"server/js/ai/ai-xenon-settings.js"},
+    {"from":"server/js/audio-feedback.js","to":"server/js/ai/audio-feedback.js"},
+    {"from":"server/js/bit-chat-full.js","to":"server/js/ai/bit-chat-full.js"},
+    {"from":"server/js/bit-chat-model.js","to":"server/js/ai/bit-chat-model.js"},
+    {"from":"server/js/bit-composer.js","to":"server/js/ai/bit-composer.js"},
+    {"from":"server/js/bit-messages.js","to":"server/js/ai/bit-messages.js"},
+    {"from":"server/js/bit-told.js","to":"server/js/ai/bit-told.js"},
+    {"from":"server/js/bit-welcome.js","to":"server/js/ai/bit-welcome.js"},
+    {"from":"server/js/local-server-fields.js","to":"server/js/ai/local-server-fields.js"},
+    {"from":"server/js/screen-bit.js","to":"server/js/ai/screen-bit.js"},
+    {"from":"server/js/screen-companion.js","to":"server/js/ai/screen-companion.js"},
+    {"from":"server/js/sheet-chat.js","to":"server/js/ai/sheet-chat.js"},
+    {"from":"server/js/sheet-page.js","to":"server/js/ai/sheet-page.js"},
+    {"from":"server/js/sheet-usage.js","to":"server/js/ai/sheet-usage.js"}
   ]
 }

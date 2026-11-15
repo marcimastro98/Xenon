@@ -8,7 +8,7 @@
 // the same CSS and js/game-companion.js) with one change: this window never
 // takes the keyboard, so a click on it never takes the focus from the game,
 // and the typed question gives way to "Ask out loud", which hands over to
-// Bit's voice in the same window (js/screen-bit.js). Nothing loads until the
+// Bit's voice in the same window (js/ai/screen-bit.js). Nothing loads until the
 // first open, and a minute after the card closes the page reloads so the
 // memory goes back.
 (function (root, factory) {

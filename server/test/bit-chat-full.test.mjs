@@ -1,4 +1,4 @@
-// The phone's full-screen chat (js/bit-chat-full.js): a tap on a narrow screen
+// The phone's full-screen chat (js/ai/bit-chat-full.js): a tap on a narrow screen
 // moves the pane into a sheet on <body>; the arrow, Escape or the phone's back
 // button put it back where it was, with the same live session.
 import test from 'node:test';
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const { shouldOpen } = require('../js/bit-chat-full.js');
+const { shouldOpen } = require('../js/ai/bit-chat-full.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('only a narrow screen outside edit mode opens it, and only once', () => {
@@ -71,7 +71,7 @@ function boot({ narrow = true } = {}) {
     },
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/bit-chat-full.js'), ctx);
+  vm.runInNewContext(read('../js/ai/bit-chat-full.js'), ctx);
   return { ctx, body, tile, pane, back, log, listeners, winListeners, historyCalls, focused: () => focused };
 }
 
@@ -119,5 +119,5 @@ test('the sheet sits under Settings and the Store, and the script is loaded', ()
   const z = Number((/\.bit-sheet \{[^}]*z-index: (\d+)/.exec(css) || [])[1]);
   const settingsZ = Number((/\.settings-overlay \{[^}]*z-index: (\d+)/.exec(read('../components/SettingsModal/SettingsPage.css')) || [])[1]);
   assert.ok(z > 0 && z < settingsZ, `sheet ${z} under Settings ${settingsZ}`);
-  assert.match(read('../index.html'), /<script src="js\/bit-chat-full\.js"><\/script>/);
+  assert.match(read('../index.html'), /<script src="js\/ai\/bit-chat-full\.js"><\/script>/);
 });

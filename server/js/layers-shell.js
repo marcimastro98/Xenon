@@ -16,7 +16,7 @@
   const REPORT_MS = 4 * 60 * 1000; // well inside the server's 10 minute window
   const SIGNAL_DELAY_MS = 300;
   const search = String((window.location && window.location.search) || '');
-  // A sheet (js/sheet-page.js) is the menu's window: only the main page syncs.
+  // A sheet (js/ai/sheet-page.js) is the menu's window: only the main page syncs.
   const isLayerPage = /[?&](layer=|panel=sheet(&|$))/.test(search);
 
   const { caps, isDriver, specFor } = window.LayersShellWindows;

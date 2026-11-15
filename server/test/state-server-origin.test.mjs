@@ -99,7 +99,7 @@ const LOOPBACK_EXEMPT = [
   // SERVER dials (server/ai-local.js). The browser never fetches it.
   { match: ':11434' },
   // The same for the user's local server (server/ai-local-server.js dials it).
-  { file: 'local-server-fields.js' },
+  { file: 'ai/local-server-fields.js' },
   // An OAuth redirect URI registered with Spotify, which must match the string
   // on file byte for byte. Pointing it at the origin the page happens to be on
   // would make the callback fail the moment it is not the registered one.

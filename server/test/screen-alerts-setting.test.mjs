@@ -98,7 +98,7 @@ test('one chime per timer, whoever asks for it', () => {
 });
 
 test('the server cues are the dashboard cues, note for note', () => {
-  const cues = read('../js/audio-feedback.js').match(/const NOTIFY_CUES = \{([\s\S]*?)\n\};/)[1];
+  const cues = read('../js/ai/audio-feedback.js').match(/const NOTIFY_CUES = \{([\s\S]*?)\n\};/)[1];
   const at = SERVER.indexOf('const REMINDER_BURST');
   // eslint-disable-next-line no-new-func
   const notes = new Function(SERVER.slice(at, SERVER.indexOf('\n});', at) + 4) + '; return CHIME_NOTES;')();
@@ -107,10 +107,10 @@ test('the server cues are the dashboard cues, note for note', () => {
     const client = JSON.parse(m[1]).map(([s, hz]) => [hz, s]);
     assert.deepEqual(notes[kind], client, kind);
   }
-  const ring = /const RING_PATTERN = (\[\[.*\]\]);/.exec(read('../js/audio-feedback.js'))[1];
+  const ring = /const RING_PATTERN = (\[\[.*\]\]);/.exec(read('../js/ai/audio-feedback.js'))[1];
   assert.deepEqual(notes.ring, JSON.parse(ring).map(([s, hz]) => [hz, s]), 'one cycle of the call ring');
   // The calendar alarm: playReminderBurst's notes 0.16 s apart, the burst again at 0.9, 1.8, 2.7 s.
-  const fx = read('../js/audio-feedback.js');
+  const fx = read('../js/ai/audio-feedback.js');
   const burst = JSON.parse(/function playReminderBurst\(\) \{[\s\S]*?const notes = (\[[^\]]*\]);/.exec(fx)[1]);
   assert.match(fx, /const at = start \+ index \* 0\.16;/);
   const repeats = [0, ...[...fx.matchAll(/setTimeout\(playReminderBurst, (\d+)\)/g)].map((m) => Number(m[1]) / 1000)];

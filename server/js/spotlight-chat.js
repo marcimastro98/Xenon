@@ -2,7 +2,7 @@
 
 // Bit's chat in the search window, so it is one shortcut away from any app. Bit
 // on the bar or Ctrl+B turns the window into the dashboard's own panel, the same
-// one the alerts window loads (js/screen-bit.js), so the rules are the chat's:
+// one the alerts window loads (js/ai/screen-bit.js), so the rules are the chat's:
 // Sparks, limits, attachments. Pasting a picture or a file in the bar opens the
 // chat with it. Nothing of the chat loads until it is first used; the talk stays
 // in the page while the window is hidden, and Esc goes back to the search.

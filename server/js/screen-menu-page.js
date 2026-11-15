@@ -7,7 +7,7 @@
 // dashboard shows as a panel. This page only themes it, closes it on Esc (the X
 // is the window's own, layers/menu_window.rs) and sends the verbs that lead
 // elsewhere on their way: Settings, the Store, Scintille and the gallery open in
-// this same window (a sheet, js/sheet-page.js, which comes back here), the
+// this same window (a sheet, js/ai/sheet-page.js, which comes back here), the
 // dashboard through an `xenon-app:` signal the shell accepts from this window
 // only (layers::spec::dashboard_page). It stays when another window takes the
 // focus: the user works in the app under it, and the system's own screenshot

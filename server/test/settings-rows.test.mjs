@@ -233,7 +233,7 @@ test('Download model sits in the row of the model it downloads', () => {
 });
 
 test('"I have a code" shows only to someone with no code', () => {
-  assert.match(read('../js/ai-xenon-settings.js'), /show\('xai-no-code', st\.status === 'no_code'\);/);
+  assert.match(read('../js/ai/ai-xenon-settings.js'), /show\('xai-no-code', st\.status === 'no_code'\);/);
   assert.ok(HTML.indexOf('id="settings-xenon-credits"') < HTML.indexOf('id="xai-no-code"'));
 });
 

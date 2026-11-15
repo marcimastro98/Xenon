@@ -23,7 +23,7 @@ function deckOfTheWindow() {
   return { deck: tile ? tile.getAttribute('data-dashboard-instance') : 'no tile', drawn: Boolean(tile?.childElementCount) };
 }
 
-// The voice panel of the screen: the alerts window loads its scripts only when Bit is called (js/screen-bit.js holds
+// The voice panel of the screen: the alerts window loads its scripts only when Bit is called (js/ai/screen-bit.js holds
 // the list). Called here, so that the page is read with them in it. Runs in the page.
 function callBit() {
   return window.ScreenBit.load().then(() => 'loaded', (error) => `not loaded: ${error?.message || error}`);
@@ -71,8 +71,8 @@ export const PAGES = [
   { name: 'menu', file: 'server/menu.html', path: '/menu', ...DESK },
   { name: 'scene', file: 'server/scene.html', path: '/scene', ...DESK },
   { name: 'alerts', file: 'server/screen-alerts.html', path: '/screen-alerts', ...DESK },
-  { name: 'alerts with the voice panel', file: 'server/screen-alerts.html', path: '/screen-alerts', first: callBit, holds: 'server/js/screen-bit.js', ...DESK },
-  { name: 'alerts with the Game Companion card', file: 'server/screen-alerts.html', path: '/screen-alerts', first: openCompanion, holds: 'server/js/screen-companion.js', ...DESK },
+  { name: 'alerts with the voice panel', file: 'server/screen-alerts.html', path: '/screen-alerts', first: callBit, holds: 'server/js/ai/screen-bit.js', ...DESK },
+  { name: 'alerts with the Game Companion card', file: 'server/screen-alerts.html', path: '/screen-alerts', first: openCompanion, holds: 'server/js/ai/screen-companion.js', ...DESK },
   { name: 'search window', file: 'server/spotlight.html', path: '/spotlight', ...DESK },
   { name: 'drawing sheet', file: 'server/draw.html', path: '/draw', ...DESK },
   { name: 'widgets-only driver', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, ...DESK },

@@ -305,7 +305,7 @@ let hubSettings = {};
   };
   const openUpdate = () => openDashboard('update');
   // The Store is not in this window: "Recharge" opens its Sparks where a hub
-  // message opens the Store (js/bit-messages.js), never a browser window here.
+  // message opens the Store (js/ai/bit-messages.js), never a browser window here.
   window.CommunityGallery = { openSparks: () => window.BitMessages.openSheet({ open: 'sparks' }) };
   // "Widgets only" means no dashboard: what needs one is a choice, made in the menu.
   const openMode = () => fetch(SERVER + '/screen-menu', {

@@ -127,7 +127,7 @@
 .ai-undo-btn.ai-undo-done { text-decoration: none; opacity: .8; cursor: default; }
 @media (pointer: coarse) { .ai-undo-btn, .ai-retry-btn { min-height: 44px; } }
 
-/* What Bit said on its own (js/bit-told.js): a chat message with a title, and the
+/* What Bit said on its own (js/ai/bit-told.js): a chat message with a title, and the
    picture and the button it came with. */
 .ai-told { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .ai-told-media { width: min(320px, 100%); overflow: hidden; border-radius: 6px; }

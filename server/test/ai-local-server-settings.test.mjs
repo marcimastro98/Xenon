@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path) => readFileSync(join(ROOT, path), 'utf8');
 
-const fields = require('../js/local-server-fields.js');
+const fields = require('../js/ai/local-server-fields.js');
 const server = require('../ai-local-server.js');
 const creds = require('../ai-provider-creds.js');
 const { SECRET_KEY_GROUPS, stripSettingsSecrets } = require('../js/settings-secrets.js');
@@ -33,7 +33,7 @@ function localServerKeys() {
   const panel = html.slice(html.indexOf('id="settings-localapi-panel"'), html.indexOf('<!-- Claude Code / Codex'));
   const keys = new Set(['ai_provider_localapi', 'lyrics_opt_cost_localapi', 'ai_localserver_tools_context', 'ai_localserver_tools_refused']);
   for (const [, key] of panel.matchAll(/data-i18n="([a-z_]+)"/g)) keys.add(key);
-  for (const [, key] of read('js/ai-local-server-settings.js').matchAll(/'(settings_[a-z_]+)'/g)) keys.add(key);
+  for (const [, key] of read('js/ai/ai-local-server-settings.js').matchAll(/'(settings_[a-z_]+)'/g)) keys.add(key);
   const codes = read('js/ai.js').match(/AI_LOCAL_SERVER_ERRORS = new Set\(\[([^\]]+)\]/)[1];
   for (const [, code] of codes.matchAll(/'([a-z_]+)'/g)) keys.add('ai_localserver_' + code);
   return [...keys];
@@ -112,13 +112,13 @@ test('the key never reaches the dashboard mirror', () => {
 
 test('the panel has every control its script reaches for, and loads in order', () => {
   const html = read('index.html');
-  for (const [, id] of read('js/ai-local-server-settings.js').matchAll(/field\('([a-z-]+)'\)/g)) {
+  for (const [, id] of read('js/ai/ai-local-server-settings.js').matchAll(/field\('([a-z-]+)'\)/g)) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
   for (const id of ['settings-localapi-model', 'settings-localapi-model-custom', 'settings-localapi-model-used', 'ai-provider-localapi']) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
-  assert.ok(html.indexOf('js/local-server-fields.js') < html.indexOf('js/settings.js"'), 'settings.js reads LocalServerFields at load');
+  assert.ok(html.indexOf('js/ai/local-server-fields.js') < html.indexOf('js/settings.js"'), 'settings.js reads LocalServerFields at load');
 });
 
 test('every list of providers on the client knows it', () => {

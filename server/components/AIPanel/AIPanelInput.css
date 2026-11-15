@@ -86,7 +86,7 @@ body.ai-turn-running .ai-send-btn .ai-stop-icon { display: block; width: 15px; h
 
 /* One main button, in Bit's green (the main action of the brand): it dictates
    while the field is empty, sends once there is a draft, and is the square stop
-   while a reply is on its way (js/bit-composer.js). A copy's composer has no
+   while a reply is on its way (js/ai/bit-composer.js). A copy's composer has no
    dictation, so its send stays. */
 .ai-send-btn,
 .ai-dictate-btn {
