@@ -153,8 +153,15 @@ function showPendingBackupSummary() {
   } catch { summary = null; }
   if (!summary || typeof summary !== 'object') return;
   const tt = (k, fb) => (typeof window.t === 'function' && window.t(k)) || fb;
-  const needs = (Array.isArray(summary.needsSetup) ? summary.needsSetup : [])
-    .map((k) => BACKUP_SERVICE_LABELS[k] || k);
+  // What the backup had switched on and the import left as this PC has it: a file
+  // cannot turn these on, so the person does it here. Each is [string key, fallback].
+  const BACKUP_HERE_LABELS = {
+    pcControl: ['aifeat_pccontrol', 'Controllo PC'],
+    widgetPermissions: ['settings_backup_widget_permissions', 'permessi dei widget'],
+  };
+  const asked = Array.isArray(summary.needsSetup) ? summary.needsSetup : [];
+  const needs = asked.filter((k) => !Object.hasOwn(BACKUP_HERE_LABELS, k)).map((k) => BACKUP_SERVICE_LABELS[k] || k);
+  const here = asked.filter((k) => Object.hasOwn(BACKUP_HERE_LABELS, k)).map((k) => tt(BACKUP_HERE_LABELS[k][0], BACKUP_HERE_LABELS[k][1]));
   const failed = Array.isArray(summary.failed) ? summary.failed : [];
   // Community widget / Ambient-scene packages the backup couldn't carry and that
   // aren't installed here — the user re-adds them from their gallery/share codes.
@@ -163,8 +170,9 @@ function showPendingBackupSummary() {
     .filter(Boolean);
   let meta = '';
   if (needs.length) meta = `${tt('settings_backup_needs_setup', 'Da ricollegare:')} ${needs.join(', ')}`;
-  if (widgets.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_needs_widgets', 'Widget da reinstallare dai loro codici:')} ${widgets.join(', ')}`;
-  if (failed.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
+  if (here.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_needs_here', 'Da riattivare su questo PC:')} ${here.join(', ')}`;
+  if (widgets.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_needs_widgets', 'Widget da reinstallare dai loro codici:')} ${widgets.join(', ')}`;
+  if (failed.length) meta += `${meta ? ' · ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
   backupToast('settings_backup_imported', meta);
 }
 

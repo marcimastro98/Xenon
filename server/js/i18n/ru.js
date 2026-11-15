@@ -7261,4 +7261,6 @@ module.exports = {
   weather_metric_visibility_sub: 'горизонт',
   weather_metric_uv_sub: 'излучение',
   weather_metric_clouds_sub: 'покрытие',
+  settings_backup_needs_here: 'Включите снова на этом ПК:',
+  settings_backup_widget_permissions: 'разрешения виджетов',
 };

@@ -7161,4 +7161,6 @@ module.exports = {
   weather_metric_visibility_sub: 'horizon',
   weather_metric_uv_sub: 'rayonnement',
   weather_metric_clouds_sub: 'couverture',
+  settings_backup_needs_here: 'À réactiver sur ce PC :',
+  settings_backup_widget_permissions: 'autorisations des widgets',
 };

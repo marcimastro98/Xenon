@@ -7350,4 +7350,6 @@ module.exports = {
   weather_metric_visibility_sub: 'horizon',
   weather_metric_uv_sub: 'radiation',
   weather_metric_clouds_sub: 'cover',
+  settings_backup_needs_here: 'Turn on again on this PC:',
+  settings_backup_widget_permissions: 'widget permissions',
 };

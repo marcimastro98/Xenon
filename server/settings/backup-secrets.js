@@ -2,6 +2,7 @@
 // to set up again.
 
 const { hasLightingProviderTokens } = require('../lights/secrets.js');
+const { setUpAgainOnImport } = require('./backup-keep.js');
 
 // Which secret-backed services are configured — booleans only. Exported with
 // the bundle so the import side can report "these need re-setup" precisely.
@@ -34,10 +35,13 @@ function _backupSecretFlags(settings, tokens) {
 // the backup and are also absent on THIS machine — surfaced to the user after
 // the import ("re-connect Spotify, re-enter the TwelveData key, …") instead of
 // each feature silently failing later. v1 bundles carry no flags → empty list.
-function _backupNeedsSetup(flags, settings, tokens) {
-  if (!flags || typeof flags !== 'object') return [];
+// What the file had on and this PC keeps as it was (PC Control, widget permissions) is listed
+// after them, read from the file's own settings: a v1 bundle gets that part too.
+function _backupNeedsSetup(flags, settings, tokens, fromFile) {
+  const here = setUpAgainOnImport(fromFile, settings);
+  if (!flags || typeof flags !== 'object') return here;
   const local = _backupSecretFlags(settings, tokens);
-  return Object.keys(local).filter((k) => flags[k] === true && !local[k]);
+  return [...Object.keys(local).filter((k) => flags[k] === true && !local[k]), ...here];
 }
 
 module.exports = { _backupSecretFlags, _backupNeedsSetup };

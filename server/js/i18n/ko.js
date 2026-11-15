@@ -7342,6 +7342,8 @@ module.exports = {
   weather_metric_visibility_sub: '수평선',
   weather_metric_uv_sub: '복사량',
   weather_metric_clouds_sub: '운량',
+  settings_backup_needs_here: '이 PC에서 다시 켜기:',
+  settings_backup_widget_permissions: '위젯 권한',
   claude_set_budget: '예산 설정 →',
   claude_empty_title: 'Claude Code 대기 중',
   claude_empty_desc: '이 PC에서 Claude Code 세션을 시작하면 사용량, 프로젝트, 모델이 여기에 표시됩니다.',

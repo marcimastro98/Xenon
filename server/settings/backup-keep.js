@@ -24,6 +24,35 @@ function favoritesOnImport(fromFile, saved) {
 }
 
 /**
+ * The part of the widget settings that an import leaves as this PC has it.
+ * @param {Record<string, any> | null} here the widget settings saved on this PC
+ */
+const widgetsOfThisPc = (here) => ({
+  enabled: here?.enabled === true,
+  suspended: Array.isArray(here?.suspended) ? here.suspended : [],
+  grants: plain(here?.grants) ?? {},
+});
+
+/**
+ * What the file had switched on that the import left off, for the list shown after it: the
+ * person sets these up again at this PC, like a service whose key could not travel.
+ * @param {any} fromFile the settings of the backup, as they are in the file
+ * @param {any} written the settings of this PC after the import
+ * @returns {string[]} 'pcControl' and 'widgetPermissions', each only when it applies
+ */
+function setUpAgainOnImport(fromFile, written) {
+  const file = plain(fromFile) ?? {};
+  const now = plain(written) ?? {};
+  const needs = [];
+  if (plain(file.aiFeatures)?.pcControl === true && plain(now.aiFeatures)?.pcControl !== true) needs.push('pcControl');
+  const asked = plain(file.sdkWidgets) ?? {};
+  const held = widgetsOfThisPc(plain(now.sdkWidgets));
+  const missing = Object.keys(plain(asked.grants) ?? {}).some((id) => !Object.hasOwn(held.grants, id));
+  if (missing || (asked.enabled === true && !held.enabled)) needs.push('widgetPermissions');
+  return needs;
+}
+
+/**
  * The settings saved on this PC, read before an import is merged into them.
  * A file that cannot be parsed counts as "nothing saved": restoring a backup is how a broken
  * settings file gets repaired. Any other failure (a locked or unreadable file) is thrown, so the
@@ -60,11 +89,13 @@ function keepThisPcOnImport(incoming, prev) {
   if (features || pcControl) incoming.aiFeatures = { ...features, pcControl };
   // What each widget may see and do was allowed on this PC's screen, for the code installed here
   // (the packages do not travel in a backup). A file gives no permission and takes none away.
+  // The same goes for the switch that lets community widgets run at all, and for the list of
+  // widgets this PC stopped because they were too heavy: both say what runs on this PC.
   const widgets = plain(incoming.sdkWidgets);
-  const grants = plain(plain(prev?.sdkWidgets)?.grants);
-  if (widgets || grants) incoming.sdkWidgets = { ...widgets, grants: grants ?? {} };
+  const here = plain(prev?.sdkWidgets);
+  if (widgets || here) incoming.sdkWidgets = { ...widgets, ...widgetsOfThisPc(here) };
   if ('appFavorites' in incoming) incoming.appFavorites = favoritesOnImport(incoming.appFavorites, prev?.appFavorites);
   return incoming;
 }
 
-module.exports = { settingsBeforeImport, keepThisPcOnImport };
+module.exports = { settingsBeforeImport, keepThisPcOnImport, setUpAgainOnImport };

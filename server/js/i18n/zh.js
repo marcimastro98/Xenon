@@ -7342,6 +7342,8 @@ module.exports = {
   weather_metric_visibility_sub: '地平线',
   weather_metric_uv_sub: '辐射',
   weather_metric_clouds_sub: '覆盖率',
+  settings_backup_needs_here: '需在这台电脑上重新开启:',
+  settings_backup_widget_permissions: '小组件权限',
   claude_set_budget: '设置预算 →',
   claude_empty_title: '正在等待 Claude Code',
   claude_empty_desc: '在此电脑上启动 Claude Code 会话后，用量、项目和模型将在此点亮反应堆。',

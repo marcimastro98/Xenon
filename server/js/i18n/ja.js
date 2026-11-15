@@ -7342,6 +7342,8 @@ module.exports = {
   weather_metric_visibility_sub: '地平線',
   weather_metric_uv_sub: '放射量',
   weather_metric_clouds_sub: '雲量',
+  settings_backup_needs_here: 'このPCでもう一度オンにする:',
+  settings_backup_widget_permissions: 'ウィジェットの権限',
   claude_set_budget: '予算を設定 →',
   claude_empty_title: 'Claude Code を待機中',
   claude_empty_desc: 'この PC で Claude Code セッションを開始すると、使用量・プロジェクト・モデルがここに表示されます。',

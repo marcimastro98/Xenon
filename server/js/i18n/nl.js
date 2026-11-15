@@ -7338,6 +7338,8 @@ module.exports = {
   weather_metric_visibility_sub: 'horizon',
   weather_metric_uv_sub: 'straling',
   weather_metric_clouds_sub: 'bedekking',
+  settings_backup_needs_here: 'Opnieuw aanzetten op deze pc:',
+  settings_backup_widget_permissions: 'widgetmachtigingen',
   claude_set_budget: 'stel een budget in →',
   claude_empty_title: 'Wachten op Claude Code',
   claude_empty_desc: 'Start een Claude Code-sessie op deze pc: je gebruik, projecten en modellen laten de reactor hier oplichten.',

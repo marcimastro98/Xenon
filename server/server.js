@@ -3400,7 +3400,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
   const needsSetup = _backupNeedsSetup(
     bundle.secretsConfigured,
     hub.settings || {},
-    await _readStreamTokensSnapshot()
+    await _readStreamTokensSnapshot(), d.settings
   );
   // SDK widget / Ambient-scene packages live in DATA_DIR/widgets and don't travel
   // in the backup — only their placement in the restored layout does. Report the
