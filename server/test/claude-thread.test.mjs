@@ -1,5 +1,5 @@
 'use strict';
-// js/claude-thread.js — keeps a session's conversation current in the Claude
+// js/claude-code/claude-thread.js — keeps a session's conversation current in the Claude
 // tile. Pinned: the end of a turn is never missed (re-reads after any state
 // change, including waiting -> idle, until the transcript says the turn
 // closed), an older answer never overwrites a newer one, a failed read keeps
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { create, withProvisional, sameThread, SETTLE_MS } = require('../js/claude-thread.js');
+const { create, withProvisional, sameThread, SETTLE_MS } = require('../js/claude-code/claude-thread.js');
 
 function harness(replies) {
   const timers = [];

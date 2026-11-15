@@ -13,7 +13,7 @@
 //   USAGE face: one 30-day window, said as such, read from the transcripts:
 //     today, since Monday, the total, the cache share, the value at list
 //     prices, thirty days of columns, projects and models.
-//   CHATS face (js/claude-history.js): every chat kept on this PC, with its
+//   CHATS face (js/claude-code/claude-history.js): every chat kept on this PC, with its
 //     size, and a confirmed move of the chosen ones to the Recycle Bin.
 //
 // Every string here is filesystem- or Claude-derived and renders through
@@ -500,7 +500,7 @@
   const { startTicker } = window.ClaudeWidgetTicker;
 
   // ── asking Claude from the touchscreen ─────────────────────────────────────
-  // The open session's conversation (js/claude-thread.js): re-reads after every
+  // The open session's conversation (js/claude-code/claude-thread.js): re-reads after every
   // state change until the turn has closed, so the end of a reply is never missed.
   const thread = window.ClaudeThread.create({ fetchJson: (url) => api(url), onChange: () => paint() });
 
@@ -2040,7 +2040,7 @@
 
 
   // ── the topbar marker ──────────────────────────────────────────────────────
-  // Clawd, Claude Code's own mascot (js/claude-clawd.js). It replaced a text
+  // Clawd, Claude Code's own mascot (js/claude-code/claude-clawd.js). It replaced a text
   // pill and then a generic sparkle: neither said whose session this was.
   function clawd() { return window.ClaudeClawd.make('cw-tb-mark'); }
 

@@ -72,7 +72,7 @@
     return head;
   }
 
-  // The rail (js/claude-rail.js) and the console (js/claude-console.js) draw
+  // The rail (js/claude-code/claude-rail.js) and the console (js/claude-code/claude-console.js) draw
   // them; the helpers they share live here, next to the words they use.
   const QUIET_MS = 2 * 60 * 1000;      // "working" with no event for this long says so
 

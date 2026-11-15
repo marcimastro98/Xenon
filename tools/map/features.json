@@ -190,7 +190,8 @@
         "server/js/claude-*.js",
         "server/components/ClaudeWidget/**",
         "integrations/claude-code/**",
-        ".claude-plugin/**"
+        ".claude-plugin/**",
+        "server/js/claude-code/**"
       ]
     },
     {

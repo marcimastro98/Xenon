@@ -61,6 +61,14 @@
     {"from":"server/js/capture-gallery-viewer.js","to":"server/js/capture/capture-gallery-viewer.js"},
     {"from":"server/js/capture-replay-key.js","to":"server/js/capture/capture-replay-key.js"},
     {"from":"server/js/capture-settings-pane.js","to":"server/js/capture/capture-settings-pane.js"},
-    {"from":"server/js/ffmpeg-offer.js","to":"server/js/capture/ffmpeg-offer.js"}
+    {"from":"server/js/ffmpeg-offer.js","to":"server/js/capture/ffmpeg-offer.js"},
+    {"from":"server/js/claude-agents.js","to":"server/js/claude-code/claude-agents.js"},
+    {"from":"server/js/claude-clawd.js","to":"server/js/claude-code/claude-clawd.js"},
+    {"from":"server/js/claude-console.js","to":"server/js/claude-code/claude-console.js"},
+    {"from":"server/js/claude-history.js","to":"server/js/claude-code/claude-history.js"},
+    {"from":"server/js/claude-ident.js","to":"server/js/claude-code/claude-ident.js"},
+    {"from":"server/js/claude-rail.js","to":"server/js/claude-code/claude-rail.js"},
+    {"from":"server/js/claude-roadmap.js","to":"server/js/claude-code/claude-roadmap.js"},
+    {"from":"server/js/claude-thread.js","to":"server/js/claude-code/claude-thread.js"}
   ]
 }

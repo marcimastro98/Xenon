@@ -1,5 +1,5 @@
 'use strict';
-// js/claude-agents.js — the Agents view's data half. Pinned: working agents
+// js/claude-code/claude-agents.js — the Agents view's data half. Pinned: working agents
 // come first in the order they started, finished ones after, newest first; the
 // live entry wins over the agent's file, which only fills what is missing.
 import test from 'node:test';
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { order, counts, merge, ladder } = require('../js/claude-agents.js');
+const { order, counts, merge, ladder } = require('../js/claude-code/claude-agents.js');
 
 const run = (id, ageMs) => ({ id, status: 'running', ageMs, endedMs: 0 });
 const done = (id, endedMs) => ({ id, status: 'done', ageMs: endedMs + 5000, endedMs });

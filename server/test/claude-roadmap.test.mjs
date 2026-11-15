@@ -1,10 +1,10 @@
-// js/claude-roadmap.js — the phases of a plan and where the work has got to.
+// js/claude-code/claude-roadmap.js — the phases of a plan and where the work has got to.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parsePhases, advance, roadmap } = require('../js/claude-roadmap.js');
+const { parsePhases, advance, roadmap } = require('../js/claude-code/claude-roadmap.js');
 
 const PLAN = [
   '# Plan: notifications',

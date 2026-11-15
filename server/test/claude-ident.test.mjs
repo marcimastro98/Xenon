@@ -1,5 +1,5 @@
 'use strict';
-// js/claude-ident.js — who a Claude Code session is in the Claude tile. Pinned:
+// js/claude-code/claude-ident.js — who a Claude Code session is in the Claude tile. Pinned:
 // a session keeps its colour slot for its whole life, the title prefers the
 // chat's own name over the folder, the project is never said twice, and the
 // short id is always there to match the rail, the console and the terminal.
@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { SLOTS, slot, shortId, describe, toolLabel } = require('../js/claude-ident.js');
+const { SLOTS, slot, shortId, describe, toolLabel } = require('../js/claude-code/claude-ident.js');
 
 const ID = '3f2a9c10-1b2c-4d5e-8f90-a1b2c3d4e5f6';
 

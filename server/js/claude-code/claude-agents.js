@@ -1,5 +1,5 @@
 'use strict';
-// js/claude-agents.js — the Agents view of the Claude tile's side panel: the
+// js/claude-code/claude-agents.js — the Agents view of the Claude tile's side panel: the
 // subagents a session started, what each is doing, and one of them in full
 // (model, effort, context, its last tool calls). Also the slim summary the
 // panel folds into when it is hidden.

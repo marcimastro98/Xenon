@@ -254,7 +254,7 @@ test('Codex: the tile keeps its own order of keys', () => {
 });
 
 function claudeSheet(approvals) {
-  const rig = widgetRig(['dialog-focus.js', 'approval-keys.js', 'claude-history.js', 'claude-thread.js', 'claude-roadmap.js', 'claude-ident.js', 'claude-clawd.js', 'claude-rail.js', 'claude-console.js', 'claude-agents.js', 'claude-widget.js'], 'claude-widget-mount', 'claude');
+  const rig = widgetRig(['dialog-focus.js', 'approval-keys.js', 'claude-code/claude-history.js', 'claude-code/claude-thread.js', 'claude-code/claude-roadmap.js', 'claude-code/claude-ident.js', 'claude-code/claude-clawd.js', 'claude-code/claude-rail.js', 'claude-code/claude-console.js', 'claude-code/claude-agents.js', 'claude-widget.js'], 'claude-widget-mount', 'claude');
   rig.sandbox.ClaudeWidget.onSSE({ live: { approvals, sessions: [] }, usage: {}, budget: {}, tile: {} });
   return { ...rig, root: rig.document.querySelector('.ask-overlay') };
 }
