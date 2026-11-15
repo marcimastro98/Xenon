@@ -871,6 +871,8 @@
       "files": [
         "server/grid/**",
         "server/index.html",
+        "server/tile-previews.js",
+        "server/tile-settings.js",
         "server/js/main.js",
         "server/js/dashboard-*.js",
         "server/js/dashboard-layout/**",
