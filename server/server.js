@@ -4127,13 +4127,7 @@ setInterval(() => {
   refreshNews().catch(() => {});
 }, 30000).unref();
 
-// ── Claude Code usage ("Xenon Pulse") ────────────────────────────────────────
-// In-memory only. Reads the user's LOCAL Claude Code transcripts (~/.claude), so
-// there is NO network and NO key — the reader owns a small mtime-gated per-file
-// cache so a refresh only re-parses the session being written right now. Pushed
-// over SSE ('claude') on a client-gated cadence, and only when the aggregate
-// actually changed (the reader hands us a signature). No alerts, no disk writes.
-const _claudeReader = claudeUsage.createReader();
+const { _claudeReader } = require('./claude-code/engine-usage-reader.js');
 const { claudeState } = require('./claude-code/tile-state.js');
 const { claudeRefresh } = require('./claude-code/refresh-state.js');
 
