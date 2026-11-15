@@ -801,6 +801,7 @@
       "what": "What the screen shows when idle or as a desktop scene: clock, weather, pictures.",
       "files": [
         "server/ambient/**",
+        "server/scene-*.js",
         "server/scene.html",
         "server/js/ambient*.js",
         "server/js/ambient-canvas-editor-form/**",
