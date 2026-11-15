@@ -4946,7 +4946,7 @@
 <!-- Shared @xenon/core modules (served from the server/shared junction → packages/core).
      Load first so js/state.js and js/utils.js can consume them; each has an inline
      fallback so the dashboard still works if /shared is briefly unavailable. -->
-<script src="js/remote-surface.js"></script>
+<script src="js/paired/remote-surface.js"></script>
 <script src="shared/src/constants.js"></script>
 <script src="shared/src/format.js"></script>
 <!-- Shared so no two fronts disagree: the Store layout (with the website and the hub)
@@ -5313,7 +5313,7 @@
 <script src="js/lighting-page/panels.js"></script>
 <script src="js/lighting-page.js"></script>
 <script src="js/phone-view.js"></script>
-<script src="js/remote-access-guide.js"></script>
+<script src="js/paired/remote-access-guide.js"></script>
 <script src="js/remote-access-page/rows.js"></script>
 <script src="js/remote-access-page/setup-words.js"></script>
 <script src="js/remote-access-page.js"></script>
@@ -5472,7 +5472,7 @@
 <script src="js/unifi-widget/shown-cameras.js"></script>
 <script src="js/unifi-widget/settings-sections.js"></script>
 <script src="js/unifi-widget.js"></script>
-<script src="js/surface-picker.js"></script>
+<script src="js/paired/surface-picker.js"></script>
 <script src="js/alerts/screen-name.js"></script>
 <script src="js/menu/xenon-menu-map.js"></script>
 <script src="js/look/view-melt.js"></script>
@@ -5548,7 +5548,7 @@
 <!-- Installable app: registers the service worker, and only where that means
      something (secure context, not the native shell, not inside an iframe).
      Last, and on `load` + a delay, because nothing on screen waits for it. -->
-<script src="js/pwa.js"></script>
+<script src="js/paired/pwa.js"></script>
 
 <!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.
      The iCUE built-in browser renders at a FRACTIONAL devicePixelRatio (~1.8), which

@@ -159,7 +159,7 @@ test('on Comic the ink stays on the lines: words and key marks are the theme Tex
 });
 
 test('the first question has one main key: the quiet one is not painted as primary', () => {
-  const js = read('js', 'surface-picker.js');
+  const js = read('js', 'paired/surface-picker.js');
   assert.match(js, /go\.className = 'settings-btn primary sp-go';/);
   assert.match(js, /go\.className = 'settings-btn sp-go sp-go-quiet';/, 'Comic paints every .settings-btn.primary alike');
 });

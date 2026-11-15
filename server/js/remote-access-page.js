@@ -133,7 +133,7 @@
   }
 
   // ── Pieces shared with the step-by-step guide ─────────────────────────────
-  // Built here and handed to js/remote-access-guide.js rather than reimplemented
+  // Built here and handed to js/paired/remote-access-guide.js rather than reimplemented
   // there: the guide walks the user across the same switches this panel owns, so
   // a second copy of the QR sheet or of the Tailscale error ladder would be two
   // things to keep in step and one of them would eventually be wrong.

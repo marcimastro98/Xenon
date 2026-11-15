@@ -142,7 +142,7 @@ test('the worker is served from the root, uncached, with the scope header', () =
 });
 
 test('registration is skipped everywhere it would be wrong', () => {
-  const pwa = read('js/pwa.js');
+  const pwa = read('js/paired/pwa.js');
   // An insecure context (the LAN door) — the browser would refuse anyway, and
   // asking produces a console error on every load of a perfectly fine page.
   assert.match(pwa, /window\.isSecureContext/);

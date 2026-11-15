@@ -434,7 +434,7 @@ test('a double click on a row is the same as Continue', async () => {
 
 test('wired in place of the second question: one or the other, never both in a row', () => {
   const settings = src('js/settings.js');
-  const picker = src('js/surface-picker.js');
+  const picker = src('js/paired/surface-picker.js');
   assert.match(settings, /const asked = !!\(window\.UsageAsk && typeof window\.UsageAsk\.maybeStart === 'function'\n\s+&& window\.UsageAsk\.maybeStart\(\{ returning \}\)\);/);
   assert.match(settings, /if \(!asked && window\.SurfacePicker && typeof window\.SurfacePicker\.maybeStart === 'function'\) \{/);
   assert.ok(settings.indexOf('returningUser({') < settings.indexOf('SurfacePicker.maybeStart();'), 'read before the screen question answers it');

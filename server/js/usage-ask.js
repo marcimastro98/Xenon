@@ -3,7 +3,7 @@
 // "How do you want to use Xenon?": the one question of a new install, in the app that can
 // draw widgets on the screen. It shows the person's real screens and what each will hold
 // (js/first-run/usage-ask-picture.js, rules in js/first-run/usage-ask-plan.js), and the same answer says where
-// the dashboard goes, so "Where do you want Xenon?" (js/surface-picker.js) is left to the
+// the dashboard goes, so "Where do you want Xenon?" (js/paired/surface-picker.js) is left to the
 // browser and to shells without widgets.
 //
 // The person always chooses; the recommended row starts selected. Someone updating is not

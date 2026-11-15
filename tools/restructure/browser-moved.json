@@ -169,6 +169,10 @@
     {"from":"server/js/xenon-menu-widgets.js","to":"server/js/menu/xenon-menu-widgets.js"},
     {"from":"server/js/xenon-menu.js","to":"server/js/menu/xenon-menu.js"},
     {"from":"server/js/notification-open.js","to":"server/js/notifications/notification-open.js"},
-    {"from":"server/js/notifications-widget.js","to":"server/js/notifications/notifications-widget.js"}
+    {"from":"server/js/notifications-widget.js","to":"server/js/notifications/notifications-widget.js"},
+    {"from":"server/js/pwa.js","to":"server/js/paired/pwa.js"},
+    {"from":"server/js/remote-access-guide.js","to":"server/js/paired/remote-access-guide.js"},
+    {"from":"server/js/remote-surface.js","to":"server/js/paired/remote-surface.js"},
+    {"from":"server/js/surface-picker.js","to":"server/js/paired/surface-picker.js"}
   ]
 }

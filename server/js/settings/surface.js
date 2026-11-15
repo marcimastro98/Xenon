@@ -21,7 +21,7 @@ window.setOnboardingSeen = setOnboardingSeen;
 // the Settings → Schermo panel to render the current choice. Server-backed on
 // purpose: the answer must reach every surface, and a paired phone — which has
 // no channel to the native shell — writes it here and lets the shell's own
-// dashboard page relay it (see js/surface-picker.js).
+// dashboard page relay it (see js/paired/surface-picker.js).
 function getSurfaceChoice() {
   const s = surfaceChoiceFrom(hubSettings) || {};
   return { kind: s.kind || 'auto', asked: s.asked === true, monitor: s.monitor || '', label: s.label || '' };
