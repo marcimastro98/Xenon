@@ -435,7 +435,7 @@ const { createBatteryMonitor } = require('./battery');
 require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
-const { createBriefingEngine } = require('./briefing');
+require('./briefing');
 require('./ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
@@ -3698,18 +3698,7 @@ const guardian = createGuardian({
   isForegroundGame: () => { try { return gameDetect.isGaming(); } catch { return false; } },
 });
 
-// Briefing — proactive moments (sustained-thermal alerts, game-session recaps).
-// Passive: fed from the existing status/system SSE ticks below, so it does no
-// work while no dashboard is connected and needs no shutdown handling. Each
-// moment type is individually toggleable (Settings → Momenti proattivi).
-const briefing = createBriefingEngine({
-  emit: (type, data) => broadcastSSE('briefing', Object.assign({ type }, data)),
-  isTypeEnabled: (type) => {
-    const p = hub.settings && hub.settings.proactive;
-    return !p || p[type] !== false;
-  },
-  getFps: () => fpsMonitor.getCurrentFps(),
-});
+const { briefing } = require('./ai/engine-briefing.js');
 
 const { streams } = require('./streaming/providers.js');
 const { makeStreamProviders } = require('./streaming/make-providers.js');
