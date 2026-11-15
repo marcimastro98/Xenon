@@ -116,7 +116,7 @@
     notes: { ...AGENDA, markup: ['agenda', 'notes'] },
     remote: tile('remote', 'RemoteControl', ['js/custom-select.js', 'js/remote-control/status.js', 'js/remote-control/page-pieces.js', 'js/remote-control.js'], {}, 'RemoteControlSettings',
       ['components/CustomSelect/CustomSelect.css']),
-    twitch: tile('twitch', 'StreamingPage', ['js/twitch-chat.js', 'js/streaming-page/login-words.js', 'js/streaming-page.js'],
+    twitch: tile('twitch', 'StreamingPage', ['js/twitch-chat.js', 'js/streaming-page/login-words.js', 'js/streaming-page/discord-notifications.js', 'js/streaming-page.js'],
       { status: 'onStatus', obs: 'onObs', obs_preview: 'onObsPreview' }, 'TwitchPanel'),
     // The Deck as the Virtual Deck popup shows it: keys and presses, no editor
     // (deck-editor.js is not here). deck.js draws it by itself; js/deck-feed.js

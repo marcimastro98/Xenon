@@ -98,7 +98,7 @@
     "server/js/spotify-widget.js": 970,
     "server/js/spotlight.js": 1103,
     "server/js/stock-widget.js": 703,
-    "server/js/streaming-page.js": 731,
+    "server/js/streaming-page.js": 666,
     "server/js/surface-picker.js": 393,
     "server/js/tile-style-editor.js": 355,
     "server/js/toast-island.js": 573,
