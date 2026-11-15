@@ -5,6 +5,7 @@
 
 const { normalizeServerAppFavorites } = require('./normalize-favorites.js');
 const { normalizeDeckStore } = require('../deck/store-normalize.js');
+const { POWERSHELL_SUPPORTED } = require('../powershell/supported.js');
 const { guardedIn, canonical, introduces, FREE } = require('../remote-actions.js');
 
 /** @param {any} value @returns {Record<string, any> | null} the value when it is an object with keys, not a list */
@@ -100,13 +101,15 @@ const widgetsOfThisPc = (here) => ({
  * person sets these up again at this PC, like a service whose key could not travel.
  * @param {any} fromFile the settings of the backup, as they are in the file
  * @param {any} written the settings of this PC after the import
+ * @param {{ pcControl: boolean }} [can] what can exist on this machine. PC Control runs its commands through PowerShell
+ *   (the engine offers the tool only with it, server.js): where there is none, there is nothing to turn on again.
  * @returns {string[]} 'pcControl' and 'widgetPermissions', each only when it applies
  */
-function setUpAgainOnImport(fromFile, written) {
+function setUpAgainOnImport(fromFile, written, can = { pcControl: POWERSHELL_SUPPORTED }) {
   const file = plain(fromFile) ?? {};
   const now = plain(written) ?? {};
   const needs = [];
-  if (plain(file.aiFeatures)?.pcControl === true && plain(now.aiFeatures)?.pcControl !== true) needs.push('pcControl');
+  if (can.pcControl && plain(file.aiFeatures)?.pcControl === true && plain(now.aiFeatures)?.pcControl !== true) needs.push('pcControl');
   const asked = plain(file.sdkWidgets) ?? {};
   const held = widgetsOfThisPc(plain(now.sdkWidgets));
   const missing = Object.keys(plain(asked.grants) ?? {}).some((id) => !Object.hasOwn(held.grants, id));

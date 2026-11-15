@@ -73,10 +73,18 @@ test('a backup neither lets community widgets run nor stops the ones this PC run
 
 test('the list after an import names what the file had on and this PC left off', () => {
   const file = { aiFeatures: { pcControl: true }, sdkWidgets: { enabled: true, grants: { clock: { actions: ['media'] } } } };
-  assert.deepEqual(setUpAgainOnImport(file, {}), ['pcControl', 'widgetPermissions']);
-  assert.deepEqual(setUpAgainOnImport(file, { aiFeatures: { pcControl: true }, sdkWidgets: { enabled: true, grants: { clock: {} } } }), []);
-  assert.deepEqual(setUpAgainOnImport(file, { aiFeatures: { pcControl: true }, sdkWidgets: { enabled: true, grants: {} } }), ['widgetPermissions']);
-  assert.deepEqual(setUpAgainOnImport(file, { sdkWidgets: { enabled: false, grants: { clock: {} } } }), ['pcControl', 'widgetPermissions']);
+  const can = { pcControl: true };
+  assert.deepEqual(setUpAgainOnImport(file, {}, can), ['pcControl', 'widgetPermissions']);
+  assert.deepEqual(setUpAgainOnImport(file, { aiFeatures: { pcControl: true }, sdkWidgets: { enabled: true, grants: { clock: {} } } }, can), []);
+  assert.deepEqual(setUpAgainOnImport(file, { aiFeatures: { pcControl: true }, sdkWidgets: { enabled: true, grants: {} } }, can), ['widgetPermissions']);
+  assert.deepEqual(setUpAgainOnImport(file, { sdkWidgets: { enabled: false, grants: { clock: {} } } }, can), ['pcControl', 'widgetPermissions']);
+  // Where PC Control cannot exist (no PowerShell to run its commands) it is not something to turn on again.
+  assert.deepEqual(setUpAgainOnImport(file, {}, { pcControl: false }), ['widgetPermissions']);
+  assert.deepEqual(setUpAgainOnImport({ aiFeatures: { pcControl: true } }, {}, { pcControl: false }), []);
+  // Asked without saying, the answer is this machine's own: the same word the engine offers the tool by.
+  const { POWERSHELL_SUPPORTED } = require('../powershell/supported.js');
+  assert.deepEqual(setUpAgainOnImport({ aiFeatures: { pcControl: true } }, {}), POWERSHELL_SUPPORTED ? ['pcControl'] : []);
+  assert.match(engineSource(), /_features.pcControl === true && POWERSHELL_SUPPORTED/);
   // A file that had them off, or is not settings at all, asks for nothing.
   assert.deepEqual(setUpAgainOnImport({ aiFeatures: { pcControl: false }, sdkWidgets: { enabled: false, grants: {} } }, {}), []);
   for (const odd of [undefined, null, 'settings', [], { aiFeatures: 'on', sdkWidgets: [] }]) assert.deepEqual(setUpAgainOnImport(odd, {}), []);
@@ -85,8 +93,10 @@ test('the list after an import names what the file had on and this PC left off',
 test('the import result carries that list after the services, with or without the flags of the file', () => {
   const { _backupNeedsSetup } = require('../settings/backup-secrets.js');
   const file = { aiFeatures: { pcControl: true } };
-  assert.deepEqual(_backupNeedsSetup({ obs: true, spotify: true }, { obsPassword: 'kept' }, {}, file), ['spotify', 'pcControl']);
-  assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, file), ['pcControl']);
+  const can = { pcControl: true };
+  assert.deepEqual(_backupNeedsSetup({ obs: true, spotify: true }, { obsPassword: 'kept' }, {}, file, undefined, undefined, can), ['spotify', 'pcControl']);
+  assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, file, undefined, undefined, can), ['pcControl']);
+  assert.deepEqual(_backupNeedsSetup({ spotify: true }, {}, {}, file, undefined, undefined, { pcControl: false }), ['spotify']);
   assert.deepEqual(_backupNeedsSetup({ spotify: true }, {}, {}), ['spotify']);
   assert.deepEqual(_backupNeedsSetup(null, {}, {}), []);
   const source = engineSource();
@@ -164,7 +174,7 @@ test('the list after an import says so, also for a first-format file with no fla
   const file = deckOf([{ id: 'b', kind: 'action', triggers: { tap: TOOL } }]);
   const written = deckOnImport(file, null);
   assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, undefined, file, written), ['deckActions']);
-  assert.deepEqual(_backupNeedsSetup({ spotify: true }, {}, {}, { aiFeatures: { pcControl: true } }, file, written), ['spotify', 'pcControl', 'deckActions']);
+  assert.deepEqual(_backupNeedsSetup({ spotify: true }, {}, {}, { aiFeatures: { pcControl: true } }, file, written, { pcControl: true }), ['spotify', 'pcControl', 'deckActions']);
   // Nothing held back, or a file with no Deck: nothing to say.
   assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, undefined, file, normalizeDeckStore(file)), []);
   assert.deepEqual(_backupNeedsSetup(undefined, {}, {}, undefined, undefined, written), []);

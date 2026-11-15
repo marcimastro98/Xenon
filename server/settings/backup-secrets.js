@@ -38,8 +38,8 @@ function _backupSecretFlags(settings, tokens) {
 // What the file had on and this PC keeps as it was (PC Control, widget permissions) is listed
 // after them, read from the file's own settings: a v1 bundle gets that part too. Last comes
 // 'deckActions', when the file's Deck had keys whose action was not taken (deckOnImport).
-function _backupNeedsSetup(flags, settings, tokens, fromFile, fileDeck, deckNow) {
-  const here = setUpAgainOnImport(fromFile, settings);
+function _backupNeedsSetup(flags, settings, tokens, fromFile, fileDeck, deckNow, can) {
+  const here = setUpAgainOnImport(fromFile, settings, can);
   if (deckActionsHeldBack(fileDeck, deckNow)) here.push('deckActions');
   if (!flags || typeof flags !== 'object') return here;
   const local = _backupSecretFlags(settings, tokens);
