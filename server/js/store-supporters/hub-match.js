@@ -5,7 +5,7 @@
 // on the user's machine, against what this dashboard already knows about
 // itself. Nothing is sent anywhere to receive a targeted message — that is the
 // point of the design, not an implementation detail (see the correlation note in
-// server/version-ping.js).
+// server/updates/version-ping.js).
 //
 // Split out of js/store-supporters/hub-messages.js because this is the code that decides who sees
 // what: a bug here shows a message meant for a handful of installs to everyone,

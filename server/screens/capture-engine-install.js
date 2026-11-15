@@ -6,7 +6,7 @@ const { CAPTURE_EXE } = require('./capture-exe.js');
 const { _captureHost } = require('./capture-engine-host.js');
 const {
   createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX,
-} = require('../helper-update.js');
+} = require('../updates/helper-update.js');
 const { APP_VERSION } = require('../updates/app-version.js');
 const { HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS } = require('../updates/check-values.js');
 const { writeFileAtomic } = require('../atomic-write.js');

@@ -4,7 +4,7 @@
 //   node tools/ci/mac-helper-update-check.mjs <built xenon-helper>
 //
 // Packs the helper built from helper-mac/ the way release.yml does, serves it
-// as a release signed by a throwaway key, and runs server/helper-update.js with
+// as a release signed by a throwaway key, and runs server/updates/helper-update.js with
 // the system's own tar, xattr and the helper's own --version. An installed
 // helper below the minimum (a script answering 0.6.0) must be replaced by the
 // built one, which must then answer the minimum; a second run must touch
@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createHelperUpdate, HELPER_ASSET_MAC, MIN_MAC_HELPER } = require('../../server/helper-update.js');
+const { createHelperUpdate, HELPER_ASSET_MAC, MIN_MAC_HELPER } = require('../../server/updates/helper-update.js');
 
 const built = path.resolve(process.argv[2] || '');
 if (!fs.existsSync(built)) {

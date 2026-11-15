@@ -7,7 +7,7 @@ const {
 const { resolveReleaseMedia } = require('./release-media.js');
 const { releaseCache } = require('./release-cache.js');
 const { parseSemver } = require('../semver.js');
-const autoUpdateLib = require('../auto-update.js');
+const autoUpdateLib = require('./auto-update.js');
 
 // Probe the latest GitHub release. `force` bypasses the cache (the manual
 // "check now" button); otherwise a successful probe is reused for a day.

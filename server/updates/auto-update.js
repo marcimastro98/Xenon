@@ -32,17 +32,17 @@
 
 const {
   MIN_AGE_MS, IDLE_MIN_SEC, normVer, hasNoAutoMarker, inNightWindow, decide,
-} = require('./updates/auto-update-decide.js');
+} = require('./auto-update-decide.js');
 const {
   FIRST_TICK_MS, TICK_MS, RECHECK_MS, COUNTDOWN_MS, POSTPONE_MS, PREPARE_RETRY_MS,
   PREPARE_MAX_TRIES, APPLY_TIMEOUT_MS,
-} = require('./updates/auto-update-limits.js');
+} = require('./auto-update-limits.js');
 
-const { makeCountdown } = require('./updates/auto-update-countdown.js');
+const { makeCountdown } = require('./auto-update-countdown.js');
 
-const { makeState } = require('./updates/auto-update-state.js');
+const { makeState } = require('./auto-update-state.js');
 
-const { makeSteps } = require('./updates/auto-update-steps.js');
+const { makeSteps } = require('./auto-update-steps.js');
 
 /**
  * The loop. Every effect is a dependency, so the tests drive it with a fake

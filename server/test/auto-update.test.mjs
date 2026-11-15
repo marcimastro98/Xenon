@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 // its own, and each blocker is tested alone, so a rule cannot quietly stop
 // being enforced because another one happened to cover the same case.
 const require = createRequire(import.meta.url);
-const { decide, hasNoAutoMarker, inNightWindow, MIN_AGE_MS, IDLE_MIN_SEC } = require('../auto-update.js');
+const { decide, hasNoAutoMarker, inNightWindow, MIN_AGE_MS, IDLE_MIN_SEC } = require('../updates/auto-update.js');
 
 const NOW = Date.parse('2026-10-10T14:00:00Z');
 const H = 60 * 60 * 1000;

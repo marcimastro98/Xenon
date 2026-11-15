@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const notice = require('../js/updates/release-notice.js');
-const notes = require('../release-notes.js');
+const notes = require('../updates/release-notes.js');
 const remote = require('../remote-access.js');
 const WHATSNEW = require('../whatsnew.json');
 const PACKAGE = require('../../package.json');

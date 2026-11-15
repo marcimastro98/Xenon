@@ -97,7 +97,7 @@ function updateVersionPing(checked) {
   syncSettingsControls();
 }
 
-// Automatic self-update. On by default (server/auto-update.js). Off means Xenon
+// Automatic self-update. On by default (server/updates/auto-update.js). Off means Xenon
 // still checks and still shows the What’s New modal (js/update.js) — it just
 // never downloads or applies a release on its own.
 function updateAutoUpdate(checked) {

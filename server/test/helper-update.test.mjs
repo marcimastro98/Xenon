@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 
 const require = createRequire(import.meta.url);
-const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC } = require('../helper-update.js');
+const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC } = require('../updates/helper-update.js');
 
 // The boot self-heal must install the native helper ONLY when its bytes hash to the
 // value recorded in the release's Ed25519-SIGNED SHA256SUMS. These tests sign with a

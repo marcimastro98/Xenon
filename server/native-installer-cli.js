@@ -10,7 +10,7 @@
 // script that runs the installer hashes the file again right before starting
 // it, so a file swapped after this check is still refused.
 
-const { createNativeInstallerFetch } = require('./native-installer');
+const { createNativeInstallerFetch } = require('./updates/native-installer');
 
 async function main(argv) {
   const destDir = argv[2];

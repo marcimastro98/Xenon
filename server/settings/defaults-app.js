@@ -21,7 +21,7 @@ const HUB_DEFAULTS_APP = Object.freeze({
   // Anonymous version ping — ON by default for installs made from v4.8.0 onwards;
   // the switch is in Settings → Generale → Aggiornamenti. Sends only {version, os}
   // on the update check the app already makes; never the install id. See
-  // server/version-ping.js and docs/privacy.html.
+  // server/updates/version-ping.js and docs/privacy.html.
   //
   // These defaults are read ONLY when settings.json does not exist yet (see the
   // `|| { ...DEFAULT_HUB_SETTINGS }` fallbacks), so this reaches a fresh install
@@ -40,7 +40,7 @@ const HUB_DEFAULTS_APP = Object.freeze({
   hubMessages: true,
   catalogDrops: true,
   monthlyDrops: true,
-  // Automatic updates (server/auto-update.js). ON by default and normalized
+  // Automatic updates (server/updates/auto-update.js). ON by default and normalized
   // with `!== false`, so existing installs get it with this update as well: it
   // sends nothing anywhere new (the release check already runs), it only
   // installs what the user would otherwise be asked to install, at a moment

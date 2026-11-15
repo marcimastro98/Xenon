@@ -3,14 +3,14 @@
 // in this version.
 
 const { APP_VERSION } = require('./app-version.js');
-const releaseNotes = require('../release-notes.js');
+const releaseNotes = require('./release-notes.js');
 const { readBody } = require('../http/read-body.js');
 const { readPwshJson } = require('../powershell/read-json.js');
 const path = require('node:path');
 const { DATA_DIR } = require('../engine/paths.js');
 const { checkLatestRelease } = require('./latest-release.js');
 const { semverNewer } = require('../semver.js');
-const versionPing = require('../version-ping.js');
+const versionPing = require('./version-ping.js');
 const { hub } = require('../settings/current.js');
 const { settingsBoot } = require('../settings/boot-state.js');
 const supporterRedeem = require('../store-supporters/supporter-redeem.js');

@@ -4,7 +4,7 @@
 const lighting = require('./lighting.js');
 const { readBody } = require('../http/read-body.js');
 const { execFile } = require('node:child_process');
-const icueSdkInstall = require('../icue-sdk-install.js');
+const icueSdkInstall = require('../updates/icue-sdk-install.js');
 const { hub } = require('../settings/current.js');
 const signalrgb = require('./signalrgb.js');
 const { withHubSettingsLock } = require('../settings/write-lock.js');

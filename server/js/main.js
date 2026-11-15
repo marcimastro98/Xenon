@@ -110,7 +110,7 @@ function showAlertToast(toast) {
   window.XenonToast.show(toast);
 }
 
-// The automatic update's last minute (server/auto-update.js): one card, closed
+// The automatic update's last minute (server/updates/auto-update.js): one card, closed
 // when the countdown ends any other way. A layer window stays quiet.
 let autoUpdateToastId = 0;
 function onAutoUpdate(d) {

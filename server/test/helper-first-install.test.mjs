@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { runHelperFirstInstall, DONE_FILE, MAX_TRIES } = require('../helper-first-install.js');
+const { runHelperFirstInstall, DONE_FILE, MAX_TRIES } = require('../updates/helper-first-install.js');
 
 function rig(mode) {
   const dataDir = mkdtempSync(path.join(tmpdir(), 'xenon-helper-first-'));

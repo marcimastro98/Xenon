@@ -23,7 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Readable } = require('stream');
-const { UPDATE_PUBKEY_PEM, SELF_UPDATE_REPO, parseSumsEntry } = require('./self-update');
+const { UPDATE_PUBKEY_PEM, SELF_UPDATE_REPO, parseSumsEntry } = require('../self-update');
 
 const SETUP_ASSET = 'Xenon-Setup-x64.exe';
 const SUMS_ASSET = 'SHA256SUMS';

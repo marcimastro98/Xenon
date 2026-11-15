@@ -16,7 +16,7 @@ import zlib from 'node:zlib';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createHelperUpdate, HELPER_ASSET_MAC, MIN_MAC_HELPER } = require('../helper-update.js');
+const { createHelperUpdate, HELPER_ASSET_MAC, MIN_MAC_HELPER } = require('../updates/helper-update.js');
 
 const KEYS = crypto.generateKeyPairSync('ed25519');
 const PUB_PEM = KEYS.publicKey.export({ type: 'spki', format: 'pem' });

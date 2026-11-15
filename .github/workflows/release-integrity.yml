@@ -17,7 +17,7 @@ name: Release integrity
 #
 # Consumers verifying against this signed manifest with the pinned key:
 #   - server/self-update.js       (source.zip line, before applying an update)
-#   - server/helper-update.js     (xenon-helper.exe line, boot self-heal;
+#   - server/updates/helper-update.js     (xenon-helper.exe line, boot self-heal;
 #                                  xenon-capture.exe line, capture engine)
 #   - the setup.exe bootstrap     (source.zip line, first install)
 # All fail closed.

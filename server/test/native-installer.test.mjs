@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createNativeInstallerFetch, SETUP_ASSET } = require('../native-installer.js');
+const { createNativeInstallerFetch, SETUP_ASSET } = require('../updates/native-installer.js');
 
 // The dashboard's one-tap native install runs the downloaded setup SILENTLY, and
 // as LocalSystem it hands it to a task in the user's session: nothing about that

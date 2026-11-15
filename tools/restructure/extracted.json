@@ -780,7 +780,7 @@
       {"file":"server/transfer/linux-phone-limits.js","about":"How long a pull of the phone book from a paired phone may take on Linux, and how often it is asked whether it is done.","names":["PULL_TIMEOUT_MS","PULL_POLL_MS"]},
       {"file":"server/transfer/linux-phone-obex.js","about":"The two things a paired phone gives over OBEX on Linux: the phone book pulled to a private file and read, and a message session opened on a folder and closed again.","names":["pullPhonebook","waitForTransfer","withMapSession","selectFolder"],"inner":{"factory":"createLinuxPhone","make":"makeObex"}}
     ],
-    "server/auto-update.js": [
+    "server/updates/auto-update.js": [
       {"file":"server/updates/auto-update-decide.js","about":"Decides whether an update may install itself now: a newer version, old enough, the PC idle, at night, and not marked as one to ask about.","names":["MIN_AGE_MS","IDLE_MIN_SEC","NIGHT_START_HOUR","NIGHT_END_HOUR","NO_AUTO_MARKER","parseVer","newer","normVer","hasNoAutoMarker","inNightWindow","decide"]},
       {"file":"server/updates/auto-update-limits.js","about":"The waits of the automatic updater, how many times a download is tried, and the download errors that trying again cannot fix.","names":["FIRST_TICK_MS","TICK_MS","RECHECK_MS","COUNTDOWN_MS","POSTPONE_MS","PREPARE_RETRY_MS","PREPARE_MAX_TRIES","APPLY_TIMEOUT_MS","PERMANENT_PREPARE_ERRORS"]},
       {"file":"server/updates/auto-update-countdown.js","about":"The countdown before an automatic update: started, cancelled, ended with every condition checked again before the update is applied, and postponed by an hour.","names":["startCountdown","cancelCountdown","finishCountdown","postpone"],"inner":{"factory":"createAutoUpdater","make":"makeCountdown"}},
@@ -797,7 +797,7 @@
     "server/deck/linux-hotkey.js": [
       {"file":"server/deck/linux-hotkey-accelerator.js","about":"Turns a key combination into the accelerator GNOME understands, reads what gsettings prints about shortcuts, and writes the command the desktop runs on the shortcut.","names":["MODIFIERS","KEY_NAMES","toAccelerator","MOD_ALIASES","MOD_ORDER","normalizeAccel","bindingsFrom","parsePathArray","commandFor"]}
     ],
-    "server/version-ping.js": [
+    "server/updates/version-ping.js": [
       {"file":"server/updates/version-ping-body.js","about":"What the anonymous version ping says and what is remembered of it: the day and week in UTC, the install's age as a bucket, the body sent, and the state kept after a ping.","names":["PROTOCOL","VERSION_RE","DAY_RE","WEEK_RE","MONTH_RE","LANG_SET","utcDay","isoWeek","ageBucket","buildPingBody","nextState"]}
     ],
     "server/menu/menu-widgets.js": [
@@ -1234,7 +1234,7 @@
     "server/search/linux-index.js": [
       {"factory":"createLinuxIndex","object":"ixState","names":["roots","entries","aggs","building","ready","capped","cappedRoots","stats_","scanToken","version","scanning","rescanTimer","stopped","notBefore","startTimer","held","waitingWalks"],"kept":["notBefore"],"bare":[],"after":2}
     ],
-    "server/auto-update.js": [
+    "server/updates/auto-update.js": [
       {"factory":"createAutoUpdater","object":"auState","names":["record","release","lastCheckAt","prepareTries","postponedUntil","countdown","tickTimer","ticking","stopped","lastDecision","lastBlockers","started"],"kept":[],"bare":[],"after":1}
     ],
     "server/self-update.js": [

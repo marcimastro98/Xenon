@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const versionPing = require('../version-ping.js');
+const versionPing = require('../updates/version-ping.js');
 
 let calls;
 let responder;

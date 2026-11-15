@@ -20,7 +20,7 @@ const read = (...p) => readFileSync(join(ROOT, ...p), 'utf8');
 
 const updatePs1 = read('server', 'icue-sdk-update.ps1');
 const installPs1 = read('server', 'install.ps1');
-const installJs = read('server', 'icue-sdk-install.js');
+const installJs = read('server', 'updates/icue-sdk-install.js');
 const lighting = engineSource('server/lights/lighting.js');
 const gitignore = read('.gitignore');
 

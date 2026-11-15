@@ -50,9 +50,9 @@
 const https = require('https');
 const path = require('path');
 const fsp = require('fs').promises;
-const { writeFileAtomic } = require('./atomic-write');
-const { HUB_BASE } = require('./store-supporters/supporter-redeem');
-const { armDeadline } = require('./http/net-guard');
+const { writeFileAtomic } = require('../atomic-write');
+const { HUB_BASE } = require('../store-supporters/supporter-redeem');
+const { armDeadline } = require('../http/net-guard');
 
 const FETCH_TIMEOUT_MS = 6000;
 // `timeout` is an idle timeout only; a hub that trickles bytes would hold the
@@ -64,7 +64,7 @@ const STATE_BASENAME = 'version-ping.json';
 const {
   PROTOCOL, VERSION_RE, DAY_RE, WEEK_RE, MONTH_RE, utcDay, isoWeek, ageBucket, buildPingBody,
   nextState,
-} = require('./updates/version-ping-body.js');
+} = require('./version-ping-body.js');
 
 let _transport = postJson;   // swappable for tests
 let _inflight = null;        // concurrent dashboard loads collapse to one attempt

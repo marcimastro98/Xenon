@@ -109,7 +109,7 @@
     "server/ffmpeg-install/ffmpeg-install.js TS2810": 1,
     "server/transfer/file-transfer.js TS2339": 15,
     "server/transfer/file-transfer.js TS2353": 1,
-    "server/helper-update.js TS2810": 1,
+    "server/updates/helper-update.js TS2810": 1,
     "server/hid/index.js TS2339": 1,
     "server/http/http-range.js TS2339": 7,
     "server/http/read-body.js TS2339": 2,

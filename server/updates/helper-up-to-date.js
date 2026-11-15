@@ -7,8 +7,8 @@ const path = require('node:path');
 const audioLevels = require('../audio/audio-levels.js');
 const {
   createHelperUpdate, HELPER_ASSET, HELPER_ASSET_MAC, MIN_MAC_HELPER,
-} = require('../helper-update.js');
-const { runHelperFirstInstall } = require('../helper-first-install.js');
+} = require('./helper-update.js');
+const { runHelperFirstInstall } = require('./helper-first-install.js');
 const { APP_VERSION } = require('./app-version.js');
 const { HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS } = require('./check-values.js');
 const { HELPER_EXE } = require('../engine/paths.js');

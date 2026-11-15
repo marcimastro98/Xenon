@@ -8,7 +8,7 @@
 // the app already knows about itself: its version, its platform, its language,
 // and which catalog entries it has installed. Nothing is sent to receive a
 // targeted message, which is the entire reason the channel is shaped this way:
-// see the correlation note in server/version-ping.js. If you ever find yourself
+// see the correlation note in server/updates/version-ping.js. If you ever find yourself
 // wanting to POST "what I have" to pick messages server-side, that is the thing
 // this design exists to avoid. The inbox on this PC keeps what matched and never
 // leaves it.

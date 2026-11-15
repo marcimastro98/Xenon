@@ -272,7 +272,14 @@
     {"from":"server/phone-messages.js","to":"server/transfer/phone-messages.js"},
     {"from":"server/phone-numbers.js","to":"server/transfer/phone-numbers.js"},
     {"from":"server/phone-vcard.js","to":"server/transfer/phone-vcard.js"},
-    {"from":"server/phone.js","to":"server/transfer/phone.js"}
+    {"from":"server/phone.js","to":"server/transfer/phone.js"},
+    {"from":"server/auto-update.js","to":"server/updates/auto-update.js"},
+    {"from":"server/helper-first-install.js","to":"server/updates/helper-first-install.js"},
+    {"from":"server/helper-update.js","to":"server/updates/helper-update.js"},
+    {"from":"server/icue-sdk-install.js","to":"server/updates/icue-sdk-install.js"},
+    {"from":"server/native-installer.js","to":"server/updates/native-installer.js"},
+    {"from":"server/release-notes.js","to":"server/updates/release-notes.js"},
+    {"from":"server/version-ping.js","to":"server/updates/version-ping.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -329,6 +336,13 @@
     {"feature":"phone","glob":"server/calls.js","at":2},
     {"feature":"phone","glob":"server/call-detect.js","at":3},
     {"feature":"phone","glob":"server/linux-phone.js","at":4},
-    {"feature":"phone","glob":"server/file-transfer.js","at":5}
+    {"feature":"phone","glob":"server/file-transfer.js","at":5},
+    {"feature":"updates","glob":"server/auto-update.js","at":2},
+    {"feature":"updates","glob":"server/helper-update.js","at":5},
+    {"feature":"updates","glob":"server/helper-first-install.js","at":7},
+    {"feature":"updates","glob":"server/release-notes.js","at":8},
+    {"feature":"updates","glob":"server/native-installer.js","at":10},
+    {"feature":"updates","glob":"server/version-ping.js","at":12},
+    {"feature":"updates","glob":"server/icue-sdk-install.js","at":13}
   ]
 }

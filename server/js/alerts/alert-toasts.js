@@ -134,7 +134,7 @@
   }
 
   // The last minute before an automatic update installs (SSE update_auto,
-  // phase countdown, server/auto-update.js). `onLater` puts it off by an hour.
+  // phase countdown, server/updates/auto-update.js). `onLater` puts it off by an hour.
   // Any other phase has no card: the caller closes the countdown one.
   function autoUpdate(d, ctx, onLater) {
     if (!d || typeof d !== 'object' || d.phase !== 'countdown') return null;

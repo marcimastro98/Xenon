@@ -1,7 +1,7 @@
 // Checks the "What's New" text of a release before a dashboard shows it.
 
 const { isAllowedMediaUrl } = require('./release-media.js');
-const releaseNotes = require('../release-notes.js');
+const releaseNotes = require('./release-notes.js');
 
 const WHATSNEW_TEXT_MAX = 2000;
 

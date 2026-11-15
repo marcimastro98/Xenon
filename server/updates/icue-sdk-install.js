@@ -15,8 +15,8 @@
 const path = require('path');
 const { spawn } = require('child_process');
 
-const SCRIPT = path.join(__dirname, 'icue-sdk-update.ps1');
-const SDK_DIR = path.join(__dirname, 'icue-sdk');
+const SCRIPT = path.join(__dirname, '..', 'icue-sdk-update.ps1');
+const SDK_DIR = path.join(__dirname, '..', 'icue-sdk');
 const PS_EXE = path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 const TIMEOUT_MS = 180000; // the archive is ~340 KB, but a slow link plus extraction needs room
 

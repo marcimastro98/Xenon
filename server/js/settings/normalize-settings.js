@@ -88,7 +88,7 @@ function normalizeSettings(source) {
     spotifyStartMinimized: value.spotifyStartMinimized === true,
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
-    // Automatic updates: on unless the user switched them off (server/auto-update.js).
+    // Automatic updates: on unless the user switched them off (server/updates/auto-update.js).
     autoUpdate: value.autoUpdate !== false,
     autoUpdateWidgets: value.autoUpdateWidgets !== false,
     hubMessages: value.hubMessages !== false,

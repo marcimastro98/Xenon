@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 // countdown re-check, postpone, the failure memory across a restart — runs
 // here in milliseconds and in order.
 const require = createRequire(import.meta.url);
-const AU = require('../auto-update.js');
+const AU = require('../updates/auto-update.js');
 
 const H = 60 * 60 * 1000;
 const T0 = Date.parse('2026-10-10T14:00:00Z');

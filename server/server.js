@@ -491,7 +491,7 @@ const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./performance/perf-screen');  // Performance Mode with no dashboard (widgets only)
 require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
 require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
-require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
+require('./updates/version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const usageStats = require('./engine/usage-stats');  // anonymous feature counts, off unless usageStats is on
 require('./store-catalog/icon-packs');
 require('./store-catalog/sound-packs');
@@ -533,7 +533,7 @@ aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge r
 try { const w = require('./engine/node-version').nodeWarning(); if (w) console.warn(w); } catch { /* never block startup on this */ }
 
 const { AUTO_UPDATE_ASSUME_IDLE } = require('./updates/check-values.js');
-const autoUpdateLib = require('./auto-update');
+const autoUpdateLib = require('./updates/auto-update');
 const { nextSettingsRev } = require('./settings/settings-rev');   // shared by every settings writer
 
 const { checkLatestRelease } = require('./updates/latest-release.js');

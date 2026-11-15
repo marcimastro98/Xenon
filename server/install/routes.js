@@ -7,7 +7,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { nativeInstall } = require('../updates/native-install-state.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const { createNativeInstallerFetch } = require('../native-installer.js');
+const { createNativeInstallerFetch } = require('../updates/native-installer.js');
 const { spawn } = require('node:child_process');
 
 const SERVER_DIR = path.join(__dirname, '..');
