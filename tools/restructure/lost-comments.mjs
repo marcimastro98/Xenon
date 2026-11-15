@@ -11,7 +11,7 @@
 // when one did not, so it can stand in a routine: it is the `comments` step of the gate,
 // right after `verify`. A hand edit that rewrites a comment starts the gate `--from carry`.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,7 +30,8 @@ function renamedIn(text, addedWords) {
 
 // The removed comment lines of a unified diff that no added line holds. A line of three
 // letters or fewer (a bare `//`, a rule of dashes cut short) says nothing and is skipped.
-export function lostComments(diffText) {
+// A comment that names a file move.mjs moved comes back with the new path: `renames` is that list.
+export function lostComments(diffText, renames = []) {
   const added = new Set();
   const removed = [];
   for (const line of String(diffText).split('\n')) {
@@ -42,7 +43,7 @@ export function lostComments(diffText) {
   const addedWords = [...added].map((text) => text.split(' '));
   return removed.filter((line) => {
     if (!isComment(line)) return false;
-    const text = bare(line);
+    const text = renames.reduce((now, move) => now.split(move.from).join(move.to), bare(line));
     return text.length > 3 && !added.has(text) && !allAdded.includes(text) && !renamedIn(text, addedWords);
   });
 }
@@ -63,7 +64,8 @@ function main() {
   const text = rev
     ? execFileSync('git', ['show', rev, '-U0', '--format=', '--', 'server'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 })
     : workingDiff(root);
-  const lost = lostComments(text);
+  const list = join(root, 'tools', 'restructure', 'moved.json');
+  const lost = lostComments(text, existsSync(list) ? JSON.parse(readFileSync(list, 'utf8')).moves : []);
   console.log(`${rev || 'Working tree'}: ${lost.length} comment lines taken out and not put back.`);
   for (const line of lost) console.log(`    ${line.trim().slice(0, 110)}`);
   if (lost.length) process.exitCode = 1;

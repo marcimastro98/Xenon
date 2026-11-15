@@ -81,3 +81,9 @@ test('the names of the files in the diff are never taken for lines', () => {
   ));
   assert.deepEqual(lost, ['// a real comment that is gone']);
 });
+
+test('a comment that names a moved file comes back with the new path', () => {
+  const diff = ['-    // wakes. See server/pulse-nag.js.', '+    // wakes. See server/pulse/pulse-nag.js.'].join('\n');
+  assert.equal(lostComments(diff).length, 1, 'without the list of moves the line reads as taken out');
+  assert.deepEqual(lostComments(diff, [{ from: 'server/pulse-nag.js', to: 'server/pulse/pulse-nag.js' }]), []);
+});
