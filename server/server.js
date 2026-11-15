@@ -55,7 +55,7 @@ require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 require('./exclusive-hint');
 const { createGameSessions } = require('./game-sessions');
-const calendarReminders = require('./calendar-reminders');
+require('./calendar-reminders');
 const listOps = require('./list-ops');
 const sceneImages = require('./scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
@@ -3946,7 +3946,7 @@ const { timeWrites } = require('./time/write-state.js');
 timeWrites.events = Promise.resolve();
 const { agendaState } = require('./time/agenda-state.js');
 
-const { writeEvents, updateEvents, markEventReminders } = require('./time/events-write.js');
+const { writeEvents, updateEvents } = require('./time/events-write.js');
 
 // Every tasks write runs in one queue, and so does every read that a write is
 // built on (updateTasks), so the assistant, a Deck key, the clock that reopens
@@ -4067,16 +4067,7 @@ setInterval(() => {
   refreshExternalFeeds().catch(() => {});
 }, EXTERNAL_FEEDS_INTERVAL_MS).unref();
 
-// Calendar reminders are decided here, once for every surface (see the module).
-const _calendarReminders = calendarReminders.createCalendarReminders({
-  markLocal: markEventReminders,
-  feedCache: () => agendaState.externalFeeds,
-  firedFile: path.join(DATA_DIR, 'calendar-reminders.json'),
-  writeFileAtomic,
-  hasListeners: () => sseClients.size > 0,
-  broadcast: broadcastSSE,
-  onRing: () => lighting.onEvent('reminder'),
-});
+const { _calendarReminders } = require('./time/engine-reminders.js');
 _calendarReminders.start();
 
 // ── Server-Sent Events infrastructure ────────────────────────────────────────
