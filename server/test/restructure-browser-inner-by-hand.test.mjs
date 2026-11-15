@@ -117,12 +117,64 @@ test('the cutting step moves the chosen lines as they are, writes the script in 
   assert.deepEqual(JSON.parse(on(LEDGER)).moves, [MOVE]);
 });
 
-test('every hand cut on the real list is an inner move of the handed form, and the test reader hands its file out with its script', () => {
+test('a cut that uses nothing of the wrapper is handed nothing: an object the old script takes from, held to the same check', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const MARK = ['  // The mark beside a row: its text between brackets, whatever it is given.', '  function mark(text) {', '    return `[${String(text)}]`;', '  }'];
+  const END = ['  function paint() { return mark(state.count); }', '', '  window.Leaf = { paint };', '})();', ''];
+  const before = script(TOP, MARK, '', END);
+  const after = script(TOP, '  const { mark } = window.LeafRows;', '', END);
+  const made = script('// The mark of a row.', "'use strict';", '', '(() => {', MARK, '', '  window.LeafRows = { mark };', '})();', '');
+  const plan = { from: FILE, to: ROWS, about: 'The mark of a row.', ranges: [[7, 10]], gives: ['mark'] };
+  const move = { kind: 'inner', from: FILE, file: ROWS, about: 'The mark of a row.', names: ['mark'], gives: ['mark'], name: 'LeafRows', hand: true };
+  for (const hands of [undefined, []]) {
+    const cut = cutByHand({ ...plan, hands, text: before });
+    assert.equal(cut.targetText, made);
+    assert.equal(cut.newSource, after);
+    assert.deepEqual(cut.record, move);
+  }
+  const painted = (...scripts) => {
+    const window = {};
+    window.window = window;
+    vm.createContext(window);
+    for (const text of scripts) vm.runInContext(text, window);
+    return window.Leaf.paint();
+  };
+  assert.equal(painted(made, after), painted(before));
+  assert.equal(standing(after, made, true), '');
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-browser-cut-unhanded-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const HELPERS = 'server/js/utils/page-and-text.js';
+  const page = '<body>\n<script src="js/leaf.js"></script>\n</body>\n';
+  const lay = (source) => {
+    const files = { [FILE]: source, [PAGE]: page, [LEDGER]: JSON.stringify({ moves: [] }), [HELPERS]: fs.readFileSync(new URL(`../../${HELPERS}`, import.meta.url), 'utf8') };
+    for (const [file, text] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), text); }
+  };
+  const on = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+  // Lines that use the wrapper's state and are handed nothing: refused as ever, and the checkout is as it was.
+  const counting = before.replace('    return `[${String(text)}]`;', '    return `[${String(text)}/${state.count}]`;');
+  lay(counting);
+  for (const args of [['init', '-q'], ['add', '-A']]) assert.equal(spawnSync('git', args, { cwd: root }).status, 0);
+  const refused = performByHand({ root, parser, plan });
+  assert.match(refused.problems.join('\n'), /mark uses state, which the wrapper of server\/js\/leaf\.js declares/);
+  assert.equal(on(FILE), counting);
+  assert.equal(fs.existsSync(path.join(root, ROWS)), false);
+  assert.deepEqual(JSON.parse(on(LEDGER)).moves, []);
+  lay(before);
+  const done = performByHand({ root, parser, plan });
+  assert.deepEqual(done.problems, []);
+  assert.equal(on(ROWS), made);
+  assert.equal(on(FILE), after);
+  assert.equal(on(PAGE), '<body>\n<script src="js/leaf/rows.js"></script>\n<script src="js/leaf.js"></script>\n</body>\n');
+  assert.deepEqual(JSON.parse(on(LEDGER)).moves, [move]);
+});
+
+test('every hand cut on the real list is an inner move, handed names or none, and the test reader hands its file out with its script', () => {
   const { moves } = JSON.parse(fs.readFileSync(new URL(`../../${LEDGER}`, import.meta.url), 'utf8'));
   for (const move of moves.filter((entry) => entry.hand !== undefined)) {
     assert.equal(move.hand, true, `${move.file}: hand is true or absent`);
     assert.equal(move.kind, 'inner', `${move.file}: only a script cut out of a wrapper is recorded by hand`);
-    assert.ok(Array.isArray(move.hands) && move.hands.length > 0, `${move.file}: a hand cut is handed what it uses of the wrapper`);
+    assert.ok(move.hands === undefined || (Array.isArray(move.hands) && move.hands.length > 0), `${move.file}: a hand cut is handed what it uses of the wrapper, or is not handed anything`);
     assert.ok(partsOf(move.from).includes(move.file), `${move.file} is read with ${move.from}`);
   }
 });

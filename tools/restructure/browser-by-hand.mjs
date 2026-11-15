@@ -7,7 +7,8 @@
 //
 // The plan: { "from": "server/js/leaf.js", "to": "server/js/leaf/rows.js", "about": "One sentence.",
 //   "ranges": [[120, 148], [160, 171]],          lines of the old script, counted from 1, taken as they are and in that order
-//   "hands": ["state", "paint"],                 names of the wrapper the new script is handed
+//   "hands": ["state", "paint"],                 names of the wrapper the new script is handed; none, or left out, when it uses none:
+//                                                it is then written in the first form, an object the old script takes from
 //   "takes": { "LeafWords": ["t"] },             names it takes from scripts of the same wrapper that load before it
 //   "gives": ["row", "rows"],                    names the old script takes back
 //   "at": 120 }                                  the line of the old script the taking line stands above (default: the first range)
@@ -25,7 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { takeText } from './browser-inner-takes.mjs';
-import { windowNameOf } from './browser-inner-plan.mjs';
+import { CLOSES, OPENS, windowNameOf } from './browser-inner-plan.mjs';
 import { readBrowserLedger, writeBrowserLedger } from './browser-ledger.mjs';
 import { retag } from './browser-moves.mjs';
 import { listPages } from './browser-pages.mjs';
@@ -42,16 +43,16 @@ const blank = (line) => line.trim() === '';
  * The two texts of a cut made by hand. Pure: nothing is read or written.
  * @param {object} cut @param {string} cut.text the old script @param {string} cut.from its path @param {string} cut.to the new script's path
  * @param {string} cut.about one sentence @param {number[][]} cut.ranges [first, last] lines of the old script, from 1, in the order they are taken
- * @param {string[]} cut.hands @param {Record<string, string[]>} [cut.takes] @param {string[]} cut.gives @param {number} [cut.at]
+ * @param {string[]} [cut.hands] @param {Record<string, string[]>} [cut.takes] @param {string[]} cut.gives @param {number} [cut.at]
  * @returns {{ newSource: string, targetText: string, record: any }} throws a Refusal with every reason when the plan cannot be a cut
  */
-export function cutByHand({ text, from, to, about, ranges, hands, takes = {}, gives, at = ranges[0]?.[0] }) {
+export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {}, gives, at = ranges[0]?.[0] }) {
   const name = windowNameOf(from, to);
   const lines = text.split('\n');
   const reasons = [];
   if (!name) reasons.push(`${to} is not ${from.replace(/\.js$/, '')}/<what it does>.js`);
   if (!String(about ?? '').trim()) reasons.push('the new script needs one sentence saying what it does');
-  if (!ranges?.length || !gives?.length || !hands?.length) reasons.push('a cut names its lines, what it is handed and what it gives back');
+  if (!ranges?.length || !gives?.length) reasons.push('a cut names its lines and what it gives back');
   const sorted = [...(ranges ?? [])].sort((a, b) => a[0] - b[0]);
   sorted.forEach(([first, last], index) => {
     if (!(first >= 1 && last >= first && last < lines.length)) reasons.push(`lines ${first}-${last} are not lines of ${from}`);
@@ -65,9 +66,13 @@ export function cutByHand({ text, from, to, about, ranges, hands, takes = {}, gi
   const indent = /^[ \t]*/.exec(lines[ranges[0][0] - 1])[0];
   const moved = ranges.flatMap(([first, last], index) => [...(index ? [''] : []), ...lines.slice(first - 1, last)]);
   const taking = Object.entries(takes).flatMap(([window, names]) => takeText(names, window, indent));
-  const targetText = [headerOf(about, strict).trimEnd(), '', `window.${name} = (wrapper) => {`,
-    ...wrapNames(hands, 'const {', '} = wrapper;').map((line) => indent + line), '', ...taking, ...(taking.length ? [''] : []),
-    ...moved, '', ...wrapNames(gives, 'return {', '};').map((line) => indent + line), '};', ''].join('\n');
+  // Handed nothing, it is the first form: a script that makes its functions alone and leaves them in one object.
+  const inside = (written) => written.map((line) => indent + line);
+  const [opens, handed, back, closes, taker] = hands.length
+    ? [`window.${name} = (wrapper) => {`, [...inside(wrapNames(hands, 'const {', '} = wrapper;')), ''], ['return {', '};'], '};', `} = window.${name}({ ${hands.join(', ')} });`]
+    : [OPENS[1], [], [`window.${name} = {`, '};'], CLOSES[0], `} = window.${name};`];
+  const targetText = [headerOf(about, strict).trimEnd(), '', opens, ...handed, ...taking, ...(taking.length ? [''] : []),
+    ...moved, '', ...inside(wrapNames(gives, back[0], back[1])), closes, ''].join('\n');
   if (targetText.split('\n').length - 1 > MAX_LINES) reasons.push(`${to} would be ${targetText.split('\n').length - 1} lines: a new file stays within ${MAX_LINES}`);
 
   // Out go the runs, each with the empty lines under it; in comes the taking line, above the line asked for.
@@ -77,7 +82,7 @@ export function cutByHand({ text, from, to, about, ranges, hands, takes = {}, gi
     while (end < lines.length - 1 && blank(lines[end])) end += 1;
     for (let line = first; line <= end; line += 1) gone.add(line);
   }
-  const glue = [...wrapNames(gives, 'const {', `} = window.${name}({ ${hands.join(', ')} });`).map((line) => indent + line), ''];
+  const glue = [...inside(wrapNames(gives, 'const {', taker)), ''];
   const kept = [];
   lines.forEach((line, index) => {
     if (index + 1 === at) kept.push(...glue);
@@ -85,7 +90,7 @@ export function cutByHand({ text, from, to, about, ranges, hands, takes = {}, gi
   });
   if (reasons.length) throw new Refusal(reasons);
   const taken = Object.keys(takes).length ? { takes } : {};
-  return { newSource: kept.join('\n'), targetText, record: { kind: 'inner', from, file: to, about, names: gives, gives, name, ...taken, hands, hand: true } };
+  return { newSource: kept.join('\n'), targetText, record: { kind: 'inner', from, file: to, about, names: gives, gives, name, ...taken, ...(hands.length ? { hands } : {}), hand: true } };
 }
 
 /**
@@ -125,7 +130,7 @@ export function performByHand({ root, parser, plan, dryRun = false }) {
 
 async function main(argv) {
   const planFile = argv.find((word) => !word.startsWith('--'));
-  if (!planFile) { console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).map((line) => line.replace(/^\/\/ ?/, '')).join('\n')); return 2; }
+  if (!planFile) { console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 15).map((line) => line.replace(/^\/\/ ?/, '')).join('\n')); return 2; }
   const dryRun = argv.includes('--dry-run');
   const parser = await openParser();
   try {
