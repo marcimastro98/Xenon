@@ -24,7 +24,7 @@ cp.spawn = (exe, args) => {
 };
 const realPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
 Object.defineProperty(process, 'platform', { value: 'win32' });
-const fpsmon = require('../fpsmon.js');
+const fpsmon = require('../performance/fpsmon.js');
 cp.spawn = realSpawn;
 
 const presentMons = () => spawned.filter((p) => !/logman/i.test(p.exe));

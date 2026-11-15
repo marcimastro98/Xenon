@@ -28,7 +28,7 @@ import { engineSource } from './engine-source.mjs';
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const require = createRequire(import.meta.url);
-const { parseHeader, rowValues, pickEntry, entryFps } = require('../fpsmon.js');
+const { parseHeader, rowValues, pickEntry, entryFps } = require('../performance/fpsmon.js');
 const SERVER = engineSource();
 
 // The real headers, as each version writes them.
@@ -206,7 +206,7 @@ test('the foreground hint is wired without the two modules requiring each other'
   // fpsmon required gamedetect back, the cycle would resolve to a half-built
   // module at load time — so server.js hands each one the other.
   assert.match(SERVER, /fpsMonitor\.setForegroundPid\(\(\) => gameDetect\.getForegroundPid\(\)\)/);
-  const fpsmon = engineSource('server/fpsmon.js');
+  const fpsmon = engineSource('server/performance/fpsmon.js');
   assert.ok(!/require\(['"]\.\/gamedetect/.test(fpsmon), 'fpsmon.js must not require gamedetect.js');
 });
 

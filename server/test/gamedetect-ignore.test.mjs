@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const gd = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'gamedetect.js'));
+const gd = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'performance/gamedetect.js'));
 
 test('our own process is ignored under every renamed-image shape', () => {
   for (const name of [

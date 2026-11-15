@@ -445,8 +445,6 @@
         "server/performance.ps1",
         "server/perf-priority.ps1",
         "server/processes.ps1",
-        "server/fps*.js",
-        "server/gamedetect.js",
         "server/actions/perf-registry.js",
         "server/js/performance/**",
         "server/js/performance*.js",

@@ -20,7 +20,7 @@ function fresh(t, { alive = () => true } = {}) {
     if (alive(pid)) return true;
     throw Object.assign(new Error('gone'), { code: 'ESRCH' });
   });
-  const gd = require('../gamedetect.js');
+  const gd = require('../performance/gamedetect.js');
   const flips = [];
   gd.onGamingChange((gaming) => flips.push(gaming));
   return { gd, flips, later: (ms) => t.mock.timers.tick(ms) };

@@ -350,7 +350,7 @@ const capabilityRunner = capabilities.createCapabilities({
     heldBy: (combo, except) => _comboHeldBy(combo, except),
   },
 });
-const gameDetect = require('./gamedetect');
+const gameDetect = require('./performance/gamedetect');
 const audioLevels = require('./audio/audio-levels');
 const winNotif = require('./notification-open/winnotif');
 const { lowerPriority } = require('./programs/child-priority');

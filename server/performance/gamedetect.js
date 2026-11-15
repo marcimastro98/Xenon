@@ -25,16 +25,16 @@ const PROBE_INTERVAL_MS = 2000;  // foreground.ps1 polling cadence
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 
-const PROBE_SCRIPT = path.join(__dirname, 'foreground.ps1');
+const PROBE_SCRIPT = path.join(__dirname, '..', 'foreground.ps1');
 // Native helper (optional): same probe, same output lines, but also pushes an
 // extra line the instant the foreground window changes — game mode reacts
 // immediately. When the exe is missing or keeps dying, the PS probe is used.
-const HELPER_PROBE_EXE = path.join(__dirname, 'helper',
+const HELPER_PROBE_EXE = path.join(__dirname, '..', 'helper',
   process.platform === 'win32' ? 'xenon-helper.exe' : 'xenon-helper');
 
-const { gameWatch } = require('./performance/game-watch-state.js');
+const { gameWatch } = require('./game-watch-state.js');
 
-const { STALE_MS, isIgnoredProc, isGaming, isGameRunning } = require('./performance/game-judge.js');
+const { STALE_MS, isIgnoredProc, isGaming, isGameRunning } = require('./game-judge.js');
 
 // Inject a frame-presentation hint provider (server.js wires PresentMon here).
 // Optional: without it, detection is fullscreen-only as before.
@@ -52,7 +52,7 @@ function onGamingChange(fn) {
   gameWatch.onChange = typeof fn === 'function' ? fn : null;
 }
 
-const { applySample, onData } = require('./performance/game-readings.js');
+const { applySample, onData } = require('./game-readings.js');
 
 function start() {
   if (gameWatch.stopped) return;
@@ -71,7 +71,7 @@ function start() {
   // Linux, which is what it was.
   if (!useHelper && process.platform === 'linux') {
     if (!gameWatch.linuxProbe) {
-      const { createLinuxForeground } = require('./windows-tiles/linux-foreground');
+      const { createLinuxForeground } = require('../windows-tiles/linux-foreground');
       gameWatch.linuxProbe = createLinuxForeground({ intervalMs: PROBE_INTERVAL_MS, onSample: applySample });
     }
     gameWatch.linuxProbe.start();
@@ -127,7 +127,7 @@ function getGameProcess() {
   return gameWatch.gameProc;
 }
 
-const { classifyActivity } = require('./performance/game-activity.js');
+const { classifyActivity } = require('./game-activity.js');
 
 // Current foreground activity: 'gaming' | 'coding' | 'writing' | 'other'.
 function getActivity() {

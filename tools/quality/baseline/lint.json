@@ -343,7 +343,7 @@
     "server/ffmpeg-install/routes.js correctness/noUnusedFunctionParameters": 4,
     "server/file-transfer.js complexity/useOptionalChain": 1,
     "server/files/reveal-in-file-manager.js complexity/useOptionalChain": 1,
-    "server/fpsmon.js complexity/useOptionalChain": 2,
+    "server/performance/fpsmon.js complexity/useOptionalChain": 2,
     "server/grid/feed-widget-in-use.js complexity/useOptionalChain": 1,
     "server/grid/go-to-page-miss.js complexity/useOptionalChain": 2,
     "server/grid/layout-backup.js complexity/useOptionalChain": 2,

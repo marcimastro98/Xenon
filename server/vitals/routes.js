@@ -3,7 +3,7 @@
 
 const { readBody, readBodyBuffer } = require('../http/read-body.js');
 const { vitalsPetCfg } = require('./pet-config.js');
-const gameDetect = require('../gamedetect.js');
+const gameDetect = require('../performance/gamedetect.js');
 const { _idleProbe } = require('../system/idle-seconds.js');
 const { _vitalsNagLast } = require('./nag-last.js');
 const { lockWorkstation } = require('../system/lock-workstation.js');

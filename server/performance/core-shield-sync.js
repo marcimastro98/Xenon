@@ -1,7 +1,7 @@
 // Telling Core Shield what the settings and the running game ask of it, and what a game session
 // records about Performance Mode.
 
-const gameDetect = require('../gamedetect.js');
+const gameDetect = require('./gamedetect.js');
 const { shieldWish } = require('../perf-session/shield-wish.js');
 const { perfSession } = require('../perf-session/engine-session.js');
 const { hub } = require('../settings/current.js');

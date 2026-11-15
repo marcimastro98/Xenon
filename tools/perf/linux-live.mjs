@@ -88,7 +88,7 @@ export function containerScript(seconds) {
     `echo ${inBase64(toolText('spy-spawn.cjs'))} | base64 -d > /tmp/spy.cjs`,
     `echo ${inBase64(toolText('spawn-report.cjs'))} | base64 -d > /tmp/report.cjs`,
     `echo ${inBase64(PROBE)} | base64 -d > /tmp/probe.mjs`,
-    `echo ${inBase64(FAKE_GAME)} | base64 -d >> server/gamedetect.js`,
+    `echo ${inBase64(FAKE_GAME)} | base64 -d >> server/performance/gamedetect.js`,
     `echo ${inBase64(rounds)} | base64 -d > /tmp/run.sh`,
     'chown -R node:node /tmp/w',
     'su node -c "cd /tmp/w && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error --omit=dev && node tools/link-shared.mjs && bash /tmp/run.sh"',

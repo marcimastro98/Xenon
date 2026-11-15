@@ -7,7 +7,7 @@ const ledColors = require('./lighting-led-colors.js');
 const native = require('../lighting-native/index.js');
 const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
-const gameDetect = require('../gamedetect.js');
+const gameDetect = require('../performance/gamedetect.js');
 
 // Single source for the animation-style lists (keep the client mirrors in
 // lighting-page.js / settings.js aligned). Every style except none/solid loops →

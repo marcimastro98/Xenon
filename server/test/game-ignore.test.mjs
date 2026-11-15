@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const GameIgnore = require('../js/performance/game-ignore.js');
-const gd = require('../gamedetect.js');
+const gd = require('../performance/gamedetect.js');
 const gameMode = require('../capabilities/game-mode.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const { validateAction } = require('../js/deck-actions.js');

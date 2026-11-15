@@ -1,7 +1,7 @@
 // What the engine answers about game mode and the performance screen.
 
 const fpsMonitor = require('./fps-monitor.js');
-const gameDetect = require('../gamedetect.js');
+const gameDetect = require('./gamedetect.js');
 const perfScreen = require('./perf-screen.js');
 const { readBody } = require('../http/read-body.js');
 const { broadcastSSE } = require('../http/sse-clients.js');

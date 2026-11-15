@@ -29,7 +29,7 @@
       {
         "statement": "gameDetect.setIgnoreSource(() => hub.settings && hub.settings.gameIgnore);",
         "callees": {
-          "server/gamedetect.js": "562ea2dd1d660f7052177484bf3aceb994c72784387e0dbc7425d1ef8780987b",
+          "server/performance/gamedetect.js": "805e4b51024bf70b44cf46fa39e6dd11052a8834f734f1a4db29f989ca304721",
           "server/performance/game-activity.js": "68e27d2bc3b3cd7e505952e8da5d34d65da91a799b24a0ba8f95592c5d30b989",
           "server/performance/game-ignore-lists.js": "dbd16e1526270a6cb01a66f64d42c47b7e635495d2a8fb6bba9a203da1920aed",
           "server/performance/game-judge.js": "a81ac868122554e2fc7f1a4738b8d21b433781428df4dce288a10da0b317fe0f",

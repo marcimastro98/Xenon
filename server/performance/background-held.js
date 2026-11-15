@@ -1,7 +1,7 @@
 // Whether background work should wait because a game is running with Game Mode or Performance
 // Mode on.
 
-const gameDetect = require('../gamedetect.js');
+const gameDetect = require('./gamedetect.js');
 const { hub } = require('../settings/current.js');
 
 // With Game Mode on, or in a Performance Mode session, the background work that can

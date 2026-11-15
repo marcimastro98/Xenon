@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { createExclusiveHint } = require('../performance/exclusive-hint.js');
-const { rowValues, parseHeader } = require('../fpsmon.js');
+const { rowValues, parseHeader } = require('../performance/fpsmon.js');
 
 function setup({ exclusive = true, overlay = true } = {}) {
   const sent = [];

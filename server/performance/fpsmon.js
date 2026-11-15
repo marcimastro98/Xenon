@@ -23,32 +23,32 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { createGameSession } = require('./performance/fps-game-session');
-const { createReaderLog, createStderrTail } = require('./performance/fps-reader-log');
+const { createGameSession } = require('./fps-game-session');
+const { createReaderLog, createStderrTail } = require('./fps-reader-log');
 
 const {
   pickEntry, entryFps, entryStats, entryWindow, entryFramesSince, entryForGame,
-} = require('./performance/fps-reading.js');
+} = require('./fps-reading.js');
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off hard after repeated instant failures
 const GAMING_GRACE_MS = 10000;   // stay "gaming" briefly after frames stop (anti-flicker)
-const { isTrackedGame, parseHeader, rowValues } = require('./performance/presentmon-rows.js');
+const { isTrackedGame, parseHeader, rowValues } = require('./presentmon-rows.js');
 
 const {
   _csv, _byPid, entryFor, record, handleGameRow, readRows, _gameCsv,
-} = require('./performance/fps-entries.js');
+} = require('./fps-entries.js');
 
 // Where the single-binary PresentMon CLI is expected to live.
 const PRESENTMON_CANDIDATES = [
-  path.join(__dirname, 'presentmon', 'PresentMon.exe'),
-  path.join(__dirname, 'PresentMon.exe'),
+  path.join(__dirname, '..', 'presentmon', 'PresentMon.exe'),
+  path.join(__dirname, '..', 'PresentMon.exe'),
 ];
 
 const {
   ETW_SESSION_NAME, GAME_SESSION_NAME, stopEtwSession,
-} = require('./performance/presentmon-session.js');
+} = require('./presentmon-session.js');
 
-const { fpsWatch } = require('./performance/fpsmon-state.js');
+const { fpsWatch } = require('./fpsmon-state.js');
 // PresentMon runs on Windows only: elsewhere this module reads nothing to report.
 const _readerLog = createReaderLog(process.platform === 'win32' ? (line) => console.warn(line) : () => {});
 
