@@ -841,7 +841,7 @@
   // build-shipped server/whatsnew.json. A major opens the full-screen What's New
   // (js/whats-new.js) and keeps coming back until it is closed, however it is
   // closed. A patch or a minor opens the list of what was fixed (js/release-
-  // notes-card.js), once. js/release-notice.js holds the rules.
+  // notes-card.js), once. js/updates/release-notice.js holds the rules.
   //
   // Both are remembered on close, not on open: a page reloaded under them has not
   // told anyone anything. The stored answers live in hub settings, a file on the

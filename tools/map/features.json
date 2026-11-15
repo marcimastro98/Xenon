@@ -780,13 +780,13 @@
         "server/whatsnew.json",
         "server/js/update/**",
         "server/js/update.js",
-        "server/js/release-*.js",
         "server/js/whats-new*.js",
         "server/js/whats-new/**",
         "server/components/UpdateModal/**",
         "server/components/WhatsNew/**",
         "CHANGELOG.md",
-        "server/assets/whatsnew/**"
+        "server/assets/whatsnew/**",
+        "server/js/updates/**"
       ]
     },
     {

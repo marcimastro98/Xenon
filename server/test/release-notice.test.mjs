@@ -1,4 +1,4 @@
-// What a person is told after an update (js/release-notice.js), what reaches the
+// What a person is told after an update (js/updates/release-notice.js), what reaches the
 // page from whatsnew.json (release-notes.js), and the release rule that keeps
 // the two honest: a shipped version always has something to say.
 import { test } from 'node:test';
@@ -11,7 +11,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const notice = require('../js/release-notice.js');
+const notice = require('../js/updates/release-notice.js');
 const notes = require('../release-notes.js');
 const remote = require('../remote-access.js');
 const WHATSNEW = require('../whatsnew.json');
@@ -219,7 +219,7 @@ test('every button of a sheet has its words, and the drawn panels too', () => {
     if (h.go) inAll(`wn_try_${h.go}`);
     assert.ok(!h.scene || notes.SHEET_SCENES.includes(h.scene), h.scene);
   }
-  const scenes = readFileSync(new URL('../js/whats-new-scenes.js', import.meta.url), 'utf8');
+  const scenes = readFileSync(new URL('../js/updates/whats-new-scenes.js', import.meta.url), 'utf8');
   const keys = new Set([...scenes.matchAll(/tr\('(wn_s_[a-z0-9_]+)'\)/g)].map((m) => m[1]));
   assert.ok(keys.size > 10);
   for (const key of keys) inAll(key);
@@ -262,7 +262,7 @@ test('a video plays only on the sheet it belongs to, and not when things stand s
 });
 
 test('every string the two surfaces ask for exists in all 11 languages', () => {
-  const sources = ['update.js', 'whats-new.js', 'release-notes-card.js', 'alerts/screen-release.js']
+  const sources = ['update.js', 'whats-new.js', 'updates/release-notes-card.js', 'alerts/screen-release.js']
     .map((f) => readFileSync(new URL(`../js/${f}`, import.meta.url), 'utf8')).join('\n');
   const keys = new Set([...sources.matchAll(/['"]((?:wn|rn)_[a-z0-9_]+)['"]/g)].map((m) => m[1]));
   assert.ok(keys.size > 5, 'the string keys must still be written literally');
@@ -288,7 +288,7 @@ test('Bit can open What\'s New wherever the page that draws it runs', () => {
 });
 
 test('the menu drawn on the stage has the sections of the real menu', () => {
-  const scenes = readFileSync(new URL('../js/whats-new-scenes.js', import.meta.url), 'utf8');
+  const scenes = readFileSync(new URL('../js/updates/whats-new-scenes.js', import.meta.url), 'utf8');
   const drawn = /const MENU_SECTIONS = \[([^\]]*)\]/.exec(scenes)[1].match(/[a-z]+/g);
   assert.deepEqual(drawn, require('../menu/screen-menu.js').SECTIONS);
 });

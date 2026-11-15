@@ -7,7 +7,7 @@
 // edge  the first picture: the demo's Edge scene (2560 x 720, Liquid Glass) running for a
 //       few seconds, from the browser's screencast, looped with a short crossfade so the
 //       jump back to the start never shows. Needs docs/demo (tools/build-demo.mjs).
-// bit   the panel of the What's New "bit" sheet, drawn by server/js/whats-new-scenes.js in
+// bit   the panel of the What's New "bit" sheet, drawn by server/js/updates/whats-new-scenes.js in
 //       English, as a still.
 // Headless, on local copies (the site's and the dashboard's): never the user's Xenon server.
 import { spawnSync } from 'node:child_process';
@@ -64,7 +64,7 @@ export const SCENE_PAGE = `<!doctype html><html lang="en"><head><meta charset="u
 <body><div class="wn-stage"><section class="wn-sheet wn-c-green"></section></div>
 <script>let lang = 'en';</script>
 <script src="/layer-i18n.js"></script>
-<script src="/js/whats-new-scenes.js"></script></body></html>`;
+<script src="/js/updates/whats-new-scenes.js"></script></body></html>`;
 
 export function pickSteps(args) {
   const names = args.filter((a) => !a.startsWith('--'));

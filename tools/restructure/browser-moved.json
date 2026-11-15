@@ -237,6 +237,9 @@
     {"from":"server/js/topbar-button-options.js","to":"server/js/topbar/topbar-button-options.js"},
     {"from":"server/js/topbar-fit.js","to":"server/js/topbar/topbar-fit.js"},
     {"from":"server/js/topbar-layout-panel.js","to":"server/js/topbar/topbar-layout-panel.js"},
-    {"from":"server/js/topbar-minimal.js","to":"server/js/topbar/topbar-minimal.js"}
+    {"from":"server/js/topbar-minimal.js","to":"server/js/topbar/topbar-minimal.js"},
+    {"from":"server/js/release-notes-card.js","to":"server/js/updates/release-notes-card.js"},
+    {"from":"server/js/release-notice.js","to":"server/js/updates/release-notice.js"},
+    {"from":"server/js/whats-new-scenes.js","to":"server/js/updates/whats-new-scenes.js"}
   ]
 }

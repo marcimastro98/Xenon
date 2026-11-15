@@ -4,7 +4,7 @@ This is the capture guide for the full-screen **What's New** of a major version
 (`server/whatsnew.json`, drawn by `server/js/whats-new.js`). One entry per highlight.
 
 A sheet shows one of three things: a live `scene` (`menu`, `capture`, `fps`, drawn by
-`server/js/whats-new-scenes.js`), a Bit `clip`, or a `media` picture or clip. Fill `media` only when
+`server/js/updates/whats-new-scenes.js`), a Bit `clip`, or a `media` picture or clip. Fill `media` only when
 a real picture says more than the scene. The list below is the old v4.11.0 one, kept for
 the rules on captures from the demo.
 
