@@ -17,7 +17,7 @@
 //            dashboard or "widgets only" driver page; true when one took it
 
 const GameIgnore = require('../js/performance/game-ignore.js');
-const SensorHistory = require('../js/sensor-history.js');
+const SensorHistory = require('../js/system/sensor-history.js');
 
 const SWITCH = Object.freeze(['toggle', 'on', 'off']);
 const IGNORE_MODES = Object.freeze(['current', 'add', 'remove', 'list']);
@@ -64,7 +64,7 @@ async function editIgnore(d, action) {
 }
 
 // The sensor history switch and interval (hubSettings.sensorHistory,
-// js/sensor-history.js); guardian.js reads both on its next tick.
+// js/system/sensor-history.js); guardian.js reads both on its next tick.
 async function setSensorHistory(d, action) {
   if (!usable(d && d.settingKeys)) return { ok: false, error: 'unavailable' };
   const a = action || {};

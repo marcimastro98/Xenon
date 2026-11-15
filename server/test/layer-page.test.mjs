@@ -74,9 +74,9 @@ test('System and weather together: markup in the body, each file once, index.htm
   const tile = page.indexOf('data-dashboard-widget="system"');
   assert.ok(tile > body && tile < page.indexOf('src="shared/src/constants.js"'), 'the tile sits before the scripts');
   assert.equal(page.split('src="js/system.js"').length, 2, 'system.js once');
-  assert.equal(page.split('src="js/network.js"').length, 2);
+  assert.equal(page.split('src="js/system/network.js"').length, 2);
   assert.equal(page.split('SystemPanel/SystemPanel.css').length, 2);
-  assert.ok(page.indexOf('src="js/network.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
+  assert.ok(page.indexOf('src="js/system/network.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
   assert.doesNotMatch(page, /<!-- tile (styles|markup|scripts) -->/);
   assert.equal(LayerPage.needsDashboardHtml(['weather']), true);
   assert.equal(LayerPage.needsDashboardHtml(['system', 'weather']), true);

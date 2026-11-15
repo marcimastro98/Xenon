@@ -120,7 +120,7 @@ test('the record is bounded and must be a file', async () => {
 });
 
 test('Settings and the Game performance tile say it, in every language', () => {
-  const settings = readFileSync(new URL('../js/sensor-access.js', import.meta.url), 'utf8');
+  const settings = readFileSync(new URL('../js/system/sensor-access.js', import.meta.url), 'utf8');
   assert.match(settings, /function fpsAccessCard\(r\)/);
   assert.match(settings, /outdatedServiceCard\(r\) \|\| fpsAccessCard\(r\)/);
   const tile = readFileSync(new URL('../js/perf-widget.js', import.meta.url), 'utf8');

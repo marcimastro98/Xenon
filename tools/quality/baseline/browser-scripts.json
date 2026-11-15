@@ -35,7 +35,7 @@
     "server/js/main.js": 15,
     "server/js/media.js": 79,
     "server/js/audio/mic.js": 4,
-    "server/js/network.js": 6,
+    "server/js/system/network.js": 6,
     "server/js/notes.js": 34,
     "server/js/perf-settings.js": 8,
     "server/js/performance/performance-actions.js": 3,

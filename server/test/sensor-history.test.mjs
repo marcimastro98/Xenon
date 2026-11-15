@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const SensorHistory = require('../js/sensor-history.js');
+const SensorHistory = require('../js/system/sensor-history.js');
 const Recent = require('../sensor-history/recent.js');
 const { createGuardian } = require('../system/guardian.js');
 const gameMode = require('../capabilities/game-mode.js');
@@ -174,9 +174,9 @@ test('Deck, Bit and widgets reach it through the registry', async () => {
 test('Settings shows the interval only while history is collected, with no inline handlers', () => {
   const index = read('../index.html');
   assert.match(index, /<div class="settings-row full" id="settings-senshist-every" hidden><\/div>/);
-  assert.match(index, /<script src="js\/sensor-history\.js"><\/script>/);
-  assert.match(index, /<script src="js\/sensor-history-settings\.js"><\/script>/);
-  const page = read('../js/sensor-history-settings.js');
+  assert.match(index, /<script src="js\/system\/sensor-history\.js"><\/script>/);
+  assert.match(index, /<script src="js\/system\/sensor-history-settings\.js"><\/script>/);
+  const page = read('../js/system/sensor-history-settings.js');
   assert.match(page, /host\.hidden = !historyOn\(\)/);
   assert.match(page, /window\.SensorHistory\.EVERY_MIN_CHOICES/);
   assert.match(read('../js/settings.js'), /if \(window\.SensorHistoryEvery\) window\.SensorHistoryEvery\.sync\(\);/);

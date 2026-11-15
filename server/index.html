@@ -2829,7 +2829,7 @@
         </div>
       </div>
 
-      <!-- Hardware sensors. The WHOLE section is built by js/sensor-access.js →
+      <!-- Hardware sensors. The WHOLE section is built by js/system/sensor-access.js →
            initSettings(), heading included, and only when there is something to
            repair. It used to be a static .settings-group with the heading in
            here, which meant the box existed even with nothing in it: on macOS
@@ -3159,13 +3159,13 @@
               <span class="settings-hint" data-i18n="settings_senshist_enable_hint">Campioni dei dati già letti, con le ultime 6 ore nel dettaglio; resta tutto sul tuo PC. Nessuna AI richiesta.</span>
             </span>
           </label>
-          <!-- "One sample every", built by js/sensor-history-settings.js. -->
+          <!-- "One sample every", built by js/system/sensor-history-settings.js. -->
           <div class="settings-row full" id="settings-senshist-every" hidden></div>
         </div>
       </div>
 
       <!-- Sensor sources: which sensor feeds CPU/GPU temperature and watts.
-           Built by js/sensor-sources-settings.js from the live catalog (GET
+           Built by js/system/sensor-sources-settings.js from the live catalog (GET
            /system/sensors), polled only while this page is on screen. -->
       <div id="settings-sensor-sources" data-settings-cat="performance"></div>
 
@@ -5021,7 +5021,7 @@
 <script src="js/system/weather.js"></script>
 <script src="js/system/weather-state.js"></script>
 <script src="js/system.js"></script>
-<script src="js/network.js"></script>
+<script src="js/system/network.js"></script>
 <script src="js/notes/render.js"></script>
 <script src="js/notes/sync-and-edits.js"></script>
 <script src="js/notes.js"></script>
@@ -5059,9 +5059,9 @@
 <script src="js/store-catalog/content-installs.js"></script>
 <script src="js/fuzzy-find.js"></script>
 <script src="js/smart-home/smart-home-order.js"></script>
-<script src="js/sensor-sources.js"></script>
+<script src="js/system/sensor-sources.js"></script>
 <script src="js/performance/game-ignore.js"></script>
-<script src="js/sensor-history.js"></script>
+<script src="js/system/sensor-history.js"></script>
 <script src="js/grid/dashboard-portrait.js"></script>
 <script src="js/save-file.js"></script>
 <script src="js/perf-settings.js"></script>
@@ -5378,11 +5378,11 @@
 <script src="js/codex-widget.js"></script>
 <script src="js/codex/chatgpt-widget.js"></script>
 <script src="js/ticker/news-widget.js"></script>
-<script src="js/sensor-access.js"></script>
+<script src="js/system/sensor-access.js"></script>
 <script src="js/capture/ffmpeg-offer.js"></script>
-<script src="js/sensor-sources-settings.js"></script>
+<script src="js/system/sensor-sources-settings.js"></script>
 <script src="js/performance/game-ignore-settings.js"></script>
-<script src="js/sensor-history-settings.js"></script>
+<script src="js/system/sensor-history-settings.js"></script>
 <script src="js/fans-widget/readings.js"></script>
 <script src="js/fans-widget.js"></script>
 <script src="js/search/spotlight-bit.js"></script>
@@ -5410,12 +5410,12 @@
 <script src="js/media/lyrics-widget.js"></script>
 <!-- Says why search and the disk map went empty on a Mac. Self-gating: it acts
      only on the flag the server sets, which exists only on macOS. -->
-<script src="js/macos-fda.js"></script>
+<script src="js/system/macos-fda.js"></script>
 <script src="js/transfer-widget/says.js"></script>
 <script src="js/transfer-widget.js"></script>
 <script src="js/phone/phone-widget.js"></script>
-<script src="js/power-widget.js"></script>
-<script src="js/battery-widget.js"></script>
+<script src="js/system/power-widget.js"></script>
+<script src="js/system/battery-widget.js"></script>
 <script src="js/perf-widget/says.js"></script>
 <script src="js/perf-widget.js"></script>
 <script src="js/capture-toast/saved-toasts.js"></script>

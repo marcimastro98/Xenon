@@ -398,9 +398,9 @@ require('./search/linux-index');         // the same surface in plain Node, for 
 const { createLinuxTrash } = require('./disk/linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/store-catalog/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./system/first-reading');
-const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
+const SensorSources = require('./js/system/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 require('./js/performance/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
-require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
+require('./js/system/sensor-history.js'); // the sensor-history setting (shared with Settings)
 require('./ai/sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
 require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)

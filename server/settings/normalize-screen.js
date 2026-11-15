@@ -5,7 +5,7 @@
 const { clampNumber } = require('./values.js');
 const { normalizeTopbarRails, normalizeTopbarClock } = require('../topbar/settings-normalize.js');
 const { normalizeSensorRate } = require('../system/settings-normalize.js');
-const SensorSources = require('../js/sensor-sources.js');
+const SensorSources = require('../js/system/sensor-sources.js');
 const GameIgnore = require('../js/performance/game-ignore.js');
 const TopbarLook = require('../js/topbar-look.js');
 const LayersModel = require('../js/layers/layers-model.js');
@@ -40,7 +40,7 @@ function normalizeHubScreen(source) {
     // broadcasting faster alone would only re-send readings up to 5s old.
     sensorRateMs: normalizeSensorRate(source.sensorRateMs),
     // Which sensor feeds CPU/GPU temperature and watts; {} = Automatic for all.
-    // Same rule as the browser's normalizeSettings (js/sensor-sources.js).
+    // Same rule as the browser's normalizeSettings (js/system/sensor-sources.js).
     sensorSources: SensorSources.normalizeSensorSources(source.sensorSources),
     gameIgnore: GameIgnore.normalizeGameIgnore(source.gameIgnore),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',

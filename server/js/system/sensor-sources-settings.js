@@ -8,7 +8,7 @@
 // hardware it sits on, so the user can match the one their other app shows.
 // The catalog (GET /system/sensors) is read only while this section is on
 // screen: the poll stops itself the moment the section is hidden or closed.
-// The choice itself is a plain setting (`sensorSources`, js/sensor-sources.js),
+// The choice itself is a plain setting (`sensorSources`, js/system/sensor-sources.js),
 // applied by the server in one place (getSystemInfo).
 (function () {
   const el = makeEl;

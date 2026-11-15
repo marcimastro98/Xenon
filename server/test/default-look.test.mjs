@@ -253,7 +253,7 @@ test('Bit knows the styles and the wallpaper', () => {
 test('the Network card draws its graph from the download speed', () => {
   assert.match(INDEX, /class="stat-fill net-down" id="net-down-fill" data-sf="net-down-fill"/);
   assert.ok(!INDEX.includes('net-bw-iface'), 'nothing fills that label');
-  assert.match(read('js', 'network.js'), /setFill\(downFill, Math\.log10\(1 \+ \(Number\(data\.downloadBps\) \|\| 0\)\) \* 10\)/);
+  assert.match(read('js', 'system/network.js'), /setFill\(downFill, Math\.log10\(1 \+ \(Number\(data\.downloadBps\) \|\| 0\)\) \* 10\)/);
   assert.match(read('js', 'utils.js'), /c\.includes\('net-down'\)\) return 'var\(--cyan\)'/);
 });
 

@@ -6,7 +6,7 @@
 // chosen from what the collectors enumerated on this PC, never from an id the
 // model made up, so the same rule as the Settings picker holds.
 
-const SensorSources = require('../js/sensor-sources.js');
+const SensorSources = require('../js/system/sensor-sources.js');
 
 const METRICS = Object.freeze(Object.keys(SensorSources.SENSOR_METRICS));
 const LIST_MAX = 40;

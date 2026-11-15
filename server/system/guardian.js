@@ -10,7 +10,7 @@
 
 const path = require('path');
 
-const { normalizeEveryMin } = require('../js/sensor-history.js');
+const { normalizeEveryMin } = require('../js/system/sensor-history.js');
 
 const { TICK_MS, DUE_SLACK_MS, USAGE_MS } = require('../sensor-history/guardian-limits.js');
 

@@ -4,7 +4,7 @@
 const { nativeCollectors } = require('./native-collectors.js');
 const { POWERSHELL_SUPPORTED } = require('../powershell/supported.js');
 const { parseJsonOutput } = require('../powershell/read-json.js');
-const SensorSources = require('../js/sensor-sources.js');
+const SensorSources = require('../js/system/sensor-sources.js');
 const { sensorService } = require('../sensor-service/engine-reader.js');
 const { SENSORS_SCRIPT } = require('./script-paths.js');
 const { runPowerShellWorker } = require('./pwsh-worker.js');

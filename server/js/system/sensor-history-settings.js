@@ -1,6 +1,6 @@
 'use strict';
 // Settings → Performance → Sensor history → "One sample every": how often the
-// history takes a sample (sensorHistory.everyMin, js/sensor-history.js). Shown
+// history takes a sample (sensorHistory.everyMin, js/system/sensor-history.js). Shown
 // only while history is being collected. A shorter interval shows short spikes
 // in the 6h chart; the disk is still written at most every 5 minutes.
 (function () {

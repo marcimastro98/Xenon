@@ -333,7 +333,7 @@ test('the sensors repair is a row with the page key, and only when there is some
     };
     const sandbox = { window, document, makeEl, apiJson: async () => ({ sensorAccess }), setTimeout };
     vm.createContext(sandbox);
-    vm.runInContext(read('../js/sensor-access.js'), sandbox);
+    vm.runInContext(read('../js/system/sensor-access.js'), sandbox);
     await window.SensorAccess.initSettings();
     return host;
   };
@@ -344,7 +344,7 @@ test('the sensors repair is a row with the page key, and only when there is some
   assert.ok(host.querySelector('.settings-group-head'));
   assert.equal(host.querySelector('button').className, 'settings-btn primary');
   // The tiles keep their own key: only this page swaps it.
-  assert.match(read('../js/sensor-access.js'), /el\('button', 'sa-btn'\)/);
+  assert.match(read('../js/system/sensor-access.js'), /el\('button', 'sa-btn'\)/);
   assert.match(CSS, /#settings-overlay \.sa-hint \{\s+display: grid;/);
 });
 
@@ -369,7 +369,7 @@ function loadSensorAccess(answers, fetchAnswer) {
   const fastTimeout = (fn) => setTimeout(fn, 0);
   const sandbox = { window, document, makeEl, apiJson, fetch, setTimeout: fastTimeout };
   vm.createContext(sandbox);
-  vm.runInContext(read('../js/sensor-access.js'), sandbox);
+  vm.runInContext(read('../js/system/sensor-access.js'), sandbox);
   return { window, host, asked };
 }
 

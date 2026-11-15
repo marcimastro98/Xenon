@@ -425,7 +425,7 @@ test('the viewer theme follows the OS scheme only on auto', async () => {
 
 test('the dashboard keeps the last network reading for the canvas Network element', () => {
   assert.match(read('../js/state.js'), /^let lastNetworkData = null;$/m);
-  assert.match(read('../js/network.js'), /function applyNetwork\(data\) \{\n\s+lastNetworkData = data;/);
+  assert.match(read('../js/system/network.js'), /function applyNetwork\(data\) \{\n\s+lastNetworkData = data;/);
 });
 
 test('the canvas Network element writes the rate and its unit, never an object', () => {

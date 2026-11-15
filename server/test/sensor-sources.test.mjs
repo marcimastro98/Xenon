@@ -1,5 +1,5 @@
 // Settings → Performance → "Sensor sources" and the SDK `sensors` stream:
-// which hardware sensor feeds each headline reading (js/sensor-sources.js),
+// which hardware sensor feeds each headline reading (js/system/sensor-sources.js),
 // the catalog the collectors enumerate, and where server.js applies the choice.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
-const S = require('../js/sensor-sources.js');
+const S = require('../js/system/sensor-sources.js');
 const linux = require('../linux-collectors.js');
 const { remotePathAllowed } = require('../remote-access.js');
 
@@ -129,8 +129,8 @@ test('the server applies the choice in getSystemInfo and persists it on both sid
   assert.match(read('server/js/settings.js'), /sensorSources: window\.SensorSources \? window\.SensorSources\.normalizeSensorSources\(value\.sensorSources\) : \{\}/);
   const html = read('server/index.html');
   const pos = (src) => html.indexOf('<script src="' + src + '"></script>');
-  assert.ok(pos('js/sensor-sources.js') > 0 && pos('js/sensor-sources.js') < pos('js/settings.js'));
-  assert.ok(pos('js/sensor-sources-settings.js') > pos('js/settings.js'));
+  assert.ok(pos('js/system/sensor-sources.js') > 0 && pos('js/system/sensor-sources.js') < pos('js/settings.js'));
+  assert.ok(pos('js/system/sensor-sources-settings.js') > pos('js/settings.js'));
 });
 
 test('the catalog endpoint reads only and a paired device may use it', () => {

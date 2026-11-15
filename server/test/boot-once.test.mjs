@@ -87,7 +87,7 @@ test('readings of the network are shared by whoever asks within the window, and 
   assert.ok(fresh < 3000, 'the tile polls every 3 s and must not be handed its own last reading');
   assert.match(server, /async function getNetworkInfo\(\) \{\n\s+if \(_netLast && Date\.now\(\) - _netLast\.at < NETWORK_FRESH_MS\) return _netLast\.reading;/);
   assert.match(server, /\.then\(\(reading\) => \{ _netLast = \{ at: Date\.now\(\), reading \}; return reading; \}\)\n\s+\.finally\(\(\) => \{ _netPending = null; \}\);/);
-  const tile = readFileSync(new URL('../js/network.js', import.meta.url), 'utf8');
+  const tile = readFileSync(new URL('../js/system/network.js', import.meta.url), 'utf8');
   assert.match(tile, /setInterval\(fetchNetwork, 3000\)/);
 });
 

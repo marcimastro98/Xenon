@@ -296,7 +296,7 @@ test('the range sits in the tab bar, hidden until History opens, and the old row
   assert.ok(right, 'tab bar right side');
   assert.match(right[1], /<div class="guardian-range" id="sys-history-range" role="group" data-i18n-aria-label="guardian_range_label" aria-label="[^"]+" hidden>/);
   assert.doesNotMatch(INDEX, /sys-history-head/);
-  assert.match(read('../js/network.js'), /rangeCtl\.hidden = \(name !== 'history'\)/);
+  assert.match(read('../js/system/network.js'), /rangeCtl\.hidden = \(name !== 'history'\)/);
   // Both keys in that corner are `display: inline-flex`, which outranks the UA [hidden] rule.
   assert.match(CSS, /^\.guardian-range\[hidden\] \{ display: none; \}/m);
   assert.match(read('../components/PerformancePanel/PerformancePanel.css'), /^\.sys-optimize-btn\[hidden\] \{ display: none; \}/m);

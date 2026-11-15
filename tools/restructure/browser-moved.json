@@ -223,6 +223,15 @@
     {"from":"server/js/twitchwatch-widget.js","to":"server/js/streaming/twitchwatch-widget.js"},
     {"from":"server/js/watch-view.js","to":"server/js/streaming/watch-view.js"},
     {"from":"server/js/youtube-widget.js","to":"server/js/streaming/youtube-widget.js"},
-    {"from":"server/js/youtubelive-widget.js","to":"server/js/streaming/youtubelive-widget.js"}
+    {"from":"server/js/youtubelive-widget.js","to":"server/js/streaming/youtubelive-widget.js"},
+    {"from":"server/js/battery-widget.js","to":"server/js/system/battery-widget.js"},
+    {"from":"server/js/macos-fda.js","to":"server/js/system/macos-fda.js"},
+    {"from":"server/js/network.js","to":"server/js/system/network.js"},
+    {"from":"server/js/power-widget.js","to":"server/js/system/power-widget.js"},
+    {"from":"server/js/sensor-access.js","to":"server/js/system/sensor-access.js"},
+    {"from":"server/js/sensor-history-settings.js","to":"server/js/system/sensor-history-settings.js"},
+    {"from":"server/js/sensor-history.js","to":"server/js/system/sensor-history.js"},
+    {"from":"server/js/sensor-sources-settings.js","to":"server/js/system/sensor-sources-settings.js"},
+    {"from":"server/js/sensor-sources.js","to":"server/js/system/sensor-sources.js"}
   ]
 }

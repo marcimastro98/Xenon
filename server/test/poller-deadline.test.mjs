@@ -73,7 +73,7 @@ test('a caller-supplied option cannot drop the abort signal', () => {
 const POLLERS = [
   { file: 'system.js', fn: 'fetchWeather', flag: 'fetchingWeather' },
   { file: 'system.js', fn: 'fetchSystem', flag: 'fetchingSystem' },
-  { file: 'network.js', fn: 'fetchNetwork', flag: 'fetchingNetwork' },
+  { file: 'system/network.js', fn: 'fetchNetwork', flag: 'fetchingNetwork' },
   { file: 'volume.js', fn: 'fetchAudio', flag: 'fetchingAudio' },
 ];
 

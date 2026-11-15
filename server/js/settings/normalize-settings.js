@@ -56,7 +56,7 @@ function normalizeSettings(source) {
     // one would strip what the other wrote.
     sensorRateMs: SENSOR_RATE_MS.includes(Math.round(Number(value.sensorRateMs))) ? Math.round(Number(value.sensorRateMs)) : 5000,
     // Which sensor feeds CPU/GPU temperature and watts; {} = Automatic for all.
-    // One rule with the server (js/sensor-sources.js, loaded before this file).
+    // One rule with the server (js/system/sensor-sources.js, loaded before this file).
     sensorSources: window.SensorSources ? window.SensorSources.normalizeSensorSources(value.sensorSources) : {},
     gameIgnore: window.GameIgnore ? window.GameIgnore.normalizeGameIgnore(value.gameIgnore) : [],
     safeMode: value.safeMode === true,

@@ -33,7 +33,7 @@
       'components/AudioSection/AudioSection.css', 'components/AudioSection/AudioSectionAppMixer.css', 'components/MicPanel/MicPanel.css', 'components/MicPanel/MicPanelAppMixer.css',
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
-    js: ['js/grid/fit-row.js', 'js/store-supporters/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/ai/audio-feedback.js',
+    js: ['js/grid/fit-row.js', 'js/store-supporters/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/system/network.js', 'js/status.js', 'js/ai/audio-feedback.js',
       'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume.js', 'js/audio/mic.js', 'js/audio/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
@@ -70,9 +70,9 @@
       global: 'PerfWidget',
       streams: { perf: 'onPerf', system: 'onSystem', perf_net: 'onNet' },
     },
-    battery: tile('battery', 'BatteryWidget', ['js/battery-widget.js'], { battery: 'onSSE' }),
-    fans: tile('fans', 'FansWidget', ['js/sensor-access.js', 'js/fans-widget/readings.js', 'js/fans-widget.js'], { system: 'onSSE' }),
-    power: tile('power', 'PowerWidget', ['js/store-supporters/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js', 'js/sensor-access.js', 'js/power-widget.js'],
+    battery: tile('battery', 'BatteryWidget', ['js/system/battery-widget.js'], { battery: 'onSSE' }),
+    fans: tile('fans', 'FansWidget', ['js/system/sensor-access.js', 'js/fans-widget/readings.js', 'js/fans-widget.js'], { system: 'onSSE' }),
+    power: tile('power', 'PowerWidget', ['js/store-supporters/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js', 'js/system/sensor-access.js', 'js/system/power-widget.js'],
       { system: 'onSSE', homeassistant: 'onHaSSE' }, null, ['components/GuardianHistory/GuardianHistory.css']),
     stocks: tile('stocks', 'StockWidget', ['js/ticker/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),
     football: tile('football', 'FootballWidget', ['js/grid/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget/match-pieces.js', 'js/football-widget.js'], { football: 'onSSE' }),
