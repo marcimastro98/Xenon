@@ -10,7 +10,7 @@
       "list": "exported",
       "how": "The Game Companion card of the alerts window: open() adds the card's stylesheet and markup, then each script of SCRIPTS the voice panel has not loaded already, each after the one before it has run (server/test/screen-companion.test.mjs)."
     },
-    "server/js/driver-perf.js": {
+    "server/js/performance/driver-perf.js": {
       "list": "exported",
       "how": "Performance Mode with no dashboard: load() asks for each script of SCRIPTS after the one before it has run (server/test/driver-perf-load.test.mjs)."
     },

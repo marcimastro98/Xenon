@@ -1,4 +1,4 @@
-// Performance Mode with no dashboard (js/driver-perf.js) loads the scripts of its list
+// Performance Mode with no dashboard (js/performance/driver-perf.js) loads the scripts of its list
 // itself. They are scripts of the dashboard, written to run one after the other: each is
 // asked for only when the one before it has run, in the order of the list.
 import { test } from 'node:test';
@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { partsOf } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
-const DriverPerf = require('../js/driver-perf.js');
+const DriverPerf = require('../js/performance/driver-perf.js');
 
 const tick = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r)); };
 

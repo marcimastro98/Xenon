@@ -396,7 +396,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   sensorHistory: Object.freeze({ enabled: false, everyMin: 5 }),
   // Game sessions log (Settings → Performance): ON unless explicitly turned off.
   gameSessions: Object.freeze({ enabled: true }),
-  // What the Game performance tile shows (js/perf-hud.js).
+  // What the Game performance tile shows (js/performance/perf-hud.js).
   perfHud: Object.freeze(window.PerfHud ? window.PerfHud.normalizePerfHud() : {}),
   // User-given fan names for the Fans widget, keyed "<kind>|<sensor name>"
   // ("mb|Fan #3" → "Radiatore alto"). The board only reports header numbers —
@@ -491,7 +491,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // "Ask ChatGPT" tile: the model Codex answers with. See js/codex/chatgpt-widget.js.
   chatgptWidget: Object.freeze({ model: 'default' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
-  gameIgnore: Object.freeze([]), // apps the user says are not games (js/game-ignore.js)
+  gameIgnore: Object.freeze([]), // apps the user says are not games (js/performance/game-ignore.js)
   bgGuard: true, // slow down, then still, an animated background that weighs on the PC (js/look/bg-guard.js)
   // Smart context profiles: per-activity page/lighting/deck/style that auto-apply
   // when the foreground activity changes and revert when it ends

@@ -76,7 +76,7 @@ export const PAGES = [
   { name: 'search window', file: 'server/spotlight.html', path: '/spotlight', ...DESK },
   { name: 'drawing sheet', file: 'server/draw.html', path: '/draw', ...DESK },
   { name: 'widgets-only driver', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, ...DESK },
-  { name: 'widgets-only driver with Performance Mode', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, first: loadPerformanceMode, holds: 'server/js/driver-perf.js', ...DESK },
+  { name: 'widgets-only driver with Performance Mode', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, first: loadPerformanceMode, holds: 'server/js/performance/driver-perf.js', ...DESK },
   { name: 'widget service', file: 'server/sdk-service.html', path: '/sdk-service', ...DESK },
 ];
 

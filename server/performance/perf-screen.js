@@ -1,6 +1,6 @@
 'use strict';
 
-// Performance Mode with no dashboard ("widgets only", js/driver-perf.js).
+// Performance Mode with no dashboard ("widgets only", js/performance/driver-perf.js).
 //
 // The hidden driver page runs Performance Mode but cannot draw; the on-screen
 // alerts window draws but does not run it. They talk through the server, as

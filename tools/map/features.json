@@ -480,8 +480,6 @@
         "server/js/perf-widget/**",
         "server/js/game-*.js",
         "server/js/game-companion/**",
-        "server/js/driver-perf.js",
-        "server/js/gpu-hint.js",
         "server/components/PerformancePanel/**",
         "server/components/PerfWidget/**",
         "server/components/PerfMarker/**",

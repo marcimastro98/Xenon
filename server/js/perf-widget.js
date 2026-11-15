@@ -1,7 +1,7 @@
 'use strict';
 // Game performance tile: the running game's frame rate, its 1% and 0.1% lows,
 // a graph of the newest frame times, and the system readings the person chose
-// (js/perf-hud.js). Fed by SSE 'perf' (four times a second, only while a game runs
+// (js/performance/perf-hud.js). Fed by SSE 'perf' (four times a second, only while a game runs
 // and a tile shows it; seed: GET /perf), the 'system' tick for the hardware and
 // 'perf_net' for ping and packet loss. Over a game it is text and nothing else.
 // Between games it shows the last one played (server/performance/game-sessions.js, carried
@@ -135,7 +135,7 @@
   }
 
   // What the user chose to show (Settings, Performance, or the Overlay section of
-  // the menu; js/perf-hud.js). `hubSettings` is the page's own copy: the dashboard's,
+  // the menu; js/performance/perf-hud.js). `hubSettings` is the page's own copy: the dashboard's,
   // or the read-only one of a layer page. A class per hidden part, set only when
   // the choice changed, so the 4 Hz repaint over a game stays text-only.
   function hudParts() {

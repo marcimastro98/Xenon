@@ -1,11 +1,11 @@
 'use strict';
-// What the Game performance tile shows besides the FPS (js/perf-hud.js), read
+// What the Game performance tile shows besides the FPS (js/performance/perf-hud.js), read
 // and changed by Xenon AI. The same switches as Settings, Performance.
 //
 // deps (injected):
 //   perfHud  { get() → parts, set(change) → Promise<parts> (writes under the settings lock) }
 
-const { PERF_HUD_PARTS, PERF_HUD_LAYOUTS } = require('../js/perf-hud.js');
+const { PERF_HUD_PARTS, PERF_HUD_LAYOUTS } = require('../js/performance/perf-hud.js');
 
 // "show"/"hide" per part; "keep", a missing or an unknown value changes nothing.
 function changeFrom(action) {

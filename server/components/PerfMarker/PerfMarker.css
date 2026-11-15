@@ -1,4 +1,4 @@
-/* Performance Mode in the top bar (js/perf-marker.js). Sized and spaced like the
+/* Performance Mode in the top bar (js/performance/perf-marker.js). Sized and spaced like the
    Claude and Codex marks beside it. The state is said in words and in colour:
    the accent while a session runs, the bar's own text colour when the button
    only offers to start one. */

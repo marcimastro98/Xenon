@@ -38,7 +38,7 @@
     "server/js/network.js": 6,
     "server/js/notes.js": 34,
     "server/js/perf-settings.js": 8,
-    "server/js/performance-actions.js": 3,
+    "server/js/performance/performance-actions.js": 3,
     "server/js/audio/picker.js": 6,
     "server/js/ambient/scene-feed.js": 1,
     "server/js/alerts/screen-alerts.js": 1,

@@ -399,7 +399,7 @@ const { createLinuxTrash } = require('./disk/linux-trash');         // the recyc
 require('./js/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./system/first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
-require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
+require('./js/performance/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
 require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
 require('./ai/sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
@@ -410,7 +410,7 @@ require('./layer-page.js'); // the light layer page plus its tiles' files; nothi
 const assetVersion = require('./asset-version.js'); // a version on every page's CSS/JS URLs
 const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/first-run/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
-const PerfHud = require('./js/perf-hud.js'); // what the Game performance tile shows (shared with the client)
+const PerfHud = require('./js/performance/perf-hud.js'); // what the Game performance tile shows (shared with the client)
 const ScreenSceneModel = require('./js/ambient/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
 require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
@@ -2595,7 +2595,7 @@ async function runAiTool(fnName, fnArgs, deps) {
     const miss = fnName === 'go_to_page' ? goToPageMiss(fnArgs)
       : fnName === 'style_tile' ? TileMaterial.requestMiss(fnArgs) : null;
     if (miss) return { fnResult: miss, clientActions, pendingScreenImage };
-    // No dashboard: the driver page's Performance Mode does it (js/driver-perf.js)
+    // No dashboard: the driver page's Performance Mode does it (js/performance/driver-perf.js)
     // and its card on the screen says how it went.
     const perfChoice = aiSurface.screenPerfChoice(fnName, surface, widgetsOnly);
     if (perfChoice) {

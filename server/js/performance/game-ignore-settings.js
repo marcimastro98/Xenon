@@ -2,7 +2,7 @@
 // Settings → Performance → Game mode → "Not games": the apps Xenon must never
 // treat as a game. Asked for by a user whose Claude desktop app, maximised on a
 // big monitor, switched game mode on. The list is a plain setting (`gameIgnore`,
-// js/game-ignore.js) that the server's game detector reads directly.
+// js/performance/game-ignore.js) that the server's game detector reads directly.
 //
 // While the section is on screen it asks the server, every few seconds, which
 // app counts as a game right now, so the user can rule it out in one tap. The

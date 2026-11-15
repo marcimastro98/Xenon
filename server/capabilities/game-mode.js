@@ -4,7 +4,7 @@
 //
 //   gameMode     hubSettings.gameMode (true by default): animated effects pause
 //                while a game is in front.
-//   gameIgnore   hubSettings.gameIgnore (js/game-ignore.js): apps the detector
+//   gameIgnore   hubSettings.gameIgnore (js/performance/game-ignore.js): apps the detector
 //                must never treat as a game. "current" rules out the app that
 //                counts as a game right now, the one-tap answer to a false
 //                positive.
@@ -16,7 +16,7 @@
 //   handToDashboard(action) → Promise<bool>  offers a step to this PC's
 //            dashboard or "widgets only" driver page; true when one took it
 
-const GameIgnore = require('../js/game-ignore.js');
+const GameIgnore = require('../js/performance/game-ignore.js');
 const SensorHistory = require('../js/sensor-history.js');
 
 const SWITCH = Object.freeze(['toggle', 'on', 'off']);

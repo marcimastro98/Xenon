@@ -34,7 +34,7 @@
           "server/performance/game-ignore-lists.js": "dbd16e1526270a6cb01a66f64d42c47b7e635495d2a8fb6bba9a203da1920aed",
           "server/performance/game-judge.js": "a81ac868122554e2fc7f1a4738b8d21b433781428df4dce288a10da0b317fe0f",
           "server/performance/game-readings.js": "41bba9e208ce9bac37008b05acf449bada855cb031e971de254345205b60c5bd",
-          "server/performance/game-watch-state.js": "983077581f638d598dba82953bdab999e9d3f0d8f0032680d812513ca9a0ff20"
+          "server/performance/game-watch-state.js": "5924695e7d5187b87a3160951a904cb2b89f1f3de50be5c09f7370df784f93a7"
         },
         "reason": "setIgnoreSource stores the function in a property of gameWatch (performance/game-watch-state.js) and clears a cached list; the function is first called by userIgnore in performance/game-judge.js, when isIgnoredProc checks a process. The modules gamedetect.js loads call nothing of the app when they load."
       },

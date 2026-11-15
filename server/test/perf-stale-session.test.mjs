@@ -110,7 +110,7 @@ test('performance.js implements this the way the table above models it', () => {
   assert.match(SRC, /_staleRecheck = setTimeout/, 'a first absence only schedules a recheck');
   assert.match(SRC, /restore\(\{ auto: true \}\)/, 'ending it goes through the normal restore, which toasts');
   assert.match(SRC, /if \(!nobodyLooking\(\)\) _checkStale\(false\)/, 'the poll is gated on someone looking');
-  // The hidden driver page of "widgets only" counts as looking: it is the only owner then (js/driver-perf.js).
+  // The hidden driver page of "widgets only" counts as looking: it is the only owner then (js/performance/driver-perf.js).
   assert.match(SRC, /const nobodyLooking = \(\) => !surface\(\) && document\.hidden;/);
 
   const fn = SRC.slice(SRC.indexOf('async function _boostedAlive'), SRC.indexOf('function _syncStaleWatch'));

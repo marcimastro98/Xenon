@@ -173,6 +173,14 @@
     {"from":"server/js/pwa.js","to":"server/js/paired/pwa.js"},
     {"from":"server/js/remote-access-guide.js","to":"server/js/paired/remote-access-guide.js"},
     {"from":"server/js/remote-surface.js","to":"server/js/paired/remote-surface.js"},
-    {"from":"server/js/surface-picker.js","to":"server/js/paired/surface-picker.js"}
+    {"from":"server/js/surface-picker.js","to":"server/js/paired/surface-picker.js"},
+    {"from":"server/js/driver-perf.js","to":"server/js/performance/driver-perf.js"},
+    {"from":"server/js/game-ignore-settings.js","to":"server/js/performance/game-ignore-settings.js"},
+    {"from":"server/js/game-ignore.js","to":"server/js/performance/game-ignore.js"},
+    {"from":"server/js/game-sessions-pane.js","to":"server/js/performance/game-sessions-pane.js"},
+    {"from":"server/js/gpu-hint.js","to":"server/js/performance/gpu-hint.js"},
+    {"from":"server/js/perf-hud.js","to":"server/js/performance/perf-hud.js"},
+    {"from":"server/js/perf-marker.js","to":"server/js/performance/perf-marker.js"},
+    {"from":"server/js/performance-actions.js","to":"server/js/performance/performance-actions.js"}
   ]
 }

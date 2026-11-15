@@ -24,7 +24,7 @@
 // normalizePerformance (perf-settings.js), SERVER, t.
 //
 // "Widgets only" has no dashboard: its hidden driver page runs this same file
-// (js/driver-perf.js) and sets window.PerfModeSurface, which takes over what
+// (js/performance/driver-perf.js) and sets window.PerfModeSurface, which takes over what
 // the dashboard draws itself. The suggestion and the result become cards in the
 // on-screen alerts window, and Optimize applies the safe tweaks without the
 // sheet (closing apps is a choice only the sheet offers).
@@ -60,7 +60,7 @@
     _syncStaleWatch();
     _syncIdleWatch();
     _syncSystemButtons(p);
-    // The top bar marker (js/perf-marker.js) and the Settings lines that a
+    // The top bar marker (js/performance/perf-marker.js) and the Settings lines that a
     // session changes listen for this. applyState runs on every settings apply,
     // so it is told only when something they show has changed.
     const sig = [!!p.active, document.body.classList.contains('perf-mode'), p.barAlways].join('|');

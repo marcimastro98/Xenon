@@ -116,7 +116,7 @@
     const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/sdk-badges.js)
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget.js)
     const clockCodex = clock.querySelector('.clock-codex'); // OpenAI Codex marker (js/codex-widget.js)
-    const clockPerf = clock.querySelector('.clock-perf'); // Performance Mode marker (js/perf-marker.js)
+    const clockPerf = clock.querySelector('.clock-perf'); // Performance Mode marker (js/performance/perf-marker.js)
     const clockBit = clock.querySelector('.clock-bit'); // Bit waiting with a message (js/bit-message-card.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {

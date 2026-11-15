@@ -3,7 +3,7 @@
 
 const { createPerfNet } = require('./perf-net.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const PerfHud = require('../js/perf-hud.js');
+const PerfHud = require('../js/performance/perf-hud.js');
 const { getNetworkInfo } = require('../system/network-info.js');
 const { hub } = require('../settings/current.js');
 const { perfWanted } = require('./feeds-wanted.js');

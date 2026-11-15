@@ -3,7 +3,7 @@
 // the single place where guided app close/relaunch executes. Validation happens
 // at this boundary (shared catalog) and OS side-effects are INJECTED so the
 // security decisions live in one testable place, exactly like actions/registry.js.
-const { validatePerfAction } = require('../js/performance-actions.js');
+const { validatePerfAction } = require('../js/performance/performance-actions.js');
 const { isAllowedAppPath } = require('./registry.js');
 
 // deps: {

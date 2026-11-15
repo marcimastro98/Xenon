@@ -13,7 +13,7 @@ import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
-// Just enough DOM for js/perf-marker.js: elements that hold children, classes,
+// Just enough DOM for js/performance/perf-marker.js: elements that hold children, classes,
 // attributes and click handlers.
 function fakeElement(tag) {
   const classes = new Set();
@@ -59,7 +59,7 @@ function load(perf, perfMode = {}) {
     ...perfMode,
   };
   vm.createContext(ctx);
-  vm.runInContext(read('../js/perf-marker.js'), ctx);
+  vm.runInContext(read('../js/performance/perf-marker.js'), ctx);
   const fire = () => (winListeners['xenon:perf-change'] || []).forEach((fn) => fn());
   return { ctx, host, calls, fire };
 }
@@ -142,7 +142,7 @@ test('the setting is kept by the shared normalizer, off by default', () => {
 test('the marker sits with the clock, so both chromes show it, and can be hidden like the others', () => {
   const html = read('../index.html');
   assert.match(html, /id="clock-codex" hidden><\/span>\n(?:\s*<!--[\s\S]*?-->\n)?\s*<span class="clock-perf" id="clock-perf" hidden><\/span>/);
-  assert.ok(html.indexOf('<script src="js/perf-marker.js">') > html.indexOf('<script src="js/performance.js">'), 'loaded after Performance Mode');
+  assert.ok(html.indexOf('<script src="js/performance/perf-marker.js">') > html.indexOf('<script src="js/performance.js">'), 'loaded after Performance Mode');
   assert.match(html, /components\/PerfMarker\/PerfMarker\.css/);
   // One island id list, three copies: the dashboard's, the server's, the minimal bar's.
   const ids = (src, re) => JSON.parse(re.exec(src)[1].replace(/'/g, '"'));

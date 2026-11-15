@@ -23,7 +23,7 @@
 .perfw-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .perfw-stat[hidden],
 .perfw-stat.is-off { display: none; }
-/* Parts the user turned off (Settings, Performance; js/perf-hud.js). The stats
+/* Parts the user turned off (Settings, Performance; js/performance/perf-hud.js). The stats
    that stay take the row between them instead of leaving a gap. */
 .perfw-wrap.hud-no-fps .perfw-fps,
 .perfw-wrap.hud-no-low1 .perfw-stat.is-low1,

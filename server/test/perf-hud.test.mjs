@@ -6,7 +6,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { PERF_HUD_PARTS, PERF_HUD_LABELS, PERF_HUD_SHORT, normalizePerfHud, applyPerfHudChange, statText } = require('../js/perf-hud.js');
+const { PERF_HUD_PARTS, PERF_HUD_LABELS, PERF_HUD_SHORT, normalizePerfHud, applyPerfHudChange, statText } = require('../js/performance/perf-hud.js');
 const cap = require('../capabilities/perf-hud.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
@@ -121,7 +121,7 @@ test('server and client store the same shape, the server writes under the settin
   const settings = read('js/settings.js');
   assert.match(settings, /perfHud: window\.PerfHud \? window\.PerfHud\.normalizePerfHud\(value\.perfHud\)/);
   const html = read('index.html');
-  assert.ok(html.indexOf('<script src="js/perf-hud.js">') > 0 && html.indexOf('<script src="js/perf-hud.js">') < html.indexOf('<script src="js/settings.js">'), 'perf-hud.js loads before settings.js');
+  assert.ok(html.indexOf('<script src="js/performance/perf-hud.js">') > 0 && html.indexOf('<script src="js/performance/perf-hud.js">') < html.indexOf('<script src="js/settings.js">'), 'perf-hud.js loads before settings.js');
   for (const k of PERF_HUD_PARTS) assert.match(html, new RegExp(`id="settings-perfhud-${k}"`));
 });
 
@@ -134,5 +134,5 @@ test('the tile hides a part with a class, on the dashboard and on a layer page',
     assert.ok(css.includes(`.perfw-wrap.hud-no-${k} ${sel}`), k);
   }
   const { js } = require('../js/layers/layer-tiles.js').TILES.perf;
-  assert.ok(js.indexOf('js/perf-hud.js') >= 0 && js.indexOf('js/perf-hud.js') < js.indexOf('js/perf-widget.js'));
+  assert.ok(js.indexOf('js/performance/perf-hud.js') >= 0 && js.indexOf('js/performance/perf-hud.js') < js.indexOf('js/perf-widget.js'));
 });

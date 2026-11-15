@@ -59,7 +59,7 @@ async function saveNoticeSeen(seen) {
 }
 
 // Performance Mode's own block, saved by the "widgets only" driver page
-// (js/driver-perf.js), which has no POST /settings of its own. Already
+// (js/performance/driver-perf.js), which has no POST /settings of its own. Already
 // normalized (perf-screen.js stateFrom); the rest of the settings stay.
 async function updatePerformanceSetting(performance) {
   return withHubSettingsLock(async () => {

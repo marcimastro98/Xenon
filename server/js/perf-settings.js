@@ -3,7 +3,7 @@
 // Performance Mode settings: the activity list, the defaults and the
 // normalizer. One copy for every page that runs Performance Mode: the
 // dashboard (before js/settings.js, which uses them for hubSettings), the
-// "widgets only" driver page (js/driver-perf.js, without settings.js) and the
+// "widgets only" driver page (js/performance/driver-perf.js, without settings.js) and the
 // server, which checks what the driver saves (POST /api/performance/state).
 // Classic-script declarations on purpose: settings.js and performance.js read
 // them as shared globals.

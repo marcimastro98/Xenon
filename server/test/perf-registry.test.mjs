@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createPerfRegistry } = require('../actions/perf-registry.js');
-const { validatePerfAction } = require('../js/performance-actions.js');
+const { validatePerfAction } = require('../js/performance/performance-actions.js');
 
 test('validatePerfAction enforces the typed allowlist', () => {
   assert.equal(validatePerfAction(null), null);

@@ -2,7 +2,7 @@
 // How a placed widget sits on the screen: the same adjustments for each of them, so
 // one made by hand gets what the performance HUD gets. Every change is a capability. Pure.
 
-const PerfHud = require('../js/perf-hud.js');
+const PerfHud = require('../js/performance/perf-hud.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
 const LayerSee = require('../js/layers/layer-see.js');

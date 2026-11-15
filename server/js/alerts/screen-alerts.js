@@ -319,7 +319,7 @@ let hubSettings = {};
     }).catch(() => {});
   }
 
-  // Performance Mode runs in the hidden driver page (js/driver-perf.js) and shows
+  // Performance Mode runs in the hidden driver page (js/performance/driver-perf.js) and shows
   // itself here: the suggestion as Bit's question, whose keys answer it, and what an
   // optimize or restore did. One question at a time, and not for long: the game is
   // in front of it, so unlike the dashboard's it cannot just stay.

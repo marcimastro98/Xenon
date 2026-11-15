@@ -8,7 +8,7 @@
 // whose signals only the main window may send), open the search on its
 // shortcut, follow a newer server or a change of mode, keep the lights on
 // the album cover's colours, run the Store widgets' Deck actions
-// (js/driver-sdk-host.js) and Performance Mode (js/driver-perf.js).
+// (js/driver-sdk-host.js) and Performance Mode (js/performance/driver-perf.js).
 //
 // `hubSettings` is a script-level binding on purpose: layers-shell.js reads it
 // the same way it reads the dashboard's (settings.js).

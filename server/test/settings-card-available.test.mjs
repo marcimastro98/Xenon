@@ -56,7 +56,7 @@ test('probed cards start unavailable and their probes go through the helper', ()
   // screen: both used to show up in a plain browser on every General visit.
   assert.match(SETTINGS, /setSettingsCardAvailable\(group, window\.__XENON_NATIVE__ === true && caps\.layers === true\);/);
   assert.match(SETTINGS, /setSettingsCardAvailable\(group, !!key\);/);
-  const gpu = readFileSync(path.join(DIR, 'js', 'gpu-hint.js'), 'utf8');
+  const gpu = readFileSync(path.join(DIR, 'js', 'performance/gpu-hint.js'), 'utf8');
   assert.doesNotMatch(gpu, /group\.hidden = /);
   const search = readFileSync(path.join(DIR, 'js', 'settings-search.js'), 'utf8');
   assert.match(search, /card\.dataset\.unavailable === '1'\) continue;/);

@@ -88,7 +88,7 @@ function updateGameSessions(enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// What the Game performance tile shows besides the FPS (js/perf-hud.js).
+// What the Game performance tile shows besides the FPS (js/performance/perf-hud.js).
 function updatePerfHud(part, on) {
   if (!window.PerfHud || !window.PerfHud.PERF_HUD_PARTS.includes(part)) return;
   const perfHud = window.PerfHud.applyPerfHudChange(hubSettings.perfHud, { [part]: !!on });

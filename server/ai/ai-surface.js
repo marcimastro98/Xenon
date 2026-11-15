@@ -33,7 +33,7 @@ const SHEET_NEEDS_DASHBOARD = Object.freeze({
     + 'and that "Open the dashboard" in the menu opens it.',
 });
 
-// Performance Mode runs with no dashboard too (js/driver-perf.js): on the
+// Performance Mode runs with no dashboard too (js/performance/driver-perf.js): on the
 // screen surface these become the user's answer to it (perf-screen.js).
 const SCREEN_PERF = Object.freeze({ optimize_performance: 'optimize', restore_performance: 'restore' });
 

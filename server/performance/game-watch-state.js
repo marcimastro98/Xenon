@@ -15,7 +15,7 @@ const gameWatch = {
   last: null,            // { fullscreen, process, pid, at }
   lastGamingAt: 0,       // last moment we considered a game active (grace window)
   hint: null,        // injected: () => { name, fps } | null (PresentMon's busiest presenter)
-  // The user's own "not a game" list (the gameIgnore setting, js/game-ignore.js
+  // The user's own "not a game" list (the gameIgnore setting, js/performance/game-ignore.js
   // shape). Read through a getter server.js injects, so every path that replaces
   // the settings is covered without a push on each one; the Set is rebuilt only
   // when the array itself changes.

@@ -2,7 +2,7 @@
 // written inside the lock, and every open screen told the new save number.
 
 const { broadcastSSE } = require('../http/sse-clients.js');
-const PerfHud = require('../js/perf-hud.js');
+const PerfHud = require('../js/performance/perf-hud.js');
 const { nextSettingsRev } = require('../settings-rev.js');
 const { readHubSettingsForUpdate } = require('./read.js');
 const { hub } = require('./current.js');
@@ -35,7 +35,7 @@ async function updateGameSessionsSetting(on) {
   });
 }
 
-// What the Game performance tile shows (js/perf-hud.js), from the AI or a Deck
+// What the Game performance tile shows (js/performance/perf-hud.js), from the AI or a Deck
 // key. Returns the saved parts.
 async function updatePerfHudSetting(change) {
   return withHubSettingsLock(async () => {

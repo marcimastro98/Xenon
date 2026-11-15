@@ -3,7 +3,7 @@
 // and what it asks a page whose window changed size.
 // Each function runs in the page, so it uses nothing from this file.
 
-// Performance Mode with no dashboard (js/driver-perf.js): the driver page loads the
+// Performance Mode with no dashboard (js/performance/driver-perf.js): the driver page loads the
 // scripts of its list once the mode is on or a session runs. Asked here through the
 // script's own `load`, with a stand-in for what the page hands it, so that nothing is
 // read from or saved to the copy's settings: the list is loaded, in the list's order.

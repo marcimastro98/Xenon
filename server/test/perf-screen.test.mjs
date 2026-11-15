@@ -1,5 +1,5 @@
 // Performance Mode with no dashboard ("widgets only"): the hidden driver page
-// runs js/performance.js (js/driver-perf.js), the on-screen alerts window shows
+// runs js/performance.js (js/performance/driver-perf.js), the on-screen alerts window shows
 // the suggestion and the result (js/alerts/screen-alerts.js, js/alerts/alert-toasts.js), and
 // the two talk through the server (perf-screen.js, SSE perf_screen).
 import { test } from 'node:test';
@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const PerfSettings = require('../js/perf-settings.js');
 const perfScreen = require('../performance/perf-screen.js');
-const DriverPerf = require('../js/driver-perf.js');
+const DriverPerf = require('../js/performance/driver-perf.js');
 const AlertToasts = require('../js/alerts/alert-toasts.js');
 const aiSurface = require('../ai/ai-surface.js');
 const { remotePathAllowed } = require('../remote-access.js');
@@ -161,7 +161,7 @@ test('the driver loads Performance Mode only when it is on or a session runs', (
   assert.equal(DriverPerf.configKey({ performance: { enabled: true, active: true } }), DriverPerf.configKey({ performance: { enabled: true, active: false } }),
     'a running session is not a change of mind');
   const html = read('../shell-driver.html');
-  assert.ok(html.indexOf('src="js/driver-perf.js"') > 0 && html.indexOf('src="js/driver-perf.js"') < html.indexOf('src="js/shell-driver.js"'));
+  assert.ok(html.indexOf('src="js/performance/driver-perf.js"') > 0 && html.indexOf('src="js/performance/driver-perf.js"') < html.indexOf('src="js/shell-driver.js"'));
   assert.doesNotMatch(html, /performance\.js|perf-settings\.js/, 'not loaded up front: off by default');
   const driver = read('../js/shell-driver.js');
   assert.match(driver, /hubSettings = perf \? perf\.merge\(next\) : next;/);

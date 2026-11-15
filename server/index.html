@@ -389,7 +389,7 @@
              approval. Populated by js/codex-widget.js; same island rules. -->
         <span class="clock-codex" id="clock-codex" hidden></span>
         <!-- Performance Mode marker: on screen while a session runs (and always,
-             when the user asks for it in Settings). Populated by js/perf-marker.js;
+             when the user asks for it in Settings). Populated by js/performance/perf-marker.js;
              same island rules as the two above. -->
         <span class="clock-perf" id="clock-perf" hidden></span>
         <!-- Bit waiting with something to say: an untouched message folds in here, where
@@ -2985,12 +2985,12 @@
             </span>
             <button type="button" class="settings-btn" id="settings-gamemode-install" onclick="installPresentMon(this)" data-i18n="settings_gamemode_install">Installa PresentMon</button>
           </div>
-          <!-- "Not games" list, built by js/game-ignore-settings.js. -->
+          <!-- "Not games" list, built by js/performance/game-ignore-settings.js. -->
           <div class="settings-perf-app-editor full" id="settings-game-ignore"></div>
         </div>
       </div>
 
-      <!-- What the Game performance tile shows (js/perf-hud.js), reading by reading;
+      <!-- What the Game performance tile shows (js/performance/perf-hud.js), reading by reading;
            the same choice on the dashboard, on the screen and over the game. -->
       <div class="settings-group" data-settings-cat="performance" id="settings-perfhud-group">
         <div class="settings-group-head">
@@ -5060,12 +5060,12 @@
 <script src="js/fuzzy-find.js"></script>
 <script src="js/smart-home-order.js"></script>
 <script src="js/sensor-sources.js"></script>
-<script src="js/game-ignore.js"></script>
+<script src="js/performance/game-ignore.js"></script>
 <script src="js/sensor-history.js"></script>
 <script src="js/grid/dashboard-portrait.js"></script>
 <script src="js/save-file.js"></script>
 <script src="js/perf-settings.js"></script>
-<script src="js/perf-hud.js"></script>
+<script src="js/performance/perf-hud.js"></script>
 <script src="js/settings-secrets.js"></script>
 <script src="js/ai/local-server-fields.js"></script>
 <script src="js/ambient/screen-scene-model.js"></script>
@@ -5147,7 +5147,7 @@
 <script src="js/performance/readings.js"></script>
 <script src="js/performance/drawn.js"></script>
 <script src="js/performance.js"></script>
-<script src="js/perf-marker.js"></script>
+<script src="js/performance/perf-marker.js"></script>
 <script src="js/tile-decor-presets.js"></script>
 <script src="js/tile-decor-schema.js"></script>
 <script src="js/look/tile-decor-layers.js"></script>
@@ -5267,7 +5267,7 @@
 <script src="js/first-run/greeting.js"></script>
 <script src="js/ambient/ambient.js"></script>
 <script src="js/ambient/ambient-idle.js"></script>
-<script src="js/gpu-hint.js"></script>
+<script src="js/performance/gpu-hint.js"></script>
 <script src="js/deck-shortcuts.js"></script>
 <script src="js/deck-model.js"></script>
 <script src="js/deck-store.js"></script>
@@ -5381,7 +5381,7 @@
 <script src="js/sensor-access.js"></script>
 <script src="js/capture/ffmpeg-offer.js"></script>
 <script src="js/sensor-sources-settings.js"></script>
-<script src="js/game-ignore-settings.js"></script>
+<script src="js/performance/game-ignore-settings.js"></script>
 <script src="js/sensor-history-settings.js"></script>
 <script src="js/fans-widget/readings.js"></script>
 <script src="js/fans-widget.js"></script>
@@ -5425,7 +5425,7 @@
 <script src="js/capture-gallery/words.js"></script>
 <script src="js/capture-gallery.js"></script>
 <script src="js/capture/capture-settings-pane.js"></script>
-<script src="js/game-sessions-pane.js"></script>
+<script src="js/performance/game-sessions-pane.js"></script>
 <script src="js/capture/capture-replay-key.js"></script>
 <script src="js/vitals/vitals-core.js"></script>
 <script src="js/vitals/vitals.js"></script>

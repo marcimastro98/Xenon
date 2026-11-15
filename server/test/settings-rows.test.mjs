@@ -282,7 +282,7 @@ test('the levers only Windows has are off the page and out of the sheet elsewher
 });
 
 test('Delete games shows only with games to delete', async (t) => {
-  const pane = require('../js/game-sessions-pane.js');
+  const pane = require('../js/performance/game-sessions-pane.js');
   const { document } = makeDom();
   const { els } = ids(document, ['settings-gamesess-list', 'settings-gamesess-empty', 'settings-gamesess-actions']);
   const previous = { document: globalThis.document, apiJson: globalThis.apiJson, t: globalThis.t };

@@ -23,7 +23,7 @@
 // validateAction (js/deck-actions.js) and server/actions/registry.js; the
 // effects live in server/capabilities/.
 
-// js/perf-hud.js PERF_HUD_PARTS: this file is also loaded where that one is not.
+// js/performance/perf-hud.js PERF_HUD_PARTS: this file is also loaded where that one is not.
 const PERF_TILE_PARTS = Object.freeze([
   'fps', 'low1', 'low01', 'frame', 'graph', 'cpu', 'cpuTemp', 'cpuClock', 'cpuPower',
   'gpu', 'gpuTemp', 'gpuClock', 'gpuPower', 'vram', 'ram', 'ping', 'loss',
@@ -99,7 +99,7 @@ const CAPABILITIES = [
     },
   },
 
-  // What the Game performance tile shows (js/perf-hud.js), the same switches as
+  // What the Game performance tile shows (js/performance/perf-hud.js), the same switches as
   // Settings, Performance and this widget's row in the menu. Voice only: it is set once.
   {
     type: 'perfHud', group: 'perf', hidden: true, labelKey: 'deck_act_perfHud',

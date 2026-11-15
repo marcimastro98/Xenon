@@ -1,4 +1,4 @@
-// The "not a game" list (js/game-ignore.js, gamedetect.js, capabilities/game-mode.js)
+// The "not a game" list (js/performance/game-ignore.js, gamedetect.js, capabilities/game-mode.js)
 // and the game mode / Performance Mode keys. A user's Claude desktop app, kept
 // maximised on a big monitor, switched game mode on. Pinned here: the AI desktop
 // clients are never a game, the user's own list reaches the detector, names are
@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const GameIgnore = require('../js/game-ignore.js');
+const GameIgnore = require('../js/performance/game-ignore.js');
 const gd = require('../gamedetect.js');
 const gameMode = require('../capabilities/game-mode.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
@@ -139,7 +139,7 @@ test('the shortcut runner and the dashboards hand Performance Mode on, never the
   assert.ok(CLIENT_ACTIONS.includes('perfMode'));
   const deck = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
   assert.match(deck, /action\.type === 'perfMode' && window\.PerfMode && !window\.__xenonRemote && !\(typeof isLayerPage === 'function' && isLayerPage\(\)\)/);
-  const driver = readFileSync(new URL('../js/driver-perf.js', import.meta.url), 'utf8');
+  const driver = readFileSync(new URL('../js/performance/driver-perf.js', import.meta.url), 'utf8');
   assert.match(driver, /es\.addEventListener\('deck_shortcut', onDeckStep\)/);
 });
 

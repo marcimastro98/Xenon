@@ -53,7 +53,7 @@ function mount({ seed = { active: false }, where = 'pager-page', layer = false }
     isLayerPage: () => layer,
     XenonToast: { show: (o) => toasts.push(o) },
     AlertToasts: createRequire(import.meta.url)('../js/alerts/alert-toasts.js'),
-    PerfHud: createRequire(import.meta.url)('../js/perf-hud.js'),
+    PerfHud: createRequire(import.meta.url)('../js/performance/perf-hud.js'),
     makeEl: (tag, cls, text) => {
       const n = document.createElement(tag);
       if (cls) n.className = cls;
