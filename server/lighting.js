@@ -60,33 +60,29 @@ bridge.config = {
   // what each LED shows, the rest follow Xenon (lighting-led-colors.js).
   deviceModes: {},
 };
-const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];
 const {
   DYNAMIC_ANIM_STYLES, effectiveAlbum, albumActive, gamingPaused, wantsPaint, active, shouldConnect,
   refreshAnimationLayer, anyDeviceAnimationDynamic, colorForDevice, deckReactionColor,
 } = require('./lights/paint-rules.js');
 const {
+  DEVICE_MODES, ANIM_STYLES, PER_DEVICE_ANIM_STYLES, EVENT_DURATION_MS, clampEventDuration,
+  OFF_COLOR, sanitizePalette, GENERIC_DEFAULT_COLOR, CANDLE_DEFAULT_COLOR, deviceLeds,
+} = require('./lights/look-values.js');
+
+const {
   CDT_MOTHERBOARD, writeDevice, writeDeviceGradient, writeDeviceAnimGradient, writeDeviceCustom,
   paintDevices, releaseAll, getDevices,
 } = require('./lights/sdk-write.js');
 
-const ANIM_STYLES = ['none', 'solid', ...DYNAMIC_ANIM_STYLES];
-const PER_DEVICE_ANIM_STYLES = ['solid', ...DYNAMIC_ANIM_STYLES.filter(s => s !== 'palette' && s !== 'wave')];
 // A native frame is painted in the background: when it fails, forget what was
 // sent so the next apply() paints that device again, and say why.
 native.setWriteErrorHook((id, e) => { bridge.lastError = e.message; bridge.lastWrite.delete(id); });
 const MAX_PARTIAL_ENUM_RETRIES = 6;                // ~12s at CONNECT_RETRY_MS — long enough for iCUE to register LINK cooler/fans after a cold boot, bounded so a genuinely LED-less hub doesn't re-enumerate forever
-const EVENT_DURATION_MS = 1800;
-// One source for the user-configurable flash-duration bounds (mirrored by the
-// slider in lighting-page.js and the settings normalizers).
-const clampEventDuration = (ms, fallback) =>
-  Number.isFinite(Number(ms)) ? Math.max(500, Math.min(10000, Number(ms))) : fallback;
 const EVENT_TICK_MS = 60;
 const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
 const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand reconnect attempts while an effect wants paint
 const DEVICE_RESCAN_MS = 30000;                  // slow rescan for devices that registered after the initial enumeration (one SDK call, only while painting)
 const POWER_HOLD_MS = 60000;                     // painting resumes by itself if the PC did not go off after all (a cancelled shutdown)
-const OFF_COLOR = { r: 0, g: 0, b: 0 };
 
 const { loadLib, disconnect } = require('./lights/sdk-load.js');
 
@@ -554,22 +550,6 @@ function clearDeckReaction() {
 // Validated (ANIM_STYLES); unknown styles are ignored. Refreshes the layer +
 // (re)syncs the loop.
 
-// Validate a user palette: 2–5 parseable colours, stored as normalized hex.
-function sanitizePalette(input) {
-  if (!Array.isArray(input)) return null;
-  const hexes = input.slice(0, 5)
-    .map(h => fx.parseColorName(h))
-    .filter(Boolean)
-    .map(c => fx.rgbToHex(c));
-  return hexes.length >= 2 ? hexes : null;
-}
-
-// Switching to the candle while the colour is still the generic green default
-// swaps in a warm flame tint. Lives HERE (not the UI) so every entry point —
-// settings page, AI set_animation, per-device modes — gets the same warm flame.
-const GENERIC_DEFAULT_COLOR = '#1ed760';
-const CANDLE_DEFAULT_COLOR = '#ff9329';
-
 function setAnimation(patch) {
   if (!patch || typeof patch !== 'object') return false;
   const cur = bridge.config.animation;
@@ -611,30 +591,6 @@ function setDeviceMode(id, patch) {
   bridge.lastWrite.clear();
   apply();
   return true;
-}
-
-// The look a single-look device gives every LED, as a per-LED value: what the
-// other LEDs keep when one part gets its own. null = follows Xenon. Mirrors
-// wholeDeviceLook() in js/lighting-device.js.
-function wholeDeviceLook(m) {
-  const mode = (m && m.mode) || 'follow';
-  if (mode === 'color') return m.color || null;
-  if (mode === 'off') return '#000000';
-  if (mode === 'temperature' || mode === 'album') return { style: mode };
-  if (mode === 'animation' && m.anim) {
-    return m.anim.style === 'solid' ? m.anim.color : { style: m.anim.style, color: m.anim.color, speed: m.anim.speed };
-  }
-  return null;
-}
-
-// A device's own per-LED look, which a key's part colours go on top of: its
-// map, or the one look a single-look device gives every LED.
-function deviceLeds(dev, m) {
-  if (m && m.mode === 'custom') return m.leds || {};
-  const keep = wholeDeviceLook(m);
-  const leds = {};
-  if (keep) dev.ledIds.forEach((luid) => { leds[luid] = keep; });
-  return leds;
 }
 
 // One part of a device's map (a fan, the pump, a strip) gets its own look, or
