@@ -61,20 +61,16 @@
     {"from":"server/trial-vault.js","to":"server/store-supporters/trial-vault.js","shim":true},
     {"from":"server/vitals-roast-sparks.js","to":"server/store-supporters/vitals-roast-sparks.js","shim":true},
     {"from":"server/welcome-sparks.js","to":"server/store-supporters/welcome-sparks.js","shim":true},
-    {"from":"server/installed-apps.js","to":"server/search/installed-apps.js"},
-    {"from":"server/linux-app-icons.js","to":"server/search/linux-app-icons.js"},
-    {"from":"server/linux-index.js","to":"server/search/linux-index.js"},
-    {"from":"server/mdfind.js","to":"server/search/mdfind.js"},
-    {"from":"server/search-pace.js","to":"server/search/search-pace.js"},
-    {"from":"server/search-pasted-path.js","to":"server/search/search-pasted-path.js"},
-    {"from":"server/search-query.js","to":"server/search/search-query.js"},
-    {"from":"server/search-rank.js","to":"server/search/search-rank.js"}
+    {"from":"server/installed-apps.js","to":"server/search/installed-apps.js","shim":true},
+    {"from":"server/linux-app-icons.js","to":"server/search/linux-app-icons.js","shim":true},
+    {"from":"server/linux-index.js","to":"server/search/linux-index.js","shim":true},
+    {"from":"server/mdfind.js","to":"server/search/mdfind.js","shim":true},
+    {"from":"server/search-pace.js","to":"server/search/search-pace.js","shim":true},
+    {"from":"server/search-pasted-path.js","to":"server/search/search-pasted-path.js","shim":true},
+    {"from":"server/search-query.js","to":"server/search/search-query.js","shim":true},
+    {"from":"server/search-rank.js","to":"server/search/search-rank.js","shim":true}
   ],
   "patterns": [
-    {"feature":"search","glob":"server/search-*.js","at":2},
-    {"feature":"search","glob":"server/mdfind.js","at":4},
-    {"feature":"search","glob":"server/installed-apps.js","at":5},
-    {"feature":"search","glob":"server/linux-index.js","at":7},
-    {"feature":"search","glob":"server/linux-app-icons.js","at":8}
+
   ]
 }
