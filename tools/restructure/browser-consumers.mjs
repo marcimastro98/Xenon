@@ -57,11 +57,24 @@ function mentionOf(file) {
   return new RegExp(`(?<![\\w.-])((?:[\\w.-]+/)*)${base}(?![\\w-])`, 'g');
 }
 
-const grepFor = (root, names) => {
-  const run = spawnSync('git', ['grep', '--untracked', '-l', '-I', '-z', '-F', ...names.flatMap((name) => ['-e', name])], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (run.status !== 0 && run.status !== 1) throw new Error(`git grep failed: ${run.stderr}`);
-  return run.stdout.split('\0').filter(Boolean);
-};
+/**
+ * The files that hold any of the names. git answers 0 (found) or 1 (nothing found); anything else (a lock another git
+ * holds, a search stopped from outside) is asked once more, and after that the reason is said: a search that failed
+ * must never read as "nobody names it".
+ * @param {string} root @param {string[]} names @param {typeof spawnSync} [run] the way git is started (a test hands its own)
+ * @returns {string[]} repo-relative files
+ */
+export function grepFor(root, names, run = spawnSync) {
+  const argv = ['grep', '--untracked', '-l', '-I', '-z', '-F', ...names.flatMap((name) => ['-e', name])];
+  let last = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    last = run('git', argv, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    if (last.status === 0 || last.status === 1) return String(last.stdout).split('\0').filter(Boolean);
+  }
+  const said = String(last.stderr ?? '').trim();
+  const why = last.error ? last.error.message : last.signal ? `stopped by ${last.signal}` : `exit ${last.status}${said ? `: ${said}` : ', and git said nothing'}`;
+  throw new Error(`git grep failed twice in ${root} (${why})`);
+}
 
 // Set while one caller asks about many files (withOneSearch): which tracked files hold each file name, and each of them read once.
 let once = null;
