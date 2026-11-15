@@ -500,7 +500,7 @@ require('./icon-packs');
 require('./sound-packs');
 const communityRatings = require('./community-ratings');
 require('./community-limited'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
-const { createRemoteControl } = require('./remote-control');
+require('./remote-control');
 // Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
 // from `remoteControl` above, which is the Sunshine/Moonlight streaming feature
 // and shares nothing with it but a word.
@@ -3509,13 +3509,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
   return result;
 }
 
-// Remote Control orchestrator — getSettings reads the in-memory mirror so
-// currentCreds() stays synchronous; saveSettings persists and normalises via
-// writeHubSettings (which updates hub.settings on the next settings read).
-const remoteControl = createRemoteControl({
-  getSettings: () => hub.settings,
-  saveSettings: (s) => withHubSettingsLock(() => writeHubSettings(s).then(safe => { hub.settings = safe; return safe; })),
-});
+const { remoteControl } = require('./remote-control/engine-remote-control.js');
 const { winNotifWanted } = require('./settings/notification-switches.js');
 
 const { _feedWidgetInUse } = require('./grid/feed-widget-in-use.js');
