@@ -23,7 +23,6 @@ const keyLook = require('./lighting-key-look');   // what a Deck key set: wins o
 const { bridge } = require('./lights/bridge-state.js');
 const { refreshAvailability, isAvailable } = require('./lights/sdk-dll.js');
 const { paint } = require('./lights/paint-hook.js');
-const { wokenBoards } = require('./lights/sdk-call.js');
 
 bridge.config = {
   enabled: false,
@@ -69,19 +68,16 @@ const { writeDevice, releaseAll, getDevices } = require('./lights/sdk-write.js')
 // A native frame is painted in the background: when it fails, forget what was
 // sent so the next apply() paints that device again, and say why.
 native.setWriteErrorHook((id, e) => { bridge.lastError = e.message; bridge.lastWrite.delete(id); });
-const POWER_HOLD_MS = 60000;                     // painting resumes by itself if the PC did not go off after all (a cancelled shutdown)
 
 const { disconnect } = require('./lights/sdk-load.js');
 
 const { getBatteryLevels } = require('./lights/sdk-properties.js');
 
 const {
-  connect, ensureConnected, enumerate, boardsToWake, wakeVendorBoard, enumerationComplete,
+  connect, ensureConnected, enumerate, boardsToWake, enumerationComplete,
 } = require('./lights/session.js');
 
-const {
-  reconcileConnection, syncAnimationTicker, boundedReenumerate,
-} = require('./lights/upkeep.js');
+const { reconcileConnection, boundedReenumerate } = require('./lights/upkeep.js');
 
 const {
   isConnected, getLastError, isLightsOut, getExternalStatus, getExternalConfig, getConfig,
@@ -89,6 +85,8 @@ const {
 } = require('./lights/status.js');
 
 const { apply } = require('./lights/paint.js');
+const { powerDown, powerUp } = require('./lights/power.js');
+
 const { onSystem, onAudio, onStatus, onEvent } = require('./lights/feeds.js');
 
 paint.apply = apply;   // what the session's own steps (lights/paint-hook.js) repaint through
@@ -101,33 +99,6 @@ const {
 // Set the ambient animation (style/color/speed/palette). 'none' clears it.
 // Validated (ANIM_STYLES); unknown styles are ignored. Refreshes the layer +
 // (re)syncs the loop.
-
-// The PC is about to shut down, restart, sign out or sleep. Hand every light
-// back to its own hardware while this process still runs: a controller left in
-// Xenon's direct mode keeps its last frame on standby power, lit (and flickering)
-// with the PC off. Nothing is painted again until powerUp(), which the wake from
-// sleep calls, or POWER_HOLD_MS later when a shutdown was cancelled.
-async function powerDown() {
-  bridge.poweredDown = true;
-  syncAnimationTicker();
-  clearTimeout(bridge.powerHoldTimer);
-  bridge.powerHoldTimer = setTimeout(powerUp, POWER_HOLD_MS);
-  if (bridge.powerHoldTimer.unref) bridge.powerHoldTimer.unref();
-  try { await native.powerDown(); } catch (e) { bridge.lastError = e.message; }
-  await releaseAll({ keepNative: true });
-}
-
-function powerUp() {
-  clearTimeout(bridge.powerHoldTimer);
-  bridge.powerHoldTimer = null;
-  if (!bridge.poweredDown) return;
-  bridge.poweredDown = false;
-  native.resume();
-  wokenBoards.clear();
-  wakeVendorBoard();
-  bridge.lastWrite.clear();
-  apply();
-}
 
 // Apply persisted/posted config; (dis)connect to match `enabled`.
 function applyConfig(next) {
