@@ -132,7 +132,9 @@ export function noteProblems(root, noted) {
     else if (file.split(/[\\/]/).includes('..')) reasons.push(`${file} climbs out with ..`);
     else if (!path.resolve(root, file).startsWith(base)) reasons.push(`${file} is not inside the checkout`);
     else if (file !== LEDGER && !WRITTEN.test(file)) reasons.push(`${file} is not a file a cut writes`);
-    else if (!kept || typeof kept !== 'object' || !(kept.was === null || typeof kept.was === 'string') || !(kept.wrote === undefined || typeof kept.wrote === 'string')) {
+    // Only the list of moves is noted without what was written (its text is not known when the note is made). Any other
+    // file must say it: without it the file would be put back on the word of the others, over whatever it holds now.
+    else if (!kept || typeof kept !== 'object' || !(kept.was === null || typeof kept.was === 'string') || !(typeof kept.wrote === 'string' || (file === LEDGER && kept.wrote === undefined))) {
       reasons.push(`${file} does not say what was there and what was written`);
     }
   }
@@ -173,8 +175,10 @@ export function restoreLeftover(root, note = noteFileOf(root)) {
  * @returns {{ record: any, lines: Record<string, number>, problems: string[], restored: string[] }} `restored`: what a run stopped halfway had left, put back first
  */
 export function performByHand({ root, parser, plan, dryRun = false, note = noteFileOf(root), check = stateProblems }) {
+  // A dry run is asked to change nothing: it does not put back what another run left either. It says so and stops.
+  if (dryRun && readOr(note) !== null) throw new Refusal([`a run before this one was stopped halfway and left ${note}: a dry run puts nothing back. Run with --restore first, then ask again.`]);
   const restored = restoreLeftover(root, note);
-  const read = (file) => readOr(path.join(root, file));
+  const read =(file) => readOr(path.join(root, file));
   const ledger = readBrowserLedger(root);
   if (read(plan.to) !== null) throw new Refusal([`${plan.to} exists already: give the new code its own file`]);
   const text = read(plan.from);

@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import { cutByHand, noteFileOf, performByHand, restoreLeftover } from '../../tools/restructure/browser-by-hand.mjs';
+import { cutByHand, noteFileOf, noteProblems, performByHand, restoreLeftover } from '../../tools/restructure/browser-by-hand.mjs';
 import { replay } from '../../tools/restructure/browser-extract.mjs';
 import { innerStateProblems } from '../../tools/restructure/browser-inner-proof.mjs';
 import { innerFilesOf, innerPartsOf, runOf } from '../../tools/restructure/browser-ledger.mjs';
@@ -217,6 +217,11 @@ test('a run stopped halfway leaves a note, and the checkout is put back from it:
   // The next run puts back first, says so, and then cuts the script as it was.
   lay();
   stopped();
+  // A dry run in between touches nothing: it says a note was left and stops, and the note and the files stay.
+  const held = [on(FILE), on(ROWS), on(PAGE), on(LEDGER), fs.readFileSync(note, 'utf8')];
+  assert.throws(() => performByHand({ root, parser: null, plan, note, dryRun: true, check: () => ({ problems: [] }) }),
+    (error) => error instanceof Refusal && /stopped halfway and left .*a dry run puts nothing back.*--restore/.test(error.reasons[0]));
+  assert.deepEqual([on(FILE), on(ROWS), on(PAGE), on(LEDGER), fs.readFileSync(note, 'utf8')], held);
   const done = performByHand({ root, parser: null, plan, note, check: () => ({ problems: [] }) });
   assert.equal(done.restored.length, 4);
   assert.deepEqual(done.problems, []);
@@ -260,6 +265,11 @@ test('a note that names a file outside the checkout, or anything a cut does not 
   assert.match(refused({ ...real, 'package.json': { was: 'mine', wrote: 'written' } }), /package\.json is not a file a cut writes/);
   assert.match(refused({ ...real, 'server/server.js': { was: 'mine', wrote: 'written' } }), /not a file a cut writes/);
   assert.match(refused({ [FILE]: { was: 7 } }), /does not say what was there/);
+  // Only the list of moves may be noted without what was written: a script noted that way would go back over anything.
+  assert.match(refused({ ...real, [PAGE]: { was: 'old page' } }), /index\.html does not say what was there and what was written/);
+  assert.match(refused({ [FILE]: { was: BEFORE } }), /does not say what was there and what was written/);
+  assert.match(refused({ ...real, [LEDGER]: { was: '{}', wrote: 7 } }), /extracted-browser\.json does not say/);
+  assert.deepEqual(noteProblems(root, { files: { ...real, [LEDGER]: { was: '{}' } } }), [], 'the list of moves alone may leave it out');
   fs.writeFileSync(note, 'not json');
   assert.throws(() => restoreLeftover(root, note), (error) => error instanceof Refusal && /not a note that can be read/.test(error.reasons[0]));
   assert.equal(fs.readFileSync(note, 'utf8'), 'not json');
