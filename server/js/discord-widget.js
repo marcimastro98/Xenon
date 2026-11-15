@@ -114,7 +114,7 @@
 
   // ── Favourite voice channels ───────────────────────────────────────────────
   const {
-    splitFavourites, favIds, isFav, groupByGuild, collapsedIds, isCollapsed, fmtNotifTime,
+    splitFavourites, favIds, collapsedIds, isCollapsed, fmtNotifTime,
   } = window.DiscordWidgetLists;
 
   // Appended rather than prepended: a new favourite goes to the BOTTOM of the
@@ -161,153 +161,9 @@
     memberChip, memberShape, fillMembers, fillMemberCtl, callTitle,
   } = window.DiscordWidgetCallPeople({ el, discordState, runAction, paint, avatarBad, NOTIF_ICON_BAD_MAX });
 
-  const { syncMemberStates } = window.DiscordWidgetMemberState;
-
-  // The Channels tab: the joinable voice channels grouped by server, using the full
-  // widget height. The current call's members/speaking live in the Controls tab.
-  function paintChannels(mount) {
-    const list = mount.querySelector('.dc-chan-list');
-    if (!list) return;
-    const linked = discordState.connected === true;
-    const activeId = discordState.voice && discordState.voice.channel ? discordState.voice.channel.id : '';
-    const membersFor = (c) => (c.id === activeId && discordState.voice && Array.isArray(discordState.voice.members))
-      ? discordState.voice.members : (discordState.roster ? (discordState.roster.get(c.id) || []) : []);
-    // Skip the full rebuild (channel rows + member strips) when nothing observable
-    // changed — paintChannels runs on every 6s roster tick and is usually identical.
-    const sig = !linked ? 'x' : (!discordState.channels || !discordState.channels.length) ? 'e'
-      : discordState.channels.map(c => c.id + ':' + (c.name || '') + ':' + (c.id === activeId ? 1 : 0) + ':'
-          // Who is in each channel, not what they are doing: speaking and
-          // muting are applied to the chips in place below, so a voice push
-          // several times a second does not rebuild (and re-load) every avatar.
-          + membersFor(c).map(m => memberShape(m, false)).join(',')
-        ).join('|')
-      // The pinned list is part of what is drawn, so it belongs in the signature:
-      // without it, starring a channel would change nothing until the next tick
-      // that happened to move a member.
-      + '#' + favIds().join(',')
-      // Collapsing a server changes what is drawn and nothing else, so without
-      // it in the signature the tap would repaint nothing until a member moved.
-      + '#' + collapsedIds().join(',');
-    if (list.dataset.dcSig === sig) {
-      if (linked && discordState.channels && discordState.channels.length) {
-        syncMemberStates(list, discordState.channels.flatMap(c => membersFor(c)));
-      }
-      return;
-    }
-    list.dataset.dcSig = sig;
-    if (!linked) { list.replaceChildren(el('div', 'dc-chan-empty', t('twitch_notlinked', 'Not linked'))); return; }
-    if (!discordState.channels || !discordState.channels.length) {
-      list.replaceChildren(el('div', 'dc-chan-empty', t('discord_w_no_channels', 'No voice channels')));
-      return;
-    }
-    const frag = document.createDocumentFragment();
-
-    // One channel row: the join button and the star are SIBLINGS inside a
-    // wrapper, never nested. A button inside a button is invalid and only one of
-    // the two would be reachable — the same reason soundTile() below is built
-    // this way.
-    const channelRow = (c) => {
-      const isActive = c.id === activeId;
-      // Members: the live voice state (with speaking) for the channel you're in,
-      // the polled roster for every other channel. Either may be absent.
-      const members = (isActive && discordState.voice && Array.isArray(discordState.voice.members))
-        ? discordState.voice.members
-        : (discordState.roster ? (discordState.roster.get(c.id) || []) : []);
-      const row = el('div', 'dc-chan-row');
-      const b = el('button', 'dc-chan');
-      b.type = 'button';
-      b.classList.toggle('is-active', isActive);
-      const ico = el('span', 'dc-chan-ico'); ico.innerHTML = ICONS.join;   // static, trusted SVG
-      b.append(ico, el('span', 'dc-chan-name', c.name || ''));
-      if (members.length) b.appendChild(el('span', 'dc-chan-count', String(members.length)));
-      b.addEventListener('click', () => runAction(b, { type: 'discordJoin', channel: c.id }));
-      const pinned = isFav(c.id);
-      const star = el('button', 'dc-chan-fav');
-      star.type = 'button';
-      star.classList.toggle('is-on', pinned);
-      star.innerHTML = ICONS.star;                                          // static, trusted SVG
-      const label = pinned
-        ? t('discord_w_unfavourite', 'Remove from favourites')
-        : t('discord_w_favourite', 'Pin to the top');
-      star.title = label;
-      star.setAttribute('aria-label', label);
-      star.setAttribute('aria-pressed', String(pinned));
-      star.addEventListener('click', (ev) => { ev.stopPropagation(); toggleFav(c.id); });
-      row.append(b, star);
-      frag.appendChild(row);
-      // Who's inside — a compact member strip under the channel row.
-      if (members.length) {
-        const strip = el('div', 'dc-chan-members');
-        members.forEach(m => strip.appendChild(memberChip(m)));
-        frag.appendChild(strip);
-      }
-    };
-
-    // A server heading that opens and closes its channels. The caret, the name
-    // and the count are spans inside ONE button rather than a button beside a
-    // label: the whole bar is the target, which is what a finger on the Edge
-    // needs, and there is nothing next to it to mis-hit.
-    const guildHeader = (g) => {
-      const collapsed = isCollapsed(g.id);
-      const h = el('button', 'dc-guild');
-      h.type = 'button';
-      h.classList.toggle('is-collapsed', collapsed);
-      const caret = el('span', 'dc-guild-caret');
-      caret.innerHTML = ICONS.caret;                                        // static, trusted SVG
-      h.append(caret, el('span', 'dc-guild-name', g.name || ''));
-      // The count is what a closed server still tells you: how much is in there.
-      h.appendChild(el('span', 'dc-guild-count', String(g.channels.length)));
-      h.setAttribute('aria-expanded', String(!collapsed));
-      const label = collapsed
-        ? t('discord_w_expand_server', 'Show channels')
-        : t('discord_w_collapse_server', 'Hide channels');
-      h.title = label;
-      h.setAttribute('aria-label', (g.name || '') + ' — ' + label);
-      h.addEventListener('click', () => toggleGuild(g.id));
-      return h;
-    };
-
-    const { pinned, rest } = splitFavourites(discordState.channels, favIds());
-    const groups = Array.from(groupByGuild(rest).values());
-    // Favourites is not a server and never collapses: it is the shortcut PAST
-    // the scrolling, so hiding it would work against the thing being asked for.
-    if (pinned.length) {
-      frag.appendChild(el('div', 'dc-guild dc-guild--fav', t('discord_w_favourites', 'Favourites')));
-      pinned.forEach(channelRow);
-    }
-    // Collapse/expand everything. Only from two servers up: with one, it is the
-    // header's own caret wearing a different hat.
-    const ids = groups.map(g => g.id).filter(Boolean);
-    if (ids.length > 1) {
-      const allShut = ids.every(isCollapsed);
-      const bar = el('div', 'dc-guild-all');
-      const b = el('button', 'dc-guild-all-btn');
-      b.type = 'button';
-      b.classList.toggle('is-collapsed', allShut);
-      const caret = el('span', 'dc-guild-caret');
-      caret.innerHTML = ICONS.caret;                                        // static, trusted SVG
-      const label = allShut
-        ? t('discord_w_expand_all', 'Expand all')
-        : t('discord_w_collapse_all', 'Collapse all');
-      b.append(caret, el('span', null, label));
-      b.title = label;
-      b.addEventListener('click', () => toggleAllGuilds(ids));
-      bar.appendChild(b);
-      frag.appendChild(bar);
-    }
-    groups.forEach((g) => {
-      // A group with no id cannot be remembered, so it is drawn the way it
-      // always was: a plain heading, always open.
-      if (!g.id) {
-        if (g.name) frag.appendChild(el('div', 'dc-guild dc-guild--plain', g.name));
-        g.channels.forEach(channelRow);
-        return;
-      }
-      frag.appendChild(guildHeader(g));
-      if (!isCollapsed(g.id)) g.channels.forEach(channelRow);
-    });
-    list.replaceChildren(frag);
-  }
+  const {
+    paintChannels,
+  } = window.DiscordWidgetChannelList({ el, discordState, runAction, toggleFav, toggleGuild, toggleAllGuilds, memberChip, memberShape });
 
   // Audition a sound locally from Discord's public CDN, without broadcasting it to
   // a voice channel. Guild sounds stream from the CDN; a built-in default sound or
