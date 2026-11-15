@@ -120,7 +120,7 @@
     "server/js/youtube-widget.js": 858,
     "server/js/youtubelive-widget.js": 588,
     "server/lighting.js": 831,
-    "server/linux-collectors.js": 471,
+    "server/linux-collectors.js": 381,
     "server/media.ps1": 412,
     "server/processes.ps1": 329,
     "server/remote-access.js": 449,
