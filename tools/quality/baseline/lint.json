@@ -1347,7 +1347,7 @@
     "server/lighting-providers/openrgb.js complexity/useOptionalChain": 2,
     "server/lighting-providers/wled.js complexity/useOptionalChain": 3,
     "server/lighting-providers/yeelight.js complexity/useOptionalChain": 2,
-    "server/lighting.js complexity/useOptionalChain": 1,
+    "server/lights/configure.js complexity/useOptionalChain": 1,
     "server/lights/look-values.js complexity/useOptionalChain": 1,
     "server/lights/paint-rules.js complexity/useOptionalChain": 2,
     "server/lights/paint.js complexity/useOptionalChain": 2,
