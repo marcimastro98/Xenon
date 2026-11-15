@@ -4,7 +4,7 @@
 // screen.
 
 const { haWsUrl, haHttpOrigin } = require('./home-assistant-address.js');
-const { normalizeAreaOrder, normalizeTileView } = require('../js/smart-home-order.js');
+const { normalizeAreaOrder, normalizeTileView } = require('../js/smart-home/smart-home-order.js');
 const { isEntityId, isCameraEntity } = require('./home-assistant-entity.js');
 
 // The user's Home Assistant dashboards, for Settings → Smart Home → "Add as a
@@ -97,7 +97,7 @@ function normalizeHomeAssistant(input) {
     energyEntities,
     camAngles: normalizeHaCamAngles(src.camAngles),
     // Smart Home tile: room order and how devices are shown (one rule with the
-    // browser, js/smart-home-order.js). Empty order = rooms as Home Assistant lists them.
+    // browser, js/smart-home/smart-home-order.js). Empty order = rooms as Home Assistant lists them.
     areaOrder: normalizeAreaOrder(src.areaOrder),
     tileView: normalizeTileView(src.tileView),
   };

@@ -56,7 +56,7 @@ function normalizeHomeAssistant(value) {
     : [];
   const camAngles = normalizeCamAngles(src.camAngles, isCam);
   // Room order and how the tile shows devices: one rule with the server
-  // (js/smart-home-order.js, loaded before this file).
+  // (js/smart-home/smart-home-order.js, loaded before this file).
   const order = window.SmartHomeOrder;
   return {
     url: String(src.url || '').trim().slice(0, 200),

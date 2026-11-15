@@ -256,7 +256,7 @@
   }
 
   // Group entities by area: rooms in the order the user set (homeAssistant.
-  // areaOrder, js/smart-home-order.js), the rest as first met, "no area" last.
+  // areaOrder, js/smart-home/smart-home-order.js), the rest as first met, "no area" last.
   // Inside a room the selection's own order holds.
   // The tile reads the order from the server's snapshot; Settings passes the
   // saved one (the tile may not be on any page, so there may be no snapshot).

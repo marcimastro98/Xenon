@@ -22,7 +22,7 @@ const WebSocket = require('ws');
 const {
   HA_WS_MAX_PAYLOAD, haWsUrl, haHttpOrigin, isConfigured,
 } = require('./home-assistant-address.js');
-require('../js/smart-home-order.js'); // nothing is taken from it here, but it runs code when it loads
+require('../js/smart-home/smart-home-order.js'); // nothing is taken from it here, but it runs code when it loads
 
 // ---- pure helpers (also unit-tested) ---------------------------------------
 

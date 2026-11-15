@@ -191,6 +191,8 @@
     {"from":"server/js/spotlight-chat.js","to":"server/js/search/spotlight-chat.js"},
     {"from":"server/js/spotlight-page.js","to":"server/js/search/spotlight-page.js"},
     {"from":"server/js/settings-bar-preview.js","to":"server/js/settings/settings-bar-preview.js"},
-    {"from":"server/js/settings-secrets.js","to":"server/js/settings/settings-secrets.js"}
+    {"from":"server/js/settings-secrets.js","to":"server/js/settings/settings-secrets.js"},
+    {"from":"server/js/smart-home-dashboard-tile.js","to":"server/js/smart-home/smart-home-dashboard-tile.js"},
+    {"from":"server/js/smart-home-order.js","to":"server/js/smart-home/smart-home-order.js"}
   ]
 }

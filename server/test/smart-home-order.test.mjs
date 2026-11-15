@@ -1,5 +1,5 @@
 // Smart Home tile: room order, device order inside a room, and the Show option
-// (js/smart-home-order.js, shared by the browser and normalizeHomeAssistant).
+// (js/smart-home/smart-home-order.js, shared by the browser and normalizeHomeAssistant).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
-const O = require('../js/smart-home-order.js');
+const O = require('../js/smart-home/smart-home-order.js');
 const ha = require('../actions/home-assistant.js');
 
 test('areaOrder: strings only, trimmed, de-duplicated, capped; never the no-area bucket', () => {
@@ -68,7 +68,7 @@ test('the server keeps the order and the view, and sends them back with the toke
 test('wiring: loaded before settings.js, normalized on the client, sent in the snapshot', () => {
   const html = read('server/index.html');
   const at = (src) => html.indexOf('<script src="' + src + '"></script>');
-  assert.ok(at('js/smart-home-order.js') > 0 && at('js/smart-home-order.js') < at('js/settings.js'));
+  assert.ok(at('js/smart-home/smart-home-order.js') > 0 && at('js/smart-home/smart-home-order.js') < at('js/settings.js'));
   const settings = read('server/js/settings.js');
   assert.match(settings, /areaOrder: order \? order\.normalizeAreaOrder\(src\.areaOrder\) : \[\]/);
   assert.match(settings, /tileView: order \? order\.normalizeTileView\(src\.tileView\) : 'auto'/);

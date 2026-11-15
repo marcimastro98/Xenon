@@ -1,5 +1,5 @@
 // Settings → Smart Home → "Home Assistant dashboard": a dashboard of the user's
-// own Home Assistant in a Browser tile (js/smart-home-dashboard-tile.js and
+// own Home Assistant in a Browser tile (js/smart-home/smart-home-dashboard-tile.js and
 // GET /api/homeassistant/dashboards).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
-const D = require('../js/smart-home-dashboard-tile.js');
+const D = require('../js/smart-home/smart-home-dashboard-tile.js');
 const ha = require('../actions/home-assistant.js');
 const { remotePathAllowed } = require('../remote-access.js');
 
@@ -59,11 +59,11 @@ test('the route reads only, answers with fixed errors, and a paired device may u
 test('wiring: loaded before smart-home.js, shown in the Smart Home settings once connected', () => {
   const html = read('server/index.html');
   const pos = (src) => html.indexOf('<script src="' + src + '"></script>');
-  assert.ok(pos('js/smart-home-dashboard-tile.js') > 0 && pos('js/smart-home-dashboard-tile.js') < pos('js/smart-home.js'));
+  assert.ok(pos('js/smart-home/smart-home-dashboard-tile.js') > 0 && pos('js/smart-home/smart-home-dashboard-tile.js') < pos('js/smart-home.js'));
   const sh = read('server/js/smart-home.js');
   assert.match(sh, /showDashboard\(ha\.url\)/);
   assert.match(sh, /showDashboard\(url\.value\.trim\(\)\)/);
-  const mod = read('server/js/smart-home-dashboard-tile.js');
+  const mod = read('server/js/smart-home/smart-home-dashboard-tile.js');
   assert.match(mod, /addWidgetToPage\('browser', page\)/);
   assert.match(mod, /chromeHidden: true/);
 });

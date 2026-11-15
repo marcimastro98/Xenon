@@ -101,7 +101,7 @@
     devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget/says.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core/timing.js', 'js/lyrics-core.js', 'js/media/lyrics-view.js', 'js/media/lyrics-translation.js', 'js/media/lyrics-stage.js',
       'js/media/lyrics-widget-options.js', 'js/media/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
-    smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home-order.js', 'js/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home/units.js', 'js/smart-home/pieces.js', 'js/smart-home.js'],
+    smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home/smart-home-order.js', 'js/smart-home/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home/units.js', 'js/smart-home/pieces.js', 'js/smart-home.js'],
       { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/SmartHomePanel/SmartHomePanelControls.css', 'components/CustomSelect/CustomSelect.css']),
     // Seeds itself from /api/lighting/status when drawn; no stream.
     lighting: tile('lighting', 'LightingWidget', ['js/lighting/lighting-widget.js'], {}),

@@ -149,7 +149,7 @@
     "server/js/presets/share-link-privacy.js TS2339": 1,
     "server/js/slideshow-widget.js TS2304": 4,
     "server/js/slideshow-widget.js TS2339": 3,
-    "server/js/smart-home-order.js TS2339": 1,
+    "server/js/smart-home/smart-home-order.js TS2339": 1,
     "server/js/tile-decor-presets.js TS2339": 1,
     "server/js/tile-decor-schema.js TS2339": 1,
     "server/js/tile-material.js TS2339": 3,
