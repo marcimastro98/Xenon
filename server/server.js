@@ -430,7 +430,7 @@ const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
 require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const { createGuardian } = require('./guardian');
-const { createBatteryMonitor } = require('./battery');
+require('./battery');
 require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
@@ -1425,15 +1425,7 @@ const { _killWorker } = require('./powershell/worker-state.js');
 
 const { runPowerShellWorker } = require('./system/pwsh-worker.js');
 
-// Wireless peripheral battery (Corsair via the iCUE bridge + Bluetooth via the
-// battery.ps1 PnP collector). TTL-cached inside the monitor; consumed by
-// GET /api/battery, the SSE 'battery' tick and the get_battery_status AI tool.
-const batteryMonitor = createBatteryMonitor({
-  runScript: runPowerShellScript,
-  lighting,
-  systemBattery: async () => { const r = await require('./power').read(); return r && r.battery; },
-  peripherals: () => require('./device-battery').read({ ask: !hub.settings || hub.settings.batteryAskDevices !== false }),
-});
+const { batteryMonitor } = require('./device-battery/engine-monitor.js');
 
 const { _mediaHost, _mediaHostReject, _retireMediaHost } = require('./media/host-state.js');
 
