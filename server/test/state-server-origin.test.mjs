@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { looseScripts } from './browser-source.mjs';
 
 // `SERVER` in server/js/state.js is the origin ~50 call sites across 15 modules
 // aim at. It used to resolve to the loopback origin unless the page's HOSTNAME
@@ -138,7 +139,7 @@ test('no client module hardcodes the loopback origin as a fetch base', () => {
   const exemptFiles = new Set(['state.js', ...LOOPBACK_EXEMPT.filter((e) => e.file).map((e) => e.file)]);
   const exemptMatches = LOOPBACK_EXEMPT.filter((e) => e.match).map((e) => e.match);
   const offenders = [];
-  for (const name of fs.readdirSync(dir).filter((n) => n.endsWith('.js'))) {
+  for (const name of looseScripts()) {
     if (exemptFiles.has(name)) continue;
     const src = fs.readFileSync(path.join(dir, name), 'utf8');
     for (const line of src.split('\n')) {

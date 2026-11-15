@@ -40,6 +40,20 @@ export function partsOf(file) {
 
 const read = (file) => fs.readFileSync(join(REPO, file), 'utf8');
 
+const PLACED = join(REPO, 'tools', 'restructure', 'browser-moved.json');
+
+/**
+ * What a scan of the root of server/js/ listed before any script moved: the scripts still loose
+ * there and the ones moved whole to the folder of their feature (tools/restructure/browser-moved.json).
+ * A test that walks every dashboard script lists them here, so a move takes nothing out of its sight.
+ * @returns {string[]} names under server/js/, with forward slashes, sorted
+ */
+export function looseScripts() {
+  const loose = fs.readdirSync(join(REPO, 'server', 'js')).filter((name) => name.endsWith('.js'));
+  const placed = JSON.parse(read('tools/restructure/browser-moved.json')).moves.map((move) => move.to.slice('server/js/'.length));
+  return [...loose, ...placed].sort();
+}
+
 /**
  * The text a page gets for one browser file: every script taken out of it and then
  * the script itself, or a stylesheet followed by its parts. For a stylesheet that

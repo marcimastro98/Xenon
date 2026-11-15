@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { readFileSync } from './native-source.mjs';
+import { looseScripts } from './browser-source.mjs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -110,8 +111,8 @@ test('the signal helper exists only in the top-level page of our own origins', (
 const OWN_HOOK_PAGES = new Set();
 
 function senders() {
-  const files = [];
-  for (const dir of ['server/js', 'server', 'apps/native/splash']) {
+  const files = looseScripts().map((f) => `server/js/${f}`);
+  for (const dir of ['server', 'apps/native/splash']) {
     for (const f of fs.readdirSync(path.join(ROOT, dir))) {
       if (/\.(js|html)$/.test(f)) files.push(`${dir}/${f}`);
     }

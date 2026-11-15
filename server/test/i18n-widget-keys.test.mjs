@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { looseScripts } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
@@ -75,7 +76,7 @@ const KNOWN_GAPS = new Set([]);
 
 test('every translation key a widget asks for exists in English', () => {
   const have = englishKeys();
-  const files = readdirSync(JS_DIR).filter(f => f.endsWith('-widget.js'));
+  const files = looseScripts().filter(f => f.endsWith('-widget.js'));
   assert.ok(files.length >= 10, `only ${files.length} widget modules found — the scan broke`);
   const missing = [];
   for (const f of files) {

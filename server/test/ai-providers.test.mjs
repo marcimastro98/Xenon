@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { looseScripts } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const creds = require('../ai-provider-creds.js');
@@ -167,7 +168,7 @@ test('every key the redactor blanks is also preserved on save', () => {
 // half; the invariant in AGENTS.md is the one that has to carry it.
 test('no client module decides "is a key configured" from the raw geminiApiKey', () => {
   const dir = new URL('../js/', import.meta.url);
-  const files = readdirSync(dir).filter((f) => f.endsWith('.js') && f !== 'i18n.js');
+  const files = looseScripts().filter((f) => f !== 'i18n.js');
   const offenders = [];
   for (const f of files) {
     const src = readFileSync(new URL(f, dir), 'utf8');

@@ -13,8 +13,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
-import { readFileSync } from './browser-source.mjs';
+import { looseScripts, readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const JS_DIR = new URL('../js/', import.meta.url);
@@ -39,7 +38,7 @@ test('nothing formats an hour behind the setting back', () => {
   // A literal `hour:` option anywhere else is a formatter that decides for
   // itself — which is exactly the bug. utils.js holds the only one.
   const offenders = [];
-  for (const f of readdirSync(JS_DIR).filter((n) => n.endsWith('.js'))) {
+  for (const f of looseScripts()) {
     if (f === 'utils.js') continue;
     const src = read(f);
     for (const [i, line] of src.split('\n').entries()) {
@@ -58,7 +57,7 @@ test('every file that formats a time is loaded after the helper that defines it'
   const at = (f) => html.indexOf('js/' + f + '"');
   const utils = at('utils.js');
   assert.ok(utils > 0, 'utils.js is not loaded at all');
-  for (const f of readdirSync(JS_DIR).filter((n) => n.endsWith('.js'))) {
+  for (const f of looseScripts()) {
     if (f === 'utils.js' || !read(f).includes('timeParts(')) continue;
     const pos = at(f);
     if (pos < 0) continue;             // not a dashboard script (worker, module, …)

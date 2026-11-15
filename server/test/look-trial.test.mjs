@@ -3,8 +3,7 @@
 // first, and one tap brings it back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
-import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
+import { looseScripts, readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 import { engineSource } from './engine-source.mjs';
@@ -187,8 +186,8 @@ test('a look the gallery already holds goes back to that same card', async () =>
 });
 
 test('it runs only from the key on its sheet, never by itself', () => {
-  const callers = readdirSync(new URL('../js/', import.meta.url))
-    .filter((name) => name.endsWith('.js') && name !== 'look-trial.js')
+  const callers = looseScripts()
+    .filter((name) => name !== 'look-trial.js')
     .filter((name) => /look\.run\(|LookTrial\.run\(/.test(src('js/' + name)));
   assert.deepEqual(callers, ['whats-new.js']);
   const sheets = src('js/whats-new.js');

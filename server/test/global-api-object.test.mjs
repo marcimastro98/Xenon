@@ -4,8 +4,7 @@
 // Assistant dashboard list both broke this way. Pinned here for every script.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import { readFileSync } from './browser-source.mjs';
+import { looseScripts, readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,8 +18,7 @@ test('the global api is an object, as every caller must assume', () => {
 });
 
 test('no script calls api(...) without a local api of its own', () => {
-  const bad = fs.readdirSync(JS)
-    .filter((f) => f.endsWith('.js'))
+  const bad = looseScripts()
     .filter((f) => {
       const src = readFileSync(path.join(JS, f), 'utf8');
       return CALL.test(src) && !LOCAL.test(src);

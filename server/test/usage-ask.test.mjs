@@ -2,8 +2,7 @@
 // asked in the app that draws widgets. The rules behind it are in usage-ask-plan.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
-import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
+import { looseScripts, readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 import { appStringsSource } from './i18n-source.mjs';
@@ -442,7 +441,7 @@ test('wired in place of the second question: one or the other, never both in a r
   assert.match(picker, /window\.UsageAsk\.onDisplays\(\)/, 'the question hears the late list of screens');
   assert.match(picker, /setUpPhone: choosePhone/);
   const js = new URL('../js/', import.meta.url);
-  for (const file of readdirSync(js).filter((f) => f.endsWith('.js'))) {
+  for (const file of looseScripts()) {
     const code = readFileSync(new URL(file, js));
     assert.doesNotMatch(code, /surface-picker-done|remote-guide-closed/, file + ': nobody waits on the old chain');
   }
