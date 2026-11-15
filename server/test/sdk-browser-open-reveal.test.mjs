@@ -13,6 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from './browser-source.mjs';
+import { namesOf } from './source-names.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -21,11 +22,8 @@ const SRC = readFileSync(join(ROOT, 'server', 'js', 'browser-tile.js'), 'utf8');
 
 /** Lift the pure choice rule out of the IIFE — it has no DOM dependencies. */
 function loadPickRevealTarget() {
-  const start = SRC.indexOf('function pickRevealTarget');
-  const end = SRC.indexOf('function revealBrowserTile');
-  assert.ok(start > 0 && end > start, 'pickRevealTarget not found in browser-tile.js');
   const context = vm.createContext({});
-  vm.runInContext(SRC.slice(start, end), context);
+  vm.runInContext(namesOf(SRC, 'browser-tile.js').one('pickRevealTarget'), context);
   return context.pickRevealTarget;
 }
 
