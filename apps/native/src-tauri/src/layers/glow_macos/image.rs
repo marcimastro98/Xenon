@@ -4,7 +4,7 @@ use std::ffi::c_void;
 use super::{BGRA_PREMULTIPLIED, CGBitmapContextCreate, CGBitmapContextCreateImage, CGBitmapContextGetBytesPerRow, CGBitmapContextGetData, CGColorSpaceCreateDeviceRGB, CGColorSpaceRelease, CGContextRelease, CGImageRelease};
 
 /// A CGImage, released with this value.
-pub(super) struct Image(*mut c_void);
+pub(super) struct Image(pub(super) *mut c_void);
 
 impl Drop for Image {
     fn drop(&mut self) {
