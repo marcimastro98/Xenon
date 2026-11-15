@@ -22,13 +22,15 @@ use std::time::{Duration, Instant};
 use objc2::rc::Retained;
 use objc2::runtime::{AnyClass, AnyObject, NSObject};
 use objc2::{define_class, msg_send, sel, MainThreadMarker, MainThreadOnly};
-use objc2_app_kit::{
-    NSBackingStoreType, NSStatusWindowLevel, NSView, NSWindow, NSWindowCollectionBehavior, NSWindowSharingType,
-    NSWindowStyleMask,
-};
+use objc2_app_kit::NSWindow;
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 use super::glow::{self, State};
+
+mod image;
+mod window;
+
+use window::{breathe, create, paint};
 
 /// The page re-sends the state at least every 20 s while it lasts.
 const STALE: Duration = Duration::from_secs(60);
@@ -146,137 +148,6 @@ fn ns_string(text: &CStr) -> Option<Retained<AnyObject>> {
 fn ns_number(value: f64) -> Option<Retained<AnyObject>> {
     let class = AnyClass::get(c"NSNumber")?;
     unsafe { msg_send![class, numberWithDouble: value] }
-}
-
-/// A CGImage, released with this value.
-struct Image(*mut c_void);
-
-impl Drop for Image {
-    fn drop(&mut self) {
-        unsafe { CGImageRelease(self.0) };
-    }
-}
-
-/// glow::paint's rows (premultiplied BGRA, top row first) as a CGImage. Core
-/// Graphics owns the bitmap the rows are copied into, so the image never
-/// points at a buffer of ours.
-fn image(pixels: &[u8], w: usize, h: usize) -> Option<Image> {
-    unsafe {
-        let space = CGColorSpaceCreateDeviceRGB();
-        if space.is_null() {
-            return None;
-        }
-        let ctx = CGBitmapContextCreate(std::ptr::null_mut(), w, h, 8, 0, space, BGRA_PREMULTIPLIED);
-        CGColorSpaceRelease(space);
-        if ctx.is_null() {
-            return None;
-        }
-        let data = CGBitmapContextGetData(ctx).cast::<u8>();
-        let stride = CGBitmapContextGetBytesPerRow(ctx);
-        let mut made = std::ptr::null_mut();
-        if !data.is_null() && stride >= w * 4 {
-            for (y, row) in pixels.chunks_exact(w * 4).take(h).enumerate() {
-                std::ptr::copy_nonoverlapping(row.as_ptr(), data.add(y * stride), row.len());
-            }
-            made = CGBitmapContextCreateImage(ctx);
-        }
-        CGContextRelease(ctx);
-        (!made.is_null()).then_some(Image(made))
-    }
-}
-
-/// A window over the whole screen that nothing reaches: no mouse, no focus,
-/// no capture, no Cmd+H, on every Space and over full-screen apps.
-fn create(mtm: MainThreadMarker, s: &Screen) -> Option<Win> {
-    let layer: Retained<AnyObject> = unsafe { msg_send![AnyClass::get(c"CALayer")?, layer] };
-    let window = unsafe {
-        NSWindow::initWithContentRect_styleMask_backing_defer(
-            NSWindow::alloc(mtm),
-            s.frame,
-            NSWindowStyleMask::Borderless,
-            NSBackingStoreType::Buffered,
-            false,
-        )
-    };
-    // `Win` owns the window: AppKit must not release it again on close.
-    unsafe { window.setReleasedWhenClosed(false) };
-    window.setOpaque(false);
-    window.setHasShadow(false);
-    if let Some(clear) = AnyClass::get(c"NSColor").and_then(|c| unsafe { msg_send![c, clearColor] }) {
-        let clear: Retained<AnyObject> = clear;
-        let _: () = unsafe { msg_send![&*window, setBackgroundColor: &*clear] };
-    }
-    window.setIgnoresMouseEvents(true);
-    window.setLevel(NSStatusWindowLevel);
-    window.setCollectionBehavior(
-        NSWindowCollectionBehavior::CanJoinAllSpaces
-            | NSWindowCollectionBehavior::Stationary
-            | NSWindowCollectionBehavior::IgnoresCycle
-            | NSWindowCollectionBehavior::FullScreenAuxiliary,
-    );
-    window.setSharingType(NSWindowSharingType::None);
-    window.setCanHide(false);
-    // A layer-hosting view: the layer is set before `wantsLayer`, so AppKit
-    // leaves its contents and opacity to us.
-    let view = NSView::initWithFrame(NSView::alloc(mtm), NSRect::new(NSPoint::new(0.0, 0.0), s.frame.size));
-    let _: () = unsafe { msg_send![&*view, setLayer: &*layer] };
-    view.setWantsLayer(true);
-    window.setContentView(Some(&view));
-    Some(Win { window, layer, frame: s.frame, px: s.px, scale: s.scale })
-}
-
-/// The glow's pixels as the layer's contents, at the screen's backing scale.
-fn paint(w: &Win, state: State, rgb: [u8; 3]) -> bool {
-    let (cx, cy) = w.px;
-    if cx == 0 || cy == 0 {
-        return false;
-    }
-    let Some(img) = image(&glow::paint(cx, cy, w.scale, state, rgb), cx, cy) else {
-        return false;
-    };
-    let contents = img.0.cast::<AnyObject>();
-    unsafe {
-        let _: () = msg_send![&*w.layer, setContents: contents];
-        let _: () = msg_send![&*w.layer, setContentsScale: w.scale];
-    }
-    true
-}
-
-/// `xn-edge-breathe` on the layer's opacity, or the steady opacity for
-/// reduced motion. Replaces the running animation.
-fn breathe(layer: &AnyObject, period: u32, still: bool) {
-    let Some(key) = ns_string(BREATH_KEY) else { return };
-    unsafe {
-        let _: () = msg_send![layer, removeAnimationForKey: &*key];
-        let model = if still { glow::STILL_OPACITY } else { glow::BREATH_LOW };
-        let _: () = msg_send![layer, setOpacity: model as f32];
-    }
-    if still {
-        return;
-    }
-    let parts = (
-        AnyClass::get(c"CABasicAnimation"),
-        AnyClass::get(c"CAMediaTimingFunction"),
-        ns_string(c"opacity"),
-        ns_string(c"easeInEaseOut"),
-        ns_number(glow::BREATH_LOW),
-        ns_number(glow::BREATH_HIGH),
-    );
-    let (Some(anim_class), Some(timing_class), Some(path), Some(ease), Some(from), Some(to)) = parts else {
-        return;
-    };
-    unsafe {
-        let anim: Retained<AnyObject> = msg_send![anim_class, animationWithKeyPath: &*path];
-        let timing: Retained<AnyObject> = msg_send![timing_class, functionWithName: &*ease];
-        let _: () = msg_send![&*anim, setFromValue: &*from];
-        let _: () = msg_send![&*anim, setToValue: &*to];
-        // One way is half the period: it comes back on its own.
-        let _: () = msg_send![&*anim, setDuration: f64::from(period.max(1)) / 2000.0];
-        let _: () = msg_send![&*anim, setAutoreverses: true];
-        let _: () = msg_send![&*anim, setRepeatCount: f32::INFINITY];
-        let _: () = msg_send![&*anim, setTimingFunction: &*timing];
-        let _: () = msg_send![layer, addAnimation: &*anim, forKey: &*key];
-    }
 }
 
 fn close(w: Win) {

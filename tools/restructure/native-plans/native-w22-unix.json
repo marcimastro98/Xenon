@@ -1,0 +1,38 @@
+[
+  {
+    "origin": "apps/native/src-tauri/src/layers/macos.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/layers/macos/window.rs", "about": "macOS: one layer window made to fill its screen and sit at its level.", "lines": [[187, 187], [205, 205]] },
+      { "file": "apps/native/src-tauri/src/layers/macos/focus.rs", "about": "macOS: which app was in front, so the screensaver can give the keyboard back to it.", "lines": [[251, 289]] },
+      { "file": "apps/native/src-tauri/src/layers/macos/region.rs", "about": "macOS: the parts of a layer window that take the mouse, and the watcher that follows the pointer over them.", "lines": [[352, 442]] },
+      { "file": "apps/native/src-tauri/src/layers/macos/display.rs", "about": "macOS: what the displays say: kept on by the screensaver, their sizes, an app in full screen, the layers paused.", "lines": [[469, 545]] }
+    ]
+  },
+  {
+    "origin": "apps/native/src-tauri/src/layers/linux.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/layers/linux/session.rs", "about": "Linux: whether this session can draw layer windows at all, and through what.", "lines": [[109, 136]] },
+      { "file": "apps/native/src-tauri/src/layers/linux/wallpaper.rs", "about": "Linux: the scene behind the desktop and the widgets over it, shown, taken away and cut to their shapes.", "lines": [[179, 262]] },
+      { "file": "apps/native/src-tauri/src/layers/linux/cover.rs", "about": "Linux: the scene put to rest while a window covers the screen or the laptop runs on battery.", "lines": [[327, 369]] },
+      { "file": "apps/native/src-tauri/src/layers/linux/saver.rs", "about": "Linux: the screen kept awake while the screensaver of the dashboard shows.", "lines": [[428, 439]] }
+    ]
+  },
+  {
+    "origin": "apps/native/src-tauri/src/layers/anchor_x11.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/layers/anchor_x11/xlib.rs", "about": "Linux: the few Xlib calls an anchored widget needs, loaded from the library the session already has.", "lines": [[51, 102]] },
+      { "file": "apps/native/src-tauri/src/layers/anchor_x11/x.rs", "about": "Linux: one connection to the X server and what it is asked: a window's properties, frame and desktop.", "lines": [[137, 160]] }
+    ],
+    "drop": {
+      "apps/native/src-tauri/src/layers/anchor_x11/xlib.rs": ["ObjectType", "GtkWindowExt", "WidgetExt"],
+      "apps/native/src-tauri/src/layers/anchor_x11/x.rs": ["GtkWindowExt", "WidgetExt"]
+    }
+  },
+  {
+    "origin": "apps/native/src-tauri/src/layers/glow_macos.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/layers/glow_macos/image.rs", "about": "macOS: the picture of the glow, drawn once into memory.", "lines": [[152, 163]] },
+      { "file": "apps/native/src-tauri/src/layers/glow_macos/window.rs", "about": "macOS: the window that carries the glow: made, painted, made to breathe.", "lines": [[190, 247]] }
+    ]
+  }
+]
