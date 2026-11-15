@@ -495,7 +495,7 @@ require('./version-ping'); // nothing is taken from it here, but it loads net-gu
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
 require('./icon-packs');
 require('./sound-packs');
-const communityRatings = require('./community-ratings');
+require('./community-ratings');
 require('./community-limited'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./remote-control');
 // Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
@@ -518,8 +518,8 @@ const { createLyricsTranslator } = require('./lyrics-translator');
 const { createSdkAi } = require('./sdk-ai');
 const { createRoastSparks } = require('./vitals-roast-sparks.js');
 require('./bit-messages.js');
-const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
-const { createPcId } = require('./pc-id.js');
+require('./rating-votes.js');
+require('./pc-id.js');
 require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
 const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of their tools does
 
@@ -657,24 +657,7 @@ const roastSparks = createRoastSparks({ dataDir: DATA_DIR });
 const { bitMessages } = require('./ai/engine-bit-messages.js');
 const { BIT_MESSAGE_BODY_MAX, LIVE_MAX_SESSION_MS } = require('./ai/limits.js');
 
-// Votes on Store entries (rating-votes.js): tickets, real use, and Bit's one ask.
-const ratingVotes = createRatingVotes({
-  file: path.join(DATA_DIR, 'rating-votes.json'),
-  pcId: createPcId({
-    collectors: nativeCollectors,
-    fallback: () => supporterRedeem.getInstallId(DATA_DIR),
-  }),
-  scopedId: () => supporterRedeem.getScopedId(DATA_DIR, supporterRedeem.SCOPE_RATINGS),
-  hub: (pathname, body) => supporterRedeem.hubPost(pathname, body),
-  redeemSaved: (entryId) => supporterRedeem.redeem({ entryId, code: '', dataDir: DATA_DIR, allowTrial: false }),
-  fileAsk: (msg) => bitMessages.post({ messages: [msg] }),
-  settings: () => hub.settings,
-  watching: () => sseClients.size > 0,
-  onVoted: (entryId) => {
-    communityRatings.forget(entryId);
-    for (let n = 1; n <= ASKS_PER_ENTRY; n++) bitMessages.read(`rate:${entryId}:${n}`).catch(() => {});
-  },
-});
+const { ratingVotes } = require('./store-catalog/engine-rating-votes.js');
 supporterRedeem.useRatingVotes(ratingVotes);
 const BIT_MESSAGE_ROUTES = {
   '/bit/messages/file': (body) => bitMessages.post(body),

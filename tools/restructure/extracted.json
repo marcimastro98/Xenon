@@ -515,7 +515,8 @@
       {"file":"server/screens/capture-engine-install.js","about":"Puts the capture program of this system in place for this version, and asks it what it can do.","names":["learnCaptureFeatures","ensureCaptureEngine"],"bare":["./helper-update"],"tidy":true},
       {"file":"server/ai/engine-bit-messages.js","about":"The engine's inbox of what Bit has to tell the person.","names":["bitMessages"],"wire":{"first":"bitMessages","last":"bitMessages"}},
       {"file":"server/device-battery/engine-monitor.js","about":"The engine's reader of the battery of wireless devices.","names":["batteryMonitor"],"wire":{"first":"batteryMonitor","last":"batteryMonitor"},"spelled":{"../power/index.js":"./power","./index.js":"./device-battery"}},
-      {"file":"server/windows-tiles/engine-browser.js","about":"The engine's host of the browser a Browser tile shows.","names":["embeddedBrowser"],"wire":{"first":"embeddedBrowser","last":"embeddedBrowser"}}
+      {"file":"server/windows-tiles/engine-browser.js","about":"The engine's host of the browser a Browser tile shows.","names":["embeddedBrowser"],"wire":{"first":"embeddedBrowser","last":"embeddedBrowser"}},
+      {"file":"server/store-catalog/engine-rating-votes.js","about":"The engine's keeper of the votes on Store entries.","names":["ratingVotes"],"wire":{"first":"ratingVotes","last":"ratingVotes"}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
