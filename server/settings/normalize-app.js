@@ -14,6 +14,8 @@ function normalizeHubApp(source) {
     hideOnRdp: source.hideOnRdp === true,
     audioSetCommunications: source.audioSetCommunications !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,
+    // `=== true`: absent means nobody asked, on a new install and on one that updates.
+    autoOpenArmed: source.autoOpenArmed === true,
     versionPing: source.versionPing === true,
     // `!== false` on purpose: absent means on, so existing installs keep getting
     // announcements and drop cards rather than being silently switched off by an

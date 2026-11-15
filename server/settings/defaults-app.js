@@ -14,10 +14,15 @@ const HUB_DEFAULTS_APP = Object.freeze({
   // Windows keeps a separate default for calls (Discord, Teams): true = moving
   // the output or input moves that one too, as Xenon always did.
   audioSetCommunications: true,
-  // Open the dashboard in the default browser at Windows logon. The user's
-  // intent (default on); the actual scheduled task is registered/removed by
-  // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
+  // Open the dashboard in the default browser when the user signs in. The
+  // switch in Settings (default on), shown only to a dashboard in a real browser.
   autoOpenBrowser: true,
+  // The other half of that switch, and the engine's own: true once a dashboard
+  // in a real browser at the PC asked for the tab (POST /startup/auto-open, its
+  // only writer besides the move from the old scheduled task). The switch alone
+  // cannot say it, being on for everyone by default: the app and a screen that
+  // embeds the dashboard never ask, so they never get a browser tab at sign-in.
+  autoOpenArmed: false,
   // Anonymous version ping — ON by default for installs made from v4.8.0 onwards;
   // the switch is in Settings → Generale → Aggiornamenti. Sends only {version, os}
   // on the update check the app already makes; never the install id. See

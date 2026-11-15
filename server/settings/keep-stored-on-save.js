@@ -181,6 +181,11 @@ function keepStoredOnSave(prev, incoming, isRemote) {
   if (prev && prev.storeId) {
     incoming.storeId = prev.storeId;
   }
+  // Whether a real browser asked for the tab at sign-in belongs to the engine
+  // (POST /startup/auto-open). No page carries the key, so every save arrives
+  // without it and would read as nobody having asked; and a page that did send
+  // it must not be able to ask this way. Keep the stored value, always.
+  incoming.autoOpenArmed = !!prev && prev.autoOpenArmed === true;
   // Usage history is server-owned for the same reason storeId is: the browser
   // does not model it, so every generic save would arrive without it and
   // normalizeHubSettings would rebuild it as a brand-new install — resetting
