@@ -12,7 +12,7 @@ const APPEARANCE_COLOR_KEYS = Object.freeze([
   'successColor', 'warningColor', 'dangerColor', 'infoColor',
 ]);
 
-// The OS colour scheme, read server-side from the OS itself (server/os-theme.js:
+// The OS colour scheme, read server-side from the OS itself (server/look/os-theme.js:
 // the Windows registry, macOS `defaults`, GNOME `gsettings`) rather than from the
 // WebView's unreliable prefers-color-scheme. Cached in localStorage so a reload
 // starts on the correct scheme immediately, instead of flashing the dashboard

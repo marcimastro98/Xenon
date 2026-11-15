@@ -35,7 +35,7 @@ The screen itself: the grid of tiles, how it looks, the top bar, the scenes show
 |---|---|---|
 | **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene.html` `server/js/ambient*.js` `server/js/ambient-canvas-editor-form/**` `server/components/AmbientCanvas/**` `server/components/AmbientCanvasEditor/**` and 3 more |
 | **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/topbar/**` `server/js/topbar-*.js` `server/js/topbar-look-settings/**` `server/js/topbar-media/**` `server/components/Topbar/**` `server/components/TopbarMedia/**` and 2 more |
-| **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/os-theme.js` `server/js/theme-*.js` `server/js/tile-decor-*.js` `server/js/tile-material.js` and 10 more |
+| **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/js/theme-*.js` `server/js/tile-decor-*.js` `server/js/tile-material.js` `server/js/tile-shape-presets.js` and 9 more |
 | **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/js/main.js` `server/js/dashboard-*.js` `server/js/dashboard-layout/**` `server/js/dashboard-tabgroups/**` and 9 more |
 
 ## Widgets

@@ -9,7 +9,7 @@
 // handler armed after the throw would never see it. See startup-log.js for why
 // this process was the last of the three that could still die without a word.
 const startupLog = require('./engine/startup-log');
-const osTheme = require('./os-theme');
+const osTheme = require('./look/os-theme');
 startupLog.install();
 const http = require('http');
 const { execFile, spawn } = require('child_process');

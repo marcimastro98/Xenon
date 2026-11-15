@@ -705,7 +705,6 @@
       "files": [
         "server/look/**",
         "server/styles/**",
-        "server/os-theme.js",
         "server/js/theme-*.js",
         "server/js/tile-decor-*.js",
         "server/js/tile-material.js",

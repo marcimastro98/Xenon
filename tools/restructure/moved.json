@@ -226,7 +226,8 @@
     {"from":"server/lighting-led-colors.js","to":"server/lights/lighting-led-colors.js"},
     {"from":"server/lighting-topology.js","to":"server/lights/lighting-topology.js"},
     {"from":"server/lighting.js","to":"server/lights/lighting.js"},
-    {"from":"server/signalrgb.js","to":"server/lights/signalrgb.js"}
+    {"from":"server/signalrgb.js","to":"server/lights/signalrgb.js"},
+    {"from":"server/os-theme.js","to":"server/look/os-theme.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -256,6 +257,7 @@
     {"feature":"layers","glob":"server/layer-*.js","at":1},
     {"feature":"layers","glob":"server/layers-*.js","at":2},
     {"feature":"lighting","glob":"server/lighting*.js","at":1},
-    {"feature":"lighting","glob":"server/signalrgb.js","at":4}
+    {"feature":"lighting","glob":"server/signalrgb.js","at":4},
+    {"feature":"look","glob":"server/os-theme.js","at":2}
   ]
 }

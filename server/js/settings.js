@@ -674,7 +674,7 @@ let _osPrefersDark = (() => {
 // Ask the server what the OS actually says (Windows registry, macOS `defaults`,
 // GNOME `gsettings`) so "Auto" is reliable even where the WebView doesn't report
 // prefers-color-scheme correctly — which on macOS is every time the display
-// wakes. See server/os-theme.js.
+// wakes. See server/look/os-theme.js.
 function refreshOsTheme() {
   // The OS scheme only matters in 'auto', and the endpoint spawns a process
   // server-side. Skip the poll unless we're on auto and the page is visible.

@@ -21,7 +21,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const osTheme = require('../os-theme.js');
+const osTheme = require('../look/os-theme.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 /** execFile, replaced by what the platform's tool would have printed. */
@@ -93,7 +93,7 @@ test('every probe reads, and can only read, the colour scheme', () => {
 
 test('the route hands the question to the module, on every platform', () => {
   const src = engineSource();
-  assert.match(src, /const osTheme = require\('\.\/os-theme'\);/);
+  assert.match(src, /const osTheme = require\('\.\/look\/os-theme'\);/);
   assert.match(src, /reqPath === '\/system\/theme'[\s\S]{0,1400}?json\(await osTheme\.read\(\)\);/);
   // The old route was Windows-only and spawned reg.exe on every platform.
   assert.ok(!/execFile\('reg', \['query', 'HKCU/.test(src), 'the registry read is no longer inline');
