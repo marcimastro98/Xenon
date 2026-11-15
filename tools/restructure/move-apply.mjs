@@ -18,6 +18,8 @@ const posix = path.posix;
 export const MOVED = 'tools/restructure/moved.json';
 const EXTRACTED = 'tools/restructure/extracted.json';
 export const HASHED = 'tools/restructure/load-registrations.json';
+// The same for the calls that run after the load: it holds the sha256 of each file read for an entry.
+const HASHED_AFTER_LOAD = 'tools/restructure/after-load.json';
 const textHash = (text) => createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex');
 const NOTE = 'Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true while the old path holds its one line that hands on the module; `unshimmed` is true once `move.mjs unshim` took the line away because nothing asks for the old path. The old paths that keep their line are in move-left.json, each with its reason.';
 
@@ -126,8 +128,8 @@ export function edited(text, edits) {
 // statement. A file this step edits differs by the paths it loads alone: an entry that was true of the old text is
 // made true of the new one, and a line that loads a moved file is spelled as the file now spells it. A stale entry
 // stays stale.
-export function readByHand(root, step, texts) {
-  const was = texts.get(HASHED) ?? read(root)(HASHED);
+export function readByHand(root, step, texts, list = HASHED) {
+  const was = texts.get(list) ?? read(root)(list);
   if (!was) return null;
   let hashes = was;
   const placed = new Map(step.moves.map((move) => [move.from, move.to]));
@@ -165,8 +167,10 @@ export function applyStep(root, step) {
     texts.set(FEATURES, mapText(mapped.map));
     texts.set(MAP, pageText(mapped.map));
   }
-  const hashes = readByHand(root, step, texts);
-  if (hashes) texts.set(HASHED, hashes);
+  for (const hashed of [HASHED, HASHED_AFTER_LOAD]) {
+    const hashes = readByHand(root, step, texts, hashed);
+    if (hashes) texts.set(hashed, hashes);
+  }
   texts.set(MOVED, movedText(list));
   const head = git(root, ['rev-parse', 'HEAD']).trim();
   writeFileSync(journalOf(root), JSON.stringify({ head, moves: step.moves, files: [...texts.keys()], madeList: !existsSync(path.join(root, MOVED)) }));

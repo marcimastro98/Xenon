@@ -47,6 +47,15 @@ export function homeOf(source) {
   return inFeature ? { home: inFeature[1], feature: inFeature[2] } : { home: folder, feature: null };
 }
 
+/** @param {string} root @returns {Set<string>} every path a file of the repo has left (tools/restructure/moved.json) */
+function movedAway(root) {
+  try {
+    return new Set(JSON.parse(readFileSync(path.join(root, 'tools', 'restructure', 'moved.json'), 'utf8')).moves.map((move) => move.from));
+  } catch {
+    return new Set();
+  }
+}
+
 function isIgnored(root, file) {
   const run = spawnSync('git', ['check-ignore', '-q', '--', file], { cwd: root });
   return run.status === 0;
@@ -75,6 +84,9 @@ export function targetReasons({ root, source, target, requires = [], existing = 
   if (isIgnored(root, target)) reasons.push(`${target} is ignored by git: it would be missing from every install`);
   if (existsSync(path.join(root, home, `${feature}.js`))) {
     reasons.push(`${home}/${feature}.js exists: an update leaves old files behind, so ${feature}.js can never become ${feature}/`);
+  } else if (movedAway(root).has(`${home}/${feature}.js`)) {
+    // The file went to a folder of another name, and installs made before that still hold it at the old path.
+    reasons.push(`${home}/${feature}.js exists: on installs made before it moved, and an update leaves old files behind, so ${feature}.js can never become ${feature}/`);
   }
   if (!existing && existsSync(path.join(root, target))) reasons.push(`${target} exists already: give the new module its own file`);
   const owners = ownersOf([target, ...requires]);

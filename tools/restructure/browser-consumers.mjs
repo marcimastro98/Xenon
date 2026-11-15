@@ -213,7 +213,8 @@ export function consumerProblems(root, file, { tests = true } = {}) {
       problems.push(`${mention.file} loads ${path.posix.basename(file)}, and the page check never opens that page: add it to tools/restructure/browser-check-pages.mjs first`);
     }
     if (mention.kind === 'page' || mention.kind === 'list' || known[mention.file] || FOLLOW_ALONE.test(mention.file)) continue;
-    if (mention.file === CONSUMERS || mention.file === BROWSER_LEDGER) continue;
+    // The move tool's list of answers names files of tests by their bare name: it reads none of them.
+    if (mention.file === CONSUMERS || mention.file === BROWSER_LEDGER || mention.file === 'tools/restructure/move-told.json') continue;
     const where = `${mention.file}:${mention.lines.slice(0, 3).join(',')}`;
     if (mention.kind === 'code') {
       problems.push(`${where} names ${path.posix.basename(file)} in code: make it follow the split, then say how in ${CONSUMERS}`);

@@ -45,7 +45,7 @@ test('server: Windows, macOS and x86-64 Linux, installs a missing engine, refres
   // Scheduled after listen, never on the request path, and after the helper.
   assert.match(SERVER, /setTimeout\(\(\) => \{ try \{ ensureCaptureEngine\(\); \} catch \{ \/\* ignore \*\/ \} \}, 12000\);/);
   // The three assets come from helper-update.js, wherever the engine's text takes them.
-  assert.match(SERVER, /const \{\s*createHelperUpdate, [\w, ]*CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX,?\s*\} = require\('\.{1,2}\/helper-update(?:\.js)?'\);/);
+  assert.match(SERVER, /const \{\s*createHelperUpdate, [\w, ]*CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX,?\s*\} = require\('\.{1,2}\/(?:updates\/)?helper-update(?:\.js)?'\);/);
   // The macOS file has no extension.
   assert.match(SERVER, /process\.platform === 'win32' \? 'xenon-capture\.exe' : 'xenon-capture'/);
 });
