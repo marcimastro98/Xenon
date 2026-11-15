@@ -639,9 +639,8 @@
         "server/notifications.ps1",
         "server/linux-notif.js",
         "server/notification-open/**",
-        "server/js/notifications-widget.js",
-        "server/js/notification-open.js",
-        "server/components/NotificationsWidget/**"
+        "server/components/NotificationsWidget/**",
+        "server/js/notifications/**"
       ]
     },
     {

@@ -78,7 +78,7 @@
     football: tile('football', 'FootballWidget', ['js/grid/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget/match-pieces.js', 'js/football-widget.js'], { football: 'onSSE' }),
     news: tile('news', 'NewsWidget', ['js/ticker/news-widget.js'], { news: 'onSSE' }),
     slideshow: tile('slideshow', 'SlideshowWidget', ['js/slideshow-widget.js'], {}),
-    notifications: tile('notifications', 'NotificationsWidget', ['js/notification-open.js', 'js/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
+    notifications: tile('notifications', 'NotificationsWidget', ['js/notifications/notification-open.js', 'js/notifications/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
     wavelink: tile('wavelink', 'WaveLinkWidget', ['js/audio/wavelink-widget.js'], { wavelink: 'onSSE' }),
     obs: tile('obs', 'ObsWidget', ['js/obs-widget.js'], { obs: 'onObs', obs_preview: 'onObsPreview' }),
     discord: tile('discord', 'DiscordWidget', ['js/grid/tile-tab-memory.js', 'js/discord-widget/lists.js', 'js/discord-widget/tabs.js', 'js/discord-widget/member-state.js', 'js/discord-widget/icons.js', 'js/discord-widget/skeleton.js', 'js/discord-widget/call-people.js', 'js/discord-widget/channel-list.js', 'js/discord-widget/sound-tiles.js', 'js/discord-widget/notification-feed.js', 'js/discord-widget.js'], { discord: 'onSSE', discord_notification: 'onNotification' }, null, ['components/DiscordWidget/DiscordWidgetMembers.css', 'components/DiscordWidget/DiscordWidgetSoundboard.css']),

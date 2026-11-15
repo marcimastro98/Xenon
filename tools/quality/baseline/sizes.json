@@ -72,7 +72,7 @@
     "server/js/media/media-viz.js": 419,
     "server/js/native-bridge.js": 1206,
     "server/js/ticker/news-widget.js": 337,
-    "server/js/notifications-widget.js": 461,
+    "server/js/notifications/notifications-widget.js": 461,
     "server/js/performance.js": 738,
     "server/js/phone-view.js": 787,
     "server/js/phone-widget.js": 720,

@@ -84,7 +84,7 @@ test('a Volume element keeps the server reading the speaker', () => {
 });
 
 test('the notifications feed can be read without its tile', () => {
-  const nw = read('../js/notifications-widget.js');
+  const nw = read('../js/notifications/notifications-widget.js');
   assert.match(nw, /async function seed\(force\) \{\n    if \(\(!tiles\(\)\.length && !force\) \|\| seedInflight\) return;/);
   assert.match(nw, /window\.NotificationsWidget = \{ renderWidgets, onState, onItem, snapshot, ensureSeeded, reveal, isRevealed \};/);
 });

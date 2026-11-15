@@ -167,6 +167,8 @@
     {"from":"server/js/xenon-menu-when.js","to":"server/js/menu/xenon-menu-when.js"},
     {"from":"server/js/xenon-menu-widget-view.js","to":"server/js/menu/xenon-menu-widget-view.js"},
     {"from":"server/js/xenon-menu-widgets.js","to":"server/js/menu/xenon-menu-widgets.js"},
-    {"from":"server/js/xenon-menu.js","to":"server/js/menu/xenon-menu.js"}
+    {"from":"server/js/xenon-menu.js","to":"server/js/menu/xenon-menu.js"},
+    {"from":"server/js/notification-open.js","to":"server/js/notifications/notification-open.js"},
+    {"from":"server/js/notifications-widget.js","to":"server/js/notifications/notifications-widget.js"}
   ]
 }

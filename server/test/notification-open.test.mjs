@@ -170,13 +170,13 @@ test('the registry: only a feed id travels, the newest by default', async () => 
 });
 
 test('the widget row and the pop-up open it, on the PC only, with no inline handlers', () => {
-  const page = read('../js/notification-open.js');
+  const page = read('../js/notifications/notification-open.js');
   assert.match(page, /window\.__xenonRemote/);
   assert.match(page, /JSON\.stringify\(\{ type: 'notificationOpen', id: String\(item\.id\) \}\)/);
-  const widget = read('../js/notifications-widget.js');
+  const widget = read('../js/notifications/notifications-widget.js');
   assert.match(widget, /window\.NotificationOpen\.bind\(txt, n\)/);
   assert.match(widget, /window\.NotificationOpen\.toastAction\(item\)/);
-  assert.match(read('../index.html'), /<script src="js\/notification-open\.js"><\/script>\s*<script src="js\/notifications-widget\.js"><\/script>/);
-  assert.match(read('../js/layers/layer-tiles.js'), /\['js\/notification-open\.js', 'js\/notifications-widget\.js'\]/);
+  assert.match(read('../index.html'), /<script src="js\/notifications\/notification-open\.js"><\/script>\s*<script src="js\/notifications\/notifications-widget\.js"><\/script>/);
+  assert.match(read('../js/layers/layer-tiles.js'), /\['js\/notifications\/notification-open\.js', 'js\/notifications\/notifications-widget\.js'\]/);
   assert.match(engineSource(), /notificationOpen: createNotificationOpener\(notificationOpenDeps\(\{/);
 });
