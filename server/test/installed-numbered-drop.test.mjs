@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from './browser-source.mjs';
+import { namesOf } from './source-names.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -45,8 +46,7 @@ function load(list, updatesById = new Map()) {
   const context = vm.createContext({ FIXTURE: { entries: list } });
   vm.runInContext(
     'function buildIndex() {\n  const cat = FIXTURE;\n' + mapping + '\n  return out;\n}\n'
-    + SRC.slice(SRC.indexOf('function entryFor'), SRC.indexOf('// A single 1st-screenshot thumbnail'))
-    + SRC.slice(SRC.indexOf('function updateFor'), SRC.indexOf('// Apply an available update')),
+    + namesOf(SRC, 'installed-manager.js').all('entryFor', 'updateFor'),
     context,
   );
   const cat = context.buildIndex();
