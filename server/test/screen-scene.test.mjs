@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const scenePage = require('../ambient/scene-page.js');
 const ScreenSceneModel = require('../js/ambient/screen-scene-model.js');
-const ViewerTheme = require('../js/viewer-theme.js');
+const ViewerTheme = require('../js/look/viewer-theme.js');
 const { resolveAmbientScene } = require('../js/ambient/ambient-resolve.js');
 const { remotePathAllowed } = require('../remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -28,7 +28,7 @@ test('the page carries the three scene overlays from index.html, and only the sc
   // renderers before the feed that fills their globals.
   const before = (a, b) => assert.ok(scripts.indexOf(a) >= 0 && scripts.indexOf(a) < scripts.indexOf(b), a + ' before ' + b);
   before('js/state.js', 'js/ambient/lockscreen.js');
-  before('js/viewer-theme.js', 'js/ambient/screen-scene.js');
+  before('js/look/viewer-theme.js', 'js/ambient/screen-scene.js');
   before('js/ambient/ambient-resolve.js', 'js/ambient/screen-scene.js');
   before('js/ambient/screen-scene-model.js', 'js/ambient/screen-scene.js');
   before('js/ambient/scene-feed.js', 'js/ambient/screen-scene.js');

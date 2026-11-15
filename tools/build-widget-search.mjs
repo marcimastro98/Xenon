@@ -2,7 +2,7 @@
 // Builds docs/widget-search.json: the built-in widgets the home page's search box looks
 // through, in the site's seven languages. Names and hidden search words are the ones the
 // app's own "+" panel uses (layout_widget_<id>, palette_kw_<id> in server/js/i18n/<code>.js), and
-// the list is the panel's (server/js/palette-model.js), so the site never drifts from the app.
+// the list is the panel's (server/js/look/palette-model.js), so the site never drifts from the app.
 //
 // Run it after adding a widget:   node tools/build-widget-search.mjs [--check]
 // server/test/site-widget-search.test.mjs fails when the file is out of date.
@@ -37,7 +37,7 @@ export function buildIndex(strings, categories) {
 
 function main() {
   const require = createRequire(import.meta.url);
-  const { WIDGET_CATEGORIES } = require('../server/js/palette-model.js');
+  const { WIDGET_CATEGORIES } = require('../server/js/look/palette-model.js');
   const body = `${JSON.stringify(buildIndex(appStrings(), WIDGET_CATEGORIES))}\n`;
   if (process.argv.includes('--check')) {
     const same = fs.existsSync(OUT) && fs.readFileSync(OUT, 'utf8') === body;

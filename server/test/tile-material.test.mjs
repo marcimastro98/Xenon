@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
 globalThis.window = { DashboardInstances: DI };
 const TM = require('../js/tile-material.js');
-const { workingCopy, buildStyle } = require('../js/tile-style-editor.js');
+const { workingCopy, buildStyle } = require('../js/look/tile-style-editor.js');
 
 const luminance = (hex) => {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)

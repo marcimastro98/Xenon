@@ -158,7 +158,7 @@ test('the page loads what a theme needs', () => {
   for (const f of ['styles/fonts.css', 'styles/themes-light.css', 'styles/theme-contract.css', 'styles/themes-retro.css', 'styles/themes-comic.css']) {
     assert.ok(HTML.includes(`href="${f}"`), f);
   }
-  assert.ok(HTML.includes('src="js/theme-tokens.js"'));
+  assert.ok(HTML.includes('src="js/look/theme-tokens.js"'));
   assert.ok(HTML.indexOf('src="js/spotlight-page.js"') > HTML.indexOf('src="js/spotlight.js"'));
 });
 

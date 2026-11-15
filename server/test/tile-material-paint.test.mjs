@@ -12,7 +12,7 @@ const GRID = read('../components/DashboardGrid/DashboardGrid.css');
 const SAMPLE = read('../components/DashboardGrid/TileStyleMaterial.css');
 const EDIT = read('../styles/liquid-edit.css');
 const LAYOUT = read('../js/dashboard-layout.js');
-const PANE = read('../js/tile-style-material-pane.js');
+const PANE = read('../js/look/tile-style-material-pane.js');
 const MAIN = read('../js/main.js');
 const PAGE = read('../index.html');
 
@@ -78,8 +78,8 @@ test('the page loads the materials before the panes that use them, and the Liqui
     assert.ok(i >= 0, `${needle} is not on the page`);
     return i;
   };
-  assert.ok(at('js/tile-material.js') < at('js/tile-style-material-pane.js'));
-  assert.ok(at('js/tile-style-material-pane.js') < at('js/tile-style-editor.js'));
+  assert.ok(at('js/tile-material.js') < at('js/look/tile-style-material-pane.js'));
+  assert.ok(at('js/look/tile-style-material-pane.js') < at('js/look/tile-style-editor.js'));
   assert.ok(at('styles/liquid-tiles.css') < at('styles/liquid-edit.css'), 'it uses the keys of the tiles');
   at('components/DashboardGrid/TileStyleMaterial.css');
 });

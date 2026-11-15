@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
 globalThis.window = { DashboardInstances: DI };
-const { workingCopy, buildStyle } = require('../js/tile-style-editor.js');
+const { workingCopy, buildStyle } = require('../js/look/tile-style-editor.js');
 
 const roundTrip = (style) => buildStyle(workingCopy(style || {}));
 

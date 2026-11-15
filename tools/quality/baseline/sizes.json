@@ -91,7 +91,7 @@
     "server/js/ticker/stock-widget.js": 703,
     "server/js/streaming-page.js": 666,
     "server/js/surface-picker.js": 393,
-    "server/js/tile-style-editor.js": 355,
+    "server/js/look/tile-style-editor.js": 355,
     "server/js/alerts/toast-island.js": 573,
     "server/js/alerts/toast.js": 521,
     "server/js/topbar-look.js": 367,

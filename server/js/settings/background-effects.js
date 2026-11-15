@@ -49,7 +49,7 @@ function updateBgCustom(key, value) {
   if (!next.enabled || !String(next.code || '').trim()) clearBgCodeError();
 }
 
-// The heavy-background guard on/off (js/bg-guard.js). A change remounts the
+// The heavy-background guard on/off (js/look/bg-guard.js). A change remounts the
 // background, so turning it back on measures the code again from the start.
 function updateBgGuard(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, bgGuard: !!enabled });

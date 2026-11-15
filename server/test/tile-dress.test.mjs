@@ -12,7 +12,7 @@ const DI = require('../js/dashboard-instances.js');
 globalThis.window = { DashboardInstances: DI, innerWidth: 1920 };
 const TileMaterial = require('../js/tile-material.js');
 const PageTarget = require('../js/grid/page-target.js');
-const { workingCopy, buildStyle } = require('../js/tile-style-editor.js');
+const { workingCopy, buildStyle } = require('../js/look/tile-style-editor.js');
 
 const IT = { layout_widget_media: 'Riproduzione', layout_widget_system: 'Sistema', tile_style_title: 'Stile del widget', tile_dress_not_found: 'Non trovo "{name}".' };
 const EN = { layout_widget_media: 'Playback', layout_widget_system: 'System', layout_widget_chat: 'Bit' };
@@ -52,7 +52,7 @@ beforeEach(() => {
   });
 });
 
-const { findTile, dress } = require('../js/tile-dress.js');
+const { findTile, dress } = require('../js/look/tile-dress.js');
 
 test('a tile answers to its id, its name here and its name in English, without case or accents', () => {
   assert.equal(findTile('system'), 'system');
@@ -141,7 +141,7 @@ test('the server knows the tool and hands it to the client, which knows the acti
   assert.match(server, /fnName === 'style_tile' \? TileMaterial\.requestMiss\(fnArgs\)/);
   assert.match(read('../js/ai.js'), /case 'style_tile':\s+if \(window\.TileDress\) window\.TileDress\.dress\(args\);/);
   const page = read('../index.html');
-  assert.ok(page.indexOf('js/tile-style-editor.js') < page.indexOf('js/tile-dress.js'));
+  assert.ok(page.indexOf('js/look/tile-style-editor.js') < page.indexOf('js/look/tile-dress.js'));
   // Each material the tool names is one the window has, and the other way round.
   const at = server.indexOf("{ name: 'style_tile',");
   const declared = server.slice(at, server.indexOf("required: ['tile']", at));

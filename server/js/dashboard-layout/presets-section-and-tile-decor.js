@@ -193,7 +193,7 @@ function safeTileImageSrc(v) {
 }
 // A normalized {c1,c2,angle} gradient → a CSS linear-gradient(), or '' if absent.
 // Colours come pre-validated (#rrggbb) from normalizeTileDecor.
-// tileGradCss() and paintDecorBgLayer() live in js/decor-bg.js (shared with deck.js).
+// tileGradCss() and paintDecorBgLayer() live in js/look/decor-bg.js (shared with deck.js).
 // Curated preset ids resolve through the manifest (tile-decor-presets.js, loaded
 // before this file) so the /assets/decor URL scheme lives in one place.
 function tileFrameSrc(frame) {

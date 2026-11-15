@@ -6,7 +6,7 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const { createGuard, guardStep, LIMITS, LEVEL_FPS, LEVEL_RES, LEVEL_STILL } = require('../js/bg-guard.js');
+const { createGuard, guardStep, LIMITS, LEVEL_FPS, LEVEL_RES, LEVEL_STILL } = require('../js/look/bg-guard.js');
 const { buildSrcdoc } = require('../js/custom-bg.js');
 
 // Each guard's fake clock, in ms.

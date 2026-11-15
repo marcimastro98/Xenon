@@ -16,7 +16,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
-const TOKENS = readFileSync(new URL('../js/theme-tokens.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const TOKENS = readFileSync(new URL('../js/look/theme-tokens.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 
@@ -67,7 +67,7 @@ test('Retro is named before the album tint, because Retro is what wins', () => {
   assert.ok(retroAt > -1 && albumAt > -1, 'both branches exist');
   assert.ok(retroAt < albumAt, 'the Retro branch must come first');
   // …and it must match the precedence the palette actually applies. Read from
-  // derivePalette in js/theme-tokens.js, which does the work — the settings.js
+  // derivePalette in js/look/theme-tokens.js, which does the work — the settings.js
   // functions only hand it the tint and keep the cache.
   const palette = TOKENS.slice(TOKENS.indexOf('function derivePalette('));
   const p = palette.slice(0, palette.indexOf('\n  }\n'));

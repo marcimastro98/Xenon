@@ -120,7 +120,7 @@ test('tiles cast no drop shadow until someone asks for one', () => {
   assert.match(read('../styles/global.css'), /--panel-shadow-alpha: 0;/, 'the first paint, before any script runs, still has a shadow');
   // The theme code (shared with the layer page) falls back to the same default
   // rather than a private 1.
-  assert.match(read('../js/theme-tokens.js'), /clampNumber\(s\.tileShadowStrength, 0, 2, 0\)/);
+  assert.match(read('../js/look/theme-tokens.js'), /clampNumber\(s\.tileShadowStrength, 0, 2, 0\)/);
 });
 
 // "Nothing changed, I still see it." A new default alone only reaches a fresh
@@ -151,7 +151,7 @@ test('the slider still goes from 0 to 2, and a value set on it is kept', () => {
   assert.equal(clamp(1, 0, 2, 0), 1, 'someone who turns it on keeps it');
   assert.equal(clamp(1.6, 0, 2, 0), 1.6);
   // The per-tile slider has the same range and starts from the dashboard's own value.
-  assert.match(read('../js/tile-style-material-pane.js'), /fx\('shadowStrength', tt\('tile_style_shadow', 'Panel shadow'\), 0, 2, 0\.05, num\(hs\.tileShadowStrength, 0\), pct\)/);
+  assert.match(read('../js/look/tile-style-material-pane.js'), /fx\('shadowStrength', tt\('tile_style_shadow', 'Panel shadow'\), 0, 2, 0\.05, num\(hs\.tileShadowStrength, 0\), pct\)/);
 });
 
 test('the Deck rule keys off the mark on a direct child of the grid item, and respects a chosen shadow', () => {

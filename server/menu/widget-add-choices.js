@@ -3,7 +3,7 @@
 // and the filters over them.
 
 const LayerSee = require('../js/layers/layer-see.js');
-const PaletteModel = require('../js/palette-model.js');
+const PaletteModel = require('../js/look/palette-model.js');
 const { previewPath } = require('../grid/tile-previews.js');
 const { HUD_PLACE, k, run, keyName } = require('./menu-rows.js');
 

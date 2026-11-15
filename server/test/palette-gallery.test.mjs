@@ -15,7 +15,7 @@ import vm from 'node:vm';
 import { makeDom, windowKeys, settle } from './mini-dom.mjs';
 
 const require = createRequire(import.meta.url);
-const PM = require('../js/palette-model.js');
+const PM = require('../js/look/palette-model.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const STRINGS = {

@@ -749,26 +749,18 @@
         "server/styles/**",
         "server/os-theme.js",
         "server/js/theme-*.js",
-        "server/js/palette-model.js",
-        "server/js/tile-style-*.js",
         "server/js/tile-decor-*.js",
         "server/js/tile-material.js",
-        "server/js/tile-dress.js",
         "server/js/tile-shape-presets.js",
         "server/js/custom-bg.js",
-        "server/js/decor-bg.js",
-        "server/js/bg-guard.js",
-        "server/js/skin-fonts.js",
-        "server/js/view-melt.js",
         "server/js/anim-picture.js",
         "server/js/gif-*.js",
-        "server/js/viewer-theme.js",
-        "server/js/look-trial.js",
         "server/components/Base/**",
         "docs/THEME_SYSTEM.md",
         "server/assets/decor/**",
         "server/assets/fonts/**",
-        "server/assets/wallpapers/**"
+        "server/assets/wallpapers/**",
+        "server/js/look/**"
       ]
     },
     {

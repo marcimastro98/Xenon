@@ -11,7 +11,7 @@ import { SITE_LANGS, appStrings, buildIndex } from '../../tools/build-widget-sea
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require = createRequire(import.meta.url);
-const { WIDGET_CATEGORIES } = require('../js/palette-model.js');
+const { WIDGET_CATEGORIES } = require('../js/look/palette-model.js');
 const saved = JSON.parse(readFileSync(join(root, 'docs', 'widget-search.json'), 'utf8'));
 const home = readFileSync(join(root, 'docs', 'index.html'), 'utf8');
 

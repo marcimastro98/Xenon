@@ -147,7 +147,7 @@ let _dynamicAccent = null;   // effective: _widgetAccent || _albumAccent
 
 let _effectiveThemePalette = null;
 
-// The palette, its CSS tokens and the tile drop shadow live in js/theme-tokens.js,
+// The palette, its CSS tokens and the tile drop shadow live in js/look/theme-tokens.js,
 // shared with the light layer page; these keep the dashboard's own state around it.
 function deriveEffectiveThemePalette() {
   return ThemeTokens.derivePalette(hubSettings, { resolve: resolveAppearance, dynamicAccent: _dynamicAccent });

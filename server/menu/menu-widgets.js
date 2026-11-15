@@ -5,7 +5,7 @@
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
 const LayerSee = require('../js/layers/layer-see.js');
-require('../js/palette-model.js'); // nothing is taken from it here, but it runs code when it loads
+require('../js/look/palette-model.js'); // nothing is taken from it here, but it runs code when it loads
 const { previewPath } = require('../grid/tile-previews.js');
 const { ANCHOR_CORNERS, k, run, open, heading, cornerKey, spotOf, comboText, widgetName } = require('./menu-rows.js');
 const { tuneRows, screenFact, screenLabel, screensOf, leadOf, ratioOf, isHud } = require('./menu-tune.js');

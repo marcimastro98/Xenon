@@ -131,12 +131,12 @@
   // Assets ride the same way: a JSON payload of validated data: URIs, embedded
   // as a JS string literal (identical escaping → no </script> breakout, exact
   // round-trip) and parsed back inside the frame.
-  // The heavy-background guard (js/bg-guard.js) as frame source: its two
+  // The heavy-background guard (js/look/bg-guard.js) as frame source: its two
   // self-contained functions plus `G`, the guard state BOOTSTRAP reads (null =
   // off). Without the module (script failed to load) the background just runs
   // unguarded, as it did before the guard existed.
   const Guard = (typeof window !== 'undefined' && window.BgGuard)
-    || (() => { try { return require('./bg-guard.js'); } catch { return null; } })();
+    || (() => { try { return require('./look/bg-guard.js'); } catch { return null; } })();
   const GUARD_SRC = Guard
     ? Guard.createGuard.toString() + Guard.guardStep.toString() + 'var G=createGuard(__fps,' + JSON.stringify(Guard.LIMITS) + ');'
     : '';
@@ -215,7 +215,7 @@
     // Only after the warm-up: the first seconds pay for JIT and image decode.
     'if(G&&warmedUp){var lv=guardStep(G,performance.now()-t0,t0);if(lv>0)degrade(lv);if(still)return;}',
     'next();}',
-    // The heavy-background guard's steps (js/bg-guard.js): 1 half the frame
+    // The heavy-background guard's steps (js/look/bg-guard.js): 1 half the frame
     // rate, 2 a quarter of the pixels it draws now, 3 keep the last frame and stop. The host
     // hears each step, to tell the user once it has become a still image.
     'var still=false;',

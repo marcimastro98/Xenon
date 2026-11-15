@@ -1594,7 +1594,7 @@
   // The docked now-playing transport — mirrors the chat mini-player. Buttons drive
   // the shared media session via mediaAction(); content filled by applyDeckMediaInto.
   // A normalized {c1,c2,angle} gradient → a CSS linear-gradient(). Delegates to
-  // the tile serializer (js/decor-bg.js, loaded wherever deck.js is) — one CSS
+  // the tile serializer (js/look/decor-bg.js, loaded wherever deck.js is) — one CSS
   // form for tiles and Deck, so they can't drift.
   function deckGradCss(grad) { return tileGradCss(grad); }
   // Build the well-background layer (image, gradient, or both) from a wellImage

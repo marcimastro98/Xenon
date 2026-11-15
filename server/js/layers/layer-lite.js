@@ -75,7 +75,7 @@ function createCopyAtom(widget, copyId) {
   }
 
   // The dashboard's palette, skin and panel material, from the same code
-  // (js/theme-tokens.js). The album tint is the one thing left out: it follows
+  // (js/look/theme-tokens.js). The album tint is the one thing left out: it follows
   // the track playing, which only the dashboard watches.
   function applyTheme() {
     const root = document.documentElement;

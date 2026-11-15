@@ -1,7 +1,7 @@
 'use strict';
 
 // The dashboard's look on a page that only shows it (scene.html): palette,
-// skin, panel material and font from the saved settings (js/theme-tokens.js),
+// skin, panel material and font from the saved settings (js/look/theme-tokens.js),
 // with 'auto' following the OS scheme the server reads. The album tint is left
 // out: it follows the track playing, which only the dashboard watches.
 (function (root, factory) {

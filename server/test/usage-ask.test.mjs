@@ -10,7 +10,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
 const SRC = src('js/usage-ask.js');
-const SCRIPTS = ['view-melt', 'first-run/usage-mode', 'alerts/screen-name', 'layers/layer-drag', 'xenon-menu-map', 'first-run/usage-ask-plan', 'first-run/usage-ask-picture', 'usage-ask']
+const SCRIPTS = ['look/view-melt', 'first-run/usage-mode', 'alerts/screen-name', 'layers/layer-drag', 'xenon-menu-map', 'first-run/usage-ask-plan', 'first-run/usage-ask-picture', 'usage-ask']
   .map((name) => src('js/' + name + '.js'));
 
 const screen = (id, name, more = {}) => ({

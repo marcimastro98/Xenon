@@ -3,7 +3,7 @@
 // Store, each shown by its picture, grouped into categories, filtered and searchable.
 // It adds the chosen one to the current page, OR (tab mode) merges it into a target
 // tile as a new tab. Which entries exist and where they are filed is
-// js/palette-model.js; this file draws them.
+// js/look/palette-model.js; this file draws them.
 (function () {
   // Built-in widgets that open only with a supporter pass. The panel says so up
   // front, so nobody adds one expecting it to work straight away.

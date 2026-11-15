@@ -118,6 +118,26 @@
     {"from":"server/js/lighting-device.js","to":"server/js/lighting/lighting-device.js"},
     {"from":"server/js/lighting-setup.js","to":"server/js/lighting/lighting-setup.js"},
     {"from":"server/js/lighting-ui.js","to":"server/js/lighting/lighting-ui.js"},
-    {"from":"server/js/lighting-widget.js","to":"server/js/lighting/lighting-widget.js"}
+    {"from":"server/js/lighting-widget.js","to":"server/js/lighting/lighting-widget.js"},
+    {"from":"server/js/bg-guard.js","to":"server/js/look/bg-guard.js"},
+    {"from":"server/js/decor-bg.js","to":"server/js/look/decor-bg.js"},
+    {"from":"server/js/look-trial.js","to":"server/js/look/look-trial.js"},
+    {"from":"server/js/palette-model.js","to":"server/js/look/palette-model.js"},
+    {"from":"server/js/skin-fonts.js","to":"server/js/look/skin-fonts.js"},
+    {"from":"server/js/theme-tokens.js","to":"server/js/look/theme-tokens.js"},
+    {"from":"server/js/tile-decor-layers.js","to":"server/js/look/tile-decor-layers.js"},
+    {"from":"server/js/tile-dress.js","to":"server/js/look/tile-dress.js"},
+    {"from":"server/js/tile-style-controls-pane.js","to":"server/js/look/tile-style-controls-pane.js"},
+    {"from":"server/js/tile-style-decor-extras.js","to":"server/js/look/tile-style-decor-extras.js"},
+    {"from":"server/js/tile-style-decor-frame.js","to":"server/js/look/tile-style-decor-frame.js"},
+    {"from":"server/js/tile-style-decor-model.js","to":"server/js/look/tile-style-decor-model.js"},
+    {"from":"server/js/tile-style-decor-overlays.js","to":"server/js/look/tile-style-decor-overlays.js"},
+    {"from":"server/js/tile-style-decor-panes.js","to":"server/js/look/tile-style-decor-panes.js"},
+    {"from":"server/js/tile-style-editor.js","to":"server/js/look/tile-style-editor.js"},
+    {"from":"server/js/tile-style-fields.js","to":"server/js/look/tile-style-fields.js"},
+    {"from":"server/js/tile-style-material-pane.js","to":"server/js/look/tile-style-material-pane.js"},
+    {"from":"server/js/tile-style-tabs-pane.js","to":"server/js/look/tile-style-tabs-pane.js"},
+    {"from":"server/js/view-melt.js","to":"server/js/look/view-melt.js"},
+    {"from":"server/js/viewer-theme.js","to":"server/js/look/viewer-theme.js"}
   ]
 }

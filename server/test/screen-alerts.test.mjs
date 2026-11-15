@@ -239,7 +239,7 @@ test('in a browser tab there is no shell to signal', async () => {
 
 test('the page loads what it uses, in order', () => {
   const html = read('../screen-alerts.html');
-  const order = ['js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/alerts/toast.js',
+  const order = ['js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/look/theme-tokens.js', 'js/native-bridge.js', 'js/alerts/toast.js',
     'js/alerts/alert-toasts.js', 'js/deck/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/ai/screen-bit.js', 'js/alerts/screen-alerts.js'];
   const at = order.map((f) => html.indexOf(`src="${f}"`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));

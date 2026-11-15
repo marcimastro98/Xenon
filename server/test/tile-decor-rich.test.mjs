@@ -12,11 +12,11 @@ const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
 const TDS = require('../js/tile-decor-schema.js');
 const TDP = require('../js/tile-decor-presets.js');
-const TDL = require('../js/tile-decor-layers.js');
+const TDL = require('../js/look/tile-decor-layers.js');
 const TC = require('../js/tile-controls.js');
-const Model = require('../js/tile-style-decor-model.js');
+const Model = require('../js/look/tile-style-decor-model.js');
 globalThis.window = { DashboardInstances: DI };
-const { workingCopy, buildStyle } = require('../js/tile-style-editor.js');
+const { workingCopy, buildStyle } = require('../js/look/tile-style-editor.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 test('a frame keeps its colour, glow, inset and pulse, and drops what is out of range', () => {

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const PM = require('../js/palette-model.js');
+const PM = require('../js/look/palette-model.js');
 
 // The "+" panel's model. A Store widget is an entry of its own, filed under a
 // category (its manifest's, else its catalog entry's, else "other"); the

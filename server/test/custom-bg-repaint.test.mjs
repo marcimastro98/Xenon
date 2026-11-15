@@ -51,7 +51,7 @@ test('an emptied background shows the theme, never white', () => {
   // theme-tokens.js) a frame whose document declares no scheme gets an OPAQUE
   // WHITE backdrop, which shows the moment its canvas is empty. With
   // color-scheme: normal on the element, the same frame is transparent.
-  assert.match(read('../js/theme-tokens.js'), /root\.style\.colorScheme = palette\.tone;/,
+  assert.match(read('../js/look/theme-tokens.js'), /root\.style\.colorScheme = palette\.tone;/,
     'if the root stops carrying a scheme, this guard can be revisited');
   const mount = SRC.slice(SRC.indexOf('function mount('), SRC.indexOf('frame.srcdoc = buildSrcdoc(', SRC.indexOf('function mount(')));
   assert.match(mount, /frame\.style\.colorScheme = 'normal';/);

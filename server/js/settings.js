@@ -492,7 +492,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   chatgptWidget: Object.freeze({ model: 'default' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   gameIgnore: Object.freeze([]), // apps the user says are not games (js/game-ignore.js)
-  bgGuard: true, // slow down, then still, an animated background that weighs on the PC (js/bg-guard.js)
+  bgGuard: true, // slow down, then still, an animated background that weighs on the PC (js/look/bg-guard.js)
   // Smart context profiles: per-activity page/lighting/deck/style that auto-apply
   // when the foreground activity changes and revert when it ends
   // (context-profiles.js). Off by default; empty entry = "don't touch that

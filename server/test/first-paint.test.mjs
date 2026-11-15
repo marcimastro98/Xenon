@@ -19,7 +19,7 @@ for (const name of PAGES) {
   });
 
   test(`${name}: the fonts of the other looks still load, and hold nothing`, () => {
-    assert.match(headOf(read(`../${name}`)), /<script src="js\/skin-fonts\.js" async><\/script>/);
+    assert.match(headOf(read(`../${name}`)), /<script src="js\/look\/skin-fonts\.js" async><\/script>/);
   });
 }
 
@@ -29,7 +29,7 @@ test('the fonts of Retro, Comic and the pet are all asked for', () => {
     createElement: () => ({}),
     head: { append: (node) => added.push(node) },
   };
-  vm.runInNewContext(read('../js/skin-fonts.js'), { document });
+  vm.runInNewContext(read('../js/look/skin-fonts.js'), { document });
   assert.equal(added.length, 1);
   assert.equal(added[0].rel, 'stylesheet');
   const url = new URL(added[0].href);

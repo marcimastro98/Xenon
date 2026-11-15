@@ -1,4 +1,4 @@
-// "Try it on my screen" (js/look-trial.js) and the melt it rides on (js/view-melt.js). An update
+// "Try it on my screen" (js/look/look-trial.js) and the melt it rides on (js/look/view-melt.js). An update
 // keeps the look it found: the new one goes on only by the person's tap, what they had is saved
 // first, and one tap brings it back.
 import { test } from 'node:test';
@@ -10,8 +10,8 @@ import { engineSource } from './engine-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
-const TRIAL = src('js/look-trial.js');
-const MELT = src('js/view-melt.js');
+const TRIAL = src('js/look/look-trial.js');
+const MELT = src('js/look/view-melt.js');
 
 function load({ styleMode = 'glass', remote = false, cards = [], live = 'old', api = true, wallpaperGone = false } = {}) {
   const { document } = makeDom();
@@ -187,7 +187,7 @@ test('a look the gallery already holds goes back to that same card', async () =>
 
 test('it runs only from the key on its sheet, never by itself', () => {
   const callers = looseScripts()
-    .filter((name) => name !== 'look-trial.js')
+    .filter((name) => name !== 'look/look-trial.js')
     .filter((name) => /look\.run\(|LookTrial\.run\(/.test(src('js/' + name)));
   assert.deepEqual(callers, ['whats-new.js']);
   const sheets = src('js/whats-new.js');
@@ -248,7 +248,7 @@ test('the slow melt has its rule, and the page loads the helper before what uses
   assert.match(src('styles/global.css'), /html\.xenon-melting::view-transition-old\(root\)/);
   const page = src('index.html');
   const at = (file) => page.indexOf(`src="js/${file}"`);
-  assert.ok(at('view-melt.js') > 0);
-  assert.ok(at('view-melt.js') < at('usage-ask.js'));
-  assert.ok(at('view-melt.js') < at('look-trial.js'));
+  assert.ok(at('look/view-melt.js') > 0);
+  assert.ok(at('look/view-melt.js') < at('usage-ask.js'));
+  assert.ok(at('look/view-melt.js') < at('look/look-trial.js'));
 });

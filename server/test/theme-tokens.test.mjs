@@ -1,4 +1,4 @@
-// js/theme-tokens.js: the theme as CSS custom properties, shared by the
+// js/look/theme-tokens.js: the theme as CSS custom properties, shared by the
 // dashboard and the light layer page so a widget on the desktop wears the same
 // tile as on the dashboard. Checked here on a fake root element.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ThemeTokens = require('../js/theme-tokens.js');
+const ThemeTokens = require('../js/look/theme-tokens.js');
 const ThemePalette = require('../js/theme-palette.js');
 
 function fakeRoot() {

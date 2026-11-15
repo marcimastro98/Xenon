@@ -63,7 +63,7 @@ function applyHubSettings() {
   const bgBlur = Math.round(hubSettings.bgBlur);
   const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
 
-  // Dashboard style language (Retro, Comic or glass): js/theme-tokens.js, which
+  // Dashboard style language (Retro, Comic or glass): js/look/theme-tokens.js, which
   // the light layer page shares so a layer tile wears the same skin.
   const styleBefore = root.dataset.style;
   const skin = ThemeTokens.applySkin(root, hubSettings);
@@ -99,10 +99,10 @@ function applyHubSettings() {
   const palette = applyAccentColor();
   const light = palette.tone === 'light';
 
-  // Custom global typeface (independent of the colour palette, js/theme-tokens.js).
+  // Custom global typeface (independent of the colour palette, js/look/theme-tokens.js).
   ThemeTokens.applyFont(document, hubSettings.uiFont);
 
-  // Panel opacity, border, shadow, corners and glass (js/theme-tokens.js).
+  // Panel opacity, border, shadow, corners and glass (js/look/theme-tokens.js).
   ThemeTokens.applyMaterial(root, hubSettings, palette, skin);
   root.style.setProperty('--clock-time-scale', String(clockScale));
   root.style.setProperty('--clock-date-scale', String(clockDateScale));

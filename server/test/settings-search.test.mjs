@@ -69,7 +69,7 @@ test('the search strings are translated in every language block', () => {
 });
 
 test('the palette categories only name widgets that exist', () => {
-  const src = read('../js/palette-model.js');
+  const src = read('../js/look/palette-model.js');
   const ids = new Set(widgetIds());
   const block = src.match(/const WIDGET_CATEGORIES = \[([\s\S]*?)\n  \];/);
   assert.ok(block, 'WIDGET_CATEGORIES moved');

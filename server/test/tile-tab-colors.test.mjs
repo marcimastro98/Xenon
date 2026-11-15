@@ -76,14 +76,14 @@ test('the server drops colours of a tab that left the group', () => {
 });
 
 test('the style editor shows a Tabs pane only for a tab group, one section per tab', () => {
-  const ed = read('../js/tile-style-editor.js');
+  const ed = read('../js/look/tile-style-editor.js');
   assert.match(ed, /const members = groupTabs\(id\);\s+if \(members\.length && window\.TileStyleTabsPane\) panes\.push/);
   assert.match(ed, /if \(!group \|\| !Array\.isArray\(group\.members\)\) return \[\];/);
   assert.match(ed, /tabs: tabsWorkingCopy\(cur\.tabs\),/);
-  const pane = read('../js/tile-style-tabs-pane.js');
+  const pane = read('../js/look/tile-style-tabs-pane.js');
   assert.match(pane, /members\.forEach\(\(\{ id, label \}\) => \{/);
   for (const k of ['activeBg', 'activeText', "'bg'", "'text'"]) assert.ok(pane.includes(k), k);
-  assert.match(read('../index.html'), /<script src="js\/tile-style-controls-pane\.js"><\/script>\r?\n<script src="js\/tile-style-tabs-pane\.js"><\/script>/);
+  assert.match(read('../index.html'), /<script src="js\/look\/tile-style-controls-pane\.js"><\/script>\r?\n<script src="js\/look\/tile-style-tabs-pane\.js"><\/script>/);
 });
 
 test('the Tabs pane strings exist in all 11 languages', () => {

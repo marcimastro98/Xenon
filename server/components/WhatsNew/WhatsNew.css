@@ -694,7 +694,7 @@
 .rn-corner .rn-link { font-size: 15px; }
 .rn-corner .rn-main { min-height: 44px; min-width: 90px; padding: 0 16px; font: 700 16px / 1 var(--wn-body); }
 
-/* ── Trying the new look (js/look-trial.js) ───────────────────────────── */
+/* ── Trying the new look (js/look/look-trial.js) ───────────────────────────── */
 /* On the person's own dashboard, which stays usable: the glass of the first question, whatever
    they change while it is here. */
 .wn-look {
