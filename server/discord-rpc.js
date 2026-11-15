@@ -19,7 +19,7 @@
 
 const crypto = require('crypto');
 const path = require('path');
-const { makeCredsNormalizer, createTokenStore } = require('./stream-common');
+const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-common');
 
 const {
   NOTIF_SCOPE, notifScopeState, errDetail, loginCloseError, authorizeError,

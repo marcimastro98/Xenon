@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { createStreamHistory } = require(join(ROOT, 'server', 'stream-history.js'));
+const { createStreamHistory } = require(join(ROOT, 'server', 'streaming/stream-history.js'));
 
 test('an empty history reads as an empty list', () => {
   const h = createStreamHistory();

@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 // refreshing tokens in the same stream-tokens.json at the same moment could
 // silently drop each other's freshly-refreshed token (→ random logouts).
 const require = createRequire(import.meta.url);
-const { createTokenStore, makeCredsNormalizer } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'stream-common.js'));
+const { createTokenStore, makeCredsNormalizer } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'streaming/stream-common.js'));
 
 function freshDir() {
   return mkdtempSync(join(tmpdir(), 'xenon-tok-'));

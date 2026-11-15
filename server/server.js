@@ -3766,7 +3766,7 @@ let _processesPolledAt = 0;
 // it already drawn (GET /api/processes/history, replayed by the SDK host as a
 // `history` message). Filled by the tick below and nothing else: no timer of its
 // own, no disk, ~0.5 MB, and empty until someone has been granted the stream.
-const _processesHistory = require('./stream-history').createStreamHistory({ maxAgeMs: 5 * 60 * 1000, maxItems: 160 });
+const _processesHistory = require('./streaming/stream-history').createStreamHistory({ maxAgeMs: 5 * 60 * 1000, maxItems: 160 });
 
 const { normalizeProcesses } = require('./performance/processes-normalize.js');
 

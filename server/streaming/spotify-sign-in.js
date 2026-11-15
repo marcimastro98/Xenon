@@ -3,7 +3,7 @@
 // the way back, the code exchanged for tokens, and the token renewed.
 
 const crypto = require('node:crypto');
-const { FORM } = require('../stream-common.js');
+const { FORM } = require('./stream-common.js');
 const { AUTH_URL, TOKEN_URL, SCOPES, PENDING_TTL_MS, b64url } = require('./spotify-endpoints.js');
 
 function makeSignIn({

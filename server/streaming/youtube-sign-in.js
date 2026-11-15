@@ -2,7 +2,7 @@
 // Signing in to YouTube from a screen with no keyboard: the code shown, the wait for the phone,
 // the token renewed, the channel's name, what the dashboard is told, and signing out.
 
-const { FORM } = require('../stream-common.js');
+const { FORM } = require('./stream-common.js');
 const {
   SCOPE, DEVICE_URL, TOKEN_URL, REVOKE_URL, API, httpsOnly,
 } = require('./youtube-endpoints.js');

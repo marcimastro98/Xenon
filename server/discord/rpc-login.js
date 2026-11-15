@@ -4,7 +4,7 @@
 // signing out.
 
 const crypto = require('node:crypto');
-const { FORM } = require('../stream-common.js');
+const { FORM } = require('../streaming/stream-common.js');
 const {
   API, TOKEN_URL, REVOKE_URL, REDIRECT_URI, SCOPES, NOTIF_SCOPE, notifScopeState, errDetail,
   loginCloseError, authorizeError,

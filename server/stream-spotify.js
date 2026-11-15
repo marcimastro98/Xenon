@@ -16,7 +16,7 @@
 // ROBUSTNESS: every method resolves to a plain result object and never throws.
 
 const path = require('path');
-const { makeCredsNormalizer, createTokenStore } = require('./stream-common');
+const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-common');
 
 const normalizeStreamSpotify = makeCredsNormalizer({ login: 120, userId: 64 });
 

@@ -2,7 +2,7 @@
 // Signing in to Twitch with a device code: the code shown to the user, the wait for the user to
 // enter it, the token renewed, who is signed in, what the dashboard is told, and signing out.
 
-const { FORM } = require('../stream-common.js');
+const { FORM } = require('./stream-common.js');
 const {
   SCOPES, DEVICE_URL, TOKEN_URL, REVOKE_URL, HELIX, httpsOnly,
 } = require('./twitch-endpoints.js');

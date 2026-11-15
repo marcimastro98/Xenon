@@ -14,7 +14,7 @@
 // status polling to a clean { ok:false } instead of crashing the request.
 
 const path = require('path');
-const { makeCredsNormalizer, createTokenStore } = require('./stream-common');
+const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-common');
 
 // The Twitch app client_id is CONFIGURATION, never committed source. server.js
 // resolves it from the `TWITCH_CLIENT_ID` env var or a gitignored
