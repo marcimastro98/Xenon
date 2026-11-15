@@ -223,8 +223,10 @@ function wakeVendorBoard() {
 
 const { channelLayout, getBatteryLevels } = require('./lights/sdk-properties.js');
 
-function isConnected() { return bridge.connected; }
-function getLastError() { return bridge.lastError; }
+const {
+  isConnected, getLastError, isLightsOut, getExternalStatus, getExternalConfig, getConfig,
+  getStatus,
+} = require('./lights/status.js');
 
 // Bring the iCUE session up / tear it down to match shouldConnect(). Called after
 // any config change. Disconnect hands the LEDs back to iCUE.
@@ -637,7 +639,6 @@ function setLightsOut(on) {
   reconcileConnection();
   apply();
 }
-function isLightsOut() { return keyLook.isOut(); }
 
 // The PC is about to shut down, restart, sign out or sleep. Hand every light
 // back to its own hardware while this process still runs: a controller left in
@@ -813,60 +814,9 @@ async function addExternalDevice(providerId, host) { const d = await external.ad
 async function pairExternalDevice(providerId, host) { const r = await external.pairDevice(providerId, host); if (r && r.ok) apply(); return r; }
 function removeExternalDevice(providerId, id) { const ok = external.removeDevice(providerId, id); apply(); return ok; }
 function setExternalDeviceOptIn(providerId, id, on) { const ok = external.setDeviceOptIn(providerId, id, on); bridge.lastWrite.clear(); apply(); return ok; }
-function getExternalStatus() { return external.getStatus(); }
-function getExternalConfig() { return external.getConfig(); }
 // Inject runtime hooks for integration-backed providers (Home Assistant): the
 // shared HA client lives in server.js; its token/URL never enter this config.
 function setExternalRuntime(providerId, hooks) { external.setRuntime(providerId, hooks); }
-
-// Persistable runtime config (the `devices` opt-in map is kept as the raw
-// { deviceId: bool } shape, unlike getStatus which projects it onto the device list).
-function getConfig() {
-  return {
-    enabled: bridge.config.enabled,
-    lightsOut: keyLook.isOut(),
-    brightness: bridge.config.brightness,
-    pauseDuringGame: bridge.config.pauseDuringGame,
-    devices: { ...bridge.config.devices },
-    effects: { ...bridge.config.effects },
-    animation: { ...bridge.config.animation, palette: (bridge.config.animation.palette || []).slice() },
-    manualColor: bridge.config.manualColor || '',
-    deviceModes: JSON.parse(JSON.stringify(bridge.config.deviceModes)),
-    providers: external.getConfig(),
-    native: { enabled: native.status().enabled, layouts: native.getLayouts(), scanned: native.getScanned() },
-  };
-}
-
-// Project a device's stored mode onto a flat shape for the UI.
-function deviceModeOf(id) {
-  const m = bridge.config.deviceModes[id];
-  return {
-    mode: (m && m.mode) || 'follow',
-    modeColor: (m && m.color) || null,
-    modeAnim: (m && m.anim) ? { ...m.anim } : null,
-    modeLeds: (m && m.leds) ? { ...m.leds } : {},
-  };
-}
-
-function getStatus() {
-  const providers = external.getStatus().providers;
-  providers.forEach(p => (p.devices || []).forEach(d => Object.assign(d, deviceModeOf(d.id))));
-  return {
-    available: isAvailable(),
-    connected: bridge.connected,
-    enabled: bridge.config.enabled,
-    lightsOut: keyLook.isOut(),
-    devices: getDevices().map(d => ({ ...d, optedIn: bridge.config.devices[d.id] !== false, ...deviceModeOf(d.id) })),
-    effects: { ...bridge.config.effects },
-    animation: { ...bridge.config.animation, palette: (bridge.config.animation.palette || []).slice() },
-    manualColor: bridge.config.manualColor || '',
-    brightness: bridge.config.brightness,
-    pauseDuringGame: bridge.config.pauseDuringGame,
-    providers,
-    native: native.status(),
-    reason: bridge.lastError,
-  };
-}
 
 module.exports = {
   connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, refreshAvailability, getLastError,

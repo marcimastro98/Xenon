@@ -993,7 +993,8 @@
       {"file":"server/lights/sdk-load.js","about":"Loading the iCUE SDK library and letting it go again.","names":["loadLib","disconnect"]},
       {"file":"server/lights/paint-rules.js","about":"The rules that say whether the bridge paints at all, and which colour a device gets.","names":["DYNAMIC_ANIM_STYLES","effectiveAlbum","albumActive","gamingPaused","wantsPaint","active","shouldConnect","refreshAnimationLayer","anyDeviceAnimationDynamic","colorForDevice","deckReactionColor"],"bare":["./gamedetect"],"tidy":true},
       {"file":"server/lights/sdk-write.js","about":"Writing colours to the devices through the iCUE SDK, and handing them back to iCUE.","names":["CDT_MOTHERBOARD","writeDevice","writeDeviceGradient","writeDeviceAnimGradient","writeDeviceCustom","pushLeds","sinkReady","paintDevices","releaseAll","getDevices"]},
-      {"file":"server/lights/look-values.js","about":"The looks a device can take: the modes and styles allowed, the default colours, and what one device or one LED shows.","names":["DEVICE_MODES","ANIM_STYLES","PER_DEVICE_ANIM_STYLES","EVENT_DURATION_MS","clampEventDuration","OFF_COLOR","sanitizePalette","GENERIC_DEFAULT_COLOR","CANDLE_DEFAULT_COLOR","wholeDeviceLook","deviceLeds"],"tidy":true}
+      {"file":"server/lights/look-values.js","about":"The looks a device can take: the modes and styles allowed, the default colours, and what one device or one LED shows.","names":["DEVICE_MODES","ANIM_STYLES","PER_DEVICE_ANIM_STYLES","EVENT_DURATION_MS","clampEventDuration","OFF_COLOR","sanitizePalette","GENERIC_DEFAULT_COLOR","CANDLE_DEFAULT_COLOR","wholeDeviceLook","deviceLeds"],"tidy":true},
+      {"file":"server/lights/status.js","about":"What the lights are doing now, as the pages and the tools read it.","names":["isConnected","getLastError","isLightsOut","getExternalStatus","getExternalConfig","getConfig","deviceModeOf","getStatus"]}
     ]
   },
   "spreads": {
