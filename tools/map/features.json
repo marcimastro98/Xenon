@@ -433,13 +433,11 @@
         "server/actions/voicemeeter*.js",
         "server/js/volume.js",
         "server/js/volume/**",
-        "server/js/mic.js",
-        "server/js/picker.js",
-        "server/js/wavelink-widget.js",
         "server/components/AudioSection/**",
         "server/components/MicPanel/**",
         "server/components/DevicePicker/**",
-        "server/components/WaveLinkWidget/**"
+        "server/components/WaveLinkWidget/**",
+        "server/js/audio/**"
       ]
     },
     {

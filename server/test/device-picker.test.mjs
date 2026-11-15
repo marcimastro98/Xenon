@@ -1,4 +1,4 @@
-// The window that chooses the speaker or the mic (js/picker.js): real keys, the one in use
+// The window that chooses the speaker or the mic (js/audio/picker.js): real keys, the one in use
 // marked, an empty list that says so, Esc, and nothing left behind when it closes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/picker.js');
+const SRC = read('../js/audio/picker.js');
 
 const SPEAKERS = [
   { id: 'a', name: 'Speakers', label: 'Realtek Audio' },
@@ -126,5 +126,5 @@ test('the widget window carries what the picker needs, in order', () => {
   const layer = read('../js/layer-tiles.js');
   const system = layer.slice(layer.indexOf('const SYSTEM'), layer.indexOf('};', layer.indexOf('const SYSTEM')));
   assert.ok(system.includes("'styles/liquid-sheets.css'"));
-  assert.ok(system.indexOf("'js/dialog-focus.js'") > 0 && system.indexOf("'js/dialog-focus.js'") < system.indexOf("'js/picker.js'"));
+  assert.ok(system.indexOf("'js/dialog-focus.js'") > 0 && system.indexOf("'js/dialog-focus.js'") < system.indexOf("'js/audio/picker.js'"));
 });

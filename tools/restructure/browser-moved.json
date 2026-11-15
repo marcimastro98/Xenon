@@ -11,6 +11,9 @@
     {"from":"server/js/mcp-dev-client.js","to":"server/js/mcp/mcp-dev-client.js"},
     {"from":"server/js/capability-catalog.js","to":"server/js/capabilities/capability-catalog.js"},
     {"from":"server/js/chatgpt-widget.js","to":"server/js/codex/chatgpt-widget.js"},
-    {"from":"server/js/disk-intelligence.js","to":"server/js/disk/disk-intelligence.js"}
+    {"from":"server/js/disk-intelligence.js","to":"server/js/disk/disk-intelligence.js"},
+    {"from":"server/js/mic.js","to":"server/js/audio/mic.js"},
+    {"from":"server/js/picker.js","to":"server/js/audio/picker.js"},
+    {"from":"server/js/wavelink-widget.js","to":"server/js/audio/wavelink-widget.js"}
   ]
 }

@@ -176,7 +176,7 @@ test('mixer: the app icon is set through the DOM, never interpolated', () => {
   assert.ok(!host.innerHTML.includes('onerror') && !host.innerHTML.includes('base64,'));
   assert.equal(rows[0].img, null, 'a rejected icon falls back to the letter');
   assert.equal(rows[1].img.src, PNG);
-  assert.match(read('../js/mic.js'), /renderAppMixerRows\(host, apps\)/);
+  assert.match(read('../js/audio/mic.js'), /renderAppMixerRows\(host, apps\)/);
   assert.match(read('../js/deck.js'), /renderAppMixerRows\(host, apps\)/);
 });
 

@@ -34,7 +34,7 @@
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
     js: ['js/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
-      'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js'],
+      'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume.js', 'js/audio/mic.js', 'js/audio/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
@@ -79,7 +79,7 @@
     news: tile('news', 'NewsWidget', ['js/ticker/news-widget.js'], { news: 'onSSE' }),
     slideshow: tile('slideshow', 'SlideshowWidget', ['js/slideshow-widget.js'], {}),
     notifications: tile('notifications', 'NotificationsWidget', ['js/notification-open.js', 'js/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
-    wavelink: tile('wavelink', 'WaveLinkWidget', ['js/wavelink-widget.js'], { wavelink: 'onSSE' }),
+    wavelink: tile('wavelink', 'WaveLinkWidget', ['js/audio/wavelink-widget.js'], { wavelink: 'onSSE' }),
     obs: tile('obs', 'ObsWidget', ['js/obs-widget.js'], { obs: 'onObs', obs_preview: 'onObsPreview' }),
     discord: tile('discord', 'DiscordWidget', ['js/tile-tab-memory.js', 'js/discord-widget/lists.js', 'js/discord-widget/tabs.js', 'js/discord-widget/member-state.js', 'js/discord-widget/icons.js', 'js/discord-widget/skeleton.js', 'js/discord-widget/call-people.js', 'js/discord-widget/channel-list.js', 'js/discord-widget/sound-tiles.js', 'js/discord-widget/notification-feed.js', 'js/discord-widget.js'], { discord: 'onSSE', discord_notification: 'onNotification' }, null, ['components/DiscordWidget/DiscordWidgetMembers.css', 'components/DiscordWidget/DiscordWidgetSoundboard.css']),
     streamerbot: tile('streamerbot', 'StreamerbotWidget', ['js/tile-tab-memory.js', 'js/streamerbot-widget.js'], { streamerbot: 'onState', streamerbot_event: 'onEvent' }),
