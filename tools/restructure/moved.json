@@ -26,15 +26,13 @@
     {"from":"server/ics-feeds.js","to":"server/time/ics-feeds.js","shim":true},
     {"from":"server/notes-ai.js","to":"server/time/notes-ai.js","shim":true},
     {"from":"server/timer-actions.js","to":"server/time/timer-actions.js","shim":true},
-    {"from":"server/altgr-keys-windows.js","to":"server/deck/altgr-keys-windows.js"},
-    {"from":"server/deck-press.js","to":"server/deck/deck-press.js"},
-    {"from":"server/deck-shortcut-runner.js","to":"server/deck/deck-shortcut-runner.js"},
-    {"from":"server/deck-sound-player.js","to":"server/deck/deck-sound-player.js"},
-    {"from":"server/linux-hotkey.js","to":"server/deck/linux-hotkey.js"}
+    {"from":"server/altgr-keys-windows.js","to":"server/deck/altgr-keys-windows.js","shim":true},
+    {"from":"server/deck-press.js","to":"server/deck/deck-press.js","shim":true},
+    {"from":"server/deck-shortcut-runner.js","to":"server/deck/deck-shortcut-runner.js","shim":true},
+    {"from":"server/deck-sound-player.js","to":"server/deck/deck-sound-player.js","shim":true},
+    {"from":"server/linux-hotkey.js","to":"server/deck/linux-hotkey.js","shim":true}
   ],
   "patterns": [
-    {"feature":"deck","glob":"server/deck-*.js","at":1},
-    {"feature":"deck","glob":"server/linux-hotkey.js","at":5},
-    {"feature":"deck","glob":"server/altgr-keys-windows.js","at":6}
+
   ]
 }
