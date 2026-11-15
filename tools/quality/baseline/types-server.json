@@ -256,7 +256,7 @@
     "server/store-supporters/feature-unlock.js TS2741": 1,
     "server/store-supporters/supporter-redeem.js TS2741": 1,
     "server/store-supporters/vitals-roast-sparks.js TS2339": 1,
-    "server/stream-spotify.js TS2556": 1,
+    "server/media/stream-spotify.js TS2556": 1,
     "server/stream-twitch.js TS2556": 1,
     "server/stream-youtube.js TS2556": 1,
     "server/streaming/routes-spotify.js TS2554": 1,

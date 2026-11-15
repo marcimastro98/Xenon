@@ -9,7 +9,7 @@ import fs from 'node:fs';
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-sp-'));
 after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
 const require = createRequire(import.meta.url);
-const { createSpotifyProvider, normalizeStreamSpotify } = require('../stream-spotify.js');
+const { createSpotifyProvider, normalizeStreamSpotify } = require('../media/stream-spotify.js');
 const { createRegistry } = require('../actions/registry.js');
 
 function tmpTokens() {

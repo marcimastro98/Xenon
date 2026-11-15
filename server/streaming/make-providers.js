@@ -4,7 +4,7 @@
 
 const { createTwitchProvider } = require('../stream-twitch.js');
 const { createYouTubeProvider } = require('../stream-youtube.js');
-const { createSpotifyProvider } = require('../stream-spotify.js');
+const { createSpotifyProvider } = require('../media/stream-spotify.js');
 const { STREAM_TOKENS_FILE, readStreamClientId } = require('./config-files.js');
 const { streams } = require('./providers.js');
 

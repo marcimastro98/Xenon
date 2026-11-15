@@ -16,25 +16,25 @@
 // ROBUSTNESS: every method resolves to a plain result object and never throws.
 
 const path = require('path');
-const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-common');
+const { makeCredsNormalizer, createTokenStore } = require('../streaming/stream-common');
 
 const normalizeStreamSpotify = makeCredsNormalizer({ login: 120, userId: 64 });
 
-const { makeBackoff } = require('./streaming/spotify-backoff.js');
+const { makeBackoff } = require('../streaming/spotify-backoff.js');
 
-const { makeSignIn } = require('./streaming/spotify-sign-in.js');
+const { makeSignIn } = require('../streaming/spotify-sign-in.js');
 
-const { makeRequests } = require('./streaming/spotify-requests.js');
+const { makeRequests } = require('../streaming/spotify-requests.js');
 
-const { makePlayer } = require('./streaming/spotify-player.js');
+const { makePlayer } = require('../streaming/spotify-player.js');
 
-const { makeQueue } = require('./streaming/spotify-queue.js');
+const { makeQueue } = require('../streaming/spotify-queue.js');
 
-const { makeSearch } = require('./streaming/spotify-search.js');
+const { makeSearch } = require('../streaming/spotify-search.js');
 
-const { makeControls } = require('./streaming/spotify-controls.js');
+const { makeControls } = require('../streaming/spotify-controls.js');
 
-const { makeQuery } = require('./streaming/spotify-query.js');
+const { makeQuery } = require('../streaming/spotify-query.js');
 
 // deps (all optional, injectable for tests):
 //   clientId — the Spotify app Client ID (public; PKCE needs no secret)
@@ -45,7 +45,7 @@ function createSpotifyProvider(deps) {
   const _fetch = d.fetch || ((...a) => fetch(...a));
   const _sleep = d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
   const clientId = d.clientId || '';
-  const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
+  const tokensFile = d.tokensFile || path.join(__dirname, '..', 'stream-tokens.json');
   const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
     createTokenStore({ tokensFile, storeKey: 'spotify', normalize: normalizeStreamSpotify });
 

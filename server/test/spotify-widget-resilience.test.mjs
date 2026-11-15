@@ -143,7 +143,7 @@ test('every reason has a line to print', () => {
 // hours, and the limit persists" — against a dashboard still promising shortly.
 // The server already knew how long (it holds the breaker to Retry-After); it
 // simply never said.
-const SERVER = engineSource('server/stream-spotify.js');
+const SERVER = engineSource('server/media/stream-spotify.js');
 
 test('the refusal carries how long the breaker holds', () => {
   const m = /async function apiRequest\(method, pathWithQuery, bodyObj\) \{[\s\S]*?\n  \}/.exec(SERVER);

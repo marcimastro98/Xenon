@@ -31,7 +31,7 @@ const TMP_DIR = mkdtempSync(join(tmpdir(), 'xe-q-'));
 after(() => rmSync(TMP_DIR, { recursive: true, force: true }));
 
 const require = createRequire(import.meta.url);
-const { createSpotifyProvider } = require('../stream-spotify.js');
+const { createSpotifyProvider } = require('../media/stream-spotify.js');
 
 const provider = createSpotifyProvider({
   clientId: 'cid',
@@ -144,7 +144,7 @@ test('degenerate inputs answer with a list, never a throw', () => {
 // ── The wiring ───────────────────────────────────────────────────────────────
 
 test('getQueue runs it, with the player state it already had in hand', () => {
-  const src = engineSource('server/stream-spotify.js');
+  const src = engineSource('server/media/stream-spotify.js');
   assert.match(src, /queue: normalizeQueue\(raw, current, p && p\.ok \? p : null\)/);
   assert.match(src, /const p = await getPlayer\(\);/,
     'no extra call: getQueue already reads the player for `reliable`');
@@ -179,7 +179,7 @@ test("the SDK's queue op is normalised too, not just the tile's", async () => {
 });
 
 test('the rows stay Spotify\'s objects — this removes, it does not reshape', () => {
-  const src = engineSource('server/stream-spotify.js');
+  const src = engineSource('server/media/stream-spotify.js');
   assert.match(src, /const QUERY_AFTER = Object\.freeze\(\{/);
   assert.match(src, /Object\.hasOwn\(QUERY_AFTER, name\)/,
     'the same own-keys guard the op table uses — constructor is not a shaper either');
@@ -192,6 +192,6 @@ test('what is deliberately NOT solved is written down', () => {
   // it from a real playlist that runs E then A then B needs the context's own
   // track order, which the queue does not carry. Left in rather than guessed at,
   // and said out loud so the next reader does not think it was missed.
-  const src = engineSource('server/stream-spotify.js');
+  const src = engineSource('server/media/stream-spotify.js');
   assert.match(src, /NOT solved here, deliberately/);
 });

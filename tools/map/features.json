@@ -366,7 +366,6 @@
         "server/media/**",
         "server/media.ps1",
         "server/media-key.ps1",
-        "server/stream-spotify.js",
         "server/js/media*.js",
         "server/js/media/**",
         "server/js/lyrics-core/**",

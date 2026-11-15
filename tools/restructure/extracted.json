@@ -949,7 +949,7 @@
       {"file":"server/search/search-answers.js","about":"Answering a search: a pasted path, the index, the apps and the catalog merged and ranked by what was opened before, and the list of what was opened lately.","names":["livingMatches","search","pastedTarget","queryText","withTimeout","usagePool","scoreApp","execQuery","publicResult","catalog","recent"],"inner":{"factory":"createFileSearch","make":"makeAnswers"},"bare":["./search-pasted-path"]},
       {"file":"server/search/host-queue.js","about":"The queue in front of the Windows Search process, which answers one query at a time: one query is sent and waited for, and when its answer, its refusal or its timeout comes the one waiting is sent.","names":["dispatch","drain"],"inner":{"factory":"createFileSearch","make":"makeHostQueue"}}
     ],
-    "server/stream-spotify.js": [
+    "server/media/stream-spotify.js": [
       {"file":"server/streaming/spotify-endpoints.js","about":"Where the Spotify provider talks to Spotify: the addresses of sign-in and of the API, the permissions it asks for, how long an unfinished sign-in is kept, and the base64url spelling PKCE wants.","names":["AUTH_URL","TOKEN_URL","API","SCOPES","PENDING_TTL_MS","b64url"]},
       {"file":"server/streaming/spotify-backoff.js","about":"The pause after Spotify answers 429: until when every call is held back, how long is left, and the profile read that respects it.","names":["backoff","rateLimited","retryAfterMs","noteRateLimit","fetchMe"],"inner":{"factory":"createSpotifyProvider","make":"makeBackoff"}},
       {"file":"server/streaming/spotify-sign-in.js","about":"Signing in to Spotify with PKCE: the address of the consent page and the state that guards the way back, the code exchanged for tokens, and the token renewed.","names":["pending","sweepPending","configured","buildAuthUrl","exchangeCode","refresh"],"inner":{"factory":"createSpotifyProvider","make":"makeSignIn"}},
@@ -1205,7 +1205,7 @@
       {"factory":"createFileSearch","object":"tally","names":["usage","usageSaveTimer","usageDirty"],"kept":[],"bare":[],"after":0},
       {"factory":"createFileSearch","object":"hostQueue","names":["waiting","inFlight"],"kept":[],"bare":[],"after":5}
     ],
-    "server/stream-spotify.js": [
+    "server/media/stream-spotify.js": [
       {"factory":"createSpotifyProvider","object":"backoff","names":["_rateLimitedUntil"],"kept":[],"bare":[],"after":0},
       {"factory":"createSpotifyProvider","object":"playerState","names":["_playerCache","_playerPending","_playerGen"],"kept":[],"bare":[],"after":0},
       {"factory":"createSpotifyProvider","object":"lastLiked","names":["_likedCache"],"kept":[],"bare":[],"after":0}
