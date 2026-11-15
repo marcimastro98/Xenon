@@ -124,9 +124,9 @@ test('the Deck key and Bit pick the newest, and say errors the Deck can explain'
     assert.deepEqual(await sendCapture.run(bad, {}), { ok: false, error: code });
   }
   assert.deepEqual(await sendCapture.run({}, {}), { ok: false, error: 'unavailable' });
-  const DeckErrorText = require('../js/deck-error-text.js');
+  const DeckErrorText = require('../js/deck/deck-error-text.js');
   for (const code of ['no_phone', 'transfer_off', 'send_too_big', 'send_full', 'send_busy', 'no_space']) {
-    assert.ok(read('js/deck-error-text.js').includes(`    ${code}: [`), code);
+    assert.ok(read('js/deck/deck-error-text.js').includes(`    ${code}: [`), code);
   }
   assert.ok(DeckErrorText);
 });

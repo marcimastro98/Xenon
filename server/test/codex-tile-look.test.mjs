@@ -81,7 +81,7 @@ function mount(payload, { face = 'live' } = {}) {
   sandbox.t = (k) => (k in LABELS ? LABELS[k] : k);
   sandbox.addEventListener = () => {};
   vm.createContext(sandbox);
-  vm.runInContext(read('js', 'approval-keys.js'), sandbox, { filename: 'approval-keys.js' });
+  vm.runInContext(read('js', 'deck/approval-keys.js'), sandbox, { filename: 'approval-keys.js' });
   vm.runInContext(read('js', 'codex-widget.js'), sandbox, { filename: 'codex-widget.js' });
   sandbox.CodexWidget.onSSE(payload);
   return host;

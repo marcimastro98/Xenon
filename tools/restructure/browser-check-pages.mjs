@@ -17,7 +17,7 @@ const GROUP = 22;
 const DESK = { width: 1280, height: 720 };
 
 // What the window of a second deck shows: whose deck the tile is, and that it was drawn. The page's last script
-// (js/deck-popup.js) writes the first from the address before the deck starts. Runs in the page.
+// (js/deck/deck-popup.js) writes the first from the address before the deck starts. Runs in the page.
 function deckOfTheWindow() {
   const tile = document.querySelector('[data-dashboard-widget="deck"]');
   return { deck: tile ? tile.getAttribute('data-dashboard-instance') : 'no tile', drawn: Boolean(tile?.childElementCount) };

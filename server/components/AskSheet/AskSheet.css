@@ -1,7 +1,7 @@
 /* The window a Codex or a Claude Code request opens over the whole screen when it cannot
    wait: who is asking and what for, what it would do, then what happens if nobody answers
    and the keys. It is the tile's own card dressed for this room (.ask-sheet, built by
-   js/approval-keys.js). Its colours are the theme's roles, so it reads on every skin;
+   js/deck/approval-keys.js). Its colours are the theme's roles, so it reads on every skin;
    Liquid turns it into glass in styles/liquid-sheets.css. The questions the host puts
    itself (a widget's permissions, a copy, a site, a pairing) use it too. */
 

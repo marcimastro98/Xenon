@@ -184,7 +184,7 @@ test('Deck: SSE recording lights the Record key or the Timelapse key, never both
   assert.deepEqual(DeckModel.recordingStates(null), { recordingOn: false, timelapseOn: false });
   assert.ok(DeckModel.DECK_STATE_SOURCES.includes('timelapseOn'));
   const read = rel => readFileSync(new URL('../' + rel, import.meta.url), 'utf8');
-  assert.match(read('js/deck-feed.js'), /on\('recording', \(d\) => \{ if \(D\(\)\) D\(\)\.refreshStates\(window\.DeckModel\.recordingStates\(d\)\); \}\);/);
+  assert.match(read('js/deck/deck-feed.js'), /on\('recording', \(d\) => \{ if \(D\(\)\) D\(\)\.refreshStates\(window\.DeckModel\.recordingStates\(d\)\); \}\);/);
   assert.match(read('js/main.js'), /window\.Deck\.refreshStates\(window\.DeckModel\.recordingStates\(d\)\)/);
   assert.match(read('js/deck-editor.js'), /s\.type === 'timelapse' && \(!s\.params \|\| s\.params\.mode !== 'reveal'\)\)\) return \{ source: 'timelapseOn' \}/);
 });

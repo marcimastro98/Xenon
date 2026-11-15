@@ -87,12 +87,12 @@
     youtubelive: tile('youtubelive', 'YouTubeLiveWidget', ['js/youtubelive-widget.js'], {}),
     twitchwatch: tile('twitchwatch', 'TwitchWatchWidget', ['js/tile-tab-memory.js', 'js/twitch-chat.js', 'js/watch-view.js', 'js/twitchwatch-widget.js'], {}, null, ['components/TwitchWatchWidget/TwitchWatchWidgetChat.css']),
     spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}, null, ['components/SpotifyWidget/SpotifyWidgetTabs.css']),
-    claude: tile('claude', 'ClaudeWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/custom-select.js', 'js/claude-code/claude-history.js', 'js/claude-code/claude-thread.js', 'js/claude-code/claude-roadmap.js', 'js/claude-code/claude-ident.js',
+    claude: tile('claude', 'ClaudeWidget', ['js/deck/approval-keys.js', 'js/dialog-focus.js', 'js/custom-select.js', 'js/claude-code/claude-history.js', 'js/claude-code/claude-thread.js', 'js/claude-code/claude-roadmap.js', 'js/claude-code/claude-ident.js',
       'js/claude-code/claude-clawd.js', 'js/claude-code/claude-rail.js', 'js/claude-code/claude-console.js', 'js/claude-code/claude-agents.js', 'js/claude-widget/words.js', 'js/claude-widget/model-words.js', 'js/claude-widget/known.js', 'js/claude-widget/lines.js', 'js/claude-widget/composer-parts.js', 'js/claude-widget/ticker.js', 'js/claude-widget/figures.js', 'js/claude-widget/markdown.js', 'js/claude-widget/decision-sheet.js', 'js/claude-widget/link-panel.js', 'js/claude-widget/budget-editor.js', 'js/claude-widget/session-parts.js', 'js/claude-widget/small-controls.js', 'js/claude-widget.js'], { claude: 'onSSE' },
       'ClaudeWidget', ['components/ClaudeWidget/ClaudeWidgetDecisions.css', 'components/ClaudeWidget/ClaudeWidgetHeader.css', 'components/ClaudeWidget/ClaudeWidgetConsole.css', 'components/ClaudeWidget/ClaudeWidgetComposer.css', 'components/ClaudeWidget/ClaudeWidgetPanels.css', 'components/CustomSelect/CustomSelect.css', 'components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
-    openaicodex: tile('openaicodex', 'CodexWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/codex-widget/lines.js', 'js/codex-widget.js'], { codex: 'onSSE' },
+    openaicodex: tile('openaicodex', 'CodexWidget', ['js/deck/approval-keys.js', 'js/dialog-focus.js', 'js/codex-widget/lines.js', 'js/codex-widget.js'], { codex: 'onSSE' },
       'CodexWidget', ['components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
-    chatgpt: tile('chatgpt', 'ChatGPTWidget', ['js/approval-keys.js', 'js/codex/chatgpt-widget.js'], { chatgpt: 'onSSE', codex: 'onCodex' }),
+    chatgpt: tile('chatgpt', 'ChatGPTWidget', ['js/deck/approval-keys.js', 'js/codex/chatgpt-widget.js'], { chatgpt: 'onSSE', codex: 'onCodex' }),
     transfer: tile('transfer', 'TransferWidget', ['js/transfer-widget/says.js', 'js/transfer-widget.js'], { transfer: 'onState', transfer_progress: 'onProgress' }, null, ['components/TransferWidget/TransferWidgetList.css', 'components/TransferWidget/TransferWidgetRows.css', 'components/TransferWidget/TransferWidgetSheet.css']),
     phone: tile('phone', 'PhoneWidget', ['js/tile-tab-memory.js', 'js/phone-widget.js'], { phone: 'onSSE' }),
     search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight/result-words.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css', 'components/Spotlight/SpotlightResults.css']),
@@ -119,13 +119,13 @@
     twitch: tile('twitch', 'StreamingPage', ['js/twitch-chat.js', 'js/streaming-page/login-words.js', 'js/streaming-page/discord-notifications.js', 'js/streaming-page.js'],
       { status: 'onStatus', obs: 'onObs', obs_preview: 'onObsPreview' }, 'TwitchPanel'),
     // The Deck as the Virtual Deck popup shows it: keys and presses, no editor
-    // (deck-editor.js is not here). deck.js draws it by itself; js/deck-feed.js
+    // (deck-editor.js is not here). deck.js draws it by itself; js/deck/deck-feed.js
     // gives it the stream (layer-lite-tiles.js attaches it).
     deck: {
       css: ['components/CustomSelect/CustomSelect.css', 'components/DeckPanel/DeckPanel.css', 'components/DeckPanel/DeckPanelKeys.css', 'components/DeckPanel/DeckPanelKeyStates.css', 'components/DeckPanel/DeckPanelShapes.css', 'components/DeckPanel/DeckPanelWindows.css', 'components/DeckPanel/DeckPanelKeyEditor.css', 'components/DeckPanel/DeckPanelPresetsEffects.css', 'components/DeckPanel/DeckPanelFaceControls.css'],
       js: ['js/custom-select.js', 'js/spark-path.js', 'js/deck-shortcuts.js', 'js/deck-model.js', 'js/vitals/vitals-core.js', 'js/deck-store.js',
-        'js/deck-icons.js', 'js/capabilities/capability-catalog.js', 'js/deck-actions.js', 'js/deck-error-text.js', 'js/decor-bg.js', 'js/deck/key-face.js', 'js/deck/look-stamps.js', 'js/deck/store-reads.js', 'js/deck/press-feedback.js', 'js/deck/grid-fit.js', 'js/deck/key-actions.js', 'js/deck/profile-names.js', 'js/deck/parts.js', 'js/deck/live-state.js', 'js/deck/nav.js', 'js/deck/edit-tools.js', 'js/deck/style-preview.js', 'js/deck.js',
-        'js/deck-feed.js'],
+        'js/deck-icons.js', 'js/capabilities/capability-catalog.js', 'js/deck-actions.js', 'js/deck/deck-error-text.js', 'js/decor-bg.js', 'js/deck/key-face.js', 'js/deck/look-stamps.js', 'js/deck/store-reads.js', 'js/deck/press-feedback.js', 'js/deck/grid-fit.js', 'js/deck/key-actions.js', 'js/deck/profile-names.js', 'js/deck/parts.js', 'js/deck/live-state.js', 'js/deck/nav.js', 'js/deck/edit-tools.js', 'js/deck/style-preview.js', 'js/deck.js',
+        'js/deck/deck-feed.js'],
       markup: ['deck'],
     },
     chat: { full: 'the Xenon AI chat is ai.js, which a light page never loads; on the screen Bit opens in the alerts window instead' },

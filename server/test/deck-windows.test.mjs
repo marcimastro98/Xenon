@@ -172,7 +172,7 @@ function recorder() {
   };
   const keys = windowKeys(window);
   vm.runInNewContext(read('../js/dialog-focus.js'), { window, document });
-  vm.runInNewContext(read('../js/deck-editor-shortcut.js'), {
+  vm.runInNewContext(read('../js/deck/deck-editor-shortcut.js'), {
     window,
     document,
     navigator: { platform: 'Win32', userAgent: '' },
@@ -274,7 +274,7 @@ test('the window keys are drawn marks, never characters that change with the fon
   const deck = read('../js/deck.js');
   const windows = [
     read('../js/deck-editor.js'),
-    read('../js/deck-editor-shortcut.js'),
+    read('../js/deck/deck-editor-shortcut.js'),
     namesOf(deck, 'deck.js').all('openDeckStyleModal', 'openAutoSwitchDialog', 'openDeckMixer'),
   ].join('\n');
   assert.doesNotMatch(windows, /['"`][^'"`\n]*[✕✖＋][^'"`\n]*['"`]/);

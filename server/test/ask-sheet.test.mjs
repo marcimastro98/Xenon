@@ -33,7 +33,7 @@ function sheetRig() {
       return () => { log.push(`let go, in the page: ${root.isConnected}`); letGo(); };
     },
   };
-  vm.runInNewContext(read('../js/approval-keys.js'), { window, document, setTimeout, clearTimeout });
+  vm.runInNewContext(read('../js/deck/approval-keys.js'), { window, document, setTimeout, clearTimeout });
   const press = (key) => keys.slice().forEach((fn) => fn({ key, preventDefault() {}, stopPropagation() {} }));
   const sheet = window.ApprovalKeys.createSheet({ className: 'cw-overlay', freeze: 'claude-approval', scrollers: ['.cw-dec-body'] });
   const card = () => {
@@ -189,7 +189,7 @@ function widgetRig(scripts, tileClass, widget) {
 const words = (root, sel) => root.querySelectorAll(sel).map((n) => n.textContent);
 
 function codexSheet(approvals) {
-  const rig = widgetRig(['dialog-focus.js', 'approval-keys.js', 'codex-widget.js'], 'codex-widget-mount', 'openaicodex');
+  const rig = widgetRig(['dialog-focus.js', 'deck/approval-keys.js', 'codex-widget.js'], 'codex-widget-mount', 'openaicodex');
   rig.sandbox.CodexWidget.onSSE({
     app: { state: 'ok', account: { plan: 'plus' }, caps: {}, limits: { buckets: [] }, threads: [], usage: {} },
     live: { approvals, sessions: [] },
@@ -254,7 +254,7 @@ test('Codex: the tile keeps its own order of keys', () => {
 });
 
 function claudeSheet(approvals) {
-  const rig = widgetRig(['dialog-focus.js', 'approval-keys.js', 'claude-code/claude-history.js', 'claude-code/claude-thread.js', 'claude-code/claude-roadmap.js', 'claude-code/claude-ident.js', 'claude-code/claude-clawd.js', 'claude-code/claude-rail.js', 'claude-code/claude-console.js', 'claude-code/claude-agents.js', 'claude-widget.js'], 'claude-widget-mount', 'claude');
+  const rig = widgetRig(['dialog-focus.js', 'deck/approval-keys.js', 'claude-code/claude-history.js', 'claude-code/claude-thread.js', 'claude-code/claude-roadmap.js', 'claude-code/claude-ident.js', 'claude-code/claude-clawd.js', 'claude-code/claude-rail.js', 'claude-code/claude-console.js', 'claude-code/claude-agents.js', 'claude-widget.js'], 'claude-widget-mount', 'claude');
   rig.sandbox.ClaudeWidget.onSSE({ live: { approvals, sessions: [] }, usage: {}, budget: {}, tile: {} });
   return { ...rig, root: rig.document.querySelector('.ask-overlay') };
 }
@@ -305,7 +305,7 @@ test('Claude: Esc on a question hands it back, on a plan keeps planning', () => 
 test('two presses of the keyboard survive a push that rebuilds the key between them', () => {
   const { document } = makeDom();
   const window = {};
-  vm.runInNewContext(read('../js/approval-keys.js'), { window, document, setTimeout, clearTimeout, Date });
+  vm.runInNewContext(read('../js/deck/approval-keys.js'), { window, document, setTimeout, clearTimeout, Date });
   let allowed = 0;
   const hold = () => window.ApprovalKeys.holdButton({
     className: 'k', label: 'Hold to allow', pressAgain: 'Press again', holdMs: 900, keep: 'k-a-hold',
@@ -375,12 +375,12 @@ test('the window comes with the tile wherever the tile can stand alone', () => {
   const layer = read('../js/layer-tiles.js');
   const claude = /claude: tile\([\s\S]*?\n\s*chatgpt: tile/.exec(layer)[0];
   assert.equal((claude.match(/'js\/dialog-focus\.js'/g) || []).length, 2);
-  assert.equal((claude.match(/'js\/approval-keys\.js'/g) || []).length, 2);
+  assert.equal((claude.match(/'js\/deck\/approval-keys\.js'/g) || []).length, 2);
   assert.equal((claude.match(/components\/AskSheet\/AskSheet\.css/g) || []).length, 2);
   assert.equal((claude.match(/styles\/liquid-sheets\.css/g) || []).length, 2);
   const page = read('../index.html');
   const at = (name) => page.indexOf(`<script src="js/${name}"`);
-  assert.ok(at('approval-keys.js') > 0 && at('approval-keys.js') < at('claude-widget.js'), 'Claude needs it on load');
+  assert.ok(at('deck/approval-keys.js') > 0 && at('deck/approval-keys.js') < at('claude-widget.js'), 'Claude needs it on load');
   assert.ok(at('dialog-focus.js') > 0 && at('dialog-focus.js') < at('claude-widget.js'));
   assert.match(page, /components\/AskSheet\/AskSheet\.css/);
 });

@@ -55,7 +55,7 @@ test('the dashboard lights the key on start, clears it on end, toasts only real 
 });
 
 test('the Deck popup follows the same event', () => {
-  assert.match(read('../js/deck-feed.js'), /on\('benchmark', \(d\) => \{ if \(D\(\)\) D\(\)\.refreshStates\(\{ benchmarkRunning: !!\(d && d\.running\) \}\); \}\);/);
+  assert.match(read('../js/deck/deck-feed.js'), /on\('benchmark', \(d\) => \{ if \(D\(\)\) D\(\)\.refreshStates\(\{ benchmarkRunning: !!\(d && d\.running\) \}\); \}\);/);
 });
 
 test('a dashboard that connects mid-run is seeded once', () => {
@@ -93,7 +93,7 @@ test('recordingOn is a state source, fed by the `recording` SSE on the dashboard
   ctx.fn({ data: JSON.stringify({ on: false, reason: 'stopped' }) });
   assert.deepEqual(JSON.parse(JSON.stringify(states)), [{ recordingOn: true, timelapseOn: false }, { recordingOn: false, timelapseOn: false }]);
   assert.equal(cards.length, 2);
-  assert.match(read('../js/deck-feed.js'), /on\('recording', \(d\) => \{ if \(D\(\)\) D\(\)\.refreshStates\(window\.DeckModel\.recordingStates\(d\)\); \}\);/);
+  assert.match(read('../js/deck/deck-feed.js'), /on\('recording', \(d\) => \{ if \(D\(\)\) D\(\)\.refreshStates\(window\.DeckModel\.recordingStates\(d\)\); \}\);/);
 });
 
 test('a dashboard that connects mid-recording is seeded; the editor binds a Record key', () => {

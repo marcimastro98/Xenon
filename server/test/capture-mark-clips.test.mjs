@@ -204,7 +204,7 @@ test('wired: route, CSRF, phone, Deck error words, gallery button', () => {
   assert.match(server, /broadcastSSE\('captures', \{ changed: true \}\)/);
   assert.match(engineSource('server/remote-access.js'), /'\/captures\/clips'/);
   assert.match(read('../capabilities/index.js'), /case 'markClips': return markClips\.run\(d, action\)/);
-  const errors = read('../js/deck-error-text.js');
+  const errors = read('../js/deck/deck-error-text.js');
   assert.match(errors, /no_marks: \['capg_clips_err_none'/);
   assert.match(errors, /whole_video: \['capg_clips_err_whole'/);
   const viewer = read('../js/capture/capture-gallery-viewer.js');

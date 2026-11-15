@@ -7,7 +7,7 @@
 // tiles need only their row in the table: renderWidgets() on every settings
 // pass and their SSE events, as main.js and dashboard-layout.js give them. The
 // System, Media and Agenda tiles have more to do and are driven below; the Deck
-// draws itself and takes the stream from js/deck-feed.js.
+// draws itself and takes the stream from js/deck/deck-feed.js.
 const LayerLiteTiles = (function () {
   // The System tile's cards and the sizes they take, as settings.js defines them.
   const SYSTEM_CARDS = Object.freeze({ main: ['cpu', 'gpu', 'ram', 'disk'], net: ['ping', 'fps', 'latency', 'bandwidth'] });

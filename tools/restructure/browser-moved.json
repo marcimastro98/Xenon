@@ -69,6 +69,14 @@
     {"from":"server/js/claude-ident.js","to":"server/js/claude-code/claude-ident.js"},
     {"from":"server/js/claude-rail.js","to":"server/js/claude-code/claude-rail.js"},
     {"from":"server/js/claude-roadmap.js","to":"server/js/claude-code/claude-roadmap.js"},
-    {"from":"server/js/claude-thread.js","to":"server/js/claude-code/claude-thread.js"}
+    {"from":"server/js/claude-thread.js","to":"server/js/claude-code/claude-thread.js"},
+    {"from":"server/js/approval-keys.js","to":"server/js/deck/approval-keys.js"},
+    {"from":"server/js/deck-done-text.js","to":"server/js/deck/deck-done-text.js"},
+    {"from":"server/js/deck-editor-behavior.js","to":"server/js/deck/deck-editor-behavior.js"},
+    {"from":"server/js/deck-editor-place.js","to":"server/js/deck/deck-editor-place.js"},
+    {"from":"server/js/deck-editor-shortcut.js","to":"server/js/deck/deck-editor-shortcut.js"},
+    {"from":"server/js/deck-error-text.js","to":"server/js/deck/deck-error-text.js"},
+    {"from":"server/js/deck-feed.js","to":"server/js/deck/deck-feed.js"},
+    {"from":"server/js/deck-popup.js","to":"server/js/deck/deck-popup.js"}
   ]
 }

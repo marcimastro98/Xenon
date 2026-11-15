@@ -4,7 +4,7 @@
 'use strict';
 
 (() => {
-  // A key whose effect cannot be seen says what it did (js/deck-done-text.js).
+  // A key whose effect cannot be seen says what it did (js/deck/deck-done-text.js).
   function tellDone(action, data) {
     const note = window.XenonToast && window.DeckDoneText ? window.DeckDoneText.note(action, data, tt) : null;
     if (note) window.XenonToast.show(note);

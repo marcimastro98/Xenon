@@ -47,7 +47,7 @@ function load({ hotkeys = { slots: { replay: 'listening' }, taken: [{ combo: 'ct
   };
   vm.createContext(sandbox);
   vm.runInContext(read('deck-shortcuts.js'), sandbox);
-  vm.runInContext(read('deck-editor-shortcut.js'), sandbox);
+  vm.runInContext(read('deck/deck-editor-shortcut.js'), sandbox);
   vm.runInContext(read('capture/capture-replay-key.js'), sandbox);
   // A keydown as the browser sends it, through the listener the recorder holds.
   const press = (e) => {
@@ -175,5 +175,5 @@ test('the markup has the row inside the replay group, and the script is loaded a
   const group = HTML.slice(HTML.indexOf('id="settings-replay-group"'), HTML.indexOf('<!-- Recording options'));
   for (const id of IDS) assert.ok(group.includes(`id="${id}"`), id);
   assert.ok(HTML.indexOf('src="js/capture/capture-replay-key.js"') > HTML.indexOf('src="js/capture/capture-settings-pane.js"'));
-  assert.ok(HTML.indexOf('src="js/capture/capture-replay-key.js"') > HTML.indexOf('src="js/deck-editor-shortcut.js"'));
+  assert.ok(HTML.indexOf('src="js/capture/capture-replay-key.js"') > HTML.indexOf('src="js/deck/deck-editor-shortcut.js"'));
 });

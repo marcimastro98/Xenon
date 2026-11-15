@@ -94,7 +94,7 @@
 
 /* ── The questions the host puts for a widget ─────────────────────────
    Their window is the request window (components/AskSheet, question() in
-   js/approval-keys.js): it reads as Xenon asking, not as the widget's own UI, and
+   js/deck/approval-keys.js): it reads as Xenon asking, not as the widget's own UI, and
    it sits above whatever raised it. Here is only what goes inside. */
 .cw-perm-desc { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
 .cw-perm-sec { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

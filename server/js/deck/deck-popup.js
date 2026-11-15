@@ -14,7 +14,7 @@
     tile.setAttribute('data-dashboard-instance', instance);
   }
 
-  // ── SSE relay → Deck.refreshStates (js/deck-feed.js) ──
+  // ── SSE relay → Deck.refreshStates (js/deck/deck-feed.js) ──
   function connect() {
     const es = new EventSource('/sse');
     window.DeckFeed.attach(es);

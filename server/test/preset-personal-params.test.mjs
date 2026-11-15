@@ -136,7 +136,7 @@ test('blob: icons on the second face and on cycle faces do not travel', () => {
 test('a key waiting for setup says so when pressed, in every language', () => {
   const deck = read('js/deck.js');
   assert.match(deck, /needsSetup\(action\)\) \{\s*reportActionError\('not_set_up'\)/);
-  assert.match(read('js/deck-error-text.js'), /not_set_up: \['deck_err_not_set_up'/);
+  assert.match(read('js/deck/deck-error-text.js'), /not_set_up: \['deck_err_not_set_up'/);
   const i18n = appStringsSource();
   for (const k of ['deck_err_not_set_up', 'preset_deck_finish', 'preset_deck_finish_meta']) {
     const n = (i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length;

@@ -46,7 +46,7 @@ test('a script is served as JavaScript and never type-sniffed: a browser refuses
 });
 
 test('a page of ours loads a module, a page that is not ours cannot read one', () => {
-  const refused = (headers, file = '/js/deck-popup.js') => refusedCrossSite({ method: 'GET', headers }, 3030, file, { jsonp: () => false });
+  const refused = (headers, file = '/js/deck/deck-popup.js') => refusedCrossSite({ method: 'GET', headers }, 3030, file, { jsonp: () => false });
   // A module is fetched in cors mode. From our own page that is a same-origin request.
   assert.equal(refused({ 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'script' }), false);
   const elsewhere = { origin: 'https://example.com', 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'script' };
@@ -59,6 +59,6 @@ test('a page of ours loads a module, a page that is not ours cannot read one', (
 
 test('a paired device may ask for a page script', () => {
   // The request is same-origin for the device too, so the browser sends the pairing cookie with it as it does for a classic script.
-  assert.equal(remotePathAllowed('/js/deck-popup.js', 'GET'), true);
+  assert.equal(remotePathAllowed('/js/deck/deck-popup.js', 'GET'), true);
   assert.equal(remotePathAllowed('/js/../data/settings.json', 'GET'), false);
 });

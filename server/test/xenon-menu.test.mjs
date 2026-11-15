@@ -823,7 +823,7 @@ test('the tray item opens the menu with the request the server reads', () => {
 });
 
 test('bad_shortcut has its own sentence in every language', () => {
-  const D = require('../js/deck-error-text.js');
+  const D = require('../js/deck/deck-error-text.js');
   assert.match(D.describe('bad_shortcut', (k) => dict.it[k] || k), /\S/);
   for (const lang of LANGS) assert.ok(dict[lang].deck_err_bad_shortcut, lang);
 });

@@ -1,7 +1,7 @@
 // A Deck key that shows a Vitals meter (key.live = { source: 'vitals', name }):
 // the face text and colour (js/deck-model.js), and the three pages that feed
 // snapshot.vitals: the dashboard (js/vitals/vitals.js), and the Virtual Deck popup and
-// layer pages (js/deck-feed.js), which compute it from the saved settings.
+// layer pages (js/deck/deck-feed.js), which compute it from the saved settings.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
@@ -67,7 +67,7 @@ test('wiring: the dashboard, the popup and layer pages feed it, only on change',
   assert.ok(vitalsJs.includes('if (sig === deckSig) return;'));
   assert.ok(vitalsJs.includes('window.Deck.refreshStates({ vitals });'));
   assert.match(vitalsJs, /function tick\(\) \{\n    const v = cfg\(\);\n    if \(v\.enabled\) stepActive\(\);\n    publishDeck\(\);/);
-  const feed = read('../js/deck-feed.js');
+  const feed = read('../js/deck/deck-feed.js');
   assert.ok(feed.includes('if (sig === vitalsSig) return;'));
   assert.ok(feed.includes("if (!window.VitalsCore || !hasVitalsKey()) return;"), 'no work without a Vitals key on screen');
   assert.ok(feed.includes("on('settings', () => { vitalsStale = true; vitalsTick(); });"));

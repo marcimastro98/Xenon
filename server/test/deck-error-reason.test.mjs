@@ -16,7 +16,7 @@ import { engineSource } from './engine-source.mjs';
 
 const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 // The sentences moved to their own file, shared with the on-screen alerts.
-const ERR_TEXT_SRC = readFileSync(new URL('../js/deck-error-text.js', import.meta.url), 'utf8');
+const ERR_TEXT_SRC = readFileSync(new URL('../js/deck/deck-error-text.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const REGISTRY = engineSource('server/actions/registry.js');
 // The page rules answer the menu and the Deck with their own codes.
@@ -109,7 +109,7 @@ test('every explained code is one the registry emits', () => {
 // An unknown code must still reach the screen: it is the thing that gets pasted
 // into a report, and swallowing it is what made this invisible in the first place.
 test('an unrecognised code is shown rather than swallowed', async () => {
-  const { describe, shortcutFailed } = (await import('../js/deck-error-text.js')).default;
+  const { describe, shortcutFailed } = (await import('../js/deck/deck-error-text.js')).default;
   const tt = (_key, fallback) => fallback;
   assert.equal(describe('weird_code', tt), 'weird_code', 'no sentence falls back to the bare code, never to nothing');
   assert.equal(describe('not_found', tt), 'That path does not exist on this PC', 'a sentence stands alone and starts as one');
@@ -129,7 +129,7 @@ test('an unrecognised code is shown rather than swallowed', async () => {
 // Found by pressing every new key: the sentence for a replay key was the answer
 // to a benchmark key too, and two ordinary answers had no sentence at all.
 test('the sentence fits every key that can get the code', async () => {
-  const { describe } = (await import('../js/deck-error-text.js')).default;
+  const { describe } = (await import('../js/deck/deck-error-text.js')).default;
   const tt = (_key, fallback) => fallback;
   assert.equal(describe('no_game', tt), 'Open a game first', 'benchmark, replay and frame reads all answer no_game');
   assert.equal(describe('no_steps', tt), 'No clicks, nothing saved');
@@ -141,7 +141,7 @@ test('the sentence fits every key that can get the code', async () => {
 
 // "This key could not run" over "open a game first" reads as a broken key.
 test('a normal situation is a note, a real failure stays an error', async () => {
-  const { keyToast } = (await import('../js/deck-error-text.js')).default;
+  const { keyToast } = (await import('../js/deck/deck-error-text.js')).default;
   const tt = (_key, fallback) => fallback;
   for (const code of ['no_game', 'no_file', 'no_frames', 'not_recording', 'no_marks', 'whole_video', 'no_steps', 'no_pages', 'no_widgets', 'no_phone', 'companion_off']) {
     const note = keyToast(code, 'Open a game first', tt);
@@ -166,9 +166,9 @@ test('a stopped steps recording is told once on a page with the capture cards', 
 test('every page that loads deck.js loads the sentences first', () => {
   for (const page of ['index.html', 'deck-popup.html']) {
     const html = readFileSync(new URL('../' + page, import.meta.url), 'utf8');
-    const a = html.indexOf('js/deck-error-text.js'), b = html.indexOf('js/deck.js"');
+    const a = html.indexOf('js/deck/deck-error-text.js'), b = html.indexOf('js/deck.js"');
     assert.ok(a > 0 && a < b, page);
-    const c = html.indexOf('js/deck-done-text.js');
+    const c = html.indexOf('js/deck/deck-done-text.js');
     assert.ok(c > 0 && c < b, page + ' loads the done notes too');
   }
 });

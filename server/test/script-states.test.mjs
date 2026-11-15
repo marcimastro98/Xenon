@@ -153,8 +153,8 @@ test('both deck surfaces listen for script_states', () => {
   // different places; a listener on only one leaves the other's keys dark.
   assert.match(read('js', 'main.js'), /addEventListener\('script_states'/);
   assert.match(read('js', 'main.js'), /refreshStates\(\{ scriptStates:/);
-  assert.match(read('js', 'deck-feed.js'), /on\('script_states'/);
-  assert.match(read('js', 'deck-feed.js'), /refreshStates\(\{ scriptStates:/);
+  assert.match(read('js', 'deck/deck-feed.js'), /on\('script_states'/);
+  assert.match(read('js', 'deck/deck-feed.js'), /refreshStates\(\{ scriptStates:/);
 });
 
 test('the deck snapshot carries scriptStates', () => {

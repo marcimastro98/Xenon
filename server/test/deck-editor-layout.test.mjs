@@ -89,5 +89,5 @@ test('a macro from the Xenon menu opens on name, actions and shortcut, the rest 
 
 test('a macro cannot be saved without a shortcut: Keys lists only keys that have one', () => {
   assert.match(ED, /if \(opts\.needsShortcut && !shortcut\.ask\(\)\) return;/);
-  assert.match(read('../js/deck-editor-shortcut.js'), /ask\(\) \{ if \(!value\) say\('deck_shortcut_needed', true\); return !!value; \}/);
+  assert.match(read('../js/deck/deck-editor-shortcut.js'), /ask\(\) \{ if \(!value\) say\('deck_shortcut_needed', true\); return !!value; \}/);
 });

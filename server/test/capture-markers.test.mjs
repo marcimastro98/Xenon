@@ -269,7 +269,7 @@ test('wired: catalog, AI, SDK capture lists, Deck error text, settings, live toa
   assert.match(read('capabilities/index.js'), /case 'captureMarker': return captureMarker\.run\(d, action\);/);
   assert.ok(sdk.SDK_ACTION_CATEGORIES.capture.includes('captureMarker'));
   assert.match(read('js/custom-widget.js'), /'screenMeasure', 'captureMarker'\]/);
-  assert.match(read('js/deck-error-text.js'), /not_recording: \['deck_err_not_recording'/);
+  assert.match(read('js/deck/deck-error-text.js'), /not_recording: \['deck_err_not_recording'/);
   assert.equal(normalizeCaptureSettings({}).autoMarks, true, 'on by default');
   assert.equal(normalizeCaptureSettings({ autoMarks: false }).autoMarks, false);
   assert.match(read('js/main.js'), /addEventListener\('capture_marker'/);

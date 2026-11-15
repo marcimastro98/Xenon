@@ -641,7 +641,7 @@
     } catch { reportActionError('failed'); return false; }
   }
 
-  // The sentences live in js/deck-error-text.js (shared with the on-screen alerts).
+  // The sentences live in js/deck/deck-error-text.js (shared with the on-screen alerts).
   const describeDeckError = (code) => window.DeckErrorText.describe(code, tt);
   // A slider posts one action per 100ms while it is dragged, so a failing one
   // would bury the screen. Identical messages collapse for a few seconds; a

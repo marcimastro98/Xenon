@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const M = require('../js/deck-model.js');
 const DA = require('../js/deck-actions.js');
-const B = require('../js/deck-editor-behavior.js');
+const B = require('../js/deck/deck-editor-behavior.js');
 const reg = require('../actions/registry.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const JS = read('../js/deck.js');
@@ -248,7 +248,7 @@ test('the editor saves only the gestures of the chosen behaviour and loads the c
   assert.match(ED, /behavior\.collect\(key\);/);
   assert.match(ED, /if \(seg\) shown\.forEach\(\(tr\) => seg\.appendChild\(trigBtns\[tr\]\)\);/, 'gestures shown in the behaviour order');
   assert.match(ED, /paneAction\.appendChild\(behavior\.el\);\n    paneAction\.appendChild\(fTrig\);/);
-  assert.ok(read('../index.html').includes(['server/js/deck-editor-behavior.js', ...partsOf('server/js/deck-editor.js')].map((file) => `<script src="${file.slice('server/'.length)}"></script>`).join('\n')), 'the card, then the editor as the scripts it is made of today');
+  assert.ok(read('../index.html').includes(['server/js/deck/deck-editor-behavior.js', ...partsOf('server/js/deck-editor.js')].map((file) => `<script src="${file.slice('server/'.length)}"></script>`).join('\n')), 'the card, then the editor as the scripts it is made of today');
 });
 
 test('the Behaviour strings exist in all 11 languages', () => {

@@ -1,5 +1,5 @@
 // The questions the host puts for a widget or a tool: may this widget run, copy this, open
-// that site, pair that tool. They all open the request window (js/approval-keys.js), and each
+// that site, pair that tool. They all open the request window (js/deck/approval-keys.js), and each
 // one is a security decision, so what has to stay true is pinned here on the real code:
 //  1. Nothing holds a key when it opens. A stray Enter, or one aimed at something else while
 //     the window appears, approves nothing.
@@ -48,7 +48,7 @@ function rig() {
   const freezes = [];
   window.ambientFreeze = (token, on) => freezes.push(`${token} ${on}`);
   vm.runInNewContext(read('../js/dialog-focus.js'), { window, document });
-  vm.runInNewContext(read('../js/approval-keys.js'), { window, document, ...clock });
+  vm.runInNewContext(read('../js/deck/approval-keys.js'), { window, document, ...clock });
   const press = (key) => {
     const ev = { key, preventDefault() {}, stopPropagation() {} };
     keys.slice().forEach((fn) => fn(ev));
@@ -460,7 +460,7 @@ test('every page that runs widgets has the window, and the code it needs loads o
     const html = read(`../${page}`);
     assert.match(html, /js\/custom-widget\.js/, page);
     assert.equal((html.match(/js\/dialog-focus\.js/g) || []).length, 1, `${page}: dialog-focus`);
-    assert.equal((html.match(/js\/approval-keys\.js/g) || []).length, 1, `${page}: approval-keys`);
+    assert.equal((html.match(/js\/deck\/approval-keys\.js/g) || []).length, 1, `${page}: approval-keys`);
   }
   for (const page of ['index.html', 'layer-lite.html', 'scene.html']) {
     const html = read(`../${page}`);

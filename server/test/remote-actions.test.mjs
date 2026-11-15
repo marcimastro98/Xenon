@@ -250,7 +250,7 @@ test('the phone explains a refusal and the PC sees every new pairing, in every l
   assert.match(DECK, /hydrateDeckFromServer\(\);\s*return;/, 'the Deck goes back to what is saved');
   assert.match(SERVER, /broadcastSSE\('remote_paired', \{ name: r\.device\.name \}\)/);
   assert.match(MAIN, /es\.addEventListener\('remote_paired'/);
-  const text = require('../js/deck-error-text.js');
+  const text = require('../js/deck/deck-error-text.js');
   assert.ok(text);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
     for (const key of ['deck_err_needs_pc', 'cw_perm_at_pc', 'smarthome_needs_pc', 'claude_run_at_pc', 'deck_err_pc_only', 'deck_needs_pc_title', 'deck_needs_pc', 'ra_paired_toast_title', 'ra_paired_toast_hint']) {

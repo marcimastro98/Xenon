@@ -75,7 +75,7 @@ async function boot({ settings = {}, shell = true, dpr = 2, sounds = true, updat
     timeParts: (extra) => ({ ...extra, hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }),
     SERVER: 'http://127.0.0.1:3030',
     ThemeTokens: { applySkin() {}, derivePalette() { return {}; }, applyPalette() {}, applyMaterial() {}, applyFont() {} },
-    DeckErrorText: require('../js/deck-error-text.js'),
+    DeckErrorText: require('../js/deck/deck-error-text.js'),
     CaptureToast: { onCapture: (d) => captures.push(d), onRecording() {}, onReplay() {} },
     AlertToasts,
     EventSource,
@@ -240,7 +240,7 @@ test('in a browser tab there is no shell to signal', async () => {
 test('the page loads what it uses, in order', () => {
   const html = read('../screen-alerts.html');
   const order = ['js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/alerts/toast.js',
-    'js/alerts/alert-toasts.js', 'js/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/ai/screen-bit.js', 'js/alerts/screen-alerts.js'];
+    'js/alerts/alert-toasts.js', 'js/deck/deck-error-text.js', 'js/capture-toast.js', ...partsOf('server/js/call-modal.js').map((file) => file.slice('server/'.length)), 'js/ai/screen-bit.js', 'js/alerts/screen-alerts.js'];
   const at = order.map((f) => html.indexOf(`src="${f}"`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);

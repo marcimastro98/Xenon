@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
-const { note } = (await import('../js/deck-done-text.js')).default;
+const { note } = (await import('../js/deck/deck-done-text.js')).default;
 const tt = (key, fallback) => fallback || key;
 const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();

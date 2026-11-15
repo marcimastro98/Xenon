@@ -81,7 +81,7 @@ test('strings, the Settings rows and the Deck icon exist, in 11 languages', () =
   assert.match(read('../js/deck-editor.js'), /bugReport: _ai\(/);
   const html = read('../index.html');
   assert.ok(html.includes('data-folder-for="bugreport"') && html.includes('data-folder-for="buglogs"'));
-  const errs = require('../js/deck-error-text.js');
+  const errs = require('../js/deck/deck-error-text.js');
   const tt = (_k, f) => f;
   for (const code of ['busy', 'too_big', 'write_failed']) assert.notEqual(errs.describe(code, tt), code, code);
 });
