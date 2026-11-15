@@ -7350,8 +7350,4 @@ module.exports = {
   settings_backup_deck_keep_yes: '保留',
   settings_backup_deck_keep_no: '不带动作',
   settings_backup_deck_more: '另有 {n} 个',
-  claude_set_budget: '设置预算 →',
-  claude_empty_title: '正在等待 Claude Code',
-  claude_empty_desc: '在此电脑上启动 Claude Code 会话后，用量、项目和模型将在此点亮反应堆。',
-  claude_budget_hint: '没有官方 API 提供套餐剩余额度，请选择反应堆参照的每周上限，这是可调整的估算值。',
 };

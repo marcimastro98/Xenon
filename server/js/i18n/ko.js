@@ -7350,8 +7350,4 @@ module.exports = {
   settings_backup_deck_keep_yes: '유지',
   settings_backup_deck_keep_no: '동작 없이 두기',
   settings_backup_deck_more: '외 {n}개',
-  claude_set_budget: '예산 설정 →',
-  claude_empty_title: 'Claude Code 대기 중',
-  claude_empty_desc: '이 PC에서 Claude Code 세션을 시작하면 사용량, 프로젝트, 모델이 여기에 표시됩니다.',
-  claude_budget_hint: '플랜의 남은 할당량을 제공하는 공식 API가 없으므로 리액터가 기준으로 삼을 주간 상한을 선택하세요. 조정 가능한 추정치입니다.',
 };

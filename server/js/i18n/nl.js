@@ -7346,10 +7346,4 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Houden',
   settings_backup_deck_keep_no: 'Zonder actie laten',
   settings_backup_deck_more: 'en nog {n}',
-  claude_set_budget: 'stel een budget in →',
-  claude_empty_title: 'Wachten op Claude Code',
-  claude_empty_desc: 'Start een Claude Code-sessie op deze pc: je gebruik, projecten en modellen laten de reactor hier oplichten.',
-  claude_budget_hint: 'Geen enkele officiële API toont het resterende quotum van een abonnement, dus kies zelf het weekplafond waar de reactor aan aftoetst: een schatting die je kunt bijstellen.',
-  settings_gallery_title: 'Ontdekken: communitygalerij',
-  lighting_mode_color: 'Kleur',
 };

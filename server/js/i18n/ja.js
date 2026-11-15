@@ -7350,8 +7350,4 @@ module.exports = {
   settings_backup_deck_keep_yes: '残す',
   settings_backup_deck_keep_no: 'アクションなしにする',
   settings_backup_deck_more: 'ほか {n} 件',
-  claude_set_budget: '予算を設定 →',
-  claude_empty_title: 'Claude Code を待機中',
-  claude_empty_desc: 'この PC で Claude Code セッションを開始すると、使用量・プロジェクト・モデルがここに表示されます。',
-  claude_budget_hint: 'プランの残量を返す公式APIは無いため、リアクターの基準となる週間上限を選んでください（調整可能な目安です）。',
 };
