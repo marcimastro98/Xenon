@@ -94,7 +94,7 @@ function widgets(over = {}) {
     ...over,
   };
   vm.createContext(box);
-  const code = sliceOf('const pendingPermRequests', '// ── Tile rendering');
+  const code = sliceOf('const pendingPermRequests', '// One-tap install of a bundled reference widget.');
   vm.runInContext(`${code}\nthis.api = { openPermDialog, closePermDialog, openClipboardConfirm, openExternalConfirm };`, box);
   return { ...base, ...box.api, saved, copies, box };
 }
