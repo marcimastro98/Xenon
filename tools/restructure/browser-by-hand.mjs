@@ -107,12 +107,18 @@ export function performByHand({ root, parser, plan, dryRun = false }) {
   const lines = Object.fromEntries([...files].map(([file, written]) => [file, written.split('\n').length - 1]));
   const was = new Map([...files.keys()].map((file) => [file, read(file)]));
   const ledgerWas = read('tools/restructure/extracted-browser.json');
-  for (const [file, written] of files) { mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); writeFileSync(path.join(root, file), written); }
-  writeBrowserLedger(root, { ...ledger, moves: [...ledger.moves, cut.record] });
-  const problems = stateProblems({ root, parser, tests: false }).problems;
-  if (problems.length || dryRun) {
+  const putBack = () => {
     for (const [file, old] of was) { if (old === null) rmSync(path.join(root, file), { force: true }); else writeFileSync(path.join(root, file), old); }
     writeFileSync(path.join(root, 'tools/restructure/extracted-browser.json'), ledgerWas);
+  };
+  // The check reads the checkout, so the cut is written first; a check that cannot finish leaves nothing behind either.
+  let problems = null;
+  try {
+    for (const [file, written] of files) { mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); writeFileSync(path.join(root, file), written); }
+    writeBrowserLedger(root, { ...ledger, moves: [...ledger.moves, cut.record] });
+    problems = stateProblems({ root, parser, tests: false }).problems;
+  } finally {
+    if (problems === null || problems.length || dryRun) putBack();
   }
   return { record: cut.record, lines, problems };
 }
