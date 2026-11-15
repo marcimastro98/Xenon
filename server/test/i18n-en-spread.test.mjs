@@ -17,7 +17,7 @@ import vm from 'node:vm';
 // no language file can pull English in by itself.
 const require = createRequire(import.meta.url);
 const Tables = require('../app-strings/tables.js');
-const LayerStrings = require('../layer-strings.js');
+const LayerStrings = require('../layers/layer-strings.js');
 const OTHERS = Tables.LANGS.filter((code) => code !== Tables.FALLBACK);
 const fileText = (code) => readFileSync(Tables.fileOf(code), 'utf8');
 

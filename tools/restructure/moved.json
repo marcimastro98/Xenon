@@ -211,7 +211,13 @@
     {"from":"server/private-tmp.js","to":"server/files/private-tmp.js"},
     {"from":"server/ps-quote.js","to":"server/powershell/ps-quote.js"},
     {"from":"server/win-reserved.js","to":"server/files/win-reserved.js"},
-    {"from":"server/zip-writer.js","to":"server/files/zip-writer.js"}
+    {"from":"server/zip-writer.js","to":"server/files/zip-writer.js"},
+    {"from":"server/layer-page.js","to":"server/layers/layer-page.js"},
+    {"from":"server/layer-pages.js","to":"server/layers/layer-pages.js"},
+    {"from":"server/layer-strings.js","to":"server/layers/layer-strings.js"},
+    {"from":"server/layers-edit.js","to":"server/layers/layers-edit.js"},
+    {"from":"server/layers-host.js","to":"server/layers/layers-host.js"},
+    {"from":"server/layers-peek.js","to":"server/layers/layers-peek.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -237,6 +243,8 @@
     {"feature":"helpers-shared","glob":"server/zip-writer.js","at":10},
     {"feature":"helpers-shared","glob":"server/pinned-hash.js","at":11},
     {"feature":"helpers-shared","glob":"server/child-priority.js","at":12},
-    {"feature":"helpers-shared","glob":"server/private-tmp.js","at":13}
+    {"feature":"helpers-shared","glob":"server/private-tmp.js","at":13},
+    {"feature":"layers","glob":"server/layer-*.js","at":1},
+    {"feature":"layers","glob":"server/layers-*.js","at":2}
   ]
 }

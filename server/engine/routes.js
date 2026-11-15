@@ -6,7 +6,7 @@ const { hub } = require('../settings/current.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const fs = require('node:fs');
 const path = require('node:path');
-const LayerPage = require('../layer-page.js');
+const LayerPage = require('../layers/layer-page.js');
 
 const SERVER_DIR = path.join(__dirname, '..');
 

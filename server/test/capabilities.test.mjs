@@ -159,7 +159,7 @@ test('the runner refuses anything that is not a capability', async () => {
 
 // ── Layers ───────────────────────────────────────────────────────────────────
 
-const { createLayersEdit } = require('../layers-edit.js');
+const { createLayersEdit } = require('../layers/layers-edit.js');
 const LayersModel = require('../js/layers/layers-model.js');
 
 // A settings store in memory with the same contract as server.js
@@ -576,7 +576,7 @@ test('the AI never sees the exact-rectangle param: it is for edit mode only', ()
 });
 
 test('server.js wires edit mode: read-only GET, the SSE event, kept open by edits, stopped on shutdown', () => {
-  assert.match(SERVER, /require\('\.\/layers-edit'\)\.createLayersEdit\(\{\s*broadcast: \(on\) => broadcastSSE\('layers-edit', \{ on \}\),/);
+  assert.match(SERVER, /require\('\.\/layers\/layers-edit'\)\.createLayersEdit\(\{\s*broadcast: \(on\) => broadcastSSE\('layers-edit', \{ on \}\),/);
   // The hidden surfaces come back hidden only if the user chose nothing meanwhile.
   assert.match(SERVER, /onEnd: \(hidden\) => \{\s*updateLayersSetting\(\(cur\) => \{\s*const now = LayersModel\.normalize\(cur\);\s*if \(now\.hidden\.length\) return \{ error: 'unchanged' \};/);
   assert.match(SERVER, /'\/layers\/edit'[\s\S]{0,300}json\(\{ on: layersEdit\.get\(\), peek: layersPeek\.get\(\) \}\)/);

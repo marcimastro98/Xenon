@@ -16,7 +16,7 @@ import { CORE_FILE, languageFile, plan, splitLegacy, tidy } from '../../tools/re
 
 const require = createRequire(import.meta.url);
 const Tables = require('../app-strings/tables.js');
-const LayerStrings = require('../layer-strings.js');
+const LayerStrings = require('../layers/layer-strings.js');
 
 const cp = (...codes) => String.fromCodePoint(...codes);
 const RUNTIME = '\nfunction t(key) {\n  return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;\n}\n';

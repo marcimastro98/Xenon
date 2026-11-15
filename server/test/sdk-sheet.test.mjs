@@ -472,7 +472,7 @@ test('every page that runs widgets has the window, and the code it needs loads o
 
 test('a tile that also lists those files does not load them twice in a layer window', async () => {
   const { createRequire } = await import('node:module');
-  const LayerPage = createRequire(import.meta.url)('../layer-page.js');
+  const LayerPage = createRequire(import.meta.url)('../layers/layer-page.js');
   const page = LayerPage.compose(read('../layer-lite.html'), ['weather'], read('../index.html'));
   assert.match(page, /data-layer-tiles="weather"/);
   for (const file of ['js/dialog-focus.js', 'styles/liquid-sheets.css']) {

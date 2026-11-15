@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayerTiles = require('../js/layers/layer-tiles.js');
-const LayerPage = require('../layer-page.js');
+const LayerPage = require('../layers/layer-page.js');
 const { layersFor, pageFootprint, verdict } = await import('../../tools/measure-layer-tiles.mjs');
 
 const ROOT = new URL('../', import.meta.url);

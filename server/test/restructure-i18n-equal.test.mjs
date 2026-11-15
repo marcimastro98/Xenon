@@ -20,7 +20,7 @@ import { CORE_FILE, languageFile, splitLegacy } from '../../tools/restructure/i1
 
 const require = createRequire(import.meta.url);
 const Tables = require('../app-strings/tables.js');
-const LayerStrings = require('../layer-strings.js');
+const LayerStrings = require('../layers/layer-strings.js');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const OLD_FILE = '3d148db1f88a819c8572bdef4c5ae2c6f4593d8e'; // git's id of the last single js/i18n.js

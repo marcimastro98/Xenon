@@ -18,7 +18,7 @@ const RUN_BY_PATH = /\.(ps1|psm1|sh|bat|cmd|vbs|command|nsh|rs|cs|swift|toml|pli
 const EXAMPLES = new Set(['structure-map', 'restructure-engine-test-readers', 'restructure-extract-inline', 'restructure-side-copy', 'restructure-browser-built-names']
   .map((name) => `server/test/${name}.test.mjs`));
 const KEEPS_OLD_NAMES = (file) => file === 'CHANGELOG.md' || file === 'MAP.md' || file.startsWith('docs/') || EXAMPLES.has(file)
-  || file === 'tools/map/features.json' || file === 'tools/restructure/moved.json' || file === 'tools/restructure/move-left.json';
+  || file === 'tools/map/features.json' || file === 'tools/restructure/moved.json' || file === 'tools/restructure/move-left.json' || file === 'tools/restructure/move-told.json';
 // A mention in the service worker or in the published bridge stays as written: one changed byte makes every browser
 // install the worker again, and the bridge changes only with a version of its own. A load or a path there still counts.
 const MENTIONS_STAY = (file) => file === 'server/sw.js' || file.startsWith('packages/mcp/');

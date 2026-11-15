@@ -27,7 +27,7 @@ const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const SETTLE_MS = 4500;
 const serverModule = (name) => createRequire(import.meta.url)(path.join(ROOT, 'server', name));
 const XenonMenu = serverModule('menu/xenon-menu.js');
-const LayerStrings = serverModule('layer-strings.js');
+const LayerStrings = serverModule('layers/layer-strings.js');
 // Demo notes, plus a music service's own logo and the lyrics provider's name.
 const HIDE_DEMO_NOTES = '.demo-na,.xtoast-stack,.media-app-icon,.lyv-credit{display:none!important}';
 const WALL_ZOOM = SIZE.width / 1440;

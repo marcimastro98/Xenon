@@ -3,7 +3,7 @@
 // The desktop scene page (scene.html): the animated wallpaper and the
 // screensaver show the dashboard's own Ambient overlays, cut from index.html
 // here so the two never drift apart.
-const { sliceTile } = require('../layer-page');
+const { sliceTile } = require('../layers/layer-page');
 
 const SCENE_MARK = '<!-- scene markup -->';
 const OVERLAYS = Object.freeze(['#lockscreen-overlay', '#ambient-scene-overlay', '#ambient-canvas-overlay']);

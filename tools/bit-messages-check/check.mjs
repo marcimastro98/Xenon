@@ -19,7 +19,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..', 'server');
 const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'xenon-bit-messages'));
 const require = createRequire(import.meta.url);
-const LayerStrings = require(path.join(ROOT, 'layer-strings.js'));
+const LayerStrings = require(path.join(ROOT, 'layers/layer-strings.js'));
 const { createBitMessages } = require(path.join(ROOT, 'ai/bit-messages.js'));
 
 const ALL_LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];

@@ -10,7 +10,7 @@ import { makeDom } from './mini-dom.mjs';
 const require = createRequire(import.meta.url);
 const Model = require('../js/ambient/screen-scene-model.js');
 const scene = require('../capabilities/desktop-scene.js');
-const { createLayersHost } = require('../layers-host.js');
+const { createLayersHost } = require('../layers/layers-host.js');
 const Screens = require('../js/menu/xenon-menu-screens.js');
 
 const DISPLAYS = [{ id: 'pg' }, { id: 'edge' }, { id: 'side' }];

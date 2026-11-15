@@ -3,9 +3,9 @@
   "files": {
     "server/server.js": [
       {
-        "statement": "const layersEdit = require('./layers-edit').createLayersEdit({",
+        "statement": "const layersEdit = require('./layers/layers-edit').createLayersEdit({",
         "callees": {
-          "server/layers-edit.js": "c0342f7b02acfa401609fa4a548539c5969e1f42b7002ad46f3f009cd2a34cb5"
+          "server/layers/layers-edit.js": "803e38079348412b8eeabd793aa3bdae39498f3cc9a6254ee41b3faa67a121d0"
         },
         "reason": "createLayersEdit keeps broadcast, onEnd and onOff in its closure and returns an object of functions; it calls none of them and starts no timer until set() is called."
       },

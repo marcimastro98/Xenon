@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const scene = require('../capabilities/desktop-scene.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { createLayersHost } = require('../layers-host.js');
+const { createLayersHost } = require('../layers/layers-host.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const SERVER = engineSource().replace(/\r\n/g, '\n');
 const SCENE_SRC = readFileSync(new URL('../capabilities/desktop-scene.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');

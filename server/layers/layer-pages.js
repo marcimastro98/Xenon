@@ -3,8 +3,8 @@
 // The shape and its rules live in js/layers/layers-model.js (normalize); every
 // function here takes the stored layers and returns a new object, never
 // touching its input. The server runs them under the settings lock.
-const L = require('./js/layers/layers-model.js');
-const When = require('./js/layers/layer-when.js');
+const L = require('../js/layers/layers-model.js');
+const When = require('../js/layers/layer-when.js');
 
 const pageId = (random) => 'lp_' + L.newId(random).slice(3);
 const cleanName = (raw) => String(raw == null ? '' : raw).replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, L.PAGE_NAME_MAX);

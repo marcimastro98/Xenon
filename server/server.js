@@ -32,7 +32,7 @@ require('./performance/fps-demand');
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
 const { createNotificationOpener, platformDeps: notificationOpenDeps } = require('./notification-open/index.js');
-const layersHost = require('./layers-host').createLayersHost();
+const layersHost = require('./layers/layers-host').createLayersHost();
 // Edit mode of the layer windows (layers-edit.js): runtime only, told to every
 // open window over SSE `layers-edit`.
 const DeckShortcuts = require('./js/deck-shortcuts.js');
@@ -42,7 +42,7 @@ const { createDeckShortcutRunner } = require('./deck/deck-shortcut-runner');
 const { createDeckPress } = require('./deck/deck-press');
 const LayerKey = require('./capabilities/layer-key');
 const { createDeckSoundPlayer } = require('./deck/deck-sound-player');
-const LayerPages = require('./layer-pages');
+const LayerPages = require('./layers/layer-pages');
 const { createSituations } = require('./capabilities/situations');
 const { createWidgetKeys } = require('./widget-sdk/widget-keys');
 const { readFailed, heardMedia, reportedApps, afterPress, PRESS_HOLDS_MS, cacheLife } = require('./media/media-read');
@@ -131,7 +131,7 @@ const { joinDiskDetails } = require('./disk/details-shape.js');
 
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
 
-const layersEdit = require('./layers-edit').createLayersEdit({
+const layersEdit = require('./layers/layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
   // the user chose what to show meanwhile.
@@ -147,7 +147,7 @@ const layersEdit = require('./layers-edit').createLayersEdit({
 const { sseClients, broadcastSSE } = require('./http/sse-clients.js');
 
 // The widget whose screen is open in the menu shows whatever its rule says (layers-peek.js).
-const layersPeek = require('./layers-peek').createLayersPeek({
+const layersPeek = require('./layers/layers-peek').createLayersPeek({
   broadcast: (id) => broadcastSSE('layers-peek', { id }),
 });
 // Drawing on the screen through the shell where the engine has no sheet (macOS,
@@ -405,8 +405,8 @@ require('./ai/sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
 require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
-const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
-require('./layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
+const LayerI18n = require('./layers/layer-strings.js'); // one language for the light layer page
+require('./layers/layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
 const assetVersion = require('./engine/asset-version.js'); // a version on every page's CSS/JS URLs
 const { seedReadings } = require('./http/sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/first-run/usage-mode.js'); // dashboard / widgets only / both (shared with the client)

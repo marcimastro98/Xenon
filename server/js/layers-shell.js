@@ -2,7 +2,7 @@
 // open (apps/native/src-tauri/src/layers): one per layer per monitor and one per
 // anchored widget, from hubSettings.layers. It also tells the server that this
 // shell can draw layers, which keeps the `layers` capability honest
-// (server/layers-host.js): no report, no placement offered to the AI or the Deck.
+// (server/layers/layers-host.js): no report, no placement offered to the AI or the Deck.
 //
 // Signals are navigations, like every other shell signal (native-bridge.js): one
 // during the initial load would abort it, so they wait for it to end

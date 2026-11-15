@@ -3,7 +3,7 @@
 
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
-const LayerPages = require('../layer-pages.js');
+const LayerPages = require('../layers/layer-pages.js');
 const { describe, placeFor, findPlaced } = require('./layers-find.js');
 const { overlayHint } = require('./layers-shortcut.js');
 

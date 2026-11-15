@@ -3,7 +3,7 @@
 // The app's words on a page: t() and the functions that put them on screen.
 // The words themselves are one file per language, js/i18n/<code>.js. The server
 // hands a page the languages it needs in front of the functions below
-// (/layer-i18n.js, server/layer-strings.js: the saved language, the browser's and
+// (/layer-i18n.js, server/layers/layer-strings.js: the saved language, the browser's and
 // English), and js/i18n-load.js fetches the others when they are asked for.
 // Loaded on its own this file has no words and t() answers with the key.
 const i18n = {};

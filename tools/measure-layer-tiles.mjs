@@ -1,5 +1,5 @@
 // Measures each built-in tile on the light layer page (server/layer-lite.html):
-// the page is composed from the working tree for one tile (server/layer-page.js),
+// the page is composed from the working tree for one tile (server/layers/layer-page.js),
 // opened in a headless Edge/Chrome, and checked for script errors, an empty
 // tile, and the memory its renderer takes over an empty light page.
 //
@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'server');
 const LayerTiles = require(path.join(ROOT, 'js', 'layers/layer-tiles.js'));
-const LayerPage = require(path.join(ROOT, 'layer-page.js'));
+const LayerPage = require(path.join(ROOT, 'layers/layer-page.js'));
 const SURFACE = 'overlay:probe';
 const CDP_PORT = 9341;
 

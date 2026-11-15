@@ -10,7 +10,7 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const LayerI18n = require('../layer-strings.js');
+const LayerI18n = require('../layers/layer-strings.js');
 const { readLanguages } = require('../app-strings/routes.js');
 const { SUPPORTED_LANGS, normalizeLangCode } = require('../shared/src/constants.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');

@@ -14,7 +14,7 @@ import { SERVER_DIR, resolveFile } from '../toast-gallery/serve.mjs';
 // The app's strings as the real server sends them (/layer-i18n.js), with every
 // language in, so a scene's setLang() takes effect at once.
 const require = createRequire(import.meta.url);
-const LayerStrings = require('../../server/layer-strings.js');
+const LayerStrings = require('../../server/layers/layer-strings.js');
 const { SUPPORTED_LANGS } = require('../../packages/core/src/constants.js');
 
 const TYPES = {

@@ -1,7 +1,7 @@
 // What the engine answers to the windows that show widgets on the desktop: whether they are
 // being edited, what the app window can draw, and their strings in the saved language.
 
-const LayerI18n = require('../layer-strings.js');
+const LayerI18n = require('../layers/layer-strings.js');
 const { hub } = require('../settings/current.js');
 const { readBody } = require('../http/read-body.js');
 

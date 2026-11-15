@@ -5,7 +5,7 @@
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
 const DeckShortcuts = require('../js/deck-shortcuts.js');
-const LayerPages = require('../layer-pages.js');
+const LayerPages = require('../layers/layer-pages.js');
 const WidgetOptions = require('../widget-options/options.js');
 
 // The AI says "weather" or "Wall Plate"; a Deck key stores the same text. A

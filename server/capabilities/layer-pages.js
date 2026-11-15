@@ -1,8 +1,8 @@
 'use strict';
 // Widget pages by voice, Deck key or edit mode: "show my work widgets", "make a
-// Games page", "show it when I play", "show Work on desktop 2". The edits are server/layer-pages.js;
+// Games page", "show it when I play", "show Work on desktop 2". The edits are server/layers/layer-pages.js;
 // deps are the same as capabilities/layers.js ({ layers: { get, update } }).
-const P = require('../layer-pages.js');
+const P = require('../layers/layer-pages.js');
 const { normalize } = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
 

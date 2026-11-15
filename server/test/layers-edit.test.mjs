@@ -1,4 +1,4 @@
-// Edit mode of the widget layers (server/layers-edit.js): a runtime state that
+// Edit mode of the widget layers (server/layers/layers-edit.js): a runtime state that
 // says so only when it changes, and turns itself off when nobody edits, so a
 // forgotten edit mode never keeps the screen blocked.
 import test from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createLayersEdit, IDLE_MS, MAX_STEPS } = require('../layers-edit.js');
+const { createLayersEdit, IDLE_MS, MAX_STEPS } = require('../layers/layers-edit.js');
 
 function harness() {
   const sent = [];

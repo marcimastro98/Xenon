@@ -19,7 +19,7 @@ const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'xenon-buy-sh
 const { encodePreset } = createRequire(import.meta.url)(path.join(ROOT, 'js', 'preset-share.js'));
 // The app's strings as the real server sends them (/layer-i18n.js), every
 // language in, so setLang() switches at once between shots.
-const LayerStrings = createRequire(import.meta.url)(path.join(ROOT, 'layer-strings.js'));
+const LayerStrings = createRequire(import.meta.url)(path.join(ROOT, 'layers/layer-strings.js'));
 const { SUPPORTED_LANGS } = createRequire(import.meta.url)(path.join(ROOT, 'shared', 'src', 'constants.js'));
 
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];

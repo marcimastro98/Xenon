@@ -8,7 +8,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const L = require('../js/layers/layers-model.js');
-const { createLayersHost, REPORT_TTL_MS } = require('../layers-host.js');
+const { createLayersHost, REPORT_TTL_MS } = require('../layers/layers-host.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const W = (over = {}) => ({ id: 'lw_abcd1234', kind: 'tile', widget: 'weather', surface: 'desktop', rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.3 }, ...over });

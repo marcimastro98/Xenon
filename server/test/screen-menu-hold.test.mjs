@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { createScreenMenu } = require('../menu/screen-menu.js');
-const { createLayersEdit } = require('../layers-edit.js');
+const { createLayersEdit } = require('../layers/layers-edit.js');
 
 function rig() {
   const said = [];

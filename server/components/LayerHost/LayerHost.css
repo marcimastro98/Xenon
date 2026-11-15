@@ -171,7 +171,7 @@ body:not([data-panel]) .layer-slot .system-audio-pane:not([hidden]) { container:
 /* "Show when": game-running is set by the game detector on every surface. While
    editing every widget stays in sight, or a hidden one could never be moved: it is
    dimmed instead, so the screen still says what shows right now. `data-peek`: its screen
-   is open in the menu, and a change made there has to be seen (server/layers-peek.js). */
+   is open in the menu, and a change made there has to be seen (server/layers/layers-peek.js). */
 html:not([data-layer-editing]) body:not(.game-running) .layer-slot[data-show="gaming"]:not([data-peek]),
 html:not([data-layer-editing]) body.game-running .layer-slot[data-show="notGaming"]:not([data-peek]),
 html:not([data-layer-editing]) .layer-slot[data-when-off]:not([data-peek]) {

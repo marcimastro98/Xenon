@@ -1,7 +1,7 @@
 'use strict';
 
 // While a widget's screen is open in the menu, that widget stays on the real screen even
-// if its rule hides it (server/layers-peek.js). The server lets go by itself when the
+// if its rule hides it (server/layers/layers-peek.js). The server lets go by itself when the
 // repeats stop, so they stop with the page out of sight.
 (function (root, factory) {
   const api = factory();

@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const Map = require('../js/menu/xenon-menu-map.js');
-const { createLayersEdit } = require('../layers-edit.js');
+const { createLayersEdit } = require('../layers/layers-edit.js');
 const layers = require('../capabilities/layers.js');
 
 const box = { x: 0.5, y: 0.5, w: 0.2, h: 0.3 };

@@ -302,8 +302,7 @@
       "name": "Widgets on the desktop",
       "what": "Widgets outside the dashboard: on the desktop or over a game, where and when they show.",
       "files": [
-        "server/layer-*.js",
-        "server/layers-*.js",
+        "server/layers/**",
         "server/layer-lite.html",
         "server/widget-options/**",
         "server/js/layer-edit/**",

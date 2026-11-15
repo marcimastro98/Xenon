@@ -195,7 +195,7 @@ test('offered only where the shell follows an app, and edit mode learns it from 
 });
 
 test('the shell report keeps a clean screen name and sane sizes, and works without them', () => {
-  const { createLayersHost } = require('../layers-host.js');
+  const { createLayersHost } = require('../layers/layers-host.js');
   const h = createLayersHost({ now: () => 0 });
   const long = 'x'.repeat(80);
   h.accept({ layers: true, monitors: [
@@ -212,7 +212,7 @@ test('the shell report keeps a clean screen name and sane sizes, and works witho
 });
 
 test('the shell report keeps where each screen stands, left of the main one too, and drops a place that is not one', () => {
-  const { createLayersHost } = require('../layers-host.js');
+  const { createLayersHost } = require('../layers/layers-host.js');
   const h = createLayersHost({ now: () => 0 });
   h.accept({ layers: true, monitors: [
     { key: 'a', primary: true, x: 0, y: 0 },
@@ -228,7 +228,7 @@ test('the shell report keeps where each screen stands, left of the main one too,
 });
 
 test('the shell report: `anchor` counts only with layers, and expires with the report', () => {
-  const { createLayersHost } = require('../layers-host.js');
+  const { createLayersHost } = require('../layers/layers-host.js');
   let t = 0;
   const h = createLayersHost({ now: () => t });
   assert.equal(h.anchors(), false, 'no report yet');

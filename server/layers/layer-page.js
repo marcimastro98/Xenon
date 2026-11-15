@@ -7,7 +7,7 @@
 // load the other 200 scripts.
 
 // Paths are fixed (js/layers/layer-tiles.js), never built from the request.
-const LayerTiles = require('./js/layers/layer-tiles.js');
+const LayerTiles = require('../js/layers/layer-tiles.js');
 
 const STYLES_MARK = '<!-- tile styles -->';
 const MARKUP_MARK = '<!-- tile markup -->';

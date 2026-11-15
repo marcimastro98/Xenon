@@ -1,4 +1,4 @@
-// server/layer-page.js: the light layer page carries the built-in tiles placed
+// server/layers/layer-page.js: the light layer page carries the built-in tiles placed
 // on its surface that it can (js/layers/layer-tiles.js), with only their files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const LayerPage = require('../layer-page.js');
+const LayerPage = require('../layers/layer-page.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerTiles = require('../js/layers/layer-tiles.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');

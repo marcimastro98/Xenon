@@ -98,7 +98,7 @@ log('copied ' + COPY_ALLOWLIST.join(', '));
 {
   const require = createRequire(import.meta.url);
   const Tables = require('../server/app-strings/tables.js');
-  const LayerStrings = require('../server/layer-strings.js');
+  const LayerStrings = require('../server/layers/layer-strings.js');
   const tables = await Tables.tables([...Tables.LANGS]);
   const missing = Tables.LANGS.filter((code) => !tables[code]);
   if (missing.length) fail(`the strings of ${missing.join(', ')} could not be read`);

@@ -6,7 +6,7 @@
 // match words in any of them. Read-only, built from js/i18n/<code>.js
 // (layer-strings.js); unknown codes are left out, never an error.
 
-const LayerI18n = require('../layer-strings.js');
+const LayerI18n = require('../layers/layer-strings.js');
 
 async function readLanguages(req, res) {
   try {

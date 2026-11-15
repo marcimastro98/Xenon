@@ -27,9 +27,14 @@ export function answered(sites, told, read) {
   const seen = new Set();
   const out = [];
   for (const site of sites) {
-    if (site.kind !== 'unknown' || !isDevFile(site.file)) { out.push(site); continue; }
+    if (!isDevFile(site.file)) { out.push(site); continue; }
     const line = (read(site.file) ?? '').split('\n')[site.line - 1] ?? '';
     const rows = told.filter((row) => row.file === site.file && (!row.near || line.includes(row.near)));
+    // A path the tool would spell again, in text that must stay as it was written (a copy of an old file's words).
+    if (site.kind !== 'unknown') {
+      if (!rows.some((row) => row.was === site.was && row.text === site.was)) out.push(site);
+      continue;
+    }
     // After the step the place holds the answer: nothing left to say about it.
     if (rows.some((row) => row.text === site.was)) continue;
     const row = rows.find((one) => one.was === site.was);

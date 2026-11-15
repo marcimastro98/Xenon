@@ -1,4 +1,4 @@
-// server/layer-strings.js (served as /layer-i18n.js): a page gets its language
+// server/layers/layer-strings.js (served as /layer-i18n.js): a page gets its language
 // plus English, built from the language files (js/i18n/<code>.js) and the
 // functions of js/i18n.js, so it says exactly what all the words together say.
 import { test } from 'node:test';
@@ -10,7 +10,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const LayerI18n = require('../layer-strings.js');
+const LayerI18n = require('../layers/layer-strings.js');
 const SRC = appStringsSource(); // every language and the functions, as one script
 const SERVER = engineSource().replace(/\r\n/g, '\n');
 

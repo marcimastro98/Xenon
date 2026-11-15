@@ -28,12 +28,12 @@ import { listPages, runProblems, tagsOf } from './browser-pages.mjs';
 import { readStylesheet } from './browser-styles.mjs';
 import { unwrapStateProblems } from './browser-unwrap.mjs';
 
-const COMPOSER = 'server/layer-page.js';
+const COMPOSER = 'server/layers/layer-page.js';
 const load = createRequire(import.meta.url);
 
 /**
  * The pages the engine builds for widgets on the desktop, put together by the engine's own code
- * (server/layer-page.js) from the list of files per widget: one page per widget, and one with all of them.
+ * (server/layers/layer-page.js) from the list of files per widget: one page per widget, and one with all of them.
  * @param {string} root
  * @returns {{ page: string, html: string }[]} empty in a repo without that list
  */

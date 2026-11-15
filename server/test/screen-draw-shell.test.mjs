@@ -13,7 +13,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createScreenDrawShell } = require('../alerts/screen-draw-shell.js');
-const { createLayersHost } = require('../layers-host.js');
+const { createLayersHost } = require('../layers/layers-host.js');
 const draw = require('../capabilities/screen-draw.js');
 const { PALETTE } = require('../js/alerts/screen-draw-model.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');

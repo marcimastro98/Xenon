@@ -1056,7 +1056,7 @@ const CAPABILITIES = [
   },
 
   // Pages of the screen widgets ("Work", "Games"): one shown at a time on every
-  // screen (server/layer-pages.js). Switching is a Deck key too; creating and
+  // screen (server/layers/layer-pages.js). Switching is a Deck key too; creating and
   // deleting happen by voice or in edit mode.
   {
     type: 'layerPage', group: 'xenon', labelKey: 'deck_act_layerPage',

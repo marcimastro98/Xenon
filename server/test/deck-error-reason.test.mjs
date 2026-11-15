@@ -20,7 +20,7 @@ const ERR_TEXT_SRC = readFileSync(new URL('../js/deck/deck-error-text.js', impor
 const I18N = appStringsSource();
 const REGISTRY = engineSource('server/actions/registry.js');
 // The page rules answer the menu and the Deck with their own codes.
-const LAYER_PAGES = readFileSync(new URL('../layer-pages.js', import.meta.url), 'utf8');
+const LAYER_PAGES = readFileSync(new URL('../layers/layer-pages.js', import.meta.url), 'utf8');
 // The registry dispatches to provider modules, and a provider names its own
 // failures — the registry only passes them through (`r.error || '…_failed'`).
 // Voicemeeter was the first entry in the table whose codes live entirely in a

@@ -17,10 +17,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const Tables = require('./app-strings/tables.js');
+const Tables = require('../app-strings/tables.js');
 
-const CORE = path.join(__dirname, 'js', 'i18n.js');
-const LOADER = path.join(__dirname, 'js', 'i18n-load.js');
+const CORE = path.join(__dirname, '..', 'js', 'i18n.js');
+const LOADER = path.join(__dirname, '..', 'js', 'i18n-load.js');
 // From this line on js/i18n.js is the runtime (t, setLang…); what comes before
 // is its empty table, which the built script replaces with the real one.
 const RUNTIME_AT = '\nfunction t(key) {';

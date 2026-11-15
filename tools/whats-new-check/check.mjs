@@ -17,7 +17,7 @@ import { loadPlaywright } from '../toast-gallery/shoot.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..', 'server');
 const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'xenon-whats-new'));
-const LayerStrings = createRequire(import.meta.url)(path.join(ROOT, 'layer-strings.js'));
+const LayerStrings = createRequire(import.meta.url)(path.join(ROOT, 'layers/layer-strings.js'));
 const WHATS_NEW = JSON.parse(fs.readFileSync(path.join(ROOT, 'whatsnew.json'), 'utf8'));
 
 const ALL_LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
