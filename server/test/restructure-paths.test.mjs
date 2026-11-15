@@ -175,3 +175,58 @@ test('a recorded move is redone from the old text and has to give the files on d
   writeFileSync(path.join(root, NEW), made.moduleText.replace("'data'", "'data2'"));
   assert.match(replay({ root, parser, base: 'HEAD', show }).problems.join('\n'), /places\.js is not what the tool writes/);
 });
+
+// The path module was in the file for the constants alone: left behind it is a name nobody reads.
+const ALONE = ["'use strict';", "const os = require('os');", "const path = require('path');", '', '// Where the helper is.', "const TOOL = path.join(__dirname, 'tools', 'tool');", '',
+  'function show() { return [os.platform(), TOOL].join("|"); }', 'process.stdout.write(show());', ''].join('\n');
+
+test('the path module leaves with the constants when nothing else in the file reads it', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const lines = ALONE.split('\n');
+  const made = plan(ALONE, ['TOOL']);
+  assert.deepEqual(made.dropped, [2], 'its one line, by its place in the old file');
+  assert.equal(made.newSource, [lines[0], lines[1], lines[3], "const { TOOL } = require('./part/places.js');", ...lines.slice(6)].join('\n'));
+  assert.deepEqual(proven(ALONE, made), []);
+
+  const spaced = plan(ALONE.replace("const os = require('os');\n", "const os = require('os');\n\n"), ['TOOL']);
+  assert.deepEqual(spaced.dropped, [3, 4], 'between two blank lines, the one after it goes too');
+  assert.ok(!spaced.newSource.includes('\n\n\n'), 'no two blank lines meet');
+
+  const stays = (text, more) => plan(text, ['TOOL'], more).dropped;
+  assert.deepEqual(stays(ALONE, { dropPath: false }), [], 'a step recorded before the rule is redone as it was made');
+  assert.deepEqual(stays(ALONE.replace('os.platform()', "path.basename('a')")), [], 'something else reads it');
+  assert.deepEqual(stays(ALONE.replace("const path = require('path');", "// For the helper.\nconst path = require('path');")), [], 'a comment of its own: a person decides');
+  assert.deepEqual(plan(SOURCE, ['DATA', 'TOOL', 'ROOT_FILE']).dropped, [], 'another constant is still built with it');
+});
+
+test('the proof refuses a path module that left while something reads it, or that took more with it', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const read = ALONE.replace('os.platform()', "path.basename('a')");
+  const made = plan(read, ['TOOL']);
+  const forced = { ...made, dropped: [2], newSource: made.newSource.replace("const path = require('path');\n", '') };
+  assert.match(proven(read, forced).join('\n'), /something there still reads it/);
+  const kept = plan(ALONE, ['TOOL'], { dropPath: false });
+  const greedy = { ...kept, dropped: [1], newSource: kept.newSource.replace("const os = require('os');\n", '') };
+  assert.match(proven(ALONE, greedy).join('\n'), /more than its line left/);
+  assert.match(proven(ALONE, { ...plan(ALONE, ['TOOL']), dropped: [] }).join('\n'), /not the old text with the constants replaced/, 'a line that left without being said');
+});
+
+test('a recorded move says whether the path module left, and is redone that way', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const show = (_root, _rev, file) => (file === OLD ? ALONE : null);
+  const redo = (made, entry) => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'xenon-paths-drop-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    mkdirSync(path.join(root, 'server', 'part'), { recursive: true });
+    mkdirSync(path.join(root, 'tools', 'restructure'), { recursive: true });
+    writeFileSync(path.join(root, OLD), made.newSource);
+    writeFileSync(path.join(root, NEW), made.moduleText);
+    writeFileSync(path.join(root, 'tools', 'restructure', 'protected.json'), '{ "files": {} }');
+    writeFileSync(path.join(root, 'tools', 'restructure', 'extracted.json'),
+      JSON.stringify({ note: '', sources: { [OLD]: [{ file: NEW, about: 'Where the parts sit.', names: ['TOOL'], paths: true, ...entry }] } }));
+    return replay({ root, parser, base: 'HEAD', show }).problems;
+  };
+  assert.deepEqual(redo(plan(ALONE, ['TOOL']), { pathDropped: true }), []);
+  assert.deepEqual(redo(plan(ALONE, ['TOOL'], { dropPath: false }), {}), [], 'an older record: the line is still in the file');
+  assert.notDeepEqual(redo(plan(ALONE, ['TOOL']), {}), [], 'the record and the file have to agree');
+});

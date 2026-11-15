@@ -10,6 +10,8 @@
 //     `process.platform` compared with plain text, and from nothing else;
 //   - the file requires the module on the line where the constant stood, so the
 //     name exists from the same line on as before (neighbours share one require);
+//   - when the constants were all the file held the path module for, its one plain line leaves too (a later
+//     `extract` does the same), and the step is recorded as one that did;
 //   - old and new value are worked out for Windows, macOS and Linux, with both
 //     kinds of path, and have to be the same text every time.
 // The module runs nothing but those joins: it is recorded as a quiet one.
@@ -19,6 +21,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 import { analyze } from './analyze.mjs';
+import { REQUIRES_PATH } from './extract-home.mjs';
 import { MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { appendLedger, protectedNames, readLedger } from './ledger.mjs';
 import { wrapNames } from './module-requires.mjs';
@@ -80,15 +83,24 @@ function declarationOf(statement, K, NodeFlags) {
 }
 
 // The old file without the runs of lines, one require where each run stood.
-function withoutRuns(lines, runs, source, target) {
+function withoutRuns(lines, runs, source, target, dropped = []) {
   const starts = new Map(runs.map((run) => [run.first, run]));
-  const gone = new Set(runs.flatMap((run) => Array.from({ length: run.last - run.first + 1 }, (_, i) => run.first + i)));
+  const gone = new Set([...dropped, ...runs.flatMap((run) => Array.from({ length: run.last - run.first + 1 }, (_, i) => run.first + i))]);
   const left = [];
   lines.forEach((line, index) => {
     if (starts.has(index)) left.push(...glueLines(starts.get(index).names, source, target));
     if (!gone.has(index)) left.push(line);
   });
   return left.join('\n');
+}
+
+// The line of the path module (0-based), when nothing left in the file reads it: a plain require with no comment of
+// its own. With it goes the blank line after it when one stands before it too, so no two blank lines meet.
+function idlePath(lines, record, left, parser, source) {
+  const at = record.line[0] - 1;
+  if (record.line[1] - 1 !== at || record.range[0] - 1 !== at || !REQUIRES_PATH.test(lines[at])) return [];
+  if (analyze(left, parser, source).records.some((other) => !other.names?.includes('path') && other.uses.has('path'))) return [];
+  return lines[at + 1] === '' && lines[at - 1] === '' ? [at, at + 1] : [at];
 }
 
 /**
@@ -101,10 +113,12 @@ function withoutRuns(lines, runs, source, target) {
  * @param {string[]} job.names the constants
  * @param {Set<string>} [job.protectedNames] names that never leave the file
  * @param {number} [job.maxLines]
- * @returns {{ names: string[], newSource: string, moduleText: string, runs: { first: number, last: number, names: string[] }[] }}
- *   `runs` are the 0-based lines of the old file that left, neighbours together. Throws a Refusal.
+ * @param {boolean} [job.dropPath] false: the path module stays even when nothing reads it (a step recorded before the rule)
+ * @returns {{ names: string[], newSource: string, moduleText: string, runs: { first: number, last: number, names: string[] }[], dropped: number[] }}
+ *   `runs` are the 0-based lines of the old file that left, neighbours together; `dropped` the lines of the path
+ *   module that left with them. Throws a Refusal.
  */
-export function planPaths({ text, parser, source, target, about, names, protectedNames: kept = new Set(), maxLines = MAX_LINES }) {
+export function planPaths({ text, parser, source, target, about, names, protectedNames: kept = new Set(), maxLines = MAX_LINES, dropPath = true }) {
   if (text.includes('\r')) throw new Refusal([`${source} has Windows line endings: the tools work on LF text only`]);
   if (!about?.trim()) throw new Refusal(['say in one sentence what the new file holds (--about)']);
   const { K, NodeFlags } = parser;
@@ -154,7 +168,8 @@ export function planPaths({ text, parser, source, target, about, names, protecte
   const moduleText = [...(STRICT.test(text) ? ["'use strict';"] : []), ...wrapComment(about), '', "const path = require('node:path');", '',
     homeLine(source, target), '', blocks.join('\n\n'), '', ...wrapNames(all, 'module.exports = {', '};'), ''].join('\n');
   if (moduleText.split('\n').length - 1 > maxLines) throw new Refusal([`${target} would be ${moduleText.split('\n').length - 1} lines, the limit for a new file is ${maxLines}`]);
-  return { names: all, newSource: withoutRuns(lines, runs, source, target), moduleText, runs };
+  const dropped = dropPath ? idlePath(lines, bindings.get('path').record, withoutRuns(lines, runs, source, target), parser, source) : [];
+  return { names: all, newSource: withoutRuns(lines, runs, source, target, dropped), moduleText, runs, dropped };
 }
 
 // Every value a constant can have: on each kind of system, with each kind of path.
@@ -175,7 +190,8 @@ export function provePaths({ before, after, moduleText, plan, parser, source, ta
   const old = before.split('\n');
 
   // 1. The file is the old file with the constants' lines gone and one require where each run of them stood.
-  if (after !== withoutRuns(old, plan.runs, source, target)) problems.push('the old file is not the old text with the constants replaced by a require where they stood');
+  const dropped = plan.dropped ?? [];
+  if (after !== withoutRuns(old, plan.runs, source, target, dropped)) problems.push('the old file is not the old text with the constants replaced by a require where they stood');
 
   // 2. The module is the frame the tool writes around those lines, the same bytes but for SERVER_DIR in place of __dirname.
   const made = moduleText.split('\n');
@@ -214,23 +230,28 @@ export function provePaths({ before, after, moduleText, plan, parser, source, ta
     if (wasValues.join('\n') !== isValues.join('\n')) problems.push(`${name} is another place in the new module: ${wasValues[0]} became ${isValues[0]}`);
   }
   if ((bodyText.match(homeWord('g')) ?? []).length !== respelled) problems.push(`${HOME} stands in the moved lines more often than ${OLD_HOME} stood in the values`);
+  // The path module left the file only as its one plain line (and a blank after it), and nothing there reads it now.
+  if (dropped.length) {
+    const oneLine = REQUIRES_PATH.test(old[dropped[0]]) && (dropped.length === 1 || (dropped.length === 2 && dropped[1] === dropped[0] + 1 && old[dropped[1]] === ''));
+    if (!oneLine || now.bindings.has('path') || now.records.some((record) => record.uses.has('path'))) problems.push('the path module left the file, and more than its line left or something there still reads it');
+  }
   // The path module, the home folder, the constants, the export; in a strict file the 'use strict' line before them.
   if (newSide.records.length !== plan.names.length + 3 + (made[0] === "'use strict';" ? 1 : 0)) problems.push('the new module has statements besides the constants');
   return problems;
 }
 
 /** Plans a move of `text` with the repo's protected list. Throws a Refusal. */
-export function planPathsFor({ root, parser, text, source, target, about, names }) {
+export function planPathsFor({ root, parser, text, source, target, about, names, dropPath }) {
   const guard = protectedNames(root, source, analyze(text, parser, source).records);
   if (guard.missing.length) {
     throw new Refusal([`tools/restructure/protected.json names ${guard.missing.join(', ')}, which ${source} no longer declares: correct the list first`]);
   }
-  return planPaths({ text, parser, source, target, about, names, protectedNames: guard.names });
+  return planPaths({ text, parser, source, target, about, names, protectedNames: guard.names, dropPath });
 }
 
 /**
  * @param {{ root: string, parser: any, source: string, target: string, about: string, names: string[], dryRun?: boolean }} job
- * @returns {{ target: string, lines: number, sourceLines: number, names: string[] }}
+ * @returns {{ target: string, lines: number, sourceLines: number, names: string[], droppedPath: boolean }}
  *   throws a Refusal before anything is written, an Error after a failed check (files put back)
  */
 export function movePaths(job) {
@@ -242,7 +263,7 @@ export function movePaths(job) {
   const proof = provePaths({ before, after: plan.newSource, moduleText: plan.moduleText, plan, parser, source, target });
   if (proof.length) throw new Error(`the plan does not prove itself, nothing was written:\n${proof.join('\n')}`);
   const count = (text) => text.split('\n').length - 1;
-  const result = { target, lines: count(plan.moduleText), sourceLines: count(before) - count(plan.newSource), names: plan.names };
+  const result = { target, lines: count(plan.moduleText), sourceLines: count(before) - count(plan.newSource), names: plan.names, droppedPath: plan.dropped.length > 0 };
   if (dryRun) return result;
 
   const folder = path.dirname(path.join(root, target));
@@ -259,6 +280,6 @@ export function movePaths(job) {
     if (madeFolder && readdirSync(folder).length === 0) rmdirSync(folder);
     throw new Error(`the move failed its checks and was undone:\n${problems.join('\n')}`);
   }
-  appendLedger(root, source, { file: target, about, names: plan.names, paths: true });
+  appendLedger(root, source, { file: target, about, names: plan.names, paths: true, ...(plan.dropped.length ? { pathDropped: true } : {}) });
   return result;
 }

@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import { HOME, OLD_HOME, homeWord } from './paths-undo.mjs';
 
-const REQUIRES_PATH = /^const path = require\((['"])(?:node:)?path\1\);$/;
+export const REQUIRES_PATH = /^const path = require\((['"])(?:node:)?path\1\);$/;
 
 /** @typedef {{ line: number, column: number }} HomeUse the 0-based place in the file of one `__dirname` */
 

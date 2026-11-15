@@ -165,7 +165,7 @@ function runPaths(parser, { flags, rest }) {
   const dryRun = Boolean(flags['dry-run']);
   const done = movePaths({ root: REPO_ROOT, parser, source: posix(flags.from), target: posix(flags.to), about: flags.about, names: rest, dryRun });
   console.log(`${dryRun ? 'would make' : 'made'} ${done.target} (${done.lines} lines) with ${done.names.join(', ')}; ${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} `
-    + `${done.sourceLines} lines and requires each name where it stood. Old and new value are the same text on Windows, macOS and Linux.`);
+    + `${done.sourceLines} lines and requires each name where it stood${done.droppedPath ? '; the path module, which nothing there reads any more, left with them' : ''}. Old and new value are the same text on Windows, macOS and Linux.`);
   if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');
   return 0;
 }

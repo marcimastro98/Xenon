@@ -181,7 +181,7 @@ export function replay({ root, parser, base, show = gitShow }) {
       try {
         if (entry.lift) plan = planLiftFor({ ...step, name: entry.names[0] });
         else if (entry.wire) plan = planWireFor({ ...step, ...entry.wire });
-        else if (entry.paths) plan = planPathsFor({ ...step, names: entry.names });
+        else if (entry.paths) plan = planPathsFor({ ...step, names: entry.names, dropPath: entry.pathDropped === true });
         else if (entry.inner) plan = planInnerFor({ ...step, ...entry.inner, names: entry.names, ownModules });
         else if (entry.block) plan = planBlockFor({ ...step, ...entry.block, name: entry.names[0] });
         else if (entry.state) {
