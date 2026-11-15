@@ -186,8 +186,14 @@ test('a favourite app of a backup keeps its path only when this PC already start
   ];
   const incoming = keepThisPcOnImport({ appFavorites: file }, { appFavorites: here });
   assert.deepEqual(incoming.appFavorites.map((fav) => [fav.key, fav.path]), [
-    ['notes', 'c:\\apps\\notes\\NOTES.exe'], ['notes2', ''], ['tool', ''],
+    ['notes', 'C:\\Apps\\Notes\\notes.exe'], ['notes2', ''], ['tool', ''],
   ]);
+  // The path kept is this PC's own, letter for letter: where capitals tell files apart the
+  // file's spelling could be another program. The same spelling wins over a near one.
+  const unix = [{ key: 'draw', app: 'Draw', path: '/opt/Draw/draw' }, { key: 'draw2', app: 'Draw', path: '/opt/draw/draw' }];
+  const asked = [{ key: 'a', app: 'Draw', path: '/OPT/DRAW/DRAW' }, { key: 'b', app: 'Draw', path: '/opt/draw/draw' }, { key: 'c', app: 'Draw', path: '/opt/Draw/draw' }];
+  assert.deepEqual(keepThisPcOnImport({ appFavorites: asked }, { appFavorites: unix }).appFavorites.map((fav) => fav.path), ['/opt/Draw/draw', '/opt/draw/draw', '/opt/Draw/draw']);
+  for (const fav of keepThisPcOnImport({ appFavorites: asked }, { appFavorites: unix }).appFavorites) assert.ok(unix.some((mine) => mine.path === fav.path));
   // Stored as a save stores them: the known fields and nothing else.
   assert.deepEqual(Object.keys(incoming.appFavorites[2]).sort(), ['app', 'icon', 'key', 'path', 'title']);
   // On a PC with no favourites, or none saved, no path comes in at all.

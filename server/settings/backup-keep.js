@@ -73,8 +73,16 @@ const deckActionsHeldBack = (fromFile, now) => !!plain(fromFile) && introduces(n
  * @returns {Record<string, any>[]}
  */
 function favoritesOnImport(fromFile, saved) {
-  const known = new Set((Array.isArray(saved) ? saved : []).map((fav) => pathKey(fav?.path)).filter(Boolean));
-  return normalizeServerAppFavorites(fromFile).map((fav) => (known.has(pathKey(fav.path)) ? fav : { ...fav, path: '' }));
+  // The path that is kept is the one saved on this PC, letter for letter, never the file's:
+  // where capitals tell files apart (Linux, macOS) the file's spelling can be another program.
+  // The same spelling wins; otherwise the first favourite here that differs only by capitals.
+  /** @type {string[]} */
+  const here = (Array.isArray(saved) ? saved : []).map((fav) => (typeof fav?.path === 'string' ? fav.path : '')).filter((path) => pathKey(path));
+  const exact = new Set(here);
+  /** @type {Map<string, string>} */
+  const known = new Map();
+  for (const path of here) if (!known.has(pathKey(path))) known.set(pathKey(path), path);
+  return normalizeServerAppFavorites(fromFile).map((fav) => ({ ...fav, path: exact.has(fav.path) ? fav.path : (known.get(pathKey(fav.path)) ?? '') }));
 }
 
 /**
