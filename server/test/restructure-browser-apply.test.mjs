@@ -115,4 +115,17 @@ test('a recording keeps the moves of the tree it shows, and the compare reads th
   assert.deepEqual(compareRecordings(before, split), [], 'the split is known from the recording itself');
   keepMoves(0, root, 'HEAD', out);
   assert.match(compareRecordings(before, JSON.parse(fs.readFileSync(out, 'utf8'))).join('\n'), /new on window: LeafKeys/, 'as at the commit, the same pages are an unknown new script');
+
+  // A script moved whole (browser-move.mjs) is the same script at its new address, in the same place of the row.
+  const two = recording([view({ scripts: ['/js/twig.js', '/js/leaf.js'] })]);
+  const moved = { ...recording([view({ scripts: ['/js/tree/twig.js', '/js/leaf.js'] })]), moves: [] };
+  assert.match(compareRecordings(two, moved).join('\n'), /no longer \/js\/twig\.js new \/js\/tree\/twig\.js/, 'no list of whole moves: another script');
+  fs.mkdirSync(path.join(root, 'tools', 'restructure'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'tools', 'restructure', 'browser-moved.json'), JSON.stringify({ moves: [{ from: 'server/js/twig.js', to: 'server/js/tree/twig.js' }] }));
+  fs.writeFileSync(out, JSON.stringify(moved));
+  keepMoves(0, root, undefined, out);
+  const placed = JSON.parse(fs.readFileSync(out, 'utf8'));
+  assert.deepEqual(compareRecordings(two, { ...placed, moves: [] }), [], 'the recording carries the list of the tree it shows');
+  assert.match(compareRecordings(two, { ...placed, moves: [], views: [view({ scripts: ['/js/leaf.js', '/js/tree/twig.js'] })] }).join('\n'), /another order/);
+  assert.match(compareRecordings({ ...two, placed: placed.placed }, { ...placed, moves: [] }).join('\n'), /no longer \/js\/twig\.js/, 'a move both recordings know is no reason for a new address');
 });

@@ -50,6 +50,16 @@ export function ledgerAt(root, rev) {
   return run.status === 0 ? JSON.parse(run.stdout) : { moves: [] };
 }
 
+const WHOLE_MOVES = 'tools/restructure/browser-moved.json';
+/** @param {string} root @param {string} [rev] @returns {{from: string, to: string}[]} the scripts moved whole, as a commit or the checkout lists them */
+export function wholeMoves(root, rev) {
+  if (rev) {
+    const run = spawnSync('git', ['show', `${rev}:${WHOLE_MOVES}`], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+    return run.status === 0 ? JSON.parse(run.stdout).moves : [];
+  }
+  try { return JSON.parse(readFileSync(path.join(root, WHOLE_MOVES), 'utf8')).moves; } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+}
+
 /**
  * Writes into a recording of the pages the moves of the tree it shows: the commit's when the copy was laid as at one, the checkout's otherwise.
  * @param {number} code how the recording ended @param {string} root @param {string | undefined} rev @param {string} outFile
@@ -58,7 +68,9 @@ export function ledgerAt(root, rev) {
 export function keepMoves(code, root, rev, outFile) {
   if (code !== 0) return code;
   const { moves } = rev ? ledgerAt(root, rev) : readBrowserLedger(root);
-  writeFileSync(outFile, `${JSON.stringify({ ...JSON.parse(readFileSync(outFile, 'utf8')), moves }, null, 1)}
+  // `placed`: the scripts moved whole to another folder (browser-move.mjs), whose address changed with their place.
+  const placed = wholeMoves(root, rev);
+  writeFileSync(outFile, `${JSON.stringify({ ...JSON.parse(readFileSync(outFile, 'utf8')), moves, placed }, null, 1)}
 `);
   return code;
 }

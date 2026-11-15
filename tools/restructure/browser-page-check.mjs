@@ -181,11 +181,16 @@ function moduleProblems(was, now, ledger) {
 export function compareRecordings(before, after, ledger = after.moves ? { moves: after.moves } : readBrowserLedger(REPO_ROOT)) {
   if (engineOf(before) !== engineOf(after)) return [`the first recording was made in ${engineOf(before)} and the second in ${engineOf(after)}: compare a tree with itself in one engine (two engines: the command "engines")`];
   const problems = [];
+  // A script moved whole since the first recording is the same script at its new address: the first recording is read with it.
+  const known = new Set((before.placed ?? []).map((move) => move.from));
+  const placed = new Map((after.placed ?? []).filter((move) => !known.has(move.from)).map((move) => [addressOf(move.from), addressOf(move.to)]));
+  const at = (address) => placed.get(address) ?? address;
   for (const was of before.views) if (!after.views.some((view) => view.name === was.name)) problems.push(`${was.name}: opened before, not opened now`);
   for (const now of after.views) {
-    const was = before.views.find((view) => view.name === now.name);
+    const found = before.views.find((view) => view.name === now.name);
     const say = (text) => problems.push(`${now.name}: ${text}`);
-    if (!was) { say('not recorded before'); continue; }
+    if (!found) { say('not recorded before'); continue; }
+    const was = placed.size ? { ...found, scripts: found.scripts.map(at), modules: found.modules?.map((made) => ({ ...made, address: at(made.address) })) } : found;
     if (was.address !== now.address) say(`ends on another address (${was.address} before, ${now.address} now)`);
     for (const error of extra(was.pageErrors, now.pageErrors)) say(`new page error: ${error}`);
     for (const error of extra(was.consoleErrors, now.consoleErrors)) say(`new console error: ${error}`);
