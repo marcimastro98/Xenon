@@ -51,9 +51,10 @@ const blank = (line) => line.trim() === '';
  * @param {object} cut @param {string} cut.text the old script @param {string} cut.from its path @param {string} cut.to the new script's path
  * @param {string} cut.about one sentence @param {number[][]} cut.ranges [first, last] lines of the old script, from 1, in the order they are taken
  * @param {string[]} [cut.hands] @param {Record<string, string[]>} [cut.takes] @param {string[]} cut.gives @param {number} [cut.at]
+ * @param {string | null} [cut.inside] the function the lines stand in, when they are cut out of one (browser-inside.mjs): it is written in the record
  * @returns {{ newSource: string, targetText: string, record: any }} throws a Refusal with every reason when the plan cannot be a cut
  */
-export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {}, gives, at = ranges[0]?.[0] }) {
+export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {}, gives, at = ranges[0]?.[0], inside: fn = null }) {
   const name = windowNameOf(from, to);
   const lines = text.split('\n');
   const reasons = [];
@@ -73,11 +74,13 @@ export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {
   const indent = /^[ \t]*/.exec(lines[ranges[0][0] - 1])[0];
   const moved = ranges.flatMap(([first, last], index) => [...(index ? [''] : []), ...lines.slice(first - 1, last)]);
   const taking = Object.entries(takes).flatMap(([window, names]) => takeText(names, window, indent));
-  // Handed nothing, it is the first form: a script that makes its functions alone and leaves them in one object.
+  // Handed nothing, it is the first form: a script that makes its functions alone and leaves them in one object. Not so the lines of a
+  // function: they ran each time the function did, so their script stays a function, called with nothing.
   const inside = (written) => written.map((line) => indent + line);
   const [opens, handed, back, closes, taker] = hands.length
     ? [`window.${name} = (wrapper) => {`, [...inside(wrapNames(hands, 'const {', '} = wrapper;')), ''], ['return {', '};'], '};', `} = window.${name}({ ${hands.join(', ')} });`]
-    : [OPENS[1], [], [`window.${name} = {`, '};'], CLOSES[0], `} = window.${name};`];
+    : fn ? [`window.${name} = () => {`, [], ['return {', '};'], '};', `} = window.${name}();`]
+      : [OPENS[1], [], [`window.${name} = {`, '};'], CLOSES[0], `} = window.${name};`];
   const targetText = [headerOf(about, strict).trimEnd(), '', opens, ...handed, ...taking, ...(taking.length ? [''] : []),
     ...moved, '', ...inside(wrapNames(gives, back[0], back[1])), closes, ''].join('\n');
   if (targetText.split('\n').length - 1 > MAX_LINES) reasons.push(`${to} would be ${targetText.split('\n').length - 1} lines: a new file stays within ${MAX_LINES}`);
@@ -97,7 +100,7 @@ export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {
   });
   if (reasons.length) throw new Refusal(reasons);
   const taken = Object.keys(takes).length ? { takes } : {};
-  return { newSource: kept.join('\n'), targetText, record: { kind: 'inner', from, file: to, about, names: gives, gives, name, ...taken, ...(hands.length ? { hands } : {}), hand: true } };
+  return { newSource: kept.join('\n'), targetText, record: { kind: 'inner', from, file: to, about, names: gives, gives, name, ...taken, ...(hands.length ? { hands } : {}), hand: true, ...(fn ? { inside: fn } : {}) } };
 }
 
 const LEDGER = 'tools/restructure/extracted-browser.json';
