@@ -449,8 +449,8 @@ require('./actions/home-assistant-query');
 require('./actions/chroma');
 require('./actions/wavelink');
 require('./actions/voicemeeter');
-const { createEmbeddedBrowser } = require('./embedded-browser');
-const browserAdblock = require('./embedded-browser-adblock');
+require('./embedded-browser');
+require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 require('./second-screen');
 require('./screen-capture');
@@ -1976,25 +1976,7 @@ const { deckHa, haQuery, deckUnifi, deckUnifiEvents } = require('./smart-home/de
 const { deckChroma } = require('./lights/chroma-client.js');
 const { deckWaveLink, deckVoicemeeter } = require('./audio/mixer-clients.js');
 
-// Embedded-browser host for the "Browser" dashboard widget. Launches ONE headless
-// Edge on demand (when a tile opens) and kills it when the last tile closes, so an
-// unused widget costs nothing. Frames/input are relayed over a loopback WebSocket
-// (see the /embedded-browser/ws upgrade handler near the bottom of this file).
-const embeddedBrowser = createEmbeddedBrowser({
-  dataDir: DATA_DIR,
-  // Opt-in ad-blocker: load the unpacked uBOL extension only when the user enabled
-  // it AND it is installed. Read fresh at each Edge launch, so toggling the setting
-  // (which tears Edge down — see POST /settings) takes effect on the next open.
-  getExtensionDirs: () => {
-    try {
-      if (hub.settings && hub.settings.browserAdblock === true) {
-        const ext = browserAdblock.extensionDir(DATA_DIR);
-        if (ext) return [ext];
-      }
-    } catch (e) { /* never block the browser on an extension-resolver fault */ }
-    return [];
-  },
-});
+const { embeddedBrowser } = require('./windows-tiles/engine-browser.js');
 // Cross-surface Browser-widget coordination: keep two dashboard surfaces (desktop
 // browser + XENON) in step after a login, since they drive independent headless
 // pages over one shared cookie jar (see browser-surface-sync.js / GitHub #96).
