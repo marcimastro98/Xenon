@@ -163,7 +163,7 @@ fn apply(off: bool) {
     }
 }
 
-/// The class stops the page drawing at all (styles/global.css); the freeze
+/// The class stops the page drawing at all (components/DashboardPager/DashboardPager.css); the freeze
 /// also holds what keys off `overlay-frozen`, such as a background video.
 fn freeze_js(off: bool) -> String {
     format!(
