@@ -610,7 +610,6 @@
       "what": "Tiles that show something else: a web page, another screen, pictures, the open apps.",
       "files": [
         "server/windows-tiles/**",
-        "server/embedded-browser*.js",
         "server/windows.ps1",
         "server/foreground.ps1",
         "server/js/browser-tile/**",

@@ -5,7 +5,7 @@ import './keep-loop-alive.mjs';
 import { engineSource } from './engine-source.mjs';
 import { browserSource } from './browser-source.mjs';
 const require = createRequire(import.meta.url);
-const eb = require('../embedded-browser.js');
+const eb = require('../windows-tiles/embedded-browser.js');
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -610,7 +610,7 @@ test('the reasons a hung Edge fails with are ones the tile retries on', () => {
   // browser-tile.js retries an open whose error matches this pattern; an error
   // it does not recognise would leave the tile showing nothing.
   const retried = /timeout|connect|launch|exited|closed|port|socket|failed/i;
-  const src = engineSource('server/embedded-browser.js');
+  const src = engineSource('server/windows-tiles/embedded-browser.js');
   assert.match(src, /reject\(new Error\('cdp_timeout'\)\)/);
   assert.match(src, /killBrowser\('hung_closed'\)/);
   assert.match(src, /killBrowser\('stalled_closed'\)/);

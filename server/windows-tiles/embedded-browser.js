@@ -26,32 +26,32 @@ const DEFAULT_WS = (() => {
 
 // ── Pure helpers (exported for tests) ────────────────────────────────────────
 
-const { findEdge } = require('./windows-tiles/browser-find.js');
+const { findEdge } = require('./browser-find.js');
 
-const { normalizeUrl } = require('./windows-tiles/browser-address.js');
+const { normalizeUrl } = require('./browser-address.js');
 
-const { inputToCdp } = require('./windows-tiles/browser-input.js');
+const { inputToCdp } = require('./browser-input.js');
 
 // ── CDP host ─────────────────────────────────────────────────────────────────
 
-const { clampDim, renderScale } = require('./windows-tiles/browser-render-size.js');
+const { clampDim, renderScale } = require('./browser-render-size.js');
 
-const { makeTileState } = require('./windows-tiles/browser-tile-state.js');
+const { makeTileState } = require('./browser-tile-state.js');
 
-const { makePageSetup } = require('./windows-tiles/browser-page-setup.js');
+const { makePageSetup } = require('./browser-page-setup.js');
 
-const { makeStream } = require('./windows-tiles/browser-stream.js');
+const { makeStream } = require('./browser-stream.js');
 
-const { makeTargets } = require('./windows-tiles/browser-targets.js');
+const { makeTargets } = require('./browser-targets.js');
 
-const { makeTileActions } = require('./windows-tiles/browser-tile-actions.js');
+const { makeTileActions } = require('./browser-tile-actions.js');
 
 // opts: { WebSocketImpl, launch, dataDir, idleMs } — all injectable for tests.
 // `launch(profileDir)` -> Promise<{ proc, wsUrl }>.
 function createEmbeddedBrowser(opts) {
   const o = opts || {};
   const WebSocketImpl = o.WebSocketImpl || DEFAULT_WS;
-  const dataDir = o.dataDir || path.join(__dirname, 'data');
+  const dataDir = o.dataDir || path.join(__dirname, '..', 'data');
   const profileDir = path.join(dataDir, 'embedded-browser-profile');
   const idleMs = Number.isFinite(o.idleMs) ? o.idleMs : 15000;
   // How long a DevTools command may go unanswered (issue #144). Before this,
@@ -285,10 +285,10 @@ function createEmbeddedBrowser(opts) {
   };
 }
 
-const { resetPoisonedProfile } = require('./windows-tiles/browser-profile.js');
+const { resetPoisonedProfile } = require('./browser-profile.js');
 
-const { readDevToolsPort, edgeArgs, defaultLaunch } = require('./windows-tiles/browser-launch.js');
+const { readDevToolsPort, edgeArgs, defaultLaunch } = require('./browser-launch.js');
 
-const { makeConnection } = require('./windows-tiles/browser-connection.js');
+const { makeConnection } = require('./browser-connection.js');
 
 module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort, resetPoisonedProfile, edgeArgs };

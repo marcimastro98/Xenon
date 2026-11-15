@@ -1,6 +1,6 @@
 // The engine's host of the browser a Browser tile shows.
 
-const { createEmbeddedBrowser } = require('../embedded-browser.js');
+const { createEmbeddedBrowser } = require('./embedded-browser.js');
 const browserAdblock = require('./embedded-browser-adblock.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { hub } = require('../settings/current.js');

@@ -279,7 +279,8 @@
     {"from":"server/icue-sdk-install.js","to":"server/updates/icue-sdk-install.js"},
     {"from":"server/native-installer.js","to":"server/updates/native-installer.js"},
     {"from":"server/release-notes.js","to":"server/updates/release-notes.js"},
-    {"from":"server/version-ping.js","to":"server/updates/version-ping.js"}
+    {"from":"server/version-ping.js","to":"server/updates/version-ping.js"},
+    {"from":"server/embedded-browser.js","to":"server/windows-tiles/embedded-browser.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -343,6 +344,7 @@
     {"feature":"updates","glob":"server/release-notes.js","at":8},
     {"feature":"updates","glob":"server/native-installer.js","at":10},
     {"feature":"updates","glob":"server/version-ping.js","at":12},
-    {"feature":"updates","glob":"server/icue-sdk-install.js","at":13}
+    {"feature":"updates","glob":"server/icue-sdk-install.js","at":13},
+    {"feature":"windows-tiles","glob":"server/embedded-browser*.js","at":1}
   ]
 }

@@ -449,7 +449,7 @@ require('./actions/home-assistant-query');
 require('./actions/chroma');
 require('./actions/wavelink');
 require('./actions/voicemeeter');
-require('./embedded-browser');
+require('./windows-tiles/embedded-browser');
 require('./windows-tiles/embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./windows-tiles/browser-surface-sync');
 require('./windows-tiles/second-screen');

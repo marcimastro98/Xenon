@@ -657,7 +657,7 @@
       {"file":"server/paired/push-subscriptions.js","about":"A phone's push subscription as it is accepted and kept: a public HTTPS endpoint, its keys, and the saved list cleaned.","names":["STORE_VERSION","MAX_SUBSCRIPTIONS","MAX_ENDPOINT_LEN","normalizeSubscription","normalizeStore"]},
       {"file":"server/paired/push-send.js","about":"Sends one encrypted notification to a browser's push service and says whether the subscription is gone.","names":["DEFAULT_TTL","SEND_TIMEOUT_MS","postToService","isGone"]}
     ],
-    "server/embedded-browser.js": [
+    "server/windows-tiles/embedded-browser.js": [
       {"file":"server/windows-tiles/browser-find.js","about":"Finds a Chromium browser on this PC for the browser tile: the places Edge, Chrome and the others install to on each system.","names":["BROWSER_CANDIDATES","findEdge"]},
       {"file":"server/windows-tiles/browser-address.js","about":"Turns what a person typed in the browser tile's bar into an address: a site when it looks like one, a search otherwise.","names":["looksLikeHost","searchUrl","normalizeUrl"]},
       {"file":"server/windows-tiles/browser-input.js","about":"Turns a touch, click, wheel or key from the browser tile into the command the browser's debugging protocol takes.","names":["inputToCdp"]},
@@ -1189,7 +1189,7 @@
     "server/claude-code/claude-run.js": [
       {"factory":"createRunner","object":"held","names":["extraFolders","seq","projectCache","emitScheduled"],"kept":[],"bare":[],"after":4}
     ],
-    "server/embedded-browser.js": [
+    "server/windows-tiles/embedded-browser.js": [
       {"factory":"createEmbeddedBrowser","object":"edge","names":["lastStallRestartAt","proc","ws","ready","userAgent","widevineReady","nextId","idleTimer"],"kept":[],"bare":[],"after":7},
       {"factory":"createEmbeddedBrowser","object":"orphanSweep","names":["initialTargetId","sweepTimer"],"kept":[],"bare":[],"after":7}
     ],

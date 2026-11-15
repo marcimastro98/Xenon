@@ -57,7 +57,7 @@ One row per tile on the dashboard.
 | **Phone** | Calls, messages and contacts from the phone, and sending files between phone and PC. | `server/transfer/**` `server/js/call-modal.js` `server/js/call-modal/**` `server/js/transfer-widget/**` `server/js/transfer-widget.js` `server/components/PhoneView/**` and 4 more |
 | **Notifications** | The PC's notifications shown on the dashboard, and opening the app they came from. | `server/notifications.ps1` `server/notification-open/**` `server/components/NotificationsWidget/**` `server/js/notifications/**` |
 | **News, stocks, football** | The three tickers and where their data comes from. | `server/ticker/**` `server/js/football-widget/**` `server/js/football-widget.js` `server/components/StockWidget/**` `server/components/FootballWidget/**` `server/components/NewsWidget/**` and 2 more |
-| **Browser, second screen, slideshow** | Tiles that show something else: a web page, another screen, pictures, the open apps. | `server/windows-tiles/**` `server/embedded-browser*.js` `server/windows.ps1` `server/foreground.ps1` `server/js/browser-tile/**` `server/js/browser-tile.js` and 9 more |
+| **Browser, second screen, slideshow** | Tiles that show something else: a web page, another screen, pictures, the open apps. | `server/windows-tiles/**` `server/windows.ps1` `server/foreground.ps1` `server/js/browser-tile/**` `server/js/browser-tile.js` `server/js/second-screen-tile.js` and 8 more |
 | **Vitals and the pet** | Reminders to take a break, and Bit as a pet that reacts to the PC. | `server/vitals/**` `server/vitals-nag.ps1` `server/js/vitals-pet/**` `server/js/vitals*.js` `server/components/VitalsPet/**` `server/components/VitalsWidget/**` and 1 more |
 
 ## Bit and AI
