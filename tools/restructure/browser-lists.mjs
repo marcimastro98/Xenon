@@ -60,6 +60,16 @@ export function readLists(text, listFile = BUILT_LIST) {
   return rows;
 }
 
+/**
+ * Where a copy of the engine serves the list file: where it stands today and, for a copy as at a commit
+ * before it moved with its feature, where it stood then (browser-moved.json).
+ * @param {{from: string, to: string}[]} moves @returns {string[]} addresses to ask, today's first
+ */
+export function listAddresses(moves) {
+  const was = moves.find((move) => move.to === BUILT_LIST)?.from;
+  return [BUILT_LIST, was].filter(Boolean).map((file) => `/${file.slice('server/'.length)}`);
+}
+
 /** @param {string} text the list file @returns {string[]} the built-in widgets the page of desktop widgets can carry */
 export function liteWidgets(text) {
   const module = { exports: {} };

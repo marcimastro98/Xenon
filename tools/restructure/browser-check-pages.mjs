@@ -8,7 +8,9 @@ import { createHash } from 'node:crypto';
 
 import { editorStarted, fitRows, loadPerformanceMode, openCompanion } from './browser-check-asks.mjs';
 import { REFUSED } from './browser-check-engine.mjs';
-import { liteWidgets } from './browser-lists.mjs';
+import { wholeMoves } from './browser-ledger.mjs';
+import { listAddresses, liteWidgets } from './browser-lists.mjs';
+import { REPO_ROOT } from './parser.mjs';
 import { readTopLevel } from './top-level.mjs';
 
 const LOAD_TIMEOUT_MS = 60000;
@@ -263,7 +265,9 @@ async function ask(port, path, body) {
  * @returns {Promise<any[]>} one record per group
  */
 export async function recordWidgetPages(browser, port, page, settleMs, parser, known) {
-  const widgets = liteWidgets(await (await fetch(`http://127.0.0.1:${port}/js/layers/layer-tiles.js`)).text());
+  const lists = await Promise.all(listAddresses(wholeMoves(REPO_ROOT)).map((address) => fetch(`http://127.0.0.1:${port}${address}`)));
+  const widgets = liteWidgets(await (lists.find((list) => list.ok) ?? lists[0]).text());
+  if (!widgets.length) throw new Error('the copy serves no list of the widgets a desktop can carry');
   const host = await ask(port, '/layers/host', { layers: true, monitors: [] });
   if (host?.layers !== true) throw new Error(`the test copy did not take the report that widgets can be drawn: ${JSON.stringify(host)}`);
   const records = [];

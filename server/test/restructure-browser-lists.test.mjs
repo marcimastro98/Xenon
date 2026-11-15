@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { partsOf } from './browser-source.mjs';
 
 import { LOCALE, PAGES, onThisPc, openPage, plainFor, serverOf, staysOnCopy, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
-import { addToLists, ASKED_LISTS, BUILT_LIST, listRunProblems, listsHold, OWN_ROW, ownRowOf, readLists } from '../../tools/restructure/browser-lists.mjs';
+import { addToLists, ASKED_LISTS, BUILT_LIST, listAddresses, listRunProblems, listsHold, OWN_ROW, ownRowOf, readLists } from '../../tools/restructure/browser-lists.mjs';
 import { applyMove } from '../../tools/restructure/browser-moves.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
 import { listPages, tagsOf } from '../../tools/restructure/browser-pages.mjs';
@@ -46,6 +46,12 @@ test('the list of files per widget is read by running it', () => {
   assert.equal(listsHold(LIST, 'server/components/Ticker/Ticker.css'), true, 'a name the list builds is found by asking it');
   assert.equal(listsHold(LIST, 'server/components/Stock/Stock.css'), false);
   assert.equal(listsHold(null, 'server/js/time/clock.js'), false, 'a repo without the list');
+});
+
+test('the list file is asked for where it stands, then where it stood before it moved', () => {
+  const today = `/${BUILT_LIST.slice('server/'.length)}`;
+  assert.deepEqual(listAddresses([]), [today]);
+  assert.deepEqual(listAddresses([{ from: 'server/js/invented-list.js', to: BUILT_LIST }, { from: 'server/js/a.js', to: 'server/js/b/a.js' }]), [today, '/js/invented-list.js']);
 });
 
 test('a new script goes right before the old one in every row that holds it', () => {
