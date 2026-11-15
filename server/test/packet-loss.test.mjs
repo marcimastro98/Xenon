@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createPacketLoss, parsePingCounts, countsFromFailure, WINDOW } = require('../packet-loss.js');
+const { createPacketLoss, parsePingCounts, countsFromFailure, WINDOW } = require('../system/packet-loss.js');
 const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 
 test('no echo sent yet says nothing, it does not say 0%', () => {

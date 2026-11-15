@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const { createGuardian } = require('../guardian.js');
+const { createGuardian } = require('../system/guardian.js');
 
 // Guardian.queryHistory: targeted per-metric history for the AI (today vs
 // yesterday, last24h, 7/30-day averages, 30-day peak, 7-day series). We seed a

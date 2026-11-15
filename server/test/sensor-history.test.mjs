@@ -16,7 +16,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const SensorHistory = require('../js/sensor-history.js');
 const Recent = require('../sensor-history/recent.js');
-const { createGuardian } = require('../guardian.js');
+const { createGuardian } = require('../system/guardian.js');
 const gameMode = require('../capabilities/game-mode.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const { validateAction } = require('../js/deck-actions.js');

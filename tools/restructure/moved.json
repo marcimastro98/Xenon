@@ -17,9 +17,14 @@
     {"from":"server/mcp-dev-tools.js","to":"server/mcp/mcp-dev-tools.js","shim":true},
     {"from":"server/mcp-dev.js","to":"server/mcp/mcp-dev.js","shim":true},
     {"from":"server/linux-session-watch.js","to":"server/platform/linux-session-watch.js","shim":true},
-    {"from":"server/user-folders.js","to":"server/platform/user-folders.js","shim":true}
+    {"from":"server/user-folders.js","to":"server/platform/user-folders.js","shim":true},
+    {"from":"server/first-reading.js","to":"server/system/first-reading.js"},
+    {"from":"server/guardian.js","to":"server/system/guardian.js"},
+    {"from":"server/packet-loss.js","to":"server/system/packet-loss.js"}
   ],
   "patterns": [
-
+    {"feature":"system","glob":"server/guardian.js","at":16},
+    {"feature":"system","glob":"server/packet-loss.js","at":17},
+    {"feature":"system","glob":"server/first-reading.js","at":19}
   ]
 }

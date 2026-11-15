@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createGuardian } = require('../guardian.js');
+const { createGuardian } = require('../system/guardian.js');
 
 const HOUR = { h: '2026-11-07T12', m: {} };
 

@@ -4,7 +4,7 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const { createFirstReading, createFactReader } = require('../first-reading.js');
+const { createFirstReading, createFactReader } = require('../system/first-reading.js');
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const later = (value, ms) => new Promise((resolve) => { setTimeout(resolve, ms, value); });

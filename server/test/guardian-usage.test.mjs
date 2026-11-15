@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const { createGuardian } = require('../guardian.js');
+const { createGuardian } = require('../system/guardian.js');
 
 // Guardian's "PC Screen Time" read path: a pre-seeded guardian.json is
 // normalized on load and aggregated by getHistory() into 24h / 7d / 30d

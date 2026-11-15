@@ -50,7 +50,7 @@ const { pressMediaKey, tellApp, createMediaSender } = require('./media-key.js');
 const micUse = require('./mic-use');
 const { isOwnApp } = require('./capabilities/layer-anchor');
 const { createPerfStream } = require('./perf-stream');
-require('./packet-loss');
+require('./system/packet-loss');
 require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 require('./exclusive-hint');
@@ -397,7 +397,7 @@ require('./phone');                    // the paired phone: phonebook + call log
 require('./linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/content-installs'); // validated import receipts shared with Settings
-const { createFirstReading, createFactReader } = require('./first-reading');
+const { createFirstReading, createFactReader } = require('./system/first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
 require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
@@ -429,7 +429,7 @@ const { withThinking, applyThinking } = require('./ai-gemini-thinking');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
 require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-const { createGuardian } = require('./guardian');
+const { createGuardian } = require('./system/guardian');
 require('./battery');
 require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');

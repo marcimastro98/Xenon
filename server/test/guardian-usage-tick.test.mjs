@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createGuardian } = require('../guardian.js');
+const { createGuardian } = require('../system/guardian.js');
 
 const TICK = 15000;
 // Waits for something real (a file write) while the mocked clock stands still.

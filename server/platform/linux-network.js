@@ -3,7 +3,7 @@
 // each real interface from /proc/net/dev.
 
 const fsp = require('node:fs').promises;
-const { parsePingCounts, countsFromFailure } = require('../packet-loss.js');
+const { parsePingCounts, countsFromFailure } = require('../system/packet-loss.js');
 const { run, splitLines, readText } = require('./linux-read.js');
 
 // --- Network: ping (1.1.1.1) + /proc/net/dev, matching network.ps1 shape -----

@@ -906,7 +906,7 @@
       {"file":"server/store-supporters/credits-session.js","about":"The Sparks client's session with the hub: the saved pass or Sparks code turned into a token, asked for again before it ends or when the hub stops taking it, and one hub call made with it.","names":["fail","rememberBalance","savedCode","hasCode","sessionToken","withSession"]},
       {"file":"server/store-supporters/credits-creation.js","about":"Which rounds of a turn paid with Sparks are handed from the chat model to the creation model, and the tools the creation model gets.","names":["CHAT_MODEL","CREATION_TOOLS","reachesForCreation","CREATION_KIT","forCreation"]}
     ],
-    "server/guardian.js": [
+    "server/system/guardian.js": [
       {"file":"server/sensor-history/guardian-limits.js","about":"How often the sensor history samples and writes, how much it keeps, and when it warns.","names":["TICK_MS","DUE_SLACK_MS","PERSIST_MS","MAX_HOURS","MAX_DAYS","USAGE_MS","USAGE_MAX_DELTA_MS","MAX_APPS_PER_DAY","IDLE_PROC_RE","ALERT_CPU_TEMP","ALERT_GPU_TEMP","ALERT_MEM_PCT","ALERT_COOLDOWN_MS"]},
       {"file":"server/sensor-history/guardian-metrics.js","about":"The metrics the sensor history keeps, how a reading goes into a bucket, and how buckets are averaged.","names":["METRICS","emptyMetrics","addMetric","localKey","aggregate"]},
       {"file":"server/sensor-history/guardian-store.js","about":"The sensor history's store: read from disk once and made safe, written whole, handed to and taken from a backup.","names":["normalizeStore","normalizeApps","load","persist","exportStore","importStore"],"inner":{"factory":"createGuardian","make":"makeStore"}},
@@ -1178,7 +1178,7 @@
     ]
   },
   "gathers": {
-    "server/guardian.js": [
+    "server/system/guardian.js": [
       {"factory":"createGuardian","object":"state","names":["store","timer","usageTimer","sampling","lastSampleAt","lastPersistAt","lastCreditAt","lastDraw","lastUsageAt","lastApp","lastAppGame","usageDirty"],"kept":[],"bare":[],"after":0}
     ],
     "server/diskspace.js": [

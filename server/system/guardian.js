@@ -10,15 +10,15 @@
 
 const path = require('path');
 
-const { normalizeEveryMin } = require('./js/sensor-history.js');
+const { normalizeEveryMin } = require('../js/sensor-history.js');
 
-const { TICK_MS, DUE_SLACK_MS, USAGE_MS } = require('./sensor-history/guardian-limits.js');
+const { TICK_MS, DUE_SLACK_MS, USAGE_MS } = require('../sensor-history/guardian-limits.js');
 
-const { makeStore } = require('./sensor-history/guardian-store.js');
+const { makeStore } = require('../sensor-history/guardian-store.js');
 
-const { makeSampling } = require('./sensor-history/guardian-sampling.js');
+const { makeSampling } = require('../sensor-history/guardian-sampling.js');
 
-const { makeAnswers } = require('./sensor-history/guardian-answers.js');
+const { makeAnswers } = require('../sensor-history/guardian-answers.js');
 
 function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegroundApp = () => '', isForegroundGame = () => false, getEveryMin = () => 5 }) {
   const FILE = path.join(dataDir, 'guardian.json');

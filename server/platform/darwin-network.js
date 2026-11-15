@@ -2,7 +2,7 @@
 // The macOS network reading in the shape network.ps1 gives: ping and the bytes of each real
 // interface from netstat.
 
-const { parsePingCounts, countsFromFailure } = require('../packet-loss.js');
+const { parsePingCounts, countsFromFailure } = require('../system/packet-loss.js');
 const { run, runSoft, splitLines } = require('./darwin-read.js');
 
 // --- Network: ping + netstat -ib, matching network.ps1's shape --------------

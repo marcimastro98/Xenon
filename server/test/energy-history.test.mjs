@@ -16,7 +16,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Energy = require('../sensor-history/energy.js');
-const { createGuardian } = require('../guardian.js');
+const { createGuardian } = require('../system/guardian.js');
 const { readEnergy } = require('../sensor-history/routes.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const featureRoutes = require('../feature-routes.js');
