@@ -8,7 +8,7 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const SCRIPTS = ['capture-gallery-model', 'capture-annotate-model', 'capture-gallery-viewer',
+const SCRIPTS = ['capture/capture-gallery-model', 'capture-annotate-model', 'capture/capture-gallery-viewer',
   'capture-export-view', 'capture-annotate', 'capture-gallery'].map((name) => read(`../js/${name}.js`));
 
 const capture = (id, kind, game, daysAgo = 0) => ({
