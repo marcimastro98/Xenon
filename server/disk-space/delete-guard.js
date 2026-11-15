@@ -4,7 +4,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const DiskGuard = require('../disk-guard.js');
+const DiskGuard = require('../disk/disk-guard.js');
 const { DU_WALK_CAP } = require('./limits.js');
 
 function makeDeleteGuard({

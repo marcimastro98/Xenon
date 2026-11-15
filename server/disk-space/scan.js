@@ -7,7 +7,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const DiskCategories = require('../disk-categories.js');
-const DiskGuard = require('../disk-guard.js');
+const DiskGuard = require('../disk/disk-guard.js');
 const { makeKeptWrite } = require('../files/kept-write.js');
 const {
   SCAN_TIMEOUT_MS, CATEGORY_ITEMS_MAX, HASH_FILE_MAX, HASH_TOTAL_MAX, DUPE_GROUPS_MAX,

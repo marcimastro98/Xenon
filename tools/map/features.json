@@ -621,8 +621,6 @@
         "server/disk-space/**",
         "server/devclean*.js",
         "server/compact-vhdx.ps1",
-        "server/mounted-disks.js",
-        "server/linux-trash.js",
         "server/js/disk-*.js",
         "server/js/disk-widget/**",
         "server/js/devclean-widget.js",

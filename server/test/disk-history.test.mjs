@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const H = require(join(ROOT, 'disk-history.js'));
+const H = require(join(ROOT, 'disk/disk-history.js'));
 
 const GB = 1024 ** 3;
 const DAY = H.DAY_MS;

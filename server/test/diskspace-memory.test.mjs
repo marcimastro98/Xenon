@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { createDiskSpace } = require('../diskspace.js');
-const DiskHistory = require('../disk-history.js');
+const DiskHistory = require('../disk/disk-history.js');
 
 const TEMP_DIR = process.platform === 'win32' ? await fs.realpath(os.tmpdir()) : os.tmpdir();
 const SUMMARY = { v: 1, at: 1700000000000, root: 'X', bytes: 1234, files: 3, dirs: 2, byCategory: { temp: { bytes: 10, count: 1 } }, dupesWasted: 0 };

@@ -30,7 +30,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { fsp, SKIP_DIRS, SKIP_PREFIXES, AGG_DEPTH } = require('./linux-index-rules.js');
-require('../disk-kinds'); // nothing is taken from it here, but it runs code when it loads
+require('../disk/disk-kinds'); // nothing is taken from it here, but it runs code when it loads
 
 const DEFAULT_MAX_ENTRIES = 300000;
 const DEFAULT_MAX_AGG = 60000;

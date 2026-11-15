@@ -13,7 +13,7 @@
 const { createDockerSource } = require('./devclean-docker.js');
 const { createOllamaSource } = require('./devclean-ollama.js');
 const { createVscodeSource } = require('./devclean-vscode.js');
-const { createVhdxSource } = require('./devclean-vhdx.js');
+const { createVhdxSource } = require('../devclean-vhdx.js');
 const { ID_RE } = require('./devclean-ids.js');
 
 const RUNNABLE = ['docker', 'ollama', 'vscode'];

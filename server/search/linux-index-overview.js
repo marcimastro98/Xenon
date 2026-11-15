@@ -2,7 +2,7 @@
 // What the Linux file index says about disk space: the overview of a drive by kind of file, and
 // the contents of one folder with sizes.
 
-const DiskKinds = require('../disk-kinds.js');
+const DiskKinds = require('../disk/disk-kinds.js');
 
 const isUnder = (p, root) => p === root || p.startsWith(root.endsWith('/') ? root : root + '/');
 

@@ -1,4 +1,4 @@
-// Disk deletion hard blocklist (server/disk-guard.js) — the last gate before
+// Disk deletion hard blocklist (server/disk/disk-guard.js) — the last gate before
 // the helper's recycle-bin delete. Every refusal here is a data-loss class
 // that must stay closed: the guard wins over a valid category, and a bug
 // upstream must degrade to "refused", never to "deleted".
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const DG = require('../disk-guard.js');
+const DG = require('../disk/disk-guard.js');
 
 const CTX = DG.buildGuardCtx({
   // Pinned, not inferred — see the same note in disk-categories.test.mjs.

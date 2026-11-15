@@ -5,8 +5,8 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const DiskCategories = require('../disk-categories.js');
-const DiskHistory = require('../disk-history.js');
-const DiskKinds = require('../disk-kinds.js');
+const DiskHistory = require('../disk/disk-history.js');
+const DiskKinds = require('../disk/disk-kinds.js');
 const {
   CLIENT_DIRS_MAX, CLIENT_FILES_MAX, CATEGORY_ITEMS_MAX, DUPE_GROUPS_MAX,
 } = require('./limits.js');

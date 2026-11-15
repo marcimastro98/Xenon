@@ -354,7 +354,7 @@ const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
 const { lowerPriority } = require('./child-priority');
-const { createMountedDisks } = require('./mounted-disks');
+const { createMountedDisks } = require('./disk/mounted-disks');
 const calls = require('./calls');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
@@ -385,7 +385,7 @@ require('./js/slideshow-widget'); // single owner of the slideshow image rules (
 require('./windows-tiles/slideshow-folder');          // the slideshow's "folder on this PC" source
 require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
-const { createDevClean } = require('./devclean');
+const { createDevClean } = require('./disk/devclean');
 const featureRoutes = require('./feature-routes.js');           // the routes added since this file stopped growing
 const { createFeatureUnlock } = require('./store-supporters/feature-unlock');
 const { createTrialPass } = require('./store-supporters/trial-pass');
@@ -395,7 +395,7 @@ const fileTransferLib = require('./file-transfer');             // phone ↔ PC 
 require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
 require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
 require('./search/linux-index');         // the same surface in plain Node, for the platform with no helper
-const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
+const { createLinuxTrash } = require('./disk/linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./system/first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)

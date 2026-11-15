@@ -4,7 +4,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const DiskHistory = require('../disk-history.js');
+const DiskHistory = require('../disk/disk-history.js');
 const { makeKeptWrite } = require('../files/kept-write.js');
 
 function makeSavedOverviews({ dataDir, cmpKey, SNAPSHOT_FILE, HISTORY_FILE, saved, resolveRoot }) {

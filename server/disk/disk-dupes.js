@@ -23,7 +23,7 @@
 const crypto = require('crypto');
 const fsDefault = require('fs');
 const path = require('path');
-const { makeKeptWrite } = require('./files/kept-write.js');
+const { makeKeptWrite } = require('../files/kept-write.js');
 
 const CACHE_FILE = 'disk-hashes.json';
 const EDGE_BYTES = 64 * 1024;

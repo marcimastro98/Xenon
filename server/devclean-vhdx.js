@@ -8,7 +8,7 @@
 
 const fsp = require('fs').promises;
 const path = require('path');
-const { stableId } = require('./devclean-ids.js');
+const { stableId } = require('./disk/devclean-ids.js');
 const os = require('os');
 
 const LXSS_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss';

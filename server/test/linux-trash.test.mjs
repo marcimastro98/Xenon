@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const { createLinuxTrash } = require(join(ROOT, 'linux-trash.js'));
+const { createLinuxTrash } = require(join(ROOT, 'disk/linux-trash.js'));
 
 const spy = (result = { ok: true, code: null }) => {
   const calls = [];

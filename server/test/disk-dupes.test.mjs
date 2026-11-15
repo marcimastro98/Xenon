@@ -11,7 +11,7 @@ import os from 'node:os';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const { createDupeVerifier, EDGE_BYTES } = require(join(ROOT, 'disk-dupes.js'));
+const { createDupeVerifier, EDGE_BYTES } = require(join(ROOT, 'disk/disk-dupes.js'));
 
 const SIZE = EDGE_BYTES * 4;
 

@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createMountedDisks, MOUNTED_DISKS_TTL_MS } = require('../mounted-disks.js');
+const { createMountedDisks, MOUNTED_DISKS_TTL_MS } = require('../disk/mounted-disks.js');
 
 function rig(answers) {
   const clock = { now: 1000 };

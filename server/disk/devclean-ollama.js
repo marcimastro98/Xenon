@@ -6,7 +6,7 @@
 // are listed so the total adds up, but never offered.
 
 const http = require('http');
-const aiLocal = require('./ai-local.js');
+const aiLocal = require('../ai-local.js');
 const { stableId } = require('./devclean-ids.js');
 
 const CRASH_FALLBACK = 'qwen2.5:3b';

@@ -120,7 +120,7 @@ test('the summary of a scan a save could not write is written at shutdown as it 
 });
 
 test('the cache of file hashes says once that it could not be saved, and the next save writes it', async (t) => {
-  const { createDupeVerifier } = require('../disk-dupes.js');
+  const { createDupeVerifier } = require('../disk/disk-dupes.js');
   const lines = listen(t);
   const dataDir = tmp();
   const cacheFile = join(dataDir, 'disk-hashes.json');

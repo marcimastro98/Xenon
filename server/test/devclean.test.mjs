@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
-const { parseDockerSize, parseSystemDf, createDockerSource } = require('../devclean-docker.js');
-const { createOllamaSource, sameModel } = require('../devclean-ollama.js');
-const { createVscodeSource, workspaceTarget } = require('../devclean-vscode.js');
+const { parseDockerSize, parseSystemDf, createDockerSource } = require('../disk/devclean-docker.js');
+const { createOllamaSource, sameModel } = require('../disk/devclean-ollama.js');
+const { createVscodeSource, workspaceTarget } = require('../disk/devclean-vscode.js');
 const { parseLxss } = require('../devclean-vhdx.js');
-const { createDevClean } = require('../devclean.js');
-const { ID_RE } = require('../devclean-ids.js');
+const { createDevClean } = require('../disk/devclean.js');
+const { ID_RE } = require('../disk/devclean-ids.js');
 
 // Dev cleanup sources with injected runners: no docker, Ollama or editor needed.
 

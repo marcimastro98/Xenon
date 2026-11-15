@@ -115,7 +115,7 @@ test('forward slashes normalize like backslashes', () => {
 // the mirror of disk-guard.js: this is an ALLOWLIST, so it is safe when it
 // UNDER-matches — every extra match is another delete button. Hence the
 // case-sensitive comparisons off Windows.
-const DG = require('../disk-guard.js');
+const DG = require('../disk/disk-guard.js');
 
 const MAC_CTX = {
   platform: 'darwin',

@@ -12,7 +12,7 @@ import { readFileSync } from './native-source.mjs';
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = join(ROOT, '..');
-const DK = require(join(ROOT, 'disk-kinds.js'));
+const DK = require(join(ROOT, 'disk/disk-kinds.js'));
 
 test('extension and game-library rules', () => {
   assert.equal(DK.kindOf('clip.MP4', '/home/u/Videos'), 'video');
