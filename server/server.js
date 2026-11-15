@@ -517,7 +517,7 @@ const { createLyricsOffsets } = require('./lyrics-offsets');
 const { createLyricsTranslator } = require('./lyrics-translator');
 const { createSdkAi } = require('./sdk-ai');
 const { createRoastSparks } = require('./vitals-roast-sparks.js');
-const { createBitMessages } = require('./bit-messages.js');
+require('./bit-messages.js');
 const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
 const { createPcId } = require('./pc-id.js');
 require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
@@ -654,12 +654,7 @@ const sdkAi = createSdkAi({
 });
 // Bit's AI roasts on Sparks, under the daily Sparks the user allowed.
 const roastSparks = createRoastSparks({ dataDir: DATA_DIR });
-// What Bit has to tell the person, one inbox for every screen (bit-messages.js).
-const bitMessages = createBitMessages({
-  file: path.join(DATA_DIR, 'bit-messages.json'),
-  settings: () => hub.settings,
-  onChange: () => broadcastSSE('bit-messages', {}),
-});
+const { bitMessages } = require('./ai/engine-bit-messages.js');
 const { BIT_MESSAGE_BODY_MAX, LIVE_MAX_SESSION_MS } = require('./ai/limits.js');
 
 // Votes on Store entries (rating-votes.js): tickets, real use, and Bit's one ask.
