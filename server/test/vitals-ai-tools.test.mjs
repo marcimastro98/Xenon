@@ -1,5 +1,5 @@
 // Bit's Vitals tools (server/vitals/vitals-ai-tools.js) and the math they share with
-// the dashboard (js/vitals-core.js): what Bit reads is the bar on the screen,
+// the dashboard (js/vitals/vitals-core.js): what Bit reads is the bar on the screen,
 // and a refill said to Bit writes what a tap writes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const core = require('../js/vitals-core.js');
+const core = require('../js/vitals/vitals-core.js');
 const tools = require('../vitals/vitals-ai-tools.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -129,12 +129,12 @@ test('wiring: Bit gets the three tools, the dashboard uses the same math, and lo
   assert.match(server, /\.\.\.vitalsAiTools\.FUNCTIONS,/);
   assert.match(server, /vitalsAiTools\.NAMES\.includes\(fnName\)/);
   assert.doesNotMatch(server, /name: 'lock_pc', description: '[^']*Windows/);
-  assert.match(read('../js/vitals.js'), /VitalsCore\.refillPatch\(v, id, Date\.now\(\)\)/);
-  assert.match(read('../index.html'), /js\/vitals-core\.js"><\/script>\s*<script src="js\/vitals\.js"/);
+  assert.match(read('../js/vitals/vitals.js'), /VitalsCore\.refillPatch\(v, id, Date\.now\(\)\)/);
+  assert.match(read('../index.html'), /js\/vitals\/vitals-core\.js"><\/script>\s*<script src="js\/vitals\/vitals\.js"/);
 });
 
 test("the SDK vitals stream names each meter in the user's language and sends Bit's numbers", () => {
-  const vitals = read('../js/vitals.js');
+  const vitals = read('../js/vitals/vitals.js');
   assert.ok(vitals.includes('const snap = window.VitalsCore.snapshot(cfg(), effectiveNow());'));
   assert.ok(vitals.includes("snap.meters.map((m) => ({ ...m, name: t('vitals_' + m.id, m.id) }))"));
   assert.ok(vitals.includes('return { ok: true, ...snap, meters, away };'));
@@ -168,5 +168,5 @@ test('time at the computer today: away time, a sleeping PC and yesterday do not 
   assert.equal(a.ms, 6 * MIN, 'a gap longer than any tick is a sleeping PC');
   const tomorrow = new Date(2026, 9, 31, 9, 0, 0).getTime();
   assert.deepEqual(core.activeStep(a, tomorrow, 0), { day: '2026-10-31', ms: 0, at: tomorrow });
-  assert.match(read('../js/vitals.js'), /VitalsCore\.activeStep\(active, now, away \? freezeStart : 0\)/);
+  assert.match(read('../js/vitals/vitals.js'), /VitalsCore\.activeStep\(active, now, away \? freezeStart : 0\)/);
 });

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const core = require('../js/vitals-pet-core.js');
+const core = require('../js/vitals/vitals-pet-core.js');
 
 const VITALS = ['hydration', 'energy', 'stamina', 'focus', 'posture'];
 const VITAL_KINDS = ['low', 'zero', 'nag'];

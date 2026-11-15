@@ -1,7 +1,7 @@
 'use strict';
 // Bit's Vitals tools (server.js executeAiTool): read the meters, mark one done
 // because the user just said they did it, and switch Vitals / the pet / the
-// truce / the tone. The math is the dashboard's own (js/vitals-core.js), and
+// truce / the tone. The math is the dashboard's own (js/vitals/vitals-core.js), and
 // every write goes through the caller's locked settings update, so a refill
 // said to Bit lands exactly like a tap on the bar.
 //
@@ -10,7 +10,7 @@
 //   update   async (fn) → saved settings; fn(cur) returns the next settings or
 //            null for "nothing to write". Runs under withHubSettingsLock.
 //   now      clock, for tests
-const VitalsCore = require('../js/vitals-core');
+const VitalsCore = require('../js/vitals/vitals-core');
 
 const NAMES = Object.freeze(['get_vitals', 'refill_vital', 'set_vitals']);
 const TONES = Object.freeze(['soft', 'spicy', 'savage']);

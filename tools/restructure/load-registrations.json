@@ -102,7 +102,7 @@
         "callees": {
           "server/deck/deck-shortcut-runner.js": "97f6cd78a0c275749262b150c63698c4c64b5147ceca69b7e0b85339ddfe0254",
           "server/deck/deck-sound-player.js": "be8b1234d8e187e0486c4483bca1197ececd93695efb6475a2ad9698218ccc6e",
-          "server/js/deck-actions.js": "4b310901a9dbc206c0f44436b0a16db66ec53889accb4b362ffbee22114bb7a5"
+          "server/js/deck-actions.js": "7b08d88302a2278e618add446558d8258d6b4927660ec5ef0c6176e7b2c54092"
         },
         "reason": "createDeckShortcutRunner and createDeckSoundPlayer make empty sets and maps and return their functions; readConfigs, steps, run, broadcast, serverFirst, resolveFile, ffplay and spawn are first called by press, pressKey, handOff or play; deck-actions.js is only asked for its triggerSteps function and is handed nothing."
       },

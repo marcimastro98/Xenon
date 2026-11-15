@@ -1165,7 +1165,7 @@ const DECK_LIVE_SOURCES = ['timer', 'sdkState', 'sensor', 'vitals'];
 // The meters a 'vitals' live key can follow (live.name): 'lowest' is whichever
 // is emptiest right now, named on the face; the rest are the VitalsCore ids.
 const DECK_VITALS_METERS = ['lowest', 'hydration', 'energy', 'stamina', 'focus', 'posture'];
-// The tile's own thresholds (js/vitals.js LOW / EMPTY) and its warn/danger tokens.
+// The tile's own thresholds (js/vitals/vitals.js LOW / EMPTY) and its warn/danger tokens.
 const VITALS_LOW_PCT = 25;
 const VITALS_EMPTY_PCT = 2;
 const VITALS_LOW_COLOR = '#f0b84f';

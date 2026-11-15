@@ -123,7 +123,7 @@
     // gives it the stream (layer-lite-tiles.js attaches it).
     deck: {
       css: ['components/CustomSelect/CustomSelect.css', 'components/DeckPanel/DeckPanel.css', 'components/DeckPanel/DeckPanelKeys.css', 'components/DeckPanel/DeckPanelKeyStates.css', 'components/DeckPanel/DeckPanelShapes.css', 'components/DeckPanel/DeckPanelWindows.css', 'components/DeckPanel/DeckPanelKeyEditor.css', 'components/DeckPanel/DeckPanelPresetsEffects.css', 'components/DeckPanel/DeckPanelFaceControls.css'],
-      js: ['js/custom-select.js', 'js/spark-path.js', 'js/deck-shortcuts.js', 'js/deck-model.js', 'js/vitals-core.js', 'js/deck-store.js',
+      js: ['js/custom-select.js', 'js/spark-path.js', 'js/deck-shortcuts.js', 'js/deck-model.js', 'js/vitals/vitals-core.js', 'js/deck-store.js',
         'js/deck-icons.js', 'js/capability-catalog.js', 'js/deck-actions.js', 'js/deck-error-text.js', 'js/decor-bg.js', 'js/deck/key-face.js', 'js/deck/look-stamps.js', 'js/deck/store-reads.js', 'js/deck/press-feedback.js', 'js/deck/grid-fit.js', 'js/deck/key-actions.js', 'js/deck/profile-names.js', 'js/deck/parts.js', 'js/deck/live-state.js', 'js/deck/nav.js', 'js/deck/edit-tools.js', 'js/deck/style-preview.js', 'js/deck.js',
         'js/deck-feed.js'],
       markup: ['deck'],

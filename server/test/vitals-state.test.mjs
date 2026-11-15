@@ -75,7 +75,7 @@ test('the dashboard saves the settings; a layer page posts only vitals.state', a
 });
 
 test('wiring: both widgets save through the helper, one merge on both doors, the lock, the door lists', () => {
-  assert.match(read('js/vitals.js'), /function saveState\(patch\) \{[\s\S]{0,250}saveVitalsStateNow\(\);/);
+  assert.match(read('js/vitals/vitals.js'), /function saveState\(patch\) \{[\s\S]{0,250}saveVitalsStateNow\(\);/);
   assert.match(read('js/vitals-pet.js'), /function saveVitalsState\(patch\) \{[\s\S]{0,400}saveVitalsStateNow\(\);/);
   const S = engineSource();
   assert.match(S, /incoming\.vitals = \{ \.\.\.inV, state: VitalsState\.mergeState\(prev\.vitals\.state, inV\.state\) \};/);

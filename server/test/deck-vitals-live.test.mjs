@@ -1,6 +1,6 @@
 // A Deck key that shows a Vitals meter (key.live = { source: 'vitals', name }):
 // the face text and colour (js/deck-model.js), and the three pages that feed
-// snapshot.vitals: the dashboard (js/vitals.js), and the Virtual Deck popup and
+// snapshot.vitals: the dashboard (js/vitals/vitals.js), and the Virtual Deck popup and
 // layer pages (js/deck-feed.js), which compute it from the saved settings.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
-const core = require('../js/vitals-core.js');
+const core = require('../js/vitals/vitals-core.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function keyThrough(raw) {
@@ -63,7 +63,7 @@ test('the popup math is the tile math: VitalsCore.snapshot feeds the same face',
 });
 
 test('wiring: the dashboard, the popup and layer pages feed it, only on change', () => {
-  const vitalsJs = read('../js/vitals.js');
+  const vitalsJs = read('../js/vitals/vitals.js');
   assert.ok(vitalsJs.includes('if (sig === deckSig) return;'));
   assert.ok(vitalsJs.includes('window.Deck.refreshStates({ vitals });'));
   assert.match(vitalsJs, /function tick\(\) \{\n    const v = cfg\(\);\n    if \(v\.enabled\) stepActive\(\);\n    publishDeck\(\);/);
@@ -72,8 +72,8 @@ test('wiring: the dashboard, the popup and layer pages feed it, only on change',
   assert.ok(feed.includes("if (!window.VitalsCore || !hasVitalsKey()) return;"), 'no work without a Vitals key on screen');
   assert.ok(feed.includes("on('settings', () => { vitalsStale = true; vitalsTick(); });"));
   assert.ok(feed.includes('if (!vitalsTimer && window.VitalsCore) vitalsTimer = setInterval(vitalsTick, VITALS_EVERY_MS);'), 'one timer across reconnects');
-  assert.match(read('../deck-popup.html'), /js\/deck-model\.js"><\/script>\n<script src="js\/vitals-core\.js">/);
-  assert.ok(read('../js/layer-tiles.js').includes("'js/deck-model.js', 'js/vitals-core.js',"));
+  assert.match(read('../deck-popup.html'), /js\/deck-model\.js"><\/script>\n<script src="js\/vitals\/vitals-core\.js">/);
+  assert.ok(read('../js/layer-tiles.js').includes("'js/deck-model.js', 'js/vitals/vitals-core.js',"));
 });
 
 test('the editor offers each meter, and Bit knows the source', () => {

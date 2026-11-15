@@ -65,7 +65,7 @@ const ACTION_CATALOG = [
   { type: 'timerToggle', group: 'timer', labelKey: 'deck_act_timerToggle', params: [{ name: 'label', kind: 'text' }] },
   { type: 'timerCancel', group: 'timer', labelKey: 'deck_act_timerCancel', params: [{ name: 'label', kind: 'text' }] },
   // Vitals: mark a meter done from a key. The server writes it with the same
-  // math as a tap on the bar or telling Bit (js/vitals-core.js refillPatch).
+  // math as a tap on the bar or telling Bit (js/vitals/vitals-core.js refillPatch).
   { type: 'vitalsRefill', group: 'vitals', labelKey: 'deck_act_vitalsRefill', params: [{ name: 'vital', kind: 'select', options: ['hydration', 'energy', 'stamina', 'focus', 'posture', 'all'], strict: true,
     optionKeys: { hydration: 'vitals_hydration', energy: 'vitals_energy', stamina: 'vitals_stamina', focus: 'vitals_focus', posture: 'vitals_posture' } }] },
   { type: 'micMute',  group: 'audio',  labelKey: 'deck_act_micMute',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },

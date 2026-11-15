@@ -68,7 +68,7 @@ test('the Sparks a day for Bit\'s roasts: none by default, only the offered numb
 });
 
 test('wiring: a natural break refills after Bit\'s episodes move, and the pet sleeps in the chosen window', () => {
-  const vitals = read('js/vitals.js');
+  const vitals = read('js/vitals/vitals.js');
   const shift = vitals.indexOf('petPatch = { ...ps, ep };');
   const brk = vitals.indexOf("v.naturalBreaks !== false ? core.naturalBreak(");
   assert.ok(shift > 0 && brk > shift, 'the refill is not counted as an episode shift');

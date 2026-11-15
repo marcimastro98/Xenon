@@ -1,0 +1,8 @@
+{
+  "note": "Browser scripts moved whole from the root of server/js/ to the folder of their feature, in order. Written by tools/restructure/browser-move.mjs. The address a page asks for changed with each one (js/x.js -> js/<folder>/x.js) and nothing answers at the old one. The scripts that stay in the root are in browser-move-left.json, each with its reason.",
+  "moves": [
+    {"from":"server/js/vitals-core.js","to":"server/js/vitals/vitals-core.js"},
+    {"from":"server/js/vitals-pet-core.js","to":"server/js/vitals/vitals-pet-core.js"},
+    {"from":"server/js/vitals.js","to":"server/js/vitals/vitals.js"}
+  ]
+}

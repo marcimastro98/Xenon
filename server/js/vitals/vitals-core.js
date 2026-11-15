@@ -1,5 +1,5 @@
 'use strict';
-// Vitals math shared by the dashboard (js/vitals.js) and the server (Bit's
+// Vitals math shared by the dashboard (js/vitals/vitals.js) and the server (Bit's
 // vitals tools in server.js): how full a meter is, what one refill writes, and
 // what Bit is told about it. One formula, so Bit never reads a different bar
 // than the one on the screen. Pure: the clock and the settings come in.

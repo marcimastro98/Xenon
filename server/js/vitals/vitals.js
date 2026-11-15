@@ -66,7 +66,7 @@
   function enabledIds(v) {
     return VITALS_IDS.filter(id => v.items && v.items[id] && v.items[id].on !== false);
   }
-  // The same math Bit reads on the server (js/vitals-core.js).
+  // The same math Bit reads on the server (js/vitals/vitals-core.js).
   const level = (v, id, now) => window.VitalsCore.level(v, id, now);
   function saveState(patch) {
     const cur = cfg();

@@ -155,7 +155,7 @@
     "server/js/tile-material.js TS2339": 3,
     "server/js/tile-shape-presets.js TS2339": 1,
     "server/js/topbar-look.js TS2339": 6,
-    "server/js/vitals-pet-core.js TS2339": 1,
+    "server/js/vitals/vitals-pet-core.js TS2339": 1,
     "server/json-lru.js TS2554": 5,
     "server/layer-pages.js TS2339": 1,
     "server/layer-pages.js TS2554": 3,

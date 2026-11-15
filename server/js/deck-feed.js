@@ -5,7 +5,7 @@
 // EventSource the page already has.
 (function () {
   // Vitals keys (live source 'vitals'): no vitals.js here, so the meters come
-  // from the saved settings through the same math (js/vitals-core.js). The
+  // from the saved settings through the same math (js/vitals/vitals-core.js). The
   // settings are read only while a Vitals key is on screen, again after each
   // save, and the Deck repaints only when a whole percent changes.
   const VITALS_EVERY_MS = 5000;

@@ -398,7 +398,7 @@
         compare: d.compare && typeof d.compare === 'object' ? d.compare : null,
       };
     } }),
-    // The Vitals meters, the numbers Bit reads (js/vitals.js sdkSnapshot).
+    // The Vitals meters, the numbers Bit reads (js/vitals/vitals.js sdkSnapshot).
     // Read from this page, no request; vitals.js also pushes on every change.
     vitals: Object.freeze({ ttl: 5000, load: async () => (window.VitalsWidget && typeof window.VitalsWidget.sdkSnapshot === 'function'
       ? window.VitalsWidget.sdkSnapshot() : { ok: false, enabled: false, meters: [] }) }),

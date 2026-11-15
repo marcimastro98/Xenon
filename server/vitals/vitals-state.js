@@ -7,7 +7,7 @@
 // can never rewind what another one saved. The settings normaliser
 // (normalizeVitals) re-clamps the result on write.
 
-const vitalsPetCore = require('../js/vitals-pet-core');
+const vitalsPetCore = require('../js/vitals/vitals-pet-core');
 
 const MAX_BYTES = 32 * 1024;
 const STATE_KEYS = Object.freeze(['last', 'xp', 'day', 'fills', 'log', 'awayCreditAt', 'pet', 'mem']);

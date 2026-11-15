@@ -719,7 +719,8 @@
         "server/js/vitals-pet/**",
         "server/js/vitals*.js",
         "server/components/VitalsPet/**",
-        "server/components/VitalsWidget/**"
+        "server/components/VitalsWidget/**",
+        "server/js/vitals/**"
       ]
     },
     {
