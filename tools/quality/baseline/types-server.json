@@ -290,6 +290,6 @@
     "server/windows-tiles/browser-tile-state.js TS2339": 1,
     "server/windows-tiles/embedded-browser-adblock.js TS2810": 2,
     "server/windows-tiles/second-screen.js TS2339": 3,
-    "server/winnotif.js TS2554": 1
+    "server/notification-open/winnotif.js TS2554": 1
   }
 }

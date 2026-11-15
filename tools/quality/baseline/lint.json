@@ -1746,7 +1746,7 @@
     "server/windows-tiles/routes-tiles.js complexity/useOptionalChain": 6,
     "server/windows-tiles/routes.js complexity/useOptionalChain": 2,
     "server/windows-tiles/tile-play.js complexity/useOptionalChain": 1,
-    "server/winnotif.js suspicious/noAssignInExpressions": 1,
+    "server/notification-open/winnotif.js suspicious/noAssignInExpressions": 1,
     "server/files/zip-writer.js complexity/useOptionalChain": 1,
     "server/files/zip-writer.js suspicious/noControlCharactersInRegex": 2,
     "tools/ambient-glass-check/check.mjs complexity/useOptionalChain": 1,

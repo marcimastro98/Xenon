@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ln = require('../linux-notif.js');
+const ln = require('../notification-open/linux-notif.js');
 
 const NOTIFY = `method call time=1784500000.123456 sender=:1.84 -> destination=:1.12 serial=421 path=/org/freedesktop/Notifications; interface=org.freedesktop.Notifications; member=Notify
    string "Thunderbird"

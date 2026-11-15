@@ -2,7 +2,7 @@
 // something wants them.
 
 const { sseClients } = require('../http/sse-clients.js');
-const winNotif = require('../winnotif.js');
+const winNotif = require('./winnotif.js');
 const { winNotifWanted } = require('../settings/notification-switches.js');
 
 function refreshWinNotifWatch() {

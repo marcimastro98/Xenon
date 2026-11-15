@@ -3,7 +3,7 @@
 
 const { normalizeWindowsNotifications } = require('../settings/normalize-notifications.js');
 const { hub } = require('../settings/current.js');
-const winNotif = require('../winnotif.js');
+const winNotif = require('./winnotif.js');
 
 /** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
 const branches = {

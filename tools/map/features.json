@@ -598,9 +598,7 @@
       "name": "Notifications",
       "what": "The PC's notifications shown on the dashboard, and opening the app they came from.",
       "files": [
-        "server/winnotif.js",
         "server/notifications.ps1",
-        "server/linux-notif.js",
         "server/notification-open/**",
         "server/components/NotificationsWidget/**",
         "server/js/notifications/**"

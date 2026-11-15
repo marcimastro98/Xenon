@@ -10,7 +10,7 @@ import { EventEmitter } from 'node:events';
 const require = createRequire(import.meta.url);
 const cp = require('child_process');
 const fs = require('fs');
-const linuxNotif = require('../linux-notif.js');
+const linuxNotif = require('../notification-open/linux-notif.js');
 const spawned = [];
 let refuse = false;
 const realSpawn = cp.spawn;
@@ -24,7 +24,7 @@ cp.spawn = (exe, args) => {
   spawned.push(p);
   return p;
 };
-const winnotif = require('../winnotif.js');
+const winnotif = require('../notification-open/winnotif.js');
 cp.spawn = realSpawn;
 
 // The waits of winnotif.js: after an end, and after three quick ends in a row.

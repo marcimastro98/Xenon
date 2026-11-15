@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const { matchWindow, aumidWords, isLaunchableAumid, isDesktopEntryId } = require('../notification-open/match.js');
 const { createNotificationOpener, platformDeps, findItem } = require('../notification-open/index.js');
 const { parseStartApps, createStartAppIds, launchAumid } = require('../notification-open/start-apps.js');
-const { parseNotifyBlock } = require('../linux-notif.js');
+const { parseNotifyBlock } = require('../notification-open/linux-notif.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const { validateAction } = require('../js/deck-actions.js');
 const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');

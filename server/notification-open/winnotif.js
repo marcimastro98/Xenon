@@ -21,14 +21,14 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { lowerPriority } = require('./programs/child-priority');
+const { lowerPriority } = require('../programs/child-priority');
 
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 const FEED_MAX = 30;
 
-const PS_SCRIPT = path.join(__dirname, 'notifications.ps1');
-const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
+const PS_SCRIPT = path.join(__dirname, '..', 'notifications.ps1');
+const HELPER_EXE = path.join(__dirname, '..', 'helper', 'xenon-helper.exe');
 
 // Wired once by server.js via init(). isExcluded filters per-app mutes; onItem
 // pushes one live notification; onFeed announces state/feed replacement.
@@ -37,12 +37,12 @@ let _onItem = null;
 let _onFeed = null;
 let _onPresent = null;
 
-const { notifWatch } = require('./notification-open/winnotif-state.js');
+const { notifWatch } = require('./winnotif-state.js');
 const {
   POLL_MS, _stopChild, setPace, getState, getFeed, isSupported, reportedState,
-} = require('./notification-open/winnotif-control.js');
+} = require('./winnotif-control.js');
 
-const { _project } = require('./notification-open/winnotif-shape.js');
+const { _project } = require('./winnotif-shape.js');
 
 function init(deps) {
   if (deps && typeof deps.isExcluded === 'function') _isExcluded = deps.isExcluded;

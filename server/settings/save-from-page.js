@@ -5,7 +5,7 @@
 const TileSettings = require('../grid/tile-settings.js');
 const VitalsState = require('../vitals/vitals-state.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const winNotif = require('../winnotif.js');
+const winNotif = require('../notification-open/winnotif.js');
 const { nextSettingsRev } = require('../settings-rev.js');
 const { readHubSettingsForUpdate } = require('./read.js');
 const { hub } = require('./current.js');

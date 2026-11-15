@@ -1,5 +1,5 @@
 // How often the notification reader looks, loaded on its own: the state module and the module
-// that changes the pace, never server/winnotif.js. The pace used to get its first value from a
+// that changes the pace, never server/notification-open/winnotif.js. The pace used to get its first value from a
 // line of winnotif.js, so the state loaded by anything else had none, and the helper would have
 // been started with "undefined" as its interval.
 
@@ -14,7 +14,7 @@ const atLoad = notifWatch.pollMs;
 const { POLL_MS, POLL_GAME_MS, setPace } = require('../notification-open/winnotif-control.js');
 
 test('the pace is loaded without winnotif.js', () => {
-  const reader = path.join('server', 'winnotif.js');
+  const reader = path.join('server', 'notification-open/winnotif.js');
   assert.deepEqual(Object.keys(require.cache).filter((file) => file.endsWith(reader)), []);
 });
 
