@@ -31,7 +31,7 @@
 // release can still be offered.
 
 require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
-require('./community-catalog');
+require('./store-catalog/community-catalog');
 
 require('./ai-openai');
 require('./ai-anthropic');

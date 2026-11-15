@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { createBitMessages, cleanMessage, MAX_MESSAGES } = require('../bit-messages.js');
-const { normalizeMessage } = require('../community-messages.js');
+const { normalizeMessage } = require('../store-catalog/community-messages.js');
 
 const DAY = 24 * 3600 * 1000;
 const NOON = new Date(2026, 10, 5, 12).getTime();

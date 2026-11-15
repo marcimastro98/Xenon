@@ -171,7 +171,7 @@ const screenMenu = require('./screen-menu').createScreenMenu({
   holding: () => layersEdit.get(),
 });
 const XenonMenu = require('./xenon-menu');
-const MenuStore = require('./menu-store.js');
+const MenuStore = require('./store-catalog/menu-store.js');
 const { LAYER_TILE_EXCLUDED } = require('./widget-options/layer-tile-excluded.js');
 async function _layerCatalog() {
   const all = ((await sdkPackagesCached().catch(() => null)) || { packages: [] }).packages
@@ -475,11 +475,11 @@ const codexAppServer = require('./codex-appserver');
 const codexBridge = require('./codex/codex-bridge');
 const codexLink = require('./codex-link');
 const chatgptAsk = require('./codex/chatgpt-ask');
-const communityCatalog = require('./community-catalog');
-require('./community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
-require('./community-installs'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
+const communityCatalog = require('./store-catalog/community-catalog');
+require('./store-catalog/community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
+require('./store-catalog/community-installs'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const supporterRedeem = require('./store-supporters/supporter-redeem');
-const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
+const widgetAutoUpdateLib = require('./store-catalog/widget-auto-update');   // Store widgets that update themselves (see its header)
 const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
 const aiPresets = require('./ai-presets');          // the assistant's create_preset / preset_reference tools
 const aiPictures = require('./ai-attached-pictures');  // pictures attached in the chat, placed inside creations
@@ -493,9 +493,9 @@ require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice p
 require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
-require('./icon-packs');
-require('./sound-packs');
-require('./community-ratings');
+require('./store-catalog/icon-packs');
+require('./store-catalog/sound-packs');
+require('./store-catalog/community-ratings');
 require('./community-limited'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./remote-control');
 // Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
@@ -518,7 +518,7 @@ const { createLyricsTranslator } = require('./lyrics-translator');
 const { createSdkAi } = require('./widget-sdk/sdk-ai');
 const { createRoastSparks } = require('./store-supporters/vitals-roast-sparks.js');
 require('./bit-messages.js');
-require('./rating-votes.js');
+require('./store-catalog/rating-votes.js');
 require('./pc-id.js');
 require('./mcp/mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
 const mcpDevTools = require('./mcp/mcp-dev-tools');      // ...and what each of their tools does
@@ -1306,7 +1306,7 @@ async function handleMcpDevRoute(req, res, reqPath, json) {
 // A store that exists but cannot be read is put back from its newest daily
 // copy before anything reads it, and the damaged file is kept aside
 // (store-snapshots.js). Open dashboards are told, once, which copy came back.
-const storeSnapshots = require('./store-snapshots');
+const storeSnapshots = require('./store-catalog/store-snapshots');
 const {
   DURABLE_STORES, _storeRecovery, startStoreSnapshots,
 } = require('./engine/durable-stores.js');

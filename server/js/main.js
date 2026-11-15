@@ -807,7 +807,7 @@ function postponeAutoUpdate() {
     es.addEventListener('update_auto', e => { try { onAutoUpdate(JSON.parse(e.data)); } catch {} });
     es.addEventListener('widget_auto_updated', e => {
       // The server updated Store widgets by itself, or found one that needs the
-      // user's approval (server/widget-auto-update.js).
+      // user's approval (server/store-catalog/widget-auto-update.js).
       try { if (window.CustomWidget && typeof window.CustomWidget.onAutoUpdated === 'function') window.CustomWidget.onAutoUpdated(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('calls', e => {

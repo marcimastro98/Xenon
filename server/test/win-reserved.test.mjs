@@ -5,8 +5,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { isWindowsReservedName } = require('../win-reserved.js');
 const FT = require('../file-transfer.js');
-const sp = require('../sound-packs.js');
-const ip = require('../icon-packs.js');
+const sp = require('../store-catalog/sound-packs.js');
+const ip = require('../store-catalog/icon-packs.js');
 
 test('reserved device names in every form Windows treats as a device', () => {
   for (const n of ['con', 'CON', 'con.txt', 'con .txt', 'CON   .tar.gz', 'aux', 'nul.mp3', 'prn',

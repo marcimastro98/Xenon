@@ -11,7 +11,7 @@
 // (validateWidgetPayload, validateIconPack). Nothing is installed here.
 
 const SdkWidgets = require('./sdk-widgets.js');
-const IconPacks = require('./icon-packs.js');
+const IconPacks = require('./store-catalog/icon-packs.js');
 const AmbientScene = require('./js/ambient-scene.js');
 const PresetShare = require('./js/preset-share.js');
 const { note, fail, diffValue, isObject } = require('./ai-preset-diff.js');

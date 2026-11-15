@@ -34,7 +34,7 @@
   // The detail view's interactive vote row: current average + five tap targets.
   // Fetched with mine=1 (the local server attaches the install id) so the
   // user's own vote is highlighted; a tap posts and repaints optimistically.
-  // The vote on this entry, as far as this PC can tell (server/rating-votes.js). The
+  // The vote on this entry, as far as this PC can tell (server/store-catalog/rating-votes.js). The
   // average stays out of the way of someone about to vote.
   function ratingLine(state) {
     if (state.state === 'none') return t('gallery_rate_install');

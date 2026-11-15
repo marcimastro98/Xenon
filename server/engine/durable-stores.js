@@ -5,7 +5,7 @@ const { DATA_DIR } = require('./paths.js');
 const { SETTINGS_FILE } = require('../settings/settings-file.js');
 const { NOTES_JSON, EVENTS_FILE, TASKS_FILE, TIMERS_FILE } = require('../time/store-files.js');
 const { DECK_FILE } = require('../deck/deck-file.js');
-const storeSnapshots = require('../store-snapshots.js');
+const storeSnapshots = require('../store-catalog/store-snapshots.js');
 
 const DURABLE_STORES = [SETTINGS_FILE, DECK_FILE, NOTES_JSON, TASKS_FILE, EVENTS_FILE, TIMERS_FILE];
 const _storeRecovery = [];

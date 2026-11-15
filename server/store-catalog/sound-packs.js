@@ -21,7 +21,7 @@ const path = require('path');
 
 const PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Windows reserved device names pass PACK_ID_RE but aren't usable folder names.
-const { WIN_RESERVED_RE } = require('./win-reserved');
+const { WIN_RESERVED_RE } = require('../win-reserved');
 const CLIP_ID_RE = /^[a-z0-9][a-z0-9_-]{0,40}$/;
 const CLIP_EXTS = Object.freeze(['mp3', 'ogg', 'wav']);
 // The pack-relative reference a Deck key / SDK widget may use as playSound.file.

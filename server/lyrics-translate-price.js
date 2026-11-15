@@ -12,7 +12,7 @@
 // without a release. The published one is used only when it parses and is at
 // least as recent as the built-in one; it can only change a displayed figure.
 
-const { CATALOG_BASE, fetchText } = require('./community-catalog');
+const { CATALOG_BASE, fetchText } = require('./store-catalog/community-catalog');
 
 const PRICES_URL = CATALOG_BASE + 'ai-prices.json';
 const TTL_MS = 12 * 60 * 60 * 1000;

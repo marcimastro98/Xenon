@@ -19,18 +19,18 @@
 // answers already_issued and the entry shows as used.
 
 const fs = require('fs');
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('../atomic-write');
 
 const {
   ENTRY_ID_RE, REASONS, REASON_MAX_STARS, MAX_ENTRIES, WAIT_MS, SEEN_MS, ASK_EVERY_MS,
   ASKS_PER_ENTRY, TICK_MS, FIRST_TICK_MS, VOTE_ERRORS, cleanTime, cleanEntry, blankEntry,
   ownedEntries, inUse,
-} = require('./store-catalog/rating-vote-rules.js');
+} = require('./rating-vote-rules.js');
 
 
-const { makeAsks } = require('./store-catalog/rating-vote-asks.js');
+const { makeAsks } = require('./rating-vote-asks.js');
 
-const { makeTickets } = require('./store-catalog/rating-vote-tickets.js');
+const { makeTickets } = require('./rating-vote-tickets.js');
 
 function createRatingVotes({
   file, pcId, scopedId, hub, redeemSaved = async () => null, fileAsk = async () => {},

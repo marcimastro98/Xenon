@@ -4,7 +4,7 @@
 const aiSurface = require('../ai-surface.js');
 const UsageMode = require('../js/usage-mode.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const aiRateStore = require('../ai-rate-store.js');
+const aiRateStore = require('./ai-rate-store.js');
 const aiDeckRun = require('../ai-deck-run.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */

@@ -7,7 +7,7 @@
 // to these by server/test/sdk-limits.test.mjs.
 
 const sdkProxy = require('../sdk-proxy.js');
-const sdkStore = require('../sdk-store.js');
+const sdkStore = require('../store-catalog/sdk-store.js');
 
 // The largest body a widget may SEND through /sdk/fetch.
 const FETCH_BODY_MAX_BYTES = 256 * 1024;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const cat = require('../community-catalog.js');
+const cat = require('../store-catalog/community-catalog.js');
 
 const entry = (over) => Object.assign({
   id: 'neon-theme', kind: 'theme', name: 'Neon', author: 'Luca',

@@ -18,7 +18,7 @@ const mb = (text, name) => {
 };
 
 test('the Store code ceiling agrees between the app and the export dialog', () => {
-  const catalog = mb(engineSource('server/community-catalog.js'), 'MAX_CODE_BYTES');
+  const catalog = mb(engineSource('server/store-catalog/community-catalog.js'), 'MAX_CODE_BYTES');
   const share = src('../js/preset-share.js');
   assert.equal(mb(share, 'CATALOG_CODE_MAX'), catalog);
   assert.ok(mb(share, 'MAX_CODE_BYTES') >= Math.ceil(catalog * 0.75), 'the import dialog must decode any code the catalog accepts');

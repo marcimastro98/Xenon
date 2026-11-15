@@ -17,11 +17,11 @@ test('one star stays in its folder, two stars cross folders', () => {
 
 test('a file goes to the first feature that names it', () => {
   const features = [
-    { id: 'store', files: ['server/sdk-store.js'] },
+    { id: 'store', files: ['server/store-catalog/sdk-store.js'] },
     { id: 'sdk', files: ['server/sdk-*.js', 'server/never.js'] },
   ];
-  const { owned, unowned, unused } = assign(['server/sdk-store.js', 'server/sdk-proxy.js', 'server/lost.js'], features);
-  assert.deepEqual(owned.get('store'), ['server/sdk-store.js']);
+  const { owned, unowned, unused } = assign(['server/store-catalog/sdk-store.js', 'server/sdk-proxy.js', 'server/lost.js'], features);
+  assert.deepEqual(owned.get('store'), ['server/store-catalog/sdk-store.js']);
   assert.deepEqual(owned.get('sdk'), ['server/sdk-proxy.js']);
   assert.deepEqual(unowned, ['server/lost.js']);
   assert.deepEqual(unused, ['sdk: server/never.js']);

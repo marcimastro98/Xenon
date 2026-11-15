@@ -5,7 +5,7 @@ import { readFileSync } from './browser-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const store = require('../sdk-store.js');
+const store = require('../store-catalog/sdk-store.js');
 
 // ── Key/value store: caps + purity ──────────────────────────────────────────
 

@@ -37,7 +37,7 @@ const TRIAL = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
 // The Sparks a supporter's pass gets each month (MONTHLY in the app's js/sparks-store.js).
 const SPARKS_MONTHLY = 300;
 // Catalog entries come from the supporter hub, so their links and colours are
-// checked here as the app checks them (server/community-catalog.js): a
+// checked here as the app checks them (server/store-catalog/community-catalog.js): a
 // "reserve" link must be https on Discord, a preview colour a hex value. An
 // esc()'d javascript: URL would still run, and a raw style value could load
 // an outside url().

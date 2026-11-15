@@ -46,7 +46,7 @@ const HUB_DEFAULTS_APP = Object.freeze({
   // installs what the user would otherwise be asked to install, at a moment
   // they are not using the PC. One tap in Settings -> General turns it off.
   autoUpdate: true,
-  // Store widgets update themselves (server/widget-auto-update.js). Same posture
+  // Store widgets update themselves (server/store-catalog/widget-auto-update.js). Same posture
   // as autoUpdate: ON, normalized with `!== false`, sends nothing anywhere new (it
   // reads the catalog the Store already reads). It never raises a widget's
   // permissions and never touches a theme, a page or a Deck: a version that asks

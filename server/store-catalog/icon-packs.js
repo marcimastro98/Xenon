@@ -29,7 +29,7 @@ const PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Windows reserved device names (con, aux, nul, com1…) pass PACK_ID_RE but
 // behave inconsistently as folder names across OSes — reject them so a pack id
 // is always a real installable folder.
-const { WIN_RESERVED_RE } = require('./win-reserved');
+const { WIN_RESERVED_RE } = require('../win-reserved');
 const ICON_ID_RE = /^[a-z0-9][a-z0-9_-]{0,40}$/;
 const ICON_FILE_RE = /^[a-z0-9][a-z0-9_-]{0,40}\.(svg|png)$/;
 const MAX_ICONS = 120;

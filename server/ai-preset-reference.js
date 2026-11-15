@@ -16,7 +16,7 @@ const DashboardInstances = require('./js/dashboard-instances.js');
 const DashboardPresets = require('./js/dashboard-presets.js');
 const AmbientScene = require('./js/ambient-scene.js');
 const CustomBg = require('./js/custom-bg.js');
-const IconPacks = require('./icon-packs.js');
+const IconPacks = require('./store-catalog/icon-packs.js');
 
 // Held inside normalizer bodies, not exported (guarded by the reference test).
 const THEME_ENUMS = Object.freeze({ appearance: ['dark', 'light', 'auto'], styleMode: ['liquid', 'glass', 'retro', 'comic'] });

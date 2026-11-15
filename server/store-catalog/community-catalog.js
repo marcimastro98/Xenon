@@ -16,10 +16,10 @@
 // Pure parts (normalizeCatalog, normalizeCodeId, cacheIsFresh) are exported
 // for unit tests (server/test/community-catalog.test.mjs).
 
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
 const fs = require('fs');
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('../atomic-write');
 
 // The storefront layout — which sections the Store shows, in what order and in
 // what shape — travels in the catalog alongside `entries`, and the same contract
@@ -32,15 +32,15 @@ const { writeFileAtomic } = require('./atomic-write');
 // catalog simply carries no layout and both storefronts fall back to their
 // default order — which is exactly what the contract promises for absent input.
 let storefront = null;
-try { storefront = require('./shared/src/storefront-layout.js'); }
+try { storefront = require('../shared/src/storefront-layout.js'); }
 catch { storefront = null; }
 
-require('./store-catalog/description-limit.js'); // nothing is taken from it here, but it runs code when it loads
+require('./description-limit.js'); // nothing is taken from it here, but it runs code when it loads
 
 const CATALOG_BASE = 'https://xenon-app.com/community/';
 const CATALOG_URL = CATALOG_BASE + 'catalog.json';
 
-const { fetchText } = require('./store-catalog/catalog-fetch.js');
+const { fetchText } = require('./catalog-fetch.js');
 // One shared code file. 4 MB since v4.11.10 (was 2): a remote-locked bundle carrying a theme
 // with painted backdrop images, a widget AND an Ambient scene lands around 3.5 MB, because
 // locking inflates a code by ~78%. Matches the import dialog's own 4 MB ceiling
@@ -52,7 +52,7 @@ const REFRESH_MIN_INTERVAL_MS = 60 * 1000; // ?refresh=1 can't hammer the site
 const CODE_REVALIDATE_MS = 60 * 1000;      // serve a cached code blind for this long, then revalidate (etag) every request
 const {
   normalizeEntry, normalizeCatalog, isEntryVisible, filterVisibleEntries, normalizeCodeId,
-} = require('./store-catalog/catalog-entry-clean.js');
+} = require('./catalog-entry-clean.js');
 const CODE_CACHE_MAX = 6;       // up to 6 x MAX_CODE_BYTES held in memory
 
 

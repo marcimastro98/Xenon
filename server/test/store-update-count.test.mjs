@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const MenuStore = require('../menu-store.js');
+const MenuStore = require('../store-catalog/menu-store.js');
 const Menu = require('../xenon-menu.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 

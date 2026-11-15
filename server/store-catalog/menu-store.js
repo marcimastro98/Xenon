@@ -8,12 +8,12 @@
 // slow must not hold the menu back: the cards then show their initials and the
 // count is left out until the next opening, never a guessed number.
 
-const MenuWidgets = require('./menu-widgets.js');
+const MenuWidgets = require('../menu-widgets.js');
 
 // Guarded like community-catalog.js: a checkout whose postinstall has not linked
 // server/shared yet must still serve the menu, only without the count.
 let storeUpdates = null;
-try { storeUpdates = require('./shared/src/store-updates.js'); }
+try { storeUpdates = require('../shared/src/store-updates.js'); }
 catch { storeUpdates = null; }
 
 const MENU_CATALOG_WAIT_MS = 500;

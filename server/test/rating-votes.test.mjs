@@ -1,4 +1,4 @@
-// Votes on Store entries (server/rating-votes.js, ai-rate-store.js, pc-id.js): tickets
+// Votes on Store entries (server/store-catalog/rating-votes.js, ai-rate-store.js, pc-id.js): tickets
 // only with the stats switch on, real use before Bit asks, one ask a week, and a vote
 // that is spent once.
 import { test } from 'node:test';
@@ -11,9 +11,9 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const {
   createRatingVotes, ownedEntries, inUse, WAIT_MS, SEEN_MS, ASK_EVERY_MS,
-} = require('../rating-votes.js');
+} = require('../store-catalog/rating-votes.js');
 const { createPcId, parseMachineGuid } = require('../pc-id.js');
-const aiRateStore = require('../ai-rate-store.js');
+const aiRateStore = require('../store-catalog/ai-rate-store.js');
 const { parsePlatformUuid } = require('../darwin-collectors.js');
 
 const NOON = new Date(2026, 10, 6, 12).getTime();

@@ -12,7 +12,7 @@
 //   * Once a session, after the page has settled: one catalog read (cached by the
 //     server) joined by CommunityGallery.findUpdates, the join the Store and the
 //     menu count use, so the three never disagree.
-//   * A Store widget updates by itself (server/widget-auto-update.js: two days
+//   * A Store widget updates by itself (server/store-catalog/widget-auto-update.js: two days
 //     after its catalog date, never with a new permission). It is left to that
 //     for three days; one still behind after them is waiting for the person.
 //   * One message for the whole list, its id made from the list: a new update is

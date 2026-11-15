@@ -3,7 +3,7 @@
 // site and install them through the NORMAL import pipeline.
 //
 // The catalog arrives via GET /api/community/catalog (server-normalized, TTL
-// cached — see server/community-catalog.js). Every field is still treated as
+// cached — see server/store-catalog/community-catalog.js). Every field is still treated as
 // untrusted text here (textContent only), and tapping Import NEVER applies
 // anything: it feeds the entry's share code into PresetShare.openImport, so
 // the user gets the exact same per-kind preview/permission dialogs as a
@@ -426,7 +426,7 @@
   //
   // The number is what dashboards REPORTED, not how many people own the thing:
   // reporting is a setting, a reinstall counts again, and nothing identifies the
-  // sender (that is the point — see server/community-installs.js). So it is
+  // sender (that is the point — see server/store-catalog/community-installs.js). So it is
   // labelled "installs" and never "owners" or "downloads", and the tooltip says
   // what it actually counts. Below MIN_SHOWN it stays blank rather than telling a
   // creator their work has four installs, which is noise either way.

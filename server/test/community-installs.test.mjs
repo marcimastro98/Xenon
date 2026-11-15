@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const CI = require('../community-installs.js');
+const CI = require('../store-catalog/community-installs.js');
 
 function capture(reply) {
   const calls = [];
@@ -36,7 +36,7 @@ test('no install id is reachable from this module at all', () => {
   // attaching it takes a deliberate edit rather than one autocompleted line.
   // Comments are stripped first: the header explains the absence by name, and
   // that explanation is the thing most worth keeping.
-  const raw = require('node:fs').readFileSync(new URL('../community-installs.js', import.meta.url), 'utf8');
+  const raw = require('node:fs').readFileSync(new URL('../store-catalog/community-installs.js', import.meta.url), 'utf8');
   const code = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   assert.doesNotMatch(code, /getInstallId/);
   assert.doesNotMatch(code, /installId/);

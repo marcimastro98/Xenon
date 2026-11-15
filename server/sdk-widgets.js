@@ -55,7 +55,7 @@ const {
 // may use — sourced from the authority (sound-packs.js) so the server can
 // never drift from the install boundary. The client copies (js/preset-share.js,
 // js/custom-widget.js) must be kept in step by hand.
-const SDK_SOUND_FILE_RE = require('./sound-packs').PACK_FILE_RE;
+const SDK_SOUND_FILE_RE = require('./store-catalog/sound-packs').PACK_FILE_RE;
 
 const { WIDGET_ID_RE } = require('./widget-sdk/package-names.js');
 

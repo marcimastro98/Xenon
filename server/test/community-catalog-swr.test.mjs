@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const cat = require('../community-catalog.js');
+const cat = require('../store-catalog/community-catalog.js');
 
 // A fake upstream matching fetchText's resolved shape:
 //   { notModified:false, text, etag }  |  { notModified:true }  |  { throw:'msg' }

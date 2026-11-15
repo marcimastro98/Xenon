@@ -13,7 +13,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const cat = require('../community-catalog.js');
+const cat = require('../store-catalog/community-catalog.js');
 
 const ENTRY = { id: 'drop', kind: 'theme', name: 'Drop', code: 'abc', locked: true };
 const LIVE = JSON.stringify({ entries: [{ ...ENTRY, sparks: 300 }] });

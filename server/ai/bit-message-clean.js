@@ -2,7 +2,7 @@
 // Cleans one message Bit is asked to show before it is kept: its limits, its text, its time,
 // its button and its picture.
 
-const { normalizeAction, normalizeMedia, normalizePoll } = require('../community-messages.js');
+const { normalizeAction, normalizeMedia, normalizePoll } = require('../store-catalog/community-messages.js');
 
 const ID_RE = /^[a-z0-9][a-z0-9:_.-]{0,95}$/i;
 const ENTRY_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;

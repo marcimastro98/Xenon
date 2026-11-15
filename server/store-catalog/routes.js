@@ -1,23 +1,23 @@
 // What the engine answers about the Store: the catalog, what is installed, the counts, the
 // messages, a code, the limited items and the ratings.
 
-const communityCatalog = require('../community-catalog.js');
+const communityCatalog = require('./community-catalog.js');
 const { semverNewer } = require('../semver.js');
 const { APP_VERSION } = require('../updates/app-version.js');
 const { hub } = require('../settings/current.js');
 const { readBody } = require('../http/read-body.js');
-const communityInstalls = require('../community-installs.js');
-const communityMessages = require('../community-messages.js');
+const communityInstalls = require('./community-installs.js');
+const communityMessages = require('./community-messages.js');
 const supporterRedeem = require('../store-supporters/supporter-redeem.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const communityLimited = require('../community-limited.js');
-const communityRatings = require('../community-ratings.js');
+const communityRatings = require('./community-ratings.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'GET /api/community/catalog': async (_req, _res, { json, err500, urlObj }) => {
     // Community gallery catalog — proxied from the project site with a TTL
-    // cache + ETag revalidation (see server/community-catalog.js). Read-only
+    // cache + ETag revalidation (see server/store-catalog/community-catalog.js). Read-only
     // GET: not a CSRF_MUTATION_PATHS candidate, NEVER a JSONP candidate.
     try {
       const out = await communityCatalog.fetchVisibleCatalog(urlObj.searchParams.has('refresh'));

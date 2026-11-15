@@ -235,7 +235,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Do not "simplify" that test to `!== false`: it would flip exactly those people.
   versionPing: true,
   autoUpdate: true,
-  // Store widgets update themselves (server/widget-auto-update.js). On unless switched off.
+  // Store widgets update themselves (server/store-catalog/widget-auto-update.js). On unless switched off.
   autoUpdateWidgets: true,
   // Announcements and the paid-drop card. ON by default, and normalized with
   // `!== false` — the opposite of versionPing above, deliberately: this is a
@@ -248,7 +248,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // `=== true` like versionPing, not `!== false`: a new outbound report starts
   // on for fresh installs only, never switched on under an existing user.
   catalogStats: true,
-  // Bit may ask for a vote on something in real use (server/rating-votes.js).
+  // Bit may ask for a vote on something in real use (server/store-catalog/rating-votes.js).
   ratingAsks: true,
   // Anonymous feature counts (server/usage-stats.js). Same rule as catalogStats:
   // on for a fresh install, an existing one stays off until its owner chooses.

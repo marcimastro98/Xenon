@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const ratings = require('../community-ratings.js');
+const ratings = require('../store-catalog/community-ratings.js');
 const { HUB_BASE } = require('../store-supporters/supporter-redeem.js');
 
 // Transport stub: records every outbound call, answers from a script.

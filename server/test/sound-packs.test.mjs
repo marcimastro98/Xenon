@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const sp = require('../sound-packs.js');
+const sp = require('../store-catalog/sound-packs.js');
 const ps = require('../js/preset-share.js');
 const ci = require('../js/content-installs.js');
 const sdk = require('../sdk-widgets.js');

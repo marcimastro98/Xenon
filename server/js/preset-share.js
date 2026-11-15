@@ -148,7 +148,7 @@
   const CATALOG_CODE_MAX = 4 * 1024 * 1024;
 
   // ── Sound packs (kind 'sounds') ────────────────────────────────────────────
-  // Caps mirror server/sound-packs.js (the authority) and are sized so an
+  // Caps mirror server/store-catalog/sound-packs.js (the authority) and are sized so an
   // exported pack stays publishable (the catalog's ceiling is a 4 MB code).
   const SOUNDS_MAX_CLIPS = 24;
   const SOUNDS_CLIP_MAX = 512 * 1024;                    // decoded bytes per clip
@@ -156,7 +156,7 @@
   const SOUNDS_PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
   const SOUNDS_CLIP_EXTS = ['mp3', 'ogg', 'wav'];
   // The pack-relative playSound.file shape that survives deck-profile
-  // export/import (mirrors PACK_FILE_RE in server/sound-packs.js).
+  // export/import (mirrors PACK_FILE_RE in server/store-catalog/sound-packs.js).
   const PACK_SOUND_FILE_RE = /^packs\/[a-z0-9][a-z0-9-]{1,40}\/[a-z0-9][a-z0-9_-]{0,40}\.(?:mp3|ogg|wav)$/;
   // openApp launch arguments travel ("--incognito") unless one of them is a path.
   const LOCAL_PATH_RE = /[a-z]:[\\/]|\\\\\w|(^|[\s"'=])(~[\\/]|\/(users|home|mnt|media|volumes)\/)/i;
@@ -166,14 +166,14 @@
     || (typeof require === 'function' ? require('./share-link-privacy.js') : null);
 
   // ── Icon packs (kind 'icons') ──────────────────────────────────────────────
-  // Caps mirror server/icon-packs.js (the authority) so the builder gives the
+  // Caps mirror server/store-catalog/icon-packs.js (the authority) so the builder gives the
   // same verdict the install boundary will.
   const ICONS_MAX_COUNT = 120;
   const ICONS_ICON_MAX = 24 * 1024;        // decoded bytes per icon
   const ICONS_PACK_MAX = 2 * 1024 * 1024;  // decoded bytes per pack
   const ICONS_PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
   const ICONS_ICON_ID_RE = /^[a-z0-9][a-z0-9_-]{0,40}$/;
-  // Client copy of server/icon-packs.js svgProblem() — MUST MATCH byte for byte
+  // Client copy of server/store-catalog/icon-packs.js svgProblem() — MUST MATCH byte for byte
   // (test/icon-packs.test.mjs asserts agreement on a verdict matrix). It exists
   // here only for instant feedback in the pack builder; the server re-checks on
   // install and is the authority.
@@ -420,7 +420,7 @@
   // The copy of one action step that may leave this PC: the owner's own paths,
   // numbers and device ids emptied (DeckActions.PERSONAL_PARAMS). playSound keeps
   // its file only as a sound-pack ref (packs/<packId>/<clipId>.<ext>, the same on
-  // every machine, see server/sound-packs.js).
+  // every machine, see server/store-catalog/sound-packs.js).
   function withoutPersonalParams(action, A) {
     if (action.type === 'playSound') {
       return PACK_SOUND_FILE_RE.test(String(action.file || '')) ? action : { ...action, file: '' };

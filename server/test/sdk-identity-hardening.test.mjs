@@ -17,8 +17,8 @@ import { namesOf } from './source-names.mjs';
 
 const require = createRequire(import.meta.url);
 const sdkWidgets = require('../sdk-widgets.js');
-const sdkStore = require('../sdk-store.js');
-const wau = require('../widget-auto-update.js');
+const sdkStore = require('../store-catalog/sdk-store.js');
+const wau = require('../store-catalog/widget-auto-update.js');
 const PS = require('../js/preset-share.js');
 const DeckModel = require('../js/deck-model.js');
 const DeckActions = require('../js/deck-actions.js');

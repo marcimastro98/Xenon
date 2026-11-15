@@ -3670,7 +3670,7 @@
     }
   }
 
-  // The server updated Store widgets on its own (server/widget-auto-update.js),
+  // The server updated Store widgets on its own (server/store-catalog/widget-auto-update.js),
   // or found an update it will not apply without the user: a new permission, or a
   // supporter widget with no saved code. Reload the packages so mounted frames
   // take the new files, and say so once. Names come from a widget manifest, so

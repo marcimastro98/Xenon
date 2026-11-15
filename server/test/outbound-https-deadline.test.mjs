@@ -208,10 +208,10 @@ after(() => {
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-const messages = require('../community-messages.js');
+const messages = require('../store-catalog/community-messages.js');
 const limited = require('../community-limited.js');
-const ratings = require('../community-ratings.js');
-const installs = require('../community-installs.js');
+const ratings = require('../store-catalog/community-ratings.js');
+const installs = require('../store-catalog/community-installs.js');
 const redeem = require('../store-supporters/supporter-redeem.js');
 const versionPing = require('../version-ping.js');
 const usage = require('../usage-stats.js');

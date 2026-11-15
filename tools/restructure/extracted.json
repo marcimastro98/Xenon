@@ -739,7 +739,7 @@
       {"file":"server/ticker/stocks-yahoo.js","about":"Reads a quote and its small chart out of what Yahoo Finance answers.","names":["yahooUrl","parseYahooChart","quoteFromYahoo","downsample"]},
       {"file":"server/ticker/stocks-alerts.js","about":"Remembers each symbol's last move so a price alert is announced once.","names":["createAlertTracker"]}
     ],
-    "server/community-messages.js": [
+    "server/store-catalog/community-messages.js": [
       {"file":"server/store-catalog/hub-message-clean.js","about":"Cleans one message the Xenon hub publishes before the app shows it: who it is for, its button, its picture or video, its poll, and the allowed hosts for each.","names":["MAX_MESSAGES","MESSAGE_ID_RE","VERSION_RE","ISO_DATE_RE","OS_RE","LANG_RE","LEVELS","WHERE","ACTION_TYPES","LINK_HOSTS","MEDIA_HOSTS","MEDIA_IMAGE_EXT","MEDIA_VIDEO_EXT","MEDIA_TYPES","MEDIA_ALT_MAX","MAX_MATCH_ENTRIES","MAX_MATCH_LIST","cleanStr","tokenList","normalizeMatch","normalizeAction","normalizeMedia","MIN_POLL_OPTIONS","MAX_POLL_OPTIONS","normalizePoll","normalizeMessage","normalizeMessages"]},
       {"file":"server/store-catalog/hub-message-window.js","about":"Says which of the hub's messages are showing today: each one's first and last day.","names":["DATE_ONLY_RE","endOfWindow","filterVisibleMessages"]},
       {"file":"server/store-catalog/hub-message-fetch.js","about":"Fetches the hub's messages file, only when it changed, with a size cap and a total deadline.","names":["MESSAGES_URL","FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchText"]}
@@ -803,7 +803,7 @@
     "server/menu-widgets.js": [
       {"file":"server/menu/widget-add-choices.js","about":"The choices of the menu's Add row: a tile, a package from the Store with its pictures, a key, and the filters over them.","names":["tileChoice","storeShots","packageChoice","placeTile","recommended","addChoices","keyChoice","addFilters","addRow"]}
     ],
-    "server/community-catalog.js": [
+    "server/store-catalog/community-catalog.js": [
       {"file":"server/store-catalog/description-limit.js","about":"How long a Store entry's description may be: the shared limit, or a fixed one when the shared file is not there.","names":["DESCRIPTION_MAX"],"lift":true},
       {"file":"server/store-catalog/catalog-entry-clean.js","about":"Cleans the Store catalog the site publishes before the app trusts it: each entry's id, kind, version, pictures, price and limits, and which entries are showing.","names":["MAX_ENTRIES","CODE_INLINE_MAX","CATALOG_KINDS","ENTRY_ID_RE","HEX_COLOR_RE","VERSION_RE","PKG_ID_RE","TAG_RE","HANDLE_RE","CATALOG_CATEGORIES","ISO_DATE_RE","MAX_SHOTS","SPARKS_MAX","cleanStr","normalizeLimited","normalizeEntry","normalizeCatalog","isEntryVisible","filterVisibleEntries","normalizeCodeId"]},
       {"file":"server/store-catalog/catalog-fetch.js","about":"Fetches a file of the Store catalog, only when it changed, with a size cap and a total deadline.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchText"]}
@@ -975,7 +975,7 @@
       {"file":"server/updates/self-update-apply.js","about":"The staged update handed to the applier outside this process: whether one is already under way, the applier that could not be started, the environment it is given, and the start itself.","names":["applyInFlight","onSpawnError","applierEnv","apply"],"inner":{"factory":"createSelfUpdate","make":"makeApply"}},
       {"file":"server/updates/self-update-support.js","about":"Whether this install can update itself and how: a git checkout, the reason it cannot, whether the install folder can be written, whether the update needs the administrator, and whether the shell updates without asking.","names":["isGitCheckout","unsupportedReason","supported","_installWritable","needsElevation","shellUpdatesSilently"],"inner":{"factory":"createSelfUpdate","make":"makeSupport"}}
     ],
-    "server/rating-votes.js": [
+    "server/store-catalog/rating-votes.js": [
       {"file":"server/store-catalog/rating-vote-rules.js","about":"The rules of a vote on a Store entry: what an entry id, a reason and a ticket may be, the waits before Bit may ask, how much is done per tick, the errors that may be shown, and the record of one entry cleaned, made blank, listed and told in use.","names":["ENTRY_ID_RE","REASONS","REASON_MAX_STARS","TICKET_MAX","MAX_ENTRIES","DAY","WAIT_MS","SEEN_MS","ASK_EVERY_MS","ASKS_PER_ENTRY","TICK_MS","FIRST_TICK_MS","TICKETS_PER_TICK","UNLOCKS_PER_TICK","STORE_SHOTS","VOTE_ERRORS","cleanTime","cleanEntry","blankEntry","ownedEntries","inUse","placedText"]},
       {"file":"server/store-catalog/rating-vote-asks.js","about":"When Bit may ask for a vote: the time an entry has been on screen counted, the one entry to ask about now if the person allows asking at all, and the ask itself.","names":["countUse","nextAsk","ask"],"inner":{"factory":"createRatingVotes","make":"makeAsks"}},
       {"file":"server/store-catalog/rating-vote-tickets.js","about":"The tickets a vote is spent with: one that came back with an unlock, one asked of the hub for an installed entry, and the tickets of everything installed brought up to date a few per tick.","names":["addTicket","askTicket","syncTickets"],"inner":{"factory":"createRatingVotes","make":"makeTickets"}}
@@ -1240,7 +1240,7 @@
     "server/self-update.js": [
       {"factory":"createSelfUpdate","object":"suRun","names":["preparing","applyStartedAt","lastSpawnError"],"kept":[],"bare":[],"after":0}
     ],
-    "server/rating-votes.js": [
+    "server/store-catalog/rating-votes.js": [
       {"factory":"createRatingVotes","object":"rvState","names":["state","loading","saving","timer","first","ticking","lastTick"],"kept":["saving"],"bare":[],"after":0}
     ],
     "server/codex-appserver.js": [

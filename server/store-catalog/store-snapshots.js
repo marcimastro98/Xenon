@@ -27,7 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('../atomic-write');
 
 const KEEP = 7;
 const DIR_NAME = 'snapshots';

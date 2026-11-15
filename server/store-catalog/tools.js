@@ -1,7 +1,7 @@
 // What the assistant does when asked to look in the Store or to install something from it: the
 // install only opens the usual review on the screen, where the user confirms.
 
-const communityCatalog = require('../community-catalog.js');
+const communityCatalog = require('./community-catalog.js');
 
 /** @type {Record<string, (context: any) => Promise<any>>} */
 const branches = {

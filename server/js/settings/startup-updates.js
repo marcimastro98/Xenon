@@ -106,7 +106,7 @@ function updateAutoUpdate(checked) {
   syncSettingsControls();
 }
 
-// Store widgets that update themselves. On by default (server/widget-auto-update.js).
+// Store widgets that update themselves. On by default (server/store-catalog/widget-auto-update.js).
 // Off means the update is still offered, as it always was, and waits for the user.
 function updateAutoUpdateWidgets(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, autoUpdateWidgets: checked !== false });

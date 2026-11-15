@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { SDK_LIMITS, limitFor } = require('../sdk-limits/limits.js');
 const sdkProxy = require('../sdk-proxy.js');
-const sdkStore = require('../sdk-store.js');
+const sdkStore = require('../store-catalog/sdk-store.js');
 const sdkWidgets = require('../sdk-widgets.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const SERVER = engineSource();

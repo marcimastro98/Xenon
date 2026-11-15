@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const wau = require('../widget-auto-update.js');
+const wau = require('../store-catalog/widget-auto-update.js');
 const sdk = require('../sdk-widgets.js');
 const codec = require('../js/preset-share.js');
 const CLIENT_SRC = readFileSync(fileURLToPath(new URL('../js/custom-widget.js', import.meta.url)), 'utf8');
@@ -362,7 +362,7 @@ test('wiring: the setting is on by default, normalized on both sides, and never 
   assert.match(settings, /autoUpdateWidgets: value\.autoUpdateWidgets !== false/);
   assert.match(settings, /autoUpdateWidgets: true,/);
   // the updater has no way to write a grant: nothing in the module touches the grants store
-  const mod = readFileSync(fileURLToPath(new URL('../widget-auto-update.js', import.meta.url)), 'utf8');
+  const mod = readFileSync(fileURLToPath(new URL('../store-catalog/widget-auto-update.js', import.meta.url)), 'utf8');
   assert.doesNotMatch(mod.replace(/\/\/.*$/gm, ''), /grants\s*\[|setGrant|writeGrant|persist\(/);
 });
 

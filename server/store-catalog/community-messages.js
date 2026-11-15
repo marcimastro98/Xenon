@@ -30,23 +30,23 @@
 //
 // Pure parts are exported for unit tests (server/test/community-messages.test.mjs).
 
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
 
-const { MESSAGES_URL, fetchText } = require('./store-catalog/hub-message-fetch.js');
+const { MESSAGES_URL, fetchText } = require('./hub-message-fetch.js');
 
 const MESSAGES_TTL_MS = 30 * 60 * 1000;
 const REFRESH_MIN_INTERVAL_MS = 60 * 1000;
 const {
   MAX_MESSAGES, LEVELS, LINK_HOSTS, MEDIA_HOSTS, normalizeMatch, normalizeAction, normalizeMedia,
   normalizePoll, normalizeMessage, normalizeMessages,
-} = require('./store-catalog/hub-message-clean.js');
+} = require('./hub-message-clean.js');
 
 
 
 
 
 
-const { filterVisibleMessages } = require('./store-catalog/hub-message-window.js');
+const { filterVisibleMessages } = require('./hub-message-window.js');
 
 function cacheIsFresh(cache, now, ttl = MESSAGES_TTL_MS) {
   return !!(cache && Array.isArray(cache.messages) && (now - cache.fetchedAt) < ttl);

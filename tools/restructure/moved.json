@@ -77,9 +77,28 @@
     {"from":"server/claude-sessions.js","to":"server/claude-code/claude-sessions.js","shim":true},
     {"from":"server/claude-subagent.js","to":"server/claude-code/claude-subagent.js","shim":true},
     {"from":"server/claude-transcript.js","to":"server/claude-code/claude-transcript.js","shim":true},
-    {"from":"server/claude-usage.js","to":"server/claude-code/claude-usage.js","shim":true}
+    {"from":"server/claude-usage.js","to":"server/claude-code/claude-usage.js","shim":true},
+    {"from":"server/ai-rate-store.js","to":"server/store-catalog/ai-rate-store.js"},
+    {"from":"server/community-catalog.js","to":"server/store-catalog/community-catalog.js"},
+    {"from":"server/community-installs.js","to":"server/store-catalog/community-installs.js"},
+    {"from":"server/community-messages.js","to":"server/store-catalog/community-messages.js"},
+    {"from":"server/community-ratings.js","to":"server/store-catalog/community-ratings.js"},
+    {"from":"server/icon-packs.js","to":"server/store-catalog/icon-packs.js"},
+    {"from":"server/menu-store.js","to":"server/store-catalog/menu-store.js"},
+    {"from":"server/rating-votes.js","to":"server/store-catalog/rating-votes.js"},
+    {"from":"server/sdk-store.js","to":"server/store-catalog/sdk-store.js"},
+    {"from":"server/sound-packs.js","to":"server/store-catalog/sound-packs.js"},
+    {"from":"server/store-snapshots.js","to":"server/store-catalog/store-snapshots.js"},
+    {"from":"server/widget-auto-update.js","to":"server/store-catalog/widget-auto-update.js"}
   ],
   "patterns": [
-
+    {"feature":"store-catalog","glob":"server/sdk-store.js","at":2},
+    {"feature":"store-catalog","glob":"server/store-snapshots.js","at":3},
+    {"feature":"store-catalog","glob":"server/rating-votes.js","at":4},
+    {"feature":"store-catalog","glob":"server/widget-auto-update.js","at":5},
+    {"feature":"store-catalog","glob":"server/icon-packs.js","at":6},
+    {"feature":"store-catalog","glob":"server/sound-packs.js","at":7},
+    {"feature":"store-catalog","glob":"server/menu-store.js","at":8},
+    {"feature":"store-catalog","glob":"server/ai-rate-store.js","at":9}
   ]
 }

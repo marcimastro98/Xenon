@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const M = require('../community-messages.js');
+const M = require('../store-catalog/community-messages.js');
 
 const msg = (over = {}) => ({ id: 'v490-release', level: 'toast', title: 'Xenon 4.9.0', ...over });
 

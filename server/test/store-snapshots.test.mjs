@@ -10,7 +10,7 @@ import { appStringsSource, appStrings } from './i18n-source.mjs';
 import { declarationSource, engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const snaps = require('../store-snapshots.js');
+const snaps = require('../store-catalog/store-snapshots.js');
 // LF on a CRLF (Windows) checkout too, so the patterns below match everywhere.
 const readLf = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SERVER = engineSource();

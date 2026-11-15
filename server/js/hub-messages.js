@@ -3,7 +3,7 @@
 // messages (js/bit-messages.js). It runs on the dashboard and in the alerts window
 // of "widgets only", the two places that show them.
 //
-// The server proxies a static feed (server/community-messages.js) that every
+// The server proxies a static feed (server/store-catalog/community-messages.js) that every
 // install receives WHOLE. Targeting happens here, on this machine, against what
 // the app already knows about itself: its version, its platform, its language,
 // and which catalog entries it has installed. Nothing is sent to receive a

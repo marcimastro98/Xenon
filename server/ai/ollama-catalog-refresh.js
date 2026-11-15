@@ -2,7 +2,7 @@
 // The catalog of Ollama models: what is known now, what a model needs to run, and the catalog
 // fetched again when it is old, one fetch at a time.
 
-const { CATALOG_BASE } = require('../community-catalog.js');
+const { CATALOG_BASE } = require('../store-catalog/community-catalog.js');
 const { modelsCache } = require('./models-cache-state.js');
 const { normalizeCatalog, _fetchText } = require('./ollama-catalog-read.js');
 const { RETRY_MS, _persist } = require('./models-cache-store.js');

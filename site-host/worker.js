@@ -1,5 +1,5 @@
 // xenon-app.com on Cloudflare (10 Nov 2026): the built docs/ served by a Worker with static assets,
-// with GitHub Pages' URL rules, so every address the site, the app (server/community-catalog.js
+// with GitHub Pages' URL rules, so every address the site, the app (server/store-catalog/community-catalog.js
 // reads /community/), old links and search engines know answers exactly as before:
 //   /faq.html  the file                  /faq   the same file (Pages serves it without .html)
 //   /it/       it/index.html             /it    301 to /it/

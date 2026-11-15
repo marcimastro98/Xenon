@@ -3,7 +3,7 @@
 // action it proposed that the user approves or cancels.
 
 const { readBodyBuffer, readBody } = require('../http/read-body.js');
-const aiRateStore = require('../ai-rate-store.js');
+const aiRateStore = require('../store-catalog/ai-rate-store.js');
 const remoteActions = require('../paired/remote-actions.js');
 const { readDeckStore } = require('../deck/store-read.js');
 const aiLocal = require('../ai-local.js');

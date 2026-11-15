@@ -13,7 +13,7 @@ const {
   SDK_API_VERSION, SDK_STREAMS, SDK_ACTION_CATEGORIES, sdkActionWithinLimits,
   SDK_MACRO_ACTION_TYPES, categoryOfActionType,
 } = require('./surface.js');
-const SDK_SOUND_FILE_RE = require('../sound-packs.js').PACK_FILE_RE;
+const SDK_SOUND_FILE_RE = require('../store-catalog/sound-packs.js').PACK_FILE_RE;
 const { WIDGET_ID_RE, SDK_SUB_ID_RE, ENTRY_RE } = require('./package-names.js');
 const {
   MAX_MACROS, MAX_MACRO_STEPS, MAX_STATES, MAX_HANDLERS, MAX_MACRO_STEP_DELAY_MS, TILE_SIZES,

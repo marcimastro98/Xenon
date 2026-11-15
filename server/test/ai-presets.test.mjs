@@ -19,7 +19,7 @@ const DeckActions = require('../js/deck-actions.js');
 const DashboardPresets = require('../js/dashboard-presets.js');
 const AmbientScene = require('../js/ambient-scene.js');
 const SdkWidgets = require('../sdk-widgets.js');
-const IconPacks = require('../icon-packs.js');
+const IconPacks = require('../store-catalog/icon-packs.js');
 
 const deps = { normalizeSettings: loadServerSettingsSlice(), dashboardWidgets: serverDashboardWidgets(), sdkEnabled: true, appVersion: '9.9.9' };
 const BUILDABLE = PresetShare.PRESET_KINDS.filter((k) => k !== 'sounds');
