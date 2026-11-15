@@ -636,6 +636,7 @@ aiModels.initCache({ dataDir: DATA_DIR });
 const lyricsCache = createLyricsCache({ dataDir: DATA_DIR });
 // Supporter Lyrics widget: per-song timing, and translations paid for once.
 const lyricsOffsets = createLyricsOffsets({ dataDir: DATA_DIR });
+const { hub } = require('./settings/current.js');
 
 const lyricsTranslator = createLyricsTranslator({
   dataDir: DATA_DIR,
@@ -2918,7 +2919,6 @@ const { mcpDevCapture } = require('./mcp/dev-capture.js');
 
 const { transcodeMp4BackgroundToWebm } = require('./look/background-to-webm.js');
 
-const { hub } = require('./settings/current.js');
 const { refreshMacFdaState, refreshLivingIndex } = require('./search/living-index-roots.js');
 
 const { setDefaultAudioDevice } = require('./audio/default-device.js');
