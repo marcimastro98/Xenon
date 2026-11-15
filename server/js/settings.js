@@ -137,7 +137,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // save GPU (js/ambient/ambient-idle.js). On by default; users can switch it off so the
   // dashboard keeps animating while idle.
   idleAnimationPause: true,
-  // The Xenon mark over the first moments of a load (js/boot-splash.js). On by
+  // The Xenon mark over the first moments of a load (js/first-run/boot-splash.js). On by
   // default; off, the dashboard shows from the first paint as before.
   bootSplash: true,
   // Safe mode: temporarily run without any imported content — third-party SDK
@@ -376,7 +376,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // js/ai-edge-glow.js): auto = the screen Bit was called from.
   aiEdgeGlow: 'auto',
   // How this PC uses Xenon: dashboard / widgets / both, '' = not asked yet
-  // (js/usage-mode.js).
+  // (js/first-run/usage-mode.js).
   usageMode: '',
   // Advanced AI features. ALL OFF by default — each one is an explicit opt-in
   // because they consume AI quota (Gemini) or compute (local provider).

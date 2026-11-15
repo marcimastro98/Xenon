@@ -1,6 +1,6 @@
 'use strict';
 
-// The hidden page of "widgets only" (js/usage-mode.js). The user chose no
+// The hidden page of "widgets only" (js/first-run/usage-mode.js). The user chose no
 // dashboard on this PC, so the app's main window loads this instead of it
 // (route `/` redirects `?shell=main` here) and the shell keeps the window
 // hidden (monitor::set_driver). It does only what the dashboard did for the
@@ -39,7 +39,7 @@ let hubSettings = {};
 
   // What a fresh copy of the settings asks of this page.
   function stepFor(settings) {
-    const U = (typeof window !== 'undefined' && window.UsageMode) || require('./usage-mode.js');
+    const U = (typeof window !== 'undefined' && window.UsageMode) || require('./first-run/usage-mode.js');
     return U.widgetsOnly(settings && settings.usageMode) ? 'sync' : 'leave';
   }
 

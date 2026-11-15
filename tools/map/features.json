@@ -864,16 +864,13 @@
         "server/js/onboarding/**",
         "server/js/usage-*.js",
         "server/js/usage-ask/**",
-        "server/js/boot-splash.js",
-        "server/js/xenon-loader.js",
-        "server/js/greeting*.js",
-        "server/js/genesis.js",
         "server/components/Onboarding/**",
         "server/components/UsageAsk/**",
         "server/components/BootSplash/**",
         "server/components/XenonLoader/**",
         "server/components/GreetingSplash/**",
-        "server/assets/first-run/**"
+        "server/assets/first-run/**",
+        "server/js/first-run/**"
       ]
     },
     {

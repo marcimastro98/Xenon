@@ -4,7 +4,7 @@
 // The line under the greeting says something true about the day instead of a
 // pleasantry: how many events are left today, or when the next one is. No
 // calendar events, no line. Pure: events and a clock in, an i18n key and its
-// variables out (js/greeting.js turns them into words).
+// variables out (js/first-run/greeting.js turns them into words).
 (function () {
   const NIGHT_UNTIL_HOUR = 5; // 00:00-04:59 still belongs to "today" for the calendar
 

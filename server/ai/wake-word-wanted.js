@@ -1,7 +1,7 @@
 // Whether the wake word should be listened for: it is switched on, something would answer it,
 // and speech-to-text is on this computer.
 
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 const { hub } = require('../settings/current.js');
 const { _whisperReady } = require('./whisper-ready.js');
 

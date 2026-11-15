@@ -1110,7 +1110,7 @@ const CAPABILITIES = [
     },
   },
 
-  // How this PC uses Xenon (js/usage-mode.js): the dashboard, only widgets on
+  // How this PC uses Xenon (js/first-run/usage-mode.js): the dashboard, only widgets on
   // the screen, or both. A Deck key can switch it, so the choice is never
   // buried in Settings.
   {

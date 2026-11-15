@@ -1,4 +1,4 @@
-// The pictures of the first question (server/js/usage-ask-picture.js): what a new install
+// The pictures of the first question (server/js/first-run/usage-ask-picture.js): what a new install
 // looks like at each shape of screen, an ordinary desktop, and the three first widgets.
 // Shot on the site's own demo, so everything in them is invented, nothing from this PC.
 // server/test/first-run-pictures.test.mjs fails when one is missing or too heavy.
@@ -37,7 +37,7 @@ export const DESK = ['desk', 1280];
 // crops well at any shape and leaves the eye on the screens that hold something.
 export const DESK_PLAIN = ['desk-plain', 1280];
 
-// The first widgets (js/usage-ask-plan.js STARTERS), side by side on one layer page, at
+// The first widgets (js/first-run/usage-ask-plan.js STARTERS), side by side on one layer page, at
 // about the shape they take on a desktop.
 export const WIDGET_WIDTH = 360;
 export const WIDGETS = [

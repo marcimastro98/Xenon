@@ -58,7 +58,7 @@
     "server/js/disk-widget.js": 722,
     "server/js/football-widget.js": 782,
     "server/js/fuzzy-find.js": 367,
-    "server/js/genesis.js": 374,
+    "server/js/first-run/genesis.js": 374,
     "server/js/gif-read.js": 353,
     "server/js/gif-write.js": 334,
     "server/js/installed-manager.js": 686,

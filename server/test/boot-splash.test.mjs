@@ -1,4 +1,4 @@
-// Bit while the dashboard loads (js/boot-splash.js). What a user would notice
+// Bit while the dashboard loads (js/first-run/boot-splash.js). What a user would notice
 // if it broke: a splash on the wrong ground, one that never leaves when the
 // backend is slow or offline, a hello that holds up a tap, one that stays
 // after being switched off, or a dashboard that flashes empty tiles before it.
@@ -10,7 +10,7 @@ import { languagesWith } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/boot-splash.js');
+const SRC = read('../js/first-run/boot-splash.js');
 const LOOK_KEY = 'xeneonedge.bootLook.v1';
 
 // Runs boot-splash.js against a fake page and hand-driven timers.
@@ -149,8 +149,8 @@ test('switched off, it is gone before it paints, and the choice is remembered', 
 test('the page wires it first, and the app tells it when it is ready', () => {
   const html = read('../index.html');
   const body = html.slice(html.indexOf('<body>'));
-  assert.ok(body.indexOf('id="boot-splash"') < body.indexOf('<script src="js/boot-splash.js"></script>'));
-  assert.equal(body.indexOf('<script'), body.indexOf('<script src="js/boot-splash.js"></script>'),
+  assert.ok(body.indexOf('id="boot-splash"') < body.indexOf('<script src="js/first-run/boot-splash.js"></script>'));
+  assert.equal(body.indexOf('<script'), body.indexOf('<script src="js/first-run/boot-splash.js"></script>'),
     'no other script may run before the splash is up');
   assert.ok(html.indexOf('components/BootSplash/BootSplash.css') < html.indexOf('<body>'));
   assert.match(html, /id="settings-boot-splash" type="checkbox" onchange="updateBootSplash\(this\.checked\)"/);

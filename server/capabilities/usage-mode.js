@@ -1,6 +1,6 @@
 'use strict';
 // How this PC uses Xenon: the dashboard, only widgets on the screen, or both
-// (js/usage-mode.js owns the values). The native shell reads the choice when
+// (js/first-run/usage-mode.js owns the values). The native shell reads the choice when
 // its main window loads (route `/` in server.js), so this file only changes it.
 //
 // deps (injected):
@@ -9,7 +9,7 @@
 //   settings { setUsageMode(mode), setScreenAlerts(on) } — write the settings
 //            under the settings lock
 
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 
 function available(host) {
   return !!(host && typeof host.available === 'function' && host.available());

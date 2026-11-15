@@ -127,5 +127,5 @@ test('an icon name from the library becomes a drawn icon, anything else an emoji
   assert.equal(ctx.iconJson(''), 'null');
   assert.match(ctx.iconJson('constructor'), /emoji/);
   assert.ok(deck.includes('icon: aiIcon(k.stateStyle.icon) || undefined'), 'the lit face too');
-  assert.ok(read('../js/genesis.js').includes("window.DeckIcons.has(v)) return { type: 'builtin', value: v };"));
+  assert.ok(read('../js/first-run/genesis.js').includes("window.DeckIcons.has(v)) return { type: 'builtin', value: v };"));
 });

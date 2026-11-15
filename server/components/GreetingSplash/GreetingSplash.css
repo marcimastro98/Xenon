@@ -1,9 +1,9 @@
 /* ── Greeting Splash ─────────────────────────────────────────────────────────
    Fullscreen greeting shown once per day-part (Ambient presence): a pixel
    landscape for the hour, Bit, and the words. Created/removed dynamically by
-   js/greeting.js; the sky is drawn by js/greeting-scene.js.
+   js/first-run/greeting.js; the sky is drawn by js/first-run/greeting-scene.js.
 
-   Everything is sized in --u, the pixel unit js/greeting.js sets (a whole
+   Everything is sized in --u, the pixel unit js/first-run/greeting.js sets (a whole
    number of screen pixels), on a stage of 96x54 units (landscape, class
    .greet-land) or 54x96 (portrait, .greet-port). The stage sits --off units
    from the left; the sky and hills run past it to fill any screen. The colours

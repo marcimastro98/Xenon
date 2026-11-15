@@ -98,7 +98,7 @@ test('the driver page feeds it from the media stream and posts to the bridge', a
   const posts = [];
   const window = {
     location: { replace() {} },
-    UsageMode: require('../js/usage-mode.js'),
+    UsageMode: require('../js/first-run/usage-mode.js'),
     LayersShell: { sync() {} },
     DriverAlbumLights: { create },
     extractAlbumAccent: async () => ({ led: '#abcdef', ledPalette: ['#abcdef', '#123456'] }),

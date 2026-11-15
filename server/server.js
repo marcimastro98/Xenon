@@ -409,7 +409,7 @@ const LayerI18n = require('./layer-strings.js'); // one language for the light l
 require('./layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 const assetVersion = require('./asset-version.js'); // a version on every page's CSS/JS URLs
 const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
-const UsageMode = require('./js/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
+const UsageMode = require('./js/first-run/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
 const PerfHud = require('./js/perf-hud.js'); // what the Game performance tile shows (shared with the client)
 const ScreenSceneModel = require('./js/ambient/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
 require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)

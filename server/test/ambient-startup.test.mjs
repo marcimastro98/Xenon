@@ -88,7 +88,7 @@ test('the screen picker, the first-run tour and the greeting hold it back', () =
   // …and those are the classes those modules really create.
   assert.match(read('js', 'surface-picker.js'), /overlay\.className = 'sp-overlay'/);
   assert.match(read('js', 'onboarding.js'), /overlay\.className = 'onb-overlay'/);
-  assert.match(read('js', 'greeting.js'), /el\('div', `greeting-splash /);
+  assert.match(read('js', 'first-run/greeting.js'), /el\('div', `greeting-splash /);
 });
 
 test('a load that runs the first-run questions is skipped, not waited out', () => {

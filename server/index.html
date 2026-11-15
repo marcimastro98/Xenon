@@ -298,11 +298,11 @@
 </head>
 <body>
 <!-- Bit while the dashboard loads, on the user's theme ground
-     (js/boot-splash.js, right below, runs before the rest of the page). -->
+     (js/first-run/boot-splash.js, right below, runs before the rest of the page). -->
 <div class="boot-splash" id="boot-splash" aria-hidden="true">
   <span class="boot-splash-bit"></span>
 </div>
-<script src="js/boot-splash.js"></script>
+<script src="js/first-run/boot-splash.js"></script>
 <!-- Tile silhouettes. One sprite for the whole dashboard: identical shapes share
      a <clipPath>, so twenty hexagon tiles cost one def. Written and swept by
      applyTileStyle() in js/dashboard-layout.js; empty until a tile asks. -->
@@ -1493,7 +1493,7 @@
               <option value="zh">中文</option>
             </select>
         </div>
-        <!-- How this PC uses Xenon (js/usage-mode.js). Native app with widget layers only. -->
+        <!-- How this PC uses Xenon (js/first-run/usage-mode.js). Native app with widget layers only. -->
         <div class="settings-grid" data-settings-cat="general" id="settings-usage-mode-group" data-unavailable="1" hidden>
           <label class="settings-row full">
           <span class="settings-label-line">
@@ -4968,7 +4968,7 @@
 <!-- Monotone-cubic path builder shared by the stat sparklines (utils.js) and the
      sensor-history charts (history-chart.js). Must load before both. -->
 <script src="js/spark-path.js"></script>
-<script src="js/xenon-loader.js"></script>
+<script src="js/first-run/xenon-loader.js"></script>
 <script src="js/live-stream.js"></script>
 <script src="js/utils/page-and-text.js"></script>
 <script src="js/utils/time-and-format.js"></script>
@@ -5054,7 +5054,7 @@
 <script src="js/layers-model.js"></script>
 <script src="js/layer-drag.js"></script>
 <script src="js/layer-see.js"></script>
-<script src="js/usage-mode.js"></script>
+<script src="js/first-run/usage-mode.js"></script>
 <script src="js/topbar-share.js"></script>
 <script src="js/content-installs.js"></script>
 <script src="js/fuzzy-find.js"></script>
@@ -5250,11 +5250,11 @@
 <script src="js/palette-model.js"></script>
 <script src="js/dashboard-palette.js"></script>
 <script src="js/dashboard-presets.js"></script>
-<script src="js/genesis.js"></script>
+<script src="js/first-run/genesis.js"></script>
 <script src="js/game-companion/says.js"></script>
 <script src="js/game-companion.js"></script>
-<script src="js/greeting-scene.js"></script>
-<script src="js/greeting-facts.js"></script>
+<script src="js/first-run/greeting-scene.js"></script>
+<script src="js/first-run/greeting-facts.js"></script>
 <script src="js/weather-glyphs.js"></script>
 <script src="js/weather-art.js"></script>
 <script src="js/weather-outlook.js"></script>
@@ -5264,7 +5264,7 @@
 <script src="js/weather-look.js"></script>
 <script src="js/weather-window.js"></script>
 <script src="js/ambient/lock-digits.js"></script>
-<script src="js/greeting.js"></script>
+<script src="js/first-run/greeting.js"></script>
 <script src="js/ambient/ambient.js"></script>
 <script src="js/ambient/ambient-idle.js"></script>
 <script src="js/gpu-hint.js"></script>
@@ -5476,8 +5476,8 @@
 <script src="js/alerts/screen-name.js"></script>
 <script src="js/xenon-menu-map.js"></script>
 <script src="js/view-melt.js"></script>
-<script src="js/usage-ask-plan.js"></script>
-<script src="js/usage-ask-picture.js"></script>
+<script src="js/first-run/usage-ask-plan.js"></script>
+<script src="js/first-run/usage-ask-picture.js"></script>
 <script src="js/usage-ask/pieces.js"></script>
 <script src="js/usage-ask.js"></script>
 <script src="js/onboarding/steps.js"></script>

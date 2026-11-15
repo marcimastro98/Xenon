@@ -101,7 +101,7 @@
 
   // `force`: send even when nothing changed (a screen moved, or the periodic
   // self-heal). A layout with no layers sends nothing until it had some.
-  // The user switched this PC to "widgets only" (js/usage-mode.js): the app's
+  // The user switched this PC to "widgets only" (js/first-run/usage-mode.js): the app's
   // own window trades the dashboard for the small driver page, which keeps the
   // sync going. Not during a visit (`full=1`: the menu or the tray asked for the
   // dashboard). A visit that sees the mode change away from "widgets only" is over:

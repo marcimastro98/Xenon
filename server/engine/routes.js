@@ -1,7 +1,7 @@
 // What the engine answers about itself: that it is up, and a line a page asks it to log.
 
 const { readBodyBuffer } = require('../http/read-body.js');
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 const { hub } = require('../settings/current.js');
 const LayersModel = require('../js/layers-model.js');
 const fs = require('node:fs');
@@ -36,7 +36,7 @@ const branches = {
     // dashboard. js/layers-model.js owns the rule, and the page reloads by the
     // same one when the user adds or removes a tile there.
     const query = new URL(req.url, 'http://127.0.0.1').searchParams;
-    // "Widgets only" (js/usage-mode.js): the app's own window (`shell=main`, set
+    // "Widgets only" (js/first-run/usage-mode.js): the app's own window (`shell=main`, set
     // by the splash) gets the small driver page instead of the dashboard, and the
     // shell hides the window when it sees that URL load. `full=1` is the tray's
     // "Show Xenon": the user asked for the dashboard this once.

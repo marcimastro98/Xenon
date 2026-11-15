@@ -1,7 +1,7 @@
 'use strict';
 
 // ── Greeting scene ───────────────────────────────────────────────────────────
-// The pixel landscape behind the greeting splash (js/greeting.js): flat bands of
+// The pixel landscape behind the greeting splash (js/first-run/greeting.js): flat bands of
 // sky, a sun or moon, hills and a ground, all drawn on one pixel grid whose unit
 // is a whole number of screen pixels, so every edge is crisp. The scene is
 // composed on a fixed stage (96x54 units landscape, 54x96 portrait); the sky,

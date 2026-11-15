@@ -15,7 +15,7 @@ pub(crate) fn on_page_load(_webview: &tauri::webview::Webview, _payload: &tauri:
             _payload.url().host_str(),
             Some("127.0.0.1") | Some("localhost")
         ) && page_load::real(_webview.label(), started);
-        // "Widgets only" (server/js/usage-mode.js): the server sends the
+        // "Widgets only" (server/js/first-run/usage-mode.js): the server sends the
         // main window to the driver page instead of the dashboard. The
         // URL alone says which one loaded, so the window hides before the
         // driver paints and comes back when the dashboard loads. Only the

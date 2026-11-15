@@ -1,10 +1,10 @@
-// What the first question offers on this PC and what an answer does (js/usage-ask-plan.js).
+// What the first question offers on this PC and what an answer does (js/first-run/usage-ask-plan.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const plan = require('../js/usage-ask-plan.js');
+const plan = require('../js/first-run/usage-ask-plan.js');
 
 const screen = (id, name, more = {}) => ({
   id, name, label: 'Display ' + id, width: 2560, height: 1440, x: 0, y: 0, primary: false, edge: false, ...more,

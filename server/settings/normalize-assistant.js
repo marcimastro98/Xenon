@@ -2,7 +2,7 @@
 // assistant's provider, models, keys, voice and memory, and how this PC uses Xenon.
 
 const { clampNumber } = require('./values.js');
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 const aiLocal = require('../ai-local.js');
 const aiOpenai = require('../ai/ai-openai.js');
 const aiLocalServer = require('../ai-local-server.js');

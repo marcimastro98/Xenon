@@ -43,7 +43,7 @@ test('each picture is a WebP and stays light', () => {
 });
 
 test('the question asks only for pictures that exist', () => {
-  const code = readFileSync(path.join(SERVER, 'js', 'usage-ask-picture.js'), 'utf8');
+  const code = readFileSync(path.join(SERVER, 'js', 'first-run/usage-ask-picture.js'), 'utf8');
   for (const shape of ['tall', 'edge', 'wide']) {
     assert.match(code, new RegExp(`'${shape}'`), shape);
     assert.ok(names.includes(`dash-${shape}`), shape);
@@ -65,7 +65,7 @@ test('a picture comes with its screen: decoded with the frame, and faded in if i
     return node;
   };
   const window = {};
-  vm.runInNewContext(readFileSync(path.join(SERVER, 'js', 'usage-ask-picture.js'), 'utf8'), { document, window });
+  vm.runInNewContext(readFileSync(path.join(SERVER, 'js', 'first-run/usage-ask-picture.js'), 'utf8'), { document, window });
   window.UsageAskPicture.create({ onTap() {}, nameOf: () => '', tapLabel: () => '' });
   assert.ok(made.length > 0);
   for (const img of made) {
@@ -81,8 +81,8 @@ test('a picture comes with its screen: decoded with the frame, and faded in if i
 });
 
 test('the picture starts from the same widgets the plan places', () => {
-  const plan = readFileSync(path.join(SERVER, 'js', 'usage-ask-plan.js'), 'utf8');
-  const picture = readFileSync(path.join(SERVER, 'js', 'usage-ask-picture.js'), 'utf8');
+  const plan = readFileSync(path.join(SERVER, 'js', 'first-run/usage-ask-plan.js'), 'utf8');
+  const picture = readFileSync(path.join(SERVER, 'js', 'first-run/usage-ask-picture.js'), 'utf8');
   const list = (code) => code.match(/STARTERS = Object\.freeze\(\[([^\]]+)\]/)[1].match(/[a-z]+/g);
   assert.deepEqual(list(picture), list(plan));
 });

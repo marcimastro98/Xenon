@@ -6,7 +6,7 @@
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
   const api = node
-    ? factory(require('./usage-mode.js'), require('./alerts/screen-name.js'))
+    ? factory(require('./usage-mode.js'), require('../alerts/screen-name.js'))
     : factory(root.UsageMode, root.ScreenName);
   if (node) module.exports = api;
   if (root) root.UsageAskPlan = api;

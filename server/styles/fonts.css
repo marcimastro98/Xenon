@@ -171,7 +171,7 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Pixelify Sans, self-hosted: the greeting splash (js/greeting.js) sets Bit's
+/* Pixelify Sans, self-hosted: the greeting splash (js/first-run/greeting.js) sets Bit's
    words in it. One variable file per subset, like Inter above; Japanese, Korean
    and Chinese are not in the face and fall back to the dashboard font. SIL OFL
    1.1, see assets/fonts/LICENSE.txt. */

@@ -77,6 +77,15 @@
     {"from":"server/js/deck-editor-shortcut.js","to":"server/js/deck/deck-editor-shortcut.js"},
     {"from":"server/js/deck-error-text.js","to":"server/js/deck/deck-error-text.js"},
     {"from":"server/js/deck-feed.js","to":"server/js/deck/deck-feed.js"},
-    {"from":"server/js/deck-popup.js","to":"server/js/deck/deck-popup.js"}
+    {"from":"server/js/deck-popup.js","to":"server/js/deck/deck-popup.js"},
+    {"from":"server/js/boot-splash.js","to":"server/js/first-run/boot-splash.js"},
+    {"from":"server/js/genesis.js","to":"server/js/first-run/genesis.js"},
+    {"from":"server/js/greeting-facts.js","to":"server/js/first-run/greeting-facts.js"},
+    {"from":"server/js/greeting-scene.js","to":"server/js/first-run/greeting-scene.js"},
+    {"from":"server/js/greeting.js","to":"server/js/first-run/greeting.js"},
+    {"from":"server/js/usage-ask-picture.js","to":"server/js/first-run/usage-ask-picture.js"},
+    {"from":"server/js/usage-ask-plan.js","to":"server/js/first-run/usage-ask-plan.js"},
+    {"from":"server/js/usage-mode.js","to":"server/js/first-run/usage-mode.js"},
+    {"from":"server/js/xenon-loader.js","to":"server/js/first-run/xenon-loader.js"}
   ]
 }

@@ -1,4 +1,4 @@
-// The greeting splash (js/greeting.js, greeting-scene.js, greeting-facts.js,
+// The greeting splash (js/first-run/greeting.js, greeting-scene.js, greeting-facts.js,
 // components/GreetingSplash): a pixel landscape for the hour, Bit doing what it
 // would do then, the greeting, one true line about the day, the date, the
 // weather.
@@ -24,8 +24,8 @@ function load(file, ctx) {
   return ctx;
 }
 
-const sceneCtx = () => load('greeting-scene.js', vm.createContext({ window: {}, Math }));
-const factsCtx = () => load('greeting-facts.js', vm.createContext({ window: {}, Date, Array, Number }));
+const sceneCtx = () => load('first-run/greeting-scene.js', vm.createContext({ window: {}, Math }));
+const factsCtx = () => load('first-run/greeting-facts.js', vm.createContext({ window: {}, Date, Array, Number }));
 
 // ── scene ────────────────────────────────────────────────────────────────────
 
@@ -170,8 +170,8 @@ function boot({ weather = { ok: true, tempC: 11, condition: 'sereno', location: 
     setTimeout: (fn, ms) => { timers.push({ fn, ms, live: true }); return timers.length; },
     clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].live = false; },
   }));
-  load('greeting-scene.js', ctx);
-  load('greeting.js', ctx);
+  load('first-run/greeting-scene.js', ctx);
+  load('first-run/greeting.js', ctx);
   const overlay = () => body.children[0];
   const find = (root, cls, out = []) => { if (root.className.split(' ').includes(cls)) out.push(root); root.children.forEach((c) => find(c, cls, out)); return out; };
   const run = (pred) => { for (const t of timers.splice(0)) if (t.live && pred(t)) t.fn(); };
@@ -268,7 +268,7 @@ test('it works without the Bit engine', () => {
 
 test('the page loads the scene and facts before the splash, and ambient asks for the fact', () => {
   const html = read('../index.html');
-  const order = ['js/greeting-scene.js', 'js/greeting-facts.js', 'js/greeting.js'].map((s) => html.indexOf(`<script src="${s}"></script>`));
+  const order = ['js/first-run/greeting-scene.js', 'js/first-run/greeting-facts.js', 'js/first-run/greeting.js'].map((s) => html.indexOf(`<script src="${s}"></script>`));
   assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], 'scene, facts, then splash');
   const ambient = read('../js/ambient/ambient.js');
   assert.match(ambient, /GreetingSplash\.show\(part, \{ agenda, fact: greetingFact\(part, now\) \}\)/);

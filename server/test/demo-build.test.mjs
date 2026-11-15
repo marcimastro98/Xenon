@@ -46,7 +46,7 @@ test('every index.html anchor the build inserts at occurs exactly once', () => {
   const html = read('server', 'index.html');
   const anchors = {
     'analytics prelude': '<meta charset="UTF-8">',
-    'boot scripts': '<script src="js/boot-splash.js"></script>',
+    'boot scripts': '<script src="js/first-run/boot-splash.js"></script>',
     'demo UI layer': '<script src="js/main.js"></script>',
     'Edge DPR block': '<!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.',
     'head metadata': '<title>',

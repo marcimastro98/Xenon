@@ -6,7 +6,7 @@
 
 const aiDeckRun = require('../ai/ai-deck-run.js');
 const aiSurface = require('../ai/ai-surface.js');
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const remoteActions = require('../paired/remote-actions.js');
 

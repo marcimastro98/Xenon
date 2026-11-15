@@ -1,4 +1,4 @@
-// Bit as the app's one loading mark (js/xenon-loader.js). What a user would
+// Bit as the app's one loading mark (js/first-run/xenon-loader.js). What a user would
 // notice if it broke: a loader that is not Bit, a picture that never loads, an
 // old ring spinner or the retired X mark coming back, or a Bit that keeps
 // moving while the dashboard is frozen, in a game or set to reduce motion.
@@ -9,7 +9,7 @@ import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/xenon-loader.js');
+const SRC = read('../js/first-run/xenon-loader.js');
 const CSS = read('../components/XenonLoader/XenonLoader.css');
 const SPLASH_CSS = read('../components/BootSplash/BootSplash.css');
 const HTML = read('../index.html');
@@ -89,7 +89,7 @@ test('it stays still when the dashboard is frozen or motion is reduced', () => {
 });
 
 test('the boot splash shows Bit recharging, then saying hello', () => {
-  const splash = HTML.slice(HTML.indexOf('id="boot-splash"'), HTML.indexOf('<script src="js/boot-splash.js">'));
+  const splash = HTML.slice(HTML.indexOf('id="boot-splash"'), HTML.indexOf('<script src="js/first-run/boot-splash.js">'));
   assert.match(splash, /<span class="boot-splash-bit"><\/span>/);
   assert.doesNotMatch(splash, /<svg|<path/, 'the retired X mark is gone');
   assert.match(SPLASH_CSS, /\.boot-splash-bit \{[^}]*bit-recharge\.svg/);
@@ -100,7 +100,7 @@ test('the hello plays to its last pose, and not longer, before the splash is gon
   const { frameSlices } = await import('../../tools/brand/loader.mjs');
   const clipMs = Number(read('../public/images/loader/bit-hello.svg').match(/animation:f0 (\d+)ms/)[1]);
   const lastPose = (frameSlices('hello').at(-1).from / 100) * clipMs;
-  const hello = Number(read('../js/boot-splash.js').match(/const HELLO_MS = (\d+);/)[1]);
+  const hello = Number(read('../js/first-run/boot-splash.js').match(/const HELLO_MS = (\d+);/)[1]);
   const fade = Number(SPLASH_CSS.match(/transition: opacity ([\d.]+)s ease/)[1]) * 1000;
   assert.ok(hello + fade >= lastPose, `hello ${hello} + fade ${fade} must reach ${lastPose}`);
   assert.ok(hello < lastPose, 'the splash starts fading while Bit is still saying hello, not after');
@@ -161,6 +161,6 @@ test('it loads before its users', () => {
   assert.ok(at('components/XenonLoader/XenonLoader.css') > 0);
   assert.ok(at('components/XenonLoader/XenonLoader.css') < at('components/SettingsModal/SettingsModal.css'));
   for (const user of ['disk-widget', 'browser-tile', 'update']) {
-    assert.ok(at('<script src="js/xenon-loader.js"></script>') < at(`<script src="js/${user}.js"></script>`), user);
+    assert.ok(at('<script src="js/first-run/xenon-loader.js"></script>') < at(`<script src="js/${user}.js"></script>`), user);
   }
 });

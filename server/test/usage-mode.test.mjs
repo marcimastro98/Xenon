@@ -1,4 +1,4 @@
-// How this PC uses Xenon: dashboard, widgets only, or both (js/usage-mode.js,
+// How this PC uses Xenon: dashboard, widgets only, or both (js/first-run/usage-mode.js,
 // capabilities/usage-mode.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 const { validateAction } = require('../js/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 // The engine's code wherever it lives now: the defaults and the code that saves them have modules of their own.

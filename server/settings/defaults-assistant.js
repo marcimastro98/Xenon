@@ -58,7 +58,7 @@ const HUB_DEFAULTS_ASSISTANT = Object.freeze({
   aiEdgeGlow: 'auto',
   // How this PC uses Xenon (native app): 'dashboard', 'widgets' (no dashboard
   // window, only widgets on the screen and the menu), 'both'. '' = not asked
-  // yet, which behaves like today's dashboard (js/usage-mode.js).
+  // yet, which behaves like today's dashboard (js/first-run/usage-mode.js).
   usageMode: '',
 });
 

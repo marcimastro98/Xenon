@@ -55,7 +55,7 @@
       // The Maker's own language, when it says one, wins for this visit.
       const makerLang = new URLSearchParams(location.search).get('lang');
       if (makerLang && /^[a-z]{2}$/.test(makerLang)) mem.set('xenon.site.lang', makerLang);
-      // A preview shows the creation at once: no boot splash (js/boot-splash.js).
+      // A preview shows the creation at once: no boot splash (js/first-run/boot-splash.js).
       mem.set('xeneonedge.bootLook.v1', '{"off":true}');
       const store = {
         getItem: (k) => (mem.has(String(k)) ? mem.get(String(k)) : null),

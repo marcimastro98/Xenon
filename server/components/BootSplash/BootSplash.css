@@ -1,4 +1,4 @@
-/* Bit over the first moments of a load (js/boot-splash.js).
+/* Bit over the first moments of a load (js/first-run/boot-splash.js).
 
    Between the first paint and the first settings + data, every tile shows its
    empty state ("--", no artwork, no events): a screen that looks broken. The

@@ -168,11 +168,11 @@ log('materialized shared/src from packages/core');
   //     localStorage synchronously at script-evaluation time, several modules
   //     probe location.hash on the way up, and boot-splash.js reads its look
   //     from storage, so the shims and the seed must already exist.
-  html = patchOnce(html, '<script src="js/boot-splash.js"></script>',
+  html = patchOnce(html, '<script src="js/first-run/boot-splash.js"></script>',
     `<script src="demo/data.js?v=${version}"></script>\n`
     + `<script src="demo/boot.js?v=${version}"></script>\n`
-    + '<script src="js/boot-splash.js"></script>',
-    'demo boot scripts before js/boot-splash.js');
+    + '<script src="js/first-run/boot-splash.js"></script>',
+    'demo boot scripts before js/first-run/boot-splash.js');
 
   // 4c. The UI layer LAST, so the fake EventSource main.js created is already
   //     registered and the grid has mounted.

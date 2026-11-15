@@ -2,8 +2,8 @@
 
 // ── Greeting Splash ──────────────────────────────────────────────────────────
 // Fullscreen greeting, shown by ambient.js once per day-part per day: a pixel
-// landscape for the hour (js/greeting-scene.js) with Bit doing what it would do
-// at that hour, the greeting, one true line about the day (js/greeting-facts.js),
+// landscape for the hour (js/first-run/greeting-scene.js) with Bit doing what it would do
+// at that hour, the greeting, one true line about the day (js/first-run/greeting-facts.js),
 // the date and the weather. The whole overlay is built here and removed on
 // dismiss, so the page carries zero extra DOM while idle. Tap anywhere closes
 // it; it also closes by itself after a few seconds.

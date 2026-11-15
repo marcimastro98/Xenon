@@ -2,7 +2,7 @@
 // the user approves it on a card.
 
 const aiSurface = require('../ai/ai-surface.js');
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const aiRateStore = require('./ai-rate-store.js');
 const aiDeckRun = require('../ai/ai-deck-run.js');

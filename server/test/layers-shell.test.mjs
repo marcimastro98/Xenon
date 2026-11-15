@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayersModel = require('../js/layers-model.js');
-const UsageMode = require('../js/usage-mode.js');
+const UsageMode = require('../js/first-run/usage-mode.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/layers-shell.js');
 const BRIDGE = read('../js/native-bridge.js');
@@ -498,5 +498,5 @@ test('wiring: the dashboard and the driver pass the vitals popup on, and the ale
   const alerts = read('../js/alerts/screen-alerts.js');
   assert.match(alerts, /ALWAYS = Object\.freeze\(\{ vitals_nag: vitalsPopup,/);
   assert.match(alerts, /if \(!always && !routine\(\)\) return;/);
-  assert.match(read('../screen-alerts.html'), /js\/usage-mode\.js[\s\S]*js\/alerts\/screen-alerts\.js/);
+  assert.match(read('../screen-alerts.html'), /js\/first-run\/usage-mode\.js[\s\S]*js\/alerts\/screen-alerts\.js/);
 });

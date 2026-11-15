@@ -134,7 +134,7 @@ function syncLayersWhy(caps) {
   }
 }
 
-// How this PC uses Xenon (js/usage-mode.js). Only the native app can drop the
+// How this PC uses Xenon (js/first-run/usage-mode.js). Only the native app can drop the
 // dashboard window for the widgets, so elsewhere the row is hidden; where the
 // app cannot draw them, a line says why instead.
 function syncMenuKeyHint() {
