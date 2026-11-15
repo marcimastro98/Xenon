@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 const require = createRequire(import.meta.url);
-const { createTwitchProvider, normalizeStreamTwitch } = require('../stream-twitch.js');
+const { createTwitchProvider, normalizeStreamTwitch } = require('../streaming/stream-twitch.js');
 const { createRegistry } = require('../actions/registry.js');
 
 // A fresh temp token file per provider so tests never touch the real store, all in

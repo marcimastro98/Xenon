@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 const require = createRequire(import.meta.url);
-const { createYouTubeProvider, normalizeStreamYouTube } = require('../stream-youtube.js');
+const { createYouTubeProvider, normalizeStreamYouTube } = require('../streaming/stream-youtube.js');
 const { createRegistry } = require('../actions/registry.js');
 
 // One folder for this file's token files, removed when the file's tests end.

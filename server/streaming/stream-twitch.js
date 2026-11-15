@@ -14,7 +14,7 @@
 // status polling to a clean { ok:false } instead of crashing the request.
 
 const path = require('path');
-const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-common');
+const { makeCredsNormalizer, createTokenStore } = require('./stream-common');
 
 // The Twitch app client_id is CONFIGURATION, never committed source. server.js
 // resolves it from the `TWITCH_CLIENT_ID` env var or a gitignored
@@ -24,15 +24,15 @@ const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-co
 // { ok:false, error:'no_client_id' }.
 const TWITCH_CLIENT_ID = '';
 
-const { HELIX } = require('./streaming/twitch-endpoints.js');
+const { HELIX } = require('./twitch-endpoints.js');
 
 // Coerce a stored credentials blob into a clean, fully-populated shape so callers
 // can destructure unconditionally. Unknown keys are dropped.
 const normalizeStreamTwitch = makeCredsNormalizer({ login: 120, userId: 60 });
 
-const { makeSignIn } = require('./streaming/twitch-sign-in.js');
+const { makeSignIn } = require('./twitch-sign-in.js');
 
-const { makeBroadcast } = require('./streaming/twitch-broadcast.js');
+const { makeBroadcast } = require('./twitch-broadcast.js');
 
 // deps (all optional, injectable for tests):
 //   clientId    — override the shipped client_id
@@ -42,7 +42,7 @@ function createTwitchProvider(deps) {
   const d = deps || {};
   const _fetch = d.fetch || ((...a) => fetch(...a));
   const clientId = d.clientId != null ? d.clientId : TWITCH_CLIENT_ID;
-  const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
+  const tokensFile = d.tokensFile || path.join(__dirname, '..', 'stream-tokens.json');
   // Server-only token store (shared plumbing with the other providers).
   const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
     createTokenStore({ tokensFile, storeKey: 'twitch', normalize: normalizeStreamTwitch });
@@ -101,8 +101,8 @@ function createTwitchProvider(deps) {
   return { startDeviceLogin, pollDeviceToken, getAccessToken, status, logout, helix, configured, broadcasterId, createClip, createMarker, runAd, setTitle, setGame, sendChat, shoutout, setChatMode, streamStatus, followedChannels, topChannels, searchChannels, sendChatTo, channelEmotes };
 }
 
-const { streamMatches, mergeSearch } = require('./streaming/twitch-search-match.js');
+const { streamMatches, mergeSearch } = require('./twitch-search-match.js');
 
-const { makeChannels } = require('./streaming/twitch-channels.js');
+const { makeChannels } = require('./twitch-channels.js');
 
 module.exports = { createTwitchProvider, normalizeStreamTwitch, streamMatches, mergeSearch };

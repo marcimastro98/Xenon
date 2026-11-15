@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createTwitchProvider, streamMatches, mergeSearch } = require('../stream-twitch.js');
+const { createTwitchProvider, streamMatches, mergeSearch } = require('../streaming/stream-twitch.js');
 
 function provider(routes) {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xtw-')), 'tokens.json');

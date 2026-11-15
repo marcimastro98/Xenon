@@ -927,7 +927,7 @@
       {"file":"server/disk-space/xdg-user-dirs.js","about":"Reads the folders a Linux desktop names in user-dirs.dirs, so that a Documents folder with a translated name is protected like the English one.","names":["parseXdgUserDirs"]},
       {"file":"server/disk-space/machine-places.js","about":"Where things are on this machine: the platform the rules run under, how two paths compare, and the home, system, temp, trash and container folders.","names":["PLATFORM","IS_WIN","IS_MAC","SEP","cmpKey","trimSep","isBelow","userProfile","localAppData","windir","programFiles","programFilesX86","tempDirs","readXdgUserDirs","xdgDirs","downloads","known","trashDirs","containerDirs","oneDrive"],"inner":{"factory":"createDiskSpace","make":"makeMachinePlaces"},"bare":["./disk-space/temp-dirs.js"]}
     ],
-    "server/stream-youtube.js": [
+    "server/streaming/stream-youtube.js": [
       {"file":"server/streaming/youtube-endpoints.js","about":"Where the YouTube provider talks to Google: the addresses of sign-in and of the API, the permission it asks for, and the rule that a link shown as it is must be https.","names":["SCOPE","DEVICE_URL","TOKEN_URL","REVOKE_URL","API","httpsOnly"]},
       {"file":"server/streaming/youtube-chat.js","about":"The live chat of the broadcast on air: which chat it is, a page of its messages held for as long as YouTube asked, and a message sent to it.","names":["chatId","chatMessages","sendChat"],"inner":{"factory":"createYouTubeProvider","make":"makeChat"}},
       {"file":"server/streaming/youtube-library.js","about":"What a signed-in viewer can browse on YouTube: liked videos, the videos of a playlist, the feed of subscriptions, a search, the channels followed, a channel's videos and playlists, and the address a playlist opens at.","names":["likedVideos","playlistVideos","subscriptionsFeed","searchVideos","subscriptionChannels","channelVideos","channelPlaylists","resolvePlaylistUrl"],"inner":{"factory":"createYouTubeProvider","make":"makeLibrary"}},
@@ -960,7 +960,7 @@
       {"file":"server/streaming/spotify-controls.js","about":"What can be done to the Spotify player: play and pause, skip, shuffle, repeat, volume, seek, like, start a playlist, move to another device, wait for this computer, and the one door every action comes through.","names":["saveCurrent","playPlaylist","setShuffle","transferDevice","transferToId","playPause","thisComputer","startPlayback","computerIds","READY_TRIES","READY_INTERVAL_MS","playWhenReady","skipTo","skipNext","skipPrev","setRepeat","toggleLike","setVolume","seek","runAction"],"inner":{"factory":"createSpotifyProvider","make":"makeControls"}},
       {"file":"server/streaming/spotify-query.js","about":"What an SDK widget may read from Spotify: the list of readings and the address each one builds from checked parts, its answer shaped, and the same reading shared while it runs and remembered for a few seconds.","names":["QUERY_TTL_MS","QUERY_TTL_VOLATILE_MS","QUERY_VOLATILE","_queryPending","queryId","pageInt","page","cursorMs","cursorPath","SEARCH_TYPES","QUERY_OPS","QUERY_AFTER","shapeQueryAnswer","query"],"inner":{"factory":"createSpotifyProvider","make":"makeQuery"}}
     ],
-    "server/stream-twitch.js": [
+    "server/streaming/stream-twitch.js": [
       {"file":"server/streaming/twitch-endpoints.js","about":"Where Twitch is asked: the sign-in, token and revoke addresses, the Helix API, the scopes the user grants, and the check that a link shown to the user is https.","names":["SCOPES","DEVICE_URL","TOKEN_URL","REVOKE_URL","HELIX","httpsOnly"]},
       {"file":"server/streaming/twitch-search-match.js","about":"How a Twitch search is matched and put in order: text folded so case and accents never decide, a live stream matched on its title, tags, channel and game, and the channels named like the query put before the streams about it.","names":["foldText","squash","queryWords","streamMatches","SEARCH_SIZE","mergeSearch"]},
       {"file":"server/streaming/twitch-channels.js","about":"The channels behind the Twitch viewer widget: the ones the user follows that are on air, the busiest ones, a search, a channel's id from its name, a message in the chat of the channel being watched, and the emotes usable there, each list kept for a short time.","names":["LIST_TTL_MS","SEARCH_TTL_MS","LIST_SIZE","watchCache","watchGet","watchSet","art","LOGIN_RE","channelRow","rowsOf","followedChannels","topChannels","SCAN_TTL_MS","SCAN_PAGES_LANG","SCAN_PAGES_ALL","LANG_RE","scanInflight","liveStreams","searchChannels","chanIdCache","userIdFor","sendChatTo","EMOTE_NAME_RE","EMOTE_LIST_TTL_MS","EMOTE_CAP","emoteRows","channelEmotes"],"inner":{"factory":"createTwitchProvider","make":"makeChannels"}},
@@ -1197,7 +1197,7 @@
       {"factory":"createFileTransfer","object":"caps","names":["maxBytes","quotaBytes","keepMs"],"kept":["maxBytes","quotaBytes","keepMs"],"bare":[],"after":4},
       {"factory":"createFileTransfer","object":"shelf","names":["records","usedBytes","loaded"],"kept":[],"bare":[],"after":4}
     ],
-    "server/stream-youtube.js": [
+    "server/streaming/stream-youtube.js": [
       {"factory":"createYouTubeProvider","object":"onAir","names":["liveCtx"],"kept":[],"bare":[],"after":0},
       {"factory":"createYouTubeProvider","object":"chatMemory","names":["chatIdMissAt","chatCache"],"kept":[],"bare":[],"after":0}
     ],

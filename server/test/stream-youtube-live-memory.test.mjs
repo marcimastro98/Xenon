@@ -8,7 +8,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const { createYouTubeProvider } = require('../stream-youtube.js');
+const { createYouTubeProvider } = require('../streaming/stream-youtube.js');
 
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-yt-live-'));
 after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));

@@ -12,21 +12,21 @@
 // ROBUSTNESS: every method resolves to a plain result object and never throws.
 
 const path = require('path');
-const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-common');
+const { makeCredsNormalizer, createTokenStore } = require('./stream-common');
 
-const { API } = require('./streaming/youtube-endpoints.js');
+const { API } = require('./youtube-endpoints.js');
 
 const normalizeStreamYouTube = makeCredsNormalizer({ channel: 120, channelId: 60 });
 
-const { makeChat } = require('./streaming/youtube-chat.js');
+const { makeChat } = require('./youtube-chat.js');
 
-const { makeLibrary } = require('./streaming/youtube-library.js');
+const { makeLibrary } = require('./youtube-library.js');
 
-const { makeLive } = require('./streaming/youtube-live.js');
+const { makeLive } = require('./youtube-live.js');
 
-const { makeVideoRows } = require('./streaming/youtube-video-rows.js');
+const { makeVideoRows } = require('./youtube-video-rows.js');
 
-const { makeSignIn } = require('./streaming/youtube-sign-in.js');
+const { makeSignIn } = require('./youtube-sign-in.js');
 
 // deps (all optional, injectable for tests):
 //   clientId / clientSecret — the Google OAuth installed-app credentials
@@ -37,7 +37,7 @@ function createYouTubeProvider(deps) {
   const _fetch = d.fetch || ((...a) => fetch(...a));
   const clientId = d.clientId || '';
   const clientSecret = d.clientSecret || '';
-  const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
+  const tokensFile = d.tokensFile || path.join(__dirname, '..', 'stream-tokens.json');
   // Server-only token store (shared plumbing with the other providers).
   const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
     createTokenStore({ tokensFile, storeKey: 'youtube', normalize: normalizeStreamYouTube });

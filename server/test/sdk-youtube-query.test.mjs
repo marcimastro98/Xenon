@@ -29,7 +29,7 @@ after(() => rmSync(TMP_DIR, { recursive: true, force: true }));
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
-const { createYouTubeProvider } = require('../stream-youtube.js');
+const { createYouTubeProvider } = require('../streaming/stream-youtube.js');
 
 const CH = 'UCuAXFkgsw1L7xaCfnd5JJOw';   // a real-shaped channel id
 

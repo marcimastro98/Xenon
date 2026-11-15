@@ -1590,7 +1590,7 @@
     "server/store-supporters/vitals-roast-sparks.js complexity/useOptionalChain": 3,
     "server/store-supporters/welcome-sparks.js complexity/useOptionalChain": 1,
     "server/media/stream-spotify.js complexity/useOptionalChain": 1,
-    "server/stream-youtube.js complexity/useOptionalChain": 8,
+    "server/streaming/stream-youtube.js complexity/useOptionalChain": 8,
     "server/streaming/config-files.js complexity/useOptionalChain": 1,
     "server/streaming/obs-live-state.js complexity/useOptionalChain": 1,
     "server/streaming/obs-live-state.js correctness/noUnusedVariables": 1,

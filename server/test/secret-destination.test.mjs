@@ -26,7 +26,7 @@ const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typ
 const require = createRequire(import.meta.url);
 const ha = require('../actions/home-assistant.js');
 const unifi = require('../actions/unifi.js');
-const stream = require('../stream-creds.js');
+const stream = require('../streaming/stream-creds.js');
 const ics = require('../time/ics-feeds.js');
 const secrets = require('../js/settings/settings-secrets.js');
 const { redactStockCreds } = require('../stocks-creds.js');
@@ -255,7 +255,7 @@ test('settings-secrets: stripSettingsSecrets blanks every secret the issue named
 });
 
 test('settings-secrets: the server modules and the dashboard read the same list', () => {
-  for (const f of ['stream-creds.js', 'stocks-creds.js', 'football-creds.js', 'news-creds.js', 'ai/ai-provider-creds.js']) {
+  for (const f of ['streaming/stream-creds.js', 'stocks-creds.js', 'football-creds.js', 'news-creds.js', 'ai/ai-provider-creds.js']) {
     const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
     assert.match(src, /require\('\.\.?\/js\/settings\/settings-secrets\.js'\)/, f + ' keeps its own copy of the list');
   }

@@ -454,7 +454,7 @@ require('./windows-tiles/embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./windows-tiles/browser-surface-sync');
 require('./windows-tiles/second-screen');
 require('./screens/screen-capture');
-require('./stream-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
+require('./streaming/stream-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');
 require('./smart-home/unifi-events');
 require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads

@@ -258,7 +258,10 @@
     {"from":"server/filesearch.js","to":"server/search/filesearch.js"},
     {"from":"server/living-index.js","to":"server/search/living-index.js"},
     {"from":"server/settings-rev.js","to":"server/settings/settings-rev.js"},
-    {"from":"server/community-limited.js","to":"server/store-catalog/community-limited.js"}
+    {"from":"server/community-limited.js","to":"server/store-catalog/community-limited.js"},
+    {"from":"server/stream-creds.js","to":"server/streaming/stream-creds.js"},
+    {"from":"server/stream-twitch.js","to":"server/streaming/stream-twitch.js"},
+    {"from":"server/stream-youtube.js","to":"server/streaming/stream-youtube.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -304,6 +307,9 @@
     {"feature":"capture","glob":"server/steps-*.js","at":5},
     {"feature":"search","glob":"server/filesearch.js","at":1},
     {"feature":"search","glob":"server/living-index.js","at":3},
-    {"feature":"settings","glob":"server/settings-rev.js","at":1}
+    {"feature":"settings","glob":"server/settings-rev.js","at":1},
+    {"feature":"streaming","glob":"server/stream-twitch.js","at":1},
+    {"feature":"streaming","glob":"server/stream-youtube.js","at":2},
+    {"feature":"streaming","glob":"server/stream-creds.js","at":3}
   ]
 }

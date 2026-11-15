@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { preserveStreamCreds, redactStreamCreds } = require('../stream-creds.js');
+const { preserveStreamCreds, redactStreamCreds } = require('../streaming/stream-creds.js');
 
 // ── preserveStreamCreds: a client save must never wipe the server-only creds ──
 test('preserveStreamCreds carries both passwords over when the client omits them', () => {

@@ -64,7 +64,7 @@ test('a link elsewhere cannot start an update in a plain browser', () => {
 });
 
 test('streaming sign-in links are https only', () => {
-  for (const f of ['server/stream-twitch.js', 'server/stream-youtube.js']) {
+  for (const f of ['server/streaming/stream-twitch.js', 'server/streaming/stream-youtube.js']) {
     const src = engineSource(f);
     const fn = new Function(src.match(/function httpsOnly[\s\S]*?\n}\n/)[0] + '; return httpsOnly;')();
     assert.equal(fn('javascript:alert(1)', 'F'), 'F', f);

@@ -11,7 +11,7 @@
 // redact and the secret keeps leaking to the browser. Do not add just one.
 
 // The key list is shared with the dashboard's localStorage mirror (js/settings/settings-secrets.js).
-const { SECRET_KEY_GROUPS } = require('./js/settings/settings-secrets.js');
+const { SECRET_KEY_GROUPS } = require('../js/settings/settings-secrets.js');
 const STREAM_SECRET_KEYS = SECRET_KEY_GROUPS.stream;
 
 // Each password belongs to the WebSocket server it was typed for. The defaults
