@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createWidgetKeys } = require('../widget-keys.js');
+const { createWidgetKeys } = require('../widget-sdk/widget-keys.js');
 
 const W = (id, key, over = {}) => ({ id, kind: 'tile', widget: 'weather', surface: 'overlay', rect: { x: 0, y: 0, w: 0.2, h: 0.2 }, ...(key ? { key } : {}), ...over });
 

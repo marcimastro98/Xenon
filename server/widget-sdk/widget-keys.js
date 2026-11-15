@@ -8,7 +8,7 @@
 // Holding needs the key's release, which only Xenon Helper reports (`release` in
 // its `ready` line). Without it (Linux, an older helper) a press shows the widget
 // for PEEK_MS instead, and the menu says so.
-const LayersModel = require('./js/layers-model.js');
+const LayersModel = require('../js/layers-model.js');
 
 const PEEK_MS = 4000;
 const SLOT_PREFIX = 'widget-';

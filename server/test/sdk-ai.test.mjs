@@ -17,7 +17,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(path.join(ROOT, p), 'utf8');
-const { createSdkAi, normalizeAsk, cleanDailyCap, PROMPT_MAX, SYSTEM_MAX, MAX_TOKENS_CAP } = require('../sdk-ai.js');
+const { createSdkAi, normalizeAsk, cleanDailyCap, PROMPT_MAX, SYSTEM_MAX, MAX_TOKENS_CAP } = require('../widget-sdk/sdk-ai.js');
 const sdk = require('../sdk-widgets.js');
 
 const noBlock = async () => '';

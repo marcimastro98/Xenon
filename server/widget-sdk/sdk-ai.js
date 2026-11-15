@@ -16,7 +16,7 @@
 
 const fsp = require('fs').promises;
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write.js');
+const { writeFileAtomic } = require('../atomic-write.js');
 
 const USAGE_FILE = 'sdk-ai-usage.json';
 const PROMPT_MAX = 8000;

@@ -125,7 +125,7 @@
     return { x: round4(x), y: round4(y), w: round4(w), h: round4(h) };
   }
 
-  // A key that shows or hides the widget (server/widget-keys.js): pressed to switch it,
+  // A key that shows or hides the widget (server/widget-sdk/widget-keys.js): pressed to switch it,
   // or held to see it. The combo is checked for clashes where it is chosen
   // (capabilities/widget-key.js); here only its shape.
   function normalizeKey(raw) {

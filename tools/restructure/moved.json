@@ -42,9 +42,13 @@
     {"from":"server/web-push.js","to":"server/paired/web-push.js","shim":true},
     {"from":"server/football.js","to":"server/ticker/football.js","shim":true},
     {"from":"server/news.js","to":"server/ticker/news.js","shim":true},
-    {"from":"server/stocks.js","to":"server/ticker/stocks.js","shim":true}
+    {"from":"server/stocks.js","to":"server/ticker/stocks.js","shim":true},
+    {"from":"server/sdk-ai.js","to":"server/widget-sdk/sdk-ai.js"},
+    {"from":"server/sdk-asset-cache.js","to":"server/widget-sdk/sdk-asset-cache.js"},
+    {"from":"server/sdk-grant.js","to":"server/widget-sdk/sdk-grant.js"},
+    {"from":"server/widget-keys.js","to":"server/widget-sdk/widget-keys.js"}
   ],
   "patterns": [
-
+    {"feature":"widget-sdk","glob":"server/widget-keys.js","at":6}
   ]
 }

@@ -42,7 +42,7 @@ const NEGATIVE_TTL_MS = 60 * 60 * 1000;
 const {
   MAX_BYTES_PER_PKG, MAX_BYTES_TOTAL, MAX_ENTRIES_PER_PKG, MIME_EXT, FILE_RE, keyFor, extFor,
   planEviction, planGlobalEviction,
-} = require('./widget-sdk/asset-cache-plan.js');
+} = require('./asset-cache-plan.js');
 
 const PKG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 
@@ -51,7 +51,7 @@ const PKG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // on purpose: one directory per package, one index beside the files, and every
 // removal deleting both.
 
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('../atomic-write');
 
 function createAssetStore(options) {
   const o = options || {};

@@ -5,7 +5,7 @@
 // manifest; it is set here, by the person, from the menu or by asking Bit.
 //
 // The show/hide key lives on the placement (`key` in layers, js/layers-model.js)
-// and is pressed through server/widget-keys.js. A function's key is a Deck key
+// and is pressed through server/widget-sdk/widget-keys.js. A function's key is a Deck key
 // with an sdkHandler action on the `keys` Deck, like the menu's own functions
 // (function-key.js), so it runs through the same grant and rate checks as a
 // key on the Deck.

@@ -717,7 +717,7 @@
       {"file":"server/widget-sdk/package-install.js","about":"Puts a widget package in place: the staged swap an update uses, where a package came from and whether it may be shared on, and what an overwrite keeps.","names":["renameWithRetry","installPackageStaged","WIDGET_ORIGINS","mergeOrigin","originExportable","installOverwrite","migrateGrantStorageGroups"]},
       {"file":"server/widget-sdk/manifest-normalize.js","about":"A package's manifest rebuilt key by key, never spread: every field checked and clamped, the Deck extras (macros, states, handlers) among them, with the reason when the manifest is refused.","names":["normalizeDeckExtras","normalizeManifest"],"bare":["./widget-options/options.js"]}
     ],
-    "server/sdk-asset-cache.js": [
+    "server/widget-sdk/sdk-asset-cache.js": [
       {"file":"server/widget-sdk/asset-cache-plan.js","about":"Decides what the widgets' picture cache keeps: the size and count limits per package and in all, the name a cached file gets, and which files go first.","names":["MAX_BYTES_PER_PKG","MAX_BYTES_TOTAL","MAX_ENTRIES_PER_PKG","MIME_EXT","FILE_RE","keyFor","extFor","planEviction","planGlobalEviction"]}
     ],
     "server/ticker/football.js": [

@@ -10,7 +10,7 @@ const GameIgnore = require('../js/game-ignore.js');
 const TopbarLook = require('../js/topbar-look.js');
 const LayersModel = require('../js/layers-model.js');
 const { cleanCap: cleanLyricsTranslateCap } = require('../lyrics-translator.js');
-const { cleanDailyCap: cleanSdkAiDailyCap } = require('../sdk-ai.js');
+const { cleanDailyCap: cleanSdkAiDailyCap } = require('../widget-sdk/sdk-ai.js');
 const { normalizeAmbientMode } = require('../ambient/normalize-mode.js');
 const { normalizeSettingsWeather } = require('../weather/normalize-settings.js');
 

@@ -44,7 +44,7 @@ const LayerKey = require('./capabilities/layer-key');
 const { createDeckSoundPlayer } = require('./deck/deck-sound-player');
 const LayerPages = require('./layer-pages');
 const { createSituations } = require('./capabilities/situations');
-const { createWidgetKeys } = require('./widget-keys');
+const { createWidgetKeys } = require('./widget-sdk/widget-keys');
 const { readFailed, heardMedia, reportedApps, afterPress, PRESS_HOLDS_MS, cacheLife } = require('./media-read');
 const { pressMediaKey, tellApp, createMediaSender } = require('./media-key.js');
 const micUse = require('./audio/mic-use');
@@ -515,7 +515,7 @@ const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
 const { createLyricsOffsets } = require('./lyrics-offsets');
 const { createLyricsTranslator } = require('./lyrics-translator');
-const { createSdkAi } = require('./sdk-ai');
+const { createSdkAi } = require('./widget-sdk/sdk-ai');
 const { createRoastSparks } = require('./vitals-roast-sparks.js');
 require('./bit-messages.js');
 require('./rating-votes.js');
@@ -1113,7 +1113,7 @@ async function recordWidgetOrigin(id, origin, catalogVersion) {
 const { sdkHookGateOk } = require('./widget-sdk/request-gates.js');
 
 
-const sdkAssetCache = require('./sdk-asset-cache');
+const sdkAssetCache = require('./widget-sdk/sdk-asset-cache');
 const sdkAssets = sdkAssetCache.createAssetStore({ root: SDK_ASSETS_DIR });
 // Hourly, and once shortly after boot: expiry, orphans and the total cap are
 // all things no single request can see. Unref'd, so it never holds the process

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ac = require('../sdk-asset-cache.js');
+const ac = require('../widget-sdk/sdk-asset-cache.js');
 
 // A widget showing album art, game art or video thumbnails can only keep them
 // today by base64-ing them into its store, where a value caps at 16 KB and the
