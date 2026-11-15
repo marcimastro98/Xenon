@@ -137,13 +137,14 @@ export function applyStep(root, step) {
     texts.set(FEATURES, mapText(mapped.map));
     texts.set(MAP, pageText(mapped.map));
   }
-  // A list that holds the sha256 of a file as it was read: a moved file differs by the paths it loads alone, so
-  // an entry that was true of the old text is made true of the new one. A stale entry stays stale.
+  // A list that holds the sha256 of a file as it was read: a file this step edits differs by the paths it loads alone, so
+  // an entry that was true of the old text is made true of the new one, and so for a file that loads a moved one.
+  // A stale entry stays stale.
   let hashes = texts.get(HASHED) ?? read(root)(HASHED);
-  for (const { from, to } of hashes ? step.moves : []) {
-    const before = read(root)(from);
-    const now = texts.get(from) ?? before;
-    hashes = hashes.split(`${JSON.stringify(to)}: "${textHash(before)}"`).join(`${JSON.stringify(to)}: "${textHash(now)}"`);
+  const placed = new Map(step.moves.map((move) => [move.from, move.to]));
+  for (const [file, now] of hashes ? texts : []) {
+    const name = JSON.stringify(placed.get(file) ?? file);
+    hashes = hashes.split(`${name}: "${textHash(read(root)(file))}"`).join(`${name}: "${textHash(now)}"`);
   }
   if (hashes && hashes !== (texts.get(HASHED) ?? read(root)(HASHED))) texts.set(HASHED, hashes);
   texts.set(MOVED, movedText(list));
