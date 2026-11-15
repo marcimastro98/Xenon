@@ -700,7 +700,7 @@
       {"file":"server/search/linux-index-walks.js","about":"The two walks of the Linux index: a root walked for its files, and a skipped folder walked for its size alone, both stopping when the scan is replaced and waiting while the index is held.","names":["holdEnds","sizeWalk","walkRoot"],"inner":{"factory":"createLinuxIndex","make":"makeWalks"}},
       {"file":"server/search/linux-index-questions.js","about":"What the Linux index is asked: a search, how far the walk has come, the overview of a drive and the views cut from it, the files of a folder, and the contents of a folder.","names":["query","stats","overview","sizes","dirs","top","dupes","list","browse"],"inner":{"factory":"createLinuxIndex","make":"makeQuestions"}}
     ],
-    "server/ics-feeds.js": [
+    "server/time/ics-feeds.js": [
       {"file":"server/time/ics-parse.js","about":"Reads the text of an iCalendar file (RFC 5545) into events: folded lines, dates with their time zone, escaped text.","names":["_unfold","_parseLine","_p2","_p4","_dtfCache","_dtfFor","_tzOffsetMs","_zonedWallToUtcMs","_parseIcsDate","_unescapeText","_finalizeVEvent","MAX_EVENTS_PER_FEED","MAX_EXDATES_PER_EVENT","parseIcs"]},
       {"file":"server/time/ics-recurrence.js","about":"Works out when a repeating calendar event happens inside a stretch of days, from its RRULE.","names":["_WEEKDAY","_MAX_OCCURRENCES","_MAX_EVENT_RESULTS","_DAY_MS","_parseRRule","_startEpoch","_instantOf","expandRecurrence"]},
       {"file":"server/time/ics-feed-settings.js","about":"The calendar feeds a user saved: the list cleaned, and each address kept on the PC while only its host name goes to the page.","names":["MAX_FEEDS","_safeHostname","normalizeCalendarFeeds","redactCalendarFeedUrls","preserveCalendarFeedUrls"]}

@@ -11,7 +11,7 @@ import path from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const R = require('../calendar-reminders.js');
+const R = require('../time/calendar-reminders.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const T0 = Date.parse('2026-10-27T10:00:00Z');

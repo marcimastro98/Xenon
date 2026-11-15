@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { ACTIONS, applyTimerAction, findTimer } = require('../timer-actions.js');
+const { ACTIONS, applyTimerAction, findTimer } = require('../time/timer-actions.js');
 
 const run = (over) => ({ id: 'a', label: 'Pasta', kind: 'countdown', durationSecs: 600, status: 'running', startedAt: 1000, pausedElapsed: 0, chimes: 0, ...over });
 

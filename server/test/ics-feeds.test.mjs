@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ics = require('../ics-feeds.js');
+const ics = require('../time/ics-feeds.js');
 
 test('unfold joins RFC5545 folded lines', () => {
   assert.equal(ics._unfold('DESC:Hello\r\n  World'), 'DESC:Hello World');

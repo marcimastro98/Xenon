@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { editTask, editEvent, findItem } = require('../agenda-ai.js');
+const { editTask, editEvent, findItem } = require('../time/agenda-ai.js');
 
 const tasks = () => [
   { id: 't1', text: 'Comprare il caffè', priority: 'medium', recurrence: 'never', recurrenceDays: 1 },

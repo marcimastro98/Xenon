@@ -4,7 +4,7 @@
 // biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
 
 const { normalizeTask, TASK_PRIORITIES } = require('./tasks-normalize.js');
-const AgendaAi = require('../agenda-ai.js');
+const AgendaAi = require('./agenda-ai.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

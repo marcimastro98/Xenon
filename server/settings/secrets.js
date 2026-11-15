@@ -3,7 +3,7 @@
 
 const CaptureSettings = require('../capture-settings.js');
 const { preserveAiProviderCreds, redactAiProviderCreds } = require('../ai-provider-creds.js');
-const icsFeeds = require('../ics-feeds.js');
+const icsFeeds = require('../time/ics-feeds.js');
 const { preserveHaToken, redactHaToken } = require('../actions/home-assistant.js');
 const { preserveRemoteCreds, redactRemoteCreds } = require('../remote-control/settings.js');
 const { preserveStreamCreds, redactStreamCreds } = require('../stream-creds.js');

@@ -6,7 +6,7 @@
 const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./timer-values.js');
 const { _normalizeTimer } = require('./timer-normalize.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const TimerActions = require('../timer-actions.js');
+const TimerActions = require('./timer-actions.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

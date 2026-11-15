@@ -1,6 +1,6 @@
 // Reads the calendar feeds the user added and keeps their events and the state of each feed.
 
-const icsFeeds = require('../ics-feeds.js');
+const icsFeeds = require('./ics-feeds.js');
 const { readHubSettings } = require('../settings/read.js');
 const { agendaState } = require('./agenda-state.js');
 const { feedsRefresh } = require('./feeds-refresh-state.js');

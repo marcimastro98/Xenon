@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const Notes = require('../notes-ai.js');
+const Notes = require('../time/notes-ai.js');
 
 let n = 0;
 const opts = () => ({ newId: () => `id${++n}`, now: 1000, bodyMax: 100, notesMax: 3 });

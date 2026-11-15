@@ -5,12 +5,12 @@
 const {
   _unfold, _parseLine, _p2, _p4, _tzOffsetMs, _zonedWallToUtcMs, _parseIcsDate, MAX_EVENTS_PER_FEED,
   parseIcs,
-} = require('./time/ics-parse.js');
+} = require('./ics-parse.js');
 
 
 
 
-const { _instantOf, expandRecurrence } = require('./time/ics-recurrence.js');
+const { _instantOf, expandRecurrence } = require('./ics-recurrence.js');
 const MAX_OCCURRENCES_PER_FEED = 5000;
 const MAX_STEPS_PER_FEED = 200000; // candidate dates examined across a whole feed
 
@@ -18,7 +18,7 @@ const https = require('https');
 
 // A feed the user set up may live on the home network (a Nextcloud, a
 // FreshRSS): the LAN is allowed, this machine and link-local never are.
-const { assertPublicOrLanUrl: assertPublicUrl, publicOrLanLookup: publicLookup, armDeadline } = require('./net-guard');
+const { assertPublicOrLanUrl: assertPublicUrl, publicOrLanLookup: publicLookup, armDeadline } = require('../net-guard');
 
 const FETCH_TIMEOUT_MS = 8000;    // idle socket timeout
 const FETCH_DEADLINE_MS = 20000;  // whole request; a trickling server can't hold it open
@@ -176,7 +176,7 @@ async function loadFeed(feed) {
 
 const {
   normalizeCalendarFeeds, redactCalendarFeedUrls, preserveCalendarFeedUrls,
-} = require('./time/ics-feed-settings.js');
+} = require('./ics-feed-settings.js');
 
 module.exports = {
   _unfold, _parseLine, _parseIcsDate, _tzOffsetMs, _zonedWallToUtcMs,

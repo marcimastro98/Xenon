@@ -5,7 +5,7 @@
 const {
   notesToText, normalizeNotesState, _noteId, NOTE_BODY_MAX, NOTES_MAX,
 } = require('./notes-state.js');
-const NotesAi = require('../notes-ai.js');
+const NotesAi = require('./notes-ai.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

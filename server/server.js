@@ -55,7 +55,7 @@ require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 require('./exclusive-hint');
 const { createGameSessions } = require('./game-sessions');
-require('./calendar-reminders');
+require('./time/calendar-reminders');
 const listOps = require('./list-ops');
 const sceneImages = require('./ambient/scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
@@ -435,7 +435,7 @@ require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
 require('./briefing');
-require('./ics-feeds.js');
+require('./time/ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
 // results, and the transfer widget's received files.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ics = require('../ics-feeds.js');
+const ics = require('../time/ics-feeds.js');
 
 // A calendar feed is parsed synchronously on the server's event loop, so a
 // hostile or broken feed must finish quickly whatever it contains.

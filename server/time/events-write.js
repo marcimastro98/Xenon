@@ -1,6 +1,6 @@
 // The saves of the calendar events, one after the other.
 
-const calendarReminders = require('../calendar-reminders.js');
+const calendarReminders = require('./calendar-reminders.js');
 const { normalizeEvents } = require('./events-normalize.js');
 const { readEvents } = require('./store-read.js');
 const { timeWrites } = require('./write-state.js');

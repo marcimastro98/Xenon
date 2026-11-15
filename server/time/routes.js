@@ -13,7 +13,7 @@ const { broadcastSSE } = require('../http/sse-clients.js');
 const { agendaState } = require('./agenda-state.js');
 const { readEvents, readTasks } = require('./store-read.js');
 const { EXTERNAL_FEEDS_INTERVAL_MS } = require('../ticker/feeds-interval.js');
-const TimerActions = require('../timer-actions.js');
+const TimerActions = require('./timer-actions.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

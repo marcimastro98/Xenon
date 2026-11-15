@@ -10,7 +10,7 @@
 const stocks = require('./stocks');
 const football = require('./football');
 const news = require('./news');
-const { findItem } = require('./agenda-ai');
+const { findItem } = require('./time/agenda-ai');
 
 const KINDS = Object.freeze(['stocks', 'teams', 'news']);
 const ACTIONS = Object.freeze(['add', 'remove', 'list']);

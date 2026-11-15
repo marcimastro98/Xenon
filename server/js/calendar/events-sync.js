@@ -188,7 +188,7 @@ function deleteCalendarEvent(id) {
 }
 
 // The server decides when a reminder rings, once for every surface (SSE
-// calendar_reminder, server/calendar-reminders.js), and flashes the lights;
+// calendar_reminder, server/time/calendar-reminders.js), and flashes the lights;
 // this surface shows it, rings, and keeps its own copy of the event in step.
 function showReminder(d) {
   const fmt = new Intl.DateTimeFormat(t('locale'), timeParts({ weekday: 'short' }));
