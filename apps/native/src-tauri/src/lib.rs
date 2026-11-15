@@ -1,5 +1,6 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+mod dmabuf;
 mod crash_log;
 mod embed_nav;
 mod engine_install;
@@ -120,23 +121,6 @@ fn spawn_backend_nudge(_app: &tauri::AppHandle, _port: u16) {}
 #[cfg(not(target_os = "linux"))]
 fn prefer_host_graphics_libs() {}
 
-/// On a Wayland compositor that offers explicit sync (Hyprland, and so Omarchy,
-/// among others) WebKitGTK's DMABUF renderer can make the compositor drop the
-/// window with protocol error 71, "Missing acquire timeline". Turning the
-/// renderer off avoids it, at the price of copying each frame, so it is done
-/// only where that error can happen: a session GTK will draw through Wayland.
-/// Under X11 (including a forced GDK_BACKEND=x11 on a Wayland desktop) nothing
-/// changes. A value the user already set always wins, so "=0" brings it back.
-#[cfg(target_os = "linux")]
-fn disable_dmabuf_on_wayland() {
-    const VAR: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
-    let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some_and(|v| !v.is_empty());
-    let forced_x11 = std::env::var("GDK_BACKEND").is_ok_and(|b| b.trim_start().starts_with("x11"));
-    if wayland && !forced_x11 && std::env::var_os(VAR).is_none() {
-        std::env::set_var(VAR, "1");
-    }
-}
-
 /// Make Xlib safe to use from more than one thread, before GTK opens the display.
 ///
 /// Moving our own screen reads onto the main thread (monitor.rs, `on_main`) was
@@ -180,7 +164,7 @@ pub fn run() {
 
     // Before GTK starts and before any thread exists (set_var is not thread-safe).
     #[cfg(target_os = "linux")]
-    disable_dmabuf_on_wayland();
+    dmabuf::disable_dmabuf_on_hyprland();
 
     // Before anything can touch a display: an AppImage whose bundled libraries
     // shadow the host's driver stack renders NOTHING, and never says so.

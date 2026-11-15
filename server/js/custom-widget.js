@@ -2426,6 +2426,15 @@
   // The whole dashboard going into the background hides every tile at once, and
   // coming back reveals them — the same transition, from a different cause.
   document.addEventListener('visibilitychange', syncVisibility);
+  // --accent and --bg ease over a fraction of a second (registered colours in
+  // global.css), and refreshTheme reads them off the frame the moment a theme is
+  // applied, while they still hold the OLD colour. Push again when the ease ends,
+  // or a widget keeps the previous accent until the next settings pass (#156).
+  document.documentElement.addEventListener('transitionend', (e) => {
+    if (e.target !== document.documentElement) return;
+    if (e.propertyName !== '--accent' && e.propertyName !== '--bg') return;
+    refreshTheme();
+  });
 
   // A live DM/mention is an event, while SDK widgets consume the notifications
   // feed as a snapshot. Fold it into the cached snapshot and keep hide=true when
