@@ -21,12 +21,12 @@ import { readFileSync } from './browser-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { notifScopeState, NOTIF_SCOPE } = require('../discord-rpc.js');
+const { notifScopeState, NOTIF_SCOPE } = require('../discord/discord-rpc.js');
 const { makeCredsNormalizer } = require('../streaming/stream-common.js');
 
 const PAGE = readFileSync(new URL('../js/streaming-page.js', import.meta.url), 'utf8');
 const COMMON = readFileSync(new URL('../streaming/stream-common.js', import.meta.url), 'utf8');
-const RPC = engineSource('server/discord-rpc.js');
+const RPC = engineSource('server/discord/discord-rpc.js');
 
 // ── Reading the grant ────────────────────────────────────────────────────────
 

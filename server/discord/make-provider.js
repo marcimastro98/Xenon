@@ -2,7 +2,7 @@
 // where the engine loads, and again each time the person saves new keys in Settings →
 // Streaming. Whoever calls it again closes the old connection first: this only makes the new one.
 
-const { createDiscordProvider } = require('../discord-rpc.js');
+const { createDiscordProvider } = require('./discord-rpc.js');
 const { discordNotifScopeWanted } = require('../settings/notification-switches.js');
 const { STREAM_TOKENS_FILE, readStreamClientId } = require('../streaming/config-files.js');
 const { discordLink } = require('./link.js');

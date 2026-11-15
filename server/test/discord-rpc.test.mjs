@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 const require = createRequire(import.meta.url);
-const dc = require('../discord-rpc.js');
+const dc = require('../discord/discord-rpc.js');
 const reg = require('../actions/registry.js');
 const { validateAction, actionSpec } = require('../js/deck-actions.js');
 

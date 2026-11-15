@@ -672,7 +672,7 @@
       {"file":"server/windows-tiles/browser-tile-actions.js","about":"What a tile of the embedded browser can be asked once it is open: a new size, a key or a pointer, back and forward, a reload, its site data wiped, and to close.","names":["setSize","input","navHistory","closeActivePopup","reload","clearData","closeTile"],"inner":{"factory":"createEmbeddedBrowser","make":"makeTileActions"}},
       {"file":"server/windows-tiles/browser-connection.js","about":"The embedded browser's one Edge and its DevTools socket: started when a tile needs it and tried again when the start fails, asked a command with a time limit, primed for protected video, and stopped whole when idle, hung or shut down.","names":["teardown","killBrowser","armIdle","attemptLaunch","ensureBrowser","warmUpWidevine","widevineGate","send"],"inner":{"factory":"createEmbeddedBrowser","make":"makeConnection"}}
     ],
-    "server/discord-rpc.js": [
+    "server/discord/discord-rpc.js": [
       {"file":"server/discord/rpc-sign-in.js","about":"Signing Xenon in to the Discord app on this PC: the addresses, the permissions asked for, and a failed sign-in said plainly.","names":["API","TOKEN_URL","REVOKE_URL","REDIRECT_URI","SCOPES","NOTIF_SCOPE","notifScopeState","errDetail","loginCloseError","authorizeError"]},
       {"file":"server/discord/rpc-voice-values.js","about":"The small sums behind the Discord voice controls: a switch flipped, push-to-talk toggled, a volume nudged, and one person's volume.","names":["USER_VOL_MAX","DEFAULT_USER_VOL","toggleValue","nextPttType","nudgedVolume","userVolumeAbs","userVolumeFor"]},
       {"file":"server/discord/rpc-shapes.js","about":"What the Discord app sends turned into what the tile draws: the people in a voice channel with their pictures, soundboard sounds, and notifications.","names":["isSnowflake","avatarUrl","channelMembers","isSoundId","parseSoundRef","normNotification","normSound"]},
@@ -1214,7 +1214,7 @@
       {"factory":"createBridge","object":"readings","names":["limits","modSeen"],"kept":[],"bare":[],"after":6},
       {"factory":"createBridge","object":"issued","names":["seq"],"kept":[],"bare":[],"after":6}
     ],
-    "server/discord-rpc.js": [
+    "server/discord/discord-rpc.js": [
       {"factory":"createDiscordProvider","object":"watchState","names":["watching","notifState","watchChannelId","currentVoiceChannelId"],"kept":[],"bare":[],"after":5}
     ],
     "server/actions/wavelink.js": [

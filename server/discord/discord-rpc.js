@@ -19,20 +19,20 @@
 
 const crypto = require('crypto');
 const path = require('path');
-const { makeCredsNormalizer, createTokenStore } = require('./streaming/stream-common');
+const { makeCredsNormalizer, createTokenStore } = require('../streaming/stream-common');
 
 const {
   NOTIF_SCOPE, notifScopeState, errDetail, loginCloseError, authorizeError,
-} = require('./discord/rpc-sign-in.js');
+} = require('./rpc-sign-in.js');
 
 const {
   OP_HANDSHAKE, OP_FRAME, OP_CLOSE, OP_PING, OP_PONG, encodeFrame, createDecoder, trustedIpcSocket,
   connectPipe,
-} = require('./discord/rpc-pipe.js');
-const { IDLE_MS, CMD_TIMEOUT_MS } = require('./discord/rpc-limits.js');
+} = require('./rpc-pipe.js');
+const { IDLE_MS, CMD_TIMEOUT_MS } = require('./rpc-limits.js');
 const {
   toggleValue, nextPttType, nudgedVolume, userVolumeAbs, userVolumeFor,
-} = require('./discord/rpc-voice-values.js');
+} = require('./rpc-voice-values.js');
 
 // `scope` is the space-separated list Discord reported when the token was issued.
 // 400 is far above the ~60 characters the five scopes take, and short enough that
@@ -43,15 +43,15 @@ const normalizeDiscordCreds = makeCredsNormalizer({ userId: 40, username: 100, s
 
 const {
   isSnowflake, avatarUrl, channelMembers, isSoundId, parseSoundRef, normNotification, normSound,
-} = require('./discord/rpc-shapes.js');
+} = require('./rpc-shapes.js');
 
-const { makeWatch } = require('./discord/rpc-watch.js');
+const { makeWatch } = require('./rpc-watch.js');
 
-const { makeLogin } = require('./discord/rpc-login.js');
+const { makeLogin } = require('./rpc-login.js');
 
-const { makeVoiceReads } = require('./discord/rpc-voice-reads.js');
+const { makeVoiceReads } = require('./rpc-voice-reads.js');
 
-const { makeVoiceActions } = require('./discord/rpc-voice-actions.js');
+const { makeVoiceActions } = require('./rpc-voice-actions.js');
 
 // ── Provider ────────────────────────────────────────────────────────────────
 // deps (all optional, injectable for tests):
@@ -69,7 +69,7 @@ function createDiscordProvider(deps) {
   const wantNotifications = typeof d.wantNotifications === 'function' ? d.wantNotifications : () => false;
   const clientId = d.clientId != null ? String(d.clientId) : '';
   const clientSecret = d.clientSecret != null ? String(d.clientSecret) : '';
-  const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
+  const tokensFile = d.tokensFile || path.join(__dirname, '..', 'stream-tokens.json');
   const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
     createTokenStore({ tokensFile, storeKey: 'discord', normalize: normalizeDiscordCreds });
 
