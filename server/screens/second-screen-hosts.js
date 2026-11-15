@@ -3,7 +3,7 @@
 // asks.
 
 const { createSecondScreen } = require('../windows-tiles/second-screen.js');
-const { createScreenCapture } = require('../screen-capture.js');
+const { createScreenCapture } = require('./screen-capture.js');
 const { HELPER_EXE } = require('../engine/paths.js');
 
 // Second-screen prerequisite check + one-click VDD install (UI not wired yet).

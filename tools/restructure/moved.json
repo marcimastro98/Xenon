@@ -234,7 +234,27 @@
     {"from":"server/remote-https.js","to":"server/paired/remote-https.js"},
     {"from":"server/fpsmon.js","to":"server/performance/fpsmon.js"},
     {"from":"server/gamedetect.js","to":"server/performance/gamedetect.js"},
-    {"from":"server/session-watch.js","to":"server/platform/session-watch.js"}
+    {"from":"server/session-watch.js","to":"server/platform/session-watch.js"},
+    {"from":"server/capture-autoclips.js","to":"server/screens/capture-autoclips.js"},
+    {"from":"server/capture-copy.js","to":"server/screens/capture-copy.js"},
+    {"from":"server/capture-covers.js","to":"server/screens/capture-covers.js"},
+    {"from":"server/capture-export.js","to":"server/screens/capture-export.js"},
+    {"from":"server/capture-folder.js","to":"server/screens/capture-folder.js"},
+    {"from":"server/capture-gallery.js","to":"server/screens/capture-gallery.js"},
+    {"from":"server/capture-host.js","to":"server/screens/capture-host.js"},
+    {"from":"server/capture-jobs.js","to":"server/screens/capture-jobs.js"},
+    {"from":"server/capture-last.js","to":"server/screens/capture-last.js"},
+    {"from":"server/capture-markers.js","to":"server/screens/capture-markers.js"},
+    {"from":"server/capture-prune.js","to":"server/screens/capture-prune.js"},
+    {"from":"server/capture-send.js","to":"server/screens/capture-send.js"},
+    {"from":"server/capture-settings.js","to":"server/screens/capture-settings.js"},
+    {"from":"server/capture-transcripts.js","to":"server/screens/capture-transcripts.js"},
+    {"from":"server/captures.js","to":"server/screens/captures.js"},
+    {"from":"server/recorder.js","to":"server/screens/recorder.js"},
+    {"from":"server/replay.js","to":"server/screens/replay.js"},
+    {"from":"server/screen-capture.js","to":"server/screens/screen-capture.js"},
+    {"from":"server/steps-doc.js","to":"server/screens/steps-doc.js"},
+    {"from":"server/steps-recorder.js","to":"server/screens/steps-recorder.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -272,6 +292,11 @@
     {"feature":"paired","glob":"server/remote-https*.js","at":2},
     {"feature":"performance","glob":"server/fps*.js","at":5},
     {"feature":"performance","glob":"server/gamedetect.js","at":6},
-    {"feature":"platform","glob":"server/session-watch.js","at":3}
+    {"feature":"platform","glob":"server/session-watch.js","at":3},
+    {"feature":"capture","glob":"server/capture*.js","at":1},
+    {"feature":"capture","glob":"server/recorder.js","at":2},
+    {"feature":"capture","glob":"server/replay.js","at":3},
+    {"feature":"capture","glob":"server/screen-capture.js","at":4},
+    {"feature":"capture","glob":"server/steps-*.js","at":5}
   ]
 }

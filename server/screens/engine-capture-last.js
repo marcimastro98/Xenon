@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { createCaptureLast } = require('../capture-last.js');
+const { createCaptureLast } = require('./capture-last.js');
 const { DATA_DIR } = require('../engine/paths.js');
 
 // "Open" / "Show" the last steps document or bug report after a restart (capture-last.js).

@@ -13,8 +13,8 @@ import path from 'node:path';
 import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
-const { createCaptureExport, shape, suffixOf, timeoutFor } = require('../capture-export.js');
-const { createCaptures } = require('../captures.js');
+const { createCaptureExport, shape, suffixOf, timeoutFor } = require('../screens/capture-export.js');
+const { createCaptures } = require('../screens/captures.js');
 const exportCap = require('../capabilities/export.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { validateAction } = require('../js/deck-actions.js');

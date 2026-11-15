@@ -1,5 +1,5 @@
 'use strict';
-// Timelapse capability: the recorder (server/recorder.js) taking one picture
+// Timelapse capability: the recorder (server/screens/recorder.js) taking one picture
 // every N seconds of the monitor in use or the window in front, played back at
 // 30 fps: an hour at "every 2 s" is a minute of video. Silent, " Timelapse" in
 // the file name, in the same folder as the recordings. One recording at a

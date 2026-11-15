@@ -410,7 +410,7 @@ function postponeAutoUpdate() {
         window.GameCompanion.show(JSON.parse(e.data) || {});
       } catch {}
     });
-    // A recording started or ended (server/recorder.js): the Deck key lights, the
+    // A recording started or ended (server/screens/recorder.js): the Deck key lights, the
     // "Recording" card shows while it runs.
     es.addEventListener('recording', e => {
       try {
@@ -419,7 +419,7 @@ function postponeAutoUpdate() {
         if (window.CaptureToast) window.CaptureToast.onRecording(d);
       } catch {}
     });
-    // The steps recorder started, counted a step or ended (server/steps-recorder.js):
+    // The steps recorder started, counted a step or ended (server/screens/steps-recorder.js):
     // the Deck key lights, the "Recording steps" card shows while it runs.
     es.addEventListener('steps', e => {
       try {
@@ -428,7 +428,7 @@ function postponeAutoUpdate() {
         if (window.CaptureToast) window.CaptureToast.onSteps(d);
       } catch {}
     });
-    // Instant Replay on or off, saving, or failing (server/replay.js): the Deck
+    // Instant Replay on or off, saving, or failing (server/screens/replay.js): the Deck
     // key lights while it keeps; Settings shows the line under the switch.
     es.addEventListener('replay', e => {
       try {

@@ -13,16 +13,16 @@ import path from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const M = require('../capture-markers.js');
-const { createRecorder } = require('../recorder.js');
-const { createReplay } = require('../replay.js');
-const { createCaptures } = require('../captures.js');
-const { createCaptureGallery } = require('../capture-gallery.js');
+const M = require('../screens/capture-markers.js');
+const { createRecorder } = require('../screens/recorder.js');
+const { createReplay } = require('../screens/replay.js');
+const { createCaptures } = require('../screens/captures.js');
+const { createCaptureGallery } = require('../screens/capture-gallery.js');
 const captureMarker = require('../capabilities/capture-marker.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const sdk = require('../sdk-widgets.js');
 const Model = require('../js/capture/capture-gallery-model.js');
-const { normalizeCaptureSettings } = require('../capture-settings.js');
+const { normalizeCaptureSettings } = require('../screens/capture-settings.js');
 const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const tick = () => new Promise(setImmediate);
 

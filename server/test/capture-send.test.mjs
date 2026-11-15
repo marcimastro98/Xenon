@@ -8,7 +8,7 @@ import path from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createCaptureSend } = require('../capture-send.js');
+const { createCaptureSend } = require('../screens/capture-send.js');
 const { createFileTransfer } = require('../file-transfer.js');
 const sendCapture = require('../capabilities/send-capture.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');

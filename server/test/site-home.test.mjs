@@ -97,7 +97,7 @@ test('games list four things under the real overlay, the replay key the app uses
   assert.match(s, /<canvas id="game"/);
   assert.match(s, /<button class="pz on-pic" id="game-pause"/);
   assert.match(s, /src="\/images\/home\/overlay-hud\.webp"/);
-  assert.match(readFileSync(join(root, 'server/capture-settings.js'), 'utf8'), /REPLAY_KEY = 'ctrl\+shift\+f10'/);
+  assert.match(readFileSync(join(root, 'server/screens/capture-settings.js'), 'utf8'), /REPLAY_KEY = 'ctrl\+shift\+f10'/);
   for (const lang of SITE_LANGS) assert.match(I18N[lang]['games.1.p'], /^Ctrl\+(Shift|Maiusc|Mayús|Maj)\+F10/, `${lang} games.1.p`);
 });
 

@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createCaptureLast } = require('../capture-last.js');
+const { createCaptureLast } = require('../screens/capture-last.js');
 
 function store(initial) {
   const disk = { text: initial };

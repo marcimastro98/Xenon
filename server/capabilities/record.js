@@ -1,6 +1,6 @@
 'use strict';
 // Recording capability: record the monitor in use or the window in front as an
-// MP4 in Videos/Xenon/<game or Desktop> (server/recorder.js), stop it, or show
+// MP4 in Videos/Xenon/<game or Desktop> (server/screens/recorder.js), stop it, or show
 // the last recording in the file manager. The result carries the id and the
 // file name, never the path.
 //

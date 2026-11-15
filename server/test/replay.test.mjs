@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createReplay, estimateBitrate, ringByteRate, RETRY_MS, START_TIMEOUT_MS } = require('../replay.js');
+const { createReplay, estimateBitrate, ringByteRate, RETRY_MS, START_TIMEOUT_MS } = require('../screens/replay.js');
 
 const START = { ok: true, width: 2560, height: 1440, fps: 60, hdr: false, bitrate: 26542080, sound: 'system', mic: false, monitor: 0 };
 

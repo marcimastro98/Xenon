@@ -356,7 +356,7 @@ const CAPABILITIES = [
     },
   },
 
-  // The steps recorder (server/steps-recorder.js): every click becomes a step
+  // The steps recorder (server/screens/steps-recorder.js): every click becomes a step
   // with a picture, written up as a document in Documents/Xenon/Steps.
   // 'sensitive': it sees every click and the screen under it; it only starts
   // by hand, its pill shows all along, and the document stays on the PC.
@@ -375,7 +375,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Recording (server/recorder.js): the monitor in use or the window in front, as
+  // Recording (server/screens/recorder.js): the monitor in use or the window in front, as
   // an MP4 in Videos/Xenon. 'sensitive' like a screenshot; the file stays here.
   {
     type: 'record', group: 'capture', labelKey: 'deck_act_record',
@@ -399,7 +399,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Timelapse (server/recorder.js with `every`): one picture every N seconds,
+  // Timelapse (server/screens/recorder.js with `every`): one picture every N seconds,
   // played at 30 fps, silent, in the recordings folder. 'sensitive' like a recording.
   {
     type: 'timelapse', group: 'capture', labelKey: 'deck_act_timelapse',
@@ -421,7 +421,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Recording options (server/capture-settings.js): the same choices as
+  // Recording options (server/screens/capture-settings.js): the same choices as
   // Settings → Capture, for the voice. Not a key: "keep" (the first option,
   // what an absent param becomes) leaves a choice as it is.
   {
@@ -453,7 +453,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Instant Replay (server/replay.js): the last seconds of the screen kept on
+  // Instant Replay (server/screens/replay.js): the last seconds of the screen kept on
   // disk, saved to Videos/Xenon on a key press. Off by default (it never stops
   // recording), so saving while it is off is an error that says so.
   {
@@ -472,7 +472,7 @@ const CAPABILITIES = [
     },
   },
 
-  // A bookmark on the recording or replay that is running (server/capture-markers.js).
+  // A bookmark on the recording or replay that is running (server/screens/capture-markers.js).
   // The saved video carries it and the gallery jumps to it.
   {
     type: 'captureMarker', group: 'capture', labelKey: 'deck_act_captureMarker',
@@ -589,7 +589,7 @@ const CAPABILITIES = [
   },
 
   // What is said in a recording, written down on this PC by the local speech
-  // recognition (server/capture-transcripts.js). Bit reads it to summarise a
+  // recognition (server/screens/capture-transcripts.js). Bit reads it to summarise a
   // video and split it into chapters, then keeps the chapters, which the
   // gallery shows under the player. Voice and gallery only: the result is
   // something to read, so it is no Deck key.
@@ -625,7 +625,7 @@ const CAPABILITIES = [
     },
   },
 
-  // A copy of a video for sharing (server/capture-export.js): vertical 9:16,
+  // A copy of a video for sharing (server/screens/capture-export.js): vertical 9:16,
   // fitted to a size for a chat, or a GIF. 'safe': it re-encodes a file Xenon
   // made, beside the original, and never sends anything anywhere. The Deck's
   // one choice is `as`; `focus`, `mb`, `id` and `name` are for Bit.
@@ -661,7 +661,7 @@ const CAPABILITIES = [
     },
   },
 
-  // "Send to phone" (server/capture-send.js): a screenshot or a video into the
+  // "Send to phone" (server/screens/capture-send.js): a screenshot or a video into the
   // file transfer's list for the paired phone, over the local network only.
   {
     type: 'sendCapture', group: 'capture', labelKey: 'deck_act_sendCapture',
@@ -687,7 +687,7 @@ const CAPABILITIES = [
     },
   },
 
-  // "Copy to a folder" (server/capture-copy.js): a screenshot or a video copied
+  // "Copy to a folder" (server/screens/capture-copy.js): a screenshot or a video copied
   // into one of the user's own folders, named, never a path from the caller.
   {
     type: 'copyCapture', group: 'capture', labelKey: 'deck_act_copyCapture',

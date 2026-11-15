@@ -17,7 +17,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { safeName } = require('./performance/benchmark');
+const { safeName } = require('../performance/benchmark');
 const { normalizeMarkers } = require('./capture-markers');
 const { markWindows } = require('./capture-autoclips');
 

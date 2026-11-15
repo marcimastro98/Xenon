@@ -11,8 +11,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createCaptureGallery } = require('../capture-gallery.js');
-const { createCaptures } = require('../captures.js');
+const { createCaptureGallery } = require('../screens/capture-gallery.js');
+const { createCaptures } = require('../screens/captures.js');
 
 const ROOT = path.join(os.tmpdir(), 'gal');
 const THUMBS = path.join(ROOT, 'thumbs');

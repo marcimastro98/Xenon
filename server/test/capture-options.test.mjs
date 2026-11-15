@@ -16,10 +16,10 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const CS = require('../capture-settings.js');
-const { createCaptureFolder, PICK_TIMEOUT_MS } = require('../capture-folder.js');
+const CS = require('../screens/capture-settings.js');
+const { createCaptureFolder, PICK_TIMEOUT_MS } = require('../screens/capture-folder.js');
 const opts = require('../capabilities/record-options.js');
-const { createCaptures } = require('../captures.js');
+const { createCaptures } = require('../screens/captures.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER = engineSource();

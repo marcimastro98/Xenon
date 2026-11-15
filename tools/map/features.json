@@ -271,11 +271,6 @@
       "what": "Screenshots, recording, instant replay, the gallery and the steps recorder.",
       "files": [
         "server/screens/**",
-        "server/capture*.js",
-        "server/recorder.js",
-        "server/replay.js",
-        "server/screen-capture.js",
-        "server/steps-*.js",
         "server/ffmpeg-install/**",
         "server/js/capture-toast/**",
         "server/js/capture-*.js",

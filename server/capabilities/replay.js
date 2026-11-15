@@ -1,5 +1,5 @@
 'use strict';
-// Instant Replay capabilities (server/replay.js).
+// Instant Replay capabilities (server/screens/replay.js).
 //   replay         (Deck key, AI save_replay): save the last seconds, turn the
 //                  replay on or off, or show the last clip in the file manager.
 //   replayOptions  (AI set_instant_replay): read or change the replay's
@@ -16,7 +16,7 @@
 //               follows it (the caller syncs it)
 //   reveal      (file) → opens its folder with the file selected
 
-const { REPLAY_MIN_S, REPLAY_MAX_S, REPLAY_WHEN, REPLAY_AUDIO, REPLAY_CLIPS, replayKeyOf } = require('../capture-settings');
+const { REPLAY_MIN_S, REPLAY_MAX_S, REPLAY_WHEN, REPLAY_AUDIO, REPLAY_CLIPS, replayKeyOf } = require('../screens/capture-settings');
 const DeckShortcuts = require('../js/deck-shortcuts.js');
 
 const MODES = Object.freeze(['save', 'toggle', 'on', 'off', 'reveal']);

@@ -1,13 +1,13 @@
 // The captures kept on this computer: the list, a file, its small picture, its transcript, the
 // export and the spots saved.
 
-const { KINDS: CAPTURE_KINDS, VIDEO_KINDS } = require('../captures.js');
+const { KINDS: CAPTURE_KINDS, VIDEO_KINDS } = require('./captures.js');
 const TranscriptFormat = require('../transcript-format.js');
 const fileTransferLib = require('../file-transfer.js');
 const { readBody, readBodyBuffer } = require('../http/read-body.js');
 const fs = require('node:fs');
 const { serveFileRange } = require('../http/http-range.js');
-const CaptureCovers = require('../capture-covers.js');
+const CaptureCovers = require('./capture-covers.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { revealInFileManager } = require('../files/reveal-in-file-manager.js');
 

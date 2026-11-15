@@ -16,8 +16,8 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createRecorder, LAPSE_EVERY } = require('../recorder.js');
-const { createCaptures, normalizeEntry } = require('../captures.js');
+const { createRecorder, LAPSE_EVERY } = require('../screens/recorder.js');
+const { createCaptures, normalizeEntry } = require('../screens/captures.js');
 const timelapse = require('../capabilities/timelapse.js');
 const record = require('../capabilities/record.js');
 const { aiFunctions, aiAction } = require('../capabilities/index.js');

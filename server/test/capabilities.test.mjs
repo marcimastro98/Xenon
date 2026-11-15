@@ -777,7 +777,7 @@ test('a move can change only how see-through a widget is, kept on its box', asyn
 // Capture features are probed one by one (capture-host.js `has`), so a macOS
 // engine hides what it cannot do instead of offering it and failing.
 test('capture probes follow the engine feature list', () => {
-  const { MAC_FEATURES } = require('../capture-host.js');
+  const { MAC_FEATURES } = require('../screens/capture-host.js');
   const mac = { host: { available: () => true, has: (f) => MAC_FEATURES.includes(f), request: async () => ({ ok: true }) }, store: () => ({}) };
   const p = createCapabilities({ capture: mac }).probes();
   assert.equal(p.capture, true);

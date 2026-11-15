@@ -122,7 +122,7 @@
 
   const isVideo = e => !!e && VIDEO_KINDS.includes(e.kind);
 
-  // The moments shown under a video (server/capture-markers.js): the user's
+  // The moments shown under a video (server/screens/capture-markers.js): the user's
   // bookmarks first when there are too many to show, then in time order.
   const MARKS_SHOWN = 12;
   const MARK_KINDS = Object.freeze(['mark', 'stutter']);

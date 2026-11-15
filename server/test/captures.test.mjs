@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createCaptures, normalizeEntry, labelOf, stampOf, MAX_ENTRIES } = require('../captures.js');
+const { createCaptures, normalizeEntry, labelOf, stampOf, MAX_ENTRIES } = require('../screens/captures.js');
 
 const PICS = path.join(os.tmpdir(), 'pics');
 const T0 = new Date(2026, 9, 26, 21, 5, 9).getTime();

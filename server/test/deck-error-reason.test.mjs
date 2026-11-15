@@ -35,15 +35,15 @@ const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
     .filter((f) => f.endsWith('.js'))
     .map((f) => readFileSync(new URL('../capabilities/' + f, import.meta.url), 'utf8'))
     .join('\n')
-  + readFileSync(new URL('../recorder.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../screens/recorder.js', import.meta.url), 'utf8')
   // Instant Replay answers the replay key's save with its own codes.
-  + readFileSync(new URL('../replay.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../screens/replay.js', import.meta.url), 'utf8')
   // "Clips from marks" answers no_marks / whole_video from the gallery.
-  + readFileSync(new URL('../capture-gallery.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../screens/capture-gallery.js', import.meta.url), 'utf8')
   // "Why does it stutter?" answers no_frames / too_soon before it has a reading.
   + readFileSync(new URL('../performance/stutter-why.js', import.meta.url), 'utf8')
   // A steps recording stopped before any click answers no_steps.
-  + readFileSync(new URL('../steps-recorder.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../screens/steps-recorder.js', import.meta.url), 'utf8')
   // The power mode key passes on what the OS backend says it cannot do.
   + readdirSync(new URL('../power/', import.meta.url))
     .filter((f) => f.endsWith('.js'))

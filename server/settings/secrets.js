@@ -1,7 +1,7 @@
 // Keeps secrets out of the settings sent to a browser, and puts them back when the browser
 // saves settings without them.
 
-const CaptureSettings = require('../capture-settings.js');
+const CaptureSettings = require('../screens/capture-settings.js');
 const { preserveAiProviderCreds, redactAiProviderCreds } = require('../ai/ai-provider-creds.js');
 const icsFeeds = require('../time/ics-feeds.js');
 const { preserveHaToken, redactHaToken } = require('../actions/home-assistant.js');

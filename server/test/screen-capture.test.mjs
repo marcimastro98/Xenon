@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const sc = require('../screen-capture.js');
+const sc = require('../screens/screen-capture.js');
 
 // ── Pure parser ───────────────────────────────────────────────────────────────
 

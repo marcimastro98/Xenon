@@ -12,7 +12,7 @@ import { EventEmitter } from 'node:events';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createCaptureTranscripts, MAX_SECONDS } = require('../capture-transcripts.js');
+const { createCaptureTranscripts, MAX_SECONDS } = require('../screens/capture-transcripts.js');
 
 // Where the transcripts go. The module joins the file name on with this machine's
 // separator, so the test builds the expected path the same way.

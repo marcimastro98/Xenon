@@ -1,6 +1,6 @@
 'use strict';
 // A bookmark on the recording or Instant Replay that is running
-// (server/capture-markers.js): the saved video carries it, and the gallery
+// (server/screens/capture-markers.js): the saved video carries it, and the gallery
 // jumps to it. Deck key, AI add_capture_marker, SDK `capture` (it starts
 // nothing and reads nothing: a time on the user's own timeline).
 //

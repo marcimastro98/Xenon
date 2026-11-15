@@ -80,7 +80,7 @@
     no_space: ['xfer_failed_space', 'There is no space left on the PC.'],
     // Text from the screen: Windows reads text only in languages with an OCR pack.
     no_ocr_language: ['deck_err_no_ocr_language', 'Windows has no text recognition for your language: add it in Settings, Time & language, Language'],
-    // Instant Replay keys (server/replay.js).
+    // Instant Replay keys (server/screens/replay.js).
     off: ['deck_err_replay_off', 'Instant Replay is off: turn it on in Settings, Capture'],
     // Also the benchmark and the frame reads, so it names no feature.
     no_game: ['deck_err_no_game', 'Open a game first'],

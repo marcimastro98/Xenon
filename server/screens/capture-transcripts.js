@@ -14,7 +14,7 @@
 const os = require('os');
 const path = require('path');
 const { createEngineJobs } = require('./capture-jobs');
-const F = require('./transcript-format');
+const F = require('../transcript-format');
 
 const ID_RE = /^[a-f0-9]{16}$/;
 const VIDEO_KINDS = ['recording', 'replay'];

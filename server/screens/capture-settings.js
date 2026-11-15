@@ -11,7 +11,7 @@
 // another PC's folders here. The only writers are /capture/settings (loopback
 // only) and the recordingOptions capability, both through update() in server.js.
 
-const DeckShortcuts = require('./js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck-shortcuts.js');
 
 const FPS = Object.freeze([60, 30]);
 // 0 keeps the size of the screen or window; the others bring the short side down.

@@ -12,9 +12,9 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createCaptureCovers, pngSize, cleanSpots, MAX_PNG_BYTES } = require('../capture-covers.js');
-const { createEngineJobs } = require('../capture-jobs.js');
-const { createCaptures } = require('../captures.js');
+const { createCaptureCovers, pngSize, cleanSpots, MAX_PNG_BYTES } = require('../screens/capture-covers.js');
+const { createEngineJobs } = require('../screens/capture-jobs.js');
+const { createCaptures } = require('../screens/captures.js');
 
 const ROOT = path.join(os.tmpdir(), 'covers');
 

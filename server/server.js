@@ -59,11 +59,11 @@ require('./time/calendar-reminders');
 const listOps = require('./list-ops');
 const sceneImages = require('./ambient/scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./performance/benchmark');
-require('./capture-host');
-const { createCaptures } = require('./captures');
-const { createCaptureGallery } = require('./capture-gallery');
-const { createCaptureSend } = require('./capture-send');
-const { createCaptureCopy } = require('./capture-copy');
+require('./screens/capture-host');
+const { createCaptures } = require('./screens/captures');
+const { createCaptureGallery } = require('./screens/capture-gallery');
+const { createCaptureSend } = require('./screens/capture-send');
+const { createCaptureCopy } = require('./screens/capture-copy');
 require('./js/grid/page-target.js'); // which page "go to Streaming" means (shared with the pager); nothing is taken from it here, but it runs code when it loads
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 require('./windows-tiles/tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
@@ -71,21 +71,21 @@ require('./ai/favorites-ai'); // edit_favorites: stocks, teams, news sources and
 require('./ai/settings-ai'); // change_setting: the allowlisted Settings switches
 require('./grid/tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
 require('./vitals/vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
-const CaptureCovers = require('./capture-covers');
-const { createCaptureTranscripts } = require('./capture-transcripts');
-const { createCaptureExport } = require('./capture-export');
+const CaptureCovers = require('./screens/capture-covers');
+const { createCaptureTranscripts } = require('./screens/capture-transcripts');
+const { createCaptureExport } = require('./screens/capture-export');
 const TranscriptFormat = require('./transcript-format');
-const { createRecorder } = require('./recorder');
-const { createCaptureMarkers } = require('./capture-markers');
-const { createAutoClips } = require('./capture-autoclips');
-const { createStepsRecorder } = require('./steps-recorder');
-require('./capture-last.js');
-const StepsDoc = require('./steps-doc');
-const { createReplay, estimateBitrate, ringByteRate } = require('./replay');
+const { createRecorder } = require('./screens/recorder');
+const { createCaptureMarkers } = require('./screens/capture-markers');
+const { createAutoClips } = require('./screens/capture-autoclips');
+const { createStepsRecorder } = require('./screens/steps-recorder');
+require('./screens/capture-last.js');
+const StepsDoc = require('./screens/steps-doc');
+const { createReplay, estimateBitrate, ringByteRate } = require('./screens/replay');
 const { createBugReport } = require('./engine/bug-report');
 const { writeZip } = require('./files/zip-writer');
-const CaptureSettings = require('./capture-settings');
-const { createCaptureFolder } = require('./capture-folder');
+const CaptureSettings = require('./screens/capture-settings');
+const { createCaptureFolder } = require('./screens/capture-folder');
 const { resolveUserFolder, replayRingDir } = require('./platform/user-folders');
 const { _captureHost } = require('./screens/capture-engine-host.js');
 
@@ -453,7 +453,7 @@ require('./embedded-browser');
 require('./windows-tiles/embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./windows-tiles/browser-surface-sync');
 require('./windows-tiles/second-screen');
-require('./screen-capture');
+require('./screens/screen-capture');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');
 require('./smart-home/unifi-events');

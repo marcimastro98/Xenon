@@ -1,7 +1,7 @@
 // What a new install starts with, seventh part: stocks, football, news and the ticker, the
 // smart home, paired devices, screen capture and file transfer.
 
-const CaptureSettings = require('../capture-settings.js');
+const CaptureSettings = require('../screens/capture-settings.js');
 const stocks = require('../ticker/stocks.js');
 const football = require('../ticker/football.js');
 const news = require('../ticker/news.js');

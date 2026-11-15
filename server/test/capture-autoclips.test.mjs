@@ -10,10 +10,10 @@ import { readFileSync } from './browser-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const A = require('../capture-autoclips.js');
-const { applyCaptureChange, normalizeCaptureSettings } = require('../capture-settings.js');
+const A = require('../screens/capture-autoclips.js');
+const { applyCaptureChange, normalizeCaptureSettings } = require('../screens/capture-settings.js');
 const replayCap = require('../capabilities/replay.js');
-const { createCaptureMarkers } = require('../capture-markers.js');
+const { createCaptureMarkers } = require('../screens/capture-markers.js');
 
 function rig({ mode = 'marks', on = true, recording = false, answers = [] } = {}) {
   let clock = 1_000_000;
@@ -195,6 +195,6 @@ test('wired: server, Settings, the toast and the replay notice', () => {
   const toast = readFileSync(new URL('../js/capture-toast.js', import.meta.url), 'utf8');
   assert.match(toast, /d\.auto === 'stutter'\) return;/);
   assert.match(toast, /replay_clip_saved/);
-  const replay = readFileSync(new URL('../replay.js', import.meta.url), 'utf8');
+  const replay = readFileSync(new URL('../screens/replay.js', import.meta.url), 'utf8');
   assert.match(replay, /kind: 'replay', \.\.\.\(auto \? \{ auto \} : \{\}\)/);
 });

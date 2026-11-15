@@ -1335,13 +1335,13 @@ function evaluateKeyState(state, snapshot) {
     case 'lightsOn':      return !!snapshot.lightsOn;
     // A benchmark recording the game's frame times (server/performance/benchmark.js).
     case 'benchmarkRunning': return !!snapshot.benchmarkRunning;
-    // A screen or window recording in progress (server/recorder.js).
+    // A screen or window recording in progress (server/screens/recorder.js).
     case 'recordingOn': return !!snapshot.recordingOn;
     // The same recorder taking a timelapse (`every` on SSE `recording`).
     case 'timelapseOn': return !!snapshot.timelapseOn;
-    // The steps recorder running (server/steps-recorder.js).
+    // The steps recorder running (server/screens/steps-recorder.js).
     case 'stepsOn': return !!snapshot.stepsOn;
-    // Instant Replay keeping the last seconds right now (server/replay.js).
+    // Instant Replay keeping the last seconds right now (server/screens/replay.js).
     case 'replayOn': return !!snapshot.replayOn;
     case 'obsRecording':  return !!snapshot.obsRecording;
     case 'obsStreaming':  return !!snapshot.obsStreaming;

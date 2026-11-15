@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { EventEmitter } from 'node:events';
 
 const require = createRequire(import.meta.url);
-const { createCaptureHost, CRASH_LIMIT, CRASH_WINDOW_MS } = require('../capture-host.js');
+const { createCaptureHost, CRASH_LIMIT, CRASH_WINDOW_MS } = require('../screens/capture-host.js');
 
 function fakeChild() {
   const child = new EventEmitter();
@@ -172,7 +172,7 @@ test('lines without an id are events for the listeners; an engine exit is one to
 // replaces the list (an older engine than the server knows), keeping only
 // well-formed names.
 test('has(): per-OS defaults, nothing at all without the engine or on Linux', () => {
-  const { WINDOWS_FEATURES, MAC_FEATURES } = require('../capture-host.js');
+  const { WINDOWS_FEATURES, MAC_FEATURES } = require('../screens/capture-host.js');
   const win = setup().host;
   const mac = setup({ platform: 'darwin' }).host;
   for (const f of WINDOWS_FEATURES) assert.equal(win.has(f), true, f);
@@ -218,7 +218,7 @@ test('has(): a ping reply without a list (an old engine) keeps the defaults', as
 // hidden on a PC that has it, or offered where it fails.
 test('the feature lists match the Rust engines', async () => {
   const { readFileSync } = await import('./native-source.mjs');
-  const { WINDOWS_FEATURES, MAC_FEATURES } = require('../capture-host.js');
+  const { WINDOWS_FEATURES, MAC_FEATURES } = require('../screens/capture-host.js');
   const rustList = (file) => {
     const src = readFileSync(new URL(`../../apps/capture/src/${file}`, import.meta.url), 'utf8');
     const m = /const FEATURES: &\[&str\] = &\[([^\]]+)\];/.exec(src);

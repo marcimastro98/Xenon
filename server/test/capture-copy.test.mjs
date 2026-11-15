@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createCaptureCopy, PLACES } = require('../capture-copy.js');
+const { createCaptureCopy, PLACES } = require('../screens/capture-copy.js');
 const copyCapture = require('../capabilities/copy-capture.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 

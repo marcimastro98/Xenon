@@ -14,8 +14,8 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const Doc = require('../steps-doc.js');
-const { createStepsRecorder, stampOf } = require('../steps-recorder.js');
+const Doc = require('../screens/steps-doc.js');
+const { createStepsRecorder, stampOf } = require('../screens/steps-recorder.js');
 const stepsCap = require('../capabilities/steps.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');

@@ -13,9 +13,9 @@ import path from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { markWindows, MAX_CLIPS } = require('../capture-autoclips.js');
-const { createCaptureGallery } = require('../capture-gallery.js');
-const { createCaptures } = require('../captures.js');
+const { markWindows, MAX_CLIPS } = require('../screens/capture-autoclips.js');
+const { createCaptureGallery } = require('../screens/capture-gallery.js');
+const { createCaptures } = require('../screens/captures.js');
 const markClips = require('../capabilities/mark-clips.js');
 
 const ROOT = path.join(os.tmpdir(), 'gal-clips');

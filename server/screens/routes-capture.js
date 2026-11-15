@@ -4,9 +4,9 @@
 
 const { listScreens } = require('./list-screens.js');
 const { readBody } = require('../http/read-body.js');
-const CaptureSettings = require('../capture-settings.js');
+const CaptureSettings = require('./capture-settings.js');
 const { captureOptions } = require('./capture-options.js');
-const { VIDEO_KINDS } = require('../captures.js');
+const { VIDEO_KINDS } = require('./captures.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

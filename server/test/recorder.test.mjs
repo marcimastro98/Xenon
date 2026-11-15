@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createRecorder, FPS, START_TIMEOUT_MS } = require('../recorder.js');
+const { createRecorder, FPS, START_TIMEOUT_MS } = require('../screens/recorder.js');
 const { createCapabilities } = require('../capabilities/index.js');
 const { createRegistry } = require('../actions/registry.js');
 const { validateAction } = require('../js/deck-actions.js');

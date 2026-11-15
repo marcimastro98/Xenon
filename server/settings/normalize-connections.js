@@ -2,7 +2,7 @@
 // football, news and the ticker, the smart home, lighting bridges, paired devices, screen
 // capture and file transfer.
 
-const CaptureSettings = require('../capture-settings.js');
+const CaptureSettings = require('../screens/capture-settings.js');
 const { normalizeTicker } = require('../ticker/settings-normalize.js');
 const { normalizeWaveLinkSettings } = require('../audio/wavelink-values.js');
 const { normalizeHomeAssistant } = require('../actions/home-assistant.js');

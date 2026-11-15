@@ -1,5 +1,5 @@
 'use strict';
-// The steps recorder (server/steps-recorder.js): every click becomes a step
+// The steps recorder (server/screens/steps-recorder.js): every click becomes a step
 // with a picture, and the steps become a document in Documents/Xenon/Steps.
 // "open" shows the last document, "reveal" its folder; neither takes a path.
 // Each step's sentence is kept here for one AI turn (takeSteps, as

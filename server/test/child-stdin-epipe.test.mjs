@@ -134,7 +134,7 @@ test('the long-lived hosts retire on a pipe error instead of ignoring it', () =>
     ['living-index.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retire\(/],
     ['filesearch.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retireHost\(/],
     ['phone.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retire\(/],
-    ['screen-capture.js', /p\.stdin\.on\('error', \(\) => \{ if \(proc === p\) _retire\(/],
+    ['screens/screen-capture.js', /p\.stdin\.on\('error', \(\) => \{ if \(proc === p\) _retire\(/],
     ['server.js', /proc\.stdin\.on\('error', \(\) => _killWorker\(/],
     ['server.js', /proc\.stdin\.on\('error', \(\) => _retireMediaHost\(/],
   ];

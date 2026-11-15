@@ -1,6 +1,6 @@
 // Settings → Capture (screenshot folder; recording frame rate, size, quality,
 // the time pill, a space limit and folder) and the benchmark folder under
-// Settings → Performance (server/capture-settings.js). The values live on the
+// Settings → Performance (server/screens/capture-settings.js). The values live on the
 // server (GET/POST /capture/settings, loopback only, because they name folders
 // on this PC); a paired device sees only that they are set at the PC. Each
 // folder is chosen with the system's own folder dialog, never typed.
