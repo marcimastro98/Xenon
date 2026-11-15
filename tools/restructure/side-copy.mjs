@@ -99,7 +99,7 @@ function layBase(root, repo, baseRev) {
   const lines = (done) => done.stdout.toString('utf8').split('\n').filter(Boolean);
   const kept = (file) => !NOT_COPIED.has(file.split('/')[1]);
   const unsaved = lines(git('status', '--porcelain', '--untracked-files=all', '--', 'server')).map((line) => line.slice(3).trim().replace(/^"|"$/g, ''));
-  const saved = lines(git('diff', '--name-only', baseRev, 'HEAD', '--', 'server'));
+  const saved = lines(git('diff', '--name-only', '--no-renames', baseRev, 'HEAD', '--', 'server'));
   let count = 0;
   for (const file of new Set([...unsaved, ...saved].filter(kept))) {
     const was = git('show', `${baseRev}:${file}`);
