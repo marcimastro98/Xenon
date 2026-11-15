@@ -20,7 +20,8 @@
 // out at the same moment as today.
 //
 // Refused, each with the line: a script that says `eval` or `with`; a name the
-// object would hide or that would hide it; a let declared with others, twice, or
+// object would hide or that would hide it; a let declared with others (unless the
+// line is a plain `let a = 1, b = 2;` and all its names are asked for), twice, or
 // not as `let name` at the wrapper's indent; a name that is called (`x()` would
 // hand the object over as `this`), stands in a `{ x }` shorthand, is given a
 // function without a name, or is written by a pattern or the head of a loop; and
@@ -103,24 +104,48 @@ function readLet({ shell, text, starts, lines, record, forms, K, top }) {
   return { start, nameEnd, moved: null };
 }
 
+// One name of a `let a = 1, b = 2;`: taken only when every name of the line is asked for in the same step, each has a
+// first value that is written out and reads no name, and the line holds nothing else. The whole line then leaves for
+// the object: `moved.at` says which name of the line this is, `moved.sep` what stood between it and the one before.
+function readTogether({ shell, text, starts, lines, record, forms, K, top, name }) {
+  const node = shell.inside[record.index];
+  const all = node.declarationList.declarations;
+  const at = all.findIndex((declaration) => declaration.name.text === name);
+  const line = shell.open + record.line[0];
+  const fixed = readFixed(K, node);
+  const eqOf = (declaration) => (declaration.initializer ? text.slice(declaration.name.end, declaration.initializer.getStart(shell.tree)) : null);
+  const rest = text.slice(all.at(-1).end, starts[line] + lines[line].length);
+  const plain = at !== -1 && fixed.reasons.length === 0 && fixed.reads.length === 0 && record.line[0] === record.line[1]
+    && text.slice(starts[line], all[0].name.getStart(shell.tree)) === `${shell.indent}let ` && all.every((declaration) => /^\s*=\s*$/.test(eqOf(declaration) ?? 'none'))
+    && rest.startsWith(';') && /^\s*(?:\/\/.*)?$/.test(rest.slice(1)) && lines.slice(top, line).every((above) => above.trimStart().startsWith('//'));
+  if (!plain) return { reason: 'is declared together with other names, and the line is not a plain `let a = 1, b = 2;` whose values are written out' };
+  if (all.some((declaration) => forms.named.has(declaration.name.end))) return { reason: 'holds a function without a name of its own: it takes the name of the variable, and would lose it' };
+  const own = all[at];
+  const sep = at === 0 ? '' : text.slice(all[at - 1].end, own.name.getStart(shell.tree));
+  return { start: own.name.getStart(shell.tree), nameEnd: own.name.end,
+    moved: { eq: eqOf(own), value: text.slice(own.initializer.getStart(shell.tree), own.initializer.end), trail: at === 0 ? rest.slice(1) : '', at, sep } };
+}
+
 // The lets asked for, each read; `reasons` gets why one cannot be a property.
 function readLets({ shell, text, starts, lines, source, object, names, forms, K, topOf, reasons }) {
   const chosen = [];
-  for (const name of new Set(names)) {
+  const asked = new Set(names);
+  for (const name of asked) {
     const record = shell.bindings.get(name)?.record;
     if (!record) { reasons.push({ name, text: `${name} is not declared in the wrapper of ${source}` }); continue; }
     const fail = (why) => reasons.push({ name, text: `${name} (${source}:${lineOf(shell, record)}) ${why}` });
     if (record.kind !== 'let') { fail(`is a ${record.kind}, not a let`); continue; }
-    if (record.names.length !== 1) { fail('is declared together with other names'); continue; }
+    const together = record.names.length !== 1;
+    if (together && !record.names.every((other) => asked.has(other))) { fail('is declared together with other names'); continue; }
     if (shell.twice.has(name)) { fail('is declared twice'); continue; }
     if (record.sharesLine) { fail('shares a line with another statement'); continue; }
     if (statePattern(object, name).test(text)) fail(`cannot become ${object}.${name}: the script has that text already, the rewrite could not be told apart from it`);
-    const read = readLet({ shell, text, starts, lines, record, forms, K, top: shell.open + topOf(record) });
+    const read = (together ? readTogether : readLet)({ shell, text, starts, lines, record, forms, K, top: shell.open + topOf(record), name });
     if (read.reason) { fail(read.reason); continue; }
     if (!read.moved && keptLine(shell.indent, name).test(text)) fail('is assigned by a statement that starts a line of the wrapper: undone, it could not be told apart from the declaration');
     chosen.push({ name, record, ...read });
   }
-  return chosen.sort((a, b) => a.record.index - b.record.index);
+  return chosen.sort((a, b) => a.record.index - b.record.index || a.start - b.start);
 }
 
 // What the places a name is used say against the rewrite, each with the let it is about.
@@ -159,7 +184,8 @@ function useReasons({ shell, text, starts, source, object, chosen, refs, forms, 
  * @param {string} [job.object] the name of the object @param {string[]} job.names the lets of the wrapper that become its properties
  * @returns {{ newSource: string, object: string, names: string[], kept: string[], indent: string,
  *   counts: Record<string, { found: number, moved: boolean, mentions: number }>, glue: { at: number, lines: string[] },
- *   removed: { line: number, lines: string[], name: string, eq: string, value: string | null, trail: string }[] }}
+ *   removed: { line: number, lines: string[], name: string, eq: string, value: string | null, trail: string,
+ *     others: { name: string, sep: string, eq: string, value: string }[] }[] }}
  *   `names` in the order they are declared; `kept` the ones whose first value stays where the `let` stood. `glue.at` is the
  *   0-based line of the object in the new text, `removed` the declarations that left with the 0-based line of the old text each
  *   block started on. `counts`: per let the uses in code, whether its first value left, and the comments that name it (renamed too).
@@ -208,11 +234,17 @@ export function planLets({ text, parser, source, object = 'state', names }) {
   const removed = [];
   for (const entry of chosen) {
     if (!entry.moved) { glue.push(`${shell.indent}  ${entry.name}: undefined, // ${KEPT_NOTE}`); continue; }
+    if (entry.moved.at > 0) continue; // said with the first name of its line
     const [first, code, last] = [shell.open + topOf(entry.record), shell.open + entry.record.line[0], shell.open + entry.record.range[1]];
     for (let line = first; line <= last; line += 1) gone.add(line);
-    removed.push({ line: first, lines: lines.slice(first, last + 1), name: entry.name, ...entry.moved });
-    const written = `${shell.indent}let ${entry.name}${entry.moved.value === null ? '' : `${entry.moved.eq}${entry.moved.value}`};`;
-    glue.push(...renamedLines.slice(first, code).map((comment) => `  ${comment}`), `${shell.indent}  ${entry.name}: ${entry.moved.value ?? 'undefined'},${renamedLines[code].slice(written.length)}`);
+    // The other names of a `let a = 1, b = 2;` left on the same line: the object says them in their order.
+    const others = chosen.filter((other) => other.record === entry.record && other.moved.at > 0)
+      .map((other) => ({ name: other.name, sep: other.moved.sep, eq: other.moved.eq, value: other.moved.value }));
+    removed.push({ line: first, lines: lines.slice(first, last + 1), name: entry.name, eq: entry.moved.eq, value: entry.moved.value, trail: entry.moved.trail, others });
+    const tail = others.map((other) => `${other.sep}${other.name}${other.eq}${other.value}`).join('');
+    const written = `${shell.indent}let ${entry.name}${entry.moved.value === null ? '' : `${entry.moved.eq}${entry.moved.value}`}${tail};`;
+    glue.push(...renamedLines.slice(first, code).map((comment) => `  ${comment}`), `${shell.indent}  ${entry.name}: ${entry.moved.value ?? 'undefined'},${renamedLines[code].slice(written.length)}`,
+      ...others.map((other) => `${shell.indent}  ${other.name}: ${other.value},`));
   }
   glue.push(`${shell.indent}};`);
   if (!anchor.moved || lines[shell.open + anchor.record.range[1]].trim() === '') glue.push('');

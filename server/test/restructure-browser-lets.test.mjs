@@ -247,3 +247,24 @@ test('the object can then leave the wrapper, and a later script takes it with th
   const last = replay({ root, parser, base: 'rewritten', show: from({ [FILE]: AFTER, [PAGE]: HTML }) });
   assert.deepEqual([last.problems, last.replayed], [[], 2]);
 });
+
+test('a `let a = 1, b = 2;` goes into the object whole when every name of the line is asked for, and only then', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const both = withLines('  // Two at once.', '  let first = 1, second = [2];   // said together', '  function sum() { first += 1; return first + second.length; }');
+  const names = [...ALL, 'first', 'second'];
+  const done = rewrite(both, names);
+  const text = done.files.get(FILE);
+  assert.ok(text.includes(script('    // Two at once.', '    first: 1,   // said together', '    second: [2],', '  };')), 'both rows, in the order of the line, under its comment');
+  assert.ok(!text.includes('let first'), 'the line left whole');
+  assert.ok(text.includes('  function sum() { state.first += 1; return state.first + state.second.length; }'));
+  assert.deepEqual(done.record.names, names);
+  assert.deepEqual(answers(text), answers(both));
+  // The proof reads the line that left: both names, and a row for each.
+  const plan = planLets({ text: both, parser, source: FILE, object: 'state', names });
+  assert.deepEqual(proveLets({ before: both, after: plan.newSource, plan, parser, source: FILE }), []);
+  assert.notDeepEqual(proveLets({ before: both, after: plan.newSource.replace('    second: [2],', () => '    second: [3],'), plan, parser, source: FILE }), []);
+  // One name of the line alone, a name without a first value, a value that reads another name: refused as before.
+  assert.match(why(['  let first = 1, second = 2;'], ['second']), /second .* is declared together with other names/);
+  assert.match(why(['  let first = 1, second;'], ['first', 'second']), /is not a plain `let a = 1, b = 2;` whose values are written out/);
+  assert.match(why(['  let first = 1, second = LIMIT;'], ['first', 'second']), /is not a plain `let a = 1, b = 2;` whose values are written out/);
+});
