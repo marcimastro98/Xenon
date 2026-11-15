@@ -242,7 +242,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // preference about being interrupted, not a data opt-in.
   hubMessages: true,
   catalogDrops: true,
-  // The month's paid drops, shown once per session (js/catalog-drop.js). A new
+  // The month's paid drops, shown once per session (js/store-catalog/catalog-drop.js). A new
   // key on purpose: it starts on for everybody, whatever catalogDrops said.
   monthlyDrops: true,
   // `=== true` like versionPing, not `!== false`: a new outbound report starts

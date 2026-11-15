@@ -1,7 +1,7 @@
 'use strict';
 // The purchase sheet's decisions, apart from the page so they can be tested
 // without one: the colours a Store entry lends it, what its catalog text becomes,
-// and what is on screen for each moment of a sale. js/buy-sheet.js draws the result.
+// and what is on screen for each moment of a sale. js/store-catalog/buy-sheet.js draws the result.
 (function (root) {
   const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
   // The Store's own defaults for an entry without a full preview (catColors).

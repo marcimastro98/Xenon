@@ -12,7 +12,7 @@ const read = (...parts) => readFileSync(join(serverRoot, ...parts), 'utf8');
 test('the install receipt normalizer loads before settings and the manager is reachable', () => {
   const html = read('index.html');
   assert.equal(
-    html.indexOf('<script src="js/content-installs.js"') < html.indexOf('<script src="js/settings.js"'),
+    html.indexOf('<script src="js/store-catalog/content-installs.js"') < html.indexOf('<script src="js/settings.js"'),
     true,
   );
   // The manager lives in the Store's "Installed" tab since v4.5.2 — Settings

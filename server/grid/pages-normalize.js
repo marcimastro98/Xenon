@@ -3,7 +3,7 @@
 
 const { DEFAULT_DASHBOARD_LAYOUT } = require('./layout-defaults.js');
 const { cloneDashboardLayout, DASHBOARD_PAGES_MAX } = require('./layout-normalize-parts.js');
-const contentInstalls = require('../js/content-installs.js');
+const contentInstalls = require('../js/store-catalog/content-installs.js');
 
 function normalizeDashboardPages(value) {
   const seed = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT.pages);

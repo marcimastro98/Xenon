@@ -12,7 +12,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
 const require = createRequire(import.meta.url);
-require('../js/buy-sheet-model.js');
+require('../js/store-catalog/buy-sheet-model.js');
 const { decide } = globalThis.BuySheetModel;
 
 const share = read('js/preset-share.js');
@@ -30,7 +30,7 @@ test('with a sale in this window the drop turns Sparks-only and the sheet follow
   assert.match(refused, /if \(sale\) \{\s*sparksOnly = true;\s*syncUnlockVisibility\(\);/);
   assert.match(share, /let sparksOnly = sparksPrice > 0 && source\.sparksOnly === true;/);
   assert.match(share, /selling: remote && [^\n]*,\s*sparksOnly,/);
-  assert.match(read('js/buy-sheet.js'), /sparksOnly: o\.sparksOnly \|\| last\.sparksOnly === true/);
+  assert.match(read('js/store-catalog/buy-sheet.js'), /sparksOnly: o\.sparksOnly \|\| last\.sparksOnly === true/);
 });
 
 test('without a sale here, only a drop the catalog sells for Sparks goes to its Store page', () => {

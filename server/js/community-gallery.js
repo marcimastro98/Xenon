@@ -547,7 +547,7 @@
   // ── Generated preview (fallback when an entry ships no screenshot) ──────────
   // Colours come only from the server-validated preview swatches (hex), used as
   // canvas fills — so a card is never an empty box.
-  // What the purchase sheet shows of an entry (js/buy-sheet.js checks it again).
+  // What the purchase sheet shows of an entry (js/store-catalog/buy-sheet.js checks it again).
   function saleCard(entry) {
     const shots = entry.shots || (entry.screenshot ? 1 : 0);
     const shot = (ext) => SHOTS_BASE + encodeURIComponent(entry.id) + '.' + ext;

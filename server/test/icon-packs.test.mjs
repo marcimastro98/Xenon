@@ -7,7 +7,7 @@ import path from 'node:path';
 const require = createRequire(import.meta.url);
 const ip = require('../store-catalog/icon-packs.js');
 const ps = require('../js/preset-share.js');
-const ci = require('../js/content-installs.js');
+const ci = require('../js/store-catalog/content-installs.js');
 
 // ---------------------------------------------------------------------------
 // svgProblem — the fail-closed acceptance gate for pack SVGs. One accepted

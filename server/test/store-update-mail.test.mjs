@@ -1,4 +1,4 @@
-// Bit says so when something from the Store has an update (js/store-update-mail.js).
+// Bit says so when something from the Store has an update (js/store-catalog/store-update-mail.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
@@ -30,7 +30,7 @@ function load({ updates = [], settings = {}, catalog = { ok: true, entries: [{ i
     CommunityGallery: { findUpdates: async () => updates },
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/store-update-mail.js'), ctx);
+  vm.runInNewContext(read('../js/store-catalog/store-update-mail.js'), ctx);
   return { S: ctx.StoreUpdateMail, filed, ctx };
 }
 
@@ -114,8 +114,8 @@ test('its button opens the Installed tab, on the dashboard and on the screen', (
 test('the page loads it after the messages and the Store, and the old daily toast is gone', () => {
   const html = read('../index.html');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
-  assert.ok(at('store-update-mail.js') > at('community-gallery.js') && at('community-gallery.js') > 0);
-  assert.ok(at('store-update-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
+  assert.ok(at('store-catalog/store-update-mail.js') > at('community-gallery.js') && at('community-gallery.js') > 0);
+  assert.ok(at('store-catalog/store-update-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
   assert.doesNotMatch(read('../js/settings.js'), /checkSdkUpdatesDaily/);
 });
 

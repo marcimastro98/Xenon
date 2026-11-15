@@ -3,7 +3,7 @@
 
 const { BG_CUSTOM_CODE_MAX } = require('./background-values.js');
 const { sanitizeBgAssets, sanitizeBgFps } = require('../js/custom-bg.js');
-const contentInstalls = require('../js/content-installs.js');
+const contentInstalls = require('../js/store-catalog/content-installs.js');
 
 function normalizeBgCustom(value) {
   const source = value && typeof value === 'object' ? value : {};

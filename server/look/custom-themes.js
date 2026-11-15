@@ -2,7 +2,7 @@
 // when they are too big together their pictures go, not the themes.
 
 const { sanitizeBgFps } = require('../js/custom-bg.js');
-const contentInstalls = require('../js/content-installs.js');
+const contentInstalls = require('../js/store-catalog/content-installs.js');
 
 // Client-owned imported themes: bounded round-trip (the client is authoritative
 // and re-validates every field on load). A theme may embed a small font ref but

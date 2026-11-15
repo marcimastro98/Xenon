@@ -1,4 +1,4 @@
-// "Put on screen" after an install (js/place-installed.js): the step between
+// "Put on screen" after an install (js/store-catalog/place-installed.js): the step between
 // having a widget and seeing it, from the Store and from the Maker's link.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('js/place-installed.js');
+const SRC = read('js/store-catalog/place-installed.js');
 
 function load({ layers = true, remote = false, layerPage = false, placed = { ok: true }, mode = 'dashboard' } = {}) {
   const listeners = {};
@@ -129,7 +129,7 @@ test('a refusal is said, with the reason', async () => {
 
 test('the dashboard loads it after the toasts, and the import says what was installed', () => {
   const html = read('index.html');
-  const at = html.indexOf('<script src="js/place-installed.js">');
+  const at = html.indexOf('<script src="js/store-catalog/place-installed.js">');
   assert.ok(at > html.indexOf('<script src="js/alerts/toast.js">'));
   assert.ok(at > html.indexOf('<script src="js/deck/deck-error-text.js">'));
   const share = read('js/preset-share.js');

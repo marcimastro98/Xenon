@@ -130,18 +130,12 @@
         "server/sound-packs.js",
         "server/js/community-gallery/**",
         "server/js/community-gallery.js",
-        "server/js/catalog-drop.js",
-        "server/js/deck-store.js",
-        "server/js/rating-card.js",
-        "server/js/store-update-mail.js",
-        "server/js/buy-sheet*.js",
-        "server/js/content-installs.js",
         "server/js/installed-manager/**",
         "server/js/installed-manager.js",
-        "server/js/place-installed.js",
         "server/components/CommunityStore/**",
         "server/components/RatingCard/**",
-        "server/components/BuySheet/**"
+        "server/components/BuySheet/**",
+        "server/js/store-catalog/**"
       ]
     },
     {

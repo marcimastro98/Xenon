@@ -346,7 +346,7 @@ test('a tile Set up button opens Settings, from a widget on the screen in the me
 });
 
 // The Xenon menu's Widgets section is the only one that asks for it: what is imported there
-// goes on the screen at once (js/place-installed.js), as its Add list does.
+// goes on the screen at once (js/store-catalog/place-installed.js), as its Add list does.
 test('the import dialog opens empty, set to place what it installs: nothing from the address reaches it', () => {
   const { parse, sheetAddress, run } = DashboardOpen;
   const opened = [];

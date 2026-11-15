@@ -1,4 +1,4 @@
-/* The window that sells a Store entry for Sparks (js/buy-sheet.js): the entry's own
+/* The window that sells a Store entry for Sparks (js/store-catalog/buy-sheet.js): the entry's own
    paper and ink, its picture on top, the name large, and a stub with the price and
    the button. A sheet from the bottom on a phone, two columns on a wide screen. */
 .preset-modal-overlay.buy-overlay { align-items: flex-end; padding: 0; }

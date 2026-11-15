@@ -73,7 +73,7 @@ test('toasts, announcements and update notices stay on the main dashboard', () =
   assert.ok(at('support-appeal.js', '  function init() {').includes('if (' + GUARD + ') return;'));
   // The guard sits before the first look, so no check is ever scheduled. The alerts
   // window is the one page without a dashboard that looks: Bit's card lives there too.
-  for (const [file, look] of [['hub-messages.js', 'checkDaily()'], ['catalog-drop.js', 'checkOnStart()']]) {
+  for (const [file, look] of [['hub-messages.js', 'checkDaily()'], ['store-catalog/catalog-drop.js', 'checkOnStart()']]) {
     const src = read('../js/' + file);
     const g = src.lastIndexOf("if (window.BitMessages && window.BitMessages.surface !== 'screen' && " + GUARD + ') return;');
     assert.ok(g > 0 && g < src.indexOf('const look = () => { try { ' + look), file);

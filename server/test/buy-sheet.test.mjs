@@ -12,7 +12,7 @@ import { textsOf } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
-vm.runInThisContext(read('js/buy-sheet-model.js'));
+vm.runInThisContext(read('js/store-catalog/buy-sheet-model.js'));
 const M = globalThis.BuySheetModel;
 
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -224,7 +224,7 @@ test('the box has one bold lead, names the 14 days and the right it gives up', (
   }
 });
 
-const sources = ['js/buy-sheet.js', 'js/buy-sheet-parts.js', 'js/buy-sheet-motion.js'].map(read).join('\n');
+const sources = ['js/store-catalog/buy-sheet.js', 'js/store-catalog/buy-sheet-parts.js', 'js/store-catalog/buy-sheet-motion.js'].map(read).join('\n');
 
 test('the sheet never ticks the box and never writes catalog text as markup', () => {
   assert.doesNotMatch(sources, /\.checked\s*=/);
@@ -233,10 +233,10 @@ test('the sheet never ticks the box and never writes catalog text as markup', ()
 });
 
 test('closing the sheet stops everything it started', () => {
-  const sheet = read('js/buy-sheet.js');
+  const sheet = read('js/store-catalog/buy-sheet.js');
   const destroy = sheet.slice(sheet.indexOf('function destroy()'));
   for (const step of [/gone = true;/, /stop\.abort\(\);/, /motion\.stop\(\);/, /unwatch\(\)/, /BitApp\.sweep\(\)/]) assert.match(destroy, step);
-  const motion = read('js/buy-sheet-motion.js');
+  const motion = read('js/store-catalog/buy-sheet-motion.js');
   assert.match(motion, /run\.cancel\(\)/);
   assert.match(motion, /cancelAnimationFrame\(raf\)/);
   // A wait for the count that was cut short must not hang the purchase.
@@ -253,7 +253,7 @@ test('a copy already bought skips the sale, and never sends the box it did not t
 
 test('the balance only ever counts down', () => {
   // requestAnimationFrame stamps the first frame before performance.now() ran: seen in the real shell.
-  assert.match(read('js/buy-sheet-motion.js'), /Math\.min\(1, Math\.max\(0, \(now - start\) \/ COUNT_MS\)\)/);
+  assert.match(read('js/store-catalog/buy-sheet-motion.js'), /Math\.min\(1, Math\.max\(0, \(now - start\) \/ COUNT_MS\)\)/);
 });
 
 test('a wrong code on the sheet never says it was a supporter code', () => {
@@ -263,7 +263,7 @@ test('a wrong code on the sheet never says it was a supporter code', () => {
 });
 
 test('nothing moves with reduced motion or on a low-power GPU', () => {
-  const motion = read('js/buy-sheet-motion.js');
+  const motion = read('js/store-catalog/buy-sheet-motion.js');
   assert.match(motion, /classList\.contains\('low-power-gpu'\)\s*\|\| window\.matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/);
   assert.match(motion, /fly\(from, to\) \{\s*if \(still\(\)\) return Promise\.resolve\(\);/);
   assert.match(motion, /count\(from, to, show\) \{\s*if \(still\(\) /);
@@ -272,7 +272,7 @@ test('nothing moves with reduced motion or on a low-power GPU', () => {
 test('the page loads the sheet before the dialog that opens it', () => {
   const page = read('index.html');
   const at = (name) => page.indexOf(`src="js/${name}.js"`);
-  const order = ['utils', 'buy-sheet-model', 'buy-sheet-parts', 'buy-sheet-motion', 'buy-sheet', 'preset-share'].map(at);
+  const order = ['utils', 'store-catalog/buy-sheet-model', 'store-catalog/buy-sheet-parts', 'store-catalog/buy-sheet-motion', 'store-catalog/buy-sheet', 'preset-share'].map(at);
   assert.ok(order.every((n) => n > 0), String(order));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   assert.match(page, /href="components\/BuySheet\/BuySheet\.css"/);
@@ -285,6 +285,6 @@ test('the sheet stays alive under the freeze its own overlay asks for, and only 
   assert.equal(rules.length, 3);
   for (const rule of rules) assert.match(rule, /^body\.overlay-frozen:not\(\.ambient-idle, ?\.game-mode, ?\.low-power-gpu, ?\.perf-mode\) /);
   assert.match(css, /prefers-reduced-motion: no-preference/);
-  const sheet = read('js/buy-sheet.js');
+  const sheet = read('js/store-catalog/buy-sheet.js');
   assert.match(sheet, /TILE_HOLD\.filter\(\(name\) => name !== 'overlay-frozen'\)/);
 });

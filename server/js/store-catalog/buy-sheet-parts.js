@@ -1,6 +1,6 @@
 'use strict';
 // What the purchase sheet is made of, built once when it opens: the picture, the pitch,
-// the offer, the pass, the receipt, the footer. js/buy-sheet.js shows and hides them.
+// the offer, the pass, the receipt, the footer. js/store-catalog/buy-sheet.js shows and hides them.
 // Catalog text reaches the page through textContent; only the constant icons below and
 // the engine's spark are markup.
 (function () {

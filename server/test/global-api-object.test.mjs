@@ -1,4 +1,4 @@
-// The page's global `api` is the Deck store's object (js/deck-store.js), not a
+// The page's global `api` is the Deck store's object (js/store-catalog/deck-store.js), not a
 // fetch helper. A script that calls `api(...)` without its own local `api`
 // throws at that line: the capture toasts' "Show"/"Stop" buttons and the Home
 // Assistant dashboard list both broke this way. Pinned here for every script.
@@ -13,7 +13,7 @@ const CALL = /(?<![.\w$])api\(/;
 const LOCAL = /(function\s+api\s*\(|(const|let|var)\s+api\s*=|[(,]\s*api\s*[,)=])/;
 
 test('the global api is an object, as every caller must assume', () => {
-  const src = readFileSync(path.join(JS, 'deck-store.js'), 'utf8');
+  const src = readFileSync(path.join(JS, 'store-catalog/deck-store.js'), 'utf8');
   assert.match(src, /^const api = \{/m);
 });
 

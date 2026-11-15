@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ci = require('../js/content-installs.js');
+const ci = require('../js/store-catalog/content-installs.js');
 
 const ID = 'xi_m5abc123deadbeef';
 

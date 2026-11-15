@@ -1,7 +1,7 @@
 // The shape of the Deck backup the server keeps: the keys of every Deck as the dashboard wrote
 // them, and the number that says which copy is newer.
 
-const deckStore = require('../js/deck-store.js');
+const deckStore = require('../js/store-catalog/deck-store.js');
 
 // The Deck widget's keys live in the browser's localStorage, which the Xeneon
 // Edge WebView can wipe on some restarts/updates — silently losing the user's

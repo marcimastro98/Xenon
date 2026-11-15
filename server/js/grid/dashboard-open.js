@@ -131,7 +131,7 @@
     }
     // Always empty: what goes in it is pasted or chosen by the person, never read from an address.
     // Asked only by the Xenon menu's Widgets section, so a widget imported there goes straight on
-    // the screen, as one from its Add list does (js/place-installed.js), not into Installed only.
+    // the screen, as one from its Add list does (js/store-catalog/place-installed.js), not into Installed only.
     if (req.open === 'import') {
       if (!window.PresetShare) return false;
       window.PresetShare.openImport(undefined, { place: true });

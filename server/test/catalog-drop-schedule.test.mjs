@@ -1,4 +1,4 @@
-// The month's drops (js/catalog-drop.js) as Bit's messages, run against DOM stubs
+// The month's drops (js/store-catalog/catalog-drop.js) as Bit's messages, run against DOM stubs
 // with a clock the test moves, through the real client (js/ai/bit-messages.js) and the
 // real inbox (bit-messages.js).
 //
@@ -79,7 +79,7 @@ function dashboard({ hubSettings = {}, packages = [], file = inboxFile() } = {})
   };
   const load = (src) => { const n = Object.keys(g); new Function(...n, src)(...n.map((k) => g[k])); };
   load(read('js/ai/bit-messages.js'));
-  load(limitedStockSource() + '\n' + read('js/catalog-drop.js'));
+  load(limitedStockSource() + '\n' + read('js/store-catalog/catalog-drop.js'));
 
   const stored = () => {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')).messages; } catch { return []; }
@@ -132,7 +132,7 @@ test('filing opens nothing on screen, and limited editions go first', async () =
   d.catalog = [pack('a', 1), pack('lim', 1, { locked: false, limited: { dropId: 'lim', total: 50, claimed: 3 } })];
   assert.deepEqual(await d.start(), ['drop:lim', 'drop:a']);
   assert.equal(d.opened.length, 0, 'nothing was added to the page');
-  const src = read('js/catalog-drop.js');
+  const src = read('js/store-catalog/catalog-drop.js');
   assert.doesNotMatch(src, /xdrop-overlay|aria-modal|whenIdle/, 'the full-screen card is gone');
 });
 
@@ -207,7 +207,7 @@ test('the old switch does not stop it; the new switch does', async () => {
 test('the retry chain stops once the session has had its check', () => {
   const d = dashboard();
   assert.ok(d.timeouts.includes(20000), 'first look shortly after load');
-  const src = read('js/catalog-drop.js');
+  const src = read('js/store-catalog/catalog-drop.js');
   assert.ok(!/setInterval\(\s*look/.test(src));
   assert.match(src, /const loop = \(\) => setTimeout\(\(\) => \{ if \(sessionDone\(\)\) return; look\(\); loop\(\); \}, LOOK_EVERY\)/);
 });

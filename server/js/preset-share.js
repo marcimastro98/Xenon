@@ -970,7 +970,7 @@
         window.dispatchEvent(new CustomEvent('xenon-content-installed', {
           detail: {
             sourceId: (tx.source === 'catalog' && tx.sourceId) ? tx.sourceId : '',
-            // For "Put on screen" after an install (js/place-installed.js).
+            // For "Put on screen" after an install (js/store-catalog/place-installed.js).
             name: tx.name,
             widgetIds: tx.resources.widgetIds.slice(),
             sceneIds: tx.resources.ambientSceneIds.slice(),
@@ -3144,7 +3144,7 @@
       const supporterDrop = source.supporterDrop === true;
       // Sold for Sparks (catalog `sparks`, 1 Spark = 1 US cent). A Sparks-only
       // drop is never opened by a pass or the trial, so redeem is not its way in.
-      // Only a remote-locked Store entry has a sale: the sheet (js/buy-sheet.js) shows it.
+      // Only a remote-locked Store entry has a sale: the sheet (js/store-catalog/buy-sheet.js) shows it.
       const sealed = prefill ? peekLocked(prefill) : null;
       const sparksPrice = window.BuySheet && sealed && sealed.remote && Number.isInteger(source.sparks) && source.sparks > 0 ? source.sparks : 0;
       // Becomes true when the hub refuses the pass on a drop it sells (passRefusedOnSale).
@@ -4169,7 +4169,7 @@
       const ids = (pkgIds || []).filter(Boolean).map(String);
       const pkgs = (CW.cachedPackages() || []).filter((p) => p && ids.includes(p.id) && p.surface !== 'ambient');
       if (!pkgs.length) return false;
-      // The Maker's link went straight on screen (js/place-installed.js).
+      // The Maker's link went straight on screen (js/store-catalog/place-installed.js).
       if (importSource.place !== true) showInstalledToast(CW, pkgs);
       return true;
     }

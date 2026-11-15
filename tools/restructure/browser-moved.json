@@ -193,6 +193,16 @@
     {"from":"server/js/settings-bar-preview.js","to":"server/js/settings/settings-bar-preview.js"},
     {"from":"server/js/settings-secrets.js","to":"server/js/settings/settings-secrets.js"},
     {"from":"server/js/smart-home-dashboard-tile.js","to":"server/js/smart-home/smart-home-dashboard-tile.js"},
-    {"from":"server/js/smart-home-order.js","to":"server/js/smart-home/smart-home-order.js"}
+    {"from":"server/js/smart-home-order.js","to":"server/js/smart-home/smart-home-order.js"},
+    {"from":"server/js/buy-sheet-model.js","to":"server/js/store-catalog/buy-sheet-model.js"},
+    {"from":"server/js/buy-sheet-motion.js","to":"server/js/store-catalog/buy-sheet-motion.js"},
+    {"from":"server/js/buy-sheet-parts.js","to":"server/js/store-catalog/buy-sheet-parts.js"},
+    {"from":"server/js/buy-sheet.js","to":"server/js/store-catalog/buy-sheet.js"},
+    {"from":"server/js/catalog-drop.js","to":"server/js/store-catalog/catalog-drop.js"},
+    {"from":"server/js/content-installs.js","to":"server/js/store-catalog/content-installs.js"},
+    {"from":"server/js/deck-store.js","to":"server/js/store-catalog/deck-store.js"},
+    {"from":"server/js/place-installed.js","to":"server/js/store-catalog/place-installed.js"},
+    {"from":"server/js/rating-card.js","to":"server/js/store-catalog/rating-card.js"},
+    {"from":"server/js/store-update-mail.js","to":"server/js/store-catalog/store-update-mail.js"}
   ]
 }

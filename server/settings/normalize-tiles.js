@@ -10,7 +10,7 @@ const {
 } = require('./normalize-favorites.js');
 const { sanitizeDashboardPresets } = require('./normalize-passthrough.js');
 const { cloneDashboardLayout } = require('../grid/layout-normalize-parts.js');
-const contentInstalls = require('../js/content-installs.js');
+const contentInstalls = require('../js/store-catalog/content-installs.js');
 const { sanitizeCustomThemes } = require('../look/custom-themes.js');
 const { sanitizeAmbientScenes } = require('../ambient/scenes-sanitize.js');
 const { normalizeDashboardLayout } = require('../grid/layout-normalize.js');

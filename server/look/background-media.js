@@ -2,7 +2,7 @@
 // server, or a small inline SVG.
 
 const { BG_SVG_DATA_RE, BG_SVG_MAX_CHARS } = require('./background-values.js');
-const contentInstalls = require('../js/content-installs.js');
+const contentInstalls = require('../js/store-catalog/content-installs.js');
 
 function sanitizeSettingsBackgroundMedia(value) {
   if (!value || typeof value !== 'object') return null;

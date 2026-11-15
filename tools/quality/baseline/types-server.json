@@ -130,7 +130,7 @@
     "server/js/deck-icons.js TS2339": 1,
     "server/js/deck-model.js TS2339": 3,
     "server/js/deck-shortcuts.js TS2339": 1,
-    "server/js/deck-store.js TS2339": 1,
+    "server/js/store-catalog/deck-store.js TS2339": 1,
     "server/js/disk/disk-intelligence.js TS2353": 1,
     "server/js/disk/disk-intelligence.js TS2739": 2,
     "server/js/performance/game-ignore.js TS2339": 1,

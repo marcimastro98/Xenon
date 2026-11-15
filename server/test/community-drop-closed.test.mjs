@@ -14,7 +14,7 @@ import vm from 'node:vm';
 // normalized and then never read. Users saw "5 of 50 left", tapped Claim, and
 // landed on a claim page that turned them away.
 const GALLERY = readFileSync(fileURLToPath(new URL('../js/community-gallery.js', import.meta.url)), 'utf8');
-const DROP = readFileSync(fileURLToPath(new URL('../js/catalog-drop.js', import.meta.url)), 'utf8');
+const DROP = readFileSync(fileURLToPath(new URL('../js/store-catalog/catalog-drop.js', import.meta.url)), 'utf8');
 const UTILS = readFileSync(fileURLToPath(new URL('../js/utils.js', import.meta.url)), 'utf8');
 
 // Both gates read their stock through limitedStock() (server/js/utils/time-and-format.js), so it has to be

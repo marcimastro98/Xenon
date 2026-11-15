@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
-const ds = require('../js/deck-store.js');
+const ds = require('../js/store-catalog/deck-store.js');
 
 // Count placed keys across every profile/page of a config (test helper).
 function keyCount(cfg) {

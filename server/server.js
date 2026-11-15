@@ -378,7 +378,7 @@ try {
 } catch { /* platform without one */ }
 const lighting = require('./lighting');
 require('./session-watch');
-const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
+const deckStore = require('./js/store-catalog/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals/vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
 require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
@@ -396,7 +396,7 @@ require('./living-index');       // the Living Index: helper-held in-RAM file in
 require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
 require('./search/linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./disk/linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
-require('./js/content-installs'); // validated import receipts shared with Settings
+require('./js/store-catalog/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./system/first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 require('./js/performance/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)

@@ -23,7 +23,7 @@
     "server/js/deck-actions.js": 12,
     "server/js/deck-model.js": 118,
     "server/js/deck-shortcuts.js": 25,
-    "server/js/deck-store.js": 16,
+    "server/js/store-catalog/deck-store.js": 16,
     "server/js/look/decor-bg.js": 2,
     "server/js/grid/fit-row.js": 11,
     "server/js/gif-read.js": 13,

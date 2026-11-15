@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { covers, triedFrom, restoreThemeFor, endedTile, unmarked, endCardItems } = require('../js/trial-pass-ui.js');
-const { normalizeContentInstalls } = require('../js/content-installs.js');
+const { normalizeContentInstalls } = require('../js/store-catalog/content-installs.js');
 
 // The dashboard half of the pass trial: which Store entries get the button,
 // what the end of the trial records and takes off, and what a tile shows after.
@@ -136,7 +136,7 @@ test('nothing in the end card or the tile comes from markup', async () => {
 // ── Holes found by trying to keep trial content ─────────────────────────────
 
 test('a look saved on top of an imported animated background stays that import', () => {
-  const { themeCardMark } = require('../js/content-installs.js');
+  const { themeCardMark } = require('../js/store-catalog/content-installs.js');
   const bg = { enabled: true, code: 'draw()', imported: true, installId: 'xi_abcd1234' };
   assert.deepEqual(themeCardMark({ accent: '#f00', bgCustom: bg }), { imported: true, installId: 'xi_abcd1234' });
   assert.deepEqual(themeCardMark({ accent: '#f00', bgCustom: { code: 'mine()' } }), {}, 'your own background: your card');

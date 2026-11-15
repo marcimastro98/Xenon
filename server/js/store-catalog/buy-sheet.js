@@ -2,8 +2,8 @@
 // The window that sells a Store entry for Sparks. It only draws: the buying rules
 // stay in the import dialog (js/preset-share.js), which hands over its own controls
 // (the box, the buttons, the code field) and calls sync() when they change. What a
-// moment shows comes from js/buy-sheet-model.js, the pieces from js/buy-sheet-parts.js,
-// the purchase's animation from js/buy-sheet-motion.js.
+// moment shows comes from js/store-catalog/buy-sheet-model.js, the pieces from js/store-catalog/buy-sheet-parts.js,
+// the purchase's animation from js/store-catalog/buy-sheet-motion.js.
 (function () {
   const M = window.BuySheetModel;
   const P = window.BuySheetParts;

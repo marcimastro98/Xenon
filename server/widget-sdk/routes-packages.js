@@ -2,7 +2,7 @@
 // grants, an install, and a package the user marks as their own.
 
 const { readBody } = require('../http/read-body.js');
-const contentInstalls = require('../js/content-installs.js');
+const contentInstalls = require('../js/store-catalog/content-installs.js');
 const { hub } = require('../settings/current.js');
 const sdkWidgets = require('../sdk-widgets.js');
 const fs = require('node:fs');

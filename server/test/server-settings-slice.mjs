@@ -77,7 +77,7 @@ export function loadServerSettingsSlice() {
     TopbarLook: require('../js/topbar-look.js'),
     LayersModel: require('../js/layers/layers-model.js'),
     themePalette: require('../js/theme-palette.js'),
-    contentInstalls: require('../js/content-installs.js'),
+    contentInstalls: require('../js/store-catalog/content-installs.js'),
     sanitizeBgAssets, sanitizeBgFps,
   });
   return vm.runInContext(program, context, { filename: 'server.js (settings slice)' });
