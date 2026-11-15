@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { createBrowserSurfaceSync } = require('../browser-surface-sync.js');
+const { createBrowserSurfaceSync } = require('../windows-tiles/browser-surface-sync.js');
 
 const LOGIN = 'https://cam.example/login';
 const STREAM = 'https://cam.example/stream';

@@ -45,7 +45,7 @@ const MIME_BY_EXT = new Map([
 const {
   SLIDE_FOLDER_MAX_FILES: MAX_FILES,
   SLIDE_FOLDER_MAX_BYTES: MAX_BYTES,
-} = require('./js/slideshow-widget');
+} = require('../js/slideshow-widget');
 const CACHE_TTL_MS = 30000;      // a folder is re-read at most twice a minute
 const NAME_MAX = 200;            // skip absurd names rather than carry them around
 

@@ -7,7 +7,7 @@ const { readBody, readBodyBuffer } = require('../http/read-body.js');
 const remoteActions = require('../paired/remote-actions.js');
 const { hub } = require('../settings/current.js');
 const { readDeckStore } = require('../deck/store-read.js');
-const browserAdblock = require('../embedded-browser-adblock.js');
+const browserAdblock = require('./embedded-browser-adblock.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const {
   SLIDESHOW_ASSET_MAX_BYTES, SLIDESHOW_ASSET_MIME_BY_EXT,
@@ -16,7 +16,7 @@ const { parseMultipartBackground } = require('../http/multipart-upload.js');
 const path = require('node:path');
 const fs = require('node:fs');
 const { UPLOADS_DIR } = require('../engine/uploads-dir.js');
-const slideshowFolder = require('../slideshow-folder.js');
+const slideshowFolder = require('./slideshow-folder.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

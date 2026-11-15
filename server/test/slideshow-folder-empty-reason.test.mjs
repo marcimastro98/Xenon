@@ -25,7 +25,7 @@ import { appStringsSource } from './i18n-source.mjs';
 // "these are not files I can read", and the second is the one nobody can guess.
 
 const require = createRequire(import.meta.url);
-const folderSrc = require('../slideshow-folder.js');
+const folderSrc = require('../windows-tiles/slideshow-folder.js');
 const WIDGET = readFileSync(new URL('../js/slideshow-widget.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');

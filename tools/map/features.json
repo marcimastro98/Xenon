@@ -758,13 +758,8 @@
       "files": [
         "server/windows-tiles/**",
         "server/embedded-browser*.js",
-        "server/second-screen.js",
-        "server/browser-surface-sync.js",
-        "server/slideshow-folder.js",
         "server/windows.ps1",
         "server/foreground.ps1",
-        "server/linux-foreground.js",
-        "server/tile-play.js",
         "server/js/browser-tile/**",
         "server/js/browser-tile.js",
         "server/js/second-screen-tile.js",

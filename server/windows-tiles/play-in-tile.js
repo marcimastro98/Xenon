@@ -1,7 +1,7 @@
 // Playing a channel or a video in a tile when the assistant is asked to: what was meant is
 // searched for first, then handed to the dashboard that shows the tile.
 
-const TilePlay = require('../tile-play.js');
+const TilePlay = require('./tile-play.js');
 const { tilePlay } = require('./tile-play-offers.js');
 const { tilePlaySearch } = require('../streaming/tile-play-search.js');
 

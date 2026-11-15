@@ -71,7 +71,7 @@ function start() {
   // Linux, which is what it was.
   if (!useHelper && process.platform === 'linux') {
     if (!gameWatch.linuxProbe) {
-      const { createLinuxForeground } = require('./linux-foreground');
+      const { createLinuxForeground } = require('./windows-tiles/linux-foreground');
       gameWatch.linuxProbe = createLinuxForeground({ intervalMs: PROBE_INTERVAL_MS, onSample: applySample });
     }
     gameWatch.linuxProbe.start();

@@ -1,4 +1,4 @@
-// What Bit asked to play in a tile (server/tile-play.js, SSE `tile_play`): a
+// What Bit asked to play in a tile (server/windows-tiles/tile-play.js, SSE `tile_play`): a
 // Twitch channel, a YouTube video or a web page. Every window of this PC with
 // that tile asks to take it, the server lets the first one through, and that
 // window shows the tile (its page, its tab) and plays it with the same entry

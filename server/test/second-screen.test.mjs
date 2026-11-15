@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createSecondScreen, buildConfigXml } = require('../second-screen.js');
+const { createSecondScreen, buildConfigXml } = require('../windows-tiles/second-screen.js');
 
 // Fake winget installer (mirrors remote-control/installer.js) so tests never touch
 // winget or elevate anything.

@@ -49,7 +49,7 @@
   // Nothing is copied, the settings blob stays a few dozen bytes whatever the
   // folder holds, and adding a GIF on disk makes it appear without touching the
   // app. The path is never sent back as part of an image request — see
-  // server/slideshow-folder.js.
+  // server/windows-tiles/slideshow-folder.js.
   const SLIDE_SOURCES = ['library', 'folder'];
   const SLIDE_FOLDER_MAX_CHARS = 400;  // a Windows path is <= 260, extended-length ones longer
   // Ceiling on the enumerated set. Not a storage limit — nothing is copied — but a

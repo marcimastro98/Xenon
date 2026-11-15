@@ -17,7 +17,7 @@ childProcess.execFile = (cmd, args, _options, callback) => {
   return { on() {} };
 };
 
-const { createLinuxForeground } = require('../linux-foreground.js');
+const { createLinuxForeground } = require('../windows-tiles/linux-foreground.js');
 const collectors = require('../linux-collectors.js');
 
 const ROOT_REPLY = [

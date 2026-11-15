@@ -105,7 +105,6 @@
     "server/discord-rpc.js TS2810": 1,
     "server/discord/rpc-sign-in.js TS2339": 2,
     "server/disk/routes.js TS2739": 2,
-    "server/embedded-browser-adblock.js TS2810": 2,
     "server/feature-unlock.js TS2741": 1,
     "server/ffmpeg-install/ffmpeg-install.js TS2345": 1,
     "server/ffmpeg-install/ffmpeg-install.js TS2810": 1,
@@ -233,7 +232,6 @@
     "server/search-query.js TS2339": 1,
     "server/search-query.js TS2769": 2,
     "server/search/launch-installed-app.js TS2810": 2,
-    "server/second-screen.js TS2339": 3,
     "server/self-update.js TS2810": 1,
     "server/sensor-service/migrate.js TS2339": 3,
     "server/server.js TS2322": 42,
@@ -290,6 +288,8 @@
     "server/windows-tiles/browser-connection.js TS2810": 1,
     "server/windows-tiles/browser-profile.js TS2810": 12,
     "server/windows-tiles/browser-tile-state.js TS2339": 1,
+    "server/windows-tiles/embedded-browser-adblock.js TS2810": 2,
+    "server/windows-tiles/second-screen.js TS2339": 3,
     "server/winnotif.js TS2554": 1
   }
 }

@@ -66,7 +66,7 @@ const { createCaptureSend } = require('./capture-send');
 const { createCaptureCopy } = require('./capture-copy');
 require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager); nothing is taken from it here, but it runs code when it loads
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
-require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
+require('./windows-tiles/tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 require('./settings-ai'); // change_setting: the allowlisted Settings switches
 require('./grid/tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
@@ -382,7 +382,7 @@ const deckStore = require('./js/deck-store'); // pure per-instance Deck merge he
 const vitalsAiTools = require('./vitals/vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
 require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
-require('./slideshow-folder');          // the slideshow's "folder on this PC" source
+require('./windows-tiles/slideshow-folder');          // the slideshow's "folder on this PC" source
 require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
 const { createDevClean } = require('./devclean');
@@ -450,9 +450,9 @@ require('./actions/chroma');
 require('./actions/wavelink');
 require('./actions/voicemeeter');
 require('./embedded-browser');
-require('./embedded-browser-adblock');
-const { createBrowserSurfaceSync } = require('./browser-surface-sync');
-require('./second-screen');
+require('./windows-tiles/embedded-browser-adblock');
+const { createBrowserSurfaceSync } = require('./windows-tiles/browser-surface-sync');
+require('./windows-tiles/second-screen');
 require('./screen-capture');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');

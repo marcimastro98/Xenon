@@ -3,7 +3,7 @@
 
 const { runWindowsTool } = require('./windows-tool.js');
 const { readBody } = require('../http/read-body.js');
-const browserAdblock = require('../embedded-browser-adblock.js');
+const browserAdblock = require('./embedded-browser-adblock.js');
 const { DATA_DIR } = require('../engine/paths.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

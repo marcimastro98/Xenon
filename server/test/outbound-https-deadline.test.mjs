@@ -217,7 +217,7 @@ const versionPing = require('../version-ping.js');
 const usage = require('../usage-stats.js');
 const aiModels = require('../ai-models.js');
 const aiLocal = require('../ai-local.js');
-const adblock = require('../embedded-browser-adblock.js');
+const adblock = require('../windows-tiles/embedded-browser-adblock.js');
 
 async function settles(promise) {
   let timer;

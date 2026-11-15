@@ -9,7 +9,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { checkPinnedSha256 } = require('../pinned-hash.js');
-const adblock = require('../embedded-browser-adblock.js');
+const adblock = require('../windows-tiles/embedded-browser-adblock.js');
 
 // Third-party downloads Xenon unpacks and runs (whisper-cli.exe, PresentMon.exe,
 // the uBOL extension loaded into the Browser tile) used to be "the latest
@@ -62,7 +62,7 @@ test('uBOL is one pinned Edge build, hashed before it is unpacked', () => {
   assert.match(adblock.UBOL_ZIP_SHA256, /^[0-9a-f]{64}$/);
   assert.equal(adblock.UBOL_ZIP_URL,
     `https://github.com/uBlockOrigin/uBOL-home/releases/download/${adblock.UBOL_VERSION}/uBOLite_${adblock.UBOL_VERSION}.edge.zip`);
-  const src = read('../embedded-browser-adblock.js');
+  const src = read('../windows-tiles/embedded-browser-adblock.js');
   assert.doesNotMatch(src, /releases\/latest/, 'no "latest release" lookup');
   const body = src.slice(src.indexOf('async function install('));
   const dl = body.indexOf('_downloadToFile(UBOL_ZIP_URL, zipPath)');

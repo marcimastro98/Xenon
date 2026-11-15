@@ -1,7 +1,7 @@
 // Handing a channel or a video the assistant found to the one dashboard that shows the tile,
 // made when the engine starts.
 
-const TilePlay = require('../tile-play.js');
+const TilePlay = require('./tile-play.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 
 // play_in_tile (tile-play.js): find what the user meant, then hand it to the

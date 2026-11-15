@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
-const { parseTilePlay, createTilePlay } = require('../tile-play.js');
+const { parseTilePlay, createTilePlay } = require('../windows-tiles/tile-play.js');
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('Twitch: link, @name or login plays; words search', () => {

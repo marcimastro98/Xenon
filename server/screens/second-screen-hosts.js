@@ -2,7 +2,7 @@
 // when the engine starts: the helper that captures the picture is started only when a screen
 // asks.
 
-const { createSecondScreen } = require('../second-screen.js');
+const { createSecondScreen } = require('../windows-tiles/second-screen.js');
 const { createScreenCapture } = require('../screen-capture.js');
 const { HELPER_EXE } = require('../engine/paths.js');
 

@@ -12,7 +12,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const {
   createLinuxForeground, parseActiveWindowId, parseClientList,
   parseWindowInfo, parseHyprctl, parseSwayTree,
-} = require(join(ROOT, 'linux-foreground.js'));
+} = require(join(ROOT, 'windows-tiles/linux-foreground.js'));
 
 test('the active window id is read, and a zero id means nothing is focused', () => {
   assert.equal(parseActiveWindowId('_NET_ACTIVE_WINDOW(WINDOW): window id # 0xE00003'), '0xe00003');

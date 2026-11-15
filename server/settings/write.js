@@ -4,7 +4,7 @@
 
 const crypto = require('node:crypto');
 const sceneImages = require('../ambient/scene-images.js');
-const slideshowFolder = require('../slideshow-folder.js');
+const slideshowFolder = require('../windows-tiles/slideshow-folder.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { SETTINGS_FILE } = require('./settings-file.js');
 const { normalizeHubSettings } = require('./normalize-hub-settings.js');

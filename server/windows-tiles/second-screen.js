@@ -21,8 +21,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const defaultRunner = require('./remote-control/runner');
-const { createInstaller } = require('./remote-control/installer');
+const defaultRunner = require('../remote-control/runner');
+const { createInstaller } = require('../remote-control/installer');
 
 // devcon usa exit code propri: 0 = fatto, 1 = fatto ma serve un riavvio, 2 =
 // fallito, 3 = errore di sintassi. `runElevated` riporta l'exit code reale del

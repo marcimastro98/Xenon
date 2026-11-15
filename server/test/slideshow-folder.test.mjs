@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const F = require('../slideshow-folder.js');
+const F = require('../windows-tiles/slideshow-folder.js');
 
 // Build a throwaway folder with a known set of files. The module reads the real
 // filesystem, so the tests do too — the whole point of this module is what readdir
