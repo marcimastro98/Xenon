@@ -524,7 +524,7 @@ const { createRoastSparks } = require('./vitals-roast-sparks.js');
 const { createBitMessages } = require('./bit-messages.js');
 const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
 const { createPcId } = require('./pc-id.js');
-const { createMcpDev } = require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
+require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
 const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of their tools does
 
 const { APP_VERSION } = require('./updates/app-version.js');
@@ -692,12 +692,7 @@ const BIT_MESSAGE_ROUTES = {
   '/bit/messages/shown': (body) => bitMessages.shown(body.id),
   '/bit/messages/read': (body) => bitMessages.read(body.id, body.answer),
 };
-// Claude Code / Codex building widgets through the xenon-mcp bridge
-// (packages/mcp): the paired tools and the questions to the open dashboard.
-const mcpDev = createMcpDev({
-  file: path.join(DATA_DIR, 'mcp-clients.json'),
-  broadcast: (event, data) => broadcastSSE(event, data),
-});
+const { mcpDev } = require('./mcp/engine-dev.js');
 const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
 require('./deck/pack-places.js');
 const { _spotlightPopupPids } = require('./search/spotlight-state.js');

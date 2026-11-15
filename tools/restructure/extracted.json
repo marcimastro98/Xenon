@@ -509,7 +509,8 @@
       {"file":"server/time/engine-reminders.js","about":"The engine's calendar reminders, decided once for every screen.","names":["_calendarReminders"],"wire":{"first":"_calendarReminders","last":"_calendarReminders"}},
       {"file":"server/ai/engine-briefing.js","about":"The engine's proactive moments: heat that lasts and the recap of a game session.","names":["briefing"],"wire":{"first":"briefing","last":"briefing"}},
       {"file":"server/claude-code/engine-usage-reader.js","about":"The engine's reader of the Claude Code transcripts on this PC, for the usage numbers of the tile.","names":["_claudeReader"],"wire":{"first":"_claudeReader","last":"_claudeReader"}},
-      {"file":"server/remote-control/engine-remote-control.js","about":"The engine's Remote Control: it reads the settings held in memory and saves through the one settings lock.","names":["remoteControl"],"wire":{"first":"remoteControl","last":"remoteControl"}}
+      {"file":"server/remote-control/engine-remote-control.js","about":"The engine's Remote Control: it reads the settings held in memory and saves through the one settings lock.","names":["remoteControl"],"wire":{"first":"remoteControl","last":"remoteControl"}},
+      {"file":"server/mcp/engine-dev.js","about":"The engine's side of the xenon-mcp bridge: the paired tools and the questions to the open dashboard.","names":["mcpDev"],"wire":{"first":"mcpDev","last":"mcpDev"}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
