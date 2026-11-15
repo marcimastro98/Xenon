@@ -27,9 +27,6 @@
 
 const fsp = require('fs').promises;
 const { createAppIcons } = require('./linux-app-icons.js');
-// Shared with darwin-collectors.js: the delta/aggregation half of the
-// `processes` stream is identical on both, and lives in one tested place.
-require('./process-stats');
 
 const { parseMemInfo, memory } = require('./platform/linux-memory.js');
 

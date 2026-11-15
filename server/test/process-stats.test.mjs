@@ -151,3 +151,37 @@ test('both platform parsers feed aggregate without reshaping', () => {
   assert.equal(row.n, 'foo');
   assert.equal(row.c, 50);   // 1s of CPU in a 2s window on 1 core
 });
+
+test('the Linux parser feeds aggregate without reshaping too', () => {
+  const stat = (ticks) => {
+    const rest = Array.from({ length: 50 }, () => '0');
+    rest[0] = 'S';
+    rest[11] = String(ticks);   // field 14, utime
+    rest[21] = '256';           // field 24, rss in pages
+    const row = linux.parseProcStat('9 (bar) ' + rest.join(' '));
+    return new Map([[row.pid, { name: row.name, cpuMs: row.cpuMs, rss: row.rssPages * 4096 }]]);
+  };
+  const [row] = aggregate(stat(100), stat(200), { windowMs: 2000, cores: 1 });
+  assert.equal(row.n, 'bar');
+  assert.equal(row.c, 50);   // 100 ticks at 100Hz = 1s of CPU in a 2s window on 1 core
+  assert.equal(row.m, 1);
+});
+
+test('both collectors answer every stream the engine asks either of them for', async () => {
+  // The collector seam: one name, one shape, whichever platform answers. The folding module is required where the
+  // rows are folded (platform/linux-process-rates.js, darwin-collectors.js), and nowhere for a side effect.
+  const shared = ['machineId', 'gpu', 'disks', 'diskIo', 'cpuTemp', 'listSensors', 'readSensors', 'memory', 'network', 'windows',
+    'audioRows', 'audioCommand', 'audioAvailable', 'lock', 'hideWindows', 'hideWindowsTool', 'notify', 'processes', 'processTable', 'idleSeconds'];
+  for (const name of shared) {
+    assert.equal(typeof linux[name], 'function', 'linux ' + name);
+    assert.equal(typeof darwin[name], 'function', 'darwin ' + name);
+  }
+  if (process.platform === 'linux') {
+    const out = await linux.processes(3);
+    assert.deepEqual(Object.keys(out).sort(), ['apps', 'cores', 'cpu', 'gpuAvail', 'gpus', 'ok', 'totalMB', 'usedMB', 'win']);
+    for (const app of out.apps) assert.deepEqual(Object.keys(app).sort(), ['c', 'g', 'm', 'n']);
+  } else {
+    // No /proc here: the poll says so in the shape the stream expects, and loads nothing it lacks.
+    assert.deepEqual(await linux.processes(3), { ok: false, error: 'no_procfs' });
+  }
+});

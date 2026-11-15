@@ -4,6 +4,8 @@
 
 const fsp = require('node:fs').promises;
 const os = require('node:os');
+// Shared with darwin-collectors.js: the delta/aggregation half of the
+// `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('../process-stats.js');
 const { memory } = require('./linux-memory.js');
 const { mapLimit } = require('./linux-read.js');
