@@ -59,8 +59,8 @@ bridge.config = {
   deviceModes: {},
 };
 const {
-  DYNAMIC_ANIM_STYLES, effectiveAlbum, albumActive, gamingPaused, wantsPaint, active, shouldConnect,
-  refreshAnimationLayer, anyDeviceAnimationDynamic, colorForDevice, deckReactionColor,
+  effectiveAlbum, albumActive, gamingPaused, active, refreshAnimationLayer, colorForDevice,
+  deckReactionColor,
 } = require('./lights/paint-rules.js');
 const {
   DEVICE_MODES, ANIM_STYLES, PER_DEVICE_ANIM_STYLES, EVENT_DURATION_MS, clampEventDuration,
@@ -75,11 +75,7 @@ const {
 // A native frame is painted in the background: when it fails, forget what was
 // sent so the next apply() paints that device again, and say why.
 native.setWriteErrorHook((id, e) => { bridge.lastError = e.message; bridge.lastWrite.delete(id); });
-const MAX_PARTIAL_ENUM_RETRIES = 6;                // ~12s at CONNECT_RETRY_MS — long enough for iCUE to register LINK cooler/fans after a cold boot, bounded so a genuinely LED-less hub doesn't re-enumerate forever
 const EVENT_TICK_MS = 60;
-const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
-const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand reconnect attempts while an effect wants paint
-const DEVICE_RESCAN_MS = 30000;                  // slow rescan for devices that registered after the initial enumeration (one SDK call, only while painting)
 const POWER_HOLD_MS = 60000;                     // painting resumes by itself if the PC did not go off after all (a cancelled shutdown)
 
 const { disconnect } = require('./lights/sdk-load.js');
@@ -91,92 +87,14 @@ const {
 } = require('./lights/session.js');
 
 const {
+  reconcileConnection, syncAnimationTicker, maybeReconnectForPaint, boundedReenumerate,
+  maybeReenumerate,
+} = require('./lights/upkeep.js');
+
+const {
   isConnected, getLastError, isLightsOut, getExternalStatus, getExternalConfig, getConfig,
   getStatus,
 } = require('./lights/status.js');
-
-// Bring the iCUE session up / tear it down to match shouldConnect(). Called after
-// any config change. Disconnect hands the LEDs back to iCUE.
-function reconcileConnection() {
-  if (shouldConnect()) { if (!bridge.connected && !bridge.connecting && isAvailable()) connect(); }
-  else if (bridge.connected) { releaseAll(); disconnect(); }
-}
-
-// Start/stop the render loop to match state. The loop exists ONLY while a dynamic
-// animation (breathing/cycle) is actively painting somewhere — global OR a
-// per-device override. Idle cost is therefore zero. Idempotent.
-function syncAnimationTicker() {
-  const style = bridge.config.animation && bridge.config.animation.style;
-  const deckDynamic = !!bridge.deckReaction && bridge.deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
-  const dynamic = DYNAMIC_ANIM_STYLES.includes(style) || anyDeviceAnimationDynamic() || deckDynamic;
-  const shouldRun = dynamic && active() && !keyLook.isOut();
-  if (shouldRun && !bridge.animTimer) bridge.animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
-  else if (!shouldRun && bridge.animTimer) { clearInterval(bridge.animTimer); bridge.animTimer = null; }
-}
-
-function tickAnimation() {
-  refreshAnimationLayer();
-  paint.apply();
-}
-
-// On-demand (re)connect driver for the master-INDEPENDENT effects (Deck reaction,
-// album, temperature, event flashes). While something wants the LEDs but no sink is
-// live yet — e.g. iCUE is still launching right after a reboot — keep retrying the
-// connect on the regular apply() ticks until the session comes up. Without this a
-// one-shot connect() on the triggering event would give up on that transient miss
-// and the effect would stay dark until the user toggled the master toggle by hand
-// (exactly the "LEDs only work after I tick Illuminazione once" symptom). Throttled,
-// guarded by connect()'s own connecting flag, and gated on wantsPaint() + an
-// available SDK, so it self-limits to zero cost whenever nothing needs the LEDs.
-function maybeReconnectForPaint() {
-  if (bridge.connected || bridge.connecting) return;
-  if (!wantsPaint() || external.hasDevices() || native.hasDevices() || !isAvailable()) return;
-  if (Date.now() - bridge.lastConnectAttempt < CONNECT_RETRY_MS) return;
-  bridge.lastConnectAttempt = Date.now();
-  connect();
-}
-
-function enumerationIncomplete() {
-  return bridge.connected && !enumerationComplete(bridge.devices);
-}
-
-// Throttled, bounded re-enumeration shared by the apply() tick and the status
-// endpoint. Returns the enumerate() promise when it fires, else undefined.
-// Fire-and-forget safe: enumerate is async (worker thread), never blocks here.
-function boundedReenumerate() {
-  if (!bridge.connected) return;
-  const now = Date.now();
-  // Slow rescan. Neither test above can see a device that never appeared at all:
-  // a list holding only the RAM is "complete" by every measure while the iCUE LINK
-  // hub — registered seconds later on a slower boot path, because the server
-  // starts before iCUE finishes coming up — is simply absent, and the initial
-  // enumerate() from the connect callback is the only one that ever ran. That is
-  // the empirically-proven "the radiator never lights up until I restart the
-  // server" bug. Rescanning on a slow cadence also picks up genuine hot-plugs.
-  // Stamped HERE as well as in enumerate()'s finally: the stamp must land even on
-  // the paths that leave enumerate() before its try/finally (no `fns`, or joining
-  // an enumeration already in flight). Otherwise the rescan test stays true on every
-  // tick and this branch re-fires forever — the fast partial-retry path below has
-  // its own throttle, this one had none. Cadence therefore runs from the start of a
-  // scan; the finally re-stamps at completion, which only ever pushes it later.
-  if (now - bridge.lastDeviceScan >= DEVICE_RESCAN_MS) { bridge.lastEnumerate = now; bridge.lastDeviceScan = now; return enumerate(); }
-  if (!enumerationIncomplete()) return;
-  // Empty keeps retrying; a partial list is capped so a genuinely LED-less device
-  // doesn't trigger perpetual re-enumeration.
-  if (bridge.devices.length > 0 && bridge.partialEnumRetries >= MAX_PARTIAL_ENUM_RETRIES) return;
-  if (now - bridge.lastEnumerate < CONNECT_RETRY_MS) return;
-  bridge.lastEnumerate = now;
-  if (bridge.devices.length > 0) bridge.partialEnumRetries++;
-  return enumerate();
-}
-
-// apply()-driven re-enumeration: gated on wantsPaint() so an idle bridge stays at
-// zero cost. Repaints once the freshly-enumerated devices show up.
-function maybeReenumerate() {
-  if (!wantsPaint()) return;
-  const p = boundedReenumerate();
-  if (p) p.then(() => { if (bridge.devices.length) paint.apply(); }).catch(() => { /* lastError set inside */ });
-}
 
 // Compute the final colour and push it to every opted-in device (on-change).
 // Async because writeDevice is now async (koffi FFI call on worker thread).
