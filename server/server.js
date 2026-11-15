@@ -456,7 +456,7 @@ require('./second-screen');
 require('./screen-capture');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');
-require('./unifi-events');
+require('./smart-home/unifi-events');
 require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./football-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./news-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads

@@ -5,7 +5,7 @@
 const { createHomeAssistant } = require('../actions/home-assistant.js');
 const { createHaQuery } = require('../actions/home-assistant-query.js');
 const { createUnifiProtect } = require('../actions/unifi.js');
-const { createUnifiEvents } = require('../unifi-events.js');
+const { createUnifiEvents } = require('./unifi-events.js');
 const { readHubSettings } = require('../settings/read.js');
 
 // Lazy Home Assistant WebSocket client — same on-demand/idle-close/watch model as

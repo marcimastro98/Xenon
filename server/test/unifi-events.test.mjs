@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { decodeUpdatePacket, extractDetection } = require('../unifi-events.js');
+const { decodeUpdatePacket, extractDetection } = require('../smart-home/unifi-events.js');
 
 // Build one Protect update frame the same way the console does: 8-byte header
 // (packetType, JSON format, deflate flag, reserved, UInt32BE size) + payload.
