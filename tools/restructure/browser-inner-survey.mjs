@@ -10,7 +10,9 @@ import path from 'node:path';
 
 import { heldFunctions, isFunction } from './browser-inner-judge.mjs';
 import { readWrapperWith } from './browser-inner-plan.mjs';
+import { withOneSearch } from './browser-consumers.mjs';
 import { innerFilesOf } from './browser-ledger.mjs';
+import { nodeLoadWhy } from './browser-node-loads.mjs';
 import { helpersIn } from './browser-page-helpers.mjs';
 
 const OURS = /^server\/(?:js|components)\/.+\.js$/;
@@ -86,13 +88,19 @@ export function ourScripts(root) {
 
 /**
  * @param {string} root @param {any} parser @param {{ moves: any[] }} ledger
- * @returns {{ scripts: any[], made: number }} one survey per script that is not itself made of moved code, biggest first
+ * @returns {{ scripts: any[], made: number }} one survey per script that is not itself made of moved code, biggest first; a script Node loads too
+ *   is `{ file, lines, wrapped: false, node: true, why }`: nothing leaves it, and `why` says who loads it
  */
 export function surveyAll(root, parser, ledger) {
   const made = new Set(ledger.moves.filter((move) => ['script', 'inner', 'inline'].includes(move.kind)).map((move) => move.file));
   const read = (file) => readFileSync(path.join(root, file), 'utf8');
-  const scripts = ourScripts(root).filter((file) => !made.has(file))
-    .map((file) => surveyScript(read(file), file, parser, innerFilesOf(ledger, file).map((part) => ({ file: part, text: read(part) }))));
+  const files = ourScripts(root).filter((file) => !made.has(file));
+  const scripts = withOneSearch(root, files, () => files.map((file) => {
+    const text = read(file);
+    const why = nodeLoadWhy(root, file, text);
+    if (why) return { file, lines: text.split('\n').length - 1, wrapped: false, node: true, why };
+    return surveyScript(text, file, parser, innerFilesOf(ledger, file).map((part) => ({ file: part, text: read(part) })));
+  }));
   return { scripts: scripts.sort((a, b) => b.lines - a.lines || a.file.localeCompare(b.file)), made: made.size };
 }
 
@@ -124,7 +132,8 @@ export function renderSurvey({ scripts }, all = false) {
       + `  held: ${ORDER.map((kind) => `${kind} ${script.held[kind].functions}`).join(', ')}  if state could go ${script.ifState.lines} l, every constant ${script.ifConst.lines} l, both ${script.ifBoth.lines} l`
       + `${script.whole.length ? `  (says \`${script.whole[0]}\`: stays whole)` : ''}`);
   }
-  const others = scripts.filter((script) => !script.wrapped && (all || script.lines > BIG));
+  const inNode = scripts.filter((script) => script.node && (all || script.lines > BIG));
+  const others = scripts.filter((script) => !script.wrapped && !script.node && (all || script.lines > BIG));
   const handed = others.filter((script) => /handed values/.test(script.why));
   out.push('', `${wrapped.length} scripts${all ? '' : ` over ${BIG} lines`} are one plain wrapper: ${say(total.all)} declared in their wrappers, ${wrapped.reduce((sum, script) => sum + script.lines, 0)} lines in all.`,
     `Can leave today: ${say(total.free)}, and ${total.along.functions} constants whose value is written out (${total.along.lines} lines).`,
@@ -134,6 +143,8 @@ export function renderSurvey({ scripts }, all = false) {
     `Without the rule that keeps a constant a statement above it could reach: ${say(total.ifEarly)}.`,
     `Without the rule that keeps a decision in its script: ${say(total.ifDecides)}. ${say(total.decided)} hold one, whatever else keeps them.`,
     ...helperLines(wrapped),
-    `Not a plain wrapper${all ? '' : ` and over ${BIG} lines`}: ${handed.length} are handed values when called (they stay whole), ${others.length - handed.length} have no wrapper or are a module.`);
+    `Not a plain wrapper${all ? '' : ` and over ${BIG} lines`}: ${handed.length} are handed values when called (they stay whole), ${others.length - handed.length} have no wrapper or are a module.`,
+    `Loaded by Node too${all ? '' : ` and over ${BIG} lines`}, so nothing leaves them for a script of its own: ${inNode.length}.`,
+    ...inNode.map((script) => `  ${String(script.lines).padStart(5)} lines  ${script.why}`));
   return out;
 }

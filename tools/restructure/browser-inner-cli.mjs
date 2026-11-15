@@ -2,7 +2,7 @@
 //
 //   browser inner <script> [--json]        the functions of the script's wrapper: which may leave, in which groups, what keeps the others
 //   browser inner --survey [--all] [--json]   the same in numbers for every wrapped script over 300 lines (--all: every wrapped script)
-//   browser inner --from <script> --to <script's name>/<what it does>.js --about "<one sentence>" [--handed] [--recorded <before.json>] [--dry-run] <function | group:N> ...
+//   browser inner --from <script> --to server/js/<script's name>/<what it does>.js --about "<one sentence>" [--handed] [--recorded <before.json>] [--dry-run] <function | group:N> ...
 //   browser state <script> [--object <name>] [--not <let>,<let>] [--dry-run] [<let> ...]   the wrapper's lets (all of them, or the named ones) as properties of one object
 
 import { readFileSync } from 'node:fs';
@@ -12,13 +12,17 @@ import { withConstants } from './browser-inner-judge.mjs';
 import { readWrapper, readWrapperWith, windowNameOf } from './browser-inner-plan.mjs';
 import { renderSurvey, surveyAll, surveyScript } from './browser-inner-survey.mjs';
 import { innerFilesOf, readBrowserLedger } from './browser-ledger.mjs';
+import { nodeLoadWhy } from './browser-node-loads.mjs';
 import { Refusal } from './extract-plan.mjs';
 
 /** @param {string} root @param {any} parser @param {{ flags: any, rest: string[] }} args @returns {number} exit code */
 export function showInner(root, parser, { flags, rest }) {
   const file = rest[0];
   const read = (part) => readFileSync(path.join(root, part), 'utf8');
-  const found = surveyScript(read(file), file, parser, innerFilesOf(readBrowserLedger(root), file).map((part) => ({ file: part, text: read(part) })));
+  // A script Node loads too gives nothing: said first, with who loads it, before any list a person could act on.
+  const inNode = nodeLoadWhy(root, file, read(file));
+  const found = inNode ? { file, lines: read(file).split('\n').length - 1, wrapped: false, node: true, why: inNode }
+    : surveyScript(read(file), file, parser, innerFilesOf(readBrowserLedger(root), file).map((part) => ({ file: part, text: read(part) })));
   if (flags.json) { console.log(JSON.stringify(found, null, 1)); return 0; }
   if (!found.wrapped) { console.error(found.why); return 1; }
   console.log(`${file}: ${found.lines} lines, ${found.all.functions} functions in its wrapper (${found.all.lines} lines). ${found.free.functions} may leave (${found.free.lines} lines), and ${found.along.functions} constants whose value is written out (${found.along.lines} lines).`);

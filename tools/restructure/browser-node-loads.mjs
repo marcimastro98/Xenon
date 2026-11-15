@@ -118,3 +118,21 @@ export function nodeLoadProblems(root, file, run, fileIndex) {
   return [...reachedInNode(run, fileIndex).outside].sort().map((name) => `${loaders[0]} loads ${file} in Node, alone, and what runs there uses `
     + `${name}, which is in ${run.bindings.get(name).record.file}: it must be in ${file}`);
 }
+
+const EXPORTS = /\bmodule\.exports\b/;
+const SAID = 3;
+
+/**
+ * For the lists of what may leave a script: a script Node loads too gives none, and the reason says who loads it.
+ * @param {string} root @param {string} file repo-relative browser script @param {string} text its text
+ * @returns {string | null} why nothing leaves its wrapper for a script of its own, null for a script only pages load
+ */
+export function nodeLoadWhy(root, file, text) {
+  const loaders = nodeLoadersOf(root, file);
+  const line = text.split('\n').findIndex((written) => EXPORTS.test(written) && !/^\s*(\/\/|\*)/.test(written));
+  if (loaders.length === 0 && line < 0) return null;
+  const who = loaders.length
+    ? `required by ${loaders.slice(0, SAID).join(', ')}${loaders.length > SAID ? ` and ${loaders.length - SAID} more` : ''}`
+    : `it says \`module.exports\` on line ${line + 1}, though no tracked file requires it today`;
+  return `${file} is loaded by Node too (${who}): there it is one file, with no script before it and no window, so nothing leaves its wrapper for a script of its own`;
+}

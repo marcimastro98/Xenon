@@ -13,7 +13,7 @@
 //   node tools/restructure/cli.mjs browser module <script> --unwrap [--dry-run]   take the wrapper off a script that is a module already
 //   node tools/restructure/cli.mjs browser module --list [--all]           which scripts can become a module today, and what keeps the others
 //   node tools/restructure/cli.mjs browser inner <script> | --survey [--all]   the functions of a script's wrapper that may leave it, and what keeps the rest
-//   node tools/restructure/cli.mjs browser inner --from <script> --to <script's name>/<job>.js --about "<one sentence>" [--handed] [--recorded <before.json>] [--dry-run] <function | group:N> ...
+//   node tools/restructure/cli.mjs browser inner --from <script> --to server/js/<script's name>/<what it does>.js --about "<one sentence>" [--handed] [--recorded <before.json>] [--dry-run] <function | group:N> ...
 //   node tools/restructure/cli.mjs browser state <script> [--object <name>] [--not <let>,<let>] [--dry-run] [<let> ...]   the wrapper's lets as properties of one object
 //   node tools/restructure/cli.mjs browser consumers <file>                who names a browser file in code
 //   node tools/restructure/cli.mjs browser tests <file> [--write]          point the tests that read it as text at the reader
