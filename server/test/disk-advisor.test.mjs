@@ -9,31 +9,32 @@ import { makeDom } from './mini-dom.mjs';
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/disk-widget.js');
 
-function between(from, to) {
-  const start = SRC.indexOf(from);
-  const end = SRC.indexOf(to, start);
-  assert.ok(start >= 0 && end > start, from);
-  return SRC.slice(start, end);
+// One declaration of the widget by its name, cut to its own end. The widget is several scripts
+// read one after the other, so a piece is never "what lies between this line and that one":
+// the two lines may sit in different scripts, or swap places, the day a part moves.
+function named(opening, closing, name) {
+  const found = opening.exec(SRC);
+  assert.ok(found, `${name} is declared in the disk widget`);
+  const end = SRC.indexOf(closing, found.index);
+  assert.ok(end > found.index, `${name} ends`);
+  return SRC.slice(found.index, end) + closing.trimEnd();
 }
 // A table of the widget cut to its own end, whatever follows it where it lives.
-const table = (name) => `${between(`  const ${name} = {`, '\n  };\n')}\n  };`;
+const table = (name) => named(new RegExp(`^  const ${name} = \\{$`, 'm'), '\n  };\n', name);
 // A function of the widget cut to its own end, the same way.
-const fn = (head) => `${between(`  function ${head} {`, '\n  }\n')}\n  }`;
+const fn = (name) => named(new RegExp(`^  (?:async )?function ${name}\\(`, 'm'), '\n  }\n', name);
+const fns = (...names) => names.map(fn).join('\n');
 // What the window is drawn from, each piece on its own: a piece may live in a script next to the widget's.
-const DRAWN = ['advisorStat(label, value, detail)', 'advisorFact(label, text)', 'advisorStats(a)', 'advisorSection(title, intro)'].map(fn);
+const DRAWN = ['advisorStat', 'advisorFact', 'advisorStats', 'advisorSection'].map(fn);
+// The window itself: its heading, the rows that open, and the call that puts it on screen.
+const WINDOW = ['advisorHead', 'advisorRowHead', 'advisorCategory', 'advisorRecovery', 'advisorLargestRow', 'advisorLargest', 'advisorAi', 'openAdvisorModal'];
 
 const PARTS = [
   table('CAT_META'),
   table('CATEGORY_GUIDE'),
-  fn('el(tag, cls, text)'),
-  fn('btn(cls, label, onClick, title)'),
-  fn('closeAdvisorModal()'),
+  fns('el', 'btn', 'closeAdvisorModal'),
   ...DRAWN,
-  between('  function advisorRiskWords(risk) {', '  function advisorRecoveryItems('),
-  between('  function advisorRecoveryItems(a) {', '  // A treemap with dozens'),
-  between('  function advisorHead() {', '  return { advisorHead'),
-  between('  function openAdvisorModal() {', '  async function openTreeNode('),
-  between('  function renderConfirm() {', '  function renderCleaning() {'),
+  fns('advisorRiskWords', 'advisorRecoveryItems', ...WINDOW, 'renderConfirm'),
 ].join('\n');
 
 const ANALYSIS = {
@@ -224,12 +225,11 @@ test('the tile asks with Cancel on the left, the action on the right, and one wa
   assert.equal(keys[0].textContent, 'disk_cancel');
   assert.ok(keys[1].className.includes('diskw-btn-danger'));
   assert.equal(r.one('diskw-icon-btn', box), null);
-  assert.ok(!between('  function renderConfirm() {', '  function renderCleaning() {').includes(' · '));
+  assert.ok(!fn('renderConfirm').includes(' · '));
 });
 
 test('no sparkle or check mark as a picture in the window', () => {
-  const code = between('  function advisorHead() {', '  return { advisorHead') + between('  function openAdvisorModal() {', '  async function openTreeNode(')
-    + between('  async function runAdvisorAi(', '  function openAdvisorModal() {') + DRAWN.join('\n');
+  const code = fns(...WINDOW, 'runAdvisorAi') + DRAWN.join('\n');
   assert.ok(!/[✦✓▰▤]/.test(code));
 });
 
