@@ -55,7 +55,7 @@
       }
     }] } }
   },
-  "background": ["^GET /network$", "^(GET|POST) /bit/messages", "^GET /index/status$", "^GET /api/community/", "^GET /audio$", "^GET /sdk/widgets$", "^POST /settings "],
+  "background": ["^GET /network$", "^(GET|POST) /bit/messages", "^GET /index/status$", "^GET /api/community/", "^GET /audio$", "^GET /weather", "^GET /external-events$", "^GET /sdk/widgets$", "^POST /settings "],
   "replace": [["key-id=\"k_[a-z0-9]+\"", "key-id=\"k_…\""], ["deck-slider-fill \\[style=\"[^\"]*\"\\]", "deck-slider-fill"]],
   "skip": [".deck-key-live", ".deck-ed-styletools .deck-ed-btn"],
   "roots": ["#deck-editor-backdrop", ".deck-panel", "body > .sp-overlay", "body > .onb-overlay", "body > .cs-menu", "body > .cp-pop", "#toast-island"],
