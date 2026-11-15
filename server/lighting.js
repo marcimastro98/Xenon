@@ -58,7 +58,7 @@ bridge.config = {
   // what each LED shows, the rest follow Xenon (lighting-led-colors.js).
   deviceModes: {},
 };
-const { albumActive, gamingPaused, refreshAnimationLayer } = require('./lights/paint-rules.js');
+const { albumActive, refreshAnimationLayer } = require('./lights/paint-rules.js');
 const {
   DEVICE_MODES, ANIM_STYLES, PER_DEVICE_ANIM_STYLES, EVENT_DURATION_MS, clampEventDuration,
   sanitizePalette, GENERIC_DEFAULT_COLOR, CANDLE_DEFAULT_COLOR,
@@ -69,7 +69,6 @@ const { writeDevice, paintDevices, releaseAll, getDevices } = require('./lights/
 // A native frame is painted in the background: when it fails, forget what was
 // sent so the next apply() paints that device again, and say why.
 native.setWriteErrorHook((id, e) => { bridge.lastError = e.message; bridge.lastWrite.delete(id); });
-const EVENT_TICK_MS = 60;
 const POWER_HOLD_MS = 60000;                     // painting resumes by itself if the PC did not go off after all (a cancelled shutdown)
 
 const { disconnect } = require('./lights/sdk-load.js');
@@ -90,44 +89,9 @@ const {
 } = require('./lights/status.js');
 
 const { apply } = require('./lights/paint.js');
+const { onSystem, onAudio, onStatus, onEvent } = require('./lights/feeds.js');
+
 paint.apply = apply;   // what the session's own steps (lights/paint-hook.js) repaint through
-
-// --- data feeds (called from server.js on existing SSE intervals) ---
-function onSystem(info) {
-  if (bridge.config.effects.temperature && info && info.cpuTemp != null) {
-    bridge.layers.base = fx.tempToColor(Number(info.cpuTemp));
-  }
-  apply();
-}
-// Volume → flash effect removed (it was unreliable). No-op kept so the server's
-// audio SSE tick can still call it harmlessly.
-function onAudio() { /* volume flash removed */ }
-function onStatus() { apply(); } // re-evaluate game-mode idle
-
-// Start an event flash for the given type if its effect is enabled. Works even
-// with the master OFF (independent effect) — needs only a live sink and no game
-// pause. The bridge stays connected while any event effect is enabled, so the
-// flash is ready to fire instantly. Drives a short self-cancelling loop.
-function startEvent(type) {
-  const cfg = bridge.config.effects[type];
-  if (!cfg || typeof cfg !== 'object' || cfg.enabled === false) return;
-  if (gamingPaused()) return;
-  // Arm the flash FIRST, then ensure a sink. If none is live yet (e.g. Bit's rage
-  // flash on a bridge that isn't holding a session — 'vitals' is deliberately not in
-  // shouldConnect(), so it must come up on demand), maybeReconnectForPaint() brings
-  // iCUE up on the apply() ticks and the armed flash paints once connected. The old
-  // early-return here dropped the flash entirely whenever no session was already up —
-  // which is exactly why the LEDs never reacted when a vital hit zero.
-  bridge.eventAnim = { style: cfg.style || 'blink', color: cfg.color || '#ff0000', startMs: Date.now(), durationMs: clampEventDuration(cfg.durationMs, EVENT_DURATION_MS) };
-  if (!bridge.eventTimer) bridge.eventTimer = setInterval(() => apply(), EVENT_TICK_MS);
-  if (!bridge.connected && !external.hasDevices() && isAvailable()) connect();
-  apply();
-}
-
-// Public event entry point (timer server-side; reminder/notification via endpoint).
-function onEvent(type) {
-  if (['timer', 'notification', 'reminder', 'vitals'].includes(type)) startEvent(type);
-}
 
 // --- control surface (called from endpoints / AI) ---
 function setManualColor(input) {

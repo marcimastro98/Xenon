@@ -1009,7 +1009,8 @@
       {"file":"server/lights/status.js","about":"What the lights are doing now, as the pages and the tools read it.","names":["isConnected","getLastError","isLightsOut","getExternalStatus","getExternalConfig","getConfig","deviceModeOf","getStatus"]},
       {"file":"server/lights/session.js","about":"The iCUE session: connect, wait for the SDK to say it is up, list the devices and their LEDs, wake a board that needs it. A repaint is asked through lights/paint-hook.js.","names":["CSS_CONNECTED","connect","ensureConnected","onConnected","enumerate","enumerateOnce","boardsToWake","wakeVendorBoard","enumerationComplete"]},
       {"file":"server/lights/upkeep.js","about":"What keeps the session and the device list true between two paints: connect or let go as the settings ask, the animation ticker, a reconnect not sooner than the pause, a device list asked again a bounded number of times.","names":["MAX_PARTIAL_ENUM_RETRIES","ANIM_TICK_MS","CONNECT_RETRY_MS","DEVICE_RESCAN_MS","reconcileConnection","syncAnimationTicker","tickAnimation","maybeReconnectForPaint","enumerationIncomplete","boundedReenumerate","maybeReenumerate"]},
-      {"file":"server/lights/paint.js","about":"One repaint of every light from what the bridge holds now, and the end of an event flash, which repaints.","names":["apply","stopEvent"]}
+      {"file":"server/lights/paint.js","about":"One repaint of every light from what the bridge holds now, and the end of an event flash, which repaints.","names":["apply","stopEvent"]},
+      {"file":"server/lights/feeds.js","about":"What the engine feeds the lights with: system readings, the audio level, the status, and an event that flashes for a moment.","names":["EVENT_TICK_MS","onSystem","onAudio","onStatus","startEvent","onEvent"],"tidy":true}
     ]
   },
   "spreads": {
