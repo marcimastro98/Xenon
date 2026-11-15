@@ -217,7 +217,6 @@
       "files": [
         "server/codex/**",
         "server/codex-*.js",
-        "server/chatgpt-ask.js",
         "server/js/codex-widget/**",
         "server/js/codex-widget.js",
         "server/js/chatgpt-widget.js",

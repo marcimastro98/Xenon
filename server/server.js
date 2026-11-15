@@ -472,9 +472,9 @@ const claudeHistory = require('./claude-history');
 const claudeCommands = require('./claude-commands');
 const claudeAttach = require('./claude-attach');
 const codexAppServer = require('./codex-appserver');
-const codexBridge = require('./codex-bridge');
+const codexBridge = require('./codex/codex-bridge');
 const codexLink = require('./codex-link');
-const chatgptAsk = require('./chatgpt-ask');
+const chatgptAsk = require('./codex/chatgpt-ask');
 const communityCatalog = require('./community-catalog');
 require('./community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./community-installs'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads

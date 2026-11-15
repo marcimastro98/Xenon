@@ -108,7 +108,7 @@ test('a Claude Code approval never hides part of the command', () => {
 });
 
 test('a Codex approval never hides part of the command either', () => {
-  const cb = require('../codex-bridge.js');
+  const cb = require('../codex/codex-bridge.js');
   const b = cb.createBridge();
   const perm = (tool, input) => ({ hook_event_name: 'PermissionRequest', session_id: 's1', cwd: '/home/x/p', model: 'm', permission_mode: 'default', tool_name: tool, tool_input: input, turn_id: 't1' });
   assert.equal(b.requestPermission(perm('Bash', { command: 'echo ' + 'x'.repeat(900) + '; rm -rf ~' })), null);

@@ -2,7 +2,7 @@
 // "Ask ChatGPT" tile: a conversation answered on the user's ChatGPT plan.
 //
 // The answers come from OpenAI's own codex program signed in with that plan
-// (server/chatgpt-ask.js says why that is the one honest way in). The tile says
+// (server/codex/chatgpt-ask.js says why that is the one honest way in). The tile says
 // so where it matters: answers do not show up in the ChatGPT app's history, and
 // they draw on the same plan limits, whose usage it shows in the header (read
 // from the Codex feed, the same numbers as the Codex tile).

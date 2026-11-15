@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const cb = require('../codex-bridge.js');
+const cb = require('../codex/codex-bridge.js');
 
 const CWD = process.platform === 'win32' ? 'C:\\Users\\x\\proj\\xenon' : '/home/x/proj/xenon';
 const OUTSIDE = process.platform === 'win32' ? 'C:\\Windows\\system.ini' : '/etc/hosts';

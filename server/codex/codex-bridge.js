@@ -31,7 +31,7 @@ const MAX_SESSIONS = 20;
 const MAX_PENDING = 8;
 const {
   str, firstLine, parsePatch, fitsOnCard, describeCodexTool, codexRisks, irreversible,
-} = require('./codex/bridge-describe.js');
+} = require('./bridge-describe.js');
 const SESSION_STALE_MS = 60 * 60 * 1000;
 const SESSION_RESTING_MS = 8 * 60 * 1000;
 const ENDED_KEEP_MS = 10 * 60 * 1000;

@@ -791,7 +791,7 @@
       {"file":"server/media/lyrics-clean.js","about":"Cleans a track's title and artist before lyrics are looked up: video tags, remaster notes and featured artists out, and the searches to try in order.","names":["MIN_DURATION_S","MAX_DURATION_S","MAX_LINE_CHARS","CONTROL_RE","DASH_RE","NOISE_TAG_RE","HOST_SUFFIX_RE","PIPE_TAIL_RE","REMASTER_RE","FEAT_TITLE_RE","FEAT_ARTIST_RE","CHANNEL_RE","cleanText","fold","cleanTrackTitle","cleanArtist","stripFeat","firstArtist","validDuration","heardOnly","trackKey","buildQueries"]},
       {"file":"server/media/lyrics-parse.js","about":"Reads lyrics into lines: timed ones from the LRC format, and plain text.","names":["MAX_LINES","STAMP_RE","WORD_STAMP_RE","OFFSET_RE","stampMs","parseLrc","parsePlain"]}
     ],
-    "server/codex-bridge.js": [
+    "server/codex/codex-bridge.js": [
       {"file":"server/codex/bridge-describe.js","about":"Turns a tool call of Codex into what the tile shows: a one-line summary, the files a patch touches, and how loudly it must be asked about.","names":["MAX_STR","MAX_DETAIL","MAX_FILES","str","firstLine","parsePatch","shown","allArgs","fitsOnCard","describeCodexTool","codexRisks","irreversible"]}
     ],
     "server/deck/linux-hotkey.js": [

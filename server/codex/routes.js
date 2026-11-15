@@ -4,10 +4,10 @@
 
 const { readBody } = require('../http/read-body.js');
 const { _codexCfg } = require('./widget-config.js');
-const codexBridge = require('../codex-bridge.js');
+const codexBridge = require('./codex-bridge.js');
 const codexLink = require('../codex-link.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const chatgptAsk = require('../chatgpt-ask.js');
+const chatgptAsk = require('./chatgpt-ask.js');
 const { codexState } = require('./tile-state.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

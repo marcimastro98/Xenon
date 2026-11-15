@@ -11,7 +11,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ga = require('../chatgpt-ask.js');
+const ga = require('../codex/chatgpt-ask.js');
 const { writeFileAtomic } = require('../atomic-write.js');
 
 async function tmpFile() {
