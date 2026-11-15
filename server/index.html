@@ -283,7 +283,7 @@
 <link rel="stylesheet" href="components/PhoneView/PhoneView.css">
 <link rel="stylesheet" href="components/PhoneView/PhoneViewWidgets.css">
 <link rel="stylesheet" href="components/PhoneView/PhoneViewDock.css">
-<!-- Browser-only "preview at Xeneon Edge size" stage (js/edge-preview.js) -->
+<!-- Browser-only "preview at Xeneon Edge size" stage (js/grid/edge-preview.js) -->
 <link rel="stylesheet" href="styles/edge-preview.css">
 <link rel="stylesheet" href="components/LayerHost/LayerHost.css">
 <link rel="stylesheet" href="components/LayerHost/LayerHostEditCard.css">
@@ -2772,7 +2772,7 @@
       </div>
 
       <!-- Browser-only: preview the dashboard at the Xeneon Edge's 2560×720 size. Revealed by
-           js/edge-preview.js when not running in the native app. Hidden via display (not `hidden`):
+           js/grid/edge-preview.js when not running in the native app. Hidden via display (not `hidden`):
            the settings category switcher owns `hidden` and would re-reveal the row on every
            category change. -->
       <div data-dash-card class="settings-group settings-behavior-group" data-settings-cat="display" id="settings-edge-preview-row" style="display:none">
@@ -4988,10 +4988,10 @@
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="layer-i18n.js"></script>
-<script src="js/fit-row.js"></script>
+<script src="js/grid/fit-row.js"></script>
 <script src="js/native-bridge.js"></script>
 <script src="js/icue-host.js"></script>
-<script src="js/edge-preview.js"></script>
+<script src="js/grid/edge-preview.js"></script>
 <script src="js/ai/audio-feedback.js"></script>
 <script src="js/time/clock.js"></script>
 <script src="js/audio/mic.js"></script>
@@ -5035,7 +5035,7 @@
 <script src="js/app-switcher/favorites.js"></script>
 <script src="js/app-switcher/windows.js"></script>
 <script src="js/app-switcher.js"></script>
-<script src="js/tab-switcher.js"></script>
+<script src="js/grid/tab-switcher.js"></script>
 <script src="js/ambient/ambient-freeze.js"></script>
 <script src="js/dialog-focus.js"></script>
 <script src="js/discord-invite.js"></script>
@@ -5062,7 +5062,7 @@
 <script src="js/sensor-sources.js"></script>
 <script src="js/game-ignore.js"></script>
 <script src="js/sensor-history.js"></script>
-<script src="js/dashboard-portrait.js"></script>
+<script src="js/grid/dashboard-portrait.js"></script>
 <script src="js/save-file.js"></script>
 <script src="js/perf-settings.js"></script>
 <script src="js/perf-hud.js"></script>
@@ -5226,10 +5226,10 @@
 <script src="js/ai/bit-told.js"></script>
 <script src="js/ai/ai-live.js"></script>
 <script src="vendor/gridstack/gridstack-all.js"></script>
-<script src="js/page-target.js"></script>
-<script src="js/dashboard-pager.js"></script>
+<script src="js/grid/page-target.js"></script>
+<script src="js/grid/dashboard-pager.js"></script>
 <script src="js/dashboard-instances.js"></script>
-<script src="js/tile-tab-memory.js"></script>
+<script src="js/grid/tile-tab-memory.js"></script>
 <script src="js/gif-read.js"></script>
 <script src="js/gif-write.js"></script>
 <script src="js/anim-picture.js"></script>
@@ -5241,14 +5241,14 @@
 <script src="js/ambient-canvas-editor-form/controls.js"></script>
 <script src="js/ambient-canvas-editor-form.js"></script>
 <script src="js/ambient/ambient-canvas-editor.js"></script>
-<script src="js/dashboard-grid.js"></script>
+<script src="js/grid/dashboard-grid.js"></script>
 <script src="js/dashboard-tabgroups/tab-labels-and-reorder.js"></script>
 <script src="js/dashboard-tabgroups/group-tile.js"></script>
 <script src="js/dashboard-tabgroups.js"></script>
 <script src="js/dashboard-pages/pager.js"></script>
 <script src="js/dashboard-pages.js"></script>
 <script src="js/palette-model.js"></script>
-<script src="js/dashboard-palette.js"></script>
+<script src="js/grid/dashboard-palette.js"></script>
 <script src="js/dashboard-presets.js"></script>
 <script src="js/first-run/genesis.js"></script>
 <script src="js/game-companion/says.js"></script>
@@ -5487,7 +5487,7 @@
 <script src="js/history-chart.js"></script>
 <script src="js/guardian-history/charts.js"></script>
 <script src="js/guardian-history.js"></script>
-<script src="js/context-profiles.js"></script>
+<script src="js/grid/context-profiles.js"></script>
 <script src="js/buy-sheet-model.js"></script>
 <script src="js/buy-sheet-parts.js"></script>
 <script src="js/buy-sheet-motion.js"></script>
@@ -5526,7 +5526,7 @@
 <script src="js/update/failure-words.js"></script>
 <script src="js/update.js"></script>
 <script src="js/ai/sheet-chat.js"></script>
-<script src="js/dashboard-open.js"></script>
+<script src="js/grid/dashboard-open.js"></script>
 <script src="js/ai/sheet-usage.js"></script>
 <script src="js/ai/sheet-page.js"></script>
 <script src="js/xenon-menu-icons.js"></script>
@@ -5567,7 +5567,7 @@
      We now re-evaluate on every DPR and viewport change, applying OR removing the zoom
      to match the current state. If this shifts or clips the bar layout, delete this
      whole block to revert. -->
-<script src="js/page-zoom.js"></script>
+<script src="js/grid/page-zoom.js"></script>
 
 </body>
 </html>

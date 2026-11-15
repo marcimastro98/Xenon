@@ -71,7 +71,7 @@ test('the grid does not fit its rows to the button (#152)', () => {
   const grid = { el: { parentElement: box, style: {}, closest: () => null }, on() {}, setStatic() {}, getRow: () => 8, cellHeight(v) { cellHeights.push(v); } };
   Object.assign(ctx, { GridStack: { init: () => grid }, ResizeObserver: class { observe() {} unobserve() {} } });
   vm.createContext(ctx);
-  vm.runInContext(read('../js/dashboard-grid.js'), ctx);
+  vm.runInContext(read('../js/grid/dashboard-grid.js'), ctx);
   ctx.window.DashboardGrid.mountPageGrid('main', grid.el);
   box.clientHeight = 40;
   ctx.window.DashboardGrid.fitGridHeights();

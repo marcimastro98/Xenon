@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 // Tiles resize from two corners (Discord request): to fill free space above or
 // to the left, a tile no longer has to be moved first and then resized.
 
-const GRID = readFileSync(new URL('../js/dashboard-grid.js', import.meta.url), 'utf8');
+const GRID = readFileSync(new URL('../js/grid/dashboard-grid.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/DashboardGrid/DashboardGrid.css', import.meta.url), 'utf8');
 
 test('GridStack builds a top-left and a bottom-right handle', () => {

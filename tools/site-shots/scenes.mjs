@@ -138,7 +138,7 @@ const NO_AUDIO_ROW = `document.querySelector('.dc-ctl-audio')?.remove();`;
 const GAME_OPEN = `document.querySelector('.yt-v-fill')?.click(); ${NO_AUDIO_ROW}`;
 
 // The vertical Edge: the same tiles without the timer, arranged by hand on the
-// vertical grid (24 columns by 48 rows, js/dashboard-portrait.js), because the
+// vertical grid (24 columns by 48 rows, js/grid/dashboard-portrait.js), because the
 // generated arrangement leaves the short tiles half empty at that height.
 const at = (x, y, w, h) => ({ x, y, w, h, page: 'dashboard' });
 const VERTICAL = Object.assign(layout({

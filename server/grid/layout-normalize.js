@@ -12,7 +12,7 @@ const {
 const { scaleDashboardLayoutUnits } = require('./layout-unit-migration.js');
 const { normalizeDashboardPages } = require('./pages-normalize.js');
 const DashboardInstances = require('../js/dashboard-instances.js');
-const DashboardPortrait = require('../js/dashboard-portrait.js');
+const DashboardPortrait = require('../js/grid/dashboard-portrait.js');
 
 function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
@@ -122,7 +122,7 @@ function normalizeDashboardLayout(value) {
   layout.timerAddCollapsed = source.timerAddCollapsed === true;
   layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   // The vertical layout's own geometry; validated against the ids above, so it
-  // must stay last. Same rule as the client (js/dashboard-portrait.js).
+  // must stay last. Same rule as the client (js/grid/dashboard-portrait.js).
   layout.portrait = DashboardPortrait.normalizePortrait(source.portrait, layout);
   return layout;
 }

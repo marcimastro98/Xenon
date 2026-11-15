@@ -27,7 +27,7 @@
 // use, the shell says so (`behind`), and asking for the menu then brings it
 // forward instead of closing what the user cannot see (`front` counts the asks).
 
-const DashboardOpen = require('../js/dashboard-open.js');
+const DashboardOpen = require('../js/grid/dashboard-open.js');
 
 const SECTIONS = ['now', 'widgets', 'capture', 'keys', 'look', 'mode'];
 // A key or a saved link from before the two widget sections became one.

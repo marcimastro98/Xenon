@@ -63,7 +63,7 @@
   const TABLET_MAX_W = 1120;
 
   // A SCREEN TALLER THAN IT IS WIDE gets the vertical layout
-  // (js/dashboard-portrait.js): the same tiles, arranged for that shape, on the
+  // (js/grid/dashboard-portrait.js): the same tiles, arranged for that shape, on the
   // ordinary grid. Neither older answer worked. Stacking kept each tile's
   // landscape height and spread it over three times the screen (a vertical
   // Edge drew the Deck 1258px tall with eight keys in the middle); keeping the
@@ -735,7 +735,7 @@
       isActive: () => !!active,
       /** 'phone' | 'tablet' | 'column' | null — for anything that needs to tell them apart. */
       mode: () => active,
-      /** True while the vertical layout is drawn (js/dashboard-portrait.js). */
+      /** True while the vertical layout is drawn (js/grid/dashboard-portrait.js). */
       isPortrait: () => portrait,
       readingOrder,
       /**

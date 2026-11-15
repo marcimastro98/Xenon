@@ -66,7 +66,7 @@ function makePager() {
     clearTimeout: () => {},
     console,
   };
-  vm.runInNewContext(read('js/dashboard-pager.js'), sandbox);
+  vm.runInNewContext(read('js/grid/dashboard-pager.js'), sandbox);
   const pager = window.DashboardPager;
   const home = element('home');
   const other = element('other');

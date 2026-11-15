@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
-const M = require('../js/tile-tab-memory.js');
+const M = require('../js/grid/tile-tab-memory.js');
 
 test('a remembered tab comes back, per tile id', () => {
   let map = {};
@@ -62,10 +62,10 @@ test('the map is capped, the oldest tiles go first', () => {
 test('the module loads before the widgets that use it', () => {
   const html = read('index.html');
   const at = (src) => html.indexOf('<script src="js/' + src + '"></script>');
-  assert.ok(at('tile-tab-memory.js') > 0);
+  assert.ok(at('grid/tile-tab-memory.js') > 0);
   for (const w of ['discord-widget.js', 'spotify-widget.js', 'streamerbot-widget.js', 'twitchwatch-widget.js',
     'youtube-widget.js', 'phone-widget.js', 'football-widget.js', 'disk-widget.js']) {
-    assert.ok(at(w) > at('tile-tab-memory.js'), w + ' must load after tile-tab-memory.js');
+    assert.ok(at(w) > at('grid/tile-tab-memory.js'), w + ' must load after tile-tab-memory.js');
     const src = read('js', w);
     assert.match(src, /TileTabMemory\.get\(/, w + ' reads the remembered tab');
     assert.match(src, /TileTabMemory\.set\(/, w + ' remembers the tapped tab');

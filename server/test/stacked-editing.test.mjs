@@ -16,10 +16,10 @@ import { createRequire } from 'node:module';
 import { readFileSync } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { gridStaticFor } = require('../js/dashboard-grid.js');
+const { gridStaticFor } = require('../js/grid/dashboard-grid.js');
 
 const CSS = readFileSync(new URL('../components/PhoneView/PhoneView.css', import.meta.url), 'utf8');
-const GRID = readFileSync(new URL('../js/dashboard-grid.js', import.meta.url), 'utf8');
+const GRID = readFileSync(new URL('../js/grid/dashboard-grid.js', import.meta.url), 'utf8');
 const PHONE = readFileSync(new URL('../js/phone-view.js', import.meta.url), 'utf8');
 
 // ── The rule ─────────────────────────────────────────────────────────────────

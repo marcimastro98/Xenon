@@ -8,7 +8,7 @@
 
 const DashboardPresets = require('../js/dashboard-presets.js');
 const DashboardInstances = require('../js/dashboard-instances.js');
-const DashboardGrid = require('../js/dashboard-grid.js');
+const DashboardGrid = require('../js/grid/dashboard-grid.js');
 const AmbientScene = require('../js/ambient-scene.js');
 const themePalette = require('../js/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding, overlapArea, contains, boxText } = require('./ai-preset-critique-core.js');
@@ -73,7 +73,7 @@ function pageDuplicates(items) {
 }
 
 // Rows stretch to fill the screen, so the page is COLS x its lowest edge; a
-// lone tile stretches only down to MIN_FILL_ROWS (js/dashboard-grid.js).
+// lone tile stretches only down to MIN_FILL_ROWS (js/grid/dashboard-grid.js).
 function pageSpace(items) {
   const bottom = Math.max(...items.map((it) => it.y + it.h));
   const rows = items.length === 1 ? Math.max(bottom, DashboardGrid.MIN_FILL_ROWS) : bottom;

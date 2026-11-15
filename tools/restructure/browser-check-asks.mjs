@@ -38,7 +38,7 @@ export function openCompanion() {
   return window.ScreenCompanion.open({ game: 'sample.exe' }).then(told, (error) => `not loaded: ${error?.message || error}`);
 }
 
-// The rows that pick a more compact look when space runs out (js/fit-row.js), as the page shows them. Asked before
+// The rows that pick a more compact look when space runs out (js/grid/fit-row.js), as the page shows them. Asked before
 // and after the window is made narrower, so that a row which stopped following its width is a difference.
 //
 // The level itself is not the answer: it depends on what the row holds that day. The system tabs end with how long

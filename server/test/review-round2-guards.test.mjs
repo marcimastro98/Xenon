@@ -59,7 +59,7 @@ test('an aborted file load closes the file', () => {
 });
 
 test('a link elsewhere cannot start an update in a plain browser', () => {
-  const src = read('../js/dashboard-open.js');
+  const src = read('../js/grid/dashboard-open.js');
   assert.match(src, /if \(req\.open === 'update' && !window\.__XENON_NATIVE_CAPS__\) return;/);
 });
 

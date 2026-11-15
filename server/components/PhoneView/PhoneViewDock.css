@@ -224,7 +224,7 @@
    GEOMETRY cannot survive here: tiles are drawn in reading order, not at their
    grid coordinates, so a drag moves a tile somewhere nobody can see and the
    corner handle resizes against a width the tile does not have. The overlay is
-   hidden for tidiness, but the real refusal is in js/dashboard-grid.js, which
+   hidden for tidiness, but the real refusal is in js/grid/dashboard-grid.js, which
    keeps the grid static while this view is on — the drag handle is the tile
    CONTENT, so hiding an overlay was never going to stop a drag by itself.
 

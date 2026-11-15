@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
 globalThis.window = { DashboardInstances: DI, innerWidth: 1920 };
 const TileMaterial = require('../js/tile-material.js');
-const PageTarget = require('../js/page-target.js');
+const PageTarget = require('../js/grid/page-target.js');
 const { workingCopy, buildStyle } = require('../js/tile-style-editor.js');
 
 const IT = { layout_widget_media: 'Riproduzione', layout_widget_system: 'Sistema', tile_style_title: 'Stile del widget', tile_dress_not_found: 'Non trovo "{name}".' };

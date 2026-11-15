@@ -112,7 +112,7 @@ test('a module of Node lends its names, and nothing of it can be used while the 
 test('the layout rules the engine shares with the page load the same at any moment, the engine itself does not', () => {
   const alone = repoAloneTest();
   assert.equal(alone('server/js/dashboard-instances.js'), '');
-  assert.equal(alone('server/js/dashboard-portrait.js'), '');
+  assert.equal(alone('server/js/grid/dashboard-portrait.js'), '');
   assert.notEqual(alone('server/server.js'), '');
 });
 

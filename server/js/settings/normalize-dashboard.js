@@ -270,7 +270,7 @@ function normalizeDashboardLayout(value) {
   layout.timerAddCollapsed = source.timerAddCollapsed === true;
   layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   // The vertical layout's own geometry; validated against the ids above, so it
-  // must stay last. Same rule as the server (js/dashboard-portrait.js, loaded
+  // must stay last. Same rule as the server (js/grid/dashboard-portrait.js, loaded
   // before this file).
   layout.portrait = (typeof DashboardPortrait !== 'undefined')
     ? DashboardPortrait.normalizePortrait(source.portrait, layout)

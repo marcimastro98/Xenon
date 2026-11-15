@@ -74,7 +74,7 @@ function rig({ touch = false, packages = [], catalog = [], examples = [] } = {})
   };
   vm.runInNewContext(read('../js/dialog-focus.js'), { window, document });
   vm.runInNewContext(read('../js/fuzzy-find.js'), box);
-  vm.runInNewContext(read('../js/dashboard-palette.js'), box);
+  vm.runInNewContext(read('../js/grid/dashboard-palette.js'), box);
   const press = (key) => {
     const ev = { key, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
     keys.slice().forEach((fn) => fn(ev));

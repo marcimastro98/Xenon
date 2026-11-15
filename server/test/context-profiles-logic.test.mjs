@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { profileIsActive, decideContextAction } = require('../js/context-profiles.js');
+const { profileIsActive, decideContextAction } = require('../js/grid/context-profiles.js');
 
 // Pure decision core of Smart context profiles (the DOM/timer controller is
 // browser-only and skipped when window is undefined, as here under node).

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const SRC = readFileSync(new URL('../js/dashboard-grid.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/grid/dashboard-grid.js', import.meta.url), 'utf8');
 
 // Loads the classic script into a page with no window resize at all: only the
 // ResizeObserver the grid itself creates can tell it the box changed.

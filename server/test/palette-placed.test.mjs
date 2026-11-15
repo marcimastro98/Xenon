@@ -93,7 +93,7 @@ test('the filters apply to them: a category shows its own, Installed shows none'
 });
 
 // ── The panel draws them ────────────────────────────────────────────────────
-const PALETTE = read('../js/dashboard-palette.js');
+const PALETTE = read('../js/grid/dashboard-palette.js');
 
 test('the panel lists them last, in the filter that is on, and in the search', () => {
   assert.match(PALETTE, /renderBlock\(pop, 'palette_placed', PM\(\)\.filterEntries\(placedModel, filter\)\.map\(toPlacedItem\), \(e\) => e\.pick\(\)\);\n    \};\n    render\(\);/);

@@ -28,7 +28,7 @@ function withResizeObserver(fn) {
   try { return fn(observed); } finally { delete globalThis.ResizeObserver; }
 }
 
-const FitRow = require('../js/fit-row.js');
+const FitRow = require('../js/grid/fit-row.js');
 
 test('the first level that fits wins, the last one when none does', () => {
   assert.equal(FitRow.pick(4, (lv) => lv >= 2), 2);
@@ -81,9 +81,9 @@ test('a hidden or detached row keeps its level until it can be measured', () => 
 test('the System tabs and the Deck segments are fit rows', () => {
   const html = read('../index.html');
   assert.match(html, /<div class="system-tabs" data-fit-levels="3">/);
-  const scripts = [...html.matchAll(/<script src="js\/([\w-]+)\.js"/g)].map((m) => m[1]);
-  assert.ok(scripts.indexOf('fit-row') > scripts.indexOf('i18n'), 'loaded after i18n');
-  assert.ok(scripts.indexOf('fit-row') < scripts.indexOf('dashboard-layout'), 'loaded before the copies of the System tile are made');
+  const scripts = [...html.matchAll(/<script src="js\/([\w/-]+)\.js"/g)].map((m) => m[1]);
+  assert.ok(scripts.indexOf('grid/fit-row') > scripts.indexOf('i18n'), 'loaded after i18n');
+  assert.ok(scripts.indexOf('grid/fit-row') < scripts.indexOf('dashboard-layout'), 'loaded before the copies of the System tile are made');
   assert.match(read('../js/dashboard-layout.js'), /if \(window\.FitRow\) window\.FitRow\.watchAll\(clone\);/);
   assert.match(read('../js/deck/deck-editor-behavior.js'), /seg\.dataset\.fitLevels = '2';/);
   const ed = read('../js/deck-editor.js');
@@ -118,7 +118,7 @@ function fitRowWindow() {
   };
   win.requestAnimationFrame = (run) => win.frames.push(run);
   win.nextFrame = () => { for (const run of win.frames.splice(0)) run(); };
-  vm.runInNewContext(read('../js/fit-row.js'), win);
+  vm.runInNewContext(read('../js/grid/fit-row.js'), win);
   return win;
 }
 

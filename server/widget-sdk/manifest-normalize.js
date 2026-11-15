@@ -243,7 +243,7 @@ function normalizeManifest(raw, folderId) {
       // falls back to the catalog entry's category, then "other".
       category: ['productivity', 'media', 'system', 'streaming'].includes(raw.category) ? raw.category : null,
       // The shape the widget was drawn for, so a new tile of it starts with that
-      // shape instead of the default span (js/dashboard-grid.js spanForSize).
+      // shape instead of the default span (js/grid/dashboard-grid.js spanForSize).
       // Cosmetic like the category; anything else is dropped.
       size: TILE_SIZES.includes(raw.size) && raw.surface !== 'ambient' ? raw.size : null,
       // The widget's own choices, set by the person in the Xenon menu's panel of it and

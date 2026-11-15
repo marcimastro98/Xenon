@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const P = require('../js/dashboard-portrait.js');
+const P = require('../js/grid/dashboard-portrait.js');
 
 const EDGE = { width: 720, height: 2400 };
 

@@ -45,9 +45,9 @@ let hubSettings = {};
 
   // Where the gallery asked for by Bit or a Deck key opens: "widgets only" has
   // no dashboard to show it in, so this page becomes the dashboard with it open
-  // (js/dashboard-open.js), as the tray's "Open Xenon" does. '' = nowhere.
+  // (js/grid/dashboard-open.js), as the tray's "Open Xenon" does. '' = nowhere.
   function galleryUrl(d) {
-    const D = (typeof window !== 'undefined' && window.DashboardOpen) || require('./dashboard-open.js');
+    const D = (typeof window !== 'undefined' && window.DashboardOpen) || require('./grid/dashboard-open.js');
     const extra = D.query({ ...(d && typeof d === 'object' ? d : {}), open: 'gallery' });
     return extra ? MAIN_URL + '&full=1' + extra : '';
   }

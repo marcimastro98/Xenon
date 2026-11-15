@@ -8,7 +8,7 @@ import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const DashboardOpen = require('../js/dashboard-open.js');
+const DashboardOpen = require('../js/grid/dashboard-open.js');
 const { createScreenMenu } = require('../menu/screen-menu.js');
 
 const ID = '0123456789abcdef';
@@ -166,9 +166,9 @@ test('the pages are wired: the menu goes to a sheet in place, and the dashboard 
     assert.ok(i >= 0, file);
     return i;
   };
-  assert.ok(at(menuHtml, 'dashboard-open.js') < at(menuHtml, 'screen-menu-page.js'));
+  assert.ok(at(menuHtml, 'grid/dashboard-open.js') < at(menuHtml, 'screen-menu-page.js'));
   const index = read('../index.html');
-  assert.ok(at(index, 'dashboard-open.js') < at(index, 'ai/sheet-page.js'));
+  assert.ok(at(index, 'grid/dashboard-open.js') < at(index, 'ai/sheet-page.js'));
   assert.ok(at(index, 'ai/sheet-page.js') < at(index, 'main.js'));
   assert.match(index, /components\/SheetPage\/SheetPage\.css/);
   assert.match(read('../js/main.js'), /VALID_PANELS = \[.*'sheet'\]/);

@@ -12,7 +12,7 @@
   // gone). Anything that lands mid-flight, a settle or a re-snap, then reads the
   // page as page 1. Restores jump; only real moves (goToPage) glide.
   const RESTORE_SCROLL = 'instant';
-  // "Go to Streaming", "page 2", "next": js/page-target.js (loaded first).
+  // "Go to Streaming", "page 2", "next": js/grid/page-target.js (loaded first).
   const PageTarget = (typeof window !== 'undefined' && window.PageTarget)
     || (typeof require === 'function' ? require('./page-target.js') : null);
 

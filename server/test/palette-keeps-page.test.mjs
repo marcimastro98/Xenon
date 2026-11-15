@@ -12,7 +12,7 @@ import vm from 'node:vm';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(HERE, p), 'utf8');
 const BRIDGE = read('../js/custom-widget.js');
-const PALETTE = read('../js/dashboard-palette.js');
+const PALETTE = read('../js/grid/dashboard-palette.js');
 
 function slice(src, from, to) {
   const start = src.indexOf(from);

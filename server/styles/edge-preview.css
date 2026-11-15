@@ -1,6 +1,6 @@
 /* Xeneon Edge preview (browser-only) — render the dashboard exactly as it looks
    on the 2560×720 Edge, scaled to fit the browser window, so a layout composed in
-   a desktop browser matches the real device. Activated by js/edge-preview.js
+   a desktop browser matches the real device. Activated by js/grid/edge-preview.js
    (?edge URL param, the floating chip, or window.EdgePreview.toggle()). A no-op in
    the native app, where the window IS the Edge.
 

@@ -20,7 +20,7 @@ function applyDashboardWidgets(layout) {
   const groups = layout.groups || {};
   const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(groups, id) : null);
   // On a vertical screen every tile is placed by the vertical layout instead
-  // (js/dashboard-portrait.js); the landscape geometry is not touched.
+  // (js/grid/dashboard-portrait.js); the landscape geometry is not touched.
   const plan = window.DashboardPortrait ? window.DashboardPortrait.activePlan(layout) : null;
   const geometryOf = (id, landscape) => (plan && plan[id]) || landscape;
   // A vertical arrangement replaces the tiles' positions wholesale, and so does

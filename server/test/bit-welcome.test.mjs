@@ -179,7 +179,7 @@ function fitSandbox(logs) {
   const frames = [];
   const ctx = {
     console, Number, String, Object,
-    FitRow: require('../js/fit-row.js'),
+    FitRow: require('../js/grid/fit-row.js'),
     document: { addEventListener() {}, querySelectorAll: (sel) => (sel === '.ai-chat' ? logs : []) },
     requestAnimationFrame: (fn) => frames.push(fn),
   };
@@ -244,7 +244,7 @@ test('the welcome is fitted wherever it is drawn or copied', () => {
   const mirror = media.slice(media.indexOf('function mirrorChatCopies'), media.indexOf('function syncChatCopyPane'));
   assert.match(mirror, /if \(window\.BitWelcome\) BitWelcome\.fit\(\);/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('<script src="js/fit-row.js">') < html.indexOf('<script src="js/ai/bit-welcome.js">'), 'FitRow is there first');
+  assert.ok(html.indexOf('<script src="js/grid/fit-row.js">') < html.indexOf('<script src="js/ai/bit-welcome.js">'), 'FitRow is there first');
 });
 
 test('a provider that becomes ready shows the welcome, not an empty log', () => {

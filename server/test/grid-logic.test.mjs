@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const g = require('../js/dashboard-grid.js');
+const g = require('../js/grid/dashboard-grid.js');
 
 test('availableWidgets lists hidden widget ids', () => {
   const widgets = { media: { visible: true }, mic: { visible: false }, audio: { visible: false } };

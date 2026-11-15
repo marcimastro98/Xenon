@@ -126,7 +126,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   // folded to a slim "+ New timer" strip. One flag, not one per instance: a
   // Timer copy is cloned without the add row (stripTimerClone).
   timerAddCollapsed: false,
-  // The vertical layout (js/dashboard-portrait.js): generated until arranged.
+  // The vertical layout (js/grid/dashboard-portrait.js): generated until arranged.
   portrait: Object.freeze({ custom: false, items: Object.freeze({}) }),
 });
 

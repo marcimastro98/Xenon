@@ -13,7 +13,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const g = require('../js/dashboard-grid.js');
+const g = require('../js/grid/dashboard-grid.js');
 const SdkWidgets = require('../sdk-widgets.js');
 const read = (p) => readFileSync(path.join(HERE, '..', p), 'utf8');
 

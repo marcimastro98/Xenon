@@ -106,7 +106,7 @@
   // Lazy, because both helpers live in files that load after this one and the
   // node tests reach them by require.
   function readingOrder(list) {
-    const pv = (typeof window !== 'undefined' && window.PhoneView) ? window.PhoneView : require('./phone-view.js');
+    const pv = (typeof window !== 'undefined' && window.PhoneView) ? window.PhoneView : require('../phone-view.js');
     return pv.readingOrder(list);
   }
 

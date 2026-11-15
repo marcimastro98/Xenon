@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices } = require('../js/dashboard-pager.js');
+const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices } = require('../js/grid/dashboard-pager.js');
 
 test('computeParkedIndices: every active page except the current one', () => {
   const pages = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];

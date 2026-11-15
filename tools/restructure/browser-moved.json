@@ -86,6 +86,18 @@
     {"from":"server/js/usage-ask-picture.js","to":"server/js/first-run/usage-ask-picture.js"},
     {"from":"server/js/usage-ask-plan.js","to":"server/js/first-run/usage-ask-plan.js"},
     {"from":"server/js/usage-mode.js","to":"server/js/first-run/usage-mode.js"},
-    {"from":"server/js/xenon-loader.js","to":"server/js/first-run/xenon-loader.js"}
+    {"from":"server/js/xenon-loader.js","to":"server/js/first-run/xenon-loader.js"},
+    {"from":"server/js/context-profiles.js","to":"server/js/grid/context-profiles.js"},
+    {"from":"server/js/dashboard-grid.js","to":"server/js/grid/dashboard-grid.js"},
+    {"from":"server/js/dashboard-open.js","to":"server/js/grid/dashboard-open.js"},
+    {"from":"server/js/dashboard-pager.js","to":"server/js/grid/dashboard-pager.js"},
+    {"from":"server/js/dashboard-palette.js","to":"server/js/grid/dashboard-palette.js"},
+    {"from":"server/js/dashboard-portrait.js","to":"server/js/grid/dashboard-portrait.js"},
+    {"from":"server/js/edge-preview.js","to":"server/js/grid/edge-preview.js"},
+    {"from":"server/js/fit-row.js","to":"server/js/grid/fit-row.js"},
+    {"from":"server/js/page-target.js","to":"server/js/grid/page-target.js"},
+    {"from":"server/js/page-zoom.js","to":"server/js/grid/page-zoom.js"},
+    {"from":"server/js/tab-switcher.js","to":"server/js/grid/tab-switcher.js"},
+    {"from":"server/js/tile-tab-memory.js","to":"server/js/grid/tile-tab-memory.js"}
   ]
 }

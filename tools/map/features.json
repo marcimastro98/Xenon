@@ -785,20 +785,14 @@
         "server/js/dashboard-layout/**",
         "server/js/dashboard-tabgroups/**",
         "server/js/dashboard-pages/**",
-        "server/js/tab-switcher.js",
         "server/js/tile-controls.js",
-        "server/js/tile-tab-memory.js",
-        "server/js/page-target.js",
-        "server/js/page-zoom.js",
-        "server/js/fit-row.js",
-        "server/js/edge-preview.js",
-        "server/js/context-profiles.js",
         "server/vendor/**",
         "server/components/DashboardGrid/**",
         "server/components/DashboardLayout/**",
         "server/components/DashboardPager/**",
         "server/components/TabSwitcher/**",
-        "server/assets/tile-previews/**"
+        "server/assets/tile-previews/**",
+        "server/js/grid/**"
       ]
     },
     {

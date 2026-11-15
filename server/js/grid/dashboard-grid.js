@@ -504,7 +504,7 @@ function gridStaticFor(editing, stacked) { return !editing || !!stacked; }
 
 // The vertical layout's plan for this screen, or null on any other screen.
 // Every geometric read and write below goes through it: on a vertical screen the
-// rects live in layout.portrait (js/dashboard-portrait.js), never in the
+// rects live in layout.portrait (js/grid/dashboard-portrait.js), never in the
 // landscape geometry, so arranging one arrangement cannot move the other.
 function portraitPlan(layout) {
   const P = (typeof window !== 'undefined') ? window.DashboardPortrait : null;

@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const grid = require('../js/dashboard-grid.js');
+const grid = require('../js/grid/dashboard-grid.js');
 const { fitPageRows, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS } = grid;
 
 // A rotated 1440x2560 monitor, which is what the report came from: wide enough

@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const DashboardOpen = require('../js/dashboard-open.js');
+const DashboardOpen = require('../js/grid/dashboard-open.js');
 const ShellDriver = require('../js/shell-driver.js');
 const AlertToasts = require('../js/alerts/alert-toasts.js');
 
@@ -136,7 +136,7 @@ test('the driver goes to the dashboard with the gallery open, never with anythin
   assert.match(src, /es\.addEventListener\('gallery_open', onGalleryOpen\);/);
   const html = read('../shell-driver.html');
   const at = (f) => html.indexOf('<script src="js/' + f + '"></script>');
-  assert.ok(at('dashboard-open.js') > 0 && at('dashboard-open.js') < at('shell-driver.js'));
+  assert.ok(at('grid/dashboard-open.js') > 0 && at('grid/dashboard-open.js') < at('shell-driver.js'));
   assert.ok(at('update.js') > 0 && at('update.js') < at('shell-driver.js'));
 });
 
@@ -170,13 +170,13 @@ test('run(): the gallery opens where asked, the update starts the native flow on
 });
 
 test('the dashboard reads ?open= once, after its scripts, and drops it from the address', () => {
-  const src = read('../js/dashboard-open.js');
+  const src = read('../js/grid/dashboard-open.js');
   assert.match(src, /window\.addEventListener\('load', fromAddress, \{ once: true \}\)/);
   assert.match(src, /PARAMS\.forEach\(\(k\) => url\.searchParams\.delete\(k\)\)/);
   assert.match(src, /hasAttribute\('data-shell-driver'\)/, 'the driver never runs it on itself');
   const html = read('../index.html');
   const at = (f) => html.indexOf('<script src="js/' + f + '"></script>');
-  assert.ok(at('update.js') < at('dashboard-open.js') && at('capture-gallery.js') < at('dashboard-open.js'));
+  assert.ok(at('update.js') < at('grid/dashboard-open.js') && at('capture-gallery.js') < at('grid/dashboard-open.js'));
 });
 
 test('the countdown card: built once for both surfaces, on the dashboard too', () => {

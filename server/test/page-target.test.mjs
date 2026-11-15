@@ -9,8 +9,8 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { findPageTarget, pageTargetMiss } = require('../js/page-target.js');
-const { navigateTo } = require('../js/dashboard-pager.js');
+const { findPageTarget, pageTargetMiss } = require('../js/grid/page-target.js');
+const { navigateTo } = require('../js/grid/dashboard-pager.js');
 
 const PAGES = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -67,10 +67,10 @@ test('navigate goes by name and step, and says not_found honestly', () => {
 });
 
 test('the pager and the server use it; the page loads it first', () => {
-  const pager = fs.readFileSync(new URL('../js/dashboard-pager.js', import.meta.url), 'utf8');
+  const pager = fs.readFileSync(new URL('../js/grid/dashboard-pager.js', import.meta.url), 'utf8');
   assert.match(pager, /function goToPage\(id\) \{\s+const want = resolvePage\(id\);/);
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(html.indexOf('js/page-target.js') > 0 && html.indexOf('js/page-target.js') < html.indexOf('js/dashboard-pager.js'));
+  assert.ok(html.indexOf('js/grid/page-target.js') > 0 && html.indexOf('js/grid/page-target.js') < html.indexOf('js/grid/dashboard-pager.js'));
   const server = engineSource();
   assert.match(server, /fnName === 'go_to_page' \? goToPageMiss\(fnArgs\)/);
   assert.match(server, /function goToPageMiss\(args\) \{[\s\S]{0,300}PageTarget\.pageTargetMiss/);

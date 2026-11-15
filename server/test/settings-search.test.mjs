@@ -89,7 +89,7 @@ test('the page wires the search in the right order', () => {
   const pos = (s) => HTML.indexOf(`<script src="js/${s}"></script>`);
   assert.ok(pos('fuzzy-find.js') > 0, 'fuzzy-find.js loaded');
   assert.ok(pos('fuzzy-find.js') < pos('settings-search.js'));
-  assert.ok(pos('fuzzy-find.js') < pos('dashboard-palette.js'));
+  assert.ok(pos('fuzzy-find.js') < pos('grid/dashboard-palette.js'));
 });
 
 test('Esc clears a search before it closes anything', () => {
@@ -105,7 +105,7 @@ test('search results never go through innerHTML', () => {
   for (const f of ['../js/settings-search.js', '../js/fuzzy-find.js']) {
     assert.doesNotMatch(read(f), /innerHTML/, `${f} uses innerHTML`);
   }
-  const palette = read('../js/dashboard-palette.js');
+  const palette = read('../js/grid/dashboard-palette.js');
   // Every item (built-in, Store widget, search result) is drawn by one function;
   // its only markup is the static built-in icon table.
   const fn = palette.slice(palette.indexOf('function makeEntryItem'), palette.indexOf('function renderBlock'));

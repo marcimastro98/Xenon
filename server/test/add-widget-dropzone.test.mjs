@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const GRID = readFileSync(new URL('../js/dashboard-grid.js', import.meta.url), 'utf8');
+const GRID = readFileSync(new URL('../js/grid/dashboard-grid.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/DashboardGrid/DashboardGrid.css', import.meta.url), 'utf8');
 
 // ── The rule ─────────────────────────────────────────────────────────────────

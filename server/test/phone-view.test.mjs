@@ -172,7 +172,7 @@ test('tablets lying down stack in two columns instead of being squeezed', () => 
 });
 
 // Every screen clearly taller than wide, tall enough and not a phone gets the
-// vertical layout: the grid, with geometry made for that shape (js/dashboard-portrait.js).
+// vertical layout: the grid, with geometry made for that shape (js/grid/dashboard-portrait.js).
 // Stacking a vertical Edge kept each tile's landscape height over three times
 // the screen, reported as the dashboard "scaling a bit weird".
 test('a screen taller than wide gets the vertical layout', () => {

@@ -2,7 +2,7 @@
 
 // One screen of the dashboard alone in the Xenon menu's window (`/?panel=sheet`):
 // Settings, the Store, Scintille, the gallery or the chat, opened from the address by
-// js/dashboard-open.js, with nothing behind them (components/SheetPage). When the
+// js/grid/dashboard-open.js, with nothing behind them (components/SheetPage). When the
 // screen closes the window goes back to the menu it came from, or away; a screen or a menu section asked
 // for elsewhere (a tile's Set up button, Bit, the tray) takes its place.
 
