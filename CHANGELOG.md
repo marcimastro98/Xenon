@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### ✨ Changed
+
+- **Xenon no longer opens the dashboard in a browser when Windows starts.** The small script that did it was taken for a threat by Windows Defender, so it is no longer part of Xenon. The switch is gone from Settings, and Xenon removes the startup entry by itself at its next start. The Xenon app still starts with Windows as before; in a browser, open the dashboard from a bookmark.
+
 ### 🔒 Security
 - **The notification test from a phone reaches that phone only.** A paired phone or tablet that pressed "test" sent its text to every device with notifications on. It now goes to the device that asked. Pressed at the PC, the test still reaches all of them.
 - **A website open in your browser can no longer start the hardware scan for local AI models.** The scan saves what it finds in your settings, and it answered a plain read, so a page on another site could have made your PC run it. Xenon now refuses that request when it comes from another site. Nothing changes when you press Scan in Settings.

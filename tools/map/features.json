@@ -801,7 +801,6 @@
         "server/install-native.ps1",
         "server/start.bat",
         "server/start-hidden.vbs",
-        "server/open-dashboard.vbs",
         "INSTALL.*",
         "UNINSTALL.*"
       ]

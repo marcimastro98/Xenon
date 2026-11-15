@@ -54,7 +54,6 @@
     "server/native-installer-cli.js",
     "server/network.ps1",
     "server/notifications.ps1",
-    "server/open-dashboard.vbs",
     "server/pair.html",
     "server/perf-priority.ps1",
     "server/performance.ps1",
