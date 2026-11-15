@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const sc = require('../js/share-card.js');
+const sc = require('../js/presets/share-card.js');
 
 // ── The QR target ladder: gallery anchor > small-code landing > site root. ──
 

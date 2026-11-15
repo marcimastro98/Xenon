@@ -146,7 +146,7 @@
     "server/js/preset-share.js TS2552": 6,
     "server/js/sensor-history.js TS2339": 1,
     "server/js/sensor-sources.js TS2339": 1,
-    "server/js/share-link-privacy.js TS2339": 1,
+    "server/js/presets/share-link-privacy.js TS2339": 1,
     "server/js/slideshow-widget.js TS2304": 4,
     "server/js/slideshow-widget.js TS2339": 3,
     "server/js/smart-home-order.js TS2339": 1,

@@ -183,6 +183,8 @@
     {"from":"server/js/perf-marker.js","to":"server/js/performance/perf-marker.js"},
     {"from":"server/js/performance-actions.js","to":"server/js/performance/performance-actions.js"},
     {"from":"server/js/phone-view.js","to":"server/js/phone/phone-view.js"},
-    {"from":"server/js/phone-widget.js","to":"server/js/phone/phone-widget.js"}
+    {"from":"server/js/phone-widget.js","to":"server/js/phone/phone-widget.js"},
+    {"from":"server/js/share-card.js","to":"server/js/presets/share-card.js"},
+    {"from":"server/js/share-link-privacy.js","to":"server/js/presets/share-link-privacy.js"}
   ]
 }

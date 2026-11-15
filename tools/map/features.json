@@ -151,9 +151,9 @@
       "what": "Export and import of themes, pages and packs as a code, with the safety checks on what comes in.",
       "files": [
         "server/js/preset-share.js",
-        "server/js/share-*.js",
         "server/js/dashboard-presets.js",
-        "server/js/topbar-share.js"
+        "server/js/topbar-share.js",
+        "server/js/presets/**"
       ]
     },
     {

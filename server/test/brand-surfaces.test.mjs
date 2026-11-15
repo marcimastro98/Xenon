@@ -162,7 +162,7 @@ test('the app speaks the brand typeface, sized to the old line box', () => {
     assert.match(read(p), /font-family: var\(--ui-font, 'Sofia Sans', Inter,/, p);
   }
   // The share card draws its wordmark on a canvas, so it names the face itself.
-  const card = read('server/js/share-card.js');
+  const card = read('server/js/presets/share-card.js');
   assert.doesNotMatch(card, /px Inter'|'Inter, sans-serif'/);
   assert.match(card, /"Sofia Sans", sans-serif/);
 

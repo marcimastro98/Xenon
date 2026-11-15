@@ -1,5 +1,5 @@
 // A shared Deck profile's links carry no one's chat, number or token
-// (js/share-link-privacy.js through js/preset-share.js, on export and on import).
+// (js/presets/share-link-privacy.js through js/preset-share.js, on export and on import).
 // A community submission of 10 Nov 2026 had a key opening its author's own
 // Telegram chat (web.telegram.org/a/#<id>), bound for the public catalog.
 import { test } from 'node:test';
@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { shareableLink } = require('../js/share-link-privacy.js');
+const { shareableLink } = require('../js/presets/share-link-privacy.js');
 const PresetShare = require('../js/preset-share.js');
 const DeckModel = require('../js/deck-model.js');
 const DeckActions = require('../js/deck-actions.js');
@@ -64,6 +64,6 @@ test('a shared Deck key keeps a working link with nobody in it, on export and im
 
 test('the app loads the cleaner before the share code', () => {
   const html = fs.readFileSync(path.join(here, '..', 'index.html'), 'utf8');
-  const a = html.indexOf('<script src="js/share-link-privacy.js"></script>');
+  const a = html.indexOf('<script src="js/presets/share-link-privacy.js"></script>');
   assert.ok(a > 0 && a < html.indexOf('<script src="js/preset-share.js"></script>'));
 });

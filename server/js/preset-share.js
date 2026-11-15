@@ -161,9 +161,9 @@
   // openApp launch arguments travel ("--incognito") unless one of them is a path.
   const LOCAL_PATH_RE = /[a-z]:[\\/]|\\\\\w|(^|[\s"'=])(~[\\/]|\/(users|home|mnt|media|volumes)\/)/i;
   // A shared key's link loses what names a person (a chat id, a phone, a token):
-  // js/share-link-privacy.js, loaded first.
+  // js/presets/share-link-privacy.js, loaded first.
   const LinkPrivacy = (typeof window !== 'undefined' && window.ShareLinkPrivacy)
-    || (typeof require === 'function' ? require('./share-link-privacy.js') : null);
+    || (typeof require === 'function' ? require('./presets/share-link-privacy.js') : null);
 
   // ── Icon packs (kind 'icons') ──────────────────────────────────────────────
   // Caps mirror server/store-catalog/icon-packs.js (the authority) so the builder gives the

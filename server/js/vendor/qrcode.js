@@ -1,7 +1,7 @@
 // Vendored from the npm package `qrcode-generator` v1.4.4 (MIT license) —
 // https://www.npmjs.com/package/qrcode-generator — by Kazuhiko Arase.
 // Unmodified upstream source below. Exposes the global `qrcode(typeNumber,
-// errorCorrectionLevel)` factory used by js/share-card.js to render the QR on
+// errorCorrectionLevel)` factory used by js/presets/share-card.js to render the QR on
 // the "share your setup" card. Loaded lazily (only when a share card opens).
 // Do not edit by hand; to upgrade, replace with the new upstream file.
 //---------------------------------------------------------------------
