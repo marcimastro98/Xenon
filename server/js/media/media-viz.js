@@ -6,7 +6,7 @@
 //
 // WHAT IT DRAWS, AND WHY THAT SHAPE. The only real audio measurement Xenon has
 // is `audiolevels`: peak per process, 0..1, about twelve times a second, from
-// the native helper (see server/audio-levels.js). That is one number per tick —
+// the native helper (see server/audio/audio-levels.js). That is one number per tick —
 // an amplitude, not a spectrum. So this does not draw frequency bands. Sixty
 // bars at different heights would read as a spectrum analyser, and inventing
 // nine tenths of it from one number is the kind of decorative fake this codebase

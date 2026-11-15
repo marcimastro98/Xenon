@@ -1,7 +1,7 @@
 // Tells the widgets once why the sound levels cannot be read.
 
 const { sseClients, broadcastSSE } = require('../http/sse-clients.js');
-const audioLevels = require('../audio-levels.js');
+const audioLevels = require('./audio-levels.js');
 const { audioReads } = require('./read-state.js');
 const { audioLevelsWanted } = require('./levels-wanted.js');
 

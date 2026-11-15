@@ -16,9 +16,9 @@
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const { lowerPriority } = require('./child-priority');
+const { lowerPriority } = require('../child-priority');
 
-const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
+const HELPER_EXE = path.join(__dirname, '..', 'helper', 'xenon-helper.exe');
 
 const TICK_MS = 80;              // ~12/s: enough for a meter, cheap to broadcast
 const RESTART_DELAY_MS = 1500;

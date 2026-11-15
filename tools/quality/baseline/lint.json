@@ -160,7 +160,7 @@
     "server/ai/wakeword.js style/useConst": 1,
     "server/ambient/scene-images.js complexity/useOptionalChain": 1,
     "server/app-strings/routes.js complexity/useOptionalChain": 1,
-    "server/audio-levels.js suspicious/noAssignInExpressions": 1,
+    "server/audio/audio-levels.js suspicious/noAssignInExpressions": 1,
     "server/audio/levels-wanted.js complexity/useOptionalChain": 3,
     "server/audio/mixer-clients.js complexity/useOptionalChain": 1,
     "server/audio/routes-volume.js correctness/noUnusedVariables": 5,

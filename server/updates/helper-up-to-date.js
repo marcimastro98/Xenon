@@ -4,7 +4,7 @@
 const startupLog = require('../startup-log.js');
 const fs = require('node:fs');
 const path = require('node:path');
-const audioLevels = require('../audio-levels.js');
+const audioLevels = require('../audio/audio-levels.js');
 const {
   createHelperUpdate, HELPER_ASSET, HELPER_ASSET_MAC, MIN_MAC_HELPER,
 } = require('../helper-update.js');

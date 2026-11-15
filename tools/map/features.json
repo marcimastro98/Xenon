@@ -390,7 +390,6 @@
       "files": [
         "server/audio/**",
         "server/app-audio/**",
-        "server/audio-levels.js",
         "server/soundvolumeview-x64/**",
         "server/actions/wavelink*.js",
         "server/actions/voicemeeter*.js",

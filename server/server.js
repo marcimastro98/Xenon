@@ -351,7 +351,7 @@ const capabilityRunner = capabilities.createCapabilities({
   },
 });
 const gameDetect = require('./gamedetect');
-const audioLevels = require('./audio-levels');
+const audioLevels = require('./audio/audio-levels');
 const winNotif = require('./winnotif');
 const { lowerPriority } = require('./child-priority');
 const { createMountedDisks } = require('./disk/mounted-disks');

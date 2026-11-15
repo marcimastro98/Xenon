@@ -2,7 +2,7 @@
 // with that answer.
 
 const { sseClients } = require('../http/sse-clients.js');
-const audioLevels = require('../audio-levels.js');
+const audioLevels = require('./audio-levels.js');
 const { hub } = require('../settings/current.js');
 const { sdkGrantsFor } = require('../widget-sdk/grants.js');
 

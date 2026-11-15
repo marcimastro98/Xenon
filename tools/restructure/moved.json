@@ -178,9 +178,10 @@
     {"from":"server/settings-ai.js","to":"server/ai/settings-ai.js","unshimmed":true},
     {"from":"server/stt-voice-gate.js","to":"server/ai/stt-voice-gate.js","unshimmed":true},
     {"from":"server/tts-chunks.js","to":"server/ai/tts-chunks.js","unshimmed":true},
-    {"from":"server/wakeword.js","to":"server/ai/wakeword.js","unshimmed":true}
+    {"from":"server/wakeword.js","to":"server/ai/wakeword.js","unshimmed":true},
+    {"from":"server/audio-levels.js","to":"server/audio/audio-levels.js"}
   ],
   "patterns": [
-
+    {"feature":"audio","glob":"server/audio-levels.js","at":2}
   ]
 }

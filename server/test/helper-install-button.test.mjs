@@ -43,9 +43,9 @@ test('a paired device cannot install it', () => {
 });
 
 test('audio-levels forgets a helper that gave up', () => {
-  const al = require('../audio-levels.js');
+  const al = require('../audio/audio-levels.js');
   assert.equal(typeof al.reset, 'function');
-  const src = read('../audio-levels.js');
+  const src = read('../audio/audio-levels.js');
   const fn = cut(src, 'function reset() {', '\n}\n');
   assert.match(fn, /_disabled = false;/);
   assert.match(fn, /_lastFailure = '';/);
