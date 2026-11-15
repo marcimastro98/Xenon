@@ -63,13 +63,16 @@ export function proveState({ before, after, moduleText, plan, parser, source = '
   const expected = [];
   for (const name of Object.keys(props)) {
     const block = removed.find((entry) => entry.name === name);
+    if (!block && removed.some((entry) => entry.others.some((other) => other.name === name))) continue; // said with the first name of its line
     if (!block) { expected.push(`  ${props[name]}: undefined, // ${KEPT_NOTE}`); continue; }
     const code = block.lines.findIndex((line) => line.startsWith('let '));
-    const written = block.value === null ? `let ${name};${block.trail}` : `let ${name}${block.eq}${block.value};${block.trail}`;
+    const tail = block.others.map((other) => `${other.sep}${other.name}${other.eq}${other.value}`).join('');
+    const written = block.value === null ? `let ${name};${block.trail}` : `let ${name}${block.eq}${block.value}${tail};${block.trail}`;
     if (block.lines[code] !== written) problems.push(`${name}: the declaration that left is not the one the plan describes`);
     if (block.lines.slice(code + 1).some((line) => line.trim() !== '')) problems.push(`${name}: code after the declaration left with it`);
     if (block.lines.slice(0, code).some((line) => !line.startsWith('//'))) problems.push(`${name}: something other than its comment left with it`);
     expected.push(...block.lines.slice(0, code).map((line) => `  ${line}`), `  ${props[name]}: ${block.value ?? 'undefined'},${block.trail}`);
+    for (const other of block.others) expected.push(`  ${props[other.name]}: ${other.value},`);
   }
   // A comment that came along may name a variable by its new name: with the old names back it is the old comment.
   const { rows, frame } = moduleRows(moduleText, object);

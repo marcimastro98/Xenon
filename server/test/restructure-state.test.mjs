@@ -196,6 +196,31 @@ test('a declaration or a name the rewrite cannot handle is refused', (t) => {
   assert.match(refusal(file('let n = 0;', uses), { n: 'not-a-name' }), /not-a-name cannot be a property name/);
 });
 
+test('names declared on one line leave together when all are asked for and the line is plain', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const uses = 'function a() { n += 1; return n + m.length + (k ? 1 : 0); }';
+  const text = file('const top = 1;', '// What a() counts.', 'let n = 0,  m = [], k = null;   // three of them', '', uses);
+  // Asked in another order: the object keeps the order of the line.
+  const made = plan(text, { k: 'kind', n: 'count', m: 'list' });
+  assert.deepEqual(proven(text, made), []);
+  assert.deepEqual(Object.keys(made.props), ['n', 'm', 'k']);
+  assert.deepEqual(made.kept, []);
+  assert.equal(made.removed.length, 1, 'the line leaves once');
+  assert.ok(made.moduleText.includes(['const box = {', '  // What a() counts.', '  count: 0,   // three of them', '  list: [],', '  kind: null,', '};'].join('\n')), made.moduleText);
+  assert.ok(made.newSource.includes('function a() { box.count += 1; return box.count + box.list.length + (box.kind ? 1 : 0); }'));
+  assert.ok(!made.newSource.includes('let '), 'the line is gone from the file');
+  assert.equal(made.newSource.split('\n')[1], "const { box } = require('./part/state.js');");
+  // The proof reads the line that left: a plan that says another one is named.
+  const lied = { ...made, removed: [{ ...made.removed[0], others: made.removed[0].others.slice(1) }] };
+  assert.match(proven(text, lied).join('\n'), /n: the declaration that left is not the one the plan describes/);
+  // Not all of them asked for, a value that needs the file, a name without a value, two lines: each stays.
+  assert.match(refusal(text, { n: 'n', m: 'm' }), /n .* is declared together with other names/);
+  assert.match(refusal(file('const top = 1;', 'let n = top, m = 1;', 'function a() { return n + m; }'), { n: 'n', m: 'm' }), /whose values need nothing from the file/);
+  assert.match(refusal(file('let n = 0, m;', 'function a() { return n + m; }'), { n: 'n', m: 'm' }), /whose values need nothing from the file/);
+  assert.match(refusal(file('let n = 0,', '  m = 1;', 'function a() { return n + m; }'), { n: 'n', m: 'm' }), /whose values need nothing from the file/);
+  assert.match(refusal(file('let n = 0, m = () => 1;', 'function a() { return n + m.name; }'), { n: 'n', m: 'm' }), /function without a name of its own/);
+});
+
 test('a later let of the group that load-time code in between can reach is refused, with nothing in between it is taken', (t) => {
   if (!parser) return t.skip(SKIP);
   const head = ['let first = 0;', 'function peek() { return second; }'];

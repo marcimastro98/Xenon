@@ -43,6 +43,31 @@ function readDeclaration({ text, starts, lines, record, node, sourceFile, forms 
   return { start, nameEnd, moved: null };
 }
 
+// One name of a `let a = 1, b = 2;`: taken only when every name of the line is asked for in the same step, each has a
+// first value that needs nothing from the file, and the line holds nothing else. Then the whole line leaves for the
+// object, so `moved.at` says which name of the line this is and `moved.sep` what stood between it and the one before.
+function readTogether({ text, starts, lines, record, node, sourceFile, forms, name }) {
+  const all = node.declarationList.declarations;
+  const at = all.findIndex((declaration) => text.slice(declaration.name.getStart(sourceFile), declaration.name.end) === name);
+  const lineStart = starts[record.line[0] - 1];
+  const start = node.getStart(sourceFile);
+  const plain = !record.loadTime && [...record.uses.keys()].every((used) => PLAIN_GLOBALS.has(used));
+  const eqOf = (declaration) => (declaration.initializer ? text.slice(declaration.name.end, declaration.initializer.getStart(sourceFile)) : null);
+  const rest = text.slice(all.at(-1).end, lineStart + lines[record.line[0] - 1].length);
+  const simple = at !== -1 && plain && record.line[0] === record.line[1] && start === lineStart
+    && text.slice(start, all[0].name.getStart(sourceFile)) === 'let ' && all.every((declaration) => /^\s*=\s*$/.test(eqOf(declaration) ?? 'none'))
+    && rest.startsWith(';') && /^\s*(?:\/\/.*)?$/.test(rest.slice(1));
+  if (!simple) return { reason: 'is declared together with other names, and the line is not a plain `let a = 1, b = 2;` whose values need nothing from the file' };
+  if (all.some((declaration) => forms.named.has(declaration.name.end))) return { reason: 'is declared with a function without a name of its own: it takes the name of the variable, and would lose it' };
+  if (lines.slice(record.range[0] - 1, record.line[0] - 1).some((line) => !line.startsWith('//'))) {
+    return { reason: 'has a note above it that is not written in `//` lines: it cannot go into the object as it is' };
+  }
+  const own = all[at];
+  const sep = at === 0 ? '' : text.slice(all[at - 1].end, own.name.getStart(sourceFile));
+  return { start: own.name.getStart(sourceFile), nameEnd: own.name.end,
+    moved: { eq: eqOf(own), value: text.slice(own.initializer.getStart(sourceFile), own.initializer.end), trail: at === 0 ? rest.slice(1) : '', at, sep } };
+}
+
 // Exported for the browser side (browser-lets-plan.mjs), which asks the same of a wrapper's statements: `records` then need only `names` and `line`.
 export function referenceReasons({ refs, forms, text, starts, source, object, names, propOf, statements, records, parser }) {
   const reasons = [];
@@ -81,7 +106,8 @@ export function referenceReasons({ refs, forms, text, starts, source, object, na
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, moduleText: string, object: string, props: Record<string, string>, kept: string[],
  *   counts: Record<string, { found: number, inProtected: number, moved: boolean, mentions: number }>, glue: { at: number, lines: string[] },
- *   removed: { line: number, lines: string[], name: string, eq: string, value: string | null, trail: string }[] }}
+ *   removed: { line: number, lines: string[], name: string, eq: string, value: string | null, trail: string,
+ *     others: { name: string, sep: string, eq: string, value: string }[] }[] }}
  *   `glue.at` is the 0-based line of the new require in the new text; `removed` are the declarations that left, with
  *   the 1-based line of the old file their block started on. `counts`: per variable the uses in code, how many of
  *   them stand in protected code, whether its first value left, and the comments that name it (renamed too).
@@ -113,16 +139,17 @@ export function planState(job) {
     if (!record) { reasons.push(`${name} is not a top-level declaration of ${source}`); continue; }
     const fail = (why) => reasons.push(`${name} (${source}:${record.line[0]}) ${why}`);
     if (record.kind !== 'let') { fail(`is a ${record.kind}, not a let`); continue; }
-    if (record.names.length !== 1) { fail('is declared together with other names'); continue; }
+    const together = record.names.length !== 1;
+    if (together && !record.names.every((other) => vars.some((entry) => entry.name === other))) { fail('is declared together with other names'); continue; }
     if (records.filter((other) => other.names.includes(name)).length > 1) { fail('is declared twice'); continue; }
     if (record.sharesLine) { fail('shares a line with another statement'); continue; }
     if (protectedNames.has(name)) { fail('is part of the security prelude and stays where it is'); continue; }
     if (statePattern(object, prop).test(text)) fail(`cannot become ${object}.${prop}: the file has that text already, the rewrite could not be told apart from it`);
     if (assignmentLine(name).test(text)) fail('is assigned by a statement that starts a line: undone, it could not be told apart from the declaration');
-    const read = readDeclaration({ text, starts, lines, record, node: statements[record.index], sourceFile, forms });
+    const read = (together ? readTogether : readDeclaration)({ text, starts, lines, record, node: statements[record.index], sourceFile, forms, name });
     if (read.reason) fail(read.reason); else declarations.push({ name, prop, record, ...read });
   }
-  declarations.sort((a, b) => a.record.index - b.record.index);
+  declarations.sort((a, b) => a.record.index - b.record.index || a.start - b.start);
   const names = new Set(declarations.map((entry) => entry.name));
   const propOf = new Map(declarations.map((entry) => [entry.name, entry.prop]));
   const refs = readReferences(sourceFile, parser, names, object);
@@ -160,10 +187,12 @@ export function planState(job) {
   if (anchor.moved && lines[anchor.record.range[1] - 1].trim() === '') glueLines.push('');
   const gone = new Set();
   const removed = [];
-  for (const entry of declarations.filter((d) => d.moved)) {
+  for (const entry of declarations.filter((d) => d.moved && !(d.moved.at > 0))) {
     const [first, last] = entry.record.range;
     for (let line = first; line <= last; line += 1) gone.add(line - 1);
-    removed.push({ line: first, lines: lines.slice(first - 1, last), name: entry.name, ...entry.moved });
+    // The other names of a `let a = 1, b = 2;` left on the same line: the block says them in their order.
+    const others = declarations.filter((d) => d.record === entry.record && d.moved.at > 0).map((d) => ({ name: d.name, sep: d.moved.sep, eq: d.moved.eq, value: d.moved.value }));
+    removed.push({ line: first, lines: lines.slice(first - 1, last), name: entry.name, eq: entry.moved.eq, value: entry.moved.value, trail: entry.moved.trail, others });
   }
   const kept = [];
   let glueAt = -1;
@@ -176,7 +205,7 @@ export function planState(job) {
   const body = [...(strict ? ["'use strict';"] : []), ...wrapComment(about), '', `const ${object} = {`];
   for (const entry of declarations) {
     if (!entry.moved) { body.push(`  ${entry.prop}: undefined, // ${KEPT_NOTE}`); continue; }
-    for (const comment of renamedLines.slice(entry.record.range[0] - 1, entry.record.line[0] - 1)) body.push(`  ${comment}`);
+    if (!(entry.moved.at > 0)) for (const comment of renamedLines.slice(entry.record.range[0] - 1, entry.record.line[0] - 1)) body.push(`  ${comment}`);
     body.push(`  ${entry.prop}: ${entry.moved.value ?? 'undefined'},${entry.moved.trail}`);
   }
   body.push('};', '', `module.exports = { ${object} };`);
