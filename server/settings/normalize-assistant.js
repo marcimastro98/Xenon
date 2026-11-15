@@ -3,12 +3,12 @@
 
 const { clampNumber } = require('./values.js');
 const UsageMode = require('../js/first-run/usage-mode.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('../ai/ai-local.js');
 const aiOpenai = require('../ai/ai-openai.js');
-const aiLocalServer = require('../ai-local-server.js');
+const aiLocalServer = require('../ai/ai-local-server.js');
 const aiAnthropic = require('../ai/ai-anthropic.js');
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
-const aiCli = require('../ai-cli.js');
+const aiCli = require('../ai/ai-cli.js');
 const aiGemini = require('../ai/ai-gemini.js');
 const { normalizeHardwareScan } = require('../ai/hardware-scan-normalize.js');
 const { DEFAULT_HUB_SETTINGS } = require('./defaults.js');

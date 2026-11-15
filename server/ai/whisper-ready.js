@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('./ai-local.js');
 const { whisperState } = require('./whisper-ready-state.js');
 const { whisperProbe } = require('./whisper-probe.js');
 const SERVER_DIR = path.join(__dirname, '..');

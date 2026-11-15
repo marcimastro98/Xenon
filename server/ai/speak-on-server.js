@@ -4,9 +4,9 @@
 const fs = require('node:fs');
 const https = require('node:https');
 const { privateTmpFile } = require('../private-tmp.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('./ai-local.js');
 const aiOpenai = require('./ai-openai.js');
-const aiCli = require('../ai-cli.js');
+const aiCli = require('./ai-cli.js');
 const aiModels = require('./ai-models.js');
 const { splitSentences } = require('./tts-chunks.js');
 const { AI_MODELS } = require('./models.js');

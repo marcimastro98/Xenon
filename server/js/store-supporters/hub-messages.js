@@ -76,7 +76,7 @@
     installed: installedEntryIds(),
   });
 
-  // The server checks every field again (server/bit-messages.js).
+  // The server checks every field again (server/ai/bit-messages.js).
   function messageFor(m) {
     const expires = Date.parse(m.activeUntil || '');
     return {

@@ -38,19 +38,19 @@ const fsp = require('fs').promises;
 const {
   PROVIDERS, TIMEOUT_MS, TOOL_TIMEOUT_MS, STATUS_TIMEOUT_MS, STATUS_TTL_MS, MODELS_TTL_MS,
   MAX_ACTIVE, CLAUDE_MODELS, isCliProvider, sanitizeModel,
-} = require('./ai/cli-limits.js');
+} = require('./cli-limits.js');
 
 
-const { cliSession } = require('./ai/cli-session.js');
-const { resolveCodex, resolveExe, workDir } = require('./ai/cli-places.js');
+const { cliSession } = require('./cli-session.js');
+const { resolveCodex, resolveExe, workDir } = require('./cli-places.js');
 
-const { childEnv, run, UNKNOWN_FLAG_RE, runWithOptional } = require('./ai/cli-run.js');
+const { childEnv, run, UNKNOWN_FLAG_RE, runWithOptional } = require('./cli-run.js');
 
 const {
   parseClaudeInit, why, parseClaudeAuth, parseCodexLogin, parseCodexModels,
-} = require('./ai/cli-status-text.js');
+} = require('./cli-status-text.js');
 
-const { claudeInit } = require('./ai/cli-claude-init.js');
+const { claudeInit } = require('./cli-claude-init.js');
 
 const statusCache = new Map();   // provider → { at, value }
 async function status(provider, { fresh = false } = {}) {
@@ -108,23 +108,23 @@ async function lightModel(provider) {
 
 const {
   latestImages, claudeImageInput, writeCodexImages, buildPrompt,
-} = require('./ai/cli-prompt.js');
+} = require('./cli-prompt.js');
 
 // ── Xenon's tools, over MCP ─────────────────────────────────────────────────
 // A session lives for exactly one turn: minted before the program starts,
 // dropped when it exits. The bridge proves which turn it belongs to with the
 // token; there is no other way in, and a call for a tool the turn was not
 // given is refused here whatever the program asks for.
-const BRIDGE = path.join(__dirname, 'ai-mcp-bridge.js');
+const BRIDGE = path.join(__dirname, '..', 'ai-mcp-bridge.js');
 function configure(opts) {
   if (opts && typeof opts.port === 'number') cliSession.mcpUrl = 'http://127.0.0.1:' + opts.port + '/api/ai/cli/mcp';
 }
 const {
   toolSessions, openToolSession, handleMcp, geminiToolsToMcp,
-} = require('./ai/cli-mcp-tools.js');
+} = require('./cli-mcp-tools.js');
 function bridgeEnv(token) { return { XENON_MCP_URL: cliSession.mcpUrl, XENON_MCP_TOKEN: token }; }
 
-const { CliError, parseClaude, parseCodex } = require('./ai/cli-answers.js');
+const { CliError, parseClaude, parseCodex } = require('./cli-answers.js');
 
 // Hooks off and CLAUDE.md ignored, whichever way it runs. Without tools the
 // program's safe mode does all of it; with tools it cannot be used, because

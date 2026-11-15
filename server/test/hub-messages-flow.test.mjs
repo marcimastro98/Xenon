@@ -12,7 +12,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createBitMessages } = require('../bit-messages.js');
+const { createBitMessages } = require('../ai/bit-messages.js');
 
 const read = (rel) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8');
 const inboxFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hub-messages-')), 'bit-messages.json');

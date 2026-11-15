@@ -12,7 +12,7 @@
 // This module owns two things and nothing else:
 //   1. busy()      — one source of truth for "the user is mid-flow, don't intrude"
 //   2. whenIdle()  — ONE shared poller, priority-ordered, instead of one per channel
-// The one-a-day limit on Bit's messages lives in server/bit-messages.js.
+// The one-a-day limit on Bit's messages lives in server/ai/bit-messages.js.
 //
 // Deliberately NOT a policy change for existing surfaces. What's New / update
 // (`.upd-overlay`) still opens immediately and answers to no one, and the paid

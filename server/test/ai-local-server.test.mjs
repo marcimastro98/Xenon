@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const server = require('../ai-local-server.js');
-const creds = require('../ai-provider-creds.js');
-const aiLocal = require('../ai-local.js');
+const server = require('../ai/ai-local-server.js');
+const creds = require('../ai/ai-provider-creds.js');
+const aiLocal = require('../ai/ai-local.js');
 
 // A stand-in for LM Studio, llama.cpp and the like. Each test sets `answer`.
 let fake;

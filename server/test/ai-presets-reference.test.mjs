@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { loadServerSettingsSlice, serverDashboardWidgets } from './server-settings-slice.mjs';
 
 const require = createRequire(import.meta.url);
-const R = require('../ai-preset-reference.js');
+const R = require('../ai/ai-preset-reference.js');
 const PresetShare = require('../js/preset-share.js');
 const TopbarLook = require('../js/topbar-look.js');
 const DeckModel = require('../js/deck-model.js');

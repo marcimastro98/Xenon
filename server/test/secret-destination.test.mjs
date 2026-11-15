@@ -32,7 +32,7 @@ const secrets = require('../js/settings/settings-secrets.js');
 const { redactStockCreds } = require('../stocks-creds.js');
 const { redactFootballCreds } = require('../football-creds.js');
 const { redactNewsCreds } = require('../news-creds.js');
-const { redactAiProviderCreds } = require('../ai-provider-creds.js');
+const { redactAiProviderCreds } = require('../ai/ai-provider-creds.js');
 const { redactRemoteCreds } = require('../remote-control/settings.js');
 
 const SERVER = engineSource();
@@ -255,9 +255,9 @@ test('settings-secrets: stripSettingsSecrets blanks every secret the issue named
 });
 
 test('settings-secrets: the server modules and the dashboard read the same list', () => {
-  for (const f of ['stream-creds.js', 'stocks-creds.js', 'football-creds.js', 'news-creds.js', 'ai-provider-creds.js']) {
+  for (const f of ['stream-creds.js', 'stocks-creds.js', 'football-creds.js', 'news-creds.js', 'ai/ai-provider-creds.js']) {
     const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
-    assert.match(src, /require\('\.\/js\/settings\/settings-secrets\.js'\)/, f + ' keeps its own copy of the list');
+    assert.match(src, /require\('\.\.?\/js\/settings\/settings-secrets\.js'\)/, f + ' keeps its own copy of the list');
   }
   const save = SETTINGS_JS.slice(SETTINGS_JS.indexOf('function saveLocalHubSettings('));
   const body = save.slice(0, save.indexOf('\n}\n'));

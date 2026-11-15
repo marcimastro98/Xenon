@@ -15,11 +15,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const SDK_DOC = path.join(__dirname, '..', 'docs', 'WIDGET_SDK.md');
+const SDK_DOC = path.join(__dirname, '..', '..', 'docs', 'WIDGET_SDK.md');
 const SECTION_MAX_CHARS = 12000;   // per-section cap when returning doc text
 const RESULT_TOPICS_MAX = 2;       // lookup returns at most this many full cards
 
-const { TOPICS } = require('./ai/knowledge-topics.js');
+const { TOPICS } = require('./knowledge-topics.js');
 
 // ── Topic lookup ─────────────────────────────────────────────────────────────
 // Lowercase + strip combining diacritics (u0300-u036f) so "perché" matches "perche".
@@ -101,7 +101,7 @@ async function readDocSections() {
 
 async function getSdkReference(section) {
   // The enums come from the code so they are correct even if the doc is absent.
-  const { SDK_STREAMS, SDK_ACTION_CATEGORIES } = require('./sdk-widgets.js');
+  const { SDK_STREAMS, SDK_ACTION_CATEGORIES } = require('../sdk-widgets.js');
   const base = { ok: true, streams: SDK_STREAMS, actionCategories: SDK_ACTION_CATEGORIES };
   const sections = await readDocSections();
   const want = norm(section).trim();

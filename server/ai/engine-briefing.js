@@ -2,7 +2,7 @@
 
 const fpsMonitor = require('../performance/fps-monitor.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const { createBriefingEngine } = require('../briefing.js');
+const { createBriefingEngine } = require('./briefing.js');
 const { hub } = require('../settings/current.js');
 
 // Briefing — proactive moments (sustained-thermal alerts, game-session recaps).

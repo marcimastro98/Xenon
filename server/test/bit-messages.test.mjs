@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createBitMessages, cleanMessage, MAX_MESSAGES } = require('../bit-messages.js');
+const { createBitMessages, cleanMessage, MAX_MESSAGES } = require('../ai/bit-messages.js');
 const { normalizeMessage } = require('../store-catalog/community-messages.js');
 
 const DAY = 24 * 3600 * 1000;

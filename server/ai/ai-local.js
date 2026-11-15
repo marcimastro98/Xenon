@@ -1,6 +1,6 @@
 'use strict';
-const { createPace } = require('./search/search-pace');
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
+const { createPace } = require('../search/search-pace');
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────
 // Mirror of the Gemini path but fully local/free. server.js routes to this
@@ -10,35 +10,35 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-require('./ai/ai-tool-groups'); // nothing is taken from it here, but it runs code when it loads
+require('./ai-tool-groups'); // nothing is taken from it here, but it runs code when it loads
 
 const {
   DEFAULT_OLLAMA_URL, MODEL_WHITELIST, VISION_MODELS, EDGE_VOICES, EDGE_VOICE_FALLBACK,
   voiceForLang, AI_PROVIDERS, sanitizeProvider, sanitizeModel, sanitizeOllamaUrl,
   modelSupportsVision,
-} = require('./ai/local-choices.js');
+} = require('./local-choices.js');
 
 
 
 const {
   MODEL_REQUIREMENTS, computeTier, modelSafety, _readGpuVramGB, scanHardware,
-} = require('./ai/local-hardware.js');
+} = require('./local-hardware.js');
 
 const {
   geminiToolsToOpenAI, geminiHistoryToOpenAI, geminiHistoryToNative, parseOllamaNativeResponse,
   parseOllamaResponse,
-} = require('./ai/local-ollama-shapes.js');
+} = require('./local-ollama-shapes.js');
 
 const {
   _callOllama, _callOllamaNative, _ollamaReachable, listOllamaModels, showModelCapabilities,
   capabilitiesFor, supportsVisionLive, pullModel,
-} = require('./ai/local-ollama-calls.js');
+} = require('./local-ollama-calls.js');
 
-const { localChat, resolveModel } = require('./ai/local-chat.js');
+const { localChat, resolveModel } = require('./local-chat.js');
 
 const {
   whisperPaths, whisperExe, whisperSpeedArgs, cleanTranscript, padWavStart, localStt,
-} = require('./ai/local-stt.js');
+} = require('./local-stt.js');
 
 
 
@@ -110,7 +110,7 @@ async function localStatus(baseUrl, serverDir) {
 
 const {
   findOllamaExe, startOllama, ollamaAutostartSupported, getOllamaAutostart, setOllamaAutostart,
-} = require('./ai/local-ollama-start.js');
+} = require('./local-ollama-start.js');
 
 
 
@@ -124,7 +124,7 @@ const {
 
 const {
   _httpsGetText, _stripHtml, _ddgRealUrl, _parseDdgHtml,
-} = require('./ai/local-search-page.js');
+} = require('./local-search-page.js');
 
 // DuckDuckGo's results page answers 202 with nothing in it to a search too soon after
 // the last one. Measured 4 Nov 2026: 12 s apart all passed, 8 s apart the second
@@ -180,7 +180,7 @@ async function localWebSearch(query, timeoutMs = 8000) {
 
 const {
   WHISPER_VERSION, WHISPER_ZIP_SHA256, WHISPER_ZIP_URL, installWhisper,
-} = require('./ai/local-whisper-install.js');
+} = require('./local-whisper-install.js');
 
 module.exports = {
   AI_PROVIDERS,

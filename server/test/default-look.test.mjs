@@ -245,7 +245,7 @@ test('widgets keep reading the skin they know', () => {
 test('Bit knows the styles and the wallpaper', () => {
   assert.match(SERVER_JS, /"liquid" \(Liquid Glass/);
   assert.match(SERVER_JS, /"glass" \(Classic\)/);
-  const reference = read('ai-preset-reference.js');
+  const reference = read('ai/ai-preset-reference.js');
   assert.match(reference, /'liquid'/);
   assert.match(reference, /'dusk'/);
 });

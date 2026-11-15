@@ -1,7 +1,7 @@
 // What a new install starts with, fifth part: the assistant's provider, models, keys, voice and
 // memory, and how this PC uses Xenon.
 
-const aiLocalServer = require('../ai-local-server.js');
+const aiLocalServer = require('../ai/ai-local-server.js');
 
 const HUB_DEFAULTS_ASSISTANT = Object.freeze({
   aiProvider: 'gemini', // 'gemini' | 'ollama' | 'localapi' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend

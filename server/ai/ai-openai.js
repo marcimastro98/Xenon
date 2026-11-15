@@ -13,7 +13,7 @@
 // the return shape matches /api/ai's { text, clientActions, newContent } so the
 // client is provider-agnostic.
 
-const aiLocal = require('../ai-local');
+const aiLocal = require('./ai-local');
 const { follow } = require('./ai-tool-groups');
 
 const { OPENAI_BASE, _httpError, _post } = require('./openai-http.js');

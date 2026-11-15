@@ -1,6 +1,6 @@
 // One question to the Claude Code or Codex program with the model the user chose for it.
 
-const aiCli = require('../ai-cli.js');
+const aiCli = require('./ai-cli.js');
 const { readHubSettings } = require('../settings/read.js');
 
 async function cliOneShot(provider, systemText, userText, settings) {

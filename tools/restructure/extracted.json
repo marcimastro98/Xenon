@@ -603,7 +603,7 @@
       {"file":"server/platform/darwin-sensor-read.js","about":"Temperatures, the graphics card and the sensors on macOS, read live from the helper and from macmon.","names":["MACMON_SAMPLE_MS","MACMON_MAX_FAILURES","MACMON_RETRY_MS","refreshMacmon","readHelperTemps","SENSOR_TTL_MS","EMPTY_SENSORS","refreshSensors","liveSensors","EMPTY_GPU","gpuStatic","gpu","cpuTemp","listSensors","readSensors"],"tidy":true},
       {"file":"server/platform/darwin-windows.js","about":"The open apps on macOS and what Xenon can do to one: bring it forward, hide it, quit it.","names":["listApps","windows"]}
     ],
-    "server/ai-local.js": [
+    "server/ai/ai-local.js": [
       {"file":"server/ai/local-choices.js","about":"What the local assistant can be set to: the providers, the Ollama models offered and the ones that see pictures, the Ollama address, and the voice for a language.","names":["DEFAULT_OLLAMA_URL","MODEL_WHITELIST","VISION_MODELS","EDGE_VOICES","EDGE_VOICE_FALLBACK","voiceForLang","AI_PROVIDERS","sanitizeProvider","sanitizeModel","sanitizeOllamaUrl","modelSupportsVision"]},
       {"file":"server/ai/local-hardware.js","about":"Whether this PC can run a local model: the memory each model needs, and a reading of this PC's memory and graphics memory.","names":["MODEL_REQUIREMENTS","_sanitizedReq","computeTier","modelSafety","_readGpuVramGB","scanHardware"]},
       {"file":"server/ai/local-ollama-shapes.js","about":"Translates between the assistant's Gemini-shaped tools and history and what Ollama takes and answers.","names":["_TYPE_MAP","_convertSchema","geminiToolsToOpenAI","geminiHistoryToOpenAI","geminiHistoryToNative","parseOllamaNativeResponse","parseOllamaResponse"]},
@@ -614,7 +614,7 @@
       {"file":"server/ai/local-search-page.js","about":"Fetches a DuckDuckGo results page for the free web search and reads the results out of its HTML.","names":["_httpsGetText","_stripHtml","_ddgRealUrl","_parseDdgHtml"]},
       {"file":"server/ai/local-whisper-install.js","about":"Installs whisper.cpp when the user asks for local speech to text: the pinned download on Windows, Homebrew on macOS.","names":["WHISPER_VERSION","WHISPER_ASSET","WHISPER_ZIP_SHA256","WHISPER_ZIP_URL","_downloadToFile","_unzipWindows","_findBrew","_runBrewInstall","_findWhisperExeRecursive","installWhisper"]}
     ],
-    "server/ai-cli.js": [
+    "server/ai/ai-cli.js": [
       {"file":"server/ai/cli-limits.js","about":"The limits of the assistant's subscription providers (Claude Code, Codex): which they are, how long a turn may take, how much text is kept, and what a model name may look like.","names":["PROVIDERS","TIMEOUT_MS","TOOL_TIMEOUT_MS","STATUS_TIMEOUT_MS","STATUS_TTL_MS","MODELS_TTL_MS","MAX_ACTIVE","MAX_PROMPT_CHARS","MAX_STDOUT","MAX_STDERR","CLAUDE_MODELS","isCliProvider","MODEL_RE","sanitizeModel"]},
       {"file":"server/ai/cli-find-codex.js","about":"Finds the Codex program on this PC when it is not on the PATH: the folders it installs into and the newest copy among them.","names":["POSIX_CODEX_DIRS","asLaunch","isFile","newestCodexCopy"]},
       {"file":"server/ai/cli-run.js","about":"Runs the Claude Code or Codex program once for the assistant: a clean environment, a time limit, capped output, and a second try without a flag an older version does not know.","names":["STRIP_ENV","childEnv","run","UNKNOWN_FLAG_RE","runWithOptional"]},
@@ -626,7 +626,7 @@
       {"file":"server/ai/cli-places.js","about":"Where the two command-line assistants are found and where they run: Codex looked up again when its cached copy is gone, the program of a provider, and the empty private folder made once per run of the server.","names":["resolveCodex","resolveExe","workDir"]},
       {"file":"server/ai/cli-claude-init.js","about":"What Claude Code says about itself without a model being called: the models this account can use and its plan, asked through the control protocol and kept for a while.","names":["INIT_TIMEOUT_MS","initCache","claudeInit"],"bare":["./claude-run"]}
     ],
-    "server/ai-knowledge.js": [
+    "server/ai/ai-knowledge.js": [
       {"file":"server/ai/knowledge-topics.js","about":"What the assistant knows about Xenon itself: the written topics it looks up to answer how the app works.","names":["TOPICS"]}
     ],
     "server/ai/ai-models.js": [
@@ -649,7 +649,7 @@
       {"file":"server/ai/wakeword-segmenter.js","about":"Cuts the microphone's sound into stretches of speech for the wake word: how loud counts as speech, when a stretch ends, and the stretch as a WAV file.","names":["SAMPLE_RATE","FRAME_MS","FRAME_BYTES","PREROLL_FRAMES","TRIGGER_FRAMES","END_SILENCE_FRAMES","MIN_LOUD_MS","MAX_SEGMENT_MS","NOISE_FLOOR_MIN","THRESH_MULT","_wdbgOn","_wdbg","_pcmRms","_wavFromPcm","_createSegmenter"]},
       {"file":"server/ai/wakeword-match.js","about":"Says whether what was heard is the wake word, under the assistant's name or its old one.","names":["CALL_WORD","BIT_WORD","matchesWakeWord","matchesOldName"]}
     ],
-    "server/bit-messages.js": [
+    "server/ai/bit-messages.js": [
       {"file":"server/ai/bit-message-clean.js","about":"Cleans one message Bit is asked to show before it is kept: its limits, its text, its time, its button and its picture.","names":["ID_RE","ENTRY_RE","KINDS","APP_ACTIONS","STAMP_RE","MAX_STAMPS","SURFACES","TITLE_MAX","LINE_MAX","BODY_MAX","LABEL_MAX","cleanText","cleanTime","cleanAction","cleanMessage","restoreMessage"]}
     ],
     "server/paired/web-push.js": [

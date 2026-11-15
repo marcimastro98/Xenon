@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const ai = require('../ai-local.js');
+const ai = require('../ai/ai-local.js');
 
 test('voiceForLang maps known languages', () => {
   assert.equal(ai.voiceForLang('it'), 'it-IT-ElsaNeural');
@@ -345,7 +345,7 @@ test('whisper.cpp is a pinned tagged release with a pinned SHA-256', () => {
     ai.WHISPER_ZIP_URL,
     `https://github.com/ggml-org/whisper.cpp/releases/download/${ai.WHISPER_VERSION}/whisper-bin-x64.zip`,
   );
-  const src = engineSource('server/ai-local.js');
+  const src = engineSource('server/ai/ai-local.js');
   assert.doesNotMatch(src, /api\.github\.com\/repos\/ggml-org\/whisper\.cpp\/releases/, 'no "latest release" lookup');
   const body = src.slice(src.indexOf('async function installWhisper'));
   const dl = body.indexOf('_downloadToFile(WHISPER_ZIP_URL');

@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 import { looseScripts } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const creds = require('../ai-provider-creds.js');
+const creds = require('../ai/ai-provider-creds.js');
 const anthropic = require('../ai/ai-anthropic.js');
 const openai = require('../ai/ai-openai.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('../ai/ai-local.js');
 
 test('sanitizeProvider accepts the four providers, defaults the rest to gemini', () => {
   assert.equal(aiLocal.sanitizeProvider('gemini'), 'gemini');

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { createBriefingEngine } = require('../briefing.js');
+const { createBriefingEngine } = require('../ai/briefing.js');
 
 // The 'anomaly' proactive moment: a temperature well above its own recent
 // per-session baseline while still below the absolute thermal threshold. Driven

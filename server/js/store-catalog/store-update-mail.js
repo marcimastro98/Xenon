@@ -18,7 +18,7 @@
 //   * One message for the whole list, its id made from the list: a new update is
 //     a new message, and an unread one gives way to the fresher list. A list with
 //     nothing the person has not read about already is not told again
-//     (server/bit-messages.js keeps that rule).
+//     (server/ai/bit-messages.js keeps that rule).
 (function () {
   const t = (k) => (typeof window.t === 'function' ? window.t(k) : k);
   const DAY = 24 * 3600 * 1000;

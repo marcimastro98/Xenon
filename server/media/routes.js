@@ -4,7 +4,7 @@
 const { readBody } = require('../http/read-body.js');
 const { lyricsTexts } = require('./lyrics-reply.js');
 const { hub } = require('../settings/current.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('../ai/ai-local.js');
 const lyricsPrices = require('./lyrics-translate-price.js');
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 

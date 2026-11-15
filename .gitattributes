@@ -13,7 +13,7 @@
 # from disk (see CATALOG_BASE in server/store-catalog/community-catalog.js).
 #
 # The rule below drops ALL of docs/ and puts back only the .md files at its
-# root: server/ai-knowledge.js reads docs/WIDGET_SDK.md from disk to serve the
+# root: server/ai/ai-knowledge.js reads docs/WIDGET_SDK.md from disk to serve the
 # AI's sdk_reference tool (excluding it degrades that tool to
 # 'docs_unavailable'), and README.md links the other guides there. It used to
 # be a list of site paths, and the list fell behind the site (docs/fr/, the

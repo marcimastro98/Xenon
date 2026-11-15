@@ -1,7 +1,7 @@
 // Bit's messages on the real pages: the card in the corner, the stage, polls, the
 // chat, the dashboard and "widgets only", at the sizes Xenon supports and in all 11
 // languages. It serves a static copy of server/ and answers every API itself, with
-// the real inbox (server/bit-messages.js) on a temp file, so no real server is
+// the real inbox (server/ai/bit-messages.js) on a temp file, so no real server is
 // touched. Playwright is borrowed as in tools/toast-gallery. Not part of `npm test`.
 // Run: node tools/bit-messages-check/check.mjs [outDir]   (default: <temp>/xenon-bit-messages)
 // BM_SIZE=<name> runs one size, BM_ONLY=sizes|flows one half, BM_LANGS=it,en some
@@ -20,7 +20,7 @@ const ROOT = path.resolve(HERE, '..', '..', 'server');
 const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'xenon-bit-messages'));
 const require = createRequire(import.meta.url);
 const LayerStrings = require(path.join(ROOT, 'layer-strings.js'));
-const { createBitMessages } = require(path.join(ROOT, 'bit-messages.js'));
+const { createBitMessages } = require(path.join(ROOT, 'ai/bit-messages.js'));
 
 const ALL_LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 const LANGS = process.env.BM_LANGS ? process.env.BM_LANGS.split(',') : ALL_LANGS;

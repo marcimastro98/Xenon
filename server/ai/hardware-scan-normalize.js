@@ -2,7 +2,7 @@
 // it back with the settings.
 
 const { clampNumber } = require('../settings/values.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('./ai-local.js');
 
 // Hardware scan result is server-generated; when echoed back from the client we
 // keep only the known numeric/string fields and drop anything unexpected.

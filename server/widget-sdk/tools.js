@@ -85,7 +85,7 @@ const branches = {
       let fnResult;
       // Read-only grounding for create_widget: the code-authoritative SDK
       // allowlists plus docs/WIDGET_SDK.md by section.
-      fnResult = await require('../ai-knowledge.js').getSdkReference(fnArgs.section || '');
+      fnResult = await require('../ai/ai-knowledge.js').getSdkReference(fnArgs.section || '');
       return fnResult;
   },
 };

@@ -26,7 +26,7 @@ const SYSTEM = read('js', 'system.js');
 const AMBIENT = read('js', 'ambient/ambient.js');
 const MAIN = read('js', 'main.js');
 const INDEX = read('index.html');
-const BRIEFING = read('briefing.js');
+const BRIEFING = read('ai/briefing.js');
 
 // Every translated string that interpolates a live temperature.
 const TEMP_KEYS = [

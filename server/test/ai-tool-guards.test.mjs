@@ -124,7 +124,7 @@ test('a Deck the assistant builds holds no scripts, typed text or webhooks', () 
 });
 
 test('the CLI work folder is private, not a fixed name in the shared temp folder', () => {
-  const src = engineSource('server/ai-cli.js');
+  const src = engineSource('server/ai/ai-cli.js');
   assert.match(src, /fsp\.mkdtemp\(path\.join\(os\.tmpdir\(\), 'xenon-ai-cli-'\)\)/);
   assert.match(src, /fsp\.chmod\(_workDir, 0o700\)/);
   assert.doesNotMatch(src, /path\.join\(os\.tmpdir\(\), 'xenon-ai-cli'\);/);

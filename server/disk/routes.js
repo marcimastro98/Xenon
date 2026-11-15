@@ -5,7 +5,7 @@
 const { _sdkStreamGranted } = require('../widget-sdk/grants.js');
 const { macDiskAccess } = require('../search/mac-disk-access.js');
 const { readBody } = require('../http/read-body.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('../ai/ai-local.js');
 const { aiLangName } = require('../ai/prompt-language.js');
 const { localServerOneShot } = require('../ai/local-server-one-shot.js');
 const aiOpenai = require('../ai/ai-openai.js');
@@ -13,7 +13,7 @@ const aiAnthropic = require('../ai/ai-anthropic.js');
 const { providerModelFor } = require('../ai/provider-models.js');
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const aiCli = require('../ai-cli.js');
+const aiCli = require('../ai/ai-cli.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

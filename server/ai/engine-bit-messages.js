@@ -2,7 +2,7 @@
 
 const path = require('node:path');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const { createBitMessages } = require('../bit-messages.js');
+const { createBitMessages } = require('./bit-messages.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { hub } = require('../settings/current.js');
 

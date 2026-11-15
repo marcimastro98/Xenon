@@ -1,12 +1,12 @@
 // One answer from the model the person chose in the settings, for the features that need a text
 // and no conversation.
 
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('./ai-local.js');
 const aiOpenai = require('./ai-openai.js');
-const aiLocalServer = require('../ai-local-server.js');
+const aiLocalServer = require('./ai-local-server.js');
 const aiAnthropic = require('./ai-anthropic.js');
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
-const aiCli = require('../ai-cli.js');
+const aiCli = require('./ai-cli.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { readHubSettings } = require('../settings/read.js');
 const { geminiKeyFor } = require('./gemini-key-for.js');

@@ -1,7 +1,7 @@
 // What the engine answers about the AI that runs on this computer: whether it is there,
 // fetching a model, installing Whisper.
 
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('./ai-local.js');
 const { readBody } = require('../http/read-body.js');
 const aiModels = require('./ai-models.js');
 const { whisperProbe } = require('./whisper-probe.js');

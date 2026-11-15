@@ -175,7 +175,7 @@ test('AI roasts: on Claude Code or Codex Settings says Bit keeps to its own line
   assert.match(src, /syncVitalsPcCaps\(\);\n\s*syncVitalsAiBank\(\);/);
   assert.match(src, /saveHubSettings\(\);\n\s*\/\/ Bit's roast row says what this provider spends\.\n\s*syncVitalsAiBank\(\);/);
   assert.match(read('../index.html'), /id="settings-vpet-ai-cap" hidden/);
-  assert.deepEqual(require('../ai-cli.js').isCliProvider('claudecode') && require('../ai-cli.js').isCliProvider('codex'), true, 'the server roast skips the same providers');
+  assert.deepEqual(require('../ai/ai-cli.js').isCliProvider('claudecode') && require('../ai/ai-cli.js').isCliProvider('codex'), true, 'the server roast skips the same providers');
   const i18n = { window: {} };
   vm.createContext(i18n);
   vm.runInContext(appStringsSource() + ';globalThis.__i18n = i18n;', i18n);

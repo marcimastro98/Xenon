@@ -1,4 +1,4 @@
-// Settings → Bit → Local server (server/ai-local-server.js): where the server is,
+// Settings → Bit → Local server (server/ai/ai-local-server.js): where the server is,
 // whether it answers, and the optional key. The model list itself is the shared
 // picker in settings.js; this file paints what that list's answer says.
 (function () {

@@ -1,6 +1,6 @@
 // One plain answer from the AI server the user runs on this PC.
 
-const aiLocalServer = require('../ai-local-server.js');
+const aiLocalServer = require('./ai-local-server.js');
 
 // One answer through the user's Claude Code / Codex subscription (ai-cli.js),
 // for the features a person starts themselves: a search, a button, the fold of

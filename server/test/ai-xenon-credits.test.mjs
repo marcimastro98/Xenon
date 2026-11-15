@@ -526,7 +526,7 @@ test('voice on credits is heard by local whisper, never sent to Gemini', () => {
 test('settings, changelog and the assistant quote the same creation costs and levels', () => {
   const it = appStrings().it;
   const log = read('../../CHANGELOG.md');
-  const card = require('../ai-knowledge.js').TOPICS.find((t) => t.id === 'ai-credits').body;
+  const card = require('../ai/ai-knowledge.js').TOPICS.find((t) => t.id === 'ai-credits').body;
   assert.equal(it.settings_xenon_model_opus, 'Il più bravo: un widget costa circa 150 Scintille');
   assert.equal(it.settings_xenon_model_sonnet, 'Bravo: un widget costa circa 80 Scintille');
   assert.equal(it.settings_xenon_effort_high, 'Approfondito: più curato, circa il doppio di Scintille e di tempo');

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { createBriefingEngine } = require('../briefing.js');
+const { createBriefingEngine } = require('../ai/briefing.js');
 
 // The proactive-moments opportunity engine: sustained-thermal alerts and game
 // session recaps, with the anti-nag bounds (cooldown, hysteresis, gap reset,

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// Read from disk by the installed app: server/ai-knowledge.js (sdk_reference).
+// Read from disk by the installed app: server/ai/ai-knowledge.js (sdk_reference).
 const RUNTIME_DOCS = ['docs/WIDGET_SDK.md'];
 // The developer guides README.md links to; nothing else under docs/ may ship.
 const SHIPPED_DOC = /^docs\/[^/]+\.md$/;

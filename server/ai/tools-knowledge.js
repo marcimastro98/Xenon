@@ -9,7 +9,7 @@ const branches = {
       let fnResult;
       // Read-only grounding about Xenon itself (setup, features, troubleshooting)
       // so app questions get answered from curated facts, not guesses.
-      fnResult = require('../ai-knowledge.js').lookup(fnArgs.query || fnArgs.topic || '');
+      fnResult = require('./ai-knowledge.js').lookup(fnArgs.query || fnArgs.topic || '');
       return fnResult;
   },
 };

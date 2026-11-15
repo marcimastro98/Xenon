@@ -12,13 +12,13 @@ const {
 const { _sttGain } = require('./mic-gain.js');
 const { spawn } = require('node:child_process');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('./ai-local.js');
 const fs = require('node:fs');
 const { _pcmRmsStats, _dbFromRms } = require('../wav/pcm-loudness.js');
 const { hasVoice, wavPcm } = require('./stt-voice-gate.js');
 const aiOpenai = require('./ai-openai.js');
 const { providerModelFor } = require('./provider-models.js');
-const aiCli = require('../ai-cli.js');
+const aiCli = require('./ai-cli.js');
 const path = require('node:path');
 
 const SERVER_DIR = path.join(__dirname, '..');

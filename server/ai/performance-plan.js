@@ -1,11 +1,11 @@
 // The plan the model writes for Performance Mode: which of the running programs can be put
 // aside for what the person is doing.
 
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('./ai-local.js');
 const aiOpenai = require('./ai-openai.js');
 const aiAnthropic = require('./ai-anthropic.js');
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
-const aiCli = require('../ai-cli.js');
+const aiCli = require('./ai-cli.js');
 const { localServerOneShot } = require('./local-server-one-shot.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { readHubSettings } = require('../settings/read.js');

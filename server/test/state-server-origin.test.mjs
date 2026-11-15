@@ -96,9 +96,9 @@ const LOOPBACK_EXEMPT = [
   // Prose.
   { file: 'ambient/ambient-idle.js' },
   // The address of the user's OLLAMA, not of Xenon: a default for a setting the
-  // SERVER dials (server/ai-local.js). The browser never fetches it.
+  // SERVER dials (server/ai/ai-local.js). The browser never fetches it.
   { match: ':11434' },
-  // The same for the user's local server (server/ai-local-server.js dials it).
+  // The same for the user's local server (server/ai/ai-local-server.js dials it).
   { file: 'ai/local-server-fields.js' },
   // An OAuth redirect URI registered with Spotify, which must match the string
   // on file byte for byte. Pointing it at the origin the page happens to be on

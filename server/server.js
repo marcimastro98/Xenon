@@ -414,27 +414,27 @@ const PerfHud = require('./js/performance/perf-hud.js'); // what the Game perfor
 const ScreenSceneModel = require('./js/ambient/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
 require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
-const aiLocal = require('./ai-local');
+const aiLocal = require('./ai/ai-local');
 const aiOpenai = require('./ai/ai-openai');
-const aiLocalServer = require('./ai-local-server');
+const aiLocalServer = require('./ai/ai-local-server');
 const aiAnthropic = require('./ai/ai-anthropic');
 const aiXenon = require('./store-supporters/ai-xenon-credits');
 const welcomeSparks = require('./store-supporters/welcome-sparks');
 require('./ai/ai-creation-labels'); // nothing is taken from it here, but deck/tools.js asks for it inside a function and would read it from disk then
 const aiTurns = require('./ai/ai-turns');
 const aiMyWidgets = require('./ai/ai-my-widgets');
-const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
+const aiCli = require('./ai/ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai/ai-gemini');
 const { withThinking, applyThinking } = require('./ai/ai-gemini-thinking');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai/ai-models');
-require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
+require('./ai/ai-provider-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 const { createGuardian } = require('./system/guardian');
 require('./battery');
 require('./ai/ai-memory');
 const { createAiActionLog } = require('./ai/ai-action-log');
 const aiLive = require('./ai/ai-live');
-require('./briefing');
+require('./ai/briefing');
 require('./time/ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
@@ -517,7 +517,7 @@ const { createLyricsOffsets } = require('./media/lyrics-offsets');
 const { createLyricsTranslator } = require('./media/lyrics-translator');
 const { createSdkAi } = require('./widget-sdk/sdk-ai');
 const { createRoastSparks } = require('./store-supporters/vitals-roast-sparks.js');
-require('./bit-messages.js');
+require('./ai/bit-messages.js');
 require('./store-catalog/rating-votes.js');
 require('./pc-id.js');
 require('./mcp/mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
@@ -1224,7 +1224,7 @@ function mcpDevDeps() {
     sdkApiVersion: sdkWidgets.SDK_API_VERSION,
     sdkEnabled: () => sdkFeatureEnabled(),
     dashboardOpen: () => sseClients.size > 0,
-    getSdkReference: (section) => require('./ai-knowledge.js').getSdkReference(section),
+    getSdkReference: (section) => require('./ai/ai-knowledge.js').getSdkReference(section),
     validateWidgetPayload: (payload) => sdkWidgets.validateWidgetPayload(payload),
     critiqueWidget: (id, files) => aiPresets.critiqueWidget(id, files, aiPresetDeps()),
     scanWidgetSource: (files) => SdkDiagnostics.scanWidgetSource(files),

@@ -7,16 +7,16 @@
 // code only holds inside a function are listed here and guarded by
 // test/ai-presets-reference.test.mjs. Each kind ends with a minimal valid example.
 
-const PresetShare = require('./js/preset-share.js');
-const TopbarLook = require('./js/topbar-look.js');
-const TopbarShare = require('./js/topbar-share.js');
-const themePalette = require('./js/theme-palette.js');
-const DeckModel = require('./js/deck-model.js');
-const DashboardInstances = require('./js/dashboard-instances.js');
-const DashboardPresets = require('./js/dashboard-presets.js');
-const AmbientScene = require('./js/ambient-scene.js');
-const CustomBg = require('./js/custom-bg.js');
-const IconPacks = require('./store-catalog/icon-packs.js');
+const PresetShare = require('../js/preset-share.js');
+const TopbarLook = require('../js/topbar-look.js');
+const TopbarShare = require('../js/topbar-share.js');
+const themePalette = require('../js/theme-palette.js');
+const DeckModel = require('../js/deck-model.js');
+const DashboardInstances = require('../js/dashboard-instances.js');
+const DashboardPresets = require('../js/dashboard-presets.js');
+const AmbientScene = require('../js/ambient-scene.js');
+const CustomBg = require('../js/custom-bg.js');
+const IconPacks = require('../store-catalog/icon-packs.js');
 
 // Held inside normalizer bodies, not exported (guarded by the reference test).
 const THEME_ENUMS = Object.freeze({ appearance: ['dark', 'light', 'auto'], styleMode: ['liquid', 'glass', 'retro', 'comic'] });
@@ -116,7 +116,7 @@ const REF = {
       what: 'One Deck profile (stream-deck keys). keys = a flat list in reading order, null = empty slot; the grid grows to fit.',
       profile: { name: 'string, 40 chars', cols: M.DECK_MIN + '-' + M.DECK_MAX, rows: M.DECK_MIN + '-' + M.DECK_MAX, root: '{pages:[{keys:[...]}]} at most ' + M.DECK_MAX * M.DECK_MAX + ' keys per page', look: '{capStyle, keyShape, plate, transparency 0-100, litRing, dimOff, themeColors}', widgets: 'optional, at most ' + PresetShare.DECK_EMBED_MAX_WIDGETS + ' SDK packages the keys use (widget entries)' },
       key: Object.assign({
-        kind: 'action|folder|slider', title: 'string, 40 chars', icon: 'emoji string, {type:"builtin", value: ' + require('./js/deck-icons.js').ids().join('|') + '}, {type:"image", value:"data:image/..."|"https://..."} or {type:"svg", value:"<svg...>"}',
+        kind: 'action|folder|slider', title: 'string, 40 chars', icon: 'emoji string, {type:"builtin", value: ' + require('../js/deck-icons.js').ids().join('|') + '}, {type:"image", value:"data:image/..."|"https://..."} or {type:"svg", value:"<svg...>"}',
         triggers: '{<slot>: action | {steps:[{action, delayMs}]}}, slots: ' + M.KEY_TRIGGERS.join(', '),
         mode: M.KEY_MODES.join('|'), state: '{source}', unlit: 'true = one face: never lights from its action (a save-replay key)', live: '{source}', stateStyle: '{icon, label, color}',
         slider: '{target: ' + M.SLIDER_TARGETS.join('|') + '}', folder: '{pages:[{keys:[...]}]}, nested at most ' + PresetShare.DECK_MAX_FOLDER_DEPTH + ' levels',

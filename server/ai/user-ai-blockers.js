@@ -1,10 +1,10 @@
 // Why the AI the user set cannot answer right now, look at a picture, or translate lyrics, said
 // before any request is made.
 
-const aiLocal = require('../ai-local.js');
-const aiLocalServer = require('../ai-local-server.js');
+const aiLocal = require('./ai-local.js');
+const aiLocalServer = require('./ai-local-server.js');
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
-const aiCli = require('../ai-cli.js');
+const aiCli = require('./ai-cli.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { readHubSettings } = require('../settings/read.js');
 const { hub } = require('../settings/current.js');

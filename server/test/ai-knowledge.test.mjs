@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ak = require('../ai-knowledge.js');
+const ak = require('../ai/ai-knowledge.js');
 const sdk = require('../sdk-widgets.js');
 
 // ---------------------------------------------------------------------------

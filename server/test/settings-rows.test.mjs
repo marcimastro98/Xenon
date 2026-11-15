@@ -238,7 +238,7 @@ test('"I have a code" shows only to someone with no code', () => {
 });
 
 test('Ollama at sign-in is offered only where Xenon can set it', async (t) => {
-  const aiLocal = require('../ai-local.js');
+  const aiLocal = require('../ai/ai-local.js');
   const real = Object.getOwnPropertyDescriptor(process, 'platform');
   t.after(() => Object.defineProperty(process, 'platform', real));
   Object.defineProperty(process, 'platform', { ...real, value: 'linux' });

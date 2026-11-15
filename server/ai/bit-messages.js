@@ -19,10 +19,10 @@
 // the machine (js/store-supporters/hub-messages.js, community-messages.js).
 
 const fs = require('fs');
-const { writeFileAtomic } = require('./atomic-write');
-require('./store-catalog/community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
+const { writeFileAtomic } = require('../atomic-write');
+require('../store-catalog/community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 
-const { ID_RE, cleanTime, cleanMessage, restoreMessage } = require('./ai/bit-message-clean.js');
+const { ID_RE, cleanTime, cleanMessage, restoreMessage } = require('./bit-message-clean.js');
 // Highest first, when several wait for the same day. A vote never takes the day
 // from anything else.
 const PRIORITY = { hub: 6, drop: 5, sparks: 4, updates: 3, support: 2, share: 1, rate: 0 };

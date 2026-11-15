@@ -179,9 +179,20 @@
     {"from":"server/stt-voice-gate.js","to":"server/ai/stt-voice-gate.js","unshimmed":true},
     {"from":"server/tts-chunks.js","to":"server/ai/tts-chunks.js","unshimmed":true},
     {"from":"server/wakeword.js","to":"server/ai/wakeword.js","unshimmed":true},
-    {"from":"server/audio-levels.js","to":"server/audio/audio-levels.js"}
+    {"from":"server/audio-levels.js","to":"server/audio/audio-levels.js"},
+    {"from":"server/ai-cli.js","to":"server/ai/ai-cli.js"},
+    {"from":"server/ai-knowledge.js","to":"server/ai/ai-knowledge.js"},
+    {"from":"server/ai-local-server.js","to":"server/ai/ai-local-server.js"},
+    {"from":"server/ai-local.js","to":"server/ai/ai-local.js"},
+    {"from":"server/ai-preset-reference.js","to":"server/ai/ai-preset-reference.js"},
+    {"from":"server/ai-provider-creds.js","to":"server/ai/ai-provider-creds.js"},
+    {"from":"server/bit-messages.js","to":"server/ai/bit-messages.js"},
+    {"from":"server/briefing.js","to":"server/ai/briefing.js"}
   ],
   "patterns": [
-    {"feature":"audio","glob":"server/audio-levels.js","at":2}
+    {"feature":"audio","glob":"server/audio-levels.js","at":2},
+    {"feature":"bit","glob":"server/ai-*.js","at":0},
+    {"feature":"bit","glob":"server/briefing.js","at":2},
+    {"feature":"bit","glob":"server/bit-messages.js","at":3}
   ]
 }

@@ -19,7 +19,7 @@
 // redact and the secret keeps leaking to the browser. Do not add just one.
 
 // The key list is shared with the dashboard's localStorage mirror (js/settings/settings-secrets.js).
-const { SECRET_KEY_GROUPS } = require('./js/settings/settings-secrets.js');
+const { SECRET_KEY_GROUPS } = require('../js/settings/settings-secrets.js');
 const AI_PROVIDER_SECRET_KEYS = SECRET_KEY_GROUPS.ai;
 
 // Carry a persisted key over when an incoming client save omits/empties it, so a

@@ -70,7 +70,7 @@ const EXEMPT = {
     undeadlined: 0,
     reason: 'the push sender, moved out of web-push.js unchanged: the request function is injected (https.request in production) and the whole send is capped by its own timer at twice SEND_TIMEOUT_MS.',
   },
-  'ai-local-server.js': {
+  'ai/ai-local-server.js': {
     undeadlined: 0,
     reason: "the user's own OpenAI-compatible server (loopback or LAN), reached through http or https per URL, with its own whole-request timer.",
   },
@@ -216,7 +216,7 @@ const redeem = require('../store-supporters/supporter-redeem.js');
 const versionPing = require('../version-ping.js');
 const usage = require('../usage-stats.js');
 const aiModels = require('../ai/ai-models.js');
-const aiLocal = require('../ai-local.js');
+const aiLocal = require('../ai/ai-local.js');
 const adblock = require('../windows-tiles/embedded-browser-adblock.js');
 
 async function settles(promise) {

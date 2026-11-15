@@ -4,7 +4,7 @@
 // person can answer it. Drawing it costs no model call; Bit knows about it through
 // the conversation memory, so the next reply can talk about it.
 //
-// Every string comes from the inbox (server/bit-messages.js), which rebuilt it field
+// Every string comes from the inbox (server/ai/bit-messages.js), which rebuilt it field
 // by field, and goes in as text. The button's click is delegated, because the chat
 // copies in duplicated tiles are innerHTML clones.
 (function () {

@@ -19,7 +19,7 @@ const { createReport, note, fail, summarize, isObject } = require('./ai-preset-d
 const { checkTheme, checkBg, checkPage, checkTopbar, knownFields, join } = require('./ai-preset-checks.js');
 const { checkWidgetEntry, checkIcons, checkAmbientLayout, checkWidgetList } = require('./ai-preset-packages.js');
 const { checkDeck } = require('./ai-preset-deck.js');
-const { presetReference } = require('../ai-preset-reference.js');
+const { presetReference } = require('./ai-preset-reference.js');
 const { critiquePreset } = require('./ai-preset-critique.js');
 const { resolvePictures, pictureProblem } = require('./ai-attached-pictures.js');
 
