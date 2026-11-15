@@ -87,7 +87,6 @@ const { writeZip } = require('./zip-writer');
 const CaptureSettings = require('./capture-settings');
 const { createCaptureFolder } = require('./capture-folder');
 const { resolveUserFolder, replayRingDir } = require('./user-folders');
-const { CAPTURE_EXE } = require('./screens/capture-exe.js');
 const { _captureHost } = require('./screens/capture-engine-host.js');
 
 const {
@@ -510,7 +509,6 @@ const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
-const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');
 require('./startup-task');
 const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
@@ -534,9 +532,7 @@ aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge r
 // startup, where the log and the bug report see it. The installer upgrades it.
 try { const w = require('./node-version').nodeWarning(); if (w) console.warn(w); } catch { /* never block startup on this */ }
 
-const {
-  AUTO_UPDATE_ASSUME_IDLE, HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS,
-} = require('./updates/check-values.js');
+const { AUTO_UPDATE_ASSUME_IDLE } = require('./updates/check-values.js');
 const autoUpdateLib = require('./auto-update');
 const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
@@ -4467,8 +4463,6 @@ const {
 
 const { batteryWanted } = require('./device-battery/wanted.js');
 
-const { CAPTURE_CHECK_MARKER } = require('./updates/capture-check-marker.js');
-
 const { desiredBindHost, BIND_HOST } = require('./paired/bind-host.js');
 
 const { helperArrived, ensureHelperUpToDate } = require('./updates/helper-up-to-date.js');
@@ -4482,6 +4476,8 @@ const { _audioToWav16k } = require('./ai/audio-to-wav.js');
 const { _noteAudioWatched, audioPollWanted } = require('./audio/watched.js');
 
 const { _aiPerformancePlan } = require('./ai/performance-plan.js');
+
+const { ensureCaptureEngine } = require('./screens/capture-engine-install.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -6808,36 +6804,6 @@ function _handleLiveClient(client) {
 const { startupTaskCheck } = require('./install/startup-task-state.js');
 
 const { helperInstall } = require('./audio/helper-install-state.js');
-
-// Only where an engine can lag behind the server's list, or (Linux) where its
-// answer is the only list (see capture-host.js).
-function learnCaptureFeatures() {
-  const asks = process.platform === 'darwin' || process.platform === 'linux';
-  if (asks && _captureHost.available()) _captureHost.request('ping');
-}
-// The macOS and Linux engines are their own assets; once one is in place a ping
-// tells the host what it can do (capture-host.js `has`). Linux: x86-64 only.
-function ensureCaptureEngine(attempt = 1) {
-  const linux = process.arch === 'x64' ? CAPTURE_ASSET_LINUX : null;
-  const asset = { win32: CAPTURE_ASSET, darwin: CAPTURE_ASSET_MAC, linux }[process.platform];
-  if (!asset || !APP_VERSION) return;
-  try {
-    let marked = '';
-    try { marked = fs.readFileSync(CAPTURE_CHECK_MARKER, 'utf8').trim(); } catch { /* first run */ }
-    const present = fs.existsSync(CAPTURE_EXE);
-    if (present && marked === APP_VERSION) { learnCaptureFeatures(); return; }
-    const up = createHelperUpdate({ helperExe: CAPTURE_EXE, appVersion: APP_VERSION, asset });
-    (present ? up.refresh() : up.install()).then(status => {
-      learnCaptureFeatures();
-      const done = status === 'up-to-date' || status === 'installed' || status === 'skip-not-latest';
-      if (done) { writeFileAtomic(CAPTURE_CHECK_MARKER, APP_VERSION).catch(() => {}); return; }
-      if (attempt < HELPER_REFRESH_MAX_TRIES) {
-        setTimeout(() => { try { ensureCaptureEngine(attempt + 1); } catch { /* ignore */ } }, HELPER_REFRESH_RETRY_MS).unref();
-      }
-    }).catch(() => { /* best-effort */ });
-  } catch { /* best-effort */ }
-}
-
 
 // The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
 // same stack (see the error handler below).
