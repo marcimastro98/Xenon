@@ -114,7 +114,7 @@ function pairRig() {
   };
   window.location = { hostname: '127.0.0.1' };
   document.readyState = 'complete';
-  vm.runInNewContext(read('../js/mcp-dev-client.js'), {
+  vm.runInNewContext(read('../js/mcp/mcp-dev-client.js'), {
     window, document, fetch, SERVER: '', JSON, Number, Promise, Map, Array, String, Object, ...clock,
     requestAnimationFrame: (fn) => fn(),
   });
@@ -450,7 +450,7 @@ test('a pairing the server forgets goes when its time is up', () => {
 });
 
 test('the pairing is not a permission question, so it never parks one', () => {
-  assert.doesNotMatch(read('../js/mcp-dev-client.js'), /cw-perm-backdrop/);
+  assert.doesNotMatch(read('../js/mcp/mcp-dev-client.js'), /cw-perm-backdrop/);
 });
 
 // ── Every page that can ask ─────────────────────────────────────────────────

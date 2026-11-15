@@ -1,4 +1,4 @@
-// The dashboard side of xenon-mcp (js/mcp-dev-client.js).
+// The dashboard side of xenon-mcp (js/mcp/mcp-dev-client.js).
 // The pairing dialog must be the top layer: a coding assistant is waiting on
 // the tap, and on a fresh install the first-run screen question (z 4100) used to
 // cover it, so Allow could not be pressed until that was answered.
@@ -27,14 +27,14 @@ test('the pairing dialog sits above the first-run, tour and update overlays', ()
 });
 
 test('the dashboard opens the pairing in that window', () => {
-  assert.match(read('../js/mcp-dev-client.js'), /window\.ApprovalKeys\.question\(\{\n\s*className: 'cw-pair-backdrop'/);
+  assert.match(read('../js/mcp/mcp-dev-client.js'), /window\.ApprovalKeys\.question\(\{\n\s*className: 'cw-pair-backdrop'/);
 });
 
 // Found on the real run: on a full page the widget lands on a new page the
 // person is not looking at, so they never saw it and the tools reported it off
 // screen. The dashboard that placed it now goes to that page.
 test('after placing, the dashboard shows the page the widget sits on', () => {
-  const client = read('../js/mcp-dev-client.js');
+  const client = read('../js/mcp/mcp-dev-client.js');
   const place = client.slice(client.indexOf('async function place('), client.indexOf('function issues('));
   assert.ok(place.indexOf('placeCreated') < place.indexOf('devShow'), 'shows it after placing it');
   assert.match(place, /CW\.devShow\(String\(q\.id\), typeof placed === 'string' \? placed : null\)/);
@@ -45,7 +45,7 @@ test('after placing, the dashboard shows the page the widget sits on', () => {
 });
 
 test('a pairing dialog closes itself when the server forgets the pairing', () => {
-  const client = read('../js/mcp-dev-client.js');
+  const client = read('../js/mcp/mcp-dev-client.js');
   assert.match(client, /expiry\.set\(p\.id, setTimeout\(\(\) => closePair\(p\.id\), left\)\)/);
   assert.match(client, /clearTimeout\(expiry\.get\(id\)\)/);
 });

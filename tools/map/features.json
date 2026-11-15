@@ -82,7 +82,7 @@
         "packages/mcp/**",
         "server/mcp/**",
         "server/ai-mcp-bridge.js",
-        "server/js/mcp-dev-client.js"
+        "server/js/mcp/**"
       ]
     },
     {
