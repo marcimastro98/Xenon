@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import { cutByHand, performByHand, restoreLeftover } from '../../tools/restructure/browser-by-hand.mjs';
+import { cutByHand, noteFileOf, performByHand, restoreLeftover } from '../../tools/restructure/browser-by-hand.mjs';
 import { replay } from '../../tools/restructure/browser-extract.mjs';
 import { innerStateProblems } from '../../tools/restructure/browser-inner-proof.mjs';
 import { innerFilesOf, innerPartsOf, runOf } from '../../tools/restructure/browser-ledger.mjs';
@@ -172,7 +172,7 @@ test('a cut that uses nothing of the wrapper is handed nothing: an object the ol
 test('a run stopped halfway leaves a note, and the checkout is put back from it: by --restore, or by the next run', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-browser-cut-stopped-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const note = path.join(root, 'note.json');
+  let note = '';
   const page = '<body>\n<script src="js/leaf.js"></script>\n</body>\n';
   const ledger = JSON.stringify({ moves: [] });
   const lay = () => {
@@ -192,6 +192,9 @@ test('a run stopped halfway leaves a note, and the checkout is put back from it:
 
   lay();
   for (const args of [['init', '-q'], ['add', '-A']]) assert.equal(spawnSync('git', args, { cwd: root }).status, 0);
+  // The note is the checkout's own: in its git folder, not in a folder every program of the machine writes to.
+  note = noteFileOf(root);
+  assert.equal(path.dirname(note), path.join(path.resolve(root), '.git'));
   stopped();
   assert.equal(on(FILE), AFTER, 'the cut was written when the run was stopped');
   assert.equal(on(ROWS), MADE);
@@ -224,6 +227,47 @@ test('a run stopped halfway leaves a note, and the checkout is put back from it:
   lay();
   performByHand({ root, parser: null, plan, note, dryRun: true, check: () => ({ problems: [] }) });
   assert.deepEqual([on(FILE), on(ROWS), on(PAGE), on(LEDGER), fs.existsSync(note)], [BEFORE, null, page, ledger, false]);
+});
+
+test('a note that names a file outside the checkout, or anything a cut does not write, is refused whole and left where it is', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-browser-cut-note-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-browser-cut-outside-'));
+  t.after(() => { for (const dir of [root, outside]) fs.rmSync(dir, { recursive: true, force: true }); });
+  const note = path.join(root, 'note.json');
+  const victim = path.join(outside, 'kept.txt');
+  fs.writeFileSync(victim, 'theirs');
+  fs.mkdirSync(path.join(root, 'server/js'), { recursive: true });
+  fs.writeFileSync(path.join(root, FILE), AFTER);
+  fs.writeFileSync(path.join(root, 'package.json'), 'written');
+  const real = { [FILE]: { was: BEFORE, wrote: AFTER } };
+  const refused = (files) => {
+    const text = JSON.stringify({ files });
+    fs.writeFileSync(note, text);
+    let said = '';
+    try { restoreLeftover(root, note); } catch (error) { if (!(error instanceof Refusal)) throw error; said = error.reasons.join('; '); }
+    assert.equal(fs.readFileSync(note, 'utf8'), text, 'the note is left as it was');
+    assert.equal(fs.readFileSync(path.join(root, FILE), 'utf8'), AFTER, 'not even the file it could have put back is touched');
+    assert.equal(fs.readFileSync(victim, 'utf8'), 'theirs');
+    assert.equal(fs.readFileSync(path.join(root, 'package.json'), 'utf8'), 'written');
+    return said;
+  };
+  const up = path.relative(root, victim).split(path.sep).join('/');
+  assert.match(refused({ ...real, [up]: { was: null, wrote: 'theirs' } }), /climbs out with \.\./);
+  assert.match(refused({ ...real, [victim]: { was: 'mine', wrote: 'theirs' } }), /is an absolute path/);
+  assert.match(refused({ ...real, '/etc/hosts': { was: 'mine', wrote: 'theirs' } }), /is an absolute path/);
+  assert.match(refused({ ...real, 'C:\\Windows\\win.ini': { was: 'mine', wrote: 'theirs' } }), /is an absolute path/);
+  assert.match(refused({ ...real, 'server/js/../../package.json': { was: 'mine', wrote: 'written' } }), /climbs out with \.\./);
+  assert.match(refused({ ...real, 'package.json': { was: 'mine', wrote: 'written' } }), /package\.json is not a file a cut writes/);
+  assert.match(refused({ ...real, 'server/server.js': { was: 'mine', wrote: 'written' } }), /not a file a cut writes/);
+  assert.match(refused({ [FILE]: { was: 7 } }), /does not say what was there/);
+  fs.writeFileSync(note, 'not json');
+  assert.throws(() => restoreLeftover(root, note), (error) => error instanceof Refusal && /not a note that can be read/.test(error.reasons[0]));
+  assert.equal(fs.readFileSync(note, 'utf8'), 'not json');
+  // The same note with only what a cut writes is acted on.
+  fs.writeFileSync(note, JSON.stringify({ files: real }));
+  assert.deepEqual(restoreLeftover(root, note), [`${FILE}: put back`]);
+  assert.equal(fs.readFileSync(path.join(root, FILE), 'utf8'), BEFORE);
+  assert.equal(fs.existsSync(note), false);
 });
 
 test('every hand cut on the real list is an inner move, handed names or none, and the test reader hands its file out with its script', () => {

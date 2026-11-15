@@ -23,13 +23,12 @@
 // Nothing is written when the check says no.
 //
 // The check reads the checkout, so the cut is written before it is known to hold. What
-// was there is first noted in a file outside the checkout; a run stopped halfway (a time
+// was there is first noted in a file in the checkout's git folder; a run stopped halfway (a time
 // limit, a closed terminal) leaves that note, and the next run, or `--restore` alone,
 // puts every file back that still holds what the stopped run wrote.
 
-import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -104,20 +103,56 @@ export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {
 const LEDGER = 'tools/restructure/extracted-browser.json';
 const readOr = (file) => { try { return readFileSync(file, 'utf8'); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } };
 
-/** @param {string} root @returns {string} where a run in that checkout notes what it is about to write over */
+/**
+ * The note lives in the checkout's own git folder (a worktree has one of its own): nobody else on the machine writes
+ * there, and it is never part of a commit.
+ * @param {string} root @returns {string} where a run in that checkout notes what it is about to write over
+ */
 export function noteFileOf(root) {
-  return path.join(tmpdir(), `xenon-by-hand-${createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 16)}.json`);
+  const run = spawnSync('git', ['rev-parse', '--git-dir'], { cwd: root, encoding: 'utf8' });
+  if (run.status !== 0) throw new Error(`git rev-parse --git-dir failed in ${root}: ${run.error?.message ?? run.stderr.trim()}`);
+  return path.join(path.resolve(root, run.stdout.trim()), 'xenon-by-hand-note.json');
+}
+
+// What a cut writes, and so all a note may ask to put back: the list of moves, the scripts, the pages that load them
+// (the .html files right in server/) and the tests.
+const WRITTEN = /^server\/(?:js\/|test\/|[^/]+\.html$)/;
+
+/**
+ * @param {string} root @param {any} noted a note as parsed
+ * @returns {string[]} why the note is not one to act on: every reason, none for a note a cut here could have left
+ */
+export function noteProblems(root, noted) {
+  const files = noted?.files;
+  if (!files || typeof files !== 'object' || Array.isArray(files)) return ['it does not list files'];
+  const base = path.resolve(root) + path.sep;
+  const reasons = [];
+  for (const [file, kept] of Object.entries(files)) {
+    if (path.isAbsolute(file) || path.win32.isAbsolute(file) || path.posix.isAbsolute(file)) reasons.push(`${file} is an absolute path`);
+    else if (file.split(/[\\/]/).includes('..')) reasons.push(`${file} climbs out with ..`);
+    else if (!path.resolve(root, file).startsWith(base)) reasons.push(`${file} is not inside the checkout`);
+    else if (file !== LEDGER && !WRITTEN.test(file)) reasons.push(`${file} is not a file a cut writes`);
+    else if (!kept || typeof kept !== 'object' || !(kept.was === null || typeof kept.was === 'string') || !(kept.wrote === undefined || typeof kept.wrote === 'string')) {
+      reasons.push(`${file} does not say what was there and what was written`);
+    }
+  }
+  return reasons;
 }
 
 /**
  * Puts back what a run that was stopped halfway left written. A file is put back only while it holds what that run
  * wrote (the list of moves: while any of the others still does); one changed since is left alone and named.
+ * A note that names anything a cut does not write is refused whole: it is left where it is, nothing is written or removed.
  * @param {string} root @param {string} [note] the note of that run @returns {string[]} one line per file touched or left; empty when no run was stopped
  */
 export function restoreLeftover(root, note = noteFileOf(root)) {
   const text = readOr(note);
   if (text === null) return [];
-  const { files } = JSON.parse(text);
+  let noted = null;
+  try { noted = JSON.parse(text); } catch { /* said below, with the rest */ }
+  const reasons = noted === null ? ['it is not a note that can be read'] : noteProblems(root, noted);
+  if (reasons.length) throw new Refusal([`${note} is not a note a hand cut left here, and it is left as it is: ${reasons.join('; ')}. Nothing was put back; look at it, then remove it by hand.`]);
+  const { files } = noted;
   const now = Object.fromEntries(Object.keys(files).map((file) => [file, readOr(path.join(root, file))]));
   const intact = Object.entries(files).some(([file, { wrote }]) => wrote !== undefined && now[file] === wrote && wrote !== files[file].was);
   const said = [];
@@ -157,7 +192,7 @@ export function performByHand({ root, parser, plan, dryRun = false, note = noteF
   };
   // The note is whole before the first file changes: written beside its place, then given its name.
   const noted = { files: { ...Object.fromEntries([...files].map(([file, wrote]) => [file, { was: was.get(file), wrote }])), [LEDGER]: { was: ledgerWas } } };
-  writeFileSync(`${note}.part`, JSON.stringify(noted));
+  writeFileSync(`${note}.part`, JSON.stringify(noted), { mode: 0o600 });
   renameSync(`${note}.part`, note);
   // The check reads the checkout, so the cut is written first; a check that cannot finish leaves nothing behind either.
   let problems = null;
@@ -175,7 +210,12 @@ export function performByHand({ root, parser, plan, dryRun = false, note = noteF
 async function main(argv) {
   const planFile = argv.find((word) => !word.startsWith('--'));
   if (argv.includes('--restore')) {
-    const said = restoreLeftover(ROOT);
+    let said = null;
+    try { said = restoreLeftover(ROOT); } catch (error) {
+      if (!(error instanceof Refusal)) throw error;
+      console.error(`Refused:\n  ${error.reasons.join('\n  ')}`);
+      return 1;
+    }
     console.log(said.length ? `A run was stopped halfway:\n  ${said.join('\n  ')}` : 'No run was stopped halfway: nothing to put back.');
     return 0;
   }
