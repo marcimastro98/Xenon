@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const { parseDockerSize, parseSystemDf, createDockerSource } = require('../disk/devclean-docker.js');
 const { createOllamaSource, sameModel } = require('../disk/devclean-ollama.js');
 const { createVscodeSource, workspaceTarget } = require('../disk/devclean-vscode.js');
-const { parseLxss } = require('../devclean-vhdx.js');
+const { parseLxss } = require('../disk/devclean-vhdx.js');
 const { createDevClean } = require('../disk/devclean.js');
 const { ID_RE } = require('../disk/devclean-ids.js');
 

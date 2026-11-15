@@ -20,7 +20,7 @@
     "server/components/WhatsNew/WhatsNew.css": 745,
     "server/cpu-temp.ps1": 593,
     "server/deck-hotkey.ps1": 374,
-    "server/disk-categories.js": 312,
+    "server/disk/disk-categories.js": 312,
     "server/enable-sensors.ps1": 449,
     "server/gpu.ps1": 543,
     "server/index.html": 5231,

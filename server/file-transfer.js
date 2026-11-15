@@ -42,7 +42,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { makeKeptWrite } = require('./files/kept-write.js');
-const { parseXdgUserDirs } = require('./diskspace.js');
+const { parseXdgUserDirs } = require('./disk/diskspace.js');
 
 const STORE_VERSION = 1;
 const { DEFAULT_MAX_BYTES, receiveStream } = require('./transfer/receive-stream.js');

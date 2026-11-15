@@ -1,4 +1,4 @@
-// Disk cleanup category classifier (server/disk-categories.js) — the CLOSED
+// Disk cleanup category classifier (server/disk/disk-categories.js) — the CLOSED
 // "safe to clean" list. What matters most here is what does NOT classify:
 // anything unclassified is shown with no delete button, so a false negative
 // costs a button while a false positive could cost user data.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const DC = require('../disk-categories.js');
+const DC = require('../disk/disk-categories.js');
 
 const NOW = new Date(2026, 6, 23).getTime();
 const DAY = 86400000;

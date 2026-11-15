@@ -4,7 +4,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const DiskCategories = require('../disk-categories.js');
+const DiskCategories = require('../disk/disk-categories.js');
 const DiskHistory = require('../disk/disk-history.js');
 const DiskKinds = require('../disk/disk-kinds.js');
 const {

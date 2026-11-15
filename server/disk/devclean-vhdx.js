@@ -8,7 +8,7 @@
 
 const fsp = require('fs').promises;
 const path = require('path');
-const { stableId } = require('./disk/devclean-ids.js');
+const { stableId } = require('./devclean-ids.js');
 const os = require('os');
 
 const LXSS_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss';
@@ -51,7 +51,7 @@ function createVhdxSource({ run, platform = process.platform, env = process.env,
   // In server\data, not the shared temp folder: compact-vhdx.ps1 (elevated)
   // writes only to a status file directly inside that folder, so the path a
   // caller hands it cannot aim an administrator's write anywhere else.
-  const statusPath = path.join(__dirname, 'data', STATUS_FILE);
+  const statusPath = path.join(__dirname, '..', 'data', STATUS_FILE);
 
   async function listDisks() {
     const disks = [];

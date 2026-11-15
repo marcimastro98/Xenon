@@ -10,7 +10,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createDiskSpace } = require('../diskspace.js');
+const { createDiskSpace } = require('../disk/diskspace.js');
 const DiskHistory = require('../disk/disk-history.js');
 
 const TEMP_DIR = process.platform === 'win32' ? await fs.realpath(os.tmpdir()) : os.tmpdir();

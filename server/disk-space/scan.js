@@ -6,7 +6,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const DiskCategories = require('../disk-categories.js');
+const DiskCategories = require('../disk/disk-categories.js');
 const DiskGuard = require('../disk/disk-guard.js');
 const { makeKeptWrite } = require('../files/kept-write.js');
 const {

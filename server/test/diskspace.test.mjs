@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createDiskSpace } = require('../diskspace.js');
+const { createDiskSpace } = require('../disk/diskspace.js');
 
 // The temp folder as the index names it. On Windows %TEMP% is spelled as a short
 // name (C:\Users\LONGNA~1\...) for any user name longer than eight characters,
@@ -488,7 +488,7 @@ test('cancelling before the job finishes reports the rest as cancelled', async (
 // the actual documents unprotected, which is the one mistake disk-guard.js
 // exists to prevent, so the file that names them is parsed and every entry is
 // added as a protected prefix.
-const { parseXdgUserDirs } = require('../diskspace.js');
+const { parseXdgUserDirs } = require('../disk/diskspace.js');
 
 test('xdg-user-dirs: localised folder names are read, $HOME expands', () => {
   const cfg = [

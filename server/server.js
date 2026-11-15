@@ -384,7 +384,7 @@ require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rul
 require('./js/windows-tiles/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
 require('./windows-tiles/slideshow-folder');          // the slideshow's "folder on this PC" source
 require('./filesearch');           // local file search (Spotlight backend)
-const { createDiskSpace } = require('./diskspace');
+const { createDiskSpace } = require('./disk/diskspace');
 const { createDevClean } = require('./disk/devclean');
 const featureRoutes = require('./feature-routes.js');           // the routes added since this file stopped growing
 const { createFeatureUnlock } = require('./store-supporters/feature-unlock');

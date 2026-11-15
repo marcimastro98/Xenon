@@ -20,36 +20,36 @@
 
 const path = require('path');
 require('./disk-categories'); // nothing is taken from it here, but it runs code when it loads
-require('./disk/disk-guard'); // nothing is taken from it here, but it runs code when it loads
-require('./js/disk/disk-intelligence'); // nothing is taken from it here, but it runs code when it loads
-require('./disk/disk-kinds'); // nothing is taken from it here, but it runs code when it loads
-const { createDupeVerifier } = require('./disk/disk-dupes');
+require('./disk-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../js/disk/disk-intelligence'); // nothing is taken from it here, but it runs code when it loads
+require('./disk-kinds'); // nothing is taken from it here, but it runs code when it loads
+const { createDupeVerifier } = require('./disk-dupes');
 
 const SUMMARY_FILE = 'disk-summary.json';
 
-const { makeDeleteGuard } = require('./disk-space/delete-guard.js');
+const { makeDeleteGuard } = require('../disk-space/delete-guard.js');
 
-const { makeVolumes } = require('./disk-space/volumes.js');
+const { makeVolumes } = require('../disk-space/volumes.js');
 
-const { makeBrowse } = require('./disk-space/browse.js');
+const { makeBrowse } = require('../disk-space/browse.js');
 
-const { makeScan } = require('./disk-space/scan.js');
+const { makeScan } = require('../disk-space/scan.js');
 
-const { makeSavedOverviews } = require('./disk-space/saved-overviews.js');
+const { makeSavedOverviews } = require('../disk-space/saved-overviews.js');
 
-const { makeCleanJob } = require('./disk-space/clean-job.js');
+const { makeCleanJob } = require('../disk-space/clean-job.js');
 
-const { makeClean } = require('./disk-space/clean.js');
+const { makeClean } = require('../disk-space/clean.js');
 
-const { makeOverview } = require('./disk-space/overview.js');
+const { makeOverview } = require('../disk-space/overview.js');
 
-const { makeStatus } = require('./disk-space/status.js');
+const { makeStatus } = require('../disk-space/status.js');
 
 function createDiskSpace(opts) {
   const o = opts || {};
   const dataDir = o.dataDir;
   const helperExe = o.helperExe;
-  const appRoot = o.appRoot || path.join(__dirname, '..');
+  const appRoot = o.appRoot || path.join(__dirname, '..', '..');
   const getSettings = typeof o.getSettings === 'function' ? o.getSettings : () => ({});
   const shellDeleteRunner = typeof o.shellDelete === 'function' ? o.shellDelete : null;
   // A cleanup can take minutes (500 items, many of them folders with thousands
@@ -237,8 +237,8 @@ function createDiskSpace(opts) {
   };
 }
 
-const { parseXdgUserDirs } = require('./disk-space/xdg-user-dirs.js');
+const { parseXdgUserDirs } = require('../disk-space/xdg-user-dirs.js');
 
-const { makeMachinePlaces } = require('./disk-space/machine-places.js');
+const { makeMachinePlaces } = require('../disk-space/machine-places.js');
 
 module.exports = { createDiskSpace, parseXdgUserDirs };

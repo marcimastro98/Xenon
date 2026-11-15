@@ -190,13 +190,18 @@
     {"from":"server/briefing.js","to":"server/ai/briefing.js"},
     {"from":"server/claude-history.js","to":"server/claude-code/claude-history.js"},
     {"from":"server/codex-appserver.js","to":"server/codex/codex-appserver.js"},
-    {"from":"server/discord-rpc.js","to":"server/discord/discord-rpc.js"}
+    {"from":"server/discord-rpc.js","to":"server/discord/discord-rpc.js"},
+    {"from":"server/devclean-vhdx.js","to":"server/disk/devclean-vhdx.js"},
+    {"from":"server/disk-categories.js","to":"server/disk/disk-categories.js"},
+    {"from":"server/diskspace.js","to":"server/disk/diskspace.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
     {"feature":"bit","glob":"server/ai-*.js","at":0},
     {"feature":"bit","glob":"server/briefing.js","at":2},
     {"feature":"bit","glob":"server/bit-messages.js","at":3},
-    {"feature":"discord","glob":"server/discord-*.js","at":1}
+    {"feature":"discord","glob":"server/discord-*.js","at":1},
+    {"feature":"disk","glob":"server/disk*.js","at":1},
+    {"feature":"disk","glob":"server/devclean*.js","at":3}
   ]
 }

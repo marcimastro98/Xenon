@@ -507,9 +507,7 @@
       "what": "What fills the drive, safe clean-up, duplicates and the developer clean-up.",
       "files": [
         "server/disk/**",
-        "server/disk*.js",
         "server/disk-space/**",
-        "server/devclean*.js",
         "server/compact-vhdx.ps1",
         "server/js/disk-*.js",
         "server/js/disk-widget/**",

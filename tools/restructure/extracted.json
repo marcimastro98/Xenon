@@ -913,7 +913,7 @@
       {"file":"server/sensor-history/guardian-sampling.js","about":"What the sensor history counts: a reading into its hour and day, the seconds of the app in front, and a warning when something runs hot.","names":["bucketFor","creditUsage","pruneApps","usageTick","maybeAlert","sample"],"inner":{"factory":"createGuardian","make":"makeSampling"}},
       {"file":"server/sensor-history/guardian-answers.js","about":"What the sensor history answers when it is asked: the charts, the energy, one metric over time and the digest.","names":["series","appsInRange","getHistory","getEnergy","getEnergySummary","queryHistory","getDigest"],"inner":{"factory":"createGuardian","make":"makeAnswers"}}
     ],
-    "server/diskspace.js": [
+    "server/disk/diskspace.js": [
       {"file":"server/disk-space/limits.js","about":"The limits of the disk space module: how long a scan and a delete may take, and how much is listed, hashed and deleted at a time.","names":["SCAN_TIMEOUT_MS","CLIENT_DIRS_MAX","CLIENT_FILES_MAX","CATEGORY_ITEMS_MAX","HASH_FILE_MAX","HASH_TOTAL_MAX","DUPE_GROUPS_MAX","DELETE_BATCH_MAX","SHELL_DELETE_TIMEOUT_MS","IN_USE_RCS","DESCEND_MAX_DEPTH","DU_WALK_CAP"]},
       {"file":"server/disk-space/delete-guard.js","about":"What the disk space module may delete: the guard's view of this machine, a path looked at again just before it goes, and whether anything here can put a file in the bin.","names":["guardCtx","isContainerDir","probeFlags","remainingBytes","guardDelete","helperPresent","canRecycle"],"inner":{"factory":"createDiskSpace","make":"makeDeleteGuard"}},
       {"file":"server/disk-space/volumes.js","about":"The drives and volumes the disk space module can offer as places to index, asked for without holding a request and remembered for a while.","names":["refreshDrives","listDrives","refreshVolumes","addableRoots"],"inner":{"factory":"createDiskSpace","make":"makeVolumes"}},
@@ -1181,7 +1181,7 @@
     "server/system/guardian.js": [
       {"factory":"createGuardian","object":"state","names":["store","timer","usageTimer","sampling","lastSampleAt","lastPersistAt","lastCreditAt","lastDraw","lastUsageAt","lastApp","lastAppGame","usageDirty"],"kept":[],"bare":[],"after":0}
     ],
-    "server/diskspace.js": [
+    "server/disk/diskspace.js": [
       {"factory":"createDiskSpace","object":"lastScan","names":["lastSummary","summaryLoaded"],"kept":[],"bare":[],"after":0},
       {"factory":"createDiskSpace","object":"cleanRuns","names":["jobSeq"],"kept":[],"bare":[],"after":0},
       {"factory":"createDiskSpace","object":"saved","names":["snapshots","history","persistTimer"],"kept":[],"bare":[],"after":0}
