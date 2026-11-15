@@ -137,7 +137,9 @@ function runsBefore(read, fn, taking, K, kept) {
     node.forEachChild(note);
   };
   fn.body.forEachChild(note);
-  const before = (node) => { const owner = outermost(node); return owner === null ? read.startOf(node) < limit : early.has(owner); };
+  // A use written in a function that waits, however deep in one that runs, waits with it.
+  const held = (node) => { for (let at = node.parent; at && at !== fn; at = at.parent) if (read.isFunction(at) && waits(at)) return true; return false; };
+  const before = (node) => { const owner = outermost(node); return !held(node) && (owner === null ? read.startOf(node) < limit : early.has(owner)); };
   for (let grew = true; grew;) {
     grew = false;
     for (const use of read.uses) {

@@ -118,6 +118,9 @@ test('the check refuses a name that can be reached before the line that takes it
   assert.match(cutAndCheck(each, rows(each)).problems.join('\n'), /can reach row before the line that takes it/);
   const waiting = SOURCE.replace("    box.addEventListener('click', () => paint());", "    box.addEventListener('click', paint);\n    setTimeout(() => row('later'), 10);");
   assert.deepEqual(cutAndCheck(waiting, rows(waiting)).problems, []);
+  // A listener set inside a function that runs at once still waits.
+  const deep = SOURCE.replace("    box.addEventListener('click', () => paint());", "    ['a'].forEach((name) => { box.addEventListener(name, () => paint()); });");
+  assert.deepEqual(cutAndCheck(deep, rows(deep)).problems, []);
 });
 
 test('a call a person read and named in the record waits like a listener, and only that call', { skip: SKIP }, () => {
