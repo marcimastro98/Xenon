@@ -80,7 +80,7 @@ const sdk = pretendSdk();
 bridge.lib = { pretend: true };
 bridge.koffi = sdk.koffi;
 bridge.fns = sdk.fns;
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(cond, what, ms = 6000) {

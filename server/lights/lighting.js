@@ -17,12 +17,12 @@ const fx = require('./lighting-effects');
 require('./lighting-external'); // non-iCUE providers (WLED, …)
 require('./lighting-topology');  // which LEDs are which fan / pump / RAM stick
 require('./lighting-led-colors'); // per-LED colours of the 'custom' device mode
-const native = require('./lighting-native');      // motherboard RGB controllers Xenon drives itself over USB
+const native = require('../lighting-native');      // motherboard RGB controllers Xenon drives itself over USB
 require('./lighting-key-look');   // what a Deck key set: wins over music/temperature until switched off
 
-const { bridge } = require('./lights/bridge-state.js');
-const { refreshAvailability, isAvailable } = require('./lights/sdk-dll.js');
-const { paint } = require('./lights/paint-hook.js');
+const { bridge } = require('./bridge-state.js');
+const { refreshAvailability, isAvailable } = require('./sdk-dll.js');
+const { paint } = require('./paint-hook.js');
 
 bridge.config = {
   enabled: false,
@@ -58,38 +58,38 @@ bridge.config = {
   deviceModes: {},
 };
 
-const { writeDevice, releaseAll, getDevices } = require('./lights/sdk-write.js');
+const { writeDevice, releaseAll, getDevices } = require('./sdk-write.js');
 
 // A native frame is painted in the background: when it fails, forget what was
 // sent so the next apply() paints that device again, and say why.
 native.setWriteErrorHook((id, e) => { bridge.lastError = e.message; bridge.lastWrite.delete(id); });
 
-const { disconnect } = require('./lights/sdk-load.js');
+const { disconnect } = require('./sdk-load.js');
 
-const { getBatteryLevels } = require('./lights/sdk-properties.js');
+const { getBatteryLevels } = require('./sdk-properties.js');
 
 const {
   connect, ensureConnected, enumerate, boardsToWake, enumerationComplete,
-} = require('./lights/session.js');
+} = require('./session.js');
 
-const { boundedReenumerate } = require('./lights/upkeep.js');
+const { boundedReenumerate } = require('./upkeep.js');
 
 const {
   isConnected, getLastError, isLightsOut, getExternalStatus, getExternalConfig, getConfig,
   getStatus,
-} = require('./lights/status.js');
+} = require('./status.js');
 
-const { apply } = require('./lights/paint.js');
-const { powerDown, powerUp } = require('./lights/power.js');
+const { apply } = require('./paint.js');
+const { powerDown, powerUp } = require('./power.js');
 
-const { onSystem, onAudio, onStatus, onEvent } = require('./lights/feeds.js');
+const { onSystem, onAudio, onStatus, onEvent } = require('./feeds.js');
 
 paint.apply = apply;   // what the session's own steps (lights/paint-hook.js) repaint through
 
 const {
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode,
   setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, setAlbumColor, clearAlbum,
-} = require('./lights/looks.js');
+} = require('./looks.js');
 
 // Set the ambient animation (style/color/speed/palette). 'none' clears it.
 // Validated (ANIM_STYLES); unknown styles are ignored. Refreshes the layer +
@@ -99,7 +99,7 @@ const {
   applyConfig, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setEffectEnabled,
   setEnabled, scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice,
   setExternalDeviceOptIn, setExternalRuntime,
-} = require('./lights/configure.js');
+} = require('./configure.js');
 
 module.exports = {
   connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, refreshAvailability, getLastError,

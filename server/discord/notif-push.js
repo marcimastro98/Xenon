@@ -2,7 +2,7 @@
 
 const { broadcastSSE } = require('../http/sse-clients.js');
 const calls = require('../calls.js');
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const { discordNotifWanted } = require('../settings/notification-switches.js');
 const { DISCORD_NOTIF_MAX } = require('./notification-limit.js');
 const { discordMirror } = require('./mirrored.js');

@@ -2,8 +2,8 @@
 // What the engine feeds the lights with: system readings, the audio level, the status, and an
 // event that flashes for a moment.
 
-const fx = require('../lighting-effects.js');
-const external = require('../lighting-external.js');
+const fx = require('./lighting-effects.js');
+const external = require('./lighting-external.js');
 const { bridge } = require('./bridge-state.js');
 const { isAvailable } = require('./sdk-dll.js');
 const { gamingPaused } = require('./paint-rules.js');

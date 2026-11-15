@@ -29,8 +29,8 @@ import { dirname, join } from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const src = engineSource('server/lighting.js');
-const { _enumerationComplete: complete, _boardsToWake: toWake } = createRequire(import.meta.url)(join(ROOT, 'server', 'lighting.js'));
+const src = engineSource('server/lights/lighting.js');
+const { _enumerationComplete: complete, _boardsToWake: toWake } = createRequire(import.meta.url)(join(ROOT, 'server', 'lights/lighting.js'));
 
 const dev = (id, ledCount, ledIds) => ({ id, model: id, type: 1, ledCount, ledIds });
 

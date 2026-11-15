@@ -2,7 +2,7 @@
 // The looks a device can take: the modes and styles allowed, the default colours, and what one
 // device or one LED shows.
 
-const fx = require('../lighting-effects.js');
+const fx = require('./lighting-effects.js');
 const { DYNAMIC_ANIM_STYLES } = require('./paint-rules.js');
 
 const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];

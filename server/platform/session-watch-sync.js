@@ -1,7 +1,7 @@
 // Starting the watch for shutdown, restart and sleep while Xenon drives lights itself, and
 // stopping it when it does not.
 
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const { _sessionWatch } = require('./session-watch-lights.js');
 
 function _syncSessionWatch() {

@@ -2,7 +2,7 @@
 // told once, and the fresh scores go to the open dashboards.
 
 const { broadcastSSE } = require('../http/sse-clients.js');
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const football = require('./football.js');
 const { hub } = require('../settings/current.js');
 const { _footballSettings, _footballOpts } = require('./feed-settings.js');

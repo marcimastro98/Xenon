@@ -16,14 +16,14 @@ test('asked before lighting.js is loaded, the hook says so', () => {
 });
 
 test('loading lighting.js puts its apply() in the hook, once, for every module that holds it', () => {
-  require('../lighting.js');
+  require('../lights/lighting.js');
   assert.equal(typeof paint.apply, 'function');
   assert.equal(paint.apply.name, 'apply');
   assert.equal(require('../lights/paint-hook.js').paint, paint, 'one object, shared by require');
 });
 
 test('the four steps of the session repaint through the hook, and none calls apply() by name', () => {
-  const src = engineSource('server/lighting.js');
+  const src = engineSource('server/lights/lighting.js');
   const body = (name) => {
     const at = src.search(new RegExp(`^(?:async )?function ${name}\\(`, 'm'));
     assert.ok(at >= 0, `${name} is there`);

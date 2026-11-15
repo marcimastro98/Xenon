@@ -3,7 +3,7 @@
 
 const {
   clamp8, hexToRgb, rgbToHex, applyBrightness, hsvToRgb,
-} = require('./lights/colour-basics.js');
+} = require('./colour-basics.js');
 
 const NAMED = {
   rosso: '#ff0000', red: '#ff0000', verde: '#00ff00', green: '#00ff00',
@@ -111,7 +111,7 @@ function eventColorAt(opts) {
 const {
   paletteGradient, speedToPeriod, candleLevel, isSpatialAnimation, animationColorAt,
   animationFrameKey, animationGradientAt,
-} = require('./lights/animation-colours.js');
+} = require('./animation-colours.js');
 
 
 module.exports = { clamp8, hexToRgb, rgbToHex, splitVivid, hsvToRgb, tempToColor, applyBrightness, resolveColor, parseColorName, volumeToColor, eventColorAt, animationColorAt, animationGradientAt, animationFrameKey, candleLevel, isSpatialAnimation, speedToPeriod, paletteGradient };

@@ -3,7 +3,7 @@
 // user picks LEDs — a tap, a drag across several, or a part's name for all of
 // it — and gives them a colour, an effect, or back to Xenon. The editor for the
 // chosen LEDs appears only while something is chosen. The layout comes from the
-// server (`segments`, see server/lighting-topology.js); looks go out as a
+// server (`segments`, see server/lights/lighting-topology.js); looks go out as a
 // { luid: '#hex' | { style, color, speed } | null } patch.
 (function () {
   'use strict';

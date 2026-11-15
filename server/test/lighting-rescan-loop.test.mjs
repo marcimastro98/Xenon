@@ -29,7 +29,7 @@ import { dirname, join } from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const src = engineSource('server/lighting.js');
+const src = engineSource('server/lights/lighting.js');
 
 test('a concurrent enumerate() joins the in-flight promise, never a settled one', () => {
   assert.match(src, /if \(enumerating\) return enumeratePending;/);

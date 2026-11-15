@@ -2,7 +2,7 @@
 // Turns a red-green-blue colour into what a Hue light takes, in the old and in the new form of
 // the bridge's interface.
 
-const fx = require('../lighting-effects.js');
+const fx = require('../lights/lighting-effects.js');
 
 // RGB (0..255, brightness baked in) → CIE xy + brightness% for CLIP v2. Pure.
 function rgbToXy(c) {

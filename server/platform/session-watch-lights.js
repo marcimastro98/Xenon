@@ -2,7 +2,7 @@
 // on again when it wakes: the watcher is made when the engine starts and runs only while Xenon
 // drives lights.
 
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const { createSessionWatch } = require('../session-watch.js');
 
 // Shutdown / restart / sleep: switch off the lights Xenon drives itself first

@@ -13,7 +13,7 @@
 
 const dgram = require('dgram');
 const net = require('net');
-const fx = require('../lighting-effects');
+const fx = require('../lights/lighting-effects');
 
 const SSDP_ADDR = '239.255.255.250';
 const SSDP_PORT = 1982;

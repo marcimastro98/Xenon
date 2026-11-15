@@ -8,7 +8,7 @@
 
 const hid = require('../hid');
 const fusion2 = require('./fusion2');
-const layoutsLib = require('../lighting-layouts');
+const layoutsLib = require('../lights/lighting-layouts');
 const { accessCommand } = require('./linux-access');
 
 const UNCONFIGURED_FILL = 120;     // LEDs painted on an output nobody has set up yet

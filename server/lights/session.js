@@ -2,7 +2,7 @@
 // The iCUE session: connect, wait for the SDK to say it is up, list the devices and their LEDs,
 // wake a board that needs it. A repaint is asked through lights/paint-hook.js.
 
-const topology = require('../lighting-topology.js');
+const topology = require('./lighting-topology.js');
 const native = require('../lighting-native/index.js');
 const { bridge } = require('./bridge-state.js');
 const { paint } = require('./paint-hook.js');

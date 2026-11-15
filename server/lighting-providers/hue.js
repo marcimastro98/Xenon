@@ -10,7 +10,7 @@
 // deprecated v1, so new bridges keep working here without any re-pairing.
 // No dependencies. API: https://developers.meethue.com/
 
-const fx = require('../lighting-effects');
+const fx = require('../lights/lighting-effects');
 
 const meta = {
   id: 'hue',

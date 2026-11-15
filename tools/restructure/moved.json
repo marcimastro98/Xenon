@@ -217,7 +217,16 @@
     {"from":"server/layer-strings.js","to":"server/layers/layer-strings.js"},
     {"from":"server/layers-edit.js","to":"server/layers/layers-edit.js"},
     {"from":"server/layers-host.js","to":"server/layers/layers-host.js"},
-    {"from":"server/layers-peek.js","to":"server/layers/layers-peek.js"}
+    {"from":"server/layers-peek.js","to":"server/layers/layers-peek.js"},
+    {"from":"server/lighting-discovery.js","to":"server/lights/lighting-discovery.js"},
+    {"from":"server/lighting-effects.js","to":"server/lights/lighting-effects.js"},
+    {"from":"server/lighting-external.js","to":"server/lights/lighting-external.js"},
+    {"from":"server/lighting-key-look.js","to":"server/lights/lighting-key-look.js"},
+    {"from":"server/lighting-layouts.js","to":"server/lights/lighting-layouts.js"},
+    {"from":"server/lighting-led-colors.js","to":"server/lights/lighting-led-colors.js"},
+    {"from":"server/lighting-topology.js","to":"server/lights/lighting-topology.js"},
+    {"from":"server/lighting.js","to":"server/lights/lighting.js"},
+    {"from":"server/signalrgb.js","to":"server/lights/signalrgb.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -245,6 +254,8 @@
     {"feature":"helpers-shared","glob":"server/child-priority.js","at":12},
     {"feature":"helpers-shared","glob":"server/private-tmp.js","at":13},
     {"feature":"layers","glob":"server/layer-*.js","at":1},
-    {"feature":"layers","glob":"server/layers-*.js","at":2}
+    {"feature":"layers","glob":"server/layers-*.js","at":2},
+    {"feature":"lighting","glob":"server/lighting*.js","at":1},
+    {"feature":"lighting","glob":"server/signalrgb.js","at":4}
   ]
 }

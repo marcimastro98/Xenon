@@ -4,7 +4,7 @@
 // nowhere else. The lines are the ones the route had, each with its reason above it.
 
 const { DASHBOARD_GRID_COLUMNS } = require('../grid/layout-defaults.js');
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const remoteActions = require('../paired/remote-actions.js');
 const VitalsState = require('../vitals/vitals-state.js');
 

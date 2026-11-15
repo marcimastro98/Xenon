@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const fx = require('../lighting-effects.js');
+const fx = require('../lights/lighting-effects.js');
 
 test('tempToColor maps a natural thermal ramp (blue→green→yellow→red)', () => {
   assert.deepEqual(fx.tempToColor(30), { r: 0, g: 120, b: 255 }); // below idle floor → cool blue

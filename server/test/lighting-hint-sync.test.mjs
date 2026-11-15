@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const server = engineSource('server/lighting.js');
+const server = engineSource('server/lights/lighting.js');
 const client = readFileSync(join(ROOT, 'server', 'js', 'lighting-page.js'), 'utf8');
 
 // Body of `function NAME(...) { ... }` up to the closing brace at column 0.

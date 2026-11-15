@@ -2,9 +2,9 @@
 // One repaint of every light from what the bridge holds now, and the end of an event flash,
 // which repaints.
 
-const fx = require('../lighting-effects.js');
-const external = require('../lighting-external.js');
-const keyLook = require('../lighting-key-look.js');
+const fx = require('./lighting-effects.js');
+const external = require('./lighting-external.js');
+const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const { effectiveAlbum, active, colorForDevice, deckReactionColor } = require('./paint-rules.js');
 const { OFF_COLOR, deviceLeds } = require('./look-values.js');

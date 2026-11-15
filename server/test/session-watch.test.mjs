@@ -15,7 +15,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createSessionWatch, parseEvent, SCRIPT } = require('../session-watch.js');
-const keyLook = require('../lighting-key-look.js');
+const keyLook = require('../lights/lighting-key-look.js');
 const P = require('../lighting-native/fusion2-protocol.js');
 const { Fusion2Controller } = require('../lighting-native/fusion2.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -135,7 +135,7 @@ test('a key\'s "lights off" holds until a key or Settings switches them on', () 
 // Read from source: switching the lights in a test would connect to a real
 // iCUE on a developer's PC and paint the rig.
 test('lighting: lights off shows in the status; Settings master on ends it', () => {
-  const src = engineSource('server/lighting.js');
+  const src = engineSource('server/lights/lighting.js');
   assert.match(src, /if \(next\.enabled === true\) keyLook\.setOut\(false\);/);
   assert.match(src, /lightsOut: keyLook\.isOut\(\),/);
   // Saved dark by a key: a restart keeps it dark, and only while the master is off.
@@ -150,7 +150,7 @@ test('lighting: lights off shows in the status; Settings master on ends it', () 
 });
 
 test('lighting: power down and up never throw with no controller', async () => {
-  const lighting = require('../lighting.js');
+  const lighting = require('../lights/lighting.js');
   await lighting.powerDown();
   lighting.powerUp();
   lighting.powerUp();
@@ -195,7 +195,7 @@ test('lighting: power down darkens the native controllers instead of releasing t
   const down = nat.slice(nat.indexOf('async function powerDown()'), nat.indexOf('function resume()'));
   assert.match(down, /\.blackout\(blackoutLengths\(c\)\)/);
   assert.doesNotMatch(down, /release\(\)/);
-  const src = engineSource('server/lighting.js');
+  const src = engineSource('server/lights/lighting.js');
   const pd = src.slice(src.indexOf('async function powerDown()'), src.indexOf('function powerUp()'));
   assert.match(pd, /releaseAll\(\{ keepNative: true \}\)/);
   // The body of releaseAll, to its closing brace: what stands after it depends on the file it lives in.

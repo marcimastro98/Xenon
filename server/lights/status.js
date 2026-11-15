@@ -1,9 +1,9 @@
 'use strict';
 // What the lights are doing now, as the pages and the tools read it.
 
-const external = require('../lighting-external.js');
+const external = require('./lighting-external.js');
 const native = require('../lighting-native/index.js');
-const keyLook = require('../lighting-key-look.js');
+const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const { isAvailable } = require('./sdk-dll.js');
 const { getDevices } = require('./sdk-write.js');

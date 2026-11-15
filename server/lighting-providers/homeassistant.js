@@ -6,7 +6,7 @@
 // and the existing redact/preserve machinery is untouched. A "device" here is one
 // rgb-capable light entity; its `host` is the entity_id (e.g. `light.desk_lamp`).
 
-const fx = require('../lighting-effects');
+const fx = require('../lights/lighting-effects');
 
 const meta = {
   id: 'homeassistant',

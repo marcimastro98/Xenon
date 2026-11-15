@@ -3,7 +3,7 @@
 // scan, and the Chroma link.
 
 const { readBody } = require('../http/read-body.js');
-const lighting = require('../lighting.js');
+const lighting = require('./lighting.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

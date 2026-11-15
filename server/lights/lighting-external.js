@@ -18,15 +18,15 @@ const discovery = require('./lighting-discovery');
 // responders — and although the module skips Corsair controllers (never fighting
 // iCUE), it stays an explicit power-user opt-in.
 const CATALOG = [
-  { id: 'govee', name: 'Govee', type: 'udp', needsPairing: false, download: 'https://app-h5.govee.com/user-manual/wlan-guide', loader: () => require('./lighting-providers/govee') },
-  { id: 'lifx', name: 'LIFX', type: 'udp', needsPairing: false, download: 'https://www.lifx.com/pages/app', loader: () => require('./lighting-providers/lifx') },
-  { id: 'yeelight', name: 'Yeelight', type: 'udp', needsPairing: false, download: 'https://www.yeelight.com/faq/', loader: () => require('./lighting-providers/yeelight') },
-  { id: 'wled', name: 'WLED', type: 'lan', needsPairing: false, download: 'https://kno.wled.ge/basics/getting-started/', loader: () => require('./lighting-providers/wled') },
-  { id: 'hue', name: 'Philips Hue', type: 'lan', needsPairing: true, download: 'https://www.philips-hue.com/', loader: () => require('./lighting-providers/hue') },
-  { id: 'nanoleaf', name: 'Nanoleaf', type: 'lan', needsPairing: true, download: 'https://nanoleaf.me/', loader: () => require('./lighting-providers/nanoleaf') },
-  { id: 'homeassistant', name: 'Home Assistant', type: 'runtime', needsPairing: false, download: 'https://www.home-assistant.io/', loader: () => require('./lighting-providers/homeassistant') },
-  { id: 'chroma', name: 'Razer Chroma', type: 'runtime', needsPairing: false, download: 'https://www.razer.com/synapse-4', loader: () => require('./lighting-providers/chroma') },
-  { id: 'openrgb', name: 'OpenRGB', type: 'lan', needsPairing: false, manualOnly: true, advanced: true, download: 'https://openrgb.org/', loader: () => require('./lighting-providers/openrgb') },
+  { id: 'govee', name: 'Govee', type: 'udp', needsPairing: false, download: 'https://app-h5.govee.com/user-manual/wlan-guide', loader: () => require('../lighting-providers/govee') },
+  { id: 'lifx', name: 'LIFX', type: 'udp', needsPairing: false, download: 'https://www.lifx.com/pages/app', loader: () => require('../lighting-providers/lifx') },
+  { id: 'yeelight', name: 'Yeelight', type: 'udp', needsPairing: false, download: 'https://www.yeelight.com/faq/', loader: () => require('../lighting-providers/yeelight') },
+  { id: 'wled', name: 'WLED', type: 'lan', needsPairing: false, download: 'https://kno.wled.ge/basics/getting-started/', loader: () => require('../lighting-providers/wled') },
+  { id: 'hue', name: 'Philips Hue', type: 'lan', needsPairing: true, download: 'https://www.philips-hue.com/', loader: () => require('../lighting-providers/hue') },
+  { id: 'nanoleaf', name: 'Nanoleaf', type: 'lan', needsPairing: true, download: 'https://nanoleaf.me/', loader: () => require('../lighting-providers/nanoleaf') },
+  { id: 'homeassistant', name: 'Home Assistant', type: 'runtime', needsPairing: false, download: 'https://www.home-assistant.io/', loader: () => require('../lighting-providers/homeassistant') },
+  { id: 'chroma', name: 'Razer Chroma', type: 'runtime', needsPairing: false, download: 'https://www.razer.com/synapse-4', loader: () => require('../lighting-providers/chroma') },
+  { id: 'openrgb', name: 'OpenRGB', type: 'lan', needsPairing: false, manualOnly: true, advanced: true, download: 'https://openrgb.org/', loader: () => require('../lighting-providers/openrgb') },
 ];
 
 const catalogById = id => CATALOG.find(p => p.id === id) || null;

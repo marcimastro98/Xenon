@@ -91,7 +91,7 @@ function normalizeLightingDeviceModes(value) {
 }
 
 // Per-LED looks of the 'custom' (lighting map) mode. Mirrors
-// server/lighting-led-colors.js: luid keys, a hex or { style, color, speed }
+// server/lights/lighting-led-colors.js: luid keys, a hex or { style, color, speed }
 // values, max 512. Arrays inlined for the same TDZ reason as below.
 function normalizeLightingLedValue(v) {
   if (typeof v === 'string') return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null;

@@ -2,11 +2,11 @@
 // The settings of the lights taken in, the motherboard controllers Xenon drives itself, and the
 // providers outside iCUE: each change is kept, then repainted.
 
-const fx = require('../lighting-effects.js');
-const external = require('../lighting-external.js');
-const ledColors = require('../lighting-led-colors.js');
+const fx = require('./lighting-effects.js');
+const external = require('./lighting-external.js');
+const ledColors = require('./lighting-led-colors.js');
 const native = require('../lighting-native/index.js');
-const keyLook = require('../lighting-key-look.js');
+const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const { refreshAnimationLayer } = require('./paint-rules.js');
 const {

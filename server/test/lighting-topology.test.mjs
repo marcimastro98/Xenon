@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { buildSegments } = require('../lighting-topology.js');
+const { buildSegments } = require('../lights/lighting-topology.js');
 
 const luid = (group, index) => ((group << 16) | index) >>> 0;
 const ledsOf = (group, n, from = 1) => Array.from({ length: n }, (_, i) => ({ id: luid(group, from + i), cx: i * 20, cy: 5 }));

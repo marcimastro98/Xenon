@@ -1,6 +1,6 @@
 // The engine's reader of the battery of wireless devices.
 
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const { createBatteryMonitor } = require('../battery.js');
 const { hub } = require('../settings/current.js');
 const { runPowerShellScript } = require('../powershell/run-command.js');

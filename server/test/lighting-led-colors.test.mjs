@@ -13,7 +13,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame, MAX_LED_COLORS } = require('../lighting-led-colors.js');
+const { normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame, MAX_LED_COLORS } = require('../lights/lighting-led-colors.js');
 const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // On a PC with the iCUE SDK DLL, lighting.js would connect to the real iCUE: the
@@ -23,7 +23,7 @@ const realExists = fs.existsSync;
 fs.existsSync = (p) => !String(p).endsWith('iCUESDK.x64_2019.dll') && realExists(p);
 
 test('the real iCUE SDK stays out of these tests', () => {
-  const lighting = require('../lighting.js');
+  const lighting = require('../lights/lighting.js');
   lighting.refreshAvailability();
   assert.equal(lighting.isAvailable(), false);
 });
@@ -55,7 +55,7 @@ test('merge never grows past the cap but can still change existing LEDs', () => 
 });
 
 test('setDeviceMode: custom mode merges LEDs, keeps no base colour, and survives a round trip', () => {
-  const lighting = require('../lighting.js');
+  const lighting = require('../lights/lighting.js');
   assert.ok(lighting.setDeviceMode('dev-a', { mode: 'custom', leds: { 65537: '#FF0000' } }));
   lighting.setDeviceMode('dev-a', { leds: { 65538: { style: 'wave', speed: 70 } } });
   let m = lighting.getConfig().deviceModes['dev-a'];
@@ -114,7 +114,7 @@ test('ledFrame: a wave runs across the LEDs that share it, a breathing group mov
 test('every normalizer knows the custom mode and its LED map', () => {
   const server = engineSource();
   const client = readFileSync(join(SERVER, 'js', 'settings.js'), 'utf8');
-  const bridge = engineSource('server/lighting.js');
+  const bridge = engineSource('server/lights/lighting.js');
   for (const [name, src] of [['server.js', server], ['settings.js', client], ['lighting.js', bridge]]) {
     assert.match(src, /(LIGHTING_)?DEVICE_MODES = \[[^\]]*'custom'/, `${name} drops the custom mode`);
   }
@@ -152,7 +152,7 @@ test('the settings.js LED mirror agrees with the server normalizer', () => {
 });
 
 test('an event flash or a Deck reaction still takes a device that has a LED map', () => {
-  const bridge = engineSource('server/lighting.js');
+  const bridge = engineSource('server/lights/lighting.js');
   assert.match(bridge, /dm\.mode === 'custom' && !eventColor && !deckColor/);
   assert.match(bridge, /m\.mode === 'custom' && ledColors\.hasDynamicLeds\(m\.leds\)/, 'looping LED effects must keep the ticker running');
 });
@@ -182,7 +182,7 @@ test('touching one part of a single-look device keeps the other LEDs looking the
 // look, nothing is saved, and switching the lights off from a key hands it back.
 // While a key holds the lights, the music colour does not cover what it set.
 test('setPartLook paints one part on top of the device look, saves nothing, ends on release', async (t) => {
-  const lighting = require('../lighting.js');
+  const lighting = require('../lights/lighting.js');
   const native = require('../lighting-native');
   const seg = (base, n) => ({ kind: 'fan', ledIds: Array.from({ length: n }, (_, i) => base + i) });
   const board = { id: 'fusion2-test', type: 0x200, source: 'native', segments: [seg(65536, 3), seg(65539, 2)] };
@@ -222,7 +222,7 @@ test('setPartLook paints one part on top of the device look, saves nothing, ends
 });
 
 test('a key colour wins over the music colour until the lights go off', async (t) => {
-  const lighting = require('../lighting.js');
+  const lighting = require('../lights/lighting.js');
   const native = require('../lighting-native');
   const board = { id: 'fusion2-test2', type: 0x200, source: 'native', segments: [{ kind: 'fan', ledIds: [65536, 65537] }] };
   board.ledIds = [65536, 65537];
@@ -247,7 +247,7 @@ test('a key colour wins over the music colour until the lights go off', async (t
 });
 
 test('a key colour for the whole rig drops the parts an earlier key coloured', () => {
-  const keyLook = require('../lighting-key-look.js');
+  const keyLook = require('../lights/lighting-key-look.js');
   keyLook.release();
   keyLook.setPart('dev', [1, 2], '#ffffff');
   keyLook.hold();

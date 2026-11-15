@@ -540,10 +540,8 @@
       "what": "RGB devices, effects and the per-LED map.",
       "files": [
         "server/lights/**",
-        "server/lighting*.js",
         "server/lighting-native/**",
         "server/lighting-providers/**",
-        "server/signalrgb.js",
         "server/hid/**",
         "server/actions/chroma*.js",
         "server/icue-sharpen.ps1",

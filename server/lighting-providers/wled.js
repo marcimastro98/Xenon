@@ -3,7 +3,7 @@
 // No dependencies and no pairing: a WLED device is just an IP on the LAN.
 // API reference: https://kno.wled.ge/interfaces/json-api/
 
-const fx = require('../lighting-effects');
+const fx = require('../lights/lighting-effects');
 
 const meta = {
   id: 'wled',

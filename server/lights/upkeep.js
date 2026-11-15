@@ -3,9 +3,9 @@
 // settings ask, the animation ticker, a reconnect not sooner than the pause, a device list
 // asked again a bounded number of times.
 
-const external = require('../lighting-external.js');
+const external = require('./lighting-external.js');
 const native = require('../lighting-native/index.js');
-const keyLook = require('../lighting-key-look.js');
+const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const { isAvailable } = require('./sdk-dll.js');
 const { paint } = require('./paint-hook.js');

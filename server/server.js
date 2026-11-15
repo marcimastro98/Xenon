@@ -358,7 +358,7 @@ const { createMountedDisks } = require('./disk/mounted-disks');
 const calls = require('./calls');
 const wakeWord = require('./ai/wakeword');
 const sdkWidgets = require('./sdk-widgets');
-const signalrgb = require('./signalrgb');
+const signalrgb = require('./lights/signalrgb');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
@@ -376,7 +376,7 @@ try {
     return { pid: gamePid, name: gameProc };
   });
 } catch { /* platform without one */ }
-const lighting = require('./lighting');
+const lighting = require('./lights/lighting');
 require('./session-watch');
 const deckStore = require('./js/store-catalog/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals/vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)

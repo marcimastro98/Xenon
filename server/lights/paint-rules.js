@@ -1,11 +1,11 @@
 'use strict';
 // The rules that say whether the bridge paints at all, and which colour a device gets.
 
-const fx = require('../lighting-effects.js');
-const external = require('../lighting-external.js');
-const ledColors = require('../lighting-led-colors.js');
+const fx = require('./lighting-effects.js');
+const external = require('./lighting-external.js');
+const ledColors = require('./lighting-led-colors.js');
 const native = require('../lighting-native/index.js');
-const keyLook = require('../lighting-key-look.js');
+const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const gameDetect = require('../gamedetect.js');
 

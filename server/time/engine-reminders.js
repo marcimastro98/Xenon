@@ -3,7 +3,7 @@
 const path = require('node:path');
 const calendarReminders = require('./calendar-reminders.js');
 const { sseClients, broadcastSSE } = require('../http/sse-clients.js');
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { writeFileAtomic } = require('../atomic-write.js');
 const { agendaState } = require('./agenda-state.js');

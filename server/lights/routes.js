@@ -1,12 +1,12 @@
 // What the engine answers about the lights: the state of the lighting, its devices, the album
 // colours, an event, the download page and the install of the iCUE kit, and SignalRGB.
 
-const lighting = require('../lighting.js');
+const lighting = require('./lighting.js');
 const { readBody } = require('../http/read-body.js');
 const { execFile } = require('node:child_process');
 const icueSdkInstall = require('../icue-sdk-install.js');
 const { hub } = require('../settings/current.js');
-const signalrgb = require('../signalrgb.js');
+const signalrgb = require('./signalrgb.js');
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { icueSharpen } = require('./sharpen-state.js');
 const { runPowerShellScript } = require('../powershell/run-command.js');

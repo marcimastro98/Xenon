@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const P = require('../lighting-native/fusion2-protocol.js');
-const L = require('../lighting-layouts.js');
+const L = require('../lights/lighting-layouts.js');
 const { Fusion2Controller } = require('../lighting-native/fusion2.js');
 const native = require('../lighting-native/index.js');
 const hid = require('../hid/index.js');

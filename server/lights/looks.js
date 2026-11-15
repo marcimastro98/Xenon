@@ -2,10 +2,10 @@
 // The setters of what the lights show: a manual colour, a Deck reaction, an animation, a
 // device's mode, a part's look, a Deck key's look, lights out, the album colour.
 
-const fx = require('../lighting-effects.js');
-const external = require('../lighting-external.js');
-const ledColors = require('../lighting-led-colors.js');
-const keyLook = require('../lighting-key-look.js');
+const fx = require('./lighting-effects.js');
+const external = require('./lighting-external.js');
+const ledColors = require('./lighting-led-colors.js');
+const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const { isAvailable } = require('./sdk-dll.js');
 const { albumActive, refreshAnimationLayer } = require('./paint-rules.js');

@@ -1,7 +1,7 @@
 // Saves the lighting set from a tile or a key into the settings, a moment after the last change
 // and inside the settings lock.
 
-const lighting = require('../lighting.js');
+const lighting = require('./lighting.js');
 const { lightingPersist } = require('./persist-state.js');
 const { LIGHTING_PERSIST_DEBOUNCE_MS } = require('./persist-timing.js');
 const { hub } = require('../settings/current.js');

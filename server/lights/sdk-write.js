@@ -1,9 +1,9 @@
 'use strict';
 // Writing colours to the devices through the iCUE SDK, and handing them back to iCUE.
 
-const fx = require('../lighting-effects.js');
-const external = require('../lighting-external.js');
-const ledColors = require('../lighting-led-colors.js');
+const fx = require('./lighting-effects.js');
+const external = require('./lighting-external.js');
+const ledColors = require('./lighting-led-colors.js');
 const native = require('../lighting-native/index.js');
 const { bridge } = require('./bridge-state.js');
 const { sdkCall, noteSdkFailure } = require('./sdk-call.js');

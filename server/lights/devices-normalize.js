@@ -3,10 +3,10 @@
 
 const { clampNumber, normalizeHex } = require('../settings/values.js');
 const { LIGHTING_DEVICE_MODES, LIGHTING_ANIM_SUB } = require('./settings-normalize.js');
-const { normalizeLedColors } = require('../lighting-led-colors.js');
+const { normalizeLedColors } = require('./lighting-led-colors.js');
 const {
   normalizeLayouts: normalizeLightingLayouts, normalizeScanned: normalizeLightingScanned,
-} = require('../lighting-layouts.js');
+} = require('./lighting-layouts.js');
 
 function normalizeLightingDeviceModes(value) {
   const out = {};

@@ -2,7 +2,7 @@
 // told, and the fresh prices go to the open dashboards.
 
 const { broadcastSSE } = require('../http/sse-clients.js');
-const lighting = require('../lighting.js');
+const lighting = require('../lights/lighting.js');
 const stocks = require('./stocks.js');
 const { hub } = require('../settings/current.js');
 const { stocksState } = require('./stocks-state.js');
