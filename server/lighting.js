@@ -24,7 +24,7 @@ const CSS_CONNECTED = 6; // CorsairSessionState::CSS_Connected (confirmed on har
 
 const { bridge } = require('./lights/bridge-state.js');
 const { refreshAvailability, isAvailable } = require('./lights/sdk-dll.js');
-
+const { paint } = require('./lights/paint-hook.js');
 const { wokenBoards, sdkCall, noteSdkFailure } = require('./lights/sdk-call.js');
 
 bridge.config = {
@@ -136,9 +136,8 @@ async function ensureConnected(timeoutMs = 1800) {
 }
 
 // Invoked once the session reaches Connected: paint immediately so the bridge
-// reflects the latest data without waiting for the next SSE tick. `apply` is a
-// hoisted declaration from the orchestration layer below.
-function onConnected() { apply(); }
+// reflects the latest data without waiting for the next SSE tick.
+function onConnected() { paint.apply(); }
 
 // Enumerate connected iCUE devices and their LED layouts.
 // CRITICAL: every FFI call uses koffi's `.async` form so it runs on a worker
@@ -217,7 +216,7 @@ function wakeVendorBoard() {
   if (!fresh.length || !wantsPaint()) return;
   for (const d of fresh) wokenBoards.add(d.id);
   native.wakeForVendor()
-    .then((woken) => { if (woken) { bridge.lastWrite.clear(); apply(); } })
+    .then((woken) => { if (woken) { bridge.lastWrite.clear(); paint.apply(); } })
     .catch((e) => { bridge.lastError = e.message; for (const d of fresh) wokenBoards.delete(d.id); });
 }
 
@@ -249,7 +248,7 @@ function syncAnimationTicker() {
 
 function tickAnimation() {
   refreshAnimationLayer();
-  apply();
+  paint.apply();
 }
 
 // On-demand (re)connect driver for the master-INDEPENDENT effects (Deck reaction,
@@ -329,7 +328,7 @@ function boundedReenumerate() {
 function maybeReenumerate() {
   if (!wantsPaint()) return;
   const p = boundedReenumerate();
-  if (p) p.then(() => { if (bridge.devices.length) apply(); }).catch(() => { /* lastError set inside */ });
+  if (p) p.then(() => { if (bridge.devices.length) paint.apply(); }).catch(() => { /* lastError set inside */ });
 }
 
 // Compute the final colour and push it to every opted-in device (on-change).
@@ -460,6 +459,7 @@ async function apply() {
     if (bridge.applyAgain) { bridge.applyAgain = false; apply(); }
   }
 }
+paint.apply = apply;   // what the session's own steps (lights/paint-hook.js) repaint through
 
 // --- data feeds (called from server.js on existing SSE intervals) ---
 function onSystem(info) {
