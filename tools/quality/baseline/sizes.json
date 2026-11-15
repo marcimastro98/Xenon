@@ -35,7 +35,7 @@
     "server/js/capabilities/capability-catalog.js": 1339,
     "server/js/capture-annotate.js": 375,
     "server/js/capture-gallery-viewer.js": 546,
-    "server/js/chatgpt-widget.js": 357,
+    "server/js/codex/chatgpt-widget.js": 357,
     "server/js/claude-widget.js": 2209,
     "server/js/codex-widget.js": 828,
     "server/js/color-picker.js": 319,

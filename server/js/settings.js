@@ -488,7 +488,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // OpenAI Codex widget: the approval cards (Settings → Codex) and how long one
   // waits before the decision goes back to Codex. See js/codex-widget.js.
   codexWidget: Object.freeze({ approvals: true, waitSec: 90 }),
-  // "Ask ChatGPT" tile: the model Codex answers with. See js/chatgpt-widget.js.
+  // "Ask ChatGPT" tile: the model Codex answers with. See js/codex/chatgpt-widget.js.
   chatgptWidget: Object.freeze({ model: 'default' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   gameIgnore: Object.freeze([]), // apps the user says are not games (js/game-ignore.js)
