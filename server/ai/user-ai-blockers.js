@@ -3,7 +3,7 @@
 
 const aiLocal = require('../ai-local.js');
 const aiLocalServer = require('../ai-local-server.js');
-const aiXenon = require('../ai-xenon-credits.js');
+const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const aiCli = require('../ai-cli.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { readHubSettings } = require('../settings/read.js');

@@ -6,7 +6,7 @@
 
 const aiPresets = require('../ai-presets.js');
 const { addConsiderations } = require('../ai-preset-critique.js');
-const aiXenon = require('../ai-xenon-credits.js');
+const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const { DATA_DIR } = require('../engine/paths.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */

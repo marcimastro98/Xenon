@@ -10,16 +10,16 @@
 // timeout, bounded body, no-throw result objects) with one difference: a POST
 // must never follow redirects, so any 3xx is treated as a failure.
 
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 // Author-owned hub base URL — fixed like CATALOG_BASE, never user-configurable
 // (a settings field would be attack/typo surface with no user benefit).
 const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
 
-const { FETCH_TIMEOUT_MS, postJson } = require('./store-supporters/hub-post.js');
+const { FETCH_TIMEOUT_MS, postJson } = require('./hub-post.js');
 const {
   ENTRY_ID_RE, canonCode, HUB_CODE_RE, TRIAL_RE, VERSION_RE, cleanKv,
-} = require('./store-supporters/hub-shapes.js');
+} = require('./hub-shapes.js');
 // Errors we pass through to the client verbatim; anything else maps to network.
 // 'wrong_code' = valid code, wrong tier/entry (e.g. a supporter code on a
 // limited drop, or an item code on a different entry than it was issued for).
@@ -39,12 +39,12 @@ const MAX_UPDATE_RESPONSE_BYTES = 3 * 1024 * 1024;
 const UPDATE_TIMEOUT_MS = 30000;
 const MAX_BUNDLE_CHARS = 2 * 1024 * 1024 + 4096;
 
-const { redeemState } = require('./store-supporters/redeem-state.js');
+const { redeemState } = require('./redeem-state.js');
 
 const {
   getInstallId, SCOPE_RATINGS, SCOPE_DEVICES, SCOPE_WELCOME, _scopedCache, getScopedId, SAVEABLE_RE,
   readSavedCode, saveCode, forgetCode, savedStatus,
-} = require('./store-supporters/install-data.js');
+} = require('./install-data.js');
 
 /**
  * Stores a pass the user typed in Settings, before any drop needs it.

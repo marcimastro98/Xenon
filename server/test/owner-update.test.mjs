@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { webcrypto } from 'node:crypto';
 const require = createRequire(import.meta.url);
-const redeemMod = require('../supporter-redeem.js');
+const redeemMod = require('../store-supporters/supporter-redeem.js');
 const { ownedUpdateOutcome, encodePreset } = require('../js/preset-share.js');
 const ra = require('../remote-access.js');
 

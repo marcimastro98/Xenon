@@ -52,9 +52,23 @@
     {"from":"server/linux-foreground.js","to":"server/windows-tiles/linux-foreground.js","shim":true},
     {"from":"server/second-screen.js","to":"server/windows-tiles/second-screen.js","shim":true},
     {"from":"server/slideshow-folder.js","to":"server/windows-tiles/slideshow-folder.js","shim":true},
-    {"from":"server/tile-play.js","to":"server/windows-tiles/tile-play.js","shim":true}
+    {"from":"server/tile-play.js","to":"server/windows-tiles/tile-play.js","shim":true},
+    {"from":"server/ai-xenon-credits.js","to":"server/store-supporters/ai-xenon-credits.js"},
+    {"from":"server/feature-unlock.js","to":"server/store-supporters/feature-unlock.js"},
+    {"from":"server/sparks-wallet.js","to":"server/store-supporters/sparks-wallet.js"},
+    {"from":"server/supporter-redeem.js","to":"server/store-supporters/supporter-redeem.js"},
+    {"from":"server/trial-pass.js","to":"server/store-supporters/trial-pass.js"},
+    {"from":"server/trial-vault.js","to":"server/store-supporters/trial-vault.js"},
+    {"from":"server/vitals-roast-sparks.js","to":"server/store-supporters/vitals-roast-sparks.js"},
+    {"from":"server/welcome-sparks.js","to":"server/store-supporters/welcome-sparks.js"}
   ],
   "patterns": [
-
+    {"feature":"store-supporters","glob":"server/supporter-redeem.js","at":1},
+    {"feature":"store-supporters","glob":"server/feature-unlock.js","at":2},
+    {"feature":"store-supporters","glob":"server/sparks-wallet.js","at":3},
+    {"feature":"store-supporters","glob":"server/welcome-sparks.js","at":4},
+    {"feature":"store-supporters","glob":"server/trial-*.js","at":5},
+    {"feature":"store-supporters","glob":"server/ai-xenon-credits.js","at":6},
+    {"feature":"store-supporters","glob":"server/vitals-roast-sparks.js","at":7}
   ]
 }

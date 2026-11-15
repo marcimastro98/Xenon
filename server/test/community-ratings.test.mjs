@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
 const ratings = require('../community-ratings.js');
-const { HUB_BASE } = require('../supporter-redeem.js');
+const { HUB_BASE } = require('../store-supporters/supporter-redeem.js');
 
 // Transport stub: records every outbound call, answers from a script.
 let calls;

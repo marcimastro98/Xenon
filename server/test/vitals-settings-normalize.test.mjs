@@ -29,7 +29,7 @@ function normalizerFrom(file) {
     .map((name) => { const m = src.match(new RegExp('^const ' + name + ' = .*;$', 'm')); return m ? m[0] : ''; });
   const hour = src.match(/^function vitalsHour\(.*\}$/m)[0];
   const code = consts.join('\n') + '\n' + hour + '\n' + slice(src, 'function clampNumber(') + '\n' + slice(src, 'function normalizeVitals(') + '\nthis.normalizeVitals = normalizeVitals;';
-  const box = { cleanRoastSparksCap: require('../vitals-roast-sparks.js').cleanRoastSparksCap };
+  const box = { cleanRoastSparksCap: require('../store-supporters/vitals-roast-sparks.js').cleanRoastSparksCap };
   vm.runInNewContext(code, box);
   return box.normalizeVitals;
 }

@@ -104,13 +104,6 @@
       "what": "Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends.",
       "files": [
         "server/store-supporters/**",
-        "server/supporter-redeem.js",
-        "server/feature-unlock.js",
-        "server/sparks-wallet.js",
-        "server/welcome-sparks.js",
-        "server/trial-*.js",
-        "server/ai-xenon-credits.js",
-        "server/vitals-roast-sparks.js",
         "server/js/sparks-*.js",
         "server/js/spark-path.js",
         "server/js/support-*.js",

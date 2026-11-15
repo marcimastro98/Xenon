@@ -97,7 +97,7 @@ function periodsCharged(startedOn, periodDays) {
 }
 
 // The supporter hub's public wall feed. Same host the app redeems codes against
-// (server/supporter-redeem.js HUB_BASE), and the only source for money that did
+// (server/store-supporters/supporter-redeem.js HUB_BASE), and the only source for money that did
 // not pass through Buy Me a Coffee or GitHub Sponsors.
 const HUB_WALL_URL = process.env.HUB_WALL_URL
   || 'https://xenon-supporter-hub.xenonedge.workers.dev/supporters/wall';

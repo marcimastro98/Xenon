@@ -19,8 +19,8 @@ import { namesOf } from './source-names.mjs';
 const require = createRequire(import.meta.url);
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
 const turns = require('../ai-turns.js');
-const X = require('../ai-xenon-credits.js');
-const redeem = require('../supporter-redeem.js');
+const X = require('../store-supporters/ai-xenon-credits.js');
+const redeem = require('../store-supporters/supporter-redeem.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 const ID = 'd'.repeat(32);

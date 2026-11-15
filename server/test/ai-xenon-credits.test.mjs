@@ -22,9 +22,9 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 // Each round writes a cost line to server.log: never the real one.
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
-const redeem = require('../supporter-redeem.js');
-const X = require('../ai-xenon-credits.js');
-const sparksWallet = require('../sparks-wallet.js');
+const redeem = require('../store-supporters/supporter-redeem.js');
+const X = require('../store-supporters/ai-xenon-credits.js');
+const sparksWallet = require('../store-supporters/sparks-wallet.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 const CODE = 'XSABCDEFGHJKLM';

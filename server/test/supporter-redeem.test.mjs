@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const redeemMod = require('../supporter-redeem.js');
+const redeemMod = require('../store-supporters/supporter-redeem.js');
 
 // Local proxy for the supporter hub: input shape-gating, install-id
 // persistence, and the error whitelist that keeps hub responses from leaking

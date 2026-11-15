@@ -16,7 +16,7 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write.js');
+const { writeFileAtomic } = require('../atomic-write.js');
 const supporterRedeem = require('./supporter-redeem.js');
 
 const WALLET_FILE = 'sparks-code.json';

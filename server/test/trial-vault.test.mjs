@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const { createTrialVault, decryptEnvelope, stubInner } = require('../trial-vault.js');
+const { createTrialVault, decryptEnvelope, stubInner } = require('../store-supporters/trial-vault.js');
 
 // The trial vault keeps trial widgets out of DATA_DIR in plaintext and serves
 // them only while the trial runs. These tests seal a drop exactly as the hub's

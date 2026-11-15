@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const { createTrialPass, TRUST_MS } = require('../trial-pass.js');
+const { createTrialPass, TRUST_MS } = require('../store-supporters/trial-pass.js');
 
 // The hub is the truth about a trial; these tests play the hub with an injected
 // post and a movable clock. No network, no timers left behind (stop()).

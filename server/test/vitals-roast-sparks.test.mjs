@@ -1,4 +1,4 @@
-// Bit's AI roasts on Sparks (server/vitals-roast-sparks.js): never without a
+// Bit's AI roasts on Sparks (server/store-supporters/vitals-roast-sparks.js): never without a
 // daily number the user picked, never past it, counted across restarts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const R = require('../vitals-roast-sparks.js');
+const R = require('../store-supporters/vitals-roast-sparks.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const reply = (credits) => async () => ({ text: 'Drink some water.', credits });

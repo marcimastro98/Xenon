@@ -6,7 +6,7 @@ const { lyricsTexts } = require('./lyrics-reply.js');
 const { hub } = require('../settings/current.js');
 const aiLocal = require('../ai-local.js');
 const lyricsPrices = require('../lyrics-translate-price.js');
-const aiXenon = require('../ai-xenon-credits.js');
+const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

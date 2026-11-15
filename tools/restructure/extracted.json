@@ -894,13 +894,13 @@
       {"file":"server/notification-open/winnotif-shape.js","about":"One notification as the child reader printed it, turned into the shape the dashboards get: known keys only, lengths capped, and an id the server gives.","names":["TEXT_MAX","BODY_MAX","ICON_MAX","_project"]},
       {"file":"server/notification-open/winnotif-control.js","about":"What the notification reader is asked from outside while its child runs: stop the child and forget what it read, look less often through a game, and say what state it is in.","names":["POLL_MS","POLL_GAME_MS","_stopChild","setPace","getState","getFeed","isSupported","reportedState"]}
     ],
-    "server/supporter-redeem.js": [
+    "server/store-supporters/supporter-redeem.js": [
       {"file":"server/store-supporters/redeem-state.js","about":"What the redeem proxy remembers while the engine runs: this install's id, the trial pass and the rating votes it was given.","names":["_installId","_installIdInflight","_trialPass","_ratingVotes"],"state":{"object":"redeemState","props":{"_installId":"installId","_installIdInflight":"installIdInflight","_trialPass":"trialPass","_ratingVotes":"ratingVotes"},"kept":[],"bare":[]}},
       {"file":"server/store-supporters/hub-post.js","about":"One HTTPS POST of JSON to the supporter hub, with a deadline and a limit on how much of the answer is read.","names":["FETCH_TIMEOUT_MS","MAX_RESPONSE_BYTES","postJson"]},
       {"file":"server/store-supporters/hub-shapes.js","about":"The shapes the redeem proxy accepts before it asks the hub: a code in its canonical form, an entry id, a key version and a version number.","names":["ENTRY_ID_RE","canonCode","HUB_CODE_RE","TRIAL_RE","VERSION_RE","cleanKv"]},
       {"file":"server/store-supporters/install-data.js","about":"What this install keeps in the data folder for the supporter hub: its own id, made once, the hashes of it that go out, one for each purpose so the hub cannot tie one to another, and the remembered supporter pass.","names":["fsp","getInstallId","SCOPE_RATINGS","SCOPE_DEVICES","SCOPE_WELCOME","_scopedCache","getScopedId","SUPPORTER_FILE","SAVEABLE_RE","readSavedCode","saveCode","forgetCode","savedStatus"]}
     ],
-    "server/ai-xenon-credits.js": [
+    "server/store-supporters/ai-xenon-credits.js": [
       {"file":"server/store-supporters/credits-state.js","about":"What the Sparks client remembers while the engine runs: its session with the hub and the last balance the hub told it.","names":["_session","_lastBalance"],"state":{"object":"creditsState","props":{"_session":"session","_lastBalance":"lastBalance"},"kept":[],"bare":[]}},
       {"file":"server/store-supporters/credits-limits.js","about":"The models and effort levels a turn paid with Sparks may use, how long and how large one round may be, when a busy round is asked again, and the errors of the hub that are passed on.","names":["MODELS","DEFAULT_MODEL","EFFORTS","DEFAULT_EFFORT","MAX_TOKENS","CREATION_MAX_TOKENS","CHAT_MAX_TOKENS","TURN_TIMEOUT_MS","MAX_TURN_BYTES","SMALL_TIMEOUT_MS","TOKEN_MARGIN_SEC","BUSY_WAITS_MS","BUSY_RETRY_WITHIN_MS","MAX_RETRY_AFTER_MS","KNOWN_ERRORS","sanitizeModel","sanitizeEffort"]},
       {"file":"server/store-supporters/credits-session.js","about":"The Sparks client's session with the hub: the saved pass or Sparks code turned into a token, asked for again before it ends or when the hub stops taking it, and one hub call made with it.","names":["fail","rememberBalance","savedCode","hasCode","sessionToken","withSession"]},
@@ -984,7 +984,7 @@
       {"file":"server/lights/colour-basics.js","about":"The small colour sums the lighting effects are built from: a channel kept between 0 and 255, a hex colour read and written, hue, saturation and value turned into red, green and blue, and a brightness applied.","names":["clamp8","hexToRgb","rgbToHex","applyBrightness","hsvToRgb"]},
       {"file":"server/lights/animation-colours.js","about":"The colour of a lighting animation at a moment: one colour for a device, a gradient along a strip, the key that says when a frame changes, and the palette, period, steps and candle flicker they are worked out from.","names":["paletteGradient","speedToPeriod","quantHue","quantLevel","candleLevel","CANDLE_WARM","paletteStops","isSpatialAnimation","animationColorAt","animationFrameKey","animationGradientAt"]}
     ],
-    "server/trial-vault.js": [
+    "server/store-supporters/trial-vault.js": [
       {"file":"server/store-supporters/trial-vault-packages.js","about":"What is in a trial drop once it is decrypted: the code read, the places a preset carries widget packages, every valid package by id, the same code with each package replaced by a marker for the dashboard, and a package turned back into what an install takes.","names":["parseInner","widgetSlots","packagesOf","stubInner","rawManifest","toPayload"]}
     ],
     "server/codex-link.js": [

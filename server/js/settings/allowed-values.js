@@ -56,7 +56,7 @@ const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina
 // Defaults mirror core.STAGE_AT; each is user-tunable in Settings → Bit.
 const VITALS_PET_STAGES = Object.freeze(['decay', 'gameover', 'overlay', 'minimize', 'lock']);
 const VITALS_PET_DEFAULT_THR = Object.freeze({ decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 });
-// Sparks a day Bit's AI roasts may spend; mirrors server/vitals-roast-sparks.js.
+// Sparks a day Bit's AI roasts may spend; mirrors server/store-supporters/vitals-roast-sparks.js.
 const VITALS_ROAST_SPARKS_CAPS = Object.freeze([0, 10, 25, 50, 100]);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);

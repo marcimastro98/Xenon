@@ -2,9 +2,9 @@
 // content, a purchase and the wallet.
 
 const { readBody } = require('../http/read-body.js');
-const supporterRedeem = require('../supporter-redeem.js');
+const supporterRedeem = require('./supporter-redeem.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const sparksWallet = require('../sparks-wallet.js');
+const sparksWallet = require('./sparks-wallet.js');
 
 /** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
 const branches = {

@@ -3,8 +3,8 @@
 // asked for again before it ends or when the hub stops taking it, and one hub call made with
 // it.
 
-const redeem = require('../supporter-redeem.js');
-const sparksWallet = require('../sparks-wallet.js');
+const redeem = require('./supporter-redeem.js');
+const sparksWallet = require('./sparks-wallet.js');
 const { SMALL_TIMEOUT_MS, TOKEN_MARGIN_SEC, KNOWN_ERRORS } = require('./credits-limits.js');
 const { creditsState } = require('./credits-state.js');
 

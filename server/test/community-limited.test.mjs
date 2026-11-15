@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const limited = require('../community-limited.js');
-const { HUB_BASE } = require('../supporter-redeem.js');
+const { HUB_BASE } = require('../store-supporters/supporter-redeem.js');
 
 let calls;
 let responder;

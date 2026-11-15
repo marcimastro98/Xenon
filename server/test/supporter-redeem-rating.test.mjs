@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const redeemMod = require('../supporter-redeem.js');
+const redeemMod = require('../store-supporters/supporter-redeem.js');
 
 const GOOD = { entryId: 'july-drop', code: 'XS-ABCD-EFGH-JKLM' };
 const RATING_ID = 'a'.repeat(64);

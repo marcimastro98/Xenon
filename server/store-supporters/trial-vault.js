@@ -16,8 +16,8 @@
 const crypto = require('crypto');
 const fsp = require('fs').promises;
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write.js');
-const sdkWidgets = require('./sdk-widgets.js');
+const { writeFileAtomic } = require('../atomic-write.js');
+const sdkWidgets = require('../sdk-widgets.js');
 
 const DIR = 'trial-vault';
 const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
@@ -53,7 +53,7 @@ function decryptEnvelope(enc, cekB64) {
 
 const {
   packagesOf, stubInner, rawManifest, toPayload,
-} = require('./store-supporters/trial-vault-packages.js');
+} = require('./trial-vault-packages.js');
 
 function cleanRecord(raw) {
   if (!raw || typeof raw !== 'object' || !ENTRY_ID_RE.test(String(raw.entryId || ''))) return null;

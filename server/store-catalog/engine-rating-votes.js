@@ -3,7 +3,7 @@
 const path = require('node:path');
 const { nativeCollectors } = require('../system/native-collectors.js');
 const { sseClients } = require('../http/sse-clients.js');
-const supporterRedeem = require('../supporter-redeem.js');
+const supporterRedeem = require('../store-supporters/supporter-redeem.js');
 const communityRatings = require('../community-ratings.js');
 const { createRatingVotes, ASKS_PER_ENTRY } = require('../rating-votes.js');
 const { createPcId } = require('../pc-id.js');

@@ -5,7 +5,7 @@
 // surfaces does not fan out identical requests.
 
 const https = require('https');
-const { HUB_BASE } = require('./supporter-redeem');
+const { HUB_BASE } = require('./store-supporters/supporter-redeem');
 const { armDeadline } = require('./net-guard');
 
 const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;

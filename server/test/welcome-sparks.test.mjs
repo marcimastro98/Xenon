@@ -19,10 +19,10 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
-const redeem = require('../supporter-redeem.js');
-const X = require('../ai-xenon-credits.js');
-const W = require('../welcome-sparks.js');
-const wallet = require('../sparks-wallet.js');
+const redeem = require('../store-supporters/supporter-redeem.js');
+const X = require('../store-supporters/ai-xenon-credits.js');
+const W = require('../store-supporters/welcome-sparks.js');
+const wallet = require('../store-supporters/sparks-wallet.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 const CODE = 'XC-ABCD-EFGH-JKLM';

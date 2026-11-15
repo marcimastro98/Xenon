@@ -11,7 +11,7 @@ const { localServerOneShot } = require('../ai/local-server-one-shot.js');
 const aiOpenai = require('../ai-openai.js');
 const aiAnthropic = require('../ai-anthropic.js');
 const { providerModelFor } = require('../ai/provider-models.js');
-const aiXenon = require('../ai-xenon-credits.js');
+const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const aiCli = require('../ai-cli.js');
 

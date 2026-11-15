@@ -5,8 +5,8 @@ import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const redeemMod = require('../supporter-redeem.js');
-const wallet = require('../sparks-wallet.js');
+const redeemMod = require('../store-supporters/supporter-redeem.js');
+const wallet = require('../store-supporters/sparks-wallet.js');
 
 // Buying a drop with Sparks through the local proxy: which code pays, what is
 // remembered, what is forgotten, and that only known hub errors reach the UI.

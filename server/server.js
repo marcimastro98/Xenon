@@ -387,9 +387,9 @@ require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
 const { createDevClean } = require('./devclean');
 const featureRoutes = require('./feature-routes.js');           // the routes added since this file stopped growing
-const { createFeatureUnlock } = require('./feature-unlock');
-const { createTrialPass } = require('./trial-pass');
-const { createTrialVault } = require('./trial-vault');
+const { createFeatureUnlock } = require('./store-supporters/feature-unlock');
+const { createTrialPass } = require('./store-supporters/trial-pass');
+const { createTrialVault } = require('./store-supporters/trial-vault');
 require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
@@ -418,8 +418,8 @@ const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiLocalServer = require('./ai-local-server');
 const aiAnthropic = require('./ai-anthropic');
-const aiXenon = require('./ai-xenon-credits');
-const welcomeSparks = require('./welcome-sparks');
+const aiXenon = require('./store-supporters/ai-xenon-credits');
+const welcomeSparks = require('./store-supporters/welcome-sparks');
 require('./ai-creation-labels'); // nothing is taken from it here, but deck/tools.js asks for it inside a function and would read it from disk then
 const aiTurns = require('./ai-turns');
 const aiMyWidgets = require('./ai-my-widgets');
@@ -478,7 +478,7 @@ const chatgptAsk = require('./codex/chatgpt-ask');
 const communityCatalog = require('./community-catalog');
 require('./community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./community-installs'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
-const supporterRedeem = require('./supporter-redeem');
+const supporterRedeem = require('./store-supporters/supporter-redeem');
 const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
 const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
 const aiPresets = require('./ai-presets');          // the assistant's create_preset / preset_reference tools
@@ -516,7 +516,7 @@ const { createLyricsCache } = require('./lyrics-cache');
 const { createLyricsOffsets } = require('./lyrics-offsets');
 const { createLyricsTranslator } = require('./lyrics-translator');
 const { createSdkAi } = require('./widget-sdk/sdk-ai');
-const { createRoastSparks } = require('./vitals-roast-sparks.js');
+const { createRoastSparks } = require('./store-supporters/vitals-roast-sparks.js');
 require('./bit-messages.js');
 require('./rating-votes.js');
 require('./pc-id.js');

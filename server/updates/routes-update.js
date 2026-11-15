@@ -13,7 +13,7 @@ const { semverNewer } = require('../semver.js');
 const versionPing = require('../version-ping.js');
 const { hub } = require('../settings/current.js');
 const { settingsBoot } = require('../settings/boot-state.js');
-const supporterRedeem = require('../supporter-redeem.js');
+const supporterRedeem = require('../store-supporters/supporter-redeem.js');
 const usageStats = require('../usage-stats.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

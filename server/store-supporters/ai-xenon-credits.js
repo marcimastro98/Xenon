@@ -15,23 +15,23 @@
 require('./supporter-redeem.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./sparks-wallet.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const welcomeSparks = require('./welcome-sparks.js');
-const aiAnthropic = require('./ai-anthropic.js');
-const aiTurns = require('./ai-turns');
-const startupLog = require('./startup-log');
+const aiAnthropic = require('../ai-anthropic.js');
+const aiTurns = require('../ai-turns');
+const startupLog = require('../startup-log');
 
 const {
   MODELS, DEFAULT_MODEL, EFFORTS, DEFAULT_EFFORT, MAX_TOKENS, CREATION_MAX_TOKENS, CHAT_MAX_TOKENS,
   TURN_TIMEOUT_MS, MAX_TURN_BYTES, SMALL_TIMEOUT_MS, BUSY_WAITS_MS, BUSY_RETRY_WITHIN_MS,
   MAX_RETRY_AFTER_MS, KNOWN_ERRORS, sanitizeModel, sanitizeEffort,
-} = require('./store-supporters/credits-limits.js');
+} = require('./credits-limits.js');
 
-const { creditsState } = require('./store-supporters/credits-state.js');
+const { creditsState } = require('./credits-state.js');
 let _sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let _now = () => Date.now();
 
 const {
   fail, rememberBalance, hasCode, withSession,
-} = require('./store-supporters/credits-session.js');
+} = require('./credits-session.js');
 
 // One line per paid round, so a turn that costs more than it should can be read
 // back: never the conversation, only how the round ended and what it cost.
@@ -88,7 +88,7 @@ function roundTrip(dataDir, model) {
 
 const {
   CHAT_MODEL, CREATION_TOOLS, reachesForCreation, forCreation,
-} = require('./store-supporters/credits-creation.js');
+} = require('./credits-creation.js');
 
 // Haiku chosen for creations runs the whole turn at the user's level: its
 // rounds are both the chat and the creation, and are booked as chat. `pick` is read again on every

@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
-const { createFeatureUnlock } = require('../feature-unlock.js');
+const { createFeatureUnlock } = require('../store-supporters/feature-unlock.js');
 
 // Supporter-only features unlock through the hub's /redeem on a `feature-<id>`
 // entry. The redeem is injected: no network.

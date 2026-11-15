@@ -2,7 +2,7 @@
 // the lyrics translation and developer cleanup features with their trial and unlock.
 
 const { readBody } = require('../http/read-body.js');
-const supporterRedeem = require('../supporter-redeem.js');
+const supporterRedeem = require('./supporter-redeem.js');
 const { DATA_DIR } = require('../engine/paths.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
@@ -10,7 +10,7 @@ const branches = {
   'POST /api/community/redeem': async (req, _res, { json, err500 }, { trialVault }) => {
     // Supporter-code redemption for v2 remote-locked drops. This server only
     // validates shape, attaches the persisted install id and forwards to the
-    // author-owned hub (see server/supporter-redeem.js) — the one-time /
+    // author-owned hub (see server/store-supporters/supporter-redeem.js) — the one-time /
     // 3-device policy is enforced hub-side. In CSRF_MUTATION_PATHS.
     // An EMPTY code is not a malformed request: it means "use the supporter
     // pass this machine already redeemed with" (supporter-redeem.js).

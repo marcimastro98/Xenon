@@ -1,6 +1,6 @@
 // The light model a small task runs on with the AI the user set.
 
-const aiXenon = require('../ai-xenon-credits.js');
+const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const aiCli = require('../ai-cli.js');
 const aiModels = require('../ai-models.js');
 const { SMALL_TASK_FAMILY } = require('./small-task-models.js');

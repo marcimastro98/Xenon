@@ -6,7 +6,7 @@ const {
   VITALS_IDS, VITALS_DEFAULT_MIN, VITALS_DEFAULT_ON, VITALS_PET_STAGES, VITALS_PET_DEFAULT_THR,
   vitalsHour,
 } = require('./settings-values.js');
-const { cleanRoastSparksCap } = require('../vitals-roast-sparks.js');
+const { cleanRoastSparksCap } = require('../store-supporters/vitals-roast-sparks.js');
 
 function normalizeVitals(value) {
   const v = value && typeof value === 'object' ? value : {};
