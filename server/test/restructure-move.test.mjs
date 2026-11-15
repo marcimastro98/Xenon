@@ -11,8 +11,10 @@ import path from 'node:path';
 import { applyStep, edited, planStep, readMoved, removeShims, shimText, undoStep, writeShims } from '../../tools/restructure/move-apply.mjs';
 import { archiveProblems } from '../../tools/restructure/move-check.mjs';
 import { dropUnused, putBack } from '../../tools/restructure/move-map.mjs';
+import { placeEdits, wayBack } from '../../tools/restructure/move-place.mjs';
 import { ownLoads, targets, whyNot } from '../../tools/restructure/move-plan.mjs';
 import { findSites, respell, stops } from '../../tools/restructure/move-refs.mjs';
+import { answered } from '../../tools/restructure/move-told.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 
 const FEATURES = [
@@ -249,4 +251,53 @@ test('a step moves, rewrites and lists; undo puts every file back; the line at t
     await parser.close();
     rmSync(repo.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
+});
+
+test('one file may be given a folder of its own, and a folder named like its feature may be made when the list says so', () => {
+  const tracked = ['server/transfer/inbox.js', 'server/handset.js', 'server/pulse/index.js', 'server/pulse-nag.js', 'server/brain/chat.js'];
+  const features = [{ id: 'pulse', files: ['server/pulse/**', 'server/brain/**', 'server/pulse-*.js'] }, { id: 'phone', files: ['server/phone/**', 'server/transfer/**', 'server/handset.js'] }];
+  const placed = targets({ tracked, features, left: { ...LEFT, places: { 'server/pulse-nag.js': 'brain' }, makes: ['server/phone'] } });
+  assert.deepEqual(placed.moves.map((move) => move.to).sort(), ['server/brain/pulse-nag.js', 'server/phone/handset.js']);
+  const files = { 'server/pulse-nag.js': '', 'server/pulse/index.js': '' };
+  const made = { from: 'server/pulse-nag.js', to: 'server/pulse-new/pulse-nag.js' };
+  assert.match(whyNot(made, facts(files)), /makes no folder/);
+  assert.doesNotMatch(whyNot(made, facts(files, { makes: ['server/pulse-new'] })) ?? '', /makes no folder/);
+  const says = (code, follows) => whyNot(MOVE, facts({ 'server/pulse-nag.js': code, 'server/pulse/index.js': '' }, { follows }));
+  assert.equal(says('path.join(__dirname, "a.ps1")', new Set(['__dirname'])), null, 'the caller follows the word itself');
+  assert.match(says('spawn(__filename, __dirname)', new Set(['__dirname'])), /__filename/);
+});
+
+test('a join that starts at __dirname gets the way back up, and nothing else that depends on the place may move', { skip: !parserAvailable() && 'TypeScript is not installed here' }, async () => {
+  const parser = await openParser();
+  try {
+    const place = (code, move = MOVE) => placeEdits(move, parser.parse(code, move.from), parser.K);
+    const code = "const A = path.join(__dirname, 'a.ps1');\nconst B = path.resolve(__dirname, '..', 'docs');\ntry { require.resolve('pkg'); } catch {}\n// __dirname in a comment\n";
+    const done = place(code);
+    assert.equal(done.why, null);
+    assert.equal(edited(code, done.edits), "const A = path.join(__dirname, '..', 'a.ps1');\nconst B = path.resolve(__dirname, '..', '..', 'docs');\ntry { require.resolve('pkg'); } catch {}\n// __dirname in a comment\n");
+    assert.deepEqual(wayBack({ from: 'server/a.js', to: 'server/x/y/a.js' }), ['..', '..']);
+    assert.equal(wayBack({ from: 'server/x/a.js', to: 'server/y/a.js' }), null);
+    for (const stuck of ['const here = __dirname;', 'spawn(node, [__dirname + "/a.js"]);', 'path.join(root, __dirname);', 'require.resolve(name);']) {
+      assert.match(place(stuck).why ?? '', /its place is part of what it does/, stuck);
+      assert.deepEqual(place(stuck).edits, []);
+    }
+    assert.match(place("path.join(__dirname, 'a');", { from: 'server/x/a.js', to: 'server/y/a.js' }).why, /straight down/);
+  } finally {
+    await parser.close();
+  }
+});
+
+test('a place a person answered is written as answered, and is quiet once it holds the answer', () => {
+  const file = 'server/test/b.test.mjs';
+  const text = "const A = read('pulse-nag.js');\nconst label = ['pulse-nag.js', A];\n";
+  const read = () => text;
+  const site = (line, extra = {}) => ({ file, line, start: line * 10, end: line * 10 + 12, was: 'pulse-nag.js', kind: 'unknown', move: MOVE, why: 'the bare name', ...extra });
+  const told = [{ file, was: 'pulse-nag.js', text: 'pulse/pulse-nag.js', near: "read('" }, { file, was: 'pulse-nag.js', text: 'pulse-nag.js', near: 'label' }];
+  const out = answered([site(1), site(1), site(2)], told, read);
+  assert.deepEqual(out.map((one) => [one.kind, one.text]), [['told', 'pulse/pulse-nag.js']], 'one edit for the path, none for the label');
+  assert.equal(stops(out[0]), null);
+  assert.deepEqual(answered([site(1, { was: 'pulse/pulse-nag.js' })], [{ file, was: 'pulse-nag.js', text: 'pulse/pulse-nag.js' }], read), [], 'after the step');
+  assert.equal(answered([site(1)], [], read)[0].kind, 'unknown', 'a place nobody answered still stops the move');
+  const ships = site(1, { file: 'server/run.js' });
+  assert.equal(answered([ships], [{ file: 'server/run.js', was: 'pulse-nag.js', text: 'pulse/pulse-nag.js' }], read)[0].kind, 'unknown', 'code that ships is never told');
 });

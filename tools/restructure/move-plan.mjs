@@ -1,8 +1,11 @@
 // Says where each loose file of `server/` goes, and why a file may not go.
 //
 // The home of a file is the folder of the feature that owns it in tools/map/features.json: `server/<feature id>/`
-// when that folder exists, or the folder move-left.json gives the feature. No folder is ever made up: a feature
-// without one keeps its files where they are, and the report says so.
+// when that folder exists, or the folder move-left.json gives the feature (`homes`) or the one file (`places`).
+// No folder is ever made up: a feature without one keeps its files where they are, and the report says so, unless
+// move-left.json lists the folder as one a move may make (`makes`: a folder named like its feature).
+//
+// `__dirname` and `require.resolve` stop a move here; a caller that follows them itself (move-place.mjs) says so.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -23,7 +26,7 @@ export const MEANING = [
 
 export const withoutComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/^\s*\/\/.*$/gm, '');
 
-/** @param {string} root @returns {{ homes: Record<string, string>, features: Record<string, string>, files: Record<string, string> }} */
+/** @param {string} root @returns {{ homes: Record<string, string>, places?: Record<string, string>, makes?: string[], features: Record<string, string>, files: Record<string, string> }} */
 export function readLeft(root) {
   return JSON.parse(readFileSync(path.join(root, 'tools', 'restructure', 'move-left.json'), 'utf8'));
 }
@@ -35,13 +38,13 @@ export function readLeft(root) {
 export function targets({ tracked, features, left, only }) {
   const { owned } = assign(tracked, features);
   const ownerOf = new Map([...owned].flatMap(([id, files]) => files.map((file) => [file, id])));
-  const folders = new Set(tracked.filter((file) => /^server\/[^/]+\//.test(file)).map((file) => file.split('/')[1]));
+  const folders = new Set([...tracked.filter((file) => /^server\/[^/]+\//.test(file)).map((file) => file.split('/')[1]), ...(left.makes ?? []).map((folder) => folder.split('/')[1])]);
   const moves = [];
   const stay = [];
   for (const from of tracked.filter((file) => ROOT_FILE.test(file))) {
     const feature = ownerOf.get(from);
     if (only && feature !== only) continue;
-    const folder = left.homes[feature] ?? feature;
+    const folder = left.places?.[from] ?? left.homes[feature] ?? feature;
     const names = features.find((entry) => entry.id === feature)?.files.includes(`server/${folder}/**`);
     if (left.files[from]) stay.push({ file: from, why: left.files[from] });
     else if (left.features[feature]) stay.push({ file: from, why: left.features[feature] });
@@ -55,7 +58,8 @@ export function targets({ tracked, features, left, only }) {
  * Why one move may not be made, from what the repo says before anything is read for references.
  * @param {{from: string, to: string}} move
  * @param {{ tracked: Set<string>, frozen: {paths: string[], whole: string[]}, features: object[], dirty: Set<string>,
- *   ignored: (file: string) => boolean, read: (file: string) => string }} repo
+ *   ignored: (file: string) => boolean, read: (file: string) => string, makes?: string[], follows?: Set<string> }} repo
+ *   `makes`: folders a move may make; `follows`: words of MEANING the caller checks itself
  * @returns {string | null}
  */
 export function whyNot(move, repo) {
@@ -67,7 +71,7 @@ export function whyNot(move, repo) {
   if (repo.tracked.has(to)) return `${to} is already there`;
   const folder = posix.dirname(to);
   if (folder === from.replace(/\.js$/, '') || folder.startsWith(`${from.replace(/\.js$/, '')}/`)) return 'x.js may never become the folder x/: an install that kept the old file would load it first';
-  if (![...repo.tracked].some((file) => file.startsWith(`${folder}/`))) return `${folder}/ does not exist: a move makes no folder`;
+  if (![...repo.tracked].some((file) => file.startsWith(`${folder}/`)) && !repo.makes?.includes(folder)) return `${folder}/ does not exist: a move makes no folder`;
   const [top, under] = folder.split('/');
   if (top === 'server' && SERVED.includes(under)) return `${folder}/ is handed out to pages or is not code that ships`;
   if (repo.ignored(to)) return `${folder}/ is ignored by git: the file would be missing from an install`;
@@ -75,7 +79,7 @@ export function whyNot(move, repo) {
   const owner = (file) => repo.features.find((feature) => feature.files.some((glob) => globToRegExp(glob).test(file)))?.id;
   if (owner(from) !== owner(to)) return 'the map would give it to another feature at the new place';
   const code = withoutComments(repo.read(from));
-  const word = MEANING.find(([, test]) => test.test(code));
+  const word = MEANING.find(([name, test]) => !repo.follows?.has(name) && test.test(code));
   return word ? `it says ${word[0]}: its place is part of what it does` : null;
 }
 

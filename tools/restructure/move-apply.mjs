@@ -9,8 +9,10 @@ import path from 'node:path';
 
 import { trackedFiles } from '../quality/repo-files.mjs';
 import { dropUnused, FEATURES, MAP, mapText, pageText, putBack } from './move-map.mjs';
-import { ownLoads, whyNot } from './move-plan.mjs';
+import { placeEdits } from './move-place.mjs';
+import { ownLoads, readLeft, whyNot } from './move-plan.mjs';
 import { findSites, loadsOf, stops } from './move-refs.mjs';
+import { answered, readTold } from './move-told.mjs';
 
 const posix = path.posix;
 export const MOVED = 'tools/restructure/moved.json';
@@ -74,14 +76,15 @@ function spelledEdits(root, moves) {
  * @returns {{ moves: {from: string, to: string}[], refused: {move: object, why: string[]}[], edits: Map<string, object[]>, sites: object[] }}
  */
 export function planStep(root, asked, parser) {
-  const repo = repoFacts(root);
+  const repo = { ...repoFacts(root), makes: readLeft(root).makes ?? [], follows: new Set(['__dirname', 'require.resolve']) };
+  const told = readTold(root);
   const refused = new Map();
   const refuse = (move, why) => refused.set(move.from, { move, why: [...(refused.get(move.from)?.why ?? []), why] });
   for (const move of asked) {
-    const why = whyNot(move, repo);
+    const why = whyNot(move, repo) ?? placeEdits(move, parser.parse(repo.read(move.from), move.from), parser.K).why;
     if (why) refuse(move, why);
   }
-  const find = (moves) => findSites({ files: repo.files, read: repo.read, parser, moves });
+  const find = (moves) => answered(findSites({ files: repo.files, read: repo.read, parser, moves }), told, repo.read);
   let moves = asked.filter((move) => !refused.has(move.from));
   for (const site of find(moves)) {
     const why = stops(site);
@@ -97,7 +100,9 @@ export function planStep(root, asked, parser) {
   for (const site of sites) if (!(site.kind === 'load' && moving.has(site.file))) add(site.file, site);
   for (const move of moves) {
     const text = repo.read(move.from);
-    for (const load of ownLoads(move, loadsOf(text, parser.parse(text, move.from), parser.K), moves)) add(move.from, load);
+    const tree = parser.parse(text, move.from);
+    for (const load of ownLoads(move, loadsOf(text, tree, parser.K), moves)) add(move.from, load);
+    for (const edit of placeEdits(move, tree, parser.K).edits) add(move.from, edit);
   }
   for (const edit of spelledEdits(root, moves)) add(edit.file, edit);
   return { moves, refused: [...refused.values()], edits, sites };

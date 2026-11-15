@@ -8,10 +8,11 @@
 //   node tools/restructure/move.mjs shims [--dry-run]                leave the one line at every old path (own commit)
 //   node tools/restructure/move.mjs unshim [--dry-run]               take the line away where nothing asks for the old path
 //   node tools/restructure/move.mjs check --base <commit>            installs, old names and lines, against the list
+//                                                                    (the moves made since the base; older ones were checked then)
 //
 // It refuses, file by file and with the reason: a frozen path, a file with changes not committed, `x.js` -> `x/`,
-// a folder that is new, ignored by git or handed out to pages, a file that says `__dirname`, `__filename`,
-// `require.resolve`, `process.argv` or `require.main`, a file that code which ships reads, starts or serves by path,
+// a folder that is new (unless move-left.json lists it), ignored by git or handed out to pages, a file that says
+// `__filename`, `process.argv` or `require.main`, or `__dirname` anywhere but at the start of a join (move-place.mjs), a file that code which ships reads, starts or serves by path,
 // a file an installer, a page or native code names, and a spelling it cannot follow.
 // A refused file stays where it is; the others of the step still move.
 
@@ -73,9 +74,11 @@ async function main(args) {
     const base = option(args, '--base');
     if (!base) { console.log('usage: move.mjs check --base <commit>'); return 2; }
     const { moves } = readMoved(root);
-    const problems = [...archiveProblems(archiveList(root, base), archiveList(root, 'HEAD'), moves), ...(await withParser((parser) => leftovers(root, parser)))];
+    const before = archiveList(root, base);
+    const since = moves.filter((move) => before.has(move.from) && !before.has(move.to));
+    const problems = [...archiveProblems(before, archiveList(root, 'HEAD'), since), ...(await withParser((parser) => leftovers(root, parser)))];
     for (const problem of problems) console.log(problem);
-    console.log(problems.length ? `${problems.length} problems` : `${moves.length} moves: an install differs from ${base} by them alone, no file names an old path, ${moves.filter((move) => move.shim).length} old paths hold their line`);
+    console.log(problems.length ? `${problems.length} problems` : `${moves.length} moves, ${since.length} since ${base}: an install differs from it by those alone, no file names an old path, ${moves.filter((move) => move.shim).length} old paths hold their line`);
     return problems.length ? 1 : 0;
   }
   if (command !== 'plan' && command !== 'apply') { console.log('usage: move.mjs plan | apply | undo | shims | check (see the head of the file)'); return 2; }

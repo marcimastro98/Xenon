@@ -11,6 +11,7 @@ import path from 'node:path';
 import { trackedFiles } from '../quality/repo-files.mjs';
 import { readMoved, shimText } from './move-apply.mjs';
 import { findSites } from './move-refs.mjs';
+import { answered, readTold } from './move-told.mjs';
 
 /**
  * @param {string} root @param {string} rev
@@ -50,7 +51,7 @@ export function namedOldPaths(root, parser) {
   const { moves } = readMoved(root);
   const read = (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch { return null; } };
   const olds = new Set(moves.map((move) => move.from));
-  const sites = moves.length ? findSites({ files: trackedFiles(root), read, parser, moves }) : [];
+  const sites = moves.length ? answered(findSites({ files: trackedFiles(root), read, parser, moves }), readTold(root), read) : [];
   return new Set(sites.filter((site) => !olds.has(site.file)).map((site) => site.move.from));
 }
 
@@ -65,7 +66,7 @@ export function leftovers(root, parser) {
   const shims = new Map(moves.filter((move) => move.shim).map((move) => [move.from, move]));
   const out = [];
   for (const [file, move] of shims) if (read(file) !== shimText(move)) out.push(`${file}: not the line the tool writes for ${move.to}`);
-  const sites = findSites({ files: trackedFiles(root), read, parser, moves });
+  const sites = answered(findSites({ files: trackedFiles(root), read, parser, moves }), readTold(root), read);
   for (const site of sites) if (!shims.has(site.file)) out.push(`${site.file}:${site.line} still says ${site.was}`);
   return out;
 }

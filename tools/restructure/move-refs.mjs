@@ -13,8 +13,11 @@ const JS_FILE = /\.(js|mjs|cjs)$/;
 // Text only a person or the operating system runs: a file named there is called by that path on a user's PC.
 const RUN_BY_PATH = /\.(ps1|psm1|sh|bat|cmd|vbs|command|nsh|rs|cs|swift|toml|plist|csproj|html|htm|service|desktop|iss|wxs)$/;
 // History and the live site keep the names of their day; the map and the move list name old places on purpose,
-// and the test of the map's patterns spells paths as examples, not as files.
-const KEEPS_OLD_NAMES = (file) => file === 'CHANGELOG.md' || file === 'MAP.md' || file.startsWith('docs/') || file === 'server/test/structure-map.test.mjs'
+// and the test of the map's patterns spells paths as examples, not as files. So do four tests of the tools here:
+// they write invented files with real names into a folder of their own.
+const EXAMPLES = new Set(['structure-map', 'restructure-engine-test-readers', 'restructure-extract-inline', 'restructure-side-copy', 'restructure-browser-built-names']
+  .map((name) => `server/test/${name}.test.mjs`));
+const KEEPS_OLD_NAMES = (file) => file === 'CHANGELOG.md' || file === 'MAP.md' || file.startsWith('docs/') || EXAMPLES.has(file)
   || file === 'tools/map/features.json' || file === 'tools/restructure/moved.json' || file === 'tools/restructure/move-left.json';
 // A mention in the service worker or in the published bridge stays as written: one changed byte makes every browser
 // install the worker again, and the bridge changes only with a version of its own. A load or a path there still counts.
@@ -148,7 +151,7 @@ function jsSites(file, text, tree, K, patterns, tracked) {
     } else if (!full && !value.includes('/') && !value.includes('\\')) {
       // A bare `x.js`: it may be joined to any folder. When that folder holds another `x.js` nothing can tell which.
       for (const move of moves) sites.push({ ...at, kind: 'unknown', move, why: `the bare name '${value}', joined to a folder the tool cannot work out` });
-    } else if (!full && !another(tracked, [posix.normalize(value), posix.join('server', value), lexical], moves)) {
+    } else if (!full && !another(tracked, [posix.normalize(value), posix.join('server', value), posix.join('server/js', value), lexical], moves)) {
       for (const move of moves) sites.push({ ...at, kind: 'unknown', move, why: `'${value}' names no file the tool can find` });
     }
   }
