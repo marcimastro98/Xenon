@@ -128,7 +128,7 @@
    which is exactly the case that rule cannot cover. At 390px the badge landed on
    the dock's first button and the sheet covered the whole bar, so the demo's own
    chrome hid the controls it exists to sell. `--ph-dock-h` is measured from the
-   real element by measureDock() in js/phone-view.js (the dock wraps to a second
+   real element by measureDock() in js/phone/phone-view.js (the dock wraps to a second
    line on a narrow screen and grows with the safe-area inset); the fallback only
    covers the frame before the first measurement. Same list, same reason as the
    `.is-phone .discord-invite` block in that file. */

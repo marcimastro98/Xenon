@@ -277,7 +277,7 @@
 <link rel="stylesheet" href="styles/breakpoints.css">
 <!-- Xeneon Edge hairline hardening — device-only, gated to the fractional-DPR bar -->
 <link rel="stylesheet" href="styles/edge-density.css">
-<!-- Phone view: the stacked, thumb-reachable chrome below 620px (js/phone-view.js).
+<!-- Phone view: the stacked, thumb-reachable chrome below 620px (js/phone/phone-view.js).
      Loads AFTER breakpoints.css because it is an override layer — several of
      its rules answer the same properties that file sets at <=720px. -->
 <link rel="stylesheet" href="components/PhoneView/PhoneView.css">
@@ -1537,7 +1537,7 @@
           <span class="settings-note" data-i18n="settings_native_zoom_note">Ingrandisce tutta la dashboard, a prescindere dalla scala del sistema: più è grande, meno ci sta. Anche con Ctrl + rotellina.</span>
           <span class="settings-note" id="settings-native-zoom-remote" data-i18n="settings_native_zoom_remote" hidden>Vale per l'app Xenon. In questa finestra usa lo zoom del browser.</span>
         </label>
-        <!-- Stacked vs grid layout. Stored per DEVICE in localStorage by js/phone-view.js, never in
+        <!-- Stacked vs grid layout. Stored per DEVICE in localStorage by js/phone/phone-view.js, never in
              hubSettings: which chrome suits THIS screen is not a property of the user's configuration,
              and the blob is mirrored to every surface. -->
         <div class="settings-row full">
@@ -5312,7 +5312,7 @@
 <script src="js/lighting/lighting-connections.js"></script>
 <script src="js/lighting-page/panels.js"></script>
 <script src="js/lighting-page.js"></script>
-<script src="js/phone-view.js"></script>
+<script src="js/phone/phone-view.js"></script>
 <script src="js/paired/remote-access-guide.js"></script>
 <script src="js/remote-access-page/rows.js"></script>
 <script src="js/remote-access-page/setup-words.js"></script>
@@ -5413,7 +5413,7 @@
 <script src="js/macos-fda.js"></script>
 <script src="js/transfer-widget/says.js"></script>
 <script src="js/transfer-widget.js"></script>
-<script src="js/phone-widget.js"></script>
+<script src="js/phone/phone-widget.js"></script>
 <script src="js/power-widget.js"></script>
 <script src="js/battery-widget.js"></script>
 <script src="js/perf-widget/says.js"></script>

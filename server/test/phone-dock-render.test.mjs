@@ -8,7 +8,7 @@ import vm from 'node:vm';
 import { makeDom, SVG_NS } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
+const SRC = readFileSync(join(HERE, '..', 'js', 'phone/phone-view.js'), 'utf8');
 
 // The thumb dock is the ONLY route to four controls on a phone: the compact
 // topbar hides Search, Bit, Apps and Settings to buy back its width. That

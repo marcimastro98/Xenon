@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'js', 'phone-widget.js'), 'utf8');
+const SRC = readFileSync(join(HERE, '..', 'js', 'phone/phone-widget.js'), 'utf8');
 
 // Calling and texting from a paired phone or tablet are refused by
 // server/remote-access.js, deliberately: a call's audio comes out of the PC, so

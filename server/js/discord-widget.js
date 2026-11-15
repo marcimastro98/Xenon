@@ -447,7 +447,7 @@
 
   // splitFavourites is published for the tests: this file cannot be required in
   // node (it reaches for browser globals at IIFE top level, unlike
-  // js/phone-view.js), so the suite lifts that one pure function out of the
+  // js/phone/phone-view.js), so the suite lifts that one pure function out of the
   // source and runs it instead. Reaching the rendered list would need a linked
   // Discord account, which no test has.
   window.DiscordWidget = { renderWidgets, onSSE, onNotification, splitFavourites };

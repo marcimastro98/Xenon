@@ -77,7 +77,7 @@ test('the menu shows the count by the Store link and reads it out with the words
 
 // phone-view.js mirrorCount, lifted verbatim, on a small DOM.
 function phone() {
-  const src = read('../js/phone-view.js');
+  const src = read('../js/phone/phone-view.js');
   const body = src.slice(src.indexOf('  function mirrorCount'), src.indexOf('  function pageDots'));
   const observers = [];
   const node = (cls = '') => ({
@@ -118,7 +118,7 @@ test('the phone\'s settings button shows the same count the gear gets, and drops
 });
 
 test('the settings button is the one that mirrors the Store\'s count', () => {
-  const src = read('../js/phone-view.js');
+  const src = read('../js/phone/phone-view.js');
   assert.match(src, /\{ sel: '\.qbtn-settings', glyph: '⚙', key: 'ph_settings', dot: 'settings-update-dot', count: 'cgal-store-dot' \}/);
   assert.match(src, /if \(spec\.count\) mirrorCount\(b, spec\.sel, spec\.count\);/);
 });

@@ -181,6 +181,8 @@
     {"from":"server/js/gpu-hint.js","to":"server/js/performance/gpu-hint.js"},
     {"from":"server/js/perf-hud.js","to":"server/js/performance/perf-hud.js"},
     {"from":"server/js/perf-marker.js","to":"server/js/performance/perf-marker.js"},
-    {"from":"server/js/performance-actions.js","to":"server/js/performance/performance-actions.js"}
+    {"from":"server/js/performance-actions.js","to":"server/js/performance/performance-actions.js"},
+    {"from":"server/js/phone-view.js","to":"server/js/phone/phone-view.js"},
+    {"from":"server/js/phone-widget.js","to":"server/js/phone/phone-widget.js"}
   ]
 }

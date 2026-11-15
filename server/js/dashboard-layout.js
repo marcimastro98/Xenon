@@ -39,7 +39,7 @@ if (typeof window !== 'undefined') {
 }
 
 // A screen turned to vertical (or back) keeps its tiles and swaps their
-// geometry: js/phone-view.js says when, js/grid/dashboard-portrait.js says where.
+// geometry: js/phone/phone-view.js says when, js/grid/dashboard-portrait.js says where.
 if (typeof window !== 'undefined') {
   window.addEventListener('xenon:portrait-change', () => {
     if (hubSettings) applyDashboardLayout();

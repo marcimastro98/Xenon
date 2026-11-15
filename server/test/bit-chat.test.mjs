@@ -366,9 +366,9 @@ test('the top bar launcher is Bit, so the phone dock that copies it is Bit too',
   assert.equal(placed.markup, ctx.BitApp.glyph('idle'), 'the one-colour glyph, not the coloured sprite');
   assert.equal(placed.attrs['aria-hidden'], 'true');
   assert.deepEqual(placed.classList.list, ['topbtn-bit']);
-  // Painted at load, before js/phone-view.js builds the dock that clones it.
+  // Painted at load, before js/phone/phone-view.js builds the dock that clones it.
   const html = read('../index.html');
-  assert.ok(html.indexOf('<script src="js/ai-bit-chat.js">') < html.indexOf('<script src="js/phone-view.js">'));
+  assert.ok(html.indexOf('<script src="js/ai-bit-chat.js">') < html.indexOf('<script src="js/phone/phone-view.js">'));
   const launcher = html.slice(html.indexOf('class="topbtn topbtn-xenon"'), html.indexOf('</button>', html.indexOf('class="topbtn topbtn-xenon"')));
   assert.match(launcher, /<span>Bit<\/span>/);
   const i18n = appStringsSource();

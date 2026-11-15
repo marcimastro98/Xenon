@@ -212,7 +212,7 @@ function updateNativeZoom(value) {
 
 // ── Stacked vs grid layout ──────────────────────────────────────────────────
 // The dashboard stacks into one full-width column on a screen too narrow for the
-// 24-column grid. `js/phone-view.js` decides that from the viewport; this is the
+// 24-column grid. `js/phone/phone-view.js` decides that from the viewport; this is the
 // override, and it is the only user-facing way to reach a decision that until now
 // could only be measured.
 //

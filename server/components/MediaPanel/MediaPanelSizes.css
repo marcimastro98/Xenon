@@ -253,7 +253,7 @@
    wide, and the side-by-side layout leaves a 170px cover floating in the middle
    of it. Like a phone's now-playing view, the cover goes on top, large, and
    the text and transport sit under it. On the vertical layout (html.is-portrait,
-   js/phone-view.js) and on Liquid Glass, so a landscape tile in the Classic look
+   js/phone/phone-view.js) and on Liquid Glass, so a landscape tile in the Classic look
    stays as it was; lyrics mode keeps its own arrangement. */
 @container mediatile (orientation: portrait) and (min-height: 400px) and (min-width: 300px) {
   :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {

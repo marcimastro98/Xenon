@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const pv = require('../js/phone-view.js');
+const pv = require('../js/phone/phone-view.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 function classList(initial = []) {
@@ -58,7 +58,7 @@ test('the round button is phone-sized, which is why it must not be measured (#15
 test('the phone view leaves the dashboard as it was while collapsed to the button (#152)', () => {
   const { ctx, html } = collapsedPage();
   vm.createContext(ctx);
-  vm.runInContext(read('../js/phone-view.js'), ctx);
+  vm.runInContext(read('../js/phone/phone-view.js'), ctx);
   ctx.window.PhoneView.sync();
   assert.deepEqual(html.list().filter((c) => /^is-/.test(c)), [], 'no stacked or phone class at 84 px');
   assert.equal(ctx.window.PhoneView.isActive(), false);

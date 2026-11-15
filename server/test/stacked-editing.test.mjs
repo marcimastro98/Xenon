@@ -20,7 +20,7 @@ const { gridStaticFor } = require('../js/grid/dashboard-grid.js');
 
 const CSS = readFileSync(new URL('../components/PhoneView/PhoneView.css', import.meta.url), 'utf8');
 const GRID = readFileSync(new URL('../js/grid/dashboard-grid.js', import.meta.url), 'utf8');
-const PHONE = readFileSync(new URL('../js/phone-view.js', import.meta.url), 'utf8');
+const PHONE = readFileSync(new URL('../js/phone/phone-view.js', import.meta.url), 'utf8');
 
 // ── The rule ─────────────────────────────────────────────────────────────────
 

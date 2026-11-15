@@ -2,7 +2,7 @@
 /* ── The thumb dock ──────────────────────────────────────────────────────── */
 .ph-dock {
   /* A real row in the shell's grid, not a floating bar. See buildDock() in
-     js/phone-view.js for why: nothing can end up underneath a row. */
+     js/phone/phone-view.js for why: nothing can end up underneath a row. */
   display: none;
   align-items: center;
   gap: 8px;
@@ -188,7 +188,7 @@
    desktop they float over a wide empty margin; on a 390px phone they land on
    the bar. Reported while a game was running, which is when the Game Companion
    pill appears.
-   `--ph-dock-h` is written by measureDock() in js/phone-view.js from the real
+   `--ph-dock-h` is written by measureDock() in js/phone/phone-view.js from the real
    element: the dock wraps to a second line on a narrow screen and grows with
    the safe-area inset, so a constant here would be wrong on some phone. The
    fallback is only for the frame before the first measurement.

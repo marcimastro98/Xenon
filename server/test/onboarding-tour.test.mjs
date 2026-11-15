@@ -175,7 +175,7 @@ test('on a phone the thumb dock stands in for the hidden topbar buttons', () => 
 });
 
 test('the dock names the button each forwarder stands in for', () => {
-  assert.match(read('../js/phone-view.js'), /if \(spec\.sel\) b\.dataset\.phFor = spec\.sel;/);
+  assert.match(read('../js/phone/phone-view.js'), /if \(spec\.sel\) b\.dataset\.phFor = spec\.sel;/);
 });
 
 test('peekRails opens closed rails on screen only, and puts each back as it was', () => {

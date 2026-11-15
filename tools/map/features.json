@@ -616,7 +616,6 @@
         "server/call-detect.js",
         "server/linux-phone.js",
         "server/file-transfer.js",
-        "server/js/phone-*.js",
         "server/js/call-modal.js",
         "server/js/call-modal/**",
         "server/js/transfer-widget/**",
@@ -624,7 +623,8 @@
         "server/components/PhoneView/**",
         "server/components/PhoneWidget/**",
         "server/components/CallModal/**",
-        "server/components/TransferWidget/**"
+        "server/components/TransferWidget/**",
+        "server/js/phone/**"
       ]
     },
     {

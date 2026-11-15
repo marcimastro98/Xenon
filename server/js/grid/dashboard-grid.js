@@ -110,7 +110,7 @@ const MIN_FILL_ROWS = 8;
 // So on a portrait screen the extra height buys MORE rows instead of taller
 // ones: the tiles keep the size they have on every other screen, the two axes
 // get comparable resolution, and what is left below them is real grid you can
-// drag into. That is also what js/phone-view.js already tells the user happens
+// drag into. That is also what js/phone/phone-view.js already tells the user happens
 // when a tall screen is wide enough to keep the grid ("what being tall adds is
 // empty space below the tiles") — until now the code did the opposite.
 //
@@ -1053,7 +1053,7 @@ function pageTileCount(pageId) {
 
 // How many rows a page is divided into, and how tall each one is, for a box of a
 // given size. Pure, so both thresholds can be checked without a browser — the
-// same reason js/phone-view.js keeps its own policy pure.
+// same reason js/phone/phone-view.js keeps its own policy pure.
 //
 // GridStack's grid height = rows × cellHeight (the margin lives *inside* each
 // cell as the inter-item gap, it is NOT added on top), so filling the page

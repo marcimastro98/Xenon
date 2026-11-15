@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const pv = require('../js/phone-view.js');
+const pv = require('../js/phone/phone-view.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 // ── When the stacked view takes over ─────────────────────────────────────────
@@ -349,7 +349,7 @@ test('empty and non-array input yield an empty order', () => {
 // dashboard-grid.js serializes and SAVES — opening the dashboard on a phone
 // would silently rewrite the layout built on the PC.
 test('the phone view never touches the grid engine', () => {
-  const raw = readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
+  const raw = readFileSync(path.join(HERE, '..', 'js', 'phone/phone-view.js'), 'utf8');
   // Comments explain WHY the grid engine is off limits and name it repeatedly,
   // so strip them before looking for calls. The `[^:]` guard is what keeps the
   // strip from eating the rest of a line at the `//` of a URL — the file holds
@@ -407,7 +407,7 @@ test('the stacking rules leave `display` on tiles alone', () => {
 // right-aligning the buttons is the natural-looking thing to "tidy" this into,
 // and the damage is invisible on every screen that has no floating chrome.
 test('the dock concedes the bottom-right corner to the pager, not to the actions', () => {
-  const js = readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
+  const js = readFileSync(path.join(HERE, '..', 'js', 'phone/phone-view.js'), 'utf8');
   const appendAt = js.indexOf('dock.append(acts, pages)');
   assert.notEqual(appendAt, -1,
     'the actions must be appended before the pager, so the pager takes the right edge');

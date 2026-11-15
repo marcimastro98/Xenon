@@ -1,5 +1,5 @@
 /* ── Stacked views (R1.3) ────────────────────────────────────────────────── */
-/* Three classes, set by js/phone-view.js, and the split is the whole design:   */
+/* Three classes, set by js/phone/phone-view.js, and the split is the whole design:   */
 /*   .is-stacked  the tiles leave the grid and flow — SHARED by both sizes      */
 /*   .is-phone    + one column, compact chrome, the thumb dock   (≤620px)       */
 /*   .is-tablet   + two columns, the ordinary topbar             (≤1120px)      */
@@ -46,7 +46,7 @@
 
 /* ── The tiles stack ─────────────────────────────────────────────────────── */
 /* GridStack positions items absolutely from `gs-x`/`gs-y` attribute rules. We
-   neutralise that and let normal flow take over; js/phone-view.js has already
+   neutralise that and let normal flow take over; js/phone/phone-view.js has already
    put the nodes in reading order. `display` is deliberately NOT touched: a tile
    hidden because it is the inactive member of a tab group carries
    data-dashboard-hidden="true" → display:none, and it must stay hidden. */
