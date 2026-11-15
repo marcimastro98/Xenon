@@ -1125,7 +1125,7 @@ const CAPABILITIES = [
       },
     },
   },
-  // The Xenon menu (server/screen-menu.js): over the main screen with a key when
+  // The Xenon menu (server/menu/screen-menu.js): over the main screen with a key when
   // a native shell can draw it, otherwise as a panel on the dashboard. Opening
   // it changes nothing; every row inside runs its own capability.
   {

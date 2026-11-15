@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createScreenMenu } = require('../screen-menu.js');
-const Functions = require('../menu-functions.js');
+const { createScreenMenu } = require('../menu/screen-menu.js');
+const Functions = require('../menu/menu-functions.js');
 const DeckShortcuts = require('../js/deck-shortcuts.js');
 const DeckModel = require('../js/deck-model.js');
 

@@ -10,7 +10,7 @@
     listOtherDeckProfiles, listOrphanProfiles, orphanKeyCount, listDeckTargets, listAllDeckProfiles,
     getProfileTemplate, listImportedResources, readKeyPresets, listKeyPresets, deckInstances,
   } = window.DeckStoreReads;
-  const MACRO_DECK = 'keys';                  // the Xenon menu's keys (server/menu-functions.js KEYS_INSTANCE)
+  const MACRO_DECK = 'keys';                  // the Xenon menu's keys (server/menu/menu-functions.js KEYS_INSTANCE)
   const DIRTY_KEY = 'deck.dirty.v1';         // outbox: { [instanceId | '__presets']: seq } — local changes not yet acked by the server
   const LEGACY_REV_KEYS = ['deck.config.rev', 'deck.config.instrev'];   // pre-outbox client counters — cleared at boot
   // Per-instance size ceiling for a saved config, kept well under the server's 8 MB
@@ -2543,7 +2543,7 @@
   }
 
   // A key made from the Xenon menu: it lives on the `keys` Deck, which no page draws
-  // (server/menu-functions.js), so the editor opens with no tile under it. This page
+  // (server/menu/menu-functions.js), so the editor opens with no tile under it. This page
   // has just loaded: the server's copy comes first, or a save would lose its keys.
   async function openMacro(keyId) {
     if (!window.DeckEditor) return;

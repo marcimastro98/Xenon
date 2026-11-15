@@ -10,10 +10,10 @@ import { engineSource } from './engine-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
-const Functions = require('../menu-functions.js');
-const Widgets = require('../menu-widgets.js');
-const Menu = require('../xenon-menu.js');
-const { createScreenMenu, SECTIONS, cleanSection } = require('../screen-menu.js');
+const Functions = require('../menu/menu-functions.js');
+const Widgets = require('../menu/menu-widgets.js');
+const Menu = require('../menu/xenon-menu.js');
+const { createScreenMenu, SECTIONS, cleanSection } = require('../menu/screen-menu.js');
 const MenuCap = require('../capabilities/xenon-menu.js');
 const View = require('../js/xenon-menu.js');
 const { validateAction } = require('../js/deck-actions.js');
@@ -206,7 +206,7 @@ test('status rows: replay time, HUD shown/hidden, last capture with how long ago
 });
 
 test('a box in the middle or on an edge is never called a corner', () => {
-  const { spotOf } = require('../menu-rows.js');
+  const { spotOf } = require('../menu/menu-rows.js');
   assert.equal(spotOf({ x: 0.4, y: 0.4, w: 0.2, h: 0.2 }), 'center');
   assert.equal(spotOf({ x: 0.4, y: 0.02, w: 0.2, h: 0.2 }), 'top');
   assert.equal(spotOf({ x: 0.78, y: 0.4, w: 0.2, h: 0.2 }), 'right');
@@ -1467,7 +1467,7 @@ test('Keys section shows the search row without a combination while it is off', 
 });
 
 test('Capture: where videos and pictures go, changed with the PC folder dialog, never a whole path', () => {
-  const Cap = require('../menu-capture.js');
+  const Cap = require('../menu/menu-capture.js');
   assert.equal(Cap.folderShown('C:\\Users\\ann\\Videos\\Xenon'), 'Videos › Xenon');
   assert.equal(Cap.folderShown('/home/ann/Pictures/Xenon/'), 'Pictures › Xenon');
   assert.equal(Cap.folderShown('D:\\'), 'D:');

@@ -290,7 +290,7 @@ test('Bit can open What\'s New wherever the page that draws it runs', () => {
 test('the menu drawn on the stage has the sections of the real menu', () => {
   const scenes = readFileSync(new URL('../js/whats-new-scenes.js', import.meta.url), 'utf8');
   const drawn = /const MENU_SECTIONS = \[([^\]]*)\]/.exec(scenes)[1].match(/[a-z]+/g);
-  assert.deepEqual(drawn, require('../screen-menu.js').SECTIONS);
+  assert.deepEqual(drawn, require('../menu/screen-menu.js').SECTIONS);
 });
 
 test('a WebKit without Web Audio still loads the page, in silence', () => {

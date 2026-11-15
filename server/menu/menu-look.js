@@ -5,11 +5,11 @@
 // screensaver. What a screen says is what is on it now (js/screen-scene-model.js plan):
 // a wallpaper that is off reads as the person's own. Pure.
 
-const ScreenSceneModel = require('./js/screen-scene-model.js');
+const ScreenSceneModel = require('../js/screen-scene-model.js');
 const { k, run, open } = require('./menu-rows.js');
 const { screenLabel, screensOf } = require('./menu-tune.js');
 const { MAKER_URL } = require('./menu-widgets.js');
-const { BUILTIN, SCENE_PARTS, sceneList } = require('./capabilities/desktop-scene.js');
+const { BUILTIN, SCENE_PARTS, sceneList } = require('../capabilities/desktop-scene.js');
 
 const NONE = '';
 

@@ -1,6 +1,6 @@
 'use strict';
 
-// The screens of the Look section (rows from server/menu-look.js), laid out like a
+// The screens of the Look section (rows from server/menu/menu-look.js), laid out like a
 // widget's screen: the real screens stay in place on one side, the one tapped plays its
 // scene, and its choices sit in tabs beside it. A scene list is one answer per line, and
 // passing over a line plays that scene in the screen's picture. Which screen and tab are

@@ -6,10 +6,10 @@
 //
 // st.widgetKeys: [{ id, name, key?: { combo, mode }, handlers: [{ id, name, params, granted, key? }] }]
 
-const LayersModel = require('./js/layers-model.js');
-const DeckShortcuts = require('./js/deck-shortcuts.js');
+const LayersModel = require('../js/layers-model.js');
+const DeckShortcuts = require('../js/deck-shortcuts.js');
 const { k, run, heading, comboText, choiceRow, keyRow, widgetName } = require('./menu-rows.js');
-const { handlerKeyId, HANDLER_KEY_PREFIX } = require('./capabilities/widget-key.js');
+const { handlerKeyId, HANDLER_KEY_PREFIX } = require('../capabilities/widget-key.js');
 
 const SLOT_PREFIX = 'widget-';
 const MODES = Object.freeze([['toggle', 'xmenu_wkey_toggle'], ['hold', 'xmenu_wkey_hold']]);

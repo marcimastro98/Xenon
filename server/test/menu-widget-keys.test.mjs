@@ -1,4 +1,4 @@
-// Keys for widgets in the Xenon menu (server/menu-widget-keys.js): the Keys rows of a
+// Keys for widgets in the Xenon menu (server/menu/menu-widget-keys.js): the Keys rows of a
 // widget's card, the Widgets group of the Keys section, and the words a widget its
 // own key hid gets in the list.
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const Menu = require('../xenon-menu.js');
+const Menu = require('../menu/xenon-menu.js');
 const { handlerKeyId } = require('../capabilities/widget-key.js');
 
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];

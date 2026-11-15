@@ -335,10 +335,7 @@
       "what": "The menu that opens over the desktop: widgets, screens, looks, the Store.",
       "files": [
         "server/menu/**",
-        "server/xenon-menu.js",
-        "server/menu-*.js",
         "server/menu.html",
-        "server/screen-menu.js",
         "server/js/xenon-menu*.js",
         "server/js/menu-gamepad.js",
         "server/js/screen-menu-page.js",

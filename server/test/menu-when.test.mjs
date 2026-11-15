@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { widgetWhenRow, pageWhenRow, whenFact } = require('../menu-when.js');
+const { widgetWhenRow, pageWhenRow, whenFact } = require('../menu/menu-when.js');
 const When = require('../js/xenon-menu-when.js');
 const I18N = appStringsSource();
 

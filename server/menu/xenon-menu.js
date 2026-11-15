@@ -11,7 +11,7 @@
 // Kinds: heading, tile, status, toggle, choice, place, widget, pages, key, mode, button, add, guide, screens.
 // Nothing here carries a path, a window title or a file name.
 
-const LayersModel = require('./js/layers-model.js');
+const LayersModel = require('../js/layers-model.js');
 const { SECTIONS } = require('./screen-menu.js');
 const { k, run, open, comboText, cornerOf, secondsText } = require('./menu-rows.js');
 const { nowSection, agoText } = require('./menu-now.js');

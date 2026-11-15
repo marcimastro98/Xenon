@@ -2,11 +2,11 @@
 // The "Widgets" section of the Xenon menu: every widget on the screen, wherever it
 // sits. Where is one of its adjustments (menu-tune.js), not a section of its own.
 
-const LayersModel = require('./js/layers-model.js');
-const LayerWhen = require('./js/layer-when.js');
-const LayerSee = require('./js/layer-see.js');
-require('./js/palette-model.js'); // nothing is taken from it here, but it runs code when it loads
-const { previewPath } = require('./grid/tile-previews.js');
+const LayersModel = require('../js/layers-model.js');
+const LayerWhen = require('../js/layer-when.js');
+const LayerSee = require('../js/layer-see.js');
+require('../js/palette-model.js'); // nothing is taken from it here, but it runs code when it loads
+const { previewPath } = require('../grid/tile-previews.js');
 const { ANCHOR_CORNERS, k, run, open, heading, cornerKey, spotOf, comboText, widgetName } = require('./menu-rows.js');
 const { tuneRows, screenFact, screenLabel, screensOf, leadOf, ratioOf, isHud } = require('./menu-tune.js');
 const { fitsItself } = require('./menu-widget-options.js');
@@ -134,7 +134,7 @@ function widgetRow(w, st) {
   };
 }
 
-const { storeShots, addChoices, addRow } = require('./menu/widget-add-choices.js');
+const { storeShots, addChoices, addRow } = require('./widget-add-choices.js');
 
 // The real screens, for the map: as they stand on the desktop when the shell says so.
 function mapRow(st) {

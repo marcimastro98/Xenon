@@ -186,7 +186,7 @@ function collectShortcuts(configs) {
 }
 
 // What a one-step key does, as { type, mode, target, screen }, so the Xenon menu
-// can show the shortcut next to the same action (server/menu-functions.js); null
+// can show the shortcut next to the same action (server/menu/menu-functions.js); null
 // for macros.
 function singleAction(key) {
   const t = shortcutTrigger(key);

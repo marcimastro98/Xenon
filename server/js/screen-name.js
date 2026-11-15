@@ -2,7 +2,7 @@
 
 // What a person calls a screen: the model name the shell read from the monitor. Two of the
 // same model differ by size, or by a number when that is the same too; with no name, only
-// the size is left. One owner: the Xenon menu (server/menu-tune.js) and the first question
+// the size is left. One owner: the Xenon menu (server/menu/menu-tune.js) and the first question
 // (js/usage-ask-plan.js) must say the same name.
 (function (root, factory) {
   const api = factory();

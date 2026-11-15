@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
-const { createScreenMenu } = require('../screen-menu.js');
+const { createScreenMenu } = require('../menu/screen-menu.js');
 const { createLayersEdit } = require('../layers-edit.js');
 
 function rig() {
@@ -79,9 +79,9 @@ test('edit mode says whether it ended by hand or by itself', () => {
 });
 
 test('both ways into the mode from the menu come back, and the page keeps the screen it was on', () => {
-  const widgets = engineSource('server/menu-widgets.js');
+  const widgets = engineSource('server/menu/menu-widgets.js');
   assert.match(widgets, /id: 'edit'[^\n]*closes: true, returns: true/);
-  const functions = readFileSync(join(HERE, '..', 'menu-functions.js'), 'utf8');
+  const functions = readFileSync(join(HERE, '..', 'menu/menu-functions.js'), 'utf8');
   assert.match(functions, /\{ id: 'edit'[^\n]*returns: true/);
   const page = readFileSync(join(HERE, '..', 'js', 'screen-menu-page.js'), 'utf8');
   assert.match(page, /d\.section && !stepped\) view\.show\(d\.section\)/);

@@ -75,7 +75,7 @@ test('the Xenon menu opens the dashboard or one Settings category, never a made-
   assert.deepEqual(parse('?open=settings'), { open: 'settings' });
   assert.equal(query({ open: 'settings', cat: 'appearance' }), '&open=settings&cat=appearance');
   // Every category the menu opens is one the dashboard and the shell accept.
-  const menu = read('../xenon-menu.js') + read('../menu-look.js');
+  const menu = read('../menu/xenon-menu.js') + read('../menu/menu-look.js');
   const spec = read('../../apps/native/src-tauri/src/layers/spec.rs');
   const cats = [...menu.matchAll(/open\('settings:([a-z]+)'\)/g)].map((m) => m[1]);
   assert.ok(cats.length >= 2);

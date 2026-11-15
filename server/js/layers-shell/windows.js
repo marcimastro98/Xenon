@@ -22,7 +22,7 @@
   // says drawing is on (server/alerts/screen-draw-shell.js, SSE `screen_draw`).
   const DRAW_SURFACE = Object.freeze({ key: 'draw:', kind: 'draw', monitor: '' });
 
-  // The Xenon menu over the main screen (server/screen-menu.js, SSE
+  // The Xenon menu over the main screen (server/menu/screen-menu.js, SSE
   // `screen_menu`): the shell's /menu page, while the server says it is open.
   const MENU_SURFACE = Object.freeze({ key: 'menu:', kind: 'menu', monitor: '' });
 
@@ -35,7 +35,7 @@
   // `capturing`: Xenon was recording when the menu opened, so the menu stays out
   // of that video; otherwise it can be photographed like any window.
   // `top`: a game is on, so the menu stays on top of it; else it is an ordinary window.
-  // `front`: counts the asks to bring the open menu forward (server/screen-menu.js).
+  // `front`: counts the asks to bring the open menu forward (server/menu/screen-menu.js).
   // `desks`: some page is tied to a virtual desktop, so the shell says which
   // one is shown (LayersShell.onDesk); nothing watches desktops otherwise.
   // `pad`: the shell reads a game controller, whose two small middle buttons held

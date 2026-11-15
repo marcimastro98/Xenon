@@ -1,10 +1,10 @@
 'use strict';
-// What the rows of the Xenon menu are made of (server/xenon-menu.js and the
+// What the rows of the Xenon menu are made of (server/menu/xenon-menu.js and the
 // menu-*.js sections beside it): the row texts, the two kinds of act, and the
 // readings more than one section needs. Pure.
 
-const DeckShortcuts = require('./js/deck-shortcuts.js');
-const LayersModel = require('./js/layers-model.js');
+const DeckShortcuts = require('../js/deck-shortcuts.js');
+const LayersModel = require('../js/layers-model.js');
 
 const k = (key, vars) => (vars ? { key, vars } : { key });
 const run = (action) => ({ run: action });

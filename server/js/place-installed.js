@@ -5,7 +5,7 @@
 // two. The Maker's "Put on screen" link already asked (`place`), so it goes
 // straight on screen; anything else is offered, never done unasked.
 (function () {
-  // The same spot as the Xenon menu's Add list (server/xenon-menu.js).
+  // The same spot as the Xenon menu's Add list (server/menu/xenon-menu.js).
   const SPOT = { surface: 'desktop', position: 'top-right', size: 'medium' };
 
   const tr = (key, fallback) => {

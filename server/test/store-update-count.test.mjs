@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const MenuStore = require('../store-catalog/menu-store.js');
-const Menu = require('../xenon-menu.js');
+const Menu = require('../menu/xenon-menu.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const CATALOG = { ok: true, entries: [{ id: 'orbit-clock', pkgId: 'orbit-clock', kind: 'widget', name: 'Orbit Clock', version: '1.1.0', shots: 1 }] };

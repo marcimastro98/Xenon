@@ -2,14 +2,14 @@
 // How a placed widget sits on the screen: the same adjustments for each of them, so
 // one made by hand gets what the performance HUD gets. Every change is a capability. Pure.
 
-const PerfHud = require('./js/perf-hud.js');
-const LayersModel = require('./js/layers-model.js');
-const LayerWhen = require('./js/layer-when.js');
-const LayerSee = require('./js/layer-see.js');
+const PerfHud = require('../js/perf-hud.js');
+const LayersModel = require('../js/layers-model.js');
+const LayerWhen = require('../js/layer-when.js');
+const LayerSee = require('../js/layer-see.js');
 const { ANCHOR_CORNERS, k, run, cornerKey, cornerOf, choiceRow, toggleRow } = require('./menu-rows.js');
-const { SIZE_PX } = require('./capabilities/layer-anchor.js');
+const { SIZE_PX } = require('../capabilities/layer-anchor.js');
 const { widgetWhenRow } = require('./menu-when.js');
-const { screenName } = require('./js/screen-name.js');
+const { screenName } = require('../js/screen-name.js');
 const { widgetKeyRows } = require('./menu-widget-keys.js');
 const { optionRows, fitsItself } = require('./menu-widget-options.js');
 

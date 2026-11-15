@@ -1,5 +1,5 @@
 // The Widgets section of the Xenon menu: two levels, the map of the screens, and the
-// way back. The rows are the shape server/menu-widgets.js sends.
+// way back. The rows are the shape server/menu/menu-widgets.js sends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';

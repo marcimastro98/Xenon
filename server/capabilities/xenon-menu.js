@@ -6,7 +6,7 @@
 //
 // deps.menu (screen-menu.js): show({ section }), close(), toggle({ section }), get()
 
-const { SECTIONS, cleanSection } = require('../screen-menu.js');
+const { SECTIONS, cleanSection } = require('../menu/screen-menu.js');
 
 const MODES = Object.freeze(['toggle', 'open', 'close']);
 // Screens a key opens by themselves, in the menu's window (js/sheet-page.js).

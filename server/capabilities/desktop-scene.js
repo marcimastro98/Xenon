@@ -12,7 +12,7 @@
 //            { desktopScenes() } gives the installed scenes and the person's own
 
 const { themesWithBackground, THEME_SCENE_PREFIX } = require('../js/ambient-resolve.js');
-const { screensOf } = require('../menu-tune.js');
+const { screensOf } = require('../menu/menu-tune.js');
 const ScreenSceneModel = require('../js/screen-scene-model.js');
 
 const WALLPAPER_MODES = Object.freeze(['toggle', 'on', 'off']);

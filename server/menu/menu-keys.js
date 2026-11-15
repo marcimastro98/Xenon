@@ -1,10 +1,10 @@
 'use strict';
 // The "Keys" section of the Xenon menu: Xenon's own keys, then a key for every
-// function (server/menu-functions.js), then the rest of the Deck's keys. Pressing
+// function (server/menu/menu-functions.js), then the rest of the Deck's keys. Pressing
 // a combination on a function row makes its key (capabilities/function-key.js),
 // or changes the Deck key that already does the same thing.
 
-const DeckShortcuts = require('./js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck-shortcuts.js');
 const { FUNCTIONS, GROUPS, KEY_PREFIX, KEYS_INSTANCE, subKey, available, keyFor } = require('./menu-functions.js');
 const { k, run, open, heading, keyRow } = require('./menu-rows.js');
 const { widgetKeyGroup, HANDLER_KEY_PREFIX } = require('./menu-widget-keys.js');

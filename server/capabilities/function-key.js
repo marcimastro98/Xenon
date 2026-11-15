@@ -8,7 +8,7 @@
 
 const DeckModel = require('../js/deck-model.js');
 const S = require('../js/deck-shortcuts.js');
-const { KEY_PREFIX, KEYS_INSTANCE, functionById, keyActionOf, available, keyFor } = require('../menu-functions.js');
+const { KEY_PREFIX, KEYS_INSTANCE, functionById, keyActionOf, available, keyFor } = require('../menu/menu-functions.js');
 const { checkCombo } = require('./deck-shortcut.js');
 
 const KEYS_GRID = Object.freeze({ cols: 6, rows: 4 });

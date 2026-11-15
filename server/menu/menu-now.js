@@ -1,8 +1,8 @@
 'use strict';
 // The "Now" section of the Xenon menu: every function, by group, then how things
-// stand. The functions come from server/menu-functions.js.
+// stand. The functions come from server/menu/menu-functions.js.
 
-const LayersModel = require('./js/layers-model.js');
+const LayersModel = require('../js/layers-model.js');
 const { FUNCTIONS, GROUPS, subKey, available, keyFor } = require('./menu-functions.js');
 const { HUD_PLACE, AUDIO_LABELS, k, run, open, heading, comboText, secondsText, perfWidget } = require('./menu-rows.js');
 

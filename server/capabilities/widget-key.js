@@ -15,7 +15,7 @@
 const crypto = require('crypto');
 const LayersModel = require('../js/layers-model.js');
 const S = require('../js/deck-shortcuts.js');
-const { KEYS_INSTANCE } = require('../menu-functions.js');
+const { KEYS_INSTANCE } = require('../menu/menu-functions.js');
 const { findPlaced, resolveRef } = require('./layers.js');
 const DeckModel = require('../js/deck-model.js');
 

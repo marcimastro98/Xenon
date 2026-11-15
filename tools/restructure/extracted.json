@@ -800,7 +800,7 @@
     "server/version-ping.js": [
       {"file":"server/updates/version-ping-body.js","about":"What the anonymous version ping says and what is remembered of it: the day and week in UTC, the install's age as a bucket, the body sent, and the state kept after a ping.","names":["PROTOCOL","VERSION_RE","DAY_RE","WEEK_RE","MONTH_RE","LANG_SET","utcDay","isoWeek","ageBucket","buildPingBody","nextState"]}
     ],
-    "server/menu-widgets.js": [
+    "server/menu/menu-widgets.js": [
       {"file":"server/menu/widget-add-choices.js","about":"The choices of the menu's Add row: a tile, a package from the Store with its pictures, a key, and the filters over them.","names":["tileChoice","storeShots","packageChoice","placeTile","recommended","addChoices","keyChoice","addFilters","addRow"]}
     ],
     "server/store-catalog/community-catalog.js": [

@@ -2,7 +2,7 @@
 
 // The Xenon menu in its own window (menu.html). The native shell opens this page
 // in a window with a title bar, on top only of a game, while the server says the menu is
-// open (server/screen-menu.js, the `menu:` surface of js/layers-shell.js) and
+// open (server/menu/screen-menu.js, the `menu:` surface of js/layers-shell.js) and
 // gives it the keyboard. The menu itself is js/xenon-menu.js, the same one the
 // dashboard shows as a panel. This page only themes it, closes it on Esc (the X
 // is the window's own, layers/menu_window.rs) and sends the verbs that lead

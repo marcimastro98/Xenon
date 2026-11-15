@@ -143,7 +143,7 @@ test('an action result carries only counts and yes/no, never text, a colour, a n
   assert.deepEqual(ex('screenDraw', { ok: true, drawing: true }), { drawing: true });
   assert.deepEqual(ex('xenonMenu', { ok: true, where: 'screen', section: 'keys' }), { where: 'screen', section: 'keys' });
   assert.deepEqual(ex('xenonMenu', { ok: true, where: '/etc', section: '<b>' }), {});
-  const { SECTIONS } = require('../screen-menu.js');
+  const { SECTIONS } = require('../menu/screen-menu.js');
   for (const s of SECTIONS) assert.deepEqual(ex('xenonMenu', { ok: true, section: s }), { section: s }, 'every menu section passes');
   assert.deepEqual(ex('screenText', { ok: true, lines: 'x', copied: 'yes' }), {}, 'wrong types dropped');
   assert.deepEqual(ex('gameCompanion', { ok: true, opened: true, game: 'Elden Ring' }), {}, 'the game stays behind the perf grant');

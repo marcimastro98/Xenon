@@ -3,7 +3,7 @@
 // The Widgets section of the Xenon menu, in two levels: the map of the screens over the
 // list of one page, split by when each widget is seen, and from it one screen for a
 // widget, for a page, or for adding. The rows, their acts and their words all come from
-// the server (server/menu-widgets.js); this file only lays them out.
+// the server (server/menu/menu-widgets.js); this file only lays them out.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;

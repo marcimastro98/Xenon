@@ -158,7 +158,7 @@ const drawShell = require('./alerts/screen-draw-shell').createScreenDrawShell({
 // The Xenon menu over the main screen (screen-menu.js, plan §20): open or not,
 // told over SSE `screen_menu`; with no shell to draw it, the dashboards open
 // the same menu as a panel (SSE `xenon_menu_panel`).
-const screenMenu = require('./screen-menu').createScreenMenu({
+const screenMenu = require('./menu/screen-menu').createScreenMenu({
   host: layersHost,
   broadcast: (state) => {
     if (!state.open) layersPeek.set(null);
@@ -170,7 +170,7 @@ const screenMenu = require('./screen-menu').createScreenMenu({
   capturing: () => _recorder.status().on === true || _replay.status().on === true,
   holding: () => layersEdit.get(),
 });
-const XenonMenu = require('./xenon-menu');
+const XenonMenu = require('./menu/xenon-menu');
 const MenuStore = require('./store-catalog/menu-store.js');
 const { LAYER_TILE_EXCLUDED } = require('./widget-options/layer-tile-excluded.js');
 async function _layerCatalog() {

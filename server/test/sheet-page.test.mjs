@@ -9,7 +9,7 @@ import vm from 'node:vm';
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const DashboardOpen = require('../js/dashboard-open.js');
-const { createScreenMenu } = require('../screen-menu.js');
+const { createScreenMenu } = require('../menu/screen-menu.js');
 
 const ID = '0123456789abcdef';
 

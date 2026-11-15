@@ -94,7 +94,7 @@
   // back at once. `overlayKey` is that shortcut, 'off' when the user took it away.
   const TOGGLES = Object.freeze(['all', 'overlay', 'desktop']);
   const OVERLAY_KEY = 'ctrl+shift+f9';
-  // The Xenon menu over the main screen (server/screen-menu.js). Alt+X alone is
+  // The Xenon menu over the main screen (server/menu/screen-menu.js). Alt+X alone is
   // refused like every one-modifier letter (it is an app's menu key); this one
   // is free of the system, NVIDIA, Game Bar and AltGr combos (js/deck-shortcuts.js).
   const MENU_KEY = 'alt+shift+x';
