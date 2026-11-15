@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, windowKeys, settle } from './mini-dom.mjs';
+import { namesOf } from './source-names.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -66,9 +67,7 @@ function smartProfiles({ rules = [], windows = [] } = {}) {
   };
   const src = read('../js/deck.js');
   // The switch row up to its own closing brace: whatever follows it in the script is not part of it.
-  vm.runInNewContext(`${between(src, 'function switchRow(', '\n  }\n')}
-  }
-    ${between(src,'let closeAutoSwitch = null;', '// ── Smart Profiles: foreground-app')}
+  vm.runInNewContext(`${namesOf(src, 'deck.js').all('switchRow', 'closeAutoSwitch', 'openAutoSwitchDialog')}
     this.open = openAutoSwitchDialog;`, box);
   const trigger = document.createElement('button');
   document.body.append(trigger);
@@ -249,7 +248,7 @@ test('the key editor holds the keyboard, and gives it back before it goes', () =
   const src = read('../js/deck-editor.js');
   assert.match(src, /backdrop\.letGo = window\.DialogFocus\.hold\(modal, \{[^}]*onEsc: close,/);
   assert.match(src, /leavesKeys: \(\) => shortcut\.recording\(\)/);
-  const closing = between(src, 'function close() {', 'm.remove();');
+  const closing = namesOf(src, 'deck-editor.js').one('close');
   assert.match(closing, /if \(m\.letGo\) m\.letGo\(\);/);
 });
 
@@ -276,9 +275,7 @@ test('the window keys are drawn marks, never characters that change with the fon
   const windows = [
     read('../js/deck-editor.js'),
     read('../js/deck-editor-shortcut.js'),
-    between(deck, 'function openDeckStyleModal(', 'deckStyleLetGo = window.DialogFocus.hold'),
-    between(deck, 'function openAutoSwitchDialog(', '// ── Smart Profiles: foreground-app'),
-    between(deck, 'function openDeckMixer(', 'deckMixLetGo = window.DialogFocus.hold'),
+    namesOf(deck, 'deck.js').all('openDeckStyleModal', 'openAutoSwitchDialog', 'openDeckMixer'),
   ].join('\n');
   assert.doesNotMatch(windows, /['"`][^'"`\n]*[✕✖＋][^'"`\n]*['"`]/);
 });

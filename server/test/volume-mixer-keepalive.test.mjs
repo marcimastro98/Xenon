@@ -11,6 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
+import { namesOf } from './source-names.mjs';
 import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
@@ -32,7 +33,7 @@ function harness({ hidden = false, width = 1000, height = 600 } = {}) {
   const surfaces = [];
   const doc = { hidden, querySelectorAll: () => surfaces };
   const win = { innerWidth: width, innerHeight: height };
-  const body = cut(VOLUME, 'const AUDIO_WATCH_TICK_MS', 'setInterval(audioWatchTick');
+  const body = namesOf(VOLUME, 'volume.js').all('AUDIO_WATCH_TICK_MS', 'AUDIO_WATCH_PING_MS', 'audioWatching', 'audioWatchPingAt', 'audioSurfaceOnScreen', 'audioWatchTick');
   const api = new Function('document', 'window', 'fetchAudio', 'fetch', 'SERVER', 'Date',
     body + '\nreturn { audioSurfaceOnScreen, audioWatchTick, AUDIO_WATCH_TICK_MS, AUDIO_WATCH_PING_MS };')(
     doc, win,

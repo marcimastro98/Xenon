@@ -12,6 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
+import { namesOf } from './source-names.mjs';
 import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
@@ -21,13 +22,6 @@ const DECKCSS = read('../components/DeckPanel/DeckPanel.css');
 const LAYOUT = read('../js/dashboard-layout.js');
 const DECK = read('../js/deck.js');
 const GROUPS = read('../js/dashboard-tabgroups.js');
-
-function cut(src, start, end) {
-  const a = src.indexOf(start);
-  const b = src.indexOf(end, a);
-  assert.ok(a >= 0 && b > a, `cannot cut ${start}`);
-  return src.slice(a, b);
-}
 
 function fakeEl() {
   const attrs = new Set();
@@ -42,7 +36,7 @@ function fakeEl() {
   };
 }
 
-const applyTileTokens = new Function('window', cut(LAYOUT, 'const TILE_THIN_BELOW', 'function applyAllTileStyles')
+const applyTileTokens = new Function('window', namesOf(LAYOUT, 'dashboard-layout.js').all('TILE_THIN_BELOW', 'applyTileTokens')
   + '\nreturn applyTileTokens;')({ PANEL_DROP_CSS: { dark: 'DROP', light: 'DROP' }, getEffectiveThemePalette: () => ({ tone: 'dark' }) });
 
 test('a fully transparent tile casts no shadow, and the border is left alone', () => {
@@ -81,8 +75,7 @@ test('re-applying a style clears the markers first, so they never go stale', () 
 
 // The Deck's own way of going transparent: the "None" faceplate.
 // Cut at the function's own end, not at what happens to stand after it.
-const stampDeckMount = new Function(cut(DECK, '  function stampDeckMount(tile) {', '\n  }\n')
-  + '\n  }\nreturn stampDeckMount;')();
+const stampDeckMount = new Function(`${namesOf(DECK, 'deck.js').one('stampDeckMount')}\nreturn stampDeckMount;`)();
 
 function deckTile(plate, inGroup) {
   const tile = fakeEl();

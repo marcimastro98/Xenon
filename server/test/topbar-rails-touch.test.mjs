@@ -12,16 +12,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { namesOf } from './source-names.mjs';
 
-// LF only, so the slices below find their markers on a CRLF (Windows) checkout too.
+// LF only, so the names below find their lines on a CRLF (Windows) checkout too.
 const SRC = readFileSync(new URL('../js/topbar-minimal.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
-function slice(from, to) {
-  const a = SRC.indexOf(from);
-  const b = SRC.indexOf(to, a);
-  assert.ok(a >= 0 && b > a, `cannot cut ${from.trim()} … ${to.trim()}`);
-  return SRC.slice(a, b);
-}
+// What the rails keep and what they do, read by name: where each stands in the script may change.
+const bar = namesOf(SRC, 'topbar-minimal.js');
+const KEPT = ['active', 'els', 'ui', 'AUTO_HIDE_DEFAULT_S', 'autoHideMs', 'autoHideTimer', 'railsHeld', 'railsHidden', 'autoHideBound', 'suppressHandleToggle',
+  'suppressToggleTimer', 'readRailState', 'writeRailState'];
+const RAILS = ['buildRail', 'syncRail', 'ensureUi', 'autoHideEnabled', 'clearAutoHideTimer', 'setRailsHidden', 'armAutoHide', 'wakeRail', 'onEdgePointerDown',
+  'bindAutoHide', 'configureAutoHide'];
 
 function fakeEl() {
   const cls = new Set();
@@ -41,8 +42,7 @@ function fakeEl() {
 }
 
 function rig(rails, extra = {}) {
-  const code = slice('  let active = false;', '  // The reorderable island segments')
-    + slice('  function buildRail(side) {', '  function enable() {')
+  const code = `${bar.all(...KEPT)}\n${bar.all(...RAILS)}\n`
     + `
     return {
       ui: () => ui, hub: () => hubSettings, setActive: (v) => { active = v; }, setEls: (v) => { els = v; },

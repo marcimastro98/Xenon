@@ -6,14 +6,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
+import { namesOf } from './source-names.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/calendar.js');
-const between = (from, to) => SRC.slice(SRC.indexOf(from), SRC.indexOf(to));
+const agenda = namesOf(SRC, 'calendar.js');
 const wholeFunction = (head) => SRC.slice(SRC.indexOf(head), SRC.indexOf('\n}\n', SRC.indexOf(head)) + 2);
 
 const DOORS = 'let dayModalLetGo = null;\n'
-  + between('// The time list is a step inside the window', 'function renderDayModalEvents');
+  + agenda.all('dayModalEsc', 'holdDayModal', 'closeDayModal');
 
 function rig() {
   const { document } = makeDom();
@@ -99,7 +100,7 @@ test('a row reads time, name, key', () => {
     eventDotColor: () => '', _calendarFeedsNow: () => [], buildEventNote: () => null, deleteCalendarEvent() {},
   };
   vm.createContext(ctx);
-  vm.runInContext(`${between('function renderDayModalEvents', '// An event note is the one place')};globalThis.paint = renderDayModalEvents;`, ctx);
+  vm.runInContext(`${agenda.one('renderDayModalEvents')};globalThis.paint = renderDayModalEvents;`, ctx);
   ctx.paint();
   const rows = list.children.map((row) => row.children[0].children.map((part) => part.className));
   assert.deepEqual(rows, [['event-time', 'event-name', 'event-delete'], ['event-time', 'event-name', 'event-source-badge']]);

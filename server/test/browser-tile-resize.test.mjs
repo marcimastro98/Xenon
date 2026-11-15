@@ -9,18 +9,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from './browser-source.mjs';
+import { namesOf } from './source-names.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SRC = readFileSync(join(ROOT, 'server', 'js', 'browser-tile.js'), 'utf8');
 
-function slice(from, to) {
-  const start = SRC.indexOf(from);
-  const end = SRC.indexOf(to);
-  assert.ok(start > 0 && end > start, `could not lift ${from} .. ${to} out of browser-tile.js`);
-  return SRC.slice(start, end);
-}
+// The pieces are read by name: where they stand in the tile's scripts may change, their names do not.
+const tile = namesOf(SRC, 'browser-tile.js');
 
 /**
  * Lift the resize verification out of the IIFE. Everything it depends on that
@@ -61,8 +58,8 @@ function loadResizeLogic() {
     relaySend: (msg) => { if (!relayUp) return false; sent.push(msg); return true; },
   });
 
-  vm.runInContext(slice('const RESIZE_TOLERANCE_PX', '  // A group streams only while'), context);
-  vm.runInContext(slice("  // Push the group's current stage size", '  // ── Tab lifecycle'), context);
+  vm.runInContext(tile.all('RESIZE_TOLERANCE_PX', 'RESIZE_RETRY_MS', 'RESIZE_MAX_RETRIES', 'frameMatchesSize'), context);
+  vm.runInContext(tile.all('pushResize', 'clearResizeWatchdog', 'verifyFrameSize'), context);
   return context;
 }
 

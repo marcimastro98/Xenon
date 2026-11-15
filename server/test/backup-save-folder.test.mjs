@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = engineSource();
@@ -31,7 +32,7 @@ test('the route opens the dialog only on this PC, with the engine, when asked', 
 });
 
 test('the chosen folder comes first, then Downloads, with async checks only', () => {
-  const fn = slice(SERVER, 'async function saveBackupToDisk(', '\n}\n');
+  const fn = namesOf(SERVER, 'the engine').one('saveBackupToDisk');
   assert.match(fn, /\[chosen, path\.join\(home, 'Downloads'\), home, DATA_DIR\]\.filter\(Boolean\)/);
   assert.match(fn, /await fs\.promises\.stat\(c\)/);
   assert.doesNotMatch(fn, /Sync\(/);
@@ -39,7 +40,7 @@ test('the chosen folder comes first, then Downloads, with async checks only', ()
 });
 
 test('the dialog is the shared one, titled for the backup, never kept in settings', () => {
-  const fn = slice(SERVER, 'async function chooseBackupFolder(', '\n}\n');
+  const fn = namesOf(SERVER, 'the engine').one('chooseBackupFolder');
   assert.match(fn, /_captureFolder\.picking\(\)\) return \{ ok: false, error: 'picking' \}/);
   assert.match(fn, /_captureFolderKind = 'backup'/);
   assert.doesNotMatch(fn, /updateCaptureSettings|withHubSettingsLock/);
@@ -47,12 +48,12 @@ test('the dialog is the shared one, titled for the backup, never kept in setting
 });
 
 test('the embedded view asks, a browser uses Save as, a failure still saves a file', () => {
-  const exp = slice(SETTINGS, 'async function exportBackup()', '\nfunction ');
+  const exp = namesOf(SETTINGS, 'settings.js').one('exportBackup');
   assert.match(exp, /isEmbeddedView\(\)\) \{ await exportBackupToDisk\(true\)/);
   assert.match(exp, /XenonSaveFile\.save\(/);
   assert.match(exp, /how !== 'cancelled'/);
   assert.match(exp, /catch[\s\S]*exportBackupToDisk\(\)/);
-  const disk = slice(SETTINGS, 'async function exportBackupToDisk(', '\n}\n');
+  const disk = namesOf(SETTINGS, 'settings.js').one('exportBackupToDisk');
   assert.match(disk, /JSON\.stringify\(\{ pick \}\)/);
   assert.match(disk, /out\.cancelled === true\) return/);
   assert.match(disk, /'settings_folder_busy'/);

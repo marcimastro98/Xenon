@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -34,7 +35,7 @@ function fakeEl() {
   };
 }
 
-const applyTileTokens = new Function('window', cut(LAYOUT, 'const TILE_THIN_BELOW', 'function applyAllTileStyles')
+const applyTileTokens = new Function('window', namesOf(LAYOUT, 'dashboard-layout.js').all('TILE_THIN_BELOW', 'applyTileTokens')
   + '\nreturn applyTileTokens;')({ PANEL_DROP_CSS: { dark: 'DROP', light: 'DROP' }, getEffectiveThemePalette: () => ({ tone: 'dark' }) });
 
 const marks = (style) => { const el = fakeEl(); applyTileTokens(el, style); return el.attrs; };

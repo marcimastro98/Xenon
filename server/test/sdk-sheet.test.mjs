@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, windowKeys } from './mini-dom.mjs';
+import { namesOf } from './source-names.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SRC = read('../js/custom-widget.js');
@@ -21,12 +22,9 @@ const STRINGS = {
   cw_by: 'by {a}',
 };
 
-function sliceOf(from, to) {
-  const start = SRC.indexOf(from);
-  const end = SRC.indexOf(to, start);
-  assert.ok(start > 0 && end > start, `${from} not found in custom-widget.js`);
-  return SRC.slice(start, end);
-}
+// The three questions and what each keeps while it is open, read by name: where they stand in the widget's scripts may change.
+const QUESTIONS = ['pendingPermRequests', 'permOpen', 'closePermDialog', 'clipOpen', 'closeClipConfirm', 'approvedExternalHosts', 'extOpen',
+  'closeExternalConfirm', 'openExternalConfirm', 'externalOpenApproved', 'openClipboardConfirm', 'openPermDialog'];
 
 function makeEl(document) {
   return (tag, cls, text) => {
@@ -94,7 +92,7 @@ function widgets(over = {}) {
     ...over,
   };
   vm.createContext(box);
-  const code = sliceOf('const pendingPermRequests', '// One-tap install of a bundled reference widget.');
+  const code = namesOf(SRC, 'custom-widget.js').all(...QUESTIONS);
   vm.runInContext(`${code}\nthis.api = { openPermDialog, closePermDialog, openClipboardConfirm, openExternalConfirm };`, box);
   return { ...base, ...box.api, saved, copies, box };
 }

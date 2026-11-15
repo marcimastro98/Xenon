@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { namesOf } from './source-names.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -34,7 +35,7 @@ function node(tag, cls, text) {
 
 // renderHelperHint with the widget's own dependencies faked.
 function card({ status, remote = false, api = async () => ({ ok: true }), refresh = async () => {} }) {
-  const body = cut(WIDGET, '  function renderHelperHint() {', '  function render(mount) {');
+  const body = namesOf(WIDGET, 'disk-widget.js').one('renderHelperHint');
   const calls = { api: [], refresh: 0 };
   const el = (tag, cls, text) => node(tag, cls, text);
   const tr = (key) => `<${key}>`;
