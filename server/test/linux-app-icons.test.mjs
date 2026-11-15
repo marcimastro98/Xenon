@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createAppIcons, desktopValue } = require('../linux-app-icons.js');
+const { createAppIcons, desktopValue } = require('../search/linux-app-icons.js');
 
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
 

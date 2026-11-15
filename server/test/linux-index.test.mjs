@@ -12,7 +12,7 @@ import os from 'node:os';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const li = require(join(ROOT, 'linux-index.js'));
+const li = require(join(ROOT, 'search/linux-index.js'));
 
 // The tests that walk a REAL tree cannot run on Windows, and that is a property
 // of the module rather than a gap in them: setRoots() only accepts POSIX

@@ -4,7 +4,7 @@
 const {
   INSTALLED_APPS_TTL_MS, _enumStartMenuLnks, _enumStoreApps,
 } = require('./installed-apps-windows.js');
-const { listPosixApps } = require('../installed-apps.js');
+const { listPosixApps } = require('./installed-apps.js');
 const { _installedApps } = require('./spotlight-state.js');
 
 function getInstalledApps() {

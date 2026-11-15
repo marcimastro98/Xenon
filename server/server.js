@@ -390,11 +390,11 @@ const featureRoutes = require('./feature-routes.js');           // the routes ad
 const { createFeatureUnlock } = require('./store-supporters/feature-unlock');
 const { createTrialPass } = require('./store-supporters/trial-pass');
 const { createTrialVault } = require('./store-supporters/trial-vault');
-require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
+require('./search/mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
 require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
-require('./linux-index');         // the same surface in plain Node, for the platform with no helper
+require('./search/linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./system/first-reading');

@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const https = require('https');
-const { createPace } = require('../search-pace.js');
+const { createPace } = require('../search/search-pace.js');
 const ai = require('../ai-local.js');
 
 test('the first request goes at once', () => {

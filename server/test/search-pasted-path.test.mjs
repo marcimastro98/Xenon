@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { pastedPath } = require('../search-pasted-path.js');
+const { pastedPath } = require('../search/search-pasted-path.js');
 const { createFileSearch } = require('../filesearch.js');
 
 const win = { platform: 'win32', home: 'C:\\Users\\me' };

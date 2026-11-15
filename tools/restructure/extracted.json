@@ -693,7 +693,7 @@
       {"file":"server/codex/appserver-refresh.js","about":"What the Codex app-server is asked on a clock: the account, the limits, the usage, the conversations and the hooks read when each is due, and the next read planned.","names":["refresh","listThreads","due","tick","schedule","hooksStatus"],"inner":{"factory":"createAppServer","make":"makeRefresh"}},
       {"file":"server/codex/appserver-answers.js","about":"What the Codex app-server answers the dashboard with: one conversation read with the turn that is still running, whether a conversation is one it listed, and the state the tile is drawn from.","names":["readThread","withLiveItems","knowsThread","snapshot"],"inner":{"factory":"createAppServer","make":"makeAnswers"}}
     ],
-    "server/linux-index.js": [
+    "server/search/linux-index.js": [
       {"file":"server/search/linux-index-query.js","about":"Answers a file search from the Linux file index: how well a name matches what was typed, and the matches in order.","names":["foldName","matchTier","PATH_TIER","entryTier","byTierThenNewest","queryEntries","queryIndex"]},
       {"file":"server/search/linux-index-overview.js","about":"What the Linux file index says about disk space: the overview of a drive by kind of file, and the contents of one folder with sizes.","names":["isUnder","overviewFrom","browseFrom"]},
       {"file":"server/search/linux-index-rules.js","about":"What the Linux index walks by: the folders never searched, the paths that are not really files, how deep a measured folder is recorded, and the file system calls that return a promise.","names":["fsp","SKIP_DIRS","SKIP_PREFIXES","AGG_DEPTH","isSkippedPath"]},
@@ -1231,7 +1231,7 @@
     "server/living-index.js": [
       {"factory":"createLivingIndex","object":"indexState","names":["wantedRoots","notBefore","startTimer","held","stopped"],"kept":["notBefore"],"bare":[],"after":0}
     ],
-    "server/linux-index.js": [
+    "server/search/linux-index.js": [
       {"factory":"createLinuxIndex","object":"ixState","names":["roots","entries","aggs","building","ready","capped","cappedRoots","stats_","scanToken","version","scanning","rescanTimer","stopped","notBefore","startTimer","held","waitingWalks"],"kept":["notBefore"],"bare":[],"after":2}
     ],
     "server/auto-update.js": [

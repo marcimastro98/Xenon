@@ -5,9 +5,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
-const SearchQuery = require('../search-query.js');
-const SearchRank = require('../search-rank.js');
-const { pastedPath } = require('../search-pasted-path.js');
+const SearchQuery = require('./search-query.js');
+const SearchRank = require('./search-rank.js');
+const { pastedPath } = require('./search-pasted-path.js');
 const { FOLDERS_MAX, POOL_MAX, QUERY_MAX, PASTED_STAT_MS } = require('./search-limits.js');
 
 function makeAnswers({

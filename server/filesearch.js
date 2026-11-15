@@ -23,8 +23,8 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-require('./search-query');
-const SearchRank = require('./search-rank');
+require('./search/search-query');
+const SearchRank = require('./search/search-rank');
 const { isBlockedOpenPath } = require('./actions/registry');
 
 const { RESULTS_CACHE_MAX } = require('./search/search-limits.js');

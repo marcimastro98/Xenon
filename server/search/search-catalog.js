@@ -3,7 +3,7 @@
 // so the follow-up collects the answer instead of asking again, and its rows.
 
 const path = require('node:path');
-const SearchQuery = require('../search-query.js');
+const SearchQuery = require('./search-query.js');
 const { WDS_MAX, CATALOG_STASH_MS, CATALOG_STASH_MAX } = require('./search-limits.js');
 
 function makeCatalog({ hostRequest, catalogStash }) {

@@ -1,4 +1,4 @@
-// Local search query parser (server/search-query.js) — the offline
+// Local search query parser (server/search/search-query.js) — the offline
 // intelligence: IT/EN phrases become structured filters deterministically,
 // with chips describing what was understood. All dates are computed from an
 // injected `now`, so every expectation here is absolute.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const SQ = require('../search-query.js');
+const SQ = require('../search/search-query.js');
 
 // Fixed clock: Thursday 23 July 2026, 12:00 local time.
 const NOW = new Date(2026, 6, 23, 12, 0, 0).getTime();

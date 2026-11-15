@@ -1,5 +1,5 @@
 'use strict';
-const { createPace } = require('./search-pace');
+const { createPace } = require('./search/search-pace');
 require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────

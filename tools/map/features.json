@@ -293,13 +293,8 @@
       "files": [
         "server/search/**",
         "server/filesearch.js",
-        "server/search-*.js",
         "server/search.ps1",
-        "server/mdfind.js",
-        "server/installed-apps.js",
         "server/living-index.js",
-        "server/linux-index.js",
-        "server/linux-app-icons.js",
         "server/spotlight.html",
         "server/js/spotlight/**",
         "server/js/spotlight*.js",

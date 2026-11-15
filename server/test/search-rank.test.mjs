@@ -1,4 +1,4 @@
-// Local search ranking (server/search-rank.js) — the ordering signals that
+// Local search ranking (server/search/search-rank.js) — the ordering signals that
 // beat the Windows search box: name-match quality tiers, recency decay, open
 // frequency and folder affinity, all deterministic under an injected clock.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const SR = require('../search-rank.js');
+const SR = require('../search/search-rank.js');
 
 const NOW = new Date(2026, 6, 23, 12, 0, 0).getTime();
 const DAY = 86400000;

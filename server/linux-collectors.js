@@ -26,7 +26,7 @@
 'use strict';
 
 const fsp = require('fs').promises;
-const { createAppIcons } = require('./linux-app-icons.js');
+const { createAppIcons } = require('./search/linux-app-icons.js');
 
 const { parseMemInfo, memory } = require('./platform/linux-memory.js');
 

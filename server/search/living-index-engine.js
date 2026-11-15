@@ -2,7 +2,7 @@
 // to build only after its start delay and when a search or the disk view asks.
 
 const { createLivingIndex } = require('../living-index.js');
-const { createLinuxIndex } = require('../linux-index.js');
+const { createLinuxIndex } = require('./linux-index.js');
 const { HELPER_EXE } = require('../engine/paths.js');
 const { INDEX_START_DELAY_MS } = require('./spotlight-state.js');
 

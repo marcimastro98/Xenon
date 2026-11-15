@@ -10,8 +10,8 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 
 const require = createRequire(import.meta.url);
-const { parseDesktopEntry, listPosixApps } = require('../installed-apps.js');
-const { buildMdfindQuery, createMdfindRunner } = require('../mdfind.js');
+const { parseDesktopEntry, listPosixApps } = require('../search/installed-apps.js');
+const { buildMdfindQuery, createMdfindRunner } = require('../search/mdfind.js');
 
 test('a .desktop entry: name, local name, and the flags that hide it', () => {
   const d = parseDesktopEntry([

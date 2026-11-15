@@ -29,8 +29,8 @@
 //     whose whole point is to sit in the background.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const { fsp, SKIP_DIRS, SKIP_PREFIXES, AGG_DEPTH } = require('./search/linux-index-rules.js');
-require('./disk-kinds'); // nothing is taken from it here, but it runs code when it loads
+const { fsp, SKIP_DIRS, SKIP_PREFIXES, AGG_DEPTH } = require('./linux-index-rules.js');
+require('../disk-kinds'); // nothing is taken from it here, but it runs code when it loads
 
 const DEFAULT_MAX_ENTRIES = 300000;
 const DEFAULT_MAX_AGG = 60000;
@@ -41,7 +41,7 @@ const DEFAULT_RESCAN_MS = 10 * 60 * 1000;
 // the lowercased name, precomputed because it is compared on every keystroke
 // against every entry and recomputing it there is the whole cost of a query.
 
-const { foldName, matchTier, queryEntries, queryIndex } = require('./search/linux-index-query.js');
+const { foldName, matchTier, queryEntries, queryIndex } = require('./linux-index-query.js');
 
 
 // ── Disk map (exported for tests) ────────────────────────────────────────────
@@ -51,13 +51,13 @@ const { foldName, matchTier, queryEntries, queryIndex } = require('./search/linu
 // does the rest itself (categories, and the SHA-256 verification that turns
 // same-size candidates into real duplicates).
 
-const { overviewFrom, browseFrom } = require('./search/linux-index-overview.js');
+const { overviewFrom, browseFrom } = require('./linux-index-overview.js');
 
 // ── The index ────────────────────────────────────────────────────────────────
 
-const { makeWalks } = require('./search/linux-index-walks.js');
+const { makeWalks } = require('./linux-index-walks.js');
 
-const { makeQuestions } = require('./search/linux-index-questions.js');
+const { makeQuestions } = require('./linux-index-questions.js');
 
 function createLinuxIndex(o = {}) {
   const maxEntries = o.maxEntries || DEFAULT_MAX_ENTRIES;

@@ -18,7 +18,7 @@
 // Korean also gets an INITIALS string (날씨 → ᄂᄊ), because typing only the
 // leading consonants is how Korean users search a list.
 //
-// Scoring tiers follow server/search-rank.js (built for file names, so not
+// Scoring tiers follow server/search/search-rank.js (built for file names, so not
 // reused as is): exact > whole word > prefix of the field > word start >
 // substring > one typo > letters in order > two typos. Japanese and Chinese
 // have no spaces between words, so a substring there counts as a word start
