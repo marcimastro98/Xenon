@@ -117,6 +117,29 @@ export function edited(text, edits) {
   return out;
 }
 
+// The list of statements read by hand holds the sha256 of each file as it was read, and the first line of each
+// statement. A file this step edits differs by the paths it loads alone: an entry that was true of the old text is
+// made true of the new one, and a line that loads a moved file is spelled as the file now spells it. A stale entry
+// stays stale.
+function readByHand(root, step, texts) {
+  const was = texts.get(HASHED) ?? read(root)(HASHED);
+  if (!was) return null;
+  let hashes = was;
+  const placed = new Map(step.moves.map((move) => [move.from, move.to]));
+  for (const [file, now] of texts) {
+    const before = read(root)(file);
+    const name = JSON.stringify(placed.get(file) ?? file);
+    hashes = hashes.split(`${name}: "${textHash(before)}"`).join(`${name}: "${textHash(now)}"`);
+    for (const edit of (step.edits.get(file) ?? []).filter((one) => one.kind === 'load')) {
+      const from = before.lastIndexOf('\n', edit.start) + 1;
+      const line = before.slice(from, before.indexOf('\n', edit.start)).replace(/\r$/, '');
+      const next = line.slice(0, edit.start - from) + edit.text + line.slice(edit.end - from);
+      hashes = hashes.split(`"statement": ${JSON.stringify(line.trim())}`).join(`"statement": ${JSON.stringify(next.trim())}`);
+    }
+  }
+  return hashes === was ? null : hashes;
+}
+
 const journalOf = (root) => path.join(path.resolve(root, git(root, ['rev-parse', '--git-dir']).trim()), 'xenon-move-undo.json');
 
 /**
@@ -137,16 +160,8 @@ export function applyStep(root, step) {
     texts.set(FEATURES, mapText(mapped.map));
     texts.set(MAP, pageText(mapped.map));
   }
-  // A list that holds the sha256 of a file as it was read: a file this step edits differs by the paths it loads alone, so
-  // an entry that was true of the old text is made true of the new one, and so for a file that loads a moved one.
-  // A stale entry stays stale.
-  let hashes = texts.get(HASHED) ?? read(root)(HASHED);
-  const placed = new Map(step.moves.map((move) => [move.from, move.to]));
-  for (const [file, now] of hashes ? texts : []) {
-    const name = JSON.stringify(placed.get(file) ?? file);
-    hashes = hashes.split(`${name}: "${textHash(read(root)(file))}"`).join(`${name}: "${textHash(now)}"`);
-  }
-  if (hashes && hashes !== (texts.get(HASHED) ?? read(root)(HASHED))) texts.set(HASHED, hashes);
+  const hashes = readByHand(root, step, texts);
+  if (hashes) texts.set(HASHED, hashes);
   texts.set(MOVED, movedText(list));
   const head = git(root, ['rev-parse', 'HEAD']).trim();
   writeFileSync(journalOf(root), JSON.stringify({ head, moves: step.moves, files: [...texts.keys()], madeList: !existsSync(path.join(root, MOVED)) }));
