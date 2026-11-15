@@ -191,6 +191,10 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // The hidden "widgets only" page belongs to the app's own window on this
     // PC; a phone has nothing to drive.
     'GET /shell-driver',
+    // Whether the PC opens the dashboard in its browser when its user signs in:
+    // asked and answered at the PC, where the tab opens. (The POST is further
+    // down: this list is sorted.)
+    'GET /startup/auto-open',
     // The channel's RTMP stream key. It is the one credential the dashboard is
     // asked to put on screen, and whoever reads it can broadcast to the user's
     // channel — so it stays on the PC rather than crossing the LAN in the clear.
@@ -338,6 +342,9 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /second-screen/remove-display',
     // A tile's choices saved from a widget on the PC's screen; a phone saves through /settings.
     'POST /settings/tile',
+    // Asks for a browser tab on the PC at every sign-in. A phone that could ask
+    // would open it on a screen it is not looking at.
+    'POST /startup/auto-open',
     // Raises a UAC prompt on a PC nobody is standing at.
     'POST /system/enable-sensors',
     // The updater swaps files and restarts the server under the connection

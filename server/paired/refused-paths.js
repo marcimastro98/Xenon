@@ -166,6 +166,11 @@ const REMOTE_DENY = new Set([
   // And the export carries what a phone is never shown on its own: private
   // calendar links, Deck webhook addresses, every note. Made at the PC.
   '/backup/export',
+  // Whether the PC opens the dashboard in its browser when its user signs in.
+  // The tab opens on the PC's screen, so the one who asks for it is the person
+  // using a browser on that PC: a phone that asked would open a tab at every
+  // sign-in on a screen it is not looking at.
+  '/startup/auto-open',
 ]);
 
 // Prefix denials, for routes that carry an id tail.
