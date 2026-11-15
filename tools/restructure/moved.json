@@ -5,9 +5,9 @@
     {"from":"server/vitals-nag.js","to":"server/vitals/vitals-nag.js","shim":true},
     {"from":"server/vitals-state.js","to":"server/vitals/vitals-state.js","shim":true},
     {"from":"server/situations.js","to":"server/capabilities/situations.js","shim":true},
-    {"from":"server/startup-task.js","to":"server/install/startup-task.js"}
+    {"from":"server/startup-task.js","to":"server/install/startup-task.js","shim":true}
   ],
   "patterns": [
-    {"feature":"install","glob":"server/startup-task.js","at":9}
+
   ]
 }

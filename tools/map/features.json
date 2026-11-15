@@ -942,6 +942,7 @@
         "server/start.bat",
         "server/start-hidden.vbs",
         "server/open-dashboard.vbs",
+        "server/startup-task.js",
         "INSTALL.*",
         "UNINSTALL.*"
       ]
