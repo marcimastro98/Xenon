@@ -33,11 +33,10 @@
     {"from":"server/linux-hotkey.js","to":"server/deck/linux-hotkey.js","shim":true},
     {"from":"server/chatgpt-ask.js","to":"server/codex/chatgpt-ask.js","shim":true},
     {"from":"server/codex-bridge.js","to":"server/codex/codex-bridge.js","shim":true},
-    {"from":"server/stream-common.js","to":"server/streaming/stream-common.js"},
-    {"from":"server/stream-history.js","to":"server/streaming/stream-history.js"}
+    {"from":"server/stream-common.js","to":"server/streaming/stream-common.js","shim":true},
+    {"from":"server/stream-history.js","to":"server/streaming/stream-history.js","shim":true}
   ],
   "patterns": [
-    {"feature":"streaming","glob":"server/stream-common.js","at":3},
-    {"feature":"streaming","glob":"server/stream-history.js","at":5}
+
   ]
 }
