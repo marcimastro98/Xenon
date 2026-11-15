@@ -90,20 +90,19 @@
     {"from":"server/sound-packs.js","to":"server/store-catalog/sound-packs.js","shim":true},
     {"from":"server/store-snapshots.js","to":"server/store-catalog/store-snapshots.js","shim":true},
     {"from":"server/widget-auto-update.js","to":"server/store-catalog/widget-auto-update.js","shim":true},
-    {"from":"server/devclean-docker.js","to":"server/disk/devclean-docker.js"},
-    {"from":"server/devclean-ids.js","to":"server/disk/devclean-ids.js"},
-    {"from":"server/devclean-ollama.js","to":"server/disk/devclean-ollama.js"},
-    {"from":"server/devclean-vscode.js","to":"server/disk/devclean-vscode.js"},
-    {"from":"server/devclean.js","to":"server/disk/devclean.js"},
-    {"from":"server/disk-dupes.js","to":"server/disk/disk-dupes.js"},
-    {"from":"server/disk-guard.js","to":"server/disk/disk-guard.js"},
-    {"from":"server/disk-history.js","to":"server/disk/disk-history.js"},
-    {"from":"server/disk-kinds.js","to":"server/disk/disk-kinds.js"},
-    {"from":"server/linux-trash.js","to":"server/disk/linux-trash.js"},
-    {"from":"server/mounted-disks.js","to":"server/disk/mounted-disks.js"}
+    {"from":"server/devclean-docker.js","to":"server/disk/devclean-docker.js","shim":true},
+    {"from":"server/devclean-ids.js","to":"server/disk/devclean-ids.js","shim":true},
+    {"from":"server/devclean-ollama.js","to":"server/disk/devclean-ollama.js","shim":true},
+    {"from":"server/devclean-vscode.js","to":"server/disk/devclean-vscode.js","shim":true},
+    {"from":"server/devclean.js","to":"server/disk/devclean.js","shim":true},
+    {"from":"server/disk-dupes.js","to":"server/disk/disk-dupes.js","shim":true},
+    {"from":"server/disk-guard.js","to":"server/disk/disk-guard.js","shim":true},
+    {"from":"server/disk-history.js","to":"server/disk/disk-history.js","shim":true},
+    {"from":"server/disk-kinds.js","to":"server/disk/disk-kinds.js","shim":true},
+    {"from":"server/linux-trash.js","to":"server/disk/linux-trash.js","shim":true},
+    {"from":"server/mounted-disks.js","to":"server/disk/mounted-disks.js","shim":true}
   ],
   "patterns": [
-    {"feature":"disk","glob":"server/mounted-disks.js","at":5},
-    {"feature":"disk","glob":"server/linux-trash.js","at":6}
+
   ]
 }
