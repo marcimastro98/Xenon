@@ -230,7 +230,8 @@
     {"from":"server/os-theme.js","to":"server/look/os-theme.js"},
     {"from":"server/stream-spotify.js","to":"server/media/stream-spotify.js"},
     {"from":"server/linux-notif.js","to":"server/notification-open/linux-notif.js"},
-    {"from":"server/winnotif.js","to":"server/notification-open/winnotif.js"}
+    {"from":"server/winnotif.js","to":"server/notification-open/winnotif.js"},
+    {"from":"server/remote-https.js","to":"server/paired/remote-https.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -264,6 +265,7 @@
     {"feature":"look","glob":"server/os-theme.js","at":2},
     {"feature":"media","glob":"server/stream-spotify.js","at":3},
     {"feature":"notifications","glob":"server/winnotif.js","at":0},
-    {"feature":"notifications","glob":"server/linux-notif.js","at":2}
+    {"feature":"notifications","glob":"server/linux-notif.js","at":2},
+    {"feature":"paired","glob":"server/remote-https*.js","at":2}
   ]
 }

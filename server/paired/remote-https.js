@@ -59,7 +59,7 @@ const RETRY_DELAYS_MS = [5000, 10000, 20000, 45000, 90000, 180000, 300000];
 // the CLI for an answer we just had.
 const PROBE_TTL_MS = 2000;
 
-const { readiness } = require('./paired/https-readiness.js');
+const { readiness } = require('./https-readiness.js');
 
 // `retryDelays` is injected only by the tests: waiting out the real backoff to
 // assert that the door retries is a five-second unit test.

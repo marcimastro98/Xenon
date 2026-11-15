@@ -886,7 +886,7 @@
       {"file":"server/performance/game-judge.js","about":"Whether a game is in front and whether it is still running: the full-screen window or the windowed one the frame reader confirms, the grace time, the user's own list, the process that is asked if it lives.","names":["STALE_MS","GRACE_MS","WINDOWED_MIN_FPS","_windowedGameActive","bareName","userIgnore","isIgnoredProc","PID_DEAD_CONFIRM_MS","isGaming","_pidAlive","isGameRunning"]},
       {"file":"server/performance/game-readings.js","about":"Each reading of the window in front taken in: the lines of the probe split and read, the reading kept, and a change told the moment it happens.","names":["handleLine","applySample","onData"]}
     ],
-    "server/remote-https.js": [
+    "server/paired/remote-https.js": [
       {"file":"server/paired/https-readiness.js","about":"Why the HTTPS door for paired devices is not up, as one of a few reasons the settings page turns into a sentence.","names":["readiness"]}
     ],
     "server/notification-open/winnotif.js": [

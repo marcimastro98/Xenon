@@ -90,7 +90,7 @@ const EXEMPT = {
     undeadlined: 1,
     reason: 'Sunshine on 127.0.0.1 only (isLocalhost guard), loopback with a self-signed certificate.',
   },
-  'remote-https.js': {
+  'paired/remote-https.js': {
     undeadlined: 0,
     reason: 'an HTTPS server (createServer) for paired devices; it makes no outbound call.',
   },

@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const rh = require('../remote-https.js');
+const rh = require('../paired/remote-https.js');
 
 // Every reason the HTTPS door can be down is fixed somewhere DIFFERENT, and only
 // one of them is fixed on this machine at all. Getting that mapping wrong sends
@@ -240,7 +240,7 @@ test('the default port is not 443, and renewal is far inside the certificate lif
 // its socket. Telling somebody to start a service that never stopped sends them
 // looking in the wrong place, and the actual remedy is one command.
 test('readiness: needsOperator batte not_running', () => {
-  const { readiness } = require('../remote-https.js');
+  const { readiness } = require('../paired/remote-https.js');
   assert.equal(readiness({ installed: true, running: false, needsOperator: true }), 'needs_operator');
   assert.equal(readiness({ installed: true, running: false }), 'not_running');
   // Not installed is still first: there is no socket to be refused by.

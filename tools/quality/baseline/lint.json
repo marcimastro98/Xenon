@@ -1477,7 +1477,7 @@
     "server/remote-control/sunshine.js complexity/useOptionalChain": 8,
     "server/remote-control/tailscale-repairs.js complexity/useOptionalChain": 2,
     "server/remote-control/tailscale.js complexity/useOptionalChain": 1,
-    "server/remote-https.js complexity/useOptionalChain": 2,
+    "server/paired/remote-https.js complexity/useOptionalChain": 2,
     "server/replay.js complexity/useOptionalChain": 6,
     "server/screen-capture.js correctness/noUnusedVariables": 7,
     "server/screen-capture.js suspicious/noAssignInExpressions": 1,

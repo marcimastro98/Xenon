@@ -503,7 +503,7 @@ require('./remote-control');
 // and shares nothing with it but a word.
 const remoteAccessLib = require('./remote-access');
 const webPushLib = require('./paired/web-push');
-const remoteHttpsLib = require('./remote-https');
+const remoteHttpsLib = require('./paired/remote-https');
 const remoteHttpsSetupLib = require('./paired/remote-https-setup');
 const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
