@@ -1,6 +1,6 @@
 // The Claude tile's settings, or its defaults when none were saved.
 
-const claudeUsage = require('../claude-usage.js');
+const claudeUsage = require('./claude-usage.js');
 const { hub } = require('../settings/current.js');
 
 function _claudeSettings() {

@@ -64,40 +64,40 @@
 const {
   SESSION_STALE_MS, SESSION_RESTING_MS, APPROVAL_TTL_MS, URGENT_AFTER_MS, QUESTION_TTL_MS,
   FOLLOWUP_TTL_MS, HANDED_TTL_MS, UNDELIVERED_TTL_MS,
-} = require('./claude-code/bridge-limits.js');
+} = require('./bridge-limits.js');
 
 
 
-const { str } = require('./claude-code/bridge-clamp.js');
+const { str } = require('./bridge-clamp.js');
 
-const { isInjectedPrompt, isDestructive, describeRisk } = require('./claude-code/bridge-risk.js');
+const { isInjectedPrompt, isDestructive, describeRisk } = require('./bridge-risk.js');
 
-const { describeTool, describeChange, describeTodos } = require('./claude-code/bridge-describe.js');
+const { describeTool, describeChange, describeTodos } = require('./bridge-describe.js');
 
 
 const {
   joinAnswer, buildAnswers, planFeedbackMessage, followUpReason,
-} = require('./claude-code/bridge-questions.js');
+} = require('./bridge-questions.js');
 
 
 
-const { makeSessions } = require('./claude-code/bridge-sessions.js');
+const { makeSessions } = require('./bridge-sessions.js');
 
-const { makeStatusline } = require('./claude-code/bridge-statusline.js');
+const { makeStatusline } = require('./bridge-statusline.js');
 
-const { makeModReports } = require('./claude-code/bridge-mod-reports.js');
+const { makeModReports } = require('./bridge-mod-reports.js');
 
-const { makeFollowUps } = require('./claude-code/bridge-follow-ups.js');
+const { makeFollowUps } = require('./bridge-follow-ups.js');
 
-const { makeHooks } = require('./claude-code/bridge-hooks.js');
+const { makeHooks } = require('./bridge-hooks.js');
 
-const { makeApprovals } = require('./claude-code/bridge-approvals.js');
+const { makeApprovals } = require('./bridge-approvals.js');
 
-const { makeAsked } = require('./claude-code/bridge-asked.js');
+const { makeAsked } = require('./bridge-asked.js');
 
-const { makeRegistry } = require('./claude-code/bridge-registry.js');
+const { makeRegistry } = require('./bridge-registry.js');
 
-const { makeSnapshot } = require('./claude-code/bridge-snapshot.js');
+const { makeSnapshot } = require('./bridge-snapshot.js');
 
 function createBridge(opts) {
   const options = opts || {};

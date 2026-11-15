@@ -529,7 +529,7 @@
       {"file":"server/paired/device-store.js","about":"The saved list of paired devices as it is read back from disk: each record cleaned, and the part of a device the settings page may see.","names":["STORE_VERSION","STORE_FILENAME","MAX_DEVICES","DEVICE_NAME_MAX","cleanName","normalizeDeviceStore","publicDevice"]},
       {"file":"server/paired/device-registry.js","about":"Keeps the paired devices: pairing with a code, looking a device up by its token, renaming, revoking, and forgetting one that has not come back for a long time.","names":["CODE_TTL_MS","CODE_MAX_ATTEMPTS","IDLE_EXPIRY_MS","createRemoteAccess"]}
     ],
-    "server/claude-bridge.js": [
+    "server/claude-code/claude-bridge.js": [
       {"file":"server/claude-code/bridge-limits.js","about":"How long the live Claude Code bridge waits and how much it keeps: time limits and size caps for sessions, approvals, questions and follow-ups.","names":["SESSION_STALE_MS","SESSION_RESTING_MS","APPROVAL_TTL_MS","URGENT_AFTER_MS","QUESTION_TTL_MS","FOLLOWUP_TTL_MS","HANDED_TTL_MS","UNDELIVERED_TTL_MS","MAX_SESSIONS","MAX_PENDING","MAX_STR","MAX_INPUT_CHARS","MAX_TODOS","MAX_ACTIVITY","MAX_SUBAGENTS","AGENT_DONE_MS","MAX_AGENT_LAST","MAX_AGENT_TOKENS","MAX_FOLLOWUP_CHARS","MAX_QUESTIONS","MAX_OPTIONS","MAX_TYPED","MAX_PLAN_CHARS","QUESTION_KINDS","PLAN_MODES"]},
       {"file":"server/claude-code/bridge-clamp.js","about":"Clamps what Claude Code sends before it is kept or drawn: a trimmed string, a finite number, a percentage, the project's folder name.","names":["str","num","pct","projectName"]},
       {"file":"server/claude-code/bridge-describe.js","about":"Turns a tool call of Claude Code into what the tile shows: a one-line summary, the changed lines of an edit, the plan's to-do list.","names":["describeTool","MAX_DIFF_LINES","MAX_DIFF_WIDTH","MAX_DIFFS_WITH_LINES","SECRET_FILE","diffLines","describeChange","describeTodos"]},
@@ -546,17 +546,17 @@
       {"file":"server/claude-code/bridge-registry.js","about":"The sessions Claude Code itself lists on disk merged into what the bridge heard, the ones still working, and the old ones dropped.","names":["workingSessions","markInterrupted","mergeRegistry","prune"],"inner":{"factory":"createBridge","make":"makeRegistry"}},
       {"file":"server/claude-code/bridge-snapshot.js","about":"What the page is told about Claude Code: every session, what waits for an answer, the limits and the mod, with nothing the page has no need of.","names":["queuedView","snapshot"],"inner":{"factory":"createBridge","make":"makeSnapshot"}}
     ],
-    "server/claude-usage.js": [
+    "server/claude-code/claude-usage.js": [
       {"file":"server/claude-code/usage-pricing.js","about":"What Claude Code usage would cost at API prices: the price table per model and the cost of one usage record.","names":["PRICE_TABLE","DEFAULT_PRICE","priceForModel","recordCost"]},
       {"file":"server/claude-code/usage-plan.js","about":"The Claude plan the user picked for the usage tile: the presets, the cleaned setting and the weekly budget it gives.","names":["PLAN_PRESETS","PLANS","DEFAULT_CLAUDE","clampInt","normalizeClaude","effectiveWeeklyBudget"]},
       {"file":"server/claude-code/usage-parse.js","about":"Turns the lines of a Claude Code transcript into usage records, the prompts a person typed and the session's summary.","names":["MAX_PROMPT_LINE_CHARS","MAX_TASK_CHARS","num","humanPrompt","parseChunk","computeMeta","stampProject"]},
       {"file":"server/claude-code/usage-aggregate.js","about":"Adds the usage records of every Claude Code session up into what the usage tile shows: today, this week, per project, per day, and what is running now.","names":["LIVE_WINDOW_MS","HISTORY_DAYS","localDayKey","weekStartMs","startOfLocalDay","newBucket","projectKey","projectLabels","addTo","aggregate"]}
     ],
-    "server/claude-transcript.js": [
+    "server/claude-code/claude-transcript.js": [
       {"file":"server/claude-code/transcript-find.js","about":"Finds the transcript file of a Claude Code session by its id inside Claude Code's own projects folder, and remembers the answer for a while.","names":["MAX_PROJECT_DIRS","FIND_TTL_MS","FIND_MISS_TTL_MS","findCache","findTranscript"]},
       {"file":"server/claude-code/transcript-messages.js","about":"Reads the messages out of a stretch of a Claude Code transcript: the text a person or Claude wrote, the pictures, the slash commands and the tool calls of each turn.","names":["clean","textOf","IMAGE_TYPES","MAX_IMAGES_PER_MESSAGE","MAX_IMAGE_BYTES","imageBlocks","COMMAND_NAME_RE","COMMAND_ARGS_RE","commandText","QUIET_TOOLS","MAX_TOOLS_SHOWN","MAX_TOOL_DETAIL","toolDetail","toolCalls","scanWindow"]}
     ],
-    "server/claude-run.js": [
+    "server/claude-code/claude-run.js": [
       {"file":"server/claude-code/run-project-folder.js","about":"Finds the folder a Claude Code project works in, read from the start of its newest transcript, and says whether a path is a folder.","names":["HEAD_BYTES","readCwdFromTranscript","newestTranscript","isDir"]},
       {"file":"server/claude-code/run-caches.js","about":"The two answers the Claude Code runner works out once and remembers: where the program is, and which options it accepts.","names":["execCache","optionsCache"],"state":{"object":"runCaches","props":{"execCache":"exec","optionsCache":"options"},"kept":[],"bare":[]}},
       {"file":"server/claude-code/run-executable.js","about":"Finds the Claude Code program on this computer without a shell, and reads from its own --help which options it accepts.","names":["HELP_TIMEOUT_MS","RUN_MODES","isFile","whichRaw","resolveExecutable","helpText","parseOptions","cliOptions"]},
@@ -1186,7 +1186,7 @@
       {"factory":"createDiskSpace","object":"cleanRuns","names":["jobSeq"],"kept":[],"bare":[],"after":0},
       {"factory":"createDiskSpace","object":"saved","names":["snapshots","history","persistTimer"],"kept":[],"bare":[],"after":0}
     ],
-    "server/claude-run.js": [
+    "server/claude-code/claude-run.js": [
       {"factory":"createRunner","object":"held","names":["extraFolders","seq","projectCache","emitScheduled"],"kept":[],"bare":[],"after":4}
     ],
     "server/embedded-browser.js": [
@@ -1210,7 +1210,7 @@
       {"factory":"createSpotifyProvider","object":"playerState","names":["_playerCache","_playerPending","_playerGen"],"kept":[],"bare":[],"after":0},
       {"factory":"createSpotifyProvider","object":"lastLiked","names":["_likedCache"],"kept":[],"bare":[],"after":0}
     ],
-    "server/claude-bridge.js": [
+    "server/claude-code/claude-bridge.js": [
       {"factory":"createBridge","object":"readings","names":["limits","modSeen"],"kept":[],"bare":[],"after":6},
       {"factory":"createBridge","object":"issued","names":["seq"],"kept":[],"bare":[],"after":6}
     ],

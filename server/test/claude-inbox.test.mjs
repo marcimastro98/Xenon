@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createInbox, MAX_PER_SESSION, MAX_WAITERS } = require('../claude-inbox.js');
+const { createInbox, MAX_PER_SESSION, MAX_WAITERS } = require('../claude-code/claude-inbox.js');
 
 // Enough of a ServerResponse for the inbox: it answers once and can be closed.
 function fakeRes() {

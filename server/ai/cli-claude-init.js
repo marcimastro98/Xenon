@@ -2,7 +2,7 @@
 // What Claude Code says about itself without a model being called: the models this account can
 // use and its plan, asked through the control protocol and kept for a while.
 
-const claudeRun = require('../claude-run.js');
+const claudeRun = require('../claude-code/claude-run.js');
 const { MODELS_TTL_MS } = require('./cli-limits.js');
 const { workDir } = require('./cli-places.js');
 const { childEnv, runWithOptional } = require('./cli-run.js');

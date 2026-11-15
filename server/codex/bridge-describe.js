@@ -3,7 +3,7 @@
 // touches, and how loudly it must be asked about.
 
 const path = require('node:path');
-const { describeRisk, isDestructive } = require('../claude-bridge.js');
+const { describeRisk, isDestructive } = require('../claude-code/claude-bridge.js');
 
 const MAX_STR = 220;
 const MAX_DETAIL = 800;

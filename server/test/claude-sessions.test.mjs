@@ -15,7 +15,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { readRegistry, parseRegistryFile, pidAlive } = require('../claude-sessions.js');
+const { readRegistry, parseRegistryFile, pidAlive } = require('../claude-code/claude-sessions.js');
 
 // Verbatim from a running Claude Code 2.1.220 (an interactive CLI session).
 const REAL_INTERACTIVE = JSON.stringify({

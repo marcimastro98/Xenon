@@ -1,9 +1,9 @@
 // What the engine answers about a Claude Code session: its transcript, a picture from it, an
 // agent and the plan.
 
-const claudeTranscript = require('../claude-transcript.js');
-const claudeUsage = require('../claude-usage.js');
-const claudeSubagent = require('../claude-subagent.js');
+const claudeTranscript = require('./claude-transcript.js');
+const claudeUsage = require('./claude-usage.js');
+const claudeSubagent = require('./claude-subagent.js');
 const { claudeState } = require('./tile-state.js');
 const { hub } = require('../settings/current.js');
 const { readBody } = require('../http/read-body.js');

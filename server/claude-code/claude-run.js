@@ -29,19 +29,19 @@ const { spawn } = require('child_process');
 
 const {
   MAX_PROMPT, MAX_RUNS, MAX_OUTPUT_CHARS, RUN_TTL_MS, START_TIMEOUT_MS, EFFORTS,
-} = require('./claude-code/run-limits.js');
-const { readCwdFromTranscript } = require('./claude-code/run-project-folder.js');
-const { str, projectId, toolDetail } = require('./claude-code/run-text.js');
+} = require('./run-limits.js');
+const { readCwdFromTranscript } = require('./run-project-folder.js');
+const { str, projectId, toolDetail } = require('./run-text.js');
 
-const { runCaches } = require('./claude-code/run-caches.js');
+const { runCaches } = require('./run-caches.js');
 
 const {
   RUN_MODES, whichRaw, resolveExecutable, parseOptions, cliOptions,
-} = require('./claude-code/run-executable.js');
+} = require('./run-executable.js');
 
-const { makeProjects } = require('./claude-code/run-projects.js');
+const { makeProjects } = require('./run-projects.js');
 
-const { makeEvents } = require('./claude-code/run-events.js');
+const { makeEvents } = require('./run-events.js');
 
 function createRunner(opts) {
   const o = opts || {};

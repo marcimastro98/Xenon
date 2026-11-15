@@ -7,7 +7,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { readAgent } = require('../claude-subagent.js');
+const { readAgent } = require('../claude-code/claude-subagent.js');
 
 function makeSession(sessionId, agentId, meta, lines) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-sub-'));

@@ -11,7 +11,7 @@ const { normalizeUnifi } = require('../actions/unifi.js');
 const stocks = require('../ticker/stocks.js');
 const football = require('../ticker/football.js');
 const news = require('../ticker/news.js');
-const claudeUsage = require('../claude-usage.js');
+const claudeUsage = require('../claude-code/claude-usage.js');
 const { normalizeFileTransfer } = require('../transfer/normalize-settings.js');
 
 function normalizeHubConnections(source) {

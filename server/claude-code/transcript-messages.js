@@ -2,7 +2,7 @@
 // Reads the messages out of a stretch of a Claude Code transcript: the text a person or Claude
 // wrote, the pictures, the slash commands and the tool calls of each turn.
 
-const { isInjectedPrompt } = require('../claude-bridge.js');
+const { isInjectedPrompt } = require('./claude-bridge.js');
 
 // Strip C0/C1 control characters (keeping tab and newline) and clamp the length.
 // Written as a character loop on purpose: the equivalent regex would have to

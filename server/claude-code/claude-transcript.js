@@ -34,11 +34,11 @@ const MAX_TEXT = 6000;
 // keeps one pathological message from becoming the whole payload. A reader who
 // asks for the full thread (`full`) gets every message at this bound.
 const MAX_FULL_TEXT = 60000;
-const { findTranscript } = require('./claude-code/transcript-find.js');
+const { findTranscript } = require('./transcript-find.js');
 
 const {
   clean, textOf, MAX_IMAGE_BYTES, imageBlocks, MAX_TOOLS_SHOWN, toolDetail, scanWindow,
-} = require('./claude-code/transcript-messages.js');
+} = require('./transcript-messages.js');
 
 
 

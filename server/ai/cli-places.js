@@ -6,7 +6,7 @@
 const path = require('node:path');
 const os = require('node:os');
 const fsp = require('node:fs').promises;
-const claudeRun = require('../claude-run.js');
+const claudeRun = require('../claude-code/claude-run.js');
 const { cliSession } = require('./cli-session.js');
 const { asLaunch, isFile, newestCodexCopy } = require('./cli-find-codex.js');
 

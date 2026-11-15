@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createCommandList, _internal } = require('../claude-commands.js');
+const { createCommandList, _internal } = require('../claude-code/claude-commands.js');
 
 async function write(file, text) {
   await fs.mkdir(path.dirname(file), { recursive: true });

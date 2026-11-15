@@ -10,7 +10,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createRunner } = require('../claude-run.js');
+const { createRunner } = require('../claude-code/claude-run.js');
 const { runCaches } = require('../claude-code/run-caches.js');
 
 // The layout the runner reads its projects from: <root>/projects/<name>/<id>.jsonl, each

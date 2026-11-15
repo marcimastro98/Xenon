@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const cb = require('../claude-bridge.js');
+const cb = require('../claude-code/claude-bridge.js');
 
 // A bridge on a clock we control, so expiry/urgency are testable without waiting.
 function makeBridge(start = 1_000_000) {

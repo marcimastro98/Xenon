@@ -36,21 +36,21 @@ const READ_CONCURRENCY = 6;             // parallel file reads; keeps the FS bur
 // old 64 MB cap skipped exactly the file that mattered most: a long-running
 // session is the one that grows past it, and skipping it hid all of today.
 const READ_CHUNK_BYTES = 1024 * 1024;
-const { parseChunk, computeMeta, stampProject } = require('./claude-code/usage-parse.js');
+const { parseChunk, computeMeta, stampProject } = require('./usage-parse.js');
 // How deep a session's subagent tree is walked (subagents/<wf>/<agent>.jsonl).
 const SUBAGENT_DEPTH = 4;
 const FULL_SCAN_MS = 60 * 1000;          // full readdir+stat sweep at most this often
 const HOT_FILE_MS = 6 * 60 * 60 * 1000;  // between sweeps, re-stat only files active this recently
 
-const { priceForModel } = require('./claude-code/usage-pricing.js');
+const { priceForModel } = require('./usage-pricing.js');
 
 const {
   localDayKey, weekStartMs, startOfLocalDay, aggregate,
-} = require('./claude-code/usage-aggregate.js');
+} = require('./usage-aggregate.js');
 
 const {
   PLAN_PRESETS, DEFAULT_CLAUDE, normalizeClaude, effectiveWeeklyBudget,
-} = require('./claude-code/usage-plan.js');
+} = require('./usage-plan.js');
 
 // ── locating the transcripts ─────────────────────────────────────────────────
 // Claude Code honors CLAUDE_CONFIG_DIR; otherwise ~/.claude. Projects live under

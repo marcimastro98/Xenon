@@ -18,8 +18,8 @@
 
 const fsp = require('fs/promises');
 const path = require('path');
-const { isInjectedPrompt } = require('./claude-bridge.js');
-const { findTranscript } = require('./claude-transcript.js');
+const { isInjectedPrompt } = require('./claude-code/claude-bridge.js');
+const { findTranscript } = require('./claude-code/claude-transcript.js');
 
 const SESSION_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const HEAD_BYTES = 64 * 1024;

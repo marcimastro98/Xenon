@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const ca = require('../claude-attach.js');
+const ca = require('../claude-code/claude-attach.js');
 
 function makeStore() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-attach-'));

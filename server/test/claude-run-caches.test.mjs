@@ -30,7 +30,7 @@ let stats;       // how many times the disk was asked
 function fresh(platform) {
   Object.defineProperty(process, 'platform', { value: platform });
   for (const key of Object.keys(require.cache)) if (!/node_modules/.test(key)) delete require.cache[key];
-  return require('../claude-run.js');
+  return require('../claude-code/claude-run.js');
 }
 
 beforeEach(() => {

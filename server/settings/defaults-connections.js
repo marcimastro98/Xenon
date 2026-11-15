@@ -5,7 +5,7 @@ const CaptureSettings = require('../capture-settings.js');
 const stocks = require('../ticker/stocks.js');
 const football = require('../ticker/football.js');
 const news = require('../ticker/news.js');
-const claudeUsage = require('../claude-usage.js');
+const claudeUsage = require('../claude-code/claude-usage.js');
 
 const HUB_DEFAULTS_CONNECTIONS = Object.freeze({
   // Stock-market (Borsa) widget + ticker. Watchlist/provider/refresh are

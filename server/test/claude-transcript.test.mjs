@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const ct = require('../claude-transcript.js');
+const ct = require('../claude-code/claude-transcript.js');
 
 // A projects directory shaped the way Claude Code writes one: a folder per
 // project, each holding <session-id>.jsonl.

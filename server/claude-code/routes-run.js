@@ -4,12 +4,12 @@
 
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { readBody, readBodyBuffer } = require('../http/read-body.js');
-const claudeUsage = require('../claude-usage.js');
+const claudeUsage = require('./claude-usage.js');
 const { hub } = require('../settings/current.js');
 const claudeLink = require('../claude-link.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const claudeRun = require('../claude-run.js');
-const claudeAttach = require('../claude-attach.js');
+const claudeRun = require('./claude-run.js');
+const claudeAttach = require('./claude-attach.js');
 const path = require('node:path');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

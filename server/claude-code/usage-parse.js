@@ -3,7 +3,7 @@
 // and the session's summary.
 
 const path = require('node:path');
-const { isInjectedPrompt } = require('../claude-bridge.js');
+const { isInjectedPrompt } = require('./claude-bridge.js');
 
 // A user line longer than this is a tool result, never a typed prompt, and
 // parsing it would only be thrown away. Assistant lines are always parsed.

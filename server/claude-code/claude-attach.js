@@ -16,7 +16,7 @@
 
 const fsp = require('fs/promises');
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write.js');
+const { writeFileAtomic } = require('../atomic-write.js');
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const MAX_LABEL = 80;

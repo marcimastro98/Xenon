@@ -460,17 +460,17 @@ require('./smart-home/unifi-events');
 require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./football-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./news-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-const claudeUsage = require('./claude-usage');
-const claudeBridge = require('./claude-bridge');
-const claudeInbox = require('./claude-inbox');
-const claudeSessions = require('./claude-sessions');
+const claudeUsage = require('./claude-code/claude-usage');
+const claudeBridge = require('./claude-code/claude-bridge');
+const claudeInbox = require('./claude-code/claude-inbox');
+const claudeSessions = require('./claude-code/claude-sessions');
 const claudeLink = require('./claude-link');
-const claudeRun = require('./claude-run');
-const claudeTranscript = require('./claude-transcript');
-require('./claude-subagent.js'); // nothing is taken from it here, but it runs code when it loads
+const claudeRun = require('./claude-code/claude-run');
+const claudeTranscript = require('./claude-code/claude-transcript');
+require('./claude-code/claude-subagent.js'); // nothing is taken from it here, but it runs code when it loads
 const claudeHistory = require('./claude-history');
-const claudeCommands = require('./claude-commands');
-const claudeAttach = require('./claude-attach');
+const claudeCommands = require('./claude-code/claude-commands');
+const claudeAttach = require('./claude-code/claude-attach');
 const codexAppServer = require('./codex-appserver');
 const codexBridge = require('./codex/codex-bridge');
 const codexLink = require('./codex-link');

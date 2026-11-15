@@ -68,7 +68,16 @@
     {"from":"server/search-pace.js","to":"server/search/search-pace.js","shim":true},
     {"from":"server/search-pasted-path.js","to":"server/search/search-pasted-path.js","shim":true},
     {"from":"server/search-query.js","to":"server/search/search-query.js","shim":true},
-    {"from":"server/search-rank.js","to":"server/search/search-rank.js","shim":true}
+    {"from":"server/search-rank.js","to":"server/search/search-rank.js","shim":true},
+    {"from":"server/claude-attach.js","to":"server/claude-code/claude-attach.js"},
+    {"from":"server/claude-bridge.js","to":"server/claude-code/claude-bridge.js"},
+    {"from":"server/claude-commands.js","to":"server/claude-code/claude-commands.js"},
+    {"from":"server/claude-inbox.js","to":"server/claude-code/claude-inbox.js"},
+    {"from":"server/claude-run.js","to":"server/claude-code/claude-run.js"},
+    {"from":"server/claude-sessions.js","to":"server/claude-code/claude-sessions.js"},
+    {"from":"server/claude-subagent.js","to":"server/claude-code/claude-subagent.js"},
+    {"from":"server/claude-transcript.js","to":"server/claude-code/claude-transcript.js"},
+    {"from":"server/claude-usage.js","to":"server/claude-code/claude-usage.js"}
   ],
   "patterns": [
 

@@ -1,7 +1,7 @@
 // The engine's reader of the Claude Code transcripts on this PC, for the usage numbers of the
 // tile.
 
-const claudeUsage = require('../claude-usage.js');
+const claudeUsage = require('./claude-usage.js');
 
 // ── Claude Code usage ("Xenon Pulse") ────────────────────────────────────────
 // In-memory only. Reads the user's LOCAL Claude Code transcripts (~/.claude), so

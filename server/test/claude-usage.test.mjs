@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const cu = require('../claude-usage.js');
+const cu = require('../claude-code/claude-usage.js');
 
 // ── config normalization ──────────────────────────────────────────────────────
 
