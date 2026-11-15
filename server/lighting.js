@@ -1430,7 +1430,7 @@ function getStatus() {
   providers.forEach(p => (p.devices || []).forEach(d => Object.assign(d, deviceModeOf(d.id))));
   return {
     available: isAvailable(),
-    connected,
+    connected: connected,
     enabled: config.enabled,
     lightsOut: keyLook.isOut(),
     devices: getDevices().map(d => ({ ...d, optedIn: config.devices[d.id] !== false, ...deviceModeOf(d.id) })),
