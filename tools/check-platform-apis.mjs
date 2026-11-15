@@ -114,20 +114,37 @@ function guardedAt(lines, i) {
   return false;
 }
 
+// A module gated as a whole (`#![cfg(target_os = "linux")]` at the top of the
+// file, the shape webview_guard.rs uses) compiles on that platform only, so
+// every name in it is already inside a gate. Only an inner attribute that
+// comes before the first item counts: that is the only place Rust applies
+// it to the whole file.
+function gatedAsAWhole(lines) {
+  const firstItem = lines.findIndex((l) => l.trim() && !l.trim().startsWith('#!'));
+  const head = firstItem < 0 ? lines : lines.slice(0, firstItem);
+  return head.some((l) => /^\s*#!\[cfg[^\]]*target_os/.test(l));
+}
+
+// A file cut out of a gated one (`anchor_x11/xlib.rs` under `anchor_x11.rs`) is
+// compiled only where its parent is: Rust never reads it elsewhere. Only the
+// parent file of that name counts, never a `mod.rs`: the one of layers/ names
+// every system we build for, and taking it as a gate would stop this check
+// from reading the whole folder.
+function underAGatedFile(file) {
+  for (let dir = path.dirname(file); dir.startsWith(SRC_DIR) && dir !== SRC_DIR; dir = path.dirname(dir)) {
+    const parent = `${dir}.rs`;
+    if (fs.existsSync(parent) && gatedAsAWhole(stripComments(fs.readFileSync(parent, 'utf8')).split(/\r?\n/))) return true;
+  }
+  return false;
+}
+
 // Every identifier our own code mentions unguarded, with the lines it is on.
 function ourIdentifiers() {
   const seen = new Map();
   for (const file of readRustFiles(SRC_DIR)) {
     const raw = fs.readFileSync(file, 'utf8');
     const lines = stripComments(raw).split(/\r?\n/);
-    // A module gated as a whole (`#![cfg(target_os = "linux")]` at the top of the
-    // file, the shape webview_guard.rs uses) compiles on that platform only, so
-    // every name in it is already inside a gate. Only an inner attribute that
-    // comes before the first item counts: that is the only place Rust applies
-    // it to the whole file.
-    const firstItem = lines.findIndex((l) => l.trim() && !l.trim().startsWith('#!'));
-    const head = firstItem < 0 ? lines : lines.slice(0, firstItem);
-    if (head.some((l) => /^\s*#!\[cfg[^\]]*target_os/.test(l))) continue;
+    if (gatedAsAWhole(lines) || underAGatedFile(file)) continue;
     lines.forEach((line, i) => {
       if (guardedAt(lines, i)) return;
       for (const id of line.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []) {
