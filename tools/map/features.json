@@ -566,7 +566,8 @@
         "server/js/devclean-widget.js",
         "server/js/devclean-widget/**",
         "server/components/DiskWidget/**",
-        "server/components/DevClean/**"
+        "server/components/DevClean/**",
+        "server/js/disk/**"
       ]
     },
     {

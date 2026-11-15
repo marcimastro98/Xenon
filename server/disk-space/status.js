@@ -2,7 +2,7 @@
 // What the disk space module says of itself: the state the widget draws, and the figures Bit
 // may read and explain.
 
-const DiskIntelligence = require('../js/disk-intelligence.js');
+const DiskIntelligence = require('../js/disk/disk-intelligence.js');
 const { CLIENT_DIRS_MAX, CLIENT_FILES_MAX } = require('./limits.js');
 
 function makeStatus({

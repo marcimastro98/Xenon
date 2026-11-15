@@ -21,7 +21,7 @@
 const path = require('path');
 require('./disk-categories'); // nothing is taken from it here, but it runs code when it loads
 require('./disk/disk-guard'); // nothing is taken from it here, but it runs code when it loads
-require('./js/disk-intelligence'); // nothing is taken from it here, but it runs code when it loads
+require('./js/disk/disk-intelligence'); // nothing is taken from it here, but it runs code when it loads
 require('./disk/disk-kinds'); // nothing is taken from it here, but it runs code when it loads
 const { createDupeVerifier } = require('./disk/disk-dupes');
 

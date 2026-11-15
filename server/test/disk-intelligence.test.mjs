@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const DiskIntelligence = require('../js/disk-intelligence.js');
+const DiskIntelligence = require('../js/disk/disk-intelligence.js');
 
 test('disk intelligence separates safe, review, permanent and duplicate opportunity', () => {
   const GIB = 1024 ** 3;
