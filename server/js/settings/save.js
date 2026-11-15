@@ -15,7 +15,7 @@ function loadHubSettings() {
 function saveLocalHubSettings() {
   if (_settingsReadOnly) return;
   // Server-only secrets stay OUT of localStorage: every key in the shared list
-  // (js/settings-secrets.js — the same list the server's redaction uses: API
+  // (js/settings/settings-secrets.js — the same list the server's redaction uses: API
   // keys, OBS / Streamer.bot / UniFi passwords, the Home Assistant token, the
   // Sunshine login) plus private calendar links. They stay in memory only long
   // enough for the pending POST to reach the server, which then redacts them

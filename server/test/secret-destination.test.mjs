@@ -28,7 +28,7 @@ const ha = require('../actions/home-assistant.js');
 const unifi = require('../actions/unifi.js');
 const stream = require('../stream-creds.js');
 const ics = require('../time/ics-feeds.js');
-const secrets = require('../js/settings-secrets.js');
+const secrets = require('../js/settings/settings-secrets.js');
 const { redactStockCreds } = require('../stocks-creds.js');
 const { redactFootballCreds } = require('../football-creds.js');
 const { redactNewsCreds } = require('../news-creds.js');
@@ -257,12 +257,12 @@ test('settings-secrets: stripSettingsSecrets blanks every secret the issue named
 test('settings-secrets: the server modules and the dashboard read the same list', () => {
   for (const f of ['stream-creds.js', 'stocks-creds.js', 'football-creds.js', 'news-creds.js', 'ai-provider-creds.js']) {
     const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
-    assert.match(src, /require\('\.\/js\/settings-secrets\.js'\)/, f + ' keeps its own copy of the list');
+    assert.match(src, /require\('\.\/js\/settings\/settings-secrets\.js'\)/, f + ' keeps its own copy of the list');
   }
   const save = SETTINGS_JS.slice(SETTINGS_JS.indexOf('function saveLocalHubSettings('));
   const body = save.slice(0, save.indexOf('\n}\n'));
   assert.match(body, /SettingsSecrets\.stripSettingsSecrets\(hubSettings\)/);
-  assert.ok(INDEX.indexOf('<script src="js/settings-secrets.js">') >= 0
-    && INDEX.indexOf('<script src="js/settings-secrets.js">') < INDEX.indexOf('<script src="js/settings.js">'),
+  assert.ok(INDEX.indexOf('<script src="js/settings/settings-secrets.js">') >= 0
+    && INDEX.indexOf('<script src="js/settings/settings-secrets.js">') < INDEX.indexOf('<script src="js/settings.js">'),
     'settings-secrets.js must load before settings.js');
 });

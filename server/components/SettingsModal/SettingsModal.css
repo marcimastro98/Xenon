@@ -68,7 +68,7 @@ input[type="range"] { accent-color: var(--green); }
 /* ── Settings modal ───────────────────────────────────────── */
 .settings-overlay[hidden] { display: none !important; }
 /* Settings → Top bar: the sheet steps back from the bar so the real bar stays
-   in view, live, above the dim (js/settings-bar-preview.js measures the room).
+   in view, live, above the dim (js/settings/settings-bar-preview.js measures the room).
    The bar is a preview here, so it takes no taps. */
 body.settings-bar-preview .settings-overlay {
   padding: var(--sbp-top, 0) var(--sbp-right, 0) 0 var(--sbp-left, 0);

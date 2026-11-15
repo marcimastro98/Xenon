@@ -428,7 +428,7 @@ const aiGemini = require('./ai/ai-gemini');
 const { withThinking, applyThinking } = require('./ai/ai-gemini-thinking');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai/ai-models');
-require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
+require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 const { createGuardian } = require('./system/guardian');
 require('./battery');
 require('./ai/ai-memory');
@@ -454,12 +454,12 @@ require('./windows-tiles/embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./windows-tiles/browser-surface-sync');
 require('./windows-tiles/second-screen');
 require('./screen-capture');
-require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
+require('./stream-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');
 require('./smart-home/unifi-events');
-require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-require('./football-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-require('./news-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
+require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
+require('./football-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
+require('./news-creds'); // nothing is taken from it here, but it loads js/settings/settings-secrets.js, which runs code when it loads
 const claudeUsage = require('./claude-code/claude-usage');
 const claudeBridge = require('./claude-code/claude-bridge');
 const claudeInbox = require('./claude-code/claude-inbox');

@@ -35,7 +35,7 @@
     return s * 1000;
   }
   let autoHideTimer = null;
-  let railsHeld = false;   // Settings → Top bar is open: the rails stay out (js/settings-bar-preview.js)
+  let railsHeld = false;   // Settings → Top bar is open: the rails stay out (js/settings/settings-bar-preview.js)
   // Per side, because a touch only ever means ONE side. A rail that is tucked away
   // because it was collapsed and one tucked away by the idle timer are drawn
   // identically (the 22px handle), so a touch that woke BOTH of them slid open

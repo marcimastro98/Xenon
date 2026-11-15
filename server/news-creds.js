@@ -9,8 +9,8 @@
 // client save (which never carries the real key) wipes it; preserve without
 // redact and the secret keeps leaking to the browser. Do not add just one.
 
-// The key list is shared with the dashboard's localStorage mirror (js/settings-secrets.js).
-const { SECRET_KEY_GROUPS } = require('./js/settings-secrets.js');
+// The key list is shared with the dashboard's localStorage mirror (js/settings/settings-secrets.js).
+const { SECRET_KEY_GROUPS } = require('./js/settings/settings-secrets.js');
 const NEWS_SECRET_KEYS = SECRET_KEY_GROUPS.news;
 
 function preserveNewsCreds(incoming, prev) {

@@ -1,5 +1,5 @@
 // Widget SDK `topbarButton` (js/sdk-topbar-button.js + custom-widget.js) and the
-// bar kept in view on Settings → Top bar (js/settings-bar-preview.js). What a
+// bar kept in view on Settings → Top bar (js/settings/settings-bar-preview.js). What a
 // user would notice if it broke: a widget putting a button on the bar without
 // asking, a placed widget button that comes back in the wrong spot or forces
 // itself shown, a removed widget whose button stays in the list, or a Settings
@@ -110,7 +110,7 @@ test('the permission strings exist in all 11 languages', () => {
 });
 
 test('Settings → Top bar keeps the real bar in view and lets go of it after', () => {
-  const src = read('../js/settings-bar-preview.js');
+  const src = read('../js/settings/settings-bar-preview.js');
   assert.match(src, /const PAGE = 'island';/);
   assert.match(src, /tm\.holdRails\(on\)/);
   assert.match(src, /resizeObs\.disconnect\(\)/);

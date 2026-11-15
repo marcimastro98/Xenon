@@ -16,7 +16,7 @@ const read = (path) => readFileSync(join(ROOT, path), 'utf8');
 const fields = require('../js/ai/local-server-fields.js');
 const server = require('../ai-local-server.js');
 const creds = require('../ai-provider-creds.js');
-const { SECRET_KEY_GROUPS, stripSettingsSecrets } = require('../js/settings-secrets.js');
+const { SECRET_KEY_GROUPS, stripSettingsSecrets } = require('../js/settings/settings-secrets.js');
 
 const LANGUAGES = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
