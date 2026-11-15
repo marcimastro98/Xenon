@@ -27,6 +27,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
+import { insideGatedFn, oneSystemOnly, stripComments } from './platform-gate.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Overridable so the check can be pointed at a fixture and shown to still FAIL
 // on a real break. A gate nobody has watched fail is a gate nobody should trust.
@@ -89,17 +91,6 @@ function readRustFiles(dir) {
   return out;
 }
 
-// Strip comments before looking for identifiers. Without this the check fires
-// on the very comment explaining why a call was gated, which trains people to
-// ignore it — the failure mode that makes a linter worse than none.
-function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .split(/\r?\n/)
-    .map((l) => l.replace(/\/\/.*$/, ''))
-    .join('\n');
-}
-
 // Is this occurrence already inside a platform gate? A call written as
 //   #[cfg(not(target_os = "macos"))]
 //   let builder = builder.transparent(false);
@@ -114,29 +105,7 @@ function guardedAt(lines, i) {
   return false;
 }
 
-// A module gated as a whole (`#![cfg(target_os = "linux")]` at the top of the
-// file, the shape webview_guard.rs uses) compiles on that platform only, so
-// every name in it is already inside a gate. Only an inner attribute that
-// comes before the first item counts: that is the only place Rust applies
-// it to the whole file.
-function gatedAsAWhole(lines) {
-  const firstItem = lines.findIndex((l) => l.trim() && !l.trim().startsWith('#!'));
-  const head = firstItem < 0 ? lines : lines.slice(0, firstItem);
-  return head.some((l) => /^\s*#!\[cfg[^\]]*target_os/.test(l));
-}
-
-// A file cut out of a gated one (`anchor_x11/xlib.rs` under `anchor_x11.rs`) is
-// compiled only where its parent is: Rust never reads it elsewhere. Only the
-// parent file of that name counts, never a `mod.rs`: the one of layers/ names
-// every system we build for, and taking it as a gate would stop this check
-// from reading the whole folder.
-function underAGatedFile(file) {
-  for (let dir = path.dirname(file); dir.startsWith(SRC_DIR) && dir !== SRC_DIR; dir = path.dirname(dir)) {
-    const parent = `${dir}.rs`;
-    if (fs.existsSync(parent) && gatedAsAWhole(stripComments(fs.readFileSync(parent, 'utf8')).split(/\r?\n/))) return true;
-  }
-  return false;
-}
+const readSource = (rel) => { try { return fs.readFileSync(path.join(SRC_DIR, rel), 'utf8'); } catch { return null; } };
 
 // Every identifier our own code mentions unguarded, with the lines it is on.
 function ourIdentifiers() {
@@ -144,9 +113,11 @@ function ourIdentifiers() {
   for (const file of readRustFiles(SRC_DIR)) {
     const raw = fs.readFileSync(file, 'utf8');
     const lines = stripComments(raw).split(/\r?\n/);
-    if (gatedAsAWhole(lines) || underAGatedFile(file)) continue;
+    // A file compiled on one system only is left unread: a name in it cannot be missing on another.
+    // Which files those are is decided in platform-gate.mjs, and only the plain one-system gate counts.
+    if (oneSystemOnly(path.relative(SRC_DIR, file).split(path.sep).join('/'), readSource)) continue;
     lines.forEach((line, i) => {
-      if (guardedAt(lines, i)) return;
+      if (guardedAt(lines, i) || insideGatedFn(lines, i)) return;
       for (const id of line.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []) {
         if (!seen.has(id)) seen.set(id, []);
         const at = seen.get(id);
