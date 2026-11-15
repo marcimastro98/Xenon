@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import http from 'node:http';
 
 const require = createRequire(import.meta.url);
-const guard = require('../net-guard.js');
+const guard = require('../http/net-guard.js');
 const proxy = require('../sdk-proxy.js');
 const wp = require('../paired/web-push.js');
 
@@ -116,7 +116,7 @@ test('web push refuses loopback/LAN endpoints at subscribe time and at send time
 });
 
 test('user-configured feeds may use the home network, never this machine', async () => {
-  const g = (await import('../net-guard.js')).default;
+  const g = (await import('../http/net-guard.js')).default;
   for (const ip of ['192.168.1.5', '10.0.0.2', '172.20.1.1', '100.100.1.1', 'fd12::1', '::ffff:192.168.1.5', '8.8.8.8']) {
     assert.equal(g.isPublicOrLanAddress(ip), true, ip);
   }

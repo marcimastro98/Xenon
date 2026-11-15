@@ -193,7 +193,18 @@
     {"from":"server/discord-rpc.js","to":"server/discord/discord-rpc.js"},
     {"from":"server/devclean-vhdx.js","to":"server/disk/devclean-vhdx.js"},
     {"from":"server/disk-categories.js","to":"server/disk/disk-categories.js"},
-    {"from":"server/diskspace.js","to":"server/disk/diskspace.js"}
+    {"from":"server/diskspace.js","to":"server/disk/diskspace.js"},
+    {"from":"server/asset-version.js","to":"server/engine/asset-version.js"},
+    {"from":"server/bug-report.js","to":"server/engine/bug-report.js"},
+    {"from":"server/cross-site.js","to":"server/http/cross-site.js"},
+    {"from":"server/http-range.js","to":"server/http/http-range.js"},
+    {"from":"server/listener-sockets.js","to":"server/http/listener-sockets.js"},
+    {"from":"server/net-guard.js","to":"server/http/net-guard.js"},
+    {"from":"server/node-version.js","to":"server/engine/node-version.js"},
+    {"from":"server/sse-seed.js","to":"server/http/sse-seed.js"},
+    {"from":"server/sse-socket.js","to":"server/http/sse-socket.js"},
+    {"from":"server/startup-log.js","to":"server/engine/startup-log.js"},
+    {"from":"server/usage-stats.js","to":"server/engine/usage-stats.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -202,6 +213,16 @@
     {"feature":"bit","glob":"server/bit-messages.js","at":3},
     {"feature":"discord","glob":"server/discord-*.js","at":1},
     {"feature":"disk","glob":"server/disk*.js","at":1},
-    {"feature":"disk","glob":"server/devclean*.js","at":3}
+    {"feature":"disk","glob":"server/devclean*.js","at":3},
+    {"feature":"engine-core","glob":"server/http-range.js","at":4},
+    {"feature":"engine-core","glob":"server/listener-sockets.js","at":5},
+    {"feature":"engine-core","glob":"server/sse-*.js","at":6},
+    {"feature":"engine-core","glob":"server/cross-site.js","at":7},
+    {"feature":"engine-core","glob":"server/net-guard.js","at":8},
+    {"feature":"engine-core","glob":"server/asset-version.js","at":9},
+    {"feature":"engine-core","glob":"server/startup-log.js","at":10},
+    {"feature":"engine-core","glob":"server/node-version.js","at":11},
+    {"feature":"engine-core","glob":"server/usage-stats.js","at":12},
+    {"feature":"engine-core","glob":"server/bug-report.js","at":13}
   ]
 }

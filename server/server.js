@@ -8,7 +8,7 @@
 // requires below throwing — a dependency that never finished installing — and a
 // handler armed after the throw would never see it. See startup-log.js for why
 // this process was the last of the three that could still die without a word.
-const startupLog = require('./startup-log');
+const startupLog = require('./engine/startup-log');
 const osTheme = require('./os-theme');
 startupLog.install();
 const http = require('http');
@@ -82,7 +82,7 @@ const { createStepsRecorder } = require('./steps-recorder');
 require('./capture-last.js');
 const StepsDoc = require('./steps-doc');
 const { createReplay, estimateBitrate, ringByteRate } = require('./replay');
-const { createBugReport } = require('./bug-report');
+const { createBugReport } = require('./engine/bug-report');
 const { writeZip } = require('./zip-writer');
 const CaptureSettings = require('./capture-settings');
 const { createCaptureFolder } = require('./capture-folder');
@@ -407,8 +407,8 @@ require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared 
 const LayersModel = require('./js/layers/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
 require('./layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
-const assetVersion = require('./asset-version.js'); // a version on every page's CSS/JS URLs
-const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
+const assetVersion = require('./engine/asset-version.js'); // a version on every page's CSS/JS URLs
+const { seedReadings } = require('./http/sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/first-run/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
 const PerfHud = require('./js/performance/perf-hud.js'); // what the Game performance tile shows (shared with the client)
 const ScreenSceneModel = require('./js/ambient/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
@@ -492,7 +492,7 @@ const perfScreen = require('./performance/perf-screen');  // Performance Mode wi
 require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
 require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
 require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
-const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
+const usageStats = require('./engine/usage-stats');  // anonymous feature counts, off unless usageStats is on
 require('./store-catalog/icon-packs');
 require('./store-catalog/sound-packs');
 require('./store-catalog/community-ratings');
@@ -530,7 +530,7 @@ aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge r
 
 // Node.js without current security fixes (node-version.js): said once at
 // startup, where the log and the bug report see it. The installer upgrades it.
-try { const w = require('./node-version').nodeWarning(); if (w) console.warn(w); } catch { /* never block startup on this */ }
+try { const w = require('./engine/node-version').nodeWarning(); if (w) console.warn(w); } catch { /* never block startup on this */ }
 
 const { AUTO_UPDATE_ASSUME_IDLE } = require('./updates/check-values.js');
 const autoUpdateLib = require('./auto-update');
@@ -1361,7 +1361,7 @@ const { writeFileAtomic } = require('./atomic-write');
 // The single Range-aware file responder. /uploads/, /deck/sound and the
 // transfer download all answer through it, so seeking cannot work in one place
 // and quietly not in another.
-const { serveFileRange } = require('./http-range');
+const { serveFileRange } = require('./http/http-range');
 
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
@@ -4826,7 +4826,7 @@ function isAllowedRequest(req) {
 }
 
 // What a page on another site may do on the loopback door: see cross-site.js.
-const { refusedCrossSite, refusedSocketOrigin } = require('./cross-site');
+const { refusedCrossSite, refusedSocketOrigin } = require('./http/cross-site');
 
 // ── The second door: paired devices (R1.1) ───────────────────────────────────
 // isAllowedRequest() above is untouched and remains the only judge of LOCAL
@@ -6505,7 +6505,7 @@ const handleRequest = async (req, res) => {
   }
 };
 
-const { trackSockets } = require('./listener-sockets.js');
+const { trackSockets } = require('./http/listener-sockets.js');
 // A route that throws past its own try still gets an answer (http/request-boundary.js).
 const server = http.createServer((req, res) => runGuarded(handleRequest, req, res));
 const listenerSockets = trackSockets(server);
@@ -6515,7 +6515,7 @@ const listenerSockets = trackSockets(server);
 // and sends pointer/keyboard input back. Each client owns its tiles and they are
 // closed when it disconnects (which lets the headless Edge idle-shut-down).
 const { WebSocketServer } = require('ws');
-const sseSocket = require('./sse-socket');
+const sseSocket = require('./http/sse-socket');
 const embeddedWss = new WebSocketServer({ noServer: true });
 const liveWss = new WebSocketServer({ noServer: true });
 // The feed only speaks: a window has nothing to send, so nothing big is accepted.

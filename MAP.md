@@ -24,7 +24,7 @@ The program behind everything: it starts, answers the screen, saves settings, up
 | **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/paired/**` `server/remote-access.js` `server/remote-https*.js` `server/pair.html` `server/sw.js` `server/js/remote-access-page/**` and 5 more |
 | **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings/**` `server/settings-rev.js` `server/js/settings.js` `server/js/settings/**` `server/js/settings-*.js` `server/js/settings-search/**` and 1 more |
 | **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
-| **Engine core** | Starts the engine, answers every request, decides who may ask; also the bug report and anonymous counts. | `server/server.js` `server/feature-routes.js` `server/engine/**` `server/http/**` `server/http-range.js` `server/listener-sockets.js` and 12 more |
+| **Engine core** | Starts the engine, answers every request, decides who may ask; also the bug report and anonymous counts. | `server/server.js` `server/feature-routes.js` `server/engine/**` `server/http/**` `server/js/state.js` `server/js/native-bridge.js` and 2 more |
 | **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/files/**` `server/programs/**` `server/powershell/**` `server/wav/**` `server/atomic-write.js` `server/json-lru.js` and 20 more |
 
 ## Dashboard

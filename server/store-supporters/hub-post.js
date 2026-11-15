@@ -2,7 +2,7 @@
 // answer is read.
 
 const https = require('node:https');
-const { armDeadline } = require('../net-guard.js');
+const { armDeadline } = require('../http/net-guard.js');
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_RESPONSE_BYTES = 64 * 1024;

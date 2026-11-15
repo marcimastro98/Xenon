@@ -42,7 +42,7 @@ const VBS = read('../start-hidden.vbs');
 const INSTALL = read('../install.ps1');
 const UNINSTALL = read('../uninstall.ps1');
 const UPDATE_APPLY = read('../update-apply.ps1');
-const STARTUP_LOG = read('../startup-log.js');
+const STARTUP_LOG = read('../engine/startup-log.js');
 const CHANGELOG = read('../../CHANGELOG.md');
 
 // Only the code, so a program name quoted inside a comment explaining why it is

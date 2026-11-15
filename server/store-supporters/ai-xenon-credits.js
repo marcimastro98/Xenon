@@ -17,7 +17,7 @@ require('./sparks-wallet.js'); // nothing is taken from it here, but it loads ne
 const welcomeSparks = require('./welcome-sparks.js');
 const aiAnthropic = require('../ai/ai-anthropic.js');
 const aiTurns = require('../ai/ai-turns');
-const startupLog = require('../startup-log');
+const startupLog = require('../engine/startup-log');
 
 const {
   MODELS, DEFAULT_MODEL, EFFORTS, DEFAULT_EFFORT, MAX_TOKENS, CREATION_MAX_TOKENS, CHAT_MAX_TOKENS,

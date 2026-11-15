@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const assets = require('../asset-version.js');
+const assets = require('../engine/asset-version.js');
 const SERVER = engineSource();
 const SCREEN_BIT = fs.readFileSync(new URL('../js/ai/screen-bit.js', import.meta.url), 'utf8');
 

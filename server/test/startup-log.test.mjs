@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const MODULE = path.join(HERE, '..', 'startup-log.js');
+const MODULE = path.join(HERE, '..', 'engine/startup-log.js');
 
 function withLogDir(fn) {
   const dir = mkdtempSync(path.join(tmpdir(), 'xenon-startup-log-'));

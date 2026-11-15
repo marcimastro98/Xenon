@@ -174,7 +174,7 @@ const STUCK_AFTER_MS = 3000;
 
 // Shorten the deadline BEFORE the modules load: they destructure armDeadline at
 // require time. The asked-for value is recorded to check it is a sane one.
-const guard = require('../net-guard.js');
+const guard = require('../http/net-guard.js');
 const realArmDeadline = guard.armDeadline;
 const asked = [];
 guard.armDeadline = (req, ms) => { asked.push(ms); return realArmDeadline(req, SHORT_DEADLINE_MS); };
@@ -214,7 +214,7 @@ const ratings = require('../store-catalog/community-ratings.js');
 const installs = require('../store-catalog/community-installs.js');
 const redeem = require('../store-supporters/supporter-redeem.js');
 const versionPing = require('../version-ping.js');
-const usage = require('../usage-stats.js');
+const usage = require('../engine/usage-stats.js');
 const aiModels = require('../ai/ai-models.js');
 const aiLocal = require('../ai/ai-local.js');
 const adblock = require('../windows-tiles/embedded-browser-adblock.js');

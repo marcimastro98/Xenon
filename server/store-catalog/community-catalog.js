@@ -16,7 +16,7 @@
 // Pure parts (normalizeCatalog, normalizeCodeId, cacheIsFresh) are exported
 // for unit tests (server/test/community-catalog.test.mjs).
 
-require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../http/net-guard'); // nothing is taken from it here, but it runs code when it loads
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('../atomic-write');

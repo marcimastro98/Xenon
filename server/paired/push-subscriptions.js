@@ -2,7 +2,7 @@
 // A phone's push subscription as it is accepted and kept: a public HTTPS endpoint, its keys,
 // and the saved list cleaned.
 
-const { isPublicUrl } = require('../net-guard.js');
+const { isPublicUrl } = require('../http/net-guard.js');
 const { fromB64u } = require('./push-crypto.js');
 
 const STORE_VERSION = 1;

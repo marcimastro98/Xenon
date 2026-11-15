@@ -3,7 +3,7 @@
 // limits, and each entry cleaned.
 
 const https = require('node:https');
-const { armDeadline } = require('../net-guard.js');
+const { armDeadline } = require('../http/net-guard.js');
 
 const MAX_BODY_BYTES = 256 * 1024;   // a model list; anything larger is not one
 const MAX_CATALOG_MODELS = 60;

@@ -2,7 +2,7 @@
 // Fetches the hub's messages file, only when it changed, with a size cap and a total deadline.
 
 const https = require('node:https');
-const { armDeadline } = require('../net-guard.js');
+const { armDeadline } = require('../http/net-guard.js');
 
 // Same origin as the catalog, and fixed for the same reason: a user-configurable
 // message source would be a stranger's text rendered on the dashboard.

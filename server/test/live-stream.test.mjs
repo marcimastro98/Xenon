@@ -9,7 +9,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const live = require('../js/streaming/live-stream.js');
-const { socketResponse, socketRequest } = require('../sse-socket.js');
+const { socketResponse, socketRequest } = require('../http/sse-socket.js');
 
 const SERVER_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ORIGIN = 'http://127.0.0.1:3030';

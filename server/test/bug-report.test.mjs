@@ -12,7 +12,7 @@ import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const BR = require('../bug-report.js');
+const BR = require('../engine/bug-report.js');
 const { writeZip } = require('../zip-writer.js');
 
 function unzipNames(file) {

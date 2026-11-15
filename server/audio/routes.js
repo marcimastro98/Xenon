@@ -10,7 +10,7 @@ const { svvEachApp } = require('./app-each.js');
 const { createHelperUpdate } = require('../helper-update.js');
 const { HELPER_EXE } = require('../engine/paths.js');
 const { APP_VERSION } = require('../updates/app-version.js');
-const startupLog = require('../startup-log.js');
+const startupLog = require('../engine/startup-log.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

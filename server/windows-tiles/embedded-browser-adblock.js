@@ -17,7 +17,7 @@ const path = require('path');
 const https = require('https');
 const { execFile } = require('child_process');
 const { checkPinnedSha256 } = require('../pinned-hash');
-const { armDeadline } = require('../net-guard');
+const { armDeadline } = require('../http/net-guard');
 
 // The exact uBOL build Xenon installs, and the SHA-256 of its Edge zip. The
 // extension is loaded into the Browser tile with access to every page the user

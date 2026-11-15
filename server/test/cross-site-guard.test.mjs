@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { refusedCrossSite, refusedSocketOrigin, isPage } = require('../cross-site.js');
+const { refusedCrossSite, refusedSocketOrigin, isPage } = require('../http/cross-site.js');
 const SERVER = engineSource();
 
 const req = (method, headers = {}) => ({ method, headers });

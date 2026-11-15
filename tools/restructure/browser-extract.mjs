@@ -27,7 +27,7 @@ import { syntaxProblems } from './verify.mjs';
 const KEBAB = '[a-z0-9]+(?:-[a-z0-9]+)*';
 /** The moves that change a script where it is and make no file. */
 const IN_PLACE = new Set(['module', 'unwrap', 'lets']);
-// The folders the engine serves to a page and whose tags get a version stamp (server/asset-version.js).
+// The folders the engine serves to a page and whose tags get a version stamp (server/engine/asset-version.js).
 const SERVED = /^server\/(?:js|styles|components|shared)\//;
 
 const git = (root, args) => spawnSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });

@@ -3,7 +3,7 @@
 // a few feeds at a time.
 
 const https = require('node:https');
-const { assertPublicUrl, publicLookup, armDeadline } = require('../net-guard.js');
+const { assertPublicUrl, publicLookup, armDeadline } = require('../http/net-guard.js');
 const { safeUrl } = require('./news-feed-parse.js');
 
 const FETCH_TIMEOUT_MS = 8000;     // idle socket timeout

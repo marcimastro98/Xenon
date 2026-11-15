@@ -18,7 +18,7 @@
 //     one at a time with a short gap.
 
 const https = require('https');
-const { armDeadline } = require('../net-guard');
+const { armDeadline } = require('../http/net-guard');
 
 const API = 'https://lrclib.net/api';
 const FETCH_TIMEOUT_MS = 10000;

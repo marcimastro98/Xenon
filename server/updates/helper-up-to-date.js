@@ -1,7 +1,7 @@
 // Keeps the helper program in step with the engine: fetches it on a carried install's first
 // start and replaces an old one after an update.
 
-const startupLog = require('../startup-log.js');
+const startupLog = require('../engine/startup-log.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const audioLevels = require('../audio/audio-levels.js');

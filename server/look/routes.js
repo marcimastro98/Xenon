@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const { UPLOADS_DIR } = require('../engine/uploads-dir.js');
 const { cleanupOldBackgrounds, cleanupOldFonts } = require('./upload-cleanup.js');
 const { isFfmpegMissing } = require('../ffmpeg-install/lookup.js');
-const { serveFileRange } = require('../http-range.js');
+const { serveFileRange } = require('../http/http-range.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

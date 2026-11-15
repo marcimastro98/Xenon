@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { nodeSecurityStatus, nodeWarning } = require('../node-version.js');
+const { nodeSecurityStatus, nodeWarning } = require('../engine/node-version.js');
 
 test('the startup warning names how to update on this OS, and is empty when patched', () => {
   assert.equal(nodeWarning('v24.22.1', 'linux'), '');
@@ -28,5 +28,5 @@ test('package.json and the server agree', () => {
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.engines.node, '>=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1');
   const server = engineSource();
-  assert.match(server, /require\('\.\/node-version'\)\.nodeWarning\(\)/);
+  assert.match(server, /require\('\.\/engine\/node-version'\)\.nodeWarning\(\)/);
 });

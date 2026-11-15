@@ -26,9 +26,9 @@
 const https = require('https');
 const path = require('path');
 const fsp = require('fs').promises;
-const { writeFileAtomic } = require('./atomic-write');
-const { HUB_BASE } = require('./store-supporters/supporter-redeem');
-const { armDeadline } = require('./net-guard');
+const { writeFileAtomic } = require('../atomic-write');
+const { HUB_BASE } = require('../store-supporters/supporter-redeem');
+const { armDeadline } = require('../http/net-guard');
 
 const STATE_BASENAME = 'usage-stats.json';
 const FETCH_TIMEOUT_MS = 6000;

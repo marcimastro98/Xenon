@@ -12,8 +12,8 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const assets = require('../asset-version.js');
-const { refusedCrossSite } = require('../cross-site.js');
+const assets = require('../engine/asset-version.js');
+const { refusedCrossSite } = require('../http/cross-site.js');
 const { remotePathAllowed } = require('../remote-access.js');
 const SERVER = engineSource();
 

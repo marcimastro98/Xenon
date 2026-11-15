@@ -42,7 +42,7 @@ function logDir() {
   if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
     return path.join(process.env.LOCALAPPDATA, 'Xenon');
   }
-  return path.join(__dirname, 'data');
+  return path.join(__dirname, '..', 'data');
 }
 
 const LOG = path.join(logDir(), 'server.log');

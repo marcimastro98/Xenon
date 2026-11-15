@@ -250,7 +250,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   catalogStats: true,
   // Bit may ask for a vote on something in real use (server/store-catalog/rating-votes.js).
   ratingAsks: true,
-  // Anonymous feature counts (server/usage-stats.js). Same rule as catalogStats:
+  // Anonymous feature counts (server/engine/usage-stats.js). Same rule as catalogStats:
   // on for a fresh install, an existing one stays off until its owner chooses.
   usageStats: true,
   // Mirror of server.js: asking devices on a dongle for their charge.

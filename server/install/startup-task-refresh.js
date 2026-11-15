@@ -1,7 +1,7 @@
 // Checks the sign-in task of this install again, keeps the answer and writes to the start-up
 // log what was repaired or is still wrong.
 
-const startupLog = require('../startup-log.js');
+const startupLog = require('../engine/startup-log.js');
 const startupTask = require('./startup-task.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { startupTaskCheck } = require('./startup-task-state.js');

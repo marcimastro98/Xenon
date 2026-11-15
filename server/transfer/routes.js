@@ -9,7 +9,7 @@ const { readBody } = require('../http/read-body.js');
 const { isBlockedOpenPath } = require('../actions/registry.js');
 const { openExternalPath } = require('../deck/open-external-path.js');
 const { revealInFileManager } = require('../files/reveal-in-file-manager.js');
-const { serveFileRange } = require('../http-range.js');
+const { serveFileRange } = require('../http/http-range.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const path = require('node:path');
 

@@ -721,7 +721,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Bug report package (server/bug-report.js): the window in front, the last
+  // Bug report package (server/engine/bug-report.js): the window in front, the last
   // seconds from Instant Replay, system facts and a chosen log folder, in one
   // .zip in Documents/Xenon/Bug reports. 'sensitive' like a screenshot.
   {

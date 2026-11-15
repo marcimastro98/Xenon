@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { seedReadings } = require('../sse-seed.js');
+const { seedReadings } = require('../http/sse-seed.js');
 const SERVER = engineSource();
 
 function sink() {

@@ -2,7 +2,7 @@
 // Fetches a DuckDuckGo results page for the free web search and reads the results out of its
 // HTML.
 
-const { armDeadline } = require('../net-guard.js');
+const { armDeadline } = require('../http/net-guard.js');
 const https = require('node:https');
 
 // HTTPS GET returning the response body as text, following 30x redirects.

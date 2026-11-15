@@ -26,7 +26,7 @@ function fetchJson(url, timeout = 2500, extraHeaders) {
     req.on('error', reject);
     // `timeout` above only fires on a quiet socket; this ends a request that
     // trickles forever (net-guard.armDeadline).
-    require('../net-guard.js').armDeadline(req, Math.max(timeout * 4, 10000));
+    require('./net-guard.js').armDeadline(req, Math.max(timeout * 4, 10000));
   });
 }
 

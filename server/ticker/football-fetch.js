@@ -3,7 +3,7 @@
 // at a time.
 
 const https = require('node:https');
-const { armDeadline } = require('../net-guard.js');
+const { armDeadline } = require('../http/net-guard.js');
 
 const FETCH_TIMEOUT_MS = 8000;
 // `timeout` on https.get is an idle timeout only; a server trickling bytes

@@ -43,7 +43,7 @@ test('the catalog entry, the runner and the AI function line up; widgets never g
   assert.equal(c.capability.risk, 'sensitive');
   assert.equal(c.capability.requires, 'capture');
   assert.deepEqual(c.params.find((p) => p.name === 'mode').options, cap.MODES.slice());
-  const BR = require('../bug-report.js');
+  const BR = require('../engine/bug-report.js');
   assert.deepEqual(c.params.find((p) => p.name === 'seconds').options.map(Number).sort((a, b) => a - b), BR.SECONDS.slice());
   assert.equal(c.params.find((p) => p.name === 'seconds').options[0], String(BR.DEFAULT_SECONDS), 'the default first');
   assert.ok(aiFunctions({ capture: true }).some((f) => f.name === 'make_bug_report'));

@@ -18,7 +18,7 @@ const https = require('https');
 
 // A feed the user set up may live on the home network (a Nextcloud, a
 // FreshRSS): the LAN is allowed, this machine and link-local never are.
-const { assertPublicOrLanUrl: assertPublicUrl, publicOrLanLookup: publicLookup, armDeadline } = require('../net-guard');
+const { assertPublicOrLanUrl: assertPublicUrl, publicOrLanLookup: publicLookup, armDeadline } = require('../http/net-guard');
 
 const FETCH_TIMEOUT_MS = 8000;    // idle socket timeout
 const FETCH_DEADLINE_MS = 20000;  // whole request; a trickling server can't hold it open

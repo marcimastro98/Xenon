@@ -688,7 +688,7 @@ function createRegistry(deps) {
             if (typeof d.runCapability !== 'function') return { ok: false, error: 'unavailable' };
             const r = await d.runCapability(action);
             const out = r && typeof r === 'object' ? r : { ok: false, error: 'capability_failed' };
-            // Anonymous per-type counter (server/usage-stats.js, off unless the
+            // Anonymous per-type counter (server/engine/usage-stats.js, off unless the
             // user's usageStats setting is on). Never allowed to change a result.
             if (typeof d.countCapability === 'function') {
               try { d.countCapability(action, out); } catch { /* a count is never worth a failure */ }

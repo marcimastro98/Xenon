@@ -1,4 +1,4 @@
-// Anonymous feature counts (server/usage-stats.js → the hub's POST /usage).
+// Anonymous feature counts (server/engine/usage-stats.js → the hub's POST /usage).
 // What is counted, that nothing happens while the setting is off, the once-a-day
 // send, what survives a failed send, the file on disk, and that every id is one
 // the hub accepts (the hub drops every other id without a word).
@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const usage = require('../usage-stats.js');
+const usage = require('../engine/usage-stats.js');
 const { HUB_BASE } = require('../store-supporters/supporter-redeem.js');
 const { createRegistry } = require('../actions/registry.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');

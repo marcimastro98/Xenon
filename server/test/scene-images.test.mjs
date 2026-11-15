@@ -113,7 +113,7 @@ test('pictures leave before the scene limits are checked, so a restored backup i
 });
 
 test('scene photos are not readable by other websites', () => {
-  const cs = require('../cross-site.js');
+  const cs = require('../http/cross-site.js');
   const foreign = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'no-cors' };
   assert.equal(cs.refusedCrossSite({ method: 'GET', headers: foreign }, 3030, '/uploads/sceneimg-' + 'a'.repeat(32) + '.png'), true);
   assert.equal(cs.refusedCrossSite({ method: 'GET', headers: foreign }, 3030, '/uploads/wallpaper.jpg'), false, 'other uploads as before');

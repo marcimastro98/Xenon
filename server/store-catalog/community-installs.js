@@ -27,7 +27,7 @@
 
 const https = require('https');
 const { HUB_BASE } = require('../store-supporters/supporter-redeem');
-const { armDeadline } = require('../net-guard');
+const { armDeadline } = require('../http/net-guard');
 
 const FETCH_TIMEOUT_MS = 8000;
 // `timeout` is an idle timeout only; a hub that trickles bytes would hold the

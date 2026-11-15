@@ -1,6 +1,6 @@
 'use strict';
 const { createPace } = require('../search/search-pace');
-require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../http/net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────
 // Mirror of the Gemini path but fully local/free. server.js routes to this

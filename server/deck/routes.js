@@ -15,7 +15,7 @@ const { _hotkey } = require('./hotkey-state.js');
 const { _deckShortcutStatus } = require('./shortcut-questions.js');
 const { _altGrKeys } = require('./altgr-keys.js');
 const { setScriptState, _scriptStates } = require('./script-states.js');
-const { serveFileRange } = require('../http-range.js');
+const { serveFileRange } = require('../http/http-range.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

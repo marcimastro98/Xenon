@@ -30,7 +30,7 @@
 // catalog (bottom of the file) — discovery only, so a model published after this
 // release can still be offered.
 
-require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../http/net-guard'); // nothing is taken from it here, but it runs code when it loads
 require('../store-catalog/community-catalog');
 
 require('./ai-openai');

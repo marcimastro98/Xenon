@@ -13,7 +13,7 @@ const http = require('http');
 const https = require('https');
 const dns = require('dns');
 const net = require('net');
-const { embeddedIPv4 } = require('./net-guard');
+const { embeddedIPv4 } = require('./http/net-guard');
 
 const PROXY_TIMEOUT_MS = 10000;
 const PROXY_DEADLINE_MS = 20000;   // whole request, headers to last byte

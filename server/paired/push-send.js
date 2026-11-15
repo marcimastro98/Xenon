@@ -3,7 +3,7 @@
 // subscription is gone.
 
 const https = require('node:https');
-const { isPublicUrl, publicLookup } = require('../net-guard.js');
+const { isPublicUrl, publicLookup } = require('../http/net-guard.js');
 
 const DEFAULT_TTL = 600;             // 10 minutes: a stale "timer finished" is noise
 const SEND_TIMEOUT_MS = 10_000;

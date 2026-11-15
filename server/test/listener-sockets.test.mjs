@@ -4,7 +4,7 @@ import http from 'node:http';
 import net from 'node:net';
 import { createRequire } from 'node:module';
 
-const { trackSockets } = createRequire(import.meta.url)('../listener-sockets.js');
+const { trackSockets } = createRequire(import.meta.url)('../http/listener-sockets.js');
 
 const UPGRADE = 'GET / HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n';
 

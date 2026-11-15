@@ -375,7 +375,7 @@
       {"file":"server/time/feeds-refresh.js","about":"Reads the calendar feeds the user added and keeps their events and the state of each feed.","names":["refreshExternalFeeds"]},
       {"file":"server/settings/keep-stored-on-save.js","about":"What a save of the whole settings keeps from the stored ones, whatever the page sent.","names":["keepStoredOnSave"],"hand":true},
       {"file":"server/settings/change-setting.js","about":"Changes one setting by its name on behalf of the assistant or a Deck key: read, change and write inside the settings queue, then tell every dashboard.","names":["changeSetting"]},
-      {"file":"server/http/fetch-json.js","about":"Asks an https address for JSON, with a limit on time and size.","names":["fetchJson"],"spelled":{"../net-guard.js":"./net-guard"}},
+      {"file":"server/http/fetch-json.js","about":"Asks an https address for JSON, with a limit on time and size.","names":["fetchJson"],"spelled":{"./net-guard.js":"./net-guard"}},
       {"file":"server/media/artwork-lookup.js","about":"Finds a cover for the playing track on the iTunes search when the host gave none, and remembers the answer.","names":["hydrateArtwork"]},
       {"file":"server/weather/place-lookup.js","about":"Finds the place the weather is asked for: the city the person typed, or where the PC seems to be.","names":["recoverWeatherPlaceViaWttr","resolveManualWeatherPlace","resolveAutoLocation"]},
       {"file":"server/weather/fetchers.js","about":"Asks each weather service for the weather of a place, and the list of them by name.","names":["fetchWttrWeather","fetchOpenMeteoWeather","fetchMetnoWeather","WEATHER_FETCHERS"]},

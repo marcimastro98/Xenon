@@ -1,5 +1,5 @@
 'use strict';
-// The bug report package (server/bug-report.js): "make" builds the .zip,
+// The bug report package (server/engine/bug-report.js): "make" builds the .zip,
 // "reveal" shows the last one in its folder. Neither takes a path; the result
 // names the file and counts what is inside.
 //

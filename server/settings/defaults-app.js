@@ -61,7 +61,7 @@ const HUB_DEFAULTS_APP = Object.freeze({
   catalogStats: true,
   // Bit may ask for a vote on something in real use (rating-votes.js).
   ratingAsks: true,
-  // Anonymous feature counts (server/usage-stats.js): which built-in features
+  // Anonymous feature counts (server/engine/usage-stats.js): which built-in features
   // run, as counters with no identifier, at most one report a day. Same posture
   // as catalogStats: `=== true`, so a fresh install starts on and an existing
   // one stays off until its owner chooses. Changed only from the PC itself (the
