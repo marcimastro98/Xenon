@@ -67,7 +67,7 @@ const { createCaptureCopy } = require('./capture-copy');
 require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager); nothing is taken from it here, but it runs code when it loads
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
-const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
+require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 require('./settings-ai'); // change_setting: the allowlisted Settings switches
 require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
 require('./vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
@@ -458,9 +458,7 @@ require('./screen-capture');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./actions/unifi');
 require('./unifi-events');
-const stocks = require('./stocks');
 require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
-const football = require('./football');
 require('./football-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 require('./news-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const claudeUsage = require('./claude-usage');
@@ -2517,26 +2515,6 @@ usageStats.configure({
 
 const { tilePlay } = require('./windows-tiles/tile-play-offers.js');
 
-// edit_favorites: the search runs first (network), the list is changed under the
-// settings lock, then the tile's data is refreshed as its own add box does.
-const FAVORITE_REFRESH = { stocks: () => refreshStocks(), teams: () => refreshFootball(), news: () => refreshNews() };
-async function editFavorites(args) {
-  const plan = await FavoritesAi.planFavorite(args, {
-    stocks: (q) => stocks.searchSymbols(q),
-    teams: (q) => football.searchTeams(q, _footballOpts()),
-  });
-  if (plan.error) return { ok: false, ...plan };
-  let result = null;
-  await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const out = FavoritesAi.applyFavorite(cur, plan);
-    result = out.result;
-    if (out.patch) hub.settings = await writeHubSettings({ ...cur, ...out.patch });
-  });
-  if (result && (result.added || result.removed)) FAVORITE_REFRESH[plan.kind]().catch(() => {});
-  return result;
-}
-
 const readDeckConfigs = async () => (await readDeckStore()).configs;
 const { resolveDeckSoundFile } = require('./deck/sound-file.js');
 
@@ -4104,6 +4082,8 @@ const { newsState } = require('./ticker/news-state.js');
 
 const { refreshNews } = require('./ticker/news-refresh.js');
 
+
+const { editFavorites } = require('./settings/edit-favorites.js');
 
 // Display-only feed: also gated on the widget/ticker actually using it, so a
 // user who never added the News widget pays zero network for it.
