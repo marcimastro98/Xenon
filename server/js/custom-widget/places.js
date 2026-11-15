@@ -12,7 +12,7 @@
     const layerOnly = (window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
     const scope = layerOnly ? '.layer-slot' : '.pager-page, .layer-slot';
     // A Weather tile set to Style "Your widget" holds a .custom-widget-mount of its
-    // own (js/weather-look.js) and hosts a package like a custom tile does.
+    // own (js/weather/weather-look.js) and hosts a package like a custom tile does.
     const onPages = Array.from(document.querySelectorAll('[data-dashboard-widget="custom"], [data-dashboard-widget="weather"]'))
       .filter(n => n.closest(scope) && (n.getAttribute('data-dashboard-widget') === 'custom' || n.querySelector('.custom-widget-mount')));
     // The Weather window on the same style shows that widget too, in a host of its

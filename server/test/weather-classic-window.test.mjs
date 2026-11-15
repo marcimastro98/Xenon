@@ -14,7 +14,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8').replace(/\r\n/g, '\n');
 const JS = read('js', 'weather-classic-window.js');
 const CLASSIC = read('js', 'weather-classic.js');
-const LOOK = read('js', 'weather-look.js');
+const LOOK = read('js', 'weather/weather-look.js');
 const CSS = read('components', 'WeatherModal', 'WeatherClassicWindow.css');
 const TILE_CSS = read('components', 'WeatherTile', 'WeatherClassic.css');
 

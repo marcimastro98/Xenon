@@ -62,6 +62,6 @@
     "server/js/utils.js": 48,
     "server/js/volume.js": 28,
     "server/js/weather-tile.js": 22,
-    "server/js/weather-window.js": 11
+    "server/js/weather/weather-window.js": 11
   }
 }

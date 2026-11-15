@@ -415,7 +415,8 @@
         "server/js/weather-*.js",
         "server/js/weather-tile/**",
         "server/components/WeatherModal/**",
-        "server/components/WeatherTile/**"
+        "server/components/WeatherTile/**",
+        "server/js/weather/**"
       ]
     },
     {

@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const TILE = read('js', 'weather-tile.js');
-const WINDOW = read('js', 'weather-window.js');
+const WINDOW = read('js', 'weather/weather-window.js');
 const SYSTEM = read('js', 'system.js');
 const DOORS = SYSTEM.slice(SYSTEM.indexOf('let weatherWindowLetGo'), SYSTEM.indexOf('async function fetchWeather'));
 
@@ -54,7 +54,7 @@ function rig({ data = FINE, fetching = false, hidden = false, settings = true, f
     weatherData: data,
     fetchingWeather: fetching,
     WeatherArt: { svg: () => '' },
-    WeatherOutlook: require('../js/weather-outlook.js'),
+    WeatherOutlook: require('../js/weather/weather-outlook.js'),
     parseSunTime: (text) => { const m = /^(\d+):(\d+)/.exec(text || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; },
     isWeatherNight: () => false,
     classifyWeatherState: (source) => source.state || 'state-cloud',
@@ -310,7 +310,7 @@ test('Esc belongs to the window: the page has no branch of its own', () => {
 
 test('a layer page gets the window with its frame and its focus', () => {
   const entry = read('js', 'layers/layer-tiles.js').split('\n').find((line) => line.includes('weather:'));
-  assert.ok(entry.indexOf('js/weather-tile.js') < entry.indexOf('js/weather-window.js'));
+  assert.ok(entry.indexOf('js/weather-tile.js') < entry.indexOf('js/weather/weather-window.js'));
   assert.ok(entry.includes('js/dialog-focus.js'));
   assert.ok(entry.includes('styles/liquid-sheets.css'));
 });

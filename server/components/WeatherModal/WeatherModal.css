@@ -231,7 +231,7 @@
   overflow-y: auto;
 }
 .weather-content:has(> .weather-win-trouble) { grid-template-columns: minmax(0, 1fr); }
-/* Style "Your widget": the user's widget fills the window (js/weather-look.js). */
+/* Style "Your widget": the user's widget fills the window (js/weather/weather-look.js). */
 .weather-content:has(> .weather-own-view) { display: flex; overflow: hidden; }
 .weather-own-view {
   flex: 1 1 auto;

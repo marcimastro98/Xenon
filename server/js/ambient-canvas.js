@@ -220,7 +220,7 @@
         set('.ac-w-temp', tstr);
         set('.ac-w-cond', cond);
         set('.ac-w-place', place);
-        if (ico) ico.innerHTML = glyph;   // static, trusted SVG (js/weather-glyphs.js)
+        if (ico) ico.innerHTML = glyph;   // static, trusted SVG (js/weather/weather-glyphs.js)
         return sig;
       },
     },

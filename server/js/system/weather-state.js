@@ -145,7 +145,7 @@ function weatherMetricLevel(metric, v) {
   }
 }
 
-// The window itself is js/weather-window.js. These two doors stay here because every page
+// The window itself is js/weather/weather-window.js. These two doors stay here because every page
 // with this file answers them, also the ones that have no window to open.
 let weatherWindowLetGo = null;
 

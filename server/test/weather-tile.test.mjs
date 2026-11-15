@@ -14,7 +14,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
-const Outlook = require('../js/weather-outlook.js');
+const Outlook = require('../js/weather/weather-outlook.js');
 const TILE = read('js', 'weather-tile.js');
 const SYSTEM = read('js', 'system.js');
 const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
@@ -170,12 +170,12 @@ test('every change the line can name exists in all 11 languages', () => {
 });
 
 test('the dashboard and a widget window both load everything the tile needs', () => {
-  for (const script of ['js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js']) {
+  for (const script of ['js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile.js']) {
     assert.ok(INDEX.includes(`<script src="${script}"></script>`), script);
   }
   assert.ok(INDEX.includes('href="components/WeatherTile/WeatherTile.css"'));
   const line = read('js', 'layers/layer-tiles.js').split('\n').find((l) => /^\s*weather: \{/.test(l));
-  for (const part of ['components/WeatherTile/WeatherTile.css', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js']) {
+  for (const part of ['components/WeatherTile/WeatherTile.css', 'js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile.js']) {
     assert.ok(line.includes(part), part);
   }
 });
@@ -236,6 +236,6 @@ test('white pictures get a darker sky on a light sheet', () => {
   const light = CSS.slice(CSS.indexOf(':root[data-appearance="light"] :is(.weather-tile-panel, .weather-panel)'));
   for (const token of ['--sky-cloud-top', '--sky-cloud-low', '--sky-drop', '--sky-flake', '--sky-haze', '--sky-moon-top']) {
     assert.ok(light.includes(token), token);
-    assert.ok(read('js', 'weather-art.js').includes(`var(${token}`), token);
+    assert.ok(read('js', 'weather/weather-art.js').includes(`var(${token}`), token);
   }
 });

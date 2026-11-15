@@ -147,7 +147,7 @@ test('the style survives both normalizers, and anything else is the new look', (
 });
 
 test('the style buttons are wired by data attribute and named in every language', () => {
-  const LOOK = read('js', 'weather-look.js');
+  const LOOK = read('js', 'weather/weather-look.js');
   for (const look of ['new', 'classic']) {
     assert.match(INDEX, new RegExp(`<button class="settings-segment-btn" type="button" data-weather-look="${look}"`));
   }
@@ -163,11 +163,11 @@ test('the style buttons are wired by data attribute and named in every language'
 });
 
 test('the classic files load only for whoever picks them, and the tile asks first', () => {
-  const LOOK = read('js', 'weather-look.js');
+  const LOOK = read('js', 'weather/weather-look.js');
   assert.match(LOOK, /'js\/weather-classic\.js'/);
   assert.match(LOOK, /'components\/WeatherTile\/WeatherClassic\.css'/);
   assert.doesNotMatch(INDEX, /weather-classic\.js|WeatherClassic\.css/, 'not in the page for everybody');
-  assert.match(INDEX, /<script src="js\/weather-tile\.js"><\/script>\n<script src="js\/weather-look\.js"><\/script>/);
+  assert.match(INDEX, /<script src="js\/weather-tile\.js"><\/script>\n<script src="js\/weather\/weather-look\.js"><\/script>/);
   assert.match(extractFunction(TILE, 'renderWeatherTile'),
     /if \(window\.WeatherLook && window\.WeatherLook\.render\(mounts, data, sec\)\) return;/);
 });

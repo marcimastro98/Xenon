@@ -73,7 +73,7 @@ test('the scene reads the task store and the feed safely', () => {
   const PARTS = read('../js/ambient-canvas-parts.js');
   const wg = PARTS.slice(PARTS.indexOf('function weatherGlyph'), PARTS.indexOf('window.AmbientCanvasParts'));
   assert.match(wg, /return glyphs\[name\] \|\| glyphs\.cloud \|\| '';/);
-  assert.match(read('../js/weather-glyphs.js'), /window\.WeatherGlyphs = Object\.freeze\(WEATHER_ICONS\);/);
+  assert.match(read('../js/weather/weather-glyphs.js'), /window\.WeatherGlyphs = Object\.freeze\(WEATHER_ICONS\);/);
 });
 
 test('a Volume element keeps the server reading the speaker', () => {

@@ -174,12 +174,12 @@ test('the markup has the layers the digits draw into, in both pages', () => {
   }
   assert.ok(/<clipPath id="lock-digits-shape" data-lock-digits>/.test(HTML));
   for (const page of [HTML, SCENE_HTML]) {
-    for (const script of ['js/weather-art.js', 'js/ambient/lock-digits.js']) assert.ok(page.includes(`<script src="${script}"></script>`), script);
+    for (const script of ['js/weather/weather-art.js', 'js/ambient/lock-digits.js']) assert.ok(page.includes(`<script src="${script}"></script>`), script);
   }
 });
 
 test('each sky has its own picture, and the night has a moon', () => {
-  const { svg } = load('../js/weather-art.js').WeatherArt;
+  const { svg } = load('../js/weather/weather-art.js').WeatherArt;
   const skies = ['state-sun', 'state-cloud', 'state-rain', 'state-storm', 'state-snow', 'state-fog'];
   assert.equal(new Set(skies.map((sky) => svg(sky, false))).size, skies.length);
   const moon = /fill="url\(#wx\d+-moon\)"/;
@@ -191,7 +191,7 @@ test('each sky has its own picture, and the night has a moon', () => {
 });
 
 test('every drawing owns its gradients, so a hidden one cannot blank the next', () => {
-  const { svg } = load('../js/weather-art.js').WeatherArt;
+  const { svg } = load('../js/weather/weather-art.js').WeatherArt;
   const ids = (markup) => [...markup.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const first = ids(svg('state-sun', false));
   const second = ids(svg('state-sun', false));

@@ -240,6 +240,11 @@
     {"from":"server/js/topbar-minimal.js","to":"server/js/topbar/topbar-minimal.js"},
     {"from":"server/js/release-notes-card.js","to":"server/js/updates/release-notes-card.js"},
     {"from":"server/js/release-notice.js","to":"server/js/updates/release-notice.js"},
-    {"from":"server/js/whats-new-scenes.js","to":"server/js/updates/whats-new-scenes.js"}
+    {"from":"server/js/whats-new-scenes.js","to":"server/js/updates/whats-new-scenes.js"},
+    {"from":"server/js/weather-art.js","to":"server/js/weather/weather-art.js"},
+    {"from":"server/js/weather-glyphs.js","to":"server/js/weather/weather-glyphs.js"},
+    {"from":"server/js/weather-look.js","to":"server/js/weather/weather-look.js"},
+    {"from":"server/js/weather-outlook.js","to":"server/js/weather/weather-outlook.js"},
+    {"from":"server/js/weather-window.js","to":"server/js/weather/weather-window.js"}
   ]
 }

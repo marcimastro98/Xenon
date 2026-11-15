@@ -1,6 +1,6 @@
 // Settings → Weather → Style "Your widget": the Weather tile hosts a widget of the
 // user's that reads the weather (made with Bit, in Xenon Maker, or from the Store).
-// js/weather-look.js puts a .custom-widget-mount in the tile and js/custom-widget.js
+// js/weather/weather-look.js puts a .custom-widget-mount in the tile and js/custom-widget.js
 // runs it like any widget tile: same chooser, permission dialog, sandboxed frame and
 // paused states. Pinned here: the seam on both sides, the stored key, the chooser
 // showing weather widgets only, and the tile not reloading the widget on every
@@ -17,7 +17,7 @@ import { namesOf } from './source-names.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const CW = read('js', 'custom-widget.js');
-const LOOK = read('js', 'weather-look.js');
+const LOOK = read('js', 'weather/weather-look.js');
 const SETTINGS = read('js', 'settings.js');
 const SERVER = engineSource();
 const INDEX = read('index.html');
@@ -93,7 +93,7 @@ test('every new string is in all 11 languages', () => {
 // the same widget: asked for so that "the top bar's weather and the Ambient one open
 // my widget when I tap them".
 test('the Weather window shows the widget, in a host of its own that keeps the tile\'s choice', () => {
-  const WINDOW = read('js', 'weather-window.js');
+  const WINDOW = read('js', 'weather/weather-window.js');
   const SYSTEM = read('js', 'system.js');
   const MODAL_CSS = read('components', 'WeatherModal', 'WeatherModal.css');
   assert.match(extractFunction(WINDOW, 'renderWeatherDetails'),
