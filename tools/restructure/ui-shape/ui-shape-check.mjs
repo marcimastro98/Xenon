@@ -3,8 +3,8 @@
 // the shape of what is on the page: so a function that builds a window can be cut into
 // scripts and shown to build the same window as before.
 //
-//   node tools/ci/ui-shape-check.mjs <plan.json> <folder> <port> --record <file> [--engine chromium|webkit] [--base <rev>]
-//   node tools/ci/ui-shape-check.mjs <plan.json> <folder> <port> --against <file> [--engine chromium|webkit] [--out <file>]
+//   node tools/restructure/ui-shape/ui-shape-check.mjs <plan.json> <folder> <port> --record <file> [--engine chromium|webkit] [--base <rev>]
+//   node tools/restructure/ui-shape/ui-shape-check.mjs <plan.json> <folder> <port> --against <file> [--engine chromium|webkit] [--out <file>]
 //
 // It builds a throwaway copy of the engine in <folder> (tools/restructure/side-copy.mjs:
 // own port, data, home and temp; `--base` takes `server/` as it was at a commit), writes
@@ -21,7 +21,7 @@
 // the same engine and ends with 1 and the first difference. Port 3030 is refused.
 //
 // The plan is JSON (ui-shape-plan.mjs says what it must hold); the plans live in
-// tools/ci/ui-shapes/. Playwright is not a dependency: it is borrowed like the page
+// this folder. Playwright is not a dependency: it is borrowed like the page
 // check does (the sibling xenon-maker checkout, or the folder XENON_PLAYWRIGHT names).
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -29,13 +29,13 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { REFUSED, engineFromArgs, startEngine } from '../restructure/browser-check-engine.mjs';
-import { LOCALE, plainFor, serverOf, staysOnCopy } from '../restructure/browser-check-pages.mjs';
-import { build, mustBeSideCopy, run, sidePort } from '../restructure/side-copy.mjs';
+import { REFUSED, engineFromArgs, startEngine } from '../browser-check-engine.mjs';
+import { LOCALE, plainFor, serverOf, staysOnCopy } from '../browser-check-pages.mjs';
+import { build, mustBeSideCopy, run, sidePort } from '../side-copy.mjs';
 import { PAGE_NAME, initScript } from './ui-shape-page.mjs';
 import { firstDifference, laidOver, planProblems, replacerOf, requestLine } from './ui-shape-plan.mjs';
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const LOAD_MS = 60_000;
 const STEP_MS = 10_000;
 const QUIET_MS = 400;

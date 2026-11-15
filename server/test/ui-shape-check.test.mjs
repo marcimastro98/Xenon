@@ -1,4 +1,4 @@
-// `tools/ci/ui-shape-check.mjs` walks one window of the app on a throwaway copy and writes
+// `tools/restructure/ui-shape/ui-shape-check.mjs` walks one window of the app on a throwaway copy and writes
 // down the shape of the page after every step, so a function that builds a window can be
 // cut into scripts and shown to build the same window. These tests hold the parts that
 // need no browser: how an element is written as lines, what a plan must say, how a
@@ -9,8 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PAGE_NAME, initScript, shapeLines } from '../../tools/ci/ui-shape-page.mjs';
-import { bodyShape, firstDifference, laidOver, planProblems, replacerOf, requestLine, shapeOfValue } from '../../tools/ci/ui-shape-plan.mjs';
+import { PAGE_NAME, initScript, shapeLines } from '../../tools/restructure/ui-shape/ui-shape-page.mjs';
+import { bodyShape, firstDifference, laidOver, planProblems, replacerOf, requestLine, shapeOfValue } from '../../tools/restructure/ui-shape/ui-shape-plan.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -114,7 +114,7 @@ test('two recordings are the same, or the first difference is told with its step
 });
 
 test('every plan kept in the repo can be walked, opens only the copy and holds invented answers only for paths', () => {
-  const folder = path.join(REPO_ROOT, 'tools', 'ci', 'ui-shapes');
+  const folder = path.join(REPO_ROOT, 'tools', 'restructure', 'ui-shape');
   const plans = fs.readdirSync(folder).filter((name) => name.endsWith('.json'));
   assert.ok(plans.length > 0);
   for (const name of plans) {
