@@ -5,7 +5,7 @@ const { readBody } = require('../http/read-body.js');
 const { liveVoice } = require('./live-voice-state.js');
 const { _sttPending } = require('./stt-pending.js');
 const { privateTmpFile } = require('../private-tmp.js');
-const wakeWord = require('../wakeword.js');
+const wakeWord = require('./wakeword.js');
 const {
   _sttSilenceDb, STT_AFTER_SPEECH_SILENCE_GRACE_MS, STT_START_SILENCE_GRACE_MS, _sttLooksLikeSpeech,
 } = require('./stt-gate.js');
@@ -15,8 +15,8 @@ const { broadcastSSE } = require('../http/sse-clients.js');
 const aiLocal = require('../ai-local.js');
 const fs = require('node:fs');
 const { _pcmRmsStats, _dbFromRms } = require('../wav/pcm-loudness.js');
-const { hasVoice, wavPcm } = require('../stt-voice-gate.js');
-const aiOpenai = require('../ai-openai.js');
+const { hasVoice, wavPcm } = require('./stt-voice-gate.js');
+const aiOpenai = require('./ai-openai.js');
 const { providerModelFor } = require('./provider-models.js');
 const aiCli = require('../ai-cli.js');
 const path = require('node:path');

@@ -9,8 +9,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const A = require('../ai-anthropic.js');
-const O = require('../ai-openai.js');
+const A = require('../ai/ai-anthropic.js');
+const O = require('../ai/ai-openai.js');
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });

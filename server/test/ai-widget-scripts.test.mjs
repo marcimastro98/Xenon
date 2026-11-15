@@ -12,8 +12,8 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const { externalizeInlineScripts } = require('../ai-widget-scripts.js');
-const P = require('../ai-presets.js');
+const { externalizeInlineScripts } = require('../ai/ai-widget-scripts.js');
+const P = require('../ai/ai-presets.js');
 const PresetShare = require('../js/preset-share.js');
 const SdkWidgets = require('../sdk-widgets.js');
 

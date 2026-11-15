@@ -133,5 +133,5 @@ test('Bit: get_energy_use, voice only, and history_off when there is nothing', a
   const off = createCapabilities({ energy: { summary: async () => ({ enabled: false, daysRecorded: 0 }) } });
   assert.deepEqual(await off.run({ type: 'energyUsage' }), { ok: false, error: 'history_off' });
   assert.ok(aiFunctions({ energyUsage: true }).some((f) => f.name === 'get_energy_use'));
-  assert.match(read('../ai-tool-groups.js'), /'set_sensor_history', 'get_energy_use'\]/);
+  assert.match(read('../ai/ai-tool-groups.js'), /'set_sensor_history', 'get_energy_use'\]/);
 });

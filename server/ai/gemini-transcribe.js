@@ -1,8 +1,8 @@
 // The request that turns a recorded voice clip into text with Gemini, and how long it may take.
 
 const https = require('node:https');
-const { applyThinking } = require('../ai-gemini-thinking.js');
-const { geminiTranscript } = require('../stt-voice-gate.js');
+const { applyThinking } = require('./ai-gemini-thinking.js');
+const { geminiTranscript } = require('./stt-voice-gate.js');
 
 // Thinking models took over 15 s on a short clip (Flash, 3.1 Pro), the same as the chat allows.
 const STT_GEMINI_TIMEOUT_MS = 30000;

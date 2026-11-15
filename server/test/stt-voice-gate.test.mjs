@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const { hasVoice, wavPcm, transcriptionPrompt, cleanTranscript, geminiTranscript, VOICE_BLOCKED } = require('../stt-voice-gate.js');
+const { hasVoice, wavPcm, transcriptionPrompt, cleanTranscript, geminiTranscript, VOICE_BLOCKED } = require('../ai/stt-voice-gate.js');
 
 const RATE = 16000;
 const pcmOf = (samples) => {

@@ -10,7 +10,7 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-require('./ai-tool-groups'); // nothing is taken from it here, but it runs code when it loads
+require('./ai/ai-tool-groups'); // nothing is taken from it here, but it runs code when it loads
 
 const {
   DEFAULT_OLLAMA_URL, MODEL_WHITELIST, VISION_MODELS, EDGE_VOICES, EDGE_VOICE_FALLBACK,

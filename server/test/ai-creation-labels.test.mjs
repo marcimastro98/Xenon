@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const L = require('../ai-creation-labels.js');
+const L = require('../ai/ai-creation-labels.js');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
 test('the assistant gets the level names Settings shows, in every app language', async () => {

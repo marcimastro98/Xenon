@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const { isMissingModel, withFallbackModel, tryOtherModels } = require('../ai-gemini.js');
+const { isMissingModel, withFallbackModel, tryOtherModels } = require('../ai/ai-gemini.js');
 
 const CLOSED = 'This model models/gemini-2.5-pro is no longer available to new users. Please update your code.';
 

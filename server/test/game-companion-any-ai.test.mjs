@@ -14,7 +14,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const A = require('../ai-anthropic.js');
+const A = require('../ai/ai-anthropic.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const S = engineSource();
 const endpoint = () => {
@@ -31,7 +31,7 @@ test('a Claude one-shot is the words alone, or the picture then the words', () =
 });
 
 test('ChatGPT one-shots carry the picture as an image part', () => {
-  const src = engineSource('server/ai-openai.js');
+  const src = engineSource('server/ai/ai-openai.js');
   assert.match(src, /async function oneShot\(\{[^}]*image \}\)/);
   assert.match(src, /\{ type: 'image_url', image_url: \{ url: `data:\$\{image\.mimeType\};base64,\$\{image\.data\}` \} \}/);
 });

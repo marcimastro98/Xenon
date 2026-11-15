@@ -24,7 +24,7 @@
 // Rearranging keys, deleting them and editing free actions still work.
 
 const { validateAction } = require('../js/deck-actions.js');
-const { haDomainAllowed } = require('../ai-pc-apps.js');
+const { haDomainAllowed } = require('../ai/ai-pc-apps.js');
 
 const FREE = new Set([
   // Playback and audio.

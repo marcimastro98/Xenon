@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const live = require('../ai-live.js');
+const live = require('../ai/ai-live.js');
 
 test('buildSetupMessage: model prefix, modalities, transcription', () => {
   const m = live.buildSetupMessage({ model: 'gemini-3.1-flash-live-preview', systemInstruction: 'Be Xenon.', tools: [{ name: 'toggle_mic' }] });

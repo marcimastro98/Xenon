@@ -1,7 +1,7 @@
 // What the assistant does when asked about the smart home: list what is there, switch something
 // or start a scene, and never a lock, an alarm or a door.
 
-const aiPcApps = require('../ai-pc-apps.js');
+const aiPcApps = require('../ai/ai-pc-apps.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

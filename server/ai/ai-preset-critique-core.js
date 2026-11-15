@@ -6,7 +6,7 @@
 // a key that shows nothing. Colour maths is the app's own (js/theme-palette.js),
 // so a ratio here is the ratio the app's contrast guard would compute.
 
-const themePalette = require('./js/theme-palette.js');
+const themePalette = require('../js/theme-palette.js');
 
 // WCAG 2 minimums: body text, and large text or UI parts (icons, borders, state).
 const BODY_TEXT = 4.5;

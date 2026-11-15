@@ -18,7 +18,7 @@
 
 const http = require('http');
 const https = require('https');
-const { toolLoop } = require('./ai-openai');
+const { toolLoop } = require('./ai/ai-openai');
 const { DEFAULT_URL, sanitizeUrl, sanitizeModel } = require('./js/local-server-fields.js');
 
 const MAX_MODELS = 100;

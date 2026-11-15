@@ -494,7 +494,7 @@ test('on Xenon credits the hub design check joins the critique as things to cons
   hub({ '/ai/session': session, '/ai/audit': { ok: false, error: 'rate_limited' } });
   assert.deepEqual(await X.designAdvice(dir, 'CODE-1'), []);
 
-  const { addConsiderations } = require('../ai-preset-critique.js');
+  const { addConsiderations } = require('../ai/ai-preset-critique.js');
   const own = { fix: 1, consider: 0, findings: [{ severity: 'fix', where: 'a', problem: 'p' }] };
   const merged = addConsiderations(own, advice);
   assert.equal(merged.fix, 1);

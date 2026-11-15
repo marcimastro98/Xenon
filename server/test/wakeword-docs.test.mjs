@@ -17,9 +17,9 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const wake = require('../wakeword.js');
+const wake = require('../ai/wakeword.js');
 const FEATURES = readFileSync(new URL('../../FEATURES.md', import.meta.url), 'utf8');
-const SRC = engineSource('server/wakeword.js');
+const SRC = engineSource('server/ai/wakeword.js');
 const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 

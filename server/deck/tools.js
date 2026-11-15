@@ -4,8 +4,8 @@
 
 // biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
 
-const aiDeckRun = require('../ai-deck-run.js');
-const aiSurface = require('../ai-surface.js');
+const aiDeckRun = require('../ai/ai-deck-run.js');
+const aiSurface = require('../ai/ai-surface.js');
 const UsageMode = require('../js/usage-mode.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const remoteActions = require('../paired/remote-actions.js');
@@ -49,7 +49,7 @@ const branches = {
       // Read-only grounding for configure_deck: the full typed-action catalog
       // (compact), the live-state sources and the slider targets.
       // `info` is what the action does, the same sentence the Deck editor shows.
-      const info = await require('../ai-creation-labels.js').englishByPrefix('deck_info_');
+      const info = await require('../ai/ai-creation-labels.js').englishByPrefix('deck_info_');
       const catalog = require('../js/deck-actions.js').ACTION_CATALOG
         .filter(a => !a.hidden)
         .map(a => ({ type: a.type, group: a.group, ...(info[a.type] ? { info: info[a.type] } : {}), params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));

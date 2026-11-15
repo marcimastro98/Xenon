@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const W = require('../ai-my-widgets.js');
+const W = require('../ai/ai-my-widgets.js');
 const S = engineSource();
 const b64 = (t) => Buffer.from(t, 'utf8').toString('base64');
 

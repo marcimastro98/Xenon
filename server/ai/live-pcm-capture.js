@@ -1,7 +1,7 @@
 // Records the microphone as raw sound for a live voice session.
 
 const { spawn } = require('node:child_process');
-const aiLive = require('../ai-live.js');
+const aiLive = require('./ai-live.js');
 const { getFfmpegPath } = require('../ffmpeg-install/ffmpeg-path.js');
 const { _sttGain } = require('./mic-gain.js');
 const { _sttInputArgs } = require('./stt-input.js');

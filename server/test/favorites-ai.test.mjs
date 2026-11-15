@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { planFavorite, applyFavorite } = require('../favorites-ai.js');
+const { planFavorite, applyFavorite } = require('../ai/favorites-ai.js');
 
 const search = {
   stocks: async (q) => (/tesla/i.test(q) ? [{ symbol: 'TSLA', name: 'Tesla, Inc.' }, { symbol: 'TL0.DE', name: 'Tesla' }] : []),

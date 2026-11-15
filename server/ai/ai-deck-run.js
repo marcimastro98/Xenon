@@ -9,9 +9,9 @@
 // a model's reading of a sentence is not. Opening an app by name stays free: that
 // is open_application, which refuses scripts and paths that run code (ai-pc-apps.js).
 
-const { ACTION_CATALOG, validateAction } = require('./js/deck-actions.js');
-const { CAPABILITIES } = require('./js/capability-catalog.js');
-const { CLIENT_ACTIONS } = require('./js/deck-shortcuts.js');
+const { ACTION_CATALOG, validateAction } = require('../js/deck-actions.js');
+const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CLIENT_ACTIONS } = require('../js/deck-shortcuts.js');
 
 const CONFIRM_TYPES = new Set([
   // Code, keystrokes and files the user did not pick by hand.

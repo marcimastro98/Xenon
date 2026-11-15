@@ -1,6 +1,6 @@
 // Which model each AI provider uses for each job, as chosen in the settings.
 
-const aiModels = require('../ai-models.js');
+const aiModels = require('./ai-models.js');
 const { hub } = require('../settings/current.js');
 
 // The same resolution for the two server-mediated cloud providers. `settings` is

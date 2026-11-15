@@ -2,7 +2,7 @@
 // One chat turn of the assistant on a local Ollama model, with its tool calls, and a second try
 // on a smaller model when the first one crashes the graphics card.
 
-const { follow } = require('../ai-tool-groups.js');
+const { follow } = require('./ai-tool-groups.js');
 const {
   geminiToolsToOpenAI, geminiHistoryToNative, parseOllamaNativeResponse,
 } = require('./local-ollama-shapes.js');

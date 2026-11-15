@@ -30,18 +30,18 @@
 // catalog (bottom of the file) — discovery only, so a model published after this
 // release can still be offered.
 
-require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
-require('./store-catalog/community-catalog');
+require('../net-guard'); // nothing is taken from it here, but it runs code when it loads
+require('../store-catalog/community-catalog');
 
 require('./ai-openai');
 require('./ai-anthropic');
 
 
-const { normalizeEntry, parseStored, pickLatest } = require('./ai/model-ranking.js');
+const { normalizeEntry, parseStored, pickLatest } = require('./model-ranking.js');
 
 // ── State ────────────────────────────────────────────────────────────────────
 
-const { modelsCache } = require('./ai/models-cache-state.js');
+const { modelsCache } = require('./models-cache-state.js');
 modelsCache.cache = Object.create(null);   // provider → { entries, fetchedAt, failedAt }
 modelsCache.pending = Object.create(null); // provider → in-flight refresh promise
 
@@ -162,17 +162,17 @@ function catalog(provider, storedByRole, apiKey) {
 // do is offer a download the user must still click and the safety gate must
 // still pass.
 
-const { normalizeCatalogModel, normalizeCatalog } = require('./ai/ollama-catalog-read.js');
+const { normalizeCatalogModel, normalizeCatalog } = require('./ollama-catalog-read.js');
 
 
 
 const {
   PROVIDERS, TTL_MS, _slot, initCache, _persist, _isStale,
-} = require('./ai/models-cache-store.js');
+} = require('./models-cache-store.js');
 
 const {
   OLLAMA_CATALOG_URL, ollamaCatalog, ollamaRequirements, refreshOllamaCatalog,
-} = require('./ai/ollama-catalog-refresh.js');
+} = require('./ollama-catalog-refresh.js');
 
 // Test seam: install a known list without a network call.
 function _setEntries(provider, entries) {

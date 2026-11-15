@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { createAiActionLog, MAX_ENTRIES } = require('../ai-action-log.js');
+const { createAiActionLog, MAX_ENTRIES } = require('../ai/ai-action-log.js');
 
 // The in-memory action log backing the chat's "undo" affordance: records recent
 // mutating actions, exposes the latest still-undoable one, and caps its size.

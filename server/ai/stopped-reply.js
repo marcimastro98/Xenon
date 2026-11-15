@@ -1,6 +1,6 @@
 // Answers a turn the user stopped: no text, with what its tools had already made.
 
-const aiTurns = require('../ai-turns.js');
+const aiTurns = require('./ai-turns.js');
 
 // The user stopped the turn (ai-turns.js): answered as a reply with no text,
 // carrying what its tools already made. False for any other error.

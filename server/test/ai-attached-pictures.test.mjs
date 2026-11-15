@@ -9,8 +9,8 @@ import { loadServerSettingsSlice, serverDashboardWidgets } from './server-settin
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const A = require('../ai-attached-pictures.js');
-const P = require('../ai-presets.js');
+const A = require('../ai/ai-attached-pictures.js');
+const P = require('../ai/ai-presets.js');
 const PresetShare = require('../js/preset-share.js');
 
 const deps = { normalizeSettings: loadServerSettingsSlice(), dashboardWidgets: serverDashboardWidgets(), sdkEnabled: true, appVersion: '9.9.9' };

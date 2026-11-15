@@ -7,10 +7,10 @@
 // accents and case ignored, in the list read under the lock. Pure apart from
 // the searches, which the caller passes in.
 
-const stocks = require('./ticker/stocks');
-const football = require('./ticker/football');
-const news = require('./ticker/news');
-const { findItem } = require('./time/agenda-ai');
+const stocks = require('../ticker/stocks');
+const football = require('../ticker/football');
+const news = require('../ticker/news');
+const { findItem } = require('../time/agenda-ai');
 
 const KINDS = Object.freeze(['stocks', 'teams', 'news']);
 const ACTIONS = Object.freeze(['add', 'remove', 'list']);

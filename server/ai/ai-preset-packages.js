@@ -10,10 +10,10 @@
 // create_widget does, and then go through the install boundary's own validators
 // (validateWidgetPayload, validateIconPack). Nothing is installed here.
 
-const SdkWidgets = require('./sdk-widgets.js');
-const IconPacks = require('./store-catalog/icon-packs.js');
-const AmbientScene = require('./js/ambient-scene.js');
-const PresetShare = require('./js/preset-share.js');
+const SdkWidgets = require('../sdk-widgets.js');
+const IconPacks = require('../store-catalog/icon-packs.js');
+const AmbientScene = require('../js/ambient-scene.js');
+const PresetShare = require('../js/preset-share.js');
 const { note, fail, diffValue, isObject } = require('./ai-preset-diff.js');
 const { knownFields, join } = require('./ai-preset-checks.js');
 const { externalizeInlineScripts } = require('./ai-widget-scripts');

@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const gemini = require('../ai-gemini.js');
-const openai = require('../ai-openai.js');
-const anthropic = require('../ai-anthropic.js');
-const models = require('../ai-models.js');
+const gemini = require('../ai/ai-gemini.js');
+const openai = require('../ai/ai-openai.js');
+const anthropic = require('../ai/ai-anthropic.js');
+const models = require('../ai/ai-models.js');
 
 // The real answer from generativelanguage.googleapis.com/v1beta/models on a
 // normal key (Aug 2026, 53 entries). Every classification rule below is a rule

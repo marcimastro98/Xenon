@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const wake = require('../wakeword.js');
+const wake = require('../ai/wakeword.js');
 
 // ── Wake-phrase matcher: fuzzy on purpose (whisper renders accents freely) ──
 

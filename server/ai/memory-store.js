@@ -1,7 +1,7 @@
 // What the assistant was asked to remember about the person, made when the engine starts: the
 // file is read at the first use.
 
-const { createAiMemory } = require('../ai-memory.js');
+const { createAiMemory } = require('./ai-memory.js');
 const { DATA_DIR } = require('../engine/paths.js');
 
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,

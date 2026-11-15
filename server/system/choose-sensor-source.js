@@ -3,7 +3,7 @@
 
 const { broadcastSSE } = require('../http/sse-clients.js');
 const SensorSources = require('../js/sensor-sources.js');
-const SensorSourceAi = require('../sensor-source-ai.js');
+const SensorSourceAi = require('../ai/sensor-source-ai.js');
 const { nextSettingsRev } = require('../settings-rev.js');
 const { readHubSettingsForUpdate } = require('../settings/read.js');
 const { hub } = require('../settings/current.js');

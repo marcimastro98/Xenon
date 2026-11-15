@@ -2,8 +2,8 @@
 // aside for what the person is doing.
 
 const aiLocal = require('../ai-local.js');
-const aiOpenai = require('../ai-openai.js');
-const aiAnthropic = require('../ai-anthropic.js');
+const aiOpenai = require('./ai-openai.js');
+const aiAnthropic = require('./ai-anthropic.js');
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const aiCli = require('../ai-cli.js');
 const { localServerOneShot } = require('./local-server-one-shot.js');

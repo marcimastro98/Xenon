@@ -1,8 +1,8 @@
 // The tools the assistant always has to look things up: stocks, football, news, the web and
 // what is on the screen.
 
-const SettingsAi = require('../settings-ai.js');
-const SensorSourceAi = require('../sensor-source-ai.js');
+const SettingsAi = require('./settings-ai.js');
+const SensorSourceAi = require('./sensor-source-ai.js');
 
 function lookupAiFunctions() {
   return [

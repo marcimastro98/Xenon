@@ -9,7 +9,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (rel) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const surface = require('../ai-surface.js');
+const surface = require('../ai/ai-surface.js');
 
 class Node {
   constructor(tag) { this.tag = tag; this.children = []; this.dataset = {}; this.className = ''; this.text = ''; }

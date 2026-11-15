@@ -49,7 +49,7 @@ test('the starter widget passes Xenon\'s own package check', () => {
 // color-scheme declared", so every first widget began with
 // a fix item the person never wrote.
 test('the starter widget has nothing to fix in the design check, and follows the theme', () => {
-  const P = require('../ai-presets.js');
+  const P = require('../ai/ai-presets.js');
   const presetDeps = { normalizeSettings: loadServerSettingsSlice(), dashboardWidgets: serverDashboardWidgets(), sdkEnabled: true, appVersion: '9.9.9' };
   const checked = P.critiqueWidget('my-clock', starter(), presetDeps);
   assert.ok(checked, 'the starter builds as a widget share');

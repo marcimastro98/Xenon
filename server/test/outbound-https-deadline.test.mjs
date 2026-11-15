@@ -215,7 +215,7 @@ const installs = require('../store-catalog/community-installs.js');
 const redeem = require('../store-supporters/supporter-redeem.js');
 const versionPing = require('../version-ping.js');
 const usage = require('../usage-stats.js');
-const aiModels = require('../ai-models.js');
+const aiModels = require('../ai/ai-models.js');
 const aiLocal = require('../ai-local.js');
 const adblock = require('../windows-tiles/embedded-browser-adblock.js');
 

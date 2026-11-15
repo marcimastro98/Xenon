@@ -2,7 +2,7 @@
 // voice session holds the microphone.
 
 const { sseClients } = require('../http/sse-clients.js');
-const wakeWord = require('../wakeword.js');
+const wakeWord = require('./wakeword.js');
 const { liveVoice } = require('./live-voice-state.js');
 const { wakeWordWanted } = require('./wake-word-wanted.js');
 

@@ -2,9 +2,9 @@
 // model when the pinned one is closed to the user's key.
 
 const https = require('node:https');
-const aiGemini = require('../ai-gemini.js');
-const { withThinking, applyThinking } = require('../ai-gemini-thinking.js');
-const aiModels = require('../ai-models.js');
+const aiGemini = require('./ai-gemini.js');
+const { withThinking, applyThinking } = require('./ai-gemini-thinking.js');
+const aiModels = require('./ai-models.js');
 
 // A pinned model can be closed to the user's key. The chat has its own, longer
 // fallback; everything else that asks Gemini once comes through here.

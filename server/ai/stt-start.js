@@ -1,6 +1,6 @@
 // Starts the search for the microphone once, and binds it again when the input device changes.
 
-const wakeWord = require('../wakeword.js');
+const wakeWord = require('./wakeword.js');
 const { audioCache } = require('../audio/device-cache.js');
 const { sttDevice } = require('./stt-device-state.js');
 const { _sttDeviceWaiters, _sttPending } = require('./stt-pending.js');

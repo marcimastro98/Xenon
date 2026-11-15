@@ -23,10 +23,10 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-const gemini = require('../ai-gemini.js');
-const openai = require('../ai-openai.js');
-const anthropic = require('../ai-anthropic.js');
-const models = require('../ai-models.js');
+const gemini = require('../ai/ai-gemini.js');
+const openai = require('../ai/ai-openai.js');
+const anthropic = require('../ai/ai-anthropic.js');
+const models = require('../ai/ai-models.js');
 
 // The client copy cannot be required: js/settings.js is a browser script with a
 // whole app behind it. Its declaration is extracted and evaluated on its own,

@@ -6,11 +6,11 @@
 // returns findings (ai-preset-critique-core.js); none means nothing objective
 // to fix.
 
-const DashboardPresets = require('./js/dashboard-presets.js');
-const DashboardInstances = require('./js/dashboard-instances.js');
-const DashboardGrid = require('./js/dashboard-grid.js');
-const AmbientScene = require('./js/ambient-scene.js');
-const themePalette = require('./js/theme-palette.js');
+const DashboardPresets = require('../js/dashboard-presets.js');
+const DashboardInstances = require('../js/dashboard-instances.js');
+const DashboardGrid = require('../js/dashboard-grid.js');
+const AmbientScene = require('../js/ambient-scene.js');
+const themePalette = require('../js/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding, overlapArea, contains, boxText } = require('./ai-preset-critique-core.js');
 
 // ── page ───────────────────────────────────────────────────────────────────

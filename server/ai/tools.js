@@ -1,7 +1,7 @@
 // What the assistant does when asked to close an app: one program by its exact name, never
 // Windows' own or Xenon (ai-pc-apps.js decides).
 
-const aiPcApps = require('../ai-pc-apps.js');
+const aiPcApps = require('./ai-pc-apps.js');
 const { psEscape } = require('../ps-quote.js');
 const { execFile } = require('node:child_process');
 

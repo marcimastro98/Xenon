@@ -2,7 +2,7 @@
 // assistants, the local models, the balance, an action on the PC and the chime.
 
 const { readBody, readBodyBuffer } = require('../http/read-body.js');
-const aiTurns = require('../ai-turns.js');
+const aiTurns = require('./ai-turns.js');
 const { _pcControlEnabled } = require('./pc-control-switch.js');
 const { _pcActions, PC_ACTION_TTL_MS, PC_ACTION_TIMEOUT_MS } = require('./pc-actions.js');
 const { execFile } = require('node:child_process');
@@ -13,8 +13,8 @@ const aiLocal = require('../ai-local.js');
 const { chimeRequested } = require('./chime-play.js');
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { hub } = require('../settings/current.js');
-const { hasVoice, wavPcm } = require('../stt-voice-gate.js');
-const aiOpenai = require('../ai-openai.js');
+const { hasVoice, wavPcm } = require('./stt-voice-gate.js');
+const aiOpenai = require('./ai-openai.js');
 const { providerModelFor } = require('./provider-models.js');
 const path = require('node:path');
 

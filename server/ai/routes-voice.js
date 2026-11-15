@@ -3,17 +3,17 @@
 // and the messages behind its card.
 
 const aiLocal = require('../ai-local.js');
-const aiModels = require('../ai-models.js');
+const aiModels = require('./ai-models.js');
 const aiLocalServer = require('../ai-local-server.js');
 const { GEMINI_MODEL_KEYS } = require('./gemini-model-keys.js');
 const { PROVIDER_MODEL_KEYS, providerModelFor } = require('./provider-models.js');
 const { readBodyBuffer, readBody } = require('../http/read-body.js');
 const aiCli = require('../ai-cli.js');
-const aiOpenai = require('../ai-openai.js');
+const aiOpenai = require('./ai-openai.js');
 const https = require('node:https');
 const { pcmToWav } = require('../wav/pcm-to-wav.js');
 const { hub } = require('../settings/current.js');
-const wakeWord = require('../wakeword.js');
+const wakeWord = require('./wakeword.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { AI_LANG_NAMES, aiLangName } = require('../ai/prompt-language.js');
 const { SUPPORTED_LANGS } = require('../../packages/core/src/constants.js');
-const { transcriptionPrompt } = require('../stt-voice-gate.js');
+const { transcriptionPrompt } = require('../ai/stt-voice-gate.js');
 const lyrics = require('../media/lyrics-translate.js');
 
 test('the map names every language the app speaks, and nothing else', () => {

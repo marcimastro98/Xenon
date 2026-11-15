@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const G = require('../ai-tool-groups.js');
+const G = require('../ai/ai-tool-groups.js');
 
 const fn = (name) => ({ name, description: name, parameters: { type: 'OBJECT', properties: {} } });
 const grouped = Object.values(G.GROUPS).flatMap((g) => g.tools);
@@ -127,7 +127,7 @@ test('the real tool list: every grouped name exists, and the worst turn stays wi
 });
 
 test('the Anthropic loop (Sparks, Claude) sends a group from the round after use_tools', async () => {
-  const anthropic = require('../ai-anthropic.js');
+  const anthropic = require('../ai/ai-anthropic.js');
   const kit = G.kit(all(), []);
   const sent = [];
   const replies = [

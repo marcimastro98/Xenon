@@ -132,7 +132,7 @@
   // the normalizer into a stack overflow — folders past the cap are emptied.
   const DECK_MAX_FOLDER_DEPTH = 6;
   // What one package (bundle) code carries at most. Top-level so Node sees
-  // them too: the AI preset builder (server/ai-presets.js) checks against them.
+  // them too: the AI preset builder (server/ai/ai-presets.js) checks against them.
   const BUNDLE_MAX_WIDGETS = 12;
   const BUNDLE_MAX_DECKS = 6;
   // A deck code may embed the packages its keys reference (sdkMacro/sdkHandler/

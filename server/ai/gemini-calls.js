@@ -1,7 +1,7 @@
 // The single questions the engine puts to Gemini with the person's key: one answer, one answer
 // as JSON, a web search with its sources, and the words of a sound clip.
 
-const { transcriptionPrompt } = require('../stt-voice-gate.js');
+const { transcriptionPrompt } = require('./stt-voice-gate.js');
 const { aiLangName } = require('./prompt-language.js');
 const { AI_MODELS } = require('./models.js');
 const { _withGeminiModel, _geminiOneShotOnce } = require('./gemini-one-shot.js');

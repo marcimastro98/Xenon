@@ -14,12 +14,12 @@
 //   sdkEnabled                  → boolean, Community widgets switched on
 //   appVersion                  → string stamped into the code
 
-const PresetShare = require('./js/preset-share.js');
+const PresetShare = require('../js/preset-share.js');
 const { createReport, note, fail, summarize, isObject } = require('./ai-preset-diff.js');
 const { checkTheme, checkBg, checkPage, checkTopbar, knownFields, join } = require('./ai-preset-checks.js');
 const { checkWidgetEntry, checkIcons, checkAmbientLayout, checkWidgetList } = require('./ai-preset-packages.js');
 const { checkDeck } = require('./ai-preset-deck.js');
-const { presetReference } = require('./ai-preset-reference.js');
+const { presetReference } = require('../ai-preset-reference.js');
 const { critiquePreset } = require('./ai-preset-critique.js');
 const { resolvePictures, pictureProblem } = require('./ai-attached-pictures.js');
 

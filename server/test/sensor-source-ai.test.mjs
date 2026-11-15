@@ -1,4 +1,4 @@
-// Bit picks a sensor source (sensor_source tool, server/sensor-source-ai.js):
+// Bit picks a sensor source (sensor_source tool, server/ai/sensor-source-ai.js):
 // only from what this PC's collectors listed, of the type the reading needs,
 // and "auto" goes back to Automatic.
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const S = require('../sensor-source-ai.js');
+const S = require('../ai/sensor-source-ai.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const catalog = [

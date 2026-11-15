@@ -4,8 +4,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const creds = require('../ai-provider-creds.js');
-const anthropic = require('../ai-anthropic.js');
-const openai = require('../ai-openai.js');
+const anthropic = require('../ai/ai-anthropic.js');
+const openai = require('../ai/ai-openai.js');
 const aiLocal = require('../ai-local.js');
 
 test('sanitizeProvider accepts the four providers, defaults the rest to gemini', () => {

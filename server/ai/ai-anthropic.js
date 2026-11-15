@@ -13,7 +13,7 @@
 
 const { follow } = require('./ai-tool-groups');
 
-const { _post } = require('./ai/anthropic-http.js');
+const { _post } = require('./anthropic-http.js');
 
 const DEFAULT_CHAT_MODEL = 'claude-sonnet-5';
 const MAX_TOKENS = 2048;
@@ -35,7 +35,7 @@ const DEFAULTS = Object.freeze({ chat: DEFAULT_CHAT_MODEL });
 // `auto` moves across versions inside it and never between tiers.
 const ROLES = Object.freeze({ chat: { kind: 'chat', family: 'sonnet' } });
 
-const { FAMILIES, classify, listModels } = require('./ai/anthropic-models.js');
+const { FAMILIES, classify, listModels } = require('./anthropic-models.js');
 const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 
 // Anthropic model ids: lowercase letters, digits, dots, hyphens (e.g.
@@ -58,7 +58,7 @@ function sanitizeModel(value) {
   return 'auto';
 }
 
-const { geminiToolsToAnthropic, geminiHistoryToAnthropic } = require('./ai/anthropic-shapes.js');
+const { geminiToolsToAnthropic, geminiHistoryToAnthropic } = require('./anthropic-shapes.js');
 
 // Pull the plain-text answer out of a Claude response's content blocks.
 function _textFrom(content) {

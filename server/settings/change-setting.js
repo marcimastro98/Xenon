@@ -1,7 +1,7 @@
 // Changes one setting by its name on behalf of the assistant or a Deck key: read, change and
 // write inside the settings queue, then tell every dashboard.
 
-const SettingsAi = require('../settings-ai.js');
+const SettingsAi = require('../ai/settings-ai.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { nextSettingsRev } = require('../settings-rev.js');
 const { normalizeHubSettings } = require('./normalize-hub-settings.js');

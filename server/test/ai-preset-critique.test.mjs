@@ -8,9 +8,9 @@ import { createRequire } from 'node:module';
 import { loadServerSettingsSlice, serverDashboardWidgets } from './server-settings-slice.mjs';
 
 const require = createRequire(import.meta.url);
-const P = require('../ai-presets.js');
-const C = require('../ai-preset-critique.js');
-const Core = require('../ai-preset-critique-core.js');
+const P = require('../ai/ai-presets.js');
+const C = require('../ai/ai-preset-critique.js');
+const Core = require('../ai/ai-preset-critique-core.js');
 const CustomBg = require('../js/custom-bg.js');
 const DashboardInstances = require('../js/dashboard-instances.js');
 

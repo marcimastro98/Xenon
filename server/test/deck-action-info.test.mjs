@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const da = require('../js/deck-actions.js');
-const labels = require('../ai-creation-labels.js');
+const labels = require('../ai/ai-creation-labels.js');
 const I18N = appStringsSource();
 const EDITOR = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
 const CS = readFileSync(new URL('../js/custom-select.js', import.meta.url), 'utf8');

@@ -1,4 +1,4 @@
-// Bit presses a Deck action (run_deck_action, server/ai-deck-run.js): the same
+// Bit presses a Deck action (run_deck_action, server/ai/ai-deck-run.js): the same
 // validator as a key, risky types wait on a confirmation card, and the card
 // only ever sends back a nonce for an action the server stored itself.
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const run = require('../ai-deck-run.js');
+const run = require('../ai/ai-deck-run.js');
 const { ACTION_CATALOG } = require('../js/deck-actions.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 

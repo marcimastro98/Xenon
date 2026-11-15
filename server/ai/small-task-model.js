@@ -2,7 +2,7 @@
 
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const aiCli = require('../ai-cli.js');
-const aiModels = require('../ai-models.js');
+const aiModels = require('./ai-models.js');
 const { SMALL_TASK_FAMILY } = require('./small-task-models.js');
 const { geminiKeyFor } = require('./gemini-key-for.js');
 

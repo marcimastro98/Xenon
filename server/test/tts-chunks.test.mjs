@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { splitSentences, MAX } = require('../tts-chunks.js');
+const { splitSentences, MAX } = require('../ai/tts-chunks.js');
 
 // splitSentences powers the pipelined TTS: it breaks a reply into sentence-sized
 // chunks so the server can speak the first sentence while it synths the rest.

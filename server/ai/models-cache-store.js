@@ -5,9 +5,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { writeFileAtomic } = require('../atomic-write.js');
-const aiGemini = require('../ai-gemini.js');
-const aiOpenai = require('../ai-openai.js');
-const aiAnthropic = require('../ai-anthropic.js');
+const aiGemini = require('./ai-gemini.js');
+const aiOpenai = require('./ai-openai.js');
+const aiAnthropic = require('./ai-anthropic.js');
 const { normalizeEntry } = require('./model-ranking.js');
 const { modelsCache } = require('./models-cache-state.js');
 const { normalizeCatalog } = require('./ollama-catalog-read.js');

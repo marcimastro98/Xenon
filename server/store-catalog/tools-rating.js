@@ -1,11 +1,11 @@
 // What the assistant does when asked to vote something of the Store: the vote only counts after
 // the user approves it on a card.
 
-const aiSurface = require('../ai-surface.js');
+const aiSurface = require('../ai/ai-surface.js');
 const UsageMode = require('../js/usage-mode.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const aiRateStore = require('./ai-rate-store.js');
-const aiDeckRun = require('../ai-deck-run.js');
+const aiDeckRun = require('../ai/ai-deck-run.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

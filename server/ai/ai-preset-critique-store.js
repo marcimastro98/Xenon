@@ -5,7 +5,7 @@
 // checklist the human review follows (permissions against use, hidden or
 // dynamic code, loops that run while hidden); taste stays with the review.
 
-const { SDK_ACTION_CATEGORIES } = require('./sdk-widgets.js');
+const { SDK_ACTION_CATEGORIES } = require('../sdk-widgets.js');
 const { finding } = require('./ai-preset-critique-core.js');
 
 const quoted = (word) => new RegExp('[\'"`]' + word + '[\'"`]');

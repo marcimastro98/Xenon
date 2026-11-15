@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 // temp data dir per test. Covers add/dedup/cap, remove (id / key / substring),
 // clear, prompt formatting, and durable reload from disk.
 const require = createRequire(import.meta.url);
-const { createAiMemory, normalizeText, dedupKey } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'ai-memory.js'));
+const { createAiMemory, normalizeText, dedupKey } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'ai/ai-memory.js'));
 
 function freshDir() {
   return mkdtempSync(join(tmpdir(), 'xenon-mem-'));

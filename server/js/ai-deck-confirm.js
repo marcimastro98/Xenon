@@ -1,6 +1,6 @@
 'use strict';
 // The card for a Deck action Bit wants to run that needs the user's yes
-// (run_deck_action, server/ai-deck-run.js). It shows what will run and sends
+// (run_deck_action, server/ai/ai-deck-run.js). It shows what will run and sends
 // back only the nonce: the server runs the action it stored, never one read
 // from this page. Same look as the PC Control card (components/AIPanel).
 (function () {

@@ -3,7 +3,7 @@
 
 const aiLocal = require('../ai-local.js');
 const { readBody } = require('../http/read-body.js');
-const aiModels = require('../ai-models.js');
+const aiModels = require('./ai-models.js');
 const { whisperProbe } = require('./whisper-probe.js');
 const path = require('node:path');
 

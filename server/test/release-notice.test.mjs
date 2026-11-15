@@ -279,7 +279,7 @@ test('Bit can open What\'s New wherever the page that draws it runs', () => {
   assert.match(SERVER, /const CLIENT_ACTIONS = new Set\(\[[^\]]*'open_whats_new'/);
   assert.match(ai, /case 'open_whats_new':\s*if \(window\.XenonWhatsNew\) XenonWhatsNew\.reopen\(\);/);
   assert.match(update, /window\.XenonWhatsNew = \{[^}]*reopen: reopenWhatsNew/);
-  const surface = require('../ai-surface.js');
+  const surface = require('../ai/ai-surface.js');
   assert.equal(surface.SHEET_OK.has('open_whats_new'), true);
   // Widgets only: the alerts window has its own stage, so Bit does not ask for the dashboard.
   assert.equal(surface.clientActionRefusal('open_whats_new', 'screen', true), null);

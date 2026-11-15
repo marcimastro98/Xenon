@@ -2,7 +2,7 @@
 // that has to be JSON.
 
 const https = require('node:https');
-const { applyThinking } = require('../ai-gemini-thinking.js');
+const { applyThinking } = require('./ai-gemini-thinking.js');
 
 function _geminiWebSearchOnce(q, apiKey, model, thinking) {
   return new Promise((resolve, reject) => {

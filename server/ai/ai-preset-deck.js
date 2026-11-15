@@ -10,10 +10,10 @@
 // {type:'svg', value:'<svg…>'} which becomes an image data URI after the same
 // SVG safety check icon packs use; "pages" may sit at the top instead of in "root".
 
-const DeckModel = require('./js/deck-model.js');
-const DeckActions = require('./js/deck-actions.js');
-const PresetShare = require('./js/preset-share.js');
-const IconPacks = require('./store-catalog/icon-packs.js');
+const DeckModel = require('../js/deck-model.js');
+const DeckActions = require('../js/deck-actions.js');
+const PresetShare = require('../js/preset-share.js');
+const IconPacks = require('../store-catalog/icon-packs.js');
 const { note, fail, diffValue, isObject } = require('./ai-preset-diff.js');
 const { knownFields, join } = require('./ai-preset-checks.js');
 const { checkWidgetList } = require('./ai-preset-packages.js');

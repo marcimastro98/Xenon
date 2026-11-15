@@ -13,10 +13,10 @@
 // the return shape matches /api/ai's { text, clientActions, newContent } so the
 // client is provider-agnostic.
 
-const aiLocal = require('./ai-local');
+const aiLocal = require('../ai-local');
 const { follow } = require('./ai-tool-groups');
 
-const { OPENAI_BASE, _httpError, _post } = require('./ai/openai-http.js');
+const { OPENAI_BASE, _httpError, _post } = require('./openai-http.js');
 
 // Defaults are stable, broadly-available models: they are the OFFLINE fallback,
 // used when the live list is unreachable. What the user actually runs is resolved
@@ -251,7 +251,7 @@ async function tts({ apiKey, text, voice, model }) {
   return buf;
 }
 
-const { classify, listModels } = require('./ai/openai-models.js');
+const { classify, listModels } = require('./openai-models.js');
 
 module.exports = {
   DEFAULT_CHAT_MODEL,

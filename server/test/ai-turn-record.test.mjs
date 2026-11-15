@@ -8,8 +8,8 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const record = require('../ai-turn-record.js');
-const { geminiHistoryToAnthropic } = require('../ai-anthropic.js');
+const record = require('../ai/ai-turn-record.js');
+const { geminiHistoryToAnthropic } = require('../ai/ai-anthropic.js');
 const { geminiHistoryToOpenAI } = require('../ai-local.js');
 
 test('a reply with no tools stays a plain text message', () => {

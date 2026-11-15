@@ -5,7 +5,7 @@
 // (js/i18n/<code>.js through app-strings/tables.js), never copied, so the two
 // cannot drift.
 
-const Tables = require('./app-strings/tables.js');
+const Tables = require('../app-strings/tables.js');
 
 const KEYS = Object.freeze({
   models: ['haiku', 'sonnet', 'opus'].map((m) => [m, 'settings_xenon_model_' + m]),

@@ -15,8 +15,8 @@
 require('./supporter-redeem.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./sparks-wallet.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const welcomeSparks = require('./welcome-sparks.js');
-const aiAnthropic = require('../ai-anthropic.js');
-const aiTurns = require('../ai-turns');
+const aiAnthropic = require('../ai/ai-anthropic.js');
+const aiTurns = require('../ai/ai-turns');
 const startupLog = require('../startup-log');
 
 const {

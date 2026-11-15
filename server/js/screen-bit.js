@@ -10,7 +10,7 @@
 // so the memory goes back.
 //
 // window.AiSurface = 'screen' tells the server this turn has no dashboard: the
-// actions only a dashboard can do answer needs_dashboard (server/ai-surface.js).
+// actions only a dashboard can do answer needs_dashboard (server/ai/ai-surface.js).
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;

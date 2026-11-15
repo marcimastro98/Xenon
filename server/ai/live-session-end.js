@@ -1,7 +1,7 @@
 // Ends a live voice session: its timer, capture and connection are closed, the speaker volume
 // and the wake word are put back.
 
-const wakeWord = require('../wakeword.js');
+const wakeWord = require('./wakeword.js');
 const { liveVoice } = require('./live-voice-state.js');
 const { liveNow } = require('./live-session-state.js');
 const { _restoreSpeakerVolume } = require('../audio/speaker-duck.js');

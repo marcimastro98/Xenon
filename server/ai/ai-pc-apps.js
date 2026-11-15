@@ -15,7 +15,7 @@
 // confirmation card (PC Control).
 // close: one process by its exact name, never one of Windows' own or Xenon.
 
-const { normalizeUrl, isBlockedOpenPath, isAllowedAppPath } = require('./actions/registry');
+const { normalizeUrl, isBlockedOpenPath, isAllowedAppPath } = require('../actions/registry');
 
 const DRIVE_PATH = /^[a-z]:[\\/]/i;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;

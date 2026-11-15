@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const SettingsAi = require('../settings-ai.js');
+const SettingsAi = require('../ai/settings-ai.js');
 
 const SETTINGS = {
   mediaLyrics: true, lyricsTranslate: false, mediaVisualizer: 'off', hwTempUnit: 'auto',

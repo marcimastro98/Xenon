@@ -6,7 +6,7 @@
 const aiXenon = require('../store-supporters/ai-xenon-credits.js');
 const { nextSettingsRev } = require('../settings-rev.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const aiCreationLabels = require('../ai-creation-labels.js');
+const aiCreationLabels = require('../ai/ai-creation-labels.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

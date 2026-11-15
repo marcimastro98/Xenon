@@ -23,7 +23,7 @@
 
 const { spawn } = require('child_process');
 
-const { SAMPLE_RATE, _wdbg, _wavFromPcm, _createSegmenter } = require('./ai/wakeword-segmenter.js');
+const { SAMPLE_RATE, _wdbg, _wavFromPcm, _createSegmenter } = require('./wakeword-segmenter.js');
 const WAKE_COOLDOWN_MS = 8000;   // ignore everything right after a detection
 // NOTE: there is deliberately NO time floor between whisper runs. `_transcribing`
 // already makes transcription single-flight (one clip at a time), and MAX_SEGMENT_MS
@@ -67,7 +67,7 @@ function init(deps) {
   }
 }
 
-const { matchesWakeWord } = require('./ai/wakeword-match.js');
+const { matchesWakeWord } = require('./wakeword-match.js');
 
 async function _onSegment(pcm) {
   const durMs = Math.round(pcm.length / (SAMPLE_RATE * 2) * 1000);

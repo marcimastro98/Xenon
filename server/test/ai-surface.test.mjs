@@ -8,7 +8,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const { surfaceOf, clientActionRefusal, screenPerfChoice, SCREEN_OK, SHEET_OK } = require('../ai-surface.js');
+const { surfaceOf, clientActionRefusal, screenPerfChoice, SCREEN_OK, SHEET_OK } = require('../ai/ai-surface.js');
 
 test('only the exact screen value marks a turn as dashboard-less', () => {
   assert.equal(surfaceOf({ surface: 'screen' }), 'screen');

@@ -67,8 +67,8 @@ const { createCaptureCopy } = require('./capture-copy');
 require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager); nothing is taken from it here, but it runs code when it loads
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 require('./windows-tiles/tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
-require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
-require('./settings-ai'); // change_setting: the allowlisted Settings switches
+require('./ai/favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
+require('./ai/settings-ai'); // change_setting: the allowlisted Settings switches
 require('./grid/tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
 require('./vitals/vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
 const CaptureCovers = require('./capture-covers');
@@ -356,7 +356,7 @@ const winNotif = require('./winnotif');
 const { lowerPriority } = require('./child-priority');
 const { createMountedDisks } = require('./disk/mounted-disks');
 const calls = require('./calls');
-const wakeWord = require('./wakeword');
+const wakeWord = require('./ai/wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const signalrgb = require('./signalrgb');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
@@ -401,7 +401,7 @@ const { createFirstReading, createFactReader } = require('./system/first-reading
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
 require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
-require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
+require('./ai/sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
 require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
@@ -415,25 +415,25 @@ const ScreenSceneModel = require('./js/screen-scene-model.js'); // wallpaper + s
 require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai-local');
-const aiOpenai = require('./ai-openai');
+const aiOpenai = require('./ai/ai-openai');
 const aiLocalServer = require('./ai-local-server');
-const aiAnthropic = require('./ai-anthropic');
+const aiAnthropic = require('./ai/ai-anthropic');
 const aiXenon = require('./store-supporters/ai-xenon-credits');
 const welcomeSparks = require('./store-supporters/welcome-sparks');
-require('./ai-creation-labels'); // nothing is taken from it here, but deck/tools.js asks for it inside a function and would read it from disk then
-const aiTurns = require('./ai-turns');
-const aiMyWidgets = require('./ai-my-widgets');
+require('./ai/ai-creation-labels'); // nothing is taken from it here, but deck/tools.js asks for it inside a function and would read it from disk then
+const aiTurns = require('./ai/ai-turns');
+const aiMyWidgets = require('./ai/ai-my-widgets');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
-const aiGemini = require('./ai-gemini');
-const { withThinking, applyThinking } = require('./ai-gemini-thinking');
+const aiGemini = require('./ai/ai-gemini');
+const { withThinking, applyThinking } = require('./ai/ai-gemini-thinking');
 const { aiLangName } = require('./ai/prompt-language.js');
-const aiModels = require('./ai-models');
+const aiModels = require('./ai/ai-models');
 require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const { createGuardian } = require('./system/guardian');
 require('./battery');
-require('./ai-memory');
-const { createAiActionLog } = require('./ai-action-log');
-const aiLive = require('./ai-live');
+require('./ai/ai-memory');
+const { createAiActionLog } = require('./ai/ai-action-log');
+const aiLive = require('./ai/ai-live');
 require('./briefing');
 require('./time/ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
@@ -481,12 +481,12 @@ require('./store-catalog/community-installs'); // nothing is taken from it here,
 const supporterRedeem = require('./store-supporters/supporter-redeem');
 const widgetAutoUpdateLib = require('./store-catalog/widget-auto-update');   // Store widgets that update themselves (see its header)
 const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
-const aiPresets = require('./ai-presets');          // the assistant's create_preset / preset_reference tools
-const aiPictures = require('./ai-attached-pictures');  // pictures attached in the chat, placed inside creations
-const aiSurface = require('./ai-surface');  // Bit on the main screen with no dashboard (widgets only)
-const AiToolGroups = require('./ai-tool-groups'); // Bit's tools: a core + groups on demand (use_tools)
-const aiTurnRecord = require('./ai-turn-record');  // what Bit really did in a reply, kept in the chat history
-const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_deck_action)
+const aiPresets = require('./ai/ai-presets');          // the assistant's create_preset / preset_reference tools
+const aiPictures = require('./ai/ai-attached-pictures');  // pictures attached in the chat, placed inside creations
+const aiSurface = require('./ai/ai-surface');  // Bit on the main screen with no dashboard (widgets only)
+const AiToolGroups = require('./ai/ai-tool-groups'); // Bit's tools: a core + groups on demand (use_tools)
+const aiTurnRecord = require('./ai/ai-turn-record');  // what Bit really did in a reply, kept in the chat history
+const aiDeckRun = require('./ai/ai-deck-run');  // Bit presses a Deck action (run_deck_action)
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./performance/perf-screen');  // Performance Mode with no dashboard (widgets only)
 require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads

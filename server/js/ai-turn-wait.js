@@ -1,6 +1,6 @@
 // The wait on a long AI turn. A creation on Sonnet or Opus takes minutes, and
 // three dots for minutes read as a hang: the chat asks the server how far the
-// turn has got (GET /api/ai/turn, server/ai-turns.js) and says it, with the time
+// turn has got (GET /api/ai/turn, server/ai/ai-turns.js) and says it, with the time
 // spent. The turn id also stays in localStorage until its answer is handled, so
 // a chat that reloaded, or lost the connection on the way, picks the answer up
 // from the server and the widget it made still lands on the page.

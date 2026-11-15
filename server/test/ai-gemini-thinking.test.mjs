@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
-const { THINKING_STEPS, isThinkingRejection, applyThinking, withThinking } = require('../ai-gemini-thinking.js');
+const { THINKING_STEPS, isThinkingRejection, applyThinking, withThinking } = require('../ai/ai-gemini-thinking.js');
 
 // A fake model: refuses the settings in `refused` the way the API does.
 function fakeModel(refused, message = 'Request contains an invalid argument.') {

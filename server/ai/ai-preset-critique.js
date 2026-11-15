@@ -11,10 +11,10 @@
 // Taste is never judged. Layout, deck and shared pieces live in
 // ai-preset-critique-layout.js, -deck.js and -core.js.
 
-const PresetShare = require('./js/preset-share.js');
-const TopbarShare = require('./js/topbar-share.js');
-const CustomBg = require('./js/custom-bg.js');
-const themePalette = require('./js/theme-palette.js');
+const PresetShare = require('../js/preset-share.js');
+const TopbarShare = require('../js/topbar-share.js');
+const CustomBg = require('../js/custom-bg.js');
+const themePalette = require('../js/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding } = require('./ai-preset-critique-core.js');
 const { critiquePage, critiqueScene } = require('./ai-preset-critique-layout.js');
 const { critiqueDeck } = require('./ai-preset-critique-deck.js');
@@ -22,7 +22,7 @@ const { critiqueStoreRules } = require('./ai-preset-critique-store.js');
 const { critiqueTileFit } = require('./ai-preset-critique-fit.js');
 const { critiqueTileSwipe } = require('./ai-preset-critique-swipe.js');
 const { critiqueBgFrame, critiquePackageFrames } = require('./ai-preset-critique-perf.js');
-const { SDK_STREAMS } = require('./sdk-widgets.js');
+const { SDK_STREAMS } = require('../sdk-widgets.js');
 
 const MAX_FINDINGS = 20;
 // Code this close to the cap leaves no room for the next edit.

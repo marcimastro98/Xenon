@@ -1,7 +1,7 @@
 // Says which Gemini model a role uses now: the one chosen in Settings when there is one, else
 // the default for the key.
 
-const aiModels = require('../ai-models.js');
+const aiModels = require('./ai-models.js');
 const { GEMINI_MODEL_KEYS } = require('./gemini-model-keys.js');
 const { hub } = require('../settings/current.js');
 

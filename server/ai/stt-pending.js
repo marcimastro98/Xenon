@@ -2,7 +2,7 @@
 // ends a recording left open too long.
 
 const fs = require('node:fs');
-const wakeWord = require('../wakeword.js');
+const wakeWord = require('./wakeword.js');
 const { STT_MAX_AGE_MS } = require('./stt-gate.js');
 
 const _sttDeviceWaiters = [];

@@ -5,7 +5,7 @@
 // biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
 
 const { lockWorkstation } = require('../system/lock-workstation.js');
-const aiPcApps = require('../ai-pc-apps.js');
+const aiPcApps = require('./ai-pc-apps.js');
 const remoteActions = require('../paired/remote-actions.js');
 const { openOnThisPc } = require('./open-on-this-pc.js');
 const { issuePcAction } = require('./pc-actions.js');

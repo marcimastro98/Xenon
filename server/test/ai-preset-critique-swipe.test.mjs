@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const { critiqueTileSwipe } = require('../ai-preset-critique-swipe.js');
+const { critiqueTileSwipe } = require('../ai/ai-preset-critique-swipe.js');
 
 test('what stops the sideways drag is named, with the fix', () => {
   for (const css of [
@@ -31,6 +31,6 @@ test('a list that holds only its vertical scroll is fine', () => {
 });
 
 test('tiles are checked, full-screen Ambient scenes are not', () => {
-  const source = readFileSync(new URL('../ai-preset-critique.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../ai/ai-preset-critique.js', import.meta.url), 'utf8');
   assert.match(source, /entry\.surface !== 'ambient'\) out\.push\(.*critiqueTileSwipe\(text\)/);
 });
