@@ -786,6 +786,7 @@
       "what": "Reminders to take a break, and Bit as a pet that reacts to the PC.",
       "files": [
         "server/vitals/**",
+        "server/vitals-*.js",
         "server/vitals-nag.ps1",
         "server/js/vitals-pet/**",
         "server/js/vitals*.js",
