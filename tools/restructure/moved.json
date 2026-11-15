@@ -233,7 +233,8 @@
     {"from":"server/winnotif.js","to":"server/notification-open/winnotif.js"},
     {"from":"server/remote-https.js","to":"server/paired/remote-https.js"},
     {"from":"server/fpsmon.js","to":"server/performance/fpsmon.js"},
-    {"from":"server/gamedetect.js","to":"server/performance/gamedetect.js"}
+    {"from":"server/gamedetect.js","to":"server/performance/gamedetect.js"},
+    {"from":"server/session-watch.js","to":"server/platform/session-watch.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -270,6 +271,7 @@
     {"feature":"notifications","glob":"server/linux-notif.js","at":2},
     {"feature":"paired","glob":"server/remote-https*.js","at":2},
     {"feature":"performance","glob":"server/fps*.js","at":5},
-    {"feature":"performance","glob":"server/gamedetect.js","at":6}
+    {"feature":"performance","glob":"server/gamedetect.js","at":6},
+    {"feature":"platform","glob":"server/session-watch.js","at":3}
   ]
 }

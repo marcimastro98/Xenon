@@ -119,7 +119,7 @@ The native programs around the engine, and the code that differs per operating s
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Per-system readers** | What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact. | `server/platform/**` `server/linux-collectors.js` `server/darwin-collectors.js` `server/session-watch.js` `server/session-watch.ps1` |
+| **Per-system readers** | What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact. | `server/platform/**` `server/linux-collectors.js` `server/darwin-collectors.js` `server/session-watch.ps1` |
 | **The app** | The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop. | `apps/native/**` |
 | **The capture program** | A Rust program for screenshots and recordings with the system's own capture; the engine starts it when needed. | `apps/capture/**` `tools/build-capture.mjs` |
 | **Helper for Windows** | A small C# program for media, windows, audio levels and the file index. | `helper/**` |

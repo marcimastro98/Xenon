@@ -13,9 +13,9 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
-const { createLinuxSessionWatch } = require('./platform/linux-session-watch');
+const { createLinuxSessionWatch } = require('./linux-session-watch');
 
-const SCRIPT = path.join(__dirname, 'session-watch.ps1');
+const SCRIPT = path.join(__dirname, '..', 'session-watch.ps1');
 const RESPAWN_MS = 15000;          // a host that died is started again, never in a tight loop
 const EVENTS = new Set(['ending', 'suspend', 'resume']);
 const NEEDS_ACK = new Set(['ending', 'suspend']);

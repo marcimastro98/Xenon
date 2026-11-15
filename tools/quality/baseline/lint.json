@@ -1524,7 +1524,7 @@
     "server/server.js suspicious/noAssignInExpressions": 5,
     "server/server.js suspicious/noUselessEscapeInString": 1,
     "server/server.js suspicious/useIterableCallbackReturn": 1,
-    "server/session-watch.js suspicious/noAssignInExpressions": 1,
+    "server/platform/session-watch.js suspicious/noAssignInExpressions": 1,
     "server/settings/backup-secrets.js complexity/useOptionalChain": 3,
     "server/settings/backup-uploads.js complexity/useOptionalChain": 2,
     "server/settings/keep-stored-on-save.js complexity/useOptionalChain": 17,

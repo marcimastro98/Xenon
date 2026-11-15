@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { createLinuxSessionWatch, gdbusParser, dbusMonitorParser, LOCK_ARGS, MONITORS } = require('../platform/linux-session-watch.js');
-const { createSessionWatch } = require('../session-watch.js');
+const { createSessionWatch } = require('../platform/session-watch.js');
 
 const RESPAWN_MS = 15000;
 const GDBUS = (member, value) => `/org/freedesktop/login1: org.freedesktop.login1.Manager.${member} (${value},)\n`;

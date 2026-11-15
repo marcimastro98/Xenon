@@ -377,7 +377,7 @@ try {
   });
 } catch { /* platform without one */ }
 const lighting = require('./lights/lighting');
-require('./session-watch');
+require('./platform/session-watch');
 const deckStore = require('./js/store-catalog/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals/vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads

@@ -3,7 +3,7 @@
 // drives lights.
 
 const lighting = require('../lights/lighting.js');
-const { createSessionWatch } = require('../session-watch.js');
+const { createSessionWatch } = require('./session-watch.js');
 
 // Shutdown / restart / sleep: switch off the lights Xenon drives itself first
 // (session-watch.js says why node cannot see these on its own). Runs only

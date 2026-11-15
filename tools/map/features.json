@@ -863,7 +863,6 @@
         "server/platform/**",
         "server/linux-collectors.js",
         "server/darwin-collectors.js",
-        "server/session-watch.js",
         "server/session-watch.ps1"
       ]
     },

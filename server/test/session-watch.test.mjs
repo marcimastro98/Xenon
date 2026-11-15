@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createSessionWatch, parseEvent, SCRIPT } = require('../session-watch.js');
+const { createSessionWatch, parseEvent, SCRIPT } = require('../platform/session-watch.js');
 const keyLook = require('../lights/lighting-key-look.js');
 const P = require('../lighting-native/fusion2-protocol.js');
 const { Fusion2Controller } = require('../lighting-native/fusion2.js');
