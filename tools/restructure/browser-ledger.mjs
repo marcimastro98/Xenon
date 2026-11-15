@@ -28,7 +28,8 @@ const NOTE = 'What tools/restructure took out of which browser file, in order. W
  *   new script is handed, when it is made in that form: browser-inner-handed.mjs; `hand: true` when a person cut the script and wrote the line:
  *   `browser verify` cannot redo such a move and does not try, the standing check reads the script like any other in the handed form, and only
  *   the rule that keeps a decision in its script is not asked of it, because a person judged that; `inside: '<function>'` on a hand cut whose
- *   lines stood in that function of the script and not in its wrapper: browser-inside.mjs writes it, browser-inside-proof.mjs is its standing check).
+ *   lines stood in that function of the script and not in its wrapper: browser-inside.mjs writes it, browser-inside-proof.mjs is its standing check;
+ *   `waits: ['<call>']` beside it names calls a person read and found to keep the function they are given for later, as a listener does).
  */
 export function readBrowserLedger(root) {
   try {
@@ -86,11 +87,11 @@ export const innerFilesOf = (ledger, file) => ledger.moves.filter((move) => move
 
 /**
  * @param {{ moves: any[] }} ledger @param {string} file
- * @returns {{ file: string, hand: boolean, inside: string | null, name: string }[]} the same scripts, each with whether a person cut it, the
+ * @returns {{ file: string, hand: boolean, inside: string | null, name: string, waits: string[] }[]} the same scripts, each with whether a person cut it, the
  *   function it was cut out of when it is not the wrapper (browser-inside.mjs), and its name on window
  */
 export const innerPartsOf = (ledger, file) => ledger.moves.filter((move) => move.kind === 'inner' && move.from === file)
-  .map((move) => ({ file: move.file, hand: move.hand === true, inside: move.inside ?? null, name: move.name }));
+  .map((move) => ({ file: move.file, hand: move.hand === true, inside: move.inside ?? null, name: move.name, waits: move.waits ?? [] }));
 
 /** @param {{ moves: any[] }} ledger @returns {string[]} every script or stylesheet something was taken out of */
 export function splitFiles(ledger) {

@@ -55,10 +55,10 @@ const span = (text, first, last) => [lineOf(text, first), lineOf(text, last)];
 const reasonsOf = (run) => { try { run(); } catch (error) { if (error instanceof Refusal) return error.reasons; throw error; } return []; };
 
 // Plans a cut, writes the two texts and asks the standing check.
-function cutAndCheck(text, ranges, at) {
+function cutAndCheck(text, ranges, at, waits = []) {
   const worked = planInside({ text, from: FROM, inside: 'open', ranges, at, parser });
-  const cut = cutByHand({ text, from: FROM, to: TO, about: 'The rows of the sample window.', ranges, ...worked, inside: 'open' });
-  const problems = insideStateProblems({ source: FROM, text: cut.newSource, parts: [{ file: TO, text: cut.targetText, inside: 'open', name: cut.record.name }], parser });
+  const cut = cutByHand({ text, from: FROM, to: TO, about: 'The rows of the sample window.', ranges, ...worked, inside: 'open', waits });
+  const problems = insideStateProblems({ source: FROM, text: cut.newSource, parts: [{ file: TO, text: cut.targetText, inside: 'open', name: cut.record.name, waits: cut.record.waits }], parser });
   return { worked, cut, problems };
 }
 
@@ -118,6 +118,16 @@ test('the check refuses a name that can be reached before the line that takes it
   assert.match(cutAndCheck(each, rows(each)).problems.join('\n'), /can reach row before the line that takes it/);
   const waiting = SOURCE.replace("    box.addEventListener('click', () => paint());", "    box.addEventListener('click', paint);\n    setTimeout(() => row('later'), 10);");
   assert.deepEqual(cutAndCheck(waiting, rows(waiting)).problems, []);
+});
+
+test('a call a person read and named in the record waits like a listener, and only that call', { skip: SKIP }, () => {
+  const rows = (text) => [[lineOf(text, '// Builds one row.'), lineOf(text, '}')]];
+  const kept = SOURCE.replace("    box.addEventListener('click', () => paint());", '    keepForLater(box, () => paint());');
+  assert.match(cutAndCheck(kept, rows(kept)).problems.join('\n'), /can reach row before the line that takes it/);
+  const read = cutAndCheck(kept, rows(kept), undefined, ['keepForLater']);
+  assert.deepEqual(read.problems, []);
+  assert.deepEqual(read.cut.record.waits, ['keepForLater']);
+  assert.match(cutAndCheck(kept, rows(kept), undefined, ['other']).problems.join('\n'), /can reach row before/);
 });
 
 test('a `const` could not be used above its own line before either, so the check does not ask who reaches it', { skip: SKIP }, () => {

@@ -77,8 +77,8 @@ test('verify does not redo a hand cut, a tool move cannot be asked to, and the r
   const ledger = { moves: [MOVE] };
   assert.deepEqual(runOf(ledger, FILE), [ROWS, FILE]);
   assert.deepEqual(innerFilesOf(ledger, FILE), [ROWS]);
-  assert.deepEqual(innerPartsOf(ledger, FILE), [{ file: ROWS, hand: true, inside: null, name: 'LeafRows' }]);
-  assert.deepEqual(innerPartsOf({ moves: [{ ...MOVE, hand: undefined }] }, FILE), [{ file: ROWS, hand: false, inside: null, name: 'LeafRows' }]);
+  assert.deepEqual(innerPartsOf(ledger, FILE), [{ file: ROWS, hand: true, inside: null, name: 'LeafRows', waits: [] }]);
+  assert.deepEqual(innerPartsOf({ moves: [{ ...MOVE, hand: undefined }] }, FILE), [{ file: ROWS, hand: false, inside: null, name: 'LeafRows', waits: [] }]);
 });
 
 test('the cutting step moves the chosen lines as they are, writes the script in the handed form, and writes nothing the standing check refuses', (t) => {

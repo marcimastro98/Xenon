@@ -51,10 +51,11 @@ const blank = (line) => line.trim() === '';
  * @param {object} cut @param {string} cut.text the old script @param {string} cut.from its path @param {string} cut.to the new script's path
  * @param {string} cut.about one sentence @param {number[][]} cut.ranges [first, last] lines of the old script, from 1, in the order they are taken
  * @param {string[]} [cut.hands] @param {Record<string, string[]>} [cut.takes] @param {string[]} cut.gives @param {number} [cut.at]
+ * @param {string[]} [cut.waits] with `inside`: calls of the function that keep the function they are given for later, as a person read them
  * @param {string | null} [cut.inside] the function the lines stand in, when they are cut out of one (browser-inside.mjs): it is written in the record
  * @returns {{ newSource: string, targetText: string, record: any }} throws a Refusal with every reason when the plan cannot be a cut
  */
-export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {}, gives, at = ranges[0]?.[0], inside: fn = null }) {
+export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {}, gives, at = ranges[0]?.[0], inside: fn = null, waits = [] }) {
   const name = windowNameOf(from, to);
   const lines = text.split('\n');
   const reasons = [];
@@ -100,7 +101,7 @@ export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {
   });
   if (reasons.length) throw new Refusal(reasons);
   const taken = Object.keys(takes).length ? { takes } : {};
-  return { newSource: kept.join('\n'), targetText, record: { kind: 'inner', from, file: to, about, names: gives, gives, name, ...taken, ...(hands.length ? { hands } : {}), hand: true, ...(fn ? { inside: fn } : {}) } };
+  return { newSource: kept.join('\n'), targetText, record: { kind: 'inner', from, file: to, about, names: gives, gives, name, ...taken, ...(hands.length ? { hands } : {}), hand: true, ...(fn ? { inside: fn } : {}), ...(fn && waits.length ? { waits } : {}) } };
 }
 
 const LEDGER = 'tools/restructure/extracted-browser.json';

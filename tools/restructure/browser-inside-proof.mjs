@@ -15,7 +15,7 @@
 //   used above its own lines: so nothing that runs before the taking line may use one.
 //   What runs before it: the function's own lines above it, a function written in a call
 //   (but for a listener, a timer or what follows a promise, which wait), and every named
-//   function those reach. A name that was a `const`, a `let` or a class could not be used
+//   function those reach. A call the record names in `waits` waits too: a person read it. A name that was a `const`, a `let` or a class could not be used
 //   above its own line before either, so only the names that were functions or `var` are asked.
 //
 // A listener set off on purpose above the taking line (`.click()`, `dispatchEvent`) is
@@ -112,14 +112,15 @@ function takingLine(read, fn, name, K) {
 }
 
 // Whether a place in `fn` may run before the taking line.
-function runsBefore(read, fn, taking, K) {
+function runsBefore(read, fn, taking, K, kept) {
   const limit = taking.end;
   const outermost = (node) => { let found = null; for (let at = node.parent; at && at !== fn; at = at.parent) if (read.isFunction(at)) found = at; return found; };
   const waits = (node) => {
     const call = node.parent;
     if (!call || call.kind !== K.CallExpression || !call.arguments.includes(node)) return false;
     const callee = call.expression;
-    return WAITS.has(callee.kind === K.PropertyAccessExpression ? callee.name.text : callee.kind === K.Identifier ? callee.text : '');
+    const name = callee.kind === K.PropertyAccessExpression ? callee.name.text : callee.kind === K.Identifier ? callee.text : '';
+    return WAITS.has(name) || kept.has(name);
   };
   // A function with a name runs when something that runs names it; one written in a call that keeps it waits; any other runs where it stands.
   const named = new Map();
@@ -150,7 +151,7 @@ function runsBefore(read, fn, taking, K) {
 }
 
 /**
- * @param {{ source: string, text: string, parts: { file: string, text: string, inside?: string | null, name?: string }[], parser: any }} job
+ * @param {{ source: string, text: string, parts: { file: string, text: string, inside?: string | null, name?: string, waits?: string[] }[], parser: any }} job
  *   every script made of `source`, in the order a page loads them; the ones with `inside` are read here
  * @returns {string[]}
  */
@@ -188,7 +189,7 @@ export function insideStateProblems({ source, text, parts, parser }) {
     for (const name of made.free) {
       if (!handed.has(name) && read.resolve(name, statement)) problems.push(`${part.file} uses ${name} of ${source} and is not handed it`);
     }
-    const before = runsBefore(read, fn, statement, K);
+    const before = runsBefore(read, fn, statement, K, new Set(part.waits ?? []));
     const taken = new Set(taking.gives.map((name) => read.resolve(name, fn.body)).filter((binding) => binding && binding.pos === read.startOf(statement)));
     for (const use of read.uses) {
       if (taken.has(use.binding) && use.write) problems.push(`${source}:${read.lineOf(use.pos)} writes to ${use.name}, which it took from ${part.file}: the script would keep its own`);

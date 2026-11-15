@@ -9,7 +9,8 @@
 // The plan: { "from": "server/js/leaf.js", "to": "server/js/leaf/rows.js", "about": "One sentence.",
 //   "inside": "open",                            the function the lines stand in: one declaration, right in the wrapper
 //   "ranges": [[120, 148], [160, 171]],          lines of the old script, from 1, whole statements of that function, top to bottom
-//   "at": 120 }                                  the line the taking line stands above (default: the first range)
+//   "at": 120,                                   the line the taking line stands above (default: the first range)
+//   "waits": ["buildCard"] }                     calls you read and found to keep the function they are given for later (default: none)
 //
 // The tool works out what the lines are handed (every name of the function or the wrapper
 // they use) and what they give back (every name they declare that the rest of the function
@@ -89,7 +90,7 @@ export function planInside({ text, from, inside, ranges, at = ranges?.[0]?.[0], 
 
 async function main(argv) {
   const planFile = argv.find((word) => !word.startsWith('--'));
-  if (!planFile) { console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 12).map((line) => line.replace(/^\/\/ ?/, '')).join('\n')); return 2; }
+  if (!planFile) { console.error(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 13).map((line) => line.replace(/^\/\/ ?/, '')).join('\n')); return 2; }
   const dryRun = argv.includes('--dry-run');
   const plan = JSON.parse(readFileSync(planFile, 'utf8'));
   const parser = await openParser();
