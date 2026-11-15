@@ -66,26 +66,23 @@ const MACMON_MAX_FAILURES = 3;
 // second one must not blank the temperature tiles until the next restart. One
 // spawn every few minutes is cheap enough to keep the door open.
 const MACMON_RETRY_MS = 5 * 60 * 1000;
-let macmonCache = { data: { cpuTemp: null, gpu: null, gpuTemp: null }, at: 0 };
-let macmonInFlight = null;
-let macmonFailures = 0;
-let macmonNextTry = 0;
+const { held } = require('./platform/darwin-held.js');
 
 function refreshMacmon() {
-  if (macmonInFlight) return macmonInFlight;
-  if (macmonFailures >= MACMON_MAX_FAILURES && Date.now() < macmonNextTry) return null;
-  macmonInFlight = runSoft('macmon', ['pipe', '-s', '1', '-i', String(MACMON_SAMPLE_MS)], 8000)
+  if (held.macmonInFlight) return held.macmonInFlight;
+  if (held.macmonFailures >= MACMON_MAX_FAILURES && Date.now() < held.macmonNextTry) return null;
+  held.macmonInFlight = runSoft('macmon', ['pipe', '-s', '1', '-i', String(MACMON_SAMPLE_MS)], 8000)
     .then((out) => {
       if (out === null) {
-        macmonFailures++;
-        if (macmonFailures >= MACMON_MAX_FAILURES) macmonNextTry = Date.now() + MACMON_RETRY_MS;
+        held.macmonFailures++;
+        if (held.macmonFailures >= MACMON_MAX_FAILURES) held.macmonNextTry = Date.now() + MACMON_RETRY_MS;
         return;
       }
-      macmonFailures = 0;
-      macmonCache = { data: parseMacmon(out), at: Date.now() };
+      held.macmonFailures = 0;
+      held.macmonCache = { data: parseMacmon(out), at: Date.now() };
     })
-    .finally(() => { macmonInFlight = null; });
-  return macmonInFlight;
+    .finally(() => { held.macmonInFlight = null; });
+  return held.macmonInFlight;
 }
 
 // --- the native helper: the same three numbers, with nothing to install -----
@@ -99,37 +96,26 @@ const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper');
 
 const HELPER_MAX_FAILURES = 3;
 const HELPER_RETRY_MS = 5 * 60 * 1000;
-let helperFailures = 0;
-let helperNextTry = 0;
-
-// A spawn that fails is the helper being absent, unsigned or broken, and it
-// will fail identically for every mode — so that pin is SHARED, and one probe
-// every five minutes is what an install without the helper costs. A mode that
-// runs and answers "I cannot read this" is a different thing entirely and must
-// not pin the others out: an Intel Mac reads no HID sensors and still has a
-// perfectly good app switcher, which is why `temps` keeps its own counter for
-// the fall-through to macmon below.
-let helperDownUntil = 0;
 
 async function runHelper(args, timeoutMs) {
-  if (Date.now() < helperDownUntil) return null;
+  if (Date.now() < held.helperDownUntil) return null;
   const out = await runSoft(HELPER_EXE, args, timeoutMs);
-  if (out === null) { helperDownUntil = Date.now() + HELPER_RETRY_MS; return null; }
+  if (out === null) { held.helperDownUntil = Date.now() + HELPER_RETRY_MS; return null; }
   return out;
 }
 
 async function readHelperTemps() {
-  if (helperFailures >= HELPER_MAX_FAILURES && Date.now() < helperNextTry) return null;
+  if (held.helperFailures >= HELPER_MAX_FAILURES && Date.now() < held.helperNextTry) return null;
   // A one-shot read of two registries: fast, and a timeout here means something
   // is wrong rather than something is slow.
   const out = await runHelper(['temps'], 4000);
   const parsed = out === null ? null : parseHelperTemps(out);
   if (parsed === null) {
-    helperFailures++;
-    if (helperFailures >= HELPER_MAX_FAILURES) helperNextTry = Date.now() + HELPER_RETRY_MS;
+    held.helperFailures++;
+    if (held.helperFailures >= HELPER_MAX_FAILURES) held.helperNextTry = Date.now() + HELPER_RETRY_MS;
     return null;
   }
-  helperFailures = 0;
+  held.helperFailures = 0;
   return parsed;
 }
 
@@ -139,22 +125,21 @@ async function readHelperTemps() {
 // whichever happened to run.
 const SENSOR_TTL_MS = 2500;
 const EMPTY_SENSORS = { cpuTemp: null, gpu: null, gpuTemp: null, vramUsed: null, cpuClockMHz: null, gpuClockMHz: null };
-let sensorCache = { data: { ...EMPTY_SENSORS }, at: 0 };
-let sensorInFlight = null;
+held.sensorCache = { data: { ...EMPTY_SENSORS }, at: 0 };
 
 function refreshSensors() {
-  if (sensorInFlight) return sensorInFlight;
-  sensorInFlight = (async () => {
+  if (held.sensorInFlight) return held.sensorInFlight;
+  held.sensorInFlight = (async () => {
     const helper = await readHelperTemps();
     if (helper && helper.cpuTemp !== null && helper.gpu !== null && helper.gpuTemp !== null) {
       // Complete for everything the helper can answer. It reads no clocks, and
       // spawning macmon purely for them would undo the point of this shortcut —
       // so they stay null here rather than costing a process every 2.5 seconds.
-      sensorCache = { data: { ...helper, cpuClockMHz: null, gpuClockMHz: null }, at: Date.now() };
+      held.sensorCache = { data: { ...helper, cpuClockMHz: null, gpuClockMHz: null }, at: Date.now() };
       return;                       // complete: macmon is not spawned at all
     }
     await refreshMacmon();
-    const mac = macmonCache.data;
+    const mac = held.macmonCache.data;
     const pick = (a, b) => (a !== null && a !== undefined ? a : (b ?? null));
     const merged = {
       cpuTemp: pick(helper && helper.cpuTemp, mac.cpuTemp),
@@ -165,16 +150,16 @@ function refreshSensors() {
       cpuClockMHz: mac.cpuClockMHz ?? null,
       gpuClockMHz: mac.gpuClockMHz ?? null,
     };
-    sensorCache = { data: merged, at: Date.now() };
+    held.sensorCache = { data: merged, at: Date.now() };
   })().catch(() => { /* keep the previous sample */ })
-    .finally(() => { sensorInFlight = null; });
-  return sensorInFlight;
+    .finally(() => { held.sensorInFlight = null; });
+  return held.sensorInFlight;
 }
 
 // Never awaited on the request path: serve the last sample, refresh behind it.
 function liveSensors() {
-  if (Date.now() - sensorCache.at > SENSOR_TTL_MS) refreshSensors();
-  return sensorCache.data;
+  if (Date.now() - held.sensorCache.at > SENSOR_TTL_MS) refreshSensors();
+  return held.sensorCache.data;
 }
 
 // --- GPU: name/VRAM from system_profiler, load/temp from macmon -------------
@@ -184,14 +169,13 @@ const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vra
 
 const { parseDisplaysJson } = require('./platform/darwin-displays.js');
 
-let gpuStaticPromise = null;
 function gpuStatic() {
-  if (!gpuStaticPromise) {
-    gpuStaticPromise = runSoft('system_profiler', ['SPDisplaysDataType', '-json'], 15000)
+  if (!held.gpuStaticPromise) {
+    held.gpuStaticPromise = runSoft('system_profiler', ['SPDisplaysDataType', '-json'], 15000)
       .then((out) => (out === null ? { gpuName: null, vramTotal: null } : parseDisplaysJson(out)))
       .catch(() => ({ gpuName: null, vramTotal: null }));
   }
-  return gpuStaticPromise;
+  return held.gpuStaticPromise;
 }
 
 async function gpu() {
@@ -299,55 +283,45 @@ const {
   SAS_MISSING_RETRY_MS, withCurrentOutput, AUDIO_ROWS_TTL_MS, isCaptureTarget, AUDIO_PROBE_RETRY_MS,
 } = require('./platform/darwin-audio.js');
 
-let audioDevicesCache = { data: null, at: 0 };
-let audioDevicesInFlight = null;
 
 function audioDevices() {
-  const fresh = audioDevicesCache.data && (Date.now() - audioDevicesCache.at) < AUDIO_DEVICES_TTL_MS;
-  if (fresh) return Promise.resolve(audioDevicesCache.data);
-  if (!audioDevicesInFlight) {
-    audioDevicesInFlight = runSoft('system_profiler', ['SPAudioDataType', '-json'], 15000)
+  const fresh = held.audioDevicesCache.data && (Date.now() - held.audioDevicesCache.at) < AUDIO_DEVICES_TTL_MS;
+  if (fresh) return Promise.resolve(held.audioDevicesCache.data);
+  if (!held.audioDevicesInFlight) {
+    held.audioDevicesInFlight = runSoft('system_profiler', ['SPAudioDataType', '-json'], 15000)
       .then((out) => {
         const data = out === null ? { outputs: [], inputs: [] } : parseAudioDevices(out);
-        audioDevicesCache = { data, at: Date.now() };
+        held.audioDevicesCache = { data, at: Date.now() };
         return data;
       })
       .catch(() => ({ outputs: [], inputs: [] }))
-      .finally(() => { audioDevicesInFlight = null; });
+      .finally(() => { held.audioDevicesInFlight = null; });
   }
-  return audioDevicesInFlight;
+  return held.audioDevicesInFlight;
 }
 
 
-let sasMissingAt = 0;
 async function currentOutputName() {
-  if (sasMissingAt && Date.now() - sasMissingAt < SAS_MISSING_RETRY_MS) return null;
+  if (held.sasMissingAt && Date.now() - held.sasMissingAt < SAS_MISSING_RETRY_MS) return null;
   const out = await runSoft('SwitchAudioSource', ['-c', '-t', 'output'], 3000);
-  if (out === null) { sasMissingAt = Date.now(); return null; }
-  sasMissingAt = 0;
+  if (out === null) { held.sasMissingAt = Date.now(); return null; }
+  held.sasMissingAt = 0;
   return String(out).trim() || null;
 }
 
-let audioRowsCache = { rows: null, at: 0 };
-
 async function audioRows() {
   const now = Date.now();
-  if (audioRowsCache.rows && (now - audioRowsCache.at) < AUDIO_ROWS_TTL_MS) {
-    return audioRowsCache.rows;
+  if (held.audioRowsCache.rows && (now - held.audioRowsCache.at) < AUDIO_ROWS_TTL_MS) {
+    return held.audioRowsCache.rows;
   }
   const settings = await osa('get volume settings', 5000);
   // Let a failed read surface: an empty-but-working mixer would be a lie.
   if (settings === null) throw new Error('osascript volume read failed');
   const devices = withCurrentOutput(await audioDevices(), await currentOutputName());
   const rows = buildAudioRows(devices, parseVolumeSettings(settings));
-  audioRowsCache = { rows, at: Date.now() };
+  held.audioRowsCache = { rows, at: Date.now() };
   return rows;
 }
-
-// macOS has no shell-reachable input mute, so a muted microphone is one held at
-// zero. The pre-mute level is remembered here to restore it, the way the volume
-// slider itself would.
-let lastInputVolume = 75;
 
 // Map one SoundVolumeView invocation onto osascript. args mirror the SVV CLI.
 // Throws when the action cannot be performed, so the caller reports a failure
@@ -366,13 +340,13 @@ async function audioCommand(args) {
   const capture = isCaptureTarget(target, devices);
   const scope = capture ? 'input volume' : 'output volume';
   // A level change must be visible on the very next read, not up to a TTL later.
-  audioRowsCache = { rows: null, at: 0 };
+  held.audioRowsCache = { rows: null, at: 0 };
 
   if (action === '/SetVolume') {
     // The absolute actions need no read-back, and a Deck key held down would
     // otherwise pay for two osascript spawns per repeat instead of one.
     const pct = Math.max(0, Math.min(100, parseInt(list[2], 10) || 0));
-    if (capture && pct > 0) lastInputVolume = pct;
+    if (capture && pct > 0) held.lastInputVolume = pct;
     await osaWrite(`set volume ${scope} ${pct}`, 5000);
     return;
   }
@@ -385,7 +359,7 @@ async function audioCommand(args) {
   if (action === '/ChangeVolume') {
     const step = parseInt(list[2], 10) || 0;
     const next = Math.max(0, Math.min(100, (level || 0) + step));
-    if (capture && next > 0) lastInputVolume = next;
+    if (capture && next > 0) held.lastInputVolume = next;
     await osaWrite(`set volume ${scope} ${next}`, 5000);
     return;
   }
@@ -393,8 +367,8 @@ async function audioCommand(args) {
     const muted = capture ? (level === 0) : current.muted;
     const wantMuted = action === '/Switch' ? !muted : action === '/Mute';
     if (capture) {
-      if (wantMuted && level > 0) lastInputVolume = level;
-      await osaWrite(`set volume input volume ${wantMuted ? 0 : lastInputVolume}`, 5000);
+      if (wantMuted && level > 0) held.lastInputVolume = level;
+      await osaWrite(`set volume input volume ${wantMuted ? 0 : held.lastInputVolume}`, 5000);
     } else {
       await osaWrite(`set volume ${wantMuted ? 'with' : 'without'} output muted`, 5000);
     }
@@ -407,22 +381,20 @@ async function audioCommand(args) {
     const out = await runSoft('SwitchAudioSource',
       ['-t', capture ? 'input' : 'output', '-s', target], 5000);
     if (out === null) throw new Error('device switching needs SwitchAudioSource (brew install switchaudio-osx)');
-    audioDevicesCache = { data: null, at: 0 };
+    held.audioDevicesCache = { data: null, at: 0 };
     return;
   }
   throw new Error(`unsupported audio action "${action}"`);
 }
 
-let _audioProbe = null;
-let _audioProbeAt = 0;
 async function audioAvailable() {
-  if (_audioProbe !== null) {
-    const ok = await _audioProbe;
-    if (ok || Date.now() - _audioProbeAt <= AUDIO_PROBE_RETRY_MS) return ok;
+  if (held.audioProbe !== null) {
+    const ok = await held.audioProbe;
+    if (ok || Date.now() - held.audioProbeAt <= AUDIO_PROBE_RETRY_MS) return ok;
   }
-  _audioProbeAt = Date.now();
-  _audioProbe = osa('get volume settings', 5000).then((out) => out !== null);
-  return _audioProbe;
+  held.audioProbeAt = Date.now();
+  held.audioProbe = osa('get volume settings', 5000).then((out) => out !== null);
+  return held.audioProbe;
 }
 
 // Lock the screen now — the Deck's lockWorkstation key, and the one action
@@ -516,8 +488,6 @@ const {
 
 const PROC_STALE_MS = 30000;
 const PROC_PRIME_MS = 250;
-let _procPrev = null;
-let _procPrevAt = 0;
 
 async function processes(top = 8) {
   let curr = await sampleProcesses();
@@ -525,20 +495,20 @@ async function processes(top = 8) {
   let now = Date.now();
   // First call, or a gap long enough that the delta would be a guess: prime with
   // a short window so THIS call already answers with real numbers.
-  if (!_procPrev || !_procPrevAt || now - _procPrevAt > PROC_STALE_MS) {
-    _procPrev = curr;
-    _procPrevAt = now;
+  if (!held.procPrev || !held.procPrevAt || now - held.procPrevAt > PROC_STALE_MS) {
+    held.procPrev = curr;
+    held.procPrevAt = now;
     await new Promise((r) => setTimeout(r, PROC_PRIME_MS));
     curr = await sampleProcesses();
     if (!curr) return { ok: false, error: 'ps_failed' };
     now = Date.now();
   }
-  const windowMs = Math.max(1, now - _procPrevAt);
+  const windowMs = Math.max(1, now - held.procPrevAt);
   const cores = Math.max(1, os.cpus().length);
-  const all = procStats.aggregate(_procPrev, curr, { windowMs, cores });
+  const all = procStats.aggregate(held.procPrev, curr, { windowMs, cores });
   const apps = procStats.topUnion(all, top);
-  _procPrev = curr;
-  _procPrevAt = now;
+  held.procPrev = curr;
+  held.procPrevAt = now;
   const mem = await memory();
   return {
     ok: true,
