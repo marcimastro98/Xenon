@@ -12,7 +12,7 @@ const { haSameDestination, createHomeAssistant } = require('../actions/home-assi
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { hub } = require('../settings/current.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const remoteActions = require('../remote-actions.js');
+const remoteActions = require('../paired/remote-actions.js');
 const { unifiSameDestination, createUnifiProtect } = require('../actions/unifi.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

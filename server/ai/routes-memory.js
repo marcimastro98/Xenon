@@ -4,7 +4,7 @@
 
 const { readBodyBuffer, readBody } = require('../http/read-body.js');
 const aiRateStore = require('../ai-rate-store.js');
-const remoteActions = require('../remote-actions.js');
+const remoteActions = require('../paired/remote-actions.js');
 const { readDeckStore } = require('../deck/store-read.js');
 const aiLocal = require('../ai-local.js');
 const { aiLangName } = require('./prompt-language.js');

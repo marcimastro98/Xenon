@@ -4,7 +4,7 @@
 // asked to play.
 
 const { readBody, readBodyBuffer } = require('../http/read-body.js');
-const remoteActions = require('../remote-actions.js');
+const remoteActions = require('../paired/remote-actions.js');
 const { hub } = require('../settings/current.js');
 const { readDeckStore } = require('../deck/store-read.js');
 const browserAdblock = require('../embedded-browser-adblock.js');

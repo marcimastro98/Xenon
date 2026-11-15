@@ -6,7 +6,7 @@
 
 const { lockWorkstation } = require('../system/lock-workstation.js');
 const aiPcApps = require('../ai-pc-apps.js');
-const remoteActions = require('../remote-actions.js');
+const remoteActions = require('../paired/remote-actions.js');
 const { openOnThisPc } = require('./open-on-this-pc.js');
 const { issuePcAction } = require('./pc-actions.js');
 

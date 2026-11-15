@@ -14,7 +14,7 @@
 //   readConfigs ()                       the stored Deck configs
 //   runner      { pressKey(id, refuse) } deck-shortcut-runner.js
 const crypto = require('crypto');
-const { canonical } = require('../remote-actions.js');
+const { canonical } = require('../paired/remote-actions.js');
 const { actionSpec, triggerSteps } = require('../js/deck-actions.js');
 const S = require('../js/deck-shortcuts.js');
 const LayersModel = require('../js/layers-model.js');

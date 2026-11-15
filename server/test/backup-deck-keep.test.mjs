@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 const { deckOnImport, deckActionsHeldBack } = require('../settings/backup-keep.js');
 const { importRequest, REQUEST_ROOM } = require('../settings/backup-request.js');
 const { branches } = require('../settings/routes.js');
-const { remoteMayRun, remoteMayLaunch, guardedIn } = require('../remote-actions.js');
+const { remoteMayRun, remoteMayLaunch, guardedIn } = require('../paired/remote-actions.js');
 const { normalizeDeckStore } = require('../deck/store-normalize.js');
 const { REMOTE_DENY } = require('../paired/refused-paths.js');
 

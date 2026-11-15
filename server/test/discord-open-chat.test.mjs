@@ -194,7 +194,7 @@ test('an SDK widget can open a chat, and only as a hidden, granted action', asyn
 
 test('a paired phone is refused the chat, and a widget is told it is on one', () => {
   // It would open Discord on the PC, out of sight of whoever tapped.
-  assert.doesNotMatch(read('../remote-actions.js'), /discordOpenChat/);
+  assert.doesNotMatch(read('../paired/remote-actions.js'), /discordOpenChat/);
   assert.match(read('../js/custom-widget.js'), /remote: !!\(window\.RemoteSurface/);
 });
 

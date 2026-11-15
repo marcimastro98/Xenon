@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { createHttpsSetup } = require('../remote-https-setup.js');
+const { createHttpsSetup } = require('../paired/remote-https-setup.js');
 
 // The whole state machine, with no winget, no Tailscale and no network. `sleep`
 // is a no-op so the ten-minute waits run instantly, and `now` is driven by hand

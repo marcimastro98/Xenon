@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { settingsBeforeImport, keepThisPcOnImport, setUpAgainOnImport, deckOnImport, deckActionsHeldBack } = require('../settings/backup-keep.js');
-const { remoteMayRun, remoteMayLaunch } = require('../remote-actions.js');
+const { remoteMayRun, remoteMayLaunch } = require('../paired/remote-actions.js');
 const { normalizeDeckStore } = require('../deck/store-normalize.js');
 
 test('a backup cannot switch access for paired devices on at this PC', () => {

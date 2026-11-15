@@ -36,23 +36,23 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { writeFileAtomic } = require('./atomic-write.js');
+const { writeFileAtomic } = require('../atomic-write.js');
 // A subscription endpoint is a URL a client chose. It must name the public
 // internet: a paired phone could otherwise subscribe https://127.0.0.1:<port>/
 // or a LAN address and turn every notification into a blind POST there.
-require('./net-guard.js'); // nothing is taken from it here, but it runs code when it loads
+require('../net-guard.js'); // nothing is taken from it here, but it runs code when it loads
 
 const STORE_FILENAME = 'web-push.json';
 
 const {
   PAYLOAD_MAX_BYTES, b64u, fromB64u, generateVapidKeys, rawPublicFromJwk, vapidAudience, buildJwt,
   encryptPayload,
-} = require('./paired/push-crypto.js');
+} = require('./push-crypto.js');
 const {
   STORE_VERSION, MAX_SUBSCRIPTIONS, normalizeSubscription, normalizeStore,
-} = require('./paired/push-subscriptions.js');
+} = require('./push-subscriptions.js');
 
-const { DEFAULT_TTL, postToService, isGone } = require('./paired/push-send.js');
+const { DEFAULT_TTL, postToService, isGone } = require('./push-send.js');
 // A subscription that keeps failing without ever saying "gone" (a service that
 // is down, a phone that is off) must not be retried forever, and must not be
 // deleted either — the user did not unsubscribe. Park it after this many.

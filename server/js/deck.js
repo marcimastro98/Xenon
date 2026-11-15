@@ -394,7 +394,7 @@
         for (const id of ids) { if (cur[id] === taken[id]) delete cur[id]; }
         writeDirty(cur);
         // From a paired phone the server refuses a key that would open an app,
-        // type or call out (server/remote-actions.js). Say so, and take the
+        // type or call out (server/paired/remote-actions.js). Say so, and take the
         // Deck back to what is saved instead of showing a key that is not.
         if (data && data.ok === false && data.error === 'needs_pc') {
           if (typeof showHubToast === 'function') {

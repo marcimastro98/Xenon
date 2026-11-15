@@ -38,7 +38,7 @@ const POLL_MS = 2000;
 
 // tailscaled's word for "no client has ever started this backend" — imported
 // rather than spelled again here, so the two modules cannot disagree about it.
-const { NO_BACKEND } = require('./remote-control/tailscale');
+const { NO_BACKEND } = require('../remote-control/tailscale');
 
 // The steps, in the order they must happen. `wait_certs` is the one the user
 // acts on somewhere else; the panel keys its big link off exactly this value.

@@ -161,7 +161,7 @@ test('list_widget_options reaches Bit on every surface; the layer list keeps the
 // A phone refused widgetOption: the switch did nothing there, and a view tapped inside a
 // Maker widget on the phone sprang back. It only changes what a widget shows.
 test('a paired phone changes what a widget shows, and reads the options', () => {
-  const ra = require('../remote-actions.js');
+  const ra = require('../paired/remote-actions.js');
   const none = { configs: {}, presets: [] };
   assert.deepEqual(ra.remoteMayRun({ type: 'widgetOption', widget: 'alibi', option: 'ping', value: 'on' }, none), { ok: true });
   assert.deepEqual(ra.remoteMayRun({ type: 'widgetOptionList' }, none), { ok: true });

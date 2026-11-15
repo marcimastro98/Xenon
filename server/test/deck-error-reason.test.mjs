@@ -55,7 +55,7 @@ const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
 // passes it on.
 const SERVER = engineSource()
   // What a paired phone may run (needs_pc, pc_only).
-  + readFileSync(new URL('../remote-actions.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../paired/remote-actions.js', import.meta.url), 'utf8')
   // A key run from its keyboard shortcut fails here with its own codes.
   + readFileSync(new URL('../deck/deck-shortcut-runner.js', import.meta.url), 'utf8')
   // …and a sound it plays on the PC itself, with its own two.

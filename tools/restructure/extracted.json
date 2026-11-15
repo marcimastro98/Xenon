@@ -652,7 +652,7 @@
     "server/bit-messages.js": [
       {"file":"server/ai/bit-message-clean.js","about":"Cleans one message Bit is asked to show before it is kept: its limits, its text, its time, its button and its picture.","names":["ID_RE","ENTRY_RE","KINDS","APP_ACTIONS","STAMP_RE","MAX_STAMPS","SURFACES","TITLE_MAX","LINE_MAX","BODY_MAX","LABEL_MAX","cleanText","cleanTime","cleanAction","cleanMessage","restoreMessage"]}
     ],
-    "server/web-push.js": [
+    "server/paired/web-push.js": [
       {"file":"server/paired/push-crypto.js","about":"The cryptography of Web Push: the VAPID keys and the signed token (RFC 8292), and the encrypted payload (RFC 8291).","names":["PAYLOAD_MAX_BYTES","RECORD_SIZE","JWT_TTL_SEC","b64u","fromB64u","generateVapidKeys","rawPublicFromJwk","vapidAudience","buildJwt","encryptPayload"]},
       {"file":"server/paired/push-subscriptions.js","about":"A phone's push subscription as it is accepted and kept: a public HTTPS endpoint, its keys, and the saved list cleaned.","names":["STORE_VERSION","MAX_SUBSCRIPTIONS","MAX_ENDPOINT_LEN","normalizeSubscription","normalizeStore"]},
       {"file":"server/paired/push-send.js","about":"Sends one encrypted notification to a browser's push service and says whether the subscription is gone.","names":["DEFAULT_TTL","SEND_TIMEOUT_MS","postToService","isGone"]}

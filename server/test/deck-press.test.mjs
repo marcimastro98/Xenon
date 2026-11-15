@@ -14,7 +14,7 @@ const { createDeckShortcutRunner } = require('../deck/deck-shortcut-runner.js');
 const { triggerSteps } = require('../js/deck-actions.js');
 const LayersModel = require('../js/layers-model.js');
 const LayerKey = require('../capabilities/layer-key.js');
-const { remoteMayRun } = require('../remote-actions.js');
+const { remoteMayRun } = require('../paired/remote-actions.js');
 
 const URL_A = { type: 'openUrl', url: 'https://x.test/a' };
 const URL_B = { type: 'openUrl', url: 'https://x.test/b' };

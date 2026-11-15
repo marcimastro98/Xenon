@@ -17,7 +17,7 @@
     not_found: ['deck_err_not_found', 'that path does not exist on this PC'],
     bad_when: ['deck_err_bad_when', 'that is not a situation Xenon knows'],
     name_taken: ['deck_err_name_taken', 'another page already has that name'],
-    // A paired phone runs only keys set up on the PC (server/remote-actions.js).
+    // A paired phone runs only keys set up on the PC (server/paired/remote-actions.js).
     needs_pc: ['deck_err_needs_pc', 'from a phone or tablet this works only as a key already set up on the PC'],
     pc_only: ['deck_err_pc_only', 'this works only on the PC itself'],
     bad_app_path: ['deck_err_bad_app_path', 'that is not something this system can launch'],

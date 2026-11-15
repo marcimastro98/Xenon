@@ -16,7 +16,7 @@ import { appStringsSource, appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const ra = require('../remote-actions.js');
+const ra = require('../paired/remote-actions.js');
 const access = require('../remote-access.js');
 const { ACTION_CATALOG } = require('../js/deck-actions.js');
 const registry = require('../actions/registry.js');

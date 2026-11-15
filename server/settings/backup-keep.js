@@ -6,7 +6,7 @@
 const { normalizeServerAppFavorites } = require('./normalize-favorites.js');
 const { normalizeDeckStore } = require('../deck/store-normalize.js');
 const { POWERSHELL_SUPPORTED } = require('../powershell/supported.js');
-const { guardedIn, canonical, FREE } = require('../remote-actions.js');
+const { guardedIn, canonical, FREE } = require('../paired/remote-actions.js');
 
 /** @param {any} value @returns {Record<string, any> | null} the value when it is an object with keys, not a list */
 const plain = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : null);

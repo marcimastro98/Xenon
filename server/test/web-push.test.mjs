@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const wp = require('../web-push.js');
+const wp = require('../paired/web-push.js');
 
 // ── An independent receiver ──────────────────────────────────────────────────
 //

@@ -8,7 +8,7 @@ const aiDeckRun = require('../ai-deck-run.js');
 const aiSurface = require('../ai-surface.js');
 const UsageMode = require('../js/usage-mode.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const remoteActions = require('../remote-actions.js');
+const remoteActions = require('../paired/remote-actions.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {

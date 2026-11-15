@@ -2,7 +2,7 @@
 // the Deck in a window of its own, a page shortcut pressed, an action run, and the Deck saved.
 
 const { readBody } = require('../http/read-body.js');
-const remoteActions = require('../remote-actions.js');
+const remoteActions = require('../paired/remote-actions.js');
 const { readDeckStore } = require('./store-read.js');
 const { DECK_MAX_BYTES } = require('./limits.js');
 const deckStore = require('../js/deck-store.js');

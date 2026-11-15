@@ -979,8 +979,6 @@
         "server/paired/**",
         "server/remote-access.js",
         "server/remote-https*.js",
-        "server/remote-actions.js",
-        "server/web-push.js",
         "server/pair.html",
         "server/sw.js",
         "server/js/remote-access-page/**",

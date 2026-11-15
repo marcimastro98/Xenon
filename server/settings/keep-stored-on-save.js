@@ -5,7 +5,7 @@
 
 const { DASHBOARD_GRID_COLUMNS } = require('../grid/layout-defaults.js');
 const lighting = require('../lighting.js');
-const remoteActions = require('../remote-actions.js');
+const remoteActions = require('../paired/remote-actions.js');
 const VitalsState = require('../vitals/vitals-state.js');
 
 /**

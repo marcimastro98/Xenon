@@ -502,9 +502,9 @@ require('./remote-control');
 // from `remoteControl` above, which is the Sunshine/Moonlight streaming feature
 // and shares nothing with it but a word.
 const remoteAccessLib = require('./remote-access');
-const webPushLib = require('./web-push');
+const webPushLib = require('./paired/web-push');
 const remoteHttpsLib = require('./remote-https');
-const remoteHttpsSetupLib = require('./remote-https-setup');
+const remoteHttpsSetupLib = require('./paired/remote-https-setup');
 const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
@@ -1402,7 +1402,7 @@ const {
 } = require('./deck/key-send.js');
 refreshKeySendProbe();
 
-const remoteActions = require('./remote-actions');
+const remoteActions = require('./paired/remote-actions');
 
 const { _killWorker } = require('./powershell/worker-state.js');
 

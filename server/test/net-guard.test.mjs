@@ -6,7 +6,7 @@ import http from 'node:http';
 const require = createRequire(import.meta.url);
 const guard = require('../net-guard.js');
 const proxy = require('../sdk-proxy.js');
-const wp = require('../web-push.js');
+const wp = require('../paired/web-push.js');
 
 test('isPublicAddress refuses every non-public range', () => {
   for (const ip of [
