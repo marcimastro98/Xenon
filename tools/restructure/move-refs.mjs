@@ -12,8 +12,9 @@ const posix = path.posix;
 const JS_FILE = /\.(js|mjs|cjs)$/;
 // Text only a person or the operating system runs: a file named there is called by that path on a user's PC.
 const RUN_BY_PATH = /\.(ps1|psm1|sh|bat|cmd|vbs|command|nsh|rs|cs|swift|toml|plist|csproj|html|htm|service|desktop|iss|wxs)$/;
-// History and the live site keep the names of their day; the map and the move list name old places on purpose.
-const KEEPS_OLD_NAMES = (file) => file === 'CHANGELOG.md' || file === 'MAP.md' || file.startsWith('docs/')
+// History and the live site keep the names of their day; the map and the move list name old places on purpose,
+// and the test of the map's patterns spells paths as examples, not as files.
+const KEEPS_OLD_NAMES = (file) => file === 'CHANGELOG.md' || file === 'MAP.md' || file.startsWith('docs/') || file === 'server/test/structure-map.test.mjs'
   || file === 'tools/map/features.json' || file === 'tools/restructure/moved.json';
 const SKIPPED = /\.(png|jpe?g|gif|webp|ico|icns|woff2?|ttf|otf|mp3|mp4|wav|ogg|webm|zip|exe|dll|pdf|lock|bin|node|svg|map)$/i;
 /** @param {string} file @returns {boolean} tests, tools and CI: code that never runs on a user's PC */
