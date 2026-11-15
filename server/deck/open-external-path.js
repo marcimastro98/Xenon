@@ -21,15 +21,19 @@ const { runPowerShellScript } = require('../powershell/run-command.js');
 // correctly quoted line. On macOS they follow `--args`, which an app that is
 // already running ignores (only `open -n` would start a second copy, and that
 // breaks single-instance apps).
-function openExternalPath(p, args) {
+//
+// The third argument is for tests alone: the system to answer as, and stand-ins
+// for the two ways a program is started, so what would be run can be read
+// without running it.
+function openExternalPath(p, args, { platform = process.platform, run = execFile, runScript = runPowerShellScript } = {}) {
   const argv = Array.isArray(args) ? args.map(String) : [];
-  if (process.platform === 'win32') {
+  if (platform === 'win32') {
     const packed = argv.length ? Buffer.from(JSON.stringify(argv), 'utf8').toString('base64') : '';
-    return runPowerShellScript(DECK_ACTIONS_SCRIPT, packed ? ['open', p, packed] : ['open', p], 8000);
+    return runScript(DECK_ACTIONS_SCRIPT, packed ? ['open', p, packed] : ['open', p], 8000);
   }
-  if (process.platform === 'darwin' && argv.length) {
+  if (platform === 'darwin' && argv.length) {
     return new Promise((resolve, reject) => {
-      execFile('/usr/bin/open', ['-a', String(p), '--args', ...argv], { timeout: 8000 }, (err) => {
+      run('/usr/bin/open', ['-a', String(p), '--args', ...argv], { timeout: 8000 }, (err) => {
         if (err) reject(err); else resolve({ ok: true });
       });
     });
@@ -41,11 +45,11 @@ function openExternalPath(p, args) {
   // http(s) URL. A stored path is absolute in practice, and a leading-dash
   // relative one degrades to xdg-open's own syntax error rather than anything
   // being run.
-  const posix = process.platform === 'darwin'
+  const posix = platform === 'darwin'
     ? ['/usr/bin/open', ['--', String(p)]]
     : ['xdg-open', [String(p)]];
   return new Promise((resolve, reject) => {
-    execFile(posix[0], posix[1], { timeout: 8000 }, (err) => {
+    run(posix[0], posix[1], { timeout: 8000 }, (err) => {
       if (err) reject(err); else resolve({ ok: true });
     });
   });
