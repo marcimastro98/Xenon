@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### ✨ Changed
 
-- **Xenon no longer opens the dashboard in a browser when Windows starts.** The small script that did it was taken for a threat by Windows Defender, so it is no longer part of Xenon. The switch is gone from Settings, and Xenon removes the startup entry by itself at its next start. The Xenon app still starts with Windows as before; in a browser, open the dashboard from a bookmark.
+- **Xenon opens the dashboard in your browser at sign-in by itself, with no script.** The small script that used to do it was taken for a threat by Windows Defender, so it is no longer part of Xenon, and Xenon removes its old startup entry at the next start. Xenon now opens the page itself: one tab per sign-in, only if you use the dashboard in a browser on that computer and the switch in Settings is on. No tab opens when the Xenon app starts with the computer, or when Xenon restarts for an update. If you had it on, it comes back by itself, at the latest after you open the dashboard in your browser once. The switch is new on macOS and Linux, where it is still beta.
 
 ### 🔒 Security
 - **The notification test from a phone reaches that phone only.** A paired phone or tablet that pressed "test" sent its text to every device with notifications on. It now goes to the device that asked. Pressed at the PC, the test still reaches all of them.
