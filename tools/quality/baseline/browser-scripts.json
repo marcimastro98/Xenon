@@ -11,7 +11,7 @@
     "server/js/app-switcher.js": 24,
     "server/js/audio-feedback.js": 18,
     "server/js/calendar.js": 48,
-    "server/js/capability-catalog.js": 2,
+    "server/js/capabilities/capability-catalog.js": 2,
     "server/js/time/clock.js": 10,
     "server/js/custom-select.js": 9,
     "server/js/dashboard-grid.js": 57,

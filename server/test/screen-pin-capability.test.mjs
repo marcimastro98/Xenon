@@ -14,7 +14,7 @@ const screenPin = require('../capabilities/screen-pin.js');
 const LayersModel = require('../js/layers-model.js');
 const pickerLock = require('../capabilities/picker-lock.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 const SHOT = { id: 'aaaaaaaaaaaaaaaa', kind: 'screenshot', name: 'Desktop 2026-10-27 10-00-00.png', file: 'C:\\Users\\u\\Pictures\\Xenon\\Desktop\\Desktop 2026-10-27 10-00-00.png', width: 1600, height: 900 };
 const TALL = { ...SHOT, id: 'bbbbbbbbbbbbbbbb', width: 600, height: 1800 };

@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 const screenText = require('../capabilities/screen-text.js');
 const shot = require('../capabilities/screenshot.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const SECRET = 'Fattura 4821\ntotale 1.250,40 euro';

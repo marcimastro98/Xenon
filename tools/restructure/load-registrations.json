@@ -19,7 +19,7 @@
       {
         "statement": "const capabilityRunner = capabilities.createCapabilities({",
         "callees": {
-          "server/capabilities/index.js": "e2cddd8f88ce409f96ae8f0b2ce42ac3600b60d6eb123f09a39119a1ee1e0674",
+          "server/capabilities/index.js": "11948223d5a1ceab2607ee06e1918ad61edd5f87918586e67302fb0d487f21ba",
           "server/notification-open/index.js": "b7fd7d2575f0cd056a560a5732150fe311ec649240a939fdc8893e0d611e7f07",
           "server/notification-open/start-apps.js": "93223b3724c28d1ce51644925a4257ae1285b02f9b6ddc0440998203f03466de",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
@@ -89,7 +89,7 @@
       {
         "statement": "const deckRegistry = createRegistry(deckRegistryDeps);",
         "callees": {
-          "server/actions/registry.js": "c76ce25fa29b17947a484cf3951033943cfa02384c6eab3bec6dcaa97b204acf",
+          "server/actions/registry.js": "a227ee267562b8830eb4291660bcbbff3b31a69b69f0c950aa7332d0c72b0dca",
           "server/actions/registry-app-paths.js": "95d5a7ce29d4eef76b340367e30c4d9504a532562941da11f17a373d466ba85e",
           "server/actions/registry-open-paths.js": "f6207de9d38676dcb40defbae243773a85c2cdea1f5a6efbc2461c26ccd0cb0d",
           "server/actions/registry-values.js": "0b207071509e48058ab84622c970205734afbbb9bf6443300ff6c2834d7a790d",
@@ -102,7 +102,7 @@
         "callees": {
           "server/deck/deck-shortcut-runner.js": "97f6cd78a0c275749262b150c63698c4c64b5147ceca69b7e0b85339ddfe0254",
           "server/deck/deck-sound-player.js": "be8b1234d8e187e0486c4483bca1197ececd93695efb6475a2ad9698218ccc6e",
-          "server/js/deck-actions.js": "7b08d88302a2278e618add446558d8258d6b4927660ec5ef0c6176e7b2c54092"
+          "server/js/deck-actions.js": "46113ca29fae64f0e47a9c42019fb78c66e54d072cd92a75272ee0360f14f9a8"
         },
         "reason": "createDeckShortcutRunner and createDeckSoundPlayer make empty sets and maps and return their functions; readConfigs, steps, run, broadcast, serverFirst, resolveFile, ffplay and spawn are first called by press, pressKey, handOff or play; deck-actions.js is only asked for its triggerSteps function and is handed nothing."
       },

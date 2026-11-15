@@ -28,7 +28,7 @@ const { nativeCollectors } = require('./system/native-collectors.js');
 const { POWERSHELL_SUPPORTED } = require('./powershell/supported.js');
 const fpsMonitor = require('./performance/fps-monitor'); // PresentMon on Windows, MangoHud on Linux
 require('./performance/fps-demand');
-// Single-screen capabilities (js/capability-catalog.js): one declaration, run
+// Single-screen capabilities (js/capabilities/capability-catalog.js): one declaration, run
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
 const { createNotificationOpener, platformDeps: notificationOpenDeps } = require('./notification-open/index.js');
@@ -570,7 +570,7 @@ function knowledgeAiFunctions() {
         { name: 'sdk_reference', description: 'Read-only: the Widget SDK reference, the EXACT data streams and action categories a widget may request (from the code, always current) plus the full SDK docs by section (bridge protocol, manifest fields, storage, secrets, fetch proxy, ambient scenes…). Call this BEFORE create_widget to ground the manifest and the postMessage protocol, and when the user asks how to develop a widget. No section → enums + section list; then call again with a section id for its full text.', parameters: { type: 'OBJECT', properties: {
           section: { type: 'STRING', description: 'Optional docs section id or title fragment, e.g. "manifest-json", "data", "persistent-storage", "secrets".' },
         } } },
-        // ── Single-screen capabilities (js/capability-catalog.js), only those
+        // ── Single-screen capabilities (js/capabilities/capability-catalog.js), only those
         //    this machine can actually do ──
         ...capabilities.aiFunctions(capabilityRunner.probes()),
         // ── Vitals and Bit the pet (vitals-ai-tools.js) ──

@@ -15,7 +15,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const transcript = require('../capabilities/transcript.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 const REC = { id: 'aaaaaaaaaaaaaaaa', kind: 'recording', name: 'talk.mp4', createdAt: 100 };
 const REP = { id: 'bbbbbbbbbbbbbbbb', kind: 'replay', name: 'Replay 1.mp4', createdAt: 200 };

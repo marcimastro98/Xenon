@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const { nextMode } = require('../capabilities/power.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 function fakePower(state) {
   const set = [];

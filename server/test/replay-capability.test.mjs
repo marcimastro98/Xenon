@@ -15,7 +15,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/replay.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { validateAction } = require('../js/deck-actions.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FILE = path.join('C:', 'Users', 'u', 'Videos', 'Xenon', 'Game', 'Game Replay 2026-10-27 01-00-00.mp4');

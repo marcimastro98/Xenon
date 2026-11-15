@@ -11,7 +11,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const { createCaptureCopy, PLACES } = require('../capture-copy.js');
 const copyCapture = require('../capabilities/copy-capture.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-copy-'));

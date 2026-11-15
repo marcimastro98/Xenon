@@ -15,7 +15,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const shot = require('../capabilities/screenshot.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 // A full path by this machine's rules, with "Users" in it: the tests below look for that word

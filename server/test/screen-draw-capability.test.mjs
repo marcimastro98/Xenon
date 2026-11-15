@@ -12,7 +12,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const draw = require('../capabilities/screen-draw.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { SDK_ACTION_CATEGORIES } = require('../sdk-widgets.js');
 
 function deps(reply, { available = true } = {}) {

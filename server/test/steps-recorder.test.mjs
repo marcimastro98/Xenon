@@ -18,7 +18,7 @@ const Doc = require('../steps-doc.js');
 const { createStepsRecorder, stampOf } = require('../steps-recorder.js');
 const stepsCap = require('../capabilities/steps.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 const WORDS = {
   steps_doc_title: 'Steps', steps_doc_made: 'Recorded with Xenon on {date}', steps_one: '1 step', steps_count: '{n} steps',

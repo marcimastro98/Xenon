@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 const usage = require('../usage-stats.js');
 const { HUB_BASE } = require('../store-supporters/supporter-redeem.js');
 const { createRegistry } = require('../actions/registry.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');

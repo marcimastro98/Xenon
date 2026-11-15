@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 const { createCaptureExport, shape, suffixOf, timeoutFor } = require('../capture-export.js');
 const { createCaptures } = require('../captures.js');
 const exportCap = require('../capabilities/export.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { validateAction } = require('../js/deck-actions.js');
 
 const ROOT = path.join(os.tmpdir(), 'exp');

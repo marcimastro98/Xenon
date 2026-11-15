@@ -12,7 +12,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const screenCover = require('../capabilities/screen-cover.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 const SHOT = { id: 'aaaaaaaaaaaaaaaa', kind: 'screenshot', file: 'C:\\Users\\u\\Pictures\\Xenon\\Desktop\\a.png' };
 const OLD = { ...SHOT, id: 'bbbbbbbbbbbbbbbb' };

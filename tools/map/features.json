@@ -394,7 +394,7 @@
       "what": "The one list of things the PC can do, shared by Bit, the Deck and the menu.",
       "files": [
         "server/capabilities/**",
-        "server/js/capability-catalog.js"
+        "server/js/capabilities/**"
       ]
     },
     {

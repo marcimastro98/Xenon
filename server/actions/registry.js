@@ -7,9 +7,9 @@ const { validateAction, validateGesture } = require('../js/deck-actions.js');
 const { scopeTimerLabel } = require('./widget-timers');
 const { obsRequest } = require('./obs.js');
 const { streamerbotRequest } = require('./streamerbot.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
-// Types declared in js/capability-catalog.js. Validated above like every other
+// Types declared in js/capabilities/capability-catalog.js. Validated above like every other
 // action, then handed whole to the capability runner (server/capabilities/).
 const CAPABILITY_TYPES = new Set(CAPABILITIES.map(c => c.type));
 

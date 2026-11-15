@@ -14,7 +14,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/bug-report.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { SDK_ACTION_CATEGORIES } = require('../sdk-widgets.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 

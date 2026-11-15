@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const inspect = require('../capabilities/screen-inspect.js');
 const pickerLock = require('../capabilities/picker-lock.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 const COLOUR = { ok: true, rgb: [30, 144, 255], hex: '#1E90FF', text: 'hsl(210, 100%, 56%)', copied: true, monitor: 2 };
 const SIZE = { ok: true, width: 333, height: 177, text: '333 × 177', copied: true, monitor: 2 };

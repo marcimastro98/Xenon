@@ -258,11 +258,11 @@ const ACTION_CATALOG = [
   { type: 'signalRgbEffect', group: 'lighting', labelKey: 'deck_act_signalRgbEffect', params: [{ name: 'effect', kind: 'signalRgbEffect' }] },
 ];
 
-// The single-screen capabilities (js/capability-catalog.js) are Deck actions
+// The single-screen capabilities (js/capabilities/capability-catalog.js) are Deck actions
 // too, so they validate here and run through the same server registry. The
 // browser loads that file first; an old cached page without it simply has none.
 const CAPABILITY_ACTIONS = (typeof module !== 'undefined' && module.exports)
-  ? require('./capability-catalog.js').CAPABILITIES
+  ? require('./capabilities/capability-catalog.js').CAPABILITIES
   : ((typeof window !== 'undefined' && window.CapabilityCatalog && window.CapabilityCatalog.CAPABILITIES) || []);
 ACTION_CATALOG.push(...CAPABILITY_ACTIONS);
 

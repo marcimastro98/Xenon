@@ -8,7 +8,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { PERF_HUD_PARTS, PERF_HUD_LABELS, PERF_HUD_SHORT, normalizePerfHud, applyPerfHudChange, statText } = require('../js/perf-hud.js');
 const cap = require('../capabilities/perf-hud.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 
 const ALL_ON = {

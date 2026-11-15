@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const { createCaptureSend } = require('../capture-send.js');
 const { createFileTransfer } = require('../file-transfer.js');
 const sendCapture = require('../capabilities/send-capture.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 
 async function rig(o = {}) {

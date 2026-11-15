@@ -15,7 +15,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/gallery.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const T0 = Date.UTC(2026, 9, 27, 10, 0, 0);

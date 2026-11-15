@@ -32,7 +32,7 @@
     "server/js/ambient-mode.js": 634,
     "server/js/ambient-scene.js": 464,
     "server/js/browser-tile.js": 1154,
-    "server/js/capability-catalog.js": 1339,
+    "server/js/capabilities/capability-catalog.js": 1339,
     "server/js/capture-annotate.js": 375,
     "server/js/capture-gallery-viewer.js": 546,
     "server/js/chatgpt-widget.js": 357,

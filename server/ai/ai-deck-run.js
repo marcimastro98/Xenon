@@ -10,7 +10,7 @@
 // is open_application, which refuses scripts and paths that run code (ai-pc-apps.js).
 
 const { ACTION_CATALOG, validateAction } = require('../js/deck-actions.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { CLIENT_ACTIONS } = require('../js/deck-shortcuts.js');
 
 const CONFIRM_TYPES = new Set([

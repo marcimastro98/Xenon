@@ -1,5 +1,5 @@
 'use strict';
-// Runs the capabilities declared in js/capability-catalog.js and derives the
+// Runs the capabilities declared in js/capabilities/capability-catalog.js and derives the
 // surfaces that read the catalog:
 //   probes()          what this machine can do, merged into /actions/catalog
 //                     `capabilities` so the Deck editor hides the rest
@@ -12,7 +12,7 @@
 //
 // Effects are injected (deps) so every decision is testable without a game,
 // a screen or an OS underneath.
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const perf = require('./perf.js');
 const stutterWhy = require('./stutter-why.js');
 const gameSessions = require('./game-sessions.js');

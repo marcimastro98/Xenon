@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { open } = require('../capabilities/game-companion.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { DECK_ERR_TEXT } = require('../js/deck-error-text.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 

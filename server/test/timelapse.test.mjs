@@ -21,7 +21,7 @@ const { createCaptures, normalizeEntry } = require('../captures.js');
 const timelapse = require('../capabilities/timelapse.js');
 const record = require('../capabilities/record.js');
 const { aiFunctions, aiAction } = require('../capabilities/index.js');
-const { CAPABILITIES } = require('../js/capability-catalog.js');
+const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const DeckModel = require('../js/deck-model.js');
 const DeckActions = require('../js/deck-actions.js');
 
