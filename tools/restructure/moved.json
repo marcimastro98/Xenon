@@ -35,11 +35,10 @@
     {"from":"server/codex-bridge.js","to":"server/codex/codex-bridge.js","shim":true},
     {"from":"server/stream-common.js","to":"server/streaming/stream-common.js","shim":true},
     {"from":"server/stream-history.js","to":"server/streaming/stream-history.js","shim":true},
-    {"from":"server/mic-use.js","to":"server/audio/mic-use.js"},
-    {"from":"server/svv-text.js","to":"server/audio/svv-text.js"}
+    {"from":"server/mic-use.js","to":"server/audio/mic-use.js","shim":true},
+    {"from":"server/svv-text.js","to":"server/audio/svv-text.js","shim":true}
   ],
   "patterns": [
-    {"feature":"audio","glob":"server/mic-use.js","at":3},
-    {"feature":"audio","glob":"server/svv-text.js","at":4}
+
   ]
 }
