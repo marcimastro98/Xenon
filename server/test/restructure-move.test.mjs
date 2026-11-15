@@ -152,6 +152,8 @@ test('every place that names a moved file is found and given its new spelling', 
   assert.equal(lines[11], "const six = join(HERE, '..', 'pulse', 'pulse-nag.js');");
   assert.equal(text('tools/list.json'), '{ "server/pulse/pulse-nag.js TS2339": 2, "server/pulse-nag.json": 1 }\n');
   assert.equal(sites.some((site) => site.file === 'CHANGELOG.md'), false, 'history keeps the names of its day');
+  const quiet = await sitesOf({ 'server/sw.js': '// see server/pulse-nag.js\n', 'packages/mcp/src/a.js': "// see server/pulse-nag.js\nrequire('../../../server/pulse-nag.js');\n", 'server/pulse-nag.js': '' });
+  assert.deepEqual(quiet.map((site) => `${site.file} ${site.kind}`), ['packages/mcp/src/a.js load'], 'the worker and the published bridge keep a mention as written');
 });
 
 test('what the tool cannot follow, and what runs the file by path, stops the move', { skip: !parserAvailable() && 'TypeScript is not installed here' }, async () => {

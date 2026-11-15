@@ -144,7 +144,7 @@ self.addEventListener('fetch', (e) => {
 // ── Push (T2c) ───────────────────────────────────────────────────────────────
 //
 // This is the only part of this worker that is a feature rather than a
-// requirement. The payload arrives encrypted end to end (see server/paired/web-push.js)
+// requirement. The payload arrives encrypted end to end (see server/web-push.js)
 // and the browser has already decrypted it by the time it gets here.
 //
 // A push event MUST end in a visible notification. Every browser enforces this:

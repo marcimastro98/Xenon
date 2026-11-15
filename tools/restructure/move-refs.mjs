@@ -16,6 +16,9 @@ const RUN_BY_PATH = /\.(ps1|psm1|sh|bat|cmd|vbs|command|nsh|rs|cs|swift|toml|pli
 // and the test of the map's patterns spells paths as examples, not as files.
 const KEEPS_OLD_NAMES = (file) => file === 'CHANGELOG.md' || file === 'MAP.md' || file.startsWith('docs/') || file === 'server/test/structure-map.test.mjs'
   || file === 'tools/map/features.json' || file === 'tools/restructure/moved.json';
+// A mention in the service worker or in the published bridge stays as written: one changed byte makes every browser
+// install the worker again, and the bridge changes only with a version of its own. A load or a path there still counts.
+const MENTIONS_STAY = (file) => file === 'server/sw.js' || file.startsWith('packages/mcp/');
 const SKIPPED = /\.(png|jpe?g|gif|webp|ico|icns|woff2?|ttf|otf|mp3|mp4|wav|ogg|webm|zip|exe|dll|pdf|lock|bin|node|svg|map)$/i;
 /** @param {string} file @returns {boolean} tests, tools and CI: code that never runs on a user's PC */
 export const isDevFile = (file) => /^(server\/test\/|packages\/[^/]+\/test\/|tools\/|\.github\/)/.test(file);
@@ -228,7 +231,7 @@ export function findSites({ files, read, parser, moves }) {
     const handled = new Set(sites.filter((site) => site.text !== undefined).map((site) => site.start - 1));
     out.push(...sites, ...rootedSites(file, text, patterns, spans.map(([from, to]) => [from, to, handled.has(from)])));
   }
-  return out;
+  return out.filter((site) => !(site.kind === 'text' && MENTIONS_STAY(site.file)));
 }
 
 /**
