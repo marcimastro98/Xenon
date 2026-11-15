@@ -676,13 +676,46 @@
     return out.slice(0, MAX_ASK_MODELS);
   }
 
-  let askProjectsLoading = false;
+  const ui = {
+    askProjectsLoading: false,
+    // One session at a time, beside the rail, never a separate screen: the old
+    // modal panel is what made it easy to lose track of which chat was which.
+    // `picked` is a choice the user made and sticks until they make another;
+    // without one the console takes the session that needs you most, ONCE, and
+    // keeps it while it lives, so it never jumps under a finger because another
+    // session changed state.
+    picked: '',
+    pickedLabel: '',
+    autoPicked: '',
+    composing: false,       // the console holds a new session instead
+    followRun: '',          // a new run whose session the console moves to once known
+    pickAt: 0,
+    // Which view the side panel shows. Plain state: it resets on a reload, and a
+    // session without a plan always falls back to the tool log.
+    asideView: '',
+    // The agent open in the Agents view, plain state like ui.asideView. A new agent
+    // starting opens the view once, the way a new plan opens Plan.
+    agentSel: '',
+    // Work anywhere: a folder typed or pasted here joins the list (the server
+    // checks it is a real folder and keeps it). Not offered to a paired device,
+    // where the server refuses it.
+    folderOpen: false,
+    face: null,
+    laterTimer: null,
+    doneNotices: [],                 // [{ id, project, at }] newest last
+    // Lives in the clock island, so it is present in both the full and the minimal
+    // bar and can be reordered or hidden like any other island element. Three
+    // states and nothing more: absent when there is nothing to say, a quiet pulse
+    // while a session works, and lit when one has finished and you have not looked
+    // yet. Tapping it opens that session.
+    topbarSig: '',
+  };
   async function loadAskProjects(force) {
     // Every tile's build() may ask; one request answers them all.
-    if (askProjectsLoading) return;
-    askProjectsLoading = true;
+    if (ui.askProjectsLoading) return;
+    ui.askProjectsLoading = true;
     const d = await api('/api/claude/projects' + (force ? '?refresh=1' : ''));
-    askProjectsLoading = false;
+    ui.askProjectsLoading = false;
     widgetState.askProjects = (d && Array.isArray(d.projects)) ? d.projects : [];
     if (d && d.options) {
       widgetState.askOptions = {
@@ -695,36 +728,25 @@
   }
 
   // ── which session the console shows ────────────────────────────────────────
-  // One session at a time, beside the rail, never a separate screen: the old
-  // modal panel is what made it easy to lose track of which chat was which.
-  // `picked` is a choice the user made and sticks until they make another;
-  // without one the console takes the session that needs you most, ONCE, and
-  // keeps it while it lives, so it never jumps under a finger because another
-  // session changed state.
-  let picked = '';
-  let pickedLabel = '';
-  let autoPicked = '';
-  let composing = false;       // the console holds a new session instead
-  let followRun = '';          // a new run whose session the console moves to once known
   const drafts = new Map();    // session id ('' = new session) → unsent text
 
   function consoleTarget() {
-    if (composing) return '';
-    if (picked) return picked;
+    if (ui.composing) return '';
+    if (ui.picked) return ui.picked;
     const list = sessions();
-    if (autoPicked && list.some((s) => s.id === autoPicked)) return autoPicked;
+    if (ui.autoPicked && list.some((s) => s.id === ui.autoPicked)) return ui.autoPicked;
     const first = window.ClaudeRail.sort(list.filter((s) => !s.resting))[0] || window.ClaudeRail.sort(list)[0];
-    autoPicked = first ? first.id : '';
-    return autoPicked;
+    ui.autoPicked = first ? first.id : '';
+    return ui.autoPicked;
   }
 
   // A new run gets its session id from Claude Code's first event; until then
   // the console stays on the new-session view, which shows the run's card.
   function followNewRun() {
-    if (!followRun) return;
-    const r = runs().find((x) => x.id === followRun);
-    if (!r || r.state !== 'running') { followRun = ''; if (r && r.sessionId) select(r.sessionId, r.project || ''); return; }
-    if (r.sessionId) { followRun = ''; picked = r.sessionId; pickedLabel = r.project || ''; composing = false; }
+    if (!ui.followRun) return;
+    const r = runs().find((x) => x.id === ui.followRun);
+    if (!r || r.state !== 'running') { ui.followRun = ''; if (r && r.sessionId) select(r.sessionId, r.project || ''); return; }
+    if (r.sessionId) { ui.followRun = ''; ui.picked = r.sessionId; ui.pickedLabel = r.project || ''; ui.composing = false; }
   }
 
   // Applies the target: swaps the draft, points the thread at it. Idempotent,
@@ -739,18 +761,18 @@
       clearAttach(); widgetState.askError = '';
       widgetState.askResumeId = id;
       const s = sessionById(id);
-      widgetState.askResumeLabel = s ? (s.project || '') : (id === picked ? pickedLabel : '');
+      widgetState.askResumeLabel = s ? (s.project || '') : (id === ui.picked ? ui.pickedLabel : '');
       if (widgetState.askProjects !== null) resolveAskProject();
-      if (id && doneNotices.some((n) => n.id === id)) { doneNotices = doneNotices.filter((n) => n.id !== id); topbarSig = ''; }
+      if (id && ui.doneNotices.some((n) => n.id === id)) { ui.doneNotices = ui.doneNotices.filter((n) => n.id !== id); ui.topbarSig = ''; }
     }
     if (thread.id !== id) thread.open(id);
     if (drafts.size > 20) drafts.delete(drafts.keys().next().value);
   }
 
   function select(id, label) {
-    picked = id || '';
-    pickedLabel = label || '';
-    composing = false;
+    ui.picked = id || '';
+    ui.pickedLabel = label || '';
+    ui.composing = false;
     if (currentFace() !== 'live') setFace('live');
     paint();
   }
@@ -761,14 +783,14 @@
     if (projectId) widgetState.askProjectId = projectId;
     if (resumeId) { select(resumeId, resumeLabel); }
     else {
-      composing = true;
+      ui.composing = true;
       if (currentFace() !== 'live') setFace('live');
       paint();
     }
     if (widgetState.askProjects === null) loadAskProjects(false);
   }
   function closeAsk() {
-    composing = false;
+    ui.composing = false;
     paint();
   }
 
@@ -869,7 +891,7 @@
       } else {
         // A new run has no session id yet. The console keeps showing its card
         // and moves to the session as soon as Claude Code names it.
-        followRun = d.id || '';
+        ui.followRun = d.id || '';
         paint();
       }
     }
@@ -1128,7 +1150,6 @@
   // the session as a reply, where a slash command would not run.
   const MAX_PICKS = 6;
   const commandLists = new Map();   // project id → [{ name, desc, kind }] | 'loading'
-  let pickAt = 0;
 
   function commandsFor(projectId) {
     const key = projectId || '';
@@ -1289,11 +1310,11 @@
         ? t('claude_slash_loading', 'Reading your commands…') : t('claude_slash_none', 'No command or skill with that name')));
       return;
     }
-    pickAt = Math.min(pickAt, list.length - 1);
+    ui.pickAt = Math.min(ui.pickAt, list.length - 1);
     list.forEach((c, i) => {
-      const row = el('button', 'cw-slash-item' + (i === pickAt ? ' is-on' : '')); row.type = 'button';
+      const row = el('button', 'cw-slash-item' + (i === ui.pickAt ? ' is-on' : '')); row.type = 'button';
       row.setAttribute('role', 'option');
-      row.setAttribute('aria-selected', i === pickAt ? 'true' : 'false');
+      row.setAttribute('aria-selected', i === ui.pickAt ? 'true' : 'false');
       // The command's own name first, its plugin after it and quieter: a long
       // "plugin:command" cut short would otherwise lose the part that matters.
       // Picking still inserts the full name.
@@ -1310,7 +1331,7 @@
   function applyPick(c, picker, ta) {
     ta.value = c.insert || '/' + c.name + ' ';
     widgetState.askText = ta.value;
-    pickAt = 0;
+    ui.pickAt = 0;
     drawPicker(picker, ta);
     ta.focus();
     try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch {}
@@ -1322,12 +1343,12 @@
     const list = slashMatches(ta.value) || [];
     if (!list.length) return false;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      pickAt = (pickAt + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+      ui.pickAt = (ui.pickAt + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
       drawPicker(picker, ta);
       return true;
     }
     if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.isComposing)) {
-      applyPick(list[pickAt], picker, ta);
+      applyPick(list[ui.pickAt], picker, ta);
       return true;
     }
     if (e.key === 'Escape') { picker.hidden = true; return true; }
@@ -1365,7 +1386,7 @@
     ta.addEventListener('input', () => {
       widgetState.askText = ta.value;
       fitHeight(ta);
-      if (slashOn) { pickAt = 0; drawPicker(picker, ta); }
+      if (slashOn) { ui.pickAt = 0; drawPicker(picker, ta); }
     });
     // Enter sends, Shift+Enter breaks the line — the arrangement every chat box
     // has, and the one that was missing here. `isComposing` is checked because
@@ -1602,10 +1623,6 @@
     return composer();
   }
 
-  // Which view the side panel shows. Plain state: it resets on a reload, and a
-  // session without a plan always falls back to the tool log.
-  let asideView = '';
-
   // Hiding only: once hidden, the panel folds into its summary strip (asideStrip).
   function asideHide() {
     const b = el('button', 'cw-aside-hide', '›'); b.type = 'button';
@@ -1662,9 +1679,6 @@
     return list;
   }
   // ── agents ──
-  // The agent open in the Agents view, plain state like asideView. A new agent
-  // starting opens the view once, the way a new plan opens Plan.
-  let agentSel = '';
   const agentsSeen = new Map();   // session id → Set of agent ids already announced
   // What an agent's own file says, read when it is opened and again whenever
   // its tool count or status moves: model, effort and context from an older mod.
@@ -1690,20 +1704,20 @@
     if (!seen) { seen = new Set(); agentsSeen.set(s.id, seen); }
     const fresh = list.some((a) => a.status === 'running' && !seen.has(a.id));
     list.forEach((a) => seen.add(a.id));
-    if (fresh && !pending) { asideView = 'agents'; agentSel = ''; }
+    if (fresh && !pending) { ui.asideView = 'agents'; ui.agentSel = ''; }
   }
   function openAgents() {
-    asideView = 'agents'; agentSel = '';
+    ui.asideView = 'agents'; ui.agentSel = '';
     if (isCollapsed('aside')) toggleCollapsed('aside'); else paint();
   }
   function agentsView(h, s) {
     const list = s.subagents;
-    const sel = agentSel && list.find((a) => a.id === agentSel);
+    const sel = ui.agentSel && list.find((a) => a.id === ui.agentSel);
     if (!sel) {
-      agentSel = '';
-      return window.ClaudeAgents.list(h, list, (id) => { agentSel = id; paint(); });
+      ui.agentSel = '';
+      return window.ClaudeAgents.list(h, list, (id) => { ui.agentSel = id; paint(); });
     }
-    return window.ClaudeAgents.detail(h, sel, agentFile(s.id, sel), () => { agentSel = ''; paint(); });
+    return window.ClaudeAgents.detail(h, sel, agentFile(s.id, sel), () => { ui.agentSel = ''; paint(); });
   }
   // The hidden panel's summary: plan progress and the agents, when there are any.
   // The plan's steps are the ones the Plan view shows: the written plan's
@@ -1713,7 +1727,7 @@
     const steps = rows ? rows.map((r) => r.state) : (Array.isArray(s.todos) ? s.todos.map((x) => x.status) : []);
     const plan = steps.length ? { done: steps.filter((st) => st === 'done').length, total: steps.length, steps } : null;
     return window.ClaudeAgents.strip(h, plan, s.subagents || [], (view) => {
-      if (view) { asideView = view; agentSel = ''; }
+      if (view) { ui.asideView = view; ui.agentSel = ''; }
       toggleCollapsed('aside');
     });
   }
@@ -1725,12 +1739,12 @@
     if (!todos && !acts && !proposal && !agents) return null;
     const plan = todos || proposal ? true : null;
     // A plan waiting for approval, or one just written, opens on the Plan view.
-    if (s.planAt && planSeen.get(s.id) !== s.planAt) { planSeen.set(s.id, s.planAt); asideView = 'plan'; }
+    if (s.planAt && planSeen.get(s.id) !== s.planAt) { planSeen.set(s.id, s.planAt); ui.asideView = 'plan'; }
     const views = [];
     if (acts) views.push(['activity', t('claude_aside_tools', 'Activity')]);
     if (plan) views.push(['plan', t('claude_cs_plan', 'Plan')]);
     if (agents) views.push(['agents', t('claude_aside_agents', 'Agents')]);
-    let view = views.some(([key]) => key === asideView) ? asideView : '';
+    let view = views.some(([key]) => key === ui.asideView) ? ui.asideView : '';
     if (!view) view = plan && (pending || !acts) ? 'plan' : views[0][0];
     const aside = el('div', 'cw-cs-aside');
     const bar = el('div', 'cw-aside-bar');
@@ -1740,7 +1754,7 @@
         const tab = el('button', 'cw-aside-tab' + (key === view ? ' is-on' : ''), label); tab.type = 'button';
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-selected', key === view ? 'true' : 'false');
-        tab.addEventListener('click', () => { asideView = key; if (key === 'agents') agentSel = ''; paint(); });
+        tab.addEventListener('click', () => { ui.asideView = key; if (key === 'agents') ui.agentSel = ''; paint(); });
         tabs.appendChild(tab);
       });
       bar.appendChild(tabs);
@@ -1839,10 +1853,6 @@
     return list;
   }
 
-  // Work anywhere: a folder typed or pasted here joins the list (the server
-  // checks it is a real folder and keeps it). Not offered to a paired device,
-  // where the server refuses it.
-  let folderOpen = false;
   // An example in this computer's own path shape (the adder is never shown remotely).
   function folderExample() {
     const ua = navigator.userAgent || '';
@@ -1851,10 +1861,10 @@
   }
   function folderAdder() {
     const wrap = el('div', 'cw-ask-folder');
-    if (!folderOpen) {
+    if (!ui.folderOpen) {
       const b = el('button', 'cw-ask-proj cw-ask-proj-add'); b.type = 'button';
       b.textContent = '+ ' + t('claude_folder_add', 'Another folder');
-      b.addEventListener('click', () => { folderOpen = true; paint(); });
+      b.addEventListener('click', () => { ui.folderOpen = true; paint(); });
       wrap.appendChild(b);
       return wrap;
     }
@@ -1871,7 +1881,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: value }),
       });
       if (d && d.ok) {
-        folderOpen = false; widgetState.askError = '';
+        ui.folderOpen = false; widgetState.askError = '';
         await loadAskProjects(true);
         widgetState.askProjectId = d.id;
       } else {
@@ -1882,7 +1892,7 @@
     go.addEventListener('click', add);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); add(); }
-      if (e.key === 'Escape') { folderOpen = false; widgetState.askError = ''; paint(); }
+      if (e.key === 'Escape') { ui.folderOpen = false; widgetState.askError = ''; paint(); }
     });
     wrap.appendChild(input);
     wrap.appendChild(go);
@@ -1899,10 +1909,10 @@
     mascot.appendChild(window.ClaudeClawd.make('cw-clawd-svg'));
     hero.appendChild(mascot);
     const none = !sessions().length;
-    hero.appendChild(el('div', 'cw-hero-t', none && !composing
+    hero.appendChild(el('div', 'cw-hero-t', none && !ui.composing
       ? t('claude_no_sessions', 'No session running') : t('claude_new_title', 'New session')));
     hero.appendChild(el('div', 'cw-hero-s', t('claude_ask_sub', 'Whatever it runs or writes comes back here to approve')));
-    if (composing && !none) {
+    if (ui.composing && !none) {
       const back = el('button', 'cw-link-btn'); back.type = 'button';
       back.textContent = t('claude_cs_back', 'Back to the sessions');
       back.addEventListener('click', closeAsk);
@@ -1950,7 +1960,7 @@
       side.appendChild(fold);
       side.appendChild(window.ClaudeRail.render({
         el, t, list, titles: titles(), selected: widgetState.askResumeId,
-        fresh: new Set(doneNotices.map((n) => n.id)),
+        fresh: new Set(ui.doneNotices.map((n) => n.id)),
         onSelect: (id, label) => select(id, label),
         ageNode, nowLine, stateLabel,
         finishedTitle: (n) => collapsibleTitle('finished', t('claude_sess_finished', 'Finished'), String(n)),
@@ -2078,15 +2088,14 @@
   const FACE_KEY = 'xeneonedge.claude.face.v1';
   const REPAIR_SEEN_KEY = 'xeneonedge.claude.repairSeen.v1';
   const FACES = ['live', 'usage', 'history'];
-  let face = null;
   function currentFace() {
-    if (face) return face;
-    try { face = FACES.includes(localStorage.getItem(FACE_KEY)) ? localStorage.getItem(FACE_KEY) : 'live'; } catch { face = 'live'; }
-    return face;
+    if (ui.face) return ui.face;
+    try { ui.face = FACES.includes(localStorage.getItem(FACE_KEY)) ? localStorage.getItem(FACE_KEY) : 'live'; } catch { ui.face = 'live'; }
+    return ui.face;
   }
   function setFace(f) {
-    face = FACES.includes(f) ? f : 'live';
-    try { localStorage.setItem(FACE_KEY, face); } catch { /* private mode: session only */ }
+    ui.face = FACES.includes(f) ? f : 'live';
+    try { localStorage.setItem(FACE_KEY, ui.face); } catch { /* private mode: session only */ }
     paint();
   }
 
@@ -2151,7 +2160,7 @@
     h.appendChild(faces);
 
     if (widgetState.linkState && widgetState.linkState.linked) {
-      const ask = el('button', 'cw-ask-open' + (composing ? ' is-on' : '')); ask.type = 'button';
+      const ask = el('button', 'cw-ask-open' + (ui.composing ? ' is-on' : '')); ask.type = 'button';
       ask.appendChild(el('span', 'cw-ask-open-plus', '+'));
       ask.appendChild(el('span', 'cw-ask-open-t', t('claude_new_session', 'New session')));
       ask.setAttribute('aria-label', t('claude_new_session', 'New session'));
@@ -2294,10 +2303,9 @@
     if (needsTick) startTicker(); else stopTicker();
   }
 
-  let laterTimer = null;
   function paintLater() {
-    if (laterTimer) return;
-    laterTimer = setTimeout(() => { laterTimer = null; paint(); }, HELD_PAINT_MS);
+    if (ui.laterTimer) return;
+    ui.laterTimer = setTimeout(() => { ui.laterTimer = null; paint(); }, HELD_PAINT_MS);
   }
 
   // The rail scrolls sideways on a narrow tile, so both axes are kept.
@@ -2349,7 +2357,6 @@
   // are looking somewhere else currently announces itself nowhere, so you find
   // out by going back and checking.
   const DONE_TTL_MS = 10 * 60 * 1000;   // how long a finish stays worth showing
-  let doneNotices = [];                 // [{ id, project, at }] newest last
 
   function trackPresence() {
     const list = sessions();
@@ -2370,36 +2377,29 @@
       const finished = was === 'running' && s.state === 'idle' && !s.waitFor
         && !(s.ended && s.endedReason === 'gone');
       if (finished) {
-        doneNotices = doneNotices.filter(n => n.id !== s.id);
-        doneNotices.push({ id: s.id, project: s.project || '', at: now });
+        ui.doneNotices = ui.doneNotices.filter(n => n.id !== s.id);
+        ui.doneNotices.push({ id: s.id, project: s.project || '', at: now });
       }
     });
     widgetState.lastStates = next;
-    doneNotices = doneNotices.filter(n => (now - n.at) < DONE_TTL_MS && next.has(n.id));
-    if (doneNotices.length > 4) doneNotices = doneNotices.slice(-4);
+    ui.doneNotices = ui.doneNotices.filter(n => (now - n.at) < DONE_TTL_MS && next.has(n.id));
+    if (ui.doneNotices.length > 4) ui.doneNotices = ui.doneNotices.slice(-4);
   }
 
   // Notices about a session OTHER than the one being written to. Seeing "this
   // session finished" while typing into that very session is noise.
   function otherNotices() {
-    return doneNotices.filter(n => n.id !== widgetState.askResumeId);
+    return ui.doneNotices.filter(n => n.id !== widgetState.askResumeId);
   }
   function clearNotice(id) {
-    doneNotices = doneNotices.filter(n => n.id !== id);
-    topbarSig = '';        // the chip's meaning just changed; let it redraw
+    ui.doneNotices = ui.doneNotices.filter(n => n.id !== id);
+    ui.topbarSig = '';        // the chip's meaning just changed; let it redraw
     syncTopbar();
     paint();
   }
 
 
   // ── the topbar marker ──────────────────────────────────────────────────────
-  // Lives in the clock island, so it is present in both the full and the minimal
-  // bar and can be reordered or hidden like any other island element. Three
-  // states and nothing more: absent when there is nothing to say, a quiet pulse
-  // while a session works, and lit when one has finished and you have not looked
-  // yet. Tapping it opens that session.
-  let topbarSig = '';
-
   // Clawd, Claude Code's own mascot (js/claude-clawd.js). It replaced a text
   // pill and then a generic sparkle: neither said whose session this was.
   function clawd() { return window.ClaudeClawd.make('cw-tb-mark'); }
@@ -2412,7 +2412,7 @@
     // instead of matching a stale one and staying blank.
     if (!topbarOn()) {
       if (!host.hidden) { host.hidden = true; host.replaceChildren(); }
-      topbarSig = '';
+      ui.topbarSig = '';
       return;
     }
     // A session filed under Finished contributes nothing to any of these. It is
@@ -2421,7 +2421,7 @@
     // the bar into its loudest state while two others were actually running.
     const list = sessions().filter(s => !s.ended && !s.resting);
     const working = list.filter(s => s.state === 'running').length;
-    const done = otherNotices().length ? doneNotices.length : 0;
+    const done = otherNotices().length ? ui.doneNotices.length : 0;
     // A card the user can answer, or a session blocked with no card to answer.
     const pending = approvals().length || list.filter(s => s.waitFor).length;
 
@@ -2429,8 +2429,8 @@
     // second while a session is busy — exactly when it must look calm. Only
     // redraw when what the chip MEANS changes.
     const sig = `${working}|${done}|${pending}`;
-    if (sig === topbarSig) return;
-    topbarSig = sig;
+    if (sig === ui.topbarSig) return;
+    ui.topbarSig = sig;
 
     // Nothing happening → the island gives the space back rather than holding an
     // empty chip. An approval always shows: it is the one thing that blocks.
@@ -2482,14 +2482,14 @@
     chip.title = label;
     chip.setAttribute('aria-label', label);
     chip.addEventListener('click', () => {
-      const n = doneNotices[doneNotices.length - 1];
+      const n = ui.doneNotices[ui.doneNotices.length - 1];
       // The tile is where the sessions are: take the user to its page first.
       const tile = tiles()[0];
       const moved = !!(tile && window.DashboardPager && window.DashboardPager.goToPageOf(tile));
       if (!n) return;
       // The panel is drawn inside the tile. With no tile on any page there is
       // nowhere to open it, so the tap acknowledges the marker instead.
-      if (!moved && !tiles().length) { clearNotice(n.id); topbarSig = ''; syncTopbar(); return; }
+      if (!moved && !tiles().length) { clearNotice(n.id); ui.topbarSig = ''; syncTopbar(); return; }
       clearNotice(n.id);
       widgetState.askText = '';
       openAsk(n.id, n.project || '', '');
@@ -2555,7 +2555,7 @@
   // SSE push.
   function onSettingsChanged() {
     if (!approvalsOn()) sheet.close();
-    topbarSig = '';
+    ui.topbarSig = '';
     syncTopbar();
     paint();
   }
