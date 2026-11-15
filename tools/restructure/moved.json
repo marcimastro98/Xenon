@@ -257,7 +257,8 @@
     {"from":"server/steps-recorder.js","to":"server/screens/steps-recorder.js"},
     {"from":"server/filesearch.js","to":"server/search/filesearch.js"},
     {"from":"server/living-index.js","to":"server/search/living-index.js"},
-    {"from":"server/settings-rev.js","to":"server/settings/settings-rev.js"}
+    {"from":"server/settings-rev.js","to":"server/settings/settings-rev.js"},
+    {"from":"server/community-limited.js","to":"server/store-catalog/community-limited.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},

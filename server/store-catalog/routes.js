@@ -10,7 +10,7 @@ const communityInstalls = require('./community-installs.js');
 const communityMessages = require('./community-messages.js');
 const supporterRedeem = require('../store-supporters/supporter-redeem.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const communityLimited = require('../community-limited.js');
+const communityLimited = require('./community-limited.js');
 const communityRatings = require('./community-ratings.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

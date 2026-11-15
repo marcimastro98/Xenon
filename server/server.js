@@ -496,7 +496,7 @@ const usageStats = require('./engine/usage-stats');  // anonymous feature counts
 require('./store-catalog/icon-packs');
 require('./store-catalog/sound-packs');
 require('./store-catalog/community-ratings');
-require('./community-limited'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
+require('./store-catalog/community-limited'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./remote-control');
 // Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
 // from `remoteControl` above, which is the Sunshine/Moonlight streaming feature

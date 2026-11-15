@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const limited = require('../community-limited.js');
+const limited = require('../store-catalog/community-limited.js');
 const { HUB_BASE } = require('../store-supporters/supporter-redeem.js');
 
 let calls;

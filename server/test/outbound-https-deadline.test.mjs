@@ -138,7 +138,7 @@ test('every module that calls https bounds each call with armDeadline, or says w
   const rows = scan();
   const names = rows.map((r) => r.rel);
   // The scan must actually see the clients, or every check below passes vacuously.
-  for (const known of ['store-catalog/catalog-fetch.js', 'community-limited.js', 'ticker/news-fetch.js', 'server.js']) {
+  for (const known of ['store-catalog/catalog-fetch.js', 'store-catalog/community-limited.js', 'ticker/news-fetch.js', 'server.js']) {
     assert.ok(names.includes(known), 'scan missed ' + known);
   }
   const problems = [];
@@ -209,7 +209,7 @@ after(() => {
 });
 
 const messages = require('../store-catalog/community-messages.js');
-const limited = require('../community-limited.js');
+const limited = require('../store-catalog/community-limited.js');
 const ratings = require('../store-catalog/community-ratings.js');
 const installs = require('../store-catalog/community-installs.js');
 const redeem = require('../store-supporters/supporter-redeem.js');
