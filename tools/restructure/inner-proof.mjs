@@ -32,7 +32,7 @@ function scopeOf(text, parser, name, functionName) {
   const file = analyze(text, parser, name);
   const bodyText = `${body.join('\n')}\n`;
   const inner = analyze(bodyText, parser, name, { registrations: [], afterLoad: [] });
-  return { file, params, open, inner, reach: markConstants(inner, bodyText, parser, name) };
+  return { file, params, open, inner, body, reach: markConstants(inner, bodyText, parser, name) };
 }
 
 // Where a require leads, as one spelling: './runner' in server/x/ and '../x/runner.js' in server/y/ are the same file.
@@ -121,13 +121,20 @@ export function proveInner({ before, after, moduleText, plan, parser, source, ta
   // same at the moment the factory calls the new module; a variable is one nothing left behind used (inner-constants.mjs,
   // asked of the old file).
   const left = new Set(movedNames.map((name) => was.inner.bindings.get(name)?.record).filter(Boolean));
+  // A value that is worked out may have left only in an unbroken run, kept in its order, that the call replaces where it
+  // stood: read here off the three files, never taken from the plan.
+  const places = [...left].sort((a, b) => a.index - b.index);
+  const standsThere = is.inner.records.findIndex((record) => record.line[0] === bodyAt - is.open) === places[0]?.index;
+  const inOrder = places.flatMap((record) => record.names).join() === movedNames.join();
+  const run = standsThere && inOrder && places.every((record, i) => i === 0 || record.index === places[i - 1].index + 1)
+    ? (record) => was.body.slice(record.line[0] - 1, record.line[1]).join('\n') : null;
   for (const record of inside.slice(0, -1)) {
     const old = was.inner.bindings.get(record.names[0])?.record;
     if (old?.kind !== record.kind || !sameSet(old.names, record.names)) { problems.push(`${record.names.join(', ')} is not in ${make} what it was in ${factory}`); continue; }
     if (old.kind === 'function') continue;
     if (old.kind === 'let' && old.names.some((name) => taken.includes(name))) problems.push(`${old.names.join(', ')} is a variable and ${make} gives it back: the factory would hold a copy`);
     problems.push(...constantReasons({ inner: was.inner, params: was.params, file: was.file, reach: was.reach, record: old, label: old.names.join(', '),
-      movedSet: left, factory, real: (line) => was.open + line + 1 }));
+      movedSet: left, factory, real: (line) => was.open + line + 1, run }));
   }
 
   // 5. The functions are taken back before the factory can use one, and after everything handed over exists.

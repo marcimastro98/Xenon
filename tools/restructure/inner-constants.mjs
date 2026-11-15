@@ -13,6 +13,12 @@
 //   - a name the file requires, taken as it is.
 // What a function inside the value uses runs later and obeys the rule of moved functions.
 //
+// One case needs none of that: what leaves is an unbroken run of statements of the body, kept in its order, and the
+// call of the new module stands where the run stood (`run`: inner-plan.mjs and inner-proof.mjs each establish it on
+// their own). Then every line is worked out at the moment it was, after the same lines and before the same lines, so
+// its value may be worked out (`os.homedir()`, `flag ? a : b`). What still differs in the new function is whose `this`,
+// `arguments` and `new.target` it is; and the rule of moved functions holds as ever for every name taken from outside.
+//
 // One object is made, in the new module. A constant the factory still uses comes back by the
 // line that takes the functions back, so a list, an object, a Set or a function is the same one
 // on both sides: changing what it holds is seen by both.
@@ -56,9 +62,29 @@ export function markConstants(inner, bodyText, parser, source) {
  * @param {(record: any) => Set<any>} ask.reach from markConstants @param {any} ask.record the constant
  * @param {string} ask.label how the reasons name it @param {Set<any>} ask.movedSet every record that leaves
  * @param {string} ask.factory @param {(line: number) => number} ask.real a line of the body as a line of the file
+ * @param {((record: any) => string) | null} [ask.run] set when what leaves is an unbroken run the call replaces where it stood:
+ *   gives the text of a record
  * @returns {string[]} empty when it may leave
  */
-export function constantReasons({ inner, params, file, reach, record, label, movedSet, factory, real }) {
+export function constantReasons(ask) {
+  const reasons = anyMomentReasons(ask);
+  const { record, label, factory, run = null } = ask;
+  if (!reasons.length || !run || !record.fixed) return reasons;
+  // In its place in a run: only what is another thing inside another function, and what no move may do to a variable.
+  const kept = reasons.filter((reason) => KEPT_IN_A_RUN.some((holds) => holds.test(reason)));
+  const text = run(record);
+  const said = SAID_OF_THE_FACTORY.filter(([word, name]) => word.test(text) && !kept.some((reason) => reason.includes(`says \`${name}\``)))
+    .map(([, name]) => `${label} says \`${name}\`, which is ${factory}'s there and would be the new function's`);
+  return [...said, ...kept];
+}
+
+const SAID_OF_THE_FACTORY = /** @type {[RegExp, string][]} */ ([[/(?<![\w$.])this(?![\w$])/, 'this'], [/(?<![\w$.])new\s*\.\s*target(?![\w$])/, 'new.target']]);
+
+// The reasons that hold wherever the line is worked out: whose `this` and `arguments`, and a variable or one assigned to.
+const KEPT_IN_A_RUN = [/ says `this`/, / says `arguments` /, / is a variable that line /, / is assigned to in /];
+
+// Why a constant cannot be worked out at another moment than its line.
+function anyMomentReasons({ inner, params, file, reach, record, label, movedSet, factory, real }) {
   if (!record.fixed) return [`${label} is not a constant whose value can be read`];
   const reasons = record.fixed.reasons.map((reason) => `${label} is not a value written out: ${reason.replace("the wrapper's", `${factory}'s`)}`);
   if (record.uses.has('arguments')) reasons.push(`${label} says \`arguments\` in an arrow, which is ${factory}'s`);

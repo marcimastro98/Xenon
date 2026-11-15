@@ -17,6 +17,8 @@
 // constant of the factory's body, a module the file requires, or a name no file declares.
 // A constant of the body can be named too and moves with the functions when its value is written
 // out (inner-constants.mjs); one the factory still uses comes back by the same line as the functions.
+// Lines that stand side by side and leave whole, with the call in their place, may hold values that
+// are worked out: each is worked out at the moment it was.
 // Pure: text in, text out, or a refusal.
 
 import path from 'node:path';
@@ -76,15 +78,16 @@ export function readBody(text, parser, source, factory) {
 
 /**
  * Why one function, constant or variable of the body cannot leave with the others that do.
- * @param {{ body: ReturnType<typeof readBody>, record: any, movedSet: Set<any>, source: string, factory: string, passed?: Set<string>, needed?: Set<string> }} ask
- *   `passed` and `needed` collect what it would be handed and what the new module would require
+ * @param {{ body: ReturnType<typeof readBody>, record: any, movedSet: Set<any>, source: string, factory: string, passed?: Set<string>, needed?: Set<string>,
+ *   run?: ((record: any) => string) | null }} ask `passed` and `needed` collect what it would be handed and what the new module would require;
+ *   `run` as in inner-constants.mjs
  * @returns {string[]}
  */
-export function leaveReasons({ body, record, movedSet, source, factory, passed = new Set(), needed = new Set() }) {
+export function leaveReasons({ body, record, movedSet, source, factory, passed = new Set(), needed = new Set(), run = null }) {
   const { inner, file, shell, reach, real } = body;
   const label = `${record.names.join(', ')} (${source}:${real(record.line[0])})`;
   const reasons = record.sharesLine ? [`${label} shares a line with another statement`] : [];
-  if (record.kind !== 'function') reasons.push(...constantReasons({ inner, params: shell.params, file, reach, record, label, movedSet, factory, real }));
+  if (record.kind !== 'function') reasons.push(...constantReasons({ inner, params: shell.params, file, reach, record, label, movedSet, factory, real, run }));
   else if (inner.bindings.get(record.names[0]).reassigned) reasons.push(`${label} is assigned again in ${factory}: the factory would keep a copy that never changes`);
   const movedNames = [...movedSet].flatMap((moved) => moved.names);
   return [...reasons, ...sortUses({ record, label, inner, file, shell, movedNames, source, factory, passed, needed })];
@@ -179,13 +182,24 @@ export function planInner(job) {
   const staying = inner.records.filter((record) => !movedSet.has(record));
   const passed = new Set();
   const needed = new Set();
-  const reasons = moved.flatMap((record) => leaveReasons({ body: bodyRead, record, movedSet, source, factory, passed, needed }));
+  // An unbroken run of the body may hold values that are worked out, when the call can stand where the run stood.
+  const bodyLinesOf = shell.bodyText.split('\n');
+  const unbroken = moved.every((record, i) => i === 0 || record.index === moved[i - 1].index + 1);
+  const run = unbroken ? (record) => bodyLinesOf.slice(record.line[0] - 1, record.line[1]).join('\n') : null;
+  const ask = (inPlace) => moved.flatMap((record) => leaveReasons({ body: bodyRead, record, movedSet, source, factory, passed, needed, run: inPlace }));
+  const reasons = ask(run);
   const returned = movedNames.filter((name) => staying.some((record) => record.uses.has(name)));
   if (returned.length === 0) reasons.push(`nothing left in ${factory} uses ${movedNames.join(', ')}: delete dead code instead of moving it`);
   if (reasons.length) throw new Refusal(reasons);
 
   const call = placeCall({ inner, moved, movedSet, passed, factory, source, real });
   if (call.reason) throw new Refusal([call.reason]);
+  // The call cannot stand where the run stood: then every line is asked as one that is worked out at another moment.
+  const apart = run && call.anchor !== moved[0].index ? ask(null) : [];
+  if (apart.length) {
+    throw new Refusal([...apart, `side by side as they are, the lines could leave if the call of ${make} stood where they stand (${source}:${real(moved[0].line[0])}); `
+      + `it cannot: what it is handed is declared below them, or ${factory} may use a moved function above them`]);
+  }
   const required = requireLines([...needed], file.bindings, (spec) => rewrite(spec, source, target));
   const place = placeRequire({ records: file.records, moved: [file.bindings.get(factory).record], movedSet: new Set(), movedNames: [factory],
     bindings: file.bindings, modules: required.modules, source, stretches: protectedStretches });

@@ -89,7 +89,8 @@ test('the constant handed back is the one object: what one side puts in it, the 
 
 test('a constant that is not a value written out, or that would read something else at another moment, is refused with the reason', (t) => {
   if (!parser) return t.skip(SKIP);
-  const use = ['  function f() { return a; }', '  return { f };'];
+  // A line that stays stands between the constant and the function: side by side they would leave as a run (below).
+  const use = ['  const kept = 1;', '  function f() { return a; }', '  return { f, kept };'];
   const variants = [
     [['  const a = runner();', ...use], ['a', 'f'], /a \(server\/demo\.js:5\) is not a value written out: it calls `runner\(\)`/],
     [['  const a = limit.most;', ...use], ['a', 'f'], /a \(server\/demo\.js:5\) is not a value written out: `limit\.most` is not a value written out/],
@@ -101,7 +102,7 @@ test('a constant that is not a value written out, or that would read something e
     [['  const a = limit * 2;', ...use], ['a', 'f'], /computes with limit or copies from it, an argument of createThing/],
     [['  const a = [...limit];', ...use], ['a', 'f'], /computes with limit or copies from it, an argument of createThing/],
     [['  const a = `${sep}x`;', ...use], ['a', 'f'], /computes with sep or copies from it, a required name/],
-    [['  const base = 5;', '  const a = base * 2;', '  function f() { return a; }', '  return { f, base };'], ['a', 'f'],
+    [['  const base = 5;', '  const a = base * 2;', '  const kept = 1;', '  function f() { return a; }', '  return { f, base, kept };'], ['a', 'f'],
       /a \(server\/demo\.js:6\) computes with base \(line 5\) or copies from it, and base stays in createThing: move it along, or leave a where it is/],
     [['  const a = [b];', '  const b = [];', ...use], ['a', 'b', 'f'], /a \(server\/demo\.js:5\) reads b above the line that declares it \(line 6\)/],
     [['  const list = [];', '  const a = list * 2;', ...use], ['list', 'a', 'f'], /computes with list \(line 5\), which is not a number or a string written out/],
@@ -129,14 +130,17 @@ test('what a written-out constant may read: what moves with it above it, and wha
 
 test('the proof asks the old file on its own whether a constant that left is written out', (t) => {
   if (!parser) return t.skip(SKIP);
-  const made = plan(SOURCE, ['find', 'fetchAll', 'seen', 'LIMITS', 'pick']);
+  // A line that stays stands in the middle: what leaves is not one run, so each line is asked as one worked out at another moment.
+  const APART = SOURCE.replace('  const LIMITS', '  const kept = 1;\n  const LIMITS');
+  const made = plan(APART, ['find', 'fetchAll', 'seen', 'LIMITS', 'pick']);
+  assert.deepEqual(proven(APART, made), []);
   const swap = (text) => text.replace('new Map()', 'runner(sep)');
-  assert.match(proven(swap(SOURCE), made, swap(made.moduleText)).join('\n'), /seen is not a value written out: it calls `runner\(\)`/);
-  assert.match(proven(SOURCE, made, made.moduleText.replace('const pick =', 'var pick =')).join('\n'), /makeSteps is more than the moved functions and what it gives back/);
+  assert.match(proven(swap(APART), made, swap(made.moduleText)).join('\n'), /seen is not a value written out: it calls `runner\(\)`/);
+  assert.match(proven(APART, made, made.moduleText.replace('const pick =', 'var pick =')).join('\n'), /makeSteps is more than the moved functions and what it gives back/);
   // A variable the factory still uses would come back as a copy: the old file says it is one.
   const lower = (text) => text.replace('const seen =', 'let seen =');
-  const told = proven(lower(SOURCE), made, lower(made.moduleText)).join('\n');
-  assert.match(told, /seen is a variable that line 17 of createThing uses too: a variable cannot be handed over or back/);
+  const told = proven(lower(APART), made, lower(made.moduleText)).join('\n');
+  assert.match(told, /seen is a variable that line 18 of createThing uses too: a variable cannot be handed over or back/);
   assert.match(told, /seen is a variable and makeSteps gives it back: the factory would hold a copy/);
 });
 
@@ -175,10 +179,10 @@ test('a variable the factory uses too, or one read while the factory runs, stays
   const shared = ['  let calls = 0;', '  function count() { calls += 1; return calls; }', '  return { count, seen: () => calls };'];
   const variants = [
     [shared, ['calls', 'count'], /calls \(server\/demo\.js:5\) is a variable that line 7 of createThing uses too: a variable cannot be handed over or back\. Move what uses it along, or first keep what createThing remembers in one object \(gather\)/],
-    [['  let n = 1;', '  const a = [n];', '  function f() { n += 1; return a; }', '  return { f };'], ['n', 'a', 'f'], /a \(server\/demo\.js:6\) reads the variable n \(line 5\) while createThing runs: it could hold another value at another moment/],
-    [['  let n = 1;', '  let m = n;', '  function f() { n += 1; return m; }', '  return { f };'], ['n', 'm', 'f'], /m \(server\/demo\.js:6\) reads the variable n \(line 5\) while createThing runs/],
+    [['  let n = 1;', '  const a = [n];', '  const kept = 1;', '  function f() { n += 1; return a; }', '  return { f, kept };'], ['n', 'a', 'f'], /a \(server\/demo\.js:6\) reads the variable n \(line 5\) while createThing runs: it could hold another value at another moment/],
+    [['  let n = 1;', '  let m = n;', '  const kept = 1;', '  function f() { n += 1; return m; }', '  return { f, kept };'], ['n', 'm', 'f'], /m \(server\/demo\.js:6\) reads the variable n \(line 5\) while createThing runs/],
     [['  const first = f();', '  let a;', '  function f() { return a; }', '  return { f, first };'], ['a', 'f'], /a \(server\/demo\.js:6\): line 5 could use it while createThing runs, above the line that declares it: today that is an error/],
-    [['  let a = runner();', '  function f() { return a; }', '  return { f };'], ['a', 'f'], /a \(server\/demo\.js:5\) is not a value written out: it calls `runner\(\)`/],
+    [['  let a = runner();', '  const kept = 1;', '  function f() { return a; }', '  return { f, kept };'], ['a', 'f'], /a \(server\/demo\.js:5\) is not a value written out: it calls `runner\(\)`/],
   ];
   for (const [body, names, reason] of variants) assert.match(refusal(thing(...body), names), reason, body[0]);
   // Not named, it is left where it is, and the function that needs it is refused with both reasons.
