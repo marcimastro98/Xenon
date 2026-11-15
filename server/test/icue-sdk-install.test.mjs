@@ -57,7 +57,8 @@ test('the archive is hash-verified BEFORE anything is extracted', () => {
 });
 
 test('the fetched copy is preferred over an incidental third-party one', () => {
-  const mine = lighting.indexOf("path.join(__dirname, 'icue-sdk', SDK_DLL_NAME)");
+  // The server folder is `__dirname` in a file of that folder and a named constant in a file one folder down.
+  const mine = lighting.search(/path\.join\((?:__dirname|SERVER_DIR), 'icue-sdk', SDK_DLL_NAME\)/);
   const gigabyte = lighting.indexOf('GIGABYTE');
   assert.ok(mine > 0 && gigabyte > 0);
   assert.ok(mine < gigabyte, 'the pinned copy must be probed before the GIGABYTE fallback');
