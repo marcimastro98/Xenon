@@ -47,18 +47,14 @@
     {"from":"server/sdk-asset-cache.js","to":"server/widget-sdk/sdk-asset-cache.js","shim":true},
     {"from":"server/sdk-grant.js","to":"server/widget-sdk/sdk-grant.js","shim":true},
     {"from":"server/widget-keys.js","to":"server/widget-sdk/widget-keys.js","shim":true},
-    {"from":"server/browser-surface-sync.js","to":"server/windows-tiles/browser-surface-sync.js"},
-    {"from":"server/embedded-browser-adblock.js","to":"server/windows-tiles/embedded-browser-adblock.js"},
-    {"from":"server/linux-foreground.js","to":"server/windows-tiles/linux-foreground.js"},
-    {"from":"server/second-screen.js","to":"server/windows-tiles/second-screen.js"},
-    {"from":"server/slideshow-folder.js","to":"server/windows-tiles/slideshow-folder.js"},
-    {"from":"server/tile-play.js","to":"server/windows-tiles/tile-play.js"}
+    {"from":"server/browser-surface-sync.js","to":"server/windows-tiles/browser-surface-sync.js","shim":true},
+    {"from":"server/embedded-browser-adblock.js","to":"server/windows-tiles/embedded-browser-adblock.js","shim":true},
+    {"from":"server/linux-foreground.js","to":"server/windows-tiles/linux-foreground.js","shim":true},
+    {"from":"server/second-screen.js","to":"server/windows-tiles/second-screen.js","shim":true},
+    {"from":"server/slideshow-folder.js","to":"server/windows-tiles/slideshow-folder.js","shim":true},
+    {"from":"server/tile-play.js","to":"server/windows-tiles/tile-play.js","shim":true}
   ],
   "patterns": [
-    {"feature":"windows-tiles","glob":"server/second-screen.js","at":2},
-    {"feature":"windows-tiles","glob":"server/browser-surface-sync.js","at":3},
-    {"feature":"windows-tiles","glob":"server/slideshow-folder.js","at":4},
-    {"feature":"windows-tiles","glob":"server/linux-foreground.js","at":7},
-    {"feature":"windows-tiles","glob":"server/tile-play.js","at":8}
+
   ]
 }
