@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createFileSearch } = require('../filesearch.js');
+const { createFileSearch } = require('../search/filesearch.js');
 const SearchRank = require('../search/search-rank.js');
 
 const NOW = new Date(2026, 6, 23, 12, 0, 0).getTime();

@@ -42,7 +42,7 @@ test('every background reader gives way', () => {
   assert.match(server, /_mediaHost\.proc = proc;\n\s+lowerPriority\(proc\.pid\);/, 'media host');
   assert.match(server, /lowPriority: lowerPriority,/, 'transcripts');
   assert.match(engineSource('server/notification-open/winnotif.js'), /_proc = child;\n\s+lowerPriority\(child\.pid\);/, 'notification reader');
-  assert.match(engineSource('server/living-index.js'), /host\.proc = proc;\n\s+lowerPriority\(proc\.pid\);/, 'index host');
+  assert.match(engineSource('server/search/living-index.js'), /host\.proc = proc;\n\s+lowerPriority\(proc\.pid\);/, 'index host');
   assert.match(source('audio/audio-levels.js'), /scheduleRestart\(startedAt\);\n\s+return;\n\s+\}\n\s+lowerPriority\(_proc\.pid\);/, 'audio levels');
 });
 

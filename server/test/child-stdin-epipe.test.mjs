@@ -131,8 +131,8 @@ test('the long-lived hosts retire on a pipe error instead of ignoring it', () =>
   // so a dead pipe has to take it out of service or every later request times
   // out against a corpse.
   const HOSTS = [
-    ['living-index.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retire\(/],
-    ['filesearch.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retireHost\(/],
+    ['search/living-index.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retire\(/],
+    ['search/filesearch.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retireHost\(/],
     ['phone.js', /proc\.stdin\.on\('error', \(\) => \{ if \(host\.proc === proc\) retire\(/],
     ['screens/screen-capture.js', /p\.stdin\.on\('error', \(\) => \{ if \(proc === p\) _retire\(/],
     ['server.js', /proc\.stdin\.on\('error', \(\) => _killWorker\(/],

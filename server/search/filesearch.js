@@ -23,21 +23,21 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-require('./search/search-query');
-const SearchRank = require('./search/search-rank');
-const { isBlockedOpenPath } = require('./actions/registry');
+require('./search-query');
+const SearchRank = require('./search-rank');
+const { isBlockedOpenPath } = require('../actions/registry');
 
-const { RESULTS_CACHE_MAX } = require('./search/search-limits.js');
+const { RESULTS_CACHE_MAX } = require('./search-limits.js');
 
-const { makeHost } = require('./search/search-host.js');
+const { makeHost } = require('./search-host.js');
 
-const { makeOpens } = require('./search/search-opens.js');
+const { makeOpens } = require('./search-opens.js');
 
-const { makeCatalog } = require('./search/search-catalog.js');
+const { makeCatalog } = require('./search-catalog.js');
 
-const { makeAnswers } = require('./search/search-answers.js');
+const { makeAnswers } = require('./search-answers.js');
 
-const { makeHostQueue } = require('./search/host-queue.js');
+const { makeHostQueue } = require('./host-queue.js');
 
 function createFileSearch(opts) {
   const o = opts || {};
@@ -53,7 +53,7 @@ function createFileSearch(opts) {
   // a runner: same query shape, same {p, n, s, m} rows, no PowerShell host.
   const catalogRunner = typeof o.catalogRunner === 'function' ? o.catalogRunner : null;
   const CATALOG_SUPPORTED = PLATFORM === 'win32' || !!catalogRunner;
-  const scriptPath = o.scriptPath || path.join(__dirname, 'search.ps1');
+  const scriptPath = o.scriptPath || path.join(__dirname, '..', 'search.ps1');
   const openExternal = o.openExternal; // async (absPath) — deck-actions 'open' verb
   const revealExternal = o.revealExternal; // (absPath, dir) — the file manager's "show me where"
   const usageFile = path.join(dataDir, 'search-usage.json');

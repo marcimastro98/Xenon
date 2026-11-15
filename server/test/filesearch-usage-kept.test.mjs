@@ -10,7 +10,7 @@ import os from 'node:os';
 import { basename, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createFileSearch } = require('../filesearch.js');
+const { createFileSearch } = require('../search/filesearch.js');
 
 const NOW = Date.parse('2026-07-01T12:00:00Z');
 const tmp = () => fs.mkdtempSync(join(os.tmpdir(), 'xenon-search-kept-'));

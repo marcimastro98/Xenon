@@ -383,7 +383,7 @@ const vitalsAiTools = require('./vitals/vitals-ai-tools'); // Bit reads, refills
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
 require('./js/windows-tiles/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
 require('./windows-tiles/slideshow-folder');          // the slideshow's "folder on this PC" source
-require('./filesearch');           // local file search (Spotlight backend)
+require('./search/filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./disk/diskspace');
 const { createDevClean } = require('./disk/devclean');
 const featureRoutes = require('./feature-routes.js');           // the routes added since this file stopped growing
@@ -392,7 +392,7 @@ const { createTrialPass } = require('./store-supporters/trial-pass');
 const { createTrialVault } = require('./store-supporters/trial-vault');
 require('./search/mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
-require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
+require('./search/living-index');       // the Living Index: helper-held in-RAM file index + watchers
 require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
 require('./search/linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./disk/linux-trash');         // the recycle-bin delete, via the freedesktop trash spec

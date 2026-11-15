@@ -22,11 +22,11 @@
 
 const { spawn } = require('child_process');
 const fs = require('fs');
-const { lowerPriority } = require('./programs/child-priority');
+const { lowerPriority } = require('../programs/child-priority');
 
-const { RETRY_MS, REQ_TIMEOUT_MS } = require('./search/living-index-limits.js');
+const { RETRY_MS, REQ_TIMEOUT_MS } = require('./living-index-limits.js');
 
-const { makeQuestions } = require('./search/living-index-questions.js');
+const { makeQuestions } = require('./living-index-questions.js');
 
 function createLivingIndex(opts) {
   const o = opts || {};

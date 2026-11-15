@@ -253,9 +253,7 @@
       "what": "One box that finds files and apps and can ask Bit.",
       "files": [
         "server/search/**",
-        "server/filesearch.js",
         "server/search.ps1",
-        "server/living-index.js",
         "server/spotlight.html",
         "server/js/spotlight/**",
         "server/js/spotlight*.js",

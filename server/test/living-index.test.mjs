@@ -5,7 +5,7 @@ import { PassThrough } from 'node:stream';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createLivingIndex } = require('../living-index.js');
+const { createLivingIndex } = require('../search/living-index.js');
 
 // A host on the other end of the pipes: it records what it is asked and answers
 // with `reply`. `helperExe` is this very process, so the file always exists.

@@ -1,4 +1,4 @@
-// Local file search orchestrator (server/filesearch.js) — merge of the two
+// Local file search orchestrator (server/search/filesearch.js) — merge of the two
 // backends, the opaque-id contract (paths travel out, never in), the openFile
 // blocklist on open, and the usage-log persistence. The Windows Search host
 // is replaced by an injected runner: no PowerShell in tests.
@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createFileSearch } = require('../filesearch.js');
+const { createFileSearch } = require('../search/filesearch.js');
 
 const NOW = new Date(2026, 6, 23, 12, 0, 0).getTime();
 const tmp = () => mkdtempSync(path.join(tmpdir(), 'xenon-fsearch-'));

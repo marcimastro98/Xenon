@@ -1,4 +1,4 @@
-// The queue in front of the Windows Search process (server/filesearch.js: dispatch, drain,
+// The queue in front of the Windows Search process (server/search/filesearch.js: dispatch, drain,
 // hostRequest). The process answers one query at a time, so one query is in flight, at most one
 // waits, and a newer one takes the place of the one waiting, which is told 'superseded'.
 //
@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createFileSearch } = require('../filesearch.js');
+const { createFileSearch } = require('../search/filesearch.js');
 
 // A process that only records what it is written and says what the test tells it to.
 function fakeHost() {

@@ -85,7 +85,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/filesearch.js` `server/search.ps1` `server/living-index.js` `server/spotlight.html` `server/js/spotlight/**` and 4 more |
+| **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/search.ps1` `server/spotlight.html` `server/js/spotlight/**` `server/js/spotlight*.js` `server/components/Spotlight/**` and 2 more |
 | **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/ffmpeg-install/**` `server/js/capture-toast/**` `server/js/capture-*.js` `server/js/capture-gallery/**` `server/components/CaptureGallery/**` and 1 more |
 | **Xenon menu** | The menu that opens over the desktop: widgets, screens, looks, the Store. | `server/menu/**` `server/menu.html` `server/components/XenonMenu/**` `server/js/menu/**` |
 | **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layers/**` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layer-*.js` `server/js/layers-*.js` and 3 more |

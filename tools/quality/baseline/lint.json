@@ -1358,7 +1358,7 @@
     "server/linux-phone.js complexity/useOptionalChain": 1,
     "server/list-ops.js complexity/useOptionalChain": 2,
     "server/list-ops.js suspicious/noPrototypeBuiltins": 1,
-    "server/living-index.js suspicious/noAssignInExpressions": 1,
+    "server/search/living-index.js suspicious/noAssignInExpressions": 1,
     "server/mcp/mcp-dev-tools.js complexity/useOptionalChain": 15,
     "server/mcp/mcp-dev-tools.js suspicious/noPrototypeBuiltins": 1,
     "server/mcp/mcp-dev.js complexity/useOptionalChain": 6,
