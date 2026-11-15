@@ -35,6 +35,8 @@ export function patternsFor(moves) {
     // `server/x.js` with either slash, also as a regular expression spells it (`server\/x\.js`).
     rooted: new RegExp(`(?<![A-Za-z0-9_-])((?:[A-Za-z0-9_.-]+(?:\\\\?/|\\\\{1,2}))*)(${names})(\\\\?\\.)js(?![A-Za-z0-9_-])`, 'g'),
     token: new RegExp(`(?<![A-Za-z0-9_-])(${names})\\.js(?![A-Za-z0-9_-])`, 'g'),
+    // `require('./x')` spelled inside a regular expression or a string: a test that pins how a file loads another.
+    pinned: new RegExp(`require\\\\?\\(\\\\?['"\`](?:\\\\?\\.){1,2}\\\\?/(?:[A-Za-z0-9_.-]+\\\\?/)*(${names})(?:\\\\?\\.js)?\\\\?['"\`]`, 'g'),
     quick: new RegExp(`(?<![A-Za-z0-9_-])(${names})(\\\\?\\.js(?![A-Za-z0-9_-])|['"\`])`),
   };
 }
@@ -145,6 +147,13 @@ function jsSites(file, text, tree, K, patterns, tracked) {
     } else if (!full && !another(tracked, [posix.normalize(value), posix.join('server', value), lexical], moves)) {
       for (const move of moves) sites.push({ ...at, kind: 'unknown', move, why: `'${value}' names no file the tool can find` });
     }
+  }
+  const loads = sites.filter((site) => site.kind === 'load');
+  for (const match of text.matchAll(patterns.pinned)) {
+    const end = match.index + match[0].length;
+    const quoted = match[0].includes('\\') || spans.some(([from, to]) => match.index > from && end < to);
+    if (!quoted || loads.some((site) => site.start >= match.index && site.end <= end)) continue;
+    for (const move of patterns.byBase.get(match[1])) sites.push({ file, line: lineOf(text, match.index), start: match.index, end, was: match[0], kind: 'unknown', move, why: 'a test pins how it is required' });
   }
   return { sites, spans };
 }

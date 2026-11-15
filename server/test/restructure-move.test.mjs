@@ -158,6 +158,8 @@ test('what the tool cannot follow, and what runs the file by path, stops the mov
   assert.match(await why('server/test/b.test.mjs', "const list = ['pulse-nag.js'];\n"), /bare name/);
   assert.match(await why('server/test/b.test.mjs', 'const a = `${SERVER}/pulse-nag.js`;\n'), /template/);
   assert.match(await why('server/test/b.test.mjs', "const a = join(process.cwd(), 'server', 'pulse-nag.js');\n"), /bare name/);
+  assert.match(await why('server/test/b.test.mjs', `${String.raw`assert.match(source, /const nag = require\('\.\/pulse-nag'\);/);`}\n`), /pins how it is required/);
+  assert.match(await why('server/test/b.test.mjs', 'assert.ok(source.includes("require(\'./pulse-nag.js\')"));\n'), /pins how it is required/);
   assert.match(await why('server/run.js', "spawn(process.execPath, [path.join(__dirname, 'pulse-nag.js')]);\n"), /code that ships puts its path together/);
   assert.match(await why('server/run.js', "const worker = new Worker('./pulse-nag.js');\n"), /code that ships puts its path together/);
   assert.match(await why('server/run.js', "log('node server/pulse-nag.js failed');\n"), /holds its path in a string/);
