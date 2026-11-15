@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const screenAlertsPage = require('../screen-alerts-page.js');
+const screenAlertsPage = require('./screen-alerts-page.js');
 
 const SERVER_DIR = path.join(__dirname, '..');
 

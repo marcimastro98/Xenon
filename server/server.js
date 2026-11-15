@@ -152,7 +152,7 @@ const layersPeek = require('./layers-peek').createLayersPeek({
 });
 // Drawing on the screen through the shell where the engine has no sheet (macOS,
 // Linux): open or not, told to the pages over SSE `screen_draw`.
-const drawShell = require('./screen-draw-shell').createScreenDrawShell({
+const drawShell = require('./alerts/screen-draw-shell').createScreenDrawShell({
   host: layersHost, broadcast: (state) => broadcastSSE('screen_draw', state),
 });
 // The Xenon menu over the main screen (screen-menu.js, plan §20): open or not,
@@ -489,7 +489,7 @@ const aiTurnRecord = require('./ai-turn-record');  // what Bit really did in a r
 const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_deck_action)
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
-require('./screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
+require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on

@@ -9,9 +9,12 @@
     {"from":"server/unifi-events.js","to":"server/smart-home/unifi-events.js","shim":true},
     {"from":"server/discord-launch.js","to":"server/discord/discord-launch.js","shim":true},
     {"from":"server/scene-images.js","to":"server/ambient/scene-images.js","shim":true},
-    {"from":"server/scene-page.js","to":"server/ambient/scene-page.js","shim":true}
+    {"from":"server/scene-page.js","to":"server/ambient/scene-page.js","shim":true},
+    {"from":"server/screen-alerts-page.js","to":"server/alerts/screen-alerts-page.js"},
+    {"from":"server/screen-draw-shell.js","to":"server/alerts/screen-draw-shell.js"}
   ],
   "patterns": [
-
+    {"feature":"alerts","glob":"server/screen-alerts-page.js","at":1},
+    {"feature":"alerts","glob":"server/screen-draw-shell.js","at":3}
   ]
 }

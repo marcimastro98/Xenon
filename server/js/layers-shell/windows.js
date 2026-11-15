@@ -19,7 +19,7 @@
 
   // Drawing on the screen where the capture engine has no sheet (macOS, Linux):
   // the shell's see-through /draw page over the main screen, while the server
-  // says drawing is on (server/screen-draw-shell.js, SSE `screen_draw`).
+  // says drawing is on (server/alerts/screen-draw-shell.js, SSE `screen_draw`).
   const DRAW_SURFACE = Object.freeze({ key: 'draw:', kind: 'draw', monitor: '' });
 
   // The Xenon menu over the main screen (server/screen-menu.js, SSE

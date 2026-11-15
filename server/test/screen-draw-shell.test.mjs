@@ -12,7 +12,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createScreenDrawShell } = require('../screen-draw-shell.js');
+const { createScreenDrawShell } = require('../alerts/screen-draw-shell.js');
 const { createLayersHost } = require('../layers-host.js');
 const draw = require('../capabilities/screen-draw.js');
 const { PALETTE } = require('../js/screen-draw-model.js');

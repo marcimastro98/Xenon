@@ -13,7 +13,7 @@ import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
 const ScreenCompanion = require('../js/screen-companion.js');
-const { compose, COMPANION_MARK, BIT_MARK } = require('../screen-alerts-page.js');
+const { compose, COMPANION_MARK, BIT_MARK } = require('../alerts/screen-alerts-page.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const INDEX = read('../index.html');
 const UMD = "typeof window !== 'undefined' ? window : globalThis";

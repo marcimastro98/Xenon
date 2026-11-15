@@ -1,6 +1,6 @@
 // Bit on the main screen in "widgets only" (js/screen-bit.js): the alerts
 // window puts in the dashboard's own voice panel on the first "Hey Xenon"
-// (markup cut from index.html by server/screen-alerts-page.js), and reloads a
+// (markup cut from index.html by server/alerts/screen-alerts-page.js), and reloads a
 // minute after the talk to give the memory back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ScreenBit = require('../js/screen-bit.js');
-const { compose, BIT_MARK } = require('../screen-alerts-page.js');
+const { compose, BIT_MARK } = require('../alerts/screen-alerts-page.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/screen-bit.js');
 const INDEX = read('../index.html');

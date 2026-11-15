@@ -170,7 +170,7 @@ test('in Edge the chat keeps its own ways out', async () => {
 });
 
 test('the page carries the panel, cut from the dashboard', () => {
-  const { compose } = require('../screen-alerts-page.js');
+  const { compose } = require('../alerts/screen-alerts-page.js');
   const html = read('../spotlight.html');
   const dash = read('../index.html');
   const out = compose(html, dash);
