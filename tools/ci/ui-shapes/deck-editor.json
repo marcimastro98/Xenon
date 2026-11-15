@@ -1,0 +1,122 @@
+{
+  "name": "deck-editor",
+  "page": "/",
+  "width": 1600,
+  "height": 900,
+  "seed": {
+    "language": "en",
+    "surfaceChoice": { "kind": "auto", "asked": true, "monitor": "", "label": "" },
+    "usageMode": "dashboard",
+    "onboarding": { "seenVersion": 999 },
+    "bootSplash": false,
+    "whatsNewSeen": "5.0.0",
+    "releaseNotesSeen": "99.0.0",
+    "sdkWidgets": { "enabled": true }
+  },
+  "answers": {
+    "/actions/catalog": { "over": { "capabilities": {
+      "obsConfigured": true, "remoteConfigured": true, "twitchConnected": true, "youtubeConnected": true,
+      "streamerbotConfigured": true, "discordConnected": true, "spotifyConnected": true, "homeAssistantConfigured": true,
+      "chromaEnabled": true, "wavelinkEnabled": true, "voicemeeterAvailable": true, "signalrgbEnabled": true,
+      "lightingConfigured": true, "claudeLinked": true
+    } } },
+    "/obs/scenes": { "json": { "scenes": ["Opening", "Desk", "Break"] } },
+    "/obs/sources": { "json": { "sources": ["Camera", "Microphone", "Screen"] } },
+    "/streamerbot/actions": { "json": { "actions": [{ "id": "act-1", "name": "Confetti" }, { "id": "act-2", "name": "Lights out" }] } },
+    "/streamerbot/codetriggers": { "json": { "triggers": [{ "name": "wave", "group": "Fun" }, { "name": "pause" }] } },
+    "/streamerbot/globals": { "json": { "globals": [{ "name": "onAir" }, { "name": "mood" }] } },
+    "/stream/discord/channels": { "json": { "channels": [{ "id": "100", "name": "lounge", "guild": "Example" }, { "id": "101", "name": "desk" }] } },
+    "/stream/discord/sounds": { "json": { "sounds": [{ "id": "200", "guildId": "300", "name": "Horn", "guild": "Example" }, { "id": "201", "name": "Bell" }] } },
+    "/api/signalrgb/effects": { "json": { "effects": [{ "value": "rain", "label": "Rain" }, { "value": "ember", "label": "Ember" }] } },
+    "/api/claude/projects": { "json": { "projects": [{ "id": "p1", "name": "Garden notes" }, { "id": "p2", "name": "Recipes" }] } },
+    "/api/wavelink/channels": { "json": { "channels": [{ "value": "ch-1", "label": "Music" }, { "value": "ch-2", "label": "Voice" }] } },
+    "/api/wavelink/state": { "json": {
+      "capabilities": { "namedMixes": true },
+      "mixes": [{ "id": "mix-1", "name": "Evening" }],
+      "channels": [{ "id": "ch-1", "name": "Music", "effects": [{ "id": "fx-1", "name": "Warmth" }] }],
+      "outputs": { "devices": [{ "id": "out-1", "name": "Desk speakers" }] }
+    } },
+    "/api/voicemeeter/state": { "json": { "strips": [{ "index": 0, "label": "Mic" }, { "index": 1, "label": "Game" }], "buses": [{ "label": "A1", "name": "Speakers" }, { "label": "B1", "name": "Stream" }] } },
+    "/api/lighting/devices": { "json": { "devices": [{ "value": "dev-1", "label": "Desk strip" }, { "value": "dev-2", "label": "Shelf lamp" }], "parts": [{ "value": "dev-1/1", "label": "Desk strip, left" }] } },
+    "/api/homeassistant/entities": { "json": { "entities": [{ "id": "light.desk", "name": "Desk light", "area": "Study" }, { "id": "switch.fan", "name": "Fan" }, { "id": "media_player.radio", "name": "Radio" }] } },
+    "/audio": { "json": { "speaker": { "id": "out-1", "muted": false, "volume": 40 }, "speakers": [{ "id": "out-1", "name": "Desk speakers", "label": "Desk speakers (Example)" }, { "id": "out-2", "name": "Headset", "label": "Headset (Example)" }], "speakerApps": [] } },
+    "/api/battery": { "json": { "devices": [{ "name": "Desk mouse", "percent": 80 }, { "name": "Headset", "percent": 55 }] } },
+    "/audio/apps": { "json": { "apps": [{ "proc": "player.exe", "name": "Player" }, { "proc": "game.exe", "name": "Game" }] } },
+    "/apps/store": { "json": { "apps": [{ "id": "Example.Notes_abc!App", "name": "Notes" }, { "id": "Example.Clock_abc!App", "name": "Clock" }] } },
+    "/deck/sounds": { "json": { "sounds": [{ "file": "ding.mp3", "name": "Ding" }, { "file": "pop.mp3", "name": "Pop" }] } },
+    "/deck/sound-packs": { "json": { "packs": [{ "id": "pack-1", "name": "Arcade", "sounds": [{ "file": "coin.mp3", "name": "Coin" }] }] } },
+    "/state/get": { "json": { "states": { "audio-out": "speakers", "focus": "" } } },
+    "/sdk/widgets": { "json": { "packages": [{
+      "id": "example-lamp", "name": "Example Lamp",
+      "deck": {
+        "actions": [{ "id": "blink", "name": "Blink" }],
+        "handlers": [{ "id": "set", "name": "Set colour", "params": [{ "name": "colour", "kind": "text" }, { "name": "level", "kind": "number", "min": 0, "max": 10 }] }],
+        "states": [{ "id": "lit", "name": "Lit" }]
+      }
+    }] } }
+  },
+  "background": ["^GET /network$", "^(GET|POST) /bit/messages", "^GET /index/status$", "^GET /api/community/", "^GET /audio$", "^GET /sdk/widgets$", "^POST /settings "],
+  "replace": [["key-id=\"k_[a-z0-9]+\"", "key-id=\"k_…\""], ["deck-slider-fill \\[style=\"[^\"]*\"\\]", "deck-slider-fill"]],
+  "skip": [".deck-key-live", ".deck-ed-styletools .deck-ed-btn"],
+  "roots": ["#deck-editor-backdrop", ".deck-panel", "body > .sp-overlay", "body > .onb-overlay", "body > .cs-menu", "body > .cp-pop", "#toast-island"],
+  "steps": [
+    { "say": "the page has finished starting", "do": "wait", "ms": 3000 },
+    { "say": "the Deck is put on the dashboard", "do": "run", "code": "addWidgetToPage('deck', 'dashboard')" },
+    { "say": "the Deck has been saved to the copy", "do": "wait", "ms": 3000 },
+    { "say": "the Deck's edit mode", "do": "click", "on": ".deck-panel .deck-edit" },
+    { "say": "the first key opens the editor", "do": "click", "on": ".deck-panel .deck-key" },
+    { "say": "a title is typed", "do": "fill", "on": ".deck-ed-main > .deck-ed-field .deck-ed-input", "text": "Night lamp" },
+    { "say": "each tab", "do": "clickEach", "on": ".deck-ed-tab" },
+
+    { "say": "Look tab, on a key that is never lit", "do": "click", "on": ".deck-ed-tab", "nth": 2 },
+    { "say": "Look: the lit face nobody will see", "do": "click", "on": ".deck-ed-faceseg .deck-ed-segbtn", "nth": 1 },
+    { "say": "Look: the button that leads to State", "do": "click", "on": ".deck-ed-facego", "nth": 1 },
+    { "say": "Look tab, still never lit", "do": "click", "on": ".deck-ed-tab", "nth": 2 },
+    { "say": "Look: the button that makes the key a switch", "do": "click", "on": ".deck-ed-facego", "nth": 0 },
+    { "say": "Look: the off face of the new switch", "do": "click", "on": ".deck-ed-faceseg .deck-ed-segbtn", "nth": 0 },
+
+    { "say": "Actions tab", "do": "click", "on": ".deck-ed-tab", "nth": 0 },
+    { "say": "Actions: each way the key behaves", "do": "clickEach", "on": ".deck-ed-modeseg .deck-ed-segbtn" },
+    { "say": "Actions: each trigger of the last way", "do": "clickEach", "on": ".deck-ed-trigbtn" },
+    { "say": "Actions: a plain button again", "do": "click", "on": ".deck-ed-modeseg .deck-ed-segbtn", "nth": 0 },
+    { "say": "Actions: each trigger of a plain button", "do": "clickEach", "on": ".deck-ed-trigbtn" },
+    { "say": "Actions: the first trigger again", "do": "click", "on": ".deck-ed-trigbtn:visible", "nth": 0 },
+    { "say": "Actions: each choice of each list, the kind of key and what a slider moves", "do": "chooseEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(3) select" },
+    { "say": "Actions: a slider", "do": "choose", "on": ".deck-ed-main > .deck-ed-pane:nth-child(3) select", "nth": 0, "value": "slider" },
+    { "say": "Actions: each segment of a slider", "do": "clickEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(3) .deck-ed-segbtn" },
+    { "say": "Actions: a key that runs actions again", "do": "choose", "on": ".deck-ed-main > .deck-ed-pane:nth-child(3) select", "nth": 0, "value": "action" },
+    { "say": "Actions: a step is added", "do": "click", "on": ".deck-ed-addstep" },
+    { "say": "Actions: each kind of action for the step", "do": "chooseEach", "on": ".deck-ed-steps select >> nth=0", "roots": [".deck-ed-steps"] },
+    { "say": "Actions: a second step is added", "do": "click", "on": ".deck-ed-addstep" },
+    { "say": "Actions: each step button", "do": "clickEach", "on": ".deck-ed-stepbtn" },
+    { "say": "Actions: each switch", "do": "clickEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(3) .deck-ed-switchrow" },
+
+    { "say": "State tab", "do": "click", "on": ".deck-ed-tab", "nth": 1 },
+    { "say": "State: each choice of each list", "do": "chooseEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(4) select" },
+    { "say": "State: each switch", "do": "clickEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(4) .deck-ed-switchrow" },
+    { "say": "State: a script state is typed", "do": "fill", "on": ".deck-ed-main > .deck-ed-pane:nth-child(4) input[list]", "text": "audio-out" },
+
+    { "say": "Look tab", "do": "click", "on": ".deck-ed-tab", "nth": 2 },
+    { "say": "Look: each segment, the icon picker's kinds among them", "do": "clickEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(5) .deck-ed-off-face .deck-ed-segbtn" },
+    { "say": "Look: each choice of each list", "do": "chooseEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(5) select" },
+    { "say": "Look: the off face again", "do": "click", "on": ".deck-ed-faceseg .deck-ed-segbtn", "nth": 0 },
+    { "say": "Look: the emoji kind of the icon picker", "do": "click", "on": ".deck-ed-off-face > .deck-ed-seg .deck-ed-segbtn", "nth": 0 },
+    { "say": "Look: an emoji is picked", "do": "click", "on": ".deck-ed-off-face .deck-ed-pickscroll .deck-ed-emoji", "nth": 3 },
+    { "say": "Look: the lit face", "do": "click", "on": ".deck-ed-faceseg .deck-ed-segbtn", "nth": 1 },
+    { "say": "Look: each segment of the lit face", "do": "clickEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(5) .deck-ed-on-face .deck-ed-segbtn" },
+
+    { "say": "Effects tab", "do": "click", "on": ".deck-ed-tab", "nth": 3 },
+    { "say": "Effects: each choice of each list", "do": "chooseEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(6) select" },
+    { "say": "Effects: each switch", "do": "clickEach", "on": ".deck-ed-main > .deck-ed-pane:nth-child(6) .deck-ed-switchrow" },
+
+    { "say": "each button of the side rail", "do": "clickEach", "on": ".deck-ed-side .deck-ed-btn" },
+    { "say": "the key is saved to the copy", "do": "click", "on": ".deck-ed-actions .deck-ed-btn.primary" },
+    { "say": "the saved key opens the editor", "do": "click", "on": ".deck-panel .deck-key", "moving": true },
+    { "say": "each tab of the saved key", "do": "clickEach", "on": ".deck-ed-tab" },
+    { "say": "Escape leaves the editor", "do": "press", "key": "Escape" },
+    { "say": "the saved key opens the editor again", "do": "click", "on": ".deck-panel .deck-key", "moving": true },
+    { "say": "Cancel leaves the editor", "do": "click", "on": ".deck-ed-actions .deck-ed-btn", "nth": 1 },
+    { "say": "the saved key opens the editor a last time", "do": "click", "on": ".deck-panel .deck-key", "moving": true },
+    { "say": "Delete takes the key off the copy", "do": "click", "on": ".deck-ed-actions .deck-ed-btn", "nth": 0 }
+  ]
+}
