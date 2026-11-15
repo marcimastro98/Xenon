@@ -191,7 +191,7 @@
       {"file":"server/lights/script-paths.js","about":"Where the script that sharpens the iCUE picture sits.","names":["ICUE_SHARPEN_SCRIPT"],"paths":true},
       {"file":"server/vitals/script-paths.js","about":"Where the script for Bit's reminder popup on Windows sits.","names":["VITALS_NAG_SCRIPT"],"paths":true},
       {"file":"server/screens/capture-exe.js","about":"Where the capture engine sits.","names":["CAPTURE_EXE"],"paths":true},
-      {"file":"server/install/launcher-paths.js","about":"Where the script that opens the dashboard at logon sits.","names":["OPEN_DASHBOARD_VBS"],"paths":true},
+      {"file":"server/install/launcher-paths.js","about":"Where the script that opened the dashboard in a browser at logon sat. It no longer ships (Windows Defender took it for a trojan), so nothing is there on a new install: the task code reads this only to remove a task an older install left behind, and to refuse a new one.","names":["OPEN_DASHBOARD_VBS"],"paths":true},
       {"file":"server/updates/whats-new-file.js","about":"Where the file with the news of this version sits.","names":["WHATSNEW_FILE"],"paths":true},
       {"file":"server/time/store-files.js","about":"Where the notes, calendar events, tasks and timers are kept in the user's data folder.","names":["NOTES_FILE","NOTES_JSON","EVENTS_FILE","TASKS_FILE","TIMERS_FILE"]},
       {"file":"server/time/store-read.js","about":"Reads the saved calendar events and the saved tasks; a file that is not there yet is an empty list.","names":["readEvents","readTasks"]},
