@@ -1,4 +1,4 @@
-// js/screen-scene-model.js: which animated wallpapers and screensavers exist
+// js/ambient/screen-scene-model.js: which animated wallpapers and screensavers exist
 // right now, outside the dashboard. Both are off unless the user turns them on,
 // never cover the dashboard's own screen when there are others, and a game
 // closes both.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const M = require('../js/screen-scene-model.js');
+const M = require('../js/ambient/screen-scene-model.js');
 
 const DISPLAYS = [{ id: 'A', primary: true }, { id: 'B' }, { id: 'C' }];
 const amb = (o) => ({ ambientMode: { enabled: true, wallpaper: false, saverMinutes: 0, ...o } });

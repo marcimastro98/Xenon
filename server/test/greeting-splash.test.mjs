@@ -270,7 +270,7 @@ test('the page loads the scene and facts before the splash, and ambient asks for
   const html = read('../index.html');
   const order = ['js/greeting-scene.js', 'js/greeting-facts.js', 'js/greeting.js'].map((s) => html.indexOf(`<script src="${s}"></script>`));
   assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], 'scene, facts, then splash');
-  const ambient = read('../js/ambient.js');
+  const ambient = read('../js/ambient/ambient.js');
   assert.match(ambient, /GreetingSplash\.show\(part, \{ agenda, fact: greetingFact\(part, now\) \}\)/);
   assert.match(ambient, /GreetingFacts\.pick\(part, calendarEvents, now,/);
 });

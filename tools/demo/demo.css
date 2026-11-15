@@ -165,7 +165,7 @@
      a phone it landed across the buttons of whatever modal was open — the Store's
      "new drops" card had its CTA and its opt-out behind it. `overlay-frozen` is
      the class the dashboard already sets on <body> for exactly "a dialog owns the
-     screen" (js/ambient-freeze.js), so this follows the app instead of listing
+     screen" (js/ambient/ambient-freeze.js), so this follows the app instead of listing
      modals it would have to keep in step with. */
   html:has(body.overlay-frozen) #demo-badge { display: none; }
 }

@@ -43,6 +43,19 @@
     {"from":"server/js/screen-release.js","to":"server/js/alerts/screen-release.js"},
     {"from":"server/js/screen-tile.js","to":"server/js/alerts/screen-tile.js"},
     {"from":"server/js/toast-island.js","to":"server/js/alerts/toast-island.js"},
-    {"from":"server/js/toast.js","to":"server/js/alerts/toast.js"}
+    {"from":"server/js/toast.js","to":"server/js/alerts/toast.js"},
+    {"from":"server/js/ambient-canvas-editor-fields.js","to":"server/js/ambient/ambient-canvas-editor-fields.js"},
+    {"from":"server/js/ambient-canvas-editor.js","to":"server/js/ambient/ambient-canvas-editor.js"},
+    {"from":"server/js/ambient-freeze.js","to":"server/js/ambient/ambient-freeze.js"},
+    {"from":"server/js/ambient-idle.js","to":"server/js/ambient/ambient-idle.js"},
+    {"from":"server/js/ambient-mode.js","to":"server/js/ambient/ambient-mode.js"},
+    {"from":"server/js/ambient-resolve.js","to":"server/js/ambient/ambient-resolve.js"},
+    {"from":"server/js/ambient.js","to":"server/js/ambient/ambient.js"},
+    {"from":"server/js/lock-digits.js","to":"server/js/ambient/lock-digits.js"},
+    {"from":"server/js/lockscreen.js","to":"server/js/ambient/lockscreen.js"},
+    {"from":"server/js/scene-feed.js","to":"server/js/ambient/scene-feed.js"},
+    {"from":"server/js/scene-frame-rate.js","to":"server/js/ambient/scene-frame-rate.js"},
+    {"from":"server/js/screen-scene-model.js","to":"server/js/ambient/screen-scene-model.js"},
+    {"from":"server/js/screen-scene.js","to":"server/js/ambient/screen-scene.js"}
   ]
 }

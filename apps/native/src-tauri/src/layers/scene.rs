@@ -1,5 +1,5 @@
 //! The Win32 side of the Ambient scene outside the dashboard
-//! (server/js/screen-scene-model.js): the animated wallpaper behind the
+//! (server/js/ambient/screen-scene-model.js): the animated wallpaper behind the
 //! desktop icons and the screensaver. win32.rs decides when they show; this
 //! file holds what only they need.
 //!

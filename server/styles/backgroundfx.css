@@ -216,7 +216,7 @@ body.grid-on #bg-grid { opacity: var(--grid-opacity, 0.4); }
    GPU (fans spin up, the tab crawls) the whole time it's open. Freezing the drift
    there lets the blurred layers rasterize ONCE and composite from cache — the same
    calm-static state prefers-reduced-motion ships — instead of redrawing per frame.
-   Gated on body.fx-motion-lite (set for Gecko only in js/ambient-idle.js), so the
+   Gated on body.fx-motion-lite (set for Gecko only in js/ambient/ambient-idle.js), so the
    Chromium experience is unchanged. */
 body.fx-motion-lite .aurora-blob,
 body.fx-motion-lite .grid-plane { animation: none !important; }

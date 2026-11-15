@@ -55,7 +55,7 @@
   }
 
   // The Ambient scene as animated wallpaper and screensaver
-  // (js/screen-scene-model.js), from the last full status ({ gaming, idleSec }).
+  // (js/ambient/screen-scene-model.js), from the last full status ({ gaming, idleSec }).
   let status = null;
   function sceneSurfaces(s) {
     if (caps().scene !== true || !window.ScreenSceneModel) return [];

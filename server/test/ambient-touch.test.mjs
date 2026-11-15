@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { languagesWith } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const AS = require('../js/ambient-scene.js');
-const AM = require('../js/ambient-mode.js');
+const AM = require('../js/ambient/ambient-mode.js');
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const CANVAS = read('../js/ambient-canvas.js');
@@ -44,7 +44,7 @@ test('only a canvas touch control is let through the wake gesture', () => {
   assert.equal(AM.ambientTouchTarget(at(false)), false);
   assert.equal(AM.ambientTouchTarget(null), false);
   assert.equal(AM.ambientTouchTarget({}), false);
-  const mode = read('../js/ambient-mode.js');
+  const mode = read('../js/ambient/ambient-mode.js');
   const dismiss = mode.slice(mode.indexOf('function dismissOnInput(e) {'));
   assert.match(dismiss.slice(0, 300), /if \(ambientTouchTarget\(e\.target\)\) \{ lastSceneTouchAt = Date\.now\(\); return; \}/, 'checked before the gesture is swallowed');
 });

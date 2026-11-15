@@ -717,14 +717,11 @@
         "server/scene.html",
         "server/js/ambient*.js",
         "server/js/ambient-canvas-editor-form/**",
-        "server/js/lockscreen.js",
-        "server/js/lock-digits.js",
-        "server/js/scene-*.js",
-        "server/js/screen-scene*.js",
         "server/components/AmbientCanvas/**",
         "server/components/AmbientCanvasEditor/**",
         "server/components/LockScreen/**",
-        "server/components/ScreenScene/**"
+        "server/components/ScreenScene/**",
+        "server/js/ambient/**"
       ]
     },
     {

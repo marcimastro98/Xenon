@@ -23,7 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const I18N = appStringsSource();
 const SYSTEM = read('js', 'system.js');
-const AMBIENT = read('js', 'ambient.js');
+const AMBIENT = read('js', 'ambient/ambient.js');
 const MAIN = read('js', 'main.js');
 const INDEX = read('index.html');
 const BRIEFING = read('briefing.js');

@@ -128,5 +128,5 @@ test('a tap on the Ambient weather leaves the scene for the window, only on that
   assert.match(branch, /if \(!overlay \|\| !overlay\.hidden \|\| !open\) return;/, 'never toggles an open window shut');
   assert.ok(branch.indexOf('AmbientMode.close()') < branch.indexOf('open();'), 'the scene closes first');
   // The built-in Ambient (the lock-screen scene) already opens the same window.
-  assert.match(read('js', 'lockscreen.js'), /function openWeatherFromLockScreen\(\) \{\s+closeWidgetLockScreen\(\);\s+toggleWeatherDetails\(\);/);
+  assert.match(read('js', 'ambient/lockscreen.js'), /function openWeatherFromLockScreen\(\) \{\s+closeWidgetLockScreen\(\);\s+toggleWeatherDetails\(\);/);
 });

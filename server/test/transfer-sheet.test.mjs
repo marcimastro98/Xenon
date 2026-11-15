@@ -226,7 +226,7 @@ test('the how-to names the key as the key reads, in every language', () => {
 });
 
 test('promos and the screensaver wait for the sheet', () => {
-  assert.match(read('../js/ambient-mode.js'), /\.xfer-sheet-backdrop/);
+  assert.match(read('../js/ambient/ambient-mode.js'), /\.xfer-sheet-backdrop/);
   assert.match(read('../js/alerts/interrupt-queue.js'), /'\.xfer-sheet-backdrop'/);
 });
 

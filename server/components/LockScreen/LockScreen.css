@@ -1,4 +1,4 @@
-/* The built-in Ambient scene (js/lockscreen.js): what a spare screen shows while nobody is
+/* The built-in Ambient scene (js/ambient/lockscreen.js): what a spare screen shows while nobody is
    touching it, for hours. One big clock cut out of glass, up to three quiet cards under or
    beside it, nothing that moves on its own. Sizes come from --u, a hundredth of the scene,
    so one set of rules fills an Edge strip, a monitor, a tablet and a phone. */
@@ -169,7 +169,7 @@ body:not([data-bg-static]) .lockscreen-overlay { background-color: rgba(7, 8, 14
    is behind it, so the colours of the wallpaper (a video too) run through the numerals.
    Three layers share one box, because a filter on a parent would stop the blur. The light
    fill keeps them readable from across the room on any picture, and is all a browser
-   without backdrop-filter shows. js/lock-digits.js draws them. */
+   without backdrop-filter shows. js/ambient/lock-digits.js draws them. */
 .lockscreen-clock {
   min-width: 0;
   display: grid;

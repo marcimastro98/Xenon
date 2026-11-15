@@ -145,9 +145,9 @@
     return i > 0 && i < key.length - 1 && KINDS.includes(key.slice(0, i)) && MONITOR_RE.test(key.slice(i + 1));
   }
 
-  // The readings the scene page has to fetch for itself (js/screen-scene.js);
+  // The readings the scene page has to fetch for itself (js/ambient/screen-scene.js);
   // media, system and audio arrive on the stream anyway. `scene` is what
-  // resolveAmbientScene picked (js/ambient-resolve.js). A Store scene gets the
+  // resolveAmbientScene picked (js/ambient/ambient-resolve.js). A Store scene gets the
   // weather its permission lets it read: only the dashboard polls it.
   const CANVAS_READINGS = Object.freeze({ weather: 'weather', agenda: 'calendar', tasks: 'tasks', notes: 'notes', network: 'network' });
   function readingsFor(scene, lockWidgets) {

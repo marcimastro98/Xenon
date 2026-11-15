@@ -126,7 +126,7 @@ pub fn valid_key(key: &str) -> bool {
     }
     match key.split_once(':') {
         // `alerts:` is the on-screen alerts window of "widgets only";
-        // `wallpaper:`/`saver:` the Ambient scene (js/screen-scene-model.js);
+        // `wallpaper:`/`saver:` the Ambient scene (js/ambient/screen-scene-model.js);
         // `draw:` the drawing sheet, `menu:` the Xenon menu (js/layers-shell.js).
         Some(("desktop" | "overlay" | "alerts" | "wallpaper" | "saver" | "draw" | "menu", monitor)) => printable(monitor, 64),
         _ => false,

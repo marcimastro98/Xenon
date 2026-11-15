@@ -19,7 +19,7 @@ const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typ
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const CSS = read('../components/LockScreen/LockScreen.css');
 const SCENE_CSS = read('../components/ScreenScene/ScreenScene.css');
-const LOCK = read('../js/lockscreen.js');
+const LOCK = read('../js/ambient/lockscreen.js');
 const HTML = read('../index.html');
 const SCENE_HTML = read('../scene.html');
 
@@ -61,7 +61,7 @@ function fakeClock() {
   };
 }
 
-const digits = () => load('../js/lock-digits.js', {
+const digits = () => load('../js/ambient/lock-digits.js', {
   document: { createElementNS: () => fakeNode() },
 }).LockDigits;
 
@@ -174,7 +174,7 @@ test('the markup has the layers the digits draw into, in both pages', () => {
   }
   assert.ok(/<clipPath id="lock-digits-shape" data-lock-digits>/.test(HTML));
   for (const page of [HTML, SCENE_HTML]) {
-    for (const script of ['js/weather-art.js', 'js/lock-digits.js']) assert.ok(page.includes(`<script src="${script}"></script>`), script);
+    for (const script of ['js/weather-art.js', 'js/ambient/lock-digits.js']) assert.ok(page.includes(`<script src="${script}"></script>`), script);
   }
 });
 

@@ -1,7 +1,7 @@
 'use strict';
 
-// Which Ambient scene to show, shared by the dashboard (js/ambient-mode.js) and
-// the desktop scene page (scene.html, js/screen-scene.js), so the wallpaper and
+// Which Ambient scene to show, shared by the dashboard (js/ambient/ambient-mode.js) and
+// the desktop scene page (scene.html, js/ambient/screen-scene.js), so the wallpaper and
 // the screensaver always show the scene the dashboard would.
 
 const THEME_SCENE_PREFIX = 'theme:';

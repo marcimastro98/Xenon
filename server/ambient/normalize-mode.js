@@ -4,7 +4,7 @@
 const {
   AMBIENT_IDLE_MINUTES, AMBIENT_SCENE_ID_RE, AMBIENT_CANVAS_REF_RE, AMBIENT_THEME_REF_RE,
 } = require('./settings-values.js');
-const ScreenSceneModel = require('../js/screen-scene-model.js');
+const ScreenSceneModel = require('../js/ambient/screen-scene-model.js');
 const { DEFAULT_HUB_SETTINGS } = require('../settings/defaults.js');
 
 function normalizeAmbientMode(value) {
@@ -17,7 +17,7 @@ function normalizeAmbientMode(value) {
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
   const isScene = (id) => id === 'builtin' || AMBIENT_SCENE_ID_RE.test(id) || AMBIENT_CANVAS_REF_RE.test(id) || AMBIENT_THEME_REF_RE.test(id);
   const sceneId = isScene(raw) ? raw : defaults.sceneId;
-  // The animated wallpaper and the screensaver, per screen (js/screen-scene-model.js). Both off by default.
+  // The animated wallpaper and the screensaver, per screen (js/ambient/screen-scene-model.js). Both off by default.
   const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,

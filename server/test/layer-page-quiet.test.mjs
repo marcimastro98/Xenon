@@ -53,7 +53,7 @@ test('the ambient voice never starts in a layer window', () => {
   const boot = (search) => {
     const ctx = ctxAt(search, { document: { addEventListener() {} }, setTimeout() {}, setInterval() {} });
     ctx.window.addEventListener = () => {};
-    vm.runInContext(read('../js/ambient.js'), ctx);
+    vm.runInContext(read('../js/ambient/ambient.js'), ctx);
     return ctx.window.Ambient;
   };
   assert.equal(boot('?layer=overlay:'), undefined);

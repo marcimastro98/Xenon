@@ -781,7 +781,7 @@
   // is, nothing about the user, and the user alone decides where it goes.
   const LAYER_SURFACES = Object.freeze(['desktop', 'overlay', 'anchor']);
   // The desktop scene page (scene.html) shows an Ambient scene as the animated
-  // wallpaper or the PC's screensaver (js/screen-scene.js sets data-scene).
+  // wallpaper or the PC's screensaver (js/ambient/screen-scene.js sets data-scene).
   const SCENE_PLACES = Object.freeze({ wallpaper: 'wallpaper', saver: 'screensaver' });
   function placementOf(entry) {
     let where = 'dashboard';

@@ -105,7 +105,7 @@ test('the Upcoming list keeps an event while it is current, not while it starts'
   assert.match(fn, /eventActiveUntil\(e\) >= now - 60000/);
   assert.match(fn, /at < until/, 'the horizon still measures from the START');
   // The lock screen answers the same question and must answer it the same way.
-  const lock = readFileSync(join(__dirname, '..', 'js', 'lockscreen.js'), 'utf8');
+  const lock = readFileSync(join(__dirname, '..', 'js', 'ambient/lockscreen.js'), 'utf8');
   assert.match(lock, /eventActiveUntil\(event\) >= now - 60000/);
 });
 

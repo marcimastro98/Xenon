@@ -143,7 +143,7 @@ fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str,
             report_rects(app, label, url, Some(editing));
             false
         }
-        // The wallpaper's page on battery (server/js/screen-scene.js).
+        // The wallpaper's page on battery (server/js/ambient/screen-scene.js).
         "xenon-app" if kind == Kind::Wallpaper && url.path() == "scene-pause" => {
             let on = url.query_pairs().any(|(k, v)| k == "on" && v == "1");
             if let Some(h) = app.get_webview_window(label).as_ref().and_then(native_handle) {

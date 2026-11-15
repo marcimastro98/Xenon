@@ -1,4 +1,4 @@
-// The desktop scene (scene.html + js/screen-scene.js + js/scene-feed.js): the
+// The desktop scene (scene.html + js/ambient/screen-scene.js + js/ambient/scene-feed.js): the
 // Ambient scene as the animated wallpaper behind the desktop icons or as the
 // PC's screensaver, one shell window per screen.
 import { test } from 'node:test';
@@ -10,9 +10,9 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const scenePage = require('../ambient/scene-page.js');
-const ScreenSceneModel = require('../js/screen-scene-model.js');
+const ScreenSceneModel = require('../js/ambient/screen-scene-model.js');
 const ViewerTheme = require('../js/viewer-theme.js');
-const { resolveAmbientScene } = require('../js/ambient-resolve.js');
+const { resolveAmbientScene } = require('../js/ambient/ambient-resolve.js');
 const { remotePathAllowed } = require('../remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -27,16 +27,16 @@ test('the page carries the three scene overlays from index.html, and only the sc
   // Order matters: the model and the resolver before the page script, the
   // renderers before the feed that fills their globals.
   const before = (a, b) => assert.ok(scripts.indexOf(a) >= 0 && scripts.indexOf(a) < scripts.indexOf(b), a + ' before ' + b);
-  before('js/state.js', 'js/lockscreen.js');
-  before('js/viewer-theme.js', 'js/screen-scene.js');
-  before('js/ambient-resolve.js', 'js/screen-scene.js');
-  before('js/screen-scene-model.js', 'js/screen-scene.js');
-  before('js/scene-feed.js', 'js/screen-scene.js');
-  before('js/scene-frame-rate.js', 'js/screen-scene.js');
+  before('js/state.js', 'js/ambient/lockscreen.js');
+  before('js/viewer-theme.js', 'js/ambient/screen-scene.js');
+  before('js/ambient/ambient-resolve.js', 'js/ambient/screen-scene.js');
+  before('js/ambient/screen-scene-model.js', 'js/ambient/screen-scene.js');
+  before('js/ambient/scene-feed.js', 'js/ambient/screen-scene.js');
+  before('js/ambient/scene-frame-rate.js', 'js/ambient/screen-scene.js');
   before('js/ambient-scene.js', 'js/ambient-canvas.js');
-  assert.equal(scripts.at(-1), 'js/screen-scene.js');
+  assert.equal(scripts.at(-1), 'js/ambient/screen-scene.js');
   // Never the dashboard's idle logic: it would open and close scenes itself.
-  for (const no of ['js/ambient-mode.js', 'js/ambient-idle.js', 'js/settings.js', 'js/main.js', 'js/i18n.js']) {
+  for (const no of ['js/ambient/ambient-mode.js', 'js/ambient/ambient-idle.js', 'js/settings.js', 'js/main.js', 'js/i18n.js']) {
     assert.ok(!scripts.includes(no), no);
   }
   for (const s of scripts) assert.ok(s === 'layer-i18n.js' || s.startsWith('js/') || s.startsWith('shared/'), s);
@@ -63,7 +63,7 @@ test('nothing on the scene is a control: exits hidden, no lock button reachable'
   assert.match(read('../scene.html'), /<html lang="en" data-desktop-scene>/);
 });
 
-// ── The feed (js/scene-feed.js) ─────────────────────────────────
+// ── The feed (js/ambient/scene-feed.js) ─────────────────────────────────
 function feedBox() {
   const timers = new Map();
   let seq = 0;
@@ -97,7 +97,7 @@ function feedBox() {
     let weatherFetches = 0;
     function fetchWeather() { weatherFetches += 1; return Promise.resolve(); }
   `, ctx);
-  vm.runInContext(read('../js/scene-feed.js') + '\nglobalThis.SceneFeed = SceneFeed;', ctx);
+  vm.runInContext(read('../js/ambient/scene-feed.js') + '\nglobalThis.SceneFeed = SceneFeed;', ctx);
   const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r)); };
   const g = (name) => vm.runInContext(name, ctx);
   return { ctx, timers, fetched, settle, g, feed: ctx.SceneFeed };
@@ -184,7 +184,7 @@ test('a reconnect reads again, the first open does not', async () => {
   assert.equal(b.fetched.length, 2);
 });
 
-// ── The page script (js/screen-scene.js) ────────────────────────
+// ── The page script (js/ambient/screen-scene.js) ────────────────────────
 function el(id) {
   return {
     id, hidden: true, children: [], attrs: {},
@@ -261,7 +261,7 @@ async function sceneBox({ key, settings, packages = [], granted = true, shell = 
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext("let lang = 'en'; const i18n = { en: {}, it: {} }; let mediaData = null;", ctx);
-  vm.runInContext(read('../js/screen-scene.js'), ctx);
+  vm.runInContext(read('../js/ambient/screen-scene.js'), ctx);
   const settle = async () => { for (let i = 0; i < 8; i++) await new Promise((r) => setImmediate(r)); };
   await settle();
   const fire = (name, e = {}) => { for (const fn of listeners[name] || []) fn(e); };
@@ -453,8 +453,8 @@ test('a saved theme with an animated background can be the scene', () => {
 });
 
 test('the scene page loads the sandboxed background runner and stops it on a change', () => {
-  assert.match(read('../scene.html'), /js\/ambient-resolve\.js[\s\S]*js\/custom-bg\.js[\s\S]*js\/screen-scene\.js/);
-  const page = read('../js/screen-scene.js');
+  assert.match(read('../scene.html'), /js\/ambient\/ambient-resolve\.js[\s\S]*js\/custom-bg\.js[\s\S]*js\/ambient\/screen-scene\.js/);
+  const page = read('../js/ambient/screen-scene.js');
   assert.match(page, /hubSettings\.ambientScenes, hubSettings\.customThemes/);
   assert.match(page, /CustomBg\.apply\(null\)/);
 });

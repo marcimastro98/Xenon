@@ -1,4 +1,4 @@
-// Each screen shows its own scene (js/screen-scene-model.js plan, byScreen), chosen
+// Each screen shows its own scene (js/ambient/screen-scene-model.js plan, byScreen), chosen
 // on a map of the screens in the menu's Look section. Asked for by someone with Ambient
 // on the Edge only: the monitors kept the PC's own wallpaper, and the menu showed the
 // Edge's Ambient as the scene "in use" everywhere.
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { makeDom } from './mini-dom.mjs';
 
 const require = createRequire(import.meta.url);
-const Model = require('../js/screen-scene-model.js');
+const Model = require('../js/ambient/screen-scene-model.js');
 const scene = require('../capabilities/desktop-scene.js');
 const { createLayersHost } = require('../layers-host.js');
 const Screens = require('../js/xenon-menu-screens.js');

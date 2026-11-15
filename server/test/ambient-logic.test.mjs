@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ambient = require('../js/ambient-mode.js');
+const ambient = require('../js/ambient/ambient-mode.js');
 
 // (idleMinutes clamping lives in normalizeAmbientMode — settings.js/server.js
 // mirrors, exercised via the settings round-trip; ambient-mode.js trusts the

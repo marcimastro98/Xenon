@@ -1164,7 +1164,7 @@ const CAPABILITIES = [
       },
     },
   },
-  // The Ambient scene on the PC itself (js/screen-scene-model.js): the animated
+  // The Ambient scene on the PC itself (js/ambient/screen-scene-model.js): the animated
   // wallpaper behind the desktop icons is a key (on when working, off for a
   // call); the screensaver delay is a Settings choice, so only Bit sets it.
   {

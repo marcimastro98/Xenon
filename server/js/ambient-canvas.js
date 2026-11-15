@@ -9,7 +9,7 @@
 // lastSystemData, tasksData, notesState) — the canvas never opens its own
 // pollers; it reflects whatever the dashboard already keeps fresh.
 //
-// Owned by js/ambient-mode.js (mount/unmount/isOpen through window.AmbientCanvas).
+// Owned by js/ambient/ambient-mode.js (mount/unmount/isOpen through window.AmbientCanvas).
 // Embedded SDK widgets ride the same sandbox + bridge as tiles, registered via
 // CustomWidget.registerCanvasFrame; an ungranted package (or the SDK master off)
 // renders a quiet placeholder — never an un-vetted frame.
@@ -27,7 +27,7 @@
 // Time windows and pages (AmbientScene.visibleAt/pageAt) are applied on the same
 // tick; the drawing parts (background, per-element effects, analog clock,
 // gauges) live in js/ambient-canvas-parts.js, the editor in
-// js/ambient-canvas-editor.js.
+// js/ambient/ambient-canvas-editor.js.
 
 (function () {
   if (typeof window === 'undefined') return;
@@ -722,7 +722,7 @@
     if (window.CustomWidget && CustomWidget.unregisterCanvasFrames) CustomWidget.unregisterCanvasFrames();
   }
 
-  // opts.edit = { page }: the in-app editor (js/ambient-canvas-editor.js) shows
+  // opts.edit = { page }: the in-app editor (js/ambient/ambient-canvas-editor.js) shows
   // one page with every element in view and no entrance or loop playing.
   // opts.onUnmount runs once the overlay is gone, whoever closed it.
   function mount(scene, opts) {

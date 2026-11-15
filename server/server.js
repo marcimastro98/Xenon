@@ -411,7 +411,7 @@ const assetVersion = require('./asset-version.js'); // a version on every page's
 const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
 const PerfHud = require('./js/perf-hud.js'); // what the Game performance tile shows (shared with the client)
-const ScreenSceneModel = require('./js/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
+const ScreenSceneModel = require('./js/ambient/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
 require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai-local');
@@ -7061,7 +7061,7 @@ function idleProbeWanted() {
   const a = hub.settings && hub.settings.ambientMode;
   if (a && a.enabled !== false && Number(a.idleMinutes) > 0) return true;
   // The PC's own screensaver on the screens without the dashboard
-  // (js/screen-scene-model.js wantsIdle): the native shell opens it from idleSec.
+  // (js/ambient/screen-scene-model.js wantsIdle): the native shell opens it from idleSec.
   if (a && a.enabled !== false && Number(a.saverMinutes) > 0) return true;
   // Presenza ambientale (ambient.js): the greeting splash holds a day-part until
   // someone is actually at the PC. Without this signal it falls back to greeting

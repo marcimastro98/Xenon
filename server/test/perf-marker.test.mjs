@@ -196,7 +196,7 @@ test('the Media wave names what holds it, and Settings listens', () => {
   body.add('perf-mode');
   assert.equal(make()(), 'perf');
   assert.match(viz, /onLevels, holdReason,/);
-  assert.ok(read('../js/ambient-freeze.js').includes('window.ambientFreeze.tokens = () => [...frozen];'));
+  assert.ok(read('../js/ambient/ambient-freeze.js').includes('window.ambientFreeze.tokens = () => [...frozen];'));
   assert.ok(read('../js/settings.js').includes("window.addEventListener('xenon:perf-change', () => {"));
 });
 

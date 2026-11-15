@@ -134,7 +134,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgDim: 0.48,
   bgBlur: 0,
   // Pause the aurora/grid + decorative loops after a minute of no interaction to
-  // save GPU (js/ambient-idle.js). On by default; users can switch it off so the
+  // save GPU (js/ambient/ambient-idle.js). On by default; users can switch it off so the
   // dashboard keeps animating while idle.
   idleAnimationPause: true,
   // The Xenon mark over the first moments of a load (js/boot-splash.js). On by

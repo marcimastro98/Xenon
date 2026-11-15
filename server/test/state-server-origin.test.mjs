@@ -94,7 +94,7 @@ test('the declaration keeps the shape the demo build anchors on', () => {
 // draws. Widening this list is the review; anything else fails.
 const LOOPBACK_EXEMPT = [
   // Prose.
-  { file: 'ambient-idle.js' },
+  { file: 'ambient/ambient-idle.js' },
   // The address of the user's OLLAMA, not of Xenon: a default for a setting the
   // SERVER dials (server/ai-local.js). The browser never fetches it.
   { match: ':11434' },

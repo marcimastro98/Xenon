@@ -131,7 +131,7 @@ function syncAmbientSceneNote(cfg) {
   }
 }
 
-// The animated wallpaper and the PC's screensaver (js/screen-scene-model.js):
+// The animated wallpaper and the PC's screensaver (js/ambient/screen-scene-model.js):
 // windows of the native app, so the rows show only where it can draw them.
 function syncAmbientPcSettings(cfg) {
   const sec = $('settings-ambient-pc');
@@ -157,7 +157,7 @@ function syncAmbientPcSettings(cfg) {
 const AMBIENT_SETTING_KEYS = Object.freeze(['enabled', 'idleMinutes', 'sceneId', 'openOnStartup', 'wallpaper', 'saverMinutes']);
 
 // A package scene runs only once it is approved and community widgets are on;
-// until then every surface shows the built-in scene (js/ambient-resolve.js).
+// until then every surface shows the built-in scene (js/ambient/ambient-resolve.js).
 function ambientSceneWaiting(sceneId) {
   if (!window.CustomWidget || sceneId === 'builtin' || String(sceneId).startsWith('canvas:')) return false;
   const pkg = CustomWidget.cachedPackages().find((p) => p && p.id === sceneId);

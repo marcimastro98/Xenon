@@ -189,7 +189,7 @@ function makeIdle(pager) {
     Date,
     console,
   };
-  vm.runInNewContext(read('js/ambient-idle.js'), sandbox);
+  vm.runInNewContext(read('js/ambient/ambient-idle.js'), sandbox);
   return { sandbox, windowListeners, timers, anims, run: () => { while (timers.length) timers.shift()(); } };
 }
 

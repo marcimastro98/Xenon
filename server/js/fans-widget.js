@@ -13,7 +13,7 @@
 //
 // The spin is a `transform: rotate` @keyframes — compositable, so it costs the
 // GPU compositor and not the main thread — and being an INFINITE animation it
-// is paused automatically by js/ambient-idle.js when the user walks away, and
+// is paused automatically by js/ambient/ambient-idle.js when the user walks away, and
 // completed-and-stopped by body.perf-mode. Nothing to wire up here.
 (function () {
   const el = makeEl;        // shared DOM factory (utils.js)

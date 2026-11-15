@@ -53,7 +53,7 @@ function renderAmbientSceneManager() {
       return b;
     };
     // Scenes are made in Xenon Maker or imported as codes; Edit changes an
-    // installed one in place (js/ambient-canvas-editor.js), it never starts one.
+    // installed one in place (js/ambient/ambient-canvas-editor.js), it never starts one.
     const edit = window.AmbientCanvasEditor
       ? [mk(t('ace_edit'), '', () => AmbientCanvasEditor.open(sc.id))]
       : [];

@@ -1,5 +1,5 @@
 // The desktop scene page steps its endless CSS animations to a few frames a
-// second (js/scene-frame-rate.js): a full-screen wallpaper redrawn at the
+// second (js/ambient/scene-frame-rate.js): a full-screen wallpaper redrawn at the
 // monitor's refresh cost ~0.7 of a core for motion nobody can tell apart.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { FPS, stepsFor, attach } = require('../js/scene-frame-rate.js');
+const { FPS, stepsFor, attach } = require('../js/ambient/scene-frame-rate.js');
 
 test('only endless animations are stepped, by their length', () => {
   assert.equal(stepsFor({ iterations: Infinity, duration: 22000 }), Math.round(22 * FPS));
@@ -48,6 +48,6 @@ test('attach steps what runs now and what starts later, pseudo-elements included
 });
 
 test('the scene page loads it and attaches it before the scene mounts', () => {
-  const src = readFileSync(new URL('../js/screen-scene.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ambient/screen-scene.js', import.meta.url), 'utf8');
   assert.ok(src.indexOf('SceneFrameRate.attach(document)') < src.indexOf('boot();'));
 });

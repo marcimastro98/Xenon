@@ -14,7 +14,7 @@ const JS = join(__dirname, '..', 'js');
 const read = (f) => readFileSync(join(JS, f), 'utf8');
 
 test('once-a-second displays tick on a timer, not on every frame', () => {
-  for (const file of ['lockscreen.js', 'ambient-canvas.js']) {
+  for (const file of ['ambient/lockscreen.js', 'ambient-canvas.js']) {
     const src = read(file);
     assert.doesNotMatch(src, /requestAnimationFrame\(/, `${file} polls on rAF again`);
     assert.match(src, /setTimeout\([^,]+, 1000 - \(Date\.now\(\) % 1000\)/, `${file} no longer aims at the next second`);
@@ -37,7 +37,7 @@ test('the wallpaper video pauses with the ambient, and one place owns it', () =>
   const ensure = settings.slice(settings.indexOf('function ensureBackgroundVideoPlayback('));
   assert.match(ensure.slice(0, 400), /if \(backgroundVideoHeld\(\)\) \{ video\.pause\(\); return; \}/,
     'a tap or a focus must not restart a held video');
-  assert.doesNotMatch(read('ambient-freeze.js'), /user-bg-video/,
+  assert.doesNotMatch(read('ambient/ambient-freeze.js'), /user-bg-video/,
     'a second owner would restart the video when an overlay closes mid-game');
 });
 
@@ -48,6 +48,6 @@ test('the waveform stops under the quiet classes and caps its frame rate', () =>
 });
 
 test('loops that start during idle are frozen too', () => {
-  const src = read('ambient-idle.js');
+  const src = read('ambient/ambient-idle.js');
   assert.match(src, /addEventListener\('animationstart'/);
 });

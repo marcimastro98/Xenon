@@ -10,7 +10,7 @@ const SERVER_DIR = path.join(__dirname, '..');
 /** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
 const branches = {
   'GET /scene': async (_req, _res, { sendPage }) => {
-    // The desktop scene (js/screen-scene.js): the Ambient scene as the animated
+    // The desktop scene (js/ambient/screen-scene.js): the Ambient scene as the animated
     // wallpaper or the screensaver, one shell window per screen. Denied to a
     // paired device in remote-access.js; the overlays come from index.html
     // (scene-page.js). The key is read by the page, never by this route.

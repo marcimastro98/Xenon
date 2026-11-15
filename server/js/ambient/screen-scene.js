@@ -4,10 +4,10 @@
 // wallpaper behind the desktop icons (`wallpaper:<monitor>`) or as the PC's
 // screensaver (`saver:<monitor>`). The shell opens one window per screen
 // (apps/native/src-tauri/src/layers/scene.rs); which ones exist, and when, the
-// dashboard decides (js/screen-scene-model.js). A viewer: it reads the
+// dashboard decides (js/ambient/screen-scene-model.js). A viewer: it reads the
 // settings and never writes them.
 //
-// The scene is the dashboard's own, picked the same way (js/ambient-resolve.js):
+// The scene is the dashboard's own, picked the same way (js/ambient/ambient-resolve.js):
 // the lock screen (lockscreen.js), a canvas scene (ambient-canvas.js) or a
 // Store scene's sandboxed frame (custom-widget.js). Nothing here takes input:
 // the wallpaper sits under the icons, and any input ends the screensaver.
@@ -60,7 +60,7 @@ function closeSettings() { /* no settings panel here */ }
   }
 
   // ── The scene ──────────────────────────────────────────────────
-  // Each screen may show its own scene (js/screen-scene-model.js sceneFor).
+  // Each screen may show its own scene (js/ambient/screen-scene-model.js sceneFor).
   function ambient() {
     const cfg = (hubSettings && hubSettings.ambientMode) || {};
     return { ...cfg, sceneId: PREVIEW_SCENE || ScreenSceneModel.sceneFor(hubSettings, KIND, MONITOR) };

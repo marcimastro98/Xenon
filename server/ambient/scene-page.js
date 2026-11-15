@@ -9,7 +9,7 @@ const SCENE_MARK = '<!-- scene markup -->';
 const OVERLAYS = Object.freeze(['#lockscreen-overlay', '#ambient-scene-overlay', '#ambient-canvas-overlay']);
 
 // An overlay missing from index.html is left out: its scene then falls back
-// (js/screen-scene.js mounts the lock screen when a mount fails).
+// (js/ambient/screen-scene.js mounts the lock screen when a mount fails).
 function compose(html, dashboardHtml) {
   const dash = String(dashboardHtml || '');
   const markup = OVERLAYS.map((ref) => sliceTile(dash, ref)).filter(Boolean).join('\n');

@@ -35,14 +35,14 @@ body.low-power-gpu .grid-plane { animation-play-state: paused; }
    Xeneon Edge is driven by the integrated GPU, so every presented frame is copied
    cross-adapter and keeps the discrete GPU awake for a static picture. Resumes
    instantly on the next pointer/key/touch input or when the tab is shown again
-   (js/ambient-idle.js). Purely an optimization — the look is identical while the
+   (js/ambient/ambient-idle.js). Purely an optimization — the look is identical while the
    user is present, and nothing is ever hidden. ──────────────────────────── */
 body.ambient-idle .aurora-blob,
 body.ambient-idle .grid-plane { animation-play-state: paused; }
 /* The dashboard's many small persistent decorative loops (blinking clock colon,
    ✦ logo shimmer, live/status dots, the "no media" equaliser + art spin, the
    Vitals heartbeat, Bit's bob, ambient Deck keys) are NOT frozen here in CSS —
-   they are paused precisely, via the Web Animations API, in js/ambient-idle.js
+   they are paused precisely, via the Web Animations API, in js/ambient/ambient-idle.js
    (pause every *infinite* running animation, resume on wake). A CSS allowlist
    was tried and is unmaintainable: these loops live on ::before/::after pseudos
    and behind ancestor-state selectors, so a class list silently misses half of

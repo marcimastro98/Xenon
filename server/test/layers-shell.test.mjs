@@ -339,8 +339,8 @@ test('wiring: the main page syncs at the end of every layout apply, after layer-
   assert.ok(html.indexOf('src="js/layer-host.js"') < html.indexOf('src="js/layers-shell.js"'));
 });
 
-// The Ambient scene on the other screens (js/screen-scene-model.js).
-const ScreenSceneModel = require('../js/screen-scene-model.js');
+// The Ambient scene on the other screens (js/ambient/screen-scene-model.js).
+const ScreenSceneModel = require('../js/ambient/screen-scene-model.js');
 const SCENE_CAPS = { layers: true, scene: true, display: { active: 'D1' }, displays: [{ id: 'D1', primary: true }, { id: 'D2' }] };
 function bootScene(opts) {
   const b = boot({ caps: SCENE_CAPS, ...opts });
@@ -387,7 +387,7 @@ test('wiring: the dashboard and the driver pass every status on, and load the mo
   assert.match(read('../js/shell-driver.js'), /window\.LayersShell\.onStatus\(d\)/);
   for (const page of ['../index.html', '../shell-driver.html']) {
     const html = read(page);
-    assert.ok(html.indexOf('js/screen-scene-model.js') > 0 && html.indexOf('js/screen-scene-model.js') < html.indexOf('js/layers-shell.js'), page);
+    assert.ok(html.indexOf('js/ambient/screen-scene-model.js') > 0 && html.indexOf('js/ambient/screen-scene-model.js') < html.indexOf('js/layers-shell.js'), page);
   }
   assert.match(engineSource(), /a\.enabled !== false && Number\(a\.saverMinutes\) > 0\) return true;/);
 });

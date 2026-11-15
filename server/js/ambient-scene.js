@@ -9,7 +9,7 @@
 // SDK package (surface:'ambient'). See js/ambient-canvas.js for the renderer.
 // Scenes are authored as importable 'ambient-layout' codes (Xenon Maker, the
 // xenon-creator flow, the gallery) and installed through Import; the in-app
-// editor (js/ambient-canvas-editor.js) changes an installed scene, it does not
+// editor (js/ambient/ambient-canvas-editor.js) changes an installed scene, it does not
 // start one from nothing.
 //
 // This module is the ONE source of truth for the scene shape, exactly like

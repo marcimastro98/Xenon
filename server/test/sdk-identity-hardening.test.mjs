@@ -134,7 +134,7 @@ test('every SDK frame creator arms the guard before the frame loads', () => {
   const svc = sliceFn(CW_SRC, '  function syncServiceFrames() {');
   assert.ok(svc.indexOf('guardFrame(frame,') < svc.indexOf('serviceHost().appendChild(frame)'), 'service frame armed before insertion');
   // The scene pages register before inserting, which is what makes the first load count.
-  for (const f of ['../js/ambient-mode.js', '../js/screen-scene.js']) {
+  for (const f of ['../js/ambient/ambient-mode.js', '../js/ambient/screen-scene.js']) {
     const s = read(f);
     assert.ok(s.indexOf('registerAmbientFrame(pkg.id, frame)') < s.indexOf('host.replaceChildren(frame)'), f);
   }

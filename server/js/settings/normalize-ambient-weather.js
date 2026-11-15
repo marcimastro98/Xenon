@@ -23,7 +23,7 @@ function normalizeAmbientMode(value) {
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
   const isScene = (id) => id === 'builtin' || AMBIENT_SCENE_ID_RE.test(id) || (typeof AmbientScene !== 'undefined' ? AmbientScene.isCanvasRef(id) : /^canvas:[a-z0-9][a-z0-9-]{1,40}$/.test(id)) || AMBIENT_THEME_REF_RE.test(id);
   const sceneId = isScene(raw) ? raw : defaults.sceneId;
-  // The animated wallpaper and the screensaver, per screen (js/screen-scene-model.js,
+  // The animated wallpaper and the screensaver, per screen (js/ambient/screen-scene-model.js,
   // loaded before this file). Both off by default.
   const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
   return {

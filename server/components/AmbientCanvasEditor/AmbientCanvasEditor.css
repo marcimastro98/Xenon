@@ -1,4 +1,4 @@
-/* Canvas Ambient editor (js/ambient-canvas-editor.js): toolbar, selection box,
+/* Canvas Ambient editor (js/ambient/ambient-canvas-editor.js): toolbar, selection box,
    options panel and add menu drawn over the scene while it is edited. The scene
    underneath is the real renderer (components/AmbientCanvas). */
 

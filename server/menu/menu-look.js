@@ -2,10 +2,10 @@
 // The Look section of the Xenon menu: the theme, then the screens as they stand on the
 // desk, each saying what it shows. One tap on a screen gives its own choices: the
 // dashboard's screen has its Ambient scene, every other screen its wallpaper and its
-// screensaver. What a screen says is what is on it now (js/screen-scene-model.js plan):
+// screensaver. What a screen says is what is on it now (js/ambient/screen-scene-model.js plan):
 // a wallpaper that is off reads as the person's own. Pure.
 
-const ScreenSceneModel = require('../js/screen-scene-model.js');
+const ScreenSceneModel = require('../js/ambient/screen-scene-model.js');
 const { k, run, open } = require('./menu-rows.js');
 const { screenLabel, screensOf } = require('./menu-tune.js');
 const { MAKER_URL } = require('./menu-widgets.js');
@@ -16,7 +16,7 @@ const NONE = '';
 const themeRow = () => ({ kind: 'button', id: 'theme', label: k('xmenu_theme'), sub: k('xmenu_theme_sub'), action: k('xmenu_do_change'), act: open('settings:appearance'), closes: true });
 
 // The scene ids the menu offers, with the uninstalled ones read as the built-in scene,
-// which is what the screen falls back to (js/ambient-resolve.js).
+// which is what the screen falls back to (js/ambient/ambient-resolve.js).
 function namer(list) {
   const known = (id) => (list.some((s) => s.id === id) ? id : BUILTIN);
   const name = (id) => {
