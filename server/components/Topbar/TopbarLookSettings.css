@@ -1,5 +1,5 @@
 /* ── Settings → Top bar: look, side rails, notifications, each button ─────────
-   The controls drawn by js/topbar-look-settings.js and js/topbar-button-options.js.
+   The controls drawn by js/topbar-look-settings.js and js/topbar/topbar-button-options.js.
    Same pieces as the rest of Settings (rows, segmented, toggles); what is new is
    the row of ready-made looks, each drawn as a small bar in that look. */
 

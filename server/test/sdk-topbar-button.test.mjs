@@ -116,7 +116,7 @@ test('Settings → Top bar keeps the real bar in view and lets go of it after', 
   assert.match(src, /resizeObs\.disconnect\(\)/);
   assert.match(src, /attributeFilter: \['hidden'\]/);
   assert.match(SETTINGS, /if \(window\.SettingsBarPreview\) SettingsBarPreview\.page\(cat\);/);
-  const tm = read('../js/topbar-minimal.js');
+  const tm = read('../js/topbar/topbar-minimal.js');
   assert.match(tm, /if \(!active \|\| !autoHideEnabled\(\) \|\| railsHeld\) return;/);
   const css = read('../components/SettingsModal/SettingsModal.css');
   assert.match(css, /body\.settings-bar-preview \.settings-overlay \{\n\s*padding: var\(--sbp-top/);

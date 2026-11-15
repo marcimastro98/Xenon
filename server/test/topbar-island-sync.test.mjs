@@ -1,5 +1,5 @@
 // The minimal-topbar island segment list lives in THREE places that must agree:
-// the renderer's ISLAND_SEG_IDS (js/topbar-minimal.js), the client settings
+// the renderer's ISLAND_SEG_IDS (js/topbar/topbar-minimal.js), the client settings
 // normalizer's canonical list (js/settings.js) and its server twin
 // (server.js TOPBAR_ISLAND_IDS). The normalizers are allowlists — a segment the
 // renderer draws but they omit is stripped from `items` on the next save, so the
@@ -26,7 +26,7 @@ function arrayLiteral(src, pattern, what) {
 }
 
 const renderer = arrayLiteral(
-  read('server', 'js', 'topbar-minimal.js'),
+  read('server', 'js', 'topbar/topbar-minimal.js'),
   /ISLAND_SEG_IDS\s*=\s*\[([^\]]*)\]/,
   'ISLAND_SEG_IDS in topbar-minimal.js',
 );
@@ -64,7 +64,7 @@ function serverNormalizer() {
 // the selector map that turns an id into an element.
 const actionRenderer = Object.keys(
   Object.fromEntries(
-    [...read('server', 'js', 'topbar-minimal.js')
+    [...read('server', 'js', 'topbar/topbar-minimal.js')
       .match(/ACTION_SELECTORS\s*=\s*\{([^}]*)\}/)[1]
       .matchAll(/(\w+):\s*'([^']+)'/g)].map(m => [m[1], m[2]]),
   ),

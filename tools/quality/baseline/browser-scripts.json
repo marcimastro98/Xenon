@@ -49,7 +49,7 @@
     "server/js/shell-driver.js": 1,
     "server/js/search/spotlight-page.js": 1,
     "server/js/state.js": 75,
-    "server/js/status.js": 2,
+    "server/js/topbar/status.js": 2,
     "server/js/system.js": 56,
     "server/js/grid/tab-switcher.js": 3,
     "server/js/tasks.js": 30,

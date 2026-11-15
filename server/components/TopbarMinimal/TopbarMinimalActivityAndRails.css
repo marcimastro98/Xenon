@@ -177,7 +177,7 @@ body.topbar-minimal:not([data-panel]) .edge-rail:not(:has(
 body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), var(--rail-y, -50%)); }
 body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), var(--rail-y, -50%)); }
 
-/* Auto-hidden after ~10s idle (js/topbar-minimal.js): tuck the rail body off the
+/* Auto-hidden after ~10s idle (js/topbar/topbar-minimal.js): tuck the rail body off the
    edge but leave the 22px handle peeking — same as .is-collapsed — so there's a
    visible arrow to bring it back (tapping the handle, or anywhere in the edge
    strip, reveals it). Fully hiding the handle left no discoverable way to reopen.

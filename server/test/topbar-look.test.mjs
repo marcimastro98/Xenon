@@ -19,7 +19,7 @@ const CSS = read('../components/Topbar/TopbarLook.css');
 const INDEX = read('../index.html');
 const SETTINGS = read('../js/settings.js');
 const SERVER = engineSource();
-const MINIMAL = read('../js/topbar-minimal.js');
+const MINIMAL = read('../js/topbar/topbar-minimal.js');
 const TOAST = read('../js/alerts/toast.js');
 
 const plain = (v) => JSON.parse(JSON.stringify(v));

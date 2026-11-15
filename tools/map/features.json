@@ -703,10 +703,10 @@
         "server/js/topbar-*.js",
         "server/js/topbar-look-settings/**",
         "server/js/topbar-media/**",
-        "server/js/status.js",
         "server/components/Topbar/**",
         "server/components/TopbarMedia/**",
-        "server/components/TopbarMinimal/**"
+        "server/components/TopbarMinimal/**",
+        "server/js/topbar/**"
       ]
     },
     {

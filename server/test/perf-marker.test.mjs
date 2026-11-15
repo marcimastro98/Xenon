@@ -148,11 +148,11 @@ test('the marker sits with the clock, so both chromes show it, and can be hidden
   const ids = (src, re) => JSON.parse(re.exec(src)[1].replace(/'/g, '"'));
   const client = ids(read('../js/settings.js'), /const canonical = (\[[^\]]*\]);/);
   const server = ids(engineSource(), /const TOPBAR_ISLAND_IDS = (\[[^\]]*\]);/);
-  const minimal = ids(read('../js/topbar-minimal.js'), /const ISLAND_SEG_IDS = (\[[^\]]*\]);/);
+  const minimal = ids(read('../js/topbar/topbar-minimal.js'), /const ISLAND_SEG_IDS = (\[[^\]]*\]);/);
   assert.ok(client.includes('perf'));
   assert.deepEqual(server, client);
   assert.deepEqual(minimal, client);
-  assert.match(read('../js/topbar-minimal.js'), /case 'perf': return els\.clockPerf;/);
+  assert.match(read('../js/topbar/topbar-minimal.js'), /case 'perf': return els\.clockPerf;/);
   assert.match(read('../js/settings.js'), /perf: 'topbar_el_perf'/);
 });
 

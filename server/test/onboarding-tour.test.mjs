@@ -179,7 +179,7 @@ test('the dock names the button each forwarder stands in for', () => {
 });
 
 test('peekRails opens closed rails on screen only, and puts each back as it was', () => {
-  const SRC = read('../js/topbar-minimal.js');
+  const SRC = read('../js/topbar/topbar-minimal.js');
   const cut = (from, to) => SRC.slice(SRC.indexOf(from), SRC.indexOf(to, SRC.indexOf(from)));
   const rail = (collapsed) => { const r = fakeEl('div'); if (collapsed) r.classList.add('is-collapsed'); return r; };
   const handle = () => ({ setAttribute() {} });

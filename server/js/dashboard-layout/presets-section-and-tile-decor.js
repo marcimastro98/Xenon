@@ -119,7 +119,7 @@ function refreshDashboardLayoutEditor() {
     () => setTopbarHidden(!topbarHidden),
     topbarHidden ? 'active' : '',
   ));
-  // The bar's look and buttons, edited right here (js/topbar-layout-panel.js).
+  // The bar's look and buttons, edited right here (js/topbar/topbar-layout-panel.js).
   if (window.TopbarLayoutPanel) {
     topbarChips.appendChild(createDashboardChip('tbp_open', 'tbp_open', DASHBOARD_LAYOUT_ICONS.tune, () => window.TopbarLayoutPanel.open()));
   }

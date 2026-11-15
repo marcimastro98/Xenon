@@ -1,4 +1,4 @@
-// Layout mode → "Customize bar" (js/topbar-layout-panel.js). What a user would
+// Layout mode → "Customize bar" (js/topbar/topbar-layout-panel.js). What a user would
 // notice if it broke: no way to open it from the Layout dock, a panel that
 // stays on screen after "Done", a list that does not follow the one in
 // Settings, or words shown as their translation key.
@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const PANEL = read('../js/topbar-layout-panel.js');
+const PANEL = read('../js/topbar/topbar-layout-panel.js');
 const LOOK_PAGE = read('../js/topbar-look-settings.js');
 const LAYOUT = read('../js/dashboard-layout.js');
 const SETTINGS = read('../js/settings.js');
@@ -26,8 +26,8 @@ function loadI18n() {
 
 test('the panel loads after the controls it reuses, with its stylesheet', () => {
   const at = (src) => INDEX.indexOf(`src="${src}"`);
-  assert.ok(at('js/topbar-layout-panel.js') > at('js/topbar-look-settings.js'));
-  assert.ok(at('js/topbar-layout-panel.js') > at('js/topbar-button-options.js'));
+  assert.ok(at('js/topbar/topbar-layout-panel.js') > at('js/topbar-look-settings.js'));
+  assert.ok(at('js/topbar/topbar-layout-panel.js') > at('js/topbar/topbar-button-options.js'));
   assert.ok(INDEX.includes('href="components/Topbar/TopbarLayoutPanel.css"'));
 });
 

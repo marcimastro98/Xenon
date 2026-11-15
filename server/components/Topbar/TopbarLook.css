@@ -91,7 +91,7 @@
 }
 
 /* Labels on the Full bar. "Always" lifts the narrow-screen rule that turns the
-   buttons into icons; when there is truly no room, js/topbar-fit.js still
+   buttons into icons; when there is truly no room, js/topbar/topbar-fit.js still
    squeezes them, so a label never pushes the clock off the bar. A phone's bar
    has room for icons only, so there the buttons stay icons whatever the choice. */
 :root[data-tb-labels="never"] .topbar .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
@@ -221,7 +221,7 @@ body.topbar-minimal .edge-rail .topbtn.tb-btn-bg:hover {
 :root[data-tb-rail-motion="instant"] body.topbar-minimal:not([data-panel]) .edge-rail { transition: none; }
 
 /* Once it has hidden itself, nothing is left on the edge; a touch there brings
-   it back (js/topbar-minimal.js, onEdgePointerDown). A rail the user closed by
+   it back (js/topbar/topbar-minimal.js, onEdgePointerDown). A rail the user closed by
    hand keeps its handle: that is the only way it opens again. */
 :root[data-tb-rail-peek="edge"] body.topbar-minimal .edge-rail.is-auto-hidden { --rail-hide-peek: 0px; }
 

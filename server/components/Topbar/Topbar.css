@@ -211,7 +211,7 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
 }
 .topbtn.qbtn-layout.active svg { color: var(--on-accent); filter: none; }
 
-/* Not enough room beside the clock for the labels (js/topbar-fit.js): icons
+/* Not enough room beside the clock for the labels (js/topbar/topbar-fit.js): icons
    only, same targets. The dots keep their place, the settings dot stays. */
 .topbar.topbar-squeezed .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
 .topbar.topbar-squeezed .topbtn { padding: 0; width: 36px; justify-content: center; }

@@ -4,7 +4,7 @@
 // Built-in island segment id → i18n label key (editor rows).
 const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude', codex: 'topbar_el_codex', perf: 'topbar_el_perf' };
 // Chrome-button id → i18n label key. Must stay in step with ACTION_SELECTORS in
-// js/topbar-minimal.js and with the canonical list in BOTH normalizers
+// js/topbar/topbar-minimal.js and with the canonical list in BOTH normalizers
 // (js/settings.js and its server.js twin) — pinned by test/topbar-island-sync.
 const TOPBAR_ACTION_LABELS = {
   lock: 'topbar_btn_lock', ambient: 'topbar_btn_ambient', xenon: 'topbar_btn_xenon',
@@ -126,7 +126,7 @@ function renderTopbarIslandEditor() {
 // an island segment, a button lives in one of two containers and the user gets to
 // say which. Ordering is within the side it ends up on.
 // Drawn in Settings → Top bar and, while it is open, in the bar panel of
-// Layout mode (js/topbar-layout-panel.js): two views of the same list.
+// Layout mode (js/topbar/topbar-layout-panel.js): two views of the same list.
 function renderTopbarActionsEditor() {
   ['topbar-actions-editor', 'tbp-actions-editor'].forEach(renderTopbarActionsEditorIn);
 }
@@ -141,7 +141,7 @@ function renderTopbarActionsEditorIn(hostId) {
     onToggle: toggleTopbarActionItem,
     onReorder: reorderTopbarActionItem,
     buildSide: buildTopbarActionSide,
-    // Each button's own icon, label and colours (js/topbar-button-options.js).
+    // Each button's own icon, label and colours (js/topbar/topbar-button-options.js).
     buildOptions: (id) => (window.TopbarButtonOptions ? TopbarButtonOptions.panel(id) : null),
   });
 }

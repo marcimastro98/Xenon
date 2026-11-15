@@ -220,7 +220,7 @@
   }
 
   // The same controls somewhere else (the bar panel of Layout mode,
-  // js/topbar-layout-panel.js). Repainted by sync() while they are on the page;
+  // js/topbar/topbar-layout-panel.js). Repainted by sync() while they are on the page;
   // once their panel is closed they drop out of the list.
   function mountInto(host, kind) {
     if (kind === 'presets') mountPresets(host);

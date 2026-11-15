@@ -43,7 +43,7 @@
 
   // The buttons a user can restyle one by one. The favourites strip and the
   // widget slot are containers, not buttons, so they take the bar's look only.
-  // Selectors match ACTION_SELECTORS in js/topbar-minimal.js (pinned by a test).
+  // Selectors match ACTION_SELECTORS in js/topbar/topbar-minimal.js (pinned by a test).
   const BUTTON_SELECTORS = Object.freeze({
     lock: '.qbtn-lock',
     ambient: '#ambient-topbtn',

@@ -3,7 +3,7 @@
    - one compact "island" pill at top centre — small clock, date,
      weather chip and the dashboard page dots in a single capsule
    - two collapsible vertical rails hugging the screen edges with
-     the reparented topbar actions (see js/topbar-minimal.js)
+     the reparented topbar actions (see js/topbar/topbar-minimal.js)
    Full-dashboard only; embed modes (?panel=…) keep their own bar. */
 
 body.topbar-minimal:not([data-panel]) .topbar { display: none; }
@@ -38,7 +38,7 @@ body.topbar-minimal.xe-has-ticker.xe-ticker-bottom.layout-editing:not([data-pane
    island, using the whole top band at the pill's sides. A tile that actually
    lies UNDER the pill is not shrunk: the island bites into its top edge, like a
    notch, and the tile wraps around it (shape and measuring in js/alerts/island-notch.js
-   and js/topbar-minimal.js, recomputed on every fit pass and every pill resize).
+   and js/topbar/topbar-minimal.js, recomputed on every fit pass and every pill resize).
      - the item is clipped to the cutout (the clip runs 48px past the tile so
        its drop shadow survives);
      - the panel's top border becomes a transparent band as deep as the cutout,
@@ -115,7 +115,7 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-s
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .custom-panel:has(.cw-wrap.cw-mounted) {
   border-top-width: 0;
 }
-/* While the box is being moved frame by frame (js/topbar-minimal.js followIsland)
+/* While the box is being moved frame by frame (js/topbar/topbar-minimal.js followIsland)
    the tiles are redrawn every frame, so their own transitions would only lag it.
    A tile that is closing sets its own value inline and keeps its transition.
    The content still slides on its own clock (--island-content-ms): a tile the
@@ -143,7 +143,7 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island
 @media (prefers-reduced-motion: reduce) {
   body.topbar-minimal { --island-notch-ms: 0ms; --island-content-ms: 0ms; }
 }
-/* Performance mode and a game hold it too (js/topbar-minimal.js MOTION_HOLD). */
+/* Performance mode and a game hold it too (js/topbar/topbar-minimal.js MOTION_HOLD). */
 body.topbar-minimal:is(.perf-mode, .game-mode) { --island-notch-ms: 0ms; --island-content-ms: 0ms; }
 
 /* ── Island pill — floating capsule, top centre ───────────────
@@ -186,7 +186,7 @@ body.topbar-minimal:not([data-panel]) .topbar-mini {
   box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
 }
 
-/* The island's entrance (js/topbar-minimal.js arrive): it grows out of a dot at
+/* The island's entrance (js/topbar/topbar-minimal.js arrive): it grows out of a dot at
    its centre while the tiles under it open their cutouts on the same beat. Only
    added when motion is allowed. */
 body.topbar-minimal:not([data-panel]) .topbar-mini.island-arriving {

@@ -1,4 +1,4 @@
-/* ── The bar panel of Layout mode (js/topbar-layout-panel.js) ───────────────
+/* ── The bar panel of Layout mode (js/topbar/topbar-layout-panel.js) ───────────────
    A side sheet over the dashboard, under the Settings modal (220) and above
    the rails (58) and the Layout dock. Its controls are the Settings page's
    own, styled by SettingsModal.css and TopbarLookSettings.css; this file only

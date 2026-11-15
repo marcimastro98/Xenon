@@ -15,7 +15,7 @@ import { readFileSync } from './browser-source.mjs';
 import { namesOf } from './source-names.mjs';
 
 // LF only, so the names below find their lines on a CRLF (Windows) checkout too.
-const SRC = readFileSync(new URL('../js/topbar-minimal.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(new URL('../js/topbar/topbar-minimal.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // What the rails keep and what they do, read by name: where each stands in the script may change.
 const bar = namesOf(SRC, 'topbar-minimal.js');

@@ -154,7 +154,7 @@
     const folded = !!island && island.folded();
     body.classList.toggle('xtoast-island', holding);
     // The tiles' cuts close while the card is out and reopen as it heads home,
-    // so the pill lands in an open cut (js/topbar-minimal.js reads the class).
+    // so the pill lands in an open cut (js/topbar/topbar-minimal.js reads the class).
     if (body.classList.contains('xtoast-fold') !== folded) {
       body.classList.toggle('xtoast-fold', folded);
       if (window.TopbarMinimal && typeof window.TopbarMinimal.reflowIsland === 'function') {
@@ -516,6 +516,6 @@
     return id;
   }
 
-  // refresh: re-check the chrome after it changes (js/topbar-minimal.js).
+  // refresh: re-check the chrome after it changes (js/topbar/topbar-minimal.js).
   window.XenonToast = { show, dismiss, dismissAll, refresh };
 })();

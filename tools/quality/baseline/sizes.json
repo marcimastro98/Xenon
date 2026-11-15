@@ -95,7 +95,7 @@
     "server/js/alerts/toast-island.js": 573,
     "server/js/alerts/toast.js": 521,
     "server/js/topbar-look.js": 367,
-    "server/js/topbar-minimal.js": 1129,
+    "server/js/topbar/topbar-minimal.js": 1129,
     "server/js/transfer-widget.js": 1020,
     "server/js/store-supporters/trial-pass-ui.js": 414,
     "server/js/streaming/twitchwatch-widget.js": 1071,

@@ -8,7 +8,7 @@ body.topbar-minimal .topbar-mini .sdk-badge { font-size: 12px; }
 body.topbar-minimal .topbar-mini .pager-dots:empty { display: none; }
 
 /* ── Flattened island segments — order · dividers · visibility ──
-   Each direct pill child is one reorderable segment; js/topbar-minimal.js sets
+   Each direct pill child is one reorderable segment; js/topbar/topbar-minimal.js sets
    its CSS `order` and these classes from the user's list. A slim hairline sits
    before every segment except the first VISIBLE one (island-seg-lead — computed
    in JS because flex `order` is invisible to DOM :first-child). island-seg-hidden
@@ -58,7 +58,7 @@ body.topbar-minimal:not([data-panel]) .topbar-mini.mini-yield > * { opacity: 0; 
     transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
 }
 
-/* ── Island morph (js/topbar-minimal.js morphIsland) ──────────────────────────
+/* ── Island morph (js/topbar/topbar-minimal.js morphIsland) ──────────────────────────
    Structural swaps — today the music takeover starting or ending on play/pause —
    fade the capsule's contents out, exchange them while they are invisible, then
    glide the box between its old and new size as they fade back in. Widths are

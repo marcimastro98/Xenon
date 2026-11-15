@@ -22,7 +22,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LAYOUT = read('../js/dashboard-layout.js');
 const GRID = read('../components/DashboardGrid/DashboardGrid.css');
 const TOPBAR = read('../components/TopbarMinimal/TopbarMinimal.css');
-const TOPBAR_JS = read('../js/topbar-minimal.js');
+const TOPBAR_JS = read('../js/topbar/topbar-minimal.js');
 
 const rule = (css, selector) => {
   const at = css.indexOf(selector + ' {');

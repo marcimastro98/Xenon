@@ -83,7 +83,7 @@
   }
 
   // The cutout `t` (0..1) of the way from `a` to `b`, for an opening driven frame
-  // by frame (js/topbar-minimal.js openSoftly), which can change target mid-way.
+  // by frame (js/topbar/topbar-minimal.js openSoftly), which can change target mid-way.
   const BLEND = ['left', 'right', 'bottom', 'cornerR', 'shoulderL', 'shoulderR'];
   function between(a, b, t) {
     if (!a || !b) return b || null;

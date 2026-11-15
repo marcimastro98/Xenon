@@ -23,14 +23,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   retroScanlines: true,
   // 'full' keeps the classic glass bar; 'minimal' docks the quick actions into
   // collapsible edge rails and shrinks clock/date/weather/page-dots into one
-  // compact island pill (see js/topbar-minimal.js).
+  // compact island pill (see js/topbar/topbar-minimal.js).
   topbarStyle: 'minimal', // 'full' | 'minimal'
   // Minimal-mode edge-rail drawer positions (true = collapsed). Server-synced (not
   // browser-local) so the kiosk remembers the choice across launches / storage
   // resets; both default closed so the rails never open on their own.
   topbarRails: { left: true, right: true },
   // Minimal-mode edge rails auto-hide after ~10s untouched (revealed by an edge
-  // touch). Default on; off keeps them always visible. See js/topbar-minimal.js.
+  // touch). Default on; off keeps them always visible. See js/topbar/topbar-minimal.js.
   topbarRailsAutoHide: true,
   // The bar's look in every style (surface, size, buttons, clock, where toasts
   // appear, each button's own icon/label/colours). Rules in js/topbar-look.js.
