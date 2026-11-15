@@ -185,6 +185,10 @@
     {"from":"server/js/phone-view.js","to":"server/js/phone/phone-view.js"},
     {"from":"server/js/phone-widget.js","to":"server/js/phone/phone-widget.js"},
     {"from":"server/js/share-card.js","to":"server/js/presets/share-card.js"},
-    {"from":"server/js/share-link-privacy.js","to":"server/js/presets/share-link-privacy.js"}
+    {"from":"server/js/share-link-privacy.js","to":"server/js/presets/share-link-privacy.js"},
+    {"from":"server/js/search-widget.js","to":"server/js/search/search-widget.js"},
+    {"from":"server/js/spotlight-bit.js","to":"server/js/search/spotlight-bit.js"},
+    {"from":"server/js/spotlight-chat.js","to":"server/js/search/spotlight-chat.js"},
+    {"from":"server/js/spotlight-page.js","to":"server/js/search/spotlight-page.js"}
   ]
 }

@@ -19,7 +19,7 @@
 //! that follows typing. Losing focus hides the window (Apple behavior) — it is
 //! a transient surface, never a resident one.
 //!
-//! Except with Bit's chat open in it (`xenon-app:spotlight-chat`, js/spotlight-chat.js):
+//! Except with Bit's chat open in it (`xenon-app:spotlight-chat`, js/search/spotlight-chat.js):
 //! then it is an ordinary window at the expanded size that stays when focus goes
 //! elsewhere, so you can copy from another app and come back with the hotkey. It
 //! stays out of captures, or "look at my screen" would photograph the chat itself.

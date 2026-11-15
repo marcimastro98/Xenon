@@ -280,9 +280,9 @@
         "server/spotlight.html",
         "server/js/spotlight/**",
         "server/js/spotlight*.js",
-        "server/js/search-widget.js",
         "server/components/Spotlight/**",
-        "server/components/SearchWidget/**"
+        "server/components/SearchWidget/**",
+        "server/js/search/**"
       ]
     },
     {

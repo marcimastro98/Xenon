@@ -1,4 +1,4 @@
-// Bit's chat inside the search window (js/spotlight-chat.js).
+// Bit's chat inside the search window (js/search/spotlight-chat.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
@@ -8,7 +8,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/spotlight-chat.js');
+const SRC = read('../js/search/spotlight-chat.js');
 const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0)); };
 
 function page({ loadFails = false, search = '?frameless=1' } = {}) {
@@ -184,7 +184,7 @@ test('the page carries the panel, cut from the dashboard', () => {
 test('every search surface reaches the same chat', () => {
   const src = read('../js/spotlight.js');
   assert.ok(src.includes('onChat: chatHandler()'));
-  assert.ok(read('../js/search-widget.js').includes('onChat: Spotlight.chatHandler()'));
+  assert.ok(read('../js/search/search-widget.js').includes('onChat: Spotlight.chatHandler()'));
 });
 
 test('a failed open answers a sentence, and a sent question goes through the panel', async () => {

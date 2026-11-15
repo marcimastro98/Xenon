@@ -1,4 +1,4 @@
-// The search window's page (js/spotlight-page.js). It lives hidden for hours, so
+// The search window's page (js/search/spotlight-page.js). It lives hidden for hours, so
 // it reads the theme and the language again each time it shows, and it must take
 // the keyboard at once: the shell calls window.__spotlightShown on every open.
 import { test } from 'node:test';
@@ -7,7 +7,7 @@ import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/spotlight-page.js');
+const SRC = read('../js/search/spotlight-page.js');
 const HTML = read('../spotlight.html');
 const CSS = read('../components/Spotlight/Spotlight.css');
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -159,7 +159,7 @@ test('the page loads what a theme needs', () => {
     assert.ok(HTML.includes(`href="${f}"`), f);
   }
   assert.ok(HTML.includes('src="js/look/theme-tokens.js"'));
-  assert.ok(HTML.indexOf('src="js/spotlight-page.js"') > HTML.indexOf('src="js/spotlight.js"'));
+  assert.ok(HTML.indexOf('src="js/search/spotlight-page.js"') > HTML.indexOf('src="js/spotlight.js"'));
 });
 
 test('light rules follow the attribute the theme really sets', () => {

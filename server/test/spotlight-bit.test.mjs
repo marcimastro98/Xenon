@@ -1,4 +1,4 @@
-// Bit on the search bar (js/spotlight-bit.js) and the one way to reach him from it.
+// Bit on the search bar (js/search/spotlight-bit.js) and the one way to reach him from it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/spotlight-bit.js');
+const SRC = read('../js/search/spotlight-bit.js');
 
 function element() {
   const el = {
@@ -142,7 +142,7 @@ test('every place with the bar loads Bit before spotlight.js', () => {
   const tiles = read('../js/layers/layer-tiles.js');
   const row = tiles.slice(tiles.indexOf("search: tile('search'"));
   for (const src of [read('../spotlight.html'), read('../index.html'), row]) {
-    const bit = src.indexOf('js/spotlight-bit.js');
+    const bit = src.indexOf('js/search/spotlight-bit.js');
     assert.ok(bit > 0 && bit < src.indexOf('js/spotlight.js'));
   }
 });

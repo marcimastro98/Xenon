@@ -47,7 +47,7 @@
     "server/js/settings.js": 739,
     "server/js/presets/share-card.js": 9,
     "server/js/shell-driver.js": 1,
-    "server/js/spotlight-page.js": 1,
+    "server/js/search/spotlight-page.js": 1,
     "server/js/state.js": 75,
     "server/js/status.js": 2,
     "server/js/system.js": 56,
