@@ -72,7 +72,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     // `mini` is the SDK mini-widget slot. It starts VISIBLE like every other row
     // — a package the user just installed has to appear without them hunting for
     // a switch — and takes no room until something draws in it: the element
-    // carries its own `hidden` attribute while empty (js/sdk-mini.js). The two
+    // carries its own `hidden` attribute while empty (js/widget-sdk/sdk-mini.js). The two
     // are different statements: "there is nothing to show" versus "I do not want
     // this here", and only the second belongs in this list.
     actions: [

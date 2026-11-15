@@ -384,7 +384,7 @@ test('the driver puts the scene on every screen', () => {
 
 test('wiring: the dashboard and the driver pass every status on, and load the model first', () => {
   assert.match(read('../js/main.js'), /window\.LayersShell\.onStatus\(data\)/);
-  assert.match(read('../js/shell-driver.js'), /window\.LayersShell\.onStatus\(d\)/);
+  assert.match(read('../js/widget-sdk/shell-driver.js'), /window\.LayersShell\.onStatus\(d\)/);
   for (const page of ['../index.html', '../shell-driver.html']) {
     const html = read(page);
     assert.ok(html.indexOf('js/ambient/screen-scene-model.js') > 0 && html.indexOf('js/ambient/screen-scene-model.js') < html.indexOf('js/layers-shell.js'), page);
@@ -494,7 +494,7 @@ test("Bit's vitals popup opens the alerts window with the dashboard up, only whi
 
 test('wiring: the dashboard and the driver pass the vitals popup on, and the alerts window shows it', () => {
   assert.match(read('../js/main.js'), /addEventListener\('vitals_nag'[\s\S]{0,160}LayersShell\.onVitalsPopup/);
-  assert.match(read('../js/shell-driver.js'), /addEventListener\('vitals_nag', onVitalsNag\)/);
+  assert.match(read('../js/widget-sdk/shell-driver.js'), /addEventListener\('vitals_nag', onVitalsNag\)/);
   const alerts = read('../js/alerts/screen-alerts.js');
   assert.match(alerts, /ALWAYS = Object\.freeze\(\{ vitals_nag: vitalsPopup,/);
   assert.match(alerts, /if \(!always && !routine\(\)\) return;/);

@@ -113,7 +113,7 @@
     const clockWeather = clock.querySelector('.clock-weather');
     const clockMedia = clock.querySelector('.clock-media'); // now playing (js/topbar-media.js)
     const clockVitals = clock.querySelector('.clock-vitals'); // optional (vitals opt-in)
-    const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/sdk-badges.js)
+    const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/widget-sdk/sdk-badges.js)
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget.js)
     const clockCodex = clock.querySelector('.clock-codex'); // OpenAI Codex marker (js/codex-widget.js)
     const clockPerf = clock.querySelector('.clock-perf'); // Performance Mode marker (js/performance/perf-marker.js)
@@ -146,7 +146,7 @@
   // Element for a chrome-button id, or null when that button is not in this
   // document (embed views, a future build, a phone). Looked up live: the button
   // may have been moved into the other container.
-  // A widget's own button (`sdk:<pkg>`, js/sdk-topbar-button.js) is found by
+  // A widget's own button (`sdk:<pkg>`, js/widget-sdk/sdk-topbar-button.js) is found by
   // its data-tb-id.
   const SDK_ACTION_RE = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
   function actionEl(id) {

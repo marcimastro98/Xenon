@@ -115,7 +115,7 @@ test('the driver page feeds it from the media stream and posts to the bridge', a
     EventSource: function EventSource() { this.addEventListener = (ev, fn) => { listeners[ev] = fn; }; },
   };
   vm.createContext(ctx);
-  vm.runInContext(read('../js/shell-driver.js'), ctx);
+  vm.runInContext(read('../js/widget-sdk/shell-driver.js'), ctx);
   await settle(); await settle();
   assert.equal(typeof listeners.media, 'function');
   listeners.media({ data: JSON.stringify(track('One', 'data:a')) });

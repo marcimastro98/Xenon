@@ -1,4 +1,4 @@
-// Widget SDK `topbarButton` (js/sdk-topbar-button.js + custom-widget.js) and the
+// Widget SDK `topbarButton` (js/widget-sdk/sdk-topbar-button.js + custom-widget.js) and the
 // bar kept in view on Settings → Top bar (js/settings/settings-bar-preview.js). What a
 // user would notice if it broke: a widget putting a button on the bar without
 // asking, a placed widget button that comes back in the wrong spot or forces
@@ -88,7 +88,7 @@ test('removing a widget takes its button out of the list and its look', () => {
 });
 
 test('the bar draws the button itself: text only, no widget markup', () => {
-  const src = read('../js/sdk-topbar-button.js');
+  const src = read('../js/widget-sdk/sdk-topbar-button.js');
   assert.doesNotMatch(src, /innerHTML|insertAdjacentHTML|outerHTML|eval\(|new Function/);
   assert.match(src, /btn\.setAttribute\('data-tb-id', idOf\(pkgId\)\)/);
   assert.match(src, /const MAX_OWNERS = 4;/);
@@ -100,7 +100,7 @@ test('the bar draws the button itself: text only, no widget markup', () => {
   assert.match(cw, /\(pkg\.topbarButton === true && !g\.topbarButton\)/);
   assert.match(cw, /addSection\('cw_perm_topbar_button'/);
   const index = read('../index.html');
-  assert.ok(index.indexOf('src="js/sdk-topbar-button.js"') > index.indexOf('src="js/sdk-mini.js"'));
+  assert.ok(index.indexOf('src="js/widget-sdk/sdk-topbar-button.js"') > index.indexOf('src="js/widget-sdk/sdk-mini.js"'));
 });
 
 test('the permission strings exist in all 11 languages', () => {

@@ -8,7 +8,7 @@
 // whose signals only the main window may send), open the search on its
 // shortcut, follow a newer server or a change of mode, keep the lights on
 // the album cover's colours, run the Store widgets' Deck actions
-// (js/driver-sdk-host.js) and Performance Mode (js/performance/driver-perf.js).
+// (js/widget-sdk/driver-sdk-host.js) and Performance Mode (js/performance/driver-perf.js).
 //
 // `hubSettings` is a script-level binding on purpose: layers-shell.js reads it
 // the same way it reads the dashboard's (settings.js).
@@ -39,7 +39,7 @@ let hubSettings = {};
 
   // What a fresh copy of the settings asks of this page.
   function stepFor(settings) {
-    const U = (typeof window !== 'undefined' && window.UsageMode) || require('./first-run/usage-mode.js');
+    const U = (typeof window !== 'undefined' && window.UsageMode) || require('../first-run/usage-mode.js');
     return U.widgetsOnly(settings && settings.usageMode) ? 'sync' : 'leave';
   }
 
@@ -47,7 +47,7 @@ let hubSettings = {};
   // no dashboard to show it in, so this page becomes the dashboard with it open
   // (js/grid/dashboard-open.js), as the tray's "Open Xenon" does. '' = nowhere.
   function galleryUrl(d) {
-    const D = (typeof window !== 'undefined' && window.DashboardOpen) || require('./grid/dashboard-open.js');
+    const D = (typeof window !== 'undefined' && window.DashboardOpen) || require('../grid/dashboard-open.js');
     const extra = D.query({ ...(d && typeof d === 'object' ? d : {}), open: 'gallery' });
     return extra ? MAIN_URL + '&full=1' + extra : '';
   }

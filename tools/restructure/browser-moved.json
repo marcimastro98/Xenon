@@ -245,6 +245,16 @@
     {"from":"server/js/weather-glyphs.js","to":"server/js/weather/weather-glyphs.js"},
     {"from":"server/js/weather-look.js","to":"server/js/weather/weather-look.js"},
     {"from":"server/js/weather-outlook.js","to":"server/js/weather/weather-outlook.js"},
-    {"from":"server/js/weather-window.js","to":"server/js/weather/weather-window.js"}
+    {"from":"server/js/weather-window.js","to":"server/js/weather/weather-window.js"},
+    {"from":"server/js/driver-sdk-host.js","to":"server/js/widget-sdk/driver-sdk-host.js"},
+    {"from":"server/js/icue-host.js","to":"server/js/widget-sdk/icue-host.js"},
+    {"from":"server/js/sdk-badges.js","to":"server/js/widget-sdk/sdk-badges.js"},
+    {"from":"server/js/sdk-island.js","to":"server/js/widget-sdk/sdk-island.js"},
+    {"from":"server/js/sdk-mini.js","to":"server/js/widget-sdk/sdk-mini.js"},
+    {"from":"server/js/sdk-perf.js","to":"server/js/widget-sdk/sdk-perf.js"},
+    {"from":"server/js/sdk-service.js","to":"server/js/widget-sdk/sdk-service.js"},
+    {"from":"server/js/sdk-topbar-button.js","to":"server/js/widget-sdk/sdk-topbar-button.js"},
+    {"from":"server/js/sdk-youtube-player.js","to":"server/js/widget-sdk/sdk-youtube-player.js"},
+    {"from":"server/js/shell-driver.js","to":"server/js/widget-sdk/shell-driver.js"}
   ]
 }

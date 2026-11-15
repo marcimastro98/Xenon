@@ -27,7 +27,7 @@
   // Appearing/disappearing changes the island pill's structure, so re-run the
   // segment layout (keeps the first-visible segment's "lead" divider correct)
   // and re-tuck any top-row tile now sitting under a pill that changed width.
-  // Same contract as js/sdk-badges.js — never called for text-only updates, or a
+  // Same contract as js/widget-sdk/sdk-badges.js — never called for text-only updates, or a
   // track change would reflow the grid for a few pixels.
   function relayout() {
     const tm = window.TopbarMinimal;

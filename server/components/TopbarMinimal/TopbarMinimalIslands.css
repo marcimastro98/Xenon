@@ -1,5 +1,5 @@
 
-/* SDK badge chips (js/sdk-badges.js) — size them to the pill's density. The row
+/* SDK badge chips (js/widget-sdk/sdk-badges.js) — size them to the pill's density. The row
    itself is an island segment, so its divider/padding come from .island-seg
    below; only the chips need resizing. Base look (flat, no fill) is in
    CustomWidget.css — it needs no padding to unset here. */
@@ -98,7 +98,7 @@ body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
 }
 
 /* ── SDK island — widget text projection ──────────────────────
-   A granted SDK widget's text (js/sdk-island.js) takes the pill's spot exactly
+   A granted SDK widget's text (js/widget-sdk/sdk-island.js) takes the pill's spot exactly
    like a notification does: body.xisland-live recedes the pill (rule above)
    and this capsule morphs in at the same anchor, expanding into a small card
    when the line wraps — current line bright, optional follow-up line dimmed
@@ -181,7 +181,7 @@ body.xtoast-island:not([data-panel]) .sdk-island {
   pointer-events: none;
 }
 
-/* Text flows as stacked sentence rows (js/sdk-island.js): dimmed past row,
+/* Text flows as stacked sentence rows (js/widget-sdk/sdk-island.js): dimmed past row,
    bright current (never clamped — it wraps in full), dimmed upcoming. On a
    prompter advance the block slides up one row (transform, its own layer)
    while the card height tweens — a karaoke glide, not a snap. */

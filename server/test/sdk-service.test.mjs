@@ -1,7 +1,7 @@
 // "Widgets only": the Store widgets' background frames (their Deck actions,
 // webhooks and key states) run in a hidden widget host (sdk-service.html +
-// js/sdk-service.js) that the driver page holds only while a widget has a
-// granted Deck action (js/driver-sdk-host.js).
+// js/widget-sdk/sdk-service.js) that the driver page holds only while a widget has a
+// granted Deck action (js/widget-sdk/driver-sdk-host.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { partsOf, readFileSync } from './browser-source.mjs';
@@ -10,8 +10,8 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const DriverSdkHost = require('../js/driver-sdk-host.js');
-const { grantedPackages } = require('../js/sdk-service.js');
+const DriverSdkHost = require('../js/widget-sdk/driver-sdk-host.js');
+const { grantedPackages } = require('../js/widget-sdk/sdk-service.js');
 const { remotePathAllowed } = require('../remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const UMD = "typeof window !== 'undefined' ? window : globalThis";
@@ -53,8 +53,8 @@ test('the driver adds one hidden frame, and removes it when no action is left', 
 
 test('the driver page carries the host and syncs it with every settings read', () => {
   const html = read('../shell-driver.html');
-  assert.ok(html.indexOf('src="js/driver-sdk-host.js"') > 0 && html.indexOf('src="js/driver-sdk-host.js"') < html.indexOf('src="js/shell-driver.js"'));
-  const driver = read('../js/shell-driver.js');
+  assert.ok(html.indexOf('src="js/widget-sdk/driver-sdk-host.js"') > 0 && html.indexOf('src="js/widget-sdk/driver-sdk-host.js"') < html.indexOf('src="js/widget-sdk/shell-driver.js"'));
+  const driver = read('../js/widget-sdk/shell-driver.js');
   assert.match(driver, /if \(stepFor\(next\) === 'leave'\) \{ go\(MAIN_URL\); return true; \}\n\s+if \(window\.LayersShell\) window\.LayersShell\.sync\(\);\n\s+if \(sdkHost\) sdkHost\.sync\(next\);/);
 });
 
@@ -101,7 +101,7 @@ async function boot(settings) {
   vm.createContext(ctx);
   vm.runInContext("let lang = 'en'; const i18n = { en: {}, it: {} };", ctx);
   vm.runInContext(read('../js/layers/widget-feed.js').replace(UMD, 'globalThis'), ctx);
-  vm.runInContext(read('../js/sdk-service.js').replace(UMD, 'window'), ctx);
+  vm.runInContext(read('../js/widget-sdk/sdk-service.js').replace(UMD, 'window'), ctx);
   const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r)); };
   await settle();
   const saved = async (next) => {
@@ -158,7 +158,7 @@ test('only the hidden host answers: the page, its order, the route and the phone
   assert.deepEqual(scripts, ['shared/src/constants.js', 'js/streaming/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
     'js/theme-palette.js', 'js/look/theme-tokens.js', 'js/native-bridge.js', 'js/deck-actions.js',
-    'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/sdk-service.js']);
+    'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/widget-sdk/sdk-service.js']);
   assert.doesNotMatch(html, /stylesheet/);
   assert.match(engineSource(), /reqPath === '\/sdk-service' && req\.method === 'GET'[\s\S]{0,400}'sdk-service\.html'/);
   assert.equal(remotePathAllowed('/sdk-service', 'GET'), false, 'a phone would run every Deck action twice');

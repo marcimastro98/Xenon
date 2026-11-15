@@ -1,5 +1,5 @@
 // "Widgets only": the app's main window holds a small driver page instead of
-// the dashboard (js/shell-driver.js, shell-driver.html, route `/` in server.js,
+// the dashboard (js/widget-sdk/shell-driver.js, shell-driver.html, route `/` in server.js,
 // monitor::set_driver in the shell), and the dashboard trades itself for it when
 // the user switches (js/layers-shell.js).
 import { test } from 'node:test';
@@ -13,10 +13,10 @@ import { partsOf } from './browser-source.mjs';
 const require = createRequire(import.meta.url);
 const UsageMode = require('../js/first-run/usage-mode.js');
 const LayersModel = require('../js/layers/layers-model.js');
-const ShellDriver = require('../js/shell-driver.js');
+const ShellDriver = require('../js/widget-sdk/shell-driver.js');
 const { remotePathAllowed } = require('../remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const DRIVER_SRC = read('../js/shell-driver.js');
+const DRIVER_SRC = read('../js/widget-sdk/shell-driver.js');
 const SHELL_SRC = read('../js/layers-shell.js');
 const SERVER = engineSource();
 const HTML = read('../shell-driver.html');
@@ -140,7 +140,7 @@ test('the driver page carries only what it needs, in order', () => {
     'shared/src/constants.js', 'js/streaming/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'js/layers/layer-tiles.js', 'js/layers/layer-when.js', 'js/layers/layers-model.js', 'js/first-run/usage-mode.js',
     'js/native-bridge.js', 'js/ambient/screen-scene-model.js', ...served('server/js/layers-shell.js'), 'js/grid/dashboard-open.js', ...served('server/js/update.js'), 'js/media/album-theme.js',
-    'js/lighting/driver-album-lights.js', 'js/driver-sdk-host.js', 'js/performance/driver-perf.js', 'js/shell-driver.js',
+    'js/lighting/driver-album-lights.js', 'js/widget-sdk/driver-sdk-host.js', 'js/performance/driver-perf.js', 'js/widget-sdk/shell-driver.js',
   ]);
   assert.doesNotMatch(HTML, /stylesheet/);
 });

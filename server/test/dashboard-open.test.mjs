@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const DashboardOpen = require('../js/grid/dashboard-open.js');
-const ShellDriver = require('../js/shell-driver.js');
+const ShellDriver = require('../js/widget-sdk/shell-driver.js');
 const AlertToasts = require('../js/alerts/alert-toasts.js');
 
 const ID = '0123456789abcdef';
@@ -132,12 +132,12 @@ test('the driver goes to the dashboard with the gallery open, never with anythin
   assert.equal(ShellDriver.galleryUrl({ open: 'update', filter: 'x', id: 'nope' }), '/?shell=main&full=1&open=gallery',
     'a payload cannot turn the gallery into another screen');
   assert.equal(ShellDriver.galleryUrl(null), '/?shell=main&full=1&open=gallery');
-  const src = read('../js/shell-driver.js');
+  const src = read('../js/widget-sdk/shell-driver.js');
   assert.match(src, /es\.addEventListener\('gallery_open', onGalleryOpen\);/);
   const html = read('../shell-driver.html');
   const at = (f) => html.indexOf('<script src="js/' + f + '"></script>');
-  assert.ok(at('grid/dashboard-open.js') > 0 && at('grid/dashboard-open.js') < at('shell-driver.js'));
-  assert.ok(at('update.js') > 0 && at('update.js') < at('shell-driver.js'));
+  assert.ok(at('grid/dashboard-open.js') > 0 && at('grid/dashboard-open.js') < at('widget-sdk/shell-driver.js'));
+  assert.ok(at('update.js') > 0 && at('update.js') < at('widget-sdk/shell-driver.js'));
 });
 
 function withWindow(win, fn) {
@@ -294,7 +294,7 @@ test('the dashboard opens the chat with the question, or the mixer', () => {
 });
 
 test('the driver claims before it leaves, and the question never rides in the address', () => {
-  const src = read('../js/shell-driver.js');
+  const src = read('../js/widget-sdk/shell-driver.js');
   const fn = src.slice(src.indexOf('function onDeckShortcut('), src.indexOf('function connect('));
   assert.ok(fn.indexOf('/deck/shortcut-claim') < fn.indexOf('go('), 'claim first');
   assert.match(fn, /D\.storeAsk\(plan\.ask, window\.sessionStorage\)/);

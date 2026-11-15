@@ -133,7 +133,7 @@
   flex-shrink: 0;
   filter: var(--icon-readability-filter);
 }
-/* A widget's own button (js/sdk-topbar-button.js). Its manifest icon keeps the
+/* A widget's own button (js/widget-sdk/sdk-topbar-button.js). Its manifest icon keeps the
    outline drawing the package asked for; a text glyph sits where an icon would.
    An <i>, not a <span>, so the narrow-bar rules that hide labels leave it on screen. */
 .topbtn.topbtn-sdk > svg[fill="none"] { fill: none; }

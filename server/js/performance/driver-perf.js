@@ -1,6 +1,6 @@
 'use strict';
 
-// Performance Mode in "widgets only" (js/shell-driver.js). On the dashboard,
+// Performance Mode in "widgets only" (js/widget-sdk/shell-driver.js). On the dashboard,
 // js/performance.js watches the activity, suggests optimizing, runs the
 // session and ends it when its game is gone. With no dashboard none of that
 // ran: a session started earlier kept the power plan on High for good, and the

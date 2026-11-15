@@ -40,14 +40,14 @@ const branches = {
   },
 
   'GET /shell-driver': async (_req, _res, { sendPage }) => {
-    // The hidden page of "widgets only" (js/shell-driver.js). Denied to a paired
+    // The hidden page of "widgets only" (js/widget-sdk/shell-driver.js). Denied to a paired
     // device in remote-access.js; loopback only, like '/'.
     await sendPage(await fs.promises.readFile(path.join(SERVER_DIR, 'shell-driver.html'), 'utf8'));
   },
 
   'GET /sdk-service': async (_req, _res, { sendPage }) => {
     // "Widgets only": the hidden page that runs the Store widgets' background
-    // frames (js/sdk-service.js), held by the driver page. Denied to a paired
+    // frames (js/widget-sdk/sdk-service.js), held by the driver page. Denied to a paired
     // device in remote-access.js; loopback only, like '/'.
     await sendPage(await fs.promises.readFile(path.join(SERVER_DIR, 'sdk-service.html'), 'utf8'));
   },

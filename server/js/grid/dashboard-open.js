@@ -3,7 +3,7 @@
 // One screen asked for when the dashboard loads: `/?open=update` (the update
 // card of the alerts window, through the shell), `/?open=gallery` (Bit or a
 // Deck key opening the gallery while "widgets only" had no dashboard; the
-// driver, js/shell-driver.js, loads the dashboard with it), or `mixer` and
+// driver, js/widget-sdk/shell-driver.js, loads the dashboard with it), or `mixer` and
 // `chat` (a Deck key's shortcut with those steps, same way), `settings` with a
 // category or plain `dashboard` (the Xenon menu over the screen, through the
 // shell, see layers::spec::dashboard_page), `store` and `sparks` the same way,

@@ -6,7 +6,7 @@
 // states. Without it a widget's Deck key waited three seconds and failed with
 // `no_frame`. This page runs those frames and nothing else; the driver page
 // holds it only while a widget has a Deck action the user granted
-// (js/driver-sdk-host.js), and drops it, with its memory, when none is left.
+// (js/widget-sdk/driver-sdk-host.js), and drops it, with its memory, when none is left.
 //
 // Like a layer window it reads the settings and never writes them. Unlike one
 // it answers hooks and Deck handlers: it is the only page doing so, because the

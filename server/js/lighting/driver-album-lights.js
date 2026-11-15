@@ -3,7 +3,7 @@
 // The lights follow the album cover in "widgets only" too. On a dashboard
 // media.js reads the cover's colours (album-theme.js) and sends them to the
 // lighting bridge; with no dashboard nobody did, so the "music album" effect
-// stayed on its last colour. The hidden driver page (js/shell-driver.js) does
+// stayed on its last colour. The hidden driver page (js/widget-sdk/shell-driver.js) does
 // the same from the `media` stream: the server has no image decoder and the
 // page already holds a canvas for free. The bridge ignores the colour when the
 // effect is off, like the dashboard's push.

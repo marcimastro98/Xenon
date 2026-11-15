@@ -1,4 +1,4 @@
-// SDK widget performance accounting (js/sdk-perf.js) — report validation,
+// SDK widget performance accounting (js/widget-sdk/sdk-perf.js) — report validation,
 // per-package folding/strikes and the ok/busy/heavy classification behind the
 // Installed tab's activity chip and the one-time heavy-widget toast.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const SdkPerf = require('../js/sdk-perf.js');
+const SdkPerf = require('../js/widget-sdk/sdk-perf.js');
 
 const report = (over = {}) => ({ windowMs: 12000, longTaskMs: 0, longTasks: 0, fps: 60, layoutShifts: 0, ...over });
 

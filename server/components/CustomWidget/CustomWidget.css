@@ -123,7 +123,7 @@ body.cw-has-expanded .shell { z-index: 70; }
 .cw-wrap:not(.cw-expanded) .cw-expand-close { display: none; }
 
 /* ── Guest iframe ────────────────────────────────────────────────── */
-/* The host's YouTube player (js/sdk-youtube-player.js) is placed over the guest
+/* The host's YouTube player (js/widget-sdk/sdk-youtube-player.js) is placed over the guest
    frame at a rectangle the widget reports, so the body is the positioning
    context. Only `position` is added — the player is clamped into this box by
    the host rather than clipped by it, so nothing else in here changes shape. */

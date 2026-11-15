@@ -1,6 +1,6 @@
 'use strict';
 
-// "Widgets only": the driver page (js/shell-driver.js) holds the widget host
+// "Widgets only": the driver page (js/widget-sdk/shell-driver.js) holds the widget host
 // (sdk-service.html) in a hidden frame while a Store widget has a Deck action
 // the user granted, and removes it when none is left, so its memory goes back.
 (function (root, factory) {

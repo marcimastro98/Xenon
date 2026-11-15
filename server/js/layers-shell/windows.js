@@ -7,7 +7,7 @@
 
   const caps = () => window.__XENON_NATIVE_CAPS__ || {};
 
-  // The hidden page of "widgets only" (js/shell-driver.js), not the dashboard.
+  // The hidden page of "widgets only" (js/widget-sdk/shell-driver.js), not the dashboard.
   const isDriver = () => {
     const root = typeof document !== 'undefined' && document.documentElement;
     return !!(root && root.hasAttribute && root.hasAttribute('data-shell-driver'));

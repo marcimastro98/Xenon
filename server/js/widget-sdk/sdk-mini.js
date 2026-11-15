@@ -6,10 +6,10 @@
 // user frees should be able to hold something they chose to put there.
 //
 // Where it differs from its two neighbours:
-//   - Island (js/sdk-island.js) is ONE shared slot, centred, and transient: an
+//   - Island (js/widget-sdk/sdk-island.js) is ONE shared slot, centred, and transient: an
 //     activity that comes and goes. This is persistent and several packages can
 //     hold a piece of it at once.
-//   - Badges (js/sdk-badges.js) are text chips inside the clock, so they follow
+//   - Badges (js/widget-sdk/sdk-badges.js) are text chips inside the clock, so they follow
 //     the clock. This one follows the BUTTONS, and the user picks its side and
 //     its position among them like any other button.
 //

@@ -161,9 +161,9 @@ test('the driver loads Performance Mode only when it is on or a session runs', (
   assert.equal(DriverPerf.configKey({ performance: { enabled: true, active: true } }), DriverPerf.configKey({ performance: { enabled: true, active: false } }),
     'a running session is not a change of mind');
   const html = read('../shell-driver.html');
-  assert.ok(html.indexOf('src="js/performance/driver-perf.js"') > 0 && html.indexOf('src="js/performance/driver-perf.js"') < html.indexOf('src="js/shell-driver.js"'));
+  assert.ok(html.indexOf('src="js/performance/driver-perf.js"') > 0 && html.indexOf('src="js/performance/driver-perf.js"') < html.indexOf('src="js/widget-sdk/shell-driver.js"'));
   assert.doesNotMatch(html, /performance\.js|perf-settings\.js/, 'not loaded up front: off by default');
-  const driver = read('../js/shell-driver.js');
+  const driver = read('../js/widget-sdk/shell-driver.js');
   assert.match(driver, /hubSettings = perf \? perf\.merge\(next\) : next;/);
   assert.match(driver, /if \(perf\) perf\.sync\(hubSettings\);/);
   assert.match(driver, /if \(perf\) perf\.listen\(es\);/);

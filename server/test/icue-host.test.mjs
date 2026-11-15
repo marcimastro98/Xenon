@@ -4,10 +4,10 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-// The dashboard's half of typing inside the iCUE widget (js/icue-host.js):
+// The dashboard's half of typing inside the iCUE widget (js/widget-sdk/icue-host.js):
 // framed, it tells the parent when a text field takes focus, and only then.
 const require = createRequire(import.meta.url);
-const H = require('../js/icue-host.js');
+const H = require('../js/widget-sdk/icue-host.js');
 
 const el = (tagName, extra = {}) => ({ tagName, ...extra });
 
@@ -71,7 +71,7 @@ test('a cross-origin parent (top throws) counts as framed', () => {
 
 test('loaded as a page script it installs itself and stays out of the global scope', () => {
   const { win, sent } = fakeWindow({ framed: true });
-  const src = readFileSync(new URL('../js/icue-host.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/widget-sdk/icue-host.js', import.meta.url), 'utf8');
   const ctx = vm.createContext({ self: win });
   vm.runInContext(src, ctx);
   assert.equal(sent.length, 1);
@@ -80,7 +80,7 @@ test('loaded as a page script it installs itself and stays out of the global sco
 
 test('index.html loads it', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /<script src="js\/icue-host\.js"><\/script>/);
+  assert.match(html, /<script src="js\/widget-sdk\/icue-host\.js"><\/script>/);
 });
 
 test('only web links leave the dashboard', () => {

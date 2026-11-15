@@ -341,7 +341,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z"/></svg>
         <span data-i18n="ui_search">Cerca</span>
       </button>
-      <!-- SDK mini-widget slot (js/sdk-mini.js). Host-rendered like the island and
+      <!-- SDK mini-widget slot (js/widget-sdk/sdk-mini.js). Host-rendered like the island and
            the badges — never an iframe. `hidden` while no package is drawing in
            it, so it takes no room; the user owns where it sits and whether it is
            there at all (Settings → Dynamic Island → Bottoni della barra). -->
@@ -377,7 +377,7 @@
              adopts it automatically when the clock is reparented. -->
         <span class="clock-vitals" id="clock-vitals" hidden></span>
         <!-- Third-party SDK badge chips (Widget SDK `badge` capability, up to a
-             few at once). Populated by js/sdk-badges.js; lives inside .clock for
+             few at once). Populated by js/widget-sdk/sdk-badges.js; lives inside .clock for
              the same free minimal-topbar reparenting as clock-vitals above. -->
         <span class="clock-sdkbadges" id="clock-sdkbadges" hidden></span>
         <!-- Claude Code marker: shows while a session is working and lights up
@@ -4990,7 +4990,7 @@
 <script src="layer-i18n.js"></script>
 <script src="js/grid/fit-row.js"></script>
 <script src="js/native-bridge.js"></script>
-<script src="js/icue-host.js"></script>
+<script src="js/widget-sdk/icue-host.js"></script>
 <script src="js/grid/edge-preview.js"></script>
 <script src="js/ai/audio-feedback.js"></script>
 <script src="js/time/clock.js"></script>
@@ -5188,10 +5188,10 @@
 <script src="js/topbar-media/pieces.js"></script>
 <script src="js/topbar-media.js"></script>
 <script src="js/sdk-island-schema.js"></script>
-<script src="js/sdk-island.js"></script>
-<script src="js/sdk-badges.js"></script>
-<script src="js/sdk-mini.js"></script>
-<script src="js/sdk-topbar-button.js"></script>
+<script src="js/widget-sdk/sdk-island.js"></script>
+<script src="js/widget-sdk/sdk-badges.js"></script>
+<script src="js/widget-sdk/sdk-mini.js"></script>
+<script src="js/widget-sdk/sdk-topbar-button.js"></script>
 <script src="js/ambient/lockscreen.js"></script>
 <script src="js/ambient/ambient-resolve.js"></script>
 <script src="js/ambient/ambient-mode.js"></script>
@@ -5434,9 +5434,9 @@
 <script src="js/vitals-pet/effects.js"></script>
 <script src="js/vitals-pet.js"></script>
 <script src="js/ticker/ticker.js"></script>
-<script src="js/sdk-perf.js"></script>
+<script src="js/widget-sdk/sdk-perf.js"></script>
 <script src="js/sdk-diagnostics.js"></script>
-<script src="js/sdk-youtube-player.js"></script>
+<script src="js/widget-sdk/sdk-youtube-player.js"></script>
 <script src="js/custom-widget/theme-payload.js"></script>
 <script src="js/custom-widget/frame-messages.js"></script>
 <script src="js/custom-widget/instances.js"></script>

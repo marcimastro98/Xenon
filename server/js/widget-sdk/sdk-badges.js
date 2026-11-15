@@ -1,6 +1,6 @@
 // SDK Badges — host-side renderer for the Widget SDK `badge` capability.
 //
-// Distinct from Island (js/sdk-island.js): a granted widget's small
+// Distinct from Island (js/widget-sdk/sdk-island.js): a granted widget's small
 // always-on text chip renders next to the clock, in BOTH topbar chromes —
 // it lives inside #clock-sdkbadges, a sibling of #clock-vitals inside
 // .clock, so it rides the same minimal-topbar reparenting for free (see

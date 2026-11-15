@@ -153,7 +153,7 @@
   font-size: 14px; font-weight: 400; line-height: 1.35; color: var(--muted-text); overflow-wrap: anywhere;
 }
 
-/* ── SDK badge chips — Widget SDK `badge` capability (js/sdk-badges.js) ──
+/* ── SDK badge chips — Widget SDK `badge` capability (js/widget-sdk/sdk-badges.js) ──
    Small always-on readouts next to the clock, one per granted package (up to a
    few at once). #clock-sdkbadges is a plain span inside .clock in the base
    markup; in the minimal chrome topbar-minimal.js reparents it into the island
@@ -176,7 +176,7 @@
   color: var(--text, #e7e9ee);
   white-space: nowrap;
 }
-/* ── SDK mini slot — Widget SDK `mini` capability (js/sdk-mini.js) ──
+/* ── SDK mini slot — Widget SDK `mini` capability (js/widget-sdk/sdk-mini.js) ──
    A row of host-drawn blocks living among the topbar BUTTONS rather than in the
    clock, wherever the user placed it (Settings → Dynamic Island → Bottoni della
    barra). It borrows the island's block styles verbatim — the same renderer

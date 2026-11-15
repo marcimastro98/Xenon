@@ -158,11 +158,9 @@
         "server/js/custom-widget.js",
         "server/js/custom-widget/**",
         "server/js/sdk-*.js",
-        "server/js/driver-sdk-host.js",
-        "server/js/shell-driver.js",
-        "server/js/icue-host.js",
         "server/components/CustomWidget/**",
-        "docs/WIDGET_SDK.md"
+        "docs/WIDGET_SDK.md",
+        "server/js/widget-sdk/**"
       ]
     },
     {

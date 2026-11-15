@@ -1,7 +1,7 @@
 // SDK bar buttons — host-side renderer for the Widget SDK `topbarButton`
 // capability: a button of the package's own among the bar's buttons.
 //
-// Where it differs from the mini slot (js/sdk-mini.js): the slot is ONE entry of
+// Where it differs from the mini slot (js/widget-sdk/sdk-mini.js): the slot is ONE entry of
 // the button list that several packages share, drawing blocks in it. This is a
 // real button per package, `sdk:<id>` in topbarClock.actions, so the user moves
 // it, hides it and restyles it (TopbarLook.buttons) exactly like Lock or Search.

@@ -1245,7 +1245,7 @@
     }
   }
 
-  // The host's YouTube player, lent to a widget (js/sdk-youtube-player.js).
+  // The host's YouTube player, lent to a widget (js/widget-sdk/sdk-youtube-player.js).
   //
   // A widget cannot embed YouTube itself — its frame has an opaque origin and a
   // CSP that blocks all network — so a widget that wants a video inside its own
