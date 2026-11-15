@@ -30,6 +30,15 @@ export function readMoved(root) {
 const movedText = (list) => `{\n  "note": ${JSON.stringify(list.note)},\n  "moves": [\n${list.moves.map((row) => `    ${JSON.stringify(row)}`).join(',\n')}\n  ]\n}\n`;
 
 /**
+ * A list file that moved with its feature is read where it stands now.
+ * @param {string} root @param {string[]} lists @returns {Set<string>}
+ */
+export function listsNow(root, lists) {
+  const placed = new Map(readMoved(root).moves.map((move) => [move.from, move.to]));
+  return new Set(lists.map((file) => placed.get(file) ?? file));
+}
+
+/**
  * Everything a step would do, with nothing written.
  * @param {string} root @param {{from: string, to: string, feature: string}[]} asked @param {any} parser @param {string[]} lists
  * @returns {{ moves: object[], refused: {move: object, why: string[]}[], edits: Map<string, object[]>, bare: object[] }}
@@ -43,7 +52,7 @@ export function planStep(root, asked, parser, lists) {
     const why = whyNot(move, repo);
     if (why) refuse(move, why);
   }
-  const find = (moves) => findBrowserSites({ files: repo.files, read: repo.read, parser, moves, lists: new Set(lists) });
+  const find = (moves) => findBrowserSites({ files: repo.files, read: repo.read, parser, moves, lists: listsNow(root, lists) });
   let moves = asked.filter((move) => !refused.has(move.from));
   for (const site of find(moves)) {
     // `require('./js/deck')` would find the folder `deck/` where an install still has the old `deck.js` beside it.
@@ -136,6 +145,6 @@ export function undoStep(root) {
 export function leftovers(root, parser, lists) {
   const { moves } = readMoved(root);
   if (!moves.length) return [];
-  const sites = findBrowserSites({ files: trackedFiles(root), read: reader(root), parser, moves, lists: new Set(lists) });
+  const sites = findBrowserSites({ files: trackedFiles(root), read: reader(root), parser, moves, lists: listsNow(root, lists) });
   return sites.filter((site) => site.kind !== 'bare').map((site) => `${site.file}:${site.line} still says ${site.was}`);
 }

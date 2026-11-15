@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from 'node:os';
 import path from 'node:path';
 
-import { applyStep, leftovers, planStep, readMoved, undoStep } from '../../tools/restructure/browser-move-apply.mjs';
+import { applyStep, leftovers, listsNow, planStep, readMoved, undoStep } from '../../tools/restructure/browser-move-apply.mjs';
 import { targets, whyNot, withHomes } from '../../tools/restructure/browser-move-plan.mjs';
 import { findBrowserSites, stops } from '../../tools/restructure/browser-move-refs.mjs';
 import { edited } from '../../tools/restructure/move-apply.mjs';
@@ -191,6 +191,7 @@ test('a step moves, rewrites, maps and lists; undo puts every file back; nothing
     repo.git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'move');
     assert.match(undoStep(repo.root), /git revert/, 'after the commit the step is git\'s to undo');
     assert.deepEqual(leftovers(repo.root, parser, LEFT.lists), []);
+    assert.deepEqual([...listsNow(repo.root, [MOVE.from, 'server/js/state.js'])], [MOVE.to, 'server/js/state.js'], 'a list file that moved is read at its new place');
     writeFileSync(path.join(repo.root, 'server/index.html'), '<script src="js/pulse-bar.js"></script>\n');
     assert.match(leftovers(repo.root, parser, LEFT.lists).join('\n'), /server\/index\.html:1 still says js\/pulse-bar\.js/);
   } finally {
