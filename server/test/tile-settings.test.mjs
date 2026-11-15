@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const TileSettings = require('../tile-settings.js');
+const TileSettings = require('../grid/tile-settings.js');
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
 test('only the allowlisted fields, in their shape', () => {

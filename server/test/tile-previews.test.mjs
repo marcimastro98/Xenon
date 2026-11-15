@@ -8,7 +8,7 @@ import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
 const SERVER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { PREVIEW_TILES, previewPath } = require('../tile-previews.js');
+const { PREVIEW_TILES, previewPath } = require('../grid/tile-previews.js');
 const { addChoices } = require('../xenon-menu.js');
 const { TILES } = require('../js/layer-tiles.js');
 const strings = require('../layer-strings.js');

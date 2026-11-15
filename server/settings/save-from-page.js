@@ -2,7 +2,7 @@
 // fields, the Vitals state, what was read of an update, and Performance Mode, each read,
 // changed and written inside the lock.
 
-const TileSettings = require('../tile-settings.js');
+const TileSettings = require('../grid/tile-settings.js');
 const VitalsState = require('../vitals/vitals-state.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const winNotif = require('../winnotif.js');

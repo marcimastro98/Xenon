@@ -42,7 +42,7 @@ function openSettingsCategory(cat) {
 // A tile's own choice kept in the settings (a Discord favourite, the ChatGPT
 // model, a lyrics option). The dashboard saves it with the settings; a layer
 // page never writes the whole blob, so it sends just these fields to
-// /settings/tile (server/tile-settings.js). The change shows at once and is put
+// /settings/tile (server/grid/tile-settings.js). The change shows at once and is put
 // back if the server refuses it. Resolves true when saved.
 async function saveTileSetting(patch) {
   const before = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};

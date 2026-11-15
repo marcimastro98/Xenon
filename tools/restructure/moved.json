@@ -11,9 +11,12 @@
     {"from":"server/scene-images.js","to":"server/ambient/scene-images.js","shim":true},
     {"from":"server/scene-page.js","to":"server/ambient/scene-page.js","shim":true},
     {"from":"server/screen-alerts-page.js","to":"server/alerts/screen-alerts-page.js","shim":true},
-    {"from":"server/screen-draw-shell.js","to":"server/alerts/screen-draw-shell.js","shim":true}
+    {"from":"server/screen-draw-shell.js","to":"server/alerts/screen-draw-shell.js","shim":true},
+    {"from":"server/tile-previews.js","to":"server/grid/tile-previews.js"},
+    {"from":"server/tile-settings.js","to":"server/grid/tile-settings.js"}
   ],
   "patterns": [
-
+    {"feature":"grid","glob":"server/tile-previews.js","at":2},
+    {"feature":"grid","glob":"server/tile-settings.js","at":3}
   ]
 }

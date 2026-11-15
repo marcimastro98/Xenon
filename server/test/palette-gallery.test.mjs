@@ -86,7 +86,7 @@ function rig({ touch = false, packages = [], catalog = [], examples = [] } = {})
 }
 
 test('the browser and the server read one list of pictures', () => {
-  const server = require('../tile-previews.js');
+  const server = require('../grid/tile-previews.js');
   assert.equal(server.PREVIEW_TILES, PM.PREVIEW_TILES);
   assert.equal(server.previewPath, PM.previewPath);
   assert.equal(PM.previewPath('weather'), 'assets/tile-previews/weather.webp');

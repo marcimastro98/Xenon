@@ -4,7 +4,7 @@
 
 const LayerSee = require('../js/layer-see.js');
 const PaletteModel = require('../js/palette-model.js');
-const { previewPath } = require('../tile-previews.js');
+const { previewPath } = require('../grid/tile-previews.js');
 const { HUD_PLACE, k, run, keyName } = require('../menu-rows.js');
 
 function tileChoice(id) {

@@ -69,7 +69,7 @@ const TileMaterial = require('./js/tile-material.js'); // the materials style_ti
 require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 require('./settings-ai'); // change_setting: the allowlisted Settings switches
-require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
+require('./grid/tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
 require('./vitals/vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
 const CaptureCovers = require('./capture-covers');
 const { createCaptureTranscripts } = require('./capture-transcripts');

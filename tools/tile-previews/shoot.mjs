@@ -1,5 +1,5 @@
 // The pictures in the Xenon menu's "Add" list (server/assets/tile-previews/<tile>.webp):
-// each tile of server/tile-previews.js shot on the site's browser demo, so everything
+// each tile of server/grid/tile-previews.js shot on the site's browser demo, so everything
 // in them is invented data, nothing from this PC. A tile the demo leaves empty gets a
 // fixture (fixtures.mjs) and a page of its own; the others share a page, six at a time.
 // Headless: a request that leaves the local copy gets the fixture's page, or is aborted.
@@ -22,7 +22,7 @@ import { FIXTURE_TILES, fixtureFor, fixtureScript } from './fixtures.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { PREVIEW_TILES, PREVIEW_WIDTH } = require(path.join(ROOT, 'server', 'tile-previews.js'));
+const { PREVIEW_TILES, PREVIEW_WIDTH } = require(path.join(ROOT, 'server', 'grid/tile-previews.js'));
 const PER_PAGE = 6;
 const SETTLE_MS = 4500;
 const STAGE_MS = 800;
