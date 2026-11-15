@@ -12,7 +12,7 @@ import { resolveOutputDevice, pickToggleDevice, pickFirstConnected } from '../ac
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { UTF8_EXPORT, decodeCsv, repairMojibake } = require('../svv-text.js');
+const { UTF8_EXPORT, decodeCsv, repairMojibake } = require('../audio/svv-text.js');
 const SERVER = engineSource();
 
 const KOPF = 'Realtek(R) Audio\\Device\\Kopfhörer\\Render';

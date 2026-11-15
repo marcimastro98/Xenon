@@ -3,7 +3,7 @@
 // device, a pair to switch between, or an ordered list. Part of the action registry: only
 // registry.js requires this file.
 
-const { repairMojibake } = require('../svv-text.js');
+const { repairMojibake } = require('../audio/svv-text.js');
 
 // Resolve an output-device id against a LIVE enumeration. Pure and exported so
 // the check that makes `audioDevice` safe is unit-tested rather than trusted:

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { nativeCollectors } = require('../system/native-collectors.js');
 const { makeCsvPath, parseCsvLine } = require('./svv-csv.js');
 const { SVV } = require('./svv-path.js');
-const svvText = require('../svv-text.js');
+const svvText = require('./svv-text.js');
 
 function readSoundVolumeRows() {
   if (nativeCollectors) return nativeCollectors.audioRows();

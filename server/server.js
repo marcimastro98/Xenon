@@ -47,7 +47,7 @@ const { createSituations } = require('./capabilities/situations');
 const { createWidgetKeys } = require('./widget-keys');
 const { readFailed, heardMedia, reportedApps, afterPress, PRESS_HOLDS_MS, cacheLife } = require('./media-read');
 const { pressMediaKey, tellApp, createMediaSender } = require('./media-key.js');
-const micUse = require('./mic-use');
+const micUse = require('./audio/mic-use');
 const { isOwnApp } = require('./capabilities/layer-anchor');
 const { createPerfStream } = require('./perf-stream');
 require('./system/packet-loss');

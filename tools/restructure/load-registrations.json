@@ -93,7 +93,7 @@
           "server/actions/registry-app-paths.js": "95d5a7ce29d4eef76b340367e30c4d9504a532562941da11f17a373d466ba85e",
           "server/actions/registry-open-paths.js": "f6207de9d38676dcb40defbae243773a85c2cdea1f5a6efbc2461c26ccd0cb0d",
           "server/actions/registry-values.js": "0b207071509e48058ab84622c970205734afbbb9bf6443300ff6c2834d7a790d",
-          "server/actions/registry-audio-devices.js": "a55d6691bb219369af30b6f5156ee7aa020d40916b3d2a4a3471a801204c5540"
+          "server/actions/registry-audio-devices.js": "ced1ac18020c9fa3c206c04c34318655a7967711746c4b3738f1ede1e2db8757"
         },
         "reason": "createRegistry keeps the object it is handed, reads its platform property and returns run; everything else in it is the two functions run and runDeckState, so nothing of the object is called before run() is."
       },

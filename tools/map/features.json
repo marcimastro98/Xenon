@@ -470,8 +470,6 @@
         "server/audio/**",
         "server/app-audio/**",
         "server/audio-levels.js",
-        "server/mic-use.js",
-        "server/svv-text.js",
         "server/soundvolumeview-x64/**",
         "server/actions/wavelink*.js",
         "server/actions/voicemeeter*.js",
