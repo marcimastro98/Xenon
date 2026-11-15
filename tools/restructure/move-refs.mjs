@@ -221,6 +221,7 @@ function tokenSites(file, text, patterns, tracked) {
  *   `text` or `string` (all four have the new `text`), or `unknown` / `runs` (the move cannot be made).
  */
 export function findSites({ files, read, parser, moves }) {
+  if (!moves.length) return []; // no name to look for: the patterns below would match every empty place
   const patterns = patternsFor(moves);
   const tracked = new Set(files);
   const out = [];
