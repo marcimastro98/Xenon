@@ -69,15 +69,15 @@
     {"from":"server/search-pasted-path.js","to":"server/search/search-pasted-path.js","shim":true},
     {"from":"server/search-query.js","to":"server/search/search-query.js","shim":true},
     {"from":"server/search-rank.js","to":"server/search/search-rank.js","shim":true},
-    {"from":"server/claude-attach.js","to":"server/claude-code/claude-attach.js"},
-    {"from":"server/claude-bridge.js","to":"server/claude-code/claude-bridge.js"},
-    {"from":"server/claude-commands.js","to":"server/claude-code/claude-commands.js"},
-    {"from":"server/claude-inbox.js","to":"server/claude-code/claude-inbox.js"},
-    {"from":"server/claude-run.js","to":"server/claude-code/claude-run.js"},
-    {"from":"server/claude-sessions.js","to":"server/claude-code/claude-sessions.js"},
-    {"from":"server/claude-subagent.js","to":"server/claude-code/claude-subagent.js"},
-    {"from":"server/claude-transcript.js","to":"server/claude-code/claude-transcript.js"},
-    {"from":"server/claude-usage.js","to":"server/claude-code/claude-usage.js"}
+    {"from":"server/claude-attach.js","to":"server/claude-code/claude-attach.js","shim":true},
+    {"from":"server/claude-bridge.js","to":"server/claude-code/claude-bridge.js","shim":true},
+    {"from":"server/claude-commands.js","to":"server/claude-code/claude-commands.js","shim":true},
+    {"from":"server/claude-inbox.js","to":"server/claude-code/claude-inbox.js","shim":true},
+    {"from":"server/claude-run.js","to":"server/claude-code/claude-run.js","shim":true},
+    {"from":"server/claude-sessions.js","to":"server/claude-code/claude-sessions.js","shim":true},
+    {"from":"server/claude-subagent.js","to":"server/claude-code/claude-subagent.js","shim":true},
+    {"from":"server/claude-transcript.js","to":"server/claude-code/claude-transcript.js","shim":true},
+    {"from":"server/claude-usage.js","to":"server/claude-code/claude-usage.js","shim":true}
   ],
   "patterns": [
 
