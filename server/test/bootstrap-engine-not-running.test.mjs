@@ -114,7 +114,7 @@ test('the splash\'s start never fires at an engine that answers', () => {
   const body = LIB.slice(at, LIB.indexOf('\n}\n', at));
   assert.ok(body.indexOf('backend_answers_once(port)') < body.indexOf('"/Run"'),
     'start-hidden.vbs stops whatever listens on the port: probe first');
-  assert.match(LIB, /"start" => start_backend_task\(&nav_handle, port\)/);
+  assert.match(LIB, /"start" => start_backend_task\(nav_handle, port\)/);
 });
 
 test('the app launched at sign-in gives the logon task time before re-running it', () => {

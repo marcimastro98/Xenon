@@ -183,6 +183,13 @@
       "apps/native/src-tauri/src/display_signal.rs",
       "apps/native/src-tauri/src/host_graphics_linux.rs",
       "apps/native/src-tauri/src/shell_update.rs",
+      "apps/native/src-tauri/src/startup.rs",
+      "apps/native/src-tauri/src/startup/main_window.rs",
+      "apps/native/src-tauri/src/startup/navigation.rs",
+      "apps/native/src-tauri/src/startup/page.rs",
+      "apps/native/src-tauri/src/startup/script.rs",
+      "apps/native/src-tauri/src/startup/signals.rs",
+      "apps/native/src-tauri/src/startup/started.rs",
       "apps/native/src-tauri/src/webview_setup.rs"
     ],
     "apps/native/src-tauri/src/monitor.rs": [

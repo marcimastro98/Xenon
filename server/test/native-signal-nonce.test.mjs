@@ -23,14 +23,16 @@ const LIB = read('apps/native/src-tauri/src/lib.rs');
 const POLICY = read('apps/native/src-tauri/src/nav_policy.rs');
 
 function mainHook() {
-  const at = LIB.indexOf('.on_navigation(move |raw| {');
-  assert.ok(at > 0, 'the main window hook takes the raw URL');
-  return LIB.slice(at, LIB.indexOf('// WebView2 browser arguments.', at));
+  // The hook is a function of its own (startup/navigation.rs); the window hands it the raw URL, the nonce and the port.
+  assert.ok(LIB.includes('.on_navigation(move |raw| navigation::allowed(&nav_handle, &signal_nonce, port, raw));'), 'the main window hook takes the raw URL');
+  const at = LIB.indexOf('pub(super) fn allowed(nav_handle: &tauri::AppHandle, signal_nonce: &str, port: u16, raw: &tauri::Url) -> bool {');
+  assert.ok(at > 0, 'the hook takes the nonce of this launch');
+  return LIB.slice(at, LIB.indexOf('\n}\n', at));
 }
 
 test('the main window hook checks the nonce before acting on any signal', () => {
   const hook = mainHook();
-  const check = hook.indexOf('nav_policy::verified_signal(raw, &signal_nonce)');
+  const check = hook.indexOf('nav_policy::verified_signal(raw, signal_nonce)');
   assert.ok(check > 0);
   assert.match(hook.slice(check, check + 500), /None => return false/, 'a signal without the nonce is dropped');
   for (const s of ['xenon-update', 'xenon-app', 'xenon-setup', 'xenon-home', 'xenon-display', 'xenon-cursor', 'xenon-zoom', 'xenon-fullscreen', 'xenon-focus']) {
@@ -56,7 +58,11 @@ test('the nonce reaches the page through the main window initialization script',
   assert.match(LIB, /let signal_nonce = nav_policy::new_nonce\(\);/);
   assert.match(LIB, /let nonce_js = nav_policy::nonce_script\(&signal_nonce, port\);/);
   assert.match(LIB, /let init_script = format!\("[^"]*\{nonce_js\}"\);/);
-  assert.match(LIB, /\.initialization_script\(&init_script\)\s*\.on_navigation\(move \|raw\|/);
+  // The script and the nonce leave one function together; the window gets the first, its hook the second.
+  assert.match(LIB, /let init_script = format!\([^\n]*\n\s*\(init_script, signal_nonce\)\n\}/);
+  assert.match(LIB, /let \(init_script, signal_nonce\) = script::build\(/);
+  assert.match(LIB, /\.initialization_script\(&init_script\)\n\}/);
+  assert.match(LIB, /main_window::builder\(app, &display_prefs, &see_through, start_hidden, init_script\)\s*\.on_navigation\(move \|raw\|/);
   // Main frame and our own origins only (WebView2 runs init scripts in every frame).
   assert.match(POLICY, /if\(window\.top!==window\)return;if\(o\.indexOf\(location\.origin\)<0\)return;/);
 });
