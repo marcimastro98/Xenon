@@ -1,4 +1,4 @@
-/* The small moving pictures of the Xenon menu (js/xenon-menu-guide.js). Each is one
+/* The small moving pictures of the Xenon menu (js/menu/xenon-menu-guide.js). Each is one
    loop of transform and opacity, so it stays on the compositor. The rules outside the
    keyframes draw a still frame that already says the point: with reduced motion, that
    frame is the picture. */

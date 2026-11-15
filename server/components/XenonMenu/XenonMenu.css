@@ -1,5 +1,5 @@
-/* The Xenon menu (js/xenon-menu.js): the same frame in its own window (menu.html) and inside
-   the dashboard (js/xenon-menu-panel.js). It is Settings' rail and page, because the menu's
+/* The Xenon menu (js/menu/xenon-menu.js): the same frame in its own window (menu.html) and inside
+   the dashboard (js/menu/xenon-menu-panel.js). It is Settings' rail and page, because the menu's
    window opens Settings and the Store in place and nothing may jump on the way: a section is
    a title over one well, a row is a name on the left and its control on the right. It looks
    the same under every skin: the rules that meet a skin's list carry #xm-root, the id both

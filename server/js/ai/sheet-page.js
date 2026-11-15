@@ -10,7 +10,7 @@
   if (typeof isSheetPage !== 'function' || !isSheetPage()) return;
 
   const MENU_ADDRESS = '/menu?back=1';
-  const SECTION_KEY = 'xenon.menuSection';   // js/screen-menu-page.js reads it back
+  const SECTION_KEY = 'xenon.menuSection';   // js/menu/screen-menu-page.js reads it back
   const OPEN_GRACE_MS = 1500;   // the screen opens on `load`, the Store after a read
   const SETTLE_MS = 400;        // Settings closing to open the Store is not an end
   const INNER_LAYERS = '.cgal-detail-scrim, .cgal-zoom, .cs-wrap.cs-open, .ai-attach-menu';

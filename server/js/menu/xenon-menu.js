@@ -1,8 +1,8 @@
 'use strict';
 
 // The Xenon menu's view (plan §20): one renderer for both places, the page over
-// the main screen (menu.html, js/screen-menu-page.js) and the dashboard panel
-// (js/xenon-menu-panel.js). The rows come from the server (GET /xenon-menu,
+// the main screen (menu.html, js/menu/screen-menu-page.js) and the dashboard panel
+// (js/menu/xenon-menu-panel.js). The rows come from the server (GET /xenon-menu,
 // server/menu/xenon-menu.js); every change goes through POST /actions/run, the same
 // capability a Deck key or Bit would use, then the menu reads itself again.
 // Verbs that move elsewhere (gallery, Settings, dashboard, Bit) go back to the

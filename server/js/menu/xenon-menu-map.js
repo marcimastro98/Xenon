@@ -6,7 +6,7 @@
 // where it stays. Rows, acts and words come from the server (server/menu/menu-widgets.js).
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const api = factory(node ? require('./layers/layer-drag.js') : root.LayerDrag);
+  const api = factory(node ? require('../layers/layer-drag.js') : root.LayerDrag);
   if (node) module.exports = api;
   if (root) root.XenonMenuMap = api;
 })(typeof window !== 'undefined' ? window : globalThis, function (LayerDrag) {

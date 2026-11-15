@@ -27,7 +27,7 @@ function namer(list) {
   return { known, name };
 }
 
-// `live`: the moving preview in the screen's picture (js/xenon-menu-scene-view.js). Only
+// `live`: the moving preview in the screen's picture (js/menu/xenon-menu-scene-view.js). Only
 // one tab of one screen is drawn at a time, so one preview runs.
 function sceneChoice(id, label, sub, value, list, none, actFor) {
   const { name } = namer(list);

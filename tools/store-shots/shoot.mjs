@@ -167,7 +167,7 @@ async function menu(browser, app, file, tmp) {
   await wallPicture(browser, wall);
   const { ctx, page } = await open(browser, app, ['window.__XENON_NATIVE__=true;window.__XENON_NATIVE_CAPS__={layers:true,menu:true};window.__XENON_LAYER_SHELL__=true;'], { viewport: MENU_WINDOW, deviceScaleFactor: MENU_ZOOM, colorScheme: 'dark' });
   const json = (body) => (r) => (r.request().method() === 'GET' ? r.fulfill({ json: body }) : r.fulfill({ json: { ok: true } }));
-  // A regular expression: a glob would also catch js/xenon-menu.js.
+  // A regular expression: a glob would also catch js/menu/xenon-menu.js.
   await page.route(/\/xenon-menu(\?|$)/, json(XenonMenu.compose(menuState(Date.now()))));
   await page.route('**/settings', json({ settings: { language: 'en', ...NEW_INSTALL_LOOK } }));
   await page.route('**/screen-menu', json({ open: true, where: 'screen', section: 'now' }));

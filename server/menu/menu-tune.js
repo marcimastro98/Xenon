@@ -81,7 +81,7 @@ function hudRows(id, st) {
 
 // The one question: when do you see it? One answer sets where and when together. The
 // app needs picking, so that card carries no action and the page asks which one
-// (js/xenon-menu-place.js). A mix no answer can say stays as it is and is named.
+// (js/menu/xenon-menu-place.js). A mix no answer can say stays as it is and is named.
 function seeRow(w, st, id, move) {
   const options = LayerSee.CHOICES.filter((see) => see !== 'app').map((see) => ({
     value: see, label: k('see_' + see), sub: k(`see_${see}_sub`), act: run(move(LayerSee.changeFor(see))),

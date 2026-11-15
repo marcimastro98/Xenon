@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { createLayersPeek } = require('../layers-peek.js');
-const { create } = require('../js/xenon-menu-peek.js');
+const { create } = require('../js/menu/xenon-menu-peek.js');
 
 function clock() {
   const timers = new Set();

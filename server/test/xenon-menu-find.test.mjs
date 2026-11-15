@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { find } = require('../js/xenon-menu-find.js');
+const { find } = require('../js/menu/xenon-menu-find.js');
 
 const words = (x) => x || '';
 const sections = [

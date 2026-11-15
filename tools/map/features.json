@@ -313,10 +313,8 @@
       "files": [
         "server/menu/**",
         "server/menu.html",
-        "server/js/xenon-menu*.js",
-        "server/js/menu-gamepad.js",
-        "server/js/screen-menu-page.js",
-        "server/components/XenonMenu/**"
+        "server/components/XenonMenu/**",
+        "server/js/menu/**"
       ]
     },
     {

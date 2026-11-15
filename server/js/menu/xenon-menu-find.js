@@ -4,7 +4,7 @@
 // lives in, for someone who knows what they want and not where it is. Any order,
 // any case, no accents (js/fuzzy-find.js folds the text the same way everywhere).
 (function (root, factory) {
-  const api = factory(typeof module === 'object' && module.exports ? require('./fuzzy-find.js') : root.FuzzyFind);
+  const api = factory(typeof module === 'object' && module.exports ? require('../fuzzy-find.js') : root.FuzzyFind);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.XenonMenuFind = api;
 })(typeof window !== 'undefined' ? window : globalThis, function (Fuzzy) {

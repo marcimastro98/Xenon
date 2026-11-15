@@ -1,7 +1,7 @@
 'use strict';
 
 // The Xenon menu inside the dashboard (plan §20): the same menu as the one over
-// the main screen (js/xenon-menu.js draws both, from GET /xenon-menu), as a
+// the main screen (js/menu/xenon-menu.js draws both, from GET /xenon-menu), as a
 // dialog over the dashboard. Opened by the "Main screen" tile, by SSE
 // `xenon_menu_panel` (the menu asked for where no shell can draw it over the
 // screen) and by window.XenonMenuPanel.open(section). Verbs that lead

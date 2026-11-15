@@ -2,7 +2,7 @@
 // The Xenon menu's content (plan §20): one description of the six sections,
 // read by both places that show the menu (over the main screen, /menu, and the
 // dashboard panel), so neither can have a row the other lacks. Pure: server.js
-// gathers the state, this turns it into rows; js/xenon-menu.js draws them.
+// gathers the state, this turns it into rows; js/menu/xenon-menu.js draws them.
 //
 // A row is { kind, id, label, ... }. Texts are { key, vars? } (an i18n key),
 // { text } (a name the user chose) or a list of those, shown joined by commas. Every change a row makes is an `act`:

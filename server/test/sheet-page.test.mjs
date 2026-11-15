@@ -166,7 +166,7 @@ test('the pages are wired: the menu goes to a sheet in place, and the dashboard 
     assert.ok(i >= 0, file);
     return i;
   };
-  assert.ok(at(menuHtml, 'grid/dashboard-open.js') < at(menuHtml, 'screen-menu-page.js'));
+  assert.ok(at(menuHtml, 'grid/dashboard-open.js') < at(menuHtml, 'menu/screen-menu-page.js'));
   const index = read('../index.html');
   assert.ok(at(index, 'grid/dashboard-open.js') < at(index, 'ai/sheet-page.js'));
   assert.ok(at(index, 'ai/sheet-page.js') < at(index, 'main.js'));
@@ -174,7 +174,7 @@ test('the pages are wired: the menu goes to a sheet in place, and the dashboard 
   assert.match(read('../js/main.js'), /VALID_PANELS = \[.*'sheet'\]/);
   assert.match(read('../js/main.js'), /XenonSheet\.onMenu/);
 
-  const page = read('../js/screen-menu-page.js');
+  const page = read('../js/menu/screen-menu-page.js');
   assert.doesNotMatch(page, /open-dashboard\?' \+/, 'no screen goes through the dashboard signal any more');
   assert.match(page, /open-dashboard\?open=dashboard/);
   assert.match(read('../js/update.js'), /isSheetPage\(\)\) \{\n\s+try \{ window\.location\.href = .*open-dashboard\?open=update/);

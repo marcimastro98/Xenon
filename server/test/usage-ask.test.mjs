@@ -10,7 +10,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
 const SRC = src('js/usage-ask.js');
-const SCRIPTS = ['look/view-melt', 'first-run/usage-mode', 'alerts/screen-name', 'layers/layer-drag', 'xenon-menu-map', 'first-run/usage-ask-plan', 'first-run/usage-ask-picture', 'usage-ask']
+const SCRIPTS = ['look/view-melt', 'first-run/usage-mode', 'alerts/screen-name', 'layers/layer-drag', 'menu/xenon-menu-map', 'first-run/usage-ask-plan', 'first-run/usage-ask-picture', 'usage-ask']
   .map((name) => src('js/' + name + '.js'));
 
 const screen = (id, name, more = {}) => ({
@@ -448,7 +448,7 @@ test('wired in place of the second question: one or the other, never both in a r
   const html = src('index.html');
   const at = (name) => html.indexOf('js/' + name + '.js');
   assert.ok(at('usage-ask') > at('surface-picker'));
-  for (const before of ['alerts/screen-name', 'first-run/usage-ask-plan', 'first-run/usage-ask-picture', 'xenon-menu-map']) assert.ok(at(before) >= 0 && at(before) < at('usage-ask'), before);
+  for (const before of ['alerts/screen-name', 'first-run/usage-ask-plan', 'first-run/usage-ask-picture', 'menu/xenon-menu-map']) assert.ok(at(before) >= 0 && at(before) < at('usage-ask'), before);
   assert.doesNotMatch(SRC, /innerHTML/);
 });
 

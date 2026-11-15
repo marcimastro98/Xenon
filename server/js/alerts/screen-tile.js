@@ -3,7 +3,7 @@
 // The "Main screen" tile (plan §20): what the Xenon menu does on the main
 // screen, at a glance from the dashboard. The same rows as the menu (GET
 // /xenon-menu): the quick actions, the widgets on the screen, the state, and
-// "The whole menu" for everything else (js/xenon-menu-panel.js). Nothing here
+// "The whole menu" for everything else (js/menu/xenon-menu-panel.js). Nothing here
 // exists only on this tile: every button is a menu row.
 
 (function () {

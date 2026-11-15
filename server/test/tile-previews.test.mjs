@@ -66,7 +66,7 @@ test('every tile of the catalog has its line in all 11 languages', async () => {
 test('the menu page has the tile icons before the list that draws them', () => {
   const html = readFileSync(path.join(SERVER, 'menu.html'), 'utf8');
   const palette = html.indexOf('<script src="js/grid/dashboard-palette.js">');
-  assert.ok(palette > 0 && palette < html.indexOf('<script src="js/xenon-menu.js">'));
+  assert.ok(palette > 0 && palette < html.indexOf('<script src="js/menu/xenon-menu.js">'));
 });
 
 test('the tool shoots what it is asked, in groups', () => {

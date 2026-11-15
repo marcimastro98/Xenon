@@ -69,7 +69,7 @@ test('the Store tile says how many updates wait and opens Installed', () => {
 });
 
 test('the menu shows the count by the Store link and reads it out with the words', () => {
-  const src = read('../js/xenon-menu.js');
+  const src = read('../js/menu/xenon-menu.js');
   const fn = src.slice(src.indexOf('function drawFootLink'), src.indexOf('async function refreshBalance'));
   assert.match(fn, /if \(r\.id === 'store' && r\.updates > 0\) \{\n\s+b\.appendChild\(el\('span', 'xm-nav-value is-update', String\(r\.updates\)\)\);\n\s+b\.setAttribute\('aria-label', text\(r\.label, tt\) \+ ', ' \+ text\(r\.sub, tt\)\);/);
   assert.match(engineSource(), /storeUpdates: store\.updates,/);

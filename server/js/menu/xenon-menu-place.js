@@ -6,7 +6,7 @@
 // attaches the widget.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const api = factory(node ? require('./layers/layer-when.js') : root.LayerWhen);
+  const api = factory(node ? require('../layers/layer-when.js') : root.LayerWhen);
   if (node) module.exports = api;
   if (root) root.XenonMenuPlace = api;
 })(typeof window !== 'undefined' ? window : globalThis, function (rules) {

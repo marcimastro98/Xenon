@@ -93,7 +93,7 @@ function atOf(w, st) {
 }
 
 // Tabs go before what the widget shows, so they land in the Where tab of the
-// widget's screen (js/xenon-menu-widget-view.js), not in What it shows.
+// widget's screen (js/menu/xenon-menu-widget-view.js), not in What it shows.
 function withTabs(rows, tabs, id) {
   const what = rows.findIndex((r) => r.id === `${id}:h-what`);
   return what < 0 ? [...rows, ...tabs] : [...rows.slice(0, what), ...tabs, ...rows.slice(what)];

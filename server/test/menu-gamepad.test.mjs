@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const P = require('../js/menu-gamepad.js');
+const P = require('../js/menu/menu-gamepad.js');
 
 const pad = (pressedIdx = [], axes = [0, 0]) => ({
   connected: true,
@@ -83,6 +83,6 @@ test('the menu page and the dashboard panel load it', async () => {
   const fs = await import('node:fs/promises');
   const menu = await fs.readFile(new URL('../menu.html', import.meta.url), 'utf8');
   const index = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(menu, /js\/menu-gamepad\.js/);
-  assert.match(index, /js\/menu-gamepad\.js[\s\S]*js\/xenon-menu-panel\.js/);
+  assert.match(menu, /js\/menu\/menu-gamepad\.js/);
+  assert.match(index, /js\/menu\/menu-gamepad\.js[\s\S]*js\/menu\/xenon-menu-panel\.js/);
 });

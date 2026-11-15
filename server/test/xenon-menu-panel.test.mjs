@@ -35,7 +35,7 @@ function rig() {
     },
   };
   vm.runInNewContext(read('js/dialog-focus.js'), box);
-  vm.runInNewContext(read('js/xenon-menu-panel.js'), box);
+  vm.runInNewContext(read('js/menu/xenon-menu-panel.js'), box);
   const opener = document.createElement('button');
   document.body.append(opener);
   opener.focus();

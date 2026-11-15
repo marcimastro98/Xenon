@@ -150,6 +150,23 @@
     {"from":"server/js/media-spotify.js","to":"server/js/media/media-spotify.js"},
     {"from":"server/js/media-viz.js","to":"server/js/media/media-viz.js"},
     {"from":"server/js/spotify-settings.js","to":"server/js/media/spotify-settings.js"},
-    {"from":"server/js/spotify-widget.js","to":"server/js/media/spotify-widget.js"}
+    {"from":"server/js/spotify-widget.js","to":"server/js/media/spotify-widget.js"},
+    {"from":"server/js/menu-gamepad.js","to":"server/js/menu/menu-gamepad.js"},
+    {"from":"server/js/screen-menu-page.js","to":"server/js/menu/screen-menu-page.js"},
+    {"from":"server/js/xenon-menu-find.js","to":"server/js/menu/xenon-menu-find.js"},
+    {"from":"server/js/xenon-menu-guide.js","to":"server/js/menu/xenon-menu-guide.js"},
+    {"from":"server/js/xenon-menu-icons.js","to":"server/js/menu/xenon-menu-icons.js"},
+    {"from":"server/js/xenon-menu-map.js","to":"server/js/menu/xenon-menu-map.js"},
+    {"from":"server/js/xenon-menu-page-edit.js","to":"server/js/menu/xenon-menu-page-edit.js"},
+    {"from":"server/js/xenon-menu-panel.js","to":"server/js/menu/xenon-menu-panel.js"},
+    {"from":"server/js/xenon-menu-peek.js","to":"server/js/menu/xenon-menu-peek.js"},
+    {"from":"server/js/xenon-menu-place.js","to":"server/js/menu/xenon-menu-place.js"},
+    {"from":"server/js/xenon-menu-result.js","to":"server/js/menu/xenon-menu-result.js"},
+    {"from":"server/js/xenon-menu-scene-view.js","to":"server/js/menu/xenon-menu-scene-view.js"},
+    {"from":"server/js/xenon-menu-screens.js","to":"server/js/menu/xenon-menu-screens.js"},
+    {"from":"server/js/xenon-menu-when.js","to":"server/js/menu/xenon-menu-when.js"},
+    {"from":"server/js/xenon-menu-widget-view.js","to":"server/js/menu/xenon-menu-widget-view.js"},
+    {"from":"server/js/xenon-menu-widgets.js","to":"server/js/menu/xenon-menu-widgets.js"},
+    {"from":"server/js/xenon-menu.js","to":"server/js/menu/xenon-menu.js"}
   ]
 }

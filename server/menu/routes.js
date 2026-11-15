@@ -48,7 +48,7 @@ const branches = {
   },
 
   'GET /menu': async (_req, _res, { sendPage }) => {
-    // The Xenon menu over the main screen (js/screen-menu-page.js), shown by the
+    // The Xenon menu over the main screen (js/menu/screen-menu-page.js), shown by the
     // shell while it is open (screen-menu.js). Denied to a paired device in
     // remote-access.js.
     await sendPage(await fs.promises.readFile(path.join(SERVER_DIR, 'menu.html'), 'utf8'));

@@ -83,7 +83,7 @@ test('both ways into the mode from the menu come back, and the page keeps the sc
   assert.match(widgets, /id: 'edit'[^\n]*closes: true, returns: true/);
   const functions = readFileSync(join(HERE, '..', 'menu/menu-functions.js'), 'utf8');
   assert.match(functions, /\{ id: 'edit'[^\n]*returns: true/);
-  const page = readFileSync(join(HERE, '..', 'js', 'screen-menu-page.js'), 'utf8');
+  const page = readFileSync(join(HERE, '..', 'js', 'menu/screen-menu-page.js'), 'utf8');
   assert.match(page, /d\.section && !stepped\) view\.show\(d\.section\)/);
   const server = engineSource();
   assert.match(server, /onOff: \(byHand\) => screenMenu\.holdEnded\(byHand\)/);

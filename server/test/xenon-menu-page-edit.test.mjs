@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { create } = require('../js/xenon-menu-page-edit.js');
+const { create } = require('../js/menu/xenon-menu-page-edit.js');
 
 // Just enough of a page: elements that keep their class, children and listeners.
 function node(tag, cls = '', text = '') {

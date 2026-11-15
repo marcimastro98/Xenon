@@ -7,8 +7,8 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const Guide = require('../js/xenon-menu-guide.js');
-const Place = require('../js/xenon-menu-place.js');
+const Guide = require('../js/menu/xenon-menu-guide.js');
+const Place = require('../js/menu/xenon-menu-place.js');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 const CSS = src('components/XenonMenu/XenonMenuGuide.css');
 
@@ -69,11 +69,11 @@ test('the pictures move only transform and opacity', () => {
 test('both places that draw the menu load the modules and the stylesheet', () => {
   for (const page of ['index.html', 'menu.html']) {
     const html = src(page);
-    assert.ok(html.indexOf('js/xenon-menu-place.js') > 0 && html.indexOf('js/xenon-menu-place.js') < html.indexOf('js/xenon-menu.js"'), page);
-    assert.ok(html.indexOf('js/xenon-menu-guide.js') > 0 && html.indexOf('js/xenon-menu-guide.js') < html.indexOf('js/xenon-menu.js"'), page);
-    assert.ok(html.indexOf('js/layers/layer-when.js') > 0 && html.indexOf('js/layers/layer-when.js') < html.indexOf('js/xenon-menu-when.js'), page + ': the drawer needs the rules');
-    assert.ok(html.indexOf('js/layers/layer-when.js') < html.indexOf('js/xenon-menu-place.js'), page + ': the place row names apps with the rules');
-    assert.ok(html.indexOf('js/xenon-menu-when.js') < html.indexOf('js/xenon-menu.js"'), page);
+    assert.ok(html.indexOf('js/menu/xenon-menu-place.js') > 0 && html.indexOf('js/menu/xenon-menu-place.js') < html.indexOf('js/menu/xenon-menu.js"'), page);
+    assert.ok(html.indexOf('js/menu/xenon-menu-guide.js') > 0 && html.indexOf('js/menu/xenon-menu-guide.js') < html.indexOf('js/menu/xenon-menu.js"'), page);
+    assert.ok(html.indexOf('js/layers/layer-when.js') > 0 && html.indexOf('js/layers/layer-when.js') < html.indexOf('js/menu/xenon-menu-when.js'), page + ': the drawer needs the rules');
+    assert.ok(html.indexOf('js/layers/layer-when.js') < html.indexOf('js/menu/xenon-menu-place.js'), page + ': the place row names apps with the rules');
+    assert.ok(html.indexOf('js/menu/xenon-menu-when.js') < html.indexOf('js/menu/xenon-menu.js"'), page);
     assert.ok(html.indexOf('XenonMenu.css') < html.indexOf('XenonMenuGuide.css'), page + ': it answers rules of the main sheet');
   }
 });

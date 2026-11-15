@@ -8,7 +8,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { widgetWhenRow, pageWhenRow, whenFact } = require('../menu/menu-when.js');
-const When = require('../js/xenon-menu-when.js');
+const When = require('../js/menu/xenon-menu-when.js');
 const I18N = appStringsSource();
 
 const everything = { probes: { situationCall: true, situationFront: true }, power: { battery: { percent: 80 } } };

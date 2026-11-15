@@ -38,7 +38,7 @@ pub enum Kind {
     /// The see-through drawing sheet over the whole screen, off Windows
     /// (server/js/alerts/screen-draw-page.js); Windows draws with the capture engine.
     Draw,
-    /// The Xenon menu (server/js/screen-menu-page.js): a normal window with a
+    /// The Xenon menu (server/js/menu/screen-menu-page.js): a normal window with a
     /// title bar, on top only of a game, that the user moves and resizes (menu_window.rs).
     /// Takes the keyboard when it opens, gives it back when it closes.
     Menu,

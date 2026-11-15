@@ -6,11 +6,11 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const View = require('../js/xenon-menu-widget-view.js');
-const XenonMenuMap = require('../js/xenon-menu-map.js');
+const View = require('../js/menu/xenon-menu-widget-view.js');
+const XenonMenuMap = require('../js/menu/xenon-menu-map.js');
 const LayerSee = require('../js/layers/layer-see.js');
 globalThis.window = { XenonMenuWidgetView: View, XenonMenuMap, LayerSee, matchMedia: () => ({ matches: false }) };
-const { create, onPage } = require('../js/xenon-menu-widgets.js');
+const { create, onPage } = require('../js/menu/xenon-menu-widgets.js');
 
 function node(tag, cls = '', txt = '') {
   const n = {
@@ -323,7 +323,7 @@ test('"at certain moments" is a fifth card: it opens the situations, another car
 });
 
 test('a card with its own answer is answered by the page, not sent', () => {
-  const Place = require('../js/xenon-menu-place.js');
+  const Place = require('../js/menu/xenon-menu-place.js');
   const sent = [];
   const got = [];
   const place = Place.create({
@@ -459,7 +459,7 @@ test('a redraw waits only while the page name is being typed on its own screen',
 test('the key a refused combination suggests is one Xenon takes', async () => {
   const { readFileSync } = await import('node:fs');
   const S = (await import('../js/deck-shortcuts.js')).default;
-  const source = readFileSync(new URL('../js/xenon-menu.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../js/menu/xenon-menu.js', import.meta.url), 'utf8');
   const [, key] = /KEY_TO_TRY = '([^']+)'/.exec(source);
   assert.ok(S.normalizeShortcut(key));
   assert.equal(S.reservedBy(key), '');

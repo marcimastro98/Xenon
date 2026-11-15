@@ -5,7 +5,7 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const Map = require('../js/xenon-menu-map.js');
+const Map = require('../js/menu/xenon-menu-map.js');
 const { createLayersEdit } = require('../layers-edit.js');
 const layers = require('../capabilities/layers.js');
 
@@ -57,12 +57,12 @@ test('widgets in tabs share one box on the map', () => {
 });
 
 test('nothing jumps after the drop: the corner rule is gone from the menu', () => {
-  const src = readFileSync(new URL('../js/xenon-menu-widget-view.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/menu/xenon-menu-widget-view.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /cornerNear|dropRect|clearSpot/);
 });
 
 test('the picture has no window drawn in it: the widget is alone on its screen', () => {
-  const src = readFileSync(new URL('../js/xenon-menu-widget-view.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/menu/xenon-menu-widget-view.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../components/XenonMenu/XenonMenuWidgets.css', import.meta.url), 'utf8');
   assert.doesNotMatch(src + css, /xm-fakewin/);
 });

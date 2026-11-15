@@ -1,4 +1,4 @@
-// js/xenon-menu-result.js: the line that says what a function did, in the menu's
+// js/menu/xenon-menu-result.js: the line that says what a function did, in the menu's
 // window. Pinned here: it starts hidden, shows the card's words as text, drops a
 // picture that does not load, hands its buttons back, and clears.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { create } = require('../js/xenon-menu-result.js');
+const { create } = require('../js/menu/xenon-menu-result.js');
 
 function fakeDoc() {
   const doc = {

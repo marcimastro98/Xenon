@@ -344,7 +344,7 @@ function postponeAutoUpdate() {
       try { if (window.LayersShell && typeof window.LayersShell.onVitalsPopup === 'function') window.LayersShell.onVitalsPopup(JSON.parse(e.data)); } catch {}
     });
     // What the Xenon menu shows changed: its panel and the "Main screen" tile
-    // read it again (js/xenon-menu-panel.js, js/alerts/screen-tile.js).
+    // read it again (js/menu/xenon-menu-panel.js, js/alerts/screen-tile.js).
     ['settings', 'captures', 'replay', 'recording', 'deck'].forEach((name) => {
       es.addEventListener(name, () => window.dispatchEvent(new Event('xenon-menu-changed')));
     });

@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const Model = require('../js/ambient/screen-scene-model.js');
 const scene = require('../capabilities/desktop-scene.js');
 const { createLayersHost } = require('../layers-host.js');
-const Screens = require('../js/xenon-menu-screens.js');
+const Screens = require('../js/menu/xenon-menu-screens.js');
 
 const DISPLAYS = [{ id: 'pg' }, { id: 'edge' }, { id: 'side' }];
 const isScene = (id) => ['builtin', 'joyride', 'night'].includes(id);

@@ -4,7 +4,7 @@
 // app's window with corners to press) stays in place on one side, and the choices sit in
 // four named tabs beside it: when it shows, where, what it shows, how it looks. Each tab
 // is short, so nothing waits under a closed row and the picture never scrolls away.
-// The screen around it comes from js/xenon-menu-widgets.js; every row still draws through
+// The screen around it comes from js/menu/xenon-menu-widgets.js; every row still draws through
 // the menu's own DRAW map, so a choice works the same here and in the search results.
 (function (root, factory) {
   const api = factory();

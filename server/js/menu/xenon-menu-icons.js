@@ -1,6 +1,6 @@
 'use strict';
 
-// The Xenon menu's icons (js/xenon-menu.js): one 24×24 stroke path per name the
+// The Xenon menu's icons (js/menu/xenon-menu.js): one 24×24 stroke path per name the
 // server's rows use (server/menu/xenon-menu.js `icon`), drawn with createElementNS.
 (function (root, factory) {
   const api = factory();

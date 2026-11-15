@@ -1,5 +1,5 @@
 // The Xenon menu (plan §20): one description of the sections (xenon-menu.js),
-// drawn in two places by one view (js/xenon-menu.js), opened by one capability.
+// drawn in two places by one view (js/menu/xenon-menu.js), opened by one capability.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -15,7 +15,7 @@ const Widgets = require('../menu/menu-widgets.js');
 const Menu = require('../menu/xenon-menu.js');
 const { createScreenMenu, SECTIONS, cleanSection } = require('../menu/screen-menu.js');
 const MenuCap = require('../capabilities/xenon-menu.js');
-const View = require('../js/xenon-menu.js');
+const View = require('../js/menu/xenon-menu.js');
 const { validateAction } = require('../js/deck-actions.js');
 const ra = require('../remote-access.js');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
@@ -644,7 +644,7 @@ test('one interface, two places: the same sections and rows, only screen-only ro
     });
   }
   // Both places draw with the one view, never a copy of their own.
-  for (const f of ['js/screen-menu-page.js', 'js/xenon-menu-panel.js']) assert.match(src(f), /XenonMenuView\.create\(/, f);
+  for (const f of ['js/menu/screen-menu-page.js', 'js/menu/xenon-menu-panel.js']) assert.match(src(f), /XenonMenuView\.create\(/, f);
   assert.match(src('js/alerts/screen-tile.js'), /\/xenon-menu'/, 'the tile reads the same rows');
 });
 
@@ -764,11 +764,11 @@ test('a row that closes the menu over the screen: the server closes it, then run
 });
 
 test('over the screen the menu hands a closing row over at once: its window dies with the menu', () => {
-  const view = src('js/xenon-menu.js');
+  const view = src('js/menu/xenon-menu.js');
   const leave = view.indexOf('opts.leave(act, row)');
   assert.ok(leave > 0 && leave < view.indexOf('await new Promise((r) => setTimeout(r, CLOSE_FIRST_MS))'),
     'no wait before handing the action over');
-  const page = src('js/screen-menu-page.js');
+  const page = src('js/menu/screen-menu-page.js');
   assert.match(page, /leave,/);
   assert.match(page, /openVerb\(act\.open\);\s*if \(!DashboardOpen\.sheetAddress\(.*\)\) close\(\);/,
     'the signal goes before the close, and a sheet keeps the window');
@@ -776,15 +776,15 @@ test('over the screen the menu hands a closing row over at once: its window dies
 });
 
 test('the menu stays while another window has the focus: a system screenshot can catch it', () => {
-  assert.doesNotMatch(src('js/screen-menu-page.js'), /addEventListener\('blur'/);
+  assert.doesNotMatch(src('js/menu/screen-menu-page.js'), /addEventListener\('blur'/);
 });
 
 test('in its own window the menu is the window: nothing darkens the app under it, the X is the native one', () => {
   const html = src('menu.html');
   assert.doesNotMatch(html, /xm-scrim|aria-modal/);
   assert.match(html, /<main class="xm-frame"/);
-  assert.doesNotMatch(src('js/screen-menu-page.js'), /pointerdown/, 'a click outside goes to the app under it');
-  assert.match(src('js/xenon-menu.js'), /opts\.place !== 'screen'[\s\S]{0,40}button\('xm-close'\)/);
+  assert.doesNotMatch(src('js/menu/screen-menu-page.js'), /pointerdown/, 'a click outside goes to the app under it');
+  assert.match(src('js/menu/xenon-menu.js'), /opts\.place !== 'screen'[\s\S]{0,40}button\('xm-close'\)/);
   assert.match(src('components/XenonMenu/XenonMenu.css'), /\.xm-page \.xm-frame \{[^}]*height: 100vh/);
 });
 
@@ -928,7 +928,7 @@ test('what people look for comes first: a new macro above the functions, the gal
 });
 
 test('Bit and the Scintilla in the menu are the official marks, never a drawing of ours', () => {
-  const Icons = require('../js/xenon-menu-icons.js');
+  const Icons = require('../js/menu/xenon-menu-icons.js');
   assert.equal(Icons.PATHS.bit, undefined);
   assert.equal(Icons.PATHS.spark, undefined);
   const page = src('menu.html');
@@ -938,13 +938,13 @@ test('Bit and the Scintilla in the menu are the official marks, never a drawing 
   const hex = readFileSync(new URL('../../docs/images/brand/bit.svg', import.meta.url)).match(/#6ee787/i);
   assert.ok(hex, 'the brand green moved: update BRAND_GREEN');
   const [r, g, b] = [hex[0].slice(1, 3), hex[0].slice(3, 5), hex[0].slice(5, 7)].map((h) => parseInt(h, 16));
-  assert.ok(src('js/xenon-menu-icons.js').includes(`'${r},${g},${b}'`));
+  assert.ok(src('js/menu/xenon-menu-icons.js').includes(`'${r},${g},${b}'`));
 });
 
 // Whoever found the menu by a button has to learn its key somewhere: the sheet hides
 // the Settings row (the person came from the menu), so the menu says it itself.
 test('the shortcut of the menu is said in the menu and in Settings, never on a phone', () => {
-  const view = src('js/xenon-menu.js');
+  const view = src('js/menu/xenon-menu.js');
   assert.match(view, /place === 'screen'\) return fill\(tt\('xmenu_key_closes'\)/);
   assert.match(view, /window\.__xenonRemote \? '' : fill\(tt\('xmenu_key_opens'\)/);
   assert.match(src('index.html'), /id="settings-menu-key"/);
@@ -953,11 +953,11 @@ test('the shortcut of the menu is said in the menu and in Settings, never on a p
 });
 
 test('the result box starts hidden, also where the result module is not loaded', () => {
-  assert.match(src('js/xenon-menu.js'), /resultBox.hidden = true;/);
+  assert.match(src('js/menu/xenon-menu.js'), /resultBox.hidden = true;/);
 });
 
 test('a widget row keeps its picture, words and switch on one line on a phone', () => {
-  assert.match(src('js/xenon-menu-widgets.js'), /'xm-row xm-row--widget xm-wrow'/);
+  assert.match(src('js/menu/xenon-menu-widgets.js'), /'xm-row xm-row--widget xm-wrow'/);
   const phone = src('components/XenonMenu/XenonMenuWidgets.css').split('@media (max-width: 720px)')[1];
   assert.match(phone, /\.xm-wrow \{ flex-wrap: nowrap; \}/);
   assert.match(src('components/XenonMenu/XenonMenu.css').split('@media (max-width: 720px)')[1], /\.xm-row--two > \.xm-words \{ flex-basis: 100%; \}/);
@@ -1153,8 +1153,8 @@ test('the new strings are there in every language and fit a line', () => {
 });
 
 test('the view: a placed widget draws its picture and its own switch; Add draws its filters', () => {
-  const view = src('js/xenon-menu.js');
-  const widgets = src('js/xenon-menu-widgets.js');
+  const view = src('js/menu/xenon-menu.js');
+  const widgets = src('js/menu/xenon-menu-widgets.js');
   assert.match(widgets, /li\.append\(addThumb\(r\), words, switchFor\(r, fill\(tt\('xmenu_widget_show'\)/);
   assert.match(widgets, /addCats\(add, paint\)/);
   assert.match(view, /tunehead: drawTuneHead/);
@@ -1162,8 +1162,8 @@ test('the view: a placed widget draws its picture and its own switch; Add draws 
 });
 
 test('facts about a widget read as a sentence: only the first keeps its capital, names stay as written', () => {
-  assert.match(src('js/xenon-menu.js'), /function factLine\(list, tt\)/);
-  assert.match(src('js/xenon-menu.js'), /i && \(y\.key \|\| y\.pair\) \? s\.charAt\(0\)\.toLocaleLowerCase\(\)/);
+  assert.match(src('js/menu/xenon-menu.js'), /function factLine\(list, tt\)/);
+  assert.match(src('js/menu/xenon-menu.js'), /i && \(y\.key \|\| y\.pair\) \? s\.charAt\(0\)\.toLocaleLowerCase\(\)/);
 });
 
 // Pressed with nothing recording it closed the menu and came back as an error:
@@ -1187,7 +1187,7 @@ test('the mark says what it does now: a clip with the replay, a spot in a record
 });
 
 test('the Store and the Sparks stay in the sidebar, the balance asked at most twice a minute', () => {
-  const js = src('js/xenon-menu.js');
+  const js = src('js/menu/xenon-menu.js');
   assert.match(js, /FOOT_LINKS = \['store', 'sparks'\]/);
   assert.match(js, /findTile\(sections, id\)/, 'from the composed tiles: what a place cannot open never shows');
   assert.match(js, /now - balanceAt < BALANCE_TTL_MS/);

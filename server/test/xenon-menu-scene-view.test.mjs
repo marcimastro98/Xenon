@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { create, previewUrl, POINT_DELAY_MS } = require('../js/xenon-menu-scene-view.js');
+const { create, previewUrl, POINT_DELAY_MS } = require('../js/menu/xenon-menu-scene-view.js');
 const { isSceneKey } = require('../js/ambient/screen-scene-model.js');
 
 function node(tag) {

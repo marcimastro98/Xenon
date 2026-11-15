@@ -42,14 +42,14 @@ test('the menu\'s own window is solid, the panel on the dashboard is a sheet', (
 });
 
 test('a key the menu cannot record still does something', () => {
-  const draw = read('js/xenon-menu.js');
+  const draw = read('js/menu/xenon-menu.js');
   const body = draw.slice(draw.indexOf('function drawKey(r)'), draw.indexOf('const drawTuneHead'));
   assert.match(body, /else if \(r\.goes\)/);
   assert.doesNotMatch(body, /b\.disabled = true/);
 });
 
 test('the three ways of using Xenon stand apart from the list under them', () => {
-  assert.match(read('js/xenon-menu.js'), /mode: 'xm-modeblock'/);
+  assert.match(read('js/menu/xenon-menu.js'), /mode: 'xm-modeblock'/);
   assert.doesNotMatch(MENU, /\.xm-list:has\(/);
 });
 
@@ -63,5 +63,5 @@ test('the line a widget snaps to and the guide\'s cards do not share a class', (
   // They did: the cards took the line's absolute green box and covered the Widgets page.
   assert.match(GUIDE, /^\.xm-guide \{/m);
   assert.doesNotMatch(WIDGETS, /\.xm-guide\b/);
-  assert.doesNotMatch(read('js/xenon-menu-map.js'), /xm-guide/);
+  assert.doesNotMatch(read('js/menu/xenon-menu-map.js'), /xm-guide/);
 });

@@ -6,7 +6,7 @@
 // rule as text (js/layers/layer-when.js) sent through the row's own capability.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const rules = node ? require('./layers/layer-when.js') : root.LayerWhen;
+  const rules = node ? require('../layers/layer-when.js') : root.LayerWhen;
   const place = node ? require('./xenon-menu-place.js') : root.XenonMenuPlace;
   const api = factory(rules, place);
   if (typeof module === 'object' && module.exports) module.exports = api;

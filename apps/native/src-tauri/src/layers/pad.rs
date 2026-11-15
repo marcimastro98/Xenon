@@ -3,7 +3,7 @@
 //! on older ones, Create and Options on PlayStation ones). Handhelds such as the ROG Ally or the
 //! Legion Go have no keyboard at hand, and a page in the background is never
 //! given controller input, so the shell reads the pad itself. Inside the menu
-//! the page drives it (server/js/menu-gamepad.js).
+//! the page drives it (server/js/menu/menu-gamepad.js).
 //!
 //! Watched only while the dashboard asks (`pad` in the spec: the Xenon menu can
 //! be drawn and `layers.menuPad` is on). With no controller connected the

@@ -1,6 +1,6 @@
 'use strict';
 // The Xenon menu over the main screen (plan §20): the native shell opens a page
-// over everything (/menu, js/screen-menu-page.js) while it is open. The server
+// over everything (/menu, js/menu/screen-menu-page.js) while it is open. The server
 // keeps only whether it is open and on which section, and tells the pages over
 // SSE `screen_menu`; the dashboard, or the "widgets only" driver, turns that into
 // a `menu:` surface for the shell (js/layers-shell.js). Runtime only: a restart
