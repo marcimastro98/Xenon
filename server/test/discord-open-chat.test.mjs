@@ -14,7 +14,7 @@ import { appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const L = require('../discord-launch.js');
+const L = require('../discord/discord-launch.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 // ── Launching, per platform ─────────────────────────────────────────────────

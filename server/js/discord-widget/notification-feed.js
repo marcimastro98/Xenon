@@ -52,7 +52,7 @@ window.DiscordWidgetNotificationFeed = (wrapper) => {
   }
 
   // "Reply": bring Discord forward on this PC with that conversation open
-  // (server/discord-launch.js). Xenon cannot send the message itself, since
+  // (server/discord/discord-launch.js). Xenon cannot send the message itself, since
   // Discord's local connection has no command for it, so this is the shortest
   // honest path to answering. Only for a row that names its channel, and not on
   // a paired phone: the button acts on the PC's Discord, and someone holding a

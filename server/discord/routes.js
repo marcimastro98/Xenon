@@ -1,7 +1,7 @@
 // What the engine does to open Discord.
 
 const { readBody } = require('../http/read-body.js');
-const discordLaunch = require('../discord-launch.js');
+const discordLaunch = require('./discord-launch.js');
 const { discordLink } = require('./link.js');
 const { normalizeDiscordNotifications } = require('../settings/normalize-notifications.js');
 const { hub } = require('../settings/current.js');

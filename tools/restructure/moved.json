@@ -6,7 +6,8 @@
     {"from":"server/vitals-state.js","to":"server/vitals/vitals-state.js","shim":true},
     {"from":"server/situations.js","to":"server/capabilities/situations.js","shim":true},
     {"from":"server/startup-task.js","to":"server/install/startup-task.js","shim":true},
-    {"from":"server/unifi-events.js","to":"server/smart-home/unifi-events.js","shim":true}
+    {"from":"server/unifi-events.js","to":"server/smart-home/unifi-events.js","shim":true},
+    {"from":"server/discord-launch.js","to":"server/discord/discord-launch.js"}
   ],
   "patterns": [
 
