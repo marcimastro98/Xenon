@@ -183,6 +183,7 @@
         "server/sdk-example/**",
         "server/sdk-service.html",
         "server/shell-driver.html",
+        "server/widget-keys.js",
         "server/js/custom-widget.js",
         "server/js/custom-widget/**",
         "server/js/sdk-*.js",
