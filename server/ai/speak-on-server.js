@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const https = require('node:https');
-const { privateTmpFile } = require('../private-tmp.js');
+const { privateTmpFile } = require('../files/private-tmp.js');
 const aiLocal = require('./ai-local.js');
 const aiOpenai = require('./ai-openai.js');
 const aiCli = require('./ai-cli.js');

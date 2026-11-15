@@ -16,7 +16,7 @@ const path = require('node:path');
 const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const { execFile } = require('node:child_process');
-const { checkPinnedSha256 } = require('../pinned-hash.js');
+const { checkPinnedSha256 } = require('../files/pinned-hash.js');
 
 const FFMPEG_VERSION = '9.0.2';
 const FFMPEG_URL = 'https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip';

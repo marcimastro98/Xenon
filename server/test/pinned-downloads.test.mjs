@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { checkPinnedSha256 } = require('../pinned-hash.js');
+const { checkPinnedSha256 } = require('../files/pinned-hash.js');
 const adblock = require('../windows-tiles/embedded-browser-adblock.js');
 
 // Third-party downloads Xenon unpacks and runs (whisper-cli.exe, PresentMon.exe,

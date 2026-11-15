@@ -4,7 +4,7 @@
 // What may be opened is decided before, in ai-pc-apps.js; this only starts it.
 
 const { execFile } = require('node:child_process');
-const { psEscape } = require('../ps-quote.js');
+const { psEscape } = require('../powershell/ps-quote.js');
 const { openExternalPath } = require('../deck/open-external-path.js');
 
 const TIMEOUT_MS = 10000;

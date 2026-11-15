@@ -204,7 +204,14 @@
     {"from":"server/sse-seed.js","to":"server/http/sse-seed.js"},
     {"from":"server/sse-socket.js","to":"server/http/sse-socket.js"},
     {"from":"server/startup-log.js","to":"server/engine/startup-log.js"},
-    {"from":"server/usage-stats.js","to":"server/engine/usage-stats.js"}
+    {"from":"server/usage-stats.js","to":"server/engine/usage-stats.js"},
+    {"from":"server/child-priority.js","to":"server/programs/child-priority.js"},
+    {"from":"server/json-lru.js","to":"server/files/json-lru.js"},
+    {"from":"server/pinned-hash.js","to":"server/files/pinned-hash.js"},
+    {"from":"server/private-tmp.js","to":"server/files/private-tmp.js"},
+    {"from":"server/ps-quote.js","to":"server/powershell/ps-quote.js"},
+    {"from":"server/win-reserved.js","to":"server/files/win-reserved.js"},
+    {"from":"server/zip-writer.js","to":"server/files/zip-writer.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -223,6 +230,13 @@
     {"feature":"engine-core","glob":"server/startup-log.js","at":10},
     {"feature":"engine-core","glob":"server/node-version.js","at":11},
     {"feature":"engine-core","glob":"server/usage-stats.js","at":12},
-    {"feature":"engine-core","glob":"server/bug-report.js","at":13}
+    {"feature":"engine-core","glob":"server/bug-report.js","at":13},
+    {"feature":"helpers-shared","glob":"server/json-lru.js","at":5},
+    {"feature":"helpers-shared","glob":"server/ps-quote.js","at":8},
+    {"feature":"helpers-shared","glob":"server/win-reserved.js","at":9},
+    {"feature":"helpers-shared","glob":"server/zip-writer.js","at":10},
+    {"feature":"helpers-shared","glob":"server/pinned-hash.js","at":11},
+    {"feature":"helpers-shared","glob":"server/child-priority.js","at":12},
+    {"feature":"helpers-shared","glob":"server/private-tmp.js","at":13}
   ]
 }

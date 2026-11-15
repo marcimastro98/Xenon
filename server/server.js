@@ -23,7 +23,7 @@ const path = require('path');
 if (process.platform !== 'win32') process.umask(0o077);
 // Screenshots, recordings and speech go to a private temp folder (0700), not
 // as predictable names in the shared /tmp.
-const { privateTmpDir } = require('./private-tmp');
+const { privateTmpDir } = require('./files/private-tmp');
 const { nativeCollectors } = require('./system/native-collectors.js');
 const { POWERSHELL_SUPPORTED } = require('./powershell/supported.js');
 const fpsMonitor = require('./performance/fps-monitor'); // PresentMon on Windows, MangoHud on Linux
@@ -83,7 +83,7 @@ require('./capture-last.js');
 const StepsDoc = require('./steps-doc');
 const { createReplay, estimateBitrate, ringByteRate } = require('./replay');
 const { createBugReport } = require('./engine/bug-report');
-const { writeZip } = require('./zip-writer');
+const { writeZip } = require('./files/zip-writer');
 const CaptureSettings = require('./capture-settings');
 const { createCaptureFolder } = require('./capture-folder');
 const { resolveUserFolder, replayRingDir } = require('./platform/user-folders');
@@ -353,7 +353,7 @@ const capabilityRunner = capabilities.createCapabilities({
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio/audio-levels');
 const winNotif = require('./winnotif');
-const { lowerPriority } = require('./child-priority');
+const { lowerPriority } = require('./programs/child-priority');
 const { createMountedDisks } = require('./disk/mounted-disks');
 const calls = require('./calls');
 const wakeWord = require('./ai/wakeword');

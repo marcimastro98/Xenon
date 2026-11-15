@@ -9,7 +9,7 @@ import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { writeZip, safeName, crc32, crc32Fallback } = require('../zip-writer.js');
+const { writeZip, safeName, crc32, crc32Fallback } = require('../files/zip-writer.js');
 
 function readZip(buf) {
   const end = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
@@ -124,7 +124,7 @@ test('a read error mid-file fails the zip instead of hanging (deflated entry)', 
 });
 
 test('a caller cannot raise the cap past what a non-Zip64 archive holds', async () => {
-  const { MAX_TOTAL } = require('../zip-writer.js');
+  const { MAX_TOTAL } = require('../files/zip-writer.js');
   assert.ok(MAX_TOTAL <= 0xffffffff);
   const dir = tmp();
   try {

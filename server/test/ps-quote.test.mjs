@@ -1,4 +1,4 @@
-// Text placed inside a PowerShell single-quoted string (server/ps-quote.js).
+// Text placed inside a PowerShell single-quoted string (server/powershell/ps-quote.js).
 //
 // PowerShell ends such a string on five characters: ' ‘ ’ ‚ ‛. Escaping only
 // the ASCII one let a value carrying ’ close the string and run what followed,
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { declarationSource, engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { psEscape, psQuote } = require('../ps-quote.js');
+const { psEscape, psQuote } = require('../powershell/ps-quote.js');
 const SERVER_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = engineSource();
 

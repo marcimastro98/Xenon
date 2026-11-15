@@ -2,7 +2,7 @@
 // Windows' own or Xenon (ai-pc-apps.js decides).
 
 const aiPcApps = require('./ai-pc-apps.js');
-const { psEscape } = require('../ps-quote.js');
+const { psEscape } = require('../powershell/ps-quote.js');
 const { execFile } = require('node:child_process');
 
 /** @type {Record<string, (context: any) => Promise<any>>} */

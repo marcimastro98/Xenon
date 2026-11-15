@@ -4,7 +4,7 @@
 const { readBody } = require('../http/read-body.js');
 const { liveVoice } = require('./live-voice-state.js');
 const { _sttPending } = require('./stt-pending.js');
-const { privateTmpFile } = require('../private-tmp.js');
+const { privateTmpFile } = require('../files/private-tmp.js');
 const wakeWord = require('./wakeword.js');
 const {
   _sttSilenceDb, STT_AFTER_SPEECH_SILENCE_GRACE_MS, STT_START_SILENCE_GRACE_MS, _sttLooksLikeSpeech,

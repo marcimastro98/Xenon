@@ -1,7 +1,7 @@
 // Takes one picture of a screen with ffmpeg.
 
 const fs = require('node:fs');
-const { privateTmpFile } = require('../private-tmp.js');
+const { privateTmpFile } = require('../files/private-tmp.js');
 const { execFilePromise } = require('../programs/exec-file-promise.js');
 const { _capShrinkToWidth } = require('./shrink-to-width.js');
 const { getFfmpegPath } = require('../ffmpeg-install/ffmpeg-path.js');

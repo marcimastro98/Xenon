@@ -9,7 +9,7 @@ import os from 'node:os';
 // SMS, a phonebook or a screenshot must never sit at a guessable path in the
 // shared /tmp where another local user could pre-create or read them.
 const require = createRequire(import.meta.url);
-const { privateTmpDir, privateTmpFile, usableRuntimeDir } = require('../private-tmp.js');
+const { privateTmpDir, privateTmpFile, usableRuntimeDir } = require('../files/private-tmp.js');
 const lp = require('../linux-phone.js');
 
 const posix = process.platform !== 'win32';

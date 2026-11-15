@@ -21,7 +21,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { lowerPriority } = require('./child-priority');
+const { lowerPriority } = require('./programs/child-priority');
 
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures

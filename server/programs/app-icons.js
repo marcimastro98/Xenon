@@ -2,7 +2,7 @@
 // apps.
 
 const { runPowerShellCommand } = require('../powershell/run-command.js');
-const { psQuote } = require('../ps-quote.js');
+const { psQuote } = require('../powershell/ps-quote.js');
 
 // Persistent icon cache keyed by process exe path — avoids repeated PowerShell spawns.
 // Bounded LRU (oldest evicted past the cap) so a long-running session that sees

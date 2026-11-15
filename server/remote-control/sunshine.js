@@ -1,5 +1,5 @@
 'use strict';
-const { psEscape } = require('../ps-quote');
+const { psEscape } = require('../powershell/ps-quote');
 
 const https = require('node:https');
 const defaultRunner = require('./runner');

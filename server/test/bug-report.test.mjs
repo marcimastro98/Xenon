@@ -13,7 +13,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const BR = require('../engine/bug-report.js');
-const { writeZip } = require('../zip-writer.js');
+const { writeZip } = require('../files/zip-writer.js');
 
 function unzipNames(file) {
   const buf = fs.readFileSync(file);

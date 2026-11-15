@@ -7,7 +7,7 @@ import os from 'node:os';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
-const { lowerPriority } = createRequire(import.meta.url)('../child-priority.js');
+const { lowerPriority } = createRequire(import.meta.url)('../programs/child-priority.js');
 const source = (name) => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 test('a child ends up below normal and the server stays where it was', async () => {

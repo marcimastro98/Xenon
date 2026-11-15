@@ -16,7 +16,7 @@
 const fsp = require('fs').promises;
 const path = require('path');
 const { writeFileAtomic } = require('../atomic-write.js');
-const { createJsonLru } = require('../json-lru.js');
+const { createJsonLru } = require('../files/json-lru.js');
 const T = require('./lyrics-translate.js');
 const { isSurelyLang, surelyOtherLang } = require('./lyrics-language.js');
 const { estimate } = require('./lyrics-translate-price.js');

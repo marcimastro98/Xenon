@@ -3,7 +3,7 @@
 // file and read, and a message session opened on a folder and closed again.
 
 const fs = require('node:fs');
-const { privateTmpFile } = require('../private-tmp.js');
+const { privateTmpFile } = require('../files/private-tmp.js');
 const { dbusValue, firstObjectPath } = require('./linux-phone-dbus.js');
 const { PULL_TIMEOUT_MS, PULL_POLL_MS } = require('./linux-phone-limits.js');
 

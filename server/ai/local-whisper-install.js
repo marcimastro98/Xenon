@@ -2,8 +2,8 @@
 // Installs whisper.cpp when the user asks for local speech to text: the pinned download on
 // Windows, Homebrew on macOS.
 
-const { psEscape } = require('../ps-quote.js');
-const { checkPinnedSha256 } = require('../pinned-hash.js');
+const { psEscape } = require('../powershell/ps-quote.js');
+const { checkPinnedSha256 } = require('../files/pinned-hash.js');
 const https = require('node:https');
 const path = require('node:path');
 const fs = require('node:fs');

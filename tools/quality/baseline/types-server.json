@@ -156,7 +156,7 @@
     "server/js/vitals/vitals-pet-core.js TS2339": 1,
     "server/js/windows-tiles/slideshow-widget.js TS2304": 4,
     "server/js/windows-tiles/slideshow-widget.js TS2339": 3,
-    "server/json-lru.js TS2554": 5,
+    "server/files/json-lru.js TS2554": 5,
     "server/layer-pages.js TS2339": 1,
     "server/layer-pages.js TS2554": 3,
     "server/layers-edit.js TS2554": 3,

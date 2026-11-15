@@ -22,7 +22,7 @@
 
 const { spawn } = require('child_process');
 const fs = require('fs');
-const { lowerPriority } = require('./child-priority');
+const { lowerPriority } = require('./programs/child-priority');
 
 const { RETRY_MS, REQ_TIMEOUT_MS } = require('./search/living-index-limits.js');
 

@@ -16,7 +16,7 @@
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const { lowerPriority } = require('../child-priority');
+const { lowerPriority } = require('../programs/child-priority');
 
 const HELPER_EXE = path.join(__dirname, '..', 'helper', 'xenon-helper.exe');
 

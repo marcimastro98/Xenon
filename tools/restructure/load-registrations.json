@@ -41,7 +41,7 @@
       {
         "statement": "const lyricsTranslator = createLyricsTranslator({",
         "callees": {
-          "server/media/lyrics-translator.js": "7b292beac774c0bff551d1d9d2408e9dc8bdafd64a1c407889d6692527f3462c"
+          "server/media/lyrics-translator.js": "76bbec25c4b6f55178edd56c09581add555469654b063680a32ac09e4ad45831"
         },
         "reason": "createLyricsTranslator calls complete and onError only inside request(), which translate() reaches; at creation it builds a cache from its own functions and passes neither callback on."
       },

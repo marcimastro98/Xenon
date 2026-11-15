@@ -34,7 +34,7 @@ const { buildBMessage } = require('./phone-messages');
 // SMS/phonebook exchange files go in a per-process 0700 directory with random
 // names (see private-tmp.js): the old predictable /tmp names let another local
 // user pre-create the file and read a phonebook or swap an outgoing SMS.
-const { privateTmpFile } = require('./private-tmp');
+const { privateTmpFile } = require('./files/private-tmp');
 
 const {
   runBusctl, dbusErrorName, dbusValue, parseManagedObjects, dbusRows, firstObjectPath,

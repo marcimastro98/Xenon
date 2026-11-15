@@ -3,7 +3,7 @@
 const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const nodePath = require('node:path');
-const { psEscape, psQuote } = require('../ps-quote');
+const { psEscape, psQuote } = require('../powershell/ps-quote');
 
 /**
  * Start something and deliberately do NOT wait for it.

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const { runPowerShellCommand } = require('../powershell/run-command.js');
 const { OPEN_DASHBOARD_VBS } = require('./launcher-paths.js');
 const { AUTO_OPEN_SUPPORTED, autoOpenTaskFix } = require('./browser-auto-open.js');
-const { psEscape } = require('../ps-quote.js');
+const { psEscape } = require('../powershell/ps-quote.js');
 
 // ── "Open dashboard in browser at logon" task ────────────────────────────────
 // A per-user Scheduled Task ("Xenon Edge Dashboard") that runs open-dashboard.vbs

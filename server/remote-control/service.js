@@ -1,5 +1,5 @@
 'use strict';
-const { psQuote } = require('../ps-quote');
+const { psQuote } = require('../powershell/ps-quote');
 
 const defaultRunner = require('./runner');
 

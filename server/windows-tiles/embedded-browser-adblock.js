@@ -1,5 +1,5 @@
 'use strict';
-const { psEscape } = require('../ps-quote');
+const { psEscape } = require('../powershell/ps-quote');
 // One-click, opt-in ad-blocker for the embedded Browser widget.
 //
 // The Browser tile normally runs headless Edge with `--disable-extensions` to stay
@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { execFile } = require('child_process');
-const { checkPinnedSha256 } = require('../pinned-hash');
+const { checkPinnedSha256 } = require('../files/pinned-hash');
 const { armDeadline } = require('../http/net-guard');
 
 // The exact uBOL build Xenon installs, and the SHA-256 of its Edge zip. The

@@ -2,7 +2,7 @@
 // in focus.
 
 const { spawn } = require('node:child_process');
-const { psQuote } = require('../ps-quote.js');
+const { psQuote } = require('../powershell/ps-quote.js');
 
 // Spawn a blocking, focus-independent WAV player for the current platform.
 // Windows: SoundPlayer.PlaySync() through PowerShell. Elsewhere: afplay on

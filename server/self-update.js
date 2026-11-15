@@ -1,5 +1,5 @@
 'use strict';
-const { psQuote } = require('./ps-quote');
+const { psQuote } = require('./powershell/ps-quote');
 
 // ── Self-update (safe two-step) ───────────────────────────────────────────────
 // The "safer variant": preparing an update is fully NON-destructive — we download

@@ -2,7 +2,7 @@
 // one come together.
 
 const fs = require('node:fs');
-const { privateTmpFile } = require('../private-tmp.js');
+const { privateTmpFile } = require('../files/private-tmp.js');
 const { _spawnWavPlayer } = require('../wav/player.js');
 const { chimeCache } = require('./chime-cache.js');
 const { chimeKind, _buildChimeWav, CHIME_COALESCE_MS } = require('../time/chime-sound.js');
