@@ -1,5 +1,5 @@
 'use strict';
-// A video's words in the gallery's viewer (js/capture-gallery-viewer.js loads
+// A video's words in the gallery's viewer (js/capture/capture-gallery-viewer.js loads
 // this on the first "Transcript" tap). On the PC a video with no transcript is
 // written down at once (POST /captures/transcribe, whisper on this PC) and the
 // progress arrives over SSE `transcript`; a paired phone only reads one that

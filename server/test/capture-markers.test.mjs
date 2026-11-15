@@ -21,7 +21,7 @@ const { createCaptureGallery } = require('../capture-gallery.js');
 const captureMarker = require('../capabilities/capture-marker.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const sdk = require('../sdk-widgets.js');
-const Model = require('../js/capture-gallery-model.js');
+const Model = require('../js/capture/capture-gallery-model.js');
 const { normalizeCaptureSettings } = require('../capture-settings.js');
 const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const tick = () => new Promise(setImmediate);

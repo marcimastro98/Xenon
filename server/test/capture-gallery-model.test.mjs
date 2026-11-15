@@ -1,4 +1,4 @@
-// js/capture-gallery-model.js: the gallery's pure parts. Pinned here: days
+// js/capture/capture-gallery-model.js: the gallery's pure parts. Pinned here: days
 // group in order with Today/Yesterday, clip lengths read like a player,
 // the trim handles never cross or leave the clip, a trim that keeps
 // everything is not one, and every server error code has words.
@@ -11,7 +11,7 @@ import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const M = require('../js/capture-gallery-model.js');
+const M = require('../js/capture/capture-gallery-model.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 test('groupByDay: today, yesterday, then dates, newest first; bad entries skipped', () => {

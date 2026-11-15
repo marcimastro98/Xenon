@@ -427,6 +427,6 @@ test('the POST route names who owns a refused shortcut', () => {
 });
 
 test('the client recorder keeps the same default as the server', () => {
-  const SRC = readFileSync(path.join(HERE, '..', 'js', 'capture-replay-key.js'), 'utf8');
+  const SRC = readFileSync(path.join(HERE, '..', 'js', 'capture/capture-replay-key.js'), 'utf8');
   assert.ok(SRC.includes(`const DEFAULT_KEY = '${CS.REPLAY_KEY}';`));
 });

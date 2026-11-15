@@ -1,5 +1,5 @@
 'use strict';
-// "Export" in the gallery's viewer (js/capture-gallery-viewer.js loads this on
+// "Export" in the gallery's viewer (js/capture/capture-gallery-viewer.js loads this on
 // the first tap; on the PC or a paired phone): a copy of the video made for sharing, beside the
 // original, which stays as it is (server: capture-export.js).
 //   Vertical 9:16: which part of the picture to keep, and "Webcam on top" when

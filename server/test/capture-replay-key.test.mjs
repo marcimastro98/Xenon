@@ -1,4 +1,4 @@
-// js/capture-replay-key.js: the Instant Replay save shortcut in Settings → Capture.
+// js/capture/capture-replay-key.js: the Instant Replay save shortcut in Settings → Capture.
 // Pinned here: the button shows the server's combo and the line says what the
 // server made of it (works only while the replay is on, a Deck key on the same
 // combo wins); recording takes the next combo, Esc cancels, a combo something
@@ -48,7 +48,7 @@ function load({ hotkeys = { slots: { replay: 'listening' }, taken: [{ combo: 'ct
   vm.createContext(sandbox);
   vm.runInContext(read('deck-shortcuts.js'), sandbox);
   vm.runInContext(read('deck-editor-shortcut.js'), sandbox);
-  vm.runInContext(read('capture-replay-key.js'), sandbox);
+  vm.runInContext(read('capture/capture-replay-key.js'), sandbox);
   // A keydown as the browser sends it, through the listener the recorder holds.
   const press = (e) => {
     const ev = { preventDefault() {}, stopImmediatePropagation() {}, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...e };
@@ -174,6 +174,6 @@ test('a Deck key on the same combo wins, and the line says so', async () => {
 test('the markup has the row inside the replay group, and the script is loaded after the pane', () => {
   const group = HTML.slice(HTML.indexOf('id="settings-replay-group"'), HTML.indexOf('<!-- Recording options'));
   for (const id of IDS) assert.ok(group.includes(`id="${id}"`), id);
-  assert.ok(HTML.indexOf('src="js/capture-replay-key.js"') > HTML.indexOf('src="js/capture-settings-pane.js"'));
-  assert.ok(HTML.indexOf('src="js/capture-replay-key.js"') > HTML.indexOf('src="js/deck-editor-shortcut.js"'));
+  assert.ok(HTML.indexOf('src="js/capture/capture-replay-key.js"') > HTML.indexOf('src="js/capture/capture-settings-pane.js"'));
+  assert.ok(HTML.indexOf('src="js/capture/capture-replay-key.js"') > HTML.indexOf('src="js/deck-editor-shortcut.js"'));
 });

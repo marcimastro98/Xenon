@@ -1,4 +1,4 @@
-// js/capture-settings-pane.js: Settings → Capture, and the benchmark folder in
+// js/capture/capture-settings-pane.js: Settings → Capture, and the benchmark folder in
 // Settings → Performance. Pinned here: the values shown are the server's; each folder row (videos, screenshots, benchmarks)
 // shows its own folder, or the standard one with no "Back to…"; the space line
 // says nothing before the first recording and explains the limit only when one
@@ -13,7 +13,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = readFileSync(path.join(DIR, 'js', 'capture-settings-pane.js'), 'utf8');
+const SRC = readFileSync(path.join(DIR, 'js', 'capture/capture-settings-pane.js'), 'utf8');
 const HTML = readFileSync(path.join(DIR, 'index.html'), 'utf8');
 const TUNING = ['fps', 'height', 'quality'];
 const IDS = ['settings-capture-video-group', 'settings-nav-capture', 'settings-capture-remote', 'settings-capture-grid', 'settings-capture-shots', 'settings-bench-group', 'settings-bug-group', 'settings-capture-fps',

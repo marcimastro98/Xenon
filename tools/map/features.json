@@ -300,8 +300,8 @@
         "server/js/capture-toast/**",
         "server/js/capture-*.js",
         "server/js/capture-gallery/**",
-        "server/js/ffmpeg-offer.js",
-        "server/components/CaptureGallery/**"
+        "server/components/CaptureGallery/**",
+        "server/js/capture/**"
       ]
     },
     {

@@ -2,7 +2,7 @@
 // The gallery of what Xenon captured: screenshots, recordings and Instant
 // Replay clips, newest first, grouped by day, over the whole screen in the
 // Store's frame: the kinds and the games in the rail, the pictures beside it.
-// A tap opens the viewer (js/capture-gallery-viewer.js: play, trim, copy, show
+// A tap opens the viewer (js/capture/capture-gallery-viewer.js: play, trim, copy, show
 // in the folder, delete; a paired phone plays and downloads).
 //
 // The server sends ids and names only (GET /captures); previews and files come

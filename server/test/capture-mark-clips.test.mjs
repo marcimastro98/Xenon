@@ -207,7 +207,7 @@ test('wired: route, CSRF, phone, Deck error words, gallery button', () => {
   const errors = read('../js/deck-error-text.js');
   assert.match(errors, /no_marks: \['capg_clips_err_none'/);
   assert.match(errors, /whole_video: \['capg_clips_err_whole'/);
-  const viewer = read('../js/capture-gallery-viewer.js');
+  const viewer = read('../js/capture/capture-gallery-viewer.js');
   assert.equal((viewer.match(/e\.clips > 0\) actions\.appendChild\(btn\(tr\('capg_clips'/g) || []).length, 2, 'on the PC and on the phone');
   assert.match(viewer, /act\('\/captures\/clips'/);
   assert.match(read('../js/deck-editor.js'), /markClips: _ai\(/);

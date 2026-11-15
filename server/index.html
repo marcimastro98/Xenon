@@ -2838,7 +2838,7 @@
            box it sat at the top of the Performance page saying only "already
            on". While empty these hosts are hidden by `:empty` rules in
            styles/controls.css: an empty div still takes a grid row and its gap.
-           The FFmpeg card (js/ffmpeg-offer.js) follows the same rule. -->
+           The FFmpeg card (js/capture/ffmpeg-offer.js) follows the same rule. -->
       <div id="settings-sensors-hub" data-settings-cat="performance"></div>
       <div id="settings-ffmpeg-hub" data-settings-cat="performance"></div>
 
@@ -3344,7 +3344,7 @@
                 <option value="off" data-i18n="settings_replay_clips_off">Mai</option>
               </select>
             </label>
-            <!-- The save shortcut (js/capture-replay-key.js): recorded by pressing it. -->
+            <!-- The save shortcut (js/capture/capture-replay-key.js): recorded by pressing it. -->
             <div class="settings-row full">
               <span class="settings-label-line">
                 <span data-i18n="settings_replay_key">Scorciatoia per salvare</span>
@@ -3359,7 +3359,7 @@
         </div>
       </div>
 
-      <!-- Recording options (server/capture-settings.js, js/capture-settings-pane.js).
+      <!-- Recording options (server/capture-settings.js, js/capture/capture-settings-pane.js).
            The nav entry shows only where the capture engine runs (capability
            capture); on a paired device the pane says they are set at the PC. -->
       <div class="settings-group" data-settings-cat="capture" id="settings-capture-video-group">
@@ -5379,7 +5379,7 @@
 <script src="js/codex/chatgpt-widget.js"></script>
 <script src="js/ticker/news-widget.js"></script>
 <script src="js/sensor-access.js"></script>
-<script src="js/ffmpeg-offer.js"></script>
+<script src="js/capture/ffmpeg-offer.js"></script>
 <script src="js/sensor-sources-settings.js"></script>
 <script src="js/game-ignore-settings.js"></script>
 <script src="js/sensor-history-settings.js"></script>
@@ -5420,13 +5420,13 @@
 <script src="js/perf-widget.js"></script>
 <script src="js/capture-toast/saved-toasts.js"></script>
 <script src="js/capture-toast.js"></script>
-<script src="js/capture-gallery-model.js"></script>
-<script src="js/capture-gallery-viewer.js"></script>
+<script src="js/capture/capture-gallery-model.js"></script>
+<script src="js/capture/capture-gallery-viewer.js"></script>
 <script src="js/capture-gallery/words.js"></script>
 <script src="js/capture-gallery.js"></script>
-<script src="js/capture-settings-pane.js"></script>
+<script src="js/capture/capture-settings-pane.js"></script>
 <script src="js/game-sessions-pane.js"></script>
-<script src="js/capture-replay-key.js"></script>
+<script src="js/capture/capture-replay-key.js"></script>
 <script src="js/vitals/vitals-core.js"></script>
 <script src="js/vitals/vitals.js"></script>
 <script src="js/vitals/vitals-pet-core.js"></script>

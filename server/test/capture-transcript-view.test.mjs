@@ -41,7 +41,7 @@ test('the panel writes words as text only and loads nothing itself', () => {
 });
 
 test('viewer: Transcript for videos on the PC and on a phone where the engine can write it', () => {
-  const src = read('js/capture-gallery-viewer.js');
+  const src = read('js/capture/capture-gallery-viewer.js');
   assert.match(src, /if \(e\.transcript \|\| \(o\.editable && can\.speech\)\) actions\.appendChild\(wordsButton\(\)\);/);
   // On the PC: wherever the engine can write the words down (not yet on Linux), or one is there.
   assert.match(src, /if \(can\.speech \|\| e\.transcript\) actions\.appendChild\(wordsButton\(\)\);/);

@@ -56,6 +56,11 @@
     {"from":"server/js/scene-feed.js","to":"server/js/ambient/scene-feed.js"},
     {"from":"server/js/scene-frame-rate.js","to":"server/js/ambient/scene-frame-rate.js"},
     {"from":"server/js/screen-scene-model.js","to":"server/js/ambient/screen-scene-model.js"},
-    {"from":"server/js/screen-scene.js","to":"server/js/ambient/screen-scene.js"}
+    {"from":"server/js/screen-scene.js","to":"server/js/ambient/screen-scene.js"},
+    {"from":"server/js/capture-gallery-model.js","to":"server/js/capture/capture-gallery-model.js"},
+    {"from":"server/js/capture-gallery-viewer.js","to":"server/js/capture/capture-gallery-viewer.js"},
+    {"from":"server/js/capture-replay-key.js","to":"server/js/capture/capture-replay-key.js"},
+    {"from":"server/js/capture-settings-pane.js","to":"server/js/capture/capture-settings-pane.js"},
+    {"from":"server/js/ffmpeg-offer.js","to":"server/js/capture/ffmpeg-offer.js"}
   ]
 }

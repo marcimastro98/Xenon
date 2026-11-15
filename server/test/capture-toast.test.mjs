@@ -328,7 +328,7 @@ test('saved steps: the count, why it stopped by itself, Open and Show by mode on
 
 test('a copy asked by a key or Bit: one card with Stop, then "Copy ready" with Open', async () => {
   const { createRequire } = await import('node:module');
-  const model = createRequire(import.meta.url)('../js/capture-gallery-model.js');
+  const model = createRequire(import.meta.url)('../js/capture/capture-gallery-model.js');
   const opened = [];
   const { onExport, shown, calls, dismissed } = load({ model, gallery: { open: (o) => opened.push(o) } });
   onExport({ id: 'a', kind: 'vertical', pct: 0, from: 'gallery' });

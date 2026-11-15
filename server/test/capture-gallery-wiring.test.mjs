@@ -23,7 +23,7 @@ test('index.html: the stylesheet, the scripts in order, the Settings card', () =
   const html = read('index.html');
   assert.ok(html.includes('href="components/CaptureGallery/CaptureGallery.css"'));
   const at = f => html.indexOf(`<script src="js/${f}"></script>`);
-  const order = ['capture-toast.js', 'capture-gallery-model.js', 'capture-gallery-viewer.js', 'capture-gallery.js'].map(at);
+  const order = ['capture-toast.js', 'capture/capture-gallery-model.js', 'capture/capture-gallery-viewer.js', 'capture-gallery.js'].map(at);
   assert.ok(order.every(i => i > 0), 'every script is loaded');
   assert.deepEqual(order, order.slice().sort((a, b) => a - b), 'in this order');
   const card = html.slice(html.indexOf('id="settings-capture-gallery"'), html.indexOf('id="settings-capture-shots"'));
@@ -65,7 +65,7 @@ test('CaptureGallery.css and the viewer: 44 px keys, no arrows while trimming', 
   const css = read('components/CaptureGallery/CaptureGallery.css');
   assert.match(css, /\.capg-key \{[^}]*min-height: 44px;/);
   assert.match(css, /\.capg-nav:disabled, \.capg-viewer\.is-trimming \.capg-nav \{ visibility: hidden; \}/);
-  const viewer = read('js/capture-gallery-viewer.js');
+  const viewer = read('js/capture/capture-gallery-viewer.js');
   assert.match(viewer, /actions\.classList\.add\('is-trim'\);\n\s+root\.classList\.add\('is-trimming'\);/);
   assert.match(viewer, /actions\.classList\.remove\('is-trim'\);\n\s+root\.classList\.remove\('is-trimming'\);/);
 });
@@ -76,11 +76,11 @@ test('the viewer pins a picture by id where the server says it can; delete unpin
   const gallery = read('js/capture-gallery.js');
   assert.match(gallery, /g\.pinnable = r\.pinnable === true;/);
   assert.match(gallery, /pinnable: g\.pinnable === true && !window\.__xenonRemote,/);
-  const viewer = read('js/capture-gallery-viewer.js');
+  const viewer = read('js/capture/capture-gallery-viewer.js');
   // A GIF is neither a video nor a picture the server pins or edits.
   assert.match(viewer, /if \(o\.pinnable && e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('shot_pin', 'Pin'\), '', pin\)\);/);
   assert.match(viewer, /if \(e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('capg_edit', 'Edit'\), 'is-main', edit\)\);/);
-  assert.equal(require('../js/capture-gallery-model.js').errorText('not_picture')[0], 'deck_err_not_a_picture');
+  assert.equal(require('../js/capture/capture-gallery-model.js').errorText('not_picture')[0], 'deck_err_not_a_picture');
   assert.match(viewer, /post\(o\.url, '\/actions\/run', \{ type: 'screenPin', id: current\(\)\.id \}\)/);
   const server = engineSource();
   assert.match(server, /pinnable: layersHost\.available\(\),/);
@@ -97,7 +97,7 @@ test('the viewer shows Trim, Copy, Export, Transcript and "Find private data" on
   assert.match(gallery, /g\.can = engineCan\(r\.can\);/);
   assert.match(gallery, /export: o\.export !== false, cover: o\.cover !== false, speech: o\.speech !== false,\n\s+trim: o\.trim !== false, copy: o\.copy !== false,/);
   assert.match(gallery, /can: g\.can,/);
-  const viewer = read('js/capture-gallery-viewer.js');
+  const viewer = read('js/capture/capture-gallery-viewer.js');
   assert.match(viewer, /const can = o\.can \|\| \{ export: true, cover: true, speech: true, trim: true, copy: true \};/);
   // Linux without ffmpeg cannot trim, and without wl-copy or xclip cannot copy.
   assert.match(viewer, /if \(can\.trim\) actions\.appendChild\(btn\(tr\('capg_trim', 'Trim'\)/);
