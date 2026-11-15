@@ -296,3 +296,9 @@ html.xenon-melting::view-transition-new(root) {
   animation-duration: 0.6s;
   animation-timing-function: ease;
 }
+
+/* Windows has the screens switched off (the Windows app sets the class, layers/screens_win32.rs):
+   nothing of the page is drawn, so the kiosk sends no frames to a screen that is asleep. A PC froze
+   with its display driver stuck on a frame for a sleeping screen. Layout and timers are untouched,
+   as for a parked page (DashboardPager.css). */
+html.screens-off body { content-visibility: hidden; }
