@@ -129,23 +129,21 @@
     {"from":"server/perf-stream.js","to":"server/performance/perf-stream.js","shim":true},
     {"from":"server/process-stats.js","to":"server/performance/process-stats.js","shim":true},
     {"from":"server/stutter-why.js","to":"server/performance/stutter-why.js","shim":true},
-    {"from":"server/menu-capture.js","to":"server/menu/menu-capture.js"},
-    {"from":"server/menu-functions.js","to":"server/menu/menu-functions.js"},
-    {"from":"server/menu-keys.js","to":"server/menu/menu-keys.js"},
-    {"from":"server/menu-look.js","to":"server/menu/menu-look.js"},
-    {"from":"server/menu-now.js","to":"server/menu/menu-now.js"},
-    {"from":"server/menu-rows.js","to":"server/menu/menu-rows.js"},
-    {"from":"server/menu-tune.js","to":"server/menu/menu-tune.js"},
-    {"from":"server/menu-when.js","to":"server/menu/menu-when.js"},
-    {"from":"server/menu-widget-keys.js","to":"server/menu/menu-widget-keys.js"},
-    {"from":"server/menu-widget-options.js","to":"server/menu/menu-widget-options.js"},
-    {"from":"server/menu-widgets.js","to":"server/menu/menu-widgets.js"},
-    {"from":"server/screen-menu.js","to":"server/menu/screen-menu.js"},
-    {"from":"server/xenon-menu.js","to":"server/menu/xenon-menu.js"}
+    {"from":"server/menu-capture.js","to":"server/menu/menu-capture.js","shim":true},
+    {"from":"server/menu-functions.js","to":"server/menu/menu-functions.js","shim":true},
+    {"from":"server/menu-keys.js","to":"server/menu/menu-keys.js","shim":true},
+    {"from":"server/menu-look.js","to":"server/menu/menu-look.js","shim":true},
+    {"from":"server/menu-now.js","to":"server/menu/menu-now.js","shim":true},
+    {"from":"server/menu-rows.js","to":"server/menu/menu-rows.js","shim":true},
+    {"from":"server/menu-tune.js","to":"server/menu/menu-tune.js","shim":true},
+    {"from":"server/menu-when.js","to":"server/menu/menu-when.js","shim":true},
+    {"from":"server/menu-widget-keys.js","to":"server/menu/menu-widget-keys.js","shim":true},
+    {"from":"server/menu-widget-options.js","to":"server/menu/menu-widget-options.js","shim":true},
+    {"from":"server/menu-widgets.js","to":"server/menu/menu-widgets.js","shim":true},
+    {"from":"server/screen-menu.js","to":"server/menu/screen-menu.js","shim":true},
+    {"from":"server/xenon-menu.js","to":"server/menu/xenon-menu.js","shim":true}
   ],
   "patterns": [
-    {"feature":"menu","glob":"server/xenon-menu.js","at":1},
-    {"feature":"menu","glob":"server/menu-*.js","at":2},
-    {"feature":"menu","glob":"server/screen-menu.js","at":4}
+
   ]
 }
