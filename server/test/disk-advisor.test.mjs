@@ -31,7 +31,8 @@ const PARTS = [
   ...DRAWN,
   between('  function advisorRiskWords(risk) {', '  function advisorRecoveryItems('),
   between('  function advisorRecoveryItems(a) {', '  // A treemap with dozens'),
-  between('  function advisorHead() {', '  async function openTreeNode('),
+  between('  function advisorHead() {', '  return { advisorHead'),
+  between('  function openAdvisorModal() {', '  async function openTreeNode('),
   between('  function renderConfirm() {', '  function renderCleaning() {'),
 ].join('\n');
 
@@ -227,7 +228,8 @@ test('the tile asks with Cancel on the left, the action on the right, and one wa
 });
 
 test('no sparkle or check mark as a picture in the window', () => {
-  const code = between('  function advisorHead() {', '  async function openTreeNode(') + between('  async function runAdvisorAi(', '  function advisorHead() {') + DRAWN.join('\n');
+  const code = between('  function advisorHead() {', '  return { advisorHead') + between('  function openAdvisorModal() {', '  async function openTreeNode(')
+    + between('  async function runAdvisorAi(', '  function openAdvisorModal() {') + DRAWN.join('\n');
   assert.ok(!/[✦✓▰▤]/.test(code));
 });
 
