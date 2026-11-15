@@ -3,7 +3,7 @@
 // changed and written inside the lock.
 
 const TileSettings = require('../tile-settings.js');
-const VitalsState = require('../vitals-state.js');
+const VitalsState = require('../vitals/vitals-state.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const winNotif = require('../winnotif.js');
 const { nextSettingsRev } = require('../settings-rev.js');

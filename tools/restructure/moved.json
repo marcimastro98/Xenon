@@ -1,0 +1,11 @@
+{
+  "note": "Files moved whole to the folder of their feature, in order. Written by tools/restructure/move.mjs. `shim` is true once the old path holds its one line that hands on the module; the line goes in the release named in structure-conventions.",
+  "moves": [
+    {"from":"server/vitals-ai-tools.js","to":"server/vitals/vitals-ai-tools.js"},
+    {"from":"server/vitals-nag.js","to":"server/vitals/vitals-nag.js"},
+    {"from":"server/vitals-state.js","to":"server/vitals/vitals-state.js"}
+  ],
+  "patterns": [
+    {"feature":"vitals","glob":"server/vitals-*.js","at":1}
+  ]
+}

@@ -70,7 +70,7 @@ require('./tile-play'); // play_in_tile: a channel, video or page into its tile,
 require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 require('./settings-ai'); // change_setting: the allowlisted Settings switches
 require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
-require('./vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
+require('./vitals/vitals-state'); // vitals.state merge, shared by /settings and POST /api/vitals/state
 const CaptureCovers = require('./capture-covers');
 const { createCaptureTranscripts } = require('./capture-transcripts');
 const { createCaptureExport } = require('./capture-export');
@@ -379,7 +379,7 @@ try {
 const lighting = require('./lighting');
 require('./session-watch');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
-const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
+const vitalsAiTools = require('./vitals/vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
 require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
 require('./slideshow-folder');          // the slideshow's "folder on this PC" source
@@ -612,7 +612,7 @@ require('./performance/script-paths.js');
 const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
 // How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
 // script, the Xenon app's alerts window (SSE `vitals_nag`) or a system banner.
-const vitalsNag = require('./vitals-nag').createVitalsNag({
+const vitalsNag = require('./vitals/vitals-nag').createVitalsNag({
   collectors: nativeCollectors,
   spawnScript: process.platform === 'win32' ? (args) => {
     const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', VITALS_NAG_SCRIPT, ...args], { windowsHide: true });

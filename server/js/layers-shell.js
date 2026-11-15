@@ -22,7 +22,7 @@
   const { caps, isDriver, specFor } = window.LayersShellWindows;
   const supported = () => !isLayerPage && window.__XENON_NATIVE__ === true && caps().layers === true;
 
-  // Bit's vitals popup (server/vitals-nag.js) has no PowerShell window off
+  // Bit's vitals popup (server/vitals/vitals-nag.js) has no PowerShell window off
   // Windows: it opens the same alerts window for as long as it shows, with or
   // without the dashboard (SSE `vitals_nag`).
   let vitalsUntil = 0;

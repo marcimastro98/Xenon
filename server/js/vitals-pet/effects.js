@@ -36,7 +36,7 @@
     mood: '',
     audioCtx: null,
     gameOverEl: null,
-    // What this PC can do (server/vitals-nag.js): read once per page. Until it
+    // What this PC can do (server/vitals/vitals-nag.js): read once per page. Until it
     // answers, every rung stays as the user set it; the server still says no
     // to what cannot work, but a warning that promises it is never shown.
     pcCaps: null,

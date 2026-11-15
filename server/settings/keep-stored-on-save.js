@@ -6,7 +6,7 @@
 const { DASHBOARD_GRID_COLUMNS } = require('../grid/layout-defaults.js');
 const lighting = require('../lighting.js');
 const remoteActions = require('../remote-actions.js');
-const VitalsState = require('../vitals-state.js');
+const VitalsState = require('../vitals/vitals-state.js');
 
 /**
  * @param {any} prev what is stored, null on a new install
@@ -207,7 +207,7 @@ function keepStoredOnSave(prev, incoming, isRemote) {
       incoming.supportAppealYear = prev.supportAppealYear;
     }
   }
-  // Vitals state is widget-owned and monotonic (server/vitals-state.js): a
+  // Vitals state is widget-owned and monotonic (server/vitals/vitals-state.js): a
   // stale settings mirror from another surface must never rewind a refill
   // the user just tapped elsewhere.
   if (prev && prev.vitals && prev.vitals.state && typeof prev.vitals.state === 'object') {

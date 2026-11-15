@@ -1,4 +1,4 @@
-// Bit's Vitals tools (server/vitals-ai-tools.js) and the math they share with
+// Bit's Vitals tools (server/vitals/vitals-ai-tools.js) and the math they share with
 // the dashboard (js/vitals-core.js): what Bit reads is the bar on the screen,
 // and a refill said to Bit writes what a tap writes.
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const core = require('../js/vitals-core.js');
-const tools = require('../vitals-ai-tools.js');
+const tools = require('../vitals/vitals-ai-tools.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const NOW = new Date(2026, 9, 30, 15, 0, 0).getTime();

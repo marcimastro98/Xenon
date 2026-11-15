@@ -10,7 +10,7 @@
 //   update   async (fn) → saved settings; fn(cur) returns the next settings or
 //            null for "nothing to write". Runs under withHubSettingsLock.
 //   now      clock, for tests
-const VitalsCore = require('./js/vitals-core');
+const VitalsCore = require('../js/vitals-core');
 
 const NAMES = Object.freeze(['get_vitals', 'refill_vital', 'set_vitals']);
 const TONES = Object.freeze(['soft', 'spicy', 'savage']);

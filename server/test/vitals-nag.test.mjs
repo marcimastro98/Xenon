@@ -1,4 +1,4 @@
-// Bit's actions on the PC (server/vitals-nag.js): which route each OS takes for
+// Bit's actions on the PC (server/vitals/vitals-nag.js): which route each OS takes for
 // the popup and the hiding, and that what Settings is told is the truth here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createVitalsNag, cleanText, popupFont, POPUP_MS } = require('../vitals-nag.js');
+const { createVitalsNag, cleanText, popupFont, POPUP_MS } = require('../vitals/vitals-nag.js');
 const lc = require('../linux-collectors.js');
 const dc = require('../darwin-collectors.js');
 

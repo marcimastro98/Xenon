@@ -99,7 +99,7 @@ function updateVitalsRoastSparksCap(value) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// What Bit can do on THIS computer (server/vitals-nag.js): a step that cannot
+// What Bit can do on THIS computer (server/vitals/vitals-nag.js): a step that cannot
 // work here is greyed out with the reason, never offered as if it would.
 let vitalsPcCaps = null;
 let vitalsPcCapsAsked = false;

@@ -10,7 +10,7 @@
 // a card goes to whatever is under it.
 //
 // On macOS and Linux the same window also opens, dashboard or not, for the few
-// seconds Bit's vitals popup shows (server/vitals-nag.js): the only window that
+// seconds Bit's vitals popup shows (server/vitals/vitals-nag.js): the only window that
 // can draw over the user's work there.
 //
 // The cards are the dashboard's own (toast.js, Toast.css) and say the same
@@ -365,7 +365,7 @@ let hubSettings = {};
     }).catch(() => { /* a dashboard took it, or nobody: the server says so */ });
   }
 
-  // Bit's vitals popup (server/vitals-nag.js): the user turned it on in Bit
+  // Bit's vitals popup (server/vitals/vitals-nag.js): the user turned it on in Bit
   // Vitals, so the Notifiche switches do not hold it. Once per popup, from SSE
   // or from the boot read, whichever comes first.
   let vitalsShown = '';

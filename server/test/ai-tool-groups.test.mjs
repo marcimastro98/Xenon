@@ -112,7 +112,7 @@ function realToolNames() {
   const parts = [body('function buildCoreAiFunctions('), body('function buildMemoryFunctions('), turn, body('async function addIntegrationAiFunctions(')];
   const literal = parts.flatMap((p) => [...p.matchAll(/name: '([a-z_0-9]+)',\s*description:/g)].map((m) => m[1]));
   const caps = require('../capabilities').aiFunctions({}).map((t) => t.name);
-  const vitals = require('../vitals-ai-tools').FUNCTIONS.map((t) => t.name);
+  const vitals = require('../vitals/vitals-ai-tools').FUNCTIONS.map((t) => t.name);
   return literal.concat(caps, vitals);
 }
 

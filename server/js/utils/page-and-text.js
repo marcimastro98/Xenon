@@ -61,7 +61,7 @@ async function saveTileSetting(patch) {
 // The Vitals state (meters, Bit's truce and memory) saved from any page. The
 // dashboard saves the settings as usual; a layer page, whose settings are
 // read-only, posts only vitals.state, which the server merges so a stale
-// copy never rewinds another screen's refill (server/vitals-state.js).
+// copy never rewinds another screen's refill (server/vitals/vitals-state.js).
 function saveVitalsStateNow() {
   if (!isLayerPage()) { if (typeof saveHubSettings === 'function') saveHubSettings(); return; }
   const state = typeof hubSettings === 'object' && hubSettings && hubSettings.vitals && hubSettings.vitals.state;

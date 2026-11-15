@@ -1,4 +1,4 @@
-// The Vitals state saved from a layer page (server/vitals-state.js, POST
+// The Vitals state saved from a layer page (server/vitals/vitals-state.js, POST
 // /api/vitals/state): a refill or a truce tapped on a widget on the screen is
 // kept, merged like the dashboard's save, and the door takes nothing but state.
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const V = require('../vitals-state.js');
+const V = require('../vitals/vitals-state.js');
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 test('the merge never rewinds: newest refill, highest XP, the later day', () => {

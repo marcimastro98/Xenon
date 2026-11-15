@@ -89,7 +89,7 @@
   }
 
   // Bit's vitals popup where no PowerShell window can draw it (macOS, Linux:
-  // server/vitals-nag.js). It stays as long as the server says, never past it.
+  // server/vitals/vitals-nag.js). It stays as long as the server says, never past it.
   const VITALS_MAX_MS = 15000;
   function vitals(d, now = Date.now()) {
     const text = d && typeof d.text === 'string' ? d.text.trim() : '';
