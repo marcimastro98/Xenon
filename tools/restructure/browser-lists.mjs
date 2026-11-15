@@ -1,9 +1,9 @@
 // The lists of browser files that code puts together while it runs. One the
-// engine builds a page from: server/js/layer-tiles.js, whose rows say which
+// engine builds a page from: server/js/layers/layer-tiles.js, whose rows say which
 // scripts and stylesheets the page of a widget on the desktop loads. The others
 // are held by a script that loads them itself when it is asked to, under the
 // names SCRIPTS and CSS (server/js/ai/screen-bit.js, the voice panel of the screen),
-// or under a name it hands to nobody (server/js/layer-host.js, the editor of a
+// or under a name it hands to nobody (server/js/layers/layer-host.js, the editor of a
 // layer). Which scripts do, and how each list is read, is written down in
 // browser-consumers.json under `loaders`.
 // A file in such a list is loaded by a page no search for a tag finds, so a split
@@ -15,7 +15,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-export const BUILT_LIST = 'server/js/layer-tiles.js';
+export const BUILT_LIST = 'server/js/layers/layer-tiles.js';
 /** Scripts that load their own list when asked: each is opened by a page of the page check that asks it to (browser-check-pages.mjs). */
 const LOADERS = JSON.parse(readFileSync(new URL('./browser-consumers.json', import.meta.url), 'utf8')).loaders;
 export const ASKED_LISTS = Object.keys(LOADERS);

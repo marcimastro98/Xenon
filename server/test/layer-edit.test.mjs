@@ -10,9 +10,9 @@ import { makeDom } from './mini-dom.mjs';
 const require = createRequire(import.meta.url);
 const SRC = readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
 const CARD = readFileSync(new URL('../js/layer-edit-card.js', import.meta.url), 'utf8');
-const LayerDrag = require('../js/layer-drag.js');
-const LayerSee = require('../js/layer-see.js');
-const LayersModel = require('../js/layers-model.js');
+const LayerDrag = require('../js/layers/layer-drag.js');
+const LayerSee = require('../js/layers/layer-see.js');
+const LayersModel = require('../js/layers/layers-model.js');
 
 const rectOf = (left, top, width, height) => () => ({ left, top, width, height, right: left + width, bottom: top + height });
 

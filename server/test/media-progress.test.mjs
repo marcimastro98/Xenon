@@ -195,7 +195,7 @@ test('the dashboard and the layer windows load the look after the mixer and the 
   assert.ok(mixer > 0 && player > mixer, 'linked once, after LiquidMixer.css');
   assert.ok(INDEX.indexOf('src="js/media.js"') < INDEX.indexOf('<script src="js/media-progress.js"></script>'));
   assert.match(INDEX, /<div class="media-progress" data-mf="media-progress" hidden>\n\s*<input class="media-progress-range" data-mf="media-progress-range" type="range" [^>]*data-i18n-aria-label="spotify_w_seek"/);
-  const layers = read('../js/layer-tiles.js');
+  const layers = read('../js/layers/layer-tiles.js');
   assert.match(layers, /'components\/MediaPanel\/LiquidPlayer\.css'/);
   assert.match(layers, /'js\/media\.js', 'js\/media-spotify\.js', 'js\/media-progress\.js'/);
   const media = read('../js/media.js');

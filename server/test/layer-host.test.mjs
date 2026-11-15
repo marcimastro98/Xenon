@@ -1,4 +1,4 @@
-// The dashboard as a layer surface (js/layer-host.js): only the tiles placed on
+// The dashboard as a layer surface (js/layers/layer-host.js): only the tiles placed on
 // THIS surface are moved into slots, the page never writes settings, and a
 // Store widget gets its package from memory, never from sdkWidgets.assign.
 import { test } from 'node:test';
@@ -10,9 +10,9 @@ import { makeDom } from './mini-dom.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/layer-host.js');
+const SRC = read('../js/layers/layer-host.js');
 
 const W = (over = {}) => ({ id: 'lw_aaaa0001', kind: 'tile', widget: 'weather', surface: 'desktop', rect: { x: 0.1, y: 0.2, w: 0.3, h: 0.4 }, ...over });
 
@@ -294,8 +294,8 @@ test('custom widgets read a layer assignment before the saved one, and the page 
   assert.match(cw, /\.filter\(n => n\.closest\(scope\)( &&|\))/);
   assert.match(cw, /setLayerAssign,/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('src="js/custom-widget.js"') < html.indexOf('src="js/layer-host.js"'));
-  assert.ok(html.indexOf('src="js/layer-host.js"') < html.indexOf('src="js/main.js"'));
+  assert.ok(html.indexOf('src="js/custom-widget.js"') < html.indexOf('src="js/layers/layer-host.js"'));
+  assert.ok(html.indexOf('src="js/layers/layer-host.js"') < html.indexOf('src="js/main.js"'));
   assert.match(html, /href="components\/LayerHost\/LayerHost\.css"/);
 });
 
@@ -425,7 +425,7 @@ test('a tile removed right after a press in its slot is parked hidden, never tak
 // itself the wrong one for what is placed on its surface reloads, and the
 // server (same rule, LayersModel.needsDashboard) hands over the other one.
 const SDK = (over = {}) => W({ kind: 'sdk', pkg: 'keyring', widget: undefined, ...over });
-// A tile only the dashboard draws (js/layer-tiles.js gives it a `full` reason).
+// A tile only the dashboard draws (js/layers/layer-tiles.js gives it a `full` reason).
 const FULL_TILE = (over = {}) => W({ id: 'lw_aaaa0002', widget: 'browser', ...over });
 
 test('the light page reloads into the dashboard when a built-in tile lands on its surface', () => {

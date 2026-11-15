@@ -3,7 +3,7 @@
 // The theme as CSS custom properties: the colour roles, the material a tile is
 // drawn with (panel opacity, border, shadow, corner radius, glass, skin) and the
 // user's typeface. Shared by the dashboard (settings/apply.js applyHubSettings) and
-// the light layer page (js/layer-lite.js), so a widget on the desktop wears the
+// the light layer page (js/layers/layer-lite.js), so a widget on the desktop wears the
 // same tile as on the dashboard. Pure apart from writing to the page it is handed; the
 // settings it reads are already normalized (client and server normalize them
 // with the same defaults).

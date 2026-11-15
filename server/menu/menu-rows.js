@@ -4,7 +4,7 @@
 // readings more than one section needs. Pure.
 
 const DeckShortcuts = require('../js/deck-shortcuts.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 
 const k = (key, vars) => (vars ? { key, vars } : { key });
 const run = (action) => ({ run: action });

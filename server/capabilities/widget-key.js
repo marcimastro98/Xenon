@@ -4,7 +4,7 @@
 // (`widgetHandlerKey`). A widget's creator may only suggest a combination in its
 // manifest; it is set here, by the person, from the menu or by asking Bit.
 //
-// The show/hide key lives on the placement (`key` in layers, js/layers-model.js)
+// The show/hide key lives on the placement (`key` in layers, js/layers/layers-model.js)
 // and is pressed through server/widget-sdk/widget-keys.js. A function's key is a Deck key
 // with an sdkHandler action on the `keys` Deck, like the menu's own functions
 // (function-key.js), so it runs through the same grant and rate checks as a
@@ -13,7 +13,7 @@
 // deps: layers { get(), update(edit), catalog() }, heldBy(combo, except),
 //       deck { update(edit) }, sdkHandlers() → [{ id, name, handlers: [{ id, name, params, granted }] }]
 const crypto = require('crypto');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const S = require('../js/deck-shortcuts.js');
 const { KEYS_INSTANCE } = require('../menu/menu-functions.js');
 const { findPlaced, resolveRef } = require('./layers.js');

@@ -1,7 +1,7 @@
 'use strict';
 // Layer capabilities: put a widget on the desktop or in the overlay, take it
 // away, list what is placed, switch them all on or off. The rules for what a
-// placement may contain live in js/layers-model.js; this file only turns the
+// placement may contain live in js/layers/layers-model.js; this file only turns the
 // words an AI or a Deck key sends into those edits.
 //
 // deps (injected, so every decision is testable without a shell or a screen):
@@ -10,8 +10,8 @@
 //            update runs edit(currentLayers) under the settings lock and writes
 //            result.layers unless the edit returned { error }.
 //            catalog() → { tiles: ['weather', …], packages: [{ id, name }] }
-const LayersModel = require('../js/layers-model.js');
-const LayerWhen = require('../js/layer-when.js');
+const LayersModel = require('../js/layers/layers-model.js');
+const LayerWhen = require('../js/layers/layer-when.js');
 require('../js/deck-shortcuts.js'); // nothing is taken from it here, but it runs code when it loads
 const LayerPages = require('../layer-pages.js');
 const { previewPath } = require('../grid/tile-previews.js');

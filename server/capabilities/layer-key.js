@@ -1,11 +1,11 @@
 'use strict';
 // Put one of the person's Deck keys on the screen as a small button (drawn by
-// js/layer-key.js, pressed through deck-press.js). Anyone who runs capabilities may
+// js/layers/layer-key.js, pressed through deck-press.js). Anyone who runs capabilities may
 // place one, Bit and a Deck step included, so this file never stores a fingerprint:
 // a button placed here does nothing until the person agrees to what it does.
 //
 // deps (injected): layers.js's, plus deck { configs() }.
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const { actionSpec } = require('../js/deck-actions.js');
 const { allKeys, findById, findByTitle, label } = require('./deck-shortcut.js');
 const { pageIdFor, monitorFor } = require('./layers.js');

@@ -185,7 +185,7 @@
   }
 }
 
-/* A pinned screenshot (js/layer-pin.js): the picture itself, no tile around it,
+/* A pinned screenshot (js/layers/layer-pin.js): the picture itself, no tile around it,
    any size down to a thumbnail. Dragged to move, so it shows the move cursor. */
 .layer-slot:has(> .layer-pin) {
   --layer-min-w: 48px;
@@ -203,7 +203,7 @@
   user-select: none;
 }
 
-/* A Deck key on the screen (js/layer-key.js): the key itself, no tile around it,
+/* A Deck key on the screen (js/layers/layer-key.js): the key itself, no tile around it,
    never smaller than a finger. */
 .layer-slot:has(> .layer-key) {
   --layer-min-w: 44px;

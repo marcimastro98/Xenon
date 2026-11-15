@@ -1,4 +1,4 @@
-// A Store widget with `fit` sizes its own box (js/layer-fit.js): the size it asks for,
+// A Store widget with `fit` sizes its own box (js/layers/layer-fit.js): the size it asks for,
 // held to the corner the box leans on, inside the screen, saved through layerMove.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
-const LayerFit = require('../js/layer-fit.js');
+const LayerFit = require('../js/layers/layer-fit.js');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 const WIN = { width: 2000, height: 1000 };
 
@@ -39,8 +39,8 @@ test('the frame passes `fit` only for a package that declares it, and the pages 
   const cw = src('js/custom-widget.js');
   assert.match(cw, /if \(msg\.fit !== undefined\) \{ onBridgeFit\(entry, msg\.fit, reply\); return; \}/);
   assert.match(cw, /pkg\.fit !== true\) \{ reply\(false, 'not_allowed'\)/);
-  for (const page of ['index.html', 'layer-lite.html']) assert.match(src(page), /<script src="js\/layer-fit\.js"><\/script>/, page);
-  const fit = src('js/layer-fit.js');
+  for (const page of ['index.html', 'layer-lite.html']) assert.match(src(page), /<script src="js\/layers\/layer-fit\.js"><\/script>/, page);
+  const fit = src('js/layers/layer-fit.js');
   assert.match(fit, /type: 'layerMove', target: slot\.dataset\.layerId, rect:/, 'saved by the same capability as every move');
   assert.match(fit, /slot\.querySelector\('\.layer-tabs'\)\) return 'unavailable'/, 'a tab group keeps its size');
   assert.match(fit, /host\.editing\(\)\) return 'busy'/);

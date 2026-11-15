@@ -744,7 +744,7 @@ const CAPABILITIES = [
   },
 
   // ── Layers: widgets on the desktop, in the overlay, anchored to an app ──────
-  // The option lists repeat js/layers-model.js (POSITIONS, the size names) on
+  // The option lists repeat js/layers/layers-model.js (POSITIONS, the size names) on
   // purpose: this file stays data with no load-order dependency, and a test
   // pins the two copies equal.
   {
@@ -869,7 +869,7 @@ const CAPABILITIES = [
       { name: 'opacity', kind: 'text', maxLen: 4, optional: true },
       // When it shows: always, only while a game runs, or only without one.
       { name: 'show', kind: 'select', options: ['keep', 'always', 'gaming', 'notGaming'] },
-      // Any other rule, in the text form of js/layer-when.js: "music, app:obs64".
+      // Any other rule, in the text form of js/layers/layer-when.js: "music, app:obs64".
       { name: 'when', kind: 'text', maxLen: 200, optional: true },
       // Without its panel (on) or with it (off): only what the widget paints itself.
       { name: 'bare', kind: 'select', options: ['keep', 'on', 'off'] },

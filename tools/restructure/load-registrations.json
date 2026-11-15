@@ -5,7 +5,7 @@
       {
         "statement": "const layersEdit = require('./layers-edit').createLayersEdit({",
         "callees": {
-          "server/layers-edit.js": "1555c237b5c6cbc425dd9c39f4b31db43f0c8bd8deeeda520fee7cb54d47c7ec"
+          "server/layers-edit.js": "c0342f7b02acfa401609fa4a548539c5969e1f42b7002ad46f3f009cd2a34cb5"
         },
         "reason": "createLayersEdit keeps broadcast, onEnd and onOff in its closure and returns an object of functions; it calls none of them and starts no timer until set() is called."
       },
@@ -55,7 +55,7 @@
       {
         "statement": "const _widgetKeys = createWidgetKeys({",
         "callees": {
-          "server/widget-sdk/widget-keys.js": "5bdd3a031c53841d81cedf7fb131e4004004a94035988e4e88af0ced542f2612"
+          "server/widget-sdk/widget-keys.js": "bf648646d69e85627e24f3bb205e398bb240a744cdc9c3e1034d67f06d883809"
         },
         "reason": "createWidgetKeys calls layers only inside read() and onChange only from press, release and a peek timer that press starts; at creation it makes empty sets and returns its functions."
       },
@@ -81,7 +81,7 @@
       {
         "statement": "const _situations = createSituations({",
         "callees": {
-          "server/capabilities/situations.js": "d17699082e9983869b6d7273f575e66bf4f09d8371cc9724f57f057d2f64b624",
+          "server/capabilities/situations.js": "9639eef94b6997271fd78e1850ae7dc8028ac63d2b37f03326ff3794b0cabfb6",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
         },
         "reason": "createSituations makes empty sets and returns tick, hidden and needs; layers, every reader, isOwnApp, onChange, onPlan, onFacts and warn are first called from tick() or needs(); power/index.js is named inside the battery reader and loaded when that reader first runs, as it is today."
@@ -109,7 +109,7 @@
       {
         "statement": "const deckPress = createDeckPress({",
         "callees": {
-          "server/deck/deck-press.js": "0634e924fbef924524201d75ad09867949bbb5132ee69cda8aa60a6ef0b57a1c"
+          "server/deck/deck-press.js": "a9bb244ec018111fc4e4dff6e82c0fa60a9597a7155edd91ded558af60f1ff37"
         },
         "reason": "createDeckPress declares placed, read, press and accept and returns the last three; layers.get, layers.update, readConfigs and runner are first used when one of them is called."
       }

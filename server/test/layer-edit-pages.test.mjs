@@ -9,9 +9,9 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const require = createRequire(import.meta.url);
-const LayersModel = require('../js/layers-model.js');
-const LayerDrag = require('../js/layer-drag.js');
-const LayerSee = require('../js/layer-see.js');
+const LayersModel = require('../js/layers/layers-model.js');
+const LayerDrag = require('../js/layers/layer-drag.js');
+const LayerSee = require('../js/layers/layer-see.js');
 const { createCapabilities } = require('../capabilities/index.js');
 const EDIT = readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
 const PAGES = readFileSync(new URL('../js/layer-edit-pages.js', import.meta.url), 'utf8');

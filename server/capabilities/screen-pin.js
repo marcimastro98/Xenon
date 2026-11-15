@@ -1,7 +1,7 @@
 'use strict';
 // A screenshot pinned over everything, like Snipaste or PureRef: a layer
 // widget { kind: 'tile', widget: 'pin', instance: <capture id> } that every
-// layer page draws as the picture itself (js/layer-pin.js). "region" takes an
+// layer page draws as the picture itself (js/layers/layer-pin.js). "region" takes an
 // area first (the screenshot capability, picker and clipboard included),
 // "last" pins the newest screenshot, and an id (the toast, the gallery) pins
 // that one. Only screenshots: a video has no single picture to pin. The id is
@@ -10,7 +10,7 @@
 // deps: d.capture (as for the screenshot capability) and d.layers (as for
 // the layer capabilities: get(), update(edit)).
 
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const screenshot = require('./screenshot.js');
 
 const SOURCES = Object.freeze(['region', 'last']);

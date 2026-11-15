@@ -71,8 +71,8 @@ test('both places that draw the menu load the modules and the stylesheet', () =>
     const html = src(page);
     assert.ok(html.indexOf('js/xenon-menu-place.js') > 0 && html.indexOf('js/xenon-menu-place.js') < html.indexOf('js/xenon-menu.js"'), page);
     assert.ok(html.indexOf('js/xenon-menu-guide.js') > 0 && html.indexOf('js/xenon-menu-guide.js') < html.indexOf('js/xenon-menu.js"'), page);
-    assert.ok(html.indexOf('js/layer-when.js') > 0 && html.indexOf('js/layer-when.js') < html.indexOf('js/xenon-menu-when.js'), page + ': the drawer needs the rules');
-    assert.ok(html.indexOf('js/layer-when.js') < html.indexOf('js/xenon-menu-place.js'), page + ': the place row names apps with the rules');
+    assert.ok(html.indexOf('js/layers/layer-when.js') > 0 && html.indexOf('js/layers/layer-when.js') < html.indexOf('js/xenon-menu-when.js'), page + ': the drawer needs the rules');
+    assert.ok(html.indexOf('js/layers/layer-when.js') < html.indexOf('js/xenon-menu-place.js'), page + ': the place row names apps with the rules');
     assert.ok(html.indexOf('js/xenon-menu-when.js') < html.indexOf('js/xenon-menu.js"'), page);
     assert.ok(html.indexOf('XenonMenu.css') < html.indexOf('XenonMenuGuide.css'), page + ': it answers rules of the main sheet');
   }

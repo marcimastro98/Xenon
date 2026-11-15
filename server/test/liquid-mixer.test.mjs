@@ -20,7 +20,7 @@ test('the page and the layer windows load the mixer after the Liquid tiles', () 
   const tiles = INDEX.indexOf('<link rel="stylesheet" href="styles/liquid-tiles.css">');
   const mixer = INDEX.indexOf('<link rel="stylesheet" href="components/AudioSection/LiquidMixer.css">');
   assert.ok(tiles > 0 && mixer > tiles, 'linked once, after liquid-tiles.css');
-  assert.match(read('../js/layer-tiles.js'), /'components\/AudioSection\/LiquidMixer\.css'/);
+  assert.match(read('../js/layers/layer-tiles.js'), /'components\/AudioSection\/LiquidMixer\.css'/);
 });
 
 test('every rule is for the Liquid look only', () => {

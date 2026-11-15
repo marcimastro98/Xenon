@@ -1,5 +1,5 @@
 'use strict';
-// A Deck key placed on the screen (js/layer-key.js): the button is drawn by the
+// A Deck key placed on the screen (js/layers/layer-key.js): the button is drawn by the
 // layer page, never by a widget, and pressing it plays the key as the Deck does.
 //
 // A key can be written by more than the person: Bit's configure_deck, an imported
@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const { canonical } = require('../paired/remote-actions.js');
 const { actionSpec, triggerSteps } = require('../js/deck-actions.js');
 const S = require('../js/deck-shortcuts.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const { MAX_STEPS } = require('./deck-shortcut-runner.js');
 
 const DETAIL_MAX = 400;

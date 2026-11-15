@@ -1,7 +1,7 @@
-// Edit mode of a layer window, loaded by js/layer-host.js the first time the
+// Edit mode of a layer window, loaded by js/layers/layer-host.js the first time the
 // mode is turned on (so a window that is never edited never carries it).
 //
-// Drag a widget to move it (js/layer-drag.js, the same drag as the menu's map). A tap
+// Drag a widget to move it (js/layers/layer-drag.js, the same drag as the menu's map). A tap
 // picks it: its name, when it shows, its size and the way off the screen appear beside
 // it (js/layer-edit-card.js, loaded with this file). "Done" ends the mode, "Undo" takes
 // back one change, "Put it back" everything since the mode began, "Add" lists the

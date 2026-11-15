@@ -177,6 +177,6 @@ test('the widget row and the pop-up open it, on the PC only, with no inline hand
   assert.match(widget, /window\.NotificationOpen\.bind\(txt, n\)/);
   assert.match(widget, /window\.NotificationOpen\.toastAction\(item\)/);
   assert.match(read('../index.html'), /<script src="js\/notification-open\.js"><\/script>\s*<script src="js\/notifications-widget\.js"><\/script>/);
-  assert.match(read('../js/layer-tiles.js'), /\['js\/notification-open\.js', 'js\/notifications-widget\.js'\]/);
+  assert.match(read('../js/layers/layer-tiles.js'), /\['js\/notification-open\.js', 'js\/notifications-widget\.js'\]/);
   assert.match(engineSource(), /notificationOpen: createNotificationOpener\(notificationOpenDeps\(\{/);
 });

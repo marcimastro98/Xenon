@@ -4,7 +4,7 @@
 
 const $ = id => document.getElementById(id);
 
-// A layer window (`/?layer=…`, js/layer-host.js) draws the tiles placed on one
+// A layer window (`/?layer=…`, js/layers/layer-host.js) draws the tiles placed on one
 // surface and nothing else. What speaks, rings, chimes, notifies or announces
 // on its own belongs to the main dashboard: a second copy would do it twice,
 // unseen, or mark an announcement read that nobody saw. Read from the URL so

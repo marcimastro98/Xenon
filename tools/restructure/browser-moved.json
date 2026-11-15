@@ -98,6 +98,20 @@
     {"from":"server/js/page-target.js","to":"server/js/grid/page-target.js"},
     {"from":"server/js/page-zoom.js","to":"server/js/grid/page-zoom.js"},
     {"from":"server/js/tab-switcher.js","to":"server/js/grid/tab-switcher.js"},
-    {"from":"server/js/tile-tab-memory.js","to":"server/js/grid/tile-tab-memory.js"}
+    {"from":"server/js/tile-tab-memory.js","to":"server/js/grid/tile-tab-memory.js"},
+    {"from":"server/js/layer-cut.js","to":"server/js/layers/layer-cut.js"},
+    {"from":"server/js/layer-drag.js","to":"server/js/layers/layer-drag.js"},
+    {"from":"server/js/layer-fit.js","to":"server/js/layers/layer-fit.js"},
+    {"from":"server/js/layer-host.js","to":"server/js/layers/layer-host.js"},
+    {"from":"server/js/layer-key.js","to":"server/js/layers/layer-key.js"},
+    {"from":"server/js/layer-lite-tiles.js","to":"server/js/layers/layer-lite-tiles.js"},
+    {"from":"server/js/layer-lite.js","to":"server/js/layers/layer-lite.js"},
+    {"from":"server/js/layer-pin.js","to":"server/js/layers/layer-pin.js"},
+    {"from":"server/js/layer-see.js","to":"server/js/layers/layer-see.js"},
+    {"from":"server/js/layer-tiles.js","to":"server/js/layers/layer-tiles.js"},
+    {"from":"server/js/layer-when.js","to":"server/js/layers/layer-when.js"},
+    {"from":"server/js/layers-model.js","to":"server/js/layers/layers-model.js"},
+    {"from":"server/js/widget-feed.js","to":"server/js/layers/widget-feed.js"},
+    {"from":"server/js/widget-options-panel.js","to":"server/js/layers/widget-options-panel.js"}
   ]
 }

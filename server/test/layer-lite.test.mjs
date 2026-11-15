@@ -1,4 +1,4 @@
-// The light layer page (layer-lite.html + js/layer-lite.js): a layer window whose
+// The light layer page (layer-lite.html + js/layers/layer-lite.js): a layer window whose
 // surface holds Store widgets only. It must hand widgets the same live data the
 // dashboard does, wear the same theme, never write anything, and leave hooks,
 // Deck handlers and background frames to the dashboard (two copies would run
@@ -10,10 +10,10 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/layer-lite.js');
-const FEED = read('../js/widget-feed.js');
-const TILES = read('../js/layer-lite-tiles.js');
-const TABLE = read('../js/layer-tiles.js');
+const SRC = read('../js/layers/layer-lite.js');
+const FEED = read('../js/layers/widget-feed.js');
+const TILES = read('../js/layers/layer-lite-tiles.js');
+const TABLE = read('../js/layers/layer-tiles.js');
 const MAIN = read('../js/main.js');
 
 async function boot(settings, { active = true, weatherTile = false } = {}) {
@@ -173,7 +173,7 @@ test('every stream the dashboard relays to widgets is relayed here', () => {
   const lite = new Set([...FEED.matchAll(/:\s*'([A-Za-z]+)'/g)].map((m) => m[1]));
   for (const m of (FEED + SRC).matchAll(/onData\('([A-Za-z]+)'/g)) lite.add(m[1]);
   const missing = [...dashboard].filter((s) => !lite.has(s));
-  assert.deepEqual(missing, [], 'add these to PLAIN_STREAMS or SHAPED_STREAMS in js/widget-feed.js');
+  assert.deepEqual(missing, [], 'add these to PLAIN_STREAMS or SHAPED_STREAMS in js/layers/widget-feed.js');
   for (const fn of ['onDiscordNotification', 'onStoreChanged', 'onAutoUpdated']) {
     assert.match(MAIN, new RegExp('CustomWidget\\.' + fn));
     assert.match(FEED, new RegExp('cw\\.' + fn));
@@ -186,7 +186,7 @@ test('the page loads only what a Store widget needs, in order', () => {
   // The widget host is listed as the scripts it is made of today: a part of it loads right before it.
   const order = ['js/skin-fonts.js', 'shared/src/constants.js', 'js/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-palette.js',
-    'js/theme-tokens.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/layer-drag.js', 'js/layer-see.js', 'js/native-bridge.js', 'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/widget-feed.js', 'js/layer-pin.js', 'js/layer-fit.js', 'js/layer-key.js', 'js/layer-cut.js', 'js/layer-host.js', 'js/layer-lite-tiles.js', 'js/tile-play.js', 'js/layer-lite.js'];
+    'js/theme-tokens.js', 'js/layers/layer-tiles.js', 'js/layers/layer-when.js', 'js/layers/layers-model.js', 'js/layers/layer-drag.js', 'js/layers/layer-see.js', 'js/native-bridge.js', 'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/layers/layer-pin.js', 'js/layers/layer-fit.js', 'js/layers/layer-key.js', 'js/layers/layer-cut.js', 'js/layers/layer-host.js', 'js/layers/layer-lite-tiles.js', 'js/tile-play.js', 'js/layers/layer-lite.js'];
   const at = order.map((src) => html.indexOf('src="' + src + '"'));
   assert.ok(at.every((i) => i > 0), 'a script is missing');
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'scripts out of order');

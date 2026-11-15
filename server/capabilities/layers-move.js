@@ -1,8 +1,8 @@
 'use strict';
 // Moves, resizes and restyles a widget that is already placed on the desktop or in the overlay.
 
-const LayersModel = require('../js/layers-model.js');
-const LayerWhen = require('../js/layer-when.js');
+const LayersModel = require('../js/layers/layers-model.js');
+const LayerWhen = require('../js/layers/layer-when.js');
 const LayerPages = require('../layer-pages.js');
 const { describe, placeFor, findPlaced } = require('./layers-find.js');
 const { overlayHint } = require('./layers-shortcut.js');

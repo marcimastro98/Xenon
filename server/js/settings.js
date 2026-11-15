@@ -36,7 +36,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // appear, each button's own icon/label/colours). Rules in js/topbar-look.js.
   topbarLook: TopbarLook.normalize(null),
   // Widgets on the desktop, in the overlay or anchored to an app (single-screen
-  // use). Off with nothing placed by default. Rules in js/layers-model.js.
+  // use). Off with nothing placed by default. Rules in js/layers/layers-model.js.
   layers: LayersModel.normalize(null),
   // Dynamic Island personalization shared by Full + Minimal. `items` controls
   // built-in segments (order in Minimal, visibility in both chromes), while
@@ -616,7 +616,7 @@ function defaultNewsFeedsClient(langCode) {
   return [...sources, { id: 'tech', type: 'topic', name: topic, query: topic.toLowerCase() }];
 }
 
-// A layer surface (`?layer=`, js/layer-host.js) is a viewer of these settings: it
+// A layer surface (`?layer=`, js/layers/layer-host.js) is a viewer of these settings: it
 // changes them in memory to show its tiles and must never write them back, to
 // localStorage (shared with the dashboard on this origin) or to the server.
 // Read from the URL, not LayerHost, because saves can run before layer-host.js loads.

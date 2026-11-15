@@ -307,7 +307,7 @@ test('the range sits in the tab bar, hidden until History opens, and the old row
 test('the chart engine loads before the History module on the page and in desktop widgets', () => {
   const at = (s) => INDEX.indexOf(`<script src="js/${s}"></script>`);
   assert.ok(at('spark-path.js') > 0 && at('spark-path.js') < at('history-chart.js') && at('history-chart.js') < at('guardian-history.js'));
-  const tiles = read('../js/layer-tiles.js');
+  const tiles = read('../js/layers/layer-tiles.js');
   const history = partsOf('server/js/guardian-history.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // the scripts the History module is made of today
   const chart = partsOf('server/js/history-chart.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // and the chart engine
   for (const list of [`'js/audio/picker.js', ${chart}, ${history}]`, `power: tile('power', 'PowerWidget', ['js/spark-path.js', ${chart}, ${history}`]) assert.ok(tiles.includes(list), list);

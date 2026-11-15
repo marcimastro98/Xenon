@@ -309,7 +309,7 @@ test('Esc belongs to the window: the page has no branch of its own', () => {
 });
 
 test('a layer page gets the window with its frame and its focus', () => {
-  const entry = read('js', 'layer-tiles.js').split('\n').find((line) => line.includes('weather:'));
+  const entry = read('js', 'layers/layer-tiles.js').split('\n').find((line) => line.includes('weather:'));
   assert.ok(entry.indexOf('js/weather-tile.js') < entry.indexOf('js/weather-window.js'));
   assert.ok(entry.includes('js/dialog-focus.js'));
   assert.ok(entry.includes('styles/liquid-sheets.css'));

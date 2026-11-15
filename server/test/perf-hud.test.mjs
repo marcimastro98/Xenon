@@ -133,6 +133,6 @@ test('the tile hides a part with a class, on the dashboard and on a layer page',
   for (const [k, sel] of [['low1', '.perfw-stat.is-low1'], ['low01', '.perfw-stat.is-low01'], ['frame', '.perfw-stat.is-frame'], ['graph', '.perfw-graph'], ['fps', '.perfw-fps'], ['hw', '.perfw-hw']]) {
     assert.ok(css.includes(`.perfw-wrap.hud-no-${k} ${sel}`), k);
   }
-  const { js } = require('../js/layer-tiles.js').TILES.perf;
+  const { js } = require('../js/layers/layer-tiles.js').TILES.perf;
   assert.ok(js.indexOf('js/perf-hud.js') >= 0 && js.indexOf('js/perf-hud.js') < js.indexOf('js/perf-widget.js'));
 });

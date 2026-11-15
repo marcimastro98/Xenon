@@ -1,6 +1,6 @@
 // Whether the game performance feed and the process list have anyone to show them to.
 
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const { hub } = require('../settings/current.js');
 const { sdkStreamGranted } = require('../widget-sdk/grants.js');
 const { _feedWidgetInUse } = require('../grid/feed-widget-in-use.js');

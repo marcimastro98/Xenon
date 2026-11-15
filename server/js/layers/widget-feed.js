@@ -1,7 +1,7 @@
 'use strict';
 
 // The live data the dashboard hands to Store widgets (main.js), for the pages
-// that run widgets without it: a layer window (js/layer-lite.js) and the
+// that run widgets without it: a layer window (js/layers/layer-lite.js) and the
 // hidden widget host of "widgets only" (js/sdk-service.js). One table, so a
 // stream added to the dashboard is added to both (layer-lite.test.mjs).
 (function (root, factory) {

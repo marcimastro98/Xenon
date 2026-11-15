@@ -73,7 +73,7 @@ test('wiring: the dashboard, the popup and layer pages feed it, only on change',
   assert.ok(feed.includes("on('settings', () => { vitalsStale = true; vitalsTick(); });"));
   assert.ok(feed.includes('if (!vitalsTimer && window.VitalsCore) vitalsTimer = setInterval(vitalsTick, VITALS_EVERY_MS);'), 'one timer across reconnects');
   assert.match(read('../deck-popup.html'), /js\/deck-model\.js"><\/script>\n<script src="js\/vitals\/vitals-core\.js">/);
-  assert.ok(read('../js/layer-tiles.js').includes("'js/deck-model.js', 'js/vitals/vitals-core.js',"));
+  assert.ok(read('../js/layers/layer-tiles.js').includes("'js/deck-model.js', 'js/vitals/vitals-core.js',"));
 });
 
 test('the editor offers each meter, and Bit knows the source', () => {

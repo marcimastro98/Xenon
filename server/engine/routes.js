@@ -3,7 +3,7 @@
 const { readBodyBuffer } = require('../http/read-body.js');
 const UsageMode = require('../js/first-run/usage-mode.js');
 const { hub } = require('../settings/current.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const LayerPage = require('../layer-page.js');
@@ -33,7 +33,7 @@ const branches = {
     // A layer window on THIS machine whose surface holds Store widgets and tiles
     // the light page can carry gets that page (~130 MB less per window), with
     // those tiles' files added; any other built-in tile needs the whole
-    // dashboard. js/layers-model.js owns the rule, and the page reloads by the
+    // dashboard. js/layers/layers-model.js owns the rule, and the page reloads by the
     // same one when the user adds or removes a tile there.
     const query = new URL(req.url, 'http://127.0.0.1').searchParams;
     // "Widgets only" (js/first-run/usage-mode.js): the app's own window (`shell=main`, set

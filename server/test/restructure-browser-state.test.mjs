@@ -118,7 +118,7 @@ test('a browser file named in code somewhere new is caught before it is split', 
     write('server/components/Big/Big.css', '.big { color: red; }\n');
     write('server/styles/frame.css', '.frame { color: red; }\n');
     write('server/frame.html', '<link rel="stylesheet" href="styles/frame.css">\n');
-    write('server/js/layer-tiles.js', "const name = 'Big';\nmodule.exports = { TILES: { big: { css: ['components/' + name + '/' + name + '.css'], js: [] } } };\n");
+    write('server/js/layers/layer-tiles.js', "const name = 'Big';\nmodule.exports = { TILES: { big: { css: ['components/' + name + '/' + name + '.css'], js: [] } } };\n");
     write('tools/restructure/browser-consumers.json', JSON.stringify({ known: { 'server/js/big.js': { 'tools/listed.mjs': { how: 'Patches the last script.', keeps: ['big'] } } } }));
     for (const args of [['init', '-q'], ['add', '-A']]) assert.equal(spawnSync('git', args, { cwd: root }).status, 0);
     assert.deepEqual(consumerProblems(root, 'server/js/big.js'), [
@@ -127,12 +127,12 @@ test('a browser file named in code somewhere new is caught before it is split', 
     ]);
     assert.equal(consumerProblems(root, 'server/js/big.js', { tests: false }).length, 1, 'the tests are moved over after the first split');
     assert.deepEqual([...keptNames(root, 'server/js/big.js')], [['big', 'tools/listed.mjs']]);
-    assert.deepEqual(mentionsOf(root, 'server/components/Big/Big.css').map((mention) => [mention.file, mention.kind]), [['server/js/layer-tiles.js', 'list']],
+    assert.deepEqual(mentionsOf(root, 'server/components/Big/Big.css').map((mention) => [mention.file, mention.kind]), [['server/js/layers/layer-tiles.js', 'list']],
       'a name put together in code is found by asking the list, not by searching for the name');
     assert.deepEqual(consumerProblems(root, 'server/components/Big/Big.css'), [], 'the tool writes the parts into the list itself, as it does with a page');
     assert.deepEqual(consumerProblems(root, 'server/styles/frame.css'),
       ['server/frame.html loads frame.css, and the page check never opens that page: add it to tools/restructure/browser-check-pages.mjs first']);
-    assert.deepEqual(builtListsWith(ROOT, 'server/components/DiskWidget/DiskWidget.css'), ['server/js/layer-tiles.js'],
+    assert.deepEqual(builtListsWith(ROOT, 'server/components/DiskWidget/DiskWidget.css'), ['server/js/layers/layer-tiles.js'],
       'the pages for widgets on the desktop load the stylesheet of a tile by a name they build');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

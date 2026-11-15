@@ -160,7 +160,7 @@ test('the runner refuses anything that is not a capability', async () => {
 // ── Layers ───────────────────────────────────────────────────────────────────
 
 const { createLayersEdit } = require('../layers-edit.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 
 // A settings store in memory with the same contract as server.js
 // updateLayersSetting: the edit sees the current value, { error } writes nothing.
@@ -182,7 +182,7 @@ function fakeLayers(initial, catalog) {
 const shell = (over = {}) => ({ available: () => true, secondMonitor: () => 'DISPLAY2', ...over });
 const runner = (layers, host = shell()) => createCapabilities({ layers, layersHost: host });
 
-test('the layer option lists in the catalog match js/layers-model.js', () => {
+test('the layer option lists in the catalog match js/layers/layers-model.js', () => {
   const place = CAPABILITIES.find(c => c.type === 'layerPlace');
   const opt = (n) => place.params.find(p => p.name === n).options;
   assert.deepEqual([...opt('position')].sort(), [...LayersModel.POSITIONS].sort());

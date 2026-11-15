@@ -10,7 +10,7 @@
 //   node tools/measure-layer-tiles.mjs [--server http://127.0.0.1:3031]
 //     [--browser <path>] [--wait 8] [--html] [--shots <dir>] [--write server/test/fixtures/layer-tile-memory.json] [tile ...]
 //
-// No tile names: every tile js/layer-tiles.js marks as light. --write records
+// No tile names: every tile js/layers/layer-tiles.js marks as light. --write records
 // the measured megabytes, which test/layer-tiles.test.mjs holds to the budget;
 // --html prints the start of what each tile drew, --shots saves a picture of it.
 import { spawn } from 'node:child_process';
@@ -22,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'server');
-const LayerTiles = require(path.join(ROOT, 'js', 'layer-tiles.js'));
+const LayerTiles = require(path.join(ROOT, 'js', 'layers/layer-tiles.js'));
 const LayerPage = require(path.join(ROOT, 'layer-page.js'));
 const SURFACE = 'overlay:probe';
 const CDP_PORT = 9341;

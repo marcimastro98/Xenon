@@ -174,7 +174,7 @@ test('the dashboard and a widget window both load everything the tile needs', ()
     assert.ok(INDEX.includes(`<script src="${script}"></script>`), script);
   }
   assert.ok(INDEX.includes('href="components/WeatherTile/WeatherTile.css"'));
-  const line = read('js', 'layer-tiles.js').split('\n').find((l) => /^\s*weather: \{/.test(l));
+  const line = read('js', 'layers/layer-tiles.js').split('\n').find((l) => /^\s*weather: \{/.test(l));
   for (const part of ['components/WeatherTile/WeatherTile.css', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js']) {
     assert.ok(line.includes(part), part);
   }

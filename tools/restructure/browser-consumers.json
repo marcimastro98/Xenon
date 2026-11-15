@@ -14,7 +14,7 @@
       "list": "exported",
       "how": "Performance Mode with no dashboard: load() asks for each script of SCRIPTS after the one before it has run (server/test/driver-perf-load.test.mjs)."
     },
-    "server/js/layer-host.js": {
+    "server/js/layers/layer-host.js": {
       "list": "written",
       "written": "EDIT_SCRIPTS",
       "how": "The editor of a layer window: asked for when edit mode first goes on, each script after the one before it has run, and the editor starts after the last (server/test/layer-host.test.mjs)."
@@ -108,7 +108,7 @@
       "tools/toast-gallery/gallery.html": "A dev tool's own page, served over server/ by tools/toast-gallery/serve.mjs. The split tool does not edit it: it links the parts by hand right after the sheet, and server/test/restructure-browser-tool-pages.test.mjs fails when one is missing or out of place."
     },
     "server/js/ai.js": {
-      "server/js/layer-tiles.js": "Names the file only in the sentence that says why the chat is never a widget on the desktop; no row of the list loads it.",
+      "server/js/layers/layer-tiles.js": "Names the file only in the sentence that says why the chat is never a widget on the desktop; no row of the list loads it.",
       "server/test/ai-edge-glow.test.mjs": "Names the file only in the title of a test; what it reads is ai-edge-glow.js.",
       "server/test/screen-companion.test.mjs": "Names the file as an address: the card's list must not hold it, and a stand-in page answers when that address is loaded. It never opens the file."
     },

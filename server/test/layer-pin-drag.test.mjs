@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const SRC = readFileSync(new URL('../js/layer-pin.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/layers/layer-pin.js', import.meta.url), 'utf8');
 
 class FakeEl extends EventTarget {
   constructor(tag) {

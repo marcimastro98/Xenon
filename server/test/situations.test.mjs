@@ -6,8 +6,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createSituations } = require('../capabilities/situations.js');
 const { parseConsentStore, parsePulseOutputs, parseMonitorSources } = require('../audio/mic-use.js');
-const L = require('../js/layers-model.js');
-const W = require('../js/layer-when.js');
+const L = require('../js/layers/layers-model.js');
+const W = require('../js/layers/layer-when.js');
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 const placed = (id, text, extra = {}) => ({ id, kind: 'tile', widget: 'weather', surface: 'desktop', rect: { x: 0, y: 0, w: 0.2, h: 0.2 }, when: W.parse(text), ...extra });

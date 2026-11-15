@@ -100,7 +100,7 @@ async function boot(settings) {
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext("let lang = 'en'; const i18n = { en: {}, it: {} };", ctx);
-  vm.runInContext(read('../js/widget-feed.js').replace(UMD, 'globalThis'), ctx);
+  vm.runInContext(read('../js/layers/widget-feed.js').replace(UMD, 'globalThis'), ctx);
   vm.runInContext(read('../js/sdk-service.js').replace(UMD, 'window'), ctx);
   const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r)); };
   await settle();
@@ -158,7 +158,7 @@ test('only the hidden host answers: the page, its order, the route and the phone
   assert.deepEqual(scripts, ['shared/src/constants.js', 'js/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
     'js/theme-palette.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/deck-actions.js',
-    'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/widget-feed.js', 'js/sdk-service.js']);
+    'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/sdk-service.js']);
   assert.doesNotMatch(html, /stylesheet/);
   assert.match(engineSource(), /reqPath === '\/sdk-service' && req\.method === 'GET'[\s\S]{0,400}'sdk-service\.html'/);
   assert.equal(remotePathAllowed('/sdk-service', 'GET'), false, 'a phone would run every Deck action twice');

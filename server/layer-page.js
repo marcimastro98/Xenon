@@ -2,12 +2,12 @@
 
 // The light layer page (layer-lite.html) as served for one surface: the page
 // itself, plus the files of each built-in tile placed there that it can carry
-// (js/layer-tiles.js). A tile is code the dashboard runs; here only the
+// (js/layers/layer-tiles.js). A tile is code the dashboard runs; here only the
 // files that tile needs come along, so a window showing the weather does not
 // load the other 200 scripts.
 
-// Paths are fixed (js/layer-tiles.js), never built from the request.
-const LayerTiles = require('./js/layer-tiles.js');
+// Paths are fixed (js/layers/layer-tiles.js), never built from the request.
+const LayerTiles = require('./js/layers/layer-tiles.js');
 
 const STYLES_MARK = '<!-- tile styles -->';
 const MARKUP_MARK = '<!-- tile markup -->';

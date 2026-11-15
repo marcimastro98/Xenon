@@ -2,9 +2,9 @@
 // The "Widgets" section of the Xenon menu: every widget on the screen, wherever it
 // sits. Where is one of its adjustments (menu-tune.js), not a section of its own.
 
-const LayersModel = require('../js/layers-model.js');
-const LayerWhen = require('../js/layer-when.js');
-const LayerSee = require('../js/layer-see.js');
+const LayersModel = require('../js/layers/layers-model.js');
+const LayerWhen = require('../js/layers/layer-when.js');
+const LayerSee = require('../js/layers/layer-see.js');
 require('../js/palette-model.js'); // nothing is taken from it here, but it runs code when it loads
 const { previewPath } = require('../grid/tile-previews.js');
 const { ANCHOR_CORNERS, k, run, open, heading, cornerKey, spotOf, comboText, widgetName } = require('./menu-rows.js');

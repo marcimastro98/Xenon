@@ -185,7 +185,7 @@ function createCopyAtom(widget, copyId) {
 
   function connect() {
     const es = new EventSource('/sse');
-    // The dashboard's relays to widgets (js/widget-feed.js). Hooks and Deck
+    // The dashboard's relays to widgets (js/layers/widget-feed.js). Hooks and Deck
     // handlers are left to the dashboard: two windows answering would run them twice.
     WidgetFeed.listen(es, widgets);
     LayerLiteTiles.listen(es);

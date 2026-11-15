@@ -2,7 +2,7 @@
 // The choices of the menu's Add row: a tile, a package from the Store with its pictures, a key,
 // and the filters over them.
 
-const LayerSee = require('../js/layer-see.js');
+const LayerSee = require('../js/layers/layer-see.js');
 const PaletteModel = require('../js/palette-model.js');
 const { previewPath } = require('../grid/tile-previews.js');
 const { HUD_PLACE, k, run, keyName } = require('./menu-rows.js');

@@ -19,7 +19,7 @@ import { engineSource } from './engine-source.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = engineSource();
 const DeckShortcuts = createRequire(import.meta.url)('../js/deck-shortcuts.js');
-const LayersModel = createRequire(import.meta.url)('../js/layers-model.js');
+const LayersModel = createRequire(import.meta.url)('../js/layers/layers-model.js');
 const CaptureSettings = createRequire(import.meta.url)('../capture-settings.js');
 const { createWidgetKeys } = createRequire(import.meta.url)('../widget-sdk/widget-keys.js');
 const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');

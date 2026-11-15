@@ -170,7 +170,7 @@
           .find(n => !n.hasAttribute('data-dashboard-instance'));
       if (own) return own;
       // The light page has no dashboard tiles to move: it builds the tile it
-      // was served the code for (createCopyAtom, js/layer-lite.js).
+      // was served the code for (createCopyAtom, js/layers/layer-lite.js).
       return LITE && typeof createCopyAtom === 'function' ? createCopyAtom(w.widget, w.instance) : null;
     }
     // A Store widget placed by its package: a custom-widget atom of its own,
@@ -462,7 +462,7 @@
   }
 
   // Where the window is cut to its drawing (Windows), a rounded tile is cut to its
-  // corners, or they show black (js/layer-cut.js). Edit mode keeps plain boxes.
+  // corners, or they show black (js/layers/layer-cut.js). Edit mode keeps plain boxes.
   const CUT = window.LayerCut?.clipsDrawing(SHELL, navigator.userAgent) ? window.LayerCut : null;
 
   function cornerOf(el) {
@@ -594,9 +594,9 @@
 
   window.LayerHost = Object.freeze({
     active: true, key: KEY, surface: SURFACE, lite: LITE, place, forceVisible, listen,
-    // For a widget that moves its own box (js/layer-pin.js).
+    // For a widget that moves its own box (js/layers/layer-pin.js).
     editing: () => editing, refreshRects: scheduleRects,
-    // For a sheet opened after a wait, past the watch of a press (js/layer-key.js).
+    // For a sheet opened after a wait, past the watch of a press (js/layers/layer-key.js).
     showSheet: markSheet,
     // For a tile whose words change size inside its box (js/perf-widget.js).
     fitTo: (node) => { if (observer) observer.observe(node); },

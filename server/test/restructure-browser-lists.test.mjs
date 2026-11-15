@@ -1,5 +1,5 @@
 // The pages no tag search finds: the page of a widget on the desktop is built by
-// the engine from a list of files per widget (server/js/layer-tiles.js). A split
+// the engine from a list of files per widget (server/js/layers/layer-tiles.js). A split
 // must put its new files into that list next to the old one, and the page check
 // must open every page that loads a file before the file may be split.
 import { after, test } from 'node:test';
@@ -82,7 +82,7 @@ test('the files of a split follow each other in every row, or the row is named',
   const run = ['server/js/select/a.js', 'server/js/select.js'];
   assert.deepEqual(listRunProblems(addToLists(LIST, 'server/js/select.js', ['server/js/select/a.js'], 'before').text, run), []);
   assert.deepEqual(listRunProblems(LIST, run).length, 2, 'both rows that load the old script lack the new one');
-  assert.match(listRunProblems(LIST, run)[0], /the row "clock" of server\/js\/layer-tiles\.js loads js\/select\.js where js\/select\/a\.js, js\/select\.js must follow each other/);
+  assert.match(listRunProblems(LIST, run)[0], /the row "clock" of server\/js\/layers\/layer-tiles\.js loads js\/select\.js where js\/select\/a\.js, js\/select\.js must follow each other/);
 });
 
 test('a move writes the list together with the pages', () => {
@@ -100,7 +100,7 @@ test('a move writes the list together with the pages', () => {
 
 test('the engine builds a desktop page for every widget the list holds', () => {
   const pages = builtPages(ROOT);
-  const { LITE } = createRequire(import.meta.url)('../js/layer-tiles.js');
+  const { LITE } = createRequire(import.meta.url)('../js/layers/layer-tiles.js');
   assert.equal(pages.length, LITE.length + 1, 'one page per widget and one with all of them');
   for (const { page, html } of pages) assert.ok(tagsOf(html).some((tag) => tag.file === BUILT_LIST), `${page} is a real page`);
 });
@@ -190,7 +190,7 @@ test('every script that loads its own list is asked to by a page of the page che
     assert.ok(rows[ownRowOf(list)]?.js.length > 0, `${list} holds a list of its own`);
     for (const file of rows[ownRowOf(list)].js) assert.ok(fs.existsSync(path.join(ROOT, file)), `${list} lists ${file}, which is a file of the repo`);
   }
-  assert.deepEqual(ASKED_LISTS, ['server/js/ai/screen-bit.js', 'server/js/ai/screen-companion.js', 'server/js/driver-perf.js', 'server/js/layer-host.js']);
+  assert.deepEqual(ASKED_LISTS, ['server/js/ai/screen-bit.js', 'server/js/ai/screen-companion.js', 'server/js/driver-perf.js', 'server/js/layers/layer-host.js']);
   // Each list ends with the scripts its last script is made of today, in the order a page loads them.
   const perfMode = ['server/js/perf-settings.js', ...partsOf('server/js/performance.js')];
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/driver-perf.js'), 'utf8'), 'server/js/driver-perf.js')[OWN_ROW].js.slice(-perfMode.length), perfMode);
@@ -201,7 +201,7 @@ test('every script that loads its own list is asked to by a page of the page che
 });
 
 // A script that cannot run outside a page and hands its list to nobody: the list is read out of its text.
-const WRITTEN = 'server/js/layer-host.js';
+const WRITTEN = 'server/js/layers/layer-host.js';
 const HOST = ["'use strict';", '(function () {', "  const EDIT_SCRIPTS = Object.freeze(['js/chat.js']);   // loaded on first use", '  const root = document.body;',
   '  window.Host = { load: () => EDIT_SCRIPTS.forEach((src) => root.append(src)) };', '})();', ''].join('\n');
 
@@ -216,7 +216,7 @@ test('a list a script writes for itself and hands to nobody is read out of its t
   assert.deepEqual(done.reasons, []);
   assert.ok(done.text.includes("Object.freeze(['js/chat/voice.js', 'js/chat/ears.js', 'js/chat.js']);   // loaded on first use"), 'the new files are written before the old one, the rest of the line as it was');
   assert.deepEqual(listRunProblems(done.text, run, WRITTEN), []);
-  assert.match(listRunProblems(HOST, run, WRITTEN)[0], /^the row "EDIT_SCRIPTS" of server\/js\/layer-host\.js loads js\/chat\.js where js\/chat\/voice\.js, js\/chat\/ears\.js, js\/chat\.js must follow each other/);
+  assert.match(listRunProblems(HOST, run, WRITTEN)[0], /^the row "EDIT_SCRIPTS" of server\/js\/layers\/layer-host\.js loads js\/chat\.js where js\/chat\/voice\.js, js\/chat\/ears\.js, js\/chat\.js must follow each other/);
   assert.match(listRunProblems(done.text.replace("'js/chat/voice.js', 'js/chat/ears.js'", "'js/chat/ears.js', 'js/chat/voice.js'"), run, WRITTEN)[0], /must follow each other with nothing between/, 'the order is part of it');
   // What the tool cannot read it does not guess.
   assert.throws(() => readLists(HOST.replace('EDIT_SCRIPTS = Object', 'SCRIPTS_OF_EDIT = Object'), WRITTEN), /does not write the list EDIT_SCRIPTS once/);
@@ -229,7 +229,7 @@ test('a move writes its files into a list no page names with a tag, and is refus
   if (!parser) return t.skip('TypeScript is not installed here (npm run quality:install)');
   const chat = "'use strict';\n\nfunction say() {}\n\nfunction hear() {\n  say();\n}\n\nhear();\n";
   const move = { kind: 'script', from: 'server/js/chat.js', file: 'server/js/chat/voice.js', about: 'The voice.', names: ['say'] };
-  const files = { 'server/index.html': '<script src="js/layer-host.js"></script>\n', 'server/js/chat.js': chat, [WRITTEN]: HOST };
+  const files = { 'server/index.html': '<script src="js/layers/layer-host.js"></script>\n', 'server/js/chat.js': chat, [WRITTEN]: HOST };
   const done = applyMove({ get: (file) => files[file] ?? null }, move, { parser, pages: ['server/index.html'], earlier: [] });
   assert.deepEqual(readLists(done.files.get(WRITTEN), WRITTEN).EDIT_SCRIPTS.js, ['server/js/chat/voice.js', 'server/js/chat.js']);
   assert.equal(done.files.get('server/index.html') ?? files['server/index.html'], files['server/index.html'], 'the page that names neither file is left alone');

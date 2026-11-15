@@ -2,7 +2,7 @@
 // or the shortcut is off.
 
 const DeckShortcuts = require('../js/deck-shortcuts.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const { hub } = require('../settings/current.js');
 
 // The overlay shortcut's combo, or '' when there is nothing in the overlay to

@@ -372,7 +372,7 @@ test('nothing lands over a request, for either agent', () => {
 });
 
 test('the window comes with the tile wherever the tile can stand alone', () => {
-  const layer = read('../js/layer-tiles.js');
+  const layer = read('../js/layers/layer-tiles.js');
   const claude = /claude: tile\([\s\S]*?\n\s*chatgpt: tile/.exec(layer)[0];
   assert.equal((claude.match(/'js\/dialog-focus\.js'/g) || []).length, 2);
   assert.equal((claude.match(/'js\/deck\/approval-keys\.js'/g) || []).length, 2);

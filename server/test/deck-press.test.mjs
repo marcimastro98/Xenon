@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const { createDeckPress, fingerprint, stepsOf, describeSteps, lookOf } = require('../deck/deck-press.js');
 const { createDeckShortcutRunner } = require('../deck/deck-shortcut-runner.js');
 const { triggerSteps } = require('../js/deck-actions.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const LayerKey = require('../capabilities/layer-key.js');
 const { remoteMayRun } = require('../paired/remote-actions.js');
 

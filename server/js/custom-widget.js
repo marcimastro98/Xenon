@@ -568,7 +568,7 @@
 
   const { tiles, expandWrapOf, currentPageId, spanOnPage } = window.CustomWidgetPlaces;
 
-  // Store widgets placed on a layer surface (js/layer-host.js) are keyed by the
+  // Store widgets placed on a layer surface (js/layers/layer-host.js) are keyed by the
   // layer id and live only in memory: a layer page never saves sdkWidgets.assign.
   let layerAssign = new Map();
   function setLayerAssign(map) {
@@ -1926,7 +1926,7 @@
   }
 
   // A layer window is cut to its widgets' boxes and lets the mouse past the rest
-  // (js/layer-host.js): a widget opened at full size, or one that lets clicks
+  // (js/layers/layer-host.js): a widget opened at full size, or one that lets clicks
   // through, changes that cut.
   function layerRectsChanged() {
     const host = window.LayerHost;
@@ -1953,7 +1953,7 @@
     reply(true);
   }
 
-  // A widget whose manifest says `fit` sizes its own box on the screen (js/layer-fit.js):
+  // A widget whose manifest says `fit` sizes its own box on the screen (js/layers/layer-fit.js):
   // the menu offers no size for it, so this is the only way it gets one.
   function onBridgeFit(entry, fit, reply) {
     const pkg = packageById(entry.pkgId);

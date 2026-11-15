@@ -3,10 +3,10 @@
 // "When it shows", in the Xenon menu: always, only during some situations, or never
 // during them, and for a page whether it comes forward by itself. A situation is one tap;
 // the four that need a value open one small line under the chips. Every change is the
-// rule as text (js/layer-when.js) sent through the row's own capability.
+// rule as text (js/layers/layer-when.js) sent through the row's own capability.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const rules = node ? require('./layer-when.js') : root.LayerWhen;
+  const rules = node ? require('./layers/layer-when.js') : root.LayerWhen;
   const place = node ? require('./xenon-menu-place.js') : root.XenonMenuPlace;
   const api = factory(rules, place);
   if (typeof module === 'object' && module.exports) module.exports = api;

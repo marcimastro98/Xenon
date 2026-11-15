@@ -12,7 +12,7 @@ import { partsOf } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
 const UsageMode = require('../js/first-run/usage-mode.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const ShellDriver = require('../js/shell-driver.js');
 const { remotePathAllowed } = require('../remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -138,7 +138,7 @@ test('the driver page carries only what it needs, in order', () => {
   const scripts = [...HTML.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(scripts, [
     'shared/src/constants.js', 'js/live-stream.js',
-    'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/first-run/usage-mode.js',
+    'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'js/layers/layer-tiles.js', 'js/layers/layer-when.js', 'js/layers/layers-model.js', 'js/first-run/usage-mode.js',
     'js/native-bridge.js', 'js/ambient/screen-scene-model.js', ...served('server/js/layers-shell.js'), 'js/grid/dashboard-open.js', ...served('server/js/update.js'), 'js/album-theme.js',
     'js/driver-album-lights.js', 'js/driver-sdk-host.js', 'js/driver-perf.js', 'js/shell-driver.js',
   ]);

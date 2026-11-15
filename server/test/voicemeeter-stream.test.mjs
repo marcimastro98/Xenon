@@ -1,7 +1,7 @@
 // The `voicemeeter` SDK stream reaches widgets: the server polls the mixer and
 // broadcasts a change (server/audio/voicemeeter-watch.js refreshVoicemeeterWatch), the dashboard hands
 // it to granted widgets (main.js), and so do the pages that run widgets
-// without the dashboard (js/widget-feed.js). It was declared and documented but
+// without the dashboard (js/layers/widget-feed.js). It was declared and documented but
 // never forwarded, so no widget ever got it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const feed = require('../js/widget-feed.js');
+const feed = require('../js/layers/widget-feed.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 test('the dashboard and the widget-only pages forward the stream to widgets', () => {

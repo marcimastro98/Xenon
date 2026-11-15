@@ -151,7 +151,7 @@ test('the tiles send edits, repaint from the broadcast and never treat a failed 
   // Loaded before the code that uses it, on every page that saves.
   const page = read('../index.html');
   assert.ok(page.indexOf('js/list-sync.js') > 0 && page.indexOf('js/list-sync.js') < page.indexOf('js/calendar.js'));
-  assert.match(read('../js/layer-tiles.js'), /'js\/list-sync\.js', 'js\/calendar\/month-grid\.js', 'js\/calendar\/upcoming-and-day-window\.js', 'js\/calendar\/events-sync\.js', 'js\/calendar\.js'/);
+  assert.match(read('../js/layers/layer-tiles.js'), /'js\/list-sync\.js', 'js\/calendar\/month-grid\.js', 'js\/calendar\/upcoming-and-day-window\.js', 'js\/calendar\/events-sync\.js', 'js\/calendar\.js'/);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
     assert.ok(appStrings()[lang].list_save_retry_title, lang);
   }

@@ -69,5 +69,5 @@ test('the server ticks it from the system tick, the tile listens on every page',
   assert.match(tick, /_perfNet\.tick\(\)/);
   assert.match(server, /broadcastSSE\('perf_net'/);
   assert.match(read('js/main.js'), /addEventListener\('perf_net'/);
-  assert.equal(require('../js/layer-tiles.js').TILES.perf.streams.perf_net, 'onNet');
+  assert.equal(require('../js/layers/layer-tiles.js').TILES.perf.streams.perf_net, 'onNet');
 });

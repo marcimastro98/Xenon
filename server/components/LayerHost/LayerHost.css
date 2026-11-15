@@ -1,4 +1,4 @@
-/* The dashboard as a layer surface (js/layer-host.js): a transparent window on
+/* The dashboard as a layer surface (js/layers/layer-host.js): a transparent window on
    the desktop, in the overlay or anchored to an app, showing only the tiles
    placed on it. Everything else the page builds stays in the DOM, so each tile
    keeps its code and data feed, but is never drawn. */
@@ -10,14 +10,14 @@ html[data-layer] body {
   background: transparent !important;
 }
 
-/* [data-layer-sheet]: a dialog a tile opened on the body (js/layer-host.js). */
+/* [data-layer-sheet]: a dialog a tile opened on the body (js/layers/layer-host.js). */
 html[data-layer] body > :not(#layer-root):not(#picker-overlay):not([data-layer-sheet]) {
   display: none !important;
 }
 
 /* The device picker opens over the tile that asked for it, not over the screen:
    the window shows, and takes clicks on, only the tiles' rectangles. The
-   rectangle is the slot last pressed (js/layer-host.js). */
+   rectangle is the slot last pressed (js/layers/layer-host.js). */
 html[data-layer] #picker-overlay {
   inset: auto;
   left: var(--layer-sheet-x, 0px);
@@ -28,7 +28,7 @@ html[data-layer] #picker-overlay {
 }
 
 /* The System tile's Optimize button opens a dashboard panel the light page
-   does not have (js/layer-lite-tiles.js). */
+   does not have (js/layers/layer-lite-tiles.js). */
 html[data-layer-lite] .sys-optimize-btn {
   display: none !important;
 }
@@ -75,7 +75,7 @@ html[data-layer-lite] .deck-edit {
   --layer-min-h: 48px;
 }
 
-/* One that sizes its own box (js/layer-fit.js) keeps the size it asked for, or the
+/* One that sizes its own box (js/layers/layer-fit.js) keeps the size it asked for, or the
    room under a short readout showed as a dark band. */
 .layer-slot[data-small][data-fit]:not(:has(.cw-state)) {
   --layer-min-w: 16px;

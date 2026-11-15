@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const UsageMode = require('../js/first-run/usage-mode.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/layers-shell.js');
@@ -335,8 +335,8 @@ test('wiring: the main page syncs at the end of every layout apply, after layer-
   assert.match(d, /step\('layerHost', \(\) => window\.LayerHost\.place\(\)\);\n  else if \(window\.LayersShell\) step\('layersShell', \(\) => window\.LayersShell\.sync\(\)\);/);
   assert.match(read('../js/native-bridge.js'), /function onDisplaysChanged\(\) \{\n    \/\/ [^\n]*\n    if \(window\.LayersShell\) window\.LayersShell\.onDisplays\(\);/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('src="js/layers-model.js"') < html.indexOf('src="js/layers-shell.js"'));
-  assert.ok(html.indexOf('src="js/layer-host.js"') < html.indexOf('src="js/layers-shell.js"'));
+  assert.ok(html.indexOf('src="js/layers/layers-model.js"') < html.indexOf('src="js/layers-shell.js"'));
+  assert.ok(html.indexOf('src="js/layers/layer-host.js"') < html.indexOf('src="js/layers-shell.js"'));
 });
 
 // The Ambient scene on the other screens (js/ambient/screen-scene-model.js).

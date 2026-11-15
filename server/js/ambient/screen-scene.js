@@ -239,7 +239,7 @@ function closeSettings() { /* no settings panel here */ }
 
   function connect() {
     const es = new EventSource('/sse');
-    // The dashboard's relays to a Store scene's frame (js/widget-feed.js).
+    // The dashboard's relays to a Store scene's frame (js/layers/widget-feed.js).
     WidgetFeed.listen(es, () => window.CustomWidget);
     SceneFeed.listen(es);
     es.addEventListener('settings', onSettingsEvent);

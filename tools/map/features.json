@@ -333,9 +333,8 @@
         "server/js/layer-*.js",
         "server/js/layers-*.js",
         "server/js/layers-shell/**",
-        "server/js/widget-options-panel.js",
-        "server/js/widget-feed.js",
-        "server/components/LayerHost/**"
+        "server/components/LayerHost/**",
+        "server/js/layers/**"
       ]
     },
     {

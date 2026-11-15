@@ -110,7 +110,7 @@ test('who else loads a script, and who has its names, is asked of the whole repo
     'server/js/named.js': "'use strict';\nfunction showPanel() {}\nconst PANEL_MS = 300;\n",
     'server/js/first.js': "'use strict';\ndocument.addEventListener('click', () => showPanel());\n// PANEL_MS is only named in this comment\n",
     'server/js/listed.js': "'use strict';\n",
-    'server/js/layer-tiles.js': "module.exports = { TILES: { clock: { css: [], js: ['js/listed.js'] } }, LITE: ['clock'] };\n",
+    'server/js/layers/layer-tiles.js': "module.exports = { TILES: { clock: { css: [], js: ['js/listed.js'] } }, LITE: ['clock'] };\n",
     'server/js/node.js': "'use strict';\n",
     'server/test/node.test.mjs': "const made = require('../js/node.js');\n",
     'server/test/leaf.test.mjs': "import { readFileSync } from 'node:fs';\nconst text = readFileSync('server/js/leaf.js', 'utf8');\n",
@@ -124,7 +124,7 @@ test('who else loads a script, and who has its names, is asked of the whole repo
   const pages = [{ page: 'server/index.html', html: files['server/index.html'] }];
   const why = (file) => moduleReasons({ root, parser, file, ledger, pages }).reasons.map((reason) => `${reason.kind}: ${reason.text}`).join('\n');
   assert.equal(why('server/js/leaf.js'), '', 'a test that reads it as text and a saved number that names it load nothing');
-  assert.match(why('server/js/listed.js'), /^loader: server\/js\/layer-tiles\.js holds it in a list a page is built from/m);
+  assert.match(why('server/js/listed.js'), /^loader: server\/js\/layers\/layer-tiles\.js holds it in a list a page is built from/m);
   assert.match(why('server/js/loaded.js'), /^loader: server\/js\/loader\.js:1 names it in code/m);
   assert.match(why('server/js/node.js'), /^loader: server\/test\/node\.test\.mjs:1 loads it in Node/m);
   assert.match(why('server/js/part.js'), /^split: it is one of the scripts server\/js\/whole\.js is split into/m);

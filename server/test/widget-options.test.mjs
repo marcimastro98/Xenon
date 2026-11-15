@@ -176,7 +176,7 @@ test('the host hands the values in init, passes a change to every copy, and lets
   assert.match(cw, /\} else if \(d\.type === 'option'\) \{\r?\n\s+if \(entry\.ready\) onBridgeOption\(entry, d\);/);
   assert.match(cw, /type: 'widgetOption', widget: entry\.pkgId, option:/, 'its own package, never one it names');
   assert.match(cw, /!Array\.isArray\(pkg\.options\) \|\| !pkg\.options\.length\) \{ reply\(false, 'not_allowed'\)/);
-  assert.match(src('js/widget-feed.js'), /sdk_options: \(cw, d\) => cw\.onOptionsChanged\(d\),/);
+  assert.match(src('js/layers/widget-feed.js'), /sdk_options: \(cw, d\) => cw\.onOptionsChanged\(d\),/);
   assert.match(src('js/main.js'), /addEventListener\('sdk_options'/);
   const server = engineSource();
   assert.match(server, /announce: \(pkg\) => broadcastSSE\('sdk_options', \{ pkg \}\)/);

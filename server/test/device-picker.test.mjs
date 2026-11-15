@@ -123,7 +123,7 @@ test('closed it stays in the page, so Tab must not walk into its rows', () => {
 });
 
 test('the widget window carries what the picker needs, in order', () => {
-  const layer = read('../js/layer-tiles.js');
+  const layer = read('../js/layers/layer-tiles.js');
   const system = layer.slice(layer.indexOf('const SYSTEM'), layer.indexOf('};', layer.indexOf('const SYSTEM')));
   assert.ok(system.includes("'styles/liquid-sheets.css'"));
   assert.ok(system.indexOf("'js/dialog-focus.js'") > 0 && system.indexOf("'js/dialog-focus.js'") < system.indexOf("'js/audio/picker.js'"));

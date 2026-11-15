@@ -1,10 +1,10 @@
-// When a widget or a page shows (js/layer-when.js): the rule and what it answers.
+// When a widget or a page shows (js/layers/layer-when.js): the rule and what it answers.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const W = require('../js/layer-when.js');
+const W = require('../js/layers/layer-when.js');
 
 test('nothing usable means always, never a rule that hides', () => {
   for (const raw of [null, undefined, 'music', {}, { any: 'music' }, { any: [] }, { any: [{ c: 'nope' }] }, { hide: true, any: [null] }]) {

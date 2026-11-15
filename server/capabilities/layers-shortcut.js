@@ -2,7 +2,7 @@
 // The keyboard shortcuts of the layers: how one is shown, how the overlay, menu and pad
 // shortcuts are set, and the hint that tells which key brings the overlay up.
 
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const DeckShortcuts = require('../js/deck-shortcuts.js');
 
 // So the AI can tell the person how to show and hide it over a game.

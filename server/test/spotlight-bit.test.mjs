@@ -139,7 +139,7 @@ test('alone in the list, the ask row shows it is what Enter sends, without a sec
 });
 
 test('every place with the bar loads Bit before spotlight.js', () => {
-  const tiles = read('../js/layer-tiles.js');
+  const tiles = read('../js/layers/layer-tiles.js');
   const row = tiles.slice(tiles.indexOf("search: tile('search'"));
   for (const src of [read('../spotlight.html'), read('../index.html'), row]) {
     const bit = src.indexOf('js/spotlight-bit.js');

@@ -12,12 +12,12 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.LayersModel = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
-  // js/layer-tiles.js: required on the server, loaded before this file on a page.
+  // js/layers/layer-tiles.js: required on the server, loaded before this file on a page.
   function tilesTable() {
     if (typeof module !== 'undefined' && module.exports && typeof require === 'function') return require('./layer-tiles.js');
     return globalThis.LayerTiles;
   }
-  // js/layer-when.js, the same way: "only while I listen to music".
+  // js/layers/layer-when.js, the same way: "only while I listen to music".
   function whenRules() {
     if (typeof module !== 'undefined' && module.exports && typeof require === 'function') return require('./layer-when.js');
     return globalThis.LayerWhen;
@@ -52,11 +52,11 @@
   const MARGIN = 0.02;
   const EDGE_SLACK = 0.002;
 
-  // A screenshot pinned over everything (js/layer-pin.js): a tile named PIN whose
+  // A screenshot pinned over everything (js/layers/layer-pin.js): a tile named PIN whose
   // instance is the capture's opaque id. Every layer page draws it itself, so it
   // never needs the dashboard, and it is not in the "Add" list (it needs a picture).
   const PIN = 'pin';
-  // A Deck key on the screen (js/layer-key.js): a tile named KEY whose instance is
+  // A Deck key on the screen (js/layers/layer-key.js): a tile named KEY whose instance is
   // the key's id. `keyFp` is what the key did when the person last agreed to it
   // (deck-press.js); only that route writes it, a placement never does.
   const KEY = 'key';
@@ -642,7 +642,7 @@
   }
   // Which page a layer window loads: the light one (layer-lite.html) while every
   // widget on the surface is a Store widget or a built-in tile it can carry
-  // (js/layer-tiles.js: the server adds that tile's own files), the full
+  // (js/layers/layer-tiles.js: the server adds that tile's own files), the full
   // dashboard once one is any other tile. The server serves by this and the page
   // reloads by it, so the two can never disagree. A copy of a tile is carried
   // only when the light page can build it (LayerTiles.COPIES).

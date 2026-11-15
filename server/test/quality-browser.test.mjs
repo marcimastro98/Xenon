@@ -74,7 +74,7 @@ test('a page must load a module as a module and a classic script as a classic sc
   assert.deepEqual(mixedLoads('server/index.html', wrong, read, ['server/js/leaf.js', 'server/js/old.js']), [
     'server/index.html loads server/js/old.js as a module, and the file does not say it is one',
     'server/index.html loads server/js/leaf.js as a classic script, and the file says it is a module',
-    'server/js/layer-tiles.js holds server/js/leaf.js, a module, in a list written out as classic tags',
+    'server/js/layers/layer-tiles.js holds server/js/leaf.js, a module, in a list written out as classic tags',
   ]);
   const saved = { scripts: {}, handlers: {}, duplicates: {} };
   assert.deepEqual(browserProblems({ ...saved, where: {}, mixed: ['a page loads x the wrong way'] }, saved), ['modules: a page loads x the wrong way'], 'never allowed, whatever is saved');
@@ -121,7 +121,7 @@ test('a small tree is measured whole: tags, a split, a module, a wrapper, a scri
     'server/index.html': ['<button onclick="go()">Go</button>', '<script src="js/big/part.js"></script>', '<script src="js/big.js"></script>', '<script src="js/other.js?v=1"></script>',
       '<script src="js/wrapped.js"></script>', '<script type="module" src="js/leaf.js"></script>', '<script src="js/vendor/lib.js"></script>', ''].join('\n'),
     'server/layer-lite.html': '<script src="js/other.js"></script>\n',
-    'server/js/layer-tiles.js': "module.exports = { TILES: { clock: { css: [], js: ['js/tile.js'] } }, LITE: ['clock'] };\n",
+    'server/js/layers/layer-tiles.js': "module.exports = { TILES: { clock: { css: [], js: ['js/tile.js'] } }, LITE: ['clock'] };\n",
     'server/js/big.js': 'function go() {}\nfunction esc() {}\n',
     'server/js/big/part.js': 'const LIMIT = 3;\n',
     'server/js/other.js': 'function esc() {}\n',

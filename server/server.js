@@ -404,9 +404,9 @@ require('./js/sensor-history.js'); // the sensor-history setting (shared with Se
 require('./ai/sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
 require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
-const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
+const LayersModel = require('./js/layers/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
-require('./layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
+require('./layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
 const assetVersion = require('./asset-version.js'); // a version on every page's CSS/JS URLs
 const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/first-run/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
@@ -489,8 +489,8 @@ const aiTurnRecord = require('./ai/ai-turn-record');  // what Bit really did in 
 const aiDeckRun = require('./ai/ai-deck-run');  // Bit presses a Deck action (run_deck_action)
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./performance/perf-screen');  // Performance Mode with no dashboard (widgets only)
-require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
-require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
+require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
+require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads
 require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
 require('./store-catalog/icon-packs');
@@ -2482,7 +2482,7 @@ const deckShortcutRunner = createDeckShortcutRunner({
   serverFirst: () => UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode),
 });
 
-// The Deck keys placed on the screen (js/layer-key.js).
+// The Deck keys placed on the screen (js/layers/layer-key.js).
 const deckPress = createDeckPress({
   layers: { get: () => hub.settings && hub.settings.layers, update: (edit) => updateLayersSetting(edit) },
   readConfigs: readDeckConfigs,

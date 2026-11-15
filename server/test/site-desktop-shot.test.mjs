@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { PLAN, desktopLayers, seedScript } from '../../tools/site-shots/desktop.mjs';
 
 const require = createRequire(import.meta.url);
-const LayerTiles = require('../js/layer-tiles.js');
+const LayerTiles = require('../js/layers/layer-tiles.js');
 
 test('every planned tile is a light tile, inside the screen and right of the clock', () => {
   for (const [tile, r] of PLAN) {

@@ -1,6 +1,6 @@
 'use strict';
 // A key that shows or hides a widget on the screen (`key` on a placed widget,
-// js/layers-model.js). Pressed: the widget switches between shown and hidden.
+// js/layers/layers-model.js). Pressed: the widget switches between shown and hidden.
 // Held: it shows only while the keys are down. What it hides goes out with the
 // rules' answer as `whenOff` (opaque ids), so the layer pages need nothing new.
 //
@@ -8,7 +8,7 @@
 // Holding needs the key's release, which only Xenon Helper reports (`release` in
 // its `ready` line). Without it (Linux, an older helper) a press shows the widget
 // for PEEK_MS instead, and the menu says so.
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 
 const PEEK_MS = 4000;
 const SLOT_PREFIX = 'widget-';

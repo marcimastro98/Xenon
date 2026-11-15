@@ -2,11 +2,11 @@
 
 // The map of the Widgets section: the person's real screens, as they stand on the desktop,
 // with the real widgets on them. Dragged here a widget moves by the same rules as on the
-// screen (js/layer-drag.js), also from one monitor to another, and where it is let go is
+// screen (js/layers/layer-drag.js), also from one monitor to another, and where it is let go is
 // where it stays. Rows, acts and words come from the server (server/menu/menu-widgets.js).
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const api = factory(node ? require('./layer-drag.js') : root.LayerDrag);
+  const api = factory(node ? require('./layers/layer-drag.js') : root.LayerDrag);
   if (node) module.exports = api;
   if (root) root.XenonMenuMap = api;
 })(typeof window !== 'undefined' ? window : globalThis, function (LayerDrag) {

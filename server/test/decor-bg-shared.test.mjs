@@ -21,7 +21,7 @@ test('every page with deck.js loads decor-bg.js before it', () => {
     assert.ok(deck > 0, `${page} loads deck.js`);
     assert.ok(bg > 0 && bg < deck, `${page} loads decor-bg.js before deck.js`);
   }
-  const { TILES } = require('../js/layer-tiles.js');
+  const { TILES } = require('../js/layers/layer-tiles.js');
   const js = TILES.deck.js;
   assert.ok(js.indexOf('js/decor-bg.js') >= 0 && js.indexOf('js/decor-bg.js') < js.indexOf('js/deck.js'), 'light page Deck row');
 });

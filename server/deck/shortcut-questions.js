@@ -2,7 +2,7 @@
 // shortcut is or is not held.
 
 const DeckShortcuts = require('../js/deck-shortcuts.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const { _hotkey, MAX_HOTKEY_BINDINGS } = require('./hotkey-state.js');
 const { shortcutState } = require('./shortcut-state.js');
 const { hub } = require('../settings/current.js');

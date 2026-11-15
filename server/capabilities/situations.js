@@ -4,8 +4,8 @@
 // while a rule uses them. No timer of its own: tick() rides the 3 s status tick, and
 // the answer goes out as `whenOff` (opaque widget ids) in the status payload, so an
 // app's name never leaves the server.
-const LayersModel = require('../js/layers-model.js');
-const LayerWhen = require('../js/layer-when.js');
+const LayersModel = require('../js/layers/layers-model.js');
+const LayerWhen = require('../js/layers/layer-when.js');
 
 const IDLE_AFTER_S = 300;
 // Busy needs two readings in a row, and a clear fall to end, so a spike moves nothing.

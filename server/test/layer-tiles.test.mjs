@@ -1,4 +1,4 @@
-// js/layer-tiles.js: one row per dashboard tile, saying what the light layer
+// js/layers/layer-tiles.js: one row per dashboard tile, saying what the light layer
 // page needs to draw it or why only the whole dashboard can. A new tile with no
 // row fails here, so it is born light or says why it is not; the recorded
 // memory (tools/measure-layer-tiles.mjs --write) keeps "light" a number.
@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const LayerTiles = require('../js/layer-tiles.js');
+const LayerTiles = require('../js/layers/layer-tiles.js');
 const LayerPage = require('../layer-page.js');
 const { layersFor, pageFootprint, verdict } = await import('../../tools/measure-layer-tiles.mjs');
 
@@ -86,9 +86,9 @@ test('a light tile that draws every copy finds the copy a layer slot holds', () 
 test('every page that decides light or full loads the table first', () => {
   for (const page of readdirSync(new URL('.', ROOT)).filter((f) => f.endsWith('.html'))) {
     const html = read(page);
-    const model = html.indexOf('js/layers-model.js');
+    const model = html.indexOf('js/layers/layers-model.js');
     if (model < 0) continue;
-    const table = html.indexOf('js/layer-tiles.js');
+    const table = html.indexOf('js/layers/layer-tiles.js');
     assert.ok(table >= 0 && table < model, page);
   }
 });

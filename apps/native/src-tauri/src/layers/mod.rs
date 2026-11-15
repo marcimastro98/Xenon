@@ -1,7 +1,7 @@
 //! Widget layers: dashboard tiles drawn on the desktop, over everything
 //! (overlay) or following one app's window (anchor), for people with a single
 //! screen. Each surface is one transparent window loading the dashboard in
-//! `?layer=<key>` mode (server/js/layer-host.js), which draws only the tiles
+//! `?layer=<key>` mode (server/js/layers/layer-host.js), which draws only the tiles
 //! placed on it: one window per layer per monitor, one per anchored widget
 //! (the spike measured ~15 MB per extra window, so sharing one matters).
 //!

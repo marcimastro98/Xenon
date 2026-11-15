@@ -6,7 +6,7 @@ import { browserSource } from './browser-source.mjs';
 import { nativeSource } from './native-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { MAX_RECTS, MAX_STEPS, clipsDrawing, roundedCut, stepsFor, insetAt } = require('../js/layer-cut.js');
+const { MAX_RECTS, MAX_STEPS, clipsDrawing, roundedCut, stepsFor, insetAt } = require('../js/layers/layer-cut.js');
 
 const src = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
 const box = { left: 100, top: 50, width: 300, height: 120 };
@@ -78,9 +78,9 @@ test('the budget matches what the shell reads', () => {
 test('the layer page loads the cut before the host and the host uses it', () => {
   for (const page of ['../index.html', '../layer-lite.html']) {
     const html = src(page);
-    assert.ok(html.indexOf('js/layer-cut.js') > 0 && html.indexOf('js/layer-cut.js') < html.indexOf('js/layer-host.js'), page);
+    assert.ok(html.indexOf('js/layers/layer-cut.js') > 0 && html.indexOf('js/layers/layer-cut.js') < html.indexOf('js/layers/layer-host.js'), page);
   }
-  const host = browserSource('server/js/layer-host.js');
+  const host = browserSource('server/js/layers/layer-host.js');
   assert.match(host, /LayerCut\?\.clipsDrawing\(SHELL, navigator\.userAgent\)/);
   assert.match(host, /CUT\.roundedCut\(it\.box, it\.radius, steps\)/);
 });
@@ -88,5 +88,5 @@ test('the layer page loads the cut before the host and the host uses it', () => 
 test('a Store widget that sizes its own box keeps the size it asked for', () => {
   const css = browserSource('server/components/LayerHost/LayerHost.css');
   assert.match(css, /\.layer-slot\[data-small\]\[data-fit\]:not\(:has\(\.cw-state\)\) \{\s*--layer-min-w: 16px;\s*--layer-min-h: 16px;/);
-  assert.match(browserSource('server/js/layer-fit.js'), /slot\.dataset\.fit = 'true';\s*const box = boxOf\(slot\);/);
+  assert.match(browserSource('server/js/layers/layer-fit.js'), /slot\.dataset\.fit = 'true';\s*const box = boxOf\(slot\);/);
 });

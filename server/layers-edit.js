@@ -7,7 +7,7 @@
 // It turns itself off after IDLE_MS without an edit, so a window left in edit
 // mode (the user walked away, the "Done" button is on another screen) never
 // keeps blocking the desktop or a game.
-const LayersModel = require('./js/layers-model.js');
+const LayersModel = require('./js/layers/layers-model.js');
 
 const IDLE_MS = 10 * 60 * 1000;
 const MAX_STEPS = 40;

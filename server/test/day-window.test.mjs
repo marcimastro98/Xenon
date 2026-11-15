@@ -107,7 +107,7 @@ test('a row reads time, name, key', () => {
 });
 
 test('the window has what it needs wherever the agenda runs', () => {
-  const layer = read('../js/layer-tiles.js');
+  const layer = read('../js/layers/layer-tiles.js');
   const agenda = layer.slice(layer.indexOf('const AGENDA'), layer.indexOf('};', layer.indexOf('const AGENDA')));
   assert.ok(agenda.indexOf("'js/dialog-focus.js'") > 0 && agenda.indexOf("'js/dialog-focus.js'") < agenda.indexOf("'js/calendar.js'"));
   assert.ok(agenda.includes("'styles/liquid-sheets.css'"));

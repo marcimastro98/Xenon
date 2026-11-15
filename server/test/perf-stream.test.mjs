@@ -153,7 +153,7 @@ test('widgets get the perf stream: relayed on both pages, every field documented
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   assert.match(main, /es\.addEventListener\('perf', e => \{[\s\S]{0,300}window\.CustomWidget\.onData\('perf', d\)/);
   // Layer windows and the "widgets only" host share one relay table.
-  const feed = readFileSync(new URL('../js/widget-feed.js', import.meta.url), 'utf8');
+  const feed = readFileSync(new URL('../js/layers/widget-feed.js', import.meta.url), 'utf8');
   assert.match(feed, /PLAIN_STREAMS = Object\.freeze\(\{[\s\S]*?perf: 'perf'/);
   const doc = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8');
   const sec = doc.slice(doc.indexOf('### 3c-ter.'), doc.indexOf('### 3d.'));

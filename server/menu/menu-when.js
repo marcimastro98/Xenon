@@ -2,7 +2,7 @@
 // "Only while I listen to music": the rule of a widget or a page as a row of the Xenon
 // menu, and the words it leaves on the widget's line. js/xenon-menu-when.js draws it. Pure.
 
-const LayerWhen = require('../js/layer-when.js');
+const LayerWhen = require('../js/layers/layer-when.js');
 const { k } = require('./menu-rows.js');
 
 // The everyday ones first: a person reads this list once, from the top.

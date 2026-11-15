@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const Anchor = require('../capabilities/layer-anchor.js');
 const { validateAction } = require('../js/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');

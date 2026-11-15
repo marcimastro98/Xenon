@@ -238,7 +238,7 @@ test('a row that opens is a stop on the keyboard path', () => {
 });
 
 test('the widget window carries what the window needs, in order', () => {
-  const layer = read('../js/layer-tiles.js');
+  const layer = read('../js/layers/layer-tiles.js');
   const entry = layer.slice(layer.indexOf("disk: tile('disk'"), layer.indexOf("devclean: tile('devclean'"));
   assert.ok(entry.includes("'styles/liquid-sheets.css'"));
   assert.ok(entry.indexOf("'js/dialog-focus.js'") > 0 && entry.indexOf("'js/dialog-focus.js'") < entry.indexOf("'js/disk-widget.js'"));

@@ -1132,7 +1132,7 @@ test('the webcam row says where the bubble shows once a corner is picked', () =>
 });
 
 test('a tab hidden from its row hides the whole box: the switch goes to the first member', async () => {
-  const LayersModel = require('../js/layers-model.js');
+  const LayersModel = require('../js/layers/layers-model.js');
   const member = (id, off) => ({ id, kind: 'tile', widget: 'weather', instance: id, surface: 'desktop', rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 }, group: 'lt_tabs01', ...(off ? { off: true } : {}) });
   const seen = LayersModel.normalize({ widgets: [member('lw_tab00001', true), member('lw_tab00002', false)] }).widgets;
   assert.deepEqual(seen.map((w) => w.off === true), [true, true], 'one box, one state');

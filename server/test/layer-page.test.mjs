@@ -1,5 +1,5 @@
 // server/layer-page.js: the light layer page carries the built-in tiles placed
-// on its surface that it can (js/layer-tiles.js), with only their files.
+// on its surface that it can (js/layers/layer-tiles.js), with only their files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -9,8 +9,8 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayerPage = require('../layer-page.js');
-const LayersModel = require('../js/layers-model.js');
-const LayerTiles = require('../js/layer-tiles.js');
+const LayersModel = require('../js/layers/layers-model.js');
+const LayerTiles = require('../js/layers/layer-tiles.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const HTML = read('../layer-lite.html');
 const DASHBOARD = read('../index.html');
@@ -32,7 +32,7 @@ test('the weather tile brings its styles before the themes and its script before
   const css = page.indexOf('href="components/WeatherModal/WeatherModal.css"');
   assert.ok(css > 0 && css < page.indexOf('href="styles/themes-light.css"'), 'themes still win');
   const js = page.indexOf('src="js/system.js"');
-  assert.ok(js > page.indexOf('src="js/custom-widget.js"') && js < page.indexOf('src="js/layer-host.js"'));
+  assert.ok(js > page.indexOf('src="js/custom-widget.js"') && js < page.indexOf('src="js/layers/layer-host.js"'));
   assert.doesNotMatch(page, /<!-- tile (styles|scripts) -->/);
 });
 
@@ -76,7 +76,7 @@ test('System and weather together: markup in the body, each file once, index.htm
   assert.equal(page.split('src="js/system.js"').length, 2, 'system.js once');
   assert.equal(page.split('src="js/network.js"').length, 2);
   assert.equal(page.split('SystemPanel/SystemPanel.css').length, 2);
-  assert.ok(page.indexOf('src="js/network.js"') < page.indexOf('src="js/layer-lite-tiles.js"'));
+  assert.ok(page.indexOf('src="js/network.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
   assert.doesNotMatch(page, /<!-- tile (styles|markup|scripts) -->/);
   assert.equal(LayerPage.needsDashboardHtml(['weather']), true);
   assert.equal(LayerPage.needsDashboardHtml(['system', 'weather']), true);
@@ -102,7 +102,7 @@ test('the Media tile comes cut from the dashboard, with its lyrics and waveform 
   assert.doesNotMatch(page, /topbar-media|lyrics-stage|lyrics-translation|calendar\.js/);
   // Each module before the code that drives it.
   assert.ok(page.indexOf('src="js/lyrics-core.js"') < page.indexOf('src="js/media-lyrics.js"'));
-  assert.ok(page.indexOf('src="js/media-viz.js"') < page.indexOf('src="js/layer-lite-tiles.js"'));
+  assert.ok(page.indexOf('src="js/media-viz.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
   // The Liquid player: its look, its progress line and the note of an empty cover.
   assert.ok(page.includes('href="components/MediaPanel/LiquidPlayer.css"'));
   assert.ok(page.indexOf('src="js/media.js"') < page.indexOf('src="js/media-progress.js"'));
@@ -118,5 +118,5 @@ test('the Game performance tile comes cut from the dashboard, sharing system.js 
   assert.equal(page.split('src="js/system.js"').length, 2, 'system.js once');
   assert.ok(page.includes('href="components/PerfWidget/PerfWidget.css"'));
   assert.ok(page.indexOf('src="js/system.js"') < page.indexOf('src="js/perf-widget.js"'), 'units before the tile');
-  assert.ok(page.indexOf('src="js/perf-widget.js"') < page.indexOf('src="js/layer-lite-tiles.js"'));
+  assert.ok(page.indexOf('src="js/perf-widget.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
 });

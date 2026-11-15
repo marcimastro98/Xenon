@@ -1,4 +1,4 @@
-// js/layer-lite-tiles.js: the built-in tiles the light layer page carries keep
+// js/layers/layer-lite-tiles.js: the built-in tiles the light layer page carries keep
 // the user's card choices, the language and the live data, the way the
 // dashboard keeps them, and do nothing when their code was not served.
 import { test } from 'node:test';
@@ -8,9 +8,9 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { makeDom } from './mini-dom.mjs';
 
-const LayerTiles = createRequire(import.meta.url)('../js/layer-tiles.js');
+const LayerTiles = createRequire(import.meta.url)('../js/layers/layer-tiles.js');
 
-const SRC = readFileSync(new URL('../js/layer-lite-tiles.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/layers/layer-lite-tiles.js', import.meta.url), 'utf8');
 
 function systemTile(document) {
   const tile = document.createElement('aside');
@@ -281,7 +281,7 @@ test('perf beside the System tile: both get every system tick', () => {
   assert.equal(b.calls.applied.length, 1);
 });
 
-// The Agenda's tabs as the light page drives them (js/layer-lite-tiles.js
+// The Agenda's tabs as the light page drives them (js/layers/layer-lite-tiles.js
 // refreshAgenda): a tab whose own tile is on this page leaves the Agenda.
 function bootAgenda() {
   const { document } = makeDom();

@@ -32,7 +32,7 @@ function parseTempTokens(spec) {
 }
 
 // The fixed text in the markup under `root`, in the current language. The light
-// layer page (js/layer-lite.js) runs this on the tiles it carries; the rest of
+// layer page (js/layers/layer-lite.js) runs this on the tiles it carries; the rest of
 // applyTranslations() redraws dashboard parts it does not have.
 function translateStatic(root) {
   root.querySelectorAll('[data-i18n]').forEach(el => {

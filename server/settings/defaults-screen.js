@@ -2,7 +2,7 @@
 // lyrics, the top bar, widget layers and the upcoming list.
 
 const TopbarLook = require('../js/topbar-look.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const { WEATHER_FIELDS_ALL_ON } = require('../weather/fields-all-on.js');
 
 const HUB_DEFAULTS_SCREEN = Object.freeze({
@@ -48,7 +48,7 @@ const HUB_DEFAULTS_SCREEN = Object.freeze({
   topbarRailsAutoHide: true,
   // The bar's look in every style (js/topbar-look.js owns the rules).
   topbarLook: TopbarLook.DEFAULTS,
-  // Widgets outside the dashboard (js/layers-model.js owns the rules).
+  // Widgets outside the dashboard (js/layers/layers-model.js owns the rules).
   layers: LayersModel.DEFAULTS,
   // Dynamic Island personalization (Settings → Dynamic Island). Visibility is
   // shared by Full + Minimal; order/anchor apply to the Minimal capsule. The

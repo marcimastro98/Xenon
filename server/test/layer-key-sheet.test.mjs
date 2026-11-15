@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const SRC = readFileSync(new URL('../js/layer-key.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/layers/layer-key.js', import.meta.url), 'utf8');
 const ARM_MS = 600;
 
 function element(tag) {

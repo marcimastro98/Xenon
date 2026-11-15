@@ -1,8 +1,8 @@
 //! What the dashboard asks the shell to draw, validated at the boundary: the
 //! `xenon-app:layers-sync?d=<json>` payload and the `xenon-app:layer-rects`
 //! report of a layer page. Both arrive from our own loopback page, but they are
-//! still wire data: keys follow the same rule as `server/js/layer-host.js`,
-//! numbers are clamped like `server/js/layers-model.js`, and anything else is
+//! still wire data: keys follow the same rule as `server/js/layers/layer-host.js`,
+//! numbers are clamped like `server/js/layers/layers-model.js`, and anything else is
 //! dropped rather than guessed.
 
 use serde::Deserialize;

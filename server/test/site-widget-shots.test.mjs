@@ -9,7 +9,7 @@ import { SCENE_PLAN, backdropHtml } from '../../tools/site-shots/desktop-scene.m
 import * as aiFixtures from '../../tools/tile-previews/fixtures-ai.mjs';
 
 const require = createRequire(import.meta.url);
-const LayerTiles = require('../js/layer-tiles.js');
+const LayerTiles = require('../js/layers/layer-tiles.js');
 
 const NOW = Date.UTC(2026, 10, 5, 12);
 const GRID_COLS = 24;

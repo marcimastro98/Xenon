@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const L = require('../js/layers-model.js');
+const L = require('../js/layers/layers-model.js');
 const P = require('../layer-pages.js');
 
 const W = (id, over = {}) => ({ id, kind: 'tile', widget: 'weather', surface: 'desktop', rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.3 }, ...over });

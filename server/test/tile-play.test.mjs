@@ -75,7 +75,7 @@ test('the server, both pages and the phone rule are wired', () => {
   assert.ok(csrf.includes("'/tiles/play-claim'"), 'CSRF');
   assert.ok(engineSource('server/remote-access.js').includes("'/tiles/play-claim'"), 'phones refused');
   assert.match(read('../js/main.js'), /window\.TilePlay\.listen\(es\)/);
-  assert.match(read('../js/layer-lite.js'), /TilePlay\.listen\(es\)/);
+  assert.match(read('../js/layers/layer-lite.js'), /TilePlay\.listen\(es\)/);
   const html = read('../index.html');
   assert.ok(html.indexOf('js/tile-play.js') > 0 && html.indexOf('js/tile-play.js') < html.indexOf('js/main.js'));
   const client = read('../js/tile-play.js');

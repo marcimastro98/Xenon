@@ -11,7 +11,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const screenPin = require('../capabilities/screen-pin.js');
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const pickerLock = require('../capabilities/picker-lock.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');

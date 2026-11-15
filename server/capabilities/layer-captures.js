@@ -8,7 +8,7 @@
 // The setting is `layers.excludeFromCapture`, owned by the server like every
 // other layers field; the shell applies it to each window live. It is offered
 // only where the shell says it can keep windows out of captures at all.
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 
 function available(host) {
   return !!(host && typeof host.hides === 'function' && host.hides());

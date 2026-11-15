@@ -12,7 +12,7 @@ export function loadPerformanceMode() {
   return perf.load().then(() => (perf.loaded() ? 'loaded' : 'loaded, and no PerfMode'), (error) => `not loaded: ${error?.message || error?.type || error}`);
 }
 
-// The editor of a layer window (js/layer-host.js): the window asks for the scripts of
+// The editor of a layer window (js/layers/layer-host.js): the window asks for the scripts of
 // its list when the engine says edit mode is on, which the check turned on before it
 // opened the page. This waits until the last of them has run and the editor draws.
 export function editorStarted() {

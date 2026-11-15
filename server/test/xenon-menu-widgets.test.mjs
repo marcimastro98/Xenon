@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const View = require('../js/xenon-menu-widget-view.js');
 const XenonMenuMap = require('../js/xenon-menu-map.js');
-const LayerSee = require('../js/layer-see.js');
+const LayerSee = require('../js/layers/layer-see.js');
 globalThis.window = { XenonMenuWidgetView: View, XenonMenuMap, LayerSee, matchMedia: () => ({ matches: false }) };
 const { create, onPage } = require('../js/xenon-menu-widgets.js');
 

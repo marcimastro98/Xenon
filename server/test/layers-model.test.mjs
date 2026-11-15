@@ -1,5 +1,5 @@
 // Widgets outside the dashboard (desktop / overlay / anchored): one set of rules
-// in js/layers-model.js, shared by the client, the server and the capabilities.
+// in js/layers/layers-model.js, shared by the client, the server and the capabilities.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -7,7 +7,7 @@ import { readFileSync } from './browser-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const L = require('../js/layers-model.js');
+const L = require('../js/layers/layers-model.js');
 const { createLayersHost, REPORT_TTL_MS } = require('../layers-host.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -156,10 +156,10 @@ test('client and server both normalize layers with this one file', () => {
   const index = read('../index.html');
   assert.match(settings, /layers: LayersModel\.normalize\(null\),/);
   assert.match(settings, /layers: LayersModel\.normalize\(value\.layers\),/);
-  assert.match(server, /const LayersModel = require\('\.\/js\/layers-model\.js'\);/);
+  assert.match(server, /const LayersModel = require\('\.\/js\/layers\/layers-model\.js'\);/);
   assert.match(server, /layers: LayersModel\.DEFAULTS,/);
   assert.match(server, /layers: LayersModel\.normalize\(source\.layers\),/);
-  assert.ok(index.indexOf('src="js/layers-model.js"') < index.indexOf('src="js/settings.js"'));
+  assert.ok(index.indexOf('src="js/layers/layers-model.js"') < index.indexOf('src="js/settings.js"'));
 });
 
 test('server edits to layers run under the settings lock, bump rev and tell the other surfaces', () => {

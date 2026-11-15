@@ -61,7 +61,7 @@ test('the screens are four real devices and a way in for one screen', () => {
     assert.ok(s.includes(`href="${href}"`), href);
     assert.ok(existsSync(join(root, 'docs', href.slice(1))), href);
   }
-  assert.match(readFileSync(join(root, 'server/js/layers-model.js'), 'utf8'), /'alt\+shift\+x'/, 'the menu key the page names');
+  assert.match(readFileSync(join(root, 'server/js/layers/layers-model.js'), 'utf8'), /'alt\+shift\+x'/, 'the menu key the page names');
   for (const lang of SITE_LANGS) assert.match(I18N[lang]['one.p'], /Alt\+(Shift|Maiusc|Mayús|Maj)\+X/, `${lang} one.p`);
 });
 

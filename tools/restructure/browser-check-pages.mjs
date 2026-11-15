@@ -65,7 +65,7 @@ export const PAGES = [
   { name: 'dashboard phone', file: 'server/index.html', path: '/', probe: settingsSearchRows, width: 390, height: 844 },
   { name: 'dashboard made narrower', file: 'server/index.html', path: '/', probe: fitRows, width: 2560, height: 720, resize: DESK },
   { name: 'desktop widgets', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, ...DESK },
-  { name: 'desktop widgets in edit mode', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, edit: true, first: editorStarted, holds: 'server/js/layer-host.js', ...DESK },
+  { name: 'desktop widgets in edit mode', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, edit: true, first: editorStarted, holds: 'server/js/layers/layer-host.js', ...DESK },
   { name: 'deck window', file: 'server/deck-popup.html', path: '/deck-popup', ...DESK },
   { name: 'deck window of a second deck', file: 'server/deck-popup.html', path: '/deck-popup?instance=deck~two', probe: deckOfTheWindow, ...DESK },
   { name: 'menu', file: 'server/menu.html', path: '/menu', ...DESK },
@@ -263,7 +263,7 @@ async function ask(port, path, body) {
  * @returns {Promise<any[]>} one record per group
  */
 export async function recordWidgetPages(browser, port, page, settleMs, parser, known) {
-  const widgets = liteWidgets(await (await fetch(`http://127.0.0.1:${port}/js/layer-tiles.js`)).text());
+  const widgets = liteWidgets(await (await fetch(`http://127.0.0.1:${port}/js/layers/layer-tiles.js`)).text());
   const host = await ask(port, '/layers/host', { layers: true, monitors: [] });
   if (host?.layers !== true) throw new Error(`the test copy did not take the report that widgets can be drawn: ${JSON.stringify(host)}`);
   const records = [];

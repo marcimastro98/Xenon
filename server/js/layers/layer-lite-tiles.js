@@ -1,6 +1,6 @@
 'use strict';
 
-// The built-in tiles the light layer page carries (js/layer-tiles.js), kept in
+// The built-in tiles the light layer page carries (js/layers/layer-tiles.js), kept in
 // step with the settings and the live data the way the dashboard keeps them.
 // Each acts only when the server put that tile's code in the page
 // (layer-page.js), so on a page without tiles this file does nothing. Most

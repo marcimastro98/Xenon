@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const LayerDrag = require('../js/layer-drag.js');
-const LayersModel = require('../js/layers-model.js');
+const LayerDrag = require('../js/layers/layer-drag.js');
+const LayersModel = require('../js/layers/layers-model.js');
 
 const AREA = { w: 1000, h: 500 };
 const START = { x: 400, y: 200, w: 200, h: 100 };

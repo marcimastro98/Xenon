@@ -82,7 +82,7 @@
     wrap.append(head, main, svg, state, hw);
     mount.replaceChildren(wrap);
     // Over a game the window is cut to the words, and they have nothing to press, so
-    // clicks go through them to whatever lies under (js/layer-host.js).
+    // clicks go through them to whatever lies under (js/layers/layer-host.js).
     if (overGame()) {
       wrap.setAttribute('data-layer-fit', '');
       wrap.setAttribute('data-layer-through', '');

@@ -3,8 +3,8 @@
 // Games page", "show it when I play", "show Work on desktop 2". The edits are server/layer-pages.js;
 // deps are the same as capabilities/layers.js ({ layers: { get, update } }).
 const P = require('../layer-pages.js');
-const { normalize } = require('../js/layers-model.js');
-const LayerWhen = require('../js/layer-when.js');
+const { normalize } = require('../js/layers/layers-model.js');
+const LayerWhen = require('../js/layers/layer-when.js');
 
 const failed = (res) => ({ ok: false, error: (res && res.error) || 'failed', ...(res && res.choices ? { choices: res.choices } : {}) });
 

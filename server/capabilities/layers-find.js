@@ -2,8 +2,8 @@
 // Finds what a layer request means: the widget it names, the one already placed, its page and
 // its monitor, and how a placed widget is described back.
 
-const LayersModel = require('../js/layers-model.js');
-const LayerWhen = require('../js/layer-when.js');
+const LayersModel = require('../js/layers/layers-model.js');
+const LayerWhen = require('../js/layers/layer-when.js');
 const DeckShortcuts = require('../js/deck-shortcuts.js');
 const LayerPages = require('../layer-pages.js');
 const WidgetOptions = require('../widget-options/options.js');

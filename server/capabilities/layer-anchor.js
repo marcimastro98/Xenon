@@ -9,7 +9,7 @@
 //   windows  () → { windows: [{ app, title, active, icon }] } — the open
 //            windows (runWindowsTool 'list'). A title is only matched against
 //            what the person said: it is never returned, stored or logged.
-const LayersModel = require('../js/layers-model.js');
+const LayersModel = require('../js/layers/layers-model.js');
 const Layers = require('./layers.js');
 
 const CORNERS = Object.freeze({ 'top-right': 'tr', 'top-left': 'tl', 'bottom-right': 'br', 'bottom-left': 'bl' });
