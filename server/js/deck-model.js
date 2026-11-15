@@ -1333,7 +1333,7 @@ function evaluateKeyState(state, snapshot) {
     case 'speakerMuted':  return !!snapshot.speakerMuted;
     // The lighting system's master switch (Settings → Lighting, a Lights on/off key).
     case 'lightsOn':      return !!snapshot.lightsOn;
-    // A benchmark recording the game's frame times (server/benchmark.js).
+    // A benchmark recording the game's frame times (server/performance/benchmark.js).
     case 'benchmarkRunning': return !!snapshot.benchmarkRunning;
     // A screen or window recording in progress (server/recorder.js).
     case 'recordingOn': return !!snapshot.recordingOn;

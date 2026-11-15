@@ -1,5 +1,5 @@
 'use strict';
-// "Why does it stutter?" (server/stutter-why.js): the answer now, for a Deck
+// "Why does it stutter?" (server/performance/stutter-why.js): the answer now, for a Deck
 // key or Bit, and the same answer as a toast on this PC's screens.
 //
 // deps.stutter (injected):

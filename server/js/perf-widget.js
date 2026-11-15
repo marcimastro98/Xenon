@@ -4,9 +4,9 @@
 // (js/perf-hud.js). Fed by SSE 'perf' (four times a second, only while a game runs
 // and a tile shows it; seed: GET /perf), the 'system' tick for the hardware and
 // 'perf_net' for ping and packet loss. Over a game it is text and nothing else.
-// Between games it shows the last one played (server/game-sessions.js, carried
+// Between games it shows the last one played (server/performance/game-sessions.js, carried
 // by the idle reading as `last`) and how it compares with the time before.
-// While a benchmark records (server/benchmark.js), the head says so, with the time.
+// While a benchmark records (server/performance/benchmark.js), the head says so, with the time.
 // While the game stutters, one line under the graph says why (stutter-why.js).
 // Built once per tile, then only text and one path change, because this tile is
 // meant to sit over a game and every repaint there costs the game a little.
@@ -111,7 +111,7 @@
     return t('perf_idle', 'Start a game to see its frame rate.');
   }
 
-  // The game that runs while the reading is idle (server/perf-stream.js `game`).
+  // The game that runs while the reading is idle (server/performance/perf-stream.js `game`).
   function runningGame() {
     const g = perf.active !== true && typeof perf.game === 'string' ? perf.game.trim() : '';
     return g.slice(0, 120).replace(/\.exe$/i, '');
@@ -122,7 +122,7 @@
     return l && typeof l === 'object' && Number(l.avgFps) > 0 ? l : null;
   }
 
-  // "Why does it stutter?" while it does (server/stutter-why.js, `why` in the
+  // "Why does it stutter?" while it does (server/performance/stutter-why.js, `why` in the
   // reading, held for two system ticks): the cause in a few words, worded like
   // the toast. A smooth or capped game needs no line.
   function whyText() {
@@ -241,7 +241,7 @@
     tiles().forEach((tile) => { const r = refsFor(tile); if (r) { paintSystem(r); if (!perf.active) paintPerf(r); } });
   }
 
-  // Ping and packet loss, sent only while someone chose them (server/perf-net.js).
+  // Ping and packet loss, sent only while someone chose them (server/performance/perf-net.js).
   function onNet(d) {
     if (!d || typeof d !== 'object') return;
     net = d;

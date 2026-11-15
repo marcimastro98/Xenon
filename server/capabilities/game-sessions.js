@@ -1,5 +1,5 @@
 'use strict';
-// Game-session capabilities: the log of games played (server/game-sessions.js)
+// Game-session capabilities: the log of games played (server/performance/game-sessions.js)
 // read and compared by Xenon AI, and switched on, off or cleared.
 //
 // deps (injected):

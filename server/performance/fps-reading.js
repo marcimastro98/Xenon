@@ -2,7 +2,7 @@
 // Turns the frame times kept for a program into what the dashboard shows: its frames per
 // second, its frame statistics, and the frames since a moment.
 
-const { frameStats, toFrameTimes, cleanFrameTimes } = require('../frame-stats.js');
+const { frameStats, toFrameTimes, cleanFrameTimes } = require('./frame-stats.js');
 
 const SAMPLE_WINDOW_MS = 2000;   // a process must have presented this recently
 

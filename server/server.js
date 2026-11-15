@@ -26,8 +26,8 @@ if (process.platform !== 'win32') process.umask(0o077);
 const { privateTmpDir } = require('./private-tmp');
 const { nativeCollectors } = require('./system/native-collectors.js');
 const { POWERSHELL_SUPPORTED } = require('./powershell/supported.js');
-const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
-require('./fps-demand');
+const fpsMonitor = require('./performance/fps-monitor'); // PresentMon on Windows, MangoHud on Linux
+require('./performance/fps-demand');
 // Single-screen capabilities (js/capability-catalog.js): one declaration, run
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
@@ -49,16 +49,16 @@ const { readFailed, heardMedia, reportedApps, afterPress, PRESS_HOLDS_MS, cacheL
 const { pressMediaKey, tellApp, createMediaSender } = require('./media/media-key.js');
 const micUse = require('./audio/mic-use');
 const { isOwnApp } = require('./capabilities/layer-anchor');
-const { createPerfStream } = require('./perf-stream');
+const { createPerfStream } = require('./performance/perf-stream');
 require('./system/packet-loss');
-require('./perf-net');
-const { createStutterWatch } = require('./stutter-why');
-require('./exclusive-hint');
-const { createGameSessions } = require('./game-sessions');
+require('./performance/perf-net');
+const { createStutterWatch } = require('./performance/stutter-why');
+require('./performance/exclusive-hint');
+const { createGameSessions } = require('./performance/game-sessions');
 require('./time/calendar-reminders');
 const listOps = require('./list-ops');
 const sceneImages = require('./ambient/scene-images');
-const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
+const { createBenchmark, resolveDocumentsDir } = require('./performance/benchmark');
 require('./capture-host');
 const { createCaptures } = require('./captures');
 const { createCaptureGallery } = require('./capture-gallery');
@@ -488,7 +488,7 @@ const AiToolGroups = require('./ai-tool-groups'); // Bit's tools: a core + group
 const aiTurnRecord = require('./ai-turn-record');  // what Bit really did in a reply, kept in the chat history
 const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_deck_action)
 const _deckConfirms = aiDeckRun.createConfirmStore();
-const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
+const perfScreen = require('./performance/perf-screen');  // Performance Mode with no dashboard (widgets only)
 require('./alerts/screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 require('./ambient/scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads

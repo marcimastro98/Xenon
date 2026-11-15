@@ -1,4 +1,4 @@
-// server/game-sessions.js: one summary per game played, and the comparison the
+// server/performance/game-sessions.js: one summary per game played, and the comparison the
 // tile and Xenon AI read. Every frame counted once, short or empty sessions
 // dropped, a bad file never a crash.
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createGameSessions, normalizeSession, compareSessions, widgetSnapshot, MAX_SESSIONS, MIN_SESSION_MS } = require('../game-sessions.js');
+const { createGameSessions, normalizeSession, compareSessions, widgetSnapshot, MAX_SESSIONS, MIN_SESSION_MS } = require('../performance/game-sessions.js');
 
 const MIN = 60 * 1000;
 

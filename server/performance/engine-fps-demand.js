@@ -1,7 +1,7 @@
 // The engine's rule for when the FPS reader runs and when it pauses.
 
-const fpsMonitor = require('../fps-monitor.js');
-const { createFpsDemand } = require('../fps-demand.js');
+const fpsMonitor = require('./fps-monitor.js');
+const { createFpsDemand } = require('./fps-demand.js');
 const { sseClients } = require('../http/sse-clients.js');
 
 // PresentMon runs an ETW tracing session, so it reads only while a dashboard is

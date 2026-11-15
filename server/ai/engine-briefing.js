@@ -1,6 +1,6 @@
 // The engine's proactive moments: heat that lasts and the recap of a game session.
 
-const fpsMonitor = require('../fps-monitor.js');
+const fpsMonitor = require('../performance/fps-monitor.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { createBriefingEngine } = require('../briefing.js');
 const { hub } = require('../settings/current.js');

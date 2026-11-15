@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createReaderLog, createStderrTail } = require('../fps-reader-log.js');
+const { createReaderLog, createStderrTail } = require('../performance/fps-reader-log.js');
 
 function rig() {
   const lines = [];

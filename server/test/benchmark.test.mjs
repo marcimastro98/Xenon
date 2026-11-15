@@ -1,4 +1,4 @@
-// server/benchmark.js: a frame-time recording of the running game, saved as a
+// server/performance/benchmark.js: a frame-time recording of the running game, saved as a
 // CSV. Pinned here: every frame lands once and in order, the file name can never
 // leave its folder, a run ends by itself when the game does, a run too short to
 // mean anything writes nothing, and the timer exists only while recording.
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createBenchmark, toCsv, fileNameFor, safeName, resolveDocumentsDir, POLL_MS, MAX_MS } = require('../benchmark.js');
+const { createBenchmark, toCsv, fileNameFor, safeName, resolveDocumentsDir, POLL_MS, MAX_MS } = require('../performance/benchmark.js');
 
 // fpsmon's read-by-mark contract: the first read primes, later reads return
 // what arrived since the mark.

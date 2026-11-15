@@ -1,6 +1,6 @@
 // Settings → Performance → Games played: the last games, newest first, each
 // with its average FPS, 1% low, length, and how it compares with the time
-// before in the same game (server/game-sessions.js, GET /perf/sessions). A
+// before in the same game (server/performance/game-sessions.js, GET /perf/sessions). A
 // driver update or a patch shows up as "12 FPS more than the time before"
 // without picking anything. Read-only: names and numbers, so a paired device
 // sees the same list.

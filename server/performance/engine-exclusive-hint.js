@@ -1,7 +1,7 @@
 // The engine's one notice per game that exclusive full screen hides the widgets over it.
 
-const fpsMonitor = require('../fps-monitor.js');
-const { createExclusiveHint } = require('../exclusive-hint.js');
+const fpsMonitor = require('./fps-monitor.js');
+const { createExclusiveHint } = require('./exclusive-hint.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const LayersModel = require('../js/layers-model.js');
 const { hub } = require('../settings/current.js');

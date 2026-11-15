@@ -57,5 +57,5 @@ if (process.platform === 'linux') {
     configPath: impl.configPath,
   };
 } else {
-  module.exports = { ...require('./fpsmon'), backend: process.platform === 'win32' ? 'presentmon' : null };
+  module.exports = { ...require('../fpsmon'), backend: process.platform === 'win32' ? 'presentmon' : null };
 }

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { diagnose, hitchesOf, capOf, createStutterWatch, REASONS, SENTENCES } = require('../stutter-why.js');
+const { diagnose, hitchesOf, capOf, createStutterWatch, REASONS, SENTENCES } = require('../performance/stutter-why.js');
 
 // 600 frames at `ms`, with `spikes` frames of `spikeMs` spread through them.
 function frames(ms, spikes = 0, spikeMs = 80) {

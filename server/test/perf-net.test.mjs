@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createPerfNet } = require('../perf-net.js');
+const { createPerfNet } = require('../performance/perf-net.js');
 const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 
 function rig({ wanted = true, reading = { ping: 12, loss: 0, downloadBps: 5 } } = {}) {

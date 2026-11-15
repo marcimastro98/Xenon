@@ -307,7 +307,7 @@ function postponeAutoUpdate() {
         if (window.CustomWidget) window.CustomWidget.onData('system', d);
       } catch {}
     });
-    // The live frame rate (server/perf-stream.js): only while a game runs and a
+    // The live frame rate (server/performance/perf-stream.js): only while a game runs and a
     // perf tile is in use or a package holds the `perf` grant.
     es.addEventListener('perf', e => {
       try {
@@ -316,13 +316,13 @@ function postponeAutoUpdate() {
         if (window.CustomWidget) window.CustomWidget.onData('perf', d);
       } catch {}
     });
-    // Ping and packet loss, when the tile was told to show them (server/perf-net.js).
+    // Ping and packet loss, when the tile was told to show them (server/performance/perf-net.js).
     es.addEventListener('perf_net', e => {
       try {
         if (window.PerfWidget) window.PerfWidget.onNet(JSON.parse(e.data));
       } catch {}
     });
-    // A benchmark started or ended (server/benchmark.js): one toast each.
+    // A benchmark started or ended (server/performance/benchmark.js): one toast each.
     es.addEventListener('benchmark', e => {
       try {
         const d = JSON.parse(e.data);

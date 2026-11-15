@@ -8,8 +8,8 @@ import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createGameSession, LINGER_MS, FAIL_BACKOFF_MS, FAST_EXIT_MS, LIVE_MS } = require('../fps-game-session.js');
-const { createFrameRing } = require('../frame-stats.js');
+const { createGameSession, LINGER_MS, FAIL_BACKOFF_MS, FAST_EXIT_MS, LIVE_MS } = require('../performance/fps-game-session.js');
+const { createFrameRing } = require('../performance/frame-stats.js');
 
 function rig() {
   const procs = [];

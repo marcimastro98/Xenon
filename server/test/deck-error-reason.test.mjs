@@ -41,7 +41,7 @@ const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
   // "Clips from marks" answers no_marks / whole_video from the gallery.
   + readFileSync(new URL('../capture-gallery.js', import.meta.url), 'utf8')
   // "Why does it stutter?" answers no_frames / too_soon before it has a reading.
-  + readFileSync(new URL('../stutter-why.js', import.meta.url), 'utf8')
+  + readFileSync(new URL('../performance/stutter-why.js', import.meta.url), 'utf8')
   // A steps recording stopped before any click answers no_steps.
   + readFileSync(new URL('../steps-recorder.js', import.meta.url), 'utf8')
   // The power mode key passes on what the OS backend says it cannot do.

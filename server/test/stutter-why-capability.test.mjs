@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const { validateAction } = require('../js/deck-actions.js');
-const { createPerfStream } = require('../perf-stream.js');
+const { createPerfStream } = require('../performance/perf-stream.js');
 
 const presentmon = { backend: 'presentmon', isAvailable: () => true, getFrameStats: () => null, getFramesSince: () => null };
 

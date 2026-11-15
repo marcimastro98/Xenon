@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createFpsDemand, PAUSE_GRACE_MS } = require('../fps-demand.js');
+const { createFpsDemand, PAUSE_GRACE_MS } = require('../performance/fps-demand.js');
 
 function rig() {
   const calls = [];

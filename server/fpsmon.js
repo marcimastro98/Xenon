@@ -23,8 +23,8 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { createGameSession } = require('./fps-game-session');
-const { createReaderLog, createStderrTail } = require('./fps-reader-log');
+const { createGameSession } = require('./performance/fps-game-session');
+const { createReaderLog, createStderrTail } = require('./performance/fps-reader-log');
 
 const {
   pickEntry, entryFps, entryStats, entryWindow, entryFramesSince, entryForGame,

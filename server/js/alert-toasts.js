@@ -203,7 +203,7 @@
     return { type: 'error', kicker, title };
   }
 
-  // "Why does it stutter?" (server/stutter-why.js, SSE `stutter_why`): the
+  // "Why does it stutter?" (server/performance/stutter-why.js, SSE `stutter_why`): the
   // cause as the title, the next step under it. Ids and numbers arrive, the
   // words are the user's language; temperatures stay out (unit preference).
   const STUTTER_REASONS = Object.freeze(['smooth', 'capped', 'vram_full', 'ram_full', 'gpu_hot', 'cpu_hot', 'gpu_bound', 'cpu_bound', 'mixed', 'no_gpu_reading', 'loading']);
@@ -275,7 +275,7 @@
   }
 
   // A game in exclusive full screen hides the widgets over it
-  // (server/exclusive-hint.js, SSE `exclusive_hint`): why, and the fix.
+  // (server/performance/exclusive-hint.js, SSE `exclusive_hint`): why, and the fix.
   function exclusiveHint(d, ctx) {
     if (!d || typeof d !== 'object') return null;
     return {

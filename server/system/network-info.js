@@ -2,7 +2,7 @@
 // ping and the share of lost packets; two dashboards asking together share one reading.
 
 const { nativeCollectors } = require('./native-collectors.js');
-const fpsMonitor = require('../fps-monitor.js');
+const fpsMonitor = require('../performance/fps-monitor.js');
 const { NETWORK_FRESH_MS } = require('./timings.js');
 const { NETWORK_SCRIPT } = require('./script-paths.js');
 const { runCollector } = require('./pwsh-worker.js');

@@ -44,7 +44,7 @@ const HEAD_BYTES = 8192;
 const {
   parseLogColumns, elapsedToMs, parseLogTail, fpsFromRows, programFromLogName, isIgnoredProgram,
   configLines, mergeConfig,
-} = require('./performance/mangohud-log.js');
+} = require('./mangohud-log.js');
 const POLL_MS = 1000;
 // Logs are per-run and never read again once superseded. Keeping a bounded
 // number stops a folder Xenon created from growing without limit on a machine

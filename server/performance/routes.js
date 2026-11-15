@@ -1,11 +1,11 @@
 // What the engine answers about game mode and the performance screen.
 
-const fpsMonitor = require('../fps-monitor.js');
+const fpsMonitor = require('./fps-monitor.js');
 const gameDetect = require('../gamedetect.js');
-const perfScreen = require('../perf-screen.js');
+const perfScreen = require('./perf-screen.js');
 const { readBody } = require('../http/read-body.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const { widgetSnapshot: widgetGameSessions } = require('../game-sessions.js');
+const { widgetSnapshot: widgetGameSessions } = require('./game-sessions.js');
 const { gameSessionsEnabled } = require('./game-sessions-switch.js');
 const { execFile } = require('node:child_process');
 const path = require('node:path');

@@ -1,6 +1,6 @@
 'use strict';
 // Benchmark capability: start or stop a frame-time recording of the running
-// game (server/benchmark.js), or show the last saved file in the file manager.
+// game (server/performance/benchmark.js), or show the last saved file in the file manager.
 // The result names the file, never its path.
 //
 // deps (injected):

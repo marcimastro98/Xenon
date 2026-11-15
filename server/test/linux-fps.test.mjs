@@ -15,7 +15,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const {
   createLinuxFps, parseLogColumns, parseLogTail, fpsFromRows, elapsedToMs,
   programFromLogName, isIgnoredProgram, mergeConfig, findMangoHud,
-} = require(join(ROOT, 'linux-fps.js'));
+} = require(join(ROOT, 'performance/linux-fps.js'));
 
 const HEADER = 'fps,frametime,cpu_load,gpu_load,cpu_temp,gpu_temp,gpu_core_clock,gpu_mem_clock,gpu_vram_used,gpu_power,ram_used,swap_used,process_rss,elapsed';
 const SYSINFO = [

@@ -1,4 +1,4 @@
-// server/perf-stream.js: the `perf` SSE behind the Game performance tile. It
+// server/performance/perf-stream.js: the `perf` SSE behind the Game performance tile. It
 // must cost nothing when no game runs or nothing shows it, and must tell a tile
 // once, at once, that the game ended.
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createPerfStream, snapshot, INTERVAL_MS, GRAPH_FRAMES } = require('../perf-stream.js');
+const { createPerfStream, snapshot, INTERVAL_MS, GRAPH_FRAMES } = require('../performance/perf-stream.js');
 
 function fakeFps(over = {}) {
   const state = { fps: 120, ...over };

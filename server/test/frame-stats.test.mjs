@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { frameStats, toFrameTimes, createFrameRing, createFrameHistogram, MIN_FRAMES_LOW1, MIN_FRAMES_LOW01 } = require('../frame-stats.js');
+const { frameStats, toFrameTimes, createFrameRing, createFrameHistogram, MIN_FRAMES_LOW1, MIN_FRAMES_LOW01 } = require('../performance/frame-stats.js');
 const { entryStats, entryWindow, entryFramesSince, entryForGame } = require('../fpsmon.js');
 
 const frames = (n, ms) => Array.from({ length: n }, () => ms);

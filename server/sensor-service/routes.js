@@ -6,7 +6,7 @@
 
 const { instance } = require('./reader.js');
 const fpsAccess = require('./fps-access.js');
-const fpsMonitor = require('../fps-monitor.js');
+const fpsMonitor = require('../performance/fps-monitor.js');
 
 async function fpsAccessState() {
   try { return fpsMonitor.backend === 'presentmon' && fpsMonitor.isAvailable() ? await fpsAccess.instance().refresh() : null; }

@@ -2,7 +2,7 @@
 // The frames the FPS reader keeps for each process PresentMon reports: the entry of a process,
 // the rows added to it, and a PresentMon stream cut into rows.
 
-const { createFrameRing } = require('../frame-stats.js');
+const { createFrameRing } = require('./frame-stats.js');
 const { parseHeader, rowValues } = require('./presentmon-rows.js');
 
 const MAX_SAMPLES = 240;         // rolling frame-time samples kept per process

@@ -751,7 +751,7 @@
       {"file":"server/performance/fps-entries.js","about":"The frames the FPS reader keeps for each process PresentMon reports: the entry of a process, the rows added to it, and a PresentMon stream cut into rows.","names":["MAX_SAMPLES","RING_FRAMES","_csv","_byPid","entryFor","record","handleGameRow","push","readRows","_gameCsv"]},
       {"file":"server/performance/presentmon-session.js","about":"The names of Xenon's own ETW sessions for PresentMon, and how a session that a killed PresentMon left behind is stopped.","names":["ETW_SESSION_NAME","GAME_SESSION_NAME","stopEtwSession"]}
     ],
-    "server/linux-fps.js": [
+    "server/performance/linux-fps.js": [
       {"file":"server/performance/mangohud-log.js","about":"Reads MangoHud's log files on Linux: the columns, the newest rows as frames per second, the program a log belongs to, and Xenon's lines merged into its config.","names":["ROW_WINDOW_MS","IGNORE_RE","parseLogColumns","elapsedToMs","parseLogTail","fpsFromRows","programFromLogName","isIgnoredProgram","configLines","mergeConfig"]}
     ],
     "server/file-transfer.js": [

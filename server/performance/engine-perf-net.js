@@ -1,7 +1,7 @@
 // The engine's ping and packet loss for the performance tile, read only when someone chose to
 // see them.
 
-const { createPerfNet } = require('../perf-net.js');
+const { createPerfNet } = require('./perf-net.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const PerfHud = require('../js/perf-hud.js');
 const { getNetworkInfo } = require('../system/network-info.js');

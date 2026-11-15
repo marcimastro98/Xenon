@@ -13,7 +13,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const PerfSettings = require('../js/perf-settings.js');
-const perfScreen = require('../perf-screen.js');
+const perfScreen = require('../performance/perf-screen.js');
 const DriverPerf = require('../js/driver-perf.js');
 const AlertToasts = require('../js/alert-toasts.js');
 const aiSurface = require('../ai-surface.js');

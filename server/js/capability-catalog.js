@@ -44,7 +44,7 @@ const CAPABILITIES = [
     },
   },
 
-  // "Why does it stutter?" (server/stutter-why.js): local rules over the frame
+  // "Why does it stutter?" (server/performance/stutter-why.js): local rules over the frame
   // times and the PC's readings, one cause and a next step. A Deck key because
   // it is asked mid-game; the answer is a toast, and Bit words it by voice.
   {
@@ -59,7 +59,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Game sessions (server/game-sessions.js): one summary per game played, kept
+  // Game sessions (server/performance/game-sessions.js): one summary per game played, kept
   // on this PC. Read and compared by voice; switched or cleared from Settings,
   // a Deck key or the voice.
   {
@@ -117,7 +117,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Benchmark (server/benchmark.js): every frame time of the running game, from
+  // Benchmark (server/performance/benchmark.js): every frame time of the running game, from
   // a start to a stop, saved as a CSV in Documents/Xenon/Benchmark. A Deck key
   // because it is pressed mid-game; the file is shown, never sent.
   {

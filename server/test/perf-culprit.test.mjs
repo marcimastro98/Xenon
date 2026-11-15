@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { pickCulprit, createCulpritWatch, READ_EVERY_MS } = require('../perf-session/culprit.js');
-const { createStutterWatch } = require('../stutter-why.js');
+const { createStutterWatch } = require('../performance/stutter-why.js');
 
 const APPS = [
   { proc: 'racer', memMB: 9000, cpuPct: 60 },

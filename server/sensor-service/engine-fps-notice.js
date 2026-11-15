@@ -1,6 +1,6 @@
 // The engine's one pop-up per version about the Windows permission that FPS needs.
 
-const fpsMonitor = require('../fps-monitor.js');
+const fpsMonitor = require('../performance/fps-monitor.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { APP_VERSION } = require('../updates/app-version.js');
 const { DATA_DIR } = require('../engine/paths.js');

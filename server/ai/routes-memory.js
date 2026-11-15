@@ -18,7 +18,7 @@ const aiCli = require('../ai-cli.js');
 const gameDetect = require('../gamedetect.js');
 const { listScreens } = require('../screens/list-screens.js');
 const { companionState } = require('./companion-state.js');
-const fpsMonitor = require('../fps-monitor.js');
+const fpsMonitor = require('../performance/fps-monitor.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

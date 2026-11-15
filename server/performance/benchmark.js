@@ -14,7 +14,7 @@
 
 const path = require('path');
 const { createFrameHistogram, MIN_FRAMES_LOW1 } = require('./frame-stats');
-const { resolveUserFolder } = require('./platform/user-folders');
+const { resolveUserFolder } = require('../platform/user-folders');
 
 const POLL_MS = 1000;
 const MAX_MS = 30 * 60 * 1000;

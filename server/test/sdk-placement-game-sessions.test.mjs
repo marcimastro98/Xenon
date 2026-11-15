@@ -22,7 +22,7 @@ const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url));
 // The engine as text wherever its code lives now: a route's test may stand in a table's list.
 const SERVER = engineSource();
 const { SDK_STREAMS } = require('../sdk-widgets.js');
-const { widgetSnapshot, normalizeSession, compareSessions } = require('../game-sessions.js');
+const { widgetSnapshot, normalizeSession, compareSessions } = require('../performance/game-sessions.js');
 const { remotePathAllowed } = require('../remote-access.js');
 
 // The placement code, run as written: from its constant to the end of postPlacement.

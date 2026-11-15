@@ -96,7 +96,7 @@ test('wiring: the dashboard builds its pop-ups here, not inline', () => {
 });
 
 test('"why does it stutter?": every server reason is worded, in all 11 languages, numbers filled', () => {
-  const server = createRequire(import.meta.url)('../stutter-why.js');
+  const server = createRequire(import.meta.url)('../performance/stutter-why.js');
   assert.deepEqual([...A.STUTTER_REASONS], [...server.REASONS]);
   const i18n = appStringsSource();
   for (const r of A.STUTTER_REASONS) {

@@ -42,7 +42,7 @@
 const os = require('os');
 // Shared with linux-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
-const procStats = require('./process-stats');
+const procStats = require('./performance/process-stats');
 
 const { run, runSoft } = require('./platform/darwin-read.js');
 

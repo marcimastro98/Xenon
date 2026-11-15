@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { aggregate, topUnion } = require(join(ROOT, 'server', 'process-stats.js'));
+const { aggregate, topUnion } = require(join(ROOT, 'server', 'performance/process-stats.js'));
 const linux = require(join(ROOT, 'server', 'linux-collectors.js'));
 const darwin = require(join(ROOT, 'server', 'darwin-collectors.js'));
 

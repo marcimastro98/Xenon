@@ -83,7 +83,7 @@ test('the server wires it: switch, game, and no card with the on-screen window o
 });
 
 test('the session log tells the card when the game started', () => {
-  const { createGameSessions } = require('../game-sessions.js');
+  const { createGameSessions } = require('../performance/game-sessions.js');
   let t = 1000;
   const s = createGameSessions({
     file: 'unused.json', fps: {}, enabled: () => true, now: () => t,

@@ -4,7 +4,7 @@
 // The OS decides here and nowhere else; everything below this file has one job.
 
 const os = require('os');
-const { aggregate } = require('../process-stats');
+const { aggregate } = require('../performance/process-stats');
 const { createWindowsProcessTable } = require('./process-table-windows');
 const { createPowerPlan } = require('./power-plan');
 const { createPriority } = require('./priority');

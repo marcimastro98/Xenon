@@ -1,7 +1,7 @@
 // What a pressed global shortcut tells the dashboards: flip to a page, or say that nothing can
 // open over a game in exclusive full screen.
 
-const fpsMonitor = require('../fps-monitor.js');
+const fpsMonitor = require('../performance/fps-monitor.js');
 const { overExclusive } = require('../capabilities/over-screen.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 

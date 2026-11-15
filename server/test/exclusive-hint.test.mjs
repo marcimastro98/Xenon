@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createExclusiveHint } = require('../exclusive-hint.js');
+const { createExclusiveHint } = require('../performance/exclusive-hint.js');
 const { rowValues, parseHeader } = require('../fpsmon.js');
 
 function setup({ exclusive = true, overlay = true } = {}) {

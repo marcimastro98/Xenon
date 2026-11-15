@@ -4,7 +4,7 @@
 
 const { processesWanted } = require('./feeds-wanted.js');
 const { readBody } = require('../http/read-body.js');
-const perfScreen = require('../perf-screen.js');
+const perfScreen = require('./perf-screen.js');
 const aiLocal = require('../ai-local.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
