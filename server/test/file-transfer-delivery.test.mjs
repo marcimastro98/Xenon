@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FT = require(join(HERE, '..', 'file-transfer.js'));
+const FT = require(join(HERE, '..', 'transfer/file-transfer.js'));
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-inbox-'));

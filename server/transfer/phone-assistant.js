@@ -1,6 +1,6 @@
 // What the assistant may do with the phone: look a contact up, start a call, write a message.
 
-const callDetect = require('../call-detect.js');
+const callDetect = require('./call-detect.js');
 const aiPcApps = require('../ai/ai-pc-apps.js');
 const { phoneSettings } = require('./phone-settings.js');
 const { phone } = require('./engine-phone.js');

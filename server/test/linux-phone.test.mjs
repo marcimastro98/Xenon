@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const lp = require('../linux-phone.js');
+const lp = require('../transfer/linux-phone.js');
 
 // Only the parsing and the choosing are testable off Linux, so that is where
 // the weight goes — and it is the right place: the D-Bus calls are one line

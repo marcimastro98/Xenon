@@ -2,7 +2,7 @@
 // opening, revealing and deleting one, undoing a delete, and the settings with the folder they
 // land in.
 
-const fileTransferLib = require('../file-transfer.js');
+const fileTransferLib = require('./file-transfer.js');
 const fs = require('node:fs');
 const { TRANSFER_THUMB_MAX } = require('./limits.js');
 const { readBody } = require('../http/read-body.js');

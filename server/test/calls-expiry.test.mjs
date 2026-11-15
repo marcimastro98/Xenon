@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const calls = require('../calls.js');
+const calls = require('../transfer/calls.js');
 
 const START = Date.UTC(2026, 0, 15, 10, 0, 0);
 const toast = (caller) => ({ app: 'Microsoft Teams', aumid: 'MSTeams_8wekyb3d8bbwe!MSTeams', title: caller, body: 'Incoming call' });

@@ -10,7 +10,7 @@ import os from 'node:os';
 // shared /tmp where another local user could pre-create or read them.
 const require = createRequire(import.meta.url);
 const { privateTmpDir, privateTmpFile, usableRuntimeDir } = require('../files/private-tmp.js');
-const lp = require('../linux-phone.js');
+const lp = require('../transfer/linux-phone.js');
 
 const posix = process.platform !== 'win32';
 

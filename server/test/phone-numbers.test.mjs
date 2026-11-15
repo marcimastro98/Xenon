@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const num = require('../phone-numbers.js');
+const num = require('../transfer/phone-numbers.js');
 
 // The weight here is on the REFUSALS. Putting a friend's name on a bank's SMS
 // sender, or on a stranger's call, is worse than showing a bare number: the

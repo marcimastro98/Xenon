@@ -355,7 +355,7 @@ const audioLevels = require('./audio/audio-levels');
 const winNotif = require('./notification-open/winnotif');
 const { lowerPriority } = require('./programs/child-priority');
 const { createMountedDisks } = require('./disk/mounted-disks');
-const calls = require('./calls');
+const calls = require('./transfer/calls');
 const wakeWord = require('./ai/wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const signalrgb = require('./lights/signalrgb');
@@ -391,9 +391,9 @@ const { createFeatureUnlock } = require('./store-supporters/feature-unlock');
 const { createTrialPass } = require('./store-supporters/trial-pass');
 const { createTrialVault } = require('./store-supporters/trial-vault');
 require('./search/mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
-const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
+const fileTransferLib = require('./transfer/file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 require('./search/living-index');       // the Living Index: helper-held in-RAM file index + watchers
-require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
+require('./transfer/phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
 require('./search/linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./disk/linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/store-catalog/content-installs'); // validated import receipts shared with Settings

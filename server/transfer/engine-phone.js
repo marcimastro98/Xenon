@@ -1,8 +1,8 @@
 // The engine's phone: calls, messages and contacts of the phone linked to this PC.
 
 const { broadcastSSE } = require('../http/sse-clients.js');
-const calls = require('../calls.js');
-const { createPhone } = require('../phone.js');
+const calls = require('./calls.js');
+const { createPhone } = require('./phone.js');
 const { HELPER_EXE } = require('../engine/paths.js');
 const { phoneSettings } = require('./phone-settings.js');
 

@@ -1,7 +1,7 @@
 // The settings for incoming calls as the calls module reads them: which apps count, and which
 // the user turned off.
 
-const callDetect = require('../call-detect.js');
+const callDetect = require('./call-detect.js');
 const { hub } = require('../settings/current.js');
 
 // ── Incoming calls ──────────────────────────────────────────────────────────

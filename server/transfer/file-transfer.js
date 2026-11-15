@@ -41,30 +41,30 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { makeKeptWrite } = require('./files/kept-write.js');
-const { parseXdgUserDirs } = require('./disk/diskspace.js');
+const { makeKeptWrite } = require('../files/kept-write.js');
+const { parseXdgUserDirs } = require('../disk/diskspace.js');
 
 const STORE_VERSION = 1;
-const { DEFAULT_MAX_BYTES, receiveStream } = require('./transfer/receive-stream.js');
+const { DEFAULT_MAX_BYTES, receiveStream } = require('./receive-stream.js');
 const DEFAULT_QUOTA_BYTES = 8 * 1024 * 1024 * 1024;
 const DEFAULT_KEEP_MS = 14 * 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_FILES = 200;
 const DEFAULT_MAX_INFLIGHT = 4;
-const { PROGRESS_MIN_MS, INFLIGHT_STALE_MS } = require('./transfer/inflight-limits.js');
+const { PROGRESS_MIN_MS, INFLIGHT_STALE_MS } = require('./inflight-limits.js');
 
 const ID_RE = /^f[0-9a-f]{16}$/;
 
 const {
   EXT_RE, stripDangerous, clampUtf8, label, sender, extOf, deliveryName, contentDisposition,
-} = require('./transfer/file-names.js');
+} = require('./file-names.js');
 
 const {
   FILE_RE, validInboxDir, deliverToInbox, ZONE_IDENTIFIER, markFromInternet,
-} = require('./transfer/inbox-delivery.js');
+} = require('./inbox-delivery.js');
 
 const {
   MEDIA_MIME, FORCED_OCTET, downloadMimeFor, isThumbable, kindOf,
-} = require('./transfer/file-kinds.js');
+} = require('./file-kinds.js');
 
 /**
  * The user's Downloads folder, without shelling out to PowerShell (which would
@@ -121,11 +121,11 @@ function defaultInboxDir(opts) {
 
 // ── the store ────────────────────────────────────────────────────────────────
 
-const { makeInflight } = require('./transfer/inflight-uploads.js');
+const { makeInflight } = require('./inflight-uploads.js');
 
-const { makeRecords } = require('./transfer/store-records.js');
+const { makeRecords } = require('./store-records.js');
 
-const { makeLoad } = require('./transfer/store-load.js');
+const { makeLoad } = require('./store-load.js');
 
 /**
  * @param {object} o

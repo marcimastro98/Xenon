@@ -2,7 +2,7 @@
 
 // ── The paired phone on Linux ───────────────────────────────────────────────
 // The twin of the helper's `phone-serve` mode, answering the SAME ops with the
-// SAME shapes, so server/phone.js keeps one code path and gains a transport
+// SAME shapes, so server/transfer/phone.js keeps one code path and gains a transport
 // rather than a branch.
 //
 // Nothing here is compiled and nothing new is installed, and that is not
@@ -34,11 +34,11 @@ const { buildBMessage } = require('./phone-messages');
 // SMS/phonebook exchange files go in a per-process 0700 directory with random
 // names (see private-tmp.js): the old predictable /tmp names let another local
 // user pre-create the file and read a phonebook or swap an outgoing SMS.
-const { privateTmpFile } = require('./files/private-tmp');
+const { privateTmpFile } = require('../files/private-tmp');
 
 const {
   runBusctl, dbusErrorName, dbusValue, parseManagedObjects, dbusRows, firstObjectPath,
-} = require('./transfer/linux-phone-dbus.js');
+} = require('./linux-phone-dbus.js');
 
 // ── busctl ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ const {
 
 const {
   PBAP_UUID, MAP_UUID, pickPhone, parseModems, pickModem, parseCalls, callState,
-} = require('./transfer/linux-phone-parse.js');
+} = require('./linux-phone-parse.js');
 
 // The message folders this reads, by name. An allowlist rather than passing a
 // caller's string through: a folder name becomes a SetFolder on the user's
@@ -62,7 +62,7 @@ const FOLDERS = Object.freeze({
 
 // ── The transport ───────────────────────────────────────────────────────────
 
-const { makeObex } = require('./transfer/linux-phone-obex.js');
+const { makeObex } = require('./linux-phone-obex.js');
 
 function createLinuxPhone(opts) {
   const o = opts || {};

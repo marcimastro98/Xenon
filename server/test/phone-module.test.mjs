@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createPhone, SUPPORTED_PLATFORMS, platformAllowed } = require('../phone.js');
+const { createPhone, SUPPORTED_PLATFORMS, platformAllowed } = require('../transfer/phone.js');
 
 // The module's contract, exercised without a helper or a phone. The weight is
 // on the answers it gives when it CANNOT do something, because those are the

@@ -36,9 +36,9 @@
 // channel, so it is what a ringing call looks like on the RPC feed.
 const DISCORD_MESSAGE_TYPE_CALL = 3;
 
-const { RING_PHRASES, NOT_RINGING, VIDEO_PHRASES } = require('./transfer/call-phrases.js');
+const { RING_PHRASES, NOT_RINGING, VIDEO_PHRASES } = require('./call-phrases.js');
 
-const { DEFAULT_APPS } = require('./transfer/call-apps.js');
+const { DEFAULT_APPS } = require('./call-apps.js');
 
 // ── Text folding ────────────────────────────────────────────────────────────
 

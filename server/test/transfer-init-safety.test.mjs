@@ -28,7 +28,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const ft = require(path.join(here, '..', 'file-transfer.js'));
+const ft = require(path.join(here, '..', 'transfer/file-transfer.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SERVER = engineSource();
 const WIDGET = read('../js/transfer-widget.js');

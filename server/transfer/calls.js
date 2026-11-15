@@ -38,17 +38,17 @@ const callDetect = require('./call-detect');
 
 const {
   comboFor, entryFor, capabilitiesFor, projectCall,
-} = require('./transfer/call-capabilities.js');
+} = require('./call-capabilities.js');
 
 // ── The live state ─────────────────────────────────────────────────────────
 
-const { callState } = require('./transfer/calls-state.js');
+const { callState } = require('./calls-state.js');
 
 const {
   RING_TIMEOUT_MS, DEDUPE_MS, MAX_ACTIVE, _settings, enabled, _broadcast, _rearm, _ring, _endByKey,
-} = require('./transfer/calls-ring.js');
+} = require('./calls-ring.js');
 
-const { act } = require('./transfer/calls-act.js');
+const { act } = require('./calls-act.js');
 
 function init(deps) { callState.deps = deps && typeof deps === 'object' ? deps : null; }
 

@@ -264,7 +264,15 @@
     {"from":"server/stream-youtube.js","to":"server/streaming/stream-youtube.js"},
     {"from":"server/football-creds.js","to":"server/ticker/football-creds.js"},
     {"from":"server/news-creds.js","to":"server/ticker/news-creds.js"},
-    {"from":"server/stocks-creds.js","to":"server/ticker/stocks-creds.js"}
+    {"from":"server/stocks-creds.js","to":"server/ticker/stocks-creds.js"},
+    {"from":"server/call-detect.js","to":"server/transfer/call-detect.js"},
+    {"from":"server/calls.js","to":"server/transfer/calls.js"},
+    {"from":"server/file-transfer.js","to":"server/transfer/file-transfer.js"},
+    {"from":"server/linux-phone.js","to":"server/transfer/linux-phone.js"},
+    {"from":"server/phone-messages.js","to":"server/transfer/phone-messages.js"},
+    {"from":"server/phone-numbers.js","to":"server/transfer/phone-numbers.js"},
+    {"from":"server/phone-vcard.js","to":"server/transfer/phone-vcard.js"},
+    {"from":"server/phone.js","to":"server/transfer/phone.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -316,6 +324,11 @@
     {"feature":"streaming","glob":"server/stream-creds.js","at":3},
     {"feature":"ticker","glob":"server/stocks*.js","at":1},
     {"feature":"ticker","glob":"server/football*.js","at":2},
-    {"feature":"ticker","glob":"server/news*.js","at":3}
+    {"feature":"ticker","glob":"server/news*.js","at":3},
+    {"feature":"phone","glob":"server/phone*.js","at":1},
+    {"feature":"phone","glob":"server/calls.js","at":2},
+    {"feature":"phone","glob":"server/call-detect.js","at":3},
+    {"feature":"phone","glob":"server/linux-phone.js","at":4},
+    {"feature":"phone","glob":"server/file-transfer.js","at":5}
   ]
 }

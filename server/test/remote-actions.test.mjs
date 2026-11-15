@@ -233,9 +233,9 @@ test('dangerous file types are not opened, documents and media are', () => {
 });
 
 test('a file from another device carries the internet mark on Windows', async () => {
-  const ft = require('../file-transfer.js');
+  const ft = require('../transfer/file-transfer.js');
   assert.equal(ft.ZONE_IDENTIFIER, '[ZoneTransfer]\r\nZoneId=3\r\n');
-  const src = engineSource('server/file-transfer.js');
+  const src = engineSource('server/transfer/file-transfer.js');
   assert.equal((src.match(/await markFromInternet\(dest, o\.platform\);/g) || []).length, 2, 'both delivery paths');
   // Off Windows it writes nothing.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-motw-'));

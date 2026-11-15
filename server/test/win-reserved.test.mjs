@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { isWindowsReservedName } = require('../files/win-reserved.js');
-const FT = require('../file-transfer.js');
+const FT = require('../transfer/file-transfer.js');
 const sp = require('../store-catalog/sound-packs.js');
 const ip = require('../store-catalog/icon-packs.js');
 

@@ -3,15 +3,15 @@
 // when testing is turned on.
 
 const { readBody } = require('../http/read-body.js');
-const callDetect = require('../call-detect.js');
-const calls = require('../calls.js');
+const callDetect = require('./call-detect.js');
+const calls = require('./calls.js');
 const { callsSettings } = require('./calls-settings.js');
 const winNotif = require('../notification-open/winnotif.js');
 const { discordMirror } = require('../discord/mirrored.js');
 const fs = require('node:fs');
 const { DATA_DIR } = require('../engine/paths.js');
 const { TRANSFER_DISK_HEADROOM } = require('./limits.js');
-const fileTransferLib = require('../file-transfer.js');
+const fileTransferLib = require('./file-transfer.js');
 const { refuseUpload } = require('./refuse-upload.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 

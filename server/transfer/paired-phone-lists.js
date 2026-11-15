@@ -2,9 +2,9 @@
 // What is pulled from the paired phone and kept: the phonebook, the call log, a folder of
 // messages and one message's text, each cached and never pulled on a timer, and a message sent.
 
-const vcard = require('../phone-vcard.js');
-const numbers = require('../phone-numbers.js');
-const messages = require('../phone-messages.js');
+const vcard = require('./phone-vcard.js');
+const numbers = require('./phone-numbers.js');
+const messages = require('./phone-messages.js');
 const {
   CONTACTS_TTL_MS, CALLS_TTL_MS, REFRESH_MIN_MS, MAX_CONTACTS, MAX_CALLS, MESSAGES_TTL_MS,
   MAX_MESSAGES, MAX_MESSAGE_CHARS,

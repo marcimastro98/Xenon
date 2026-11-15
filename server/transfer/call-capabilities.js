@@ -2,7 +2,7 @@
 // What can be done with a ringing call from the dashboard, per app and system, and the call as
 // the page sees it.
 
-const callDetect = require('../call-detect.js');
+const callDetect = require('./call-detect.js');
 
 // Teams moves its shortcuts to Command on macOS, Zoom keeps Control there. That
 // is why each entry carries an explicit `mac` rather than a rule — deriving it

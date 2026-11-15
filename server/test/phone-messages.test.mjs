@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const msgs = require('../phone-messages.js');
+const msgs = require('../transfer/phone-messages.js');
 
 // The listing and the bMessage below are verbatim captures from a paired
 // iPhone. They are here rather than invented because both formats have a detail

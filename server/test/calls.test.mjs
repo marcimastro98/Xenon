@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const calls = require('../calls.js');
+const calls = require('../transfer/calls.js');
 
 // The capability table is the contract between "we detected a call" and "the
 // card shows a button". Every false here is a button that must NOT be drawn,

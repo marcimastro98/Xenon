@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createPhone } = require('../phone.js');
+const { createPhone } = require('../transfer/phone.js');
 
 const BMSG = 'BEGIN:BMSG\r\nVERSION:1.0\r\nTYPE:SMS_GSM\r\n'
   + 'BEGIN:VCARD\r\nFN:Tester\r\nEND:VCARD\r\n'

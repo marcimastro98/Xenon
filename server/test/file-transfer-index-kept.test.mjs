@@ -13,7 +13,7 @@ import os from 'node:os';
 import { basename, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const FT = require('../file-transfer.js');
+const FT = require('../transfer/file-transfer.js');
 
 const tmp = () => fs.mkdtempSync(join(os.tmpdir(), 'xenon-xfer-kept-'));
 

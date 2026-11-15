@@ -2,7 +2,7 @@
 // What can be done with a call on the paired phone, and whether the phone said it can: the name
 // behind a number, the device's name, answering, hanging up and dialling.
 
-const numbers = require('../phone-numbers.js');
+const numbers = require('./phone-numbers.js');
 
 function makeCalls({ supported, cache, enabled, request }) {
   // Public name resolution, for the incoming-call card and anything else that

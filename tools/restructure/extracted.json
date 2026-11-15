@@ -754,7 +754,7 @@
     "server/performance/linux-fps.js": [
       {"file":"server/performance/mangohud-log.js","about":"Reads MangoHud's log files on Linux: the columns, the newest rows as frames per second, the program a log belongs to, and Xenon's lines merged into its config.","names":["ROW_WINDOW_MS","IGNORE_RE","parseLogColumns","elapsedToMs","parseLogTail","fpsFromRows","programFromLogName","isIgnoredProgram","configLines","mergeConfig"]}
     ],
-    "server/file-transfer.js": [
+    "server/transfer/file-transfer.js": [
       {"file":"server/transfer/file-kinds.js","about":"What kind of file a transferred file is: the closed list of types served as themselves, the ones always served as a plain download, and the ones that get a thumbnail.","names":["MEDIA_MIME","FORCED_OCTET","THUMBABLE","downloadMimeFor","isThumbable","kindOf"]},
       {"file":"server/transfer/file-names.js","about":"The name of a transferred file: the label a person sees, never a path, the extension by shape, the name it is delivered under and the download header.","names":["MAX_LABEL","MAX_NAME_BYTES","EXT_RE","stripDangerous","clampUtf8","label","extOf","deliveryName","contentDisposition"]},
       {"file":"server/transfer/inbox-delivery.js","about":"Delivers a received file into the folder the user chose on the PC: the folder checked, a free name found, and the file marked as coming from outside.","names":["FILE_RE","underPath","validInboxDir","deliverToInbox","ZONE_IDENTIFIER","markFromInternet"]},
@@ -764,17 +764,17 @@
       {"file":"server/transfer/store-records.js","about":"The finished files of the transfer store: a record made from an upload, where its copy went, what the list shows of it, its removal and its return, and retention, which removes only a copy the user also has elsewhere.","names":["restore","commit","markDelivered","publicOf","list","absOf","remove","discardBlob","prune","stats"],"inner":{"factory":"createFileTransfer","make":"makeRecords"}},
       {"file":"server/transfer/store-load.js","about":"The transfer store read at start: the manifest checked record by record against the files that are really there, so a crash leaves a missing file and never one nobody can see or delete.","names":["init"],"inner":{"factory":"createFileTransfer","make":"makeLoad"}}
     ],
-    "server/call-detect.js": [
+    "server/transfer/call-detect.js": [
       {"file":"server/transfer/call-phrases.js","about":"The words in a notification that mean a call is ringing, that it is not, and that it is a video call, in the languages the apps use.","names":["RING_PHRASES","NOT_RINGING","VIDEO_PHRASES"]},
       {"file":"server/transfer/call-apps.js","about":"The apps whose notifications can be a call, with how each is named and what it can be asked to do.","names":["DEFAULT_APPS"]}
     ],
-    "server/calls.js": [
+    "server/transfer/calls.js": [
       {"file":"server/transfer/call-capabilities.js","about":"What can be done with a ringing call from the dashboard, per app and system, and the call as the page sees it.","names":["comboFor","entryFor","capabilitiesFor","projectCall"]},
       {"file":"server/transfer/calls-state.js","about":"What the phone-call relay remembers while the engine runs: who gave it its helpers, the calls in progress, and the timer that drops old ones.","names":["_deps","_active","_recent","_seq","_timer","_stopped"],"state":{"object":"callState","props":{"_deps":"deps","_active":"active","_recent":"recent","_seq":"seq","_timer":"timer","_stopped":"stopped"},"kept":[],"bare":[]}},
       {"file":"server/transfer/calls-ring.js","about":"Starts and ends a ringing call for the phone-call relay: tells the dashboards, notifies the phone that is away, and drops a call nobody answered.","names":["RING_TIMEOUT_MS","DEDUPE_MS","MAX_ACTIVE","_settings","enabled","_broadcast","_rearm","_expire","_pruneRecent","_ring","PUSH_TITLE","_notifyAway","_endByKey"]},
       {"file":"server/transfer/calls-act.js","about":"What a tap on a call card does: answer, decline or hang up, by bringing the calling app forward and sending it the key, or by asking the phone.","names":["FOCUS_SETTLE_MS","_find","_drop","_focusApp","_sendToApp","act"]}
     ],
-    "server/linux-phone.js": [
+    "server/transfer/linux-phone.js": [
       {"file":"server/transfer/linux-phone-dbus.js","about":"Asks BlueZ and oFono over D-Bus with busctl on Linux, and reads values and object lists out of its JSON answers.","names":["CALL_TIMEOUT_MS","runBusctl","dbusErrorName","dbusValue","parseManagedObjects","dbusRows","firstObjectPath"]},
       {"file":"server/transfer/linux-phone-parse.js","about":"Picks the paired phone and its modem out of what D-Bus lists on Linux, and reads the calls and their state.","names":["PBAP_UUID","MAP_UUID","hasUuid","pickPhone","parseModems","pickModem","RINGING_STATES","ACTIVE_STATES","parseCalls","callState"]},
       {"file":"server/transfer/linux-phone-limits.js","about":"How long a pull of the phone book from a paired phone may take on Linux, and how often it is asked whether it is done.","names":["PULL_TIMEOUT_MS","PULL_POLL_MS"]},
@@ -935,7 +935,7 @@
       {"file":"server/streaming/youtube-video-rows.js","about":"How the YouTube lists are read: the cache of a list, a thumbnail that must be https, a duration in seconds, the token of a page, and one video or channel made into the row the dashboard shows.","names":["cacheGet","cacheSet","thumb","isoSeconds","pageArg","pageQs","nextToken","detailsFor","videoDetail","channelIdOf","mapVideo"],"inner":{"factory":"createYouTubeProvider","make":"makeVideoRows"}},
       {"file":"server/streaming/youtube-sign-in.js","about":"Signing in to YouTube from a screen with no keyboard: the code shown, the wait for the phone, the token renewed, the channel's name, what the dashboard is told, and signing out.","names":["configured","startDeviceLogin","pollDeviceToken","refresh","fetchChannel","status","logout"],"inner":{"factory":"createYouTubeProvider","make":"makeSignIn"}}
     ],
-    "server/phone.js": [
+    "server/transfer/phone.js": [
       {"file":"server/transfer/paired-phone-limits.js","about":"The paired phone's limits: how long each pull is kept, how soon it may be asked again, how many rows are kept, and how long the helper is given.","names":["RETRY_MS","REQ_TIMEOUT_MS","CONTACTS_TTL_MS","CALLS_TTL_MS","REFRESH_MIN_MS","STATUS_TTL_MS","MAX_CONTACTS","MAX_CALLS","MESSAGES_TTL_MS","MAX_MESSAGES","MAX_MESSAGE_CHARS"]},
       {"file":"server/transfer/paired-phone-lists.js","about":"What is pulled from the paired phone and kept: the phonebook, the call log, a folder of messages and one message's text, each cached and never pulled on a timer, and a message sent.","names":["contacts","calls","msgCache","messageList","messageBody","sendMessage","withName","byName"],"inner":{"factory":"createPhone","make":"makeLists"},"bare":["./phone-vcard","./phone-messages"]},
       {"file":"server/transfer/paired-phone-status.js","about":"The paired phone's state as the dashboard sees it: whether a call is coming in or running, how old each pull is, and the status read from the phone.","names":["applyCallState","publicState","staleness","status"],"inner":{"factory":"createPhone","make":"makeStatus"}},
@@ -1193,7 +1193,7 @@
       {"factory":"createEmbeddedBrowser","object":"edge","names":["lastStallRestartAt","proc","ws","ready","userAgent","widevineReady","nextId","idleTimer"],"kept":[],"bare":[],"after":7},
       {"factory":"createEmbeddedBrowser","object":"orphanSweep","names":["initialTargetId","sweepTimer"],"kept":[],"bare":[],"after":7}
     ],
-    "server/file-transfer.js": [
+    "server/transfer/file-transfer.js": [
       {"factory":"createFileTransfer","object":"caps","names":["maxBytes","quotaBytes","keepMs"],"kept":["maxBytes","quotaBytes","keepMs"],"bare":[],"after":4},
       {"factory":"createFileTransfer","object":"shelf","names":["records","usedBytes","loaded"],"kept":[],"bare":[],"after":4}
     ],

@@ -33,7 +33,7 @@ const fs = require('fs');
 const {
   RETRY_MS, REQ_TIMEOUT_MS, CONTACTS_TTL_MS, CALLS_TTL_MS, MAX_CONTACTS, MAX_CALLS, MESSAGES_TTL_MS,
   MAX_MESSAGES, MAX_MESSAGE_CHARS,
-} = require('./transfer/paired-phone-limits.js');
+} = require('./paired-phone-limits.js');
 
 // Where the Bluetooth side of this actually exists. Windows today, because the
 // helper is where the RFCOMM/OBEX client lives and only the Windows helper has
@@ -68,11 +68,11 @@ function platformAllowed(platform) {
   return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).includes(platform);
 }
 
-const { makeLists } = require('./transfer/paired-phone-lists.js');
+const { makeLists } = require('./paired-phone-lists.js');
 
-const { makeStatus } = require('./transfer/paired-phone-status.js');
+const { makeStatus } = require('./paired-phone-status.js');
 
-const { makeCalls } = require('./transfer/paired-phone-calls.js');
+const { makeCalls } = require('./paired-phone-calls.js');
 
 function createPhone(opts) {
   const o = opts || {};

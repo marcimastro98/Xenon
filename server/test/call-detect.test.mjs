@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const cd = require('../call-detect.js');
+const cd = require('../transfer/call-detect.js');
 
 // The classifier is the only thing standing between "a toast arrived" and "take
 // over the whole screen with a ringing card", and it is a HEURISTIC for every

@@ -2,7 +2,7 @@
 // What a tap on a call card does: answer, decline or hang up, by bringing the calling app
 // forward and sending it the key, or by asking the phone.
 
-const callDetect = require('../call-detect.js');
+const callDetect = require('./call-detect.js');
 const { comboFor, entryFor } = require('./call-capabilities.js');
 const { callState } = require('./calls-state.js');
 const { _settings, _broadcast, _rearm } = require('./calls-ring.js');

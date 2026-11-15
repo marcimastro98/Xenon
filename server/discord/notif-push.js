@@ -1,7 +1,7 @@
 // Sends one Discord notification to the dashboards with its number.
 
 const { broadcastSSE } = require('../http/sse-clients.js');
-const calls = require('../calls.js');
+const calls = require('../transfer/calls.js');
 const lighting = require('../lights/lighting.js');
 const { discordNotifWanted } = require('../settings/notification-switches.js');
 const { DISCORD_NOTIF_MAX } = require('./notification-limit.js');

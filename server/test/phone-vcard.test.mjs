@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const vcard = require('../phone-vcard.js');
+const vcard = require('../transfer/phone-vcard.js');
 
 // These fixtures are not invented. The first block is a verbatim capture from a
 // paired iPhone through the helper's phone-serve mode, emoji, accents and empty
