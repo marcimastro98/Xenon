@@ -3,6 +3,9 @@
   "moves": [
     {"from":"server/js/vitals-core.js","to":"server/js/vitals/vitals-core.js"},
     {"from":"server/js/vitals-pet-core.js","to":"server/js/vitals/vitals-pet-core.js"},
-    {"from":"server/js/vitals.js","to":"server/js/vitals/vitals.js"}
+    {"from":"server/js/vitals.js","to":"server/js/vitals/vitals.js"},
+    {"from":"server/js/news-widget.js","to":"server/js/ticker/news-widget.js"},
+    {"from":"server/js/stock-widget.js","to":"server/js/ticker/stock-widget.js"},
+    {"from":"server/js/ticker.js","to":"server/js/ticker/ticker.js"}
   ]
 }

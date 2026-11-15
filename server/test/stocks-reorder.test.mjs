@@ -26,7 +26,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const stocks = require(join(here, '..', 'ticker/stocks.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
-const WIDGET = read('../js/stock-widget.js');
+const WIDGET = read('../js/ticker/stock-widget.js');
 const SERVER = engineSource();
 const CSS = read('../components/StockWidget/StockWidget.css');
 const I18N = appStringsSource();

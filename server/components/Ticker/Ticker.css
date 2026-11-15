@@ -1,6 +1,6 @@
 /* Scrolling ticker bar (news / stocks / football). Fixed edge-to-edge marquee,
    bottom by default and configurable to the top. Injected as a direct <body>
-   child by js/ticker.js. Freezes (never restarts) in game / perf / overlay /
+   child by js/ticker/ticker.js. Freezes (never restarts) in game / perf / overlay /
    idle mode — see the freeze block at the end. */
 
 :root {

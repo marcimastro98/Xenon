@@ -673,15 +673,13 @@
         "server/stocks*.js",
         "server/football*.js",
         "server/news*.js",
-        "server/js/stock-widget.js",
         "server/js/football-widget/**",
         "server/js/football-widget.js",
-        "server/js/news-widget.js",
-        "server/js/ticker.js",
         "server/components/StockWidget/**",
         "server/components/FootballWidget/**",
         "server/components/NewsWidget/**",
-        "server/components/Ticker/**"
+        "server/components/Ticker/**",
+        "server/js/ticker/**"
       ]
     },
     {
