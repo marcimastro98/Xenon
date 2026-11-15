@@ -40,7 +40,6 @@
 'use strict';
 
 const os = require('os');
-const path = require('path');
 // Shared with linux-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
@@ -85,14 +84,7 @@ function refreshMacmon() {
   return held.macmonInFlight;
 }
 
-// --- the native helper: the same three numbers, with nothing to install -----
-// `xenon-helper temps` reads GPU load from IOKit's public accelerator registry
-// and the temperatures from the HID sensor services. It is preferred over
-// macmon when it answers, and macmon stays as the fallback for the machines it
-// cannot read (an Intel Mac exposes neither sensor family under those names).
-// Both paths are optional and both degrade to null, which is what the tiles
-// already render as "--".
-const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper');
+const { HELPER_EXE } = require('./platform/darwin-helper-path.js');
 
 const HELPER_MAX_FAILURES = 3;
 const HELPER_RETRY_MS = 5 * 60 * 1000;

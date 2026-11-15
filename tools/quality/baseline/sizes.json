@@ -26,7 +26,7 @@
     "server/components/WeatherTile/WeatherClassic.css": 730,
     "server/components/WhatsNew/WhatsNew.css": 745,
     "server/cpu-temp.ps1": 593,
-    "server/darwin-collectors.js": 432,
+    "server/darwin-collectors.js": 424,
     "server/deck-hotkey.ps1": 374,
     "server/disk-categories.js": 312,
     "server/diskspace.js": 335,
