@@ -1,0 +1,1025 @@
+{
+  "name": "claude-widget",
+  "page": "/",
+  "width": 1600,
+  "height": 1800,
+  "seed": {
+    "language": "en",
+    "surfaceChoice": {
+      "kind": "auto",
+      "asked": true,
+      "monitor": "",
+      "label": ""
+    },
+    "usageMode": "dashboard",
+    "onboarding": {
+      "seenVersion": 999
+    },
+    "bootSplash": false,
+    "whatsNewSeen": "5.0.0",
+    "releaseNotesSeen": "99.0.0"
+  },
+  "answers": {
+    "/api/claude": {
+      "json": {
+        "live": {
+          "sessions": [
+            {
+              "id": "7f3a91c2-5d10-4be8-a1f0-2c9e6b7d4e11",
+              "project": "harbor-shop",
+              "name": "Checkout totals",
+              "branch": "fix/cart-rounding",
+              "state": "waiting",
+              "startedAt": 1767223320000,
+              "ageMs": 40000,
+              "waitFor": {
+                "kind": "permission",
+                "forMs": 40000
+              },
+              "terminal": true,
+              "modCommands": true,
+              "permissionMode": "acceptEdits",
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "contextPct": 42,
+              "linesAdded": 128,
+              "linesRemoved": 37,
+              "cost": 2.18,
+              "todos": [
+                {
+                  "status": "done",
+                  "text": "Reproduce the rounding error"
+                },
+                {
+                  "status": "done",
+                  "text": "Add a failing test"
+                },
+                {
+                  "status": "doing",
+                  "text": "Round once, at the end"
+                },
+                {
+                  "status": "todo",
+                  "text": "Push the branch"
+                }
+              ],
+              "activity": [
+                {
+                  "tool": "Read",
+                  "detail": "src/cart/total.ts",
+                  "ms": 400,
+                  "at": 1767225180000
+                },
+                {
+                  "tool": "Edit",
+                  "detail": "src/cart/total.ts",
+                  "ms": 900,
+                  "at": 1767225360000
+                },
+                {
+                  "tool": "Bash",
+                  "detail": "npm test",
+                  "ms": 41000,
+                  "at": 1767225480000
+                }
+              ],
+              "subagents": [
+                {
+                  "id": "a1",
+                  "type": "Explore",
+                  "desc": "Find every rounding call",
+                  "model": "claude-sonnet-5-5",
+                  "status": "done",
+                  "tools": 14,
+                  "tokens": 48000,
+                  "endedMs": 360000
+                },
+                {
+                  "id": "a2",
+                  "type": "Review",
+                  "desc": "Check the receipts stay the same",
+                  "model": "claude-opus-5-5",
+                  "status": "running",
+                  "tool": "Read",
+                  "detail": "test/receipts.test.ts",
+                  "tools": 6,
+                  "tokens": 21000,
+                  "ageMs": 120000
+                }
+              ]
+            },
+            {
+              "id": "b81c44e0-92aa-47f1-8e6d-1a2b3c4d5e6f",
+              "project": "tide-tables",
+              "name": "Offline mode",
+              "branch": "main",
+              "state": "running",
+              "startedAt": 1767224880000,
+              "ageMs": 4000,
+              "tool": "Edit",
+              "toolDetail": "src/sync/queue.ts",
+              "toolForMs": 3000,
+              "runForMs": 21000,
+              "model": "claude-sonnet-5-5",
+              "cost": 0.64,
+              "terminal": true,
+              "modCommands": true
+            },
+            {
+              "id": "e93a7b10-6f2c-4d11-b7a4-0f1e2d3c4b5a",
+              "project": "field-notes",
+              "name": "Search index",
+              "state": "idle",
+              "startedAt": 1767218400000,
+              "ageMs": 540000,
+              "model": "claude-opus-5-5",
+              "cost": 1.12
+            }
+          ],
+          "approvals": [
+            {
+              "id": "p1",
+              "kind": "permission",
+              "sessionId": "7f3a91c2-5d10-4be8-a1f0-2c9e6b7d4e11",
+              "project": "harbor-shop",
+              "model": "claude-opus-5-5",
+              "tool": "Bash",
+              "detail": "git push origin fix/cart-rounding",
+              "risks": [
+                "publish"
+              ],
+              "expiresInMs": 480000
+            },
+            {
+              "id": "q1",
+              "kind": "question",
+              "urgent": true,
+              "sessionId": "b81c44e0-92aa-47f1-8e6d-1a2b3c4d5e6f",
+              "project": "tide-tables",
+              "model": "claude-sonnet-5-5",
+              "expiresInMs": 360000,
+              "questions": [
+                {
+                  "header": "Storage",
+                  "question": "Where should offline changes wait?",
+                  "multiSelect": false,
+                  "options": [
+                    {
+                      "label": "In memory",
+                      "description": "Lost on a reload"
+                    },
+                    {
+                      "label": "On disk",
+                      "description": "Kept until sent"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "x1",
+              "kind": "plan",
+              "sessionId": "e93a7b10-6f2c-4d11-b7a4-0f1e2d3c4b5a",
+              "project": "field-notes",
+              "model": "claude-opus-5-5",
+              "plan": "## Index\n\n1. Read the notes\n2. Build the index\n3. Test the search",
+              "choices": [
+                "default",
+                "acceptEdits"
+              ],
+              "expiresInMs": 540000
+            }
+          ],
+          "limits": {
+            "fiveHour": {
+              "pct": 34,
+              "resetsAt": 4102444800
+            },
+            "sevenDay": {
+              "pct": 58,
+              "resetsAt": 4102444800
+            }
+          },
+          "mod": {
+            "version": "0.4.0",
+            "ageMs": 2000
+          }
+        },
+        "usage": {
+          "today": {
+            "tokens": 18400000
+          },
+          "week": {
+            "tokens": 96200000
+          },
+          "window": {
+            "days": 30,
+            "startsAt": 1764633600000,
+            "dataFrom": 1764633600000,
+            "tokens": 412000000,
+            "cost": 318.4
+          },
+          "cacheHitRate": 0.86,
+          "daily": [
+            {
+              "day": "2025-12-19",
+              "date": "2025-12-19",
+              "tokens": 14000000,
+              "cacheRead": 9800000
+            },
+            {
+              "day": "2025-12-20",
+              "date": "2025-12-20",
+              "tokens": 15000000,
+              "cacheRead": 10500000
+            },
+            {
+              "day": "2025-12-21",
+              "date": "2025-12-21",
+              "tokens": 16000000,
+              "cacheRead": 11200000
+            },
+            {
+              "day": "2025-12-22",
+              "date": "2025-12-22",
+              "tokens": 17000000,
+              "cacheRead": 11900000
+            },
+            {
+              "day": "2025-12-23",
+              "date": "2025-12-23",
+              "tokens": 18000000,
+              "cacheRead": 12600000
+            },
+            {
+              "day": "2025-12-24",
+              "date": "2025-12-24",
+              "tokens": 19000000,
+              "cacheRead": 13300000
+            },
+            {
+              "day": "2025-12-25",
+              "date": "2025-12-25",
+              "tokens": 20000000,
+              "cacheRead": 14000000
+            },
+            {
+              "day": "2025-12-26",
+              "date": "2025-12-26",
+              "tokens": 21000000,
+              "cacheRead": 14700000
+            },
+            {
+              "day": "2025-12-27",
+              "date": "2025-12-27",
+              "tokens": 22000000,
+              "cacheRead": 15400000
+            },
+            {
+              "day": "2025-12-28",
+              "date": "2025-12-28",
+              "tokens": 23000000,
+              "cacheRead": 16100000
+            },
+            {
+              "day": "2025-12-29",
+              "date": "2025-12-29",
+              "tokens": 24000000,
+              "cacheRead": 16800000
+            },
+            {
+              "day": "2025-12-30",
+              "date": "2025-12-30",
+              "tokens": 25000000,
+              "cacheRead": 17500000
+            },
+            {
+              "day": "2025-12-31",
+              "date": "2025-12-31",
+              "tokens": 26000000,
+              "cacheRead": 18200000
+            },
+            {
+              "day": "2026-01-01",
+              "date": "2026-01-01",
+              "tokens": 27000000,
+              "cacheRead": 18900000
+            }
+          ],
+          "sessions": []
+        },
+        "budget": {
+          "weekly": 0
+        },
+        "titles": {},
+        "runs": []
+      }
+    },
+    "/api/claude/link": {
+      "json": {
+        "ok": true,
+        "linked": true,
+        "complete": true
+      }
+    },
+    "/api/claude/unlink": {
+      "json": {
+        "ok": true,
+        "linked": false
+      }
+    },
+    "/api/claude/transcript": {
+      "json": {
+        "ok": true,
+        "messages": [
+          {
+            "role": "assistant",
+            "text": "",
+            "at": 1767225120000,
+            "tools": [
+              {
+                "tool": "Read",
+                "detail": "src/cart/total.ts"
+              },
+              {
+                "tool": "Bash",
+                "detail": "npm test -- cart"
+              }
+            ]
+          },
+          {
+            "role": "assistant",
+            "text": "Each line is rounded before it is added. I added a **failing test** with three lines at `19.99`.\n\n- one\n- two",
+            "at": 1767225300000
+          },
+          {
+            "role": "user",
+            "text": "Good. Fix it and keep the receipts the same.",
+            "at": 1767225480000
+          }
+        ]
+      }
+    },
+    "/api/claude/projects": {
+      "json": {
+        "ok": true,
+        "projects": [
+          {
+            "id": "pr1",
+            "name": "harbor-shop",
+            "path": "D:\\Sample\\harbor-shop"
+          },
+          {
+            "id": "pr2",
+            "name": "tide-tables",
+            "path": "D:\\Sample\\tide-tables"
+          }
+        ]
+      }
+    },
+    "/api/claude/commands": {
+      "json": {
+        "ok": true,
+        "commands": [
+          {
+            "name": "review",
+            "desc": "Review the branch"
+          },
+          {
+            "name": "tools:lint",
+            "desc": "Lint the project"
+          }
+        ]
+      }
+    },
+    "/api/claude/session-commands": {
+      "json": {
+        "ok": true,
+        "commands": [
+          {
+            "name": "compact",
+            "desc": "Summarise"
+          },
+          {
+            "name": "model",
+            "desc": "Change the model"
+          },
+          {
+            "name": "review",
+            "desc": "Review the branch"
+          }
+        ]
+      }
+    },
+    "/api/claude/plan": {
+      "json": {
+        "ok": true,
+        "plan": "",
+        "at": 0
+      }
+    },
+    "/api/claude/history": {
+      "json": {
+        "ok": true,
+        "totalBytes": 3456789,
+        "sessions": [
+          {
+            "id": "h1",
+            "project": "harbor-shop",
+            "title": "Checkout totals",
+            "at": 1767139200000,
+            "bytes": 1234567
+          },
+          {
+            "id": "h2",
+            "project": "tide-tables",
+            "title": "Offline mode",
+            "at": 1767052800000,
+            "bytes": 2222222
+          }
+        ]
+      }
+    },
+    "/api/claude/decide": {
+      "json": {
+        "ok": true
+      }
+    },
+    "/api/claude/answer": {
+      "json": {
+        "ok": true
+      }
+    },
+    "/api/claude/reply": {
+      "json": {
+        "ok": true,
+        "via": "terminal"
+      }
+    },
+    "/api/claude/run": {
+      "json": {
+        "ok": true,
+        "id": "run1"
+      }
+    },
+    "/api/claude/run/stop": {
+      "json": {
+        "ok": true
+      }
+    },
+    "/api/claude/budget": {
+      "json": {
+        "ok": true,
+        "budget": {
+          "weekly": 0
+        }
+      }
+    },
+    "/api/claude/folder": {
+      "json": {
+        "ok": false,
+        "error": "not_a_folder"
+      }
+    }
+  },
+  "events": {
+    "claude": {
+      "over": {
+        "live": {
+          "sessions": [
+            {
+              "id": "7f3a91c2-5d10-4be8-a1f0-2c9e6b7d4e11",
+              "project": "harbor-shop",
+              "name": "Checkout totals",
+              "branch": "fix/cart-rounding",
+              "state": "waiting",
+              "startedAt": 1767223320000,
+              "ageMs": 40000,
+              "waitFor": {
+                "kind": "permission",
+                "forMs": 40000
+              },
+              "terminal": true,
+              "modCommands": true,
+              "permissionMode": "acceptEdits",
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "contextPct": 42,
+              "linesAdded": 128,
+              "linesRemoved": 37,
+              "cost": 2.18,
+              "todos": [
+                {
+                  "status": "done",
+                  "text": "Reproduce the rounding error"
+                },
+                {
+                  "status": "done",
+                  "text": "Add a failing test"
+                },
+                {
+                  "status": "doing",
+                  "text": "Round once, at the end"
+                },
+                {
+                  "status": "todo",
+                  "text": "Push the branch"
+                }
+              ],
+              "activity": [
+                {
+                  "tool": "Read",
+                  "detail": "src/cart/total.ts",
+                  "ms": 400,
+                  "at": 1767225180000
+                },
+                {
+                  "tool": "Edit",
+                  "detail": "src/cart/total.ts",
+                  "ms": 900,
+                  "at": 1767225360000
+                },
+                {
+                  "tool": "Bash",
+                  "detail": "npm test",
+                  "ms": 41000,
+                  "at": 1767225480000
+                }
+              ],
+              "subagents": [
+                {
+                  "id": "a1",
+                  "type": "Explore",
+                  "desc": "Find every rounding call",
+                  "model": "claude-sonnet-5-5",
+                  "status": "done",
+                  "tools": 14,
+                  "tokens": 48000,
+                  "endedMs": 360000
+                },
+                {
+                  "id": "a2",
+                  "type": "Review",
+                  "desc": "Check the receipts stay the same",
+                  "model": "claude-opus-5-5",
+                  "status": "running",
+                  "tool": "Read",
+                  "detail": "test/receipts.test.ts",
+                  "tools": 6,
+                  "tokens": 21000,
+                  "ageMs": 120000
+                }
+              ]
+            },
+            {
+              "id": "b81c44e0-92aa-47f1-8e6d-1a2b3c4d5e6f",
+              "project": "tide-tables",
+              "name": "Offline mode",
+              "branch": "main",
+              "state": "running",
+              "startedAt": 1767224880000,
+              "ageMs": 4000,
+              "tool": "Edit",
+              "toolDetail": "src/sync/queue.ts",
+              "toolForMs": 3000,
+              "runForMs": 21000,
+              "model": "claude-sonnet-5-5",
+              "cost": 0.64,
+              "terminal": true,
+              "modCommands": true
+            },
+            {
+              "id": "e93a7b10-6f2c-4d11-b7a4-0f1e2d3c4b5a",
+              "project": "field-notes",
+              "name": "Search index",
+              "state": "idle",
+              "startedAt": 1767218400000,
+              "ageMs": 540000,
+              "model": "claude-opus-5-5",
+              "cost": 1.12
+            }
+          ],
+          "approvals": [
+            {
+              "id": "p1",
+              "kind": "permission",
+              "sessionId": "7f3a91c2-5d10-4be8-a1f0-2c9e6b7d4e11",
+              "project": "harbor-shop",
+              "model": "claude-opus-5-5",
+              "tool": "Bash",
+              "detail": "git push origin fix/cart-rounding",
+              "risks": [
+                "publish"
+              ],
+              "expiresInMs": 480000
+            },
+            {
+              "id": "q1",
+              "kind": "question",
+              "urgent": true,
+              "sessionId": "b81c44e0-92aa-47f1-8e6d-1a2b3c4d5e6f",
+              "project": "tide-tables",
+              "model": "claude-sonnet-5-5",
+              "expiresInMs": 360000,
+              "questions": [
+                {
+                  "header": "Storage",
+                  "question": "Where should offline changes wait?",
+                  "multiSelect": false,
+                  "options": [
+                    {
+                      "label": "In memory",
+                      "description": "Lost on a reload"
+                    },
+                    {
+                      "label": "On disk",
+                      "description": "Kept until sent"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "x1",
+              "kind": "plan",
+              "sessionId": "e93a7b10-6f2c-4d11-b7a4-0f1e2d3c4b5a",
+              "project": "field-notes",
+              "model": "claude-opus-5-5",
+              "plan": "## Index\n\n1. Read the notes\n2. Build the index\n3. Test the search",
+              "choices": [
+                "default",
+                "acceptEdits"
+              ],
+              "expiresInMs": 540000
+            }
+          ],
+          "limits": {
+            "fiveHour": {
+              "pct": 34,
+              "resetsAt": 4102444800
+            },
+            "sevenDay": {
+              "pct": 58,
+              "resetsAt": 4102444800
+            }
+          },
+          "mod": {
+            "version": "0.4.0",
+            "ageMs": 2000
+          }
+        },
+        "usage": {
+          "today": {
+            "tokens": 18400000
+          },
+          "week": {
+            "tokens": 96200000
+          },
+          "window": {
+            "days": 30,
+            "startsAt": 1764633600000,
+            "dataFrom": 1764633600000,
+            "tokens": 412000000,
+            "cost": 318.4
+          },
+          "cacheHitRate": 0.86,
+          "daily": [
+            {
+              "day": "2025-12-19",
+              "date": "2025-12-19",
+              "tokens": 14000000,
+              "cacheRead": 9800000
+            },
+            {
+              "day": "2025-12-20",
+              "date": "2025-12-20",
+              "tokens": 15000000,
+              "cacheRead": 10500000
+            },
+            {
+              "day": "2025-12-21",
+              "date": "2025-12-21",
+              "tokens": 16000000,
+              "cacheRead": 11200000
+            },
+            {
+              "day": "2025-12-22",
+              "date": "2025-12-22",
+              "tokens": 17000000,
+              "cacheRead": 11900000
+            },
+            {
+              "day": "2025-12-23",
+              "date": "2025-12-23",
+              "tokens": 18000000,
+              "cacheRead": 12600000
+            },
+            {
+              "day": "2025-12-24",
+              "date": "2025-12-24",
+              "tokens": 19000000,
+              "cacheRead": 13300000
+            },
+            {
+              "day": "2025-12-25",
+              "date": "2025-12-25",
+              "tokens": 20000000,
+              "cacheRead": 14000000
+            },
+            {
+              "day": "2025-12-26",
+              "date": "2025-12-26",
+              "tokens": 21000000,
+              "cacheRead": 14700000
+            },
+            {
+              "day": "2025-12-27",
+              "date": "2025-12-27",
+              "tokens": 22000000,
+              "cacheRead": 15400000
+            },
+            {
+              "day": "2025-12-28",
+              "date": "2025-12-28",
+              "tokens": 23000000,
+              "cacheRead": 16100000
+            },
+            {
+              "day": "2025-12-29",
+              "date": "2025-12-29",
+              "tokens": 24000000,
+              "cacheRead": 16800000
+            },
+            {
+              "day": "2025-12-30",
+              "date": "2025-12-30",
+              "tokens": 25000000,
+              "cacheRead": 17500000
+            },
+            {
+              "day": "2025-12-31",
+              "date": "2025-12-31",
+              "tokens": 26000000,
+              "cacheRead": 18200000
+            },
+            {
+              "day": "2026-01-01",
+              "date": "2026-01-01",
+              "tokens": 27000000,
+              "cacheRead": 18900000
+            }
+          ],
+          "sessions": []
+        },
+        "budget": {
+          "weekly": 0
+        },
+        "titles": {},
+        "runs": []
+      }
+    }
+  },
+  "roots": [
+    "[data-dashboard-widget=\"claude\"]",
+    "body > .cw-overlay",
+    "#toast-island"
+  ],
+  "background": [
+    "^GET /network$",
+    "^(GET|POST) /bit/messages",
+    "^GET /index/status$",
+    "^GET /api/community/",
+    "^GET /audio$",
+    "^GET /weather",
+    "^GET /external-events$",
+    "^GET /sdk/widgets$",
+    "^POST /settings "
+  ],
+  "replace": [
+    [
+      "\\.is-glint",
+      ""
+    ],
+    [
+      "data-expires-at=\"[0-9]+\"",
+      "data-expires-at=\"n\""
+    ],
+    [
+      "[0-9]+:[0-9]{2} left",
+      "m:ss left"
+    ],
+    [
+      "\"(⎿ )?[0-9]+(d[0-9]+h|[smhd])\"",
+      "\"$1n\""
+    ],
+    [
+      "[0-9]+d[0-9]+h ago",
+      "n ago"
+    ],
+    [
+      "(animationend|transitionend):[0-9]+",
+      "$1:n"
+    ]
+  ],
+  "steps": [
+    {
+      "say": "the page has finished starting",
+      "do": "wait",
+      "ms": 3000
+    },
+    {
+      "say": "the Claude Code tile is put on the dashboard",
+      "do": "run",
+      "code": "addWidgetToPage('claude', 'dashboard')"
+    },
+    {
+      "say": "the tile has drawn the answered sessions and their decisions",
+      "do": "wait",
+      "ms": 3000
+    },
+    {
+      "say": "the urgent question takes the Other row",
+      "do": "click",
+      "on": "body > .cw-overlay .cw-opt",
+      "nth": 2
+    },
+    {
+      "say": "an answer of its own is typed",
+      "do": "fill",
+      "on": "body > .cw-overlay .cw-dec-input",
+      "text": "In a small queue file"
+    },
+    {
+      "say": "the urgent question is answered",
+      "do": "click",
+      "on": "body > .cw-overlay .cw-key.is-allow"
+    },
+    {
+      "say": "each face of the tile in turn",
+      "do": "clickEach",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-face"
+    },
+    {
+      "say": "back to the first face",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-face",
+      "nth": 0
+    },
+    {
+      "say": "each session of the rail in turn",
+      "do": "clickEach",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-rc"
+    },
+    {
+      "say": "the session with a plan to approve",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-rc:has-text(\"Search index\")"
+    },
+    {
+      "say": "the plan is approved in its first mode",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-dec.is-plan .cw-opt",
+      "nth": 0
+    },
+    {
+      "say": "the session waiting for a permission",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-rc:has-text(\"Checkout totals\")"
+    },
+    {
+      "say": "each view of the side panel",
+      "do": "clickEach",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-aside-tab"
+    },
+    {
+      "say": "an agent opens",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ag-row",
+      "nth": 0
+    },
+    {
+      "say": "the agent closes",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ag-back"
+    },
+    {
+      "say": "the permission is denied",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-dec .cw-key.is-deny",
+      "nth": 0
+    },
+    {
+      "say": "a slash opens the session commands",
+      "do": "fill",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-text",
+      "text": "/"
+    },
+    {
+      "say": "the list of the session arrives",
+      "do": "wait",
+      "ms": 800
+    },
+    {
+      "say": "the arrow moves down the list",
+      "do": "press",
+      "key": "ArrowDown"
+    },
+    {
+      "say": "Escape closes the list",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "the model command offers its models",
+      "do": "fill",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-text",
+      "text": "/model "
+    },
+    {
+      "say": "a message is typed",
+      "do": "fill",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-text",
+      "text": "Keep the receipts the same"
+    },
+    {
+      "say": "the message is sent into the session",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-send"
+    },
+    {
+      "say": "the header compacts the session",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-chip-btn"
+    },
+    {
+      "say": "a new session is asked for",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-open"
+    },
+    {
+      "say": "the projects arrive",
+      "do": "wait",
+      "ms": 800
+    },
+    {
+      "say": "the second project is chosen",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-proj",
+      "nth": 1
+    },
+    {
+      "say": "a slash opens the commands of the project",
+      "do": "fill",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-text",
+      "text": "/"
+    },
+    {
+      "say": "the list of commands arrives",
+      "do": "wait",
+      "ms": 800
+    },
+    {
+      "say": "the effort command offers its levels",
+      "do": "fill",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-text",
+      "text": "/effort "
+    },
+    {
+      "say": "a task for the new run is typed",
+      "do": "fill",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-text",
+      "text": "Tidy the tests"
+    },
+    {
+      "say": "the new run is started",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-send"
+    },
+    {
+      "say": "another folder is offered",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-proj-add"
+    },
+    {
+      "say": "a folder is typed",
+      "do": "fill",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-folder-in",
+      "text": "D:\\Sample\\nowhere"
+    },
+    {
+      "say": "the folder is refused",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-ask-proj-go"
+    },
+    {
+      "say": "the connection panel opens",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-name"
+    },
+    {
+      "say": "the connection panel closes",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"claude\"] .cw-panel-close"
+    }
+  ]
+}

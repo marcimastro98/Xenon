@@ -19,30 +19,28 @@
 // Every string here is filesystem- or Claude-derived and renders through
 // textContent / the el() factory — never innerHTML.
 (function () {
-  const { el, ageNode, optRow, tileHead, nowLine, toolsRow } = window.ClaudeWidgetLines;
+  const { el, ageNode, tileHead, nowLine, toolsRow } = window.ClaudeWidgetLines;
   const api = apiJson;      // fetch → JSON, null on failure (utils.js)
   const AK = window.ApprovalKeys;
   const {
-    t, hTok, dur, ago, fmtMoney, endedLabel, toolIntent, PLAN_CHOICE_LABEL, askedBy, stateLabel,
-    attachErrorText, replyErrorText, runErrorText,
+    t, hTok, dur, ago, fmtMoney, endedLabel, toolIntent, askedBy, stateLabel, attachErrorText,
+    replyErrorText, runErrorText,
   } = window.ClaudeWidgetWords;
 
   const {
     widgetState, live, limits, sessions, COLLAPSE_KEY, readCollapsed, isCollapsed, runs,
-    resolveAskProject, sessionById, clearAttach, promptWithAttachments, replyMode, resumeNote,
-    askSession, inLiveSession, canRunCommands, titles, runsFor, currentPlanKey, stopTicker,
+    resolveAskProject, sessionById, clearAttach, promptWithAttachments, replyMode, askSession,
+    inLiveSession, titles, runsFor, currentPlanKey, stopTicker,
   } = window.ClaudeWidgetKnown;
   const seedState = {
     seeded: false,
     seedInflight: false,
   };
-  const {
-    deciding, qsel, typedAns, OTHER, typedFor, answerReady, ARM_MS, HOLD_MS, armTimers, typedBox,
-  } = window.ClaudeWidgetDecisionKeys;
+  const { deciding, qsel, typedAns, OTHER, typedFor, answerReady } = window.ClaudeWidgetDecisionKeys;
   // The one line that installs the Claude Code mod (integrations/claude-code/).
 
   const {
-    tiles, isParked, approvalsOn, topbarOn, approvals, firstSeen, forgetSeen, decisionsFor,
+    tiles, isParked, approvalsOn, approvals, forgetSeen, decisionsFor,
   } = window.ClaudeWidgetDecisionsShown;
 
   // ── model → hue. Encodes which model produced the work, not decoration. ──
@@ -161,95 +159,9 @@
 
 
   // ── the decision card ──────────────────────────────────────────────────────
-  function isArmed(a) {
-    if (!firstSeen.has(a.id)) firstSeen.set(a.id, Date.now());
-    const left = firstSeen.get(a.id) + ARM_MS - Date.now();
-    if (left <= 0) return true;
-    if (!armTimers.has(a.id)) {
-      armTimers.add(a.id);
-      setTimeout(() => { armTimers.delete(a.id); paint(); }, left + 30);
-    }
-    return false;
-  }
-
-  function key(cls, label, onTap, a) {
-    const b = el('button', 'cw-key ' + cls); b.type = 'button';
-    b.appendChild(el('span', 'cw-key-label', label));
-    b.dataset.keep = 'k-' + a.id + '-' + cls;
-    b.disabled = deciding.has(a.id);
-    b.addEventListener('click', () => { if (isArmed(a)) onTap(); });
-    return b;
-  }
-
-  // Allow for an irreversible request: hold for HOLD_MS. A keyboard has no
-  // "hold" the page can rely on, so there it is two presses within 3 seconds.
-  function holdKey(a) {
-    return AK.holdButton({
-      className: 'cw-key is-allow is-hold', label: t('claude_hold_allow', 'Hold to allow'),
-      pressAgain: t('claude_press_again', 'Press again to allow'), holdMs: HOLD_MS, keep: 'k-' + a.id + '-hold',
-      disabled: deciding.has(a.id), isArmed: () => isArmed(a), onConfirm: () => decide(a.id, 'allow'),
-    });
-  }
-
-  // On the sheet a lone question is already the title of the window.
-  function questionKeys(a, onInput, big) {
-    const wrap = el('div', 'cw-dec-qs');
-    const cur = qsel.get(a.id) || a.questions.map(() => []);
-    const busy = deciding.has(a.id);
-    const ph = t('claude_q_other_ph', 'Type your answer');
-    a.questions.forEach((q, qi) => {
-      const box = el('div', 'cw-dec-q');
-      if (q.header && !big) box.appendChild(el('div', 'cw-dec-qhead', q.header));
-      if (!big || a.questions.length > 1) box.appendChild(el('div', 'cw-dec-qtext', q.question));
-      if (q.kind === 'text' || q.kind === 'number') {
-        box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, {
-          number: q.kind === 'number', min: q.min, max: q.max, step: q.step,
-          placeholder: q.kind === 'number' && q.unit ? q.unit : (q.placeholder || ph), onInput,
-        }));
-        wrap.appendChild(box);
-        return;
-      }
-      if (q.multiSelect) box.appendChild(el('div', 'cw-dec-qnote', t('claude_q_multi', 'Pick one or more')));
-      // Options with a description stack like the terminal's list; side by side
-      // they were cut to a few words each and the card scrolled.
-      const stacked = (q.options || []).some((o) => o.description);
-      const list = el('div', 'cw-opts' + (stacked ? ' is-col' : ''));
-      const row = cur[qi] || [];
-      (q.options || []).forEach((o, oi) => {
-        list.appendChild(optRow(oi + 1, o.label, o.description, row.indexOf(o.label) !== -1, busy,
-          () => { if (isArmed(a)) pickOption(a, qi, o.label, !!q.multiSelect); }, 'o-' + a.id + '-' + qi + '-' + oi));
-      });
-      // The terminal adds this row to every choice question; the card showed
-      // the same question without it, so an answer that was none of the
-      // options could only be given at the keyboard.
-      const other = row.indexOf(OTHER) !== -1;
-      list.appendChild(optRow((q.options || []).length + 1, t('claude_q_other', 'Other'), stacked ? ph : '', other, busy,
-        () => { if (isArmed(a)) pickOption(a, qi, OTHER, !!q.multiSelect); }, 'o-' + a.id + '-' + qi + '-other'));
-      box.appendChild(list);
-      if (other) box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, { placeholder: ph, onInput }));
-      wrap.appendChild(box);
-    });
-    return wrap;
-  }
-
-  function planKeys(a) {
-    const box = el('div', 'cw-dec-acts is-plan');
-    const busy = deciding.has(a.id);
-    const list = el('div', 'cw-opts is-col');
-    const choices = Array.isArray(a.choices) && a.choices.length ? a.choices : ['default'];
-    choices.forEach((mode, i) => {
-      const label = PLAN_CHOICE_LABEL[mode] ? PLAN_CHOICE_LABEL[mode]() : mode;
-      list.appendChild(optRow(i + 1, label, '', false, busy,
-        () => { if (isArmed(a)) decide(a.id, 'allow', { mode }); }, 'p-' + a.id + '-' + mode));
-    });
-    box.appendChild(list);
-    const back = el('div', 'cw-dec-back');
-    back.appendChild(typedBox(a, 0, 'xp-' + a.id, { multiline: true, placeholder: t('claude_xp_feedback', 'Tell Claude what to change') }));
-    back.appendChild(key('is-deny', t('claude_xp_keep', 'No, keep planning'),
-      () => decide(a.id, 'deny', { feedback: String(typedFor(a)[0] || '') }), a));
-    box.appendChild(back);
-    return box;
-  }
+  const {
+    isArmed, key, holdKey, questionKeys, planKeys,
+  } = window.ClaudeWidgetCardKeys({ AK, paint, decide, pickOption });
 
   const {
     sheetHead, sheetFoot, decisionBody,
@@ -378,92 +290,35 @@
 
   const { budgetEditor } = window.ClaudeWidgetBudgetEditor({ closeBudget, postBudget, paint });
 
-  const { composerSelect, runBuiltins, slashQuery } = window.ClaudeWidgetComposerParts;
+  const { composerSelect } = window.ClaudeWidgetComposerParts;
 
   const { startTicker } = window.ClaudeWidgetTicker;
+
+  const { askModelOptions, RUN_MODE_LABELS, EFFORTS } = window.ClaudeWidgetRunOptions;
+
+  const { ui } = window.ClaudeWidgetConsoleState;
+  const {
+    header, linkNotice,
+  } = window.ClaudeWidgetTileHeader({ paint, quotaMini, currentFace, setFace, ui, openAsk, linkButton, doLink });
+  const {
+    MAX_PICKS, drawPicker, pickerKey, tileCommandList,
+  } = window.ClaudeWidgetSlashPicker({ api, paint, argMatches });
+
+  const {
+    MAX_ATTACH, composer,
+  } = window.ClaudeWidgetComposerCard({ loadAskProjects, submitAsk, addAttachments, paint, drawPicker, pickerKey });
+
+  const {
+    sidePanel, asideStrip, noteNewAgents, recoveredPlan, openAgents,
+  } = window.ClaudeWidgetSidePanel({ api, paint, toggleCollapsed, asideHide });
+
+
 
   // ── asking Claude from the touchscreen ─────────────────────────────────────
   // The open session's conversation (js/claude-code/claude-thread.js): re-reads after every
   // state change until the turn has closed, so the end of a reply is never missed.
   const thread = window.ClaudeThread.create({ fetchJson: (url) => api(url), onChange: () => paint() });
 
-  // The models to offer are read from what this machine has ACTUALLY used —
-  // the model ids in your own transcripts, biggest first. A hard-coded list was
-  // wrong in both directions: it left out models you use every day and it would
-  // keep offering names long after they stop existing. The CLI's short aliases
-  // are kept alongside them, because they are the stable way to say "the current
-  // Opus" and they survive a version bump that retires a dated id.
-  const ASK_ALIASES = ['opus', 'sonnet', 'haiku'];
-  const MAX_ASK_MODELS = 14;
-  function askModelOptions() {
-    // "Auto" on its own said nothing, but the full explanation belongs in the
-    // open list, not in the closed trigger — there it just stretched the control
-    // across the bar. The trigger keeps the short word; the list says what it
-    // falls back to, which differs: continuing a session keeps that session's
-    // model, a new run takes the project's own Claude Code config.
-    const out = [{
-      id: '',
-      label: t('claude_model_auto', 'Auto'),
-      note: widgetState.askResumeId
-        ? t('claude_model_auto_session', 'keeps the session model')
-        : t('claude_model_auto_project', 'the project default'),
-    }];
-    ASK_ALIASES.forEach(a => out.push({
-      id: a,
-      label: a.charAt(0).toUpperCase() + a.slice(1),
-      note: t('claude_model_alias_note', 'always the current one'),
-    }));
-    const u = widgetState.payload && widgetState.payload.usage;
-    const seen = new Set(out.map(o => o.id));
-    ((u && u.models) || []).forEach(m => {
-      const id = String(m.model || '');
-      // `<synthetic>` and friends are placeholders Claude Code writes for turns
-      // that never went to a model. Offering one as a choice would guarantee a
-      // failed run.
-      if (!id || id === 'unknown' || id.charAt(0) === '<' || seen.has(id)) return;
-      seen.add(id);
-      out.push({ id, label: shortModel(id) });
-    });
-    // The selected model must always be in the list, or the dropdown would
-    // silently fall back to Auto and start a run on something else.
-    if (widgetState.askModel && !seen.has(widgetState.askModel)) out.push({ id: widgetState.askModel, label: shortModel(widgetState.askModel) });
-    return out.slice(0, MAX_ASK_MODELS);
-  }
-
-  const ui = {
-    askProjectsLoading: false,
-    // One session at a time, beside the rail, never a separate screen: the old
-    // modal panel is what made it easy to lose track of which chat was which.
-    // `picked` is a choice the user made and sticks until they make another;
-    // without one the console takes the session that needs you most, ONCE, and
-    // keeps it while it lives, so it never jumps under a finger because another
-    // session changed state.
-    picked: '',
-    pickedLabel: '',
-    autoPicked: '',
-    composing: false,       // the console holds a new session instead
-    followRun: '',          // a new run whose session the console moves to once known
-    pickAt: 0,
-    // Which view the side panel shows. Plain state: it resets on a reload, and a
-    // session without a plan always falls back to the tool log.
-    asideView: '',
-    // The agent open in the Agents view, plain state like ui.asideView. A new agent
-    // starting opens the view once, the way a new plan opens Plan.
-    agentSel: '',
-    // Work anywhere: a folder typed or pasted here joins the list (the server
-    // checks it is a real folder and keeps it). Not offered to a paired device,
-    // where the server refuses it.
-    folderOpen: false,
-    face: null,
-    laterTimer: null,
-    doneNotices: [],                 // [{ id, project, at }] newest last
-    // Lives in the clock island, so it is present in both the full and the minimal
-    // bar and can be reordered or hidden like any other island element. Three
-    // states and nothing more: absent when there is nothing to say, a quiet pulse
-    // while a session works, and lit when one has finished and you have not looked
-    // yet. Tapping it opens that session.
-    topbarSig: '',
-  };
   async function loadAskProjects(force) {
     // Every tile's build() may ask; one request answers them all.
     if (ui.askProjectsLoading) return;
@@ -559,8 +414,6 @@
   // the prompt. Claude reads it with its own Read tool, which means the read
   // comes back here as an approval card: attaching something does not hand it
   // over, it offers it.
-  const MAX_ATTACH = 6;
-
   async function addAttachments(files) {
     if (!files || !files.length) return;
     widgetState.askAttachBusy = true; widgetState.askError = ''; paint();
@@ -786,102 +639,15 @@
     return finish();
   }
 
-  const SEND_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" '
-    + 'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
-  const CLIP_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" '
-    + 'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<path d="M20 11.5 11.6 20a5 5 0 0 1-7.1-7.1l8.5-8.4a3.4 3.4 0 0 1 4.8 4.8l-8.4 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg>';
-
-  const ATTACH_ACCEPT = 'image/*,.txt,.md,.json,.csv,.log,.yml,.yaml,.xml,.html,.css,.js,.ts,.jsx,.tsx,.py,.rs,.go,.java,.c,.h,.cpp,.sql,.toml,.ini,.diff,.patch,.pdf';
-
-  // Everything you act on lives in one card at the bottom: what you type, what
-  // you attach, which model, and the button. Three separate stacked blocks read
-  // as three unrelated things, and on a touchscreen the eye has to travel the
-  // whole panel to find the one control it wants.
-  // The permission modes a run can start in, as Claude Code's footer names
-  // them. '' keeps whatever the user set as their default.
-  const RUN_MODE_LABELS = {
-    manual: ['claude_run_mode_manual', 'Ask for everything'],
-    acceptEdits: ['claude_mode_accept', 'accept edits on'],
-    plan: ['claude_mode_plan', 'plan mode on'],
-  };
-  const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
-
-  function runModeSelect() {
-    const opts = [{ id: '', label: t('claude_run_mode_default', 'Default mode'), note: t('claude_run_mode_default_note', 'your Claude Code setting') }];
-    widgetState.askOptions.modes.forEach((m) => opts.push({ id: m, label: t(RUN_MODE_LABELS[m][0], RUN_MODE_LABELS[m][1]) }));
-    return composerSelect('cw-ask-mode-sel', t('claude_run_mode', 'Permission mode'), opts, widgetState.askRunMode, (v) => { widgetState.askRunMode = v; });
-  }
-
-  function effortSelect() {
-    const opts = [{ id: '', label: t('claude_effort', 'effort') + ': ' + t('claude_model_auto', 'Auto') }];
-    EFFORTS.forEach((e) => opts.push({ id: e, label: t('claude_effort', 'effort') + ': ' + e }));
-    return composerSelect('cw-ask-effort-sel', t('claude_effort', 'effort'), opts, widgetState.askEffort, (v) => { widgetState.askEffort = v; });
-  }
-
-  // ── the "/" picker ─────────────────────────────────────────────────────────
-  // Typing "/" at the start of a new or resumed run lists the user's commands
-  // and skills (names only, from /api/claude/commands). Picking one writes
-  // "/name " into the box and Claude Code expands it when the run starts. Not
-  // offered for a message queued into a live session: that text is handed to
-  // the session as a reply, where a slash command would not run.
-  const MAX_PICKS = 6;
-  const commandLists = new Map();   // project id → [{ name, desc, kind }] | 'loading'
-
-  function commandsFor(projectId) {
-    const key = projectId || '';
-    const got = commandLists.get(key);
-    if (Array.isArray(got)) return got;
-    if (got !== 'loading') {
-      commandLists.set(key, 'loading');
-      api('/api/claude/commands?project=' + encodeURIComponent(key)).then((d) => {
-        commandLists.set(key, d && Array.isArray(d.commands) ? d.commands : []);
-        paint();
-      });
-    }
-    return null;
-  }
-
   // A session open in a terminal runs only the commands the Xenon mod can run
   // for the tile (claude-bridge.js, TILE_COMMAND), so those are all it lists.
   // The same shape the bridge accepts (claude-bridge.js, TILE_COMMAND).
   // Its shape only; the bridge checks the name against what that session lists.
   const TILE_COMMAND_RE = /^\/[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}(?:[ ][^\r\n]{1,200})?$/;
 
-  // The open session's own list (what its terminal's "/" shows), once its mod
-  // has reported it; the three header commands before that.
-  const liveCommandLists = new Map();   // session id → { at, list } | 'loading'
-  function liveCommands(s) {
-    if (!s || !s.commandsAt) return null;
-    const got = liveCommandLists.get(s.id);
-    if (got && got !== 'loading' && got.at === s.commandsAt) return got.list;
-    if (got !== 'loading') {
-      liveCommandLists.set(s.id, 'loading');
-      api('/api/claude/session-commands?session=' + encodeURIComponent(s.id)).then((d) => {
-        const list = d && Array.isArray(d.commands) ? d.commands.map((c) => ({ name: c.name, desc: c.desc })) : null;
-        // A failed read is remembered for this list version too, so the next paint
-        // does not ask again at once; the header commands stand in meanwhile.
-        liveCommandLists.set(s.id, { at: s.commandsAt, list });
-        paint();
-      });
-    }
-    return got && got !== 'loading' ? got.list : null;
-  }
-
   function isKnownCommand(text) {
     const m = /^\/([A-Za-z0-9][A-Za-z0-9_.:-]{0,79})(?:\s|$)/.exec(text);
     return !!m && tileCommandList().some((c) => c.name === m[1]);
-  }
-
-  function tileCommandList() {
-    const own = liveCommands(sessionById(widgetState.askResumeId));
-    if (own) return own;
-    return [
-      { name: 'model', desc: t('claude_slash_model', 'Change the model, e.g. /model opus') },
-      { name: 'effort', desc: t('claude_slash_effort', 'Set the effort: low, medium, high, xhigh, max') },
-      { name: 'compact', desc: t('claude_slash_compact', 'Summarise the conversation to free up context') },
-    ];
   }
 
   // Applies "/model x", "/effort x" or "/plan [text]" to the bar. Returns the
@@ -959,237 +725,6 @@
     return picks.some((p) => p.insert.toLowerCase() === text.trim().toLowerCase()) ? null : picks;
   }
 
-  function slashMatches(text) {
-    const args = argMatches(text);
-    if (args) return inLiveSession() && !canRunCommands() ? [] : args;
-    const q = slashQuery(text);
-    if (q === null) return null;
-    if (inLiveSession() && !canRunCommands()) return [];   // drawPicker says why
-    const own = inLiveSession() ? tileCommandList() : commandsFor(widgetState.askProjectId);
-    if (!own) return [];
-    const list = inLiveSession() ? own : runBuiltins().filter((b) => !own.some((c) => c.name === b.name)).concat(own);
-    // Names that start with the word first, then names that contain it.
-    const starts = list.filter((c) => c.name.toLowerCase().startsWith(q));
-    const contains = list.filter((c) => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q));
-    return starts.concat(contains).slice(0, MAX_PICKS);
-  }
-
-  function drawPicker(picker, ta) {
-    picker.textContent = '';
-    const list = slashMatches(ta.value);
-    picker.hidden = !list;
-    if (!list) return;
-    if (!list.length) {
-      if (inLiveSession() && !canRunCommands()) {
-        picker.appendChild(el('div', 'cw-slash-empty', t('claude_cmd_modold', 'The Xenon mod in that terminal is older than 0.4.0. Update it and restart Claude Code to run commands from here.')));
-        return;
-      }
-      picker.appendChild(el('div', 'cw-slash-empty', commandLists.get(widgetState.askProjectId || '') === 'loading'
-        ? t('claude_slash_loading', 'Reading your commands…') : t('claude_slash_none', 'No command or skill with that name')));
-      return;
-    }
-    ui.pickAt = Math.min(ui.pickAt, list.length - 1);
-    list.forEach((c, i) => {
-      const row = el('button', 'cw-slash-item' + (i === ui.pickAt ? ' is-on' : '')); row.type = 'button';
-      row.setAttribute('role', 'option');
-      row.setAttribute('aria-selected', i === ui.pickAt ? 'true' : 'false');
-      // The command's own name first, its plugin after it and quieter: a long
-      // "plugin:command" cut short would otherwise lose the part that matters.
-      // Picking still inserts the full name.
-      const cut = c.isArg ? -1 : c.name.lastIndexOf(':');
-      row.appendChild(el('span', 'cw-slash-name', c.isArg ? c.name : '/' + (cut > 0 ? c.name.slice(cut + 1) : c.name)));
-      if (cut > 0) row.appendChild(el('span', 'cw-slash-ns', c.name.slice(0, cut)));
-      if (c.desc) row.appendChild(el('span', 'cw-slash-desc', c.desc));
-      // mousedown, not click: the textarea must keep focus for the next keys.
-      row.addEventListener('mousedown', (e) => { e.preventDefault(); applyPick(c, picker, ta); });
-      picker.appendChild(row);
-    });
-  }
-
-  function applyPick(c, picker, ta) {
-    ta.value = c.insert || '/' + c.name + ' ';
-    widgetState.askText = ta.value;
-    ui.pickAt = 0;
-    drawPicker(picker, ta);
-    ta.focus();
-    try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch {}
-  }
-
-  // Arrow keys move, Tab or Enter picks, Escape closes. True when handled.
-  function pickerKey(e, picker, ta) {
-    if (picker.hidden) return false;
-    const list = slashMatches(ta.value) || [];
-    if (!list.length) return false;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      ui.pickAt = (ui.pickAt + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
-      drawPicker(picker, ta);
-      return true;
-    }
-    if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.isComposing)) {
-      applyPick(list[ui.pickAt], picker, ta);
-      return true;
-    }
-    if (e.key === 'Escape') { picker.hidden = true; return true; }
-    return false;
-  }
-
-  // One line when empty, growing with the text up to the CSS max-height.
-  function fitHeight(ta) {
-    ta.style.height = 'auto';
-    ta.style.height = ta.scrollHeight + 'px';
-  }
-
-  function composer() {
-    const box = el('div', 'cw-composer');
-    const runLike = replyMode() === 'new' || replyMode() === 'resume';
-    // The "/" list also serves a session open in a terminal, with its three commands.
-    const slashOn = runLike || inLiveSession();
-    if (widgetState.askProjects === null) loadAskProjects(false);
-
-    const ta = document.createElement('textarea');
-    ta.className = 'cw-ask-text';
-    ta.rows = 1;
-    ta.value = widgetState.askText;
-    ta.placeholder = widgetState.askResumeId
-      ? t('claude_ask_placeholder_more', 'Write the follow-up…')
-      : t('claude_ask_placeholder', 'What should Claude do?');
-    ta.title = t('claude_ask_enter_hint', 'Enter sends, Shift+Enter adds a line');
-    ta.maxLength = 4000;
-    ta.dataset.keep = 'ask';
-    // Repainting on every keystroke would fight the caret, so the value is only
-    // mirrored into state and read back when something else needs it.
-    const picker = el('div', 'cw-slash');
-    picker.setAttribute('role', 'listbox');
-    picker.hidden = true;
-    ta.addEventListener('input', () => {
-      widgetState.askText = ta.value;
-      fitHeight(ta);
-      if (slashOn) { ui.pickAt = 0; drawPicker(picker, ta); }
-    });
-    // Enter sends, Shift+Enter breaks the line — the arrangement every chat box
-    // has, and the one that was missing here. `isComposing` is checked because
-    // an IME's Enter commits the candidate word and must not also send.
-    ta.addEventListener('keydown', (e) => {
-      if (slashOn && pickerKey(e, picker, ta)) { e.preventDefault(); return; }
-      if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
-      e.preventDefault();
-      widgetState.askText = ta.value;
-      submitAsk();
-    });
-    // Paste an image straight in. On a touchscreen this is the difference
-    // between "attach a screenshot" being one gesture and being a file hunt.
-    ta.addEventListener('paste', (e) => {
-      const items = (e.clipboardData && e.clipboardData.files) || null;
-      if (!items || !items.length) return;
-      e.preventDefault();
-      widgetState.askText = ta.value;
-      addAttachments(Array.from(items));
-    });
-    // Pasted or attached images are shown, not just named: a screenshot you
-    // cannot see is one you cannot check before sending.
-    if (widgetState.askAttach.length) {
-      const chips = el('div', 'cw-attach-chips');
-      widgetState.askAttach.forEach((a, i) => {
-        const item = el('div', 'cw-attach-item' + (a.preview ? ' is-image' : ''));
-        if (a.preview) {
-          const img = document.createElement('img');
-          img.className = 'cw-attach-img';
-          img.src = a.preview;
-          img.alt = a.name;
-          item.appendChild(img);
-        } else item.appendChild(el('span', 'cw-attach-name', a.name));
-        const rm = el('button', 'cw-attach-rm'); rm.type = 'button';
-        rm.setAttribute('aria-label', t('claude_attach_remove', 'Remove attachment'));
-        rm.textContent = '✕';
-        // The file stays on disk; it is pruned with the rest. Deleting it here
-        // would mean a delete endpoint taking a path, which is exactly what this
-        // design avoids.
-        rm.addEventListener('click', () => {
-          widgetState.askText = ta.value;
-          if (a.preview) URL.revokeObjectURL(a.preview);
-          widgetState.askAttach.splice(i, 1);
-          paint();
-        });
-        item.appendChild(rm);
-        chips.appendChild(item);
-      });
-      box.appendChild(chips);
-    }
-
-    // The attach and send buttons sit inside the text box, bottom right, so the
-    // composer is one row tall when nothing else is being chosen.
-    const field = el('div', 'cw-ask-field');
-    field.appendChild(ta);
-    const tools = el('div', 'cw-ask-tools');
-    field.appendChild(tools);
-    box.appendChild(field);
-    box.appendChild(picker);
-    requestAnimationFrame(() => fitHeight(ta));
-    if (slashOn) drawPicker(picker, ta);
-
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.multiple = true;
-    input.hidden = true;
-    input.accept = ATTACH_ACCEPT;
-    input.addEventListener('change', () => { widgetState.askText = ta.value; addAttachments(Array.from(input.files || [])); });
-    box.appendChild(input);
-
-    const clip = el('button', 'cw-icon-btn'); clip.type = 'button';
-    clip.disabled = widgetState.askAttachBusy || widgetState.askAttach.length >= MAX_ATTACH;
-    clip.title = t('claude_attach_add', 'Attach a file');
-    clip.setAttribute('aria-label', t('claude_attach_add', 'Attach a file'));
-    // A drawn paperclip rather than the emoji: the emoji renders at whatever
-    // size and weight the platform font decides, which is why it sat in the bar
-    // looking like a smudge next to a crisp button.
-    if (widgetState.askAttachBusy) clip.textContent = '…';
-    else clip.innerHTML = CLIP_SVG;      // static, trusted markup
-    clip.addEventListener('click', () => { widgetState.askText = ta.value; input.click(); });
-    tools.appendChild(clip);
-
-    const mode = replyMode();
-    const send = el('button', 'cw-ask-send'); send.type = 'button';
-    const busyLabel = mode === 'followup' ? t('claude_reply_sending', 'Queueing…')
-      : mode === 'terminal' ? t('claude_terminal_sending', 'Sending…')
-        : t('claude_ask_sending', 'Starting…');
-    const sendLabel = widgetState.askBusy
-      ? busyLabel
-      : (widgetState.askResumeId ? t('claude_ask_send_more', 'Send') : t('claude_ask_send', 'Start'));
-    send.title = sendLabel;
-    send.setAttribute('aria-label', sendLabel);
-    send.classList.toggle('is-busy', widgetState.askBusy);
-    send.innerHTML = SEND_SVG;           // static, trusted markup
-    send.disabled = widgetState.askBusy || mode === 'none' || (widgetState.askProjects !== null && !widgetState.askProjects.length);
-    send.addEventListener('click', () => { widgetState.askText = ta.value; submitAsk(); });
-    tools.appendChild(send);
-
-    // The model sits with the composer rather than behind a settings screen:
-    // picking a cheaper model for a small job is a per-run decision. It uses the
-    // app's own dropdown, not a native one, so a long list stays inside the
-    // display instead of falling off the bottom of the small screens.
-    // Model, mode and effort apply when a run starts; a message for a live
-    // session goes into that session as it is, so they are not offered there.
-    if (runLike) {
-      const bar = el('div', 'cw-composer-bar');
-      bar.appendChild(composerSelect('cw-ask-model-sel', t('claude_ask_model', 'Model'), askModelOptions(), widgetState.askModel, (v) => { widgetState.askModel = v; }));
-      if (widgetState.askOptions.modes.length) bar.appendChild(runModeSelect());
-      if (widgetState.askOptions.effort) bar.appendChild(effortSelect());
-      box.appendChild(bar);
-    }
-    // Say where the text is going BEFORE it is sent. The destinations look
-    // identical from here and behave differently, and the old composer only ever
-    // did one of them whatever it looked like it was doing.
-    const note = mode === 'followup' ? t('claude_reply_note', 'Goes into this session when the current turn ends')
-      : mode === 'terminal' ? t('claude_terminal_note', 'Shows up in the open session, as if you typed it there')
-      : mode === 'resume' ? resumeNote()
-        : mode === 'queued' ? t('claude_queued_note', 'A message is already waiting to be delivered')
-          : mode === 'none' ? t('claude_reply_e_ended', 'That session has closed')
-            : '';
-    if (note) box.appendChild(el('div', 'cw-ask-note' + (mode === 'none' ? ' is-warn' : ''), note));
-    if (widgetState.askError) box.appendChild(el('div', 'cw-ask-error', widgetState.askError));
-    return box;
-  }
-
   // ── the console ────────────────────────────────────────────────────────────
   // The selected session, the way a terminal shows it: who it is, what it is
   // doing, what it wants from you, its plan and its last tool calls, the
@@ -1259,158 +794,6 @@
       return el('div', 'cw-cs-note', t('claude_cs_unlinked', 'This session started before Xenon was connected. Restart it in the terminal to reply from here.'));
     }
     return composer();
-  }
-
-  // The panel beside the conversation: the tool log, and the plan when the
-  // session has one. Null when there is nothing to show.
-  // `proposal` is the plan Claude wrote and is waiting to have approved.
-  // The plan each session last showed on the Plan tab: a newer one opens the tab once.
-  const planSeen = new Map();   // session id → planAt
-  const roadmapAt = new Map();  // session id + plan → the phase the work has reached
-  // A plan written before Xenon started is not in the live feed: read it back
-  // from the transcript once per session, then keep the answer (even an empty one).
-  const planRecovered = new Map();   // session id → { plan, at } | 'pending'
-  function recoveredPlan(s) {
-    const got = planRecovered.get(s.id);
-    if (got === 'pending') return null;
-    if (got) return got;
-    planRecovered.set(s.id, 'pending');
-    api('/api/claude/plan?session=' + encodeURIComponent(s.id)).then((d) => {
-      planRecovered.set(s.id, { plan: d && d.ok ? d.plan : '', at: d && d.ok ? d.at : 0 });
-      if (d && d.ok && d.plan) paint();
-    });
-    return null;
-  }
-
-  // The plan's phases as a roadmap: done ones filled, the one being worked lit,
-  // the rest waiting. Null when the plan has no clear steps.
-  function roadmapRows(s, planText, running) {
-    const R = window.ClaudeRoadmap;
-    const phases = R && planText ? R.parsePhases(planText) : [];
-    if (phases.length < 2) return null;
-    const key = s.id + ':' + (s.planAt || 0);
-    const at = R.advance(roadmapAt.get(key) || 0, phases, s.activity, s.planAt);
-    roadmapAt.set(key, at);
-    return R.roadmap(phases, s.todos, at, running);
-  }
-  function roadmapList(s, planText, running) {
-    const rows = roadmapRows(s, planText, running);
-    if (!rows) return null;
-    const list = el('ol', 'cw-roadmap');
-    rows.forEach((r, i) => {
-      const li = el('li', 'cw-rm-step is-' + r.state);
-      li.appendChild(el('span', 'cw-rm-dot' + (r.state === 'doing' ? ' cw-breathing' : ''), r.state === 'done' ? '✓' : String(i + 1)));
-      li.appendChild(el('span', 'cw-rm-title', r.title));
-      list.appendChild(li);
-    });
-    return list;
-  }
-  // ── agents ──
-  const agentsSeen = new Map();   // session id → Set of agent ids already announced
-  // What an agent's own file says, read when it is opened and again whenever
-  // its tool count or status moves: model, effort and context from an older mod.
-  const agentExtra = new Map();   // session id:agent id → { key, data }
-  function agentFile(sid, a) {
-    const k = sid + ':' + a.id;
-    const key = a.status + ':' + (a.tools || 0);
-    const got = agentExtra.get(k);
-    if (got && got.key === key) return got.data;
-    agentExtra.set(k, { key, data: got ? got.data : null });
-    if (agentExtra.size > 64) agentExtra.delete(agentExtra.keys().next().value);
-    api('/api/claude/agent?session=' + encodeURIComponent(sid) + '&id=' + encodeURIComponent(a.id)).then((d) => {
-      const cur = agentExtra.get(k);
-      if (!cur || cur.key !== key || !d || !d.ok) return;
-      cur.data = d;
-      paint();
-    });
-    return got ? got.data : null;
-  }
-  function noteNewAgents(s, pending) {
-    const list = Array.isArray(s.subagents) ? s.subagents : [];
-    let seen = agentsSeen.get(s.id);
-    if (!seen) { seen = new Set(); agentsSeen.set(s.id, seen); }
-    const fresh = list.some((a) => a.status === 'running' && !seen.has(a.id));
-    list.forEach((a) => seen.add(a.id));
-    if (fresh && !pending) { ui.asideView = 'agents'; ui.agentSel = ''; }
-  }
-  function openAgents() {
-    ui.asideView = 'agents'; ui.agentSel = '';
-    if (isCollapsed('aside')) toggleCollapsed('aside'); else paint();
-  }
-  function agentsView(h, s) {
-    const list = s.subagents;
-    const sel = ui.agentSel && list.find((a) => a.id === ui.agentSel);
-    if (!sel) {
-      ui.agentSel = '';
-      return window.ClaudeAgents.list(h, list, (id) => { ui.agentSel = id; paint(); });
-    }
-    return window.ClaudeAgents.detail(h, sel, agentFile(s.id, sel), () => { ui.agentSel = ''; paint(); });
-  }
-  // The hidden panel's summary: plan progress and the agents, when there are any.
-  // The plan's steps are the ones the Plan view shows: the written plan's
-  // phases when it has them, else the todo list.
-  function asideStrip(h, s, proposal) {
-    const rows = roadmapRows(s, proposal, s.state === 'running');
-    const steps = rows ? rows.map((r) => r.state) : (Array.isArray(s.todos) ? s.todos.map((x) => x.status) : []);
-    const plan = steps.length ? { done: steps.filter((st) => st === 'done').length, total: steps.length, steps } : null;
-    return window.ClaudeAgents.strip(h, plan, s.subagents || [], (view) => {
-      if (view) { ui.asideView = view; ui.agentSel = ''; }
-      toggleCollapsed('aside');
-    });
-  }
-
-  function sidePanel(h, s, proposal, pending) {
-    const todos = window.ClaudeConsole.todos(h, s, true);
-    const acts = window.ClaudeConsole.activity(h, s);
-    const agents = Array.isArray(s.subagents) && s.subagents.length > 0;
-    if (!todos && !acts && !proposal && !agents) return null;
-    const plan = todos || proposal ? true : null;
-    // A plan waiting for approval, or one just written, opens on the Plan view.
-    if (s.planAt && planSeen.get(s.id) !== s.planAt) { planSeen.set(s.id, s.planAt); ui.asideView = 'plan'; }
-    const views = [];
-    if (acts) views.push(['activity', t('claude_aside_tools', 'Activity')]);
-    if (plan) views.push(['plan', t('claude_cs_plan', 'Plan')]);
-    if (agents) views.push(['agents', t('claude_aside_agents', 'Agents')]);
-    let view = views.some(([key]) => key === ui.asideView) ? ui.asideView : '';
-    if (!view) view = plan && (pending || !acts) ? 'plan' : views[0][0];
-    const aside = el('div', 'cw-cs-aside');
-    const bar = el('div', 'cw-aside-bar');
-    if (views.length > 1) {
-      const tabs = el('div', 'cw-aside-tabs'); tabs.setAttribute('role', 'tablist');
-      views.forEach(([key, label]) => {
-        const tab = el('button', 'cw-aside-tab' + (key === view ? ' is-on' : ''), label); tab.type = 'button';
-        tab.setAttribute('role', 'tab');
-        tab.setAttribute('aria-selected', key === view ? 'true' : 'false');
-        tab.addEventListener('click', () => { ui.asideView = key; if (key === 'agents') ui.agentSel = ''; paint(); });
-        tabs.appendChild(tab);
-      });
-      bar.appendChild(tabs);
-    }
-    bar.appendChild(asideHide());
-    aside.appendChild(bar);
-    if (view === 'agents') {
-      aside.appendChild(agentsView(h, s));
-    } else if (view === 'plan') {
-      const road = proposal ? roadmapList(s, proposal, s.state === 'running') : null;
-      if (road) aside.appendChild(road);
-      // The roadmap replaces the wall of text; the full plan stays one tap away,
-      // and while it waits for approval it is shown open (it is what you approve).
-      if (proposal && road) {
-        const full = document.createElement('details');
-        full.className = 'cw-aside-full';
-        full.open = !!pending;
-        full.appendChild(el('summary', '', t('claude_plan_full', 'Full plan')));
-        full.appendChild(el('div', 'cw-aside-proposal', proposal));
-        aside.appendChild(full);
-      } else if (proposal) aside.appendChild(el('div', 'cw-aside-proposal', proposal));
-      // The todo list is the roadmap itself when it has one entry per phase.
-      if (todos && !(road && Array.isArray(s.todos) && road.children.length === s.todos.length)) aside.appendChild(todos);
-    } else {
-      const compact = window.ClaudeConsole.todos(h, s);
-      if (compact) aside.appendChild(compact);
-      aside.appendChild(acts);
-    }
-    return aside;
   }
 
   function sessionConsole(pane, id) {
@@ -1626,7 +1009,6 @@
   // needs you, USAGE is the record, CHATS is what is kept on disk. The choice is per surface and survives a
   // reload (a view preference, so localStorage, not the settings store).
   const FACE_KEY = 'xeneonedge.claude.face.v1';
-  const REPAIR_SEEN_KEY = 'xeneonedge.claude.repairSeen.v1';
   const FACES = ['live', 'usage', 'history'];
   function currentFace() {
     if (ui.face) return ui.face;
@@ -1637,84 +1019,6 @@
     ui.face = FACES.includes(f) ? f : 'live';
     try { localStorage.setItem(FACE_KEY, ui.face); } catch { /* private mode: session only */ }
     paint();
-  }
-
-  function header() {
-    const h = el('div', 'cw-top');
-    const title = el('div', 'cw-name');
-    // The connection as a mark, not a sentence: complete, partly there, or off.
-    const state = !widgetState.linkState ? 'unknown' : !widgetState.linkState.linked ? 'off' : widgetState.linkState.complete === false ? 'partial' : 'on';
-    const brand = el('span', 'cw-brand');
-    brand.appendChild(window.ClaudeClawd.make('cw-brand-mark'));
-    title.appendChild(brand);
-    title.setAttribute('aria-label', 'Claude Code');
-    title.title = state === 'on' ? t('claude_connected', 'Connected')
-      : state === 'partial' ? t('claude_link_incomplete', 'Part of the Claude Code connection is missing.')
-        : t('claude_cta', 'Show real quota and approve from here');
-    title.setAttribute('role', 'button');
-    title.tabIndex = 0;
-    const openLink = () => { widgetState.linkPanel = true; paint(); };
-    title.addEventListener('click', openLink);
-    title.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openLink(); } });
-    h.appendChild(title);
-
-    const q = quotaMini();
-    if (q) h.appendChild(q);
-
-    const faces = el('div', 'cw-faces');
-    faces.setAttribute('role', 'tablist');
-    [['live', t('claude_sessions', 'Sessions')], ['usage', t('claude_face_usage', 'Usage')], ['history', t('claude_face_history', 'Chats')]].forEach(([id, label]) => {
-      const b = el('button', 'cw-face' + (currentFace() === id ? ' is-on' : ''), label);
-      b.type = 'button';
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', currentFace() === id ? 'true' : 'false');
-      b.addEventListener('click', () => setFace(id));
-      faces.appendChild(b);
-    });
-    h.appendChild(faces);
-
-    if (widgetState.linkState && widgetState.linkState.linked) {
-      const ask = el('button', 'cw-ask-open' + (ui.composing ? ' is-on' : '')); ask.type = 'button';
-      ask.appendChild(el('span', 'cw-ask-open-plus', '+'));
-      ask.appendChild(el('span', 'cw-ask-open-t', t('claude_new_session', 'New session')));
-      ask.setAttribute('aria-label', t('claude_new_session', 'New session'));
-      ask.addEventListener('click', () => openAsk('', '', ''));
-      h.appendChild(ask);
-    } else {
-      h.appendChild(linkButton());
-    }
-    return h;
-  }
-
-  // What changed about the connection, said once where it matters. A repair
-  // only reaches sessions started after it (Claude Code reads its hooks when a
-  // session starts), so the notice says to restart the open ones.
-  function linkNotice() {
-    if (!widgetState.linkState || !widgetState.linkState.linked) return null;
-    if (widgetState.linkState.complete === false) {
-      const n = el('div', 'cw-notice is-warn');
-      n.appendChild(el('span', 'cw-notice-t', t('claude_link_incomplete', 'Part of the Claude Code connection is missing.')));
-      const b = el('button', 'cw-link-btn'); b.type = 'button';
-      b.textContent = t('claude_link_repair', 'Repair');
-      b.addEventListener('click', () => doLink(true));
-      n.appendChild(b);
-      return n;
-    }
-    let seen = 0;
-    try { seen = Number(localStorage.getItem(REPAIR_SEEN_KEY)) || 0; } catch { /* private mode */ }
-    if (widgetState.linkState.repairedAt && widgetState.linkState.repairedAt > seen) {
-      const n = el('div', 'cw-notice');
-      n.appendChild(el('span', 'cw-notice-t', t('claude_link_repaired', 'The Claude Code connection was updated. Restart the Claude Code sessions that are open to use it.')));
-      const b = el('button', 'cw-link-btn'); b.type = 'button';
-      b.textContent = t('claude_notice_ok', 'OK');
-      b.addEventListener('click', () => {
-        try { localStorage.setItem(REPAIR_SEEN_KEY, String(widgetState.linkState.repairedAt)); } catch { /* private mode */ }
-        paint();
-      });
-      n.appendChild(b);
-      return n;
-    }
-    return null;
   }
 
   function build() {
@@ -1864,152 +1168,7 @@
     paint();
     if (!seedState.seeded) { seedState.seeded = true; seed(); }
   }
-  // ── presence: who just stopped working ─────────────────────────────────────
-  // One place decides "a session went from working to done", and two surfaces
-  // read it: the notice inside an open chat panel, and the marker in the topbar
-  // island. Both exist for the same reason — a session that finishes while you
-  // are looking somewhere else currently announces itself nowhere, so you find
-  // out by going back and checking.
-  const DONE_TTL_MS = 10 * 60 * 1000;   // how long a finish stays worth showing
-
-  function trackPresence() {
-    const list = sessions();
-    const now = Date.now();
-    const next = new Map();
-    list.forEach(s => {
-      const was = widgetState.lastStates.get(s.id);
-      next.set(s.id, s.state);
-      // Only a real transition counts. Seeding (was === undefined) must not
-      // announce every session that happens to be idle when the page loads.
-      //
-      // And only a real FINISH. "Not running" used to be enough, which meant a
-      // session that stopped to ask for a permission was announced as having
-      // finished answering — the opposite of what had happened, at the one
-      // moment the user most needed to know the difference. A session that was
-      // killed is not an announcement either: it has nothing to show and
-      // nothing to continue.
-      const finished = was === 'running' && s.state === 'idle' && !s.waitFor
-        && !(s.ended && s.endedReason === 'gone');
-      if (finished) {
-        ui.doneNotices = ui.doneNotices.filter(n => n.id !== s.id);
-        ui.doneNotices.push({ id: s.id, project: s.project || '', at: now });
-      }
-    });
-    widgetState.lastStates = next;
-    ui.doneNotices = ui.doneNotices.filter(n => (now - n.at) < DONE_TTL_MS && next.has(n.id));
-    if (ui.doneNotices.length > 4) ui.doneNotices = ui.doneNotices.slice(-4);
-  }
-
-  // Notices about a session OTHER than the one being written to. Seeing "this
-  // session finished" while typing into that very session is noise.
-  function otherNotices() {
-    return ui.doneNotices.filter(n => n.id !== widgetState.askResumeId);
-  }
-  function clearNotice(id) {
-    ui.doneNotices = ui.doneNotices.filter(n => n.id !== id);
-    ui.topbarSig = '';        // the chip's meaning just changed; let it redraw
-    syncTopbar();
-    paint();
-  }
-
-
-  // ── the topbar marker ──────────────────────────────────────────────────────
-  // Clawd, Claude Code's own mascot (js/claude-code/claude-clawd.js). It replaced a text
-  // pill and then a generic sparkle: neither said whose session this was.
-  function clawd() { return window.ClaudeClawd.make('cw-tb-mark'); }
-
-  function syncTopbar() {
-    const host = document.getElementById('clock-claude');
-    if (!host) return;
-    // Switched off in Settings → the island gets its space back and stays that
-    // way. The signature is cleared too, so re-enabling redraws immediately
-    // instead of matching a stale one and staying blank.
-    if (!topbarOn()) {
-      if (!host.hidden) { host.hidden = true; host.replaceChildren(); }
-      ui.topbarSig = '';
-      return;
-    }
-    // A session filed under Finished contributes nothing to any of these. It is
-    // not working, it is not blocked, and it cannot become either without an
-    // event that would move it back out — a 47-minute-old session was putting
-    // the bar into its loudest state while two others were actually running.
-    const list = sessions().filter(s => !s.ended && !s.resting);
-    const working = list.filter(s => s.state === 'running').length;
-    const done = otherNotices().length ? ui.doneNotices.length : 0;
-    // A card the user can answer, or a session blocked with no card to answer.
-    const pending = approvals().length || list.filter(s => s.waitFor).length;
-
-    // Rebuilding on every payload would restart the animation several times a
-    // second while a session is busy — exactly when it must look calm. Only
-    // redraw when what the chip MEANS changes.
-    const sig = `${working}|${done}|${pending}`;
-    if (sig === ui.topbarSig) return;
-    ui.topbarSig = sig;
-
-    // Nothing happening → the island gives the space back rather than holding an
-    // empty chip. An approval always shows: it is the one thing that blocks.
-    if (!working && !done && !pending) { host.hidden = true; host.replaceChildren(); return; }
-
-    host.hidden = false;
-    // These are not alternatives, and writing them as a ladder is what made the
-    // bar read "finished" while the widget next to it said "1 running": one
-    // session ending outranked another that was still working, and the two
-    // surfaces contradicted each other on screen at the same time.
-    //
-    // They are two different questions, so they get two different channels.
-    // MOTION says what is happening — walking, hopping, still. The DOT says
-    // whether something is for you — amber blocked, accent a result you have not
-    // read. A session finishing while another works is Clawd walking with an
-    // accent dot, which is both facts at once instead of the louder one winning.
-    const state = pending ? 'is-waiting' : (working ? 'is-working' : 'is-done');
-    const chip = el('button', 'cw-tb ' + state);
-    chip.type = 'button';
-    // The mark, not a word. A pill reading "wants your OK" spent the width of
-    // six characters saying something the colour says instantly, and it said it
-    // next to a clock, where nobody reads sentences. State is carried by colour
-    // and by how the mark moves: it turns slowly while Claude works, holds still
-    // when there is an answer to read, and knocks when it is blocked on you.
-    // The words stay in the tooltip, which is where a word belongs here.
-    chip.appendChild(clawd());
-    // The tooltip lists everything that is true, for the same reason: it is read
-    // right next to a widget that lists it all, and the two must not disagree.
-    const parts = [];
-    if (pending) parts.push(t('claude_bar_waiting', 'wants your OK'));
-    if (working) parts.push(t('claude_bar_working', 'working'));
-    if (done) parts.push(t('claude_bar_done', 'finished'));
-    const label = parts.join(' · ');
-    // A dot rather than a recolour: at this size, repainting Clawd costs the one
-    // thing he is there for, which is being recognisably Claude.
-    //
-    // And the dot is what makes the state legible WITHOUT MOTION, which matters
-    // more than it looks. Four dashboard states pause every animation — a dialog
-    // open, a minute without touches, game mode, Performance Mode — and on a
-    // machine with any of them on, a design that says "working" only by walking
-    // says nothing at all: standing still, working and finished were the same
-    // picture. Motion is the enhancement here; the dot is the signal.
-    //   nothing   Clawd alone, quiet
-    //   accent    finished, and you have not looked
-    //   amber     blocked on you
-    if (pending) chip.appendChild(el('span', 'cw-tb-alert'));
-    else if (done) chip.appendChild(el('span', 'cw-tb-alert is-done'));
-    if (working > 1 && !pending) chip.appendChild(el('span', 'cw-tb-n', String(working)));
-    chip.title = label;
-    chip.setAttribute('aria-label', label);
-    chip.addEventListener('click', () => {
-      const n = ui.doneNotices[ui.doneNotices.length - 1];
-      // The tile is where the sessions are: take the user to its page first.
-      const tile = tiles()[0];
-      const moved = !!(tile && window.DashboardPager && window.DashboardPager.goToPageOf(tile));
-      if (!n) return;
-      // The panel is drawn inside the tile. With no tile on any page there is
-      // nowhere to open it, so the tap acknowledges the marker instead.
-      if (!moved && !tiles().length) { clearNotice(n.id); ui.topbarSig = ''; syncTopbar(); return; }
-      clearNotice(n.id);
-      widgetState.askText = '';
-      openAsk(n.id, n.project || '', '');
-    });
-    host.replaceChildren(chip);
-  }
+  const { trackPresence, syncTopbar } = window.ClaudeWidgetTopbar({ ui, paint, openAsk });
 
   // ── a tap must survive an SSE push ─────────────────────────────────────────
   // A tap is pointerdown + pointerup on the SAME element. The tile, the overlay
