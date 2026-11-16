@@ -25,10 +25,11 @@ export function candidates(path) {
   return last.includes('.') ? [path] : [path, path + '.html'];
 }
 
-// The site's languages besides English (docs/<code>/). The catalog, the creator pages, /create/
-// and /submit/ exist once, in English, and crawlers still try them under a language prefix
-// (Search Console listed /zh/catalog/ and /zh/create/ as 404s), so a missing localized address
-// is sent to the shared page when that page exists.
+// The site's languages besides English (docs/<code>/). The catalog has a copy per language
+// (/zh/catalog/), but its entry pages, the creator pages, /create/ and /submit/ exist once, in
+// English, and crawlers still try them under a language prefix (Search Console listed
+// /zh/create/ as a 404), so a missing localized address is sent to the shared page when that
+// page exists.
 const LANG_PREFIX = /^\/(?:it|es|fr|ja|ko|zh)(\/.+)$/;
 // Addresses with no page of their own whose content lives elsewhere: /creators/ has no index,
 // every creator is listed in the catalog.

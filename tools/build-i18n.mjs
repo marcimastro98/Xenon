@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LANG_PAGES, OG_LOCALE, langsOf } from './lang-pages.mjs';
+import { COPY_PAGES, OG_LOCALE, langsOf } from './lang-pages.mjs';
 import { bake, escAttr, escText, readTables } from './home-bake.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -56,7 +56,7 @@ function rootRelative(src) {
 // visitor reading the Italian home stays in Italian when they follow it.
 function localizePages(src, lang) {
   let s = src;
-  for (const { page } of LANG_PAGES) {
+  for (const { page } of COPY_PAGES) {
     if (!langsOf(page).includes(lang)) continue;
     // Markup (href="/x.html") and dictionary strings (href=\"/x.html\").
     const esc = page.replace(/\./g, '\\.');

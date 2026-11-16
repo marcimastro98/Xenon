@@ -25,21 +25,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findTagged, escText, escAttr, checkPage } from './page-i18n.mjs';
-import { LANG_PAGES, OG_LOCALE, HOME_LANGS, langsOf, pathOf, langMenu, readDictFiles } from './lang-pages.mjs';
+import { LANG_PAGES, OG_LOCALE, langsOf, pathOf, langMenu, readDictFiles } from './lang-pages.mjs';
+import { SITE, chromeLabels, setHreflang, localizeUrls, bakeLabels } from './lang-copy.mjs';
 import { fillGuideNav } from './site-chrome.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
-const SITE = 'https://xenon-app.com';
 const CHECK = process.argv.includes('--check');
-
-// The shared header/footer labels, read out of docs/chrome.js (one table, six
-// languages) so the copies are crawled with their own words, not English.
-function chromeLabels() {
-  const src = fs.readFileSync(path.join(DOCS, 'chrome.js'), 'utf8');
-  const m = /var L = (\{[\s\S]*?\});\r?\n/.exec(src);
-  return m ? JSON.parse(m[1]) : {};
-}
 
 // A page's inline table (`const I18N = { "en": {…}, … };`), for the pages that
 // still carry one, merged under the JSON file so the file can add languages
@@ -50,48 +42,6 @@ function readDict(entry) {
 
 function metaSet(s, re, value) {
   return re.test(s) ? s.replace(re, (all, a, b) => a + escAttr(value) + b) : s;
-}
-
-function hreflangBlock(page) {
-  const langs = langsOf(page);
-  const lines = langs.map((l) => `<link rel="alternate" hreflang="${l}" href="${SITE}${pathOf(page, l)}">`);
-  lines.push(`<link rel="alternate" hreflang="x-default" href="${SITE}${pathOf(page, 'en')}">`);
-  return lines.join('\n');
-}
-
-function setHreflang(s, page) {
-  s = s.replace(/<link rel="alternate" hreflang="[^"]*" href="[^"]*">\n?/g, '');
-  const block = hreflangBlock(page);
-  if (/<link rel="canonical"[^>]*>/.test(s)) return s.replace(/(<link rel="canonical"[^>]*>)/, '$1\n' + block);
-  return s.replace('</head>', block + '\n</head>');
-}
-
-// Internal links for a copy: relative becomes root-relative, and a page that
-// exists in this language points at that copy.
-function localizeUrls(s, lang) {
-  const copies = new Set(LANG_PAGES.filter((p) => langsOf(p.page).includes(lang)).map((p) => p.page));
-  const homeHas = HOME_LANGS.includes(lang);
-  const fix = (url) => {
-    if (!url || /^(https?:|mailto:|tel:|data:|#|javascript:)/i.test(url)) return url;
-    let u = url;
-    if (!u.startsWith('/')) u = '/' + u.replace(/^\.\//, '');
-    const m = /^\/([^?#]*)([?#].*)?$/.exec(u);
-    const file = m ? m[1] : '';
-    const tail = m && m[2] ? m[2] : '';
-    if (file === '' && homeHas) return '/' + lang + '/' + tail;
-    if (copies.has(file)) return '/' + lang + '/' + file + tail;
-    return u;
-  };
-  // Both quote styles: translated HTML in tools/i18n/*.json uses single quotes
-  // (it lives inside a JSON string), and a missed `href='catalog/'` became
-  // /zh/catalog/, a 404 Google kept reporting.
-  s = s.replace(/(\s(?:href|src|poster)=)(["'])(.*?)\2/g, (all, a, q, url) => a + q + fix(url) + q);
-  s = s.replace(/(\ssrcset=")([^"]*)(")/g, (all, a, set, b) => a + set.split(',').map((part) => {
-    const bits = part.trim().split(/\s+/);
-    bits[0] = fix(bits[0]);
-    return bits.join(' ');
-  }).join(', ') + b);
-  return s;
 }
 
 function swapJsonLd(s, en, tr) {
@@ -112,7 +62,7 @@ function swapJsonLd(s, en, tr) {
 
 function bakeChrome(s, lang, labels, page) {
   const L = labels[lang] || {};
-  s = s.replace(/(<(\w+)[^>]*\sdata-xl="([^"]+)"[^>]*>)([^<]*)(<\/\2>)/g, (all, open, tag, key, text, close) => (L[key] ? open + escText(L[key]) + close : all));
+  s = bakeLabels(s, L);
   s = s.replace(/<details class="xh-lang">[\s\S]*?<\/details>/, langMenu(page, lang));
   return s;
 }
@@ -157,7 +107,7 @@ function bake(entry, html, dict, lang, labels) {
 }
 
 let problems = 0;
-const labels = chromeLabels();
+const labels = chromeLabels(DOCS);
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 for (const entry of LANG_PAGES) {
   if (ONLY.length && !ONLY.includes(entry.page)) continue;
