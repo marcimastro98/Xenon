@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import worker, { candidates, liveIsNewer } from '../../site-host/worker.js';
+import worker, { candidates, liveIsNewer, sharedPath } from '../../site-host/worker.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FILES = new Set(['/index.html', '/faq.html', '/it/index.html', '/catalog/index.html', '/community/catalog.json', '/404.html', '/demo/js/app.js']);
@@ -51,6 +51,26 @@ test('a missing page is the site 404 page with a 404 status', async () => {
   assert.equal(res.status, 404);
   assert.equal(await res.text(), 'file /404.html');
   assert.equal(res.headers.get('access-control-allow-origin'), '*');
+});
+
+test('sharedPath: a language prefix falls back to the shared page, /creators/ to the catalog', () => {
+  assert.equal(sharedPath('/zh/catalog/'), '/catalog/');
+  assert.equal(sharedPath('/ja/create/'), '/create/');
+  assert.equal(sharedPath('/creators/'), '/catalog/');
+  assert.equal(sharedPath('/it/'), null, 'a language home is never moved');
+  assert.equal(sharedPath('/de/catalog/'), null, 'not a language of the site');
+  assert.equal(sharedPath('/nope'), null);
+});
+
+test('a localized address with no page of its own goes to the shared page (Search Console 404s)', async () => {
+  const res = await get('/zh/catalog/?q=1');
+  assert.equal(res.status, 301);
+  assert.equal(res.headers.get('location'), 'https://xenon-app.com/catalog/?q=1');
+  assert.equal((await get('/creators/')).headers.get('location'), 'https://xenon-app.com/catalog/');
+  // Only when the shared page exists: anything else stays an honest 404.
+  assert.equal((await get('/zh/nope.html')).status, 404);
+  // A language page that exists is served, never redirected.
+  assert.equal(await (await get('/it/')).text(), 'file /it/index.html');
 });
 
 test('www goes to the bare domain, and only reads are served', async () => {
