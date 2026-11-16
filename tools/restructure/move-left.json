@@ -25,7 +25,11 @@
     "server/win-reserved.js": "files",
     "server/zip-writer.js": "files",
     "server/child-priority.js": "programs",
-    "server/ps-quote.js": "powershell"
+    "server/ps-quote.js": "powershell",
+    "server/semver.js": "updates",
+    "server/transcript-format.js": "screens",
+    "server/pc-id.js": "engine",
+    "server/list-ops.js": "time"
   },
   "makes": [
     "server/layers"
@@ -37,10 +41,6 @@
     "server/atomic-write.js": "shared by every store, and the rules of the repo name it by this path (structure-conventions, section 5: shared infrastructure keeps its paths)",
     "server/linux-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)",
     "server/darwin-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)",
-    "server/list-ops.js": "shared by several features, and none of the small shared folders (files, programs, powershell, wav) is about lists: it waits for a shared folder to be named",
-    "server/pc-id.js": "shared by several features, and none of the small shared folders is about the machine's id: it waits for a shared folder to be named",
-    "server/semver.js": "shared by the updater and the Store, and none of the small shared folders is about versions: it waits for a shared folder to be named",
-    "server/transcript-format.js": "shared by capture and the assistant's tools, and none of the small shared folders is about transcripts: it waits for a shared folder to be named",
     "server/battery.js": "the contract tests of Xenon Maker load it by this path",
     "server/sdk-widgets.js": "the contract tests of Xenon Maker and the tests of the creator packs load it by this path",
     "server/sdk-proxy.js": "the runtime review of the hub skill loads it by this path",

@@ -45,7 +45,9 @@ export function targets({ tracked, features, left, only }) {
     const feature = ownerOf.get(from);
     if (only && feature !== only) continue;
     const folder = left.places?.[from] ?? left.homes[feature] ?? feature;
-    const names = features.find((entry) => entry.id === feature)?.files.includes(`server/${folder}/**`);
+    // A file given a place of its own may go to the folder of another feature: the one that owns the idea.
+    const named = (entry) => entry.files.includes(`server/${folder}/**`);
+    const names = left.places?.[from] ? features.some(named) : features.some((entry) => entry.id === feature && named(entry));
     if (left.files[from]) stay.push({ file: from, why: left.files[from] });
     else if (left.features[feature]) stay.push({ file: from, why: left.features[feature] });
     else if (!feature || !folders.has(folder) || !names) stay.push({ file: from, why: `the map gives the feature "${feature}" no folder of its own` });
@@ -58,7 +60,7 @@ export function targets({ tracked, features, left, only }) {
  * Why one move may not be made, from what the repo says before anything is read for references.
  * @param {{from: string, to: string}} move
  * @param {{ tracked: Set<string>, frozen: {paths: string[], whole: string[]}, features: object[], dirty: Set<string>,
- *   ignored: (file: string) => boolean, read: (file: string) => string, makes?: string[], follows?: Set<string> }} repo
+ *   ignored: (file: string) => boolean, read: (file: string) => string, makes?: string[], placed?: Set<string>, follows?: Set<string> }} repo
  *   `makes`: folders a move may make; `follows`: words of MEANING the caller checks itself
  * @returns {string | null}
  */
@@ -77,7 +79,8 @@ export function whyNot(move, repo) {
   if (repo.ignored(to)) return `${folder}/ is ignored by git: the file would be missing from an install`;
   // The first feature with a pattern for the file owns it, as in the map.
   const owner = (file) => repo.features.find((feature) => feature.files.some((glob) => globToRegExp(glob).test(file)))?.id;
-  if (owner(from) !== owner(to)) return 'the map would give it to another feature at the new place';
+  // A file a person gave a place of its own (move-left.json, `places`) may change feature; it still needs an owner there.
+  if (repo.placed?.has(from) ? !owner(to) : owner(from) !== owner(to)) return 'the map would give it to another feature at the new place';
   const code = withoutComments(repo.read(from));
   const word = MEANING.find(([name, test]) => !repo.follows?.has(name) && test.test(code));
   return word ? `it says ${word[0]}: its place is part of what it does` : null;

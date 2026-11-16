@@ -267,6 +267,19 @@ test('one file may be given a folder of its own, and a folder named like its fea
   assert.match(says('spawn(__filename, __dirname)', new Set(['__dirname'])), /__filename/);
 });
 
+test('a file given a place of its own may go to the folder of another feature, never to one nobody owns', () => {
+  const tracked = ['server/pulse/index.js', 'server/pulse-nag.js', 'server/brain/chat.js'];
+  const to = (places) => targets({ tracked, features: FEATURES, left: { ...LEFT, places } });
+  assert.deepEqual(to({ 'server/pulse-nag.js': 'brain' }).moves.map((move) => move.to), ['server/brain/pulse-nag.js']);
+  assert.match(to({ 'server/pulse-nag.js': 'nowhere' }).stay[0].why, /no folder of its own/);
+  const files = { 'server/pulse-nag.js': '', 'server/pulse/index.js': '', 'server/brain/chat.js': '', 'server/loose/x.js': '' };
+  const other = { from: MOVE.from, to: 'server/brain/pulse-nag.js' };
+  assert.match(whyNot(other, facts(files)), /another feature/, 'without a place of its own it keeps its feature');
+  assert.equal(whyNot(other, facts(files, { placed: new Set([MOVE.from]) })), null);
+  const unowned = facts(files, { placed: new Set([MOVE.from]), features: FEATURES.filter((feature) => feature.id !== 'rest') });
+  assert.match(whyNot({ from: MOVE.from, to: 'server/loose/pulse-nag.js' }, unowned), /another feature/);
+});
+
 test('a join that starts at __dirname gets the way back up, and nothing else that depends on the place may move', { skip: !parserAvailable() && 'TypeScript is not installed here' }, async () => {
   const parser = await openParser();
   try {

@@ -78,7 +78,8 @@ function spelledEdits(root, moves) {
  * @returns {{ moves: {from: string, to: string}[], refused: {move: object, why: string[]}[], edits: Map<string, object[]>, sites: object[] }}
  */
 export function planStep(root, asked, parser) {
-  const repo = { ...repoFacts(root), makes: readLeft(root).makes ?? [], follows: new Set(['__dirname', 'require.resolve']) };
+  const left = readLeft(root);
+  const repo = { ...repoFacts(root), makes: left.makes ?? [], placed: new Set(Object.keys(left.places ?? {})), follows: new Set(['__dirname', 'require.resolve']) };
   const told = readTold(root);
   const refused = new Map();
   const refuse = (move, why) => refused.set(move.from, { move, why: [...(refused.get(move.from)?.why ?? []), why] });
