@@ -88,7 +88,7 @@ test('the page wires the search in the right order', () => {
   assert.match(HTML, /id="settings-content">\s*<h1 class="settings-page-title" id="settings-page-title"[^>]*><\/h1>\s*<div class="settings-search-results" id="settings-search-results"[^>]*hidden><\/div>/);
   const pos = (s) => HTML.indexOf(`<script src="js/${s}"></script>`);
   assert.ok(pos('fuzzy-find.js') > 0, 'fuzzy-find.js loaded');
-  assert.ok(pos('fuzzy-find.js') < pos('settings-search.js'));
+  assert.ok(pos('fuzzy-find.js') < pos('settings-search/settings-search.js'));
   assert.ok(pos('fuzzy-find.js') < pos('grid/dashboard-palette.js'));
 });
 
@@ -102,7 +102,7 @@ test('Esc clears a search before it closes anything', () => {
 
 test('search results never go through innerHTML', () => {
   // Labels come from translations and from Store package manifests.
-  for (const f of ['../js/settings-search.js', '../js/fuzzy-find.js']) {
+  for (const f of ['../js/settings-search/settings-search.js', '../js/fuzzy-find.js']) {
     assert.doesNotMatch(read(f), /innerHTML/, `${f} uses innerHTML`);
   }
   const palette = read('../js/grid/dashboard-palette.js');
@@ -118,14 +118,14 @@ test('cards of the categories that are not open are indexed too', () => {
   // category, so a visibility test on the CARD indexed one category at a time:
   // "abilita vitals" found nothing unless Bit was already open. Found on the
   // first real use. Only [hidden] BELOW the card may exclude a row.
-  const src = read('../js/settings-search.js');
+  const src = read('../js/settings-search/settings-search.js');
   const build = src.slice(src.indexOf('function build()'), src.indexOf('function ensureIndex('));
   assert.doesNotMatch(build, /reachable\(card\b/);
   assert.match(build, /reachable\(row, card\)/);
 });
 
 // ── Rows behind a switch, sections, keys ──────────────────────────────────────
-const SEARCH = read('../js/settings-search.js').replace(/\r\n/g, '\n');
+const SEARCH = read('../js/settings-search/settings-search.js').replace(/\r\n/g, '\n');
 function inner(name) {
   const m = new RegExp('^  function ' + name + '\\([\\s\\S]*?\\n  \\}', 'm').exec(SEARCH);
   assert.ok(m, name);

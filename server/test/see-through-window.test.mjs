@@ -209,5 +209,5 @@ test('while it is on, the card says the other backgrounds are paused', () => {
 
 test('where it is not offered it is not a Settings search result either', () => {
   assert.match(SETTINGS, /row\.dataset\.unavailable = '1'/);
-  assert.match(read('../js/settings-search.js'), /card\.dataset\.unavailable === '1'/);
+  assert.match(read('../js/settings-search/settings-search.js'), /card\.dataset\.unavailable === '1'/);
 });

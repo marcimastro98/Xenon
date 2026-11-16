@@ -168,7 +168,7 @@
   .settings-pagehk-state { grid-column: 1 / -1; }
 }
 
-/* ── Settings search (js/settings-search.js) ──────────────────────────────────
+/* ── Settings search (js/settings-search/settings-search.js) ──────────────────────────────────
    The field sits above the category list, outside its scroller, so it never
    scrolls away and survives the phone's folded picker (which hides only the
    buttons, labels and footer). The input borrows .settings-text-input for its

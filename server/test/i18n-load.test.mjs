@@ -121,6 +121,6 @@ test('the dashboard, the search window and the Deck popup load one language', ()
 });
 
 test('both searches fetch every language on the first query', () => {
-  assert.match(read('../js/settings-search.js'), /I18nLoad\.ensureAll\(\)/);
+  assert.match(read('../js/settings-search/settings-search.js'), /I18nLoad\.ensureAll\(\)/);
   assert.match(read('../js/grid/dashboard-palette.js'), /I18nLoad\.ensureAll\(\)/);
 });

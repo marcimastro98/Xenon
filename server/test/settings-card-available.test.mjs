@@ -58,7 +58,7 @@ test('probed cards start unavailable and their probes go through the helper', ()
   assert.match(SETTINGS, /setSettingsCardAvailable\(group, !!key\);/);
   const gpu = readFileSync(path.join(DIR, 'js', 'performance/gpu-hint.js'), 'utf8');
   assert.doesNotMatch(gpu, /group\.hidden = /);
-  const search = readFileSync(path.join(DIR, 'js', 'settings-search.js'), 'utf8');
+  const search = readFileSync(path.join(DIR, 'js', 'settings-search/settings-search.js'), 'utf8');
   assert.match(search, /card\.dataset\.unavailable === '1'\) continue;/);
 });
 
