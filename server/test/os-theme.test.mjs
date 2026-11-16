@@ -100,7 +100,7 @@ test('the route hands the question to the module, on every platform', () => {
 });
 
 test('the WebView only decides where nothing else can', () => {
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   // resolveAppearance prefers the server reading and falls back to the query.
   assert.match(src, /if \(typeof _osPrefersDark === 'boolean'\) return _osPrefersDark \? 'dark' : 'light';/);
   // A media-query flip asks the OS again instead of repainting on the WebView's

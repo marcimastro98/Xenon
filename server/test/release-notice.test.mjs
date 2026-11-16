@@ -315,7 +315,7 @@ test('a new install sees the major first, then the notes of the version it start
   const notesAt = update.indexOf('queue.push((next) => openReleaseNotes(wn, notes, next))');
   assert.ok(majorAt > 0 && notesAt > majorAt, 'the major is queued before the notes');
   assert.ok(!update.includes('suppressForFreshInstall'));
-  const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const settings = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   assert.ok(!settings.includes('suppressForFreshInstall'));
   assert.ok(SERVER.includes('json({ ...(await loadWhatsNew()), version: APP_VERSION })'), '/whatsnew hides nothing from a new install');
   const queue = readFileSync(new URL('../js/alerts/interrupt-queue.js', import.meta.url), 'utf8');

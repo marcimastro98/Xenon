@@ -19,14 +19,14 @@ import { readFileSync } from './browser-source.mjs';
 import { runInNewContext } from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
-const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const CLIENT = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const UPDATE = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
 const DISCORD = readFileSync(new URL('../js/store-supporters/discord-invite.js', import.meta.url), 'utf8');
 const NATIVE = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
 
 // ── Harness ──────────────────────────────────────────────────────────────────
-// The accessors are a self-contained block in js/settings.js — a browser file
+// The accessors are a self-contained block in js/settings/settings.js — a browser file
 // far too entangled to import whole — so the block is lifted out and run against
 // stubs. That keeps these tests about BEHAVIOUR (what a read returns, what a
 // write touches) rather than about the shape of the source, which is what the
@@ -34,7 +34,7 @@ const NATIVE = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 
 
 function cardsBlock() {
   const at = CLIENT.indexOf('const LEGACY_CARD_KEYS = {');
-  assert.notEqual(at, -1, 'js/settings.js must still define LEGACY_CARD_KEYS');
+  assert.notEqual(at, -1, 'js/settings/settings.js must still define LEGACY_CARD_KEYS');
   const end = CLIENT.indexOf('const STARTUP_CARD_WAIT_MS', at);
   assert.notEqual(end, -1, 'the accessors must still be followed by the ready-gate');
   return CLIENT.slice(at, end);
@@ -220,7 +220,7 @@ test('neither card module reaches storage on its own any more', () => {
   // of its own (the skipped version, the apply-result ack, the shell-error flag).
   assert.doesNotMatch(UPDATE, /xenon\.whatsnew\.dismissed/, 'update.js must go through XenonStartupCards');
   assert.doesNotMatch(DISCORD, /localStorage\s*\./, 'discord-invite.js must go through XenonStartupCards');
-  assert.doesNotMatch(DISCORD, /xenonedge\.discordInvite/, 'the legacy key has one owner: js/settings.js');
+  assert.doesNotMatch(DISCORD, /xenonedge\.discordInvite/, 'the legacy key has one owner: js/settings/settings.js');
 });
 
 // Both cards decide AFTER hydration. Before it, the settings copy is the blind

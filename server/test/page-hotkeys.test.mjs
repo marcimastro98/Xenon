@@ -22,7 +22,7 @@ const DeckShortcuts = createRequire(import.meta.url)('../js/deck/deck-shortcuts.
 const LayersModel = createRequire(import.meta.url)('../js/layers/layers-model.js');
 const CaptureSettings = createRequire(import.meta.url)('../screens/capture-settings.js');
 const { createWidgetKeys } = createRequire(import.meta.url)('../widget-sdk/widget-keys.js');
-const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');
+const CLIENT = readFileSync(join(ROOT, 'js', 'settings/settings.js'), 'utf8');
 const CS = readFileSync(join(ROOT, '..', 'helper', 'HotkeyHost.cs'), 'utf8');
 const SWIFT = readFileSync(join(ROOT, '..', 'helper-mac', 'Sources', 'xenon-helper', 'HotkeyHost.swift'), 'utf8');
 

@@ -32,7 +32,7 @@ function categories() {
 }
 
 function widgetIds() {
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   const m = src.match(/DASHBOARD_WIDGET_IDS = Object\.freeze\(\[([^\]]*)\]/);
   assert.ok(m, 'DASHBOARD_WIDGET_IDS moved');
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);

@@ -130,7 +130,7 @@ test('SDK: a widget may switch the modes and rule out the app in front, never na
   const cw = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
   assert.match(cw, /performance: \['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory'\]/);
   assert.match(cw, /gameIgnore: \{ mode: \['current'\], name: \[\] \}/);
-  const st = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const st = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   assert.match(st, /SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'performance'\]\)/);
 });
 
@@ -147,6 +147,6 @@ test('the server reads the list from settings and normalizes it on both sides', 
   const server = engineSource();
   assert.match(server, /gameDetect\.setIgnoreSource\(\(\) => _serverHubSettings && _serverHubSettings\.gameIgnore\)/);
   assert.match(server, /gameIgnore: GameIgnore\.normalizeGameIgnore\(source\.gameIgnore\)/);
-  const st = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const st = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   assert.match(st, /gameIgnore: window\.GameIgnore \? window\.GameIgnore\.normalizeGameIgnore\(value\.gameIgnore\) : \[\]/);
 });

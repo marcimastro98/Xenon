@@ -20,7 +20,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const WIDGET = read('../js/discord-widget/discord-widget.js');
 const SERVER = engineSource();
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const RPC = engineSource('server/discord/discord-rpc.js');
 const CUSTOM = read('../js/custom-widget/custom-widget.js');
 const CSS = read('../components/DiscordWidget/DiscordWidget.css');
@@ -32,9 +32,9 @@ const FEATURES = read('../../FEATURES.md');
 // ── the setting has to exist twice ─────────────────────────────────────────
 test('discordCollapsedGuilds is in both normalizers and both defaults', () => {
   // server.js keeps its own copy of the settings field list. A key added to
-  // js/settings.js alone is normalized away on the next save, and the symptom
+  // js/settings/settings.js alone is normalized away on the next save, and the symptom
   // is a setting that "does not stick" with nothing in the log.
-  for (const [name, src, arg] of [['server.js', SERVER, 'source'], ['js/settings.js', SETTINGS, 'value']]) {
+  for (const [name, src, arg] of [['server.js', SERVER, 'source'], ['js/settings/settings.js', SETTINGS, 'value']]) {
     assert.match(src, /discordCollapsedGuilds: Object\.freeze\(\[\]\),/, name + ' default');
     assert.match(src, new RegExp('discordCollapsedGuilds: normalizeSnowflakeList\\(' + arg + '\\.discordCollapsedGuilds\\)'),
       name + ' normalizer');

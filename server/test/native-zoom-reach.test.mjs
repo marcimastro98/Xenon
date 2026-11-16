@@ -22,7 +22,7 @@ import { appStringsSource } from './i18n-source.mjs';
 //     worked. Which put the one control people needed out of sight from the one
 //     place they configure from, with nothing to say where to look.
 
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const BRIDGE = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();

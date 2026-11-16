@@ -118,10 +118,10 @@ test('server and client store the same shape, the server writes under the settin
   const writer = server.slice(server.indexOf('async function updatePerfHudSetting'), server.indexOf('async function updatePerfHudSetting') + 600);
   assert.match(writer, /withHubSettingsLock/);
   assert.match(writer, /nextSettingsRev/);
-  const settings = read('js/settings.js');
+  const settings = read('js/settings/settings.js');
   assert.match(settings, /perfHud: window\.PerfHud \? window\.PerfHud\.normalizePerfHud\(value\.perfHud\)/);
   const html = read('index.html');
-  assert.ok(html.indexOf('<script src="js/performance/perf-hud.js">') > 0 && html.indexOf('<script src="js/performance/perf-hud.js">') < html.indexOf('<script src="js/settings.js">'), 'perf-hud.js loads before settings.js');
+  assert.ok(html.indexOf('<script src="js/performance/perf-hud.js">') > 0 && html.indexOf('<script src="js/performance/perf-hud.js">') < html.indexOf('<script src="js/settings/settings.js">'), 'perf-hud.js loads before settings.js');
   for (const k of PERF_HUD_PARTS) assert.match(html, new RegExp(`id="settings-perfhud-${k}"`));
 });
 

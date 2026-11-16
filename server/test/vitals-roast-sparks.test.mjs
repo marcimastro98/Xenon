@@ -83,7 +83,7 @@ test('wiring: settings on both sides, the roast route, the client and the row', 
   assert.match(S, /const roastSparks = createRoastSparks\(\{ dataDir: DATA_DIR \}\);/);
   const roast = S.slice(S.indexOf("reqPath === '/api/vitals/roast'"), S.indexOf("reqPath === '/api/log'"));
   assert.match(roast, /\} else if \(provider === 'xenon'\) \{[\s\S]{0,200}text = await roastSparks\.spend\(petCfg\.roastSparksCap,/);
-  const settings = read('../js/settings.js');
+  const settings = read('../js/settings/settings.js');
   assert.match(settings, /const VITALS_ROAST_SPARKS_CAPS = Object\.freeze\(\[0, 10, 25, 50, 100\]\);/);
   assert.deepEqual([...R.ROAST_SPARKS_CAPS], [0, 10, 25, 50, 100], 'client and server offer the same numbers');
   assert.match(settings, /roastSparksCap: VITALS_ROAST_SPARKS_CAPS\.includes\(Number\(petSrc\.roastSparksCap\)\) \? Number\(petSrc\.roastSparksCap\) : 0,/);

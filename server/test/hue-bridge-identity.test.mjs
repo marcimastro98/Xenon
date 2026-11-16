@@ -132,7 +132,7 @@ test('the paired bridge id survives a settings save', () => {
   // field that is not listed is wiped on the next save from any surface — and
   // the check would quietly fall back to trusting whatever answers the address.
   const server = engineSource();
-  const client = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'js', 'settings.js'), 'utf8');
+  const client = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'js', 'settings/settings.js'), 'utf8');
   for (const [side, src] of [['server', server], ['client', client]]) {
     const m = /function normalizeLightingProviders\(value\) \{[\s\S]*?\n\}/.exec(src);
     assert.ok(m, `${side}: normalizeLightingProviders is gone`);

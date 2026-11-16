@@ -1,5 +1,5 @@
 // Local search settings (searchSettings) must normalize identically on both
-// sides — server.js owns the persisted shape, js/settings.js rebuilds it in the
+// sides — server.js owns the persisted shape, js/settings/settings.js rebuilds it in the
 // browser, and a divergence means a save from one surface quietly rewrites what
 // the other chose (the settings invariant).
 //
@@ -17,7 +17,7 @@ import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = engineSource();
-const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');
+const CLIENT = readFileSync(join(ROOT, 'js', 'settings/settings.js'), 'utf8');
 
 // Run the real source rather than asserting on its text.
 function loadNormalizer(src) {

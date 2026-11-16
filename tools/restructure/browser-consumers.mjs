@@ -155,7 +155,7 @@ export function mentionsOf(root, file) {
     const lines = [];
     const loads = [];
     for (const match of text.matchAll(mentionOf(file))) {
-      // `js/settings.js` and `../js/settings.js` are this file; `remote-control/settings.js` is another one.
+      // `js/settings/settings.js` and `../js/settings.js` are this file; `remote-control/settings.js` is another one.
       const folders = match[1].split('/').filter((part) => part && part !== '.' && part !== '..').join('/');
       if (folders && !`/${path.posix.dirname(file)}`.endsWith(`/${folders}`)) continue;
       // `require('../capture.js')` in server/test is server/capture.js when that file is there, whatever a browser file is called.

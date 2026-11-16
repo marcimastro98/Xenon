@@ -18,7 +18,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const CW = read('js', 'custom-widget/custom-widget.js');
 const LOOK = read('js', 'weather/weather-look.js');
-const SETTINGS = read('js', 'settings.js');
+const SETTINGS = read('js', 'settings/settings.js');
 const SERVER = engineSource();
 const INDEX = read('index.html');
 const I18N = appStringsSource();

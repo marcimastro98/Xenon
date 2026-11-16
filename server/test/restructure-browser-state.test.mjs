@@ -99,7 +99,7 @@ test('a test that holds a list of scripts, or cuts a script between two of its l
 test('a file named in a comment is not a use of it', () => {
   assert.equal(withoutComments('a(); // see settings.js\n/* settings.js */ b("https://example.com/settings.js");\n', 'x.js'),
     'a();                   \n                  b("https://example.com/settings.js");\n');
-  assert.equal(withoutComments('<!-- settings.js -->\n<script src="js/settings.js"></script>\n', 'x.html'), '                    \n<script src="js/settings.js"></script>\n');
+  assert.equal(withoutComments('<!-- settings.js -->\n<script src="js/settings/settings.js"></script>\n', 'x.html'), '                    \n<script src="js/settings/settings.js"></script>\n');
   assert.equal(withoutComments('{ "a": "// settings.js" }', 'x.json'), '{ "a": "// settings.js" }');
 });
 

@@ -21,7 +21,7 @@ function ctxAt(search, extra = {}) {
 }
 
 test('no startup card rises in a layer or the menu window, whichever module asks', () => {
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   const gate = src.slice(src.indexOf('function whenStartupCardsReady'));
   assert.ok(gate.slice(0, gate.indexOf('_hubHydratedFromServer')).includes(GUARD));
 });

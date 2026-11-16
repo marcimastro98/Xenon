@@ -180,7 +180,7 @@ test('switching it off deletes what was waiting', async () => {
 
 test('the server and client wire the setting the strict way, local to the PC', () => {
   const SERVER = engineSource();
-  const CLIENT = read('js/settings.js');
+  const CLIENT = read('js/settings/settings.js');
   const INDEX = read('index.html');
   // On for a fresh install, an existing one stays off until its owner chooses.
   assert.match(SERVER, /^\s*usageStats: true,/m);

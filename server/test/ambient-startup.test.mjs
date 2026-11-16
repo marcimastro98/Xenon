@@ -26,7 +26,7 @@ const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const { ambientStartupDecision } = require('../js/ambient/ambient-mode.js');
 const ScreenSceneModel = require('../js/ambient/screen-scene-model.js');
 const MODE = read('js', 'ambient/ambient-mode.js');
-const SETTINGS = read('js', 'settings.js');
+const SETTINGS = read('js', 'settings/settings.js');
 const SERVER = engineSource();
 const I18N = appStringsSource();
 const INDEX = read('index.html');
@@ -125,7 +125,7 @@ test('the startup open is never treated as the screensaver', () => {
 test('it runs after the settings have arrived from the server', () => {
   assert.match(MODE, /XenonStartupCards\.whenReady\(openOnStartup\)/);
   // settings.js defines XenonStartupCards, so it must load first.
-  assert.ok(INDEX.indexOf('<script src="js/settings.js">') < INDEX.indexOf('<script src="js/ambient/ambient-mode.js">'));
+  assert.ok(INDEX.indexOf('<script src="js/settings/settings.js">') < INDEX.indexOf('<script src="js/ambient/ambient-mode.js">'));
 });
 
 test('the option is off by default and survives both normalizers', () => {

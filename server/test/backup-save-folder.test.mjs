@@ -14,7 +14,7 @@ import { namesOf } from './source-names.mjs';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = engineSource();
-const SETTINGS = readFileSync(path.join(DIR, 'js', 'settings.js'), 'utf8');
+const SETTINGS = readFileSync(path.join(DIR, 'js', 'settings/settings.js'), 'utf8');
 
 function slice(src, start, end) {
   const i = src.indexOf(start);

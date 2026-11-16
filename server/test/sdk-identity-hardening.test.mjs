@@ -243,7 +243,7 @@ test('a new or changed group needs review, on the dashboard and for auto-update 
 
 test('the permission dialog records the group, and the settings normalizer keeps it', () => {
   assert.match(CW_SRC, /storageGroup: wantsStorage \? storageGroup : ''/);
-  const settings = read('../js/settings.js');
+  const settings = read('../js/settings/settings.js');
   assert.match(settings, /grants\[key\]\.storageGroup = g\.storageGroup/);
   const srv = engineSource();
   assert.match(srv, /if \(pkg\.storageGroup && grant\.storageGroup !== pkg\.storageGroup\) \{ json\(\{ ok: false, error: 'not_granted' \}\)/);

@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const { validateAction } = require('../js/deck/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const SERVER = engineSource();
-const CLIENT = read('../js/settings.js');
+const CLIENT = read('../js/settings/settings.js');
 
 function loadNormalizer(src) {
   const m = src.match(/function normalizeNotifications\(value\) \{[\s\S]*?\n\}/);

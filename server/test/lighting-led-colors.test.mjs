@@ -113,7 +113,7 @@ test('ledFrame: a wave runs across the LEDs that share it, a breathing group mov
 
 test('every normalizer knows the custom mode and its LED map', () => {
   const server = engineSource();
-  const client = readFileSync(join(SERVER, 'js', 'settings.js'), 'utf8');
+  const client = readFileSync(join(SERVER, 'js', 'settings/settings.js'), 'utf8');
   const bridge = engineSource('server/lights/lighting.js');
   for (const [name, src] of [['server.js', server], ['settings.js', client], ['lighting.js', bridge]]) {
     assert.match(src, /(LIGHTING_)?DEVICE_MODES = \[[^\]]*'custom'/, `${name} drops the custom mode`);
@@ -135,7 +135,7 @@ test('a Deck key and the SDK can switch a device to its LED colours', () => {
 // The browser mirror (settings.js) must keep exactly what the server keeps, or a
 // full settings save would drop or mangle the LED effects the server stored.
 test('the settings.js LED mirror agrees with the server normalizer', () => {
-  const src = readFileSync(join(SERVER, 'js', 'settings.js'), 'utf8');
+  const src = readFileSync(join(SERVER, 'js', 'settings/settings.js'), 'utf8');
   const pick = (name) => {
     const m = src.match(new RegExp('\\nfunction ' + name + '\\([^)]*\\) \\{[\\s\\S]*?\\n\\}'));
     assert.ok(m, name + ' not found in settings.js');

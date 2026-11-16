@@ -14,7 +14,7 @@ const { validateAction } = require('../js/deck/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 // The engine's code wherever it lives now: the defaults and the code that saves them have modules of their own.
 const SERVER = engineSource();
-const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url));
+const CLIENT = readFileSync(new URL('../js/settings/settings.js', import.meta.url));
 const I18N = appStringsSource();
 
 const shellUp = { available: () => true };

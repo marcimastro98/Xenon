@@ -151,7 +151,7 @@ test('stress: any input normalizes to a valid, stable shape', () => {
 // ── Wiring ───────────────────────────────────────────────────────────────────
 
 test('client and server both normalize layers with this one file', () => {
-  const settings = read('../js/settings.js');
+  const settings = read('../js/settings/settings.js');
   const server = engineSource();
   const index = read('../index.html');
   assert.match(settings, /layers: LayersModel\.normalize\(null\),/);
@@ -159,7 +159,7 @@ test('client and server both normalize layers with this one file', () => {
   assert.match(server, /const LayersModel = require\('\.\/js\/layers\/layers-model\.js'\);/);
   assert.match(server, /layers: LayersModel\.DEFAULTS,/);
   assert.match(server, /layers: LayersModel\.normalize\(source\.layers\),/);
-  assert.ok(index.indexOf('src="js/layers/layers-model.js"') < index.indexOf('src="js/settings.js"'));
+  assert.ok(index.indexOf('src="js/layers/layers-model.js"') < index.indexOf('src="js/settings/settings.js"'));
 });
 
 test('server edits to layers run under the settings lock, bump rev and tell the other surfaces', () => {

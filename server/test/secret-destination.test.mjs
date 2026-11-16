@@ -36,7 +36,7 @@ const { redactAiProviderCreds } = require('../ai/ai-provider-creds.js');
 const { redactRemoteCreds } = require('../remote-control/settings.js');
 
 const SERVER = engineSource();
-const SETTINGS_JS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS_JS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const INDEX = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 
@@ -263,6 +263,6 @@ test('settings-secrets: the server modules and the dashboard read the same list'
   const body = save.slice(0, save.indexOf('\n}\n'));
   assert.match(body, /SettingsSecrets\.stripSettingsSecrets\(hubSettings\)/);
   assert.ok(INDEX.indexOf('<script src="js/settings/settings-secrets.js">') >= 0
-    && INDEX.indexOf('<script src="js/settings/settings-secrets.js">') < INDEX.indexOf('<script src="js/settings.js">'),
+    && INDEX.indexOf('<script src="js/settings/settings-secrets.js">') < INDEX.indexOf('<script src="js/settings/settings.js">'),
     'settings-secrets.js must load before settings.js');
 });

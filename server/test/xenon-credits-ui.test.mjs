@@ -198,7 +198,7 @@ test('the rows under the Settings pages carry the credits chip, in view from eve
 });
 
 test('live voice is offered only on Gemini, which is what runs it', () => {
-  const settings = read('../js/settings.js');
+  const settings = read('../js/settings/settings.js');
   assert.match(settings, /show\('settings-ai-live-row', provider === 'gemini'\)/);
   assert.match(read('../index.html'), /<label class="settings-toggle-row" id="settings-ai-live-row">/);
 });

@@ -27,7 +27,7 @@ function normalizeAmbientMode(value) {
     saverMinutes: saverMinutes(source.saverMinutes),
     screens: ScreenSceneModel.normalizeScreens(source.screens),
     byScreen: ScreenSceneModel.normalizeByScreen(source.byScreen, isScene),
-    // Mirror of js/settings.js — dropped here, the toggle would snap back off
+    // Mirror of js/settings/settings.js — dropped here, the toggle would snap back off
     // on the next hydrate.
     openOnStartup: source.openOnStartup === true,
   };

@@ -2,7 +2,7 @@
 // Vitals state (vitals.state): what the meters and Bit remember, written by the
 // widget on every surface. Two doors write it: the whole-blob POST /settings
 // from the dashboard, and POST /api/vitals/state from a layer page, whose
-// settings are read-only (js/settings.js _settingsReadOnly), so a refill or a
+// settings are read-only (js/settings/settings.js _settingsReadOnly), so a refill or a
 // truce tapped there was lost. Both go through mergeState, so a stale surface
 // can never rewind what another one saved. The settings normaliser
 // (normalizeVitals) re-clamps the result on write.

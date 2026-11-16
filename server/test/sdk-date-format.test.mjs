@@ -24,7 +24,7 @@ test('the theme payload carries the date format on both shapes', () => {
 });
 
 test('changing the date format re-pushes the theme to live widgets', () => {
-  const src = read('js', 'settings.js');
+  const src = read('js', 'settings/settings.js');
   const fn = src.slice(src.indexOf('function updateClockDateFormat('), src.indexOf("setSettingsStatus('settings_saved', 'ok');\n}", src.indexOf('function updateClockDateFormat(')));
   assert.ok(fn.includes('CustomWidget.refreshTheme'), 'updateClockDateFormat must re-push the theme');
   // The time format beside it already does; they must not drift apart.

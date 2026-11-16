@@ -269,7 +269,7 @@ test('outside the shell (a browser tab on ?layer=) no signal is ever sent', () =
 // ── Wiring ───────────────────────────────────────────────────────────────────
 
 test('a layer page never writes settings: local mirror, server save and unload beacon', () => {
-  const s = read('../js/settings.js');
+  const s = read('../js/settings/settings.js');
   assert.match(s, /const _settingsReadOnly = \/\[\?&\]layer=\/\.test\(/);
   assert.match(s, /function saveLocalHubSettings\(\) \{\n  if \(_settingsReadOnly\) return;/);
   assert.match(s, /function postHubSettingsToServer\(\) \{\n  if \(_settingsReadOnly\) return Promise\.resolve\(null\);/);

@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SETTINGS = join(HERE, '..', 'js', 'settings.js');
+const SETTINGS = join(HERE, '..', 'js', 'settings/settings.js');
 
 // settings.js normalizes the stored settings at module load — `let hubSettings =
 // loadHubSettings();`, near the top of an 8000-line file — and everything that

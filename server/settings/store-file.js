@@ -17,7 +17,7 @@
 // time, but the symmetric case is a freshly configured dashboard overwritten by
 // a mirror nobody meant to restore. Comparing the store id turns "higher rev"
 // into "higher rev in the SAME store"; a mirror from another store is not newer,
-// it is somebody else's. The client half is in js/settings.js.
+// it is somebody else's. The client half is in js/settings/settings.js.
 const SETTINGS_STORE_ID_RE = /^[0-9a-f]{32}$/;
 
 // Windows can refuse a read for a moment while another program (an antivirus

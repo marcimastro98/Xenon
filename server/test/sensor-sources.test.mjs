@@ -126,11 +126,11 @@ test('the server applies the choice in getSystemInfo and persists it on both sid
   const sys = server.slice(server.indexOf('async function getSystemInfo('));
   assert.match(sys.slice(0, sys.indexOf('\n}\n') > 0 ? sys.indexOf('\n}\n') : 9000), /SensorSources\.applySensorSources\(info, sources, readings/);
   assert.match(server, /sensorSources: SensorSources\.normalizeSensorSources\(source\.sensorSources\)/);
-  assert.match(read('server/js/settings.js'), /sensorSources: window\.SensorSources \? window\.SensorSources\.normalizeSensorSources\(value\.sensorSources\) : \{\}/);
+  assert.match(read('server/js/settings/settings.js'), /sensorSources: window\.SensorSources \? window\.SensorSources\.normalizeSensorSources\(value\.sensorSources\) : \{\}/);
   const html = read('server/index.html');
   const pos = (src) => html.indexOf('<script src="' + src + '"></script>');
-  assert.ok(pos('js/system/sensor-sources.js') > 0 && pos('js/system/sensor-sources.js') < pos('js/settings.js'));
-  assert.ok(pos('js/system/sensor-sources-settings.js') > pos('js/settings.js'));
+  assert.ok(pos('js/system/sensor-sources.js') > 0 && pos('js/system/sensor-sources.js') < pos('js/settings/settings.js'));
+  assert.ok(pos('js/system/sensor-sources-settings.js') > pos('js/settings/settings.js'));
 });
 
 test('the catalog endpoint reads only and a paired device may use it', () => {
@@ -146,7 +146,7 @@ test('the catalog endpoint reads only and a paired device may use it', () => {
 test('the `sensors` stream exists everywhere a stream is declared, and runs only when granted', () => {
   const sdk = require('../sdk-widgets.js');
   assert.ok(sdk.SDK_STREAMS.includes('sensors'));
-  assert.match(read('server/js/settings.js'), /'processes', 'sensors', 'spotify'/);
+  assert.match(read('server/js/settings/settings.js'), /'processes', 'sensors', 'spotify'/);
   const cw = read('server/js/custom-widget/custom-widget.js');
   assert.match(cw, /sensors: \['cw_stream_sensors'/);
   assert.match(cw, /streams: \['status', 'system', 'sensors'/);

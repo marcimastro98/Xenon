@@ -109,7 +109,7 @@ test('every SSE event the demo emits is one main.js actually listens for', () =>
 });
 
 test('the demo seeds the settings key the app actually reads', () => {
-  const settings = read('server', 'js', 'settings.js');
+  const settings = read('server', 'js', 'settings/settings.js');
   const boot = read('tools', 'demo', 'boot.js');
   const m = /SETTINGS_STORAGE_KEY\s*=\s*'([^']+)'/.exec(settings);
   assert.ok(m, 'SETTINGS_STORAGE_KEY not found in settings.js');

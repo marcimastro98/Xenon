@@ -66,7 +66,7 @@ test('the widget actually applies both, and the settings carry them', () => {
   assert.match(body, /slice\(0, count\)/, 'the count is the cap, not a literal 5');
   assert.match(body, /at < until/, 'and the horizon actually filters');
 
-  for (const file of ['../js/settings.js', '../server.js']) {
+  for (const file of ['../js/settings/settings.js', '../server.js']) {
     const src = file === '../server.js' ? engineSource() : readFileSync(new URL(file, import.meta.url), 'utf8');
     assert.match(src, /upcomingCount/, file + ' does not normalize upcomingCount');
     assert.match(src, /upcomingDays/, file + ' does not normalize upcomingDays');

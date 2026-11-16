@@ -151,7 +151,7 @@ test('export leaves an imported background or font out of a tweaked theme; remov
   assert.match(exp, /bgImported\) delete data\.bgCustom/);
   assert.match(exp, /!fontImported && font/);
   assert.match(src, /filter\(theme => !\(owns\(theme\) && \(themeIds\.has\(theme\.id\) \|\| !legacy\)\)\)/);
-  const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const settings = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   assert.match(settings, /ContentInstalls\.themeCardMark\(snapshot, opts\)/);
 });
 

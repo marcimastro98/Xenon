@@ -845,7 +845,7 @@
   //
   // Both are remembered on close, not on open: a page reloaded under them has not
   // told anyone anything. The stored answers live in hub settings, a file on the
-  // PC (js/settings.js, see XenonStartupCards), with the pre-v4.11.6 localStorage
+  // PC (js/settings/settings.js, see XenonStartupCards), with the pre-v4.11.6 localStorage
   // key kept in step for What's New. Without that module nothing can be
   // remembered, so nothing opens rather than open and come back forever.
   //

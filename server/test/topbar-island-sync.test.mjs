@@ -1,6 +1,6 @@
 // The minimal-topbar island segment list lives in THREE places that must agree:
 // the renderer's ISLAND_SEG_IDS (js/topbar/topbar-minimal.js), the client settings
-// normalizer's canonical list (js/settings.js) and its server twin
+// normalizer's canonical list (js/settings/settings.js) and its server twin
 // (server.js TOPBAR_ISLAND_IDS). The normalizers are allowlists — a segment the
 // renderer draws but they omit is stripped from `items` on the next save, so the
 // segment silently loses its stored order/visibility. Every id must also carry a
@@ -41,7 +41,7 @@ function fnSource(src, signature, what) {
 // normalizeTopbarClock delegates the button list to normalizeTopbarActions, so
 // both have to be in scope for the evaluated copy to run.
 function clientNormalizer() {
-  const src = read('server', 'js', 'settings.js');
+  const src = read('server', 'js', 'settings/settings.js');
   const clock = fnSource(src, 'function normalizeTopbarClock(value, legacyRoot)', 'normalizeTopbarClock');
   const actions = fnSource(src, 'function normalizeTopbarActions(value)', 'normalizeTopbarActions');
   return Function(actions + '\nreturn (' + clock + ')')();
@@ -72,7 +72,7 @@ const actionRenderer = Object.keys(
 
 test('settings.js normalizeTopbarClock covers every island segment the renderer draws', () => {
   const client = arrayLiteral(
-    read('server', 'js', 'settings.js'),
+    read('server', 'js', 'settings/settings.js'),
     /normalizeTopbarClock\(value, legacyRoot\)\s*\{\s*const canonical\s*=\s*\[([^\]]*)\]/,
     'canonical list in settings.js normalizeTopbarClock',
   );
@@ -190,7 +190,7 @@ test('the button list drops unknown ids and duplicates, and keeps every canonica
 });
 
 test('every chrome button has an editor label key, and that key exists in i18n', () => {
-  const labelsSrc = read('server', 'js', 'settings.js')
+  const labelsSrc = read('server', 'js', 'settings/settings.js')
     .match(/TOPBAR_ACTION_LABELS\s*=\s*\{([^}]*)\}/);
   assert.ok(labelsSrc, 'TOPBAR_ACTION_LABELS not found in settings.js');
   const labels = new Map();
@@ -205,7 +205,7 @@ test('every chrome button has an editor label key, and that key exists in i18n',
 });
 
 test('every island segment has an editor label key, and that key exists in i18n', () => {
-  const labelsSrc = read('server', 'js', 'settings.js')
+  const labelsSrc = read('server', 'js', 'settings/settings.js')
     .match(/TOPBAR_ISLAND_LABELS\s*=\s*\{([^}]*)\}/);
   assert.ok(labelsSrc, 'TOPBAR_ISLAND_LABELS not found in settings.js');
   const labels = new Map();

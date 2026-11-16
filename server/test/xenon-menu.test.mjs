@@ -948,7 +948,7 @@ test('the shortcut of the menu is said in the menu and in Settings, never on a p
   assert.match(view, /place === 'screen'\) return fill\(tt\('xmenu_key_closes'\)/);
   assert.match(view, /window\.__xenonRemote \? '' : fill\(tt\('xmenu_key_opens'\)/);
   assert.match(src('index.html'), /id="settings-menu-key"/);
-  assert.match(src('js/settings.js'), /!window\.DeckShortcuts\) return;/, 'settings.js loads before deck-shortcuts.js');
+  assert.match(src('js/settings/settings.js'), /!window\.DeckShortcuts\) return;/, 'settings.js loads before deck-shortcuts.js');
   assert.match(src('components/SheetPage/SheetPage.css'), /openXenonMenu\(\)/);
 });
 

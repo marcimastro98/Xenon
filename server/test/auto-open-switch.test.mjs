@@ -189,7 +189,7 @@ test('nobody has asked on a new install, and on one that updates', () => {
 
 // ── The page ─────────────────────────────────────────────────────────────────
 
-const PAGE = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8').replace(/\r\n/g, '\n');
+const PAGE = readFileSync(join(__dirname, '..', 'js', 'settings/settings.js'), 'utf8').replace(/\r\n/g, '\n');
 function pageCode() {
   const from = PAGE.indexOf('const _autoOpenEngine = { supported: null, asked: null };');
   const to = PAGE.indexOf('// Claude Code widget: the approval cards');

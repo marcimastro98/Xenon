@@ -13,7 +13,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, textsOf } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const BRIDGE = read('../js/native-bridge.js');
 const I18N = appStringsSource();
 

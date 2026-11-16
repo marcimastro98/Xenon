@@ -18,7 +18,7 @@ import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const BRIDGE = read('../js/native-bridge.js');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const HTML = read('../index.html');
 const FX_CSS = read('../styles/backgroundfx.css');
 const LIB = read('../../apps/native/src-tauri/src/lib.rs');

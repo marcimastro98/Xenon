@@ -16,7 +16,7 @@ import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const BRIDGE = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8');
 
 // The reader is pure, so what it does with a missing or junk setting can be run.

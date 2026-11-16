@@ -7,7 +7,7 @@ const { DASHBOARD_GRID_COLUMNS } = require('./layout-defaults.js');
 // groups, copies) so each tile keeps its exact position and size on the finer
 // grid. Idempotent: the flag is stamped on the normalized output, and until the
 // layout is re-saved the scaling always re-derives from the raw 12-unit source.
-// Mirrors the client normalizer (js/settings.js) — keep both in sync. If the
+// Mirrors the client normalizer (js/settings/settings.js) — keep both in sync. If the
 // grid resolution ever changes again, branch on the STORED gridCols value
 // (absent = 12-column) and derive the factor per source unit — never reuse
 // this blanket ×2.

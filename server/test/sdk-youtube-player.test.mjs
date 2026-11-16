@@ -295,7 +295,7 @@ test('the gate names a permission the user can actually hold', () => {
   const cats = require('../sdk-widgets.js').SDK_ACTION_CATEGORIES;
   assert.ok(Object.hasOwn(cats, gate[1]),
     `the bridge gates on "${gate[1]}", which is not an action category — a grant can never contain it`);
-  const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const settings = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   const kept = /const SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[([^\]]+)\]\)/.exec(settings);
   assert.ok(kept && kept[1].includes("'" + gate[1] + "'"),
     'and settings.js must keep it, or it is filtered out of the saved grant');

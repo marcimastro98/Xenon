@@ -170,7 +170,7 @@ test('screens are chosen by number, 1 being the main one, and only real ones', a
 test('Bit can choose the screens, and the saved list survives both normalizers', () => {
   assert.deepEqual(aiAction('set_desktop_scene_screens', { screens: '1,3' }), { type: 'desktopScreens', screens: '1,3' });
   assert.deepEqual(scene.applyPatch({ screens: [], byScreen: { a: { wallpaper: 'builtin', saver: '' } } }, { screens: ['a'] }), { screens: ['a'], byScreen: {} }, 'chosen screens: one scene for all of them again');
-  const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const CLIENT = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   for (const src of [SERVER, CLIENT]) {
     assert.match(src, /screens: ScreenSceneModel\.normalizeScreens\(source\.screens\)/);
     assert.match(src, /byScreen: ScreenSceneModel\.normalizeByScreen\(source\.byScreen, isScene\)/);

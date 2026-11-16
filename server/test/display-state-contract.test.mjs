@@ -32,7 +32,7 @@ const RUST = readFileSync(
   'utf8',
 );
 const BRIDGE = read('js', 'native-bridge.js');
-const SETTINGS = read('js', 'settings.js');
+const SETTINGS = read('js', 'settings/settings.js');
 
 /** Slice from `open` to its matching close brace, brace-counted. */
 function block(source, open, label) {

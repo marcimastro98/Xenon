@@ -201,9 +201,9 @@ export const SCENES = {
 // The app resets a layout saved under an older schema version, so the seed
 // carries the current one, read from the app's own source.
 function layoutVersion() {
-  const src = readFileSync(new URL('../../server/js/settings.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../../server/js/settings/settings.js', import.meta.url), 'utf8');
   const m = /const DASHBOARD_LAYOUT_VERSION = (\d+);/.exec(src);
-  if (!m) throw new Error('DASHBOARD_LAYOUT_VERSION not found in server/js/settings.js');
+  if (!m) throw new Error('DASHBOARD_LAYOUT_VERSION not found in server/js/settings/settings.js');
   return Number(m[1]);
 }
 

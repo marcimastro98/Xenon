@@ -28,7 +28,7 @@ const openai = require('../ai/ai-openai.js');
 const anthropic = require('../ai/ai-anthropic.js');
 const models = require('../ai/ai-models.js');
 
-// The client copy cannot be required: js/settings.js is a browser script with a
+// The client copy cannot be required: js/settings/settings.js is a browser script with a
 // whole app behind it. Its declaration is extracted and evaluated on its own,
 // the same way test/state-server-origin.test.mjs reads the real SERVER constant
 // — so this asserts the shipped source, not a paraphrase of it.
@@ -38,7 +38,7 @@ const models = require('../ai/ai-models.js');
 // the entire point: a copy of the regex written here would pass while the
 // shipped one drifted, which is the failure this file exists to catch.
 function clientNormalizer() {
-  const src = readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
+  const src = readFileSync(path.join(HERE, '..', 'js', 'settings/settings.js'), 'utf8');
   const at = src.indexOf('function normalizeModelChoice(');
   assert.notEqual(at, -1, 'normalizeModelChoice was not found — did it move or get renamed?');
   const end = src.indexOf('\n}', at);

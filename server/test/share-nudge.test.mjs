@@ -15,7 +15,7 @@ import { engineSource, settingsSaveSource } from './engine-source.mjs';
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const CARD = readFileSync(new URL('../js/store-supporters/share-nudge.js', import.meta.url), 'utf8');
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();

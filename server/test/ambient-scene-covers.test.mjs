@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const LOCK = readFileSync(new URL('../components/LockScreen/LockScreen.css', import.meta.url), 'utf8');

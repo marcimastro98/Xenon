@@ -347,7 +347,7 @@ test('reading is its own grant, and rides no existing one', () => {
   assert.ok(sdk.SDK_STREAMS.includes('youtubeLive'),
     'and it must not have replaced the broadcast stream either');
   // The five mirrors of the SDK surface (see the header of sdk-widgets.js).
-  assert.ok(read('server/js/settings.js').includes("'youtubeLive', 'youtube'"));
+  assert.ok(read('server/js/settings/settings.js').includes("'youtubeLive', 'youtube'"));
   const labels = read('server/js/custom-widget/custom-widget.js');
   assert.match(labels, /youtube: \['cw_stream_youtube',/);
 });

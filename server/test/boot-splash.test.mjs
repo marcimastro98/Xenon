@@ -156,7 +156,7 @@ test('the page wires it first, and the app tells it when it is ready', () => {
   assert.match(html, /id="settings-boot-splash" type="checkbox" onchange="updateBootSplash\(this\.checked\)"/);
   assert.doesNotMatch(SRC, /innerHTML|insertAdjacentHTML|eval\(|new Function/);
 
-  const settings = read('../js/settings.js');
+  const settings = read('../js/settings/settings.js');
   assert.match(settings, /_hubHydratedFromServer = true;\n {2}if \(window\.BootSplash\) window\.BootSplash\.ready\('settings'\);/);
   assert.match(settings, /if \(window\.BootSplash\) window\.BootSplash\.remember\(\);/);
   assert.match(read('../js/main.js'), /applySystem\(d\);\n\s*if \(window\.BootSplash\) window\.BootSplash\.ready\('data'\);/);
@@ -166,7 +166,7 @@ test('the page wires it first, and the app tells it when it is ready', () => {
 });
 
 test('the setting is kept the same way on both sides, on by default', () => {
-  const settings = read('../js/settings.js');
+  const settings = read('../js/settings/settings.js');
   const server = engineSource();
   assert.match(settings, /\n {2}bootSplash: true,/);
   assert.match(settings, /bootSplash: value\.bootSplash !== false,/);

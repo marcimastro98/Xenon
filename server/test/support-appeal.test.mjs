@@ -15,7 +15,7 @@ const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typ
 
 const APPEAL = readFileSync(new URL('../js/store-supporters/support-appeal.js', import.meta.url), 'utf8');
 const GOAL = readFileSync(new URL('../js/store-supporters/support-goal.js', import.meta.url), 'utf8');
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();

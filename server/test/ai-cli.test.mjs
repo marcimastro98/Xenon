@@ -47,7 +47,7 @@ test('a model is "default" or a name that can never be read as a flag', () => {
 });
 
 test('the Settings copy of the model rule agrees with the server one', () => {
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   const at = src.indexOf('function normalizeCliModel(');
   const fn = new Function(src.slice(at, src.indexOf('\n}\n', at) + 2) + '\nreturn normalizeCliModel;')();
   for (const v of ['opus', 'sonnet[1m]', 'gpt-5.5', '', 'default', '-p', '--x', 'a b', 'x'.repeat(64), 'x'.repeat(65), null]) {
@@ -552,7 +552,7 @@ test('the Settings picker shows the program\'s list, with no free-text "custom" 
   assert.doesNotMatch(panel, /settings-cli-model-custom/);
   assert.match(panel, /id="settings-cli-model-used"/);
   assert.match(panel, /id="settings-cli-detail"/);
-  const S = read('../js/settings.js');
+  const S = read('../js/settings/settings.js');
   const at = S.indexOf('function _aiCliRenderModels(');
   const body = S.slice(at, S.indexOf('\n}\n', at));
   assert.doesNotMatch(body, /__custom__/);

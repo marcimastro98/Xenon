@@ -274,7 +274,7 @@ test('every list that mirrors the SDK allowlist agrees with it', () => {
   const { SDK_ACTION_CATEGORIES, SDK_STREAMS } = require('../sdk-widgets.js');
   const files = {
     'js/custom-widget/custom-widget.js': readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8'),
-    'js/settings.js': readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8'),
+    'js/settings/settings.js': readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8'),
     '../docs/WIDGET_SDK.md': readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8'),
   };
   for (const [name, src] of Object.entries(files)) {

@@ -13,7 +13,7 @@
   // a gentle reminder, while "Don't show again" silences it for good.
   //
   // Stored in hub settings since v4.11.6, with the pre-v4.11.6 localStorage key
-  // kept in step as a per-device fallback; js/settings.js owns both. It used to
+  // kept in step as a per-device fallback; js/settings/settings.js owns both. It used to
   // live only in localStorage, which meant a browser set to clear its site data
   // on exit put this card back at every boot with "don't show again" already
   // pressed — see the note on XenonStartupCards there.

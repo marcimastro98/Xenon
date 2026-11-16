@@ -34,9 +34,9 @@ test('the setting: off and every 5 minutes unless said otherwise, only the offer
 
 test('client and server normalize it with the same module', () => {
   assert.match(engineSource(), /sensorHistory: SensorHistory\.normalizeSensorHistory\(source\.sensorHistory\)/);
-  assert.match(read('../js/settings.js'), /sensorHistory: window\.SensorHistory \? window\.SensorHistory\.normalizeSensorHistory\(value\.sensorHistory\)/);
+  assert.match(read('../js/settings/settings.js'), /sensorHistory: window\.SensorHistory \? window\.SensorHistory\.normalizeSensorHistory\(value\.sensorHistory\)/);
   // Turning history on or off keeps the chosen interval.
-  assert.match(read('../js/settings.js'), /sensorHistory: \{ \.\.\.hubSettings\.sensorHistory, enabled: !!enabled \}/);
+  assert.match(read('../js/settings/settings.js'), /sensorHistory: \{ \.\.\.hubSettings\.sensorHistory, enabled: !!enabled \}/);
   assert.match(engineSource(), /getEveryMin: \(\) => \(_serverHubSettings && _serverHubSettings\.sensorHistory \|\| \{\}\)\.everyMin/);
 });
 
@@ -179,5 +179,5 @@ test('Settings shows the interval only while history is collected, with no inlin
   const page = read('../js/system/sensor-history-settings.js');
   assert.match(page, /host\.hidden = !historyOn\(\)/);
   assert.match(page, /window\.SensorHistory\.EVERY_MIN_CHOICES/);
-  assert.match(read('../js/settings.js'), /if \(window\.SensorHistoryEvery\) window\.SensorHistoryEvery\.sync\(\);/);
+  assert.match(read('../js/settings/settings.js'), /if \(window\.SensorHistoryEvery\) window\.SensorHistoryEvery\.sync\(\);/);
 });

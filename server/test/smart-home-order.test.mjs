@@ -68,8 +68,8 @@ test('the server keeps the order and the view, and sends them back with the toke
 test('wiring: loaded before settings.js, normalized on the client, sent in the snapshot', () => {
   const html = read('server/index.html');
   const at = (src) => html.indexOf('<script src="' + src + '"></script>');
-  assert.ok(at('js/smart-home/smart-home-order.js') > 0 && at('js/smart-home/smart-home-order.js') < at('js/settings.js'));
-  const settings = read('server/js/settings.js');
+  assert.ok(at('js/smart-home/smart-home-order.js') > 0 && at('js/smart-home/smart-home-order.js') < at('js/settings/settings.js'));
+  const settings = read('server/js/settings/settings.js');
   assert.match(settings, /areaOrder: order \? order\.normalizeAreaOrder\(src\.areaOrder\) : \[\]/);
   assert.match(settings, /tileView: order \? order\.normalizeTileView\(src\.tileView\) : 'auto'/);
   const server = engineSource();

@@ -26,7 +26,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SERVER = engineSource();
 const PS1 = read('../network.ps1');
 const SDK = engineSource('server/sdk-widgets.js');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const CUSTOM = read('../js/custom-widget/custom-widget.js');
 const I18N = appStringsSource();
 const DOC = read('../../docs/WIDGET_SDK.md');

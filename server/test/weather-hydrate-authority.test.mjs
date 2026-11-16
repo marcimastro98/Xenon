@@ -18,7 +18,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 
-const SRC = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 
 // The `weather:` reconciliation ternary from the _hydrateHubSettingsImpl merge.
 // Captured from `weather: (_weatherConfigDirty …` to the closing `))` of the

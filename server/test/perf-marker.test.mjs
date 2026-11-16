@@ -136,7 +136,7 @@ test('the setting is kept by the shared normalizer, off by default', () => {
   assert.equal(ctx.__n({ barAlways: 'yes' }).barAlways, false, 'only a real true turns it on');
   const html = read('../index.html');
   assert.match(html, /id="settings-perf-baralways" type="checkbox" onchange="updatePerformanceBarAlways\(this\.checked\)"/);
-  assert.match(read('../js/settings.js'), /setChecked\('settings-perf-baralways', p\.barAlways\);/);
+  assert.match(read('../js/settings/settings.js'), /setChecked\('settings-perf-baralways', p\.barAlways\);/);
 });
 
 test('the marker sits with the clock, so both chromes show it, and can be hidden like the others', () => {
@@ -146,14 +146,14 @@ test('the marker sits with the clock, so both chromes show it, and can be hidden
   assert.match(html, /components\/PerfMarker\/PerfMarker\.css/);
   // One island id list, three copies: the dashboard's, the server's, the minimal bar's.
   const ids = (src, re) => JSON.parse(re.exec(src)[1].replace(/'/g, '"'));
-  const client = ids(read('../js/settings.js'), /const canonical = (\[[^\]]*\]);/);
+  const client = ids(read('../js/settings/settings.js'), /const canonical = (\[[^\]]*\]);/);
   const server = ids(engineSource(), /const TOPBAR_ISLAND_IDS = (\[[^\]]*\]);/);
   const minimal = ids(read('../js/topbar/topbar-minimal.js'), /const ISLAND_SEG_IDS = (\[[^\]]*\]);/);
   assert.ok(client.includes('perf'));
   assert.deepEqual(server, client);
   assert.deepEqual(minimal, client);
   assert.match(read('../js/topbar/topbar-minimal.js'), /case 'perf': return els\.clockPerf;/);
-  assert.match(read('../js/settings.js'), /perf: 'topbar_el_perf'/);
+  assert.match(read('../js/settings/settings.js'), /perf: 'topbar_el_perf'/);
 });
 
 test('Performance Mode tells the bar only when something it shows changed', () => {
@@ -197,7 +197,7 @@ test('the Media wave names what holds it, and Settings listens', () => {
   assert.equal(make()(), 'perf');
   assert.match(viz, /onLevels, holdReason,/);
   assert.ok(read('../js/ambient/ambient-freeze.js').includes('window.ambientFreeze.tokens = () => [...frozen];'));
-  assert.ok(read('../js/settings.js').includes("window.addEventListener('xenon:perf-change', () => {"));
+  assert.ok(read('../js/settings/settings.js').includes("window.addEventListener('xenon:perf-change', () => {"));
 });
 
 test('every language has the new words, translated', () => {

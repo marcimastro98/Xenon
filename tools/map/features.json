@@ -745,7 +745,6 @@
       "what": "The settings pages, their search, and saving without losing a change.",
       "files": [
         "server/settings/**",
-        "server/js/settings.js",
         "server/js/settings/**",
         "server/js/settings-search/**",
         "server/components/SettingsModal/**"

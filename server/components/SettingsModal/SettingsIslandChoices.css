@@ -1,7 +1,7 @@
 
 /* ── Minimal-island element editor (reorder + show/hide) ──────
    A compact list of the island's segments; drag the grip to reorder, tap the
-   eye to show/hide. Only shown in Minimal mode (js/settings.js gates it). */
+   eye to show/hide. Only shown in Minimal mode (js/settings/settings.js gates it). */
 .island-edit-list {
   display: flex;
   flex-direction: column;

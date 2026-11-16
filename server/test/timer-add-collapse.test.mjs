@@ -70,7 +70,7 @@ test('both settings normalizers carry timerAddCollapsed', () => {
   // The client normalizer and the server's copy are two separate lists, and a
   // field missing from the server's is silently dropped on save — the flag
   // would look like it worked until the next reload. It did, once.
-  for (const file of ['js/settings.js', 'server.js']) {
+  for (const file of ['js/settings/settings.js', 'server.js']) {
     const src = file === 'server.js' ? engineSource() : read(...file.split('/'));
     assert.ok(src.includes('timerAddCollapsed: false'), `${file}: missing the default`);
     assert.ok(src.includes('layout.timerAddCollapsed = source.timerAddCollapsed === true;'), `${file}: missing the normalizer line`);

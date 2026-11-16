@@ -38,11 +38,11 @@ test('every spelling of "read server.js as text" becomes engineSource()', () => 
 test('what follows the read stays, and so does every other line', () => {
   const before = `${HEAD}const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');\n`
     + "const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\\r\\n/g, '\\n');\n"
-    + "test('x', () => { assert.match(read('../server.js'), /a/); assert.match(read('../js/settings.js'), /a/); });\n";
+    + "test('x', () => { assert.match(read('../server.js'), /a/); assert.match(read('../js/settings/settings.js'), /a/); });\n";
   const after = retarget(before);
   assert.equal(after, `${WITH_IMPORT}const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');\n`
     + "const SERVER = engineSource().replace(/\\r\\n/g, '\\n');\n"
-    + "test('x', () => { assert.match(engineSource(), /a/); assert.match(read('../js/settings.js'), /a/); });\n");
+    + "test('x', () => { assert.match(engineSource(), /a/); assert.match(read('../js/settings/settings.js'), /a/); });\n");
   assert.equal(retarget(after), after, 'running it again changes nothing');
 });
 
@@ -51,7 +51,7 @@ test('other files, bytes and lists of files are left for a person', () => {
     "const ap = require('../codex-appserver.js');",
     "const local = read('../ai-local-server.js');",
     "const BYTES = readFileSync(new URL('../server.js', import.meta.url));",
-    "for (const file of ['../server.js', '../js/settings.js']) check(read(file));",
+    "for (const file of ['../server.js', '../js/settings/settings.js']) check(read(file));",
     "const worker = read('../../widget/server.js.txt');",
   ];
   for (const line of kept) assert.equal(retarget(`${HEAD}${line}\n`), `${HEAD}${line}\n`, line);
@@ -117,7 +117,7 @@ test('--source: reads of every other file stay, server.js included', () => {
     "const other = readFileSync(join(HERE, '..', 'lighting-effects.js'), 'utf8');",
     "const lighting = require('../lighting.js');",
     "const BYTES = readFileSync(new URL('../lighting.js', import.meta.url));",
-    "for (const file of ['../lighting.js', '../js/settings.js']) check(read(file));",
+    "for (const file of ['../lighting.js', '../js/settings/settings.js']) check(read(file));",
   ];
   for (const line of kept) assert.equal(retarget(`${HEAD}${line}\n`, 'server/lighting.js'), `${HEAD}${line}\n`, line);
   const both = `${HEAD}const A = read('../server.js');\nconst B = read('../lighting.js');\n`;

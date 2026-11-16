@@ -93,8 +93,8 @@ test('a failed write is aborted and reported, never claimed as saved', async () 
 test('every export goes through it and the page loads it before settings.js', () => {
   const html = readFileSync(path.join(DIR, 'index.html'), 'utf8');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
-  assert.ok(at('save-file.js') > 0 && at('save-file.js') < at('settings.js'));
-  for (const f of ['presets/preset-share.js', 'presets/share-card.js', 'settings.js']) {
+  assert.ok(at('save-file.js') > 0 && at('save-file.js') < at('settings/settings.js'));
+  for (const f of ['presets/preset-share.js', 'presets/share-card.js', 'settings/settings.js']) {
     assert.match(readFileSync(path.join(DIR, 'js', f), 'utf8'), /XenonSaveFile\.save\(|S\.save\(/, f);
   }
 });
@@ -104,7 +104,7 @@ test('file names carry the local day, not the UTC one', () => {
   // 00:40 local on 27 Oct is still the 26th in UTC east of Greenwich.
   assert.equal(S.today(new Date(2026, 9, 27, 0, 40)), '2026-10-27');
   assert.equal(S.today(new Date(2026, 0, 5, 23, 59)), '2026-01-05');
-  const settings = readFileSync(path.join(DIR, 'js', 'settings.js'), 'utf8');
+  const settings = readFileSync(path.join(DIR, 'js', 'settings/settings.js'), 'utf8');
   assert.ok(settings.includes("'xenon-backup-' + window.XenonSaveFile.today() + '.json'"));
   const server = engineSource();
   assert.ok(!/xenon-backup-.*toISOString|toISOString\(\)\.slice\(0, 19\)\.replace\(\/\[:T\]/.test(server), 'no UTC date in backup names');

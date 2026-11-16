@@ -13,7 +13,7 @@ import { pickScenes, cropSelector } from '../../tools/site-shots/shoot.mjs';
 
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const layoutVersion = Number(/const DASHBOARD_LAYOUT_VERSION = (\d+);/.exec(
-  readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8'))[1]);
+  readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8'))[1]);
 
 test('only files under docs/', () => {
   assert.equal(docsFile('/demo/'), path.join(DOCS_DIR, 'demo', 'index.html'));

@@ -44,7 +44,7 @@
     "server/js/alerts/screen-alerts.js": 1,
     "server/js/ambient/screen-scene.js": 4,
     "server/js/widget-sdk/sdk-service.js": 1,
-    "server/js/settings.js": 739,
+    "server/js/settings/settings.js": 739,
     "server/js/presets/share-card.js": 9,
     "server/js/widget-sdk/shell-driver.js": 1,
     "server/js/search/spotlight-page.js": 1,

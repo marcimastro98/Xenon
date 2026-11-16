@@ -1,4 +1,4 @@
-// The client grant normalizer (server/js/settings.js) filters each package's
+// The client grant normalizer (server/js/settings/settings.js) filters each package's
 // granted streams/actions against its OWN allowlists. If those lists drift from
 // the server's authoritative sdk-widgets.js, a grant for a valid capability is
 // silently stripped on save — the widget is "granted" something it can never use
@@ -22,7 +22,7 @@ const BOOLEAN_CAPS = ['storage', 'secrets', 'island', 'islandDynamic', 'islandFu
 
 // Pull a `const NAME = Object.freeze([...])` string array out of settings.js.
 function clientList(name) {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'settings.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'settings/settings.js'), 'utf8');
   const m = src.match(new RegExp(name + "\\s*=\\s*Object\\.freeze\\(\\[([^\\]]*)\\]\\)"));
   assert.ok(m, name + ' not found in settings.js');
   return m[1].match(/'([^']+)'/g).map(s => s.slice(1, -1));
@@ -40,7 +40,7 @@ test('settings.js SDK_WIDGET_ACTION_CATS mirrors sdk-widgets.js SDK_ACTION_CATEG
 // normalizer must keep (and bound) it, or a granted handler is silently dropped
 // on save and the key dies with not_granted. Pin the normalizer's output shape.
 test('settings.js normalizeSdkWidgets keeps a valid handlers grant list', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'settings.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'settings/settings.js'), 'utf8');
   assert.ok(/handlers:\s*Array\.isArray\(g\.handlers\)/.test(src),
     'normalizeSdkWidgets must rebuild grants.handlers (grant-list lockstep)');
 });
@@ -52,7 +52,7 @@ test('settings.js normalizeSdkWidgets keeps a valid handlers grant list', () => 
 // permanent "asks for new permissions" re-prompt loop. Pin all of them so
 // they can't drop again.
 test('settings.js normalizeSdkWidgets keeps the boolean capability grants', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'settings.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'settings/settings.js'), 'utf8');
   for (const flag of BOOLEAN_CAPS) {
     assert.ok(new RegExp(flag + ':\\s*g\\.' + flag + ' === true').test(src),
       'normalizeSdkWidgets must rebuild grants.' + flag + ' (boolean-grant lockstep)');

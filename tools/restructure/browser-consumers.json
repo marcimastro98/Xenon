@@ -21,7 +21,7 @@
     }
   },
   "known": {
-    "server/js/settings.js": {
+    "server/js/settings/settings.js": {
       "tools/site-shots/scenes.mjs": {
         "how": "Reads DASHBOARD_LAYOUT_VERSION out of the file as text, so that declaration stays in it.",
         "keeps": [

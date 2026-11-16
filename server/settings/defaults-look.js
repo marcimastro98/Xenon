@@ -34,7 +34,7 @@ const HUB_DEFAULTS_LOOK = Object.freeze({
   clockDateScale: 1,
   clockDateFormat: 'medium',
   panelBorderStrength: 1,
-  tileShadowStrength: 0,   // off, and renamed on purpose; see the client twin in js/settings.js
+  tileShadowStrength: 0,   // off, and renamed on purpose; see the client twin in js/settings/settings.js
   mutedText: null,
   lineColor: null,
   backgroundMedia: null,

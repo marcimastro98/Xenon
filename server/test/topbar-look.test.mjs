@@ -17,7 +17,7 @@ const L = require('../js/topbar/topbar-look.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const CSS = read('../components/Topbar/TopbarLook.css');
 const INDEX = read('../index.html');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const SERVER = engineSource();
 const MINIMAL = read('../js/topbar/topbar-minimal.js');
 const TOAST = read('../js/alerts/toast.js');
@@ -92,7 +92,7 @@ test('the dashboard and the server read the same rules', () => {
   assert.match(SERVER, /topbarLook: TopbarLook\.normalize\(source\.topbarLook\),/);
   assert.match(SERVER, /topbarLook: TopbarLook\.DEFAULTS,/);
   // Loaded before settings.js, whose defaults are built at load time.
-  assert.ok(INDEX.indexOf('src="js/topbar/topbar-look.js"') < INDEX.indexOf('src="js/settings.js"'));
+  assert.ok(INDEX.indexOf('src="js/topbar/topbar-look.js"') < INDEX.indexOf('src="js/settings/settings.js"'));
   // After the Comic and Retro skins, so a chosen look wins over theirs.
   assert.ok(INDEX.indexOf('href="components/Topbar/TopbarLook.css"') > INDEX.indexOf('href="styles/themes-comic.css"'));
 });

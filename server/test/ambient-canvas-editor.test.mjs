@@ -17,7 +17,7 @@ const EDITOR = read('../js/ambient/ambient-canvas-editor.js');
 const FORM = read('../js/ambient-canvas-editor-form/ambient-canvas-editor-form.js');
 const FIELDS_SRC = read('../js/ambient/ambient-canvas-editor-fields.js');
 const CANVAS = read('../js/ambient/ambient-canvas.js');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const I18N = appStringsSource();
 const INDEX = read('../index.html');
 

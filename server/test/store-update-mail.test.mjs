@@ -116,7 +116,7 @@ test('the page loads it after the messages and the Store, and the old daily toas
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
   assert.ok(at('store-catalog/store-update-mail.js') > at('community-gallery/community-gallery.js') && at('community-gallery/community-gallery.js') > 0);
   assert.ok(at('store-catalog/store-update-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
-  assert.doesNotMatch(read('../js/settings.js'), /checkSdkUpdatesDaily/);
+  assert.doesNotMatch(read('../js/settings/settings.js'), /checkSdkUpdatesDaily/);
 });
 
 test('a widget update waiting for a permission says where it is, and opens it', () => {

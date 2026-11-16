@@ -356,7 +356,7 @@ test('staged install: refuses an invalid package before touching the disk', asyn
 
 test('wiring: the setting is on by default, normalized on both sides, and never an SDK grant', () => {
   const server = engineSource();
-  const settings = readFileSync(fileURLToPath(new URL('../js/settings.js', import.meta.url)), 'utf8');
+  const settings = readFileSync(fileURLToPath(new URL('../js/settings/settings.js', import.meta.url)), 'utf8');
   assert.match(server, /autoUpdateWidgets: true,/);
   assert.match(server, /autoUpdateWidgets: source\.autoUpdateWidgets !== false/);
   assert.match(settings, /autoUpdateWidgets: value\.autoUpdateWidgets !== false/);

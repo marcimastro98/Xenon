@@ -65,7 +65,7 @@ test('no switch bypasses the helper', () => {
 test('the setting defaults to on, on both sides, and survives a round trip', () => {
   assert.match(S, /audioSetCommunications: true,/);
   assert.match(S, /audioSetCommunications: source\.audioSetCommunications !== false,/);
-  const C = read('../js/settings.js');
+  const C = read('../js/settings/settings.js');
   assert.match(C, /audioSetCommunications: true,/);
   assert.match(C, /audioSetCommunications: value\.audioSetCommunications !== false,/);
   assert.match(C, /function updateAudioSetCommunications\(checked\)/);
@@ -75,7 +75,7 @@ test('Settings shows the switch, on Windows only', () => {
   const H = read('../index.html');
   assert.match(H, /id="settings-audio-comms-row"/);
   assert.match(H, /id="settings-audio-comms"[^>]*onchange="updateAudioSetCommunications\(this\.checked\)"/);
-  const C = read('../js/settings.js');
+  const C = read('../js/settings/settings.js');
   const fn = C.slice(C.indexOf('function syncAudioCommsControl()'));
   assert.match(fn.slice(0, 400), /platform !== 'win32'\) \? 'none' : ''/);
 });

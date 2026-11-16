@@ -135,7 +135,7 @@ test('AI roasts: on Claude Code or Codex Settings says Bit keeps to its own line
   const { readFileSync } = await import('./browser-source.mjs');
   const vm = await import('node:vm');
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from)) + to.length);
   const el = { textContent: '', hidden: true };
   const row = { hidden: true, classList: { on: false, toggle(_c, v) { this.on = v; } } };

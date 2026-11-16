@@ -23,7 +23,7 @@ test('the setting exists in BOTH normalizers, and defaults to off', () => {
   // The client owns the schema and the server keeps its own copy; a field missing
   // from the server's is silently dropped on save, so the switch would look like
   // it worked until the next reload. That has happened twice in this codebase.
-  for (const file of ['js/settings.js', 'server.js']) {
+  for (const file of ['js/settings/settings.js', 'server.js']) {
     // The engine's defaults have modules of their own now: its text is read wherever it lives.
     const src = file === 'server.js' ? SERVER : read(...file.split('/'));
     assert.ok(src.includes("mediaVisualizer: 'off'"), `${file}: must default to off`);
@@ -139,7 +139,7 @@ test('the strip sits under the tile content, never over the controls', () => {
 
 test('the settings row and its strings ship in every language', () => {
   assert.match(read('index.html'), /onclick="updateMediaVisualizer\('minimal'\)"/);
-  assert.match(read('js', 'settings.js'), /function updateMediaVisualizer\(/);
+  assert.match(read('js', 'settings/settings.js'), /function updateMediaVisualizer\(/);
   const i18n = appStringsSource();
   for (const k of ['settings_media_viz_head', 'settings_media_viz_off', 'settings_media_viz_minimal', 'settings_media_viz_wave', 'settings_media_viz_note']) {
     const n = (i18n.match(new RegExp(`["']?${k}["']?\\s*:`, 'g')) || []).length;

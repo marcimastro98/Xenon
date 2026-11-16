@@ -26,7 +26,7 @@
 //   1. here                       SDK_STREAMS / SDK_ACTION_CATEGORIES
 //   2. server/js/custom-widget/custom-widget.js the bridge that dispatches, and the
 //                                 permission LABEL the user reads
-//   3. server/js/settings.js      SDK_WIDGET_STREAMS / SDK_WIDGET_ACTION_CATS,
+//   3. server/js/settings/settings.js      SDK_WIDGET_STREAMS / SDK_WIDGET_ACTION_CATS,
 //                                 which the permission dialog is built from
 //   4. server/js/i18n/<code>.js   that label, in all 11 languages
 //   5. docs/WIDGET_SDK.md         the capability table — regenerate with

@@ -33,7 +33,7 @@ test('importing a scene does not also ask for the switch the dialog already turn
 
 test('Settings offers the approval while the scene waits', () => {
   assert.match(read('../index.html'), /id="settings-ambient-scene-approve"[^>]*hidden[^>]*onclick="approveAmbientScene\(\)"/);
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   assert.match(src, /approve\.hidden = !waiting/);
   assert.match(src, /syncAmbientScenePicker\(cfg\);\s+syncAmbientSceneNote\(cfg\);/, 'the package list arrives after Settings draws');
   assert.match(src, /if \(pkg && ambientSceneWaiting\(next\.sceneId\)\) CustomWidget\.requestGrant\(pkg\)/);

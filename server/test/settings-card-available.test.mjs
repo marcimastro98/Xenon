@@ -12,7 +12,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SETTINGS = readFileSync(path.join(DIR, 'js', 'settings.js'), 'utf8');
+const SETTINGS = readFileSync(path.join(DIR, 'js', 'settings/settings.js'), 'utf8');
 const HTML = readFileSync(path.join(DIR, 'index.html'), 'utf8');
 
 function helper(openCat) {

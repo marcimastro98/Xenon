@@ -104,7 +104,7 @@ test('glass has a plain answer on a weak GPU and for reduced transparency', () =
   // A weak GPU keeps the glass over every still wallpaper (a picture of your own
   // included); only a video or GIF still moves there.
   assert.doesNotMatch(CSS, /low-power-gpu:not\(\[data-bg-static\]\)/);
-  const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   assert.match(SETTINGS, /dataset\.bgType = media\.type === 'image\/gif' \? 'gif' : 'image';/);
   for (const selector of [
     'body.low-power-gpu:is([data-bg-type="video"], [data-bg-type="gif"]) .lock-widget,\nbody.perf-mode .lock-widget',

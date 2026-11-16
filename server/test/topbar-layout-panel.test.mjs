@@ -12,7 +12,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const PANEL = read('../js/topbar/topbar-layout-panel.js');
 const LOOK_PAGE = read('../js/topbar-look-settings/topbar-look-settings.js');
 const LAYOUT = read('../js/dashboard-layout/dashboard-layout.js');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const INDEX = read('../index.html');
 const CSS = read('../components/Topbar/TopbarLayoutPanel.css');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];

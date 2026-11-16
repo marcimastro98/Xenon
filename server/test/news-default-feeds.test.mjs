@@ -51,7 +51,7 @@ function region(src, startNeedle, what) {
 }
 
 function clientTable() {
-  const src = readFileSync(join(HERE, '..', 'js', 'settings.js'), 'utf8');
+  const src = readFileSync(join(HERE, '..', 'js', 'settings/settings.js'), 'utf8');
   const code = region(src, 'const NEWS_DEFAULT_TOPIC', 'NEWS_DEFAULT_TOPIC')
     + '\n' + region(src, 'function defaultNewsFeedsClient', 'defaultNewsFeedsClient');
   const sandbox = { Object };

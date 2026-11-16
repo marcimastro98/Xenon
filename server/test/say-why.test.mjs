@@ -85,7 +85,7 @@ test('the server answers a failed Discord login in JSON, with the reason', () =>
 // ── the Media tile wave ───────────────────────────────────────────────────
 
 async function vizStatus(status, mode = 'wave', hold = '') {
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   const code = 'let _mediaVizStatusSeq = 0;\n' + cut(src, 'async function refreshMediaVizStatus(recheck) {', '\n}\n');
   const el = { textContent: '', dataset: {}, hidden: true };
   const btn = { hidden: true, disabled: false };

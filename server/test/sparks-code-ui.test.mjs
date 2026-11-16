@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
-const settings = read('js/settings.js');
+const settings = read('js/settings/settings.js');
 const box = settings.slice(settings.indexOf('async function syncSupporterCodeBox('), settings.indexOf('window.saveSupporterCode = saveSupporterCode;'));
 
 test('Settings: one box for both codes, each saved and removed through its own store', () => {

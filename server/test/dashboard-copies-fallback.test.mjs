@@ -26,7 +26,7 @@ import { namesOf } from './source-names.mjs';
 // rather than importing it.
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8');
+const SRC = readFileSync(join(__dirname, '..', 'js', 'settings/settings.js'), 'utf8');
 
 // Slice a top-level `function name(...) { ... }` out of the source by brace match.
 function extractFunction(src, name) {

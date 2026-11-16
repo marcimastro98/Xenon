@@ -158,7 +158,7 @@ const branches = {
         // Only a birth observed at boot may produce a cohort — see version-ping.js.
         fresh: settingsBoot.fileMissing,
         // Already normalized on both sides (WEATHER_LANGS here, SUPPORTED_LANGS in
-        // js/settings.js), so reading it costs nothing and adds no new key.
+        // js/settings/settings.js), so reading it costs nothing and adds no new key.
         lang: (hub.settings && hub.settings.language) || '',
       }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
       // Anonymous feature counts, off unless usageStats is on: same ride, same

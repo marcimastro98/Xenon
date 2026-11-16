@@ -28,13 +28,13 @@ test('the Performance Mode rules live in perf-settings.js, loaded before setting
   assert.deepEqual(Object.keys(p.autoActivities), PerfSettings.PERF_ACTIVITIES);
   assert.equal(p.autoActivities.gaming, true);
   assert.equal(p.opts.powerPlan, 'high');
-  const s = read('../js/settings.js');
+  const s = read('../js/settings/settings.js');
   assert.match(s, /\n {2}performance: PERF_DEFAULTS,\n/);
   for (const name of ['function normalizePerformance', 'function normalizeActivityApps', 'function normalizePerfAppChoices', 'const PERF_ACTIVITIES']) {
     assert.ok(!s.includes(name), name + ' has one home');
   }
   const html = read('../index.html');
-  assert.ok(html.indexOf('src="js/performance/perf-settings.js"') > 0 && html.indexOf('src="js/performance/perf-settings.js"') < html.indexOf('src="js/settings.js"'));
+  assert.ok(html.indexOf('src="js/performance/perf-settings.js"') > 0 && html.indexOf('src="js/performance/perf-settings.js"') < html.indexOf('src="js/settings/settings.js"'));
 });
 
 // ── the server boundary ──────────────────────────────────────────────────────

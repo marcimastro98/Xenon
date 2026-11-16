@@ -11,7 +11,7 @@ import { makeDom, settle } from './mini-dom.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const HTML = read('../index.html');
 const CSS = read('../components/SettingsModal/SettingsPage.css');
 

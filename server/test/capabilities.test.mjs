@@ -632,7 +632,7 @@ test('server.js keeps the glow setting on both sides and writes it under the set
   const rule = (v) => `aiEdgeGlow: ['auto', 'main', 'second', 'all', 'off'].includes(${v}.aiEdgeGlow) ? ${v}.aiEdgeGlow : 'auto'`;
   assert.ok(SERVER.includes(rule('source')));
   assert.match(SERVER, /async function updateAiEdgeGlowSetting\(mode\) \{\n {2}return withHubSettingsLock\(/);
-  const client = readFileSync(new URL('../js/settings.js', import.meta.url));
+  const client = readFileSync(new URL('../js/settings/settings.js', import.meta.url));
   assert.ok(client.includes(rule('value')));
 });
 

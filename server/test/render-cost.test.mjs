@@ -32,7 +32,7 @@ test('the code backdrop also holds still behind a frosted overlay', () => {
 });
 
 test('the wallpaper video pauses with the ambient, and one place owns it', () => {
-  const settings = read('settings.js');
+  const settings = read('settings/settings.js');
   assert.match(settings, /BG_VIDEO_HOLD_CLASSES = \['overlay-frozen', 'game-mode', 'perf-mode'\]/);
   const ensure = settings.slice(settings.indexOf('function ensureBackgroundVideoPlayback('));
   assert.match(ensure.slice(0, 400), /if \(backgroundVideoHeld\(\)\) \{ video\.pause\(\); return; \}/,

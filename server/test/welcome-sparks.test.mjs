@@ -254,11 +254,11 @@ test('the marker is a local file, not a setting that travels', async () => {
 test('server and dashboard seed the same tabs: Playback with the Agenda', () => {
   const seeded = /'media-group': Object\.freeze\(\{ id: 'media-group', members: Object\.freeze\(\['media', 'agenda'\]\)/;
   assert.match(engineSource(), seeded);
-  assert.match(read('../js/settings.js'), seeded);
+  assert.match(read('../js/settings/settings.js'), seeded);
 });
 
 test('a saved layout with no groups keeps the chat in its tab, on both sides', () => {
-  for (const file of ['../server.js', '../js/settings.js']) {
+  for (const file of ['../server.js', '../js/settings/settings.js']) {
     const src = file === '../server.js' ? engineSource() : read(file);
     assert.match(src, /LEGACY_SEEDED_GROUPS = Object\.freeze[\s\S]{0,160}members: Object\.freeze\(\['media', 'chat'\]\)/);
     assert.match(src, /source\.groups !== undefined \? source\.groups : \(source\.widgets \? LEGACY_SEEDED_GROUPS : DEFAULT_DASHBOARD_LAYOUT\.groups\)/);
@@ -266,7 +266,7 @@ test('a saved layout with no groups keeps the chat in its tab, on both sides', (
 });
 
 test('the layout version stays: a bump would replace every saved dashboard', () => {
-  assert.match(read('../js/settings.js'), /const DASHBOARD_LAYOUT_VERSION = 6;/);
+  assert.match(read('../js/settings/settings.js'), /const DASHBOARD_LAYOUT_VERSION = 6;/);
 });
 
 test('only the first start moves a PC to Bit: the plain default stays Gemini', () => {

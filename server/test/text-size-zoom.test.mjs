@@ -29,7 +29,7 @@ const i18n = ctx.__i18n;
 test('the slider, the clamps and the keyboard all agree on 60% to 250%', () => {
   assert.match(read('../index.html'), /id="settings-native-zoom" type="range" min="0\.6" max="2\.5" step="0\.05"/);
   assert.match(engineSource(), /nativeZoom: clampNumber\(source\.nativeZoom, 0\.6, 2\.5,/);
-  const S = read('../js/settings.js');
+  const S = read('../js/settings/settings.js');
   assert.match(S, /nativeZoom: clampNumber\(value\.nativeZoom, 0\.6, 2\.5,/);
   assert.match(S, /clampNumber\(hubSettings\.nativeZoom, 0\.6, 2\.5, 1\)/);
   assert.match(read('../js/native-bridge.js'), /const ZOOM_MIN = 0\.6, ZOOM_MAX = 2\.5, ZOOM_STEP = 0\.1;/);

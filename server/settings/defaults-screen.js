@@ -6,7 +6,7 @@ const LayersModel = require('../js/layers/layers-model.js');
 const { WEATHER_FIELDS_ALL_ON } = require('../weather/fields-all-on.js');
 
 const HUB_DEFAULTS_SCREEN = Object.freeze({
-  // Ambient / Screensaver mode (client mirror in js/settings.js — keep in step).
+  // Ambient / Screensaver mode (client mirror in js/settings/settings.js — keep in step).
   ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', wallpaper: false, saverMinutes: 0, openOnStartup: false }),
   // Native canvas Ambient scenes (client-owned, like customThemes).
   ambientScenes: Object.freeze([]),
@@ -14,7 +14,7 @@ const HUB_DEFAULTS_SCREEN = Object.freeze({
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ hero: 'full', look: 'new', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   hwTempUnit: 'auto', // 'auto' | 'c' | 'f' — hardware readings; auto follows tempUnit
-  // Mirrors js/settings.js: 'off' | 'minimal' | 'wave'. Read by
+  // Mirrors js/settings/settings.js: 'off' | 'minimal' | 'wave'. Read by
   // audioLevelsWanted(): anything but 'off' is a first-party reason to run the
   // helper's meter, beside the SDK grants.
   mediaVisualizer: 'off',

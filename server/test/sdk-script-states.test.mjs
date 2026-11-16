@@ -22,7 +22,7 @@ test('scriptStates is a declarable stream in every mirror of the SDK surface', (
   assert.ok(sdk.SDK_STREAMS.includes('scriptStates'), 'sdk-widgets.js: not in SDK_STREAMS');
   // The grant-side copy: a stream missing here is filtered out of every saved
   // grant, so the package is granted it and never receives a byte.
-  assert.match(read('js', 'settings.js'), /const SDK_WIDGET_STREAMS = Object\.freeze\(\[[^\]]*'scriptStates'/);
+  assert.match(read('js', 'settings/settings.js'), /const SDK_WIDGET_STREAMS = Object\.freeze\(\[[^\]]*'scriptStates'/);
   // The permission label the user actually reads before approving.
   assert.match(read('js', 'custom-widget/custom-widget.js'), /scriptStates: \['cw_stream_scriptstates',/);
   // And the auto-generated capability table in the guide.

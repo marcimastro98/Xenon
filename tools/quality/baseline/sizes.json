@@ -89,7 +89,7 @@
     "server/js/remote-access-page/remote-access-page.js": 566,
     "server/js/remote-control/remote-control.js": 825,
     "server/js/second-screen-tile/second-screen-tile.js": 663,
-    "server/js/settings.js": 845,
+    "server/js/settings/settings.js": 845,
     "server/js/smart-home/smart-home.js": 1376,
     "server/js/spotlight/spotlight.js": 1103,
     "server/js/store-supporters/trial-pass-ui.js": 414,

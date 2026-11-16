@@ -137,7 +137,7 @@ test('utcDay formats an epoch as YYYY-MM-DD', () => {
 // The mechanism is subtle — a default that only applies when there is no file,
 // plus a strict `=== true` normalizer — so these pin both halves.
 
-// Mirror of the normalizer's rule in server.js / js/settings.js. If that test is
+// Mirror of the normalizer's rule in server.js / js/settings/settings.js. If that test is
 // ever relaxed to `!== false`, this fails and says why.
 const normalizeVersionPing = (blob) => blob.versionPing === true;
 

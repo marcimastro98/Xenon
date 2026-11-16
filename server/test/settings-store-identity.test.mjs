@@ -21,16 +21,16 @@ import { engineSource } from './engine-source.mjs';
 // re-implemented here) and the server's mint + keep-prev.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
+const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings/settings.js'), 'utf8');
 const SERVER = engineSource();
 
-// js/settings.js cannot be require()d (a classic script whose top level runs the
+// js/settings/settings.js cannot be require()d (a classic script whose top level runs the
 // whole settings UI), so the function is extracted and evaluated on its own —
 // the same idiom as state-server-origin.test.mjs, and what keeps this honest: a
 // copy of the rule would keep passing after the shipped one regressed.
 function isForeign(serverStoreId, knownStoreId) {
   const at = CLIENT.indexOf('function settingsMirrorIsForeign');
-  assert.notEqual(at, -1, 'js/settings.js must still define settingsMirrorIsForeign');
+  assert.notEqual(at, -1, 'js/settings/settings.js must still define settingsMirrorIsForeign');
   const next = CLIENT.indexOf('\nfunction ', at + 10);
   const src = CLIENT.slice(at, next > 0 ? next : CLIENT.length);
   const fn = new Function(src + '\nreturn settingsMirrorIsForeign;')();

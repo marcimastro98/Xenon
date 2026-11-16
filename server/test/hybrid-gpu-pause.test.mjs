@@ -51,13 +51,13 @@ test('the aurora and grid are actually paused, not merely mentioned', () => {
 
 test('hybridGpuAnimationPause is normalized on client and server alike', () => {
   const shape = /hybridGpuAnimationPause:\s*(value|source)\.hybridGpuAnimationPause !== false/;
-  assert.match(read('js/settings.js'), shape, 'client must normalize hybridGpuAnimationPause');
+  assert.match(read('js/settings/settings.js'), shape, 'client must normalize hybridGpuAnimationPause');
   assert.match(engineSource(), shape, 'server must normalize hybridGpuAnimationPause');
 });
 
 test('the setting defaults to on for both surfaces', () => {
   const dflt = /hybridGpuAnimationPause:\s*true/;
-  assert.match(read('js/settings.js'), dflt, 'client default must be on');
+  assert.match(read('js/settings/settings.js'), dflt, 'client default must be on');
   assert.match(engineSource(), dflt, 'server default must be on');
 });
 
@@ -66,7 +66,7 @@ test('turning the setting off releases the class', () => {
   // If either half goes missing the switch renders but does nothing.
   assert.match(read('js/native-bridge.js'), /window\.NativeGpuPause\s*=/, 'native-bridge must expose the control');
   assert.match(
-    read('js/settings.js'),
+    read('js/settings/settings.js'),
     /NativeGpuPause\.setEnabled\(hubSettings\.hybridGpuAnimationPause !== false\)/,
     'applyHubSettings must push the preference to native-bridge',
   );
@@ -75,7 +75,7 @@ test('turning the setting off releases the class', () => {
 test('the background editor explains the freeze instead of looking like a code error', () => {
   // The whole point of #118: the author must be told it is the machine, not
   // their snippet. Separate from renderBgCodeError so it is not styled as one.
-  const settings = read('js/settings.js');
+  const settings = read('js/settings/settings.js');
   assert.match(settings, /function renderBgFrozenNote\(\)/, 'the note must exist');
   assert.match(settings, /settings_bg_code_frozen_gpu/, 'the note must have copy to show');
   assert.match(read('index.html'), /id="settings-bgcode-frozen"/, 'the note needs a home in the editor');

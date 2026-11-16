@@ -16,7 +16,7 @@ import { appStringsSource, languagesWith } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const BRIDGE = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url));
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url));
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url));
 const I18N = appStringsSource();
 const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url));
 // The engine as text wherever its code lives now: a route's test may stand in a table's list.

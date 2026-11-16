@@ -21,7 +21,7 @@ import { namesOf } from './source-names.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
-const SETTINGS = read('js', 'settings.js');
+const SETTINGS = read('js', 'settings/settings.js');
 const SERVER = engineSource();
 const TILE = read('js', 'weather-tile/weather-tile.js');
 const CSS = read('components', 'WeatherTile', 'WeatherTile.css');

@@ -53,7 +53,7 @@ test('every mirror of the category list carries it', () => {
   // dialog is built from, the docs, and the label the user actually reads.
   assert.match(engineSource('server/sdk-widgets.js'), /steam: Object\.freeze\(\['launchSteamGame'\]\)/);
   assert.match(read('server/js/custom-widget/custom-widget.js'), /steam: \['launchSteamGame'\]/);
-  assert.match(read('server/js/settings.js'), /'spotify', 'steam'|'steam', 'obs'/);
+  assert.match(read('server/js/settings/settings.js'), /'spotify', 'steam'|'steam', 'obs'/);
   assert.match(read('docs/WIDGET_SDK.md'), /\| `steam` \| `\{ type: 'launchSteamGame', gameId \}`/);
   assert.match(read('server/js/custom-widget/custom-widget.js'), /steam: \['cw_act_steam', 'Launch a Steam game'\]/);
 });

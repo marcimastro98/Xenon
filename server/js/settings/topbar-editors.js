@@ -5,7 +5,7 @@
 const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude', codex: 'topbar_el_codex', perf: 'topbar_el_perf' };
 // Chrome-button id → i18n label key. Must stay in step with ACTION_SELECTORS in
 // js/topbar/topbar-minimal.js and with the canonical list in BOTH normalizers
-// (js/settings.js and its server.js twin) — pinned by test/topbar-island-sync.
+// (js/settings/settings.js and its server.js twin) — pinned by test/topbar-island-sync.
 const TOPBAR_ACTION_LABELS = {
   lock: 'topbar_btn_lock', ambient: 'topbar_btn_ambient', xenon: 'topbar_btn_xenon',
   search: 'topbar_btn_search', mini: 'topbar_btn_mini', layout: 'topbar_btn_layout',

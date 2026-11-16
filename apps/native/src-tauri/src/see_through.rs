@@ -26,7 +26,7 @@
 //!     dashboard says why (`Launch::why`).
 //!
 //! The dashboard side: server/js/native-bridge.js reads the caps and sends the
-//! switch, syncSeeThroughControl() in server/js/settings.js draws it, and
+//! switch, syncSeeThroughControl() in server/js/settings/settings.js draws it, and
 //! server/styles/backgroundfx.css takes the page's own ground away.
 
 use std::sync::atomic::{AtomicBool, Ordering};

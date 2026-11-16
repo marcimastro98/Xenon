@@ -6,7 +6,7 @@ import { readFileSync } from './browser-source.mjs';
 const require = createRequire(import.meta.url);
 const pane = require('../js/performance/game-sessions-pane.js');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const settings = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 
 const s = (id, game, start, avgFps, extra = {}) => ({ id, game, start, end: start + 600000, durationS: 600, avgFps, ...extra });
 

@@ -2498,7 +2498,7 @@
         </div>
       </div>
 
-      <!-- Native app only (Windows, macOS, Linux): revealed by syncSeeThroughControl() (js/settings.js).
+      <!-- Native app only (Windows, macOS, Linux): revealed by syncSeeThroughControl() (js/settings/settings.js).
            The switch lives in the app's display.json, not in the settings blob:
            apps/native/src-tauri/src/see_through.rs. -->
       <div class="settings-group settings-see-through-group" data-settings-cat="background" id="settings-see-through-row" hidden>
@@ -2761,7 +2761,7 @@
            ones the DDC/CI panel used before v4.8.0 removed it; the slot and the
            11 translations of "Schermo" were still there, unused.
 
-           The body is rendered by js/settings.js (renderSurfaceSection): the
+           The body is rendered by js/settings/settings.js (renderSurfaceSection): the
            monitor list only exists inside the native shell, so what belongs here
            depends on where the dashboard is being read. -->
       <div class="settings-group settings-span-all" data-settings-cat="display">
@@ -4206,7 +4206,7 @@
           </label>
 
           <!-- Gemini models, one per role. Filled live from the models API (see
-               AI_MODEL_CONTROLS in js/settings.js): "Auto" follows the newest
+               AI_MODEL_CONTROLS in js/settings/settings.js): "Auto" follows the newest
                model of a family, a concrete id is a pin. The line under each
                dropdown says which id Auto currently resolves to. -->
           <div class="settings-subpanel full" id="settings-gemini-models" hidden>
@@ -4619,7 +4619,7 @@
           </div>
           <button type="button" class="settings-btn settings-update-check" id="settings-update-check" onclick="checkForUpdatesNow(this)" data-i18n="update_check_btn">Controlla aggiornamenti</button>
         </div>
-        <!-- Filled by renderPlatformBeta() in js/settings.js, and only on the two
+        <!-- Filled by renderPlatformBeta() in js/settings/settings.js, and only on the two
              platforms where it is true. Empty and hidden everywhere else. -->
         <div class="settings-platform-beta" id="settings-platform-beta" hidden></div>
       </div>
@@ -5131,7 +5131,7 @@
 <script src="js/settings/ai-model-pickers.js"></script>
 <script src="js/settings/ai-voice.js"></script>
 <script src="js/settings/calendar-feeds.js"></script>
-<script src="js/settings.js"></script>
+<script src="js/settings/settings.js"></script>
 <script src="js/store-supporters/xenon-credits.js"></script>
 <script src="js/store-supporters/sparks-mail.js"></script>
 <script src="js/ai/ai-xenon-settings.js"></script>

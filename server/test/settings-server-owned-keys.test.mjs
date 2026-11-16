@@ -25,7 +25,7 @@ import { engineSource } from './engine-source.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER = engineSource();
-const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
+const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings/settings.js'), 'utf8');
 
 /** Top-level keys of the server's authoritative defaults. */
 function serverKeys() {
@@ -39,7 +39,7 @@ function serverKeys() {
 /** Keys the browser's normalizer emits, i.e. what a generic save carries. */
 function clientEmittedKeys() {
   const at = CLIENT.indexOf('function normalizeSettings');
-  assert.notEqual(at, -1, 'js/settings.js must still define normalizeSettings');
+  assert.notEqual(at, -1, 'js/settings/settings.js must still define normalizeSettings');
   const next = CLIENT.indexOf('\nfunction ', at + 10);
   const block = CLIENT.slice(at, next > 0 ? next : CLIENT.length);
   return new Set([...block.matchAll(/^ {2,4}([A-Za-z_]\w*)\s*:/gm)].map((m) => m[1]));

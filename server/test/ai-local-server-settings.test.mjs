@@ -72,7 +72,7 @@ test('the user-visible strings carry no em dash', () => {
 test('the server and the dashboard check the fields with the same code', () => {
   assert.equal(server.sanitizeUrl, fields.sanitizeUrl);
   assert.equal(server.sanitizeModel, fields.sanitizeModel);
-  const settings = read('js/settings.js');
+  const settings = read('js/settings/settings.js');
   assert.match(settings, /localApiUrl: LocalServerFields\.sanitizeUrl\(value\.localApiUrl\)/);
   assert.match(settings, /localApiModel: LocalServerFields\.sanitizeModel\(value\.localApiModel\)/);
 });
@@ -118,11 +118,11 @@ test('the panel has every control its script reaches for, and loads in order', (
   for (const id of ['settings-localapi-model', 'settings-localapi-model-custom', 'settings-localapi-model-used', 'ai-provider-localapi']) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
-  assert.ok(html.indexOf('js/ai/local-server-fields.js') < html.indexOf('js/settings.js"'), 'settings.js reads LocalServerFields at load');
+  assert.ok(html.indexOf('js/ai/local-server-fields.js') < html.indexOf('js/settings/settings.js"'), 'settings.js reads LocalServerFields at load');
 });
 
 test('every list of providers on the client knows it', () => {
-  assert.match(read('js/settings.js'), /AI_PROVIDER_IDS = \[[^\]]*'localapi'/);
+  assert.match(read('js/settings/settings.js'), /AI_PROVIDER_IDS = \[[^\]]*'localapi'/);
   for (const file of ['js/ai/ai.js', 'js/performance/performance.js']) {
     assert.match(read(file), /\['ollama', 'localapi', 'openai'/, file);
   }

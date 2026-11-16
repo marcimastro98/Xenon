@@ -145,7 +145,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   calendarTabs: Object.freeze({ order: ['calendar', 'tasks', 'timer'], active: 'calendar' }),
   mediaView: Object.freeze({ active: 'media' }),
   topbarHidden: false,
-  // Mirrors js/settings.js — the Timer widget's add row folded to a strip. A
+  // Mirrors js/settings/settings.js — the Timer widget's add row folded to a strip. A
   // field missing from THIS copy is silently dropped on save, so the flag would
   // never survive a reload.
   timerAddCollapsed: false,

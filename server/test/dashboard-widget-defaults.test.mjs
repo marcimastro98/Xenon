@@ -13,7 +13,7 @@ import { engineSource } from './engine-source.mjs';
 // server on require, so we assert against its source text instead of importing it.
 //
 // This invariant lives in TWO files that must stay in sync: server/server.js AND
-// server/js/settings.js (the client mirror). 'stocks' was once added to the client
+// server/js/settings/settings.js (the client mirror). 'stocks' was once added to the client
 // DASHBOARD_WIDGET_IDS without its client geometry default, throwing the same
 // `reading 'x'` TypeError in the browser's normalizeDashboardGeom — so both files
 // are checked here.
@@ -36,7 +36,7 @@ function defaultWidgetKeys(src) {
   return new Set([...block.matchAll(/\n\s+([a-z][a-z0-9]*):\s+Object\.freeze\(\{ x:/gi)].map(m => m[1]));
 }
 
-for (const rel of ['server.js', join('js', 'settings.js')]) {
+for (const rel of ['server.js', join('js', 'settings/settings.js')]) {
   test(`${rel}: every DASHBOARD_WIDGET_IDS entry has a geometry default (no 500 / no client crash)`, () => {
     const src = sourceOf(rel);
     const ids = widgetIds(src);
@@ -93,7 +93,7 @@ function defaultCardKeys(src) {
 // the server left the identical TypeError being thrown in the browser, inside
 // applyHubSettings — which runs on every hydrate and every settings event, so it
 // landed before the dashboard had finished starting up.
-for (const rel of ['server.js', join('js', 'settings.js')]) {
+for (const rel of ['server.js', join('js', 'settings/settings.js')]) {
   test(`${rel}: every DASHBOARD_CARD_IDS entry has a layout default (no 500, no settings reset)`, () => {
     const src = sourceOf(rel);
     const ids = cardIds(src);
@@ -110,7 +110,7 @@ for (const rel of ['server.js', join('js', 'settings.js')]) {
 // The fence behind the data. Even with the lists in step, a normalizer for
 // PERSISTED data must never throw: it is the one function standing between a
 // file on disk and the whole settings blob, on both sides.
-for (const rel of ['server.js', join('js', 'settings.js')]) {
+for (const rel of ['server.js', join('js', 'settings/settings.js')]) {
   test(`${rel}: normalizeDashboardItem survives a missing default instead of throwing`, () => {
     const src = sourceOf(rel);
     const fn = src.slice(src.indexOf('function normalizeDashboardItem('));

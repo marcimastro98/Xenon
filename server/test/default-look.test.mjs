@@ -18,7 +18,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER = path.join(HERE, '..');
 const read = (...p) => readFileSync(path.join(SERVER, ...p), 'utf8').replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
 
-const SETTINGS = read('js', 'settings.js');
+const SETTINGS = read('js', 'settings/settings.js');
 const SERVER_JS = engineSource();
 const INDEX = read('index.html');
 const LIQUID_CSS = read('styles', 'themes-liquid.css');

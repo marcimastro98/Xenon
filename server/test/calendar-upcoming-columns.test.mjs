@@ -24,7 +24,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const CAL_JS = read('../js/calendar/calendar.js');
 const CAL_CSS = read('../components/CalendarView/CalendarView.css');
 const BREAKPOINTS = read('../styles/breakpoints.css');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const SERVER = engineSource();
 const HTML = read('../index.html');
 const I18N = appStringsSource();

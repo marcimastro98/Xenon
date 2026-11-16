@@ -19,7 +19,7 @@ import { engineSource } from './engine-source.mjs';
 
 const WIDGET = readFileSync(new URL('../js/discord-widget/discord-widget.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
-const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const CLIENT = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const CSS = readFileSync(new URL('../components/DiscordWidget/DiscordWidget.css', import.meta.url), 'utf8');
 

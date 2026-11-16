@@ -23,7 +23,7 @@ const require = createRequire(import.meta.url);
 const { createSelfUpdate } = require('../updates/self-update.js');
 
 const UPDATE = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];

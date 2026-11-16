@@ -19,7 +19,7 @@ function fnSource(src, signature) {
   assert.ok(piece.startsWith(signature), signature);
   return piece;
 }
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const normalizeTopbarClock = Function(
   fnSource(SETTINGS, 'function normalizeTopbarActions(value)')
   + '\nreturn (' + fnSource(SETTINGS, 'function normalizeTopbarClock(value, legacyRoot)') + ')',
@@ -124,7 +124,7 @@ test('the import shows a review step and the export is in the Export list', () =
   assert.match(src, /if \(sel\.topbar && window\.TopbarShare\) data\.topbar = TopbarShare\.of\(HS\(\)\);/);
   const index = read('../index.html');
   assert.ok(index.indexOf('src="js/presets/topbar-share.js"') > index.indexOf('src="js/topbar/topbar-look.js"'));
-  assert.ok(index.indexOf('src="js/presets/topbar-share.js"') < index.indexOf('src="js/settings.js"'));
+  assert.ok(index.indexOf('src="js/presets/topbar-share.js"') < index.indexOf('src="js/settings/settings.js"'));
 });
 
 test('a theme carries only the bar style, and none at all for an untouched bar', () => {

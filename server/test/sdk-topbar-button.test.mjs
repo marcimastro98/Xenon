@@ -22,7 +22,7 @@ function fnSource(src, signature) {
   return piece;
 }
 
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const SERVER = engineSource();
 const clientActions = Function('return (' + fnSource(SETTINGS, 'function normalizeTopbarActions(value)') + ')')();
 const serverActions = Function(

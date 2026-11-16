@@ -57,7 +57,7 @@
 #settings-overlay :is(.island-source-capabilities, .island-source-empty) { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
 #settings-overlay .island-source-empty { padding: 0 16px 14px; text-align: left; }
 
-/* ── Display: what js/settings.js renderSurfaceSection() writes ── */
+/* ── Display: what js/settings/settings.js renderSurfaceSection() writes ── */
 #settings-overlay #settings-surface-body > :is(.settings-note, .settings-hint) { display: block; margin: 0; padding: 0 16px 12px; }
 #settings-overlay .settings-radio-list { display: grid; gap: 0; }
 #settings-overlay .settings-surface-screens { display: grid; gap: 8px; padding: 4px 16px 14px; }

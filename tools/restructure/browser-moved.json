@@ -352,6 +352,7 @@
     {"from":"server/js/topbar-share.js","to":"server/js/presets/topbar-share.js"},
     {"from":"server/js/custom-widget.js","to":"server/js/custom-widget/custom-widget.js"},
     {"from":"server/js/sdk-diagnostics.js","to":"server/js/widget-sdk/sdk-diagnostics.js"},
-    {"from":"server/js/sdk-island-schema.js","to":"server/js/widget-sdk/sdk-island-schema.js"}
+    {"from":"server/js/sdk-island-schema.js","to":"server/js/widget-sdk/sdk-island-schema.js"},
+    {"from":"server/js/settings.js","to":"server/js/settings/settings.js"}
   ]
 }

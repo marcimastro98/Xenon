@@ -197,7 +197,7 @@ test('saved pass: Settings asks the hub once, and a code it does not know is not
 }));
 
 test('Settings tells a refused code apart from a malformed one', () => {
-  const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const settings = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
   assert.match(settings, /out\.error === 'refused' \? 'preset_redeem_saved_stale' : 'settings_supporter_bad'/);
   const server = engineSource();
   assert.match(server, /saveTypedCode\(DATA_DIR, body\.code, \{ verify: true \}\)/);

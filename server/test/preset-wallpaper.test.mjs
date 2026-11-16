@@ -58,7 +58,7 @@ function loadSanitizer(file, fnName, extra) {
 }
 const INSTALLS = { INSTALL_ID_RE: /^xi_[a-z0-9]{8,32}$/ };
 for (const [file, fnName, extra] of [
-  ['server/js/settings.js', 'sanitizeBackgroundMedia', { ContentInstalls: INSTALLS }],
+  ['server/js/settings/settings.js', 'sanitizeBackgroundMedia', { ContentInstalls: INSTALLS }],
   ['server/server.js', 'sanitizeSettingsBackgroundMedia', { contentInstalls: INSTALLS }],
 ]) {
   test(`${fnName} keeps the imported marker and its receipt id`, () => {

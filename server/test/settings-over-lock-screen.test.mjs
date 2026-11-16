@@ -12,7 +12,7 @@ import { namesOf } from './source-names.mjs';
 // must take the screen back first.
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SETTINGS = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8');
+const SETTINGS = readFileSync(join(__dirname, '..', 'js', 'settings/settings.js'), 'utf8');
 
 function extractFunction(src, name) {
   return namesOf(src).one(name);

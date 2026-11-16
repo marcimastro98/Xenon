@@ -1,4 +1,4 @@
-// The Vitals settings the dashboard (js/settings.js) and the server (server.js)
+// The Vitals settings the dashboard (js/settings/settings.js) and the server (server.js)
 // both rebuild from known keys: natural breaks and Bit's quiet window survive a
 // save on either side, with the same defaults and the same clamps.
 import { test } from 'node:test';
@@ -34,7 +34,7 @@ function normalizerFrom(file) {
   return box.normalizeVitals;
 }
 
-const SIDES = [['dashboard', normalizerFrom('js/settings.js')], ['server', normalizerFrom('server.js')]];
+const SIDES = [['dashboard', normalizerFrom('js/settings/settings.js')], ['server', normalizerFrom('server.js')]];
 
 test('natural breaks are on unless turned off, on both sides', () => {
   for (const [side, norm] of SIDES) {

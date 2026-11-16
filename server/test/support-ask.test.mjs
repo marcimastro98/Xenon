@@ -12,7 +12,7 @@ import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 import { engineSource, settingsSaveSource } from './engine-source.mjs';
 
 const CARD = readFileSync(new URL('../js/store-supporters/support-card.js', import.meta.url), 'utf8');
-const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const SETTINGS = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();

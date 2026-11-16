@@ -454,9 +454,9 @@ test('the server routes the provider, keeps the time out of the system text, and
   }
   // The settings field is normalized on both sides.
   assert.match(S, /xenonModel: aiXenon\.sanitizeModel\(source\.xenonModel\)/);
-  assert.match(read('../js/settings.js'), /xenonModel: \['haiku', 'sonnet', 'opus'\]\.includes\(value\.xenonModel\)/);
+  assert.match(read('../js/settings/settings.js'), /xenonModel: \['haiku', 'sonnet', 'opus'\]\.includes\(value\.xenonModel\)/);
   assert.match(S, /xenonEffort: aiXenon\.sanitizeEffort\(source\.xenonEffort\)/);
-  assert.match(read('../js/settings.js'), /xenonEffort: \['low', 'medium', 'high'\]\.includes\(value\.xenonEffort\) \? value\.xenonEffort : 'medium'/);
+  assert.match(read('../js/settings/settings.js'), /xenonEffort: \['low', 'medium', 'high'\]\.includes\(value\.xenonEffort\) \? value\.xenonEffort : 'medium'/);
   assert.match(S, /model: settings && settings\.xenonModel, effort: settings && settings\.xenonEffort,/, 'the level reaches the turn');
   // Settings shows the level beside the model and saves what is picked.
   const html = read('../index.html');

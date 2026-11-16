@@ -174,7 +174,7 @@ function ruleFrom(file, param) {
 
 test('client and server keep the guard setting the same way', () => {
   const server = ruleFrom('../server.js', 'source');
-  const client = ruleFrom('../js/settings.js', 'value');
+  const client = ruleFrom('../js/settings/settings.js', 'value');
   for (const [input, want] of [[{}, true], [{ bgGuard: true }, true], [{ bgGuard: false }, false], [{ bgGuard: 'off' }, true]]) {
     assert.equal(server(input), want, 'server ' + JSON.stringify(input));
     assert.equal(client(input), want, 'client ' + JSON.stringify(input));

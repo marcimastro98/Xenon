@@ -24,7 +24,7 @@ import { namesOf } from './source-names.mjs';
 // the one next to it lost it.
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8');
+const SRC = readFileSync(join(__dirname, '..', 'js', 'settings/settings.js'), 'utf8');
 const require = createRequire(import.meta.url);
 
 function extractFunction(src, name) {

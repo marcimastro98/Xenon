@@ -20,7 +20,7 @@ const ROOT = join(__dirname, '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
 const SERVER = engineSource();
-const SETTINGS = read('server/js/settings.js');
+const SETTINGS = read('server/js/settings/settings.js');
 const HTML = read('server/index.html');
 const I18N = appStringsSource();
 

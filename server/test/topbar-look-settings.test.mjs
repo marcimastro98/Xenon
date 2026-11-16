@@ -17,7 +17,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const PAGE = read('../js/topbar-look-settings/topbar-look-settings.js');
 const BUTTON = read('../js/topbar/topbar-button-options.js');
 const INDEX = read('../index.html');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const MINIMAL = read('../js/topbar/topbar-minimal.js');
 const CSS = read('../components/Topbar/TopbarLook.css');
 const MINIMAL_CSS = read('../components/TopbarMinimal/TopbarMinimal.css');
@@ -66,7 +66,7 @@ test('the page has every host it fills, and loads after settings.js', () => {
     assert.equal(INDEX.split(`id="${id}"`).length, 2, id);
   }
   for (const src of ['js/topbar-look-settings/topbar-look-settings.js', 'js/topbar/topbar-button-options.js']) {
-    assert.ok(INDEX.indexOf(`src="${src}"`) > INDEX.indexOf('src="js/settings.js"'), src);
+    assert.ok(INDEX.indexOf(`src="${src}"`) > INDEX.indexOf('src="js/settings/settings.js"'), src);
   }
   assert.ok(INDEX.includes('href="components/Topbar/TopbarLookSettings.css"'));
   // The rails group is the one settings.js hides in Full.

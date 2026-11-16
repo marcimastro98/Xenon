@@ -10,7 +10,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const INDEX = read('../index.html');
 const CSS = read('../components/AmbientCanvas/AmbientCanvas.css');
 const SETTINGS_CSS = read('../components/SettingsModal/SettingsModal.css');
-const SETTINGS = read('../js/settings.js');
+const SETTINGS = read('../js/settings/settings.js');
 const I18N = appStringsSource();
 
 const group = INDEX.slice(INDEX.indexOf('<div class="settings-group settings-lock-group"'), INDEX.indexOf('<div class="settings-group settings-weather-group"'));

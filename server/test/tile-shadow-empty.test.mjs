@@ -114,7 +114,7 @@ test('the tab group re-stamps the mark when the shown tab changes', () => {
 // "No tile should have the shadow, it is horrible." Since v4.11.9 every tile has
 // cast a drop shadow by default; it is now opt-in, through the same slider.
 test('tiles cast no drop shadow until someone asks for one', () => {
-  const S = read('../js/settings.js');
+  const S = read('../js/settings/settings.js');
   assert.match(S, /\n  tileShadowStrength: 0,\n/, 'the client default is not 0');
   assert.match(engineSource(), /\n  tileShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
   assert.match(read('../styles/global.css'), /--panel-shadow-alpha: 0;/, 'the first paint, before any script runs, still has a shadow');
@@ -130,10 +130,10 @@ test('tiles cast no drop shadow until someone asks for one', () => {
 // the share codes, not the slider.
 test('the old shadow key is never read again, so a saved 100% turns into none', () => {
   const code = (src) => src.split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
-  for (const f of ['../js/settings.js', '../server.js', '../js/presets/preset-share.js', '../index.html']) {
+  for (const f of ['../js/settings/settings.js', '../server.js', '../js/presets/preset-share.js', '../index.html']) {
     assert.doesNotMatch(code(read(f)), /panelShadowStrength/, `${f} still reads the old key`);
   }
-  const S = read('../js/settings.js');
+  const S = read('../js/settings/settings.js');
   assert.match(S, /tileShadowStrength: clampNumber\(raw\.tileShadowStrength, 0, 2, D\.tileShadowStrength\)/, 'theme cards');
   assert.match(read('../js/presets/preset-share.js'), /'panelBorderStrength', 'tileShadowStrength',/, 'share codes');
   assert.match(S, /'panelBorderStrength', 'tileShadowStrength',\n/, 'theme keys');
@@ -142,7 +142,7 @@ test('the old shadow key is never read again, so a saved 100% turns into none', 
 });
 
 test('the slider still goes from 0 to 2, and a value set on it is kept', () => {
-  const S = read('../js/settings.js');
+  const S = read('../js/settings/settings.js');
   const server = engineSource();
   assert.match(S, /tileShadowStrength: clampNumber\(value\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
   assert.match(server, /tileShadowStrength: clampNumber\(source\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);

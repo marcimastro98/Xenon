@@ -52,7 +52,7 @@ test('audio-levels forgets a helper that gave up', () => {
 });
 
 async function runInstall(answer) {
-  const src = read('../js/settings.js');
+  const src = read('../js/settings/settings.js');
   const code = cut(src, 'async function installXenonHelper() {', '\n}\n');
   const el = { textContent: '', dataset: {}, hidden: true };
   const btn = { hidden: false, disabled: false, textContent: '' };

@@ -20,7 +20,7 @@ import { namesOf } from './source-names.mjs';
 // the same shape and the same rules.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
+const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings/settings.js'), 'utf8');
 const SERVER = engineSource();
 
 /** Lift a normalizer out of its file and evaluate it in isolation. */

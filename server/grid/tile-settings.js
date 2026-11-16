@@ -2,7 +2,7 @@
 // POST /settings/tile: the choices a tile keeps in the settings blob (a Discord
 // favourite, the ChatGPT model, a lyrics option, the Notifications tile switches),
 // saved from a widget on the screen. A layer page never writes the whole blob
-// (js/settings.js _settingsReadOnly), so without this those taps were lost.
+// (js/settings/settings.js _settingsReadOnly), so without this those taps were lost.
 // An allowlist of top-level fields and shapes; the server normaliser does the rest.
 
 const MAX_BYTES = 16 * 1024;
