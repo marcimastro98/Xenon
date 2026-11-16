@@ -42,7 +42,7 @@ export function localizeUrls(s, lang) {
     if (!u.startsWith('/')) u = '/' + u.replace(/^\.\//, '');
     const m = /^\/([^?#]*)([?#].*)?$/.exec(u);
     const file = m ? m[1] : '';
-    const tail = m && m[2] ? m[2] : '';
+    const tail = m?.[2] || '';
     if (file === '' && homeHas) return '/' + lang + '/' + tail;
     if (copies.has(file)) return '/' + lang + '/' + file + tail;
     return u;
@@ -50,8 +50,8 @@ export function localizeUrls(s, lang) {
   // Both quote styles: translated HTML in tools/i18n/*.json uses single quotes
   // (it lives inside a JSON string), and a missed `href='catalog/'` became
   // /zh/catalog/, a 404 Google kept reporting.
-  s = s.replace(/(\s(?:href|src|poster)=)(["'])(.*?)\2/g, (all, a, q, url) => a + q + fix(url) + q);
-  s = s.replace(/(\ssrcset=")([^"]*)(")/g, (all, a, set, b) => a + set.split(',').map((part) => {
+  s = s.replace(/(\s(?:href|src|poster)=)(["'])(.*?)\2/g, (_all, a, q, url) => a + q + fix(url) + q);
+  s = s.replace(/(\ssrcset=")([^"]*)(")/g, (_all, a, set, b) => a + set.split(',').map((part) => {
     const bits = part.trim().split(/\s+/);
     bits[0] = fix(bits[0]);
     return bits.join(' ');
@@ -63,5 +63,5 @@ const escText = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 
 // The shared header and footer labels (data-xl) written in a language's words.
 export function bakeLabels(s, labels) {
-  return s.replace(/(<(\w+)[^>]*\sdata-xl="([^"]+)"[^>]*>)([^<]*)(<\/\2>)/g, (all, open, tag, key, text, close) => (labels[key] ? open + escText(labels[key]) + close : all));
+  return s.replace(/(<(\w+)[^>]*\sdata-xl="([^"]+)"[^>]*>)([^<]*)(<\/\2>)/g, (all, open, _tag, key, _text, close) => (labels[key] ? open + escText(labels[key]) + close : all));
 }
