@@ -70,7 +70,7 @@ test('openFromSdk still prefers a visible tile and only then reveals one', () =>
 
 test('a perf/game pause is not overridden to satisfy a widget', () => {
   const body = namesOf(SRC, 'browser-tile.js').one('revealBrowserTile');
-  assert.ok(/if \(perfPaused\) return null;/.test(body),
+  assert.ok(/if \(tileState\.perfPaused\) return null;/.test(body),
     'revealBrowserTile must bail while playback/perf mode has the tiles paused');
 });
 

@@ -36,8 +36,7 @@
     star: ICON('<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8L3.5 9.2l5.9-.9L12 3z"/>'),
   };
 
-  const MAX_TABS = 6;
-  const MAX_FAVORITES = 16;
+  const { MAX_TABS, MAX_FAVORITES, getTabsConfig, saveTabs, getFavorites } = window.BrowserTileStore;
 
   const {
     cdpModifiers, mapPointerToPage, RESIZE_RETRY_MS, RESIZE_MAX_RETRIES, frameMatchesSize,
@@ -46,9 +45,14 @@
 
   const groups = new Map();    // gsId -> group state (the visible tile)
   const tabsById = new Map();  // server tile id -> tab state
-  let relay = null;            // shared WebSocket to the server relay
-  let available = null;        // null = unknown, true/false once probed
-  let perfPaused = false;      // true → suspend streaming (game/performance mode, if opted in)
+  const tileState = {
+    relay: null,            // shared WebSocket to the server relay
+    available: null,        // null = unknown, true/false once probed
+    perfPaused: false,      // true → suspend streaming (game/performance mode, if opted in)
+    // Whether the server said it can install a browser for us. Undefined until
+    // /embedded-browser/available answers.
+    canInstallBrowser: false,
+  };
   const CLOSE_DELAY_MS = 30000;
 
   // ── Verified resize ───────────────────────────────────────────────────────────
@@ -59,7 +63,7 @@
   // tapping "Show anyway"): a paused tile that ignored the address bar looked broken
   // with nothing saying why. It lasts until performance mode ends.
   function applyGroupState(group) {
-    const paused = perfPaused && !group.perfOverride;
+    const paused = tileState.perfPaused && !group.perfOverride;
     const want = group.onScreen && !paused;
     if (want && !group.visible) showGroup(group);
     else if (!want && group.visible) hideGroup(group);
@@ -75,8 +79,8 @@
                      document.body.classList.contains('perf-active');
       pause = wantsPause && active;
     } catch (e) { pause = false; }
-    if (pause === perfPaused) return;
-    perfPaused = pause;
+    if (pause === tileState.perfPaused) return;
+    tileState.perfPaused = pause;
     if (!pause) groups.forEach((group) => { group.perfOverride = false; });
     groups.forEach((group) => applyGroupState(group));
   }
@@ -100,20 +104,20 @@
   }
 
   function ensureRelay() {
-    if (relay && (relay.readyState === 0 || relay.readyState === 1)) return;
+    if (tileState.relay && (tileState.relay.readyState === 0 || tileState.relay.readyState === 1)) return;
     try {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      relay = new WebSocket(proto + '//' + location.host + '/embedded-browser/ws');
-      relay.binaryType = 'arraybuffer';
-    } catch (e) { relay = null; return; }
-    relay.addEventListener('open', () => {
+      tileState.relay = new WebSocket(proto + '//' + location.host + '/embedded-browser/ws');
+      tileState.relay.binaryType = 'arraybuffer';
+    } catch (e) { tileState.relay = null; return; }
+    tileState.relay.addEventListener('open', () => {
       // Re-open the active tab of any group that should currently be streaming.
       groups.forEach((group) => {
         group.tabs.forEach((tab) => { tab.opened = false; tab.streaming = false; });
         if (group.visible) openActive(group);
       });
     });
-    relay.addEventListener('message', (ev) => {
+    tileState.relay.addEventListener('message', (ev) => {
       if (ev.data instanceof ArrayBuffer) { handleBinaryFrame(ev.data); return; }
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (!m || !m.tile) return;
@@ -125,14 +129,14 @@
       else if (m.type === 'cleared') { if (typeof showHubToast === 'function') showHubToast(t('browser_clear', 'Browser'), t('browser_cleared', 'Site data cleared: the page has been reloaded.'), ''); }
     });
     const drop = () => { tabsById.forEach((tab) => { tab.opened = false; tab.streaming = false; }); };
-    relay.addEventListener('close', drop);
-    relay.addEventListener('error', drop);
+    tileState.relay.addEventListener('close', drop);
+    tileState.relay.addEventListener('error', drop);
   }
 
   function relaySend(obj) {
     ensureRelay();
-    if (!relay || relay.readyState !== 1) return false;
-    try { relay.send(JSON.stringify(obj)); return true; } catch (e) { return false; }
+    if (!tileState.relay || tileState.relay.readyState !== 1) return false;
+    try { tileState.relay.send(JSON.stringify(obj)); return true; } catch (e) { return false; }
   }
 
   // ── Metrics ───────────────────────────────────────────────────────────────────
@@ -259,7 +263,7 @@
     showLoading(group);                  // show progress immediately on a new address
     // Typing an address is the user asking for this page now, performance mode or
     // not. When resuming opens the tab it opens on the new address already.
-    if (perfPaused && !group.perfOverride) {
+    if (tileState.perfPaused && !group.perfOverride) {
       const wasOpened = tab.opened;
       group.perfOverride = true;
       applyGroupState(group);
@@ -357,47 +361,8 @@
   }
 
   // ── Persistence (per-instance tab list) ────────────────────────────────────────
-  // Stored as { tabs: [{ url }], active }. Back-compatible with the old single-URL
-  // shape { url }, which becomes a one-tab list on first read. `legacyId` is the
-  // enclosing tab-group's gs-id: instance ids used to be derived from it, so a
-  // tile that was grouped before the per-atom id fix has its typed URLs saved
-  // under the group's key — adopt that entry once rather than losing them (the
-  // next saveTabs re-homes the state under the atom id).
-  function getTabsConfig(id, legacyId) {
-    let raw;
-    try { raw = hubSettings.browserTiles && hubSettings.browserTiles[id]; } catch (e) { raw = null; }
-    if (!raw && legacyId) {
-      try { raw = hubSettings.browserTiles && hubSettings.browserTiles[legacyId]; } catch (e) { raw = null; }
-    }
-    if (raw && Array.isArray(raw.tabs)) {
-      const tabs = raw.tabs.map((tb) => ({ url: (tb && typeof tb.url === 'string') ? tb.url : '' }));
-      if (!tabs.length) tabs.push({ url: '' });
-      const active = Math.max(0, Math.min(tabs.length - 1, Number(raw.active) || 0));
-      return { tabs: tabs.slice(0, MAX_TABS), active, chromeHidden: !!(raw && raw.chromeHidden) };
-    }
-    const legacyUrl = (raw && typeof raw.url === 'string') ? raw.url : '';
-    return { tabs: [{ url: legacyUrl }], active: 0, chromeHidden: !!(raw && raw.chromeHidden) };
-  }
-  function saveTabs(group) {
-    try {
-      if (!hubSettings.browserTiles) hubSettings.browserTiles = {};
-      hubSettings.browserTiles[group.id] = { tabs: group.tabs.map((tb) => ({ url: tb.url || '' })), active: group.active, chromeHidden: !!group.chromeHidden };
-      if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
-    } catch (e) { /* ignore */ }
-  }
 
   // ── Favorites (global quick-access bar, shared by every Browser tile) ──────────
-  // Stored as hubSettings.browserFavorites = [{ label, url }]. Kept global on
-  // purpose: a favorite defined in one Browser tile is available in all of them.
-  function getFavorites() {
-    let raw;
-    try { raw = hubSettings.browserFavorites; } catch (e) { raw = null; }
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .filter((f) => f && typeof f === 'object' && typeof f.url === 'string' && f.url.trim())
-      .slice(0, MAX_FAVORITES)
-      .map((f) => ({ label: String(f.label || '').slice(0, 40), url: String(f.url).slice(0, 2048) }));
-  }
   function saveFavorites(list) {
     try {
       hubSettings.browserFavorites = list.slice(0, MAX_FAVORITES)
@@ -884,7 +849,7 @@
   // ── Scanning ──────────────────────────────────────────────────────────────────
   function scan() {
     if (typeof document === 'undefined') return;
-    if (available === false) { showUnavailable(); return; }
+    if (tileState.available === false) { showUnavailable(); return; }
     document.querySelectorAll('[data-dashboard-widget="browser"]').forEach((section) => {
       const mount = section.querySelector('.browser-widget-mount');
       if (!mount) return;
@@ -919,10 +884,6 @@
     evalPerfPause();
   }
 
-  // Whether the server said it can install a browser for us. Undefined until
-  // /embedded-browser/available answers.
-  let canInstallBrowser = false;
-
   function showUnavailable() {
     document.querySelectorAll('[data-dashboard-widget="browser"] .browser-widget-mount').forEach((mount) => {
       if (mount.querySelector('.browser-unavailable')) return;
@@ -938,7 +899,7 @@
         : t('browser_unavailable', 'Microsoft Edge isn’t installed: it’s required for the Browser widget.');
       div.appendChild(p);
 
-      if (canInstallBrowser) {
+      if (tileState.canInstallBrowser) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'browser-unavailable-install';
@@ -967,14 +928,14 @@
 
   function probeAvailability() {
     fetch('/embedded-browser/available').then((r) => r.json()).then((d) => {
-      available = !!(d && d.available);
-      canInstallBrowser = !!(d && d.canInstall);
+      tileState.available = !!(d && d.available);
+      tileState.canInstallBrowser = !!(d && d.canInstall);
       // The previous answer may still be painted, and it may now be wrong —
       // drop it so an install that just succeeded is not hidden behind the
       // "no browser found" card it replaced.
       document.querySelectorAll('.browser-unavailable').forEach((el) => el.remove());
       scan();
-    }).catch(() => { available = true; scan(); });
+    }).catch(() => { tileState.available = true; scan(); });
   }
 
   function init() {
@@ -1089,7 +1050,7 @@
   // A perf/game-mode pause is left alone. That is a deliberate global stop with the
   // user in a game, and stealing the screen back for a widget is not a repair.
   function revealBrowserTile() {
-    if (perfPaused) return null;
+    if (tileState.perfPaused) return null;
     const pager = typeof window !== 'undefined' ? window.DashboardPager : null;
     const candidates = [];
     groups.forEach((group) => {

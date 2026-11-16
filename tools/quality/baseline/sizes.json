@@ -35,7 +35,7 @@
     "server/js/ambient/ambient-canvas.js": 793,
     "server/js/ambient/ambient-mode.js": 634,
     "server/js/audio/wavelink-widget.js": 453,
-    "server/js/browser-tile/browser-tile.js": 1154,
+    "server/js/browser-tile/browser-tile.js": 1115,
     "server/js/capabilities/capability-catalog.js": 1339,
     "server/js/capture/capture-annotate.js": 375,
     "server/js/capture/capture-gallery-viewer.js": 546,
