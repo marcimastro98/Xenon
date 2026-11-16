@@ -177,7 +177,7 @@ async function judge(page, size, lang, view, scope, pairs = []) {
   if (SHOT_LANGS.has(lang)) await page.screenshot({ path: path.join(OUT, `${size.name}-${lang}-${view}.png`) });
 }
 
-// Run in the page, the same options js/update.js hands the stage.
+// Run in the page, the same options js/update/update.js hands the stage.
 function openStage(wn) {
   const text = (v) => window.XenonReleaseNotice.localText(v, document.documentElement.lang);
   const tr = (key) => (typeof window.t === 'function' ? window.t(key, key) : key);

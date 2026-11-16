@@ -277,7 +277,7 @@ let hubSettings = {};
 
   // A newer Xenon, with no dashboard to say so: the card opens the dashboard on
   // the update screen (the shell takes that one signal from this window only,
-  // layers::spec::dashboard_page). The skip is js/update.js's own key.
+  // layers::spec::dashboard_page). The skip is js/update/update.js's own key.
   const UPDATE_CHECK_MS = 6 * 3600 * 1000;
   const UPDATE_SKIP_KEY = 'xenon.update.dismissed';
   const bareVersion = (v) => String(v || '').replace(/^v/i, '');

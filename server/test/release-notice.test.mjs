@@ -236,9 +236,9 @@ test("returning means earlier use; What's New alone is not, a new install sees i
 });
 
 test('a sheet that leads somewhere closes the stage and goes, on both surfaces', () => {
-  const stage = readFileSync(new URL('../js/whats-new.js', import.meta.url), 'utf8');
+  const stage = readFileSync(new URL('../js/whats-new/whats-new.js', import.meta.url), 'utf8');
   assert.match(stage, /leave: \(target\) => \{\s*close\(\);/, 'the stage is gone first: it covers the Store');
-  const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+  const update = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
   assert.match(update, /openStore: openStoreFor/);
   const screen = readFileSync(new URL('../js/alerts/screen-release.js', import.meta.url), 'utf8');
   assert.match(screen, /openStore: openDashboard/);
@@ -247,7 +247,7 @@ test('a sheet that leads somewhere closes the stage and goes, on both surfaces',
 });
 
 test('a video plays only on the sheet it belongs to, and not when things stand still', () => {
-  const stage = readFileSync(new URL('../js/whats-new.js', import.meta.url), 'utf8');
+  const stage = readFileSync(new URL('../js/whats-new/whats-new.js', import.meta.url), 'utf8');
   const clip = stage.slice(stage.indexOf('function mediaPanel('), stage.indexOf('function highlightSheet('));
   assert.match(clip, /video\.muted = true/);
   assert.match(clip, /video\.playsInline = true/);
@@ -262,7 +262,7 @@ test('a video plays only on the sheet it belongs to, and not when things stand s
 });
 
 test('every string the two surfaces ask for exists in all 11 languages', () => {
-  const sources = ['update.js', 'whats-new.js', 'updates/release-notes-card.js', 'alerts/screen-release.js']
+  const sources = ['update/update.js', 'whats-new/whats-new.js', 'updates/release-notes-card.js', 'alerts/screen-release.js']
     .map((f) => readFileSync(new URL(`../js/${f}`, import.meta.url), 'utf8')).join('\n');
   const keys = new Set([...sources.matchAll(/['"]((?:wn|rn)_[a-z0-9_]+)['"]/g)].map((m) => m[1]));
   assert.ok(keys.size > 5, 'the string keys must still be written literally');
@@ -274,7 +274,7 @@ test('every string the two surfaces ask for exists in all 11 languages', () => {
 
 test('Bit can open What\'s New wherever the page that draws it runs', () => {
   const ai = readFileSync(new URL('../js/ai/ai.js', import.meta.url), 'utf8');
-  const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+  const update = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
   assert.match(SERVER, /\{ name: 'open_whats_new', description: "[^"]*What's New[^"]*"/);
   assert.match(SERVER, /const CLIENT_ACTIONS = new Set\(\[[^\]]*'open_whats_new'/);
   assert.match(ai, /case 'open_whats_new':\s*if \(window\.XenonWhatsNew\) XenonWhatsNew\.reopen\(\);/);
@@ -310,7 +310,7 @@ test('a new install sees the major first, then the notes of the version it start
   const first = notice.pick({ wn, whatsNewSeen: '', notesSeen: '' });
   assert.equal(first.major, true);
   assert.equal(first.notes.version, '5.1.0');
-  const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+  const update = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
   const majorAt = update.indexOf('queue.push((next) => openWhatsNew(wn, next))');
   const notesAt = update.indexOf('queue.push((next) => openReleaseNotes(wn, notes, next))');
   assert.ok(majorAt > 0 && notesAt > majorAt, 'the major is queued before the notes');
@@ -323,6 +323,6 @@ test('a new install sees the major first, then the notes of the version it start
 });
 
 test('an update that lands during a game is shown when the game ends', () => {
-  const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+  const update = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
   assert.match(update, /whenIdle\(fn, \{ priority: I\.PRIORITY\.update, maxTries: Infinity \}\)/);
 });

@@ -104,7 +104,7 @@ function updateVersionPing(checked) {
 }
 
 // Automatic self-update. On by default (server/updates/auto-update.js). Off means Xenon
-// still checks and still shows the What’s New modal (js/update.js) — it just
+// still checks and still shows the What’s New modal (js/update/update.js) — it just
 // never downloads or applies a release on its own.
 function updateAutoUpdate(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, autoUpdate: checked !== false });

@@ -288,7 +288,7 @@ test('a newer Xenon: one card per version, it opens the dashboard on the update 
   await b.intervals.at(-1)();
   assert.equal(b.shown.length, 1, 'the six-hourly look does not repeat it');
   card.actions[0].onClick();
-  assert.equal(b.store['xenon.update.dismissed'], '4.12.0', 'the same key js/update.js reads');
+  assert.equal(b.store['xenon.update.dismissed'], '4.12.0', 'the same key js/update/update.js reads');
 
   const skipped = await boot({ update: { updateAvailable: true, latest: '4.12.0' }, store: { 'xenon.update.dismissed': 'v4.12.0' } });
   assert.equal(skipped.shown.length, 0);

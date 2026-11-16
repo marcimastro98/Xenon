@@ -139,7 +139,7 @@ test('the driver page carries only what it needs, in order', () => {
   assert.deepEqual(scripts, [
     'shared/src/constants.js', 'js/streaming/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'js/layers/layer-tiles.js', 'js/layers/layer-when.js', 'js/layers/layers-model.js', 'js/first-run/usage-mode.js',
-    'js/native-bridge.js', 'js/ambient/screen-scene-model.js', ...served('server/js/layers-shell/layers-shell.js'), 'js/grid/dashboard-open.js', ...served('server/js/update.js'), 'js/media/album-theme.js',
+    'js/native-bridge.js', 'js/ambient/screen-scene-model.js', ...served('server/js/layers-shell/layers-shell.js'), 'js/grid/dashboard-open.js', ...served('server/js/update/update.js'), 'js/media/album-theme.js',
     'js/lighting/driver-album-lights.js', 'js/widget-sdk/driver-sdk-host.js', 'js/performance/driver-perf.js', 'js/widget-sdk/shell-driver.js',
   ]);
   assert.doesNotMatch(HTML, /stylesheet/);

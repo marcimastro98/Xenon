@@ -323,6 +323,8 @@
     {"from":"server/js/topbar-media.js","to":"server/js/topbar-media/topbar-media.js"},
     {"from":"server/js/dashboard-layout.js","to":"server/js/dashboard-layout/dashboard-layout.js"},
     {"from":"server/js/dashboard-pages.js","to":"server/js/dashboard-pages/dashboard-pages.js"},
-    {"from":"server/js/dashboard-tabgroups.js","to":"server/js/dashboard-tabgroups/dashboard-tabgroups.js"}
+    {"from":"server/js/dashboard-tabgroups.js","to":"server/js/dashboard-tabgroups/dashboard-tabgroups.js"},
+    {"from":"server/js/update.js","to":"server/js/update/update.js"},
+    {"from":"server/js/whats-new.js","to":"server/js/whats-new/whats-new.js"}
   ]
 }

@@ -44,7 +44,7 @@ test('the rows under the pages are the Store, the Sparks, Support and About', ()
 
 test('a new version is told on the About row', () => {
   assert.match(footer(), /id="settings-about-update" hidden/);
-  assert.match(read('../js/update.js'), /settings-about-update/);
+  assert.match(read('../js/update/update.js'), /settings-about-update/);
 });
 
 test('the phone folds the rail into a picker, rows under it included', () => {

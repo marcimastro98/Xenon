@@ -26,7 +26,7 @@ export const PATCHES = {
   'custom-widget.js': [['window.CustomWidget = {', 'window.__cw = { openClipboardConfirm, openExternalConfirm, openPermDialog }; window.CustomWidget = {']],
   'mcp/mcp-dev-client.js': [['window.McpDev = Object.freeze({ listen });', 'window.__pair = showPair; window.McpDev = Object.freeze({ listen });']],
   'deck/deck.js': [['function openDeckMixer() {', 'window.__mixer = () => openDeckMixer(); window.__deckLook = (t, i, p) => openDeckStyleModal(t, i, p); window.__deckAsw = (t, i) => openAutoSwitchDialog(t, i); function openDeckMixer() {']],
-  'update.js': [['window.XenonUpdate = {', 'window.__upd = { showUpdatingOverlay, openReleaseNotes, openUpdateFailed }; window.XenonUpdate = {']],
+  'update/update.js': [['window.XenonUpdate = {', 'window.__upd = { showUpdatingOverlay, openReleaseNotes, openUpdateFailed }; window.XenonUpdate = {']],
 };
 
 const PKG_FULL = JSON.stringify({ id: 'nova', name: 'Nova Clock', author: 'Ada Rossi', version: '1.2.0', description: 'A clock that follows the sun and shows your next event.', streams: ['system', 'media', 'weather'], actions: ['media', 'url'], hosts: ['api.example.com'], hooks: ['door-bell'], storage: true, secrets: true, island: true, mini: true, clipboard: true, ai: true, accent: true });

@@ -520,7 +520,7 @@ Because `native-app.yml` and `helper.yml` are deliberate copies of the `native`/
 - Degrade gracefully — keep loading/empty/offline/error states deliberate; don't hide real failures behind silent no-ops.
 - Update `CHANGELOG.md` (and the relevant docs) for every user-visible change.
 - Comments explain **why**, not the obvious mechanics.
-- **Announcing a release to users** — for an *important* release, curate `server/whatsnew.json`: bump `id` (the dismissal key) so the "What's New" card reappears to everyone, and write 4–6 highlights (each `title`/`body` may be a plain string or a `{ it, en, … }` map; `media` must be a GitHub-hosted attachment URL with `mediaType` `"image"`/`"video"`). For a pure bugfix release, **leave `id` unchanged** (or empty) so the card doesn't re-nag. It's served, normalised, at `GET /whatsnew`; the client (`js/update.js`) shows it every startup until dismissed. This is separate from the "update available" nudge (`GET /update/check`).
+- **Announcing a release to users** — for an *important* release, curate `server/whatsnew.json`: bump `id` (the dismissal key) so the "What's New" card reappears to everyone, and write 4–6 highlights (each `title`/`body` may be a plain string or a `{ it, en, … }` map; `media` must be a GitHub-hosted attachment URL with `mediaType` `"image"`/`"video"`). For a pure bugfix release, **leave `id` unchanged** (or empty) so the card doesn't re-nag. It's served, normalised, at `GET /whatsnew`; the client (`js/update/update.js`) shows it every startup until dismissed. This is separate from the "update available" nudge (`GET /update/check`).
 
 See **[AGENTS.md](AGENTS.md)** and `.claude/CLAUDE.md` for the full project rules.
 

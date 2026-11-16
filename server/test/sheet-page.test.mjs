@@ -177,7 +177,7 @@ test('the pages are wired: the menu goes to a sheet in place, and the dashboard 
   const page = read('../js/menu/screen-menu-page.js');
   assert.doesNotMatch(page, /open-dashboard\?' \+/, 'no screen goes through the dashboard signal any more');
   assert.match(page, /open-dashboard\?open=dashboard/);
-  assert.match(read('../js/update.js'), /isSheetPage\(\)\) \{\n\s+try \{ window\.location\.href = .*open-dashboard\?open=update/);
+  assert.match(read('../js/update/update.js'), /isSheetPage\(\)\) \{\n\s+try \{ window\.location\.href = .*open-dashboard\?open=update/);
 });
 
 test('a screen asked for elsewhere replaces the sheet; a menu section goes back to the menu on it', () => {

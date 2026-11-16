@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const JS = read('../js/update.js');
+const JS = read('../js/update/update.js');
 const CSS = read('../components/UpdateModal/UpdateModal.css');
 
 test('Skip comes first and the main key last', () => {

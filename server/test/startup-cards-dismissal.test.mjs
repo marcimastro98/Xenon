@@ -1,4 +1,4 @@
-// The two startup cards' "don't show again" — What's New (js/update.js) and the
+// The two startup cards' "don't show again" — What's New (js/update/update.js) and the
 // Discord invite (js/store-supporters/discord-invite.js).
 //
 // Both flags lived ONLY in localStorage until v4.11.6, which made a permanent
@@ -21,7 +21,7 @@ import { engineSource } from './engine-source.mjs';
 
 const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
-const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+const UPDATE = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
 const DISCORD = readFileSync(new URL('../js/store-supporters/discord-invite.js', import.meta.url), 'utf8');
 const NATIVE = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
 

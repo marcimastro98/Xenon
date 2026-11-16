@@ -3,7 +3,7 @@
 'use strict';
 
 // ── "Don't show again" for the two startup cards ────────────────────────────
-// The What's New modal (js/update.js) and the Discord invite card
+// The What's New modal (js/update/update.js) and the Discord invite card
 // (js/store-supporters/discord-invite.js) each carry a permanent dismissal. Until v4.11.6 both
 // flags lived ONLY in localStorage, which had two consequences the user never
 // agreed to:

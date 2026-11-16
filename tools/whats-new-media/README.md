@@ -1,7 +1,7 @@
 # "What's New" — shot list (screenshot & video)
 
 This is the capture guide for the full-screen **What's New** of a major version
-(`server/whatsnew.json`, drawn by `server/js/whats-new.js`). One entry per highlight.
+(`server/whatsnew.json`, drawn by `server/js/whats-new/whats-new.js`). One entry per highlight.
 
 A sheet shows one of three things: a live `scene` (`menu`, `capture`, `fps`, drawn by
 `server/js/updates/whats-new-scenes.js`), a Bit `clip`, or a `media` picture or clip. Fill `media` only when
@@ -38,7 +38,7 @@ guide used to recommend exactly that; it was wrong.
 the cookie gate does not apply. For a clip, drag it into a draft release or issue box (you
 do not need to publish), copy the `user-attachments` URL, and set `mediaType: "video"`.
 
-The allowlist lives in `server/js/update.js` (`isAllowedMediaUrl`) and is mirrored in
+The allowlist lives in `server/js/update/update.js` (`isAllowedMediaUrl`) and is mirrored in
 `server/updates/release-media.js` — https plus `*.githubusercontent.com`, or `github.com/user-attachments/assets/`.
 Anything else is dropped without a word.
 

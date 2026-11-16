@@ -22,7 +22,7 @@ const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typ
 const require = createRequire(import.meta.url);
 const { createSelfUpdate } = require('../self-update.js');
 
-const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+const UPDATE = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const I18N = appStringsSource();

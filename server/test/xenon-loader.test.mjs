@@ -153,14 +153,14 @@ test('every wait uses it, and the old spinners and X mark are gone', () => {
   assert.equal(disk.split('XenonLoader.create()').length - 1, 1, 'the full loading card');
   assert.equal(disk.split("XenonLoader.create({ size: 'lg' })").length - 1, 1, 'the clean in progress');
   assert.doesNotMatch(disk + read('../components/DiskWidget/DiskWidget.css'), /diskw-clean-orbit|diskw-spin/, 'its old ring is gone');
-  assert.match(read('../js/update.js'), /XenonLoader\.create\(\{ size: 'lg' \}\)/);
+  assert.match(read('../js/update/update.js'), /XenonLoader\.create\(\{ size: 'lg' \}\)/);
 });
 
 test('it loads before its users', () => {
   const at = (s) => HTML.indexOf(s);
   assert.ok(at('components/XenonLoader/XenonLoader.css') > 0);
   assert.ok(at('components/XenonLoader/XenonLoader.css') < at('components/SettingsModal/SettingsModal.css'));
-  for (const user of ['disk-widget/disk-widget', 'browser-tile/browser-tile', 'update']) {
+  for (const user of ['disk-widget/disk-widget', 'browser-tile/browser-tile', 'update/update']) {
     assert.ok(at('<script src="js/first-run/xenon-loader.js"></script>') < at(`<script src="js/${user}.js"></script>`), user);
   }
 });

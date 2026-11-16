@@ -771,7 +771,7 @@ window.addEventListener('xenon:perf-change', () => {
   if (el && el.isConnected && !el.closest('[hidden]')) refreshMediaVizStatus(true);
 });
 
-// Read by js/update.js and js/store-supporters/discord-invite.js. A namespace rather than bare
+// Read by js/update/update.js and js/store-supporters/discord-invite.js. A namespace rather than bare
 // globals because discord-invite.js is parsed BEFORE this file and reaches these
 // only at call time.
 window.XenonStartupCards = {

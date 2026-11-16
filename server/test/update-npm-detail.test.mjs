@@ -14,7 +14,7 @@ import { engineSource } from './engine-source.mjs';
 
 const PS1 = readFileSync(new URL('../update-apply.ps1', import.meta.url), 'utf8');
 const SERVER = engineSource();
-const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+const UPDATE = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
 
 const INVOKE = (() => {
   const start = PS1.indexOf('function Invoke-Npm {');

@@ -839,7 +839,7 @@
   // ── After an update ──────────────────────────────────────────────────────────
   // What the person is told once the new version runs, from the curated,
   // build-shipped server/whatsnew.json. A major opens the full-screen What's New
-  // (js/whats-new.js) and keeps coming back until it is closed, however it is
+  // (js/whats-new/whats-new.js) and keeps coming back until it is closed, however it is
   // closed. A patch or a minor opens the list of what was fixed (js/release-
   // notes-card.js), once. js/updates/release-notice.js holds the rules.
   //

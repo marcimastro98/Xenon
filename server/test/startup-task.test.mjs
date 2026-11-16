@@ -21,7 +21,7 @@ const require = createRequire(import.meta.url);
 const st = require('../install/startup-task.js');
 
 const SERVER = engineSource();
-const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+const UPDATE = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 

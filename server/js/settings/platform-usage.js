@@ -113,7 +113,7 @@ async function initSettingsVersion() {
   } catch { /* leave blank — no version indicator is better than a broken one */ }
   syncNotifMirrorSupport();
   // The update pill, the red notification dots and the "Check for updates"
-  // button visibility are all driven by js/update.js (XenonUpdate.refresh()),
+  // button visibility are all driven by js/update/update.js (XenonUpdate.refresh()),
   // so there is a single source of truth for "is an update available".
 }
 

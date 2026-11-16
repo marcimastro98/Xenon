@@ -137,7 +137,7 @@ test('the driver goes to the dashboard with the gallery open, never with anythin
   const html = read('../shell-driver.html');
   const at = (f) => html.indexOf('<script src="js/' + f + '"></script>');
   assert.ok(at('grid/dashboard-open.js') > 0 && at('grid/dashboard-open.js') < at('widget-sdk/shell-driver.js'));
-  assert.ok(at('update.js') > 0 && at('update.js') < at('widget-sdk/shell-driver.js'));
+  assert.ok(at('update/update.js') > 0 && at('update/update.js') < at('widget-sdk/shell-driver.js'));
 });
 
 function withWindow(win, fn) {
@@ -176,7 +176,7 @@ test('the dashboard reads ?open= once, after its scripts, and drops it from the 
   assert.match(src, /hasAttribute\('data-shell-driver'\)/, 'the driver never runs it on itself');
   const html = read('../index.html');
   const at = (f) => html.indexOf('<script src="js/' + f + '"></script>');
-  assert.ok(at('update.js') < at('grid/dashboard-open.js') && at('capture-gallery/capture-gallery.js') < at('grid/dashboard-open.js'));
+  assert.ok(at('update/update.js') < at('grid/dashboard-open.js') && at('capture-gallery/capture-gallery.js') < at('grid/dashboard-open.js'));
 });
 
 test('the countdown card: built once for both surfaces, on the dashboard too', () => {
@@ -210,7 +210,7 @@ test('the update card: worded like the native one, the version clipped, no card 
 });
 
 test('the driver keeps the app catching up with its dashboard, with nothing drawn', () => {
-  const src = read('../js/update.js');
+  const src = read('../js/update/update.js');
   const boot = src.slice(src.indexOf('  async function boot() {'));
   assert.match(boot.slice(0, 900), /if \(isShellDriver\(\)\) \{ catchUpShell\(await check\(false\)\); return; \}/);
   const view = src.slice(src.indexOf('function shellPhaseView()'), src.indexOf('function catchUpShell('));

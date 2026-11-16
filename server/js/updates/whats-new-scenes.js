@@ -1,6 +1,6 @@
 'use strict';
 // The panels drawn beside the text of the full-screen What's New
-// (js/whats-new.js). Drawn, not photographed: they stay sharp on every screen,
+// (js/whats-new/whats-new.js). Drawn, not photographed: they stay sharp on every screen,
 // speak the user's language and need nothing from the net.
 (function () {
   const WAVE = [34, 52, 40, 66, 58, 74, 48, 60, 82, 70, 92, 64, 54, 76, 88, 96, 72, 60, 84, 68, 50, 62, 78, 44, 58, 36, 48, 30, 42, 26, 38, 22];

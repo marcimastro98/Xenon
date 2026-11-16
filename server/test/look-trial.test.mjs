@@ -189,8 +189,8 @@ test('it runs only from the key on its sheet, never by itself', () => {
   const callers = looseScripts()
     .filter((name) => name !== 'look/look-trial.js')
     .filter((name) => /look\.run\(|LookTrial\.run\(/.test(src('js/' + name)));
-  assert.deepEqual(callers, ['whats-new.js']);
-  const sheets = src('js/whats-new.js');
+  assert.deepEqual(callers, ['whats-new/whats-new.js']);
+  const sheets = src('js/whats-new/whats-new.js');
   assert.match(sheets, /h\.go === 'look'[^\n]*\n?[^\n]*wn_try_look'\), \(e\) => ctx\.tryLook/);
   assert.match(sheets, /h\.go !== 'look' \|\| opts\.look/, 'no trial on offer, no sheet');
 });
