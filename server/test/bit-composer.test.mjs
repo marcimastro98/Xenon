@@ -29,7 +29,7 @@ test('the CSS shows one button at a time: dictate, send, or stop', () => {
 test('every place that fills or clears the field keeps the button in step', () => {
   const ai = read('../js/ai.js');
   assert.ok((ai.match(/BitComposer\.sync\(\)/g) || []).length >= 3, 'send, attachments and dictation');
-  assert.match(read('../js/media.js'), /input\.value = '';[\s\S]{0,120}BitComposer\.sync\(\)/, 'a chat copy too');
+  assert.match(read('../js/media/media.js'), /input\.value = '';[\s\S]{0,120}BitComposer\.sync\(\)/, 'a chat copy too');
   const html = read('../index.html');
   assert.doesNotMatch(html, /class="[^"]*ai-talk-btn/, 'the voice session stays on the top bar');
   assert.match(html, /class="[^"]*ai-dictate-btn[^"]*"[^>]*onclick="aiDictateToggle\(\)"|onclick="aiDictateToggle\(\)"[^>]*class="[^"]*ai-dictate-btn/);

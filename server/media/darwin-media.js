@@ -7,7 +7,7 @@
 // (xenon-helper's media-serve and media.ps1 -Serve): one long-lived child that
 // holds the OS's now-playing session and answers `info` / `playpause` / `next` /
 // `previous` / `seek`, plus a push when the track changes. The shape it returns is the
-// one media.ps1 defines and js/media.js consumes — same keys, same units
+// one media.ps1 defines and js/media/media.js consumes — same keys, same units
 // (seconds), same playbackStatus vocabulary. Nothing above this file knows
 // which platform produced it.
 //

@@ -99,7 +99,7 @@ test('the Media tile in a layer window never repeats what the dashboard sends on
       localStorage: { getItem: () => 'spotify.exe', setItem() {}, removeItem() {} },
       SERVER: '',
     });
-    vm.runInContext(read('../js/media.js'), ctx);
+    vm.runInContext(read('../js/media/media.js'), ctx);
     const picker = { hidden: false };
     ctx.$ = (id) => (id === 'media-source-picker' ? picker : id === 'media-source-select' ? {} : null);
     // The cover colour for the LEDs, and the clearing of a source that went away.
@@ -108,6 +108,6 @@ test('the Media tile in a layer window never repeats what the dashboard sends on
   };
   assert.deepEqual(run('?layer=desktop:'), []);
   assert.deepEqual(run(''), ['/api/lighting/album', '/media/source']);
-  const media = read('../js/media.js');
+  const media = read('../js/media/media.js');
   assert.match(media, /if \(typeof showCalendar === 'function'\) \{/, 'the agenda is not on the light page');
 });

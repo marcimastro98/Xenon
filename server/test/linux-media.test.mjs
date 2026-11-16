@@ -2,7 +2,7 @@
 // linux-media.js — the pure half of now-playing on Linux.
 //
 // Same job as the darwin suite: lock the CONTRACT, not the tool. Every field
-// media.ps1 defines and js/media.js reads has to come out of an MPRIS record
+// media.ps1 defines and js/media/media.js reads has to come out of an MPRIS record
 // with the same name, the same unit (seconds) and the same playbackStatus
 // vocabulary, because nothing above server.js knows which platform produced it.
 //
@@ -118,7 +118,7 @@ test('artUrl: only an http(s) artwork URL survives to the <img src>', () => {
 });
 
 test('appNameFor: browser instances keep the substring the client matches on', () => {
-  // js/media.js decides a session is a browser by testing data.source against
+  // js/media/media.js decides a session is a browser by testing data.source against
   // this. `chromium` had to be added there: it does not contain "chrome"
   // (chromi-um), so a Chromium MPRIS session was never recognised as a browser.
   const BROWSER_SOURCE_RE = /chrome|chromium|msedge|edge|firefox|brave|opera|vivaldi/i;

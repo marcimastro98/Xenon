@@ -11,7 +11,7 @@ import vm from 'node:vm';
 // follow the freshest of them, never step backwards on lag, and still catch a
 // real seek. The block is pure, so it runs alone in a vm.
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(__dirname, '..', 'js', 'media.js'), 'utf8');
+const SRC = readFileSync(join(__dirname, '..', 'js', 'media/media.js'), 'utf8');
 const start = SRC.indexOf('const MEDIA_CLOCK_WINDOW');
 const end = SRC.indexOf('function syncMediaClock');
 assert.ok(start > 0 && end > start, 'clock block found in media.js');

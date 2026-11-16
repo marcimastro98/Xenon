@@ -71,7 +71,7 @@ test('multiple artists are joined, never rendered as an array', () => {
 });
 
 test('the player id is the bus-name tail, matching what playerctl reports', () => {
-  // js/media.js pattern-matches this to recognise browsers; a different id here
+  // js/media/media.js pattern-matches this to recognise browsers; a different id here
   // would change how the tile renders depending on which transport was used.
   assert.equal(playerIdFrom('org.mpris.MediaPlayer2.firefox.instance_1_9'), 'firefox.instance_1_9');
   assert.equal(playerIdFrom('org.mpris.MediaPlayer2.spotify'), 'spotify');

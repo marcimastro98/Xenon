@@ -131,7 +131,7 @@
 /* ── Xenon AI chat inside a dashboard tile ─────────────────────────────
    The chat log, composer and their icons are authored in AIPanel.css for the
    immersive dark voice overlay — a deep light-on-dark "room" where hardcoded
-   white text is correct. initMediaChat() (js/media.js) relocates that same
+   white text is correct. initMediaChat() (js/media/media.js) relocates that same
    markup into the Chat tile ([data-chatf="pane"]: the primary pane, its mirror
    copies and the media tile's Chat tab). There the tile is regular dashboard
    chrome, so on a light skin (Comic/POW, Light) the white text and near-white

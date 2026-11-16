@@ -42,7 +42,7 @@ test('the body is the dashboard\'s: colour and palette, or clear', () => {
   assert.deepEqual(bodyFor({ led: '#112233', ledPalette: ['#1', '#2'] }), { color: '#112233', palette: ['#1', '#2'] });
   assert.deepEqual(bodyFor({ led: '#112233', ledPalette: ['#1'] }), { color: '#112233', palette: null });
   assert.deepEqual(bodyFor(null), { clear: true });
-  const media = read('../js/media.js');
+  const media = read('../js/media/media.js');
   assert.match(media, /body: JSON\.stringify\(color \? \{ color, palette \} : \{ clear: true \}\)/);
 });
 

@@ -2,7 +2,7 @@
 // darwin-media.js — the pure half of the macOS now-playing bridge.
 //
 // What these lock is the CONTRACT, not the adapter: every field media.ps1
-// defines and js/media.js reads has to come out of an adapter payload with the
+// defines and js/media/media.js reads has to come out of an adapter payload with the
 // same name, the same unit (seconds) and the same playbackStatus vocabulary,
 // because nothing above server.js knows which platform produced it.
 //
@@ -125,7 +125,7 @@ test('appNameFor: known bundles get their real name, unknown ones a readable one
 });
 
 test('appNameFor: browser bundles keep the substring the client matches on', () => {
-  // js/media.js decides a session is a browser by testing data.source against
+  // js/media/media.js decides a session is a browser by testing data.source against
   // /chrome|msedge|edge|firefox|brave|opera|vivaldi/i — the bundle ids satisfy
   // it as they are, which is why `source` is passed through unmodified.
   const BROWSER_SOURCE_RE = /chrome|msedge|edge|firefox|brave|opera|vivaldi/i;

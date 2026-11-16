@@ -98,14 +98,14 @@ test('the Media tile comes cut from the dashboard, with its lyrics and waveform 
   assert.match(page, /data-layer-tiles="media"/);
   assert.match(page, /<section class="panel media-panel dashboard-widget" id="media-panel" data-dashboard-widget="media"/);
   assert.doesNotMatch(page, /data-dashboard-widget="chat"/, 'the chat is a tile of its own');
-  for (const src of ['js/media.js', 'js/media/media-lyrics.js', 'js/media/media-viz.js', 'js/media/album-theme.js']) assert.ok(page.includes(`src="${src}"`), src);
+  for (const src of ['js/media/media.js', 'js/media/media-lyrics.js', 'js/media/media-viz.js', 'js/media/album-theme.js']) assert.ok(page.includes(`src="${src}"`), src);
   assert.doesNotMatch(page, /topbar-media|lyrics-stage|lyrics-translation|calendar\.js/);
   // Each module before the code that drives it.
-  assert.ok(page.indexOf('src="js/lyrics-core.js"') < page.indexOf('src="js/media/media-lyrics.js"'));
+  assert.ok(page.indexOf('src="js/lyrics-core/lyrics-core.js"') < page.indexOf('src="js/media/media-lyrics.js"'));
   assert.ok(page.indexOf('src="js/media/media-viz.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
   // The Liquid player: its look, its progress line and the note of an empty cover.
   assert.ok(page.includes('href="components/MediaPanel/LiquidPlayer.css"'));
-  assert.ok(page.indexOf('src="js/media.js"') < page.indexOf('src="js/media/media-progress.js"'));
+  assert.ok(page.indexOf('src="js/media/media.js"') < page.indexOf('src="js/media/media-progress.js"'));
   assert.match(page, /data-mf="media-progress-range"/);
   assert.match(page, /<svg class="ph-note"/);
 });

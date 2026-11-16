@@ -44,7 +44,7 @@ One row per tile on the dashboard.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Music** | What is playing, the player buttons, lyrics and Spotify. | `server/media/**` `server/media.ps1` `server/media-key.ps1` `server/js/media*.js` `server/js/media/**` `server/js/lyrics-core/**` and 5 more |
+| **Music** | What is playing, the player buttons, lyrics and Spotify. | `server/media/**` `server/media.ps1` `server/media-key.ps1` `server/js/media/**` `server/js/lyrics-core/**` `server/components/MediaPanel/**` and 3 more |
 | **Sound** | Volume, output devices, the microphone and Wave Link. | `server/audio/**` `server/app-audio/**` `server/soundvolumeview-x64/**` `server/actions/wavelink*.js` `server/actions/voicemeeter*.js` `server/js/volume.js` and 6 more |
 | **Weather** | The weather tile and its full window. | `server/weather/**` `server/js/weather-*.js` `server/js/weather-tile/**` `server/components/WeatherModal/**` `server/components/WeatherTile/**` `server/js/weather/**` |
 | **Clock, calendar, tasks, notes** | The clock, the calendar with its feeds, tasks, timers and notes. | `server/time/**` `server/actions/widget-timers.js` `server/js/calendar.js` `server/js/calendar/**` `server/js/tasks.js` `server/js/tasks/**` and 10 more |

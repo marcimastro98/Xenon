@@ -131,7 +131,7 @@ function shapeNowPlaying(rec, sinceMs) {
     active: true,
     app,
     // The player's bus name is the stable id, the counterpart of Windows' AUMID
-    // and macOS' bundle identifier. js/media.js pattern-matches it for browsers,
+    // and macOS' bundle identifier. js/media/media.js pattern-matches it for browsers,
     // and "chromium"/"firefox"/"brave" satisfy that as they are.
     source: rec.player,
     title: rec.title || '',

@@ -212,7 +212,7 @@ test('the chat frees itself on a stop, keeps what was made, and never toasts a s
   assert.match(after, /XenonCredits\.set\(data\.credits\)/);
   const html = read('../index.html');
   assert.match(html, /class="ai-send-btn" type="button" onclick="aiSendOrStop\(\)"[\s\S]{0,300}class="ai-stop-icon"/);
-  assert.match(read('../js/media.js'), /aiTurnRunning\(\)\) aiStopTurn\(\);/, 'a copy of the chat tile stops the same turn');
+  assert.match(read('../js/media/media.js'), /aiTurnRunning\(\)\) aiStopTurn\(\);/, 'a copy of the chat tile stops the same turn');
   const i18n = appStringsSource();
   for (const key of ['bit_stop', 'bit_stopped']) {
     assert.equal((i18n.match(new RegExp(`^ {4}${key}: `, 'gm')) || []).length, 11, key);

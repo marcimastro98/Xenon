@@ -32,7 +32,7 @@ function commandArgs(action, position) {
 }
 
 // The bundle identifier is macOS's answer to Windows' AUMID — a stable id we
-// pass through as `source`, which js/media.js already pattern-matches for
+// pass through as `source`, which js/media/media.js already pattern-matches for
 // browsers (com.google.Chrome, org.mozilla.firefox and com.microsoft.edgemac
 // all contain the substrings its BROWSER_SOURCE_RE looks for). This map only
 // covers what the id alone would render badly.

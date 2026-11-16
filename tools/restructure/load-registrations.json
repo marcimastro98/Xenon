@@ -62,12 +62,12 @@
       {
         "statement": "const nativeMedia =",
         "callees": {
-          "server/media/darwin-media.js": "d1db87fd50183bb6fa59ddcb61217d132978c16444b7f866d844046a8dabcffe",
-          "server/media/darwin-media-shape.js": "f258fdf76e7c5c9f2e9d6a86f6bee86e4a97b99ca5d0fe582d99bbcb47c6203d",
+          "server/media/darwin-media.js": "1d5f1f452e7021696c3d4da916a566f12175b5cad6277a7ea72cd4c5dcba8e77",
+          "server/media/darwin-media-shape.js": "5cd746ece4c51cd5190564ae82d87ce543f266cd14a849e398efdb167e37b91d",
           "server/media/linux-media.js": "200ff5bc6aa6819f6e075f7e819f740df44f0c681d7ace640cc705f469619bb1",
-          "server/media/linux-media-shape.js": "13b4d2fc9fadbe935b0af418a88912f56e50586ba56c09f3bb9f7dfc27f63d22",
+          "server/media/linux-media-shape.js": "b1778bbf476955871c0c808e9789154507994f61b26e1586439db2c9a17b3c7f",
           "server/media/linux-mpris.js": "5235579ca4e2f1b5cbdfd085884825c7f865ceda63ddb5ffd02c10fa3982b737",
-          "server/media/linux-mpris-read.js": "0ea18ac7b7face79f1fe39dd2e0d6cef21312e61ea8ae2899b476e38a0e368b3"
+          "server/media/linux-mpris-read.js": "6f7454070396207162861311ca4558de3146ada4767cd556fc435a232769c5e0"
         },
         "reason": "createDarwinMedia and createLinuxMedia keep onChange in a variable and return available, start, stop, info and command; onChange is called only from handleLine, retire and command, which run once start() has spawned the reader, and createLinuxMpris, which createLinuxMedia hands it to, calls it only from its poll tick."
       },

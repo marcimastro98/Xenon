@@ -9,7 +9,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const media = read('../js/media.js');
+const media = read('../js/media/media.js');
 const i18n = appStringsSource();
 const html = read('../index.html');
 const css = read('../components/MediaPanel/MediaPanel.css');

@@ -78,7 +78,7 @@ test('nothing playing: no hint under the title, and the picture has no caption',
   const css = read('../components/MediaPanel/MediaPanel.css');
   assert.doesNotMatch(css, /\.media-panel\.is-empty \.media-artist/);
   assert.match(css, /\.media-panel\.is-empty \.ph-label \{ display: none; \}/);
-  assert.match(read('../js/media.js'), /root\.classList\.toggle\('is-empty', !!ctx\.empty\);/);
+  assert.match(read('../js/media/media.js'), /root\.classList\.toggle\('is-empty', !!ctx\.empty\);/);
 });
 
 test('the area under a System graph is its own path, with no filter', () => {

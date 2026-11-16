@@ -174,7 +174,7 @@
     else if (!want && tickTimer) { clearInterval(tickTimer); tickTimer = 0; }
   }
 
-  // ctx: the media context built by js/media.js, or null/empty when nothing is
+  // ctx: the media context built by js/media/media.js, or null/empty when nothing is
   // playing (the segment then hides itself — an empty now-playing block in the
   // topbar is noise, and the media tile already carries the empty state).
   function sync(ctx) {

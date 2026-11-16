@@ -106,7 +106,7 @@ test('the waveform follows the player, not the loudest app', () => {
   const fn = VIZ.slice(VIZ.indexOf('function onLevels('), VIZ.indexOf('function push('));
   assert.match(fn, /if \(proc && Object\.hasOwn\(peaks, proc\)\)/);
   assert.match(fn, /\} else if \(proc\) \{/, 'a known-but-silent player must read as zero, not borrow another app');
-  assert.match(read('js', 'media.js'), /MediaViz\.setSource\(session \? session\.proc : ''\)/);
+  assert.match(read('js', 'media/media.js'), /MediaViz\.setSource\(session \? session\.proc : ''\)/);
 });
 
 test('the tile is measured on a cache, not on every frame', () => {
@@ -158,14 +158,14 @@ test('the module is loaded and fed', () => {
   const main = read('js', 'main.js');
   assert.match(main, /MediaViz\.onLevels\(d\)/);
   assert.match(main, /MediaViz\.setPlaying\(/);
-  assert.match(read('js', 'media.js'), /MediaViz\.setPalette\(pair\)/);
+  assert.match(read('js', 'media/media.js'), /MediaViz\.setPalette\(pair\)/);
 });
 
 test('the wave follows the app that plays, not a WebView2 window with "msedge" in its name', () => {
   // Discord: "Media tile sound wave not showing up any more". "msedge" is inside
   // "msedgewebview2" (Xenon's own window, and every WebView2 app), and the first
   // partial match won, so the wave could follow a silent window and stay flat.
-  const src = read('js', 'media.js').replace(/\r\n/g, '\n');
+  const src = read('js', 'media/media.js').replace(/\r\n/g, '\n');
   const start = src.indexOf('function findMediaAppSession() {');
   const code = src.slice(start, src.indexOf('\n}\n', start) + 3);
   const tokens = src.slice(src.indexOf('const BROWSER_TOKENS'), src.indexOf('\n};\n', src.indexOf('const MEDIA_APP_PROC_TOKENS')) + 4);

@@ -57,7 +57,7 @@
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
       css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/MediaPanelBackdrop.css', 'components/MediaPanel/MediaPanelTitles.css', 'components/MediaPanel/MediaPanelSpotify.css', 'components/MediaPanel/MediaPanelSizes.css', 'components/MediaPanel/LiquidPlayer.css', 'components/MediaPanel/LiquidPlayerSpotify.css', 'components/LyricsView/LyricsView.css'],
-      js: ['js/media/album-theme.js', 'js/media/source-and-tabs.js', 'js/media/chat-and-album-color.js', 'js/media/now-playing.js', 'js/media/source-apps.js', 'js/media.js', 'js/media/media-spotify.js', 'js/media/media-progress.js', 'js/lyrics-core/timing.js', 'js/lyrics-core.js',
+      js: ['js/media/album-theme.js', 'js/media/source-and-tabs.js', 'js/media/chat-and-album-color.js', 'js/media/now-playing.js', 'js/media/source-apps.js', 'js/media/media.js', 'js/media/media-spotify.js', 'js/media/media-progress.js', 'js/lyrics-core/timing.js', 'js/lyrics-core/lyrics-core.js',
         'js/media/lyrics-view.js', 'js/media/media-lyrics.js', 'js/media/media-viz.js'],
       markup: ['media'],
     },
@@ -99,7 +99,7 @@
     disk: tile('disk', 'DiskWidget', ['js/first-run/xenon-loader.js', 'js/grid/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk/disk-intelligence.js', 'js/disk-widget/treemap.js', 'js/disk-widget/wording.js', 'js/disk-widget/known.js', 'js/disk-widget/presentation.js', 'js/disk-widget/pieces.js', 'js/disk-widget/advisor-report.js', 'js/disk-widget/header.js', 'js/disk-widget/capacity-and-advice.js', 'js/disk-widget/advisor-dialog.js', 'js/disk-widget/space-map.js', 'js/disk-widget/cleanup-views.js', 'js/disk-widget/explore-views.js', 'js/disk-widget.js'],
       { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
     devclean: tile('devclean', 'DevCleanWidget', ['js/store-supporters/devclean-pitch.js', 'js/devclean-widget/says.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
-    lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core/timing.js', 'js/lyrics-core.js', 'js/media/lyrics-view.js', 'js/media/lyrics-translation.js', 'js/media/lyrics-stage.js',
+    lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core/timing.js', 'js/lyrics-core/lyrics-core.js', 'js/media/lyrics-view.js', 'js/media/lyrics-translation.js', 'js/media/lyrics-stage.js',
       'js/media/lyrics-widget-options.js', 'js/media/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
     smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home/smart-home-order.js', 'js/smart-home/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home/units.js', 'js/smart-home/pieces.js', 'js/smart-home.js'],
       { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/SmartHomePanel/SmartHomePanelControls.css', 'components/CustomSelect/CustomSelect.css']),

@@ -1,4 +1,4 @@
-/* The Playback widget on the Liquid look (js/media.js, js/media/media-progress.js).
+/* The Playback widget on the Liquid look (js/media/media.js, js/media/media-progress.js).
    What a glance looks for comes first and largest: the cover, the title, and
    play/pause on the one filled key, in the cover's colour (--accent follows the
    album when the album colours are on; --on-accent is the ink that reads on it).

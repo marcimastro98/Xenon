@@ -42,7 +42,7 @@ function propsFrom(raw) {
   return out;
 }
 
-// The bus-name tail, which is the id playerctl reports and which js/media.js
+// The bus-name tail, which is the id playerctl reports and which js/media/media.js
 // pattern-matches to recognise browsers. Keeping it identical is what lets the
 // two sources feed the same downstream code.
 function playerIdFrom(busName) {

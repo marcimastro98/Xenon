@@ -240,7 +240,7 @@ test('the welcome is fitted wherever it is drawn or copied', () => {
   const ai = read('../js/ai.js');
   const render = ai.slice(ai.indexOf('function _aiRenderWelcomeIfEmpty'), ai.indexOf('function _aiDropWelcome'));
   assert.match(render, /BitWelcome\.fit\(\);/);
-  const media = read('../js/media.js');
+  const media = read('../js/media/media.js');
   const mirror = media.slice(media.indexOf('function mirrorChatCopies'), media.indexOf('function syncChatCopyPane'));
   assert.match(mirror, /if \(window\.BitWelcome\) BitWelcome\.fit\(\);/);
   const html = read('../index.html');
@@ -248,7 +248,7 @@ test('the welcome is fitted wherever it is drawn or copied', () => {
 });
 
 test('a provider that becomes ready shows the welcome, not an empty log', () => {
-  const media = read('../js/media.js');
+  const media = read('../js/media/media.js');
   const fn = media.slice(media.indexOf('function updateMediaChatKeyState'), media.indexOf('// ── Chat duplication'));
   assert.match(fn, /if \(hasKey && typeof _aiRenderWelcomeIfEmpty === 'function'\) _aiRenderWelcomeIfEmpty\(\);/);
   assert.ok(fn.indexOf('_aiRenderWelcomeIfEmpty()') < fn.indexOf('mirrorChatCopies()'), 'the copies get the welcome too');

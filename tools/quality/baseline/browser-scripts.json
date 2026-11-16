@@ -33,7 +33,7 @@
     "server/js/layers/layer-lite.js": 4,
     "server/js/ambient/lockscreen.js": 24,
     "server/js/main.js": 15,
-    "server/js/media.js": 79,
+    "server/js/media/media.js": 79,
     "server/js/audio/mic.js": 4,
     "server/js/system/network.js": 6,
     "server/js/notes.js": 34,

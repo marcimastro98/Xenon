@@ -5,12 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
 
-// The timing half of js/lyrics-core.js is pure: which line is active at a
+// The timing half of js/lyrics-core/lyrics-core.js is pure: which line is active at a
 // position, which pause dot is lit, and when the view next has to change. The
 // script is a browser IIFE, so it runs here in a vm with just enough of a
 // window and document to load. Lines are invented, never real lyrics.
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(__dirname, '..', 'js', 'lyrics-core.js'), 'utf8');
+const SRC = readFileSync(join(__dirname, '..', 'js', 'lyrics-core/lyrics-core.js'), 'utf8');
 
 function loadCore() {
   const listeners = { addEventListener() {} };
