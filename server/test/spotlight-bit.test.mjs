@@ -133,7 +133,7 @@ test('a Bit on the search overlay is not held by the freeze that overlay asks fo
 });
 
 test('alone in the list, the ask row shows it is what Enter sends, without a second clip', () => {
-  const spot = read('../js/spotlight.js');
+  const spot = read('../js/spotlight/spotlight.js');
   assert.ok(spot.includes('if (index === 0) setSelected(0, true);'));
   assert.ok(spot.includes('if (!quiet && bit && lastResults[selIndex]'));
 });
@@ -143,12 +143,12 @@ test('every place with the bar loads Bit before spotlight.js', () => {
   const row = tiles.slice(tiles.indexOf("search: tile('search'"));
   for (const src of [read('../spotlight.html'), read('../index.html'), row]) {
     const bit = src.indexOf('js/search/spotlight-bit.js');
-    assert.ok(bit > 0 && bit < src.indexOf('js/spotlight.js'));
+    assert.ok(bit > 0 && bit < src.indexOf('js/spotlight/spotlight.js'));
   }
 });
 
 test('one Bit: the separate AI search is gone from the client and the server', () => {
-  const spot = read('../js/spotlight.js');
+  const spot = read('../js/spotlight/spotlight.js');
   for (const old of ['setAiMode', 'runAiSearch', '/search/ai', 'spot-ai']) assert.ok(!spot.includes(old), old);
   assert.ok(!engineSource().includes("'/search/ai'"));
   assert.ok(!engineSource('server/remote-access.js').includes('/search/ai'));

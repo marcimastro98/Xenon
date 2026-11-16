@@ -245,7 +245,6 @@
         "server/search.ps1",
         "server/spotlight.html",
         "server/js/spotlight/**",
-        "server/js/spotlight*.js",
         "server/components/Spotlight/**",
         "server/components/SearchWidget/**",
         "server/js/search/**"

@@ -159,7 +159,7 @@ test('the page loads what a theme needs', () => {
     assert.ok(HTML.includes(`href="${f}"`), f);
   }
   assert.ok(HTML.includes('src="js/look/theme-tokens.js"'));
-  assert.ok(HTML.indexOf('src="js/search/spotlight-page.js"') > HTML.indexOf('src="js/spotlight.js"'));
+  assert.ok(HTML.indexOf('src="js/search/spotlight-page.js"') > HTML.indexOf('src="js/spotlight/spotlight.js"'));
 });
 
 test('light rules follow the attribute the theme really sets', () => {

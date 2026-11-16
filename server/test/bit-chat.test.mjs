@@ -393,7 +393,7 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
   const page = read('../spotlight.html');
   const at = (f) => page.indexOf(f);
   for (const f of ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js']) {
-    assert.ok(at(f) > 0 && at(f) < at('js/spotlight.js'), f);
+    assert.ok(at(f) > 0 && at(f) < at('js/spotlight/spotlight.js'), f);
   }
   // the Deck action picker shows Bit for the AI action
   assert.match(read('../js/deck-editor.js'), /ai: \(window\.BitApp && BitApp\.icon\('idle'\)\) \|\| _ai\(/);

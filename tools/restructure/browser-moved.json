@@ -266,6 +266,7 @@
     {"from":"server/js/codex-widget.js","to":"server/js/codex-widget/codex-widget.js"},
     {"from":"server/js/discord-widget.js","to":"server/js/discord-widget/discord-widget.js"},
     {"from":"server/js/streaming-page.js","to":"server/js/streaming-page/streaming-page.js"},
-    {"from":"server/js/remote-control.js","to":"server/js/remote-control/remote-control.js"}
+    {"from":"server/js/remote-control.js","to":"server/js/remote-control/remote-control.js"},
+    {"from":"server/js/spotlight.js","to":"server/js/spotlight/spotlight.js"}
   ]
 }

@@ -182,7 +182,7 @@ test('the page carries the panel, cut from the dashboard', () => {
 });
 
 test('every search surface reaches the same chat', () => {
-  const src = read('../js/spotlight.js');
+  const src = read('../js/spotlight/spotlight.js');
   assert.ok(src.includes('onChat: chatHandler()'));
   assert.ok(read('../js/search/search-widget.js').includes('onChat: Spotlight.chatHandler()'));
 });

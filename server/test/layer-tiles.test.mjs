@@ -155,6 +155,6 @@ test('a light tile that draws a custom select carries it, or its dropdown is the
 });
 
 test('the search tile on a layer page does not arm the overlay it cannot show', () => {
-  const init = read('js/spotlight.js').split('function init() {')[1].slice(0, 400);
+  const init = read('js/spotlight/spotlight.js').split('function init() {')[1].slice(0, 400);
   assert.match(init, /if \(typeof isLayerPage === 'function' && isLayerPage\(\)\) return;\n    attachGesture\(\);/);
 });
