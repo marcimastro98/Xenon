@@ -999,7 +999,7 @@ function setKeyAt(config, nav, slotIndex, rawKey) {
 // would drop the edit: the rows grow and every key keeps its index. Never mutates.
 function slotSpot(config, nav, slotIndex) {
   let cfg = normalizeDeckConfig(config);
-  const profile = cfg.profiles.find((p) => p.id === (nav && nav.profileId));
+  const profile = cfg.profiles.find((p) => p.id === nav?.profileId);
   if (!profile || !Number.isInteger(slotIndex) || slotIndex < 0) return null;
   if (slotIndex >= profile.cols * profile.rows) {
     cfg = reshapeDeckConfig(cfg, profile.cols, Math.ceil((slotIndex + 1) / profile.cols), { preserve: true, profileId: profile.id });

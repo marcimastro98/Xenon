@@ -108,7 +108,7 @@
       });
       saved = r.ok;
       if (!saved) console.warn('[layer-edit] card not saved:', r.status);
-    } catch (e) { console.warn('[layer-edit] card not saved:', e && e.message); }
+    } catch (e) { console.warn('[layer-edit] card not saved:', e?.message); }
     if (saved) return;
     el.dataset.systemCardHidden = on ? 'true' : 'false';
     if (node) fill();

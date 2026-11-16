@@ -188,7 +188,7 @@
       const layout = getDashboardLayout();
       if (!layout || !Array.isArray(layout.copies)) return;   // layout not ready yet
       _prunedOrphans = true;
-      const live = new Set(layout.copies.map((c) => c && c.id).filter(Boolean));
+      const live = new Set(layout.copies.map((c) => c?.id).filter(Boolean));
       const all = readStore();
       const removed = [];
       for (const id of Object.keys(all)) {
