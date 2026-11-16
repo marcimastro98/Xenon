@@ -31,7 +31,7 @@
         "fr": {
           "title": "Meter Reading",
           "line": "Le compteur électrique de ton PC : les kWh du jour et du mois, leur coût à ton prix, et un voyant rouge qui clignote à chaque wattheure.",
-          "cta": "Débloque-le dans le Store"
+          "cta": "Débloquez-le dans le Store"
         },
         "ja": {
           "title": "Meter Reading",
@@ -81,7 +81,7 @@
         },
         "fr": {
           "title": "Culprit",
-          "line": "Dit en rouge, en jeu, qui fait laguer votre partie : votre PC, votre Wi-Fi, votre ligne ou votre FAI. 300 Étincelles, en vente les 30 premiers jours de Xenon 5.0.0 seulement.",
+          "line": "Affiche en rouge, en jeu, qui fait laguer votre partie : votre PC, votre Wi-Fi, votre ligne ou votre FAI. 300 Étincelles, en vente les 30 premiers jours de Xenon 5.0.0 seulement.",
           "cta": "Voir Culprit"
         },
         "ja": {
@@ -132,7 +132,7 @@
         },
         "fr": {
           "title": "Culprit",
-          "line": "Dit en rouge, en jeu, qui fait laguer votre partie : votre PC, votre Wi-Fi, votre ligne ou votre FAI. 300 Étincelles, en vente les 30 premiers jours de Xenon 5.0.0 seulement.",
+          "line": "Affiche en rouge, en jeu, qui fait laguer votre partie : votre PC, votre Wi-Fi, votre ligne ou votre FAI. 300 Étincelles, en vente les 30 premiers jours de Xenon 5.0.0 seulement.",
           "cta": "Voir Culprit"
         },
         "ja": {
@@ -271,6 +271,11 @@
           "title": "Wall Plate",
           "line": "Your Home Assistant devices as wall plates for Xenon supporters: tap a key to switch, slide to dim, hold for the rest.",
           "cta": "Unlock Wall Plate"
+        },
+        "fr": {
+          "title": "Wall Plate",
+          "line": "Vos périphériques Home Assistant en tant que wall plates pour les supporters Xenon : appuyer sur une touche pour allumer, glissez pour diminuer ou augmenter une intensité, restez appuyé pour le reste.",
+          "cta": "Débloquez Wall Plate"
         },
         "it": {
           "title": "Wall Plate",
