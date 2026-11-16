@@ -47,6 +47,7 @@ function cardsShape(v, ids) {
 }
 
 // body → { patch } or { error }. `cards`: the card ids per group.
+/** @param {any} body @param {{ cards?: Record<string, string[]> }} [opts] */
 function plan(body, { cards } = {}) {
   const patch = body && body.patch;
   if (!isPlain(patch)) return { error: 'bad_patch' };

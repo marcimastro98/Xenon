@@ -175,8 +175,9 @@
       return true;
     }
     if (req.open === 'deckkey') {
-      if (!window.Deck) return false;
-      window.Deck.openSlot(req);
+      const deck = /** @type {any} */ (window).Deck;
+      if (!deck) return false;
+      deck.openSlot(req);
       return true;
     }
     if (req.open === 'mixer') {
