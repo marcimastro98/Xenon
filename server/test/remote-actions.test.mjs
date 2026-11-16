@@ -26,7 +26,7 @@ const MAIN = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const SMART_HOME = readFileSync(new URL('../js/smart-home.js', import.meta.url), 'utf8');
 const WIDGETS = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
-const CLAUDE_TILE = readFileSync(new URL('../js/claude-widget.js', import.meta.url), 'utf8');
+const CLAUDE_TILE = readFileSync(new URL('../js/claude-widget/claude-widget.js', import.meta.url), 'utf8');
 
 const OBS = { type: 'openApp', path: 'C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe' };
 const STORE = {

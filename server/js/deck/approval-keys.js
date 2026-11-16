@@ -20,7 +20,7 @@
 //               a copy, a site, a pairing.
 //
 // The Claude Code tile grew arming, the press guard and the scroll first
-// (js/claude-widget.js) and keeps its own copies of those; this file is the shared
+// (js/claude-widget/claude-widget.js) and keeps its own copies of those; this file is the shared
 // form for the Codex tile and whatever comes next. Pure DOM, no state of its own
 // beyond what each caller creates, and the one first press below.
 (function () {

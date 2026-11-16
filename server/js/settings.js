@@ -483,7 +483,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Claude Code widget surfaces that appear OUTSIDE its tile, and so show up
   // even when the widget is on another page or not added at all: the permission
   // / question cards (with their fullscreen escalation) and the topbar marker.
-  // Both on by default; see js/claude-widget.js.
+  // Both on by default; see js/claude-widget/claude-widget.js.
   claudeWidget: Object.freeze({ approvals: true, questions: true, topbar: true }),
   // OpenAI Codex widget: the approval cards (Settings → Codex) and how long one
   // waits before the decision goes back to Codex. See js/codex-widget.js.

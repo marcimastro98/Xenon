@@ -168,7 +168,7 @@ test('the CSS keeps a short tile on the decision, in both tiles', () => {
   const claude = read('components', 'ClaudeWidget', 'ClaudeWidget.css').replace(/\r\n/g, '\n');
   assert.match(claude, /@container cw \(max-width: 859px\) \{\s*\.cw-decs\.is-pair > \.cw-dec ~ \.cw-dec/);
   // `.is-stacked` is the page's stacked view, height 100dvh: on the count it left the card a sliver.
-  assert.doesNotMatch(claude + read('js', 'claude-widget.js'), /cw-decs-more[ .]is-stacked/);
+  assert.doesNotMatch(claude + read('js', 'claude-widget/claude-widget.js'), /cw-decs-more[ .]is-stacked/);
   // Weight ties with `.cw-cs-body.has-aside`, so the order is the rule: before it the thread stayed and the card got nothing.
   const hide = claude.indexOf('.cw-console > .cw-decs ~ * { display: none; }');
   assert.ok(hide > 0, 'a short tile hides what follows the decision');

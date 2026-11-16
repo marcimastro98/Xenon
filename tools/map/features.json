@@ -169,7 +169,6 @@
         "server/claude-code/**",
         "server/claude-*.js",
         "server/js/claude-widget/**",
-        "server/js/claude-*.js",
         "server/components/ClaudeWidget/**",
         "integrations/claude-code/**",
         ".claude-plugin/**",

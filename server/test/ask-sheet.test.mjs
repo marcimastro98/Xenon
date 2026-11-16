@@ -254,7 +254,7 @@ test('Codex: the tile keeps its own order of keys', () => {
 });
 
 function claudeSheet(approvals) {
-  const rig = widgetRig(['dialog-focus.js', 'deck/approval-keys.js', 'claude-code/claude-history.js', 'claude-code/claude-thread.js', 'claude-code/claude-roadmap.js', 'claude-code/claude-ident.js', 'claude-code/claude-clawd.js', 'claude-code/claude-rail.js', 'claude-code/claude-console.js', 'claude-code/claude-agents.js', 'claude-widget.js'], 'claude-widget-mount', 'claude');
+  const rig = widgetRig(['dialog-focus.js', 'deck/approval-keys.js', 'claude-code/claude-history.js', 'claude-code/claude-thread.js', 'claude-code/claude-roadmap.js', 'claude-code/claude-ident.js', 'claude-code/claude-clawd.js', 'claude-code/claude-rail.js', 'claude-code/claude-console.js', 'claude-code/claude-agents.js', 'claude-widget/claude-widget.js'], 'claude-widget-mount', 'claude');
   rig.sandbox.ClaudeWidget.onSSE({ live: { approvals, sessions: [] }, usage: {}, budget: {}, tile: {} });
   return { ...rig, root: rig.document.querySelector('.ask-overlay') };
 }
@@ -380,8 +380,8 @@ test('the window comes with the tile wherever the tile can stand alone', () => {
   assert.equal((claude.match(/styles\/liquid-sheets\.css/g) || []).length, 2);
   const page = read('../index.html');
   const at = (name) => page.indexOf(`<script src="js/${name}"`);
-  assert.ok(at('deck/approval-keys.js') > 0 && at('deck/approval-keys.js') < at('claude-widget.js'), 'Claude needs it on load');
-  assert.ok(at('dialog-focus.js') > 0 && at('dialog-focus.js') < at('claude-widget.js'));
+  assert.ok(at('deck/approval-keys.js') > 0 && at('deck/approval-keys.js') < at('claude-widget/claude-widget.js'), 'Claude needs it on load');
+  assert.ok(at('dialog-focus.js') > 0 && at('dialog-focus.js') < at('claude-widget/claude-widget.js'));
   assert.match(page, /components\/AskSheet\/AskSheet\.css/);
 });
 

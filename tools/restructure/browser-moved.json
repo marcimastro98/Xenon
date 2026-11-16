@@ -261,6 +261,7 @@
     {"from":"server/js/deck.js","to":"server/js/deck/deck.js"},
     {"from":"server/js/xenon-credits.js","to":"server/js/store-supporters/xenon-credits.js"},
     {"from":"server/js/community-gallery.js","to":"server/js/community-gallery/community-gallery.js"},
-    {"from":"server/js/installed-manager.js","to":"server/js/installed-manager/installed-manager.js"}
+    {"from":"server/js/installed-manager.js","to":"server/js/installed-manager/installed-manager.js"},
+    {"from":"server/js/claude-widget.js","to":"server/js/claude-widget/claude-widget.js"}
   ]
 }

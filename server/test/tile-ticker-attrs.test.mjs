@@ -16,7 +16,7 @@ const read = (f) => readFileSync(join(here, '..', 'js', f), 'utf8');
 const CLAIMED = /dataset\.(resetAt|expiresAt|ageBase)\b|data-(reset-at|expires-at|age-base)\b/;
 
 test('the Claude ticker selects document-wide, which is why the names are reserved', () => {
-  assert.match(read('claude-widget.js'), /document\.querySelectorAll\('\[data-reset-at\], \[data-expires-at\], \[data-age-base\]'\)/);
+  assert.match(read('claude-widget/claude-widget.js'), /document\.querySelectorAll\('\[data-reset-at\], \[data-expires-at\], \[data-age-base\]'\)/);
 });
 
 for (const f of ['codex-widget.js', 'codex/chatgpt-widget.js']) {
