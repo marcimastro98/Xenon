@@ -316,6 +316,7 @@
     {"from":"server/js/football-widget.js","to":"server/js/football-widget/football-widget.js"},
     {"from":"server/js/app-switcher.js","to":"server/js/app-switcher/app-switcher.js"},
     {"from":"server/js/browser-tile.js","to":"server/js/browser-tile/browser-tile.js"},
-    {"from":"server/js/second-screen-tile.js","to":"server/js/second-screen-tile/second-screen-tile.js"}
+    {"from":"server/js/second-screen-tile.js","to":"server/js/second-screen-tile/second-screen-tile.js"},
+    {"from":"server/js/vitals-pet.js","to":"server/js/vitals-pet/vitals-pet.js"}
   ]
 }

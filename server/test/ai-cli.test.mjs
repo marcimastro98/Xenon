@@ -318,7 +318,7 @@ test("Bit's automatic lines never spend the subscription; what the user starts m
   // Sparks only within the daily number the user picked (vitals-roast-sparks.test.mjs).
   assert.match(roast, /\} else if \(aiCli\.isCliProvider\(provider\)\) \{[\s\S]*?text = '';/);
   assert.doesNotMatch(roast, /cliOneShot/);
-  assert.match(read('../js/vitals-pet.js'), /if \(\['claudecode', 'codex'\]\.includes\(provider\)\) return bank\(\);/);
+  assert.match(read('../js/vitals-pet/vitals-pet.js'), /if \(\['claudecode', 'codex'\]\.includes\(provider\)\) return bank\(\);/);
   for (const route of ["'/api/ai/summarize'", "'/api/disk/advisor'"]) {
     const at = S.indexOf('reqPath === ' + route);
     assert.ok(at > 0, route);

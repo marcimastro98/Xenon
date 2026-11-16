@@ -88,6 +88,6 @@ test('wiring: settings on both sides, the roast route, the client and the row', 
   assert.deepEqual([...R.ROAST_SPARKS_CAPS], [0, 10, 25, 50, 100], 'client and server offer the same numbers');
   assert.match(settings, /roastSparksCap: VITALS_ROAST_SPARKS_CAPS\.includes\(Number\(petSrc\.roastSparksCap\)\) \? Number\(petSrc\.roastSparksCap\) : 0,/);
   assert.match(settings, /row\.hidden = hubSettings\.aiProvider !== 'xenon';/);
-  assert.match(read('../js/vitals-pet.js'), /if \(onSparks && !\(Number\(pet\.roastSparksCap\) > 0\)\) return bank\(\);/);
+  assert.match(read('../js/vitals-pet/vitals-pet.js'), /if \(onSparks && !\(Number\(pet\.roastSparksCap\) > 0\)\) return bank\(\);/);
   assert.match(read('../index.html'), /<select [^>]*id="settings-vpet-sparks"[^>]*onchange="updateVitalsRoastSparksCap\(this\.value\)"/);
 });

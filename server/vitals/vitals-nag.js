@@ -1,5 +1,5 @@
 'use strict';
-// Bit's actions on the PC itself (/api/vitals/nag, js/vitals-pet.js): a popup
+// Bit's actions on the PC itself (/api/vitals/nag, js/vitals-pet/vitals-pet.js): a popup
 // with what Bit says, hiding the windows, and the line Bit shows right before
 // it locks the PC. The route keeps the opt-ins, presence and cooldowns; this
 // file only knows HOW each OS does it, so the answer is the truth on this PC.

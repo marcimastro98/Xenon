@@ -104,7 +104,7 @@
     "server/js/transfer-widget/transfer-widget.js": 1020,
     "server/js/unifi-widget/unifi-widget.js": 785,
     "server/js/update.js": 1168,
-    "server/js/vitals-pet.js": 709,
+    "server/js/vitals-pet/vitals-pet.js": 709,
     "server/js/vitals/vitals-pet-core.js": 2775,
     "server/js/vitals/vitals.js": 596,
     "server/js/widget-sdk/sdk-island.js": 429,

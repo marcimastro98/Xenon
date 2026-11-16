@@ -593,7 +593,6 @@
         "server/vitals/**",
         "server/vitals-nag.ps1",
         "server/js/vitals-pet/**",
-        "server/js/vitals*.js",
         "server/components/VitalsPet/**",
         "server/components/VitalsWidget/**",
         "server/js/vitals/**"

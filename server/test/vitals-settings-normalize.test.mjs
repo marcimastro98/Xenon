@@ -72,7 +72,7 @@ test('wiring: a natural break refills after Bit\'s episodes move, and the pet sl
   const shift = vitals.indexOf('petPatch = { ...ps, ep };');
   const brk = vitals.indexOf("v.naturalBreaks !== false ? core.naturalBreak(");
   assert.ok(shift > 0 && brk > shift, 'the refill is not counted as an episode shift');
-  assert.match(read('js/vitals-pet.js'), /core\.isNight\(new Date\(\)\.getHours\(\), pet\.quietFrom, pet\.quietTo\)/);
+  assert.match(read('js/vitals-pet/vitals-pet.js'), /core\.isNight\(new Date\(\)\.getHours\(\), pet\.quietFrom, pet\.quietTo\)/);
   const html = read('index.html');
   assert.match(html, /id="settings-vitals-naturalbreaks" type="checkbox" onchange="updateVitalsSetting\('naturalBreaks', this\.checked\)"/);
   for (const [id, field] of [['quiet-from', 'quietFrom'], ['quiet-to', 'quietTo']]) {
