@@ -120,7 +120,7 @@
     "server/update-apply.sh": 605,
     "server/windows.ps1": 390,
     "tools/bit-messages-check/check.mjs": 533,
-    "tools/build-seo.mjs": 1085,
+    "tools/build-seo.mjs": 1092,
     "tools/build-supporters.mjs": 439,
     "tools/buy-sheet-check/check.mjs": 517,
     "tools/demo/boot.js": 630,
