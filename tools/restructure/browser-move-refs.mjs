@@ -1,9 +1,10 @@
 // Finds every place that names a browser script about to move inside `server/js/`, and says what the place is.
 // A browser script has three names: its file (`server/js/x.js`, in lists, tests and notes), its address
 // (`js/x.js`, what a page asks the engine for) and the relative path a `require` or an `import` loads. Each place
-// gets its new spelling, or stops the move: an address held by code that ships and asks for it after the page
-// started (a tab left open across an update would ask for the old one), a path code that ships puts together,
-// a line of native code or of the service worker that names it. Nothing is written here.
+// gets its new spelling, or stops the move: a path code that ships puts together, a line of native code or of
+// the service worker that names it. An address code that ships asks for after the page started (`asks`) is
+// spelled again like a script tag and told by the plan, so the page check can make the page ask for it: a tab
+// left open across an update asks for the old one until it is loaded again. Nothing is written here.
 
 import path from 'node:path';
 
@@ -86,7 +87,7 @@ function tokenSites(file, text, patterns, inside, lists) {
     const ships = !isDevFile(file);
     if (file === 'server/sw.js' && code) sites.push({ ...site, kind: 'runs', why: 'the service worker names it' });
     else if (JS_FILE.test(file) && !code) { if (!MENTIONS_STAY(file)) sites.push({ ...site, kind: 'mention' }); }
-    else if (JS_FILE.test(file) && kindOfName === 'address') sites.push(ships && !lists.has(file) ? { ...site, kind: 'asks', why: 'code that ships asks for it by address after the page has started' } : { ...site, kind: 'address' });
+    else if (JS_FILE.test(file) && kindOfName === 'address') sites.push(ships && !lists.has(file) ? { ...site, kind: 'asks' } : { ...site, kind: 'address' });
     else if (JS_FILE.test(file)) sites.push(ships ? { ...site, kind: 'held', why: 'code that ships holds its path in a string' } : { ...site, kind: kindOfName });
     else if (PAGE.test(file) && kindOfName === 'address' && inScriptSrc(text, start)) sites.push({ ...site, kind: 'src' });
     else if (RUNS.test(file) && !inComment(file, text, start)) {
@@ -148,8 +149,8 @@ function literalSites(file, text, tree, K, patterns) {
  * Every place that names a script of `moves`.
  * @param {{ files: string[], read: (file: string) => string | null, parser: any, moves: {from: string, to: string}[], lists?: Set<string> }} input
  *   `lists` are the files of the app whose strings are the scripts of a page the engine writes when the page is asked for
- * @returns {object[]} sites: { file, line, start, end, was, kind, move, text?, why? }. `load`, `path`, `src`, `address`, `rooted`,
- *   `relative` and `mention` have the new `text`; `bare` is only told; `asks`, `held` and `runs` stop the move.
+ * @returns {object[]} sites: { file, line, start, end, was, kind, move, text?, why? }. `load`, `path`, `src`, `address`, `asks`, `rooted`,
+ *   `relative` and `mention` have the new `text`; `bare` is only told; `held` and `runs` stop the move.
  */
 export function findBrowserSites({ files, read, parser, moves, lists = new Set() }) {
   if (!moves.length) return [];

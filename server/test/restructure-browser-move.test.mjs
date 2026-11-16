@@ -45,7 +45,10 @@ test('a move is refused for what the repo says about the script', () => {
   const files = { 'server/js/pulse-bar.js': 'const a = 1;\n', 'server/js/pulse.js': '', 'server/js/brain/chat.js': '', 'server/sw.js': '' };
   assert.equal(whyNot(MOVE, facts(files)), null);
   assert.equal(whyNot({ from: 'server/js/pulse.js', to: 'server/js/pulse/pulse.js' }, facts(files)), null, 'a script goes into the folder of its own name, under its own name');
-  assert.match(whyNot({ from: 'server/js/pulse.js', to: 'server/js/pulse/pulse.js' }, facts({ ...files, 'server/js/pulse/saved.js': '' })), /parts split from it live in server\/js\/pulse\/ beside it/);
+  const split = { ...files, 'server/js/pulse.js': '', 'server/js/pulse/saved.js': '', 'server/js/pulse-bar/draw.js': '' };
+  assert.equal(whyNot({ from: 'server/js/pulse.js', to: 'server/js/pulse/pulse.js' }, facts(split)), null, 'a split script goes in with its parts');
+  assert.match(whyNot({ from: 'server/js/pulse-bar.js', to: 'server/js/pulse/pulse-bar.js' }, facts(split)), /parts split from it live in server\/js\/pulse-bar\/: it goes in with them/);
+  assert.equal(targets({ tracked: Object.keys(split), features: FEATURES, left: LEFT }).moves.find((move) => move.from === 'server/js/pulse-bar.js').to, 'server/js/pulse-bar/pulse-bar.js', 'whatever the folder of its feature');
   assert.match(whyNot({ from: 'server/sw.js', to: 'server/js/pulse/sw.js' }, facts(files)), /not a loose script/);
   assert.match(whyNot(MOVE, facts(files, { frozen: { paths: [MOVE.from], whole: [] } })), /frozen/);
   assert.match(whyNot(MOVE, facts(files, { dirty: new Set([MOVE.from]) })), /not committed/);
@@ -116,10 +119,14 @@ test('every place that names a moved script is found and given its new spelling'
   assert.equal(sites.some((site) => site.file === 'CHANGELOG.md' || site.file === 'server/sw.js'), false, 'history and a note of the service worker stay as written');
 });
 
-test('a script asked for after the page started, or named where the tool cannot follow, stays', needsParser, async () => {
+test('an address asked for after the page started is spelled again and told; a script named where the tool cannot follow stays', needsParser, async () => {
   const why = async (file, text) => (await sitesOf({ [file]: text, 'server/js/pulse-bar.js': '' })).map((site) => stops(site)).filter(Boolean).join(' | ');
-  assert.match(await why('server/js/loader.js', "const s = document.createElement('script');\ns.src = 'js/pulse-bar.js';\n"), /after the page has started/);
-  assert.match(await why('server/js/loader.js', 'const url = `${SERVER}/js/pulse-bar.js?v=${version}`;\n'), /after the page has started/);
+  for (const [text, made] of [["const s = document.createElement('script');\ns.src = 'js/pulse-bar.js';\n", "const s = document.createElement('script');\ns.src = 'js/pulse/pulse-bar.js';\n"],
+    ['const url = `${SERVER}/js/pulse-bar.js?v=${version}`;\n', 'const url = `${SERVER}/js/pulse/pulse-bar.js?v=${version}`;\n']]) {
+    const sites = await sitesOf({ 'server/js/loader.js': text, 'server/js/pulse-bar.js': '' });
+    assert.deepEqual(sites.map((site) => [site.kind, stops(site)]), [['asks', null]], 'told as asked for late, and no reason to stay');
+    assert.equal(edited(text, sites), made);
+  }
   assert.match(await why('server/js/loader.js', "const LATER = ['pulse-bar.js'];\n"), /bare name/);
   assert.match(await why('server/js/loader.js', "const worker = new Worker('./pulse-bar.js');\n"), /puts its path together/);
   assert.match(await why('server/static.js', "const file = path.join(__dirname, 'js', 'pulse-bar.js');\n"), /bare name|puts its path together/);
@@ -166,9 +173,9 @@ test('a step moves, rewrites, maps and lists; undo puts every file back; nothing
   try {
     const asked = ['pulse-bar', 'pulse-part', 'pulse', 'pulse-late'].map((name) => ({ from: `server/js/${name}.js`, to: `server/js/pulse/${name}.js`, feature: 'pulse' }));
     const step = planStep(repo.root, asked, parser, LEFT.lists);
-    assert.deepEqual(step.moves.map((move) => move.from), [MOVE.from, 'server/js/pulse-part.js']);
+    assert.deepEqual(step.moves.map((move) => move.from), [MOVE.from, 'server/js/pulse-part.js', 'server/js/pulse-late.js']);
     const refused = Object.fromEntries(step.refused.map((entry) => [entry.move.from, entry.why.join(' ')]));
-    assert.match(refused['server/js/pulse-late.js'], /loader\.js:2 code that ships asks for it by address after the page has started/);
+    assert.deepEqual(step.edits.get('server/js/loader.js').map((site) => [site.kind, site.line, site.text]), [['asks', 2, 'js/pulse/pulse-late.js']], 'the loader asks for the new address in the same step');
     assert.match(refused['server/js/pulse.js'], /index\.js:2 loads it without `\.js`/, 'beside an old pulse.js, require(\'../js/pulse\') would not find the folder');
     applyStep(repo.root, step);
     assert.equal(existsSync(path.join(repo.root, MOVE.from)), false, 'no line is left at the old address');
@@ -178,7 +185,7 @@ test('a step moves, rewrites, maps and lists; undo puts every file back; nothing
     assert.equal(repo.read('server/pulse/index.js'), "const bar = require('../js/pulse/pulse-bar.js');\nconst tile = require('../js/pulse');\n");
     assert.deepEqual(readMoved(repo.root).moves, step.moves.map(({ from, to }) => ({ from, to })));
     const map = JSON.parse(repo.read('tools/map/features.json')).features[0].files;
-    assert.deepEqual(map, ['server/pulse/**', 'server/js/pulse*.js', 'server/js/pulse/**'], 'pulse.js and pulse-late.js still answer the old pattern');
+    assert.deepEqual(map, ['server/pulse/**', 'server/js/pulse*.js', 'server/js/pulse/**'], 'pulse.js still answers the old pattern');
     assert.match(repo.read('MAP.md'), /server\/js\/pulse\/\*\*/);
     assert.match(repo.git('status', '--porcelain'), /^R {2}server\/js\/pulse-bar\.js -> server\/js\/pulse\/pulse-bar\.js$/m);
 

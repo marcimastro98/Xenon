@@ -3,8 +3,9 @@
 // The home of a script is the folder of the feature that owns it in tools/map/features.json: `server/js/<feature id>/`,
 // or the folder browser-move-left.json gives the feature (`bit` lives in `server/js/ai/`, as on the engine side).
 // The name of a folder is never made up here: it is the id the map already gives the feature, the same name its
-// engine code has under `server/`. The script keeps its own name and never becomes a folder: `deck.js` goes into
-// `deck/` as `deck/deck.js`, and only when everything that loads it spells the `.js` (browser-move-apply.mjs).
+// engine code has under `server/`. A script that was split goes in with its parts instead, whatever the feature:
+// `deck.js` into `deck/` as `deck/deck.js`. It keeps its own name and never becomes a folder, and goes there only
+// when everything that loads it spells the `.js` (browser-move-apply.mjs).
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -23,17 +24,27 @@ export function readLeft(root) {
   return JSON.parse(readFileSync(path.join(root, LEFT), 'utf8'));
 }
 
+// The folder that already holds the parts split from a script (`deck/` for `deck.js`), by its plain name; null when there is none.
+const partsFolder = (from, tracked) => (tracked.some((file) => file.startsWith(`${from.slice(0, -'.js'.length)}/`)) ? posix.basename(from, '.js') : null);
+
 export const homeGlob = (folder) => `server/js/${folder}/**`;
 
 /**
  * The map with the folder of each feature that gets scripts written into it, so the map owns a script at its new place.
+ * A folder the map gives the feature already (the parts of a split script live there) is not written a second time.
  * @param {{id: string, files: string[]}[]} features @param {{to: string, feature: string}[]} moves
  */
 export function withHomes(features, moves) {
+  const rules = features.flatMap((feature) => feature.files.map((glob) => ({ id: feature.id, test: globToRegExp(glob) })));
   const globs = new Map();
-  for (const move of moves) globs.set(move.feature, homeGlob(posix.dirname(move.to).split('/')[2]));
-  return features.map((feature) => (globs.has(feature.id) && !feature.files.includes(globs.get(feature.id))
-    ? { ...feature, files: [...feature.files, globs.get(feature.id)] } : feature));
+  for (const move of moves) {
+    if (rules.find((rule) => rule.test.test(move.to))?.id === move.feature) continue;
+    globs.set(move.feature, new Set([...(globs.get(move.feature) ?? []), homeGlob(posix.dirname(move.to).split('/')[2])]));
+  }
+  return features.map((feature) => {
+    const added = [...(globs.get(feature.id) ?? [])].filter((glob) => !feature.files.includes(glob));
+    return added.length ? { ...feature, files: [...feature.files, ...added] } : feature;
+  });
 }
 
 /**
@@ -51,7 +62,7 @@ export function targets({ tracked, features, left, only }) {
     if (left.files[from]) stay.push({ file: from, why: left.files[from] });
     else if (!feature) stay.push({ file: from, why: 'the map gives it to no feature' });
     else if (left.features[feature]) stay.push({ file: from, why: left.features[feature] });
-    else moves.push({ from, to: `server/js/${left.homes[feature] ?? feature}/${posix.basename(from)}`, feature });
+    else moves.push({ from, to: `server/js/${partsFolder(from, tracked) ?? left.homes[feature] ?? feature}/${posix.basename(from)}`, feature });
   }
   return { moves, stay };
 }
@@ -74,7 +85,7 @@ export function whyNot(move, repo) {
   if (repo.tracked.has(to)) return `${to} is already there`;
   const folder = posix.dirname(to);
   const parts = `${from.replace(/\.js$/, '')}/`;
-  if ([...repo.tracked].some((file) => file.startsWith(parts))) return `the parts split from it live in ${parts} beside it, and the checks of a split read them there: the two stay together`;
+  if (folder !== parts.slice(0, -1) && [...repo.tracked].some((file) => file.startsWith(parts))) return `the parts split from it live in ${parts}: it goes in with them, under its own name, or stays`;
   if (/^server\/js\/(vendor|i18n)$/.test(folder)) return `${folder}/ is not the folder of a feature`;
   if (repo.ignored(to)) return `${folder}/ is ignored by git: the file would be missing from an install`;
   // The first feature with a pattern for the file owns it, as in the map.

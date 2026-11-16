@@ -8,8 +8,9 @@
 //   node tools/restructure/browser-move.mjs check --base <commit>            installs and old names, against the list
 //
 // The service worker asks the network first and keeps no list of files, so a page and its scripts come from the
-// same version: a script a page names in a tag may move. What may not: a script that code which ships asks for
-// after the page started (a tab left open across an update would ask for the old address), a script something
+// same version: a script a page names in a tag may move, and so may one that code which ships asks for after
+// the page started, with the address in that code spelled again in the same step (the plan tells each one; a tab
+// left open across an update asks for the old address until it loads again). What may not: a script something
 // outside this repo names (browser-move-left.json), a frozen path, a file with changes not committed, `x.js` ->
 // `x/`, a folder ignored by git, a script that says where it was loaded from, a path code that ships puts
 // together. No line is left at the old address and no address is answered twice. A refused script stays where
@@ -37,6 +38,8 @@ function printPlan({ moves, stay }, step) {
   for (const { file, why } of stay) reasons.set(why, [...(reasons.get(why) ?? []), file]);
   for (const [why, files] of reasons) console.log(`\nstays (${files.length}): ${why}\n  ${files.map(nameOf).join(' ')}`);
   for (const [file, why] of stopped) console.log(`\nrefused: ${file}\n  ${why.slice(0, 4).join('\n  ')}${why.length > 4 ? `\n  and ${why.length - 4} more` : ''}`);
+  const late = step.moves.length ? [...step.edits].flatMap(([file, edits]) => edits.filter((site) => site.kind === 'asks').map((site) => `${file}:${site.line} ${site.was} -> ${site.text}`)) : [];
+  if (late.length) console.log(`\n${late.length} addresses asked for after the page started are spelled again:\n  ${late.join('\n  ')}`);
   if (step.bare.length) console.log(`\n${step.bare.length} bare names in tests and tools are left as written (the tests say whether one was the file): ${[...new Set(step.bare.map((site) => site.file))].slice(0, 12).join(' ')}`);
   console.log(`\n${moves.length - stopped.size} to move, ${stay.length} stay, ${stopped.size} refused`);
 }
