@@ -111,7 +111,7 @@
     const clockDate = clock.querySelector('.clock-date');
     const metaSep = clock.querySelector('.clock-meta-sep');
     const clockWeather = clock.querySelector('.clock-weather');
-    const clockMedia = clock.querySelector('.clock-media'); // now playing (js/topbar-media.js)
+    const clockMedia = clock.querySelector('.clock-media'); // now playing (js/topbar-media/topbar-media.js)
     const clockVitals = clock.querySelector('.clock-vitals'); // optional (vitals opt-in)
     const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/widget-sdk/sdk-badges.js)
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget/claude-widget.js)

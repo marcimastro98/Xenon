@@ -1,4 +1,4 @@
-/* Topbar now-playing segment (js/topbar-media.js) — cover + track + transport,
+/* Topbar now-playing segment (js/topbar-media/topbar-media.js) — cover + track + transport,
    living inside #clock-media in .clock-meta. Styled once for the Full bar, then
    densified for the Minimal capsule at the bottom, exactly like the vitals chips
    and the SDK badge row it sits beside. */
@@ -45,7 +45,7 @@
 .clock-media.tbm-anim .tbm-inner { overflow: hidden; }
 
 /* Track changes cross-fade rather than swapping under you: set by
-   js/topbar-media.js only when the text actually differs, never on every media
+   js/topbar-media/topbar-media.js only when the text actually differs, never on every media
    update — a transition re-triggered by each incoming sample would run forever
    (the sparkline lesson in CLAUDE.md). */
 .tbm-txt { transition: opacity 0.16s ease; }
@@ -176,7 +176,7 @@ body.topbar-minimal .topbar-mini .tbm-artist { max-width: 140px; font-size: 10px
 .tbm-main { display: flex; flex-direction: column; min-width: 0; }
 
 /* ── Progress row ────────────────────────────────────────────────────────────
-   Drawn only in the Music bar (js/topbar-media.js hides it elsewhere, and the
+   Drawn only in the Music bar (js/topbar-media/topbar-media.js hides it elsewhere, and the
    rule below is the belt to that braces). Read-only: `position`/`duration` come
    from the SMTC timeline every player reports, but writing a position back is a
    Spotify Web API operation and lives in the media tile, not here. */

@@ -318,6 +318,8 @@
     {"from":"server/js/browser-tile.js","to":"server/js/browser-tile/browser-tile.js"},
     {"from":"server/js/second-screen-tile.js","to":"server/js/second-screen-tile/second-screen-tile.js"},
     {"from":"server/js/vitals-pet.js","to":"server/js/vitals-pet/vitals-pet.js"},
-    {"from":"server/js/ambient-canvas-editor-form.js","to":"server/js/ambient-canvas-editor-form/ambient-canvas-editor-form.js"}
+    {"from":"server/js/ambient-canvas-editor-form.js","to":"server/js/ambient-canvas-editor-form/ambient-canvas-editor-form.js"},
+    {"from":"server/js/topbar-look-settings.js","to":"server/js/topbar-look-settings/topbar-look-settings.js"},
+    {"from":"server/js/topbar-media.js","to":"server/js/topbar-media/topbar-media.js"}
   ]
 }

@@ -10,7 +10,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const PANEL = read('../js/topbar/topbar-layout-panel.js');
-const LOOK_PAGE = read('../js/topbar-look-settings.js');
+const LOOK_PAGE = read('../js/topbar-look-settings/topbar-look-settings.js');
 const LAYOUT = read('../js/dashboard-layout.js');
 const SETTINGS = read('../js/settings.js');
 const INDEX = read('../index.html');
@@ -26,7 +26,7 @@ function loadI18n() {
 
 test('the panel loads after the controls it reuses, with its stylesheet', () => {
   const at = (src) => INDEX.indexOf(`src="${src}"`);
-  assert.ok(at('js/topbar/topbar-layout-panel.js') > at('js/topbar-look-settings.js'));
+  assert.ok(at('js/topbar/topbar-layout-panel.js') > at('js/topbar-look-settings/topbar-look-settings.js'));
   assert.ok(at('js/topbar/topbar-layout-panel.js') > at('js/topbar/topbar-button-options.js'));
   assert.ok(INDEX.includes('href="components/Topbar/TopbarLayoutPanel.css"'));
 });

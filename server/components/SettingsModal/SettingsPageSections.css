@@ -1,5 +1,5 @@
 
-/* ── Rows the bar's scripts build (js/topbar-look-settings.js) ── */
+/* ── Rows the bar's scripts build (js/topbar-look-settings/topbar-look-settings.js) ── */
 #settings-overlay .tbl-custom-rows { display: grid; gap: 0; padding: 0; min-width: 0; }
 #settings-overlay .tbl-custom-rows:empty { display: none; }
 #settings-overlay .tbl-custom-rows > .settings-toggle-row { margin: 0; }

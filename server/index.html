@@ -367,7 +367,7 @@
           <span class="weather-place" id="weather-place" data-i18n="weather_local">Locale</span>
         </button>
         <!-- Now playing: cover, track and prev/play-pause/next. Populated by
-             js/topbar-media.js; lives inside .clock so it serves the full bar
+             js/topbar-media/topbar-media.js; lives inside .clock so it serves the full bar
              and the minimal island alike (the clock is reparented, not cloned).
              Hidden whenever nothing is playing; turned off for good from
              Settings → Dynamic Island, where it is a normal segment row. -->
@@ -1738,7 +1738,7 @@
         </div>
       </div>
 
-      <!-- The bar's look, in every style (js/topbar-look-settings.js builds the
+      <!-- The bar's look, in every style (js/topbar-look-settings/topbar-look-settings.js builds the
            controls; js/topbar-look.js owns the values). The bar at the top of the
            screen is the preview. -->
       <div class="settings-group settings-behavior-group" data-settings-cat="island" id="settings-topbar-look">
@@ -5180,13 +5180,13 @@
 <script src="js/alerts/island-notch.js"></script>
 <script src="js/topbar/topbar-minimal.js"></script>
 <script src="js/topbar-look-settings/rows.js"></script>
-<script src="js/topbar-look-settings.js"></script>
+<script src="js/topbar-look-settings/topbar-look-settings.js"></script>
 <script src="js/topbar/topbar-button-options.js"></script>
 <script src="js/topbar/topbar-layout-panel.js"></script>
 <script src="js/topbar/topbar-fit.js"></script>
 <script src="js/media/media-viz.js"></script>
 <script src="js/topbar-media/pieces.js"></script>
-<script src="js/topbar-media.js"></script>
+<script src="js/topbar-media/topbar-media.js"></script>
 <script src="js/sdk-island-schema.js"></script>
 <script src="js/widget-sdk/sdk-island.js"></script>
 <script src="js/widget-sdk/sdk-badges.js"></script>

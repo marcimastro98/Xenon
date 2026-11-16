@@ -180,7 +180,7 @@ function applyMedia(data) {
     isSpotify: /spotify/i.test(app), isYoutube: /youtube/i.test(app), isTwitch: /twitch/i.test(app),
   };
   // Topbar/island now-playing first: it is a surface of its own and works with
-  // no media tile on the dashboard (js/topbar-media.js).
+  // no media tile on the dashboard (js/topbar-media/topbar-media.js).
   if (window.TopbarMedia) window.TopbarMedia.sync(ctx);
   // Lyrics live in the Media tile AND in their own widget, so they follow the
   // track even when no Media tile is on this dashboard.

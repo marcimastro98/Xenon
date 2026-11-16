@@ -1,4 +1,4 @@
-// Settings → Top bar (js/topbar-look-settings.js, js/topbar/topbar-button-options.js)
+// Settings → Top bar (js/topbar-look-settings/topbar-look-settings.js, js/topbar/topbar-button-options.js)
 // and the side rails' part of the look. What a user would notice if it broke: a
 // control that shows its translation key instead of a word, a page that never
 // mounts, a reset that leaves the look behind, and above all a look that takes
@@ -14,7 +14,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const L = require('../js/topbar-look.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const PAGE = read('../js/topbar-look-settings.js');
+const PAGE = read('../js/topbar-look-settings/topbar-look-settings.js');
 const BUTTON = read('../js/topbar/topbar-button-options.js');
 const INDEX = read('../index.html');
 const SETTINGS = read('../js/settings.js');
@@ -65,7 +65,7 @@ test('the page has every host it fills, and loads after settings.js', () => {
     'topbar-rails-personalize', 'tbl-rail-rows', 'settings-rails-autohide', 'settings-topbar-notify', 'tbl-notify-rows', 'tbl-clock-rows']) {
     assert.equal(INDEX.split(`id="${id}"`).length, 2, id);
   }
-  for (const src of ['js/topbar-look-settings.js', 'js/topbar/topbar-button-options.js']) {
+  for (const src of ['js/topbar-look-settings/topbar-look-settings.js', 'js/topbar/topbar-button-options.js']) {
     assert.ok(INDEX.indexOf(`src="${src}"`) > INDEX.indexOf('src="js/settings.js"'), src);
   }
   assert.ok(INDEX.includes('href="components/Topbar/TopbarLookSettings.css"'));
