@@ -23,8 +23,8 @@
   const api = apiJson;      // fetch → JSON, null on failure (utils.js)
   const AK = window.ApprovalKeys;
   const {
-    t, hTok, dur, ago, until, fmtMoney, endedLabel, toolIntent, PLAN_CHOICE_LABEL, askedBy,
-    stateLabel, attachErrorText, replyErrorText, runErrorText,
+    t, hTok, dur, ago, fmtMoney, endedLabel, toolIntent, PLAN_CHOICE_LABEL, askedBy, stateLabel,
+    attachErrorText, replyErrorText, runErrorText,
   } = window.ClaudeWidgetWords;
 
   const {
@@ -32,66 +32,25 @@
     resolveAskProject, sessionById, clearAttach, promptWithAttachments, replyMode, resumeNote,
     askSession, inLiveSession, canRunCommands, titles, runsFor, currentPlanKey, stopTicker,
   } = window.ClaudeWidgetKnown;
-  let seeded = false, seedInflight = false;
-  const deciding = new Set(); // approval ids with a decision in flight
+  const seedState = {
+    seeded: false,
+    seedInflight: false,
+  };
+  const {
+    deciding, qsel, typedAns, OTHER, typedFor, answerReady, ARM_MS, HOLD_MS, armTimers, typedBox,
+  } = window.ClaudeWidgetDecisionKeys;
   // The one line that installs the Claude Code mod (integrations/claude-code/).
 
-  function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="claude"]')).filter(n => n.closest('.pager-page, .layer-slot'));
-  }
-
-  // A page the pager has parked (.is-parked → content-visibility: hidden,
-  // DashboardPager.css) is not rendered, but it KEEPS its box — so a rects-only
-  // test reads a tile sitting there as visible. Same test the slideshow tile
-  // uses, including the layout-editing exception: editing un-parks those pages,
-  // matching the CSS, so it must not count as parked there.
-  function isParked(tile) {
-    const page = tile.closest('.pager-page');
-    return !!(page && page.classList.contains('is-parked')
-      && !document.body.classList.contains('layout-editing'));
-  }
+  const {
+    tiles, isParked, approvalsOn, topbarOn, approvals, firstSeen, forgetSeen, decisionsFor,
+  } = window.ClaudeWidgetDecisionsShown;
 
   // ── model → hue. Encodes which model produced the work, not decoration. ──
-  const { modelHue, shortModel, prettyModel, level } = window.ClaudeWidgetModelWords;
+  const { modelHue, shortModel, prettyModel } = window.ClaudeWidgetModelWords;
 
   // ── formatting ──
 
   // ── what this widget is allowed to put in front of you ─────────────────────
-  // Both surfaces below appear OUTSIDE the tile — the approval cards escalate to
-  // a fullscreen overlay and the topbar marker sits in the clock island — so they
-  // show up even when the widget isn't on the current page. That is deliberate
-  // (a blocked tool call must stay answerable), but it has to be the user's
-  // choice, so each is a switch in Settings → Claude Code. Defaults stay on.
-  function cfg() {
-    return (typeof hubSettings === 'object' && hubSettings && hubSettings.claudeWidget) || null;
-  }
-  function approvalsOn() { const c = cfg(); return !c || c.approvals !== false; }
-  function questionsOn() { const c = cfg(); return !c || c.questions !== false; }
-  function topbarOn() {
-    const c = cfg();
-    try {
-      const items = hubSettings && hubSettings.topbarClock && hubSettings.topbarClock.items;
-      const item = Array.isArray(items) ? items.find((entry) => entry && entry.id === 'claude') : null;
-      if (item) return item.hidden !== true;
-    } catch { /* legacy settings fallback below */ }
-    return !c || c.topbar !== false;
-  }
-
-  // With a surface switched off there is nothing to show, nothing to escalate
-  // and nothing for the topbar to call urgent. The server also answers the hook
-  // immediately in that case, so the prompt is already back in the terminal by
-  // the time this runs — the two halves have to agree or the tile would draw a
-  // card for something nobody is waiting on any more.
-  //
-  // The two switches are separate because the bargains are: a permission decides
-  // whether something RUNS on this PC, a question only picks how Claude
-  // proceeds. Filtering both on the permission switch would have hidden every
-  // question from anyone who only wanted approvals at the keyboard.
-  function approvals() {
-    const l = live();
-    const all = (l && l.approvals) || [];
-    return all.filter((a) => (a.kind === 'question' ? questionsOn() : approvalsOn()));
-  }
 
   // ── formatting in the reader's language ────────────────────────────────────
 
@@ -131,24 +90,6 @@
   }
 
   // ── answering a question ───────────────────────────────────────────────────
-  // What the user has picked so far, per card: approvalId → array (one entry per
-  // question) of arrays of option labels. Held here rather than in the DOM
-  // because every SSE push rebuilds the tile, and a half-made choice must
-  // survive Claude finishing a tool call in the middle of it.
-  const qsel = new Map();
-  // What has been typed, per card: approvalId → array (one string per question:
-  // the "Other" box or a text/number answer; for a plan card, index 0 is the
-  // feedback). Mirrored on input and never repainted from, so the caret stays
-  // where the user left it.
-  const typedAns = new Map();
-  // The terminal's "Other" row, as a pick. Never sent as a label: its text is.
-  const OTHER = '\u0000other';
-
-  function typedFor(a) {
-    let cur = typedAns.get(a.id);
-    if (!cur) { cur = []; typedAns.set(a.id, cur); }
-    return cur;
-  }
 
   function pickOption(a, qi, label, multi) {
     const cur = qsel.get(a.id) || a.questions.map(() => []);
@@ -161,17 +102,6 @@
     }
     qsel.set(a.id, cur);
     paint();
-  }
-
-  function answerReady(a) {
-    const cur = qsel.get(a.id) || [];
-    const typed = typedAns.get(a.id) || [];
-    return (a.questions || []).some((q, qi) => {
-      const text = String(typed[qi] || '').trim();
-      if (q.kind === 'text' || q.kind === 'number') return !!text;
-      const row = cur[qi] || [];
-      return row.some((l) => l !== OTHER) || (row.indexOf(OTHER) !== -1 && !!text);
-    });
   }
 
   async function sendAnswer(a, skip) {
@@ -231,22 +161,6 @@
 
 
   // ── the decision card ──────────────────────────────────────────────────────
-  // With auto mode on (Claude Code's default since August 2026) routine calls
-  // never reach a person, so a request that does is the unusual one. The card is
-  // built for that: what it wants to do in words, the exact command as evidence,
-  // what makes it unusual (the risk line), and two keys.
-  //
-  // Two guards against the wrong tap, both learned from how these cards fail:
-  //   ARMING  a card ignores taps for its first moments on screen, so a finger
-  //           already on its way to something else (or the tap that woke the
-  //           screen) cannot land on Allow as the card appears under it.
-  //   HOLD    an irreversible request (deletes, force-pushes, resets) is allowed
-  //           by holding the key, not tapping it. Deny is always one tap.
-  const ARM_MS = 450;
-  const HOLD_MS = 900;
-  const firstSeen = new Map();   // approval id → when this surface first drew it
-  const armTimers = new Set();
-
   function isArmed(a) {
     if (!firstSeen.has(a.id)) firstSeen.set(a.id, Date.now());
     const left = firstSeen.get(a.id) + ARM_MS - Date.now();
@@ -256,10 +170,6 @@
       setTimeout(() => { armTimers.delete(a.id); paint(); }, left + 30);
     }
     return false;
-  }
-  function forgetSeen() {
-    const alive = new Set(approvals().map((a) => a.id));
-    for (const id of firstSeen.keys()) if (!alive.has(id)) firstSeen.delete(id);
   }
 
   function key(cls, label, onTap, a) {
@@ -279,33 +189,6 @@
       pressAgain: t('claude_press_again', 'Press again to allow'), holdMs: HOLD_MS, keep: 'k-' + a.id + '-hold',
       disabled: deciding.has(a.id), isArmed: () => isArmed(a), onConfirm: () => decide(a.id, 'allow'),
     });
-  }
-
-  // A text box whose value lives in typedAns rather than in the DOM, so a
-  // repaint rebuilds it with the same text; `data-keep` lets paint() give it
-  // its focus and caret back (keepFocus).
-  function typedBox(a, qi, keep, opts) {
-    const o = opts || {};
-    const input = o.multiline ? document.createElement('textarea') : document.createElement('input');
-    input.className = 'cw-dec-input';
-    if (o.multiline) input.rows = 2;
-    else input.type = o.number ? 'number' : 'text';
-    if (o.number) {
-      input.inputMode = 'decimal';
-      if (Number.isFinite(o.min)) input.min = String(o.min);
-      if (Number.isFinite(o.max)) input.max = String(o.max);
-      if (Number.isFinite(o.step)) input.step = String(o.step);
-    }
-    input.maxLength = 2000;
-    input.placeholder = o.placeholder || '';
-    input.dataset.keep = keep;
-    input.value = typedFor(a)[qi] || '';
-    input.disabled = deciding.has(a.id);
-    input.addEventListener('input', () => {
-      typedFor(a)[qi] = input.value;
-      if (typeof o.onInput === 'function') o.onInput();
-    });
-    return input;
   }
 
   // On the sheet a lone question is already the title of the window.
@@ -1364,15 +1247,6 @@
     };
   }
 
-  function decisionsFor(id) {
-    const pend = approvals().filter((a) => !a.urgent);
-    // A request with no session id cannot be placed; it shows wherever you are.
-    return {
-      mine: pend.filter((a) => !a.sessionId || a.sessionId === id),
-      others: pend.filter((a) => a.sessionId && a.sessionId !== id),
-    };
-  }
-
   // What you can do about a session you cannot write to from here, said once.
   function composerOrNote(s) {
     if (!(widgetState.linkState && widgetState.linkState.linked)) {
@@ -1967,12 +1841,12 @@
   }
 
   async function seed() {
-    if (seedInflight) return;
-    seedInflight = true;
+    if (seedState.seedInflight) return;
+    seedState.seedInflight = true;
     try {
       const d = await api('/api/claude');
       if (d) { widgetState.payload = d; widgetState.payloadAt = Date.now(); }
-    } finally { seedInflight = false; }
+    } finally { seedState.seedInflight = false; }
     paint();
     loadLinkState();
   }
@@ -1980,7 +1854,7 @@
   // ── public API ──
   function renderWidgets() {
     if (!tiles().length) {
-      seeded = false;
+      seedState.seeded = false;
       stopTicker();
       // The overlay deliberately survives: a pending approval must stay
       // answerable even after the user pages away from the widget.
@@ -1988,7 +1862,7 @@
       return;
     }
     paint();
-    if (!seeded) { seeded = true; seed(); }
+    if (!seedState.seeded) { seedState.seeded = true; seed(); }
   }
   // ── presence: who just stopped working ─────────────────────────────────────
   // One place decides "a session went from working to done", and two surfaces
