@@ -19,7 +19,7 @@
 // answers already_issued and the entry shows as used.
 
 const fs = require('fs');
-const { writeFileAtomic } = require('../atomic-write');
+const { writeFileAtomic } = require('../files/atomic-write');
 
 const {
   ENTRY_ID_RE, REASONS, REASON_MAX_STARS, MAX_ENTRIES, WAIT_MS, SEEN_MS, ASK_EVERY_MS,

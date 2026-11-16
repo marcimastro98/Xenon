@@ -6,7 +6,7 @@ const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { nextSettingsRev } = require('../settings/settings-rev.js');
 const { hub } = require('../settings/current.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
-const remoteAccessLib = require('../remote-access.js');
+const remoteAccessLib = require('./remote-access.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {

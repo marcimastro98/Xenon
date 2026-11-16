@@ -20,7 +20,7 @@
 
 const fsp = require('fs').promises;
 const path = require('path');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const supporterRedeem = require('./supporter-redeem.js');
 
 const FILE = 'trial-pass.json';

@@ -4,7 +4,7 @@
 
 const { Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
-const { openAtomicWriteStream } = require('../atomic-write.js');
+const { openAtomicWriteStream } = require('../files/atomic-write.js');
 
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 

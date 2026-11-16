@@ -26,35 +26,35 @@
 'use strict';
 
 const fsp = require('fs').promises;
-const { createAppIcons } = require('./search/linux-app-icons.js');
+const { createAppIcons } = require('../search/linux-app-icons.js');
 
-const { parseMemInfo, memory } = require('./platform/linux-memory.js');
+const { parseMemInfo, memory } = require('./linux-memory.js');
 
-const { mapLimit } = require('./platform/linux-read.js');
+const { mapLimit } = require('./linux-read.js');
 
-const { parseGpu, rc6Busy, parseSysfsGpu, betterGpuCandidate } = require('./platform/linux-gpu.js');
+const { parseGpu, rc6Busy, parseSysfsGpu, betterGpuCandidate } = require('./linux-gpu.js');
 
 const {
   parseDisks, disks, parseDiskstats, parseMountsFor, diskIo,
-} = require('./platform/linux-disks.js');
+} = require('./linux-disks.js');
 
 
 
 const {
   parseHwmonFans, pickCpuClockMHz, cpuTemp, hwmonKind, hwmonDevKey, parseHwmonReading,
-} = require('./platform/linux-hwmon.js');
+} = require('./linux-hwmon.js');
 
 
 
-const { gpu, listSensors, readSensors } = require('./platform/linux-sensor-read.js');
+const { gpu, listSensors, readSensors } = require('./linux-sensor-read.js');
 
-const { parseNetDev, parsePing, network } = require('./platform/linux-network.js');
+const { parseNetDev, parsePing, network } = require('./linux-network.js');
 
 const {
   MAX_WINDOWS, XPROP_CONCURRENCY, runX, PROTECTED_CLASSES, appFromExe, parseWmctrl,
   parseWindowProps, windowProps, parseClientList, parseWindowIdentity, listRowsViaXprop,
   focusWindow, closeWindow,
-} = require('./platform/linux-windows.js');
+} = require('./linux-windows.js');
 
 
 
@@ -118,10 +118,10 @@ async function windows(action, id) {
 
 const {
   cubicToLinear, parsePwDump, buildAudioRows, markStopped, soundingRows, resolveTargets,
-} = require('./platform/linux-audio.js');
+} = require('./linux-audio.js');
 
 
-const { audioRows, audioCommand, audioAvailable } = require('./platform/linux-audio-control.js');
+const { audioRows, audioCommand, audioAvailable } = require('./linux-audio-control.js');
 
 // --- Sending a key combination ----------------------------------------------
 // The Linux half of server.js's sendHotkey: the Deck's `hotkey` action, and
@@ -140,19 +140,19 @@ const { audioRows, audioCommand, audioAvailable } = require('./platform/linux-au
 // assumed: on a Wayland desktop with no ydotool there is no way to press a key
 // in another application, and the call card must not offer a button for it.
 
-const { ydotoolArgs } = require('./platform/linux-keys.js');
+const { ydotoolArgs } = require('./linux-keys.js');
 
-const { linuxSession, pickHideTool } = require('./platform/linux-hide-tool.js');
+const { linuxSession, pickHideTool } = require('./linux-hide-tool.js');
 
 const {
   lock, keysAvailable, sendKeys, hideWindowsTool, hideWindows, notify,
-} = require('./platform/linux-session-actions.js');
+} = require('./linux-session-actions.js');
 
-const { parseProcStat } = require('./platform/linux-proc-stat.js');
+const { parseProcStat } = require('./linux-proc-stat.js');
 
-const { processTable, processes } = require('./platform/linux-process-rates.js');
+const { processTable, processes } = require('./linux-process-rates.js');
 
-const { parseLoginctlIdle, parseXprintidle, idleSeconds } = require('./platform/linux-idle.js');
+const { parseLoginctlIdle, parseXprintidle, idleSeconds } = require('./linux-idle.js');
 
 // The machine's own id, for pc-id.js. Containers often have only the dbus copy.
 async function machineId() {

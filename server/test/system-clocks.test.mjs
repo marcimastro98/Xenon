@@ -59,8 +59,8 @@ test('the CPU clock is the fastest core on every platform', () => {
   // An average reads low the moment the OS parks half the cores, which on an
   // idle desktop is most of the time — a number nobody would recognise.
   assert.match(read('server/cpu-temp.ps1'), /Measure-Object -Maximum/);
-  assert.match(engineSource('server/linux-collectors.js'), /if \(best === null \|\| mhz > best\) best = mhz;/);
-  assert.match(engineSource('server/darwin-collectors.js'), /Math\.max\(pClock, eClock\)/);
+  assert.match(engineSource('server/platform/linux-collectors.js'), /if \(best === null \|\| mhz > best\) best = mhz;/);
+  assert.match(engineSource('server/platform/darwin-collectors.js'), /Math\.max\(pClock, eClock\)/);
 });
 
 test('the clocks cost no new process and no second sensor walk', () => {
@@ -92,7 +92,7 @@ test('nvidia-smi keeps the model name last, on both platforms', () => {
   // is silently truncated at its own comma.
   for (const [file, re] of [
     ['server/gpu.ps1', /--query-gpu=([a-z0-9_.,]+)/],
-    ['server/linux-collectors.js', /--query-gpu=([a-z0-9_.,]+)/],
+    ['server/platform/linux-collectors.js', /--query-gpu=([a-z0-9_.,]+)/],
   ]) {
     // An engine file is read with what was moved out of it put back, so the query is found wherever it lives.
     const m = (file.endsWith('.js') ? engineSource(file) : read(file)).match(re);

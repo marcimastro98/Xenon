@@ -41,14 +41,14 @@
       {
         "statement": "const lyricsTranslator = createLyricsTranslator({",
         "callees": {
-          "server/media/lyrics-translator.js": "76bbec25c4b6f55178edd56c09581add555469654b063680a32ac09e4ad45831"
+          "server/media/lyrics-translator.js": "2e83da29c3a1695675fda3afeceee2186b7be9cdcd05690f713f6d3293c54ec2"
         },
         "reason": "createLyricsTranslator calls complete and onError only inside request(), which translate() reaches; at creation it builds a cache from its own functions and passes neither callback on."
       },
       {
         "statement": "const sdkAi = createSdkAi({",
         "callees": {
-          "server/widget-sdk/sdk-ai.js": "743d077866cc7c3c9a3c22cf73874ebbf0896a497dfefa3cfa6ea68580522ab5"
+          "server/widget-sdk/sdk-ai.js": "a818876d173db7d8fd8dad1ec4d7c0bf4a049666cc4d357ab8c0d7866184a405"
         },
         "reason": "createSdkAi calls complete, blocker and onError only inside ask(); at creation it works out a file path and returns ask and usageToday."
       },

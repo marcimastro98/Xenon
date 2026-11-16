@@ -5,7 +5,7 @@
 //
 // Everything this page talks to is loopback-only by construction — none of
 // /api/remote-access/{status,enable,pair,rename,revoke,revoke-all} is on the
-// paired-device allowlist in server/remote-access.js — so a phone can never
+// paired-device allowlist in server/paired/remote-access.js — so a phone can never
 // enrol another phone or revoke the device that would kick it off.
 //
 // Mirrors remote-control.js / lighting-page.js: IIFE, one global, no framework.

@@ -1,7 +1,7 @@
 // Writes the running timers to disk.
 
 const { TIMERS_FILE } = require('./store-files.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { timerState } = require('./timer-list.js');
 
 async function _saveTimers() {

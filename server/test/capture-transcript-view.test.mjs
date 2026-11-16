@@ -65,7 +65,7 @@ test('gallery and dashboard: SSE transcript reaches the panel; Bit asked after t
 test('the list says which videos have one; a phone reads and starts one, never by a GET', () => {
   const src = engineSource();
   assert.match(src, /_transcripts\.has\(e\.id\) \? \{ \.\.\.e, transcript: true \} : e/);
-  const ra = require('../remote-access.js');
+  const ra = require('../paired/remote-access.js');
   assert.equal(ra.remotePathAllowed('/captures/transcript', 'GET'), true);
   assert.equal(ra.remotePathAllowed('/captures/transcribe', 'POST'), true);
   assert.equal(ra.remotePathAllowed('/captures/transcribe', 'GET'), false);

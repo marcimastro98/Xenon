@@ -17,7 +17,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ra = require('../paired/remote-actions.js');
-const access = require('../remote-access.js');
+const access = require('../paired/remote-access.js');
 const { ACTION_CATALOG } = require('../js/deck-actions.js');
 const registry = require('../actions/registry.js');
 const SERVER = engineSource();

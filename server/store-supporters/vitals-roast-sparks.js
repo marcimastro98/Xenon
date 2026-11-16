@@ -11,7 +11,7 @@
 
 const fsp = require('fs').promises;
 const path = require('path');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 
 const USAGE_FILE = 'vitals-roast-sparks.json';
 const ROAST_SPARKS_CAPS = Object.freeze([0, 10, 25, 50, 100]);

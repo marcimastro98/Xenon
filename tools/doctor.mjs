@@ -131,7 +131,7 @@ for (const [bin, required] of TOOLS) {
 
 // ── 2) The collectors ───────────────────────────────────────────────────────
 section('Collectors (what the tiles read)');
-const collectors = require(path.join(ROOT, 'server', PLAT === 'darwin' ? 'darwin-collectors.js' : 'linux-collectors.js'));
+const collectors = require(path.join(ROOT, 'server', PLAT === 'darwin' ? 'platform/darwin-collectors.js' : 'platform/linux-collectors.js'));
 
 await probe('disks', () => collectors.disks(), checks.checkDisks);
 // The sensor collectors never block the request path: they answer from a TTL

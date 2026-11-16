@@ -5,7 +5,7 @@ const calendarReminders = require('./calendar-reminders.js');
 const { sseClients, broadcastSSE } = require('../http/sse-clients.js');
 const lighting = require('../lights/lighting.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { agendaState } = require('./agenda-state.js');
 const { markEventReminders } = require('./events-write.js');
 

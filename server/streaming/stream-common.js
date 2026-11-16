@@ -7,7 +7,7 @@
 // between Twitch and Google, and keeping them apart avoids a leaky abstraction.
 
 const fs = require('fs');
-const { updateFileAtomic } = require('../atomic-write');
+const { updateFileAtomic } = require('../files/atomic-write');
 
 const EXPIRY_SKEW_MS = 60_000;   // refresh a minute before the token actually expires
 const FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };

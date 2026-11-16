@@ -5,7 +5,7 @@
 // it never leave this server. Each caller checks what it reads (a hand-edited
 // or older file is only a hint) and that the file is still on disk.
 
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 
 function createCaptureLast({ file, readFile, write = writeFileAtomic }) {
   let cache = null;

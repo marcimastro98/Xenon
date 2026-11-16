@@ -19,8 +19,8 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
-const lc = require(join(here, '..', 'linux-collectors.js'));
-const dc = require(join(here, '..', 'darwin-collectors.js'));
+const lc = require(join(here, '..', 'platform/linux-collectors.js'));
+const dc = require(join(here, '..', 'platform/darwin-collectors.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const SERVER = engineSource();

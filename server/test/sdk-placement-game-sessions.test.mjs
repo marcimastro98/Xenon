@@ -23,7 +23,7 @@ const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url));
 const SERVER = engineSource();
 const { SDK_STREAMS } = require('../sdk-widgets.js');
 const { widgetSnapshot, normalizeSession, compareSessions } = require('../performance/game-sessions.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 
 // The placement code, run as written: from its constant to the end of postPlacement.
 function placementKit(search, hubSettings, scene) {

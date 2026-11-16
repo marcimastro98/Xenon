@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const dc = require('../darwin-collectors.js');
+const dc = require('../platform/darwin-collectors.js');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(join(here, 'fixtures', name), 'utf8');
@@ -515,7 +515,7 @@ test('withCurrentOutput: the current output from SwitchAudioSource wins, when it
 test('quitAppArgs passes the app name as argv, never inside the AppleScript text', async () => {
   const { createRequire } = await import('node:module');
   const req = createRequire(import.meta.url);
-  const dc = req('../darwin-collectors.js');
+  const dc = req('../platform/darwin-collectors.js');
   const evil = 'Evil" to quit\ndo shell script "touch /tmp/pwned';
   const args = dc.quitAppArgs('Safari');
   assert.deepEqual(args, ['-e', 'on run argv', '-e', 'tell application (item 1 of argv) to quit', '-e', 'end run', 'Safari']);

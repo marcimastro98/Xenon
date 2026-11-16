@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const ga = require('../codex/chatgpt-ask.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 
 async function tmpFile() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-chatgpt-'));

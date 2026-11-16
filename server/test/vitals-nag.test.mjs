@@ -7,8 +7,8 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createVitalsNag, cleanText, popupFont, POPUP_MS } = require('../vitals/vitals-nag.js');
-const lc = require('../linux-collectors.js');
-const dc = require('../darwin-collectors.js');
+const lc = require('../platform/linux-collectors.js');
+const dc = require('../platform/darwin-collectors.js');
 
 function rig({ platform = 'linux', host = false, collectors = {}, script = false } = {}) {
   const spawned = [];

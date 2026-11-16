@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const ra = require('../remote-access.js');
+const ra = require('../paired/remote-access.js');
 const { REMOTE_DENY_PREFIXES } = require('../paired/refused-paths.js');
 
 const DOOR = [

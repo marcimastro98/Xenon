@@ -19,7 +19,7 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
-const { updateFileAtomic } = require('../atomic-write.js');
+const { updateFileAtomic } = require('../files/atomic-write.js');
 
 const MAX_CLIENTS = 10;
 const MAX_PENDING_PAIRS = 3;

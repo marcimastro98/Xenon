@@ -155,7 +155,7 @@ test('the stop route is POST-only, CSRF-guarded and reachable from a paired phon
   assert.match(server, /reqPath === '\/api\/ai\/turn\/stop' && req\.method === 'POST'[\s\S]{0,400}json\(\{ ok: aiTurns\.stop\(body\.id\) \}\)/);
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['), server.indexOf(']);', server.indexOf('const CSRF_MUTATION_PATHS')));
   assert.match(csrf, /'\/api\/ai\/turn\/stop',/);
-  const remote = require('../remote-access.js');
+  const remote = require('../paired/remote-access.js');
   assert.equal(remote.remotePathAllowed('/api/ai/turn/stop', 'POST'), true, 'the phone chat can stop its turn');
 });
 

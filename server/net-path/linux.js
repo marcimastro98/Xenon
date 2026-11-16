@@ -11,7 +11,7 @@ const { execFile } = require('node:child_process');
 const P = require('./parse.js');
 const { createPinger } = require('./pinger.js');
 const { createSampler } = require('./sampler.js');
-const { parseNetDev } = require('../linux-collectors.js');
+const { parseNetDev } = require('../platform/linux-collectors.js');
 
 const INTERNET = '1.1.1.1';
 const TRACE_TIMEOUT_MS = 8000;

@@ -5,7 +5,7 @@ const { _nextListSeq } = require('./list-seq.js');
 const { normalizeTasks } = require('./tasks-normalize.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { TASKS_FILE } = require('./store-files.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { agendaState } = require('./agenda-state.js');
 
 async function _writeTasksNow(tasks) {

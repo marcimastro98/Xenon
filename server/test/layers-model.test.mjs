@@ -195,7 +195,7 @@ test('only the shell on this PC reports: CSRF-guarded, refused to a paired phone
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['), server.indexOf(']);', server.indexOf('const CSRF_MUTATION_PATHS = new Set([')));
   assert.match(csrf, /'\/layers\/host',/);
   assert.match(server, /reqPath === '\/layers\/host' && req\.method === 'POST'\) \{[\s\S]{0,400}readBody\(req, 16 \* 1024\)[\s\S]{0,80}layersHost\.accept\(body\)/);
-  const { remotePathAllowed } = require('../remote-access.js');
+  const { remotePathAllowed } = require('../paired/remote-access.js');
   assert.equal(remotePathAllowed('/layers/host', 'POST'), false);
   assert.equal(remotePathAllowed('/layers/host', 'GET'), false);
 });

@@ -19,7 +19,7 @@
 require('../http/net-guard'); // nothing is taken from it here, but it runs code when it loads
 const fs = require('fs');
 const path = require('path');
-const { writeFileAtomic } = require('../atomic-write');
+const { writeFileAtomic } = require('../files/atomic-write');
 
 // The storefront layout — which sections the Store shows, in what order and in
 // what shape — travels in the catalog alongside `entries`, and the same contract

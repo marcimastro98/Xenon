@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const DriverSdkHost = require('../js/widget-sdk/driver-sdk-host.js');
 const { grantedPackages } = require('../js/widget-sdk/sdk-service.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const UMD = "typeof window !== 'undefined' ? window : globalThis";
 

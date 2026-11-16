@@ -17,9 +17,9 @@ import { dirname, join } from 'node:path';
 import * as dc from '../../tools/doctor-checks.mjs';
 
 const require = createRequire(import.meta.url);
-const darwin = require('../darwin-collectors.js');
+const darwin = require('../platform/darwin-collectors.js');
 const media = require('../media/darwin-media.js');
-const linux = require('../linux-collectors.js');
+const linux = require('../platform/linux-collectors.js');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(join(here, 'fixtures', name), 'utf8');

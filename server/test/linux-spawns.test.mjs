@@ -18,7 +18,7 @@ childProcess.execFile = (cmd, args, _options, callback) => {
 };
 
 const { createLinuxForeground } = require('../windows-tiles/linux-foreground.js');
-const collectors = require('../linux-collectors.js');
+const collectors = require('../platform/linux-collectors.js');
 
 const ROOT_REPLY = [
   '_NET_ACTIVE_WINDOW(WINDOW): window id # 0x4200003',

@@ -284,7 +284,12 @@
     {"from":"server/list-ops.js","to":"server/time/list-ops.js"},
     {"from":"server/pc-id.js","to":"server/engine/pc-id.js"},
     {"from":"server/semver.js","to":"server/updates/semver.js"},
-    {"from":"server/transcript-format.js","to":"server/screens/transcript-format.js"}
+    {"from":"server/transcript-format.js","to":"server/screens/transcript-format.js"},
+    {"from":"server/remote-access.js","to":"server/paired/remote-access.js"},
+    {"from":"server/atomic-write.js","to":"server/files/atomic-write.js"},
+    {"from":"server/linux-collectors.js","to":"server/platform/linux-collectors.js"},
+    {"from":"server/darwin-collectors.js","to":"server/platform/darwin-collectors.js"},
+    {"from":"server/self-update.js","to":"server/updates/self-update.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -353,6 +358,11 @@
     {"feature":"helpers-shared","glob":"server/list-ops.js","at":5},
     {"feature":"helpers-shared","glob":"server/semver.js","at":6},
     {"feature":"helpers-shared","glob":"server/pc-id.js","at":7},
-    {"feature":"helpers-shared","glob":"server/transcript-format.js","at":8}
+    {"feature":"helpers-shared","glob":"server/transcript-format.js","at":8},
+    {"feature":"updates","glob":"server/self-update.js","at":1},
+    {"feature":"paired","glob":"server/remote-access.js","at":1},
+    {"feature":"platform","glob":"server/linux-collectors.js","at":1},
+    {"feature":"platform","glob":"server/darwin-collectors.js","at":2},
+    {"feature":"helpers-shared","glob":"server/atomic-write.js","at":4}
   ]
 }

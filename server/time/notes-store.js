@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const { NOTES_FILE, NOTES_JSON } = require('./store-files.js');
 const { normalizeNotesState, textToNotesState, _notesRevOf } = require('./notes-state.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { notesRev } = require('./notes-rev-state.js');
 
 async function _ensureNotesRev() {

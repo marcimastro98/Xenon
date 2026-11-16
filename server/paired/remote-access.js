@@ -67,11 +67,11 @@
 const {
   COOKIE_NAME, CODE_LENGTH, hashToken, newToken, newAssetKey, newCode, canonicalCode, formatCode,
   safeEqual, readCookie, cookieHeader,
-} = require('./paired/tokens-and-codes.js');
+} = require('./tokens-and-codes.js');
 
 // ── What a paired device may reach ───────────────────────────────────────────
 
-const { REMOTE_DENY, REMOTE_DENY_PREFIXES, REMOTE_ADMIN } = require('./paired/refused-paths.js');
+const { REMOTE_DENY, REMOTE_DENY_PREFIXES, REMOTE_ADMIN } = require('./refused-paths.js');
 
 // GET must never mutate on this door. Several endpoints answer both GET and
 // POST — that GET shape exists for the iCUE widget, whose Qt WebEngine cannot
@@ -245,11 +245,11 @@ function useGetMutators(set) {
 
 const REMOTE_METHODS = new Set(['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);
 
-const { WIDGET_ASSET_PREFIX, parseWidgetAssetPath } = require('./paired/widget-asset-path.js');
+const { WIDGET_ASSET_PREFIX, parseWidgetAssetPath } = require('./widget-asset-path.js');
 
 const {
   STORE_VERSION, STORE_FILENAME, MAX_DEVICES, DEVICE_NAME_MAX, normalizeDeviceStore,
-} = require('./paired/device-store.js');
+} = require('./device-store.js');
 
 /**
  * The gate on WHAT a paired device may reach. Allow by default; see the module
@@ -420,7 +420,7 @@ function gateDecision(i) {
 
 const {
   isOwnAddressHost, isTlsNameHost, originAllowed, ownAddresses, pairingAddresses,
-} = require('./paired/own-address.js');
+} = require('./own-address.js');
 
 // ── Tokens and codes ─────────────────────────────────────────────────────────
 
@@ -428,13 +428,13 @@ const {
 
 const {
   createRateLimiter, DASHBOARD_LOAD_REQUESTS, DEVICE_RATE_LIMIT,
-} = require('./paired/rate-limit.js');
+} = require('./rate-limit.js');
 
 // ── The device store ─────────────────────────────────────────────────────────
 
 const {
   CODE_TTL_MS, CODE_MAX_ATTEMPTS, IDLE_EXPIRY_MS, createRemoteAccess,
-} = require('./paired/device-registry.js');
+} = require('./device-registry.js');
 
 module.exports = {
   STORE_VERSION, STORE_FILENAME, COOKIE_NAME, MAX_DEVICES,

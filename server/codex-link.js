@@ -34,7 +34,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('./files/atomic-write');
 
 const { HOOK_SCRIPT } = require('./codex/script-paths.js');
 const STATE_FILE = 'codex-bridge.json';   // inside DATA_DIR

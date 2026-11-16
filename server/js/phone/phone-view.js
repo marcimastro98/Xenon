@@ -27,7 +27,7 @@
 
   // 'auto' | 'on' | 'off'. Local to the device on purpose: which chrome suits
   // THIS screen is not a property of the user's configuration, and a paired
-  // phone cannot write settings anyway (see server/remote-access.js).
+  // phone cannot write settings anyway (see server/paired/remote-access.js).
   const PREF_KEY = 'xenon.phoneView';
 
   // 24 columns need roughly 22px each to stay legible, so the grid stops being

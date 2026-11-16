@@ -14,7 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { writeFileAtomic } = require('../atomic-write');
+const { writeFileAtomic } = require('../files/atomic-write');
 
 const MAX_FACTS = 100;        // hard cap — the oldest fact is dropped past this
 const MAX_FACT_LEN = 240;     // per-fact character cap

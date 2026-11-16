@@ -684,7 +684,6 @@
       "what": "Finds a new version, checks its signature, installs it and shows what is new.",
       "files": [
         "server/updates/**",
-        "server/self-update.js",
         "server/update-apply.ps1",
         "server/update-apply.sh",
         "server/helper-update.ps1",
@@ -744,7 +743,6 @@
       "what": "Pairing another device, HTTPS for it, and notifications sent to it.",
       "files": [
         "server/paired/**",
-        "server/remote-access.js",
         "server/pair.html",
         "server/sw.js",
         "server/js/remote-access-page/**",
@@ -786,8 +784,6 @@
       "what": "What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact.",
       "files": [
         "server/platform/**",
-        "server/linux-collectors.js",
-        "server/darwin-collectors.js",
         "server/session-watch.ps1"
       ]
     },
@@ -817,7 +813,6 @@
         "server/programs/**",
         "server/powershell/**",
         "server/wav/**",
-        "server/atomic-write.js",
         "server/js/utils.js",
         "server/js/utils/**",
         "server/js/fuzzy-find.js",

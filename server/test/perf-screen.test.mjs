@@ -17,7 +17,7 @@ const perfScreen = require('../performance/perf-screen.js');
 const DriverPerf = require('../js/performance/driver-perf.js');
 const AlertToasts = require('../js/alerts/alert-toasts.js');
 const aiSurface = require('../ai/ai-surface.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 
 // ── one copy of the settings rules ───────────────────────────────────────────
 

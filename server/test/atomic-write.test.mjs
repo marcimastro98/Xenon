@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 // serialized concurrent writers, temp-file cleanup, and the read-modify-write
 // path that fixed the OAuth token-store lost-update race.
 const require = createRequire(import.meta.url);
-const { writeFileAtomic, updateFileAtomic, openAtomicWriteStream } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'atomic-write.js'));
+const { writeFileAtomic, updateFileAtomic, openAtomicWriteStream } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'files/atomic-write.js'));
 
 function freshDir() {
   return mkdtempSync(join(tmpdir(), 'xenon-atomic-'));

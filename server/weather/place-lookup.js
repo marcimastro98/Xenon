@@ -2,7 +2,7 @@
 // be.
 
 const { sanitizeWeatherCity, pickWeatherLocationResult } = require('./location.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { weatherLocationCache } = require('./cache.js');
 const { WEATHER_CACHE_MS, WEATHER_GEO_FAIL_COOLDOWN_MS } = require('./timings.js');
 const { fetchJson } = require('../http/fetch-json.js');

@@ -20,7 +20,7 @@ import { namesOf } from './source-names.mjs';
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const require = createRequire(import.meta.url);
-const { createSelfUpdate } = require('../self-update.js');
+const { createSelfUpdate } = require('../updates/self-update.js');
 
 const UPDATE = readFileSync(new URL('../js/update/update.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');

@@ -46,7 +46,7 @@ name: Release (atomic)
 # REQUIRED repo secrets:
 #   TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (Tauri updater)
 #   XENON_UPDATE_SIGNING_KEY  (Ed25519 PKCS#8 PEM; pubkey pinned in
-#                              server/self-update.js and the setup bootstrap)
+#                              server/updates/self-update.js and the setup bootstrap)
 # A missing secret fails the run LOUDLY on purpose — an unsigned release would
 # strand every self-updating install on integrity_missing.
 

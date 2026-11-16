@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { createSelfUpdate, buildZipUrl, pickSingleDir } = require('../self-update.js');
+const { createSelfUpdate, buildZipUrl, pickSingleDir } = require('../updates/self-update.js');
 const { Writable } = require('node:stream');
 const path = require('node:path');
 
@@ -254,7 +254,7 @@ test('prepare(): validly-signed sums that do not match the download → integrit
 });
 
 test('parseSumsEntry(): standard sha256sum line formats, absent or malformed → empty', () => {
-  const { parseSumsEntry } = require('../self-update.js');
+  const { parseSumsEntry } = require('../updates/self-update.js');
   const hex = 'A'.repeat(64);
   assert.equal(parseSumsEntry(hex + '  source.zip', 'source.zip'), hex.toLowerCase());
   assert.equal(parseSumsEntry(hex + ' *source.zip', 'source.zip'), hex.toLowerCase(), 'binary-mode marker');

@@ -18,14 +18,14 @@ The program behind everything: it starts, answers the screen, saves settings, up
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/updates/**` `server/self-update.js` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.ps1` `server/release-asset-cli.js` and 10 more |
+| **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/updates/**` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.ps1` `server/release-asset-cli.js` `server/native-installer-cli.js` and 9 more |
 | **Install and uninstall** | The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux, and its start at sign-in. | `server/install/**` `server/install.ps1` `server/install.sh` `server/uninstall.ps1` `server/uninstall.sh` `server/install-native.ps1` and 4 more |
 | **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/first-run/**` `server/js/onboarding/**` `server/js/usage-ask/**` `server/components/Onboarding/**` `server/components/UsageAsk/**` `server/components/BootSplash/**` and 4 more |
-| **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/paired/**` `server/remote-access.js` `server/pair.html` `server/sw.js` `server/js/remote-access-page/**` `server/js/vendor/**` and 3 more |
+| **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/paired/**` `server/pair.html` `server/sw.js` `server/js/remote-access-page/**` `server/js/vendor/**` `server/components/RemoteAccessSettings/**` and 2 more |
 | **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings/**` `server/js/settings.js` `server/js/settings/**` `server/js/settings-search/**` `server/components/SettingsModal/**` |
 | **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
 | **Engine core** | Starts the engine, answers every request, decides who may ask; also the bug report and anonymous counts. | `server/server.js` `server/feature-routes.js` `server/engine/**` `server/http/**` `server/js/state.js` `server/js/native-bridge.js` and 2 more |
-| **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/files/**` `server/programs/**` `server/powershell/**` `server/wav/**` `server/atomic-write.js` `server/js/utils.js` and 9 more |
+| **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/files/**` `server/programs/**` `server/powershell/**` `server/wav/**` `server/js/utils.js` `server/js/utils/**` and 8 more |
 
 ## Dashboard
 
@@ -119,7 +119,7 @@ The native programs around the engine, and the code that differs per operating s
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Per-system readers** | What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact. | `server/platform/**` `server/linux-collectors.js` `server/darwin-collectors.js` `server/session-watch.ps1` |
+| **Per-system readers** | What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact. | `server/platform/**` `server/session-watch.ps1` |
 | **The app** | The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop. | `apps/native/**` |
 | **The capture program** | A Rust program for screenshots and recordings with the system's own capture; the engine starts it when needed. | `apps/capture/**` `tools/build-capture.mjs` |
 | **Helper for Windows** | A small C# program for media, windows, audio levels and the file index. | `helper/**` |

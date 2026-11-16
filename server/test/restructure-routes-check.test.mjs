@@ -161,7 +161,7 @@ test('on the real engine: only plain GET routes are asked, none that changes som
   if (!parser) return t.skip(SKIP);
   const skip = JSON.parse(readFileSync(repoFile('tools/restructure/routes-skip.json'), 'utf8')).paths;
   const engineText = readFileSync(repoFile('server/server.js'), 'utf8');
-  const remoteText = readFileSync(repoFile('server/remote-access.js'), 'utf8');
+  const remoteText = readFileSync(repoFile('server/paired/remote-access.js'), 'utf8');
   const tableRoutes = tableRoutesOf((file) => readFileSync(repoFile(file), 'utf8'));
   const made = questionsFor({ engineText, remoteText, skip, parser, tableRoutes });
   const changes = new Set([...setOfTexts(engineText, parser, 'CSRF_MUTATION_PATHS'), ...setOfTexts(remoteText, parser, 'DEFAULT_GET_MUTATORS')]);

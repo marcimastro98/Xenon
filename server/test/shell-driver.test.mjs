@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const UsageMode = require('../js/first-run/usage-mode.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const ShellDriver = require('../js/widget-sdk/shell-driver.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const DRIVER_SRC = read('../js/widget-sdk/shell-driver.js');
 const SHELL_SRC = read('../js/layers-shell/layers-shell.js');

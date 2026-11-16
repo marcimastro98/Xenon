@@ -43,7 +43,7 @@ function macWith(t, answer) {
     else done(new Error('not here'));
     return { on() {}, kill() {} };
   });
-  return { collectors: load('darwin-collectors.js'), asked: () => asked.filter((call) => call.cmd === 'vm_stat') };
+  return { collectors: load('platform/darwin-collectors.js'), asked: () => asked.filter((call) => call.cmd === 'vm_stat') };
 }
 
 test('Mac: memory is app memory, wired and compressed pages of vm_stat, out of the total Node reports', async (t) => {
@@ -80,7 +80,7 @@ function linuxWith(t, answer) {
     if (answer === null) throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
     return answer;
   });
-  return load('linux-collectors.js');
+  return load('platform/linux-collectors.js');
 }
 
 test('Linux: memory is the total of /proc/meminfo minus what the kernel says is available', async (t) => {

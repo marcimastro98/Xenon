@@ -2,7 +2,7 @@
 // Tailscale sign-in, the Sunshine setup, the PIN, the switch that cuts it off, turning it on,
 // off or on demand, the screens, closing a session, and blocking or unblocking.
 
-const remoteAccessLib = require('../remote-access.js');
+const remoteAccessLib = require('../paired/remote-access.js');
 const { readBody } = require('../http/read-body.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

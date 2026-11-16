@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 
 const MARKER = 'fps-access-notice.json';
 const KINDS = ['signin', 'refused'];

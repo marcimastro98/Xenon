@@ -8,8 +8,8 @@ import { createRequire } from 'node:module';
 // answer is null ("unknown"), never 0 ("someone is here") and never a big
 // number ("nobody is here").
 const require = createRequire(import.meta.url);
-const darwin = require('../darwin-collectors.js');
-const linux = require('../linux-collectors.js');
+const darwin = require('../platform/darwin-collectors.js');
+const linux = require('../platform/linux-collectors.js');
 
 // Trimmed from `ioreg -c IOHIDSystem -d 4` on macOS 14.
 const IOREG = `+-o Root  <class IORegistryEntry, id 0x100000100, retain 22>

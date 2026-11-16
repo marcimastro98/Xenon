@@ -22,7 +22,7 @@ function realTable() {
     const table = createWindowsProcessTable();
     return () => table.read();
   }
-  const collectors = process.platform === 'darwin' ? 'darwin-collectors.js' : 'linux-collectors.js';
+  const collectors = process.platform === 'darwin' ? 'platform/darwin-collectors.js' : 'platform/linux-collectors.js';
   return require(path.join(SERVER, collectors)).processTable;
 }
 

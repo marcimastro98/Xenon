@@ -21,7 +21,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { createAutoOpenSwitch, createSupportCheck, SUPPORT_TTL_MS } = require('../install/auto-open-switch.js');
 const { REMOTE_DENY } = require('../paired/refused-paths.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const { keepStoredOnSave } = require('../settings/keep-stored-on-save.js');
 const { normalizeHubApp } = require('../settings/normalize-app.js');
 const { HUB_DEFAULTS_APP } = require('../settings/defaults-app.js');

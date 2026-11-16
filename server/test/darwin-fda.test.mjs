@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { fullDiskAccess, rootReachesHome } = require('../darwin-collectors.js');
+const { fullDiskAccess, rootReachesHome } = require('../platform/darwin-collectors.js');
 
 // Full Disk Access on macOS, and the roots the Living Index may walk without it.
 //

@@ -10,7 +10,7 @@ const { execFile } = require('node:child_process');
 const P = require('./parse.js');
 const { createPinger } = require('./pinger.js');
 const { createSampler } = require('./sampler.js');
-const { parseNetstatIb } = require('../darwin-collectors.js');
+const { parseNetstatIb } = require('../platform/darwin-collectors.js');
 
 const INTERNET = '1.1.1.1';
 const TRACEROUTE = '/usr/sbin/traceroute';

@@ -199,7 +199,7 @@ export function featureRoutesClaimed(listText, read) {
 /** The modules of the engine whose texts a test of the chain names, loaded as the engine loads them. */
 export function engineRequired() {
   const load = createRequire(path.join(REPO_ROOT, 'server', 'server.js'));
-  return { remoteAccessLib: { spec: './remote-access', values: load('./remote-access') } };
+  return { remoteAccessLib: { spec: './paired/remote-access', values: load('./paired/remote-access') } };
 }
 
 async function main() {

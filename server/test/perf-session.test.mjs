@@ -21,8 +21,8 @@ const { createDarwinFence } = require('../perf-session/fence-darwin.js');
 const { createLedger, normalizeRecord } = require('../perf-session/ledger.js');
 const { shieldWish } = require('../perf-session/shield-wish.js');
 const { createPerfSession } = require('../perf-session/index.js');
-const linux = require('../linux-collectors.js');
-const darwin = require('../darwin-collectors.js');
+const linux = require('../platform/linux-collectors.js');
+const darwin = require('../platform/darwin-collectors.js');
 
 const { PRIORITY_NORMAL: NORMAL, PRIORITY_BELOW_NORMAL: BELOW, PRIORITY_ABOVE_NORMAL: ABOVE, PRIORITY_HIGH: HIGH_LEVEL } = os.constants.priority;
 

@@ -4,7 +4,7 @@
 
 const path = require('node:path');
 const fsp = require('node:fs').promises;
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { MAX_PROJECTS, MAX_FOLDERS, MAX_FOLDER_PATH, PROJECT_TTL_MS } = require('./run-limits.js');
 const { readCwdFromTranscript, newestTranscript, isDir } = require('./run-project-folder.js');
 const { str, projectId } = require('./run-text.js');

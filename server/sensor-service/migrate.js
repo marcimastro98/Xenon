@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 
 const MARKER = 'sensor-migration.json';
 const TASK_NAME = 'Xenon Edge Widget';

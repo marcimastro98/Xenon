@@ -15,7 +15,7 @@
 // the exact moment they asked for it. It cannot go stale, because it IS the
 // server's answer.
 //
-// Security lives entirely in server/remote-access.js. Nothing here is a guard —
+// Security lives entirely in server/paired/remote-access.js. Nothing here is a guard —
 // hiding a button protects nobody, and no code in this file is trusted.
 (function () {
   'use strict';

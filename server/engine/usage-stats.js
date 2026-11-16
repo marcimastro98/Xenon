@@ -26,7 +26,7 @@
 const https = require('https');
 const path = require('path');
 const fsp = require('fs').promises;
-const { writeFileAtomic } = require('../atomic-write');
+const { writeFileAtomic } = require('../files/atomic-write');
 const { HUB_BASE } = require('../store-supporters/supporter-redeem');
 const { armDeadline } = require('../http/net-guard');
 

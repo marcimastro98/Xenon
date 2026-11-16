@@ -26,7 +26,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('./files/atomic-write');
 
 const STATUSLINE_SCRIPT = path.join(__dirname, 'claude-statusline.js');
 const { readJson, readState, writeState, ensureToken } = require('./claude-code/link-record.js');

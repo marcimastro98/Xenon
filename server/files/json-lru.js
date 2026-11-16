@@ -12,7 +12,7 @@
 
 const fsp = require('fs').promises;
 const path = require('path');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('./atomic-write.js');
 
 const MAX_KEY_CHARS = 600;
 const WRITE_DEBOUNCE_MS = 5000;

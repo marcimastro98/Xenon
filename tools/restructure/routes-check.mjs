@@ -217,7 +217,7 @@ async function record(rev) {
   const parser = await openParser();
   let plan;
   try {
-    plan = questionsFor({ engineText: read(ENGINE), remoteText: read('server/remote-access.js'), skip, writes, parser, tableRoutes: tableRoutesOf(read) });
+    plan = questionsFor({ engineText: read(ENGINE), remoteText: read('server/paired/remote-access.js'), skip, writes, parser, tableRoutes: tableRoutesOf(read) });
   } finally {
     parser.close();
   }

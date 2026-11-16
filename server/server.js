@@ -501,14 +501,14 @@ require('./remote-control');
 // Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
 // from `remoteControl` above, which is the Sunshine/Moonlight streaming feature
 // and shares nothing with it but a word.
-const remoteAccessLib = require('./remote-access');
+const remoteAccessLib = require('./paired/remote-access');
 const webPushLib = require('./paired/web-push');
 const remoteHttpsLib = require('./paired/remote-https');
 const remoteHttpsSetupLib = require('./paired/remote-https-setup');
 const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
-const { createSelfUpdate } = require('./self-update');
+const { createSelfUpdate } = require('./updates/self-update');
 require('./install/startup-task');
 const { normalizeMediaSeekResult } = require('./media/media-seek-result');
 const lyrics = require('./media/lyrics');
@@ -1355,7 +1355,7 @@ const FRESH_INSTALL = welcomeSparks.isFreshDataDir([...DURABLE_STORES, path.join
 // atomic-write.js so every module (stream-common, ai-memory, guardian) writes
 // with the exact same discipline — one serialized queue per path, no ad-hoc
 // temp+rename copies that can race each other.
-const { writeFileAtomic } = require('./atomic-write');
+const { writeFileAtomic } = require('./files/atomic-write');
 
 
 // The single Range-aware file responder. /uploads/, /deck/sound and the
@@ -4835,7 +4835,7 @@ const { refusedCrossSite, refusedSocketOrigin } = require('./http/cross-site');
 // retried against the other, and a paired device gains nothing on the loopback
 // path (it cannot produce a loopback source IP).
 //
-// See server/remote-access.js for the model. The short version: off by default,
+// See server/paired/remote-access.js for the model. The short version: off by default,
 // Host must be an IP literal this machine owns (a NAME is always refused, which
 // is the whole anti-rebinding defence), Origin must be exactly ours (`null` is
 // refused here even though loopback accepts it for the iCUE WebView),

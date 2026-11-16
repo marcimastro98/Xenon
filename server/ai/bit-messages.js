@@ -19,7 +19,7 @@
 // the machine (js/store-supporters/hub-messages.js, community-messages.js).
 
 const fs = require('fs');
-const { writeFileAtomic } = require('../atomic-write');
+const { writeFileAtomic } = require('../files/atomic-write');
 require('../store-catalog/community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 
 const { ID_RE, cleanTime, cleanMessage, restoreMessage } = require('./bit-message-clean.js');

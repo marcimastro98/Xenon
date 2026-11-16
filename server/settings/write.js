@@ -10,7 +10,7 @@ const { SETTINGS_FILE } = require('./settings-file.js');
 const { normalizeHubSettings } = require('./normalize-hub-settings.js');
 const { UPLOADS_DIR } = require('../engine/uploads-dir.js');
 const storeSnapshots = require('../store-catalog/store-snapshots.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { settingsStore } = require('./store-state.js');
 const {
   cleanupUnreferencedTileAssets, cleanupUnreferencedSlideshowAssets,

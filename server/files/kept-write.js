@@ -6,7 +6,7 @@
 // the store's name and the error's code, never the path or the message, which hold the name of
 // the PC's user.
 
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('./atomic-write.js');
 
 /**
  * @param {string} feature the word in brackets at the start of the log line

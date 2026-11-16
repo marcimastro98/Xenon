@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 const require = createRequire(import.meta.url);
 const redeemMod = require('../store-supporters/supporter-redeem.js');
 const { ownedUpdateOutcome, encodePreset } = require('../js/preset-share.js');
-const ra = require('../remote-access.js');
+const ra = require('../paired/remote-access.js');
 
 // The owner update: "I already unlocked this on this install, is there a newer
 // version, and may I have its key?" Two halves tested here with nothing but

@@ -23,7 +23,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { Readable } = require('stream');
-const { UPDATE_PUBKEY_PEM, SELF_UPDATE_REPO, parseSumsEntry } = require('../self-update');
+const { UPDATE_PUBKEY_PEM, SELF_UPDATE_REPO, parseSumsEntry } = require('./self-update');
 
 const HELPER_ASSET = 'xenon-helper.exe';
 // The macOS helper ships packed (release.yml: tar is the only way its executable

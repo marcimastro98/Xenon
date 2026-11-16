@@ -10,7 +10,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = readFileSync(join(HERE, '..', 'js', 'phone/phone-widget.js'), 'utf8');
 
 // Calling and texting from a paired phone or tablet are refused by
-// server/remote-access.js, deliberately: a call's audio comes out of the PC, so
+// server/paired/remote-access.js, deliberately: a call's audio comes out of the PC, so
 // one placed from another room would be a call nobody could hear, and a message
 // leaves under the user's own number from a device they might lose.
 //

@@ -13,7 +13,7 @@ const scenePage = require('../ambient/scene-page.js');
 const ScreenSceneModel = require('../js/ambient/screen-scene-model.js');
 const ViewerTheme = require('../js/look/viewer-theme.js');
 const { resolveAmbientScene } = require('../js/ambient/ambient-resolve.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // ── The page ─────────────────────────────────────────────────────

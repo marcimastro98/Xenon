@@ -4,7 +4,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const aiGemini = require('./ai-gemini.js');
 const aiOpenai = require('./ai-openai.js');
 const aiAnthropic = require('./ai-anthropic.js');

@@ -16,14 +16,14 @@ name: Release integrity
 # whichever of the helper, the capture engines and Xenon-Setup-x64.exe are attached.
 #
 # Consumers verifying against this signed manifest with the pinned key:
-#   - server/self-update.js       (source.zip line, before applying an update)
+#   - server/updates/self-update.js       (source.zip line, before applying an update)
 #   - server/updates/helper-update.js     (xenon-helper.exe line, boot self-heal;
 #                                  xenon-capture.exe line, capture engine)
 #   - the setup.exe bootstrap     (source.zip line, first install)
 # All fail closed.
 #
 # The signing PRIVATE key lives only in the repo secret XENON_UPDATE_SIGNING_KEY
-# (PKCS#8 PEM); the matching public key is pinned in server/self-update.js
+# (PKCS#8 PEM); the matching public key is pinned in server/updates/self-update.js
 # (UPDATE_PUBKEY_PEM) and in apps/native/src-tauri/windows/xenon-bootstrap.ps1.
 # If the secret is missing this job FAILS LOUDLY on purpose.
 

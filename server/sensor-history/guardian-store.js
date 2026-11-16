@@ -3,7 +3,7 @@
 // taken from a backup.
 
 const fs = require('node:fs');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { makeKeptWrite } = require('../files/kept-write.js');
 const Recent = require('./recent.js');
 const { MAX_HOURS, MAX_DAYS } = require('./guardian-limits.js');

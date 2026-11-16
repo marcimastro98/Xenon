@@ -520,7 +520,7 @@
       {"file":"server/sensor-service/engine-fps-notice.js","about":"The engine's one pop-up per version about the Windows permission that FPS needs.","names":["_fpsNotice"],"wire":{"first":"_fpsNotice","last":"_fpsNotice"},"spelled":{"./fps-notice.js":"./sensor-service/fps-notice.js","./fps-access.js":"./sensor-service/fps-access.js"}},
       {"file":"server/screens/engine-capture-last.js","about":"The engine's memory of the last steps document and bug report, for after a restart.","names":["_captureLast"],"wire":{"first":"_captureLast","last":"_captureLast"}}
     ],
-    "server/remote-access.js": [
+    "server/paired/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
       {"file":"server/paired/widget-asset-path.js","about":"The address a paired device loads a widget's files from: the key sits in the path because the cookie cannot go there, and this reads it back out.","names":["WIDGET_ASSET_PREFIX","ASSET_KEY_RE","parseWidgetAssetPath"]},
       {"file":"server/paired/own-address.js","about":"Says whether the Host and Origin a paired device sent name this PC: an IP address the PC holds now, or its own HTTPS name, and lists the addresses a device can pair at.","names":["isOwnAddressHost","isIpLiteral","isTlsNameHost","originAllowed","ownAddresses","pairingAddresses"]},
@@ -565,7 +565,7 @@
       {"file":"server/claude-code/run-projects.js","about":"Where a run may start: the projects Claude Code already worked in, read from its transcripts, and the folders added by hand.","names":["loadFolders","addFolder","listProjects"],"inner":{"factory":"createRunner","make":"makeProjects"}},
       {"file":"server/claude-code/run-events.js","about":"What a run's stream of events leaves in its record: the text said, the session, the cost and the tool calls with how they ended.","names":["appendOut","consumeEvent","toolStarted","toolEnded"],"inner":{"factory":"createRunner","make":"makeEvents"}}
     ],
-    "server/linux-collectors.js": [
+    "server/platform/linux-collectors.js": [
       {"file":"server/platform/linux-read.js","about":"The small tools every Linux reader uses: run a command, read a text file, split lines, tell a number, do several things a few at a time.","names":["run","isNum","splitLines","mapLimit","readText"]},
       {"file":"server/platform/linux-gpu.js","about":"Linux graphics card readings in the shape gpu.ps1 gives: what nvidia-smi prints, and for AMD and Intel what the kernel says under /sys/class/drm.","names":["EMPTY_GPU","parseGpu","GPU_DRIVER_NAMES","rc6Busy","parseSysfsGpu","SYSFS_DRM","readOrNull","readCardSnapshot","_rc6Last","betterGpuCandidate","sysfsGpu","NVIDIA_SMI_RETRY_MS"]},
       {"file":"server/platform/linux-disks.js","about":"Linux disks in the shapes the Windows readers give: the drives df lists, and each disk's reads, writes and temperature from /proc/diskstats and sysfs.","names":["PSEUDO_FS","SKIP_PREFIXES","skipMount","parseDisks","disks","DISK_VIRTUAL","parseDiskstats","PART_SHAPE","isWholeDisk","parseMountsFor","diskIo","readDriveTemps"]},
@@ -584,7 +584,7 @@
       {"file":"server/platform/linux-sensor-read.js","about":"The graphics card and the sensors on Linux, read live.","names":["nvidiaGpu","gpu","listSensors","readSensors"]},
       {"file":"server/platform/linux-session-actions.js","about":"What Xenon does to the Linux session when asked: lock it, send keys, show the desktop, raise a notification.","names":["lock","keysTool","keysAvailable","sendKeys","hideWindowsTool","hideWindows","notify"]}
     ],
-    "server/darwin-collectors.js": [
+    "server/platform/darwin-collectors.js": [
       {"file":"server/platform/darwin-read.js","about":"The small tools every macOS reader uses: run a command and fail, run one and get nothing on failure, split lines, tell a number.","names":["run","runSoft","splitLines","isFiniteNum"]},
       {"file":"server/platform/darwin-sensor-text.js","about":"Reads temperatures, graphics load and processor clock out of what macmon and Xenon's own macOS helper print.","names":["pickNum","ratioToPct","tupleFreq","parseMacmon","parseHelperTemps"]},
       {"file":"server/platform/darwin-disks.js","about":"macOS disks in the shapes the Windows readers give: the volumes df and mount list, and each disk's reads and writes from ioreg.","names":["skipVolume","parseMountTypes","parseDisks","disks","parseIoregDisks","diskIo"]},
@@ -971,7 +971,7 @@
       {"file":"server/search/living-index-limits.js","about":"The waits of the living index: before its process is started again, for an answer, and for the overview of a whole drive.","names":["RETRY_MS","REQ_TIMEOUT_MS","OVERVIEW_TIMEOUT_MS"]},
       {"file":"server/search/living-index-questions.js","about":"What the living index is asked: a search, the sizes of folders, the overview and the contents of a drive, the folders, the biggest files, the duplicates, and how far the index has come.","names":["query","sizes","overview","browse","dirs","list","top","dupes","stats","startingStats"],"inner":{"factory":"createLivingIndex","make":"makeQuestions"}}
     ],
-    "server/self-update.js": [
+    "server/updates/self-update.js": [
       {"file":"server/updates/self-update-apply.js","about":"The staged update handed to the applier outside this process: whether one is already under way, the applier that could not be started, the environment it is given, and the start itself.","names":["applyInFlight","onSpawnError","applierEnv","apply"],"inner":{"factory":"createSelfUpdate","make":"makeApply"}},
       {"file":"server/updates/self-update-support.js","about":"Whether this install can update itself and how: a git checkout, the reason it cannot, whether the install folder can be written, whether the update needs the administrator, and whether the shell updates without asking.","names":["isGitCheckout","unsupportedReason","supported","_installWritable","needsElevation","shellUpdatesSilently"],"inner":{"factory":"createSelfUpdate","make":"makeSupport"}}
     ],
@@ -1237,7 +1237,7 @@
     "server/updates/auto-update.js": [
       {"factory":"createAutoUpdater","object":"auState","names":["record","release","lastCheckAt","prepareTries","postponedUntil","countdown","tickTimer","ticking","stopped","lastDecision","lastBlockers","started"],"kept":[],"bare":[],"after":1}
     ],
-    "server/self-update.js": [
+    "server/updates/self-update.js": [
       {"factory":"createSelfUpdate","object":"suRun","names":["preparing","applyStartedAt","lastSpawnError"],"kept":[],"bare":[],"after":0}
     ],
     "server/store-catalog/rating-votes.js": [

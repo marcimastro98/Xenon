@@ -7,7 +7,7 @@
 // returns the SAME shapes the Windows collectors produced, so every consumer
 // below is platform-agnostic. See linux-collectors.js / darwin-collectors.js.
 const nativeCollectors =
-  process.platform === 'linux' ? require('../linux-collectors.js') :
-  process.platform === 'darwin' ? require('../darwin-collectors.js') : null;
+  process.platform === 'linux' ? require('../platform/linux-collectors.js') :
+  process.platform === 'darwin' ? require('../platform/darwin-collectors.js') : null;
 
 module.exports = { nativeCollectors };

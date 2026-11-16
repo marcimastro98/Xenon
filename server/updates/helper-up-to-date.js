@@ -13,7 +13,7 @@ const { APP_VERSION } = require('./app-version.js');
 const { HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS } = require('./check-values.js');
 const { HELPER_EXE } = require('../engine/paths.js');
 const { DATA_DIR } = require('../engine/paths.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { refreshAudioLevelsWatch } = require('../audio/levels-wanted.js');
 
 const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');

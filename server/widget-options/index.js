@@ -7,7 +7,7 @@
 
 const path = require('path');
 const fsp = require('fs').promises;
-const { writeFileAtomic } = require('../atomic-write');
+const { writeFileAtomic } = require('../files/atomic-write');
 const Options = require('./options.js');
 
 // deps: { dataDir, packages() → Promise<[{ id, name, options }]>, announce(pkgId) }

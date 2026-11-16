@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const ra = require('../remote-access.js');
+const ra = require('../paired/remote-access.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 // ── The allowlist ────────────────────────────────────────────────────────────

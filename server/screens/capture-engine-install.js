@@ -9,7 +9,7 @@ const {
 } = require('../updates/helper-update.js');
 const { APP_VERSION } = require('../updates/app-version.js');
 const { HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS } = require('../updates/check-values.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { CAPTURE_CHECK_MARKER } = require('../updates/capture-check-marker.js');
 
 // Only where an engine can lag behind the server's list, or (Linux) where its

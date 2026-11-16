@@ -14,7 +14,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const assets = require('../engine/asset-version.js');
 const { refusedCrossSite } = require('../http/cross-site.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const SERVER = engineSource();
 
 test('a module tag gets the version of its file like any script tag, so the file may stay in the cache', async (t) => {

@@ -14,7 +14,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 const D = require('../js/smart-home/smart-home-dashboard-tile.js');
 const ha = require('../actions/home-assistant.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 
 test('a page address always stays on the Home Assistant origin', () => {
   const base = 'http://ha.local:8123';

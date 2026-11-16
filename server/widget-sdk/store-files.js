@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DATA_DIR } = require('../engine/paths.js');
 const { readJsonMapSync } = require('../files/read-json-map.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 
 // ── SDK persistent store + secret vault (per-package, host-mediated) ─────────
 // The sandbox denies widgets localStorage/cookies (opaque origin), so these two

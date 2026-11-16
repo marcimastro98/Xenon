@@ -14,7 +14,7 @@ const {
 } = require('../store-catalog/rating-votes.js');
 const { createPcId, parseMachineGuid } = require('../engine/pc-id.js');
 const aiRateStore = require('../store-catalog/ai-rate-store.js');
-const { parsePlatformUuid } = require('../darwin-collectors.js');
+const { parsePlatformUuid } = require('../platform/darwin-collectors.js');
 
 const NOON = new Date(2026, 10, 6, 12).getTime();
 const TICK = 10 * 60 * 1000;

@@ -13,8 +13,8 @@ const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 const S = require('../js/system/sensor-sources.js');
-const linux = require('../linux-collectors.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const linux = require('../platform/linux-collectors.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 
 test('a choice keeps only known metrics and ids that cannot be a path or an argument split', () => {
   assert.deepEqual(S.normalizeSensorSources(null), {});

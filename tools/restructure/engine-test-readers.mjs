@@ -7,9 +7,9 @@
 //
 //   node tools/restructure/engine-test-readers.mjs            list what would change (server/server.js)
 //   node tools/restructure/engine-test-readers.mjs --write
-//   node tools/restructure/engine-test-readers.mjs --source server/remote-access.js [--write]
+//   node tools/restructure/engine-test-readers.mjs --source server/paired/remote-access.js [--write]
 //                                the same for another engine file a module was taken out of:
-//                                its reads become engineSource('server/remote-access.js')
+//                                its reads become engineSource('server/paired/remote-access.js')
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -135,7 +135,7 @@ const LOADS = /\b(?:require|import)\b(?!\.meta)/;
 function valueAfter(args, option) {
   const at = args.indexOf(option);
   if (at === -1) return undefined;
-  if (!args[at + 1] || args[at + 1].startsWith('--')) throw new Error(`${option} needs a path, for example ${option} server/remote-access.js`);
+  if (!args[at + 1] || args[at + 1].startsWith('--')) throw new Error(`${option} needs a path, for example ${option} server/paired/remote-access.js`);
   return args[at + 1];
 }
 

@@ -112,7 +112,7 @@
     "server/js/windows-tiles/slideshow-widget.js": 591,
     "server/media.ps1": 412,
     "server/processes.ps1": 329,
-    "server/remote-access.js": 449,
+    "server/paired/remote-access.js": 449,
     "server/server.js": 7847,
     "server/uninstall.ps1": 644,
     "server/uninstall.sh": 687,

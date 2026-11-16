@@ -42,44 +42,44 @@
 const os = require('os');
 // Shared with linux-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
-const procStats = require('./performance/process-stats');
+const procStats = require('../performance/process-stats');
 
-const { run, runSoft } = require('./platform/darwin-read.js');
+const { run, runSoft } = require('./darwin-read.js');
 
 
-const { parseVmStat, memory } = require('./platform/darwin-memory.js');
+const { parseVmStat, memory } = require('./darwin-memory.js');
 
-const { ratioToPct, parseMacmon, parseHelperTemps } = require('./platform/darwin-sensor-text.js');
+const { ratioToPct, parseMacmon, parseHelperTemps } = require('./darwin-sensor-text.js');
 
-const { held } = require('./platform/darwin-held.js');
+const { held } = require('./darwin-held.js');
 
-const { HELPER_EXE } = require('./platform/darwin-helper-path.js');
+const { HELPER_EXE } = require('./darwin-helper-path.js');
 
 const {
   EMPTY_SENSORS, gpu, cpuTemp, listSensors, readSensors,
-} = require('./platform/darwin-sensor-read.js');
+} = require('./darwin-sensor-read.js');
 
 held.sensorCache = { data: { ...EMPTY_SENSORS }, at: 0 };
 
-const { parseDisplaysJson } = require('./platform/darwin-displays.js');
+const { parseDisplaysJson } = require('./darwin-displays.js');
 
 const {
   parseMountTypes, parseDisks, disks, parseIoregDisks, diskIo,
-} = require('./platform/darwin-disks.js');
+} = require('./darwin-disks.js');
 
-const { parsePing, parseNetstatIb, network } = require('./platform/darwin-network.js');
+const { parsePing, parseNetstatIb, network } = require('./darwin-network.js');
 
-const { parseAppList, parseHelperWindows, quitAppArgs } = require('./platform/darwin-apps.js');
+const { parseAppList, parseHelperWindows, quitAppArgs } = require('./darwin-apps.js');
 
 
-const { windows } = require('./platform/darwin-windows.js');
+const { windows } = require('./darwin-windows.js');
 
 const {
   parseVolumeSettings, parseAudioDevices, buildAudioRows, withCurrentOutput, isCaptureTarget,
-} = require('./platform/darwin-audio.js');
+} = require('./darwin-audio.js');
 
 
-const { audioRows, audioCommand, audioAvailable } = require('./platform/darwin-audio-control.js');
+const { audioRows, audioCommand, audioAvailable } = require('./darwin-audio-control.js');
 
 // Lock the screen now — the Deck's lockWorkstation key, and the one action
 // whose macOS implementation the OS deleted underneath it. `CGSession -suspend`
@@ -168,7 +168,7 @@ async function notify(title, text) {
 
 const {
   parsePsTime, parsePsProcesses, parsePsTable, processTable, sampleProcesses,
-} = require('./platform/darwin-processes.js');
+} = require('./darwin-processes.js');
 
 const PROC_STALE_MS = 30000;
 const PROC_PRIME_MS = 250;
@@ -209,11 +209,11 @@ async function processes(top = 8) {
   };
 }
 
-const { fullDiskAccess, rootReachesHome } = require('./platform/darwin-disk-access.js');
+const { fullDiskAccess, rootReachesHome } = require('./darwin-disk-access.js');
 
 const {
   parseHidIdleTime, idleSeconds, parsePlatformUuid, machineId,
-} = require('./platform/darwin-idle.js');
+} = require('./darwin-idle.js');
 
 module.exports = {
   machineId, parsePlatformUuid,

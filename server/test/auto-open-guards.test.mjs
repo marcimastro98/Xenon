@@ -13,7 +13,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { refusedCrossSite } = require('../http/cross-site.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const { openDashboardAtSignIn } = require('../install/sign-in-open.js');
 const { retireBrowserTask, BROWSER_TASK_NAME } = require('../install/browser-auto-open-task.js');
 const win = require('../install/sign-in-windows.js');

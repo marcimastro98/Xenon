@@ -5,7 +5,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const {
   CODE_LENGTH, hashToken, newToken, newAssetKey, newCode, canonicalCode, formatCode, safeEqual,
 } = require('./tokens-and-codes.js');

@@ -1,5 +1,5 @@
 'use strict';
-const { psQuote } = require('./powershell/ps-quote');
+const { psQuote } = require('../powershell/ps-quote');
 
 // ── Self-update (safe two-step) ───────────────────────────────────────────────
 // The "safer variant": preparing an update is fully NON-destructive — we download
@@ -72,9 +72,9 @@ function pickSingleDir(entries) {
   return dirs.length === 1 ? dirs[0].name : null;
 }
 
-const { makeApply } = require('./updates/self-update-apply.js');
+const { makeApply } = require('./self-update-apply.js');
 
-const { makeSupport } = require('./updates/self-update-support.js');
+const { makeSupport } = require('./self-update-support.js');
 
 // opts (all injectable for tests): root, dataDir, repo, fetchImpl, spawn,
 // fsImpl, publicKeyPem, platform.

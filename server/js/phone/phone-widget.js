@@ -152,7 +152,7 @@
   // ── Views ────────────────────────────────────────────────────────────────
 
   // Calling and texting from a paired device are refused by
-  // server/remote-access.js, and deliberately: a call's audio comes out of the
+  // server/paired/remote-access.js, and deliberately: a call's audio comes out of the
   // PC, so one placed from another room would be a call nobody could hear, and
   // a message leaves under the user's own number from a device they might lose.
   //

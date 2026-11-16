@@ -4,7 +4,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { DATA_DIR } = require('../engine/paths.js');
 
 const SEEN_FILE = path.join(DATA_DIR, 'sign-in-seen.json');

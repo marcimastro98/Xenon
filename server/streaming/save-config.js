@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const { STREAM_CONFIG_FILE, STREAM_CONFIG_KEYS } = require('./config-files.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { writeFileAtomic } = require('../files/atomic-write.js');
 const { refreshDiscordWatch } = require('../discord/watch-refresh.js');
 const { makeStreamProviders } = require('./make-providers.js');
 const { discordLink } = require('../discord/link.js');

@@ -7,7 +7,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { FLAGS, grantFrom, plan, apply } = require('../widget-sdk/sdk-grant.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 const PKG = {

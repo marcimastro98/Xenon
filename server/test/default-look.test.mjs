@@ -24,7 +24,7 @@ const INDEX = read('index.html');
 const LIQUID_CSS = read('styles', 'themes-liquid.css');
 const PresetShare = require('../js/preset-share.js');
 const Palette = require('../js/theme-palette.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const normalizeOnServer = loadServerSettingsSlice();
 
 function defaultsOf(source) {

@@ -6,7 +6,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const featureRoutes = require('../feature-routes.js');
-const { remotePathAllowed } = require('../remote-access.js');
+const { remotePathAllowed } = require('../paired/remote-access.js');
 const { createRead } = require('../net-path/routes.js');
 
 // Every route in feature-routes.js with what the gates in front of it decide. A

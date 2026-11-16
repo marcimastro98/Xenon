@@ -51,7 +51,7 @@ const PKG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // on purpose: one directory per package, one index beside the files, and every
 // removal deleting both.
 
-const { writeFileAtomic } = require('../atomic-write');
+const { writeFileAtomic } = require('../files/atomic-write');
 
 function createAssetStore(options) {
   const o = options || {};
