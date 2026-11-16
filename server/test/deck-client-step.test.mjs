@@ -56,7 +56,7 @@ test('the route validates, and is CSRF-guarded and denied to paired devices', ()
 test('the Deck window has the mixer rows and the error toast', () => {
   const html = read('deck-popup.html');
   const deck = html.indexOf('<script src="js/deck/deck.js">');
-  for (const f of ['js/alerts/toast.js', 'js/volume.js']) {
+  for (const f of ['js/alerts/toast.js', 'js/volume/volume.js']) {
     const at = html.indexOf(`<script src="${f}">`);
     assert.ok(at > 0 && at < deck, `${f} before deck.js`);
   }

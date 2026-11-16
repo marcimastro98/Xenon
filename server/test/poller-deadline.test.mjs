@@ -74,7 +74,7 @@ const POLLERS = [
   { file: 'system.js', fn: 'fetchWeather', flag: 'fetchingWeather' },
   { file: 'system.js', fn: 'fetchSystem', flag: 'fetchingSystem' },
   { file: 'system/network.js', fn: 'fetchNetwork', flag: 'fetchingNetwork' },
-  { file: 'volume.js', fn: 'fetchAudio', flag: 'fetchingAudio' },
+  { file: 'volume/volume.js', fn: 'fetchAudio', flag: 'fetchingAudio' },
 ];
 
 function body(file, fn) {

@@ -168,7 +168,7 @@ test('mixer: the app icon is set through the DOM, never interpolated', () => {
   };
   const ctx = { setInterval: () => 0, document: { getElementById: () => null } };
   vm.createContext(ctx);
-  vm.runInContext(CLIENT_HELPERS + read('../js/volume.js'), ctx);
+  vm.runInContext(CLIENT_HELPERS + read('../js/volume/volume.js'), ctx);
   ctx.renderAppMixerRows(host, [
     { id: 'a', proc: 'a.exe', name: 'A', icon: EVIL_SRC, volume: 50 },
     { id: 'b', proc: 'b.exe', name: 'B', icon: PNG, volume: '70"><img src=x onerror=alert(1)>' },

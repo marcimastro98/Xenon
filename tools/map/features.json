@@ -363,7 +363,6 @@
         "server/soundvolumeview-x64/**",
         "server/actions/wavelink*.js",
         "server/actions/voicemeeter*.js",
-        "server/js/volume.js",
         "server/js/volume/**",
         "server/components/AudioSection/**",
         "server/components/MicPanel/**",

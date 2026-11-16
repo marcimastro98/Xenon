@@ -10,7 +10,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const MIXER = read('../components/AudioSection/LiquidMixer.css');
 const INDEX = read('../index.html');
-const VOLUME = read('../js/volume.js');
+const VOLUME = read('../js/volume/volume.js');
 
 // Selector lines: the ones that open a rule or continue a selector list.
 const selectorLines = (css) => css.split(/\r?\n/).filter((l) => /^\s*:root\b/.test(l));

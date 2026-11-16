@@ -60,7 +60,7 @@
     "server/js/grid/tile-tab-memory.js": 7,
     "server/js/timer.js": 35,
     "server/js/utils.js": 48,
-    "server/js/volume.js": 28,
+    "server/js/volume/volume.js": 28,
     "server/js/weather-tile.js": 22,
     "server/js/weather/weather-window.js": 11
   }

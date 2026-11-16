@@ -86,7 +86,7 @@ test('a session opened since the last read is found by one more read', async () 
 });
 
 test('the mixer sends the direction of its row, and the server reads it', () => {
-  const client = browserSource('server/js/volume.js');
+  const client = browserSource('server/js/volume/volume.js');
   assert.match(client, /closest\('#mic-apps'\) \? 'capture' : 'render'/);
   assert.match(client, /JSON\.stringify\(\{ id, level, proc, dir \}\)/);
   const server = engineSource();

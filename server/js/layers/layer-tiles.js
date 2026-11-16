@@ -34,7 +34,7 @@
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
     js: ['js/grid/fit-row.js', 'js/store-supporters/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/system/network.js', 'js/topbar/status.js', 'js/ai/audio-feedback.js',
-      'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume.js', 'js/audio/mic.js', 'js/audio/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js'],
+      'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume/volume.js', 'js/audio/mic.js', 'js/audio/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
