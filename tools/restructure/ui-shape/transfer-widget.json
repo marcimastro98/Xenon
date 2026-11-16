@@ -1,0 +1,212 @@
+{
+  "name": "transfer-widget",
+  "page": "/",
+  "width": 1600,
+  "height": 1200,
+  "seed": {
+    "language": "en",
+    "surfaceChoice": {
+      "kind": "auto",
+      "asked": true,
+      "monitor": "",
+      "label": ""
+    },
+    "usageMode": "dashboard",
+    "onboarding": {
+      "seenVersion": 999
+    },
+    "bootSplash": false,
+    "whatsNewSeen": "5.0.0",
+    "releaseNotesSeen": "99.0.0"
+  },
+  "answers": {
+    "/api/transfer/list": {
+      "json": {
+        "ok": true,
+        "enabled": true,
+        "bytes": 18874368,
+        "quotaBytes": 1073741824,
+        "maxBytes": 524288000,
+        "items": [
+          {
+            "id": "f1",
+            "name": "harbor-receipt.pdf",
+            "size": 245760,
+            "at": 1767225300000,
+            "direction": "in",
+            "from": "Sample phone",
+            "ext": ".pdf",
+            "thumb": false
+          },
+          {
+            "id": "f2",
+            "name": "tide-chart.png",
+            "size": 1572864,
+            "at": 1767218400000,
+            "direction": "out",
+            "ext": ".png",
+            "thumb": false
+          },
+          {
+            "id": "f3",
+            "name": "field-notes.txt",
+            "size": 4096,
+            "at": 1767132000000,
+            "direction": "in",
+            "from": "Sample tablet",
+            "ext": ".txt",
+            "thumb": false
+          }
+        ],
+        "pending": [
+          {
+            "id": "p1",
+            "name": "lake-video.mp4",
+            "total": 52428800,
+            "received": 13107200,
+            "from": "Sample phone"
+          }
+        ]
+      }
+    },
+    "/api/transfer/settings": {
+      "json": {
+        "ok": true,
+        "settings": {
+          "enabled": true,
+          "folder": ""
+        }
+      }
+    }
+  },
+  "events": {
+    "transfer": {
+      "over": {
+        "ok": true,
+        "enabled": true,
+        "bytes": 18874368,
+        "quotaBytes": 1073741824,
+        "maxBytes": 524288000,
+        "items": [
+          {
+            "id": "f1",
+            "name": "harbor-receipt.pdf",
+            "size": 245760,
+            "at": 1767225300000,
+            "direction": "in",
+            "from": "Sample phone",
+            "ext": ".pdf",
+            "thumb": false
+          },
+          {
+            "id": "f2",
+            "name": "tide-chart.png",
+            "size": 1572864,
+            "at": 1767218400000,
+            "direction": "out",
+            "ext": ".png",
+            "thumb": false
+          },
+          {
+            "id": "f3",
+            "name": "field-notes.txt",
+            "size": 4096,
+            "at": 1767132000000,
+            "direction": "in",
+            "from": "Sample tablet",
+            "ext": ".txt",
+            "thumb": false
+          }
+        ],
+        "pending": [
+          {
+            "id": "p1",
+            "name": "lake-video.mp4",
+            "total": 52428800,
+            "received": 13107200,
+            "from": "Sample phone"
+          }
+        ]
+      }
+    }
+  },
+  "roots": [
+    "[data-dashboard-widget=\"transfer\"]",
+    "#toast-island"
+  ],
+  "background": [
+    "^GET /network$",
+    "^(GET|POST) /bit/messages",
+    "^GET /index/status$",
+    "^GET /api/community/",
+    "^GET /audio$",
+    "^GET /weather",
+    "^GET /external-events$",
+    "^GET /sdk/widgets$",
+    "^POST /settings "
+  ],
+  "replace": [
+    [
+      "[0-9]+ (min|h|s) ago",
+      "n ago"
+    ],
+    [
+      "\\.is-glint",
+      ""
+    ],
+    [
+      "(animationend|transitionend):[0-9]+",
+      "$1:n"
+    ]
+  ],
+  "steps": [
+    {
+      "say": "the page has finished starting",
+      "do": "wait",
+      "ms": 3000
+    },
+    {
+      "say": "the transfer tile is put on the dashboard",
+      "do": "run",
+      "code": "addWidgetToPage('transfer', 'dashboard')"
+    },
+    {
+      "say": "the tile has drawn the files and the one arriving",
+      "do": "wait",
+      "ms": 2500
+    },
+    {
+      "say": "the help opens",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"transfer\"] .xfer-help-btn"
+    },
+    {
+      "say": "the help closes",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"transfer\"] .xfer-help-btn"
+    },
+    {
+      "say": "the first file that arrived is opened",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"transfer\"] .xfer-row[data-xfer-id=\"f1\"] .xfer-icon",
+      "nth": 0
+    },
+    {
+      "say": "its folder is shown",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"transfer\"] .xfer-row[data-xfer-id=\"f1\"] .xfer-icon",
+      "nth": 1
+    },
+    {
+      "say": "the first file is taken off the list",
+      "do": "click",
+      "on": "[data-dashboard-widget=\"transfer\"] .xfer-row[data-xfer-id=\"f1\"] .xfer-icon",
+      "nth": 2
+    },
+    {
+      "say": "the refused delete is said on its row",
+      "do": "wait",
+      "ms": 600
+    }
+  ]
+}

@@ -38,44 +38,25 @@
   const api = apiJson;
   const server = () => (typeof SERVER === 'string' ? SERVER : '');
 
-  // Server truth, replaced wholesale by every `transfer` SSE frame. A whole-list
-  // push rather than a delta: a surface that reconnects is then correct with no
-  // replay to reason about, the shape notes and tasks already use.
-  let state = { enabled: true, items: [], pending: [], bytes: 0, quotaBytes: 0, maxBytes: 0 };
-  let seeded = false;
-  // Live upload progress for the rows THIS surface is sending. The server's own
-  // counter is ahead of the network (kernel socket buffers), so the sender
-  // trusts its own numbers and the SSE frames are for everybody else.
-  const localProgress = new Map();   // localId -> { name, size, sent, status, error }
-  const queue = [];
-  let sending = false;
-  let cancelled = false;
-  let activeXhr = null;
-  let sheet = null;
-  const SHEET_MARK = 'xferSheet';
+  const {
+    held, localProgress, queue, sendRun, tiles, isRemote, settings, setup,
+  } = window.TransferWidgetKnown;
+  const {
+    sheetHold, toggleHelp, PULL_CLOSE_SHARE, PULL_FLICK, PULL_FLICK_MIN, PULL_FLICK_FRESH, closeSheet,
+    markHistory, stepBack, onBack,
+  } = window.TransferWidgetSheetSteps;
   // The last delete, while it can still be taken back. The server holds the
   // record (and its file) for a few seconds and tells us how many; this is only
   // the offer. Module-level so it survives the repaint the delete itself causes.
   let undoable = null;          // { id, name, until }
   let undoTimer = 0;
 
-  function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="transfer"]'))
-      .filter((n) => n.closest('.pager-page, .layer-slot'));
-  }
-  const isRemote = () => !!(typeof window !== 'undefined' && window.__xenonRemote);
-  const onPhone = () => !!(window.PhoneView && window.PhoneView.isActive());
-
-  function settings() {
-    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.fileTransfer : null;
-    return (hs && typeof hs === 'object') ? hs : {};
-  }
 
   function maxBytes() {
     // From the server's own state, not from settings: `fileTransfer` is
     // server-owned and the phone never receives the block, so the list payload
     // is the one place both surfaces learn the limit.
-    return Number(state.maxBytes) || (Number(settings().maxFileMb || 2048) * 1024 * 1024);
+    return Number(held.state.maxBytes) || (Number(settings().maxFileMb || 2048) * 1024 * 1024);
   }
 
   // ── sending ────────────────────────────────────────────────────────────────
@@ -126,11 +107,11 @@
   // every progress bar meaningless, and one request per file keeps the count
   // trivial against the paired-device rate limit.
   function pump() {
-    if (sending) return;
+    if (sendRun.sending) return;
     const job = queue.shift();
-    if (!job) { sending = false; cancelled = false; return; }
-    sending = true;
-    sendOne(job).then(() => { sending = false; if (!cancelled) pump(); else { queue.length = 0; cancelled = false; paint(); } });
+    if (!job) { sendRun.sending = false; sendRun.cancelled = false; return; }
+    sendRun.sending = true;
+    sendOne(job).then(() => { sendRun.sending = false; if (!sendRun.cancelled) pump(); else { queue.length = 0; sendRun.cancelled = false; paint(); } });
   }
 
   function sendOne(job) {
@@ -139,7 +120,7 @@
       if (rec) { rec.status = 'sending'; rec.sent = 0; }
       paint();
       const xhr = new XMLHttpRequest();
-      activeXhr = xhr;
+      sendRun.activeXhr = xhr;
       const url = server() + '/api/transfer/upload?name=' + encodeURIComponent(job.name);
       xhr.open('POST', url, true);
       xhr.setRequestHeader('Content-Type', 'application/octet-stream');
@@ -148,7 +129,7 @@
         if (r && e.lengthComputable) { r.sent = e.loaded; paintProgressOnly(); }
       };
       xhr.onload = () => {
-        activeXhr = null;
+        sendRun.activeXhr = null;
         const r = localProgress.get(job.localId);
         let body = null;
         try { body = JSON.parse(xhr.responseText || '{}'); } catch { body = null; }
@@ -167,14 +148,14 @@
         resolve();
       };
       xhr.onerror = xhr.ontimeout = () => {
-        activeXhr = null;
+        sendRun.activeXhr = null;
         const r = localProgress.get(job.localId);
         if (r) { r.status = 'failed'; r.error = 'net'; }
         paint();
         resolve();
       };
       xhr.onabort = () => {
-        activeXhr = null;
+        sendRun.activeXhr = null;
         localProgress.delete(job.localId);
         paint();
         resolve();
@@ -184,10 +165,10 @@
   }
 
   function cancelAll() {
-    cancelled = true;
+    sendRun.cancelled = true;
     queue.length = 0;
     for (const [id, r] of localProgress) if (r.status === 'queued') localProgress.delete(id);
-    if (activeXhr) { try { activeXhr.abort(); } catch { /* already done */ } }
+    if (sendRun.activeXhr) { try { sendRun.activeXhr.abort(); } catch { /* already done */ } }
     paint();
   }
 
@@ -310,21 +291,6 @@
   }
 
   // ── "how does this work" ───────────────────────────────────────────────────
-  // Toggled per surface, and never remembered: this is a thing you read once.
-  // Every ? button on the same mount follows the panel, so the tile's and the
-  // phone sheet's cannot disagree about whether it is open.
-  function toggleHelp(mount, force) {
-    const box = mount && mount.querySelector('.xfer-help');
-    if (!box) return;
-    const open = force == null ? box.hidden : !!force;
-    box.hidden = !open;
-    const root = mount.closest('.xfer-sheet') || mount.parentElement || mount;
-    root.querySelectorAll('.xfer-help-btn').forEach((b) => {
-      b.setAttribute('aria-expanded', String(open));
-      b.classList.toggle('is-on', open);
-    });
-  }
-
   // iOS does not fire `change` until it has finished exporting a video, which
   // for a long 4K clip is the better part of a minute of complete silence. Say
   // what is happening instead of looking dead.
@@ -378,10 +344,7 @@
     });
   }
 
-  function hasFiles(e) {
-    const types = e && e.dataTransfer && e.dataTransfer.types;
-    return !!types && Array.prototype.indexOf.call(types, 'Files') >= 0;
-  }
+  const { hasFiles, guardWindowDrops } = window.TransferWidgetWindowDrops;
 
   function rowFor(item) {
     const row = el('div', 'xfer-row');
@@ -550,7 +513,7 @@
   // Progress-only repaint: rewriting the whole list sixty times a second while
   // a video uploads would drop every open menu and thrash the layout.
   function paintProgressOnly() {
-    for (const tile of tiles().concat(sheet ? [sheet] : [])) {
+    for (const tile of tiles().concat(sheetHold.sheet ? [sheetHold.sheet] : [])) {
       const mount = tile.querySelector ? (tile.querySelector('.transfer-widget-mount') || tile) : tile;
       for (const [id, rec] of localProgress) {
         const fill = mount.querySelector(`[data-xfer-local="${id}"] .xfer-bar-fill`);
@@ -568,8 +531,8 @@
     if (usage) {
       // A pill with nothing in it is a smudge, so it goes away entirely rather
       // than rendering as an empty capsule.
-      usage.textContent = state.bytes ? formatBytes(state.bytes) : '';
-      usage.hidden = !state.bytes;
+      usage.textContent = held.state.bytes ? formatBytes(held.state.bytes) : '';
+      usage.hidden = !held.state.bytes;
     }
 
     const rows = [];
@@ -583,11 +546,11 @@
       rows.push(r);
     }
     // Uploads happening on ANOTHER surface, from the server's own view.
-    for (const p of state.pending || []) {
+    for (const p of held.state.pending || []) {
       const rec = { name: p.name, size: p.total || 0, sent: p.received || 0, status: 'sending', error: '' };
       rows.push(pendingRow(rec, p.id));
     }
-    for (const item of state.items || []) rows.push(rowFor(item));
+    for (const item of held.state.items || []) rows.push(rowFor(item));
     list.replaceChildren(...rows);
 
     // The drop panel never hides — it is where files come in, whether or not
@@ -612,13 +575,13 @@
       const mount = tile.querySelector('.transfer-widget-mount');
       if (mount) paintInto(mount);
     }
-    if (sheet) paintInto(sheet.querySelector('.transfer-widget-mount'));
+    if (sheetHold.sheet) paintInto(sheetHold.sheet.querySelector('.transfer-widget-mount'));
   }
 
   // ── the phone sheet ────────────────────────────────────────────────────────
 
   function openSheet() {
-    if (sheet) return;
+    if (sheetHold.sheet) return;
     const backdrop = el('div', 'xfer-sheet-backdrop');
     const panel = el('div', 'xfer-sheet');
     panel.setAttribute('role', 'dialog');
@@ -645,30 +608,24 @@
     backdrop.appendChild(panel);
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeSheet(); });
     document.body.appendChild(backdrop);
-    sheet = backdrop;
+    sheetHold.sheet = backdrop;
     // Nothing paints under a frosted overlay. The token is PER INSTANCE, the
     // preset-share shape: a shared one left the dashboard frozen when a dialog
     // reopened inside the previous one's close timer.
-    sheet._freezeToken = 'xfer-sheet-' + Math.random().toString(16).slice(2, 8);
-    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(sheet._freezeToken, true);
+    sheetHold.sheet._freezeToken = 'xfer-sheet-' + Math.random().toString(16).slice(2, 8);
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(sheetHold.sheet._freezeToken, true);
     paintInto(mount);
     // The two keys leave the panel for the foot, the main one last, as on every sheet.
     // The tile keeps them where they are.
     const keys = mount.querySelector('.xfer-actions');
     keys.append(keys.querySelector('.xfer-btn-primary'));
     foot.append(keys);
-    sheet._letGo = window.DialogFocus.hold(panel, { onEsc: stepBack });
+    sheetHold.sheet._letGo = window.DialogFocus.hold(panel, { onEsc: stepBack });
     armPull(panel, bar);
     markHistory();
-    if (!seeded) refresh();
+    if (!held.seeded) refresh();
   }
 
-  // Pulled down by its title bar, the sheet goes, as a phone's own sheets do. Only where it
-  // stands on the bottom edge (the CSS breakpoint): the centred dialog has no edge to go to.
-  const PULL_CLOSE_SHARE = 0.25;   // of the sheet's height
-  const PULL_FLICK = 0.5;          // px per ms: a quick flick closes from a short pull
-  const PULL_FLICK_MIN = 24;       // px: a tap that jitters is not a flick
-  const PULL_FLICK_FRESH = 100;    // ms: a finger that stopped before lifting threw nothing
   function armPull(panel, bar) {
     let pull = null;
     bar.addEventListener('pointerdown', (e) => {
@@ -702,55 +659,18 @@
     bar.addEventListener('pointercancel', () => letGo(false));
   }
 
-  // fromHistory: the phone's Back already popped our entry.
-  function closeSheet(fromHistory = false) {
-    if (!sheet) return;
-    sheet._letGo();
-    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(sheet._freezeToken, false);
-    sheet.remove();
-    sheet = null;
-    if (!fromHistory && history.state && history.state[SHEET_MARK]) history.back();
-  }
-
-  // A phone's Back would leave the page: one step in the history keeps it in the sheet.
-  function markHistory() {
-    try { history.pushState({ [SHEET_MARK]: true }, ''); } catch { /* no history here: the X still works */ }
-  }
-
-  function helpShown(mount) {
-    const box = mount.querySelector('.xfer-help');
-    return !!box && !box.hidden;
-  }
-
-  // One Esc, one step: the help goes first, the sheet after it.
-  function stepBack() {
-    const mount = sheet.querySelector('.transfer-widget-mount');
-    if (helpShown(mount)) toggleHelp(mount, false);
-    else closeSheet();
-  }
-
-  // Back is the same step. It has already spent our history entry, so a sheet that
-  // stays open takes a new one.
-  function onBack() {
-    if (!sheet) return;
-    const mount = sheet.querySelector('.transfer-widget-mount');
-    if (!helpShown(mount)) { closeSheet(true); return; }
-    toggleHelp(mount, false);
-    markHistory();
-  }
-
   window.addEventListener('popstate', onBack);
 
   // ── wiring ─────────────────────────────────────────────────────────────────
 
   async function refresh() {
     const out = await api(server() + '/api/transfer/list');
-    if (out && out.ok) { state = out; seeded = true; paint(); }
+    if (out && out.ok) { held.state = out; held.seeded = true; paint(); }
   }
 
   function onState(data) {
     if (!data || typeof data !== 'object') return;
-    state = {
+    held.state = {
       enabled: data.enabled !== false,
       items: Array.isArray(data.items) ? data.items : [],
       pending: Array.isArray(data.pending) ? data.pending : [],
@@ -758,14 +678,14 @@
       quotaBytes: Number(data.quotaBytes) || 0,
       maxBytes: Number(data.maxBytes) || 0,
     };
-    seeded = true;
+    held.seeded = true;
     paint();
     syncDock();
   }
 
   function onProgress(data) {
     if (!data || !data.id) return;
-    const p = (state.pending || []).find((x) => x.id === data.id);
+    const p = (held.state.pending || []).find((x) => x.id === data.id);
     if (p) { p.received = Number(data.received) || 0; p.total = Number(data.total) || p.total; }
     if (data.done) return;           // the following `transfer` frame owns the list
     paintProgressOnly();
@@ -773,7 +693,7 @@
 
   function syncDock() {
     if (!window.PhoneView || typeof window.PhoneView.addDockAction !== 'function') return;
-    const on = state.enabled !== false && settings().enabled !== false;
+    const on = held.state.enabled !== false && settings().enabled !== false;
     window.PhoneView.addDockAction({
       id: 'transfer',
       // The dock has no button of ours to copy an icon from, so it gets a path
@@ -790,42 +710,19 @@
 
   function renderWidgets() {
     syncDock();
-    if (!tiles().length && !sheet) return;
+    if (!tiles().length && !sheetHold.sheet) return;
     paint();
-    if (!seeded) { seeded = true; refresh(); }
-  }
-
-  // A file dropped ANYWHERE else replaces the whole dashboard with that file —
-  // the browser navigates to it. Prevented only for drags that carry files, so
-  // GridStack's own drag in layout-edit mode is untouched.
-  function guardWindowDrops() {
-    for (const type of ['dragover', 'drop']) {
-      document.addEventListener(type, (e) => {
-        if (!hasFiles(e)) return;
-        if (e.target && e.target.closest && e.target.closest('.xfer-zone')) return;
-        e.preventDefault();
-      });
-    }
+    if (!held.seeded) { held.seeded = true; refresh(); }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', guardWindowDrops, { once: true });
   else guardWindowDrops();
 
   // ── Settings → Telefono ────────────────────────────────────────────────────
-  // Rendered in JS into an empty div, the shape remote-access-page.js uses. It
-  // reads and writes /api/transfer/settings, which is loopback-only: the folder
-  // is a path on THIS PC, so it is not in the settings blob a phone receives
-  // and cannot be edited from one.
-  //
-  // One section of the same rows as every Settings page (SettingsPage.css).
-  let cfg = null;
-  let settingsBox = null;
-  let pushInfo = { supported: false, secure: false };
-
   async function initSettings() {
     const box = document.getElementById('settings-transfer');
     if (!box) return;
-    settingsBox = box;
+    setup.settingsBox = box;
     if (isRemote()) {
       // Rather than spend a request to be told no. The panel is not hidden —
       // saying where it lives is more useful than pretending it does not exist.
@@ -836,12 +733,12 @@
     }
     const out = await api(server() + '/api/transfer/settings');
     if (!out || !out.ok) return;
-    cfg = out;
+    setup.cfg = out;
     // pushState() is async (it asks the service worker), so it is resolved here
     // rather than read inside the render — a sync read of a promise is always
     // truthy and would have shown the toggle on every machine.
     try {
-      if (window.Pwa && typeof window.Pwa.pushState === 'function') pushInfo = await window.Pwa.pushState();
+      if (window.Pwa && typeof window.Pwa.pushState === 'function') setup.pushInfo = await window.Pwa.pushState();
     } catch { /* no service worker here */ }
     renderSettings();
   }
@@ -852,12 +749,12 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     });
-    if (out && out.ok) { cfg = { ...cfg, ...out }; return { ok: true }; }
+    if (out && out.ok) { setup.cfg = { ...setup.cfg, ...out }; return { ok: true }; }
     return { ok: false, error: (out && out.error) || 'failed' };
   }
 
   function renderSettings() {
-    if (!settingsBox || !cfg) return;
+    if (!setup.settingsBox || !setup.cfg) return;
     const page = sectionPage();
 
     page.append(toggleRow('enabled', t('xfer_settings_enabled', 'Attiva il trasferimento file'),
@@ -867,13 +764,13 @@
     // A folder field belonging to a feature that is not running is a control
     // that asks to be filled in and then does nothing — the same reason the
     // device list above hides its own body when access is off.
-    if (cfg.enabled !== false) {
+    if (setup.cfg.enabled !== false) {
       page.append(...folderRows());
 
       // Hidden entirely rather than shown broken: a toggle that cannot work is
       // worse than an absent one. Push needs the HTTPS door AND a phone that
       // has already been given notification permission.
-      if (pushInfo && pushInfo.supported && pushInfo.secure) {
+      if (setup.pushInfo && setup.pushInfo.supported && setup.pushInfo.secure) {
         page.append(toggleRow('notifyPhone', t('xfer_settings_notify', 'Avvisa il telefono quando c’è un file'),
           t('xfer_settings_notify_hint', 'Solo per i file che metti qui dal PC. L’avviso non contiene il nome del file.')));
       }
@@ -882,7 +779,7 @@
         'Possono mandare file i telefoni e i tablet che hai già associato qui sopra. Per fermarne uno, rimuovilo dall’elenco.')));
     }
 
-    settingsBox.replaceChildren(page);
+    setup.settingsBox.replaceChildren(page);
   }
 
   // The arrival folder: where the copy goes, and whether a copy is made at all.
@@ -891,8 +788,8 @@
   function folderRows() {
     const deliver = toggleRow('autoDeliver', t('xfer_settings_deliver', 'Copia i file in quella cartella'),
       t('xfer_settings_deliver_hint', 'Da spento i file restano solo nell’elenco di Xenon, e li apri o li salvi da lì.'));
-    if (cfg.autoDeliver === false) return [deliver];
-    return [deliver, cfg.canPick === true ? pickedFolderField() : typedFolderField()];
+    if (setup.cfg.autoDeliver === false) return [deliver];
+    return [deliver, setup.cfg.canPick === true ? pickedFolderField() : typedFolderField()];
   }
 
   // Where the capture engine runs (Windows), the folder comes from the
@@ -900,15 +797,15 @@
   // path to type, and the server checks the answer like a typed one.
   function pickedFolderField() {
     const field = el('div', 'settings-row xfer-set-field');
-    const shown = el('span', 'settings-hint xfer-set-path', cfg.inboxDir || '');
+    const shown = el('span', 'settings-hint xfer-set-path', setup.cfg.inboxDir || '');
     const status = el('div', 'xfer-set-status');
     const pick = el('button', 'settings-btn', t('settings_capture_pick', 'Cambia'));
     pick.type = 'button';
     const reset = el('button', 'settings-btn', t('xfer_settings_folder_default', 'Torna a Download'));
     reset.type = 'button';
     const sync = () => {
-      shown.textContent = cfg.inboxDir || '';
-      reset.hidden = !cfg.inboxDir || cfg.inboxDir === cfg.inboxDefault;
+      shown.textContent = setup.cfg.inboxDir || '';
+      reset.hidden = !setup.cfg.inboxDir || setup.cfg.inboxDir === setup.cfg.inboxDefault;
     };
     sync();
 
@@ -920,7 +817,7 @@
       pick.disabled = false;
       if (out && out.ok && out.cancelled) return;
       if (out && out.ok) {
-        cfg = { ...cfg, ...out };
+        setup.cfg = { ...setup.cfg, ...out };
         sync();
         status.textContent = t('settings_saved', 'Salvato');
         status.className = 'xfer-set-status is-ok';
@@ -952,7 +849,7 @@
     const edit = document.createElement('input');
     edit.type = 'text';
     edit.className = 'settings-text-input xfer-set-input';
-    edit.value = cfg.inboxDir || '';
+    edit.value = setup.cfg.inboxDir || '';
     edit.spellcheck = false;
     edit.setAttribute('aria-label', t('xfer_settings_folder', 'Cartella di arrivo'));
 
@@ -964,14 +861,14 @@
 
     // Save is live only while the field differs from what is stored, so the
     // panel says at a glance whether there is an unsaved edit sitting in it.
-    const sync = () => { apply.disabled = edit.value.trim() === (cfg.inboxDir || ''); };
+    const sync = () => { apply.disabled = edit.value.trim() === (setup.cfg.inboxDir || ''); };
     sync();
     edit.addEventListener('input', () => { status.textContent = ''; status.className = 'xfer-set-status'; sync(); });
 
     apply.addEventListener('click', async () => {
       const res = await saveSettings({ inboxDir: edit.value.trim() });
       if (res.ok) {
-        edit.value = cfg.inboxDir || '';
+        edit.value = setup.cfg.inboxDir || '';
         status.textContent = t('settings_saved', 'Salvato');
         status.className = 'xfer-set-status is-ok';
       } else {
@@ -982,7 +879,7 @@
     });
     reset.addEventListener('click', async () => {
       const res = await saveSettings({ inboxDir: '' });
-      if (res.ok) { edit.value = cfg.inboxDir || ''; status.textContent = ''; status.className = 'xfer-set-status'; sync(); }
+      if (res.ok) { edit.value = setup.cfg.inboxDir || ''; status.textContent = ''; status.className = 'xfer-set-status'; sync(); }
     });
 
     const actions = el('div', 'xfer-set-actions');
@@ -998,7 +895,7 @@
     input.className = 'settings-check';
     // Default-off keys read `=== true`, default-on keys read `!== false`, the
     // same split normalizeFileTransfer uses on the server.
-    input.checked = key === 'notifyPhone' ? cfg[key] === true : cfg[key] !== false;
+    input.checked = key === 'notifyPhone' ? setup.cfg[key] === true : setup.cfg[key] !== false;
     input.addEventListener('change', async () => {
       const res = await saveSettings({ [key]: input.checked });
       if (!res.ok) { input.checked = !input.checked; return; }
