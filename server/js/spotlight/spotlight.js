@@ -36,7 +36,7 @@
   // ── tiny formatters ──────────────────────────────────────────────────────
 
   // ── file-type icon (compact inline SVG set) ──────────────────────────────
-  const KIND_OF_EXT = {};
+  const { KIND_OF_EXT, ICON_PATHS, highlightName, PREVIEW_EXTS } = window.SpotlightFileKinds;
   for (const [kind, exts] of Object.entries({
     image: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'svg', 'tif', 'tiff'],
     video: ['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv', 'm4v'],
@@ -45,18 +45,6 @@
     zip: ['zip', 'rar', '7z', 'tar', 'gz', 'iso'],
     exe: ['exe', 'msi', 'lnk', 'bat', 'cmd'],
   })) for (const e of exts) KIND_OF_EXT[e] = kind;
-
-  const ICON_PATHS = {
-    folder: 'M4 5h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
-    image: 'M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 12 4.5-5 3.5 4 2.5-3L20 16v2H5v-2Zm3.5-9A1.75 1.75 0 1 1 8.5 10.5 1.75 1.75 0 0 1 8.5 7Z',
-    video: 'M4 5h11a1 1 0 0 1 1 1v3.5l5-3v11l-5-3V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
-    audio: 'M9 4h2v12.6a3.4 3.4 0 1 1-2-3.1V4Zm5 2 6-2v10.6a3.4 3.4 0 1 1-2-3.1V7.5l-4 1.3V6Z',
-    doc: 'M6 2h8l5 5v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Zm7 1.5V8h4.5L13 3.5ZM8 12h8v1.6H8V12Zm0 4h8v1.6H8V16Z',
-    zip: 'M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm6 1v2h2V4h-2Zm0 3v2h2V7h-2Zm0 3v2h2v-2h-2Zm-1 3.5h4l1 4a3 3 0 1 1-6 0l1-4Z',
-    exe: 'M12 2 4 6v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V6l-8-4Zm0 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z',
-    file: 'M6 2h8l5 5v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Zm7 1.5V8h4.5L13 3.5Z',
-    app: 'M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z',
-  };
 
   function iconFor(r) {
     const ext = String(r.ext || '').toLowerCase();
@@ -126,37 +114,18 @@
     if (!pending) requestIcon(key, r.id);
   }
 
-  // Highlight query terms inside an UNTRUSTED file name without innerHTML:
-  // split on the matches and append text nodes + <b> spans.
-  function highlightName(name, terms) {
-    const frag = document.createDocumentFragment();
-    const lower = name.toLowerCase();
-    const ranges = [];
-    for (const term of terms || []) {
-      const tl = String(term).toLowerCase();
-      if (tl.length < 2) continue;
-      let idx = lower.indexOf(tl);
-      while (idx !== -1) { ranges.push([idx, idx + tl.length]); idx = lower.indexOf(tl, idx + 1); }
-    }
-    ranges.sort((a, b) => a[0] - b[0]);
-    let pos = 0;
-    for (const [s, e] of ranges) {
-      if (s < pos) continue;
-      if (s > pos) frag.appendChild(document.createTextNode(name.slice(pos, s)));
-      const b = document.createElement('b');
-      b.textContent = name.slice(s, e);
-      frag.appendChild(b);
-      pos = e;
-    }
-    if (pos < name.length) frag.appendChild(document.createTextNode(name.slice(pos)));
-    return frag;
-  }
-
   // ── chips (the parser's interpretation, removable) ───────────────────────
   // ── filters the menu adds (as words the parser already understands) ───────
 
-  const PREVIEW_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif']);
-  let rowSeq = 0;
+  const spotState = {
+    rowSeq: 0,
+    root: null,             // overlay element (built lazily)
+    shell: null,            // the pill/panel that expands while typing
+    ui: null,               // the overlay's search surface
+    openState: false,
+    pull: null,               // { x, y, id, active, zone, zoneRect, detached, cx }
+    dropEl: null,
+  };
 
   // ── the search surface factory ───────────────────────────────────────────
   // Builds the bar (glass, input, filters, AI sparkle, optional ×) + body
@@ -185,7 +154,7 @@
     let lastResults = [];
     let selIndex = -1;
     let disabled = {};           // chip dimensions the user removed this session
-    const listId = 'spot-list-' + (++rowSeq);
+    const listId = 'spot-list-' + (++spotState.rowSeq);
 
     function setExpanded(expanded) {
       stateHost.classList.toggle('spot-expanded', !!expanded);
@@ -773,10 +742,6 @@
   }
 
   // ── overlay shell (one createSearchUI instance) ──────────────────────────
-  let root = null;             // overlay element (built lazily)
-  let shell = null;            // the pill/panel that expands while typing
-  let ui = null;               // the overlay's search surface
-  let openState = false;
   let onCloseNav = null;       // popup page: close = window.close
 
   // The popup page listens to this to grow/shrink its own window.
@@ -820,19 +785,19 @@
   }
 
   function build() {
-    if (root) return root;
-    root = document.createElement('div');
-    root.className = 'spotlight';
-    root.hidden = true;
+    if (spotState.root) return spotState.root;
+    spotState.root = document.createElement('div');
+    spotState.root.className = 'spotlight';
+    spotState.root.hidden = true;
 
     // One shell that IS the pill when closed and grows into the results panel
     // while typing — a single continuous rounded surface, Apple-style.
-    shell = document.createElement('div');
-    shell.className = 'spot-shell';
-    ui = createSearchUI({
-      host: shell,
-      stateHost: root,
-      keyHost: root,
+    spotState.shell = document.createElement('div');
+    spotState.shell.className = 'spot-shell';
+    spotState.ui = createSearchUI({
+      host: spotState.shell,
+      stateHost: spotState.root,
+      keyHost: spotState.root,
       withClose: true,
       onClose: () => close(),
       onExpand: announceExpand,
@@ -843,13 +808,13 @@
       preview: true,
       onChat: chatHandler(),
     });
-    root.appendChild(shell);
+    spotState.root.appendChild(spotState.shell);
 
     // A tap on the frosted backdrop (outside the panel) closes.
-    root.addEventListener('pointerdown', (e) => { if (e.target === root) close(); });
+    spotState.root.addEventListener('pointerdown', (e) => { if (e.target === spotState.root) close(); });
 
-    document.body.appendChild(root);
-    return root;
+    document.body.appendChild(spotState.root);
+    return spotState.root;
   }
 
   // ── open / close ─────────────────────────────────────────────────────────
@@ -859,15 +824,15 @@
 
   function open() {
     build();
-    if (openState) { ui.focus(); return; }
-    openState = true;
-    root.hidden = false;
-    root.classList.add('spot-open', 'spot-pop');
-    setTimeout(() => root.classList.remove('spot-pop'), 350);
+    if (spotState.openState) { spotState.ui.focus(); return; }
+    spotState.openState = true;
+    spotState.root.hidden = false;
+    spotState.root.classList.add('spot-open', 'spot-pop');
+    setTimeout(() => spotState.root.classList.remove('spot-pop'), 350);
     if (window.ambientFreeze) window.ambientFreeze('spotlight', true);
-    ui.reset();
-    ui.focus();
-    ui.greet();
+    spotState.ui.reset();
+    spotState.ui.focus();
+    spotState.ui.greet();
     // Start the catalog host now, so the first query does not pay for it.
     fetch('/search?q=').catch(() => {});
   }
@@ -875,25 +840,25 @@
   // A new search in a window that stayed as it was left: no old text, no results.
   function fresh() {
     open();
-    ui.reset();
-    ui.focus();
+    spotState.ui.reset();
+    spotState.ui.focus();
   }
 
   function greet() {
-    if (ui) ui.greet();
+    if (spotState.ui) spotState.ui.greet();
   }
 
   function openWithQuery(q) {
     open();
-    if (q) ui.setQuery(q);
+    if (q) spotState.ui.setQuery(q);
   }
 
   function close() {
-    if (!openState || !root) return;
-    openState = false;
-    ui.stop();
-    root.classList.remove('spot-open', 'spot-pop', 'spot-expanded', 'spot-loading');
-    root.hidden = true;
+    if (!spotState.openState || !spotState.root) return;
+    spotState.openState = false;
+    spotState.ui.stop();
+    spotState.root.classList.remove('spot-open', 'spot-pop', 'spot-expanded', 'spot-loading');
+    spotState.root.hidden = true;
     announceExpand(false);
     if (window.ambientFreeze) window.ambientFreeze('spotlight', false);
     if (typeof onCloseNav === 'function') onCloseNav();
@@ -915,16 +880,14 @@
   // Horizontal drags and plain taps are untouched: the gesture claims the
   // pointer only after clearly vertical movement.
   const DETACH_AT = 0.4;         // fraction of PULL_OPEN_PX where the drop pinches off
-  let pull = null;               // { x, y, id, active, zone, zoneRect, detached, cx }
-  let dropEl = null;
 
   function ensureDrop() {
-    if (dropEl) return dropEl;
-    dropEl = document.createElement('div');
-    dropEl.className = 'spot-drop';
-    dropEl.hidden = true;
-    document.body.appendChild(dropEl);
-    return dropEl;
+    if (spotState.dropEl) return spotState.dropEl;
+    spotState.dropEl = document.createElement('div');
+    spotState.dropEl.className = 'spot-drop';
+    spotState.dropEl.hidden = true;
+    document.body.appendChild(spotState.dropEl);
+    return spotState.dropEl;
   }
 
   // Where the shell rests once open — the drop glides to this rect.
@@ -948,28 +911,28 @@
 
   function attachGesture() {
     document.addEventListener('pointerdown', (e) => {
-      if (openState) return;
+      if (spotState.openState) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       const zone = e.target && e.target.closest && e.target.closest('.topbar, #topbar-mini');
       if (!zone) return;
-      pull = { x: e.clientX, y: e.clientY, id: e.pointerId, active: false, zone, zoneRect: zone.getBoundingClientRect(), detached: false, cx: e.clientX };
+      spotState.pull = { x: e.clientX, y: e.clientY, id: e.pointerId, active: false, zone, zoneRect: zone.getBoundingClientRect(), detached: false, cx: e.clientX };
     });
 
     window.addEventListener('pointermove', (e) => {
-      if (!pull || e.pointerId !== pull.id) return;
-      const dy = e.clientY - pull.y;
-      const dx = Math.abs(e.clientX - pull.x);
-      if (!pull.active) {
+      if (!spotState.pull || e.pointerId !== spotState.pull.id) return;
+      const dy = e.clientY - spotState.pull.y;
+      const dx = Math.abs(e.clientX - spotState.pull.x);
+      if (!spotState.pull.active) {
         if (dy > PULL_START_PX && dy > dx * 1.5) {
-          pull.active = true;
+          spotState.pull.active = true;
           if (reducedMotion()) return;
           const d = ensureDrop();
           d.className = 'spot-drop spot-drop-attached';
           d.hidden = false;
           d.style.borderRadius = '50% / 44% 56%';
-          pull.cx = Math.max(pull.zoneRect.left + 24, Math.min(pull.zoneRect.right - 24, e.clientX));
+          spotState.pull.cx = Math.max(spotState.pull.zoneRect.left + 24, Math.min(spotState.pull.zoneRect.right - 24, e.clientX));
         } else if (dx > 24 || dy < -PULL_START_PX) {
-          pull = null; // horizontal or upward: not ours
+          spotState.pull = null; // horizontal or upward: not ours
         }
         return;
       }
@@ -983,68 +946,68 @@
       const drag = Math.max(0, dy);
       const p = Math.min(1, drag / PULL_OPEN_PX);
       const ease = 1 - Math.pow(1 - p, 2);
-      const zr = pull.zoneRect;
+      const zr = spotState.pull.zoneRect;
       const w = 42 + ease * 24;
       const h = 14 + ease * 46;
 
-      if (!pull.detached && p >= DETACH_AT) {
+      if (!spotState.pull.detached && p >= DETACH_AT) {
         // Pinch-off: the capsule springs back elastic; the drop is free now.
-        pull.detached = true;
-        zoneRelease(pull.zone, false);
-        dropEl.classList.remove('spot-drop-attached');
+        spotState.pull.detached = true;
+        zoneRelease(spotState.pull.zone, false);
+        spotState.dropEl.classList.remove('spot-drop-attached');
       }
 
       // The drop rides just under the fingertip (slight lag — a drop trails,
       // it doesn't teleport), clamped onto the capsule while still attached.
-      const tx = pull.detached ? e.clientX : Math.max(zr.left + 24, Math.min(zr.right - 24, e.clientX));
-      pull.cx += (tx - pull.cx) * (pull.detached ? 0.3 : 0.5);
+      const tx = spotState.pull.detached ? e.clientX : Math.max(zr.left + 24, Math.min(zr.right - 24, e.clientX));
+      spotState.pull.cx += (tx - spotState.pull.cx) * (spotState.pull.detached ? 0.3 : 0.5);
       const bottom = zr.bottom + drag * 0.8;
-      dropEl.style.width = w + 'px';
-      dropEl.style.height = h + 'px';
-      dropEl.style.left = (pull.cx - w / 2) + 'px';
-      dropEl.style.top = (bottom - h) + 'px';
+      spotState.dropEl.style.width = w + 'px';
+      spotState.dropEl.style.height = h + 'px';
+      spotState.dropEl.style.left = (spotState.pull.cx - w / 2) + 'px';
+      spotState.dropEl.style.top = (bottom - h) + 'px';
 
-      if (!pull.detached) {
+      if (!spotState.pull.detached) {
         // Still one body: stretch the capsule gently and keep a thinning neck
         // bridging its bottom edge and the drop (the neck is the ::before,
         // sized by these vars — it covers whatever gap the pull opens).
         const local = p / DETACH_AT;
-        zoneStretch(pull.zone, local);
+        zoneStretch(spotState.pull.zone, local);
         const gap = Math.max(0, (bottom - h) - (zr.bottom + local * 6));
-        dropEl.style.setProperty('--neck-h', (gap + 10).toFixed(1) + 'px');
-        dropEl.style.setProperty('--neck-w', (30 - local * 14).toFixed(1) + 'px');
+        spotState.dropEl.style.setProperty('--neck-h', (gap + 10).toFixed(1) + 'px');
+        spotState.dropEl.style.setProperty('--neck-w', (30 - local * 14).toFixed(1) + 'px');
       }
-      dropEl.classList.toggle('spot-drop-ready', drag >= PULL_OPEN_PX);
+      spotState.dropEl.classList.toggle('spot-drop-ready', drag >= PULL_OPEN_PX);
     }, { passive: false });
 
     const finish = (e) => {
-      if (!pull || (e.pointerId != null && e.pointerId !== pull.id)) return;
-      const wasActive = pull.active;
-      const dy = wasActive ? (e.clientY - pull.y) : 0;
-      const zone = pull.zone;
-      const zr = pull.zoneRect;
-      const detached = pull.detached;
-      const cx = pull.cx;
-      pull = null;
+      if (!spotState.pull || (e.pointerId != null && e.pointerId !== spotState.pull.id)) return;
+      const wasActive = spotState.pull.active;
+      const dy = wasActive ? (e.clientY - spotState.pull.y) : 0;
+      const zone = spotState.pull.zone;
+      const zr = spotState.pull.zoneRect;
+      const detached = spotState.pull.detached;
+      const cx = spotState.pull.cx;
+      spotState.pull = null;
       if (!wasActive) return;
       if (reducedMotion()) {
-        if (dy >= PULL_OPEN_PX && !openState) open();
+        if (dy >= PULL_OPEN_PX && !spotState.openState) open();
         return;
       }
-      if (!dropEl) return;
-      if (dy >= PULL_OPEN_PX && !openState) {
+      if (!spotState.dropEl) return;
+      if (dy >= PULL_OPEN_PX && !spotState.openState) {
         // Phase 3 (commit): the drop glides into the pill's resting place and
         // BECOMES the search bar; the shell fades in underneath it.
         if (!detached) zoneRelease(zone, false);
         const rest = shellRestRect();
-        dropEl.classList.remove('spot-drop-ready', 'spot-drop-attached');
-        dropEl.classList.add('spot-drop-commit');
-        dropEl.style.left = rest.left + 'px';
-        dropEl.style.top = rest.top + 'px';
-        dropEl.style.width = rest.width + 'px';
-        dropEl.style.height = rest.height + 'px';
-        dropEl.style.borderRadius = '18px';
-        const d = dropEl;
+        spotState.dropEl.classList.remove('spot-drop-ready', 'spot-drop-attached');
+        spotState.dropEl.classList.add('spot-drop-commit');
+        spotState.dropEl.style.left = rest.left + 'px';
+        spotState.dropEl.style.top = rest.top + 'px';
+        spotState.dropEl.style.width = rest.width + 'px';
+        spotState.dropEl.style.height = rest.height + 'px';
+        spotState.dropEl.style.borderRadius = '18px';
+        const d = spotState.dropEl;
         setTimeout(() => {
           open();
           setTimeout(() => { d.hidden = true; d.classList.remove('spot-drop-commit'); }, 160);
@@ -1052,15 +1015,15 @@
       } else {
         // Phase 3 (absorb): surface tension wins — the drop flies back to the
         // capsule's bottom edge and the capsule swallows it with a bounce.
-        dropEl.classList.remove('spot-drop-ready', 'spot-drop-attached');
-        dropEl.classList.add('spot-drop-retract');
+        spotState.dropEl.classList.remove('spot-drop-ready', 'spot-drop-attached');
+        spotState.dropEl.classList.add('spot-drop-retract');
         const backX = Math.max(zr.left + 26, Math.min(zr.right - 26, cx));
-        dropEl.style.left = (backX - 11) + 'px';
-        dropEl.style.top = (zr.bottom - 12) + 'px';
-        dropEl.style.width = '22px';
-        dropEl.style.height = '10px';
-        dropEl.style.borderRadius = '50%';
-        const d = dropEl;
+        spotState.dropEl.style.left = (backX - 11) + 'px';
+        spotState.dropEl.style.top = (zr.bottom - 12) + 'px';
+        spotState.dropEl.style.width = '22px';
+        spotState.dropEl.style.height = '10px';
+        spotState.dropEl.style.borderRadius = '50%';
+        const d = spotState.dropEl;
         setTimeout(() => {
           zoneRelease(zone, true); // the absorb bounce fires as the drop lands
           setTimeout(() => { d.hidden = true; d.classList.remove('spot-drop-retract'); }, 60);
@@ -1083,7 +1046,7 @@
     window.addEventListener('keydown', (e) => {
       if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'Space') {
         e.preventDefault();
-        if (openState) close(); else open();
+        if (spotState.openState) close(); else open();
       }
     });
   }
@@ -1092,9 +1055,9 @@
 
   window.Spotlight = {
     open, openWithQuery, close, fresh,
-    say(text) { open(); ui.say(text); },
-    toggle() { if (openState) close(); else open(); },
-    isOpen() { return openState; },
+    say(text) { open(); spotState.ui.say(text); },
+    toggle() { if (spotState.openState) close(); else open(); },
+    isOpen() { return spotState.openState; },
     createSearchUI,
     chatHandler,
     greet,
