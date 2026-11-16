@@ -7,7 +7,7 @@
 // a line that said none had come. The first line now ends the wait itself.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const WIDGET = readFileSync(new URL('../js/streaming/twitchwatch-widget.js', import.meta.url), 'utf8');
 

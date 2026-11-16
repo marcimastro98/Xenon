@@ -14,7 +14,7 @@
 // `twitchWatch` SDK stream, which is fed from the same list via publishWatch().
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const WIDGET = readFileSync(new URL('../js/streaming/twitchwatch-widget.js', import.meta.url), 'utf8');
 
