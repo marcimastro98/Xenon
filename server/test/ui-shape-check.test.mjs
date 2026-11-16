@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PAGE_NAME, initScript, shapeLines } from '../../tools/restructure/ui-shape/ui-shape-page.mjs';
+import { PAGE_NAME, initScript, overEvents, shapeLines } from '../../tools/restructure/ui-shape/ui-shape-page.mjs';
 import { bodyShape, firstDifference, laidOver, planProblems, replacerOf, requestLine, shapeOfValue } from '../../tools/restructure/ui-shape/ui-shape-plan.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -49,6 +49,40 @@ test('the script given to the page carries the reader as code and builds no code
   assert.match(script, new RegExp(PAGE_NAME));
   assert.match(script, /function shapeLines\(/);
   assert.doesNotMatch(script, /new Function|\beval\(/);
+});
+
+test('an event of the copy\'s stream reaches the page\'s listener with the plan\'s keys laid over it; other events as sent', () => {
+  const script = initScript({ status: { over: { gaming: false, where: { room: 'desk' } } } });
+  assert.match(script, /function overEvents\(/);
+  assert.doesNotMatch(script, /new Function|\beval\(/);
+  assert.doesNotMatch(initScript(), /overEvents/, 'a plan with no events leaves the stream alone');
+  // The stream of a page, as far as the function reads it.
+  class FakeSource { addEventListener(type, listener) { (this.heard ??= []).push([type, listener]); } }
+  class FakeMessage { constructor(type, init) { Object.assign(this, { type }, init); } }
+  const real = { EventSource: globalThis.EventSource, MessageEvent: globalThis.MessageEvent };
+  const got = [];
+  try {
+    Object.assign(globalThis, { EventSource: FakeSource, MessageEvent: FakeMessage });
+    overEvents({ status: { over: { gaming: false, where: { room: 'desk' } } } });
+    const source = new FakeSource();
+    source.addEventListener('status', (event) => got.push(event.data));
+    source.addEventListener('media', (event) => got.push(event.data));
+    const [[, status], [, media]] = source.heard;
+    status({ data: JSON.stringify({ gaming: true, muted: true, where: { room: 'den', floor: 1 } }), origin: 'http://127.0.0.1:3043', lastEventId: '' });
+    status({ data: 'not json' });
+    media({ data: JSON.stringify({ gaming: true }) });
+  } finally {
+    Object.assign(globalThis, real);
+  }
+  assert.deepEqual(got, [JSON.stringify({ gaming: false, muted: true, where: { room: 'desk', floor: 1 } }), 'not json', JSON.stringify({ gaming: true })]);
+});
+
+test('the events of a plan are named as the stream names them and are laid over, never invented whole', () => {
+  assert.deepEqual(planProblems({ ...PLAN, events: { status: { over: { gaming: false } } } }), []);
+  assert.equal(planProblems({ ...PLAN, events: [] }).length, 1);
+  assert.equal(planProblems({ ...PLAN, events: { 'Status!': { over: {} } } }).length, 1);
+  assert.equal(planProblems({ ...PLAN, events: { status: { json: { gaming: false } } } }).length, 1);
+  assert.equal(planProblems({ ...PLAN, events: { status: { over: [1] } } }).length, 1);
 });
 
 test('a plan that can be walked has no problem; each thing missing is said', () => {

@@ -7,7 +7,7 @@ const STEPS = {
 const DEPTH = 6;
 
 /**
- * @param {any} plan `{ name, page, width, height, roots: [css], steps: [{ say, do, … }], skip?: [css], background?: [regex], replace?: [[regex, text]], quietMs?, settleMs?, seed?: {settings}, answers?: { [path]: { json } | { over } } }`
+ * @param {any} plan `{ name, page, width, height, roots: [css], steps: [{ say, do, … }], skip?: [css], background?: [regex], replace?: [[regex, text]], quietMs?, settleMs?, seed?: {settings}, answers?: { [path]: { json } | { over } }, events?: { [name]: { over } } }`
  * @returns {string[]} every reason the plan cannot be walked; none when it can
  */
 export function planProblems(plan) {
@@ -36,6 +36,11 @@ export function planProblems(plan) {
     if (!/^\/(?!\/)[^?#]*$/.test(asked)) problems.push(`an answer is for a path of the copy, from its first slash and without what is asked after it: "${asked}"`);
     if (!answer || typeof answer !== 'object' || ('json' in answer) === ('over' in answer)) problems.push(`the answer for ${asked} is { "json": … } (all of it, invented) or { "over": {…} } (laid over what the copy says)`);
     else if ('over' in answer && !(answer.over && typeof answer.over === 'object' && !Array.isArray(answer.over))) problems.push(`the \`over\` of ${asked} is an object`);
+  }
+  if (plan.events !== undefined && !(plan.events && typeof plan.events === 'object' && !Array.isArray(plan.events))) problems.push('`events` gives, for an event of the copy\'s stream, the keys laid over what it says');
+  for (const [type, event] of Object.entries(plan.events && typeof plan.events === 'object' ? plan.events : {})) {
+    if (!/^[a-z][a-z0-9_]*$/.test(type)) problems.push(`an event is named as the stream names it: "${type}"`);
+    if (!(event && typeof event === 'object' && event.over && typeof event.over === 'object' && !Array.isArray(event.over) && Object.keys(event).length === 1)) problems.push(`the event ${type} is { "over": {…} } (laid over what the copy says)`);
   }
   if (plan.replace !== undefined && !(Array.isArray(plan.replace) && plan.replace.every((pair) => Array.isArray(pair) && pair.length === 2 && pair.every((part) => typeof part === 'string')))) problems.push('`replace` is a list of [pattern, text] pairs');
   return problems;

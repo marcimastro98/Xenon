@@ -110,7 +110,30 @@ export function installInPage(name, lines, handlers) {
   };
 }
 
-/** @returns {string} the script a page of the check starts with */
-export function initScript() {
-  return `(${installInPage.toString()})(${JSON.stringify(PAGE_NAME)}, ${shapeLines.toString()}, ${JSON.stringify(PROPERTY_HANDLERS)});`;
+/**
+ * Lays invented keys over what an event of the copy's stream says, before the page's own listener reads it: the state
+ * of this PC (a game running, say) comes over that stream, and a recording must not depend on it. Runs in the page.
+ * @param {{ [type: string]: { over: object } }} events by the name of the event
+ */
+export function overEvents(events) {
+  const plain = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  const lay = (under, over) => (plain(under) && plain(over) ? Object.fromEntries([...Object.keys(under), ...Object.keys(over)].map((key) => [key, key in over ? lay(under[key], over[key]) : under[key]])) : over);
+  const proto = typeof EventSource === 'function' ? EventSource.prototype : null;
+  if (!proto) return;
+  const add = proto.addEventListener;
+  proto.addEventListener = function addLaidOver(type, listener, options) {
+    const over = Object.hasOwn(events, type) ? events[type].over : null;
+    if (!over || typeof listener !== 'function') return add.call(this, type, listener, options);
+    return add.call(this, type, function laidOver(event) {
+      let said;
+      try { said = JSON.parse(event.data); } catch { return listener.call(this, event); }
+      return listener.call(this, new MessageEvent(type, { data: JSON.stringify(lay(said, over)), origin: event.origin, lastEventId: event.lastEventId }));
+    }, options);
+  };
+}
+
+/** @param {{ [type: string]: { over: object } }} [events] the plan's `events` @returns {string} the script a page of the check starts with */
+export function initScript(events) {
+  const laid = events && Object.keys(events).length ? `(${overEvents.toString()})(${JSON.stringify(events)});` : '';
+  return `(${installInPage.toString()})(${JSON.stringify(PAGE_NAME)}, ${shapeLines.toString()}, ${JSON.stringify(PROPERTY_HANDLERS)});${laid}`;
 }

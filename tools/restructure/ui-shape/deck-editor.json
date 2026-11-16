@@ -39,6 +39,7 @@
     "/api/voicemeeter/state": { "json": { "strips": [{ "index": 0, "label": "Mic" }, { "index": 1, "label": "Game" }], "buses": [{ "label": "A1", "name": "Speakers" }, { "label": "B1", "name": "Stream" }] } },
     "/api/lighting/devices": { "json": { "devices": [{ "value": "dev-1", "label": "Desk strip" }, { "value": "dev-2", "label": "Shelf lamp" }], "parts": [{ "value": "dev-1/1", "label": "Desk strip, left" }] } },
     "/api/homeassistant/entities": { "json": { "entities": [{ "id": "light.desk", "name": "Desk light", "area": "Study" }, { "id": "switch.fan", "name": "Fan" }, { "id": "media_player.radio", "name": "Radio" }] } },
+    "/status": { "over": { "gaming": false, "gameRunning": false, "gameProcess": null } },
     "/audio": { "json": { "speaker": { "id": "out-1", "muted": false, "volume": 40 }, "speakers": [{ "id": "out-1", "name": "Desk speakers", "label": "Desk speakers (Example)" }, { "id": "out-2", "name": "Headset", "label": "Headset (Example)" }], "speakerApps": [] } },
     "/api/battery": { "json": { "devices": [{ "name": "Desk mouse", "percent": 80 }, { "name": "Headset", "percent": 55 }] } },
     "/audio/apps": { "json": { "apps": [{ "proc": "player.exe", "name": "Player" }, { "proc": "game.exe", "name": "Game" }] } },
@@ -54,6 +55,9 @@
         "states": [{ "id": "lit", "name": "Lit" }]
       }
     }] } }
+  },
+  "events": {
+    "status": { "over": { "gaming": false, "gameRunning": false, "gameProcess": null } }
   },
   "background": ["^GET /network$", "^(GET|POST) /bit/messages", "^GET /index/status$", "^GET /api/community/", "^GET /audio$", "^GET /weather", "^GET /external-events$", "^GET /sdk/widgets$", "^POST /settings "],
   "replace": [["\\.is-glint", ""], ["(animationend|transitionend):[0-9]+", "$1:n"], ["key-id=\"k_[a-z0-9]+\"", "key-id=\"k_…\""], ["deck-slider-fill \\[style=\"[^\"]*\"\\]", "deck-slider-fill"]],

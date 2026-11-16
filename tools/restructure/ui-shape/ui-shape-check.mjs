@@ -17,7 +17,8 @@
 // page. No picture is taken. A request that would leave the copy is refused before it is
 // sent and written down. The plan's `answers` make the copy say an invented list for a path
 // (`json`), or lay invented keys over what it says (`over`), so the branches that need a
-// list are walked without a real service behind them. `--record` writes the recording; `--against` compares with one of
+// list are walked without a real service behind them; its `events` lay invented keys over an event of the copy's
+// stream the same way, so what this PC is doing (a game running) is not in a recording. `--record` writes the recording; `--against` compares with one of
 // the same engine and ends with 1 and the first difference. Port 3030 is refused.
 //
 // The plan is JSON (ui-shape-plan.mjs says what it must hold); the plans live in
@@ -121,7 +122,7 @@ export async function walk(browser, port, plan) {
     const answers = plan.answers ?? {};
     const errors = [];
     const flying = new Set();
-    await context.addInitScript(initScript());
+    await context.addInitScript(initScript(plan.events));
     await context.route('**/*', (route) => {
       const request = route.request();
       const given = staysOnCopy(request.url(), port) && request.method() === 'GET' ? answers[new URL(request.url()).pathname] : null;
