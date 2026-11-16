@@ -9,7 +9,7 @@ import { makeDom, settle } from './mini-dom.mjs';
 
 const TILES = [
   { file: 'media/lyrics-widget.js', mount: 'lyrics-widget-mount', api: 'LyricsWidget', state: '/api/features/lyrics' },
-  { file: 'devclean-widget.js', mount: 'devclean-widget-mount', api: 'DevCleanWidget', state: '/api/features/devclean' },
+  { file: 'devclean-widget/devclean-widget.js', mount: 'devclean-widget-mount', api: 'DevCleanWidget', state: '/api/features/devclean' },
 ];
 
 function load({ file, mount: mountClass, api }) {

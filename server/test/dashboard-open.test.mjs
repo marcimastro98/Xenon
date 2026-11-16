@@ -332,7 +332,7 @@ test('a tile Set up button opens Settings, from a widget on the screen in the me
 
   const spec = read('../../apps/native/src-tauri/src/layers/spec.rs');
   const files = ['discord-widget/discord-widget', 'smart-home', 'media/spotify-widget', 'streaming/streamerbot-widget', 'streaming-page/streaming-page',
-    'streaming/twitchwatch-widget', 'streaming/youtubelive-widget', 'streaming/youtube-widget', 'unifi-widget', 'disk-widget', 'media/lyrics-view', 'windows-tiles/slideshow-widget'];
+    'streaming/twitchwatch-widget', 'streaming/youtubelive-widget', 'streaming/youtube-widget', 'unifi-widget', 'disk-widget/disk-widget', 'media/lyrics-view', 'windows-tiles/slideshow-widget'];
   for (const f of files) {
     const src = read(`../js/${f}.js`);
     assert.doesNotMatch(src, /toggleSettings\(\)/, f + ' still opens Settings itself');

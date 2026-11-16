@@ -126,7 +126,7 @@ test('every list of providers on the client knows it', () => {
   for (const file of ['js/ai/ai.js', 'js/performance/performance.js']) {
     assert.match(read(file), /\['ollama', 'localapi', 'openai'/, file);
   }
-  for (const file of ['js/ai/ai.js', 'js/media/media.js', 'js/disk-widget.js', 'js/performance/performance.js']) {
+  for (const file of ['js/ai/ai.js', 'js/media/media.js', 'js/disk-widget/disk-widget.js', 'js/performance/performance.js']) {
     assert.match(read(file), /=== 'ollama' \|\| \w+ === 'localapi'\) return true/, file);
   }
 });

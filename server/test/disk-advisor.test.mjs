@@ -1,4 +1,4 @@
-// The disk analysis window (js/disk-widget.js): one list that opens row by row, Esc, nothing left
+// The disk analysis window (js/disk-widget/disk-widget.js): one list that opens row by row, Esc, nothing left
 // behind when it closes, and the tile's confirm panel with the keys of every other window.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/disk-widget.js');
+const SRC = read('../js/disk-widget/disk-widget.js');
 
 // One declaration of the widget by its name, cut to its own end. The widget is several scripts
 // read one after the other, so a piece is never "what lies between this line and that one":
@@ -241,7 +241,7 @@ test('the widget window carries what the window needs, in order', () => {
   const layer = read('../js/layers/layer-tiles.js');
   const entry = layer.slice(layer.indexOf("disk: tile('disk'"), layer.indexOf("devclean: tile('devclean'"));
   assert.ok(entry.includes("'styles/liquid-sheets.css'"));
-  assert.ok(entry.indexOf("'js/dialog-focus.js'") > 0 && entry.indexOf("'js/dialog-focus.js'") < entry.indexOf("'js/disk-widget.js'"));
+  assert.ok(entry.indexOf("'js/dialog-focus.js'") > 0 && entry.indexOf("'js/dialog-focus.js'") < entry.indexOf("'js/disk-widget/disk-widget.js'"));
 });
 
 test('it sits with the other windows, under notifications', () => {

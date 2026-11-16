@@ -304,6 +304,8 @@
     {"from":"server/js/fans-widget.js","to":"server/js/fans-widget/fans-widget.js"},
     {"from":"server/js/guardian-history.js","to":"server/js/guardian-history/guardian-history.js"},
     {"from":"server/js/history-chart.js","to":"server/js/history-chart/history-chart.js"},
-    {"from":"server/js/system.js","to":"server/js/system/system.js"}
+    {"from":"server/js/system.js","to":"server/js/system/system.js"},
+    {"from":"server/js/devclean-widget.js","to":"server/js/devclean-widget/devclean-widget.js"},
+    {"from":"server/js/disk-widget.js","to":"server/js/disk-widget/disk-widget.js"}
   ]
 }

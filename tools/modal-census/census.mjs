@@ -16,7 +16,7 @@ const SIZES = { monitor: [1920, 1080], edge: [2560, 720], laptop: [1366, 768], t
 
 // Private openers made reachable for the picture, in the served copy only.
 export const PATCHES = {
-  'disk-widget.js': [['window.DiskWidget = {', 'window.__disk = (o, s) => { overview = o; status = s; openAdvisorModal(); }; window.__diskBox = (o, s, cat) => { overview = o; status = s; confirmCat = cat; selectedIds = new Set(o.categories[cat].items.map((item) => item.i)); return renderConfirm(); }; window.DiskWidget = {']],
+  'disk-widget/disk-widget.js': [['window.DiskWidget = {', 'window.__disk = (o, s) => { overview = o; status = s; openAdvisorModal(); }; window.__diskBox = (o, s, cat) => { overview = o; status = s; confirmCat = cat; selectedIds = new Set(o.categories[cat].items.map((item) => item.i)); return renderConfirm(); }; window.DiskWidget = {']],
   'layers/layer-key.js': [["if (!e.isTrusted || node.classList.contains('is-running')) return;", "if (node.classList.contains('is-running')) return;"], ['if (host() && host().editing()) return;', '']],
   'bit-message-card/bit-message-card.js': [['setTimeout(drawFace, FOLD_MS)', 'setTimeout(drawFace, window.__fold || FOLD_MS)']],
   'store-supporters/discord-invite.js': [['function maybeShowStartup() {', 'function maybeShowStartup() { window.__discordCard = showCard; return;']],
