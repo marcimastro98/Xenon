@@ -18,7 +18,7 @@ test('semantic contract loads after light compatibility and before visual skins'
   assert.equal(light >= 0 && light < contract, true);
   assert.equal(contract < retro && retro < comic, true);
   assert.equal(
-    html.indexOf('<script src="js/theme-palette.js"') < html.indexOf('<script src="js/settings.js"'),
+    html.indexOf('<script src="js/look/theme-palette.js"') < html.indexOf('<script src="js/settings.js"'),
     true,
   );
 });
@@ -76,7 +76,7 @@ test('per-widget palettes rebuild material aliases at tile scope', () => {
   for (const token of ['--panel', '--panel-soft', '--panel-border', '--glass-bg', '--slider-fill', '--slider-track']) {
     assert.match(source, new RegExp(`['\"]${token}['\"]\\s*:`), token);
   }
-  assert.match(read('js', 'theme-palette.js'), /'--line-rgb'/);
+  assert.match(read('js', 'look/theme-palette.js'), /'--line-rgb'/);
 });
 
 test('Vitals portals and Bit pixel surfaces consume semantic theme roles', () => {

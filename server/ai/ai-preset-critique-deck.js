@@ -6,7 +6,7 @@
 // read on their cap. Findings use the same paths as the create_preset report.
 
 const DeckActions = require('../js/deck/deck-actions.js');
-const themePalette = require('../js/theme-palette.js');
+const themePalette = require('../js/look/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding, worstContrast } = require('./ai-preset-critique-core.js');
 
 // The cap faces of components/DeckPanel/DeckPanel.css (default cap style): a

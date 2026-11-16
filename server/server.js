@@ -65,7 +65,7 @@ const { createCaptureGallery } = require('./screens/capture-gallery');
 const { createCaptureSend } = require('./screens/capture-send');
 const { createCaptureCopy } = require('./screens/capture-copy');
 require('./js/grid/page-target.js'); // which page "go to Streaming" means (shared with the pager); nothing is taken from it here, but it runs code when it loads
-const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
+const TileMaterial = require('./js/look/tile-material.js'); // the materials style_tile may name (shared with the style window)
 require('./windows-tiles/tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 require('./ai/favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 require('./ai/settings-ai'); // change_setting: the allowlisted Settings switches
@@ -412,7 +412,7 @@ const { seedReadings } = require('./http/sse-seed.js'); // what a new feed clien
 const UsageMode = require('./js/first-run/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
 const PerfHud = require('./js/performance/perf-hud.js'); // what the Game performance tile shows (shared with the client)
 const ScreenSceneModel = require('./js/ambient/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
-require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
+require('./js/look/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai/ai-local');
 const aiOpenai = require('./ai/ai-openai');

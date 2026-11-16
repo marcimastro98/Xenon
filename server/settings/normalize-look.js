@@ -4,7 +4,7 @@
 const { clampNumber, normalizeHex } = require('./values.js');
 const { SETTINGS_MIN_PANEL_ALPHA } = require('../look/background-values.js');
 const { sanitizeSettingsUiFont } = require('../look/font-setting.js');
-const themePalette = require('../js/theme-palette.js');
+const themePalette = require('../js/look/theme-palette.js');
 const { sanitizeSettingsBackgroundMedia } = require('../look/background-media.js');
 const { DEFAULT_HUB_SETTINGS } = require('./defaults.js');
 const { normalizeLockWidgets } = require('./normalize-lock-widgets.js');

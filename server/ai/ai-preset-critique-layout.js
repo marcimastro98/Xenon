@@ -10,7 +10,7 @@ const DashboardPresets = require('../js/dashboard-presets.js');
 const DashboardInstances = require('../js/dashboard-instances.js');
 const DashboardGrid = require('../js/grid/dashboard-grid.js');
 const AmbientScene = require('../js/ambient-scene.js');
-const themePalette = require('../js/theme-palette.js');
+const themePalette = require('../js/look/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding, overlapArea, contains, boxText } = require('./ai-preset-critique-core.js');
 
 // ── page ───────────────────────────────────────────────────────────────────

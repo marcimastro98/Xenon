@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { normalizeTileShape, normalizeTileStyle, TILE_SHAPE_PRESETS } = require('../js/dashboard-instances.js');
 const { normalizePresets, insertPreset } = require('../js/dashboard-presets.js');
-const { TILE_SHAPES, tileShapePath, tileShapeSafe } = require('../js/tile-shape-presets.js');
+const { TILE_SHAPES, tileShapePath, tileShapeSafe } = require('../js/look/tile-shape-presets.js');
 
 // Per-tile SHAPE: a tile is a rectangle unless it says otherwise. A shape is
 // either a curated preset id (no bytes in a share code) or the author's own SVG

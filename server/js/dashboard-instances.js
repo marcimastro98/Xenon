@@ -63,12 +63,12 @@ const TILE_OVERLAY_ANCHORS = ['top-left', 'top', 'top-right', 'left', 'center', 
 // tile-decor-presets.js (id → label/url) so adding a curated asset is ONE edit.
 // Loaded before this file in index.html; require() covers node (server + tests).
 const _TDP = (typeof window !== 'undefined' && window.TileDecorPresets)
-  || (() => { try { return require('./tile-decor-presets.js'); } catch { return null; } })();
+  || (() => { try { return require('./look/tile-decor-presets.js'); } catch { return null; } })();
 const TILE_FRAME_PRESETS = _TDP ? _TDP.TILE_DECOR_FRAMES.map(f => f.id) : [];
 // Colour, glow, motion, pattern, glow and edge bar, plus the tile's controls.
 // Absent (a stale page), those fields are dropped rather than trusted.
 const _TDS = (typeof window !== 'undefined' && window.TileDecorSchema)
-  || (() => { try { return require('./tile-decor-schema.js'); } catch { return null; } })();
+  || (() => { try { return require('./look/tile-decor-schema.js'); } catch { return null; } })();
 const TILE_OVERLAY_PRESETS = _TDP ? _TDP.TILE_DECOR_OVERLAYS.map(o => o.id) : [];
 // Per-image char caps (a data URI is ~1.37× the byte size). Generous but bounded.
 const TILE_BG_MAX_CHARS = 1500000;      // ~1.1 MB background picture
@@ -113,7 +113,7 @@ function _tileGrad(raw) {
 // an allowlisted character set (no '<', no '"', no '(' — so no url(), no
 // element, no comment), a length cap and a command-count cap.
 const _TSP = (typeof window !== 'undefined' && window.TileShapePresets)
-  || (() => { try { return require('./tile-shape-presets.js'); } catch { return null; } })();
+  || (() => { try { return require('./look/tile-shape-presets.js'); } catch { return null; } })();
 const TILE_SHAPE_PRESETS = _TSP ? _TSP.TILE_SHAPES.map(s => s.id) : [];
 const TILE_SHAPE_FITS = ['stretch', 'fit'];
 const TILE_SHAPE_PATH_MAX = 1024;

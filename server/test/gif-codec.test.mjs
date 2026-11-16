@@ -8,8 +8,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const GifRead = require('../js/gif-read.js');
-const GifWrite = require('../js/gif-write.js');
+const GifRead = require('../js/look/gif-read.js');
+const GifWrite = require('../js/look/gif-write.js');
 
 // A frame of w x h filled by fn(x, y) -> [r, g, b, a].
 function frame(w, h, fn, delay = 100) {
@@ -216,7 +216,7 @@ const src = f => readFileSync(new URL(f, import.meta.url), 'utf8');
 test('the codec loads before the editors that use it', () => {
   const INDEX = src('../index.html');
   const at = f => INDEX.indexOf(`<script src="js/${f}"></script>`);
-  const codec = ['gif-read.js', 'gif-write.js', 'anim-picture.js'].map(at);
+  const codec = ['look/gif-read.js', 'look/gif-write.js', 'look/anim-picture.js'].map(at);
   assert.ok(codec.every(i => i > 0), 'on the page');
   assert.deepEqual(codec, codec.slice().sort((a, b) => a - b), 'reader, writer, then the picker glue');
   for (const user of ['ambient-canvas-editor-form/ambient-canvas-editor-form.js', 'deck/deck.js', 'deck-editor/deck-editor.js']) {

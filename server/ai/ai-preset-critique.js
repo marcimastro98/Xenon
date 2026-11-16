@@ -14,7 +14,7 @@
 const PresetShare = require('../js/preset-share.js');
 const TopbarShare = require('../js/topbar-share.js');
 const CustomBg = require('../js/custom-bg.js');
-const themePalette = require('../js/theme-palette.js');
+const themePalette = require('../js/look/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding } = require('./ai-preset-critique-core.js');
 const { critiquePage, critiqueScene } = require('./ai-preset-critique-layout.js');
 const { critiqueDeck } = require('./ai-preset-critique-deck.js');

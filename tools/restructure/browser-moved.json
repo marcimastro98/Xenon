@@ -337,6 +337,15 @@
     {"from":"server/js/deck-editor.js","to":"server/js/deck-editor/deck-editor.js"},
     {"from":"server/js/deck-icons.js","to":"server/js/deck/deck-icons.js"},
     {"from":"server/js/deck-model.js","to":"server/js/deck/deck-model.js"},
-    {"from":"server/js/deck-shortcuts.js","to":"server/js/deck/deck-shortcuts.js"}
+    {"from":"server/js/deck-shortcuts.js","to":"server/js/deck/deck-shortcuts.js"},
+    {"from":"server/js/anim-picture.js","to":"server/js/look/anim-picture.js"},
+    {"from":"server/js/gif-read.js","to":"server/js/look/gif-read.js"},
+    {"from":"server/js/gif-write.js","to":"server/js/look/gif-write.js"},
+    {"from":"server/js/theme-palette.js","to":"server/js/look/theme-palette.js"},
+    {"from":"server/js/tile-controls.js","to":"server/js/look/tile-controls.js"},
+    {"from":"server/js/tile-decor-presets.js","to":"server/js/look/tile-decor-presets.js"},
+    {"from":"server/js/tile-decor-schema.js","to":"server/js/look/tile-decor-schema.js"},
+    {"from":"server/js/tile-material.js","to":"server/js/look/tile-material.js"},
+    {"from":"server/js/tile-shape-presets.js","to":"server/js/look/tile-shape-presets.js"}
   ]
 }

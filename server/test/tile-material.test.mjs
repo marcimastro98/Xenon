@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
 globalThis.window = { DashboardInstances: DI };
-const TM = require('../js/tile-material.js');
+const TM = require('../js/look/tile-material.js');
 const { workingCopy, buildStyle } = require('../js/look/tile-style-editor.js');
 
 const luminance = (hex) => {

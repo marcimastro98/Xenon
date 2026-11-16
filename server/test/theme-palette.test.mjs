@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const P = require('../js/theme-palette.js');
+const P = require('../js/look/theme-palette.js');
 
 test('derive builds a complete accessible dark palette from legacy theme keys', () => {
   const p = P.derive({ background: '#070808', text: '#f0f3f1', accent: '#1ed760' }, 'dark');

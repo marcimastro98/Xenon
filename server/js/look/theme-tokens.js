@@ -8,7 +8,7 @@
 // settings it reads are already normalized (client and server normalize them
 // with the same defaults).
 (function (root, factory) {
-  const palette = root.ThemePalette || (typeof require === 'function' ? require('../theme-palette.js') : null);
+  const palette = root.ThemePalette || (typeof require === 'function' ? require('./theme-palette.js') : null);
   const api = factory(palette);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.ThemeTokens = api;

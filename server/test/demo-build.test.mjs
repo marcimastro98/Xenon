@@ -37,7 +37,7 @@ test('the only required source patch — SERVER in state.js — is still anchore
 
 test('the curated tile decor URLs the demo makes relative are still anchored', () => {
   // Root paths 404 under /demo/, so the build rewrites both to relative ones.
-  const src = read('server', 'js', 'tile-decor-presets.js');
+  const src = read('server', 'js', 'look/tile-decor-presets.js');
   assert.equal(countOf(src, '`/assets/decor/frame-'), 1, 'build-demo.mjs patches the frame URL here');
   assert.equal(countOf(src, '`/assets/decor/overlay-'), 1, 'build-demo.mjs patches the sticker URL here');
 });

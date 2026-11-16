@@ -76,7 +76,7 @@ export function loadServerSettingsSlice() {
   const context = vm.createContext({
     TopbarLook: require('../js/topbar/topbar-look.js'),
     LayersModel: require('../js/layers/layers-model.js'),
-    themePalette: require('../js/theme-palette.js'),
+    themePalette: require('../js/look/theme-palette.js'),
     contentInstalls: require('../js/store-catalog/content-installs.js'),
     sanitizeBgAssets, sanitizeBgFps,
   });

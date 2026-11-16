@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const ThemeTokens = require('../js/look/theme-tokens.js');
-const ThemePalette = require('../js/theme-palette.js');
+const ThemePalette = require('../js/look/theme-palette.js');
 
 function fakeRoot() {
   const props = new Map();

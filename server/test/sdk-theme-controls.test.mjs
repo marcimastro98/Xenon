@@ -7,8 +7,8 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ThemePalette = require('../js/theme-palette.js');
-const TileControls = require('../js/tile-controls.js');
+const ThemePalette = require('../js/look/theme-palette.js');
+const TileControls = require('../js/look/tile-controls.js');
 const SRC = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
 
 /** The real themePayload, for a frame on a tile with these controls and computed tokens. */

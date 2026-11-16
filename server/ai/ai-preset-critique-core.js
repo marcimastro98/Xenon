@@ -3,10 +3,10 @@
 // Shared pieces of the create_preset critique (ai-preset-critique.js): the
 // finding shape, the WCAG contrast test and box geometry. A finding is
 // computed, never taste: a ratio below a threshold, two boxes that intersect,
-// a key that shows nothing. Colour maths is the app's own (js/theme-palette.js),
+// a key that shows nothing. Colour maths is the app's own (js/look/theme-palette.js),
 // so a ratio here is the ratio the app's contrast guard would compute.
 
-const themePalette = require('../js/theme-palette.js');
+const themePalette = require('../js/look/theme-palette.js');
 
 // WCAG 2 minimums: body text, and large text or UI parts (icons, borders, state).
 const BODY_TEXT = 4.5;

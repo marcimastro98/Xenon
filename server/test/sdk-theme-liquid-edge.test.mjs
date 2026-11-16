@@ -12,7 +12,7 @@ import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ThemePalette = require('../js/theme-palette.js');
+const ThemePalette = require('../js/look/theme-palette.js');
 const SRC = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
 
 /** The real computedHex + lookMode + themePayload, for a tile with these computed tokens. */

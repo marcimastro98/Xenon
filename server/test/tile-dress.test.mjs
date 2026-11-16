@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 
 const DI = require('../js/dashboard-instances.js');
 globalThis.window = { DashboardInstances: DI, innerWidth: 1920 };
-const TileMaterial = require('../js/tile-material.js');
+const TileMaterial = require('../js/look/tile-material.js');
 const PageTarget = require('../js/grid/page-target.js');
 const { workingCopy, buildStyle } = require('../js/look/tile-style-editor.js');
 
