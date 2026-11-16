@@ -36,7 +36,7 @@ test('the Theme faceplate paints with the tile tokens and gives way inside a tab
     assert.ok(all.length > 0, f);
     for (const sel of all) assert.match(sel, /:not\(\[data-deck-themeplate\]\)/, f + ': ' + sel);
   }
-  assert.match(read('../js/dashboard-tabgroups.js'), /toggleAttribute\('data-deck-themeplate'/);
+  assert.match(read('../js/dashboard-tabgroups/dashboard-tabgroups.js'), /toggleAttribute\('data-deck-themeplate'/);
   assert.match(read('../js/deck/deck.js'), /mount\.toggleAttribute\('data-deck-themeplate'/);
 });
 

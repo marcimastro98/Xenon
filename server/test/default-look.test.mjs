@@ -213,7 +213,7 @@ test('with no cover behind them the words take the ink of the sheet, in light mo
 });
 
 test('only dashboard tiles take the glass, and a tile can say no', () => {
-  const src = read('js', 'dashboard-layout.js');
+  const src = read('js', 'dashboard-layout/dashboard-layout.js');
   const at = src.indexOf('function tileTakesStyleGlass(');
   assert.notEqual(at, -1);
   const body = src.slice(at, src.indexOf('\n}\n', at) + 2);

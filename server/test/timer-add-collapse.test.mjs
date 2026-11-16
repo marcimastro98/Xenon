@@ -80,7 +80,7 @@ test('both settings normalizers carry timerAddCollapsed', () => {
 test('a Timer copy is still cloned without the add section', () => {
   // Copies share one add row — the flag is global for that reason. The
   // strippers match on .timer-add-section, which the new wrapper still carries.
-  const layout = read('js', 'dashboard-layout.js');
+  const layout = read('js', 'dashboard-layout/dashboard-layout.js');
   assert.match(layout, /function stripTimerClone\(clone\) \{[\s\S]*\.timer-add-section/);
   assert.match(layout, /function stripAgendaClone\(clone\) \{[\s\S]*\.timer-add-section/);
   assert.match(HTML, /class="timer-add-section"/);

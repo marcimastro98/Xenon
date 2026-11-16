@@ -24,7 +24,7 @@ import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTML = readFileSync(join(__dirname, '..', 'index.html'), 'utf8');
-const LAYOUT = readFileSync(join(__dirname, '..', 'js', 'dashboard-layout.js'), 'utf8');
+const LAYOUT = readFileSync(join(__dirname, '..', 'js', 'dashboard-layout/dashboard-layout.js'), 'utf8');
 
 const VIEWS = ['calendar', 'tasks', 'timer', 'notes'];
 

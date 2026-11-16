@@ -9,7 +9,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
-const TG = require('../js/dashboard-tabgroups.js');
+const TG = require('../js/dashboard-tabgroups/dashboard-tabgroups.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('normalizeTileTabs keeps valid colours per tab and drops the rest', () => {
@@ -54,9 +54,9 @@ test('tabColorVars maps one tab and keeps a picked background readable', () => {
 });
 
 test('the group tile paints its tabs on render and on a live style repaint', () => {
-  const src = read('../js/dashboard-tabgroups.js');
+  const src = read('../js/dashboard-tabgroups/dashboard-tabgroups.js');
   assert.match(src, /paintGroupTabs\(gridItem, group\.style && group\.style\.tabs\);/);
-  const layout = read('../js/dashboard-layout.js');
+  const layout = read('../js/dashboard-layout/dashboard-layout.js');
   assert.match(layout, /window\.DashboardTabGroups\.paintGroupTabs\(el, style && style\.tabs\);/);
   // A style pasted onto a tile that is not a tab group drops the tab colours.
   assert.match(layout, /if \(style && style\.tabs && !\(layout\.groups && layout\.groups\[id\]\)\)/);

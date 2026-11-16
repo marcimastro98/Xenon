@@ -17,7 +17,7 @@ function page(assigned = {}) {
     addEventListener() {},
     CustomWidget: { assignedName: (id) => assigned[id] || '' },
   };
-  vm.runInNewContext(read('../js/dashboard-tabgroups.js'), {
+  vm.runInNewContext(read('../js/dashboard-tabgroups/dashboard-tabgroups.js'), {
     window,
     document: dom.document,
     t: (key) => WORDS[key] ?? key,
@@ -65,7 +65,7 @@ test('drawing group tiles never redraws the whole app', () => {
   assert.equal(dashboard.passes.whole, 0);
 });
 
-for (const file of ['dashboard-tabgroups.js', 'grid/dashboard-palette.js', 'deck-editor.js']) {
+for (const file of ['dashboard-tabgroups/dashboard-tabgroups.js', 'grid/dashboard-palette.js', 'deck-editor.js']) {
   test(`${file} asks for its own words, not a whole-app pass`, () => {
     assert.doesNotMatch(read(`../js/${file}`), /applyTranslations\(\)/);
   });

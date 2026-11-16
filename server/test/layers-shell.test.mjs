@@ -331,7 +331,7 @@ test('macOS: the capture engine leaves the windows that ask not to be captured o
 });
 
 test('wiring: the main page syncs at the end of every layout apply, after layer-host', () => {
-  const d = read('../js/dashboard-layout.js');
+  const d = read('../js/dashboard-layout/dashboard-layout.js');
   assert.match(d, /step\('layerHost', \(\) => window\.LayerHost\.place\(\)\);\n  else if \(window\.LayersShell\) step\('layersShell', \(\) => window\.LayersShell\.sync\(\)\);/);
   assert.match(read('../js/native-bridge.js'), /function onDisplaysChanged\(\) \{\n    \/\/ [^\n]*\n    if \(window\.LayersShell\) window\.LayersShell\.onDisplays\(\);/);
   const html = read('../index.html');

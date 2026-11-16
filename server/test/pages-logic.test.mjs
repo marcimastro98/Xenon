@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const p = require('../js/dashboard-pages.js');
+const p = require('../js/dashboard-pages/dashboard-pages.js');
 
 const SEED = [{ id: 'dashboard', name: '', nameKey: 'page_dashboard' }, { id: 'lighting', name: '', nameKey: 'page_lighting' }];
 

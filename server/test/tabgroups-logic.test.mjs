@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const tg = require('../js/dashboard-tabgroups.js');
+const tg = require('../js/dashboard-tabgroups/dashboard-tabgroups.js');
 
 test('rectsOverlapRatio: full overlap = 1, none = 0, half ≈ 0.5', () => {
   assert.equal(tg.rectsOverlapRatio({ x: 0, y: 0, w: 4, h: 4 }, { x: 0, y: 0, w: 4, h: 4 }), 1);

@@ -320,6 +320,9 @@
     {"from":"server/js/vitals-pet.js","to":"server/js/vitals-pet/vitals-pet.js"},
     {"from":"server/js/ambient-canvas-editor-form.js","to":"server/js/ambient-canvas-editor-form/ambient-canvas-editor-form.js"},
     {"from":"server/js/topbar-look-settings.js","to":"server/js/topbar-look-settings/topbar-look-settings.js"},
-    {"from":"server/js/topbar-media.js","to":"server/js/topbar-media/topbar-media.js"}
+    {"from":"server/js/topbar-media.js","to":"server/js/topbar-media/topbar-media.js"},
+    {"from":"server/js/dashboard-layout.js","to":"server/js/dashboard-layout/dashboard-layout.js"},
+    {"from":"server/js/dashboard-pages.js","to":"server/js/dashboard-pages/dashboard-pages.js"},
+    {"from":"server/js/dashboard-tabgroups.js","to":"server/js/dashboard-tabgroups/dashboard-tabgroups.js"}
   ]
 }

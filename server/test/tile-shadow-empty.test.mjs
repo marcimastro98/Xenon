@@ -19,9 +19,9 @@ import { engineSource } from './engine-source.mjs';
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const GRID = read('../components/DashboardGrid/DashboardGrid.css');
 const DECKCSS = read('../components/DeckPanel/DeckPanel.css');
-const LAYOUT = read('../js/dashboard-layout.js');
+const LAYOUT = read('../js/dashboard-layout/dashboard-layout.js');
 const DECK = read('../js/deck/deck.js');
-const GROUPS = read('../js/dashboard-tabgroups.js');
+const GROUPS = read('../js/dashboard-tabgroups/dashboard-tabgroups.js');
 
 function fakeEl() {
   const attrs = new Set();

@@ -229,7 +229,7 @@ test('scene pictures, key pictures and Deck decorations keep moving pictures mov
     assert.match(src(f), /AnimPicture\.fitAnimatedPicture\(file, \{ maxChars: [A-Z_]+, maxSide: /, f);
   }
   // Tile decorations upload the file itself: an animated WebP or APNG skips the canvas.
-  assert.match(src('../js/dashboard-layout.js'), /GifRead\.animatedKind\(head\)\) return file;/);
+  assert.match(src('../js/dashboard-layout/dashboard-layout.js'), /GifRead\.animatedKind\(head\)\) return file;/);
 });
 
 test('what a refused picture says exists in all 11 languages', () => {

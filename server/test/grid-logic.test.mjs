@@ -133,7 +133,7 @@ test('packPageItems honours a per-widget width weight', () => {
 test('packPageItems weights a tab-group tile by its widest member', () => {
   // packPageItems reads window.DashboardTabGroups.widgetGroupOf to exclude grouped
   // members; wire the real helper onto a temporary global window for this test.
-  const tg = require('../js/dashboard-tabgroups.js');
+  const tg = require('../js/dashboard-tabgroups/dashboard-tabgroups.js');
   const prev = globalThis.window;
   globalThis.window = { DashboardTabGroups: { widgetGroupOf: tg.widgetGroupOf } };
   try {

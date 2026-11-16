@@ -278,7 +278,7 @@ test('a layer page never writes settings: local mirror, server save and unload b
 });
 
 test('every layout apply forces placed tiles visible first and places them last', () => {
-  const d = read('../js/dashboard-layout.js');
+  const d = read('../js/dashboard-layout/dashboard-layout.js');
   const fn = d.slice(d.indexOf('function applyDashboardLayout() {'), d.indexOf('function applyDashboardLayoutWithTransition'));
   assert.ok(fn.indexOf('LayerHost.forceVisible()') < fn.indexOf('const layout = getDashboardLayout();'));
   // The last step: on a layer page it places the tiles, on the main page it

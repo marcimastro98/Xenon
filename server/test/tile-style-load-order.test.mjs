@@ -86,7 +86,7 @@ test('once the module is up, the real normalizer is the one that runs', () => {
 test('the renderer never sees the raw fallback', () => {
   // The passthrough is safe only because the layout is normalized again on
   // every read. Pin that: getDashboardLayout() must go through the normalizer.
-  const layoutSrc = readFileSync(join(__dirname, '..', 'js', 'dashboard-layout.js'), 'utf8');
+  const layoutSrc = readFileSync(join(__dirname, '..', 'js', 'dashboard-layout/dashboard-layout.js'), 'utf8');
   assert.match(layoutSrc,
     /function getDashboardLayout\(\) \{\s*\n\s*return normalizeDashboardLayout\(hubSettings && hubSettings\.dashboardLayout\);/);
 });

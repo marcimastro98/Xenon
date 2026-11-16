@@ -301,7 +301,7 @@ test('the range sits in the tab bar, hidden until History opens, and the old row
   assert.match(CSS, /^\.guardian-range\[hidden\] \{ display: none; \}/m);
   assert.match(read('../components/PerformancePanel/PerformancePanel.css'), /^\.sys-optimize-btn\[hidden\] \{ display: none; \}/m);
   // A copy of the tile has no History tab: its pane and range go with it.
-  assert.match(read('../js/dashboard-layout.js'), /clone\.querySelectorAll\('\.system-history-pane, \.guardian-range'\)\.forEach\(el => el\.remove\(\)\)/);
+  assert.match(read('../js/dashboard-layout/dashboard-layout.js'), /clone\.querySelectorAll\('\.system-history-pane, \.guardian-range'\)\.forEach\(el => el\.remove\(\)\)/);
 });
 
 test('the chart engine loads before the History module on the page and in desktop widgets', () => {

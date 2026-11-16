@@ -11,7 +11,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const GRID = read('../components/DashboardGrid/DashboardGrid.css');
 const SAMPLE = read('../components/DashboardGrid/TileStyleMaterial.css');
 const EDIT = read('../styles/liquid-edit.css');
-const LAYOUT = read('../js/dashboard-layout.js');
+const LAYOUT = read('../js/dashboard-layout/dashboard-layout.js');
 const PANE = read('../js/look/tile-style-material-pane.js');
 const MAIN = read('../js/main.js');
 const PAGE = read('../index.html');

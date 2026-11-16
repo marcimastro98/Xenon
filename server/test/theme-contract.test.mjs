@@ -72,7 +72,7 @@ test('paletteVariants is carried by client, server and preset persistence', () =
 });
 
 test('per-widget palettes rebuild material aliases at tile scope', () => {
-  const source = read('js', 'dashboard-layout.js');
+  const source = read('js', 'dashboard-layout/dashboard-layout.js');
   for (const token of ['--panel', '--panel-soft', '--panel-border', '--glass-bg', '--slider-fill', '--slider-track']) {
     assert.match(source, new RegExp(`['\"]${token}['\"]\\s*:`), token);
   }

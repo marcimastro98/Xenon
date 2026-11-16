@@ -14,7 +14,7 @@ import { appStrings } from './i18n-source.mjs';
 // LF only, so slices find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const CSS = read('../components/AudioSection/AudioSection.css');
-const LAYOUT = read('../js/dashboard-layout.js');
+const LAYOUT = read('../js/dashboard-layout/dashboard-layout.js');
 
 test('the volume row and slider never give way; the app list is what scrolls', () => {
   assert.match(CSS, /\.system-audio-pane \.vol-header,\n\.system-audio-pane \.vol-slider \{\n  flex-shrink: 0;\n\}/);

@@ -40,7 +40,7 @@ test('the help panel and the ring of the arrow badge are solid on every look', (
   // through the steps. The tile's own colour, opaque: Edit tile writes --panel-rgb too.
   assert.equal(base('.xfer-help')['background-color'], 'rgb(var(--panel-rgb))');
   assert.match(base('.xfer-dir')['box-shadow'], /^0 0 0 2px rgb\(var\(--panel-rgb\)\)$/);
-  assert.match(read('../js/dashboard-layout.js'), /'--panel-rgb'/);
+  assert.match(read('../js/dashboard-layout/dashboard-layout.js'), /'--panel-rgb'/);
   assert.equal(base('.xfer-help[hidden]').display, 'none');
 });
 

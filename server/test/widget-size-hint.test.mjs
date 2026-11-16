@@ -162,7 +162,7 @@ test('a widget made for a full page gets a page of its own, and is placed once p
   assert.match(body, /pages\.rename\(fresh, pkg\.name\)/);
   assert.match(body, /return addToPage\(pkgId, fresh\);/);
   assert.match(body, /finally \{\s*_placing\.delete\(pkgId\);/);
-  assert.match(read('js/dashboard-pages.js'), /goToPage\(id\);\s*return id;\s*\}/);
+  assert.match(read('js/dashboard-pages/dashboard-pages.js'), /goToPage\(id\);\s*return id;\s*\}/);
 });
 
 test('the model is told to fill the tile, not just to pick its shape', () => {

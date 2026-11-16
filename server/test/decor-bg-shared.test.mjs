@@ -27,7 +27,7 @@ test('every page with deck.js loads decor-bg.js before it', () => {
 });
 
 test('the helpers are defined once, in decor-bg.js', () => {
-  assert.doesNotMatch(read('js/dashboard-layout.js'), /function (tileGradCss|paintDecorBgLayer)\(/);
+  assert.doesNotMatch(read('js/dashboard-layout/dashboard-layout.js'), /function (tileGradCss|paintDecorBgLayer)\(/);
   assert.doesNotMatch(read('js/deck/deck.js'), /function paintDecorBgLayer\(/);
 });
 

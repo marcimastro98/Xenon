@@ -110,7 +110,7 @@ test('a Media tile that appears after the setting was applied still gets the wav
 });
 
 test('a copy of the Media tile does not inherit a dead canvas', () => {
-  const src = read('../js/dashboard-layout.js');
+  const src = read('../js/dashboard-layout/dashboard-layout.js');
   const fn = src.slice(src.indexOf('function stripMediaClone(clone) {'), src.indexOf('\n}\n', src.indexOf('function stripMediaClone(clone) {')));
   assert.match(fn, /clone\.querySelectorAll\('\.media-viz'\)\.forEach\(el => el\.remove\(\)\);/);
 });
