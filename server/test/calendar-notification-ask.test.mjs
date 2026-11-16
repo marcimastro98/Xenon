@@ -5,7 +5,7 @@ import { browserSource } from './browser-source.mjs';
 
 // A permission prompt shown while the page loads is one nobody asked for: browsers quiet or
 // refuse it. The calendar asks at the first click or key press, or when the person adds an event.
-const source = browserSource('server/js/calendar.js');
+const source = browserSource('server/js/calendar/calendar.js');
 const atShow = source.slice(source.indexOf('function showCalendar('), source.indexOf('function renderCalendar('));
 
 test('the calendar never asks for notifications while the page loads', () => {

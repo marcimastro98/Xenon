@@ -292,6 +292,10 @@
     {"from":"server/js/bit-message-card.js","to":"server/js/bit-message-card/bit-message-card.js"},
     {"from":"server/js/weather-classic-window.js","to":"server/js/weather/weather-classic-window.js"},
     {"from":"server/js/weather-classic.js","to":"server/js/weather/weather-classic.js"},
-    {"from":"server/js/weather-tile.js","to":"server/js/weather-tile/weather-tile.js"}
+    {"from":"server/js/weather-tile.js","to":"server/js/weather-tile/weather-tile.js"},
+    {"from":"server/js/calendar.js","to":"server/js/calendar/calendar.js"},
+    {"from":"server/js/notes.js","to":"server/js/notes/notes.js"},
+    {"from":"server/js/tasks.js","to":"server/js/tasks/tasks.js"},
+    {"from":"server/js/timer.js","to":"server/js/timer/timer.js"}
   ]
 }

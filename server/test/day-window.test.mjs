@@ -1,4 +1,4 @@
-// The day window of the agenda (js/calendar.js): what it does with the keyboard, what an empty
+// The day window of the agenda (js/calendar/calendar.js): what it does with the keyboard, what an empty
 // form answers, and each row's order. The file needs the whole dashboard to load, so the rig
 // runs only the functions under test.
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import { makeDom } from './mini-dom.mjs';
 import { namesOf } from './source-names.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/calendar.js');
+const SRC = read('../js/calendar/calendar.js');
 const agenda = namesOf(SRC, 'calendar.js');
 const wholeFunction = (head) => SRC.slice(SRC.indexOf(head), SRC.indexOf('\n}\n', SRC.indexOf(head)) + 2);
 
@@ -109,7 +109,7 @@ test('a row reads time, name, key', () => {
 test('the window has what it needs wherever the agenda runs', () => {
   const layer = read('../js/layers/layer-tiles.js');
   const agenda = layer.slice(layer.indexOf('const AGENDA'), layer.indexOf('};', layer.indexOf('const AGENDA')));
-  assert.ok(agenda.indexOf("'js/dialog-focus.js'") > 0 && agenda.indexOf("'js/dialog-focus.js'") < agenda.indexOf("'js/calendar.js'"));
+  assert.ok(agenda.indexOf("'js/dialog-focus.js'") > 0 && agenda.indexOf("'js/dialog-focus.js'") < agenda.indexOf("'js/calendar/calendar.js'"));
   assert.ok(agenda.includes("'styles/liquid-sheets.css'"));
   assert.match(read('../index.html'), /<script src="js\/dialog-focus\.js"><\/script>/);
   assert.doesNotMatch(read('../scene.html'), /id="day-modal"/, 'the scene has calendar.js but no day window');

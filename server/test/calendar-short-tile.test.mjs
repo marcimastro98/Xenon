@@ -47,7 +47,7 @@ test('a narrow month keeps its header on one line with the short month name', ()
 });
 
 test('the calendar writes the month both ways', () => {
-  const js = readFileSync(new URL('../js/calendar.js', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../js/calendar/calendar.js', import.meta.url), 'utf8');
   assert.match(js, /_monthLabelSpan\(locale, \{ month: 'long', year: 'numeric' \}, 'calendar-month-long'\)/);
   assert.match(js, /thisYear \? \{ month: 'short' \} : \{ month: 'short', year: 'numeric' \}, 'calendar-month-short'/);
 });

@@ -67,7 +67,7 @@ test('repeating tasks come back when their time has passed, on the server', () =
   assert.equal(ops.reopenDueTasks(r.list, now).changed, false, 'nothing to do the second time');
   // The server runs it on a clock, the dashboard no longer does.
   assert.match(SERVER, /startTasksReopenClock\(\);/);
-  assert.doesNotMatch(read('../js/tasks.js'), /checkTaskRecurrence/);
+  assert.doesNotMatch(read('../js/tasks/tasks.js'), /checkTaskRecurrence/);
 });
 
 function fakeServer(script) {
@@ -138,8 +138,8 @@ test('the server takes one edit on both routes and serializes every read it writ
 });
 
 test('the tiles send edits, repaint from the broadcast and never treat a failed load as empty', () => {
-  const tasks = read('../js/tasks.js');
-  const cal = read('../js/calendar.js');
+  const tasks = read('../js/tasks/tasks.js');
+  const cal = read('../js/calendar/calendar.js');
   const main = read('../js/main.js');
   assert.doesNotMatch(tasks, /JSON\.stringify\(\{ tasks: tasksData \}\)/, 'no whole-list save');
   assert.doesNotMatch(cal, /JSON\.stringify\(\{ events: calendarEvents \}\)/, 'no whole-list save');
@@ -150,8 +150,8 @@ test('the tiles send edits, repaint from the broadcast and never treat a failed 
   assert.match(main, /applyServerEvents\(d\.events, d\.seq\)/);
   // Loaded before the code that uses it, on every page that saves.
   const page = read('../index.html');
-  assert.ok(page.indexOf('js/list-sync.js') > 0 && page.indexOf('js/list-sync.js') < page.indexOf('js/calendar.js'));
-  assert.match(read('../js/layers/layer-tiles.js'), /'js\/list-sync\.js', 'js\/calendar\/month-grid\.js', 'js\/calendar\/upcoming-and-day-window\.js', 'js\/calendar\/events-sync\.js', 'js\/calendar\.js'/);
+  assert.ok(page.indexOf('js/list-sync.js') > 0 && page.indexOf('js/list-sync.js') < page.indexOf('js/calendar/calendar.js'));
+  assert.match(read('../js/layers/layer-tiles.js'), /'js\/list-sync\.js', 'js\/calendar\/month-grid\.js', 'js\/calendar\/upcoming-and-day-window\.js', 'js\/calendar\/events-sync\.js', 'js\/calendar\/calendar\.js'/);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
     assert.ok(appStrings()[lang].list_save_retry_title, lang);
   }
@@ -173,7 +173,7 @@ test('every list carries a number, and a screen never shows an older list over a
   assert.deepEqual(got, [[{ id: 'a' }], 7]);
   // The tiles: a broadcast during an edit is held, the newer of the two wins,
   // an older list never replaces a newer one.
-  for (const [file, show, held] of [['../js/tasks.js', '_showTasks', '_tasksHeld'], ['../js/calendar.js', '_showCalendarEvents', '_calendarHeld']]) {
+  for (const [file, show, held] of [['../js/tasks/tasks.js', '_showTasks', '_tasksHeld'], ['../js/calendar/calendar.js', '_showCalendarEvents', '_calendarHeld']]) {
     const src = read(file);
     assert.match(src, new RegExp(`if \\(held && held\\.seq > seq\\) ${show}\\(held\\.list, held\\.seq\\);`), file);
     assert.match(src, /if \(seq && seq < _(tasks|calendar)Seq\) return;/, file);

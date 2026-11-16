@@ -19,7 +19,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const SRC = readFileSync(join(__dirname, '..', 'js', 'calendar.js'), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(join(__dirname, '..', 'js', 'calendar/calendar.js'), 'utf8').replace(/\r\n/g, '\n');
 const ics = require('../time/ics-feeds.js');
 
 // calendar.js is a browser global script; lift the rule out of the source the

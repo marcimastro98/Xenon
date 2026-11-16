@@ -15,7 +15,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
-const SRC = readFileSync(new URL('../js/calendar.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(new URL('../js/calendar/calendar.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // upcomingLimits() is pure and reads the settings object; evaluate it out of the
 // source the app serves, like the label tests beside it.

@@ -1,4 +1,4 @@
-// The time picker in the day window (js/calendar.js) from the keyboard. It took only taps:
+// The time picker in the day window (js/calendar/calendar.js) from the keyboard. It took only taps:
 // Tab could not reach an hour and the arrows did nothing. What has to stay true:
 //  1. Opening it puts the focus on the hour; Tab goes on to the minutes (one stop each).
 //  2. Up and down change the value at once and go round; Home and End jump to the ends.
@@ -10,7 +10,7 @@ import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
-const SRC = readFileSync(new URL('../js/calendar.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(new URL('../js/calendar/calendar.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 // mini-dom keeps markup as text, so a column is emptied by hand where the module uses innerHTML.
 const PICKER = SRC.slice(SRC.indexOf('(function initTimePicker'), SRC.indexOf('/* ── End custom time picker'))
   .replace("col.innerHTML = '';", 'col.children.length = 0;');

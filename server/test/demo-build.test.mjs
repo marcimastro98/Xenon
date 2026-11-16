@@ -163,7 +163,7 @@ test('the Sparks chip reading its balance on start is answered quietly, not with
 });
 
 test('the demo notes carry the field the notes tile reads', async () => {
-  // The tile shows `note.body` (js/notes.js); notes written as {title, text}
+  // The tile shows `note.body` (js/notes/notes.js); notes written as {title, text}
   // drew "undefined" in the public demo.
   const { runInNewContext } = await import('node:vm');
   const sandbox = { window: {} };

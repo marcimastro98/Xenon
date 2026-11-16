@@ -82,7 +82,7 @@ test('a Claude Code subagent card counts its whole brief', () => {
 });
 
 test('selectors built from stored ids cannot throw', () => {
-  for (const f of ['../js/timer.js', '../js/notes.js']) {
+  for (const f of ['../js/timer/timer.js', '../js/notes/notes.js']) {
     const src = read(f);
     assert.doesNotMatch(src, /data-(timer-time|timer-arc|note-id)="\$\{(timer|n|note)\.id\}"/, f);
     assert.match(src, /function cssId\(v\)/, f);

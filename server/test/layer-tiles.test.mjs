@@ -113,7 +113,7 @@ test('compose cuts a shared element once', () => {
   const html = '<html lang="en"><head><!-- tile styles --></head><body><!-- tile markup --><!-- tile scripts --></body></html>';
   const page = LayerPage.compose(html, ['agenda', 'calendar', 'tasks'], INDEX);
   assert.equal(page.split('data-dashboard-widget="agenda"').length - 1, 1, 'the Agenda once');
-  assert.equal(page.split('src="js/calendar.js"').length - 1, 1, 'its code once');
+  assert.equal(page.split('src="js/calendar/calendar.js"').length - 1, 1, 'its code once');
   assert.match(page, /data-dashboard-widget="calendar"/);
   assert.match(page, /data-dashboard-widget="tasks"/);
 });
@@ -135,7 +135,7 @@ test('the probe: one tile on its surface, the page renderer, what counts as draw
 });
 
 test('on a page without the dashboard layout tasks.js leaves the Agenda tabs where that page put them', () => {
-  const src = read('js/tasks.js').replace(/\r\n/g, '\n');
+  const src = read('js/tasks/tasks.js').replace(/\r\n/g, '\n');
   for (const tab of ['Tasks', 'Notes', 'Calendar', 'Timer']) {
     const body = src.slice(src.indexOf('function sync' + tab + 'WidgetPlacement('));
     const head = body.slice(0, body.indexOf('\n}\n'));

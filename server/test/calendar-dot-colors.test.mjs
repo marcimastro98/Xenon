@@ -12,7 +12,7 @@ import { readFileSync } from './browser-source.mjs';
 
 // LF only, so slices find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/calendar.js');
+const SRC = read('../js/calendar/calendar.js');
 const CSS = read('../components/CalendarView/CalendarView.css');
 
 const fn = (name, deps = '') => {

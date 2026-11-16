@@ -147,7 +147,7 @@ test('server: every events write is queued and keeps the rung marks; the check i
 });
 
 test('the dashboard and the alerts window show the reminder; neither decides it', () => {
-  const cal = read('../js/calendar.js');
+  const cal = read('../js/calendar/calendar.js');
   assert.doesNotMatch(cal, /function checkReminders|lightingNotify\('reminder'\)/);
   assert.match(cal, /AlertToasts\.reminder\(d, \{ t \}/);
   const alerts = read('../js/alerts/screen-alerts.js');

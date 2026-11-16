@@ -86,7 +86,7 @@ test('the camera kinds are the ones the UniFi tile offers, with the same keys', 
 test('wiring: the dashboard builds its pop-ups here, not inline', () => {
   const main = read('../js/main.js');
   for (const fn of ['stocks', 'football', 'unifi', 'guardian']) assert.match(main, new RegExp(`AlertToasts\\.${fn}\\(`));
-  const timer = read('../js/timer.js');
+  const timer = read('../js/timer/timer.js');
   assert.match(timer, /AlertToasts\.timerDone\(/);
   assert.match(timer, /AlertToasts\.timerChime\(/);
   assert.match(read('../js/perf-widget.js'), /AlertToasts\.benchmark\(/);

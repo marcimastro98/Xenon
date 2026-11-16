@@ -21,7 +21,7 @@ import { engineSource } from './engine-source.mjs';
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const CAL_JS = read('../js/calendar.js');
+const CAL_JS = read('../js/calendar/calendar.js');
 const CAL_CSS = read('../components/CalendarView/CalendarView.css');
 const BREAKPOINTS = read('../styles/breakpoints.css');
 const SETTINGS = read('../js/settings.js');

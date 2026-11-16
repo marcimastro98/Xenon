@@ -17,7 +17,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const HTML = read('index.html');
 const CSS = read('components', 'TimerPanel', 'TimerPanel.css');
-const JS = read('js', 'timer.js');
+const JS = read('js', 'timer/timer.js');
 
 test('the add section has both faces: the row body and the collapsed strip', () => {
   assert.match(HTML, /class="timer-add-section" data-timerf="add-section"/);

@@ -389,13 +389,9 @@
       "files": [
         "server/time/**",
         "server/actions/widget-timers.js",
-        "server/js/calendar.js",
         "server/js/calendar/**",
-        "server/js/tasks.js",
         "server/js/tasks/**",
-        "server/js/timer.js",
         "server/js/timer/**",
-        "server/js/notes.js",
         "server/js/notes/**",
         "server/components/CalendarView/**",
         "server/components/DayModal/**",

@@ -40,7 +40,7 @@ test('a finished timer updates the tile but chimes from the main dashboard only'
     ctx.window.XenonToast = { show: () => { calls.toast++; } };
     ctx.window.AlertToasts = AlertToasts;
     ctx.t = (k) => k;
-    vm.runInContext(read('../js/timer.js'), ctx);
+    vm.runInContext(read('../js/timer/timer.js'), ctx);
     ctx.renderTimers = () => { calls.render++; };
     vm.runInContext("_timerState = [{ id: 'a', status: 'running' }]; onTimerDone('a', 'Tea'); onTimerChime('a', 'Tea', 60);", ctx);
     return calls;

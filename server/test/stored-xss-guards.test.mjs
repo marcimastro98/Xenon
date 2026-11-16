@@ -192,7 +192,7 @@ test('timer cards: no inline handlers; one delegated listener runs the action by
     fetch: (url, opts) => { fetched.push({ url, opts }); return Promise.resolve({ json: async () => ({}) }); },
   };
   vm.createContext(ctx);
-  vm.runInContext(read('../js/timer.js'), ctx);
+  vm.runInContext(read('../js/timer/timer.js'), ctx);
   const card = ctx._buildTimerCard({ id: 't1700000000000-abc', label: 'Tea', kind: 'countdown', durationSecs: 60, status: 'running', startedAt: Date.now(), pausedElapsed: 3 });
   assert.doesNotMatch(card.innerHTML, /onclick/);
   assert.match(card.innerHTML, /data-timer-action="pause"/);
@@ -213,7 +213,7 @@ test('timer cards: no inline handlers; one delegated listener runs the action by
 });
 
 test('notes tabs: selected through data-note-id, not an inline handler', () => {
-  const NOTES = read('../js/notes.js');
+  const NOTES = read('../js/notes/notes.js');
   assert.doesNotMatch(NOTES, /setAttribute\('onclick', `notesSelect/);
   assert.match(NOTES, /closest\('\.notes-tab\[data-note-id\]'\)/);
   assert.match(fnSource(NOTES, 'renderNotesInto'), /_wireNotesTabs\(\)/);

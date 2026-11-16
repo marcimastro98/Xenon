@@ -40,7 +40,7 @@ const STOP = '__classic_script_globals_probe__';
 // always load together. The guard checks the copies stay identical, so one
 // cannot drift and quietly win on the page.
 const ALLOWED = new Map([
-  ['cssId', { files: ['js/notes.js', 'js/timer.js'], reason: 'the same CSS.escape wrapper, copied byte for byte' }],
+  ['cssId', { files: ['js/notes/notes.js', 'js/timer/timer.js'], reason: 'the same CSS.escape wrapper, copied byte for byte' }],
 ]);
 
 // Set up `code`'s global declarations in `ctx` without running any of it.

@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Newlines normalised: the working copy is CRLF on Windows and LF in the repo,
 // and the slice below looks for a line that is exactly "}".
-const SRC = readFileSync(join(__dirname, '..', 'js', 'calendar.js'), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(join(__dirname, '..', 'js', 'calendar/calendar.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // The label now asks Settings → Time format which shape an hour takes, through
 // the shared timeParts() in js/utils/time-and-format.js, so the harness supplies it. Before that

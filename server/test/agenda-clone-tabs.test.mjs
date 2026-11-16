@@ -69,7 +69,7 @@ test('the primary handler is scoped to one tile instead of resolving by id', () 
   // during a pager rebuild, when every tile is parked in the hidden #widget-pool
   // and a stale atom can win the lookup. Both failures look identical to the
   // user: the click persists, but nothing moves until the next reload.
-  const TASKS = readFileSync(join(__dirname, '..', 'js', 'tasks.js'), 'utf8');
+  const TASKS = readFileSync(join(__dirname, '..', 'js', 'tasks/tasks.js'), 'utf8');
   const start = TASKS.indexOf('function switchCalendarTaskView');
   assert.notEqual(start, -1);
   const fn = TASKS.slice(start, TASKS.indexOf('\n}', start));

@@ -39,7 +39,7 @@
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
       'components/TasksPanel/TasksPanel.css', 'components/TasksPanel/TasksPanelList.css', 'components/TimerPanel/TimerPanel.css', 'components/TimerPanel/TimerPanelCards.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'],
-    js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar/month-grid.js', 'js/calendar/upcoming-and-day-window.js', 'js/calendar/events-sync.js', 'js/calendar.js', 'js/notes/render.js', 'js/notes/sync-and-edits.js', 'js/notes.js', 'js/tasks/list.js', 'js/tasks/placement.js', 'js/tasks.js', 'js/timer/render.js', 'js/timer/actions.js', 'js/timer.js'],
+    js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar/month-grid.js', 'js/calendar/upcoming-and-day-window.js', 'js/calendar/events-sync.js', 'js/calendar/calendar.js', 'js/notes/render.js', 'js/notes/sync-and-edits.js', 'js/notes/notes.js', 'js/tasks/list.js', 'js/tasks/placement.js', 'js/tasks/tasks.js', 'js/timer/render.js', 'js/timer/actions.js', 'js/timer/timer.js'],
   };
 
   const TILES = {
