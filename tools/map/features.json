@@ -184,7 +184,6 @@
         "server/codex/**",
         "server/codex-*.js",
         "server/js/codex-widget/**",
-        "server/js/codex-widget.js",
         "server/components/CodexWidget/**",
         "server/components/ChatGPTWidget/**",
         "server/js/codex/**"

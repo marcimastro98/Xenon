@@ -486,7 +486,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Both on by default; see js/claude-widget/claude-widget.js.
   claudeWidget: Object.freeze({ approvals: true, questions: true, topbar: true }),
   // OpenAI Codex widget: the approval cards (Settings → Codex) and how long one
-  // waits before the decision goes back to Codex. See js/codex-widget.js.
+  // waits before the decision goes back to Codex. See js/codex-widget/codex-widget.js.
   codexWidget: Object.freeze({ approvals: true, waitSec: 90 }),
   // "Ask ChatGPT" tile: the model Codex answers with. See js/codex/chatgpt-widget.js.
   chatgptWidget: Object.freeze({ model: 'default' }),

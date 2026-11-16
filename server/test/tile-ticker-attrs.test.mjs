@@ -19,7 +19,7 @@ test('the Claude ticker selects document-wide, which is why the names are reserv
   assert.match(read('claude-widget/claude-widget.js'), /document\.querySelectorAll\('\[data-reset-at\], \[data-expires-at\], \[data-age-base\]'\)/);
 });
 
-for (const f of ['codex-widget.js', 'codex/chatgpt-widget.js']) {
+for (const f of ['codex-widget/codex-widget.js', 'codex/chatgpt-widget.js']) {
   test(f + ' does not use the attribute names the Claude ticker rewrites', () => {
     const hits = read(f).split(/\r?\n/).map((l, i) => [i + 1, l]).filter(([, l]) => CLAIMED.test(l)).map(([n]) => f + ':' + n);
     assert.deepEqual(hits, []);

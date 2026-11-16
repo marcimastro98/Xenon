@@ -189,7 +189,7 @@ function widgetRig(scripts, tileClass, widget) {
 const words = (root, sel) => root.querySelectorAll(sel).map((n) => n.textContent);
 
 function codexSheet(approvals) {
-  const rig = widgetRig(['dialog-focus.js', 'deck/approval-keys.js', 'codex-widget.js'], 'codex-widget-mount', 'openaicodex');
+  const rig = widgetRig(['dialog-focus.js', 'deck/approval-keys.js', 'codex-widget/codex-widget.js'], 'codex-widget-mount', 'openaicodex');
   rig.sandbox.CodexWidget.onSSE({
     app: { state: 'ok', account: { plan: 'plus' }, caps: {}, limits: { buckets: [] }, threads: [], usage: {} },
     live: { approvals, sessions: [] },

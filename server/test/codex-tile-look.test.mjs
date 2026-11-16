@@ -82,7 +82,7 @@ function mount(payload, { face = 'live' } = {}) {
   sandbox.addEventListener = () => {};
   vm.createContext(sandbox);
   vm.runInContext(read('js', 'deck/approval-keys.js'), sandbox, { filename: 'approval-keys.js' });
-  vm.runInContext(read('js', 'codex-widget.js'), sandbox, { filename: 'codex-widget.js' });
+  vm.runInContext(read('js', 'codex-widget/codex-widget.js'), sandbox, { filename: 'codex-widget.js' });
   sandbox.CodexWidget.onSSE(payload);
   return host;
 }
