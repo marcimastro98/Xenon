@@ -130,7 +130,8 @@
       "tools/modal-census/census.mjs": "Patches the text a test browser is served, at the line `window.DiskWidget = {`. That line is not a function and cannot leave; the scripts next to it are served as they are."
     },
     "server/js/deck-editor/deck-editor.js": {
-      "server/test/restructure-browser-inner.test.mjs": "Names the file only as an example of the name a script next to it would leave on window; it never opens it."
+      "server/test/restructure-browser-inner.test.mjs": "Names the file only as an example of the name a script next to it would leave on window; it never opens it.",
+      "server/deck-popup.html": "Names the file only in a style comment that says why the Deck window hides the pencil: it never loads the editor. It never opens the file."
     },
     "server/js/update/update.js": {
       "tools/modal-census/census.mjs": "Patches the text a test browser is served, at the line `window.XenonUpdate = {`, with calls to showUpdatingOverlay, openReleaseNotes and openUpdateFailed. That line is not a function and cannot leave, and the three functions stay in the wrapper; the scripts next to it are served as they are."
@@ -142,6 +143,60 @@
     "server/js/community-gallery/community-gallery.js": {
       "docs/catalog/index.html": {
         "how": "The site names the file only in comments that say which code of the app its own page mirrors: where the screenshots are served from, dropClosed and dropUnavailable, and sparksOnly. It never opens the file. Those stay in it, so the comments stay true.",
+        "keeps": [
+          "SHOTS_BASE",
+          "dropClosed",
+          "dropUnavailable",
+          "sparksOnly"
+        ]
+      },
+      "docs/es/catalog/index.html": {
+        "how": "The es copy of the site catalog, written from docs/catalog/index.html by tools/build-page-langs.mjs: the same comments as the English page, so the same reason.",
+        "keeps": [
+          "SHOTS_BASE",
+          "dropClosed",
+          "dropUnavailable",
+          "sparksOnly"
+        ]
+      },
+      "docs/fr/catalog/index.html": {
+        "how": "The fr copy of the site catalog, written from docs/catalog/index.html by tools/build-page-langs.mjs: the same comments as the English page, so the same reason.",
+        "keeps": [
+          "SHOTS_BASE",
+          "dropClosed",
+          "dropUnavailable",
+          "sparksOnly"
+        ]
+      },
+      "docs/it/catalog/index.html": {
+        "how": "The it copy of the site catalog, written from docs/catalog/index.html by tools/build-page-langs.mjs: the same comments as the English page, so the same reason.",
+        "keeps": [
+          "SHOTS_BASE",
+          "dropClosed",
+          "dropUnavailable",
+          "sparksOnly"
+        ]
+      },
+      "docs/ja/catalog/index.html": {
+        "how": "The ja copy of the site catalog, written from docs/catalog/index.html by tools/build-page-langs.mjs: the same comments as the English page, so the same reason.",
+        "keeps": [
+          "SHOTS_BASE",
+          "dropClosed",
+          "dropUnavailable",
+          "sparksOnly"
+        ]
+      },
+      "docs/ko/catalog/index.html": {
+        "how": "The ko copy of the site catalog, written from docs/catalog/index.html by tools/build-page-langs.mjs: the same comments as the English page, so the same reason.",
+        "keeps": [
+          "SHOTS_BASE",
+          "dropClosed",
+          "dropUnavailable",
+          "sparksOnly"
+        ]
+      },
+      "docs/zh/catalog/index.html": {
+        "how": "The zh copy of the site catalog, written from docs/catalog/index.html by tools/build-page-langs.mjs: the same comments as the English page, so the same reason.",
         "keeps": [
           "SHOTS_BASE",
           "dropClosed",
