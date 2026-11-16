@@ -1,4 +1,4 @@
-// "Widgets only" (Jeff, Nov 2026): the Deck placed on the screen had no pencil,
+// "Widgets only" (a user, Nov 2026): the Deck placed on the screen had no pencil,
 // so its keys could not be changed without the dashboard. The layer window takes
 // no typing, so the pencil works there and a key opens its editor in the Xenon
 // menu's window: one slot of one Deck, carried as `?open=deckkey`, found again
