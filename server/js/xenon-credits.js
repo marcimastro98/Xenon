@@ -82,7 +82,8 @@
         fetchedAt = Date.now();
       } else {
         const noCode = out && (out.error === 'no_code' || out.error === 'bad_code');
-        state = { ...EMPTY, status: noCode ? 'no_code' : 'error', welcome: !!out && out.welcome === true };
+        // `trialEnded`: the welcome Sparks ran out of days here (js/bit-trial-end.js).
+        state = { ...EMPTY, status: noCode ? 'no_code' : 'error', welcome: !!out && out.welcome === true, trialEnded: noCode && out.trialEnded === true };
       }
       inflight = null;
       emit();
@@ -376,6 +377,7 @@
     paintSparks();
     // The model button sits beside the chip in Bit's chat head, shown on the same terms.
     if (window.BitChatModel) window.BitChatModel.paint();
+    if (window.BitTrialEnd) window.BitTrialEnd.paint();
   }
 
   // A chip anywhere leads to Settings → Xenon AI, whose first rows are the

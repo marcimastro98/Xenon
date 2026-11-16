@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### ✨ Changed
+- **Bit tells you when its trial Sparks end.** In the last two days of the welcome Sparks, a reminder a day says when they end. When they are over, Bit's chat no longer just asks you to buy Sparks: it says the trial has ended and what supporters get to keep Bit on, with a button to become a supporter and another for the other ways to use Bit.
+
 ## [v5.1.1] - 16-11-2026
 
 ### 🐛 Fixed
