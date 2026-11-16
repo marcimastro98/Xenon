@@ -1,7 +1,7 @@
 'use strict';
 
 // The `topbar` share code: a whole bar passed from one person to another. It
-// carries the look (js/topbar-look.js, every button's options included), the
+// carries the look (js/topbar/topbar-look.js, every button's options included), the
 // style (Full, Minimal or None), what the island shows, which buttons sit on
 // which side and the side rails. A theme carries only the look's theme part
 // (TopbarLook.themePart); this is the code for "use my bar".
@@ -10,7 +10,7 @@
 // and the result still goes through normalizeSettings, which rebuilds every
 // list from its canonical ids (Settings and Layout can never be hidden).
 (function (root, factory) {
-  const api = factory(root && root.TopbarLook ? root.TopbarLook : require('./topbar-look.js'));
+  const api = factory(root && root.TopbarLook ? root.TopbarLook : require('./topbar/topbar-look.js'));
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.TopbarShare = api;
 })(typeof window !== 'undefined' ? window : globalThis, function (TopbarLook) {

@@ -1,5 +1,5 @@
-/* ── Top bar look (Settings → Top bar, js/topbar-look.js) ─────────────────────
-   Every rule here sits behind a :root[data-tb-*] attribute, and js/topbar-look.js
+/* ── Top bar look (Settings → Top bar, js/topbar/topbar-look.js) ─────────────────────
+   Every rule here sits behind a :root[data-tb-*] attribute, and js/topbar/topbar-look.js
    sets an attribute only for a value that differs from the default. With the
    default look none of this file applies, so the bar is drawn exactly as before.
    Loaded after the Comic and Retro skins: a look the user picked on purpose

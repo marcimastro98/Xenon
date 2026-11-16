@@ -1,4 +1,4 @@
-// The top bar's look (Settings → Top bar): one set of rules in js/topbar-look.js,
+// The top bar's look (Settings → Top bar): one set of rules in js/topbar/topbar-look.js,
 // read by the dashboard and by the server's settings normalizer, and applied as
 // :root attributes the stylesheet keys off.
 //
@@ -13,7 +13,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const L = require('../js/topbar-look.js');
+const L = require('../js/topbar/topbar-look.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const CSS = read('../components/Topbar/TopbarLook.css');
 const INDEX = read('../index.html');
@@ -88,11 +88,11 @@ test('at most 32 buttons are kept', () => {
 test('the dashboard and the server read the same rules', () => {
   assert.match(SETTINGS, /topbarLook: TopbarLook\.normalize\(value\.topbarLook\),/);
   assert.match(SETTINGS, /topbarLook: TopbarLook\.normalize\(null\),/);
-  assert.match(SERVER, /const TopbarLook = require\('\.\.?\/js\/topbar-look\.js'\);/);
+  assert.match(SERVER, /const TopbarLook = require\('\.\.?\/js\/topbar\/topbar-look\.js'\);/);
   assert.match(SERVER, /topbarLook: TopbarLook\.normalize\(source\.topbarLook\),/);
   assert.match(SERVER, /topbarLook: TopbarLook\.DEFAULTS,/);
   // Loaded before settings.js, whose defaults are built at load time.
-  assert.ok(INDEX.indexOf('src="js/topbar-look.js"') < INDEX.indexOf('src="js/settings.js"'));
+  assert.ok(INDEX.indexOf('src="js/topbar/topbar-look.js"') < INDEX.indexOf('src="js/settings.js"'));
   // After the Comic and Retro skins, so a chosen look wins over theirs.
   assert.ok(INDEX.indexOf('href="components/Topbar/TopbarLook.css"') > INDEX.indexOf('href="styles/themes-comic.css"'));
 });

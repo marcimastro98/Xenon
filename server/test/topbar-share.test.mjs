@@ -11,7 +11,7 @@ import { namesOf } from './source-names.mjs';
 
 const require = createRequire(import.meta.url);
 const TopbarShare = require('../js/topbar-share.js');
-const TopbarLook = require('../js/topbar-look.js');
+const TopbarLook = require('../js/topbar/topbar-look.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function fnSource(src, signature) {
@@ -123,7 +123,7 @@ test('the import shows a review step and the export is in the Export list', () =
   assert.match(src, /\{ label: \['settings_share_topbar'/);
   assert.match(src, /if \(sel\.topbar && window\.TopbarShare\) data\.topbar = TopbarShare\.of\(HS\(\)\);/);
   const index = read('../index.html');
-  assert.ok(index.indexOf('src="js/topbar-share.js"') > index.indexOf('src="js/topbar-look.js"'));
+  assert.ok(index.indexOf('src="js/topbar-share.js"') > index.indexOf('src="js/topbar/topbar-look.js"'));
   assert.ok(index.indexOf('src="js/topbar-share.js"') < index.indexOf('src="js/settings.js"'));
 });
 

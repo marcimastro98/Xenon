@@ -74,7 +74,7 @@ export function loadServerSettingsSlice() {
   ].join('\n');
   const { sanitizeBgAssets, sanitizeBgFps } = require('../js/custom-bg.js');
   const context = vm.createContext({
-    TopbarLook: require('../js/topbar-look.js'),
+    TopbarLook: require('../js/topbar/topbar-look.js'),
     LayersModel: require('../js/layers/layers-model.js'),
     themePalette: require('../js/theme-palette.js'),
     contentInstalls: require('../js/store-catalog/content-installs.js'),

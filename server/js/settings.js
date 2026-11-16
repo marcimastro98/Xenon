@@ -33,7 +33,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // touch). Default on; off keeps them always visible. See js/topbar/topbar-minimal.js.
   topbarRailsAutoHide: true,
   // The bar's look in every style (surface, size, buttons, clock, where toasts
-  // appear, each button's own icon/label/colours). Rules in js/topbar-look.js.
+  // appear, each button's own icon/label/colours). Rules in js/topbar/topbar-look.js.
   topbarLook: TopbarLook.normalize(null),
   // Widgets on the desktop, in the overlay or anchored to an app (single-screen
   // use). Off with nothing placed by default. Rules in js/layers/layers-model.js.

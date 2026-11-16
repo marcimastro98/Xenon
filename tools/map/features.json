@@ -622,7 +622,6 @@
       "what": "The bar at the top: its layout, look, media strip and buttons.",
       "files": [
         "server/topbar/**",
-        "server/js/topbar-*.js",
         "server/js/topbar-look-settings/**",
         "server/js/topbar-media/**",
         "server/components/Topbar/**",

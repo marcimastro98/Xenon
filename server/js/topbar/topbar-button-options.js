@@ -3,7 +3,7 @@
 // One top bar button's own options, opened from its chevron in Settings → Top
 // bar → Bar buttons: icon (from the Deck's icon library), label, whether the
 // label shows, text and background colour, and a reset. Stored in
-// topbarLook.buttons[id] (rules in js/topbar-look.js) and written through
+// topbarLook.buttons[id] (rules in js/topbar/topbar-look.js) and written through
 // TopbarLookSettings.set, the same writer as the rest of the page.
 (function () {
   const L = window.TopbarLook;

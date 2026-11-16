@@ -8,7 +8,7 @@
 // test/ai-presets-reference.test.mjs. Each kind ends with a minimal valid example.
 
 const PresetShare = require('../js/preset-share.js');
-const TopbarLook = require('../js/topbar-look.js');
+const TopbarLook = require('../js/topbar/topbar-look.js');
 const TopbarShare = require('../js/topbar-share.js');
 const themePalette = require('../js/theme-palette.js');
 const DeckModel = require('../js/deck-model.js');

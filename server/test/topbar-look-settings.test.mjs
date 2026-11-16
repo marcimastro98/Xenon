@@ -12,7 +12,7 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const L = require('../js/topbar-look.js');
+const L = require('../js/topbar/topbar-look.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const PAGE = read('../js/topbar-look-settings/topbar-look-settings.js');
 const BUTTON = read('../js/topbar/topbar-button-options.js');

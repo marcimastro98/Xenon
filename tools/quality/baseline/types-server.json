@@ -144,7 +144,7 @@
     "server/js/tile-decor-schema.js TS2339": 1,
     "server/js/tile-material.js TS2339": 3,
     "server/js/tile-shape-presets.js TS2339": 1,
-    "server/js/topbar-look.js TS2339": 6,
+    "server/js/topbar/topbar-look.js TS2339": 6,
     "server/js/vitals/vitals-pet-core.js TS2339": 1,
     "server/js/windows-tiles/slideshow-widget.js TS2304": 4,
     "server/js/windows-tiles/slideshow-widget.js TS2339": 3,

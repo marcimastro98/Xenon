@@ -403,7 +403,7 @@ require('./js/performance/game-ignore.js'); // the user's "not a game" list (sha
 require('./js/system/sensor-history.js'); // the sensor-history setting (shared with Settings)
 require('./ai/sensor-source-ai.js'); // Bit picks one (sensor_source)
 require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
-require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
+require('./js/topbar/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layers/layer-strings.js'); // one language for the light layer page
 require('./layers/layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layers/layer-tiles.js, which runs code when it loads

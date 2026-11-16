@@ -3,7 +3,7 @@
 // Settings → Top bar: the ready-made looks, "Customize", the clock's font and
 // where notifications appear. Every control writes hubSettings.topbarLook through
 // set(), and the bar at the top of the screen is the preview: it changes as the
-// user picks. The rules (what each value is) live in js/topbar-look.js; this file
+// user picks. The rules (what each value is) live in js/topbar/topbar-look.js; this file
 // only draws the controls for them. Text is built with textContent and carries
 // its data-i18n key, so a language change re-translates it in place.
 (function () {

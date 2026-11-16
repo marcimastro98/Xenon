@@ -100,7 +100,7 @@
     "server/js/streaming/youtubelive-widget.js": 588,
     "server/js/ticker/news-widget.js": 337,
     "server/js/ticker/stock-widget.js": 703,
-    "server/js/topbar-look.js": 367,
+    "server/js/topbar/topbar-look.js": 367,
     "server/js/topbar/topbar-minimal.js": 1129,
     "server/js/transfer-widget/transfer-widget.js": 1020,
     "server/js/unifi-widget/unifi-widget.js": 785,

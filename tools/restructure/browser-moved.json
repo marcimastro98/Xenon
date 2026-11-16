@@ -329,6 +329,7 @@
     {"from":"server/js/onboarding.js","to":"server/js/onboarding/onboarding.js"},
     {"from":"server/js/usage-ask.js","to":"server/js/usage-ask/usage-ask.js"},
     {"from":"server/js/remote-access-page.js","to":"server/js/remote-access-page/remote-access-page.js"},
-    {"from":"server/js/settings-search.js","to":"server/js/settings-search/settings-search.js"}
+    {"from":"server/js/settings-search.js","to":"server/js/settings-search/settings-search.js"},
+    {"from":"server/js/topbar-look.js","to":"server/js/topbar/topbar-look.js"}
   ]
 }

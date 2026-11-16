@@ -1,7 +1,7 @@
 // What a new install starts with, second part: the screensaver, weather and units, music and
 // lyrics, the top bar, widget layers and the upcoming list.
 
-const TopbarLook = require('../js/topbar-look.js');
+const TopbarLook = require('../js/topbar/topbar-look.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const { WEATHER_FIELDS_ALL_ON } = require('../weather/fields-all-on.js');
 
@@ -46,7 +46,7 @@ const HUB_DEFAULTS_SCREEN = Object.freeze({
   // Minimal-mode edge rails auto-hide after ~10s of no interaction, revealed again
   // by a touch at the screen edge. Default on; off keeps them always on screen.
   topbarRailsAutoHide: true,
-  // The bar's look in every style (js/topbar-look.js owns the rules).
+  // The bar's look in every style (js/topbar/topbar-look.js owns the rules).
   topbarLook: TopbarLook.DEFAULTS,
   // Widgets outside the dashboard (js/layers/layers-model.js owns the rules).
   layers: LayersModel.DEFAULTS,

@@ -135,7 +135,7 @@
   // Style "none" keeps the rails but drops the capsule (body.topbar-noisland), so
   // there is nothing for the toast to grow out of — fall back to the normal stack.
   // The same when the user chose a fixed place for notifications (Settings → Top
-  // bar → Notifications sets data-tb-toast-place, js/topbar-look.js).
+  // bar → Notifications sets data-tb-toast-place, js/topbar/topbar-look.js).
   // The alerts window of "widgets only" has no top bar and always uses the island.
   // A card that holds the top centre (a call, What's New, Bit's message) sends the
   // notifications to the stack beside it: on the island they would sit under it.

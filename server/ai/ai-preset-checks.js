@@ -10,7 +10,7 @@
 
 const vm = require('vm');
 const PresetShare = require('../js/preset-share.js');
-const TopbarLook = require('../js/topbar-look.js');
+const TopbarLook = require('../js/topbar/topbar-look.js');
 const TopbarShare = require('../js/topbar-share.js');
 const DashboardPresets = require('../js/dashboard-presets.js');
 const CustomBg = require('../js/custom-bg.js');
