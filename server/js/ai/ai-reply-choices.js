@@ -4,7 +4,7 @@
 // plain list, so a reply never reads the brackets out. A line like
 // "[[Blue | Calm, like the sea]]" also says what the answer means: Bit offers
 // real alternatives that way, and the chat draws them as a question card
-// (js/ai-ask-card.js). Pure, shared by the browser (window.AiReplyChoices) and
+// (js/ai/ai-ask-card.js). Pure, shared by the browser (window.AiReplyChoices) and
 // the unit tests.
 (function (root) {
   const MAX_CHOICES = 4;

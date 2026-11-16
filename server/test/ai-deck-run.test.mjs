@@ -93,11 +93,11 @@ test('wiring: the tool, the run route that reads only the nonce, the card', () =
   assert.ok(server.includes("} else if (fnName === 'run_deck_action') {"));
   assert.ok(server.includes("const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode));"));
   assert.match(server, /reqPath === '\/ai\/deck-run'[\s\S]{0,400}const action = _deckConfirms\.take\(nonce\);\n\s+if \(!action\) \{ json\(\{ ok: false, error: 'expired' \}\); return; \}[\s\S]{0,300}json\(await deckRegistry\.run\(action\)\)/);
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.ok(ai.includes("case 'confirm_deck_action':"));
   assert.ok(ai.includes('if (window.DeckClientRun) window.DeckClientRun(args && args.action);'));
-  assert.match(read('../index.html'), /js\/ai\.js"><\/script>\n<script src="js\/ai-deck-confirm\.js">/);
-  const card = read('../js/ai-deck-confirm.js');
+  assert.match(read('../index.html'), /js\/ai\/ai\.js"><\/script>\n<script src="js\/ai\/ai-deck-confirm\.js">/);
+  const card = read('../js/ai/ai-deck-confirm.js');
   assert.ok(!card.includes('innerHTML'), 'model text reaches the card as textContent only');
   assert.ok(card.includes("post('/ai/deck-run', nonce)"));
   const i18n = appStringsSource();

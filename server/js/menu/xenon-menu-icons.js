@@ -51,7 +51,7 @@
   const NS = 'http://www.w3.org/2000/svg';
 
   // Bit and the Scintilla are never stroke icons: they come from the same engines
-  // as the dashboard and the site (js/bit-app.js, shared/src/bit-spark.js). The markup
+  // as the dashboard and the site (js/ai/bit-app.js, shared/src/bit-spark.js). The markup
   // is built from their own constants, so nothing untrusted reaches the template.
   // The brand Bit is green (site, Settings, app icon); the engine's idle mood is yellow.
   const BRAND_GREEN = '110,231,135';

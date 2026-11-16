@@ -184,7 +184,7 @@ function loadWait({ stored = null, answers = [] } = {}) {
     setTimeout: (fn) => { setImmediate(fn); return 1; }, clearTimeout: () => {},
   };
   win.window = win;
-  vm.runInNewContext(read('../js/ai-turn-wait.js'), win);
+  vm.runInNewContext(read('../js/ai/ai-turn-wait.js'), win);
   return { AW: win.AiTurnWait, store, fetched };
 }
 
@@ -239,7 +239,7 @@ test('a lost turn is picked up when the server has its answer, and dropped when 
 });
 
 test('the chat sends the turn id, shows the wait, keeps what a failed turn made and resumes after a reload', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.match(ai, /\.\.\.\(turnId \? \{ turnId \} : \{\}\)/);
   assert.match(ai, /stopWatch = turnWait\.watch\(turnId, \(st\) => setAiStatus\('working', st\)\)/);
   assert.match(ai, /if \(turnWait && !voiceTurn\) \{ recovering = true; _aiAwaitLostTurn\(turnId, startedAt\); return; \}/);
@@ -247,11 +247,11 @@ test('the chat sends the turn id, shows the wait, keeps what a failed turn made 
   assert.match(ai, /function initAi\(\) \{[\s\S]{0,200}_aiResumePendingTurn\(\);/);
   assert.match(ai, /label\.textContent = info\.text;/, 'step names go in as text, never markup');
   const html = read('../index.html');
-  assert.ok(html.indexOf('js/ai-turn-wait.js') > 0 && html.indexOf('js/ai-turn-wait.js') < html.indexOf('js/ai.js'));
+  assert.ok(html.indexOf('js/ai/ai-turn-wait.js') > 0 && html.indexOf('js/ai/ai-turn-wait.js') < html.indexOf('js/ai/ai.js'));
 });
 
 test('the draft filter keeps only the last created share code and every other action', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   const src = ai.slice(ai.indexOf('function _aiActionsToRun('), ai.indexOf('\n}\n', ai.indexOf('function _aiActionsToRun(')) + 2);
   const run = vm.runInNewContext('(' + src.replace('function _aiActionsToRun', 'function') + ')');
   const draft = (n) => ({ action: 'marketplace_open_import', args: { created: true, code: n } });

@@ -313,10 +313,7 @@
       "what": "The assistant: chat and voice, the AI providers, its memory, its tools, and the looks and widgets it builds.",
       "files": [
         "server/ai/**",
-        "server/js/ai.js",
         "server/js/ai/**",
-        "server/js/ai-*.js",
-        "server/js/bit-*.js",
         "server/js/bit-message-card/**",
         "server/components/AIPanel/**",
         "server/components/AskSheet/**",

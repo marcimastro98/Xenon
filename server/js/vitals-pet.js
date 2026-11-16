@@ -53,7 +53,7 @@
   // before throwing a paid line away.
   const AI_ROAST_SPARKS_TIMEOUT_MS = 8000;
 
-  // ── Bit's look: the shared engine (shared/src/bit*.js via js/bit-app.js) ──
+  // ── Bit's look: the shared engine (shared/src/bit*.js via js/ai/bit-app.js) ──
   const GAMEOVER_PX = 56;
 
   // ── state ──

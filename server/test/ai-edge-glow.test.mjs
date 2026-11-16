@@ -1,4 +1,4 @@
-// Xenon AI's edge glow on the other screens (js/ai-edge-glow.js): which screens
+// Xenon AI's edge glow on the other screens (js/ai/ai-edge-glow.js): which screens
 // it lights, what it tells the shell and when it stays quiet. The shell side
 // (payload rule, pixels, breathing) is unit-tested in apps/native (layers/glow.rs).
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/ai-edge-glow.js');
+const SRC = read('../js/ai/ai-edge-glow.js');
 const bit = createRequire(import.meta.url)('../../packages/core/src/bit.js');
 
 const D1 = '\\\\.\\DISPLAY1';

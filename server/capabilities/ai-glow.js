@@ -1,7 +1,7 @@
 'use strict';
 // The Xenon AI edge glow: which screens light up while a voice chat is on.
 // The setting lives in hubSettings.aiEdgeGlow; the main dashboard reads it
-// (js/ai-edge-glow.js) and the native shell draws the glow, so this file only
+// (js/ai/ai-edge-glow.js) and the native shell draws the glow, so this file only
 // changes the choice.
 //
 // deps (injected):

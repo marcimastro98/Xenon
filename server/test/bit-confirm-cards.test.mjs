@@ -1,4 +1,4 @@
-// The two cards where Bit asks before doing something: a Deck action (js/ai-deck-confirm.js) and
+// The two cards where Bit asks before doing something: a Deck action (js/ai/ai-deck-confirm.js) and
 // a command on the PC (_aiShowPcConfirm in js/ai/pc-confirm.js). They can come up while the next message is
 // being typed, so a stray key must never say yes.
 import { test } from 'node:test';
@@ -9,8 +9,8 @@ import { makeDom, settle, windowKeys } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const FOCUS = read('../js/dialog-focus.js');
-const DECK = read('../js/ai-deck-confirm.js');
-const AI = read('../js/ai.js');
+const DECK = read('../js/ai/ai-deck-confirm.js');
+const AI = read('../js/ai/ai.js');
 const PC = AI.slice(AI.indexOf('// The card on screen: a newer one'), AI.indexOf('function _aiRenderPcResult'));
 
 function rig(extraWindow = {}) {

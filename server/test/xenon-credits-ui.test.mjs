@@ -381,7 +381,7 @@ test('the chat leads to the Sparks shop when the Scintille run low or out, once 
     addEventListener() {},
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/ai-bit-chat.js'), ctx);
+  vm.runInNewContext(read('../js/ai/ai-bit-chat.js'), ctx);
   const B = ctx.BitChat;
   assert.equal(B.crossedLow(120, 60), true, 'this reply took it under the mark');
   assert.equal(B.crossedLow(60, 40), false, 'already low: not on every reply');
@@ -397,7 +397,7 @@ test('the chat leads to the Sparks shop when the Scintille run low or out, once 
   assert.equal(shop, 1, 'the button opens the Sparks tab');
   assert.equal(B.buyRow('').children.length, 1, 'no line when the reply above already says it');
 
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.match(ai, /BitChat\.crossedLow\(sparksBefore, data\.credits\)\) _aiAppendBuyRow\(t\('xai_low'\)\)/);
   assert.equal((ai.match(/if \(_aiOutOfSparks\(e(rr)?\)\) _aiAppendBuyRow\(''\)/g) || []).length, 2, 'the refused turn, live or late');
 });

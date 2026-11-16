@@ -1,7 +1,7 @@
 // Bit's question with real alternatives, drawn the way the Maker draws it:
 // numbered answers with what each one means, the person's own words, or the
 // choice left to Bit. Only replies whose [[answer | note]] lines carry notes get
-// it (js/ai-reply-choices.js); a plain yes or no stays a row of one-tap answers.
+// it (js/ai/ai-reply-choices.js); a plain yes or no stays a row of one-tap answers.
 // Clicks and keys are delegated, so the chat mirrors in duplicated tiles answer too.
 (function () {
   const composer = () => document.getElementById('ai-text-input');

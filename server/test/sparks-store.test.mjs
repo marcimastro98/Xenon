@@ -277,13 +277,13 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
   assert.match(credits, /function openShop\(\) \{[\s\S]*?CommunityGallery\.openSparks\(\)[\s\S]*?window\.open\(TOPUP_URL, '_blank', 'noopener'\)/);
   const html = read('../index.html');
   assert.match(html, /id="xai-shop" onclick="XenonCredits\.openShop\(\)"/);
-  assert.match(read('../js/ai-bit-chat.js'), /go\.addEventListener\('click', \(\) => XenonCredits\.openShop\(\)\)/);
+  assert.match(read('../js/ai/ai-bit-chat.js'), /go\.addEventListener\('click', \(\) => XenonCredits\.openShop\(\)\)/);
   assert.match(read('../js/store-supporters/sparks-mail.js'), /action: \{ type: 'sparks'/);
   assert.match(read('../js/ai/bit-messages.js'), /sparks: \(\) => window\.XenonCredits && window\.XenonCredits\.openShop\(\)/);
   const share = read('../js/preset-share.js');
   assert.match(share, /close\(\);\s*window\.XenonCredits\.openShop\(\);/);
   assert.ok(!/buyMore\.href/.test(share), 'the unlock window no longer jumps to the shop page');
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.match(ai, /case 'open_sparks_shop':\s*if \(window\.XenonCredits && typeof XenonCredits\.openShop === 'function'\) XenonCredits\.openShop\(\);/);
   const server = engineSource();
   assert.match(server, /\{ name: 'open_sparks_shop', description: "[^"]*Sparks[^"]*"/);

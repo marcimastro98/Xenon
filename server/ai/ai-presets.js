@@ -130,7 +130,7 @@ function runCreatePreset(args, deps, pictures = []) {
   if (!built.ok) {
     return { fnResult: { ok: false, error: built.error, hint: built.hint, report: built.report }, clientActions };
   }
-  // `created`: a later create_preset in the same reply replaces this one (js/ai.js).
+  // `created`: a later create_preset in the same reply replaces this one (js/ai/ai.js).
   clientActions.push({ action: 'marketplace_open_import', args: { code: built.code, created: true } });
   const changes = built.report.dropped + built.report.changed;
   const fixes = built.critique.fix;

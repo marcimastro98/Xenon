@@ -184,10 +184,10 @@ const TOOLS = ["'use strict';", '', 'const UNIT = 2;', '', '// Twice the value.'
 
 test('a plan tried without writing judges each move after the ones before it, and gives what the real moves give', (t) => {
   if (!parser) return t.skip(SKIP);
-  const files = { 'server/js/ai.js': TOOLS, 'server/index.html': '<body>\n<script src="js/ai.js"></script>\n</body>\n',
+  const files = { 'server/js/ai/ai.js': TOOLS, 'server/index.html': '<body>\n<script src="js/ai/ai.js"></script>\n</body>\n',
     'tools/map/frozen-paths.json': JSON.stringify({ paths: [], whole: [] }), 'tools/restructure/extracted-browser.json': JSON.stringify({ note: '', moves: [] }) };
   const root = tempRepo(files);
-  const move = (file, names) => ({ kind: 'script', from: 'server/js/ai.js', file, about: 'A part.', names });
+  const move = (file, names) => ({ kind: 'script', from: 'server/js/ai/ai.js', file, about: 'A part.', names });
   const reasons = (run) => { try { run(); } catch (error) { if (error instanceof Refusal) return error.reasons.join('\n'); throw error; } return ''; };
   const onDisk = () => Object.fromEntries(spawnSync('git', ['ls-files', '-o', '-c', '-z'], { cwd: root, encoding: 'utf8' }).stdout.split('\0').filter(Boolean).sort()
     .map((file) => [file, fs.readFileSync(path.join(root, file), 'utf8')]));
@@ -195,13 +195,13 @@ test('a plan tried without writing judges each move after the ones before it, an
     const plan = newPlan();
     const first = perform({ root, parser, move: move('server/js/ai/double.js', ['double']), dryRun: true, plan });
     const second = perform({ root, parser, move: move('server/js/ai/triple.js', ['triple']), dryRun: true, plan });
-    assert.equal(first.lines['server/js/ai.js'], 13);
-    assert.equal(second.lines['server/js/ai.js'], 9, 'the old script after both moves, not after the second alone');
+    assert.equal(first.lines['server/js/ai/ai.js'], 13);
+    assert.equal(second.lines['server/js/ai/ai.js'], 9, 'the old script after both moves, not after the second alone');
     assert.deepEqual(plan.moves.map((entry) => entry.file), ['server/js/ai/double.js', 'server/js/ai/triple.js']);
-    assert.match(plan.texts.get('server/index.html'), /<script src="js\/ai\/double\.js"><\/script>\n<script src="js\/ai\/triple\.js"><\/script>\n<script src="js\/ai\.js"><\/script>/);
+    assert.match(plan.texts.get('server/index.html'), /<script src="js\/ai\/double\.js"><\/script>\n<script src="js\/ai\/triple\.js"><\/script>\n<script src="js\/ai\/ai\.js"><\/script>/);
     // What only the order shows: a file the plan made already, and a name it took already.
     assert.match(reasons(() => perform({ root, parser, move: move('server/js/ai/double.js', ['sum']), dryRun: true, plan })), /server\/index\.html already loads server\/js\/ai\/double\.js/);
-    assert.match(reasons(() => perform({ root, parser, move: move('server/js/ai/again.js', ['double']), dryRun: true, plan })), /server\/js\/ai\.js declares no double at its top level/);
+    assert.match(reasons(() => perform({ root, parser, move: move('server/js/ai/again.js', ['double']), dryRun: true, plan })), /server\/js\/ai\/ai\.js declares no double at its top level/);
     assert.equal(plan.moves.length, 2, 'a refused move leaves the plan as it was');
     assert.deepEqual(onDisk(), files, 'nothing was written');
     assert.throws(() => perform({ root, parser, move: move('server/js/ai/sum.js', ['sum']), plan }), /a plan is for a dry run/);

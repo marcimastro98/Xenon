@@ -26,9 +26,9 @@ test('Bit brings the dashboard\'s own files, in the dashboard\'s order, and no V
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
   assert.ok(!ScreenBit.SCRIPTS.includes('js/ai/ai-live.js'));
-  assert.equal(ScreenBit.SCRIPTS.at(-3), 'js/ai.js');
+  assert.equal(ScreenBit.SCRIPTS.at(-3), 'js/ai/ai.js');
   // The chat's confirm cards open here too: a command Bit proposes on the main screen.
-  for (const f of ['js/dialog-focus.js', 'js/ai-deck-confirm.js']) assert.ok(ScreenBit.SCRIPTS.includes(f), f);
+  for (const f of ['js/dialog-focus.js', 'js/ai/ai-deck-confirm.js']) assert.ok(ScreenBit.SCRIPTS.includes(f), f);
   assert.equal(ScreenBit.IDLE_RELOAD_MS, 60000);
 });
 
@@ -57,7 +57,7 @@ function boot({ markup = true, busy = false, failOnce = '', inPage = [] } = {}) 
     appendChild(node) {
       if (node.tagName === 'script') {
         added.push(node.src);
-        if (node.src === 'js/ai.js') window._aiHandleWake = () => { wakes += 1; };
+        if (node.src === 'js/ai/ai.js') window._aiHandleWake = () => { wakes += 1; };
         if (node.src === failOnce && !failed) { failed = true; queueMicrotask(() => node.onerror()); } else queueMicrotask(() => node.onload());
       } else added.push('markup');
     },
@@ -104,11 +104,11 @@ test('nothing loads until the first wake; then the panel, the CSS and the script
 });
 
 test('a script that fails once is fetched again on the next wake, with the one panel', async () => {
-  const b = boot({ failOnce: 'js/ai.js' });
+  const b = boot({ failOnce: 'js/ai/ai.js' });
   assert.equal(await b.api.wake(), false);
   assert.equal(await b.api.wake(), true);
   assert.equal(b.added.filter((a) => a === 'markup').length, 1, 'no second panel');
-  assert.equal(b.added.filter((a) => a === 'js/ai.js').length, 2);
+  assert.equal(b.added.filter((a) => a === 'js/ai/ai.js').length, 2);
 });
 
 test('without the panel in the page Bit stays away instead of a broken card', async () => {
@@ -161,8 +161,8 @@ test('of a Deck key\'s client steps, only "talk to Xenon AI" by voice is Bit\'s 
 });
 
 test('a script the page already carries is not added a second time', async () => {
-  const b = boot({ inPage: ['js/bit-app.js'] });
+  const b = boot({ inPage: ['js/ai/bit-app.js'] });
   await b.api.load();
-  assert.ok(!b.added.includes('js/bit-app.js'));
-  assert.ok(b.added.includes('js/ai.js'));
+  assert.ok(!b.added.includes('js/ai/bit-app.js'));
+  assert.ok(b.added.includes('js/ai/ai.js'));
 });

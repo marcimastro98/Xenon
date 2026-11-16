@@ -390,7 +390,7 @@
       const row = el('div', 'cx-msg is-' + m.role);
       const b = el('div', 'cx-bubble' + (m.role === 'assistant' ? ' ai-msg-markdown' : ''));
       // The user's words as text; Codex's through the escaping markdown renderer
-      // Xenon AI uses (js/ai.js): it escapes first and only links http(s)/mailto.
+      // Xenon AI uses (js/ai/ai.js): it escapes first and only links http(s)/mailto.
       if (m.role === 'assistant' && typeof _aiRenderMarkdown === 'function') b.innerHTML = _aiRenderMarkdown(m.text);
       else b.textContent = m.text;
       if (m.files) b.appendChild(el('span', 'cx-files', ' ' + t('codex_n_files', '+{n} attached').replace('{n}', String(m.files))));

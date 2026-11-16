@@ -34,7 +34,7 @@ function localServerKeys() {
   const keys = new Set(['ai_provider_localapi', 'lyrics_opt_cost_localapi', 'ai_localserver_tools_context', 'ai_localserver_tools_refused']);
   for (const [, key] of panel.matchAll(/data-i18n="([a-z_]+)"/g)) keys.add(key);
   for (const [, key] of read('js/ai/ai-local-server-settings.js').matchAll(/'(settings_[a-z_]+)'/g)) keys.add(key);
-  const codes = read('js/ai.js').match(/AI_LOCAL_SERVER_ERRORS = new Set\(\[([^\]]+)\]/)[1];
+  const codes = read('js/ai/ai.js').match(/AI_LOCAL_SERVER_ERRORS = new Set\(\[([^\]]+)\]/)[1];
   for (const [, code] of codes.matchAll(/'([a-z_]+)'/g)) keys.add('ai_localserver_' + code);
   return [...keys];
 }
@@ -123,10 +123,10 @@ test('the panel has every control its script reaches for, and loads in order', (
 
 test('every list of providers on the client knows it', () => {
   assert.match(read('js/settings.js'), /AI_PROVIDER_IDS = \[[^\]]*'localapi'/);
-  for (const file of ['js/ai.js', 'js/performance.js']) {
+  for (const file of ['js/ai/ai.js', 'js/performance.js']) {
     assert.match(read(file), /\['ollama', 'localapi', 'openai'/, file);
   }
-  for (const file of ['js/ai.js', 'js/media/media.js', 'js/disk-widget.js', 'js/performance.js']) {
+  for (const file of ['js/ai/ai.js', 'js/media/media.js', 'js/disk-widget.js', 'js/performance.js']) {
     assert.match(read(file), /=== 'ollama' \|\| \w+ === 'localapi'\) return true/, file);
   }
 });

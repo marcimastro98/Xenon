@@ -146,7 +146,7 @@ test('the assistant puts a widget it made on the current page, in its shape', ()
   const at = server.indexOf("if (fnName === 'create_widget')");
   const body = server.slice(at, server.indexOf("} else if (fnName === 'preset_reference')", at));
   assert.match(body, /clientActions\.push\(\{ action: 'place_created_widget', args: \{ id: r\.id \} \}\)/);
-  assert.match(read('js/ai.js'), /case 'place_created_widget':\s*\n\s*if \(window\.CustomWidget && window\.CustomWidget\.placeCreated/);
+  assert.match(read('js/ai/ai.js'), /case 'place_created_widget':\s*\n\s*if \(window\.CustomWidget && window\.CustomWidget\.placeCreated/);
   const cw = read('js/custom-widget.js');
   assert.match(cw, /DG\.sizeForHint\(pkg\.size, page\)/);
   assert.match(cw, /DG\.addWidgetToPage\('custom', page, size\)/);

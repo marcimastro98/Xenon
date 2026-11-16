@@ -161,7 +161,7 @@ test('the stop route is POST-only, CSRF-guarded and reachable from a paired phon
 
 // The chat side, in a small window: the button, the stop request, the labels.
 function loadStop() {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   const body = { classes: new Set(), classList: { toggle(c, on) { if (on) body.classes.add(c); else body.classes.delete(c); } } };
   const buttons = [{ attrs: {}, title: '', setAttribute(k, v) { this.attrs[k] = v; } }, { attrs: {}, title: '', setAttribute(k, v) { this.attrs[k] = v; } }];
   const posted = [];
@@ -199,7 +199,7 @@ test('while a reply is on its way, send is the stop button, and it stops once', 
 });
 
 test('the chat frees itself on a stop, keeps what was made, and never toasts a stopped turn', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.match(ai, /\.\.\.\(running \? \{ signal: running\.ctrl\.signal \} : \{\}\),/);
   assert.match(ai, /\} catch \(netErr\) \{\n\s*if \(running && running\.stopped\) \{ _aiAfterStop\(turnId\); return; \}/);
   assert.match(ai, /const data = await response\.json\(\)\.catch\(\(\) => \(\{\}\)\);\n\s*if \(running && running\.stopped\) \{ _aiAfterStop\(turnId\); return; \}/);

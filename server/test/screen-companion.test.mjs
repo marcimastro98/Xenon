@@ -27,7 +27,7 @@ test('the card brings the dashboard\'s own files, in the dashboard\'s order', ()
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
   const CARD = partsOf('server/js/game-companion.js').map((file) => file.slice('server/'.length));
   assert.deepEqual(ScreenCompanion.SCRIPTS.slice(-CARD.length), CARD, 'the card itself last, right after the scripts cut out of it');
-  assert.ok(!ScreenCompanion.SCRIPTS.includes('js/ai.js'), 'the card never pulls in the chat');
+  assert.ok(!ScreenCompanion.SCRIPTS.includes('js/ai/ai.js'), 'the card never pulls in the chat');
   for (const f of ['shared/src/bit-spark.js', 'js/store-supporters/xenon-credits.js']) {
     assert.ok(ScreenCompanion.SCRIPTS.includes(f), 'a look on Sparks says its price here too: ' + f);
   }
@@ -93,7 +93,7 @@ function boot({ markup = true, busy = false, shows = true } = {}) {
     appendChild(node) {
       if (node.tagName === 'script') {
         added.push(node.src);
-        if (node.src === 'js/ai.js') window._aiHandleWake = () => { wakes += 1; };
+        if (node.src === 'js/ai/ai.js') window._aiHandleWake = () => { wakes += 1; };
         if (node.src === 'js/game-companion.js') {
           window.GameCompanion = {
             isOpen: () => !!overlay && !overlay.hidden,

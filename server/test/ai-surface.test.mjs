@@ -64,5 +64,5 @@ test('every /api/ai tool call carries the surface, and the refusal runs before t
   const refusal = src.indexOf('clientActionRefusal(fnName, surface, widgetsOnly)', at);
   assert.ok(at < refusal && refusal < src.indexOf('clientActions.push(', at));
   assert.ok(src.indexOf("broadcastSSE('needs_dashboard', {});", refusal) < src.indexOf('clientActions.push(', at), 'the screen says it too');
-  assert.match(read('../js/ai.js'), /\.\.\.\(window\.AiSurface === 'screen' \? \{ surface: 'screen' \} : \{\}\),/);
+  assert.match(read('../js/ai/ai.js'), /\.\.\.\(window\.AiSurface === 'screen' \? \{ surface: 'screen' \} : \{\}\),/);
 });

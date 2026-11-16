@@ -8,7 +8,7 @@ import { makeDom } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const read = (...path) => readFileSync(join(HERE, '..', ...path), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('js', 'bit-message-card.js');
+const SRC = read('js', 'bit-message-card/bit-message-card.js');
 
 // A question from Bit is about this moment: a game just started, do you want the room?
 // So unlike a message it does not fold into the clock to wait, and nothing else takes

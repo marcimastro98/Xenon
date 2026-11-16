@@ -373,7 +373,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // the screen edge glows, with the live captions in a small glass strip.
   aiVoiceAmbient: false,
   // Which screens light their edges while a voice chat is on (native app,
-  // js/ai-edge-glow.js): auto = the screen Bit was called from.
+  // js/ai/ai-edge-glow.js): auto = the screen Bit was called from.
   aiEdgeGlow: 'auto',
   // How this PC uses Xenon: dashboard / widgets / both, '' = not asked yet
   // (js/first-run/usage-mode.js).

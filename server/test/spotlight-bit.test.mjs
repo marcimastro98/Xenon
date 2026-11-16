@@ -161,5 +161,5 @@ test('the chat heads show the face and keep the name for screen readers', () => 
   assert.match(read('../components/MediaPanel/MediaPanel.css'), /\.bit-chat-face:not\(:empty\) \+ \.bit-chat-name \{[^}]*clip-path/);
   assert.match(read('../components/AIPanel/AIPanel.css'), /\.ai-header-face:not\(:empty\) \+ \.ai-header-name \{[^}]*clip-path/);
   // The search window and the alerts window never run media.js, so the panel fills its own head.
-  assert.match(read('../js/ai-bit-chat.js'), /paintLauncher\(\);\n\s*mountHeads\(\);/);
+  assert.match(read('../js/ai/ai-bit-chat.js'), /paintLauncher\(\);\n\s*mountHeads\(\);/);
 });

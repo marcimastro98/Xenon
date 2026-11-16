@@ -146,7 +146,7 @@ test('a new chat stays clean after a reload, and what comes later still arrives'
 });
 
 test('what Bit said does not make the chat a conversation', () => {
-  const ai = read('js/ai.js');
+  const ai = read('js/ai/ai.js');
   assert.match(ai, /_aiTalkNodes = \(chat\) => chat\.querySelectorAll\(':scope > :not\(\[data-bit-told\]\)'\)/);
   assert.match(ai, /!chat \|\| _aiTalkNodes\(chat\)\.length > 0/, 'the welcome still shows under it');
   assert.match(ai, /function aiClearHistory\(\) \{\s*if \(window\.BitTold\) BitTold\.forget\(\);/);
@@ -156,7 +156,7 @@ test('Bit opens a creation and stops there: installing stays with the person', (
   const server = engineSource();
   assert.match(server, /\{ name: 'open_store_entry', description: "[^"]*only opens the page[^"]*"/);
   assert.match(server, /const CLIENT_ACTIONS = new Set\(\[[^\]]*'open_store_entry'/);
-  assert.match(read('js/ai.js'), /case 'open_store_entry':\s*if \(window\.CommunityGallery\) CommunityGallery\.openEntryById\(String\(args\.entryId \|\| ''\)\);/);
+  assert.match(read('js/ai/ai.js'), /case 'open_store_entry':\s*if \(window\.CommunityGallery\) CommunityGallery\.openEntryById\(String\(args\.entryId \|\| ''\)\);/);
   assert.equal(surface.SHEET_OK.has('open_store_entry'), true);
   assert.equal(surface.SCREEN_OK.has('open_store_entry'), false, 'the alerts window has no Store');
 });

@@ -22,8 +22,8 @@
   const SCRIPTS = Object.freeze([
     'shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js',
     'shared/src/bit-phrases.js', 'shared/src/bit-spark.js', 'js/dialog-focus.js',
-    'js/store-supporters/xenon-credits.js', 'js/ai-turn-wait.js', 'js/bit-app.js', 'js/ai-bit-chat.js',
-    'js/ai-reply-choices.js', 'js/ai-ask-card.js',
+    'js/store-supporters/xenon-credits.js', 'js/ai/ai-turn-wait.js', 'js/ai/bit-app.js', 'js/ai/ai-bit-chat.js',
+    'js/ai/ai-reply-choices.js', 'js/ai/ai-ask-card.js',
     'js/ai/providers-and-errors.js',
     'js/ai/panel.js',
     'js/ai/turns.js',
@@ -42,7 +42,7 @@
     'js/ai/pc-confirm.js',
     'js/ai/copy.js',
     'js/ai/dictation.js',
-    'js/ai.js', 'js/ai-deck-confirm.js', 'js/ai-edge-glow.js',
+    'js/ai/ai.js', 'js/ai/ai-deck-confirm.js', 'js/ai/ai-edge-glow.js',
   ]);
   const IDLE_RELOAD_MS = 60 * 1000;
 

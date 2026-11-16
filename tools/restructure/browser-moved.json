@@ -280,6 +280,15 @@
     {"from":"server/js/layers-shell.js","to":"server/js/layers-shell/layers-shell.js"},
     {"from":"server/js/lyrics-core.js","to":"server/js/lyrics-core/lyrics-core.js"},
     {"from":"server/js/media.js","to":"server/js/media/media.js"},
-    {"from":"server/js/volume.js","to":"server/js/volume/volume.js"}
+    {"from":"server/js/volume.js","to":"server/js/volume/volume.js"},
+    {"from":"server/js/ai-ask-card.js","to":"server/js/ai/ai-ask-card.js"},
+    {"from":"server/js/ai-bit-chat.js","to":"server/js/ai/ai-bit-chat.js"},
+    {"from":"server/js/ai-deck-confirm.js","to":"server/js/ai/ai-deck-confirm.js"},
+    {"from":"server/js/ai-edge-glow.js","to":"server/js/ai/ai-edge-glow.js"},
+    {"from":"server/js/ai-reply-choices.js","to":"server/js/ai/ai-reply-choices.js"},
+    {"from":"server/js/ai-turn-wait.js","to":"server/js/ai/ai-turn-wait.js"},
+    {"from":"server/js/ai.js","to":"server/js/ai/ai.js"},
+    {"from":"server/js/bit-app.js","to":"server/js/ai/bit-app.js"},
+    {"from":"server/js/bit-message-card.js","to":"server/js/bit-message-card/bit-message-card.js"}
   ]
 }

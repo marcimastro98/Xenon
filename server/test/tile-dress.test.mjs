@@ -139,7 +139,7 @@ test('the server knows the tool and hands it to the client, which knows the acti
   assert.match(server, /\{ name: 'style_tile',/);
   assert.match(server.match(/const CLIENT_ACTIONS = new Set\(\[([^\]]*)\]\)/)[1], /'style_tile'/);
   assert.match(server, /fnName === 'style_tile' \? TileMaterial\.requestMiss\(fnArgs\)/);
-  assert.match(read('../js/ai.js'), /case 'style_tile':\s+if \(window\.TileDress\) window\.TileDress\.dress\(args\);/);
+  assert.match(read('../js/ai/ai.js'), /case 'style_tile':\s+if \(window\.TileDress\) window\.TileDress\.dress\(args\);/);
   const page = read('../index.html');
   assert.ok(page.indexOf('js/look/tile-style-editor.js') < page.indexOf('js/look/tile-dress.js'));
   // Each material the tool names is one the window has, and the other way round.

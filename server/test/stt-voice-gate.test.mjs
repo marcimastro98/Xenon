@@ -117,14 +117,14 @@ test('the answer leaves out thoughts and honours the no-speech word', () => {
 });
 
 test('a refused clip reaches the chat in the language of the user', () => {
-  const ai = readFileSync(new URL('../js/ai.js', import.meta.url), 'utf8');
+  const ai = readFileSync(new URL('../js/ai/ai.js', import.meta.url), 'utf8');
   const i18n = appStringsSource();
   assert.ok(ai.includes(`msg === '${VOICE_BLOCKED}'`));
   assert.equal((i18n.match(/ai_voice_blocked/g) || []).length, 11, 'every app language');
 });
 
 test('the browser mic names the language, without which Gemini refuses far more clips', () => {
-  const ai = readFileSync(new URL('../js/ai.js', import.meta.url), 'utf8');
+  const ai = readFileSync(new URL('../js/ai/ai.js', import.meta.url), 'utf8');
   const call = ai.slice(ai.indexOf("fetch('/api/transcribe'"), ai.indexOf('const { text, error } = await transcribeRes.json()'));
   assert.ok(call.includes('lang:'));
 });

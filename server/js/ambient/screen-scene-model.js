@@ -8,7 +8,7 @@
 //
 // Screens: each screen's own scene once one is picked for it (`ambientMode.byScreen`,
 // per kind). Before that, the ones the person chose (`ambientMode.screens`). With none chosen,
-// or none of them plugged in, like Bit's edge glow on `auto` (js/ai-edge-glow.js):
+// or none of them plugged in, like Bit's edge glow on `auto` (js/ai/ai-edge-glow.js):
 // every screen but the one the dashboard is on, which has its own Ambient; all of
 // them when there is no dashboard ("widgets only") or it is the only screen.
 (function (root, factory) {

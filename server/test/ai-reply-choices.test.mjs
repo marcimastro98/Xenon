@@ -6,7 +6,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const C = require('../js/ai-reply-choices.js');
+const C = require('../js/ai/ai-reply-choices.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('trailing [[answer]] lines come off the text as choices', () => {
@@ -47,7 +47,7 @@ test('voice hears the choices as a list, never the brackets', () => {
 });
 
 test('the chat renders choices as buttons, delegated, and any new message retires them', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.match(ai, /AiReplyChoices\.split\(text\)/);
   assert.match(ai, /btn\.className = 'ai-choice'/);
   assert.match(ai, /btn\.textContent = c;/, 'choices are untrusted text: textContent, never innerHTML');
@@ -60,8 +60,8 @@ test('the chat renders choices as buttons, delegated, and any new message retire
 
 test('the page loads the helper before ai.js and styles touch-sized choices', () => {
   const html = read('../index.html');
-  const helper = html.indexOf('<script src="js/ai-reply-choices.js"></script>');
-  assert.ok(helper > 0 && helper < html.indexOf('<script src="js/ai.js"></script>'));
+  const helper = html.indexOf('<script src="js/ai/ai-reply-choices.js"></script>');
+  assert.ok(helper > 0 && helper < html.indexOf('<script src="js/ai/ai.js"></script>'));
   const css = read('../components/AIPanel/AIPanel.css');
   assert.match(css, /\.ai-choice \{[^}]*min-height: 44px;/);
 });
@@ -115,8 +115,8 @@ test('the keys of the question card', () => {
 });
 
 test('the question card loads on every surface, says its words in all 11 languages, and Bit knows the format', () => {
-  assert.match(read('../index.html'), /<script src="js\/ai-ask-card\.js"><\/script>/);
-  assert.match(read('../js/ai/screen-bit.js'), /'js\/ai-ask-card\.js'/);
+  assert.match(read('../index.html'), /<script src="js\/ai\/ai-ask-card\.js"><\/script>/);
+  assert.match(read('../js/ai/screen-bit.js'), /'js\/ai\/ai-ask-card\.js'/);
   const i18n = appStringsSource();
   for (const key of ['ai_ask_label', 'ai_ask_own', 'ai_ask_leave', 'ai_ask_pick']) {
     assert.equal(i18n.match(new RegExp(`\\b${key}:`, 'g'))?.length, 11, key);

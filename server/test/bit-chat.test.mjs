@@ -82,7 +82,7 @@ function bootApp({ classes = [], weather = null, now } = {}) {
   ctx.hasActiveMedia = () => true;
   ctx.lang = 'it';
   vm.runInContext(read('../../packages/core/src/bit-phrases.js'), ctx);
-  vm.runInContext(read('../js/bit-app.js'), ctx, { filename: 'bit-app.js' });
+  vm.runInContext(read('../js/ai/bit-app.js'), ctx, { filename: 'bit-app.js' });
   const flip = (name, on) => { if (on) bodyClasses.add(name); else bodyClasses.delete(name); observers.forEach((o) => o.fn()); };
   return { ctx, BitApp: ctx.BitApp, Xenon, flip, now };
 }
@@ -188,14 +188,14 @@ function bootChat(credits) {
   ctx.window = ctx;
   ctx.XenonCredits = credits;
   vm.createContext(ctx);
-  vm.runInContext(read('../js/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
+  vm.runInContext(read('../js/ai/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
   return ctx.BitChat;
 }
 
 test('a reply shows no Scintille spent: next to Annulla a number read like a refund', () => {
   const chat = bootChat({ format: String, spark: () => new FakeEl('svg') });
   assert.equal(chat.costLine, undefined);
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.doesNotMatch(ai, /_aiAppendCostLine/);
   assert.doesNotMatch(appStringsSource(), /bit_cost_line/);
 });
@@ -207,12 +207,12 @@ test('every reply mood beside a reply is a pose Bit has', () => {
   ctx.document.createElement = (tag) => new FakeEl(tag);
   ctx.document.querySelectorAll = () => [];
   ctx.document.querySelector = () => null;
-  vm.runInContext(read('../js/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
+  vm.runInContext(read('../js/ai/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
   for (const mood of ['idle', 'done', 'worry', undefined, 'unknown']) {
     assert.match(ctx.BitChat.avatarHtml(mood), /^<span class="ai-msg-bit" aria-hidden="true"><svg /, String(mood));
   }
   // every mood setAiStatus can name is a mood clip
-  const src = read('../js/ai-bit-chat.js');
+  const src = read('../js/ai/ai-bit-chat.js');
   const moods = [...src.match(/STATUS_MOOD = \{([^}]+)\}/)[1].matchAll(/'(\w+)'/g)].map((m) => m[1]);
   for (const m of moods) assert.equal(ctx.Xenon.bit.clip(m)?.kind, 'mood', m);
 });
@@ -243,7 +243,7 @@ test('in voice mode Bit listens, thinks and talks, in the colour of the mood', (
     addEventListener: () => {},
   });
   ctx.queueMicrotask = queueMicrotask;
-  vm.runInContext(read('../js/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
+  vm.runInContext(read('../js/ai/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
   const holds = [];
   const player = () => ctx.BitApp.playerFor(host);
   const cases = [['connecting', 'think'], ['listening', 'listen'], ['thinking', 'think'], ['speaking', 'talk'], ['', 'idle']];
@@ -272,7 +272,7 @@ test('the voice view is Bit: no orb or ring left, and the words say Bit', () => 
   assert.doesNotMatch(css, /\.ai-eq|\.ai-voice-core|\.ai-voice-ripple|\.ai-avatar/);
   // the bars and halo stop with the low-GPU choices, like Bit
   for (const cls of ['low-power-gpu', 'perf-mode']) assert.match(css, new RegExp(`body\.${cls} \.ai-voice-bars span`));
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   const stateFn = ai.slice(ai.indexOf('function _aiVoiceState('), ai.indexOf('function _aiVoiceTapInterrupt('));
   assert.match(stateFn, /BitChat\.voiceState\(state\)/);
   const i18n = appStringsSource();
@@ -360,7 +360,7 @@ test('the top bar launcher is Bit, so the phone dock that copies it is Bit too',
     addEventListener: () => {},
   });
   ctx.queueMicrotask = queueMicrotask;
-  vm.runInContext(read('../js/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
+  vm.runInContext(read('../js/ai/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
   assert.ok(placed, 'the old icon is replaced');
   assert.match(placed.markup, /^<svg [^>]*fill="currentColor"/, 'an engine-drawn Bit');
   assert.equal(placed.markup, ctx.BitApp.glyph('idle'), 'the one-colour glyph, not the coloured sprite');
@@ -368,7 +368,7 @@ test('the top bar launcher is Bit, so the phone dock that copies it is Bit too',
   assert.deepEqual(placed.classList.list, ['topbtn-bit']);
   // Painted at load, before js/phone/phone-view.js builds the dock that clones it.
   const html = read('../index.html');
-  assert.ok(html.indexOf('<script src="js/ai-bit-chat.js">') < html.indexOf('<script src="js/phone/phone-view.js">'));
+  assert.ok(html.indexOf('<script src="js/ai/ai-bit-chat.js">') < html.indexOf('<script src="js/phone/phone-view.js">'));
   const launcher = html.slice(html.indexOf('class="topbtn topbtn-xenon"'), html.indexOf('</button>', html.indexOf('class="topbtn topbtn-xenon"')));
   assert.match(launcher, /<span>Bit<\/span>/);
   const i18n = appStringsSource();
@@ -392,7 +392,7 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
   // the native Spotlight window loads the engine before spotlight.js
   const page = read('../spotlight.html');
   const at = (f) => page.indexOf(f);
-  for (const f of ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js']) {
+  for (const f of ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/ai/bit-app.js']) {
     assert.ok(at(f) > 0 && at(f) < at('js/spotlight/spotlight.js'), f);
   }
   // the Deck action picker shows Bit for the AI action
@@ -500,7 +500,7 @@ test('the Game Companion card is Bit: a name, the game, the answer beside Bit', 
 });
 
 test('Annulla is underlined text that works from any chat copy and says when it fails', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   const chip = ai.slice(ai.indexOf('function _aiAppendUndoChip'), ai.indexOf('async function _aiUndo'));
   assert.match(chip, /btn\.textContent = t\('ai_undo'\);/, 'just the word, no arrow and no Scintille');
   assert.match(chip, /ai-choices/, 'it sits above the follow-ups');
@@ -512,7 +512,7 @@ test('Annulla is underlined text that works from any chat copy and says when it 
 });
 
 test('a failed reply keeps the question and offers to try again now', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   assert.match(ai, /else if \(text && !hasAudio\) _aiAppendRetry\(text\);/);
   const retry = ai.slice(ai.indexOf('function _aiRetry('), ai.indexOf('function _aiClearChoices'));
   assert.match(retry, /aiConversationHistory\.pop\(\)/, 'the question is not sent twice');

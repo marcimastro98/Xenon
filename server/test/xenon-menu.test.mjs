@@ -932,7 +932,7 @@ test('Bit and the Scintilla in the menu are the official marks, never a drawing 
   assert.equal(Icons.PATHS.bit, undefined);
   assert.equal(Icons.PATHS.spark, undefined);
   const page = src('menu.html');
-  for (const file of ['shared/src/bit-spark.js', 'shared/src/bit-clips.js', 'js/bit-app.js']) {
+  for (const file of ['shared/src/bit-spark.js', 'shared/src/bit-clips.js', 'js/ai/bit-app.js']) {
     assert.ok(page.includes(file), `${file} missing from the menu page`);
   }
   const hex = readFileSync(new URL('../../docs/images/brand/bit.svg', import.meta.url)).match(/#6ee787/i);

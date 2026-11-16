@@ -1,7 +1,7 @@
 'use strict';
 // Bit's messages on this screen. The server keeps the inbox and the one-a-day
 // limit (server/ai/bit-messages.js); this asks it what may be shown now, waits for a
-// moment nobody is busy, and hands the message to the card (js/bit-message-card.js).
+// moment nobody is busy, and hands the message to the card (js/bit-message-card/bit-message-card.js).
 // Filing goes through here too, for every channel: hub-messages.js, catalog-drop.js,
 // sparks-mail.js, store-update-mail.js, support-card.js, share-nudge.js.
 //

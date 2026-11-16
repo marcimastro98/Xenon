@@ -1096,7 +1096,7 @@ const CAPABILITIES = [
     },
   },
 
-  // The edge glow on other screens while a voice chat is on (js/ai-edge-glow.js).
+  // The edge glow on other screens while a voice chat is on (js/ai/ai-edge-glow.js).
   {
     type: 'aiEdgeGlow', group: 'xenon', hidden: true, labelKey: 'deck_act_aiEdgeGlow',
     params: [{ name: 'screens', kind: 'select', options: ['auto', 'main', 'second', 'all', 'off'] }],

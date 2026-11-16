@@ -245,7 +245,7 @@ test('the page loads what it uses, in order', () => {
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
   assert.doesNotMatch(html, /src="js\/main\.js"/);
-  assert.doesNotMatch(html, /src="js\/ai\.js"/, 'Bit loads only when called');
+  assert.doesNotMatch(html, /src="js\/ai\/ai\.js"/, 'Bit loads only when called');
   assert.match(html, /<template id="screen-bit-markup"><!-- bit markup --><\/template>/);
 });
 

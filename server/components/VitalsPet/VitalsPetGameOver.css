@@ -127,7 +127,7 @@
 .clock-bit .cb-sprite svg { width: 100%; height: 100%; display: block; }
 /* Frosted overlay open: pause the pet's INFINITE loops only — one-shot moves
    (glitch, go-in, chip pops) must finish or they'd freeze mid-frame. Bit
-   itself holds on the same class (js/bit-app.js TILE_HOLD).
+   itself holds on the same class (js/ai/bit-app.js TILE_HOLD).
    (See the overlay-frozen block in styles/backgroundfx.css.) */
 body.overlay-frozen .vpet-go-title,
 body.overlay-frozen .vpet-go-coin { animation-play-state: paused; }

@@ -106,14 +106,14 @@ test('the tour starter opens the tour here: nothing goes to the AI, no Sparks ar
 });
 
 test('the welcome shows only in an empty, ready chat and leaves on the first message', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   const render = ai.slice(ai.indexOf('function _aiRenderWelcomeIfEmpty'), ai.indexOf('function _aiDropWelcome'));
   assert.match(render, /_aiProviderReady\(\)/);
   assert.match(render, /BitWelcome\.build\(\)/);
   const send = ai.slice(ai.indexOf('async function aiSendMessage'));
   assert.match(send.slice(0, 2000), /_aiDropWelcome\(\)/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('<script src="js/ai/bit-welcome.js">') < html.indexOf('<script src="js/ai.js">'), 'loaded before ai.js');
+  assert.ok(html.indexOf('<script src="js/ai/bit-welcome.js">') < html.indexOf('<script src="js/ai/ai.js">'), 'loaded before ai.js');
 });
 
 test('every word of the welcome is in all 11 languages', () => {
@@ -237,7 +237,7 @@ test('every part the fit names is hidden by its own rule, and the old two-height
 });
 
 test('the welcome is fitted wherever it is drawn or copied', () => {
-  const ai = read('../js/ai.js');
+  const ai = read('../js/ai/ai.js');
   const render = ai.slice(ai.indexOf('function _aiRenderWelcomeIfEmpty'), ai.indexOf('function _aiDropWelcome'));
   assert.match(render, /BitWelcome\.fit\(\);/);
   const media = read('../js/media/media.js');

@@ -1,4 +1,4 @@
-// The turn-based voice session (js/ai.js + the server's recorder and whisper).
+// The turn-based voice session (js/ai/ai.js + the server's recorder and whisper).
 //
 // The rules these tests hold:
 //  - "listening" shows only once the mic is really recording, never before:
@@ -18,7 +18,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const ai = require('../ai/ai-local.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const AI = read('../js/ai.js');
+const AI = read('../js/ai/ai.js');
 const S = engineSource();
 const fn = (src, name) => {
   const at = src.indexOf(`function ${name}(`);

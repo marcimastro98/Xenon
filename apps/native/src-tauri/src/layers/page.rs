@@ -26,7 +26,7 @@ pub(super) const LAYER_SHIM: &str = r#"(function () {
 })();"#;
 
 /// The alerts window only: it may light the edges for Bit (glow_from_alerts),
-/// so js/ai-edge-glow.js may send there. No other native capability: the
+/// so js/ai/ai-edge-glow.js may send there. No other native capability: the
 /// window takes no other signal.
 pub(super) const ALERTS_CAPS: &str = "try { window.__XENON_NATIVE_CAPS__ = Object.assign(window.__XENON_NATIVE_CAPS__ || {}, { aiGlow: true }); } catch (e) {}";
 

@@ -38,5 +38,5 @@ test('the fixed faces drawn by hand are not snapped either', () => {
   const html = read('../index.html');
   const faces = html.match(/<svg class="bit-nav-sprite".*?<\/svg>/s)[0];
   assert.doesNotMatch(faces, /crispEdges/);
-  assert.doesNotMatch(read('../js/bit-message-card.js'), /crispEdges/);
+  assert.doesNotMatch(read('../js/bit-message-card/bit-message-card.js'), /crispEdges/);
 });

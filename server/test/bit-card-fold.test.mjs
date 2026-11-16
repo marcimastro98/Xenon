@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'js', 'bit-message-card.js'), 'utf8');
+const SRC = readFileSync(join(HERE, '..', 'js', 'bit-message-card/bit-message-card.js'), 'utf8');
 
 // Left alone, Bit's card folds to a small face. It used to wait in a corner of the
 // screen, where it sat on a tile's own header and read as part of that tile. Now it

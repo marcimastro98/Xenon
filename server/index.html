@@ -393,7 +393,7 @@
              same island rules as the two above. -->
         <span class="clock-perf" id="clock-perf" hidden></span>
         <!-- Bit waiting with something to say: an untouched message folds in here, where
-             it covers nothing (js/bit-message-card.js); same island rules. -->
+             it covers nothing (js/bit-message-card/bit-message-card.js); same island rules. -->
         <span class="clock-bit" id="clock-bit" hidden></span>
       </div>
     </div>
@@ -4387,7 +4387,7 @@
               <span class="settings-hint" data-i18n="settings_ai_voice_ambient_hint">Durante la chat vocale il dashboard resta visibile: si illumina solo il bordo dello schermo e le battute compaiono in basso. Off = schermata piena con l'orb (predefinita).</span>
             </span>
           </label>
-          <!-- The edge glow on other screens (native app only, js/ai-edge-glow.js). -->
+          <!-- The edge glow on other screens (native app only, js/ai/ai-edge-glow.js). -->
           <label class="settings-row full" id="settings-ai-edge-glow-row" hidden>
             <span class="settings-label-line">
               <span data-i18n="settings_ai_edge_glow">Bordo luminoso</span>
@@ -4954,7 +4954,7 @@
 <script src="shared/src/storefront-layout.js"></script>
 <script src="shared/src/store-updates.js"></script>
 <!-- Bit, the assistant's pixel face: one engine for the app, the site, the
-     Maker and the export tool (js/bit-app.js mounts it here). -->
+     Maker and the export tool (js/ai/bit-app.js mounts it here). -->
 <script src="shared/src/bit-clips.js"></script>
 <script src="shared/src/bit.js"></script>
 <script src="shared/src/bit-player.js"></script>
@@ -4982,7 +4982,7 @@
 <script src="js/alerts/interrupt-queue.js"></script>
 <!-- Bit's messages: what every channel files instead of popping up. -->
 <script src="js/bit-message-card/pieces.js"></script>
-<script src="js/bit-message-card.js"></script>
+<script src="js/bit-message-card/bit-message-card.js"></script>
 <script src="js/store-catalog/rating-card.js"></script>
 <script src="js/ai/bit-messages.js"></script>
 <script src="js/state.js"></script>
@@ -5195,11 +5195,11 @@
 <script src="js/ambient/lockscreen.js"></script>
 <script src="js/ambient/ambient-resolve.js"></script>
 <script src="js/ambient/ambient-mode.js"></script>
-<script src="js/ai-turn-wait.js"></script>
-<script src="js/bit-app.js"></script>
-<script src="js/ai-bit-chat.js"></script>
-<script src="js/ai-reply-choices.js"></script>
-<script src="js/ai-ask-card.js"></script>
+<script src="js/ai/ai-turn-wait.js"></script>
+<script src="js/ai/bit-app.js"></script>
+<script src="js/ai/ai-bit-chat.js"></script>
+<script src="js/ai/ai-reply-choices.js"></script>
+<script src="js/ai/ai-ask-card.js"></script>
 <script src="js/ai/bit-composer.js"></script>
 <script src="js/ai/bit-welcome.js"></script>
 <script src="js/ai/bit-chat-full.js"></script>
@@ -5221,8 +5221,8 @@
 <script src="js/ai/pc-confirm.js"></script>
 <script src="js/ai/copy.js"></script>
 <script src="js/ai/dictation.js"></script>
-<script src="js/ai.js"></script>
-<script src="js/ai-deck-confirm.js"></script>
+<script src="js/ai/ai.js"></script>
+<script src="js/ai/ai-deck-confirm.js"></script>
 <script src="js/ai/bit-told.js"></script>
 <script src="js/ai/ai-live.js"></script>
 <script src="vendor/gridstack/gridstack-all.js"></script>
@@ -5456,7 +5456,7 @@
 <script src="js/mcp/mcp-dev-client.js"></script>
 <script src="js/layers-shell/windows.js"></script>
 <script src="js/layers-shell/layers-shell.js"></script>
-<script src="js/ai-edge-glow.js"></script>
+<script src="js/ai/ai-edge-glow.js"></script>
 <script src="js/media/spotify-widget.js"></script>
 <script src="js/browser-tile/says.js"></script>
 <script src="js/browser-tile/measures.js"></script>

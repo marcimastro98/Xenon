@@ -117,7 +117,7 @@
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget/claude-widget.js)
     const clockCodex = clock.querySelector('.clock-codex'); // OpenAI Codex marker (js/codex-widget/codex-widget.js)
     const clockPerf = clock.querySelector('.clock-perf'); // Performance Mode marker (js/performance/perf-marker.js)
-    const clockBit = clock.querySelector('.clock-bit'); // Bit waiting with a message (js/bit-message-card.js)
+    const clockBit = clock.querySelector('.clock-bit'); // Bit waiting with a message (js/bit-message-card/bit-message-card.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {
       topbar, quickbar, clock, topActions, pagerDots,

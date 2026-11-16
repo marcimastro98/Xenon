@@ -273,7 +273,7 @@ test('every string the two surfaces ask for exists in all 11 languages', () => {
 });
 
 test('Bit can open What\'s New wherever the page that draws it runs', () => {
-  const ai = readFileSync(new URL('../js/ai.js', import.meta.url), 'utf8');
+  const ai = readFileSync(new URL('../js/ai/ai.js', import.meta.url), 'utf8');
   const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
   assert.match(SERVER, /\{ name: 'open_whats_new', description: "[^"]*What's New[^"]*"/);
   assert.match(SERVER, /const CLIENT_ACTIONS = new Set\(\[[^\]]*'open_whats_new'/);

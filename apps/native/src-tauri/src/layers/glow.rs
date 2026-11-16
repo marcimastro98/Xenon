@@ -4,7 +4,7 @@
 //! a webview, so it costs no browser process, shows at once and never takes a
 //! click: glow_win32.rs on Windows, glow_macos.rs and glow_linux.rs elsewhere.
 //!
-//! Driven by the main dashboard (js/ai-edge-glow.js), which navigates
+//! Driven by the main dashboard (js/ai/ai-edge-glow.js), which navigates
 //! `xenon-app:ai-glow?d=<json>` when the voice state changes, or in "widgets
 //! only" by the on-screen alerts window, where Bit answers. This file holds
 //! the payload rule and the pixels; both are plain functions with tests.
@@ -97,7 +97,7 @@ pub fn parse_screens(json: &str) -> Option<ScreensSpec> {
 }
 
 /// Which of the attached monitors glow, by index, given which one is primary.
-/// Same rule as js/ai-edge-glow.js `screensFor` with no dashboard: Bit is then
+/// Same rule as js/ai/ai-edge-glow.js `screensFor` with no dashboard: Bit is then
 /// on the main screen, so `auto` lights that one alone (the first without one).
 pub fn pick(screens: Screens, primary: &[bool]) -> Vec<usize> {
     let all = (0..primary.len()).take(MAX_MONITORS);

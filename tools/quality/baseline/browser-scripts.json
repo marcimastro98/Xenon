@@ -4,7 +4,7 @@
   "counts": {
     "server/js/ai/ai-live.js": 19,
     "server/js/ai/ai-pictures.js": 8,
-    "server/js/ai.js": 160,
+    "server/js/ai/ai.js": 160,
     "server/js/ambient/ambient-mode.js": 5,
     "server/js/ambient/ambient-resolve.js": 3,
     "server/js/anim-picture.js": 7,

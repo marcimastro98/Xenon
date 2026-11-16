@@ -243,7 +243,7 @@ test('server: note and timer ids are limited to [A-Za-z0-9_-]{1,80}', () => {
 });
 
 // ── Assistant markdown ───────────────────────────────────────────────────────
-const AI = read('../js/ai.js');
+const AI = read('../js/ai/ai.js');
 const md = new Function(['_escHtmlAI', '_aiSafeLinkScheme', '_inlineEmphasis', '_inlineMarkdown', '_aiRenderMarkdown']
   .map((n) => fnSource(AI, n)).join('') + 'return { _inlineMarkdown, _aiRenderMarkdown };')();
 
