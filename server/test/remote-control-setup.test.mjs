@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'js', 'remote-control.js'), 'utf8');
+const SRC = readFileSync(join(HERE, '..', 'js', 'remote-control/remote-control.js'), 'utf8');
 
 // Settings → Remote control had a dead end: the page swapped to the control
 // panel the moment Sunshine and Tailscale were installed, which is only the

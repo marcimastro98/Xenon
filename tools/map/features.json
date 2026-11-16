@@ -232,7 +232,6 @@
       "files": [
         "server/remote-control/**",
         "server/js/remote-control/**",
-        "server/js/remote-control.js",
         "server/components/RemoteControlSettings/**"
       ]
     },
