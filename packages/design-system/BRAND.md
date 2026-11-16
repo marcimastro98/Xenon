@@ -49,7 +49,7 @@ the same character in two moments. **Never mix them in the same frame.**
 Golden rule: **Bit is the meme; the Orb is the signature. Same world, two voices,
 never overlapping.**
 
-Sprite source: `server/js/vitals-pet.js:34-55` (12×12 SVG, `crispEdges`).
+Sprite source: `server/js/vitals-pet/vitals-pet.js:34-55` (12×12 SVG, `crispEdges`).
 Orb colours: `server/components/AIPanel/AIPanel.css` (`--xn-cyan`, `--xn-violet`).
 Note: **in-app**, AI activation currently renders the circular equaliser
 (`.ai-presence` / `.ai-eq`), not the Orb — the Orb is a video/press asset
