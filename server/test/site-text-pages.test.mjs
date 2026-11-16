@@ -9,7 +9,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const read = (name) => readFileSync(join(root, 'docs', name), 'utf8');
+// A Windows checkout may turn the site files' line ends into CRLF; the patterns below are written for LF.
+const read = (name) => readFileSync(join(root, 'docs', name), 'utf8').replace(/\r\n/g, '\n');
 const guide = read('guide.css');
 const rule = (css, selector) => {
   const at = css.indexOf(selector + ' {');
