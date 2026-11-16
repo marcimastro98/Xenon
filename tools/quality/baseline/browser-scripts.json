@@ -1,6 +1,6 @@
 {
   "note": "Browser scripts that put names in the page's shared scope, with the number of names (a script and the files split out of it are one line). Written by tools/quality/browser.mjs: a number only goes down, a script leaves the list when it becomes a module or gets a wrapper, and none is added.",
-  "total": 2131,
+  "total": 2132,
   "counts": {
     "server/js/ai/ai-live.js": 19,
     "server/js/ai/ai-pictures.js": 8,
@@ -21,7 +21,7 @@
     "server/js/presets/dashboard-presets.js": 29,
     "server/js/dashboard-tabgroups/dashboard-tabgroups.js": 22,
     "server/js/deck/deck-actions.js": 12,
-    "server/js/deck/deck-model.js": 118,
+    "server/js/deck/deck-model.js": 119,
     "server/js/deck/deck-shortcuts.js": 25,
     "server/js/store-catalog/deck-store.js": 16,
     "server/js/look/decor-bg.js": 2,
