@@ -29,6 +29,7 @@ import { pairDevice } from '../ci/paired-device.mjs';
 import { copyEngine } from '../ci/request-check.mjs';
 import { readHead } from './branches-text.mjs';
 import { readListed } from './dispatch-undo.mjs';
+import { readMoved } from './move-apply.mjs';
 import { openParser } from './parser.mjs';
 import { kept, levelCounts, recordProblems, settle } from './routes-answers.mjs';
 import { askable, exactGetPaths, routeChain, setOfTexts } from './routes-list.mjs';
@@ -190,9 +191,27 @@ export function tableRoutesOf(read) {
   return specs.flatMap((spec) => read(path.posix.join('server', spec)).split('\n').map(readHead).filter(Boolean).map((head) => testOfKey(head.key)).filter(Boolean));
 }
 
+/**
+ * A file as a commit holds it. A commit from before a move (moved.json) has the file at the place it had then,
+ * so the place of today is asked first and each older one after it.
+ * @param {(file: string) => string} show reads one path of the commit, and throws when the commit has none
+ * @param {string} file the place of today @param {{from: string, to: string}[]} moves in the order they were made
+ * @returns {string}
+ */
+export function readAtCommit(show, file, moves) {
+  const places = [file];
+  for (let move = moves.findLast((one) => one.to === file); move && !places.includes(move.from); move = moves.findLast((one) => one.to === places.at(-1))) places.push(move.from);
+  for (const place of places.slice(0, -1)) {
+    try { return show(place); } catch { /* the commit is from before that move */ }
+  }
+  return show(places.at(-1));
+}
+
 async function record(rev) {
   const port = Number(process.env.XENON_PORT || 3039);
-  const read = (file) => (rev ? execFileSync('git', ['show', `${rev}:${file}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }) : readFileSync(path.join(ROOT, file), 'utf8'));
+  const show = (file) => execFileSync('git', ['show', `${rev}:${file}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  const { moves } = readMoved(ROOT);
+  const read = (file) => (rev ? readAtCommit(show, file, moves) : readFileSync(path.join(ROOT, file), 'utf8'));
   const skip = JSON.parse(readFileSync(path.join(HERE, 'routes-skip.json'), 'utf8')).paths;
   const writes = JSON.parse(readFileSync(path.join(HERE, 'routes-writes.json'), 'utf8')).requests;
   const parser = await openParser();

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { keyOf } from '../../tools/restructure/branches-kinds.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 import { kept, levelCounts, recordProblems, settle, shapeOf } from '../../tools/restructure/routes-answers.mjs';
-import { baseEdits, contentAndHeaders, questionsFor, REFUSALS, tableRoutesOf, testOfKey } from '../../tools/restructure/routes-check.mjs';
+import { baseEdits, contentAndHeaders, questionsFor, readAtCommit, REFUSALS, tableRoutesOf, testOfKey } from '../../tools/restructure/routes-check.mjs';
 import { askable, exactGetPaths, routeChain, setOfTexts } from '../../tools/restructure/routes-list.mjs';
 import { writeRequests } from '../../tools/restructure/routes-writes.mjs';
 
@@ -186,6 +186,19 @@ test('on the real engine: only plain GET routes are asked, none that changes som
   assert.deepEqual(wrote.questions, made.questions, 'the list of writes changes nothing in what is asked with GET');
   const ACTS_ON_THE_PC = /^\/(?:toggle|media|volume|mic|speaker|audio|lock|windows|deck\/press|actions|remote\/|search\/(?:open|reveal)|disk\/(?:clean|reveal)|api\/(?:lighting|transfer|devclean|speak|tts|chime|claude\/run|phone|calls)|second-screen|update\/(?:prepare|apply)|sdk\/install|backup)/;
   for (const request of wrote.writes) assert.ok(!ACTS_ON_THE_PC.test(request.path), `${request.path} could act on this PC and is not asked`);
+});
+
+test('a commit from before a move is read at the place the file had then', () => {
+  const moves = [{ from: 'server/gate.js', to: 'server/doors/gate.js' }, { from: 'server/doors/gate.js', to: 'server/paired/gate.js' }, { from: 'server/other.js', to: 'server/doors/other.js' }];
+  const commit = (files) => (file) => { if (!(file in files)) throw new Error(`no ${file} in the commit`); return files[file]; };
+  assert.equal(readAtCommit(commit({ 'server/paired/gate.js': 'today' }), 'server/paired/gate.js', moves), 'today');
+  assert.equal(readAtCommit(commit({ 'server/doors/gate.js': 'one move ago' }), 'server/paired/gate.js', moves), 'one move ago');
+  assert.equal(readAtCommit(commit({ 'server/gate.js': 'two moves ago' }), 'server/paired/gate.js', moves), 'two moves ago');
+  assert.equal(readAtCommit(commit({ 'server/gate.js': 'old', 'server/paired/gate.js': 'new' }), 'server/paired/gate.js', moves), 'new', 'the place of today is asked first');
+  assert.throws(() => readAtCommit(commit({}), 'server/paired/gate.js', moves), /no server\/gate\.js in the commit/, 'a file the commit holds nowhere is still an error');
+  assert.throws(() => readAtCommit(commit({ 'server/gate.js': 'x' }), 'server/never-moved.js', moves), /no server\/never-moved\.js/);
+  const round = [{ from: 'server/a.js', to: 'server/x/a.js' }, { from: 'server/x/a.js', to: 'server/a.js' }];
+  assert.throws(() => readAtCommit(commit({}), 'server/a.js', round), /in the commit/, 'a file moved there and back is asked at each place once');
 });
 
 test('an address a table of feature-routes.js answers is asked like one the chain tests for', (t) => {
