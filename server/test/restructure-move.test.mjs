@@ -173,6 +173,12 @@ test('what the tool cannot follow, and what runs the file by path, stops the mov
   assert.match(await why('apps/native/src/invented.rs', 'let script = "pulse-nag.js";\n'), /native code names it/);
   assert.match(await why('package.json', '{ "scripts": { "nag": "node server/pulse-nag.js" } }\n'), /package file/);
   assert.equal(await why('server/install.ps1', '# the popup is drawn by pulse-nag.js\n'), '', 'a comment of an installer is a mention');
+  // A script an installer writes out from its own text (a here-document) has comments of its own.
+  const written = ['// The key is a copy of the one in', '// server/pulse-nag.js: keep the two equal.', 'const key = 1;'].join('\n');
+  assert.equal(await why('apps/native/invented-setup.ps1', `@'\n${written}\n'@ | Set-Content $verifier\n`), '', 'a comment of a script written inside an installer is a mention');
+  assert.equal(await why('apps/native/invented-setup.sh', `cat > "$TMP/verify.js" <<'EOF'\n${written}\nEOF\n`), '');
+  assert.match(await why('apps/native/invented-setup.sh', '"$NODE" //opt/app/server/pulse-nag.js\n'), /installer/, 'two slashes inside a line are a path');
+  assert.match(await why('apps/native/invented-setup.sh', '//opt/app/server/pulse-nag.js --check\n'), /installer/, 'two slashes with no space after them are a path too');
   assert.equal(await why('server/index.html', '<script src="js/pulse-nag.js"></script>\n<!-- pulse-nag.js -->\n'), '');
   assert.equal(await why('server/run.js', "log('[pulse-nag.js] started');\nconst other = 'pulse-nag';\n"), '', 'a word in a message is not a path');
 });

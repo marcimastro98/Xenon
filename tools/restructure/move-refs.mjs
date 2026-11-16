@@ -195,6 +195,9 @@ export function inComment(file, text, at) {
   if (/\.(rs|cs|swift|html|htm|nsh|iss)$/.test(file)) return /\/\/|^\s*\/?\*|^\s*;/.test(line);
   if (/\.(bat|cmd)$/.test(file)) return /^\s*(rem\s|::)/i.test(line);
   if (/\.vbs$/.test(file)) return /^\s*'/.test(line);
+  // A shell script may write another script out of its own text (a here-document), and that one has comments of
+  // its own. A line that starts with `// ` is one of them: neither shell can run a line that starts that way.
+  if (/\.(ps1|psm1|sh|command)$/.test(file) && /^\s*\/\/\s/.test(line)) return true;
   return /(^|\s)#/.test(line);
 }
 

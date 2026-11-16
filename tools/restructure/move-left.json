@@ -29,18 +29,15 @@
     "server/semver.js": "updates",
     "server/transcript-format.js": "screens",
     "server/pc-id.js": "engine",
-    "server/list-ops.js": "time"
+    "server/list-ops.js": "time",
+    "server/atomic-write.js": "files"
   },
   "makes": [
     "server/layers"
   ],
   "features": {},
   "files": {
-    "server/remote-access.js": "the gate lists of paired devices and the order of their checks: the security notes and every review point at this path",
-    "server/feature-routes.js": "the one list of routes beside server.js: the rules of the repo name it by this path as the place a new route is listed",
-    "server/atomic-write.js": "shared by every store, and the rules of the repo name it by this path (structure-conventions, section 5: shared infrastructure keeps its paths)",
-    "server/linux-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)",
-    "server/darwin-collectors.js": "shared by many features (structure-conventions, section 5: collectors keep their paths)",
+    "server/feature-routes.js": "the list of routes that stands beside server.js: it loads the routes of every feature, and the tools and tests of the chain (dispatch-move.mjs, dispatch-undo.mjs, routes-check.mjs, dispatch-moves.json, restructure-dispatch-real.test.mjs) read its lines as server.js spells them, so in another folder every one of them would have to be written again",
     "server/battery.js": "the contract tests of Xenon Maker load it by this path",
     "server/sdk-widgets.js": "the contract tests of Xenon Maker and the tests of the creator packs load it by this path",
     "server/sdk-proxy.js": "the runtime review of the hub skill loads it by this path",
@@ -52,8 +49,7 @@
     "server/codex-hook.js": "a frozen path (tools/map/frozen-paths.json): installed copies, the installers and the tools people linked call it by this path",
     "server/codex-link.js": "a frozen path (tools/map/frozen-paths.json): installed copies, the installers and the tools people linked call it by this path",
     "server/native-installer-cli.js": "a frozen path (tools/map/frozen-paths.json): installed copies, the installers and the tools people linked call it by this path",
-    "server/release-asset-cli.js": "a frozen path (tools/map/frozen-paths.json): installed copies, the installers and the tools people linked call it by this path",
-    "server/self-update.js": "the key every update is checked against is pinned in it, and the two scripts that start the app the first time point at this path for the day the key changes"
+    "server/release-asset-cli.js": "a frozen path (tools/map/frozen-paths.json): installed copies, the installers and the tools people linked call it by this path"
   },
   "shims": {
     "server/community-catalog.js": "the checks of the creator skill load it by this path and find the repo by it",

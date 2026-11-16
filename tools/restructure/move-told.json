@@ -31,6 +31,15 @@
     {"file":"server/test/temp-unit-consistency.test.mjs","was":"briefing.js","text":"briefing.js","near":"thermal threshold"},
     {"file":"server/test/temp-unit-consistency.test.mjs","was":"briefing.js","text":"briefing.js","near":"alerts at"},
     {"file":"server/test/winnotif-pace-alone.test.mjs","was":"winnotif.js","text":"notification-open/winnotif.js"},
-    {"file":"tools/restructure/i18n-render.mjs","was":"server/layer-strings.js","text":"server/layer-strings.js"}
+    {"file":"tools/restructure/i18n-render.mjs","was":"server/layer-strings.js","text":"server/layer-strings.js"},
+    {"file":"server/test/collectors-memory.test.mjs","was":"darwin-collectors.js","text":"platform/darwin-collectors.js"},
+    {"file":"server/test/collectors-memory.test.mjs","was":"linux-collectors.js","text":"platform/linux-collectors.js"},
+    {"file":"server/test/packet-loss.test.mjs","was":"linux-collectors.js","text":"platform/linux-collectors.js"},
+    {"file":"server/test/packet-loss.test.mjs","was":"darwin-collectors.js","text":"platform/darwin-collectors.js"},
+    {"file":"tools/doctor.mjs","was":"darwin-collectors.js","text":"platform/darwin-collectors.js"},
+    {"file":"tools/doctor.mjs","was":"linux-collectors.js","text":"platform/linux-collectors.js"},
+    {"file":"tools/perf/shield-proof/host.cjs","was":"darwin-collectors.js","text":"platform/darwin-collectors.js"},
+    {"file":"tools/perf/shield-proof/host.cjs","was":"linux-collectors.js","text":"platform/linux-collectors.js"},
+    {"file":"tools/restructure/dispatch-move.mjs","was":"./remote-access","text":"./paired/remote-access"}
   ]
 }
