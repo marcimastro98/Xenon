@@ -219,13 +219,13 @@ test('the codec loads before the editors that use it', () => {
   const codec = ['gif-read.js', 'gif-write.js', 'anim-picture.js'].map(at);
   assert.ok(codec.every(i => i > 0), 'on the page');
   assert.deepEqual(codec, codec.slice().sort((a, b) => a - b), 'reader, writer, then the picker glue');
-  for (const user of ['ambient-canvas-editor-form.js', 'deck/deck.js', 'deck-editor.js']) {
+  for (const user of ['ambient-canvas-editor-form/ambient-canvas-editor-form.js', 'deck/deck.js', 'deck-editor.js']) {
     assert.ok(at(user) > codec[2], `${user} loads after anim-picture.js`);
   }
 });
 
 test('scene pictures, key pictures and Deck decorations keep moving pictures moving', () => {
-  for (const f of ['../js/ambient-canvas-editor-form.js', '../js/deck/deck.js', '../js/deck-editor.js']) {
+  for (const f of ['../js/ambient-canvas-editor-form/ambient-canvas-editor-form.js', '../js/deck/deck.js', '../js/deck-editor.js']) {
     assert.match(src(f), /AnimPicture\.fitAnimatedPicture\(file, \{ maxChars: [A-Z_]+, maxSide: /, f);
   }
   // Tile decorations upload the file itself: an animated WebP or APNG skips the canvas.
