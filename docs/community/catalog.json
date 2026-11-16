@@ -389,8 +389,8 @@
         "gpu",
         "network"
       ],
-      "version": "1.0.1",
-      "changelog": "Fixed lost customizations after a xenon language change.",
+      "version": "1.1.0",
+      "changelog": "Now follows Hardware Temperature Unit setting in Weather.",
       "pkgId": "tgk-workstation-monitor",
       "appVersionMin": "4.11.9",
       "preview": {
@@ -399,9 +399,9 @@
         "text": "#e9edf6"
       },
       "shots": 3,
-      "addedAt": "2026-09-26",
+      "addedAt": "2026-11-16",
       "codeFile": true,
-      "updatedAt": "2026-09-26"
+      "updatedAt": "2026-11-16"
     },
     {
       "id": "tgk-monitor-performance-metrics",
