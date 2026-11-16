@@ -273,7 +273,7 @@ test('only the engine\'s own Bit markup reaches innerHTML', () => {
 });
 
 test('every way to buy Sparks leads to the Sparks tab', () => {
-  const credits = read('../js/xenon-credits.js');
+  const credits = read('../js/store-supporters/xenon-credits.js');
   assert.match(credits, /function openShop\(\) \{[\s\S]*?CommunityGallery\.openSparks\(\)[\s\S]*?window\.open\(TOPUP_URL, '_blank', 'noopener'\)/);
   const html = read('../index.html');
   assert.match(html, /id="xai-shop" onclick="XenonCredits\.openShop\(\)"/);

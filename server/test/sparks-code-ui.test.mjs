@@ -31,7 +31,7 @@ test('Bit: a Sparks code alone is enough to turn Xenon AI on', () => {
   assert.match(ai, /const hasSparks = supporter \|\| wallet;/);
   assert.match(ai, /show\('xai-use', hasSparks\);/);
   assert.match(ai, /show\('xai-support', !hasSparks\);/);
-  assert.match(read('js/xenon-credits.js'), /async function sparksCodeSaved\(\) \{[\s\S]{0,200}\/api\/community\/sparks/);
+  assert.match(read('js/store-supporters/xenon-credits.js'), /async function sparksCodeSaved\(\) \{[\s\S]{0,200}\/api\/community\/sparks/);
   // The balance itself is asked with the XC code when there is no pass.
   assert.match(engineSource('server/store-supporters/ai-xenon-credits.js'), /await redeem\.readSavedCode\(dataDir\) \|\| await sparksWallet\.readWalletCode\(dataDir\)/);
 });

@@ -22,7 +22,7 @@
   const SCRIPTS = Object.freeze([
     'shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js',
     'shared/src/bit-phrases.js', 'shared/src/bit-spark.js', 'js/dialog-focus.js',
-    'js/xenon-credits.js', 'js/ai-turn-wait.js', 'js/bit-app.js', 'js/ai-bit-chat.js',
+    'js/store-supporters/xenon-credits.js', 'js/ai-turn-wait.js', 'js/bit-app.js', 'js/ai-bit-chat.js',
     'js/ai-reply-choices.js', 'js/ai-ask-card.js',
     'js/ai/providers-and-errors.js',
     'js/ai/panel.js',

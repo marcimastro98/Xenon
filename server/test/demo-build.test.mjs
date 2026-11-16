@@ -158,7 +158,7 @@ test('the demo timers have the shape the timer card reads', async () => {
 test('the Sparks chip reading its balance on start is answered quietly, not with the runs-on-your-PC toast', () => {
   const boot = read('tools', 'demo', 'boot.js');
   const quiet = boot.slice(boot.indexOf('const QUIET_READS'), boot.indexOf('};', boot.indexOf('const QUIET_READS')));
-  assert.ok(read('server', 'js', 'xenon-credits.js').includes("'/api/ai/xenon/balance'"), 'the chip still reads this path');
+  assert.ok(read('server', 'js', 'store-supporters/xenon-credits.js').includes("'/api/ai/xenon/balance'"), 'the chip still reads this path');
   assert.ok(quiet.includes("'/api/ai/xenon/balance': () => ok({ ok: false, error: 'no_code' })"));
 });
 

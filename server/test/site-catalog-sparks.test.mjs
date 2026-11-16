@@ -2,7 +2,7 @@
 //
 // The rules these tests hold:
 //  - the packs, the widget costs and the shop link are the app's own
-//    (js/xenon-credits.js), so the site never sells at another price;
+//    (js/store-supporters/xenon-credits.js), so the site never sells at another price;
 //  - the monthly Sparks and the membership price are the numbers the app's
 //    Store says, on one plan card the page shows once;
 //  - no strip repeats what the spotlight shows (the app's Store does the same);
@@ -14,7 +14,7 @@ import vm from 'node:vm';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const site = read('../../docs/catalog/index.html');
-const credits = read('../js/xenon-credits.js');
+const credits = read('../js/store-supporters/xenon-credits.js');
 const SITE_LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
 
 const literal = (src, re) => {

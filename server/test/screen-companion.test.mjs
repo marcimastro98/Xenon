@@ -28,7 +28,7 @@ test('the card brings the dashboard\'s own files, in the dashboard\'s order', ()
   const CARD = partsOf('server/js/game-companion.js').map((file) => file.slice('server/'.length));
   assert.deepEqual(ScreenCompanion.SCRIPTS.slice(-CARD.length), CARD, 'the card itself last, right after the scripts cut out of it');
   assert.ok(!ScreenCompanion.SCRIPTS.includes('js/ai.js'), 'the card never pulls in the chat');
-  for (const f of ['shared/src/bit-spark.js', 'js/xenon-credits.js']) {
+  for (const f of ['shared/src/bit-spark.js', 'js/store-supporters/xenon-credits.js']) {
     assert.ok(ScreenCompanion.SCRIPTS.includes(f), 'a look on Sparks says its price here too: ' + f);
   }
   assert.equal(ScreenCompanion.IDLE_RELOAD_MS, 60000);

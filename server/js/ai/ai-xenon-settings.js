@@ -2,7 +2,7 @@
 // tier that answers. On Xenon AI the rows show the balance, this month's
 // included credits and the top-up packs; on any other provider one row offers
 // Xenon AI (switch to it for a supporter, the pass for everyone else). The numbers
-// come from js/xenon-credits.js; the pass itself never reaches this page.
+// come from js/store-supporters/xenon-credits.js; the pass itself never reaches this page.
 (function () {
   const MODELS = ['haiku', 'sonnet', 'opus'];
   const DEFAULT_MODEL = 'sonnet';

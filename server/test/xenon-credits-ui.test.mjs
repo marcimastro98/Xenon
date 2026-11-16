@@ -1,4 +1,4 @@
-// Xenon AI credits in the app (js/xenon-credits.js, js/ai/ai-xenon-settings.js)
+// Xenon AI credits in the app (js/store-supporters/xenon-credits.js, js/ai/ai-xenon-settings.js)
 // and the Settings → Xenon AI page they fill.
 //
 // The rules these tests hold:
@@ -66,7 +66,7 @@ function loadCredits({ provider = 'gemini', hasKey = false, supporter = true, ba
     },
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/xenon-credits.js'), ctx);
+  vm.runInNewContext(read('../js/store-supporters/xenon-credits.js'), ctx);
   return { X: ctx.XenonCredits, ctx, saved, asked };
 }
 
@@ -146,7 +146,7 @@ test('with no code on this PC the always chip says Buy Sparks, and the hub is as
 });
 
 test('sync reads the balance off Bit when an always chip is on screen', () => {
-  const js = read('../js/xenon-credits.js');
+  const js = read('../js/store-supporters/xenon-credits.js');
   assert.ok(js.includes("if (active() || document.querySelector('[data-xc-always]')) refresh(false);"));
   assert.ok(read('../index.html').includes('class="xc-chip settings-nav-credits" data-xenon-credits data-xc-always hidden'));
 });
@@ -272,10 +272,10 @@ test('the Scintilla is drawn by the shared engine: on the chip, the balance and 
 
   const html = read('../index.html');
   assert.ok(html.indexOf('<script src="shared/src/bit-spark.js">') > 0);
-  assert.ok(html.indexOf('<script src="shared/src/bit-spark.js">') < html.indexOf('<script src="js/xenon-credits.js">'));
+  assert.ok(html.indexOf('<script src="shared/src/bit-spark.js">') < html.indexOf('<script src="js/store-supporters/xenon-credits.js">'));
   assert.match(html, /<span class="ai-prov-ic" aria-hidden="true" data-bit-icon><\/span>/, "the provider chip wears Bit's face, not the spark");
   assert.match(html, /<span class="xai-balance" role="status"><span data-xspark><\/span>/);
-  assert.match(read('../js/xenon-credits.js'), /heap\.appendChild\(spark\(\{ still: true \}\)\)/, 'packs: still sparks');
+  assert.match(read('../js/store-supporters/xenon-credits.js'), /heap\.appendChild\(spark\(\{ still: true \}\)\)/, 'packs: still sparks');
 });
 
 test('the Scintilla twinkles only while the dashboard moves', () => {

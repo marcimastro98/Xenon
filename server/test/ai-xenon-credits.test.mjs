@@ -541,14 +541,14 @@ test('settings, changelog and the assistant quote the same creation costs and le
 // The "enough for about N widgets" line divides by these figures: they must be
 // the ones every language quotes, or the two sentences contradict each other.
 test('the widget count uses the same costs the model names quote, in every language', () => {
-  const src = read('../js/xenon-credits.js');
+  const src = read('../js/store-supporters/xenon-credits.js');
   const cost = JSON.parse(src.match(/const WIDGET_COST = (\{[^}]+\})/)[1].replace(/(\w+):/g, '"$1":'));
   for (const model of ['haiku', 'sonnet', 'opus']) {
     const lines = textsOf('settings_xenon_model_' + model);
     assert.equal(lines.length, 11, model + ' is quoted in 11 languages');
     for (const [lang, line] of lines) assert.match(line, new RegExp('(^|\\D)' + cost[model] + '(\\D|$)'), lang + ': ' + model + ' costs ' + cost[model] + ': ' + line);
   }
-  const low = Number(read('../js/xenon-credits.js').match(/const LOW_CREDITS = (\d+)/)[1]);
+  const low = Number(read('../js/store-supporters/xenon-credits.js').match(/const LOW_CREDITS = (\d+)/)[1]);
   assert.equal(low, cost.sonnet, 'the low warning comes before one Sonnet widget is out of reach');
 });
 

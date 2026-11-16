@@ -1,4 +1,4 @@
-// What happens after someone buys Sparks (js/xenon-credits.js,
+// What happens after someone buys Sparks (js/store-supporters/xenon-credits.js,
 // js/ai/ai-xenon-settings.js, ai-xenon-credits.js). The hub books a purchase within
 // a minute; these rules make the app show it without a restart:
 //  - coming back to the dashboard or into Bit's chat reads the balance again,
@@ -62,7 +62,7 @@ function boot({ provider = 'xenon', topup = 0, email = 'm•••@gmail.com', w
     addEventListener: (type, fn) => { winListeners[type] = fn; },
   };
   ctx.window = ctx;
-  vm.runInNewContext(read('../js/xenon-credits.js'), ctx);
+  vm.runInNewContext(read('../js/store-supporters/xenon-credits.js'), ctx);
   const flush = () => new Promise((r) => setImmediate(r));
   const tick = async (ms) => {
     now += ms;
@@ -293,7 +293,7 @@ test('Settings shows the state of the last purchase', () => {
 });
 
 test('a tap on a pack starts the watch; Settings keeps the status and the way to the Store', () => {
-  const js = read('../js/xenon-credits.js');
+  const js = read('../js/store-supporters/xenon-credits.js');
   assert.match(js, /e\.target\.closest\('\[data-xc-pack\]'\)\) watchPurchase\(\)/, 'one delegated tap: every surface and chat copy counts');
   const html = read('../index.html');
   const packs = html.slice(html.indexOf('id="xai-packs"'), html.indexOf('id="xai-offer"'));

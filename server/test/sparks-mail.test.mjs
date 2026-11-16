@@ -63,7 +63,7 @@ test('opened, it says what Scintille are and its button leads to the Sparks shop
 test('the page loads it after the messages and the credits', () => {
   const html = read('../index.html');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
-  assert.ok(at('store-supporters/sparks-mail.js') > at('xenon-credits.js') && at('xenon-credits.js') > 0);
+  assert.ok(at('store-supporters/sparks-mail.js') > at('store-supporters/xenon-credits.js') && at('store-supporters/xenon-credits.js') > 0);
   assert.ok(at('store-supporters/sparks-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
 });
 

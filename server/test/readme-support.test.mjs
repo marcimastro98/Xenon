@@ -13,7 +13,7 @@ test('the README support section names every plan in USD, the 300 Sparks and the
   for (const plan of ['5 USD once', '25 USD once', '5 USD a month', '50 USD a year']) assert.ok(support.includes(plan), plan);
   assert.doesNotMatch(support, /\$\d/, 'no "$5": the currency is named');
   assert.match(support, /300 Sparks a month, Xenon's credits/);
-  const src = readFileSync(new URL('../js/xenon-credits.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/store-supporters/xenon-credits.js', import.meta.url), 'utf8');
   const packs = [...src.matchAll(/\{ credits: (\d+), usd: (\d+)/g)];
   assert.equal(packs.length, 3);
   for (const [, credits, usd] of packs) assert.ok(support.includes(credits) && support.includes(usd), `${credits} for ${usd}`);

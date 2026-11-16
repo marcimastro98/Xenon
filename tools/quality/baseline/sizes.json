@@ -109,7 +109,7 @@
     "server/js/vitals/vitals.js": 596,
     "server/js/widget-sdk/sdk-island.js": 429,
     "server/js/windows-tiles/slideshow-widget.js": 591,
-    "server/js/xenon-credits.js": 481,
+    "server/js/store-supporters/xenon-credits.js": 481,
     "server/media.ps1": 412,
     "server/processes.ps1": 329,
     "server/remote-access.js": 449,

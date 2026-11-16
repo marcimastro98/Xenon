@@ -292,7 +292,7 @@ test('a new install starts on the model the trial can pay for, and the plain def
 });
 
 test('trial Sparks are never "running low", only out', () => {
-  const body = read('../js/xenon-credits.js').match(/function level\(\) \{[\s\S]*?\n {2}\}/)[0];
+  const body = read('../js/store-supporters/xenon-credits.js').match(/function level\(\) \{[\s\S]*?\n {2}\}/)[0];
   const level = (state) => vm.runInNewContext(`${body}\nlevel();`, { state, LOW_CREDITS: 80 });
   assert.equal(level({ status: 'ok', balance: 30, welcomeUntil: 1700000000 }), 'ok');
   assert.equal(level({ status: 'ok', balance: 1, welcomeUntil: 1700000000 }), 'ok');

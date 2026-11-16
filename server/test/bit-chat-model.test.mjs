@@ -199,7 +199,7 @@ test('the head carries the back arrow, the button and the panel, in every chat c
   assert.match(head, /data-bit-model-panel hidden/);
   assert.doesNotMatch(head.slice(head.indexOf('data-bit-model ')), / id="/, 'no ids: the tile is cloned');
   assert.ok(html.indexOf('<script src="js/ai/bit-chat-model.js">') > html.indexOf('<script src="js/ai/ai-xenon-settings.js">'));
-  assert.match(read('../js/xenon-credits.js'), /function renderChips\(\) \{[^}]*BitChatModel\.paint\(\)/);
+  assert.match(read('../js/store-supporters/xenon-credits.js'), /function renderChips\(\) \{[^}]*BitChatModel\.paint\(\)/);
   const i18n = appStringsSource();
   const apply = i18n.slice(i18n.indexOf('function applyTranslations()'), i18n.indexOf('function setLang('));
   assert.match(apply, /XenonCredits\.renderChips\(\)/, 'a language change repaints the head');

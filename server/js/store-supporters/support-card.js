@@ -111,7 +111,7 @@
     ].forEach(([icon, key, fb]) => {
       const li = document.createElement('li');
       const ic = el('span', 'bm-perk-icon');
-      // The Scintilla is Bit's own sprite (js/xenon-credits.js), never a stand-in glyph.
+      // The Scintilla is Bit's own sprite (js/store-supporters/xenon-credits.js), never a stand-in glyph.
       if (icon === 'sparks' && window.XenonCredits) ic.appendChild(window.XenonCredits.offerMark());
       else ic.innerHTML = PERK_ICONS[icon] || '';   // static, trusted markup
       li.append(ic, el('span', '', t(key, fb)));
