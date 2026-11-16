@@ -118,9 +118,10 @@
       ['components/CustomSelect/CustomSelect.css']),
     twitch: tile('twitch', 'StreamingPage', ['js/twitch-chat.js', 'js/streaming-page.js'],
       { status: 'onStatus', obs: 'onObs', obs_preview: 'onObsPreview' }, 'TwitchPanel'),
-    // The Deck as the Virtual Deck popup shows it: keys and presses, no editor
-    // (deck-editor.js is not here). deck.js draws it by itself; js/deck-feed.js
-    // gives it the stream (layer-lite-tiles.js attaches it).
+    // The Deck with its edit mode, but no key editor (deck-editor.js is not here):
+    // a key opens in the Xenon menu's window, which takes typing (deck.js openSlot).
+    // deck.js draws it by itself; js/deck-feed.js gives it the stream
+    // (layer-lite-tiles.js attaches it).
     deck: {
       css: ['components/CustomSelect/CustomSelect.css', 'components/DeckPanel/DeckPanel.css'],
       js: ['js/custom-select.js', 'js/spark-path.js', 'js/deck-shortcuts.js', 'js/deck-model.js', 'js/vitals-core.js', 'js/deck-store.js',

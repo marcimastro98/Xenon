@@ -7779,7 +7779,7 @@ async function chooseSensorSource(args) {
 // layer page (which never writes the whole blob). Same lock, rev bump and
 // broadcast as change_setting; the notifications reader follows its switch.
 async function saveTileSettings(body) {
-  const plan = TileSettings.plan(body);
+  const plan = TileSettings.plan(body, { cards: DASHBOARD_CARD_IDS });
   if (plan.error) return { ok: false, ...plan };
   let rev = null;
   await withHubSettingsLock(async () => {

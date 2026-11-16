@@ -3268,6 +3268,7 @@
   }
 
   function openEditor(tile, instanceId, navCtx, slotIndex, key) {
+    if (onScreenLayer()) { editInMenuWindow(instanceId, navCtx, slotIndex); return; }
     if (!window.DeckEditor) return;
     const lookCfg = getConfig(instanceId);
     const look = deckLookFor(lookCfg, navCtx.profileId);
@@ -3307,6 +3308,51 @@
     const profile = spot.config.profiles.find((p) => p.id === spot.nav.profileId);
     const put = (rawKey) => saveConfig(MACRO_DECK, M.setKeyAt(spot.config, spot.nav, spot.slot, rawKey));
     window.DeckEditor.open({ key: profile.root.pages[spot.nav.pageIndex].keys[spot.slot] || null, look: {}, simple: true, needsShortcut: true, tab: 'actions', titleKey: keyId ? 'xmenu_key_edit' : 'xmenu_key_new', onSave: put, onDelete: () => put(null) });
+  }
+
+  // A Deck placed on the screen: its window never takes the keyboard focus, so a
+  // key's name or address could not be typed there. The key opens in the Xenon
+  // menu's window instead (openSlot), or on the dashboard where no shell draws it.
+  const onScreenLayer = () => typeof isLayerPage === 'function' && isLayerPage() && !isSheetPage();
+  function editInMenuWindow(instanceId, navCtx, slotIndex) {
+    const sheet = { open: 'deckkey', deck: instanceId, profile: navCtx.profileId, path: navCtx.path.join('.'), page: navCtx.pageIndex, slot: slotIndex };
+    const onDashboard = () => {
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=dashboard'); } catch (e) { /* not in the shell */ }
+    };
+    fetch(SERVER + '/screen-menu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheet }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!d || d.where !== 'screen') onDashboard(); })
+      .catch(onDashboard);
+  }
+
+  // The other half, in the Xenon menu's window (js/dashboard-open.js `deckkey`).
+  // The slot is looked up again on every save: the Deck on the screen stays live.
+  async function openSlot(req) {
+    if (!window.DeckEditor || !req) return;
+    await hydrateDeckFromServer();
+    const M = window.DeckModel;
+    const nav = { profileId: req.profile, path: req.path ? req.path.split('.') : [], pageIndex: Number(req.page) };
+    const slot = Number(req.slot);
+    const spotNow = () => M.slotSpot(durableConfig(req.deck), nav, slot);
+    const spot = spotNow();
+    if (!spot) { slotGone(); return; }
+    const save = (change) => {
+      const now = spotNow();
+      if (now) saveConfig(req.deck, change(now.config));
+      else slotGone();
+    };
+    const look = deckLookFor(spot.config, nav.profileId);
+    window.DeckEditor.open({
+      key: spot.key,
+      look: { capStyle: look.capStyle, keyShape: look.keyShape, litRing: look.litRing, dimOff: look.dimOff, themeColors: look.themeColors },
+      onSave: (rawKey) => save((cfg) => M.setKeyAt(cfg, nav, slot, rawKey)),
+      onDelete: () => save((cfg) => M.setKeyAt(cfg, nav, slot, null)),
+      onApplyStyle: (style) => save((cfg) => M.applyStyleToPage(cfg, nav, style)),
+    });
+  }
+  // The page or folder of that slot was removed meanwhile (on the dashboard).
+  function slotGone() {
+    if (typeof showHubToast === 'function') showHubToast('Xenon', tr('deck_slot_gone_title', 'Key not found'), tr('deck_slot_gone', 'That page of the Deck changed. Tap the key again.'));
   }
 
   // Render every deck tile in the DOM. The base tile has no instance attribute;
@@ -4145,7 +4191,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { openMacro, render, renderAll, refreshStates, usesState, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, listImportedResources, removeImportedResources, onForegroundProcess, applyAiDeck, showView, independentDecks: true };
+    window.Deck = { openMacro, openSlot, render, renderAll, refreshStates, usesState, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, listImportedResources, removeImportedResources, onForegroundProcess, applyAiDeck, showView, independentDecks: true };
     // First paint from the fast local copy, then adopt the server copy (the source
     // of truth — restores keys after a WebView storage wipe). Any outbox entries
     // left from a previous session are flushed right away. Once the layout is up,
@@ -4161,5 +4207,14 @@
     if (document.readyState !== 'loading') bootDeck();
     else document.addEventListener('DOMContentLoaded', bootDeck);
     window.addEventListener('pagehide', sendDeckBeacon);
+    // Another window of the same browser saved a Deck: the Xenon menu's window
+    // shares its storage with the widgets on the screen (openSlot). The server's
+    // copy then matches this one and adoptServerDeck sees no change, so the grid
+    // fitted before would stay on screen without the new key: drop it and redraw.
+    window.addEventListener('storage', (e) => {
+      if (e.key !== STORE_KEY) return;
+      displayConfigs.clear();
+      renderAll();
+    });
   }
 })();

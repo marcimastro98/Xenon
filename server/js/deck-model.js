@@ -992,6 +992,29 @@ function setKeyAt(config, nav, slotIndex, rawKey) {
   return normalizeDeckConfig(cfg);
 }
 
+// A slot named by another page (the Xenon menu's window edits a key of a Deck placed
+// on the screen) → { config, key }, or null when its profile, a folder on the way or
+// its page is gone: setKeyAt would fall back to another page and change the wrong
+// key. An auto-fitted tile can show more slots than the stored grid, where setKeyAt
+// would drop the edit: the rows grow and every key keeps its index. Never mutates.
+function slotSpot(config, nav, slotIndex) {
+  let cfg = normalizeDeckConfig(config);
+  const profile = cfg.profiles.find((p) => p.id === (nav && nav.profileId));
+  if (!profile || !Number.isInteger(slotIndex) || slotIndex < 0) return null;
+  if (slotIndex >= profile.cols * profile.rows) {
+    cfg = reshapeDeckConfig(cfg, profile.cols, Math.ceil((slotIndex + 1) / profile.cols), { preserve: true, profileId: profile.id });
+  }
+  let folder = profileOf(cfg, profile.id).root;
+  for (const id of (Array.isArray(nav.path) ? nav.path : [])) {
+    const holder = folder.pages.flatMap((page) => page.keys).find((key) => key && key.kind === 'folder' && key.id === id);
+    if (!holder) return null;
+    folder = holder.folder;
+  }
+  const page = folder.pages[nav.pageIndex];
+  if (!page || slotIndex >= page.keys.length) return null;
+  return { config: cfg, key: page.keys[slotIndex] || null };
+}
+
 // Swap the contents of two slots on the resolved folder+page (used by edit-mode
 // drag-to-reorder). Swapping with an empty slot moves the key there. No-op if either
 // index is out of range or they're equal. Returns a NEW normalized config.
@@ -1447,7 +1470,7 @@ function cycleTriggerName(index) {
   return index > 0 ? 'cycle' + index : 'tap';
 }
 
-const DECK_MODEL_API = { recordingStates, toggleStateName, keyStateBinding, deckUsesState, keyTiming, keyRepeat, cycleIndexOf, cycleTriggerName, KEY_MODES, KEY_TRIGGERS, CYCLE_MAX, KEY_TIMING, KEY_REPEAT, AUTO_OFF_MAX_S, STATE_ANIMS, uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, firstFreeSlot, findTopKey, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_VITALS_METERS, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { recordingStates, toggleStateName, keyStateBinding, deckUsesState, keyTiming, keyRepeat, cycleIndexOf, cycleTriggerName, KEY_MODES, KEY_TRIGGERS, CYCLE_MAX, KEY_TIMING, KEY_REPEAT, AUTO_OFF_MAX_S, STATE_ANIMS, uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, slotSpot, firstFreeSlot, findTopKey, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_VITALS_METERS, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

@@ -1,5 +1,5 @@
 // The choices of one widget in edit mode, beside it on the screen: its name, when it
-// shows, its size, tabs, and the way off the screen. Words, not loose icons: the x, the
+// shows, its size, tabs, what it shows, and the way off the screen. Words, not loose icons: the x, the
 // pin and a line that grew the widget are what this replaced. Loaded by js/layer-edit.js
 // the first time a widget is tapped; every choice is a capability run on the server.
 (function () {
@@ -8,10 +8,13 @@
   const EDGE_PX = 8;       // kept clear of the screen's edge
   const TAG_PX = 30;       // the tag on the frame sits between the widget and the card
   const SITUATIONS = Object.freeze(['music', 'live']);
+  // The System tile's card groups, the ones js/layer-lite-tiles.js shows or hides
+  // on this page as the dashboard's layout editor does.
+  const CARD_GROUPS = Object.freeze(['main', 'net']);
 
   let ctx = null;
   let node = null;
-  let open = '';           // 'when', 'tabs' or ''
+  let open = '';           // 'when', 'tabs', 'cards' or ''
   let shownKey = '';
 
   function button(className, text, onClick) {
@@ -86,6 +89,39 @@
     return ctx.others(entry).map((o) => row(ctx.nameOf(o.box.lead), '', false, () => join(entry, o)));
   }
 
+  // ── What it shows: the System tile's cards (CPU, FPS…) ──
+  const cardNodes = (entry) => Array.from(entry.slot.querySelectorAll('[data-system-card][data-system-card-group]'))
+    .filter((el) => CARD_GROUPS.includes(el.dataset.systemCardGroup));
+
+  // Saved like a tile's own choice (server/tile-settings.js dashboardCards), so the
+  // dashboard shows the same cards. The card changes at once, and comes back if
+  // the server refuses.
+  async function showCard(el, on) {
+    const { systemCard: card, systemCardGroup: group } = el.dataset;
+    el.dataset.systemCardHidden = on ? 'false' : 'true';
+    fill();
+    let saved = false;
+    try {
+      const r = await fetch(SERVER + '/settings/tile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patch: { dashboardCards: { [group]: { [card]: on } } } }),
+      });
+      saved = r.ok;
+      if (!saved) console.warn('[layer-edit] card not saved:', r.status);
+    } catch (e) { console.warn('[layer-edit] card not saved:', e && e.message); }
+    if (saved) return;
+    el.dataset.systemCardHidden = on ? 'true' : 'false';
+    if (node) fill();
+  }
+
+  function cardsMenu(entry) {
+    return cardNodes(entry).map((el) => {
+      const on = el.dataset.systemCardHidden !== 'true';
+      const id = el.dataset.systemCard;
+      return row(ctx.tr('layout_card_' + id, id), '', on, () => showCard(el, !on));
+    });
+  }
+
   function sizes(w) {
     const ids = window.LayerSee.sizesOf(w);
     if (!ids.length) return null;
@@ -116,9 +152,15 @@
       tabs.setAttribute('aria-expanded', String(open === 'tabs'));
       parts.push(tabs);
     }
+    if (cardNodes(entry).length) {
+      const cards = button('layer-edit-card-btn', ctx.tr('see_cards', 'What it shows...'), () => toggle('cards'));
+      cards.setAttribute('aria-expanded', String(open === 'cards'));
+      parts.push(cards);
+    }
     parts.push(button('layer-edit-card-btn layer-edit-card-btn--off', ctx.tr('see_remove', 'Remove'), () => choose({ type: 'layerRemove', target: entry.shown })));
     node.replaceChildren(...parts.filter(Boolean));
-    if (open) node.appendChild(menu(open === 'when' ? whenMenu(w) : tabsMenu(entry)));
+    const menus = { when: () => whenMenu(w), tabs: () => tabsMenu(entry), cards: () => cardsMenu(entry) };
+    if (menus[open]) node.appendChild(menu(menus[open]()));
     place(entry);
   }
 

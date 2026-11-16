@@ -84,3 +84,43 @@ test('the tiles save their choices through the helper', () => {
   assert.match(read('js/lyrics-widget-options.js'), /saveTileSetting\(patch\)/);
   assert.match(read('js/notifications-widget.js'), /isLayerPage\(\) && typeof saveTileSetting === 'function'/);
 });
+
+// Jeff's System tile on the screen (Nov 2026): no way to hide the FPS card his
+// setup cannot fill without going back to the dashboard. The tile sends only
+// which cards show; order and size stay the dashboard's.
+const CARD_IDS = { main: ['cpu', 'gpu', 'ram', 'disk'], net: ['ping', 'fps', 'latency', 'bandwidth'] };
+
+test('cards: only on/off for cards the dashboard has', () => {
+  const plan = (cards) => TileSettings.plan({ patch: { dashboardCards: cards } }, { cards: CARD_IDS });
+  assert.deepEqual(plan({ net: { fps: false } }).patch, { dashboardCards: { net: { fps: false } } });
+  assert.ok(plan({ main: { cpu: true, gpu: false }, net: { fps: false } }).patch);
+  assert.equal(plan({ net: { fps: 'no' } }).error, 'bad_value');
+  assert.equal(plan({ net: { gpu: false } }).error, 'bad_value', 'a card of another group');
+  assert.equal(plan({ secret: { fps: false } }).error, 'bad_value');
+  assert.equal(plan({ net: {} }).error, 'bad_value');
+  assert.equal(plan({}).error, 'bad_value');
+  assert.equal(plan({ net: { fps: { visible: false, order: 0 } } }).error, 'bad_value', 'never order or size');
+  assert.equal(TileSettings.plan({ patch: { dashboardCards: { net: { fps: false } } } }).error, 'bad_value', 'no ids, nothing passes');
+});
+
+test('cards: merged into the layout, everything else kept', () => {
+  const cur = {
+    dashboardLayout: {
+      gridCols: 24,
+      widgets: { system: { x: 0 } },
+      cards: { net: { ping: { order: 0, size: 'normal', visible: true }, fps: { order: 1, size: 'wide', visible: true } }, main: { cpu: { order: 0 } } },
+    },
+  };
+  const out = TileSettings.apply(cur, { dashboardCards: { net: { fps: false } } });
+  assert.deepEqual(Object.keys(out), ['dashboardLayout']);
+  assert.deepEqual(out.dashboardLayout.cards.net.fps, { order: 1, size: 'wide', visible: false });
+  assert.deepEqual(out.dashboardLayout.cards.net.ping, cur.dashboardLayout.cards.net.ping);
+  assert.deepEqual(out.dashboardLayout.cards.main, cur.dashboardLayout.cards.main);
+  assert.equal(out.dashboardLayout.widgets, cur.dashboardLayout.widgets);
+  assert.equal(cur.dashboardLayout.cards.net.fps.visible, true, 'the stored settings are not mutated');
+  assert.deepEqual(TileSettings.apply({}, { dashboardCards: { net: { fps: false } } }), { dashboardLayout: { cards: { net: { fps: { visible: false } } } } });
+});
+
+test('cards: the route checks them against the dashboard card ids', () => {
+  assert.match(read('server.js'), /TileSettings\.plan\(body, \{ cards: DASHBOARD_CARD_IDS \}\)/);
+});

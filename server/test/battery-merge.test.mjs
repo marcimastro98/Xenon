@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { mergeSources, STALE_MS, createBatteryMonitor } = require('../battery.js');
+const { mergeSources, STALE_MS, createBatteryMonitor, quietChanges } = require('../battery.js');
 
 test('mergeSources: corsair wins a name collision, sources tag their entries', () => {
   const now = 1_000_000;
@@ -115,4 +115,17 @@ test('the PC pack from power/ shows where battery.ps1 cannot run, never twice on
   // A desktop: no pack anywhere.
   const desk = createBatteryMonitor({ runScript: async () => ({ devices: [] }), lighting, systemBattery: async () => null });
   assert.deepEqual((await desk.getDevices()).devices, []);
+});
+
+test('quietChanges: a dongle device that stops answering is logged once, and again when it is back', () => {
+  const kb = { id: 'kb', name: 'Keyboard', percent: 34, source: 'dongle' };
+  const first = quietChanges(new Set(), [{ ...kb, lastSeen: Date.UTC(2026, 0, 1, 9, 40) }]);
+  assert.equal(first.lines.length, 1);
+  assert.match(first.lines[0], /Keyboard stopped answering, showing 34%/);
+  assert.deepEqual(quietChanges(first.quiet, [{ ...kb, lastSeen: 1 }]).lines, []);
+  const back = quietChanges(first.quiet, [{ ...kb, percent: 16 }]);
+  assert.deepEqual(back.lines, ['[battery] Keyboard answers again: 16%']);
+  assert.equal(back.quiet.size, 0);
+  // Bluetooth devices come and go with Windows: not this log's business.
+  assert.deepEqual(quietChanges(new Set(), [{ id: 'p', name: 'Phone', percent: 70, source: 'bluetooth', lastSeen: 1 }]).lines, []);
 });

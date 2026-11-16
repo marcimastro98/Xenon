@@ -15,8 +15,3 @@ test('the Xenon Deck window has no editor, so it shows no pencil', () => {
   assert.doesNotMatch(html, /<script src="js\/deck-editor\.js">/);
   assert.match(html, /\.deck-edit\s*\{\s*display:\s*none\s*!important;\s*\}/);
 });
-
-test('the widget layer page hides the pencil for the same reason', () => {
-  const css = read('../components/LayerHost/LayerHost.css');
-  assert.match(css, /html\[data-layer-lite\] \.deck-edit\s*\{\s*display:\s*none\s*!important;\s*\}/);
-});

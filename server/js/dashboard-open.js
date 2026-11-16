@@ -8,7 +8,9 @@
 // category or plain `dashboard` (the Xenon menu over the screen, through the
 // shell, see layers::spec::dashboard_page), `store` and `sparks` the same way,
 // `macro` with a key's id (the Deck's key editor, from the menu's Keys section),
-// which is how someone using Xenon only on the screen reaches them. Read once,
+// `deckkey` with one slot of a Deck (its key editor, from the pencil of a Deck
+// placed on the screen, whose window takes no typing), which is how someone
+// using Xenon only on the screen reaches them. Read once,
 // validated, then dropped from the address so a reload does not open it again.
 // A question for the chat never rides in the address: the driver leaves it in
 // this tab's sessionStorage (same window, same origin) and run() takes it once.
@@ -19,7 +21,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.DashboardOpen = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
-  const PARAMS = ['open', 'filter', 'id', 'cat', 'kind', 'entry'];
+  const PARAMS = ['open', 'filter', 'id', 'cat', 'kind', 'entry', 'deck', 'profile', 'path', 'page', 'slot'];
   const GALLERY_FILTERS = ['video', 'screenshot'];
   // The Ambient category is `lock` inside Settings; an unknown one hides every pane.
   const SETTINGS_PANES = { ambient: 'lock' };
@@ -35,8 +37,12 @@
   const SETTINGS_CATS = ['ambient', 'appearance', 'capture', 'general', 'notifications',
     'ai', 'smarthome', 'spotify', 'streaming', 'unifi', 'slideshow'];
   // The screens that open alone in the Xenon menu's window (js/sheet-page.js).
-  const SHEET_SCREENS = ['settings', 'store', 'sparks', 'gallery', 'chat', 'mixer', 'macro', 'import', 'whatsnew'];
+  const SHEET_SCREENS = ['settings', 'store', 'sparks', 'gallery', 'chat', 'mixer', 'macro', 'deckkey', 'import', 'whatsnew'];
   const KEY_ID = /^[\w-]{1,64}$/;
+  // A Deck tile or one of its copies (server.js reads the same shape from a key).
+  const DECK_INSTANCE = /^deck(~[a-z0-9]{1,40})?$/;
+  const FOLDER_DEPTH_MAX = 8;   // deck-model.js walks no deeper
+  const INDEX = /^\d{1,3}$/;
   const ASK_KEY = 'xenon.deckAsk';
   const ASK_MAX_AGE_MS = 60 * 1000;
   const ASK_MAX_CHARS = 2000;
@@ -51,6 +57,7 @@
     }
     if (o.open === 'settings') return SETTINGS_CATS.includes(o.cat) ? { open: 'settings', cat: o.cat } : { open: 'settings' };
     if (o.open === 'macro') return typeof o.id === 'string' && KEY_ID.test(o.id) ? { open: 'macro', id: o.id } : { open: 'macro' };
+    if (o.open === 'deckkey') return deckKey(o);
     if (o.open !== 'gallery') return null;
     const out = { open: 'gallery' };
     if (GALLERY_FILTERS.includes(o.filter)) out.filter = o.filter;
@@ -58,9 +65,29 @@
     return out;
   }
 
+  // A page or slot number, from an address (text) or a page (a number).
+  const indexOf = (v) => {
+    const s = typeof v === 'number' && Number.isInteger(v) ? String(v) : v;
+    return typeof s === 'string' && INDEX.test(s) ? String(Number(s)) : '';
+  };
+
+  // One slot of one Deck: the instance, the profile, the folders down to the page
+  // (ids joined by '.'), the page and the slot. All of it or nothing.
+  function deckKey(o) {
+    const page = indexOf(o.page);
+    const slot = indexOf(o.slot);
+    const path = typeof o.path === 'string' ? o.path : '';
+    const folders = path ? path.split('.') : [];
+    const ok = typeof o.deck === 'string' && DECK_INSTANCE.test(o.deck)
+      && typeof o.profile === 'string' && KEY_ID.test(o.profile)
+      && folders.length <= FOLDER_DEPTH_MAX && folders.every((id) => KEY_ID.test(id))
+      && page !== '' && slot !== '';
+    return ok ? { open: 'deckkey', deck: o.deck, profile: o.profile, path, page, slot } : null;
+  }
+
   function parse(search) {
     const q = new URLSearchParams(search || '');
-    return normalize({ open: q.get('open'), filter: q.get('filter'), id: q.get('id'), cat: q.get('cat'), kind: q.get('kind'), entry: q.get('entry') });
+    return normalize(Object.fromEntries(PARAMS.map((k) => [k, q.get(k)])));
   }
 
   // `&open=…` for the driver's way to the dashboard; '' when nothing valid.
@@ -145,6 +172,11 @@
     if (req.open === 'macro') {
       if (!window.Deck) return false;
       window.Deck.openMacro(req.id);
+      return true;
+    }
+    if (req.open === 'deckkey') {
+      if (!window.Deck) return false;
+      window.Deck.openSlot(req);
       return true;
     }
     if (req.open === 'mixer') {
