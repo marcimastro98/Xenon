@@ -10,10 +10,13 @@
 // The service worker asks the network first and keeps no list of files, so a page and its scripts come from the
 // same version: a script a page names in a tag may move, and so may one that code which ships asks for after
 // the page started, with the address in that code spelled again in the same step (the plan tells each one; a tab
-// left open across an update asks for the old address until it loads again). What may not: a script something
-// outside this repo names (browser-move-left.json), a frozen path, a file with changes not committed, `x.js` ->
-// `x/`, a folder ignored by git, a script that says where it was loaded from, a path code that ships puts
-// together. No line is left at the old address and no address is answered twice. A refused script stays where
+// left open across an update asks for the old address until it loads again). A script read from outside this repo
+// (`outside` in browser-move-left.json) is found there by its name, in the root or one folder down: it may move
+// while no second folder holds that name, and `check` says so again. A script of `copies` is kept byte for byte
+// (Xenon Maker holds a copy of each): no step writes into one, a note in it keeps the address of its day, and a
+// move that would spell one of its lines again is refused. What may not: a frozen path, a file with changes not
+// committed, `x.js` -> `x/`, a folder ignored by git, a script that says where it was loaded from, a path code
+// that ships puts together. No line is left at the old address and no address is answered twice. A refused script stays where
 // it is; the others of the step still move. A page keeps its tags in their order and its number of lines.
 
 import { readFileSync } from 'node:fs';
@@ -21,8 +24,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { trackedFiles } from '../quality/repo-files.mjs';
-import { applyStep, leftovers, planStep, readMoved, undoStep } from './browser-move-apply.mjs';
-import { readLeft, targets } from './browser-move-plan.mjs';
+import { applyStep, changedCopies, leftovers, planStep, readMoved, undoStep } from './browser-move-apply.mjs';
+import { outsideProblems, readLeft, targets } from './browser-move-plan.mjs';
 import { archiveList, archiveProblems } from './move-check.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
 
@@ -59,7 +62,8 @@ async function main(args) {
     if (!base) { console.log('usage: browser-move.mjs check --base <commit>'); return 2; }
     const before = archiveList(root, base);
     const moves = readMoved(root).moves.filter((move) => before.has(move.from) && !before.has(move.to)); // the list is every wave's: the ones since the base
-    const problems = [...archiveProblems(before, archiveList(root, 'HEAD'), moves), ...(await withParser((parser) => leftovers(root, parser, left.lists)))];
+    const problems = [...archiveProblems(before, archiveList(root, 'HEAD'), moves), ...outsideProblems(trackedFiles(root), left.outside ?? []),
+      ...changedCopies(root, base, moves, left.copies ?? []), ...(await withParser((parser) => leftovers(root, parser, left.lists, left.copies)))];
     for (const problem of problems) console.log(problem);
     console.log(problems.length ? `${problems.length} problems` : `${moves.length} moves: an install differs from ${base} by them alone, and no file names an old place`);
     return problems.length ? 1 : 0;
@@ -70,7 +74,7 @@ async function main(args) {
   const features = JSON.parse(readFileSync(path.join(root, 'tools', 'map', 'features.json'), 'utf8')).features;
   const asked = targets({ tracked: trackedFiles(root), features, left, only });
   return withParser((parser) => {
-    const step = planStep(root, asked.moves, parser, left.lists);
+    const step = planStep(root, asked.moves, parser, left.lists, left.outside, left.copies);
     printPlan(asked, step);
     if (command === 'plan' || args.includes('--dry-run')) {
       console.log(`${[...step.edits.values()].flat().length} edits in ${step.edits.size} files; nothing written`);

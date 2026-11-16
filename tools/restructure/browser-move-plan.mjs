@@ -19,10 +19,35 @@ const LOOSE = /^server\/js\/[^/]+\.js$/;
 // A browser script can also ask where it was loaded from.
 const BROWSER_MEANING = [...MEANING, ['document.currentScript', /\bcurrentScript\b/]];
 
-/** @param {string} root @returns {{ homes: Record<string, string>, features: Record<string, string>, files: Record<string, string>, lists: string[] }} */
+/** @param {string} root @returns {{ homes: Record<string, string>, features: Record<string, string>, files: Record<string, string>, lists: string[], outside?: string[], copies?: string[] }} */
 export function readLeft(root) {
   return JSON.parse(readFileSync(path.join(root, LEFT), 'utf8'));
 }
+
+// Code outside this repo (Xenon Maker, the creator and hub skills) finds a script by its name: `server/js/<name>`
+// first, then the one `server/js/*/<name>`. So a name of the list lives once, in the root or one folder down.
+const placesOf = (tracked, name) => [...tracked].filter((file) => file.startsWith('server/js/') && posix.basename(file) === name);
+
+/**
+ * @param {Iterable<string>} tracked @param {string[]} names file names read from outside (`outside` of the list)
+ * @returns {string[]} why an outside reader would not find one of them, or would find two
+ */
+export function outsideProblems(tracked, names) {
+  const problems = [];
+  for (const name of names) {
+    const places = placesOf(tracked, name);
+    const near = places.filter((file) => file.split('/').length <= 4);
+    if (!near.length) problems.push(`${name} is read from outside this repo and is neither in server/js/ nor one folder down${places.length ? ` (${places.join(', ')})` : ''}`);
+    else if (near.length > 1) problems.push(`${name} is read from outside this repo by its name and has ${near.length} places: ${near.join(', ')}`);
+  }
+  return problems;
+}
+
+/**
+ * Where the scripts of some names stand today, in the root of `server/js/` or one folder down.
+ * @param {Iterable<string>} tracked @param {string[]} names @returns {Set<string>}
+ */
+export const standing = (tracked, names) => new Set(names.flatMap((name) => placesOf(tracked, name).filter((file) => file.split('/').length <= 4)));
 
 // The folder that already holds the parts split from a script (`deck/` for `deck.js`), by its plain name; null when there is none.
 const partsFolder = (from, tracked) => (tracked.some((file) => file.startsWith(`${from.slice(0, -'.js'.length)}/`)) ? posix.basename(from, '.js') : null);
@@ -71,7 +96,7 @@ export function targets({ tracked, features, left, only }) {
  * Why one move may not be made, from what the repo says before anything is read for references.
  * @param {{from: string, to: string, feature?: string}} move
  * @param {{ tracked: Set<string>, frozen: {paths: string[], whole: string[]}, features: object[], dirty: Set<string>,
- *   ignored: (file: string) => boolean, read: (file: string) => string }} repo `features` already has the new folders (withHomes)
+ *   ignored: (file: string) => boolean, read: (file: string) => string, outside?: Set<string> }} repo `features` already has the new folders (withHomes)
  * @returns {string | null}
  */
 export function whyNot(move, repo) {
@@ -83,6 +108,8 @@ export function whyNot(move, repo) {
   if (posix.basename(from) !== posix.basename(to)) return 'a move keeps the name of the file';
   if (!/^server\/js\/[a-z0-9-]+\/[^/]+\.js$/.test(to)) return 'a script goes one folder down, into a folder of server/js/ with a plain name';
   if (repo.tracked.has(to)) return `${to} is already there`;
+  const twin = repo.outside?.has(posix.basename(from)) && placesOf(repo.tracked, posix.basename(from)).find((file) => file !== from && file.split('/').length <= 4);
+  if (twin) return `it is read from outside this repo by its name, and ${twin} has the same name`;
   const folder = posix.dirname(to);
   const parts = `${from.replace(/\.js$/, '')}/`;
   if (folder !== parts.slice(0, -1) && [...repo.tracked].some((file) => file.startsWith(parts))) return `the parts split from it live in ${parts}: it goes in with them, under its own name, or stays`;

@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { trackedFiles } from '../quality/repo-files.mjs';
 import { findBrowserSites, stops } from './browser-move-refs.mjs';
-import { whyNot, withHomes } from './browser-move-plan.mjs';
+import { standing, whyNot, withHomes } from './browser-move-plan.mjs';
 import { edited, HASHED, readByHand, repoFacts } from './move-apply.mjs';
 import { dropUnused, FEATURES, MAP, mapText, pageText } from './move-map.mjs';
 import { ownLoads } from './move-plan.mjs';
@@ -41,10 +41,13 @@ export function listsNow(root, lists) {
 /**
  * Everything a step would do, with nothing written.
  * @param {string} root @param {{from: string, to: string, feature: string}[]} asked @param {any} parser @param {string[]} lists
+ * @param {string[]} [outside] file names read from outside this repo
+ * @param {string[]} [copies] file names of the scripts kept byte for byte: a step never writes into one
  * @returns {{ moves: object[], refused: {move: object, why: string[]}[], edits: Map<string, object[]>, bare: object[] }}
  */
-export function planStep(root, asked, parser, lists) {
-  const repo = repoFacts(root);
+export function planStep(root, asked, parser, lists, outside = [], copies = []) {
+  const repo = { ...repoFacts(root), outside: new Set(outside) };
+  const same = standing(repo.tracked, copies);
   repo.features = withHomes(repo.features, asked);
   const refused = new Map();
   const refuse = (move, why) => refused.set(move.from, { move, why: [...(refused.get(move.from)?.why ?? []), why] });
@@ -52,14 +55,21 @@ export function planStep(root, asked, parser, lists) {
     const why = whyNot(move, repo);
     if (why) refuse(move, why);
   }
-  const find = (moves) => findBrowserSites({ files: repo.files, read: repo.read, parser, moves, lists: listsNow(root, lists) });
+  const find = (moves) => findBrowserSites({ files: repo.files, read: repo.read, parser, moves, lists: listsNow(root, lists), same });
+  const going = new Set(asked.map((move) => move.from));
+  // What a moving script loads is spelled from its new folder (ownLoads): no edit when the two go to one folder.
+  const ownLoad = (site) => going.has(site.file) && (site.kind === 'load' || site.kind === 'relative');
   let moves = asked.filter((move) => !refused.has(move.from));
   for (const site of find(moves)) {
     // `require('./js/deck')` would find the folder `deck/` where an install still has the old `deck.js` beside it.
     const ownName = site.kind === 'load' && !site.was.endsWith('.js') && path.posix.dirname(site.move.to) === site.move.from.replace(/\.js$/, '');
-    const why = ownName ? 'loads it without `.js`, and it would go into the folder of its own name' : stops(site);
+    const kept = same.has(site.file) && site.text !== undefined && site.kind !== 'bare' && !ownLoad(site);
+    const why = ownName ? 'loads it without `.js`, and it would go into the folder of its own name' : stops(site) ?? (kept ? 'names it, and that script is kept byte for byte (Xenon Maker holds a copy)' : null);
     if (why) refuse(site.move, `${site.file}:${site.line} ${why}`);
   }
+  moves = moves.filter((move) => !refused.has(move.from));
+  const loadsFrom = (move, all) => { const text = repo.read(move.from); return ownLoads(move, loadsOf(text, parser.parse(text, move.from), parser.K), all); };
+  for (const move of moves.filter((one) => same.has(one.from) && loadsFrom(one, moves).length)) refuse(move, 'it is kept byte for byte (Xenon Maker holds a copy), and a path it loads would be spelled again from the new folder');
   moves = moves.filter((move) => !refused.has(move.from));
   const sites = moves.length ? find(moves) : [];
   const moving = new Map(moves.map((move) => [move.from, move]));
@@ -70,10 +80,10 @@ export function planStep(root, asked, parser, lists) {
     if (moving.has(site.file) && (site.kind === 'load' || site.kind === 'relative')) continue;
     if (site.text !== undefined && site.kind !== 'bare') add(site.file, site);
   }
-  for (const move of moves) {
-    const text = repo.read(move.from);
-    for (const load of ownLoads(move, loadsOf(text, parser.parse(text, move.from), parser.K), moves)) add(move.from, load);
-  }
+  for (const move of moves) for (const load of loadsFrom(move, moves)) add(move.from, load);
+  // The refusals above are told one by one; this holds whatever they did not foresee.
+  const touched = [...edits.keys()].find((file) => same.has(file));
+  if (touched) throw new Error(`${touched}:${edits.get(touched)[0].line} would be written again, and it is kept byte for byte (Xenon Maker holds a copy): leave the script it names in browser-move-left.json`);
   return { moves, refused: [...refused.values()], edits, bare: sites.filter((site) => site.kind === 'bare') };
 }
 
@@ -139,12 +149,23 @@ export function undoStep(root) {
 }
 
 /**
- * @param {string} root @param {any} parser @param {string[]} lists
+ * @param {string} root @param {string} base @param {{from: string, to: string}[]} moves the moves since `base` @param {string[]} copies
+ * @returns {string[]} the scripts kept byte for byte that are not, since `base`, the same bytes at a new place
+ */
+export function changedCopies(root, base, moves, copies) {
+  const blob = (at) => { try { return git(root, ['rev-parse', '--verify', '-q', at]).trim(); } catch { return null; } };
+  return moves.filter((move) => copies.includes(path.posix.basename(move.from)) && blob(`${base}:${move.from}`) !== blob(`HEAD:${move.to}`))
+    .map((move) => `${move.to} is not byte for byte what ${move.from} was at ${base}, and Xenon Maker holds a copy of it (a change made on purpose after the move also reads so: check from a later base)`);
+}
+
+/**
+ * @param {string} root @param {any} parser @param {string[]} lists @param {string[]} [copies] scripts kept byte for byte, whose notes stay as written
  * @returns {string[]} places that still name the old place of a moved script
  */
-export function leftovers(root, parser, lists) {
+export function leftovers(root, parser, lists, copies = []) {
   const { moves } = readMoved(root);
   if (!moves.length) return [];
-  const sites = findBrowserSites({ files: trackedFiles(root), read: reader(root), parser, moves, lists: listsNow(root, lists) });
+  const files = trackedFiles(root);
+  const sites = findBrowserSites({ files, read: reader(root), parser, moves, lists: listsNow(root, lists), same: standing(files, copies) });
   return sites.filter((site) => site.kind !== 'bare').map((site) => `${site.file}:${site.line} still says ${site.was}`);
 }

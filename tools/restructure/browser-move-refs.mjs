@@ -147,12 +147,13 @@ function literalSites(file, text, tree, K, patterns) {
 
 /**
  * Every place that names a script of `moves`.
- * @param {{ files: string[], read: (file: string) => string | null, parser: any, moves: {from: string, to: string}[], lists?: Set<string> }} input
- *   `lists` are the files of the app whose strings are the scripts of a page the engine writes when the page is asked for
+ * @param {{ files: string[], read: (file: string) => string | null, parser: any, moves: {from: string, to: string}[], lists?: Set<string>, same?: Set<string> }} input
+ *   `lists` are the files of the app whose strings are the scripts of a page the engine writes when the page is asked for;
+ *   `same` are the scripts kept byte for byte (Xenon Maker holds a copy of each): a note in one stays as written, like a note of the service worker
  * @returns {object[]} sites: { file, line, start, end, was, kind, move, text?, why? }. `load`, `path`, `src`, `address`, `asks`, `rooted`,
  *   `relative` and `mention` have the new `text`; `bare` is only told; `held` and `runs` stop the move.
  */
-export function findBrowserSites({ files, read, parser, moves, lists = new Set() }) {
+export function findBrowserSites({ files, read, parser, moves, lists = new Set(), same = new Set() }) {
   if (!moves.length) return [];
   const patterns = patternsFor(moves);
   const out = [];
@@ -163,7 +164,7 @@ export function findBrowserSites({ files, read, parser, moves, lists = new Set()
     if (!JS_FILE.test(file)) { out.push(...tokenSites(file, text, patterns, () => null, lists)); continue; }
     const { sites, spans } = literalSites(file, text, parser.parse(text, file), parser.K, patterns);
     const inside = (at) => spans.find(([from, to]) => at >= from && at < to)?.[2] ?? null;
-    out.push(...sites, ...tokenSites(file, text, patterns, inside, lists));
+    out.push(...sites, ...tokenSites(file, text, patterns, inside, lists).filter((site) => !(site.kind === 'mention' && same.has(file))));
   }
   return out;
 }

@@ -8,8 +8,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from 'node:os';
 import path from 'node:path';
 
-import { applyStep, leftovers, listsNow, planStep, readMoved, undoStep } from '../../tools/restructure/browser-move-apply.mjs';
-import { targets, whyNot, withHomes } from '../../tools/restructure/browser-move-plan.mjs';
+import { applyStep, changedCopies, leftovers, listsNow, planStep, readMoved, undoStep } from '../../tools/restructure/browser-move-apply.mjs';
+import { outsideProblems, targets, whyNot, withHomes } from '../../tools/restructure/browser-move-plan.mjs';
 import { findBrowserSites, stops } from '../../tools/restructure/browser-move-refs.mjs';
 import { edited } from '../../tools/restructure/move-apply.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
@@ -89,6 +89,27 @@ const FILES = {
   'packages/mcp/template/index.html': '<script src="js/pulse-bar.js"></script>\n',
   'CHANGELOG.md': 'Fixed server/js/pulse-bar.js\n',
 };
+
+test('a script read from outside this repo by its name moves one folder down while no second folder holds the name', () => {
+  const files = { 'server/js/pulse-bar.js': 'const a = 1;\n', 'server/js/pulse/deep.js': '', 'server/js/brain/chat.js': '' };
+  const outside = new Set(['pulse-bar.js']);
+  assert.equal(whyNot(MOVE, facts(files, { outside })), null, 'one place before, one place after');
+  assert.match(whyNot(MOVE, facts({ ...files, 'server/js/brain/pulse-bar.js': '' }, { outside })), /read from outside this repo by its name, and server\/js\/brain\/pulse-bar\.js has the same name/);
+  assert.equal(whyNot(MOVE, facts({ ...files, 'server/js/brain/pulse-bar.js': '' })), null, 'a name nothing outside reads may live in two folders');
+  assert.equal(whyNot(MOVE, facts({ ...files, 'server/js/brain/parts/pulse-bar.js': '', 'server/test/pulse-bar.js': '' }, { outside })), null, 'the outside reader does not look deeper, or outside server/js/');
+  assert.deepEqual(outsideProblems(['server/js/pulse-bar.js', 'server/js/brain/chat.js', 'server/pulse-bar.js'], ['pulse-bar.js', 'chat.js']), []);
+  assert.match(outsideProblems(['server/js/pulse/pulse-bar.js', 'server/js/brain/pulse-bar.js'], ['pulse-bar.js']).join('\n'), /pulse-bar\.js is read from outside this repo by its name and has 2 places: server\/js\/pulse\/pulse-bar\.js, server\/js\/brain\/pulse-bar\.js/);
+  assert.match(outsideProblems(['server/js/pulse-bar.js', 'server/js/pulse/pulse-bar.js'], ['pulse-bar.js']).join('\n'), /has 2 places/, 'the root and a folder are two places too');
+  assert.match(outsideProblems(['server/js/pulse/deep/pulse-bar.js'], ['pulse-bar.js']).join('\n'), /neither in server\/js\/ nor one folder down \(server\/js\/pulse\/deep\/pulse-bar\.js\)/);
+  assert.match(outsideProblems([], ['pulse-bar.js']).join('\n'), /neither in server\/js\/ nor one folder down$/);
+});
+
+test('the names read from outside this repo each have one place in this repo today', () => {
+  const left = JSON.parse(readFileSync(new URL('../../tools/restructure/browser-move-left.json', import.meta.url), 'utf8'));
+  const tracked = execFileSync('git', ['ls-files', 'server/js'], { cwd: new URL('../..', import.meta.url), encoding: 'utf8' }).split('\n').filter(Boolean);
+  assert.ok(left.outside.length >= 27);
+  assert.deepEqual(outsideProblems(tracked, left.outside), []);
+});
 
 const sitesOf = async (files, moves = [MOVE], lists = LEFT.lists) => {
   const parser = await openParser();
@@ -201,6 +222,51 @@ test('a step moves, rewrites, maps and lists; undo puts every file back; nothing
     assert.deepEqual([...listsNow(repo.root, [MOVE.from, 'server/js/state.js'])], [MOVE.to, 'server/js/state.js'], 'a list file that moved is read at its new place');
     writeFileSync(path.join(repo.root, 'server/index.html'), '<script src="js/pulse-bar.js"></script>\n');
     assert.match(leftovers(repo.root, parser, LEFT.lists).join('\n'), /server\/index\.html:1 still says js\/pulse-bar\.js/);
+  } finally {
+    await parser.close();
+    rmSync(repo.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+});
+
+test('a script kept byte for byte moves with the same bytes, or stays; a step never writes into one', needsParser, async () => {
+  const copies = ['pulse-read.js', 'pulse-write.js', 'pulse-alone.js', 'pulse-scene.js'];
+  const files = {
+    'server/index.html': '<script src="js/pulse-read.js"></script>\n<script src="js/pulse-write.js"></script>\n',
+    'server/js/state.js': '',
+    'server/js/pulse-bar.js': 'const a = 1;\n',
+    'server/js/pulse-tiles.js': 'const b = 2;\n',
+    'server/js/pulse-read.js': '// the bar is drawn by js/pulse-bar.js\nconst c = 3;\n',
+    'server/js/pulse-write.js': "// reads with js/pulse-read.js\nconst read = require('./pulse-read.js');\n",
+    'server/js/pulse-alone.js': "const state = require('./state.js');\n",
+    'server/js/pulse-scene.js': "// see js/pulse-bar.js\nconst tiles = require('./pulse-tiles.js');\n",
+    'tools/map/features.json': `${JSON.stringify({ intro: ['An invented map.'], areas: [{ id: 'all', name: 'All', what: 'Everything.' }],
+      features: [FEATURES[0], FEATURES[3]].map((feature) => ({ id: feature.id, area: 'all', name: feature.id, what: 'Invented.', files: feature.files })) }, null, 2)}\n`,
+    'MAP.md': 'old\n',
+    'tools/map/frozen-paths.json': JSON.stringify({ paths: [], whole: ['server/*.html'] }),
+    'tools/restructure/browser-move-left.json': `${JSON.stringify({ copies })}\n`,
+  };
+  const repo = tempRepo(files);
+  const parser = await openParser();
+  try {
+    const base = repo.git('rev-parse', 'HEAD').trim();
+    const asked = ['pulse-bar', 'pulse-tiles', 'pulse-read', 'pulse-write', 'pulse-alone'].map((name) => ({ from: `server/js/${name}.js`, to: `server/js/pulse/${name}.js`, feature: 'pulse' }));
+    const step = planStep(repo.root, asked, parser, [], [], copies);
+    assert.deepEqual(step.moves.map((move) => path.posix.basename(move.from)), ['pulse-bar.js', 'pulse-read.js', 'pulse-write.js']);
+    const refused = Object.fromEntries(step.refused.map((entry) => [path.posix.basename(entry.move.from), entry.why.join(' ')]));
+    assert.match(refused['pulse-alone.js'], /kept byte for byte \(Xenon Maker holds a copy\), and a path it loads would be spelled again/, 'what it loads stays in the root');
+    assert.match(refused['pulse-tiles.js'], /server\/js\/pulse-scene\.js:2 names it, and that script is kept byte for byte/, 'the script that loads it stays, and may not be written');
+    assert.deepEqual([...step.edits.keys()], ['server/index.html'], 'no edit lands in a kept script');
+    applyStep(repo.root, step);
+    repo.git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'move');
+    for (const name of ['pulse-read.js', 'pulse-write.js']) assert.equal(repo.read(`server/js/pulse/${name}`), files[`server/js/${name}`], `${name} is the same bytes at its new place`);
+    assert.equal(repo.read('server/js/pulse-scene.js'), files['server/js/pulse-scene.js'], 'a note in a kept script keeps the address of its day');
+    assert.deepEqual(leftovers(repo.root, parser, [], copies), [], 'and the check does not ask for it');
+    assert.match(leftovers(repo.root, parser, []).join('\n'), /pulse-scene\.js:1 still says js\/pulse-bar\.js/, 'in any other script the same note is a leftover');
+    const moves = readMoved(repo.root).moves;
+    assert.deepEqual(changedCopies(repo.root, base, moves, copies), []);
+    writeFileSync(path.join(repo.root, 'server/js/pulse/pulse-read.js'), '// the bar is drawn by js/pulse/pulse-bar.js\nconst c = 3;\n');
+    repo.git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-a', '-m', 'note');
+    assert.match(changedCopies(repo.root, base, moves, copies).join('\n'), /^server\/js\/pulse\/pulse-read\.js is not byte for byte what server\/js\/pulse-read\.js was/);
   } finally {
     await parser.close();
     rmSync(repo.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
