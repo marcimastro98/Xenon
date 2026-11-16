@@ -137,6 +137,13 @@ function record(id, failed = false) {
   return true;
 }
 
+// A request the feature turned down because it was asked wrong (a scene name
+// that does not exist, a bad screen number): the answer carries the valid
+// choices and Bit asks again. Counted as a use, not a failure, or the failed
+// count of every feature Bit can call says how often Bit guessed, not whether
+// the feature works.
+const ASKED_WRONG_RE = /^(bad_|unknown_|needs_)|^ambiguous$/;
+
 /**
  * The registry's choke point: one capability run and its result. A placed
  * layer widget also counts by where it went (desktop or over games).
@@ -145,7 +152,8 @@ function recordCapability(action, result) {
   const type = action && typeof action.type === 'string' ? action.type : '';
   if (!type) return;
   const ok = !!(result && result.ok === true);
-  record('cap.' + type, !ok);
+  const askedWrong = !ok && ASKED_WRONG_RE.test(String((result && result.error) || ''));
+  record('cap.' + type, !ok && !askedWrong);
   // Only the two surfaces the hub knows; an anchored widget is neither.
   const surface = ok && type === 'layerPlace' && result.placed ? result.placed.surface : '';
   if (surface === 'overlay' || surface === 'desktop') record('layer.place.' + surface);

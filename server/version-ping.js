@@ -36,8 +36,10 @@
 //     can therefore never invent a period and split a counter.
 //
 //     * `born` is only ever 'known' when the install was observed being created:
-//     settings.json absent as the PROCESS started (see server.js), which is
-//     evidence independent of anything in this file. On its own, a missing or
+//     an empty data folder as the PROCESS started (FRESH_INSTALL in server.js,
+//     read before anything writes), which is evidence independent of anything in
+//     this file. That boot also writes the birth down (noteBirth), because the
+//     first ping can come from a later process. On its own, a missing or
 //     unreadable state file never mints a birth — an install that has existed for
 //     two years and enables the switch today must not be counted as born today,
 //     because that is the one error that would corrupt the retention curve
@@ -241,6 +243,20 @@ async function writeState(dataDir, state) {
   await writeFileAtomic(path.join(dataDir, STATE_BASENAME), JSON.stringify(state));
 }
 
+// Called only by the boot that saw an empty data folder. Nothing is sent: the
+// next ping, from this process or a restarted one, reads the birth from here.
+// 'wx' never writes over a state file, which then already holds the answer.
+async function noteBirth(dataDir, day = utcDay()) {
+  if (!DAY_RE.test(day)) return false;
+  const state = { v: PROTOCOL, day: '', first: day, born: 'known', week: '', month: '', version: '' };
+  try {
+    await fsp.writeFile(path.join(dataDir, STATE_BASENAME), JSON.stringify(state), { flag: 'wx' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Returns a small result object describing what happened. Callers ignore it in
 // production; the tests read it, which is why it is not just a boolean.
 async function maybePing({
@@ -297,6 +313,7 @@ async function maybePing({
 
 module.exports = {
   maybePing,
+  noteBirth,
   utcDay,
   isoWeek,
   ageBucket,

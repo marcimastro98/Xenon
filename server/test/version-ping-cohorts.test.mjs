@@ -97,6 +97,44 @@ test('the birth date never moves once recorded', async () => {
   assert.equal(last.age, 'd1_7');
 });
 
+// A new install's first ping can come from a later process than the boot that
+// saw the empty data folder (an engine restarted before the first update check).
+// That process reports fresh:false; the birth written at boot must still count.
+test('a birth noted at boot survives a restart before the first ping', async () => {
+  const dir = tmpDataDir();
+  assert.equal(await versionPing.noteBirth(dir, '2026-11-14'), true);
+  await send(dir, '2026-11-14', { fresh: false });
+  assert.equal(calls[0].body.cohort, '2026-11');
+  assert.equal(calls[0].body.age, 'd0');
+  assert.equal(calls[0].body.newWeek, true, 'nothing was counted yet, so the week is still new');
+  assert.equal(calls[0].body.newMonth, true);
+  assert.equal(calls[0].body.from, undefined, 'a new install has no previous version to report');
+
+  calls = [];
+  await send(dir, '2026-11-16', { fresh: false });
+  assert.equal(calls[0].body.age, 'd1_7');
+});
+
+test('noting a birth never writes over a state file', async () => {
+  const dir = tmpDataDir();
+  const old = { v: 2, day: '2026-08-02', first: '2026-08-02', born: 'unknown', week: '2026-W31', month: '2026-08', version: '4.12.0' };
+  fs.writeFileSync(path.join(dir, 'version-ping.json'), JSON.stringify(old), 'utf8');
+  assert.equal(await versionPing.noteBirth(dir, '2026-11-14'), false);
+  assert.deepEqual(readState(dir), old, 'an existing install is never reborn');
+  // A ping that landed first (same boot) already holds the birth and the counts.
+  const raced = tmpDataDir();
+  await send(raced, '2026-11-14', { fresh: true });
+  const before = readState(raced);
+  assert.equal(await versionPing.noteBirth(raced, '2026-11-14'), false);
+  assert.deepEqual(readState(raced), before, 'the week and month already counted stay counted');
+});
+
+test('a bad day is refused rather than written', async () => {
+  const dir = tmpDataDir();
+  assert.equal(await versionPing.noteBirth(dir, 'yesterday'), false);
+  assert.equal(fs.existsSync(path.join(dir, 'version-ping.json')), false);
+});
+
 // ── Buckets and period keys ─────────────────────────────────────────────────
 
 test('ageBucket is a table, and a clock that went backwards is unknown', () => {

@@ -10562,13 +10562,6 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
 // must not hit the disk that often. Populated at startup and on every POST.
 let _serverHubSettings = { ...DEFAULT_HUB_SETTINGS };
 
-// True when settings.json did NOT exist as this process started: the only honest
-// way to tell a brand-new install from an old one that just enabled the version
-// ping. Read once at boot (see readHubSettings().then below) because the answer
-// stops being available a moment later. Defaults to false, so anything that goes
-// wrong reads as "not new" — under-counting births is the recoverable direction.
-let _settingsFileMissingAtBoot = false;
-
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -18970,7 +18963,9 @@ const handleRequest = async (req, res) => {
         version: APP_VERSION,
         enabled: !!(_serverHubSettings && _serverHubSettings.versionPing === true),
         // Only a birth observed at boot may produce a cohort — see version-ping.js.
-        fresh: _settingsFileMissingAtBoot,
+        // FRESH_INSTALL, not the boot settings read: seedFreshInstall() writes
+        // settings.json before that read, so it called every new install old.
+        fresh: FRESH_INSTALL,
         // Already normalized on both sides (WEATHER_LANGS here, SUPPORTED_LANGS in
         // js/settings.js), so reading it costs nothing and adds no new key.
         lang: (_serverHubSettings && _serverHubSettings.language) || '',
@@ -26494,6 +26489,8 @@ async function seedFreshInstall() {
     if (await readHubSettings()) return;
     await writeHubSettings({ ...DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku' });
     await welcomeSparks.markPending(DATA_DIR);
+    // Kept on disk: an engine restarted before the first update check still knows.
+    await versionPing.noteBirth(DATA_DIR);
     startupLog.write('settings: new install, starting on Bit');
   });
 }
@@ -26604,13 +26601,6 @@ function _startListen(host) {
     let settingsBootRead = false;
     readHubSettings().then(s => {
       settingsBootRead = true;
-      // readHubSettings() answers null on ENOENT, and that is the ONE honest
-      // signal that this is a genuinely fresh install rather than an existing one
-      // whose owner just switched the version ping on. It has to be captured HERE,
-      // at boot: by the time the first ping fires, an old install always has the
-      // file, so asking then would call every late opt-in a new install and
-      // corrupt the retention curve permanently. See version-ping.js.
-      _settingsFileMissingAtBoot = (s === null);
       if (s) _serverHubSettings = s;
       // Which store this process is actually running on, written down where a
       // person can read it. Reported on Discord as "my whole layout is back to
