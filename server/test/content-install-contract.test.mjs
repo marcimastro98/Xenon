@@ -21,7 +21,7 @@ test('the install receipt normalizer loads before settings and the manager is re
 });
 
 test('the installed manager reuses the one removal engine instead of forking it', () => {
-  const presets = read('js', 'preset-share.js');
+  const presets = read('js', 'presets/preset-share.js');
   const manager = read('js', 'installed-manager/installed-manager.js');
   // uninstallContent is the reference-counted removal path (see the receipt
   // engine tests below). The Store tab must CALL it, never reimplement it.
@@ -33,7 +33,7 @@ test('the installed manager reuses the one removal engine instead of forking it'
 
 test('catalog imports preserve their source and every applied kind uses tracked installation', () => {
   const gallery = read('js', 'community-gallery/community-gallery.js');
-  const presets = read('js', 'preset-share.js');
+  const presets = read('js', 'presets/preset-share.js');
   // sourceVersion rides along since v4.5.3 so every kind is update-checkable;
   // perfWarning since v4.8.0 so the import dialog repeats the store's chip. The
   // invariant under test is unchanged: catalog installs go through openImport

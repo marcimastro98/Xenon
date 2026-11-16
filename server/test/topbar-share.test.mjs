@@ -1,4 +1,4 @@
-// The `topbar` share code (js/topbar-share.js + preset-share.js). What a user
+// The `topbar` share code (js/presets/topbar-share.js + preset-share.js). What a user
 // would notice if it broke: a shared bar that imports without its buttons or
 // rails, a code that hides Settings or Layout, an island option of theirs wiped
 // by someone else's bar, or a Store/catalog that does not know the kind.
@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 import { namesOf } from './source-names.mjs';
 
 const require = createRequire(import.meta.url);
-const TopbarShare = require('../js/topbar-share.js');
+const TopbarShare = require('../js/presets/topbar-share.js');
 const TopbarLook = require('../js/topbar/topbar-look.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -103,8 +103,8 @@ test('import keeps the island options that are not part of a bar', () => {
 
 test('every place that lists the share kinds knows `topbar`', () => {
   const lists = [
-    [read('../js/preset-share.js'), /const PRESET_KINDS = \[([^\]]*)\]/],
-    [read('../js/preset-share.js'), /const CATALOG_PUBLISH_KINDS = \[([^\]]*)\]/],
+    [read('../js/presets/preset-share.js'), /const PRESET_KINDS = \[([^\]]*)\]/],
+    [read('../js/presets/preset-share.js'), /const CATALOG_PUBLISH_KINDS = \[([^\]]*)\]/],
     [read('../js/store-catalog/content-installs.js'), /const KINDS = Object\.freeze\(\[([^\]]*)\]/],
     [engineSource('server/store-catalog/community-catalog.js'), /const CATALOG_KINDS = new Set\(\[([^\]]*)\]/],
     [read('../js/community-gallery/community-gallery.js'), /const KIND_ORDER = \[([^\]]*)\]/],
@@ -118,13 +118,13 @@ test('every place that lists the share kinds knows `topbar`', () => {
 });
 
 test('the import shows a review step and the export is in the Export list', () => {
-  const src = read('../js/preset-share.js');
+  const src = read('../js/presets/preset-share.js');
   assert.match(src, /if \(env\.kind === 'topbar'\) \{ close\(\); openTopbarImport\(env\.name, env\.data\); return; \}/);
   assert.match(src, /\{ label: \['settings_share_topbar'/);
   assert.match(src, /if \(sel\.topbar && window\.TopbarShare\) data\.topbar = TopbarShare\.of\(HS\(\)\);/);
   const index = read('../index.html');
-  assert.ok(index.indexOf('src="js/topbar-share.js"') > index.indexOf('src="js/topbar/topbar-look.js"'));
-  assert.ok(index.indexOf('src="js/topbar-share.js"') < index.indexOf('src="js/settings.js"'));
+  assert.ok(index.indexOf('src="js/presets/topbar-share.js"') > index.indexOf('src="js/topbar/topbar-look.js"'));
+  assert.ok(index.indexOf('src="js/presets/topbar-share.js"') < index.indexOf('src="js/settings.js"'));
 });
 
 test('a theme carries only the bar style, and none at all for an untouched bar', () => {
@@ -144,7 +144,7 @@ test('a theme carries only the bar style, and none at all for an untouched bar',
 test('saved themes, theme codes and theme import all use the theme part', () => {
   assert.match(SETTINGS, /const bar = TopbarLook\.themePart\(raw\.topbarLook\);\n\s*if \(bar\) theme\.topbarLook = bar;/);
   assert.match(SETTINGS, /patch\.topbarLook = TopbarLook\.withThemePart\(hubSettings\.topbarLook, theme\.topbarLook\)/);
-  const share = read('../js/preset-share.js');
+  const share = read('../js/presets/preset-share.js');
   assert.match(share, /const bar = window\.TopbarLook \? TopbarLook\.themePart\(s\.topbarLook\) : null;\n\s*if \(bar\) out\.topbarLook = bar;/);
   assert.match(share, /patch\.topbarLook = TopbarLook\.withThemePart\(HS\(\)\.topbarLook, data\.topbarLook\)/);
 });

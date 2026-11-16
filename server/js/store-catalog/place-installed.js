@@ -1,6 +1,6 @@
 // "Put on screen" right after an install: the step between having a widget and
 // seeing it, for anyone whose Xenon draws widgets on the screen. The Store and
-// the Maker's link both end in the import (js/preset-share.js): its "installed"
+// the Maker's link both end in the import (js/presets/preset-share.js): its "installed"
 // toast asks here for the button (onScreenOption), so there is one toast and not
 // two. The Maker's "Put on screen" link already asked (`place`), so it goes
 // straight on screen; anything else is offered, never done unasked.

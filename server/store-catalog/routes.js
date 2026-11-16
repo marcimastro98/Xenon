@@ -34,7 +34,7 @@ const branches = {
   'POST /api/community/installed': async (req, _res, { json, err500 }) => {
     // Count one install of a catalog entry. NO identifier is sent: the hub only
     // increments a per-entry counter, and "have I already reported this one?"
-    // is answered from this machine's own install receipts (js/preset-share.js).
+    // is answered from this machine's own install receipts (js/presets/preset-share.js).
     // So the number means installs REPORTED, not unique owners — say that
     // wherever it is shown. Gated like the version ping: a new install is on by
     // default, an existing one stays off until the user says otherwise.

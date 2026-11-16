@@ -16,7 +16,7 @@
 // assert) with a deny-all CSP; the picker embeds a picked icon into the key
 // as a data: URI, so keys keep working after the pack is uninstalled.
 //
-// NOTE: the client-side builder in js/preset-share.js duplicates svgProblem()
+// NOTE: the client-side builder in js/presets/preset-share.js duplicates svgProblem()
 // for instant feedback while composing a pack. The server copy here is the
 // authority; test/icon-packs.test.mjs asserts the two stay in agreement.
 

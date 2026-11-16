@@ -84,7 +84,7 @@ test('removing a widget takes its button out of the list and its look', () => {
   assert.equal(out.topbarLook.surface, 'solid');
   // Both uninstall paths use it.
   assert.match(read('../js/installed-manager/installed-manager.js'), /withoutSdkTopbarButtons\(hubSettings, \[pkg\.id\]\)/);
-  assert.match(read('../js/preset-share.js'), /withoutSdkTopbarButtons\(HS\(\), widgetDeleteIds\)/);
+  assert.match(read('../js/presets/preset-share.js'), /withoutSdkTopbarButtons\(HS\(\), widgetDeleteIds\)/);
 });
 
 test('the bar draws the button itself: text only, no widget markup', () => {

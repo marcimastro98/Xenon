@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { insertPreset, normalizePresets } = require('../js/dashboard-presets.js');
+const { insertPreset, normalizePresets } = require('../js/presets/dashboard-presets.js');
 
 // A preset that places a Store widget's host tile ('custom') may reuse the
 // hidden primary. Which widget that tile shows lives outside the layout and

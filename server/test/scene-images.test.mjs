@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const si = require('../ambient/scene-images.js');
 const SERVER = engineSource();
-const SHARE = fs.readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+const SHARE = fs.readFileSync(new URL('../js/presets/preset-share.js', import.meta.url), 'utf8');
 
 const PNG_HEAD = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 const png = (n = 40000, seed = 'a') => 'data:image/png;base64,' + Buffer.concat([PNG_HEAD, crypto.createHash('sha512').update(seed).digest(), Buffer.alloc(n, seed)]).toString('base64');

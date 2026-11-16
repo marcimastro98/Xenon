@@ -265,7 +265,7 @@ test('the Behaviour strings exist in all 11 languages', () => {
 
 // ── sharing a Deck profile ──
 test('a shared code keeps every slot of a momentary and a cycle key, and the import review counts them', () => {
-  const PS = require('../js/preset-share.js');
+  const PS = require('../js/presets/preset-share.js');
   const DEPS = { model: M, actions: DA };
   const keys = [
     { kind: 'action', title: 'Talk', icon: { type: 'emoji', value: '🎙' }, mode: 'momentary',
@@ -294,7 +294,7 @@ test('a shared code keeps every slot of a momentary and a cycle key, and the imp
 test('the editor, the share sanitizer and the import review read one list of slots', () => {
   assert.deepEqual(M.KEY_TRIGGERS, ['tap', 'tapOff', 'double', 'hold', 'press', 'release', 'cycle1', 'cycle2', 'cycle3', 'cycle4', 'cycle5', 'cycle6', 'cycle7']);
   for (const mode of B.MODES) for (const tr of B.triggersFor(mode, M.CYCLE_MAX)) assert.ok(M.KEY_TRIGGERS.includes(tr), mode + ' ' + tr);
-  const PS = read('../js/preset-share.js');
+  const PS = read('../js/presets/preset-share.js');
   // sanitizer, SDK package refs, action summary, and the hotkey combos the review names
   assert.equal((PS.match(/for \(const name of M\.KEY_TRIGGERS\)/g) || []).length, 4);
   assert.ok(!/DECK_TRIGGERS/.test(PS));

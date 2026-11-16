@@ -62,7 +62,7 @@ test('the cap is 8 and the Installed list can read it', () => {
 });
 
 test('a single widget import asks for permissions when the widget works with no tile', () => {
-  const share = readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+  const share = readFileSync(new URL('../js/presets/preset-share.js', import.meta.url), 'utf8');
   assert.match(share, /askIfRunsWithoutTile\(pkgId\);\r?\n[\s\S]{0,200}if \(!offerAddToPage\(\[pkgId\]\)\)/);
   assert.match(share, /if \(offTile\) CW\.requestGrants\(\[pkg\]\);/);
 });

@@ -12,7 +12,7 @@
 
 const DeckModel = require('../js/deck/deck-model.js');
 const DeckActions = require('../js/deck/deck-actions.js');
-const PresetShare = require('../js/preset-share.js');
+const PresetShare = require('../js/presets/preset-share.js');
 const IconPacks = require('../store-catalog/icon-packs.js');
 const { note, fail, diffValue, isObject } = require('./ai-preset-diff.js');
 const { knownFields, join } = require('./ai-preset-checks.js');

@@ -66,7 +66,7 @@
   // shared Deck profile that references a pack clip plays again on any machine
   // with the pack installed — the fix for playSound files being stripped.
   // 'topbar' shares a whole top bar: { look, style, clock:{align,items,actions,
-  // pageLabels}, rails, railsAutoHide } (js/topbar-share.js shapes and reads it).
+  // pageLabels}, rails, railsAutoHide } (js/presets/topbar-share.js shapes and reads it).
   // Settings only, no code and no files; import goes through normalizeSettings,
   // which keeps Settings and Layout on the bar whatever the code says.
   const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds', 'topbar'];
@@ -163,7 +163,7 @@
   // A shared key's link loses what names a person (a chat id, a phone, a token):
   // js/presets/share-link-privacy.js, loaded first.
   const LinkPrivacy = (typeof window !== 'undefined' && window.ShareLinkPrivacy)
-    || (typeof require === 'function' ? require('./presets/share-link-privacy.js') : null);
+    || (typeof require === 'function' ? require('./share-link-privacy.js') : null);
 
   // ── Icon packs (kind 'icons') ──────────────────────────────────────────────
   // Caps mirror server/store-catalog/icon-packs.js (the authority) so the builder gives the

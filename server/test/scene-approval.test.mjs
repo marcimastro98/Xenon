@@ -28,7 +28,7 @@ test('Allow turns community widgets on only with the switch off, and the dialog 
 });
 
 test('importing a scene does not also ask for the switch the dialog already turns on', () => {
-  assert.match(read('../js/preset-share.js'), /if \(!sdkOn && !setChk\.checked\)/);
+  assert.match(read('../js/presets/preset-share.js'), /if \(!sdkOn && !setChk\.checked\)/);
 });
 
 test('Settings offers the approval while the scene waits', () => {

@@ -9,7 +9,7 @@ const MAX_ENTRIES = 200;
 const CODE_INLINE_MAX = 8000;   // longer codes must ship as codes/<id>.txt
 
 // Kinds the gallery may list — the import pipeline's PRESET_KINDS.
-// Keep in step with PRESET_KINDS (js/preset-share.js), the hub admin's KINDS
+// Keep in step with PRESET_KINDS (js/presets/preset-share.js), the hub admin's KINDS
 // (xenon-supporter-hub src/catalog-admin.js), the issue-template dropdown and
 // the website gallery's KINDS (docs/catalog/index.html). 'ambient-layout' is
 // deliberately not catalog-listable.

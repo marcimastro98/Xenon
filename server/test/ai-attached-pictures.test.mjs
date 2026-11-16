@@ -11,7 +11,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const A = require('../ai/ai-attached-pictures.js');
 const P = require('../ai/ai-presets.js');
-const PresetShare = require('../js/preset-share.js');
+const PresetShare = require('../js/presets/preset-share.js');
 
 const deps = { normalizeSettings: loadServerSettingsSlice(), dashboardWidgets: serverDashboardWidgets(), sdkEnabled: true, appVersion: '9.9.9' };
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';

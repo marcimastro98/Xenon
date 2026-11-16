@@ -94,7 +94,7 @@ test('the Tabs pane strings exist in all 11 languages', () => {
 });
 
 test('a preset carries tab colours by widget and gives them to the new members', () => {
-  const P = require('../js/dashboard-presets.js');
+  const P = require('../js/presets/dashboard-presets.js');
   const src = {
     widgets: { deck: { visible: false }, agenda: { visible: false } },
     copies: [{ id: 'news~ab12', widget: 'news' }],

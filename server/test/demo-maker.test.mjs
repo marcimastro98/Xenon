@@ -9,7 +9,7 @@ import { readFileSync } from './browser-source.mjs';
 // pin the policy the preview document runs under.
 const require = createRequire(import.meta.url);
 const { makerPackage, makerGrant, previewCsp, withCsp, widgetFromMessage, packageIdOfSrc, themeFromMessage, bgFromMessage, ambientFromMessage, pageFromMessage, layoutWithPage, PAGE_ID, deckFromMessage, deckStore, DECK_ID, DECK_ITEM, topbarFromMessage } = require('../../tools/demo/maker.js');
-const DashboardPresets = require('../js/dashboard-presets.js');
+const DashboardPresets = require('../js/presets/dashboard-presets.js');
 const { normalizeManifest } = require('../sdk-widgets.js');
 const DeckModel = require('../js/deck/deck-model.js');
 
@@ -92,7 +92,7 @@ test('a theme message keeps its data and only a font the app could take', () => 
 });
 
 test('a top bar message is read by the topbar code reader, and nothing else', () => {
-  const TopbarShare = require('../js/topbar-share.js');
+  const TopbarShare = require('../js/presets/topbar-share.js');
   const data = { look: { surface: 'glass', accent: 'search' }, style: 'minimal', rails: { left: true, right: false } };
   assert.deepEqual(topbarFromMessage({ type: 'xenon-maker:topbar', data }), TopbarShare.read(data));
   assert.equal(topbarFromMessage({ type: 'xenon-maker:topbar', data: { style: 'minimal' } }), null);

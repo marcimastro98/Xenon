@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const AS = require('../js/ambient-scene.js');
 const SERVER = engineSource();
-const SHARE = readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+const SHARE = readFileSync(new URL('../js/presets/preset-share.js', import.meta.url), 'utf8');
 
 // A scene of about `chars` JSON characters, as an inlined picture makes it.
 const sceneOf = (chars, id = 'big-scene') => ({ id, name: 'Big', components: [], bg: { type: 'image', url: 'data:image/png;base64,' + 'A'.repeat(chars) } });

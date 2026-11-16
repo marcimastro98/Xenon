@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { normalizePresets } = require('../js/dashboard-presets.js');
+const { normalizePresets } = require('../js/presets/dashboard-presets.js');
 
 // Grid-units migration for saved presets: entries saved before the 24-column
 // grid carry no gridCols field and are in 12-column units — normalizePresets

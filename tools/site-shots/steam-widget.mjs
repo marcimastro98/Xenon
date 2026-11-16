@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { lighthouse, skyIslands, skyline, volcano } from '../tile-previews/art.mjs';
 
-const { decodePreset } = createRequire(import.meta.url)('../../server/js/preset-share.js');
+const { decodePreset } = createRequire(import.meta.url)('../../server/js/presets/preset-share.js');
 const SHARE_CODE = new URL('../../docs/community/codes/tgk-steam-launcher-battery.txt', import.meta.url);
 
 const FILE_TYPES = { html: 'text/html', css: 'text/css', js: 'text/javascript', json: 'application/json' };

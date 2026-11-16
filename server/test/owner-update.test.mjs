@@ -7,7 +7,7 @@ import path from 'node:path';
 import { webcrypto } from 'node:crypto';
 const require = createRequire(import.meta.url);
 const redeemMod = require('../store-supporters/supporter-redeem.js');
-const { ownedUpdateOutcome, encodePreset } = require('../js/preset-share.js');
+const { ownedUpdateOutcome, encodePreset } = require('../js/presets/preset-share.js');
 const ra = require('../paired/remote-access.js');
 
 // The owner update: "I already unlocked this on this install, is there a newer
@@ -204,7 +204,7 @@ test('up to date, not an owner and no answer are three different outcomes', asyn
 
 test('the unlock dialog asks for key version 1 when the file names none', async () => {
   const fs = await import('node:fs');
-  const src = fs.readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+  const src = fs.readFileSync(new URL('../js/presets/preset-share.js', import.meta.url), 'utf8');
   // Sent nothing, the hub answers with its LATEST key, which stops opening the
   // original download the day a newer version is published.
   assert.match(src, /entryId: locked\.entryId, code: unlockField\.value, kv: locked\.kv \|\| 1, enc: locked\.enc,/);
@@ -213,8 +213,8 @@ test('the unlock dialog asks for key version 1 when the file names none', async 
 test('peekLocked reports no key version for a file that predates versions, and the named one otherwise', async () => {
   const old = await seal('pack-a');
   const newer = await seal('pack-a', { kv: 3 });
-  assert.equal(require('../js/preset-share.js').peekLocked(old.code).kv, null);
-  assert.equal(require('../js/preset-share.js').peekLocked(newer.code).kv, 3);
+  assert.equal(require('../js/presets/preset-share.js').peekLocked(old.code).kv, null);
+  assert.equal(require('../js/presets/preset-share.js').peekLocked(newer.code).kv, 3);
 });
 
 // ── the paired-device door ───────────────────────────────────────────────────

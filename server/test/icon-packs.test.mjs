@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
 const ip = require('../store-catalog/icon-packs.js');
-const ps = require('../js/preset-share.js');
+const ps = require('../js/presets/preset-share.js');
 const ci = require('../js/store-catalog/content-installs.js');
 
 // ---------------------------------------------------------------------------

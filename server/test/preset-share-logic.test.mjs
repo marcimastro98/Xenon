@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode, themeImportPatch } = require('../js/preset-share.js');
+const { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode, themeImportPatch } = require('../js/presets/preset-share.js');
 const DeckModel = require('../js/deck/deck-model.js');
 const DeckActions = require('../js/deck/deck-actions.js');
 

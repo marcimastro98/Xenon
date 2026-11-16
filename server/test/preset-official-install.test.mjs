@@ -12,7 +12,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
-const share = read('js/preset-share.js');
+const share = read('js/presets/preset-share.js');
 const gallery = read('js/community-gallery/community-gallery.js');
 const manager = read('js/installed-manager/installed-manager.js');
 

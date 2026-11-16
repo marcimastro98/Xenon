@@ -92,7 +92,7 @@
   .settings-ambient-row .cs-trigger { min-height: 44px; }
 }
 
-/* Import-preview thumbnail (js/preset-share.js openAmbientLayoutImport): a true
+/* Import-preview thumbnail (js/presets/preset-share.js openAmbientLayoutImport): a true
    scaled render of the scene through the AmbientCanvas pipeline. */
 .preset-ambient-preview {
   position: relative;

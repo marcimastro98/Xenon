@@ -9,7 +9,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const read = (name) => readFileSync(join(HERE, '..', 'js', name), 'utf8');
-const SRC = read('dialog-focus.js') + read('preset-share.js');
+const SRC = read('dialog-focus.js') + read('presets/preset-share.js');
 
 // The share window opened through its real door: what the keys say and where they stand.
 // One main key on screen, last in its row, and what else can happen to the file as a list.

@@ -100,7 +100,7 @@ test('a config round-trip keeps the shortcut', () => {
 });
 
 test('a shared Deck profile never carries a shortcut', async () => {
-  const src = (await import('node:fs')).readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+  const src = (await import('node:fs')).readFileSync(new URL('../js/presets/preset-share.js', import.meta.url), 'utf8');
   assert.match(src, /delete key\.shortcut;/);
 });
 

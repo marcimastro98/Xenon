@@ -94,7 +94,7 @@ test('every export goes through it and the page loads it before settings.js', ()
   const html = readFileSync(path.join(DIR, 'index.html'), 'utf8');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
   assert.ok(at('save-file.js') > 0 && at('save-file.js') < at('settings.js'));
-  for (const f of ['preset-share.js', 'presets/share-card.js', 'settings.js']) {
+  for (const f of ['presets/preset-share.js', 'presets/share-card.js', 'settings.js']) {
     assert.match(readFileSync(path.join(DIR, 'js', f), 'utf8'), /XenonSaveFile\.save\(|S\.save\(/, f);
   }
 });

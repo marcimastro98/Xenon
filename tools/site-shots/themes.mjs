@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
-const { decodePreset, themeImportPatch } = createRequire(import.meta.url)('../../server/js/preset-share.js');
+const { decodePreset, themeImportPatch } = createRequire(import.meta.url)('../../server/js/presets/preset-share.js');
 
 const codeFile = (name) => readFileSync(new URL(`../../docs/community/codes/${name}.txt`, import.meta.url), 'utf8');
 

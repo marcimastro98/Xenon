@@ -46,7 +46,7 @@ test('semantic theme roles are carried by client, server and preset persistence'
     'surface', 'surfaceAlt', 'controlColor', 'mutedText', 'lineColor', 'accentText',
     'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard',
   ];
-  const persistenceFiles = [read('js', 'settings.js'), read('js', 'preset-share.js'), engineSource()];
+  const persistenceFiles = [read('js', 'settings.js'), read('js', 'presets/preset-share.js'), engineSource()];
   for (const role of roles) {
     for (const source of persistenceFiles) assert.match(source, new RegExp(`\\b${role}\\b`), role);
   }
@@ -64,7 +64,7 @@ test('semantic theme roles are carried by client, server and preset persistence'
 // the field — and both normalizers must route through the shared engine rather
 // than growing a second copy of the rules that can drift.
 test('paletteVariants is carried by client, server and preset persistence', () => {
-  for (const parts of [['js', 'settings.js'], ['js', 'preset-share.js'], ['server.js']]) {
+  for (const parts of [['js', 'settings.js'], ['js', 'presets/preset-share.js'], ['server.js']]) {
     assert.match(parts[0] === 'server.js' ? engineSource() : read(...parts), /\bpaletteVariants\b/, parts.join('/'));
   }
   assert.match(read('js', 'settings.js'), /ThemePalette\.normalizeVariants/);

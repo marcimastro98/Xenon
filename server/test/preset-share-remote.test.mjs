@@ -5,7 +5,7 @@ import { webcrypto } from 'node:crypto';
 const require = createRequire(import.meta.url);
 const {
   encodePreset, decodePreset, lockPreset, unlockPreset, unlockWithCek, peekLocked, LOCK_FORMAT_REMOTE,
-} = require('../js/preset-share.js');
+} = require('../js/presets/preset-share.js');
 
 // v2 "remote-locked" envelope: ciphertext + redeem target only — the content
 // key is delivered by the supporter hub after a one-time code redemption
@@ -103,7 +103,7 @@ test('v1 offline lock path is unchanged by the v2 addition', async () => {
 // import dialog must say "try again in a few minutes", not send the user off to
 // debug a network that works. Every other hub error keeps its own message.
 test('redeem: rate_limited gets its own message, before the offline fallback', () => {
-  const src = require('node:fs').readFileSync(require.resolve('../js/preset-share.js'), 'utf8');
+  const src = require('node:fs').readFileSync(require.resolve('../js/presets/preset-share.js'), 'utf8');
   const start = src.indexOf("fetch('/api/community/redeem'");
   assert.ok(start > 0, 'redeem call found');
   const chain = src.slice(start, src.indexOf('preset_redeem_offline', start));
@@ -111,7 +111,7 @@ test('redeem: rate_limited gets its own message, before the offline fallback', (
 });
 
 test('skipsPasteStep: a whole code goes straight to review, locked or flagged ones wait', async () => {
-  const { skipsPasteStep } = require('../js/preset-share.js');
+  const { skipsPasteStep } = require('../js/presets/preset-share.js');
   const inner = encodePreset('theme', 'Nebula', { accent: '#1ed760' }, {});
   const { code: locked } = await makeRemoteLocked(inner);
   assert.equal(skipsPasteStep(inner, false), true);
@@ -122,7 +122,7 @@ test('skipsPasteStep: a whole code goes straight to review, locked or flagged on
 });
 
 test('makeDraftTracker: a new draft closes the dialogs of the previous one, nothing else', () => {
-  const { makeDraftTracker } = require('../js/preset-share.js');
+  const { makeDraftTracker } = require('../js/presets/preset-share.js');
   const drafts = makeDraftTracker();
   const closed = [];
   const dialog = (name) => { const close = () => { closed.push(name); drafts.forget(close); }; drafts.track(close); return close; };

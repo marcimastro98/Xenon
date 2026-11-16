@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SRC = readFileSync(join(ROOT, 'server', 'js', 'preset-share.js'), 'utf8');
+const SRC = readFileSync(join(ROOT, 'server', 'js', 'presets/preset-share.js'), 'utf8');
 const I18N = appStringsSource();
 const CSS = readFileSync(join(ROOT, 'server', 'components', 'SettingsModal', 'SettingsModal.css'), 'utf8');
 

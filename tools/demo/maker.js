@@ -257,9 +257,9 @@
   }
 
   // { type: 'xenon-maker:topbar', data } → the whole bar, read by the app's own
-  // reader (js/topbar-share.js) as an imported `topbar` code is.
+  // reader (js/presets/topbar-share.js) as an imported `topbar` code is.
   const topbarShare = () => (typeof window !== 'undefined' && window.TopbarShare)
-    || (() => { try { return require('../../server/js/topbar-share.js'); } catch { return null; } })();
+    || (() => { try { return require('../../server/js/presets/topbar-share.js'); } catch { return null; } })();
   function topbarFromMessage(msg) {
     if (!msg || typeof msg !== 'object' || msg.type !== 'xenon-maker:topbar') return null;
     const TS = topbarShare();

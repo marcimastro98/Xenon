@@ -10,7 +10,7 @@
 // and the result still goes through normalizeSettings, which rebuilds every
 // list from its canonical ids (Settings and Layout can never be hidden).
 (function (root, factory) {
-  const api = factory(root && root.TopbarLook ? root.TopbarLook : require('./topbar/topbar-look.js'));
+  const api = factory(root && root.TopbarLook ? root.TopbarLook : require('../topbar/topbar-look.js'));
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.TopbarShare = api;
 })(typeof window !== 'undefined' ? window : globalThis, function (TopbarLook) {

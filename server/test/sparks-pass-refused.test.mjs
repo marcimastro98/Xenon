@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 require('../js/store-catalog/buy-sheet-model.js');
 const { decide } = globalThis.BuySheetModel;
 
-const share = read('js/preset-share.js');
+const share = read('js/presets/preset-share.js');
 const refused = share.slice(share.indexOf('const passRefusedOnSale = async'), share.indexOf('const buyWithSparks = async'));
 
 test('wrong_code tries the sale before the old "wrong code" line', () => {

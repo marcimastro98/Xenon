@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { wallpaperPayload, WALLPAPER_EMBED_MAX, encodePreset, decodePreset } = require('../js/preset-share.js');
+const { wallpaperPayload, WALLPAPER_EMBED_MAX, encodePreset, decodePreset } = require('../js/presets/preset-share.js');
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex').toString('base64');
 const SVG = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64');
@@ -74,7 +74,7 @@ for (const [file, fnName, extra] of [
 }
 
 test('the package picker offers the wallpaper and the import tracks it for removal', () => {
-  const SRC = readFileSync(join(ROOT, 'server', 'js', 'preset-share.js'), 'utf8');
+  const SRC = readFileSync(join(ROOT, 'server', 'js', 'presets/preset-share.js'), 'utf8');
   assert.match(SRC, /wallRow = checkRow\(tr\('preset_bundle_wallpaper'/);
   assert.match(SRC, /wallpaper: !!\(wallRow && picked\(wallRow\)\)/);
   assert.match(SRC, /if \(data\.wallpaper\) out\.wallpaper = await applyWallpaper\(data\.wallpaper, tx\)/);

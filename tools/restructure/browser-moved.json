@@ -346,6 +346,9 @@
     {"from":"server/js/tile-decor-presets.js","to":"server/js/look/tile-decor-presets.js"},
     {"from":"server/js/tile-decor-schema.js","to":"server/js/look/tile-decor-schema.js"},
     {"from":"server/js/tile-material.js","to":"server/js/look/tile-material.js"},
-    {"from":"server/js/tile-shape-presets.js","to":"server/js/look/tile-shape-presets.js"}
+    {"from":"server/js/tile-shape-presets.js","to":"server/js/look/tile-shape-presets.js"},
+    {"from":"server/js/dashboard-presets.js","to":"server/js/presets/dashboard-presets.js"},
+    {"from":"server/js/preset-share.js","to":"server/js/presets/preset-share.js"},
+    {"from":"server/js/topbar-share.js","to":"server/js/presets/topbar-share.js"}
   ]
 }

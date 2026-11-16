@@ -9,10 +9,10 @@
 // ai-preset-deck.js and ai-preset-packages.js.
 
 const vm = require('vm');
-const PresetShare = require('../js/preset-share.js');
+const PresetShare = require('../js/presets/preset-share.js');
 const TopbarLook = require('../js/topbar/topbar-look.js');
-const TopbarShare = require('../js/topbar-share.js');
-const DashboardPresets = require('../js/dashboard-presets.js');
+const TopbarShare = require('../js/presets/topbar-share.js');
+const DashboardPresets = require('../js/presets/dashboard-presets.js');
 const CustomBg = require('../js/custom-bg.js');
 const { note, fail, diffValue, isObject } = require('./ai-preset-diff.js');
 

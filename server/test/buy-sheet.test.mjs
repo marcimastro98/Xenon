@@ -244,7 +244,7 @@ test('closing the sheet stops everything it started', () => {
 });
 
 test('a copy already bought skips the sale, and never sends the box it did not tick', () => {
-  const dialog = read('js/preset-share.js');
+  const dialog = read('js/presets/preset-share.js');
   assert.match(dialog, /if \(!again && !buyBox\.checked\)/);
   assert.match(dialog, /consent: again \? undefined : BUY_CONSENT/);
   assert.match(dialog, /if \(owned\) await buyWithSparks\(locked, true\);/);
@@ -257,7 +257,7 @@ test('the balance only ever counts down', () => {
 });
 
 test('a wrong code on the sheet never says it was a supporter code', () => {
-  const dialog = read('js/preset-share.js');
+  const dialog = read('js/presets/preset-share.js');
   const buy = dialog.slice(dialog.indexOf('A saved Sparks code the hub no longer knows'));
   assert.match(buy.slice(0, 400), /tr\('preset_unlock_bad'/);
 });
@@ -272,7 +272,7 @@ test('nothing moves with reduced motion or on a low-power GPU', () => {
 test('the page loads the sheet before the dialog that opens it', () => {
   const page = read('index.html');
   const at = (name) => page.indexOf(`src="js/${name}.js"`);
-  const order = ['utils', 'store-catalog/buy-sheet-model', 'store-catalog/buy-sheet-parts', 'store-catalog/buy-sheet-motion', 'store-catalog/buy-sheet', 'preset-share'].map(at);
+  const order = ['utils', 'store-catalog/buy-sheet-model', 'store-catalog/buy-sheet-parts', 'store-catalog/buy-sheet-motion', 'store-catalog/buy-sheet', 'presets/preset-share'].map(at);
   assert.ok(order.every((n) => n > 0), String(order));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   assert.match(page, /href="components\/BuySheet\/BuySheet\.css"/);

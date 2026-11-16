@@ -11,8 +11,8 @@
 // Taste is never judged. Layout, deck and shared pieces live in
 // ai-preset-critique-layout.js, -deck.js and -core.js.
 
-const PresetShare = require('../js/preset-share.js');
-const TopbarShare = require('../js/topbar-share.js');
+const PresetShare = require('../js/presets/preset-share.js');
+const TopbarShare = require('../js/presets/topbar-share.js');
 const CustomBg = require('../js/custom-bg.js');
 const themePalette = require('../js/look/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding } = require('./ai-preset-critique-core.js');

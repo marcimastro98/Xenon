@@ -109,7 +109,7 @@ function updateTopbarStyle(style) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// A whole bar at once (a `topbar` share code, js/topbar-share.js): look, style,
+// A whole bar at once (a `topbar` share code, js/presets/topbar-share.js): look, style,
 // island, buttons and rails land together, then every control and both chromes
 // repaint. `share` comes from TopbarShare.read(); normalizeSettings still
 // rebuilds each list.

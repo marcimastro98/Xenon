@@ -65,7 +65,7 @@ function _styleOf(layout, instanceId) {
 // Works in the browser (window global) and under node (require) for tests.
 function _tileStyle(src) {
   const DI = (typeof window !== 'undefined' && window.DashboardInstances) ? window.DashboardInstances
-    : (typeof require === 'function' ? require('./dashboard-instances.js') : null);
+    : (typeof require === 'function' ? require('../dashboard-instances.js') : null);
   return (DI && DI.normalizeTileStyle) ? DI.normalizeTileStyle(src) : null;
 }
 

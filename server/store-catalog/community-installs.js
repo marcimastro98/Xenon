@@ -15,7 +15,7 @@
 // unique installs would mean sending an identifier, and the hub would then hold,
 // per install, the list of everything that dashboard downloaded. Dedup instead
 // happens on this machine — the client reports an entry only the first time a
-// receipt for it is written (js/preset-share.js) — so the thing that identifies
+// receipt for it is written (js/presets/preset-share.js) — so the thing that identifies
 // the install never leaves it. NO install id is attached here, and unlike the
 // ratings/redeem proxies there is deliberately no getInstallId import to reach
 // for. Adding one would be the whole design undone in a single line.

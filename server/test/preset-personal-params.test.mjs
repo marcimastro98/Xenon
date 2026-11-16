@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const PresetShare = require('../js/preset-share.js');
+const PresetShare = require('../js/presets/preset-share.js');
 const DeckModel = require('../js/deck/deck-model.js');
 const DeckActions = require('../js/deck/deck-actions.js');
 const DEPS = { model: DeckModel, actions: DeckActions };
@@ -142,6 +142,6 @@ test('a key waiting for setup says so when pressed, in every language', () => {
     const n = (i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length;
     assert.ok(n >= 11, k + ' in 11 languages (found ' + n + ')');
   }
-  const share = read('js/preset-share.js');
+  const share = read('js/presets/preset-share.js');
   assert.equal((share.match(/appendKeysToFinish\(body, (?!profiles)/g) || []).length, 2, 'deck import and package import');
 });

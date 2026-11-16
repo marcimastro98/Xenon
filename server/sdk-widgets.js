@@ -53,7 +53,7 @@ const {
 
 // The only playSound.file shape SDK code (bridge actions AND manifest macros)
 // may use — sourced from the authority (sound-packs.js) so the server can
-// never drift from the install boundary. The client copies (js/preset-share.js,
+// never drift from the install boundary. The client copies (js/presets/preset-share.js,
 // js/custom-widget.js) must be kept in step by hand.
 const SDK_SOUND_FILE_RE = require('./store-catalog/sound-packs').PACK_FILE_RE;
 

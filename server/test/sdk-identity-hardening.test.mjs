@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url);
 const sdkWidgets = require('../sdk-widgets.js');
 const sdkStore = require('../store-catalog/sdk-store.js');
 const wau = require('../store-catalog/widget-auto-update.js');
-const PS = require('../js/preset-share.js');
+const PS = require('../js/presets/preset-share.js');
 const DeckModel = require('../js/deck/deck-model.js');
 const DeckActions = require('../js/deck/deck-actions.js');
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
@@ -174,7 +174,7 @@ test('/sdk/install decides on the server, and the import review reads what the s
   assert.match(route, /payload\.dryRun === true/);
   assert.match(route, /payload\.replace === true/);
   assert.match(route, /decided\.dropGrants[\s\S]*dropSdkGrant\(v\.id\)/);
-  const share = read('../js/preset-share.js');
+  const share = read('../js/presets/preset-share.js');
   const review = share.slice(share.indexOf('async function openWidgetImport('), share.indexOf('async function openAmbientImport('));
   assert.match(review, /reviewWidgetPayload\(w\)/);
   assert.match(review, /reviewedBits\(review\)/);
@@ -295,7 +295,7 @@ test('sanitize strips the combos of a slot that chains more than three', () => {
 test('the import review can name the combos a profile presses', () => {
   const prof = PS.sanitizeDeckProfile(profileWith({ steps: [hk('Ctrl+Shift+M'), hk('f5'), hk('ctrl+shift+m')] }), DEPS);
   assert.deepEqual(PS.profileHotkeys(prof, DEPS), ['ctrl+shift+m', 'f5']);
-  assert.match(read('../js/preset-share.js'), /actionChipLabel\(tr\(spec && spec\.labelKey, s\.type\), s\.type, s\.count, \[prof\]\)/);
+  assert.match(read('../js/presets/preset-share.js'), /actionChipLabel\(tr\(spec && spec\.labelKey, s\.type\), s\.type, s\.count, \[prof\]\)/);
 });
 
 // ── the new words exist in every language ────────────────────────────────────

@@ -480,7 +480,7 @@ require('./store-catalog/community-messages'); // nothing is taken from it here,
 require('./store-catalog/community-installs'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const supporterRedeem = require('./store-supporters/supporter-redeem');
 const widgetAutoUpdateLib = require('./store-catalog/widget-auto-update');   // Store widgets that update themselves (see its header)
-const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
+const presetCodec = require('./js/presets/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
 const aiPresets = require('./ai/ai-presets');          // the assistant's create_preset / preset_reference tools
 const aiPictures = require('./ai/ai-attached-pictures');  // pictures attached in the chat, placed inside creations
 const aiSurface = require('./ai/ai-surface');  // Bit on the main screen with no dashboard (widgets only)

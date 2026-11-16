@@ -12,7 +12,7 @@ import { appStringsSource, appStrings, APP_LANGS, languagesWith, textsOf } from 
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
-const share = read('js/preset-share.js');
+const share = read('js/presets/preset-share.js');
 const css = read('components/SettingsModal/SettingsModal.css');
 const dialog = share.slice(share.indexOf('function openImportDialog('), share.indexOf("importBtn.addEventListener('click'"));
 

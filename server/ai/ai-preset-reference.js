@@ -7,13 +7,13 @@
 // code only holds inside a function are listed here and guarded by
 // test/ai-presets-reference.test.mjs. Each kind ends with a minimal valid example.
 
-const PresetShare = require('../js/preset-share.js');
+const PresetShare = require('../js/presets/preset-share.js');
 const TopbarLook = require('../js/topbar/topbar-look.js');
-const TopbarShare = require('../js/topbar-share.js');
+const TopbarShare = require('../js/presets/topbar-share.js');
 const themePalette = require('../js/look/theme-palette.js');
 const DeckModel = require('../js/deck/deck-model.js');
 const DashboardInstances = require('../js/dashboard-instances.js');
-const DashboardPresets = require('../js/dashboard-presets.js');
+const DashboardPresets = require('../js/presets/dashboard-presets.js');
 const AmbientScene = require('../js/ambient-scene.js');
 const CustomBg = require('../js/custom-bg.js');
 const IconPacks = require('../store-catalog/icon-packs.js');

@@ -6,7 +6,7 @@
 // returns findings (ai-preset-critique-core.js); none means nothing objective
 // to fix.
 
-const DashboardPresets = require('../js/dashboard-presets.js');
+const DashboardPresets = require('../js/presets/dashboard-presets.js');
 const DashboardInstances = require('../js/dashboard-instances.js');
 const DashboardGrid = require('../js/grid/dashboard-grid.js');
 const AmbientScene = require('../js/ambient-scene.js');

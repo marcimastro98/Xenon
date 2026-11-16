@@ -1,6 +1,6 @@
 'use strict';
 // The copy of a link that may leave this PC inside a shared Deck profile
-// (js/preset-share.js, on export AND on import). A link to a chat names a
+// (js/presets/preset-share.js, on export AND on import). A link to a chat names a
 // person: Telegram Web keeps the chat id after the '#', wa.me carries a phone
 // number, a Discord DM link carries the conversation id. Found in a community
 // submission on 10 Nov 2026, where a key opened its author's own Telegram chat

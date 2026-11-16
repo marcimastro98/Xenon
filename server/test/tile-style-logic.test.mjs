@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { normalizeTileStyle, normalizeCopies } = require('../js/dashboard-instances.js');
-const { normalizePresets, insertPreset } = require('../js/dashboard-presets.js');
+const { normalizePresets, insertPreset } = require('../js/presets/dashboard-presets.js');
 
 // Per-tile visual style: the shared normalizer is the single validation boundary
 // (layout stores + imported presets). It keeps only known, well-formed fields and

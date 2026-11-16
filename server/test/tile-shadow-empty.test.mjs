@@ -130,12 +130,12 @@ test('tiles cast no drop shadow until someone asks for one', () => {
 // the share codes, not the slider.
 test('the old shadow key is never read again, so a saved 100% turns into none', () => {
   const code = (src) => src.split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
-  for (const f of ['../js/settings.js', '../server.js', '../js/preset-share.js', '../index.html']) {
+  for (const f of ['../js/settings.js', '../server.js', '../js/presets/preset-share.js', '../index.html']) {
     assert.doesNotMatch(code(read(f)), /panelShadowStrength/, `${f} still reads the old key`);
   }
   const S = read('../js/settings.js');
   assert.match(S, /tileShadowStrength: clampNumber\(raw\.tileShadowStrength, 0, 2, D\.tileShadowStrength\)/, 'theme cards');
-  assert.match(read('../js/preset-share.js'), /'panelBorderStrength', 'tileShadowStrength',/, 'share codes');
+  assert.match(read('../js/presets/preset-share.js'), /'panelBorderStrength', 'tileShadowStrength',/, 'share codes');
   assert.match(S, /'panelBorderStrength', 'tileShadowStrength',\n/, 'theme keys');
   assert.match(read('../index.html'), /updateSettingsRange\('tileShadowStrength', this\.value\)/, 'the slider');
   assert.match(S, /'panelBorderStrength', 'tileShadowStrength', 'clockScale'/, 'the slider handler whitelist');

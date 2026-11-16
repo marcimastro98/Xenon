@@ -146,7 +146,7 @@ test('a look saved on top of an imported animated background stays that import',
 
 test('export leaves an imported background or font out of a tweaked theme; removal takes derived cards', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
-  const src = readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/presets/preset-share.js', import.meta.url), 'utf8');
   const exp = src.slice(src.indexOf('async function themeExportData()'), src.indexOf('async function exportTheme()'));
   assert.match(exp, /bgImported\) delete data\.bgCustom/);
   assert.match(exp, /!fontImported && font/);

@@ -31,7 +31,7 @@ const copyNoOf = (v) => (Number.isInteger(v) && v > 0 && v <= 1000000 ? v : 0);
 // What /buy can answer besides success; anything else is 'network'.
 const BUY_ERRORS = new Set(['included', 'not_for_sale', 'no_sparks', 'sold_out', 'revoked', 'limit',
   'wrong_code', 'bad_code', 'bad_entry', 'bad_request', 'rate_limited', 'busy', 'consent_required']);
-// The version of the box the buyer ticked (js/preset-share.js); the hub decides if it is current.
+// The version of the box the buyer ticked (js/presets/preset-share.js); the hub decides if it is current.
 const CONSENT_RE = /^[a-z0-9-]{1,40}$/;
 
 async function readWalletCode(dataDir) {

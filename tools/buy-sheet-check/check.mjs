@@ -16,7 +16,7 @@ import { loadPlaywright } from '../toast-gallery/shoot.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..', 'server');
 const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'xenon-buy-sheet'));
-const { encodePreset } = createRequire(import.meta.url)(path.join(ROOT, 'js', 'preset-share.js'));
+const { encodePreset } = createRequire(import.meta.url)(path.join(ROOT, 'js', 'presets/preset-share.js'));
 // The app's strings as the real server sends them (/layer-i18n.js), every
 // language in, so setLang() switches at once between shots.
 const LayerStrings = createRequire(import.meta.url)(path.join(ROOT, 'layers/layer-strings.js'));

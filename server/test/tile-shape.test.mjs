@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { normalizeTileShape, normalizeTileStyle, TILE_SHAPE_PRESETS } = require('../js/dashboard-instances.js');
-const { normalizePresets, insertPreset } = require('../js/dashboard-presets.js');
+const { normalizePresets, insertPreset } = require('../js/presets/dashboard-presets.js');
 const { TILE_SHAPES, tileShapePath, tileShapeSafe } = require('../js/look/tile-shape-presets.js');
 
 // Per-tile SHAPE: a tile is a rectangle unless it says otherwise. A shape is

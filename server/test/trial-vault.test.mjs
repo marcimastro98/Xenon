@@ -194,7 +194,7 @@ test('server wiring: trial packages are served from memory, the key never reache
   assert.match(src, /trialVault\.asset\(m\[1\], m\[2\]\)/);
   assert.match(src, /if \(!rec && trialVault\.has\(id\)\) return 'trial';/);
   assert.match(src, /allowTrial: false/);
-  const client = readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+  const client = readFileSync(new URL('../js/presets/preset-share.js', import.meta.url), 'utf8');
   assert.match(client, /w\.payload\.trialVault === true/);
   assert.match(client, /enc: locked\.enc/);
 });

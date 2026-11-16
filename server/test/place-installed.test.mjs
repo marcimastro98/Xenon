@@ -132,14 +132,14 @@ test('the dashboard loads it after the toasts, and the import says what was inst
   const at = html.indexOf('<script src="js/store-catalog/place-installed.js">');
   assert.ok(at > html.indexOf('<script src="js/alerts/toast.js">'));
   assert.ok(at > html.indexOf('<script src="js/deck/deck-error-text.js">'));
-  const share = read('js/preset-share.js');
+  const share = read('js/presets/preset-share.js');
   assert.match(share, /widgetIds: tx\.resources\.widgetIds\.slice\(\)/);
   assert.match(share, /sceneIds: tx\.resources\.ambientSceneIds\.slice\(\)/);
   assert.match(share, /place: importSource\.place === true/);
 });
 
 test('the link in the address bar still reads once the # is gone: it is what the import receives', async () => {
-  const { default: share } = await import('../js/preset-share.js');
+  const { default: share } = await import('../js/presets/preset-share.js');
   const code = share.encodePreset('widget', 'Mine', { payload: { id: 'mine' } }, {});
   for (const link of ['preset=' + code, '#preset=' + code, 'preset=' + code + '&place=screen', 'https://x/#preset=' + code]) {
     assert.equal(share.decodePreset(link)?.name, 'Mine', link.slice(0, 12));

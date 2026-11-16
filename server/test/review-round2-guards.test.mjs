@@ -90,7 +90,7 @@ test('selectors built from stored ids cannot throw', () => {
 });
 
 test('shared Deck keys never carry the Windows key or a combo on Enter', () => {
-  const src = read('../js/preset-share.js');
+  const src = read('../js/presets/preset-share.js');
   assert.match(src, /const HOTKEY_SYSTEM_MODS = new Set\(\['win'\]\);/);
   assert.match(src, /if \(parts\.includes\('enter'\) \|\| parts\.includes\('return'\)\) return true;/);
 });
