@@ -148,14 +148,14 @@ test('a script nothing loads in Node keeps no name for that reason', (t) => {
 test('asked about many scripts at once, one search answers what a search for each answers', () => {
   const files = {
     ...FILES,
-    'server/js/deck.js': 'function deck() {}\n',
-    'server/js/xenon-deck.js': 'function xenonDeck() {}\n',
-    'server/js/deck/deck.js': 'function inner() {}\n',
+    'server/js/dial.js': 'function dial() {}\n',
+    'server/js/xenon-dial.js': 'function xenonDeck() {}\n',
+    'server/js/dial/dial.js': 'function inner() {}\n',
     'server/js/alone.js': 'function alone() {}\n',
-    'server/deck.html': '<script src="js/xenon-deck.js"></script>\n<script src="js/deck.js"></script>\n',
-    'server/names.js': "const A = 'js/deck.js';\nconst B = 'js/xenon-deck.js';\n// alone.js is only named in this comment\nconst C = 'js/deck/deck.js';\n",
-    'server/only-long.js': "load('js/xenon-deck.js');\n",
-    'docs/notes.md': 'deck.js and alone.js, in prose\n',
+    'server/dial.html': '<script src="js/xenon-dial.js"></script>\n<script src="js/dial.js"></script>\n',
+    'server/names.js': "const A = 'js/dial.js';\nconst B = 'js/xenon-dial.js';\n// alone.js is only named in this comment\nconst C = 'js/dial/dial.js';\n",
+    'server/only-long.js': "load('js/xenon-dial.js');\n",
+    'docs/notes.md': 'dial.js and alone.js, in prose\n',
   };
   const root = tempRepo(files);
   try {
@@ -166,14 +166,14 @@ test('asked about many scripts at once, one search answers what a search for eac
     assert.deepEqual(together, each);
     assert.equal(calls.length, asked.length);
     const who = (file) => together[asked.indexOf(file)].map((mention) => mention.file);
-    assert.deepEqual(who('server/js/deck.js'), ['server/deck.html', 'server/names.js'], 'xenon-deck.js ends in deck.js and is another file: only-long.js does not name deck.js');
-    assert.deepEqual(who('server/js/xenon-deck.js'), ['server/deck.html', 'server/names.js', 'server/only-long.js']);
-    assert.deepEqual(who('server/js/deck/deck.js'), ['server/names.js'], 'the deck.js of a folder is named with its folder');
+    assert.deepEqual(who('server/js/dial.js'), ['server/dial.html', 'server/names.js'], 'xenon-dial.js ends in dial.js and is another file: only-long.js does not name dial.js');
+    assert.deepEqual(who('server/js/xenon-dial.js'), ['server/dial.html', 'server/names.js', 'server/only-long.js']);
+    assert.deepEqual(who('server/js/dial/dial.js'), ['server/names.js'], 'the dial.js of a folder is named with its folder');
     assert.deepEqual(who('server/js/alone.js'), [], 'a comment and a page of prose are not code');
     // After the search is over a question is one search again, with the same answer.
-    assert.deepEqual(mentionsOf(root, 'server/js/deck.js'), each[asked.indexOf('server/js/deck.js')]);
+    assert.deepEqual(mentionsOf(root, 'server/js/dial.js'), each[asked.indexOf('server/js/dial.js')]);
     // A file the search was not told about is still found, by a search of its own.
-    assert.deepEqual(withOneSearch(root, ['server/js/deck.js'], () => mentionsOf(root, 'server/js/xenon-deck.js')), each[asked.indexOf('server/js/xenon-deck.js')]);
+    assert.deepEqual(withOneSearch(root, ['server/js/dial.js'], () => mentionsOf(root, 'server/js/xenon-dial.js')), each[asked.indexOf('server/js/xenon-dial.js')]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
