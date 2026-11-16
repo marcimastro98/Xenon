@@ -22,10 +22,13 @@ const { runPowerShellScript } = require('../powershell/run-command.js');
 // already running ignores (only `open -n` would start a second copy, and that
 // breaks single-instance apps).
 //
-// The third argument is for tests alone: the system to answer as, and stand-ins
-// for the two ways a program is started, so what would be run can be read
-// without running it.
-function openExternalPath(p, args, { platform = process.platform, run = execFile, runScript = runPowerShellScript } = {}) {
+// The third argument is for tests: the system to answer as, and stand-ins for the
+// two ways a program is started, so what would be run can be read without
+// running it. `env` is the one part a caller uses: the whole environment of the
+// program on macOS and Linux, for the engine that learns the session's display
+// after it started (install/sign-in-browser.js). Left out, the program gets the
+// engine's own, as before.
+function openExternalPath(p, args, { platform = process.platform, run = execFile, runScript = runPowerShellScript, env = undefined } = {}) {
   const argv = Array.isArray(args) ? args.map(String) : [];
   if (platform === 'win32') {
     const packed = argv.length ? Buffer.from(JSON.stringify(argv), 'utf8').toString('base64') : '';
@@ -49,7 +52,7 @@ function openExternalPath(p, args, { platform = process.platform, run = execFile
     ? ['/usr/bin/open', ['--', String(p)]]
     : ['xdg-open', [String(p)]];
   return new Promise((resolve, reject) => {
-    run(posix[0], posix[1], { timeout: 8000 }, (err) => {
+    run(posix[0], posix[1], env ? { timeout: 8000, env } : { timeout: 8000 }, (err) => {
       if (err) reject(err); else resolve({ ok: true });
     });
   });

@@ -13,8 +13,9 @@ const { runSchtasks } = require('./startup-task.js');
 //
 // The task was registered from a dashboard with the switch on and never by an installer, so
 // finding it is the one trace left that this person had the feature on. That is written to
-// the settings first and the task is deleted after: when the save fails the task stays, and
-// the next start reads it again.
+// the settings first and the task is deleted after: when the save or the delete fails the
+// task stays, and every later start tries again. While the task is there the engine opens no
+// tab of its own (sign-in-windows.js oldLauncher), so the two never open one each.
 const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
 const SCHTASKS_TIMEOUT_MS = 8000;
 
@@ -49,6 +50,7 @@ async function retireBrowserTask({ platform = process.platform, port = PORT, run
 async function reconcileBrowserAutoOpenTask() {
   const outcome = await retireBrowserTask();
   if (outcome === 'removed') console.log('[startup] removed the old task "' + BROWSER_TASK_NAME + '": the engine opens the browser itself now');
+  if (outcome === 'kept') console.log('[startup] the old task "' + BROWSER_TASK_NAME + '" is still there: no browser tab from the engine meanwhile, tried again at the next start');
 }
 
 module.exports = { BROWSER_TASK_NAME, retireBrowserTask, reconcileBrowserAutoOpenTask };

@@ -140,10 +140,14 @@ async function run(method, path, req, res, ctx, engine) {
   return true;
 }
 
+// What a step of the start-up may still be waiting on, with no route of its own:
+// the wait for a display before the browser tab at sign-in.
+const STARTED_AT_START_UP = () => [require('./install/sign-in-open.js')];
+
 // At shutdown each feature stops what it started; one that throws does not
 // keep the others running.
 function stop() {
-  for (const f of FEATURES) {
+  for (const f of [...FEATURES, ...STARTED_AT_START_UP()]) {
     try { if (typeof f.stop === 'function') f.stop(); } catch { /* best effort at shutdown */ }
   }
 }
