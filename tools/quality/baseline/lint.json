@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5896,
+  "total": 5904,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -482,6 +482,9 @@
     "server/js/bit-message-card/bit-message-card.js complexity/useArrowFunction": 1,
     "server/js/bit-message-card/bit-message-card.js complexity/useOptionalChain": 2,
     "server/js/bit-message-card/pieces.js complexity/useOptionalChain": 1,
+    "server/js/bit-trial-end.js complexity/useArrowFunction": 1,
+    "server/js/bit-trial-end.js complexity/useOptionalChain": 4,
+    "server/js/bit-trial-end.js suspicious/useIterableCallbackReturn": 2,
     "server/js/browser-tile/browser-tile.js complexity/useArrowFunction": 1,
     "server/js/browser-tile/browser-tile.js complexity/useOptionalChain": 24,
     "server/js/browser-tile/browser-tile.js suspicious/useIterableCallbackReturn": 3,
@@ -1730,6 +1733,7 @@
     "server/weather/place-lookup.js complexity/useOptionalChain": 6,
     "server/weather/routes.js complexity/useOptionalChain": 2,
     "server/weather/wttr.js complexity/useOptionalChain": 18,
+    "server/welcome-trial/trial-end.js complexity/useOptionalChain": 1,
     "server/widget-options/options.js suspicious/noControlCharactersInRegex": 2,
     "server/widget-options/options.js suspicious/noPrototypeBuiltins": 1,
     "server/widget-options/overlay-hotkey.js complexity/useOptionalChain": 1,

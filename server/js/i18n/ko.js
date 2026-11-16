@@ -7353,4 +7353,9 @@ module.exports = {
   settings_backup_deck_keep_yes: '유지',
   settings_backup_deck_keep_no: '동작 없이 두기',
   settings_backup_deck_more: '외 {n}개',
+  bit_trial_end_title: '체험용 스파크가 끝났어요.',
+  bit_trial_end_line: '후원자가 되면 계속 함께할 수 있어요: 월 {usd} USD, 매달 스파크 {n}개와 모든 후원자 팩.',
+  bit_trial_end_other: '다른 방법',
+  bit_trial_remind_title: '체험용 스파크가 {date}에 끝나요',
+  bit_trial_remind_body: '후원자는 매달 스파크 {n}개로 Bit를 계속 쓸 수 있어요.',
 };

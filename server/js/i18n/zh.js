@@ -7353,4 +7353,9 @@ module.exports = {
   settings_backup_deck_keep_yes: '保留',
   settings_backup_deck_keep_no: '不带动作',
   settings_backup_deck_more: '另有 {n} 个',
+  bit_trial_end_title: '试用火花已结束。',
+  bit_trial_end_line: '成为支持者，我就能继续陪你：每月 {usd} USD，每月 {n} 火花，外加所有支持者套装。',
+  bit_trial_end_other: '其他方式',
+  bit_trial_remind_title: '试用火花将于 {date} 结束',
+  bit_trial_remind_body: '支持者每月有 {n} 火花，可以继续使用 Bit。',
 };

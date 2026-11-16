@@ -15,6 +15,7 @@
 require('./supporter-redeem.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 require('./sparks-wallet.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const welcomeSparks = require('./welcome-sparks.js');
+const welcomeTrialEnd = require('../welcome-trial/trial-end.js');
 const aiAnthropic = require('../ai/ai-anthropic.js');
 const aiTurns = require('../ai/ai-turns');
 const startupLog = require('../engine/startup-log');
@@ -203,7 +204,7 @@ async function designAdvice(dataDir, code) {
 const MASKED_EMAIL = /^[^\s@]{0,64}•••@[^\s@]{1,253}$/u;
 
 // {ok, balance, included, topup, monthly, wallet, email?, welcomeUntil?} in whole
-// credits, or {ok:false, error, welcome?}. `welcome`: no code yet, but the first
+// credits, or {ok:false, error, welcome?, trialEnded?}. `welcome`: no code yet, but the first
 // message to Bit will bring the trial Sparks, so the chat stays open for it.
 async function balance(dataDir) {
   try {
@@ -219,6 +220,8 @@ async function balance(dataDir) {
   } catch (e) {
     const error = (e && e.code) || 'network';
     if (error === 'no_code' && await welcomeSparks.available(dataDir)) return { ok: false, error, welcome: true };
+    // `trialEnded`: the chat says the trial is over and what keeps Bit on.
+    if (error === 'no_code' && await welcomeTrialEnd.endedAt(dataDir)) return { ok: false, error, trialEnded: true };
     return { ok: false, error };
   }
 }

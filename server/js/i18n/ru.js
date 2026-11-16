@@ -7298,4 +7298,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Сохранить',
   settings_backup_deck_keep_no: 'Оставить без действия',
   settings_backup_deck_more: 'и ещё {n}',
+  bit_trial_end_title: 'Пробные Искры закончились.',
+  bit_trial_end_line: 'Спонсоры сохраняют доступ к Bit: {usd} USD в месяц, {n} Искр каждый месяц и все наборы для спонсоров.',
+  bit_trial_end_other: 'Другие способы',
+  bit_trial_remind_title: 'Пробные Искры закончатся {date}',
+  bit_trial_remind_body: 'Спонсоры продолжают пользоваться Bit: {n} Искр каждый месяц.',
 };

@@ -7360,4 +7360,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Tienili',
   settings_backup_deck_keep_no: 'Lasciali senza azione',
   settings_backup_deck_more: 'e altri {n}',
+  bit_trial_end_title: 'Le Scintille di prova sono finite.',
+  bit_trial_end_line: 'Con i sostenitori resto acceso: {usd} USD al mese, {n} Scintille ogni mese e tutti i pacchetti per sostenitori.',
+  bit_trial_end_other: 'Altri modi',
+  bit_trial_remind_title: 'Le Scintille di prova finiscono il {date}',
+  bit_trial_remind_body: 'Con i sostenitori Bit resta acceso, con {n} Scintille ogni mese.',
 };

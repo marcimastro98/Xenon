@@ -7349,4 +7349,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Houden',
   settings_backup_deck_keep_no: 'Zonder actie laten',
   settings_backup_deck_more: 'en nog {n}',
+  bit_trial_end_title: 'Je proefvonken zijn afgelopen.',
+  bit_trial_end_line: 'Met supporters blijf ik aan: {usd} USD per maand, {n} Vonken per maand en alle pakketten voor supporters.',
+  bit_trial_end_other: 'Andere manieren',
+  bit_trial_remind_title: 'Je proefvonken stoppen op {date}',
+  bit_trial_remind_body: 'Supporters houden Bit aan, met {n} Vonken per maand.',
 };

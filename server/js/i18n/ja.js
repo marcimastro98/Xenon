@@ -7353,4 +7353,9 @@ module.exports = {
   settings_backup_deck_keep_yes: '残す',
   settings_backup_deck_keep_no: 'アクションなしにする',
   settings_backup_deck_more: 'ほか {n} 件',
+  bit_trial_end_title: 'お試しスパークが終了しました。',
+  bit_trial_end_line: 'サポーターになれば、このまま使えます。月 {usd} USD で、毎月 {n} スパークとすべてのサポーターパック。',
+  bit_trial_end_other: 'ほかの方法',
+  bit_trial_remind_title: 'お試しスパークは {date} に終了します',
+  bit_trial_remind_body: 'サポーターなら毎月 {n} スパークで Bit を使い続けられます。',
 };

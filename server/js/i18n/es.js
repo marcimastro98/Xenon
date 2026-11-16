@@ -7240,4 +7240,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Conservarlas',
   settings_backup_deck_keep_no: 'Dejarlas sin acción',
   settings_backup_deck_more: 'y {n} más',
+  bit_trial_end_title: 'Tus Chispas de prueba se han acabado.',
+  bit_trial_end_line: 'Con los mecenas sigo encendido: {usd} USD al mes, {n} Chispas cada mes y todos los paquetes para mecenas.',
+  bit_trial_end_other: 'Otras opciones',
+  bit_trial_remind_title: 'Tus Chispas de prueba se acaban el {date}',
+  bit_trial_remind_body: 'Los mecenas mantienen a Bit encendido, con {n} Chispas cada mes.',
 };

@@ -5,6 +5,7 @@
 
 const redeem = require('./supporter-redeem.js');
 const sparksWallet = require('./sparks-wallet.js');
+const welcomeTrialEnd = require('../welcome-trial/trial-end.js');
 const { SMALL_TIMEOUT_MS, TOKEN_MARGIN_SEC, KNOWN_ERRORS } = require('./credits-limits.js');
 const { creditsState } = require('./credits-state.js');
 
@@ -58,6 +59,7 @@ async function sessionToken(dataDir) {
   // simply one with no code, and the chat offers the Sparks or a key.
   if (out && out.error === 'welcome_over') {
     await sparksWallet.forgetWalletCode(dataDir);
+    await welcomeTrialEnd.noteEnded(dataDir);
     throw fail('no_code');
   }
   throw fail(out && KNOWN_ERRORS.has(out.error) ? out.error : 'network');

@@ -107,7 +107,9 @@
         "server/components/SupportGoal/**",
         "server/components/XenonCredits/**",
         "server/components/DiscordInvite/**",
-        "server/js/store-supporters/**"
+        "server/js/store-supporters/**",
+        "server/welcome-trial/**",
+        "server/js/bit-trial-end.js"
       ]
     },
     {

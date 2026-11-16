@@ -7237,4 +7237,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Manter',
   settings_backup_deck_keep_no: 'Deixar sem ação',
   settings_backup_deck_more: 'e mais {n}',
+  bit_trial_end_title: 'As tuas Faíscas de teste terminaram.',
+  bit_trial_end_line: 'Com os apoiantes continuo ligado: {usd} USD por mês, {n} Faíscas por mês e todos os pacotes para apoiantes.',
+  bit_trial_end_other: 'Outras opções',
+  bit_trial_remind_title: 'As tuas Faíscas de teste terminam a {date}',
+  bit_trial_remind_body: 'Os apoiantes mantêm o Bit ligado, com {n} Faíscas por mês.',
 };

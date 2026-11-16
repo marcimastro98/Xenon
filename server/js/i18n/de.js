@@ -7207,4 +7207,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Behalten',
   settings_backup_deck_keep_no: 'Ohne Aktion lassen',
   settings_backup_deck_more: 'und {n} weitere',
+  bit_trial_end_title: 'Deine Test-Funken sind abgelaufen.',
+  bit_trial_end_line: 'Mit Unterstützern bleibe ich an: {usd} USD im Monat, {n} Funken jeden Monat und alle Pakete für Unterstützer.',
+  bit_trial_end_other: 'Andere Wege',
+  bit_trial_remind_title: 'Deine Test-Funken enden am {date}',
+  bit_trial_remind_body: 'Unterstützer behalten Bit, mit {n} Funken jeden Monat.',
 };

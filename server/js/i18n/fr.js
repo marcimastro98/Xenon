@@ -7188,4 +7188,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Les garder',
   settings_backup_deck_keep_no: 'Les laisser sans action',
   settings_backup_deck_more: 'et {n} de plus',
+  bit_trial_end_title: 'Vos Étincelles d\'essai sont terminées.',
+  bit_trial_end_line: 'Avec les supporters, je reste allumé : {usd} USD par mois, {n} Étincelles chaque mois et tous les packs Supporters.',
+  bit_trial_end_other: 'Autres options',
+  bit_trial_remind_title: 'Vos Étincelles d\'essai se terminent le {date}',
+  bit_trial_remind_body: 'Les supporters gardent Bit allumé, avec {n} Étincelles chaque mois.',
 };

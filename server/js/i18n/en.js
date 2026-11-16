@@ -7361,4 +7361,9 @@ module.exports = {
   settings_backup_deck_keep_yes: 'Keep them',
   settings_backup_deck_keep_no: 'Leave them off',
   settings_backup_deck_more: 'and {n} more',
+  bit_trial_end_title: 'Your trial Sparks have ended.',
+  bit_trial_end_line: 'Supporters keep me on: {usd} USD a month, {n} Sparks every month and every supporter pack.',
+  bit_trial_end_other: 'Other ways',
+  bit_trial_remind_title: 'Your trial Sparks end on {date}',
+  bit_trial_remind_body: 'Supporters keep Bit on, with {n} Sparks every month.',
 };
