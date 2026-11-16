@@ -10,7 +10,7 @@ import path from 'node:path';
 import { trackedFiles } from '../quality/repo-files.mjs';
 import { findBrowserSites, stops } from './browser-move-refs.mjs';
 import { standing, whyNot, withHomes } from './browser-move-plan.mjs';
-import { edited, HASHED, readByHand, repoFacts } from './move-apply.mjs';
+import { edited, HASHED, readByHand, repoFacts, spelledEdits } from './move-apply.mjs';
 import { dropUnused, FEATURES, MAP, mapText, pageText } from './move-map.mjs';
 import { ownLoads } from './move-plan.mjs';
 import { loadsOf } from './move-refs.mjs';
@@ -81,6 +81,7 @@ export function planStep(root, asked, parser, lists, outside = [], copies = []) 
     if (site.text !== undefined && site.kind !== 'bare') add(site.file, site);
   }
   for (const move of moves) for (const load of loadsFrom(move, moves)) add(move.from, load);
+  for (const edit of spelledEdits(root, moves)) add(edit.file, edit);
   // The refusals above are told one by one; this holds whatever they did not foresee.
   const touched = [...edits.keys()].find((file) => same.has(file));
   if (touched) throw new Error(`${touched}:${edits.get(touched)[0].line} would be written again, and it is kept byte for byte (Xenon Maker holds a copy): leave the script it names in browser-move-left.json`);

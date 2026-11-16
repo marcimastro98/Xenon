@@ -272,3 +272,28 @@ test('a script kept byte for byte moves with the same bytes, or stays; a step ne
     rmSync(repo.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 });
+
+test('the list of extractions keeps both spellings of a require true: the one its module writes now and the one server.js wrote', needsParser, async () => {
+  const spelled = (now, before) => `${JSON.stringify({ sources: { 'server/server.js': [{ file: 'server/pulse/tools.js', about: 'Invented.', names: ['tools'], spelled: { [now]: before } }] } })}\n`;
+  const files = {
+    'server/index.html': '<script src="js/pulse-bar.js"></script>\n',
+    'server/js/pulse-bar.js': 'const a = 1;\n',
+    'server/pulse/tools.js': "const ids = () => require('../js/pulse-bar.js').ids();\n",
+    'server/server.js': "const bar = require('./js/pulse-bar.js');\n",
+    'tools/restructure/extracted.json': spelled('../js/pulse-bar.js', './js/pulse-bar.js'),
+    'tools/map/features.json': `${JSON.stringify({ intro: ['An invented map.'], areas: [{ id: 'all', name: 'All', what: 'Everything.' }],
+      features: [FEATURES[0], FEATURES[3]].map((feature) => ({ id: feature.id, area: 'all', name: feature.id, what: 'Invented.', files: feature.files })) }, null, 2)}\n`,
+    'MAP.md': 'old\n',
+    'tools/map/frozen-paths.json': JSON.stringify({ paths: [], whole: ['server/*.html'] }),
+  };
+  const repo = tempRepo(files);
+  const parser = await openParser();
+  try {
+    applyStep(repo.root, planStep(repo.root, [MOVE], parser, []));
+    assert.equal(repo.read('server/pulse/tools.js'), "const ids = () => require('../js/pulse/pulse-bar.js').ids();\n");
+    assert.equal(repo.read('tools/restructure/extracted.json'), spelled('../js/pulse/pulse-bar.js', './js/pulse/pulse-bar.js'), 'a reader that turns the module back into the text of server.js finds the path the module writes');
+  } finally {
+    await parser.close();
+    rmSync(repo.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+});

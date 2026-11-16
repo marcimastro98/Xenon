@@ -52,7 +52,7 @@ export function repoFacts(root) {
 
 // The list of extractions keeps, for a few modules, how a require was spelled before and after: the new spelling
 // follows the file it names.
-function spelledEdits(root, moves) {
+export function spelledEdits(root, moves) {
   const text = read(root)(EXTRACTED);
   if (!text) return [];
   const edits = [];
