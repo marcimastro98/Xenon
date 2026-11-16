@@ -57,8 +57,9 @@ async function main(args) {
   if (command === 'check') {
     const base = option(args, '--base');
     if (!base) { console.log('usage: browser-move.mjs check --base <commit>'); return 2; }
-    const { moves } = readMoved(root);
-    const problems = [...archiveProblems(archiveList(root, base), archiveList(root, 'HEAD'), moves), ...(await withParser((parser) => leftovers(root, parser, left.lists)))];
+    const before = archiveList(root, base);
+    const moves = readMoved(root).moves.filter((move) => before.has(move.from) && !before.has(move.to)); // the list is every wave's: the ones since the base
+    const problems = [...archiveProblems(before, archiveList(root, 'HEAD'), moves), ...(await withParser((parser) => leftovers(root, parser, left.lists)))];
     for (const problem of problems) console.log(problem);
     console.log(problems.length ? `${problems.length} problems` : `${moves.length} moves: an install differs from ${base} by them alone, and no file names an old place`);
     return problems.length ? 1 : 0;
