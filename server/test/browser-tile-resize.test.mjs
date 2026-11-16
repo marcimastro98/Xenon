@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SRC = readFileSync(join(ROOT, 'server', 'js', 'browser-tile.js'), 'utf8');
+const SRC = readFileSync(join(ROOT, 'server', 'js', 'browser-tile/browser-tile.js'), 'utf8');
 
 // The pieces are read by name: where they stand in the tile's scripts may change, their names do not.
 const tile = namesOf(SRC, 'browser-tile.js');

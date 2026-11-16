@@ -110,7 +110,7 @@ function loadAppSwitcher() {
     setTimeout: () => 0,
   };
   vm.createContext(ctx);
-  vm.runInContext(CLIENT_HELPERS + read('../js/app-switcher.js'), ctx);
+  vm.runInContext(CLIENT_HELPERS + read('../js/app-switcher/app-switcher.js'), ctx);
   return { ctx, list, dock, fetched };
 }
 

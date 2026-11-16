@@ -615,7 +615,7 @@ test('the reasons a hung Edge fails with are ones the tile retries on', () => {
   assert.match(src, /killBrowser\('hung_closed'\)/);
   assert.match(src, /killBrowser\('stalled_closed'\)/);
   assert.ok(retried.test('cdp_timeout') && retried.test('hung_closed') && retried.test('stalled_closed'));
-  assert.match(browserSource('server/js/browser-tile.js'),
+  assert.match(browserSource('server/js/browser-tile/browser-tile.js'),
     /return \/timeout\|connect\|launch\|exited\|closed\|port\|socket\|failed\/i\.test/);
 });
 

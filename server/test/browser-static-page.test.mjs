@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const JS = read('../js/browser-tile.js');
+const JS = read('../js/browser-tile/browser-tile.js');
 const CSS = read('../components/BrowserPanel/BrowserPanel.css');
 
 test('with the toolbar hidden, Reload, Full screen and Show toolbar stay', () => {

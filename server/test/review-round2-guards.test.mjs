@@ -27,7 +27,7 @@ test('a paired phone removes or reorders app favourites, never adds one', () => 
   assert.deepEqual(run(prev, { appFavorites: [{ key: 'cmd', app: 'cmd', path: 'C:\\Windows\\System32\\cmd.exe' }, obs] }), [obs], 'a new one is dropped');
   assert.deepEqual(run(prev, { appFavorites: [{ ...obs, path: 'C:\\Windows\\System32\\cmd.exe' }] }), [obs], 'a swapped path keeps the saved one');
   // The phone says so instead of showing a star that would vanish.
-  const sw = read('../js/app-switcher.js');
+  const sw = read('../js/app-switcher/app-switcher.js');
   assert.match(sw, /if \(existing < 0 && window\.__xenonRemote\) \{/);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
     assert.ok(appStrings()[lang].apps_fav_pc_only_title, lang);

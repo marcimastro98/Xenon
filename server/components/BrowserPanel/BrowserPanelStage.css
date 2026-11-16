@@ -37,7 +37,7 @@
 }
 
 /* Toolbar hidden: Reload, Full screen and Show toolbar in one small group over
-   the page's top-right corner (js/browser-tile.js, GitHub #149). Quiet until
+   the page's top-right corner (js/browser-tile/browser-tile.js, GitHub #149). Quiet until
    used, so a page shown on its own is not covered by controls, and fully
    opaque under a pointer or the keyboard. */
 .browser-float {

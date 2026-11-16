@@ -8,7 +8,7 @@
     "server/js/ambient/ambient-mode.js": 5,
     "server/js/ambient/ambient-resolve.js": 3,
     "server/js/anim-picture.js": 7,
-    "server/js/app-switcher.js": 24,
+    "server/js/app-switcher/app-switcher.js": 24,
     "server/js/ai/audio-feedback.js": 18,
     "server/js/calendar/calendar.js": 48,
     "server/js/capabilities/capability-catalog.js": 2,

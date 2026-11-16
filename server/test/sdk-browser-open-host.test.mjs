@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SRC = readFileSync(join(ROOT, 'server', 'js', 'browser-tile.js'), 'utf8');
+const SRC = readFileSync(join(ROOT, 'server', 'js', 'browser-tile/browser-tile.js'), 'utf8');
 
 /** Lift the pure host predicate out of the IIFE — it has no DOM dependencies. */
 function loadBlockedHost() {
