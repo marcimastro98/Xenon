@@ -14,11 +14,8 @@
 // chooses which entities the tile shows. The token stays server-side (write-only
 // field); this module only ever handles the URL, the selection, and booleans.
 (function () {
-  const {
-    t, SHEET_DOMAINS, prettify, fmtNum, isOn, splitValue, friendlyState, fmtHvac, domainLabel,
-    stateLabel, controlSummary, deviceReadings, deviceSummary,
-  } = window.SmartHomeStateWords;
-  const { el, ctlGroup, chipGroup, switchRow } = window.SmartHomePieces;
+  const { t } = window.SmartHomeStateWords;
+  const { el } = window.SmartHomePieces;
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   const SVG = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
@@ -46,10 +43,7 @@
     settings: SVG('<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.9 7.9 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.6 7.6 0 0 0-1.7-1L15 3H9l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.3-1-2 3.4L4.6 11a7.9 7.9 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.6 7.6 0 0 0 1.7 1L9 21h6l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.3 1 2-3.4z"/>'),
   };
 
-  const {
-    TOGGLE_DOMAINS, RUN_DOMAINS, ICON_FOR, FEAT, has, stateFrom, domainRank, primaryEntity,
-    entityShortName, groupUnits,
-  } = window.SmartHomeUnits;
+  const { ICON_FOR, stateFrom } = window.SmartHomeUnits;
 
 
   const homeState = {

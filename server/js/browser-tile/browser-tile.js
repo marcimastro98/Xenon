@@ -17,9 +17,7 @@
 // only the active one shown. The server treats each tab id as an independent tile,
 // so no server change is needed.
 (function () {
-  const {
-    t, tabLabel, showLoading, showEmpty, isLaunchError, showTabError, favLabelFromUrl,
-  } = window.BrowserTileSays;
+  const { t, tabLabel, showLoading, showEmpty } = window.BrowserTileSays;
   const ICON = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
   const ICONS = {
     back: ICON('<path d="M15 18l-6-6 6-6"/>'),
@@ -36,7 +34,7 @@
     star: ICON('<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8L3.5 9.2l5.9-.9L12 3z"/>'),
   };
 
-  const { MAX_TABS, MAX_FAVORITES, getTabsConfig, saveTabs, getFavorites } = window.BrowserTileStore;
+  const { MAX_TABS, getTabsConfig, saveTabs } = window.BrowserTileStore;
 
   const {
     cdpModifiers, mapPointerToPage, RESIZE_RETRY_MS, RESIZE_MAX_RETRIES, frameMatchesSize,
@@ -216,7 +214,7 @@
   }
 
   const {
-    drawFrame, decodeFrame, handleTabError, setTabUrl,
+    drawFrame, handleTabError, setTabUrl,
   } = window.BrowserTileFrames({ verifyFrameSize, activeTab, openTab, renderTabStrip });
 
   // ── Persistence (per-instance tab list) ────────────────────────────────────────
@@ -515,7 +513,7 @@
   }
 
   const {
-    wireResize, observeVisibility, applyChromeHidden, setChromeHidden, toggleExpand, expand, collapse,
+    wireResize, observeVisibility, applyChromeHidden, setChromeHidden, toggleExpand, expand,
   } = window.BrowserTileView({ ICONS, applyGroupState, pushResize });
 
   // ── Scanning ──────────────────────────────────────────────────────────────────
