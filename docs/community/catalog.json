@@ -418,8 +418,8 @@
         "fps",
         "on-screen"
       ],
-      "version": "1.1.0",
-      "changelog": "Added color customization for Sensors and gauges, persistent settings and reset default.\nPreselection of Intel blue, AMD red, Nvidia green.",
+      "version": "1.2.0",
+      "changelog": "Now follows Hardware Temperature Unit setting in Weather.",
       "pkgId": "tgk-monitor",
       "appVersionMin": "4.1.8",
       "preview": {
@@ -429,7 +429,7 @@
       },
       "shots": 3,
       "addedAt": "2026-09-16",
-      "updatedAt": "2026-11-08",
+      "updatedAt": "2026-11-16",
       "codeFile": true
     },
     {
