@@ -7,7 +7,16 @@
 // case is read from window.top !== window.self (safe across origins: the
 // access throws, which counts as embedded). The engine opens the tab, and says
 // whether it can on this computer: where it cannot, the row stays hidden.
-let _autoOpenSupported = null; // null = unknown until the server reconcile runs
+//
+// The engine opens the tab only for someone who asked for it, and asking is a
+// click on this switch, nothing else. The setting is on by default for everyone,
+// so loading the page must never ask: it would ask for every person who merely
+// opened the dashboard in a browser once. On load the page may take a request
+// back (the switch is off here, the engine still holds one) and otherwise only
+// shows what the engine holds: the switch reads off until somebody turns it on.
+// What the engine said last: whether it can open the tab here, and whether it holds a
+// request for it. null = not known until the reconcile with the engine has run.
+const _autoOpenEngine = { supported: null, asked: null };
 
 function isEmbeddedView() {
   try { return window.top !== window.self; } catch { return true; }
@@ -30,27 +39,33 @@ function syncAutoOpenBrowserControl() {
   // Use display (not the `hidden` attribute) because the settings category
   // switcher owns `hidden` to show/hide whole category groups — toggling it here
   // would fight that. display:none wins regardless of the category state.
-  const hide = autoOpenNotOurs() || _autoOpenSupported === false;
+  const hide = autoOpenNotOurs() || _autoOpenEngine.supported === false;
   row.style.display = hide ? 'none' : '';
-  check.checked = hubSettings.autoOpenBrowser !== false;
+  // On only when the setting is on and the engine holds a request (or has not said yet).
+  check.checked = hubSettings.autoOpenBrowser !== false && _autoOpenEngine.asked !== false;
 }
 
+// The click on the switch: the one place a request for the tab is made.
 function updateAutoOpenBrowser(checked) {
   const enabled = checked === true;
   hubSettings = normalizeSettings({ ...hubSettings, autoOpenBrowser: enabled });
   saveHubSettings();
+  _autoOpenEngine.asked = enabled;
   syncAutoOpenBrowserControl();
   // Tell the engine, which is what opens the tab. The setting persists regardless;
   // if the call fails we surface it instead of pretending it worked.
+  const failed = () => { _autoOpenEngine.asked = null; setSettingsStatus('settings_error', 'error'); };
   fetch('/startup/auto-open', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ enabled }),
   }).then(r => r.json()).then(data => {
-    if (data && data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
-    if (!data || data.ok !== true) { setSettingsStatus('settings_error', 'error'); return; }
+    if (data && data.supported === false) { _autoOpenEngine.supported = false; _autoOpenEngine.asked = false; syncAutoOpenBrowserControl(); return; }
+    if (!data || data.ok !== true) { failed(); return; }
+    _autoOpenEngine.asked = data.enabled === true;
+    syncAutoOpenBrowserControl();
     setSettingsStatus('settings_saved', 'ok');
-  }).catch(() => setSettingsStatus('settings_error', 'error'));
+  }).catch(failed);
 }
 
 // Claude Code widget: the approval cards and the topbar marker. Saved like any
@@ -172,26 +187,27 @@ function updateMonthlyDrops(checked) {
   syncSettingsControls();
 }
 
-// Tells the engine what this browser's switch says, but only from a real
-// browser on the PC: never from an embedded view, the app or a paired device.
-// So an install used only on a screen that embeds the dashboard never asks for
-// a browser tab (no surprise tab), while someone who uses the dashboard in a
-// browser gets it from their first visit onward.
+// On load, learns what the engine holds, but only from a real browser on the PC:
+// never from an embedded view, the app or a paired device. It never asks for the
+// tab: that takes a click on the switch (updateAutoOpenBrowser). The one thing it
+// may send is "no": the switch is off in these settings and the engine still
+// holds a request, as after a backup restored with the switch off.
 async function reconcileAutoOpenBrowser() {
   if (autoOpenNotOurs()) { syncAutoOpenBrowserControl(); return; }
   try {
     const res = await fetch('/startup/auto-open', { cache: 'no-store' });
     if (!res.ok) { syncAutoOpenBrowserControl(); return; } // old server / not yet restarted
     const data = await res.json().catch(() => ({}));
-    if (!data || data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
-    _autoOpenSupported = true;
-    const want = hubSettings.autoOpenBrowser !== false;
-    if (data.enabled !== want) {
-      await fetch('/startup/auto-open', {
+    if (!data || data.supported === false) { _autoOpenEngine.supported = false; syncAutoOpenBrowserControl(); return; }
+    _autoOpenEngine.supported = true;
+    _autoOpenEngine.asked = data.enabled === true;
+    if (_autoOpenEngine.asked && hubSettings.autoOpenBrowser === false) {
+      const off = await fetch('/startup/auto-open', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: want }),
-      }).catch(() => {});
+        body: JSON.stringify({ enabled: false }),
+      }).catch(() => null);
+      if (off?.ok) _autoOpenEngine.asked = false;
     }
   } catch { /* leave row as-is; non-fatal */ }
   syncAutoOpenBrowserControl();

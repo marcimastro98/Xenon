@@ -156,7 +156,9 @@ test('the address the engine opens is never built from a request', () => {
 });
 
 test('nothing under install/ starts a program through a shell', () => {
-  for (const file of ['sign-in-open.js', 'sign-in-windows.js', 'sign-in-darwin.js', 'sign-in-linux.js', 'auto-open-switch.js', 'browser-auto-open-task.js']) {
+  const files = ['sign-in-open.js', 'sign-in-windows.js', 'sign-in-darwin.js', 'sign-in-linux.js', 'sign-in-browser.js', 'sign-in-file.js',
+    'auto-open-switch.js', 'browser-auto-open-task.js'];
+  for (const file of files) {
     const text = readFile(new URL('../install/' + file, import.meta.url), 'utf8');
     assert.doesNotMatch(text, /shell:\s*true|\bexec\(|execSync|spawnSync|cmd(\.exe)? \/c/, file);
   }
@@ -189,7 +191,7 @@ test('nobody has asked on a new install, and on one that updates', () => {
 
 const PAGE = readFileSync(join(__dirname, '..', 'js', 'settings.js'), 'utf8').replace(/\r\n/g, '\n');
 function pageCode() {
-  const from = PAGE.indexOf('let _autoOpenSupported = null;');
+  const from = PAGE.indexOf('const _autoOpenEngine = { supported: null, asked: null };');
   const to = PAGE.indexOf('// Claude Code widget: the approval cards');
   const rec = PAGE.indexOf('async function reconcileAutoOpenBrowser() {');
   assert.ok(from > 0 && to > from && rec > 0, 'the switch code moved: point this test at it');
@@ -238,16 +240,51 @@ function openPage({ kind = 'browser', settings = {}, server = {} } = {}) {
   return { api: context.api, asked, row, check, engineSide, settings: () => context.hubSettings, settle };
 }
 
-test('a real browser with the switch on asks for the tab, once', async () => {
+test('loading the page in a real browser never asks for the tab: the switch reads off until somebody turns it on', async () => {
+  // The setting is on by default, and nobody has asked the engine.
   const page = openPage();
   await page.api.reconcileAutoOpenBrowser();
-  assert.deepEqual(page.asked, ['GET /startup/auto-open', 'POST /startup/auto-open {"enabled":true}']);
+  assert.deepEqual(page.asked, ['GET /startup/auto-open'], 'one read, and no request');
+  assert.equal(page.engineSide.enabled, false);
   assert.equal(page.row.style.display, '', 'the row is shown');
-  assert.equal(page.check.checked, true);
-  // The next load finds the engine agreeing and asks nothing more.
+  assert.equal(page.check.checked, false, 'the switch shows what the engine holds');
+  // Somebody asked before: the load reads that and shows it on.
   const again = openPage({ server: { enabled: true } });
   await again.api.reconcileAutoOpenBrowser();
   assert.deepEqual(again.asked, ['GET /startup/auto-open']);
+  assert.equal(again.check.checked, true);
+});
+
+test('no load of the page, of any kind and with any settings, sends a request for the tab', async () => {
+  for (const kind of ['browser', 'app', 'tauri', 'embedded', 'embedded-elsewhere', 'paired']) {
+    for (const settings of [{}, { autoOpenBrowser: true }, { autoOpenBrowser: false }]) {
+      for (const server of [{}, { enabled: true }, { supported: false }, { status: 404 }, { status: 500 }]) {
+        const page = openPage({ kind, settings, server });
+        await page.api.reconcileAutoOpenBrowser();
+        page.api.syncAutoOpenBrowserControl();
+        await page.settle();
+        const where = JSON.stringify({ kind, settings, server });
+        assert.ok(!page.asked.some((request) => request.includes('"enabled":true')), where);
+        assert.ok(page.engineSide.enabled === (server.enabled === true) || page.engineSide.enabled === false, where);
+      }
+    }
+  }
+});
+
+test('the request for the tab is made by the click on the switch', async () => {
+  const page = openPage();
+  await page.api.reconcileAutoOpenBrowser();
+  assert.equal(page.check.checked, false);
+  page.asked.length = 0;
+  page.api.updateAutoOpenBrowser(true);
+  assert.equal(page.check.checked, true, 'on at once, before the engine answers');
+  await page.settle();
+  assert.deepEqual(page.asked, ['save settings', 'POST /startup/auto-open {"enabled":true}', 'status settings_saved']);
+  assert.equal(page.engineSide.enabled, true);
+  assert.equal(page.check.checked, true);
+  // Another part of Settings redraws its controls: the switch stays as the engine holds it.
+  page.api.syncAutoOpenBrowserControl();
+  assert.equal(page.check.checked, true);
 });
 
 test('a real browser with the switch off takes the request back', async () => {
