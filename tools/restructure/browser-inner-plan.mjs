@@ -62,11 +62,11 @@ const isStrict = (K, node) => Boolean(node) && isDirective(K, node) && node.expr
 /**
  * The name a new script leaves on `window`, read off where the script lives: js/deck-editor/keys.js gives DeckEditorKeys.
  * @param {string} source repo-relative old script @param {string} target repo-relative new script
- * @returns {string | null} null when the new script is not `<old script's name>/<job>.js` next to the old one
+ * @returns {string | null} null when the new script is not `<old script's name>/<job>.js`, in the folder next to the old one or the one the old one moved into
  */
 export function windowNameOf(source, target) {
-  const home = source.replace(/\.js$/, '');
-  if (!target.startsWith(`${home}/`) || !/^[a-z0-9]+(?:-[a-z0-9]+)*\.js$/.test(target.slice(home.length + 1))) return null;
+  const home = source.replace(/\.js$/, '').replace(/\/([^/]+)\/\1$/, '/$1');
+  if (target === source || !target.startsWith(`${home}/`) || !/^[a-z0-9]+(?:-[a-z0-9]+)*\.js$/.test(target.slice(home.length + 1))) return null;
   const words = `${home.slice(home.lastIndexOf('/') + 1)}-${target.slice(home.length + 1, -3)}`.split('-');
   const name = words.map((word) => word[0].toUpperCase() + word.slice(1)).join('');
   return /^[A-Z]/.test(name) ? name : null;

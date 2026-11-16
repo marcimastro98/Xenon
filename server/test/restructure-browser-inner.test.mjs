@@ -58,6 +58,8 @@ test('the functions go unchanged into a script before the old one, which takes b
 test('the name left on window is read off where the new script lives', () => {
   assert.equal(windowNameOf('server/js/deck-editor.js', 'server/js/deck-editor/keys.js'), 'DeckEditorKeys');
   assert.equal(windowNameOf('server/js/leaf.js', 'server/js/leaf/row-labels.js'), 'LeafRowLabels');
+  assert.equal(windowNameOf('server/js/leaf/leaf.js', 'server/js/leaf/row-labels.js'), 'LeafRowLabels', 'the old script moved in with its parts: the same name');
+  assert.equal(windowNameOf('server/js/leaf/leaf.js', 'server/js/leaf/leaf.js'), null, 'the old script is not a part of itself');
   assert.equal(windowNameOf('server/js/leaf.js', 'server/js/other/keys.js'), null, 'next to another script');
   assert.equal(windowNameOf('server/js/leaf.js', 'server/js/leaf/a/keys.js'), null, 'one folder, no deeper');
   assert.equal(windowNameOf('server/js/leaf.js', 'server/js/leaf/Keys.js'), null, 'lowercase kebab-case');
