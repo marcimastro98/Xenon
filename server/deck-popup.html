@@ -22,6 +22,9 @@
   .deck-popup-host .deck-root { flex: 1; }
   /* No layout editor here — hide anything that assumes the dashboard shell. */
   .layout-controls { display: none !important; }
+  /* The pencil opened an edit mode whose "+" did nothing: the key editor
+     (deck-editor.js) is not loaded here. Keys are edited on the dashboard. */
+  .deck-edit { display: none !important; }
 </style>
 </head>
 <body class="deck-popup">
