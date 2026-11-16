@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Widgets can show several readouts in the top bar, the way Vitals does.** A widget's mini slot and its chip next to the clock can now hold up to four small indicators, each an icon over a level bar with its own colour, so four device batteries (mouse, keyboard, controller, headset) fit in one place. Tapping one opens a small card with its details, drawn by Xenon, and the widget can react to each indicator on its own. Widgets can also use Xenon's own icons or their own drawn icon, pick a colour and a size for each piece, shape their bars, and write up to 32 characters in the chip instead of 20. Creators asked for this; widgets made before keep looking exactly the same.
+
 ### ✨ Changed
 
 - **Xenon opens the dashboard in your browser at sign-in by itself, with no script.** The small script that used to do it was taken for a threat by Windows Defender, so it is no longer part of Xenon, and Xenon removes its old startup entry at the next start. Xenon now opens the page itself: one tab per sign-in, only if you turned the switch on in Settings, in a browser on that computer. No tab opens when the Xenon app starts with the computer, or when Xenon restarts for an update. When Xenon cannot be sure, it opens nothing. If you had it on, it comes back by itself from the sign-in after Xenon removes the old startup entry. If not, the switch reads off until you turn it on. The switch is new on macOS and Linux, where it is still beta.

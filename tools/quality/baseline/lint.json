@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5906,
+  "total": 5896,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -1283,7 +1283,6 @@
     "server/js/widget-sdk/driver-sdk-host.js complexity/useArrowFunction": 2,
     "server/js/widget-sdk/icue-host.js complexity/useArrowFunction": 2,
     "server/js/widget-sdk/icue-host.js complexity/useOptionalChain": 1,
-    "server/js/widget-sdk/sdk-badges.js complexity/useOptionalChain": 5,
     "server/js/widget-sdk/sdk-diagnostics.js complexity/useArrowFunction": 2,
     "server/js/widget-sdk/sdk-diagnostics.js suspicious/noAssignInExpressions": 6,
     "server/js/widget-sdk/sdk-diagnostics.js suspicious/noControlCharactersInRegex": 4,
@@ -1764,8 +1763,7 @@
     "tools/bit-messages-check/check.mjs suspicious/useIterableCallbackReturn": 3,
     "tools/brand/bmc.mjs correctness/noUnusedVariables": 2,
     "tools/build-demo.mjs complexity/useOptionalChain": 1,
-    "tools/build-page-langs.mjs complexity/useOptionalChain": 1,
-    "tools/build-page-langs.mjs correctness/noUnusedFunctionParameters": 5,
+    "tools/build-page-langs.mjs correctness/noUnusedFunctionParameters": 1,
     "tools/build-releases.mjs complexity/useOptionalChain": 1,
     "tools/build-seo.mjs complexity/useOptionalChain": 1,
     "tools/build-supporters.mjs complexity/useOptionalChain": 7,

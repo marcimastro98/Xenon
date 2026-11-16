@@ -341,10 +341,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z"/></svg>
         <span data-i18n="ui_search">Cerca</span>
       </button>
-      <!-- SDK mini-widget slot (js/widget-sdk/sdk-mini.js). Host-rendered like the island and
-           the badges — never an iframe. `hidden` while no package is drawing in
-           it, so it takes no room; the user owns where it sits and whether it is
-           there at all (Settings → Dynamic Island → Bottoni della barra). -->
+      <!-- SDK mini-widget slot (js/widget-sdk/sdk-mini.js), host-rendered like the island and the
+           badges, never an iframe. `hidden` while no package draws in it; the user owns where it
+           sits and whether it is there at all (Settings → Dynamic Island → Bottoni della barra). -->
       <span class="topbar-mini-slot" id="topbar-mini-slot" hidden></span>
     </div>
 
@@ -5188,6 +5187,7 @@
 <script src="js/topbar-media/pieces.js"></script>
 <script src="js/topbar-media/topbar-media.js"></script>
 <script src="js/widget-sdk/sdk-island-schema.js"></script>
+<script src="js/widget-sdk/sdk-block-render.js"></script>
 <script src="js/widget-sdk/sdk-island.js"></script>
 <script src="js/widget-sdk/sdk-badges.js"></script>
 <script src="js/widget-sdk/sdk-mini.js"></script>
