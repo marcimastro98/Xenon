@@ -33,7 +33,7 @@
   };
 
   const {
-    t, el, fmtAge, note, helpPanel, sheetNotes, sectionPage, folderError, folderHint, folderName,
+    t, el, fmtAge, note, sectionPage, folderError, folderHint, folderName,
   } = window.TransferWidgetSays;
   const api = apiJson;
   const server = () => (typeof SERVER === 'string' ? SERVER : '');
@@ -41,10 +41,7 @@
   const {
     held, localProgress, queue, sendRun, tiles, isRemote, settings, setup,
   } = window.TransferWidgetKnown;
-  const {
-    sheetHold, toggleHelp, PULL_CLOSE_SHARE, PULL_FLICK, PULL_FLICK_MIN, PULL_FLICK_FRESH, closeSheet,
-    markHistory, stepBack, onBack,
-  } = window.TransferWidgetSheetSteps;
+  const { sheetHold, onBack } = window.TransferWidgetSheetSteps;
   // The last delete, while it can still be taken back. The server holds the
   // record (and its file) for a few seconds and tells us how many; this is only
   // the offer. Module-level so it survives the repaint the delete itself causes.
@@ -206,106 +203,9 @@
 
   // ── rendering ──────────────────────────────────────────────────────────────
 
-  function ensure(mount) {
-    if (mount.dataset.xferBuilt === '1' && mount.firstChild) return;
-    mount.dataset.xferBuilt = '1';
-    mount.replaceChildren();
-
-    const head = el('div', 'xfer-head');
-    const title = el('div', 'xfer-title', t('xfer_title', 'Trasferimento file'));
-    const usage = el('div', 'xfer-usage');
-    // The tile said "or send them from your phone" and never said HOW — the
-    // steps were in FEATURES.md and in nobody's dashboard. Asked for on
-    // Discord. It is a button rather than four permanent lines of instructions
-    // because a tile you have used once should be a list of files, not a manual.
-    const help = iconBtn(ICONS.help, t('xfer_help', 'Come funziona'), () => toggleHelp(mount));
-    help.classList.add('xfer-help-btn');
-    help.setAttribute('aria-expanded', 'false');
-    head.append(title, help, usage);
-
-    const zone = el('div', 'xfer-zone');
-    const actions = el('div', 'xfer-actions');
-    // Each button carries the icon of what it opens. Two plain words side by
-    // side read as a pair of tabs, which is what they looked like: nothing said
-    // they add files, and a control whose job you have to guess is a control
-    // people do not press.
-    const bPhotos = pickBtn('xfer-btn xfer-btn-primary', ICONS.photo, t('xfer_pick_photos', 'Foto e video'));
-    const bFiles = pickBtn('xfer-btn', ICONS.file, t('xfer_pick_files', 'Altri file'));
-    actions.append(bPhotos, bFiles);
-
-    // TWO inputs, never one. A single `accept` greys out perfectly ordinary
-    // files on Android (the system reports application/octet-stream for plenty
-    // of them, with no explanation shown), and on iOS `accept="image/*"`
-    // removes "Choose File" and with it iCloud Drive. `capture` is never used:
-    // it forces the camera and removes the library entirely.
-    const inPhotos = document.createElement('input');
-    inPhotos.type = 'file';
-    inPhotos.multiple = true;
-    inPhotos.accept = 'image/*,video/*';
-    inPhotos.className = 'xfer-input';
-    const inFiles = document.createElement('input');
-    inFiles.type = 'file';
-    inFiles.multiple = true;
-    inFiles.className = 'xfer-input';
-    // Driven by the two keys: in the Tab order they would be two invisible stops.
-    inPhotos.tabIndex = -1;
-    inFiles.tabIndex = -1;
-
-    for (const [btn, input] of [[bPhotos, inPhotos], [bFiles, inFiles]]) {
-      btn.addEventListener('click', () => { armPreparing(mount); input.click(); });
-      input.addEventListener('change', () => {
-        clearPreparing(mount);
-        enqueue(input.files);
-        input.value = '';           // so picking the same file twice still fires
-      });
-    }
-
-    // ONE panel does the drop hint and holds the pickers, and it is ALWAYS on
-    // screen. Two earlier shapes were both wrong for the same reason: a dashed
-    // area that appeared only when the list was empty meant a tile with files
-    // in it never said you could drop, and buttons on their own line below a
-    // blank region did not say they were about adding files either. Put inside
-    // the drop panel, the two answer each other: this is where files come in,
-    // by dragging or by picking.
-    const drop = el('div', 'xfer-drop');
-    const glyph = el('div', 'xfer-drop-glyph');
-    glyph.innerHTML = ICONS.up;         // static, trusted SVG
-    const dropInner = el('div', 'xfer-drop-inner');
-    dropInner.append(glyph, el('p', 'xfer-drop-text'), actions);
-    drop.append(dropInner);
-
-    const list = el('div', 'xfer-list');
-
-    // The list takes the height it needs and the drop panel absorbs whatever is
-    // left, so a tall tile has no dead region under the last row — the leftover
-    // space belongs to the thing the space is for. With many files it is the
-    // list that grows and the panel falls back to its minimum.
-    // The panel goes INSIDE the zone, as an overlay over it. Above the zone it
-    // was a block in the same column flex, so opening it squeezed the list to
-    // nothing on any tile that was not very tall — the help arrived and the
-    // files left. Over the zone, one thing is on screen at a time and closing
-    // it gives back exactly what was there.
-    zone.append(list, drop, helpPanel());
-    mount.append(head, zone, inPhotos, inFiles);
-    wireDrop(mount, zone);
-  }
-
-  // ── "how does this work" ───────────────────────────────────────────────────
-  // iOS does not fire `change` until it has finished exporting a video, which
-  // for a long 4K clip is the better part of a minute of complete silence. Say
-  // what is happening instead of looking dead.
-  function armPreparing(mount) {
-    if (!/iP(hone|ad|od)/.test(navigator.userAgent)) return;
-    mount.dataset.xferPreparing = '1';
-    clearTimeout(mount._xferPrepTimer);
-    mount._xferPrepTimer = setTimeout(() => clearPreparing(mount), 90000);
-    paint();
-  }
-  function clearPreparing(mount) {
-    delete mount.dataset.xferPreparing;
-    clearTimeout(mount._xferPrepTimer);
-    paint();
-  }
+  const {
+    ensure,
+  } = window.TransferWidgetTileBody({ ICONS, iconBtn, pickBtn, enqueue, paint, wireDrop });
 
   function wireDrop(mount, zone) {
     let depth = 0;    // a counter, not a boolean: dragleave fires per child
@@ -578,86 +478,7 @@
     if (sheetHold.sheet) paintInto(sheetHold.sheet.querySelector('.transfer-widget-mount'));
   }
 
-  // ── the phone sheet ────────────────────────────────────────────────────────
-
-  function openSheet() {
-    if (sheetHold.sheet) return;
-    const backdrop = el('div', 'xfer-sheet-backdrop');
-    const panel = el('div', 'xfer-sheet');
-    panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-modal', 'true');
-    panel.setAttribute('aria-label', t('xfer_send', 'Invia al PC'));
-    panel.tabIndex = -1;
-    const bar = el('div', 'xfer-sheet-bar');
-    const title = el('div', 'xfer-sheet-title', t('xfer_send', 'Invia al PC'));
-    // The sheet hides the tile's own header (CSS), so the ? lives here. It
-    // drives the SAME panel inside the mount — one text, two doors.
-    const help = iconBtn(ICONS.help, t('xfer_help', 'Come funziona'),
-      () => toggleHelp(panel.querySelector('.transfer-widget-mount')));
-    help.classList.add('xfer-help-btn');
-    help.setAttribute('aria-expanded', 'false');
-    const close = iconBtn(ICONS.close, t('xfer_close', 'Chiudi'), () => closeSheet());
-    bar.append(title, help, close);
-    const mount = el('div', 'transfer-widget-mount');
-    const notes = el('div', 'xfer-notes');
-    for (const line of sheetNotes()) notes.append(el('p', 'xfer-note-line', line));
-    const body = el('div', 'xfer-sheet-body');
-    body.append(mount, notes);
-    const foot = el('div', 'xfer-sheet-foot');
-    panel.append(bar, body, foot);
-    backdrop.appendChild(panel);
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeSheet(); });
-    document.body.appendChild(backdrop);
-    sheetHold.sheet = backdrop;
-    // Nothing paints under a frosted overlay. The token is PER INSTANCE, the
-    // preset-share shape: a shared one left the dashboard frozen when a dialog
-    // reopened inside the previous one's close timer.
-    sheetHold.sheet._freezeToken = 'xfer-sheet-' + Math.random().toString(16).slice(2, 8);
-    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(sheetHold.sheet._freezeToken, true);
-    paintInto(mount);
-    // The two keys leave the panel for the foot, the main one last, as on every sheet.
-    // The tile keeps them where they are.
-    const keys = mount.querySelector('.xfer-actions');
-    keys.append(keys.querySelector('.xfer-btn-primary'));
-    foot.append(keys);
-    sheetHold.sheet._letGo = window.DialogFocus.hold(panel, { onEsc: stepBack });
-    armPull(panel, bar);
-    markHistory();
-    if (!held.seeded) refresh();
-  }
-
-  function armPull(panel, bar) {
-    let pull = null;
-    bar.addEventListener('pointerdown', (e) => {
-      if ((e.button != null && e.button !== 0) || e.target.closest('button')) return;
-      if (!window.matchMedia || !window.matchMedia('(max-width: 699.98px)').matches) return;
-      pull = { y: e.clientY, dy: 0, at: Date.now(), speed: 0 };
-      panel.classList.add('is-pulled');
-      try { bar.setPointerCapture(e.pointerId); } catch { /* older engine */ }
-    });
-    bar.addEventListener('pointermove', (e) => {
-      if (!pull) return;
-      const dy = Math.max(0, e.clientY - pull.y);
-      const now = Date.now();
-      pull.speed = (dy - pull.dy) / Math.max(1, now - pull.at);
-      pull.dy = dy;
-      pull.at = now;
-      panel.style.setProperty('--xfer-pull', dy + 'px');
-    });
-    const letGo = (canClose) => {
-      if (!pull) return;
-      const { dy } = pull;
-      const speed = Date.now() - pull.at > PULL_FLICK_FRESH ? 0 : pull.speed;
-      pull = null;
-      panel.classList.remove('is-pulled');
-      const tall = panel.getBoundingClientRect().height || 400;
-      if (canClose && (dy > tall * PULL_CLOSE_SHARE || (dy > PULL_FLICK_MIN && speed > PULL_FLICK))) { closeSheet(); return; }
-      panel.style.removeProperty('--xfer-pull');
-    };
-    bar.addEventListener('pointerup', () => letGo(true));
-    // The system took the finger (a scroll, a call): the sheet goes back, never away.
-    bar.addEventListener('pointercancel', () => letGo(false));
-  }
+  const { openSheet } = window.TransferWidgetPhoneSheet({ ICONS, iconBtn, paintInto, refresh });
 
   window.addEventListener('popstate', onBack);
 
@@ -753,44 +574,9 @@
     return { ok: false, error: (out && out.error) || 'failed' };
   }
 
-  function renderSettings() {
-    if (!setup.settingsBox || !setup.cfg) return;
-    const page = sectionPage();
-
-    page.append(toggleRow('enabled', t('xfer_settings_enabled', 'Attiva il trasferimento file'),
-      t('xfer_settings_enabled_hint', 'Da spento, il riquadro e il tasto sul telefono spariscono.')));
-
-    // Everything below is governed by that switch, and follows it off screen.
-    // A folder field belonging to a feature that is not running is a control
-    // that asks to be filled in and then does nothing — the same reason the
-    // device list above hides its own body when access is off.
-    if (setup.cfg.enabled !== false) {
-      page.append(...folderRows());
-
-      // Hidden entirely rather than shown broken: a toggle that cannot work is
-      // worse than an absent one. Push needs the HTTPS door AND a phone that
-      // has already been given notification permission.
-      if (setup.pushInfo && setup.pushInfo.supported && setup.pushInfo.secure) {
-        page.append(toggleRow('notifyPhone', t('xfer_settings_notify', 'Avvisa il telefono quando c’è un file'),
-          t('xfer_settings_notify_hint', 'Solo per i file che metti qui dal PC. L’avviso non contiene il nome del file.')));
-      }
-
-      page.append(el('p', 'settings-note', t('xfer_settings_devices',
-        'Possono mandare file i telefoni e i tablet che hai già associato qui sopra. Per fermarne uno, rimuovilo dall’elenco.')));
-    }
-
-    setup.settingsBox.replaceChildren(page);
-  }
-
-  // The arrival folder: where the copy goes, and whether a copy is made at all.
-  // The two belong in one group because the second answers "and what is that
-  // folder for" — split apart, the toggle read as an unrelated third setting.
-  function folderRows() {
-    const deliver = toggleRow('autoDeliver', t('xfer_settings_deliver', 'Copia i file in quella cartella'),
-      t('xfer_settings_deliver_hint', 'Da spento i file restano solo nell’elenco di Xenon, e li apri o li salvi da lì.'));
-    if (setup.cfg.autoDeliver === false) return [deliver];
-    return [deliver, setup.cfg.canPick === true ? pickedFolderField() : typedFolderField()];
-  }
+  const {
+    renderSettings,
+  } = window.TransferWidgetSettingsPage({ saveSettings, syncDock, pickedFolderField, typedFolderField });
 
   // Where the capture engine runs (Windows), the folder comes from the
   // system's own folder dialog, the same one Settings → Recording uses: no
@@ -886,29 +672,6 @@
     actions.append(apply, reset);
     field.append(folderName(), edit, actions, status, folderHint());
     return field;
-  }
-
-  function toggleRow(key, labelText, hint) {
-    const row = el('label', 'settings-toggle-row');
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.className = 'settings-check';
-    // Default-off keys read `=== true`, default-on keys read `!== false`, the
-    // same split normalizeFileTransfer uses on the server.
-    input.checked = key === 'notifyPhone' ? setup.cfg[key] === true : setup.cfg[key] !== false;
-    input.addEventListener('change', async () => {
-      const res = await saveSettings({ [key]: input.checked });
-      if (!res.ok) { input.checked = !input.checked; return; }
-      if (key === 'enabled') syncDock();
-      // Both of these decide what else is on screen, so the panel is redrawn
-      // rather than left showing controls the new state does not have.
-      if (key === 'enabled' || key === 'autoDeliver') renderSettings();
-    });
-    const text = el('span', 'settings-label-line');
-    text.append(el('span', null, labelText));
-    if (hint) text.append(el('span', 'settings-hint', hint));
-    row.append(input, text);
-    return row;
   }
 
   window.TransferWidget = {
