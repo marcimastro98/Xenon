@@ -74,7 +74,7 @@
     "server/js/media/lyrics-widget.js": 528,
     "server/js/media/media-spotify.js": 440,
     "server/js/media/media-viz.js": 419,
-    "server/js/media/spotify-widget.js": 970,
+    "server/js/media/spotify-widget.js": 899,
     "server/js/menu/xenon-menu-widgets.js": 407,
     "server/js/menu/xenon-menu.js": 769,
     "server/js/native-bridge.js": 1206,
