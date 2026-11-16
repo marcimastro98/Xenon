@@ -31,7 +31,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const ft = require(path.join(here, '..', 'transfer/file-transfer.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SERVER = engineSource();
-const WIDGET = read('../js/transfer-widget.js');
+const WIDGET = read('../js/transfer-widget/transfer-widget.js');
 const I18N = appStringsSource();
 
 async function seeded(names = ['a.jpg', 'b.jpg', 'c.jpg']) {

@@ -16,7 +16,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const WIDGET = read('../js/transfer-widget.js');
+const WIDGET = read('../js/transfer-widget/transfer-widget.js');
 const CSS = read('../components/TransferWidget/TransferWidget.css');
 const I18N = appStringsSource();
 const CHANGELOG = read('../../CHANGELOG.md');

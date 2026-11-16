@@ -310,6 +310,8 @@
     {"from":"server/js/lighting-map.js","to":"server/js/lighting-map/lighting-map.js"},
     {"from":"server/js/lighting-page.js","to":"server/js/lighting-page/lighting-page.js"},
     {"from":"server/js/smart-home.js","to":"server/js/smart-home/smart-home.js"},
-    {"from":"server/js/unifi-widget.js","to":"server/js/unifi-widget/unifi-widget.js"}
+    {"from":"server/js/unifi-widget.js","to":"server/js/unifi-widget/unifi-widget.js"},
+    {"from":"server/js/call-modal.js","to":"server/js/call-modal/call-modal.js"},
+    {"from":"server/js/transfer-widget.js","to":"server/js/transfer-widget/transfer-widget.js"}
   ]
 }

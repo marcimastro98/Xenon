@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'js', 'call-modal.js'), 'utf8');
+const SRC = readFileSync(join(HERE, '..', 'js', 'call-modal/call-modal.js'), 'utf8');
 
 // Why this test exists, stated plainly because it is the only client-side render
 // test in the repo and the reason is specific.

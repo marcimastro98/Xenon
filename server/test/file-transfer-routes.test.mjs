@@ -190,7 +190,7 @@ test('the arrival folder from the system dialog: on this PC only, validated, one
 });
 
 test('the transfer panel uses the dialog where there is one and the typed field elsewhere', () => {
-  const W = readFileSync(join(HERE, '..', 'js', 'transfer-widget.js'), 'utf8');
+  const W = readFileSync(join(HERE, '..', 'js', 'transfer-widget/transfer-widget.js'), 'utf8');
   assert.match(W, /cfg\.canPick === true \? pickedFolderField\(\) : typedFolderField\(\)/);
   assert.match(W, /'\/api\/transfer\/settings\/pick'/);
   const I18N = appStringsSource();
