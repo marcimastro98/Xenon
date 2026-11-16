@@ -1,0 +1,368 @@
+{
+  "name": "community-gallery",
+  "page": "/",
+  "width": 1600,
+  "height": 1200,
+  "seed": {
+    "language": "en",
+    "surfaceChoice": {
+      "kind": "auto",
+      "asked": true,
+      "monitor": "",
+      "label": ""
+    },
+    "usageMode": "dashboard",
+    "onboarding": {
+      "seenVersion": 999
+    },
+    "bootSplash": false,
+    "whatsNewSeen": "5.0.0",
+    "releaseNotesSeen": "99.0.0"
+  },
+  "answers": {
+    "/api/community/catalog": {
+      "json": {
+        "ok": true,
+        "entries": [
+          {
+            "id": "glacier-clock",
+            "kind": "widget",
+            "name": "Glacier Clock",
+            "author": "sample-maker",
+            "description": "A calm clock in large digits. It keeps the date under the hour.",
+            "version": "1.2.0",
+            "category": "productivity",
+            "tags": ["on-screen", "clock"],
+            "featured": "main",
+            "addedAt": "2026-10-20",
+            "preview": { "bg": "#10202a", "text": "#e8f4f8", "accent": "#6fc3df" }
+          },
+          {
+            "id": "meadow-meter",
+            "kind": "widget",
+            "name": "Meadow Meter",
+            "author": "sample-maker",
+            "description": "Shows the load of the processor as tall grass.",
+            "version": "0.9.1",
+            "addedAt": "2026-10-12",
+            "preview": { "bg": "#1d2a14", "text": "#f2f7e8", "accent": "#9ccc65" }
+          },
+          {
+            "id": "orbit-notes",
+            "kind": "widget",
+            "name": "Orbit Notes",
+            "author": "other-maker",
+            "publisher": { "handle": "other-maker", "url": "https://github.com/other-maker" },
+            "authorSupporter": true,
+            "description": "Notes that circle the screen edge.",
+            "version": "2.0.0",
+            "changelog": "Notes keep their colour after a restart.",
+            "perfWarning": true,
+            "addedAt": "2026-09-30",
+            "preview": { "bg": "#202040", "text": "#ffffff", "accent": "#b39ddb" }
+          },
+          {
+            "id": "copper-theme",
+            "kind": "theme",
+            "name": "Copper Theme",
+            "author": "xenon",
+            "description": "Warm metal tones for every tile.",
+            "version": "1.0.0",
+            "addedAt": "2026-10-05",
+            "preview": { "bg": "#2b1a10", "text": "#f6e3d3", "accent": "#d4864a" }
+          },
+          {
+            "id": "tide-waves",
+            "kind": "bg",
+            "name": "Tide Waves",
+            "author": "sample-maker",
+            "description": "Slow waves behind the dashboard.",
+            "version": "1.1.0",
+            "addedAt": "2026-08-14",
+            "preview": { "bg": "#0a1f33", "text": "#dcefff", "accent": "#4fa3e0" }
+          },
+          {
+            "id": "dusk-icons",
+            "kind": "icons",
+            "name": "Dusk Icons",
+            "author": "other-maker",
+            "description": "Forty icons drawn at dusk.",
+            "version": "1.0.0",
+            "shots": 2,
+            "addedAt": "2026-07-01",
+            "preview": { "bg": "#30203a", "text": "#f4e8ff", "accent": "#ce93d8" }
+          },
+          {
+            "id": "harbor-page",
+            "kind": "page",
+            "name": "Harbor Page",
+            "author": "sample-maker",
+            "description": "A page with the weather, a clock and the music.",
+            "version": "1.0.0",
+            "addedAt": "2026-06-11",
+            "preview": { "bg": "#14202a", "text": "#e0f0f8", "accent": "#80cbc4" }
+          },
+          {
+            "id": "lantern-pack",
+            "kind": "bundle",
+            "name": "Lantern Pack",
+            "author": "xenon",
+            "description": "A theme, a background and a page lit by lanterns.",
+            "version": "1.3.0",
+            "locked": true,
+            "supportersOnly": true,
+            "sparks": 150,
+            "featured": "on",
+            "activeUntil": "2099-12-31T23:59:59Z",
+            "addedAt": "2026-10-18",
+            "preview": { "bg": "#1a1206", "text": "#ffe9b8", "accent": "#ffb74d" }
+          },
+          {
+            "id": "ember-deck",
+            "kind": "deck",
+            "name": "Ember Deck",
+            "author": "xenon",
+            "description": "Twelve keys that glow like embers.",
+            "version": "1.0.0",
+            "locked": true,
+            "sparks": 200,
+            "addedAt": "2026-10-02",
+            "preview": { "bg": "#2a0e08", "text": "#ffd8c8", "accent": "#ff7043" }
+          },
+          {
+            "id": "comet-drop",
+            "kind": "theme",
+            "name": "Comet Drop",
+            "author": "xenon",
+            "description": "A numbered theme with a comet across the top bar.",
+            "version": "1.0.0",
+            "activeUntil": "2099-12-31T23:59:59Z",
+            "addedAt": "2026-10-25",
+            "limited": { "total": 50, "claimed": 12, "fulfillment": "hub", "channels": "both", "dropId": "comet-drop", "reserveUrl": "https://discord.gg/example" },
+            "preview": { "bg": "#05070f", "text": "#e3ecff", "accent": "#90caf9" }
+          },
+          {
+            "id": "frost-drop",
+            "kind": "bg",
+            "name": "Frost Drop",
+            "author": "xenon",
+            "description": "A numbered background, every copy gone.",
+            "version": "1.0.0",
+            "addedAt": "2026-03-02",
+            "limited": { "total": 20, "claimed": 20, "fulfillment": "manual" },
+            "preview": { "bg": "#eaf4fb", "text": "#10202c", "accent": "#4fc3f7" }
+          }
+        ]
+      }
+    },
+    "/api/community/limited-status": {
+      "json": { "ok": true, "drops": { "comet-drop": { "total": 50, "left": 38, "active": true } } }
+    },
+    "/api/community/supporter": {
+      "json": { "ok": true, "saved": false }
+    },
+    "/api/community/trial": {
+      "json": { "ok": true, "used": false }
+    },
+    "/api/community/ratings": {
+      "json": { "ok": true, "minDisplayCount": 5, "ratings": { "glacier-clock": { "avg": 4.5, "count": 12 }, "copper-theme": { "avg": 3.8, "count": 6 } } }
+    },
+    "/api/community/installs": {
+      "json": { "ok": true, "counts": { "glacier-clock": 1200, "meadow-meter": 40, "copper-theme": 75, "orbit-notes": 9 } }
+    },
+    "/api/community/rating-state": {
+      "json": { "ok": true, "state": "none" }
+    },
+    "/sdk/widgets": {
+      "json": { "ok": true, "packages": [] }
+    }
+  },
+  "roots": [
+    ".cst-overlay",
+    ".cgal-zoom"
+  ],
+  "background": [
+    "^GET /network$",
+    "^(GET|POST) /bit/messages",
+    "^GET /index/status$",
+    "^GET /audio$",
+    "^GET /weather",
+    "^GET /external-events$",
+    "^GET /sdk/widgets$",
+    "^GET /api/community/catalog$",
+    "^GET /api/community/limited-status",
+    "^GET /api/community/supporter$",
+    "^GET /api/community/trial$",
+    "^POST /api/community/trial/",
+    "^GET /api/community/messages",
+    "^POST /settings "
+  ],
+  "replace": [
+    [
+      "[0-9]+ (min|h|s) ago",
+      "n ago"
+    ],
+    [
+      "\\.is-glint",
+      ""
+    ],
+    [
+      "(animationend|transitionend):[0-9]+",
+      "$1:n"
+    ]
+  ],
+  "steps": [
+    {
+      "say": "the page has finished starting and the Store dot has asked for the catalogue",
+      "do": "wait",
+      "ms": 6000
+    },
+    {
+      "say": "the Store opens",
+      "do": "run",
+      "code": "window.CommunityGallery.open()"
+    },
+    {
+      "say": "the Store has drawn its home",
+      "do": "wait",
+      "ms": 2500
+    },
+    {
+      "say": "every view of the rail opens in turn",
+      "do": "clickEach",
+      "on": ".cst-railrow"
+    },
+    {
+      "say": "back to Discover",
+      "do": "click",
+      "on": ".cst-railrow[data-view=\"\"]"
+    },
+    {
+      "say": "the hero's page opens",
+      "do": "click",
+      "on": ".cst-hero .cst-name"
+    },
+    {
+      "say": "back from the hero's page",
+      "do": "click",
+      "on": ".cst-back"
+    },
+    {
+      "say": "the supporter pack's page opens",
+      "do": "click",
+      "on": ".cst-card:has-text(\"Lantern Pack\") .cst-card-name"
+    },
+    {
+      "say": "back from the supporter pack",
+      "do": "click",
+      "on": ".cst-back"
+    },
+    {
+      "say": "the limited drop's page opens",
+      "do": "click",
+      "on": ".cst-poster:has-text(\"Comet Drop\") .cst-poster-name"
+    },
+    {
+      "say": "back from the limited drop",
+      "do": "click",
+      "on": ".cst-back"
+    },
+    {
+      "say": "the Sparks pack's page opens",
+      "do": "click",
+      "on": ".cst-poster:has-text(\"Ember Deck\") .cst-poster-name"
+    },
+    {
+      "say": "back from the Sparks pack",
+      "do": "click",
+      "on": ".cst-back"
+    },
+    {
+      "say": "the icon pack's page opens, with two pictures",
+      "do": "click",
+      "on": ".cst-card:has-text(\"Dusk Icons\") .cst-card-name"
+    },
+    {
+      "say": "the second picture is shown",
+      "do": "click",
+      "on": ".cgal-gal-next"
+    },
+    {
+      "say": "the picture opens full screen",
+      "do": "click",
+      "on": ".cgal-gal-zoom"
+    },
+    {
+      "say": "the next picture in the zoom",
+      "do": "press",
+      "key": "ArrowRight"
+    },
+    {
+      "say": "the zoom closes",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "Esc leaves the icon pack's page",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "the supporters' sheet opens",
+      "do": "click",
+      "on": ".cst-band-keys .cst-plain"
+    },
+    {
+      "say": "the supporters' sheet closes",
+      "do": "click",
+      "on": ".cst-info .cst-close"
+    },
+    {
+      "say": "a shelf moves on",
+      "do": "click",
+      "on": ".cst-step:not([disabled])"
+    },
+    {
+      "say": "a search that finds something",
+      "do": "fill",
+      "on": ".cst-search",
+      "text": "clock"
+    },
+    {
+      "say": "the results are drawn",
+      "do": "wait",
+      "ms": 800
+    },
+    {
+      "say": "a search that finds nothing",
+      "do": "fill",
+      "on": ".cst-search",
+      "text": "zzqq"
+    },
+    {
+      "say": "nothing found is drawn",
+      "do": "wait",
+      "ms": 800
+    },
+    {
+      "say": "Discover empties the search",
+      "do": "click",
+      "on": ".cst-railrow[data-view=\"\"]"
+    },
+    {
+      "say": "the widgets list opens",
+      "do": "click",
+      "on": ".cst-railrow[data-view=\"widget\"]"
+    },
+    {
+      "say": "every order of the list in turn",
+      "do": "chooseEach",
+      "on": ".cgal-select-el"
+    },
+    {
+      "say": "Esc closes the Store",
+      "do": "press",
+      "key": "Escape"
+    }
+  ]
+}

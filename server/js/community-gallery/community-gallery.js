@@ -205,22 +205,11 @@
   // 404s cleanly, so the webp→png→generated-canvas fallback in buildMedia/buildGallery
   // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
-  // Kind display order for the grouped ("browse all") view.
-  const KIND_ORDER = ['widget', 'bundle', 'theme', 'bg', 'ambient', 'deck', 'page', 'icons', 'sounds', 'topbar'];
-  // Set at review on what is handy on the screen by itself, not only in a dashboard.
-  const ON_SCREEN_TAG = 'on-screen';
-  const PAGE = 24;             // load-more page size for lists
-  const SHELF_MAX = 12;        // cards on a shelf before "See all"
-  const SEE_ALL_FROM = 5;      // fewer than this fit on the shelf itself
-  const WIDE_SHOT = 2.1;       // a picture wider than this cannot be shown whole on a card
-  // Most of the catalog's pictures are the whole of a wide screen and a card shows less
-  // than half of one. A look fills the screen around its middle; a widget or a pack
-  // starts on the left, where its name and its numbers are.
-  const CENTRED_KINDS = new Set(['theme', 'bg', 'ambient']);
-  const HERO_CONTRAST = 4.5;   // the pack's own paper and ink, when they can be read
-  const JUST_ADDED_MAX = 8;    // default cap for the "Just added" block
-  const KIND_SHELF_MIN = 3;    // a kind with fewer shares the "More" shelf
-  const INSTALLS_WAIT_MS = 500; // how long a first paint waits for the install counts
+  const {
+    KIND_ORDER, ON_SCREEN_TAG, PAGE, SHELF_MAX, SEE_ALL_FROM, WIDE_SHOT, CENTRED_KINDS,
+    JUST_ADDED_MAX, KIND_SHELF_MIN, INSTALLS_WAIT_MS, MIN_INSTALLS_SHOWN, SPOT_SIDE_MAX, isFeatured,
+  } = window.CommunityGalleryLayout;
+  const { hexRgb, readablePair } = window.CommunityGalleryPaper;
 
   /* ── The storefront layout ────────────────────────────────────────────────
      Which sections the Store shows, in what order and in what shape. It is
@@ -257,32 +246,12 @@
   // to "Installed" — the finishing half of keeping the Store open across an
   // install (#1). Browse state (search/sort/filter) above survives the repaint.
   let repaintStore = null;
-  // "New" tracking (#5): the per-device set of catalog entry ids this Store has
-  // already shown (bounded; replaces the old last-visit timestamp, whose
-  // day-granular addedAt comparison could never flag something uploaded later
-  // on a day you had already browsed).
-  const K_STORE_SEEN = 'xeneonedge.storeSeenIds';
+  const { readSeenIds, markCatalogSeen } = window.CommunityGallerySeen;
   // Snapshot of the seen-id set taken when the Store OPENS (null = never
   // browsed): what this render calls "new". The persisted set is refreshed to
   // the full current catalog on every render, so newness clears exactly when
   // the user next opens the Store — and never before.
   let storeSeenPrev = null;
-  function readSeenIds() {
-    try {
-      const arr = JSON.parse(localStorage.getItem(K_STORE_SEEN) || 'null');
-      return Array.isArray(arr) ? new Set(arr.filter((s) => typeof s === 'string')) : null;
-    } catch { return null; }
-  }
-  function markCatalogSeen(entries) {
-    try {
-      const cur = (entries || []).map((e) => e && e.id).filter(Boolean);
-      const prev = readSeenIds();
-      // Union (an entry inside a scheduling window must not re-flag when it
-      // comes back), current ids last so the cap sheds the oldest strangers.
-      const merged = [...new Set([...(prev ? [...prev] : []), ...cur])].slice(-1000);
-      localStorage.setItem(K_STORE_SEEN, JSON.stringify(merged));
-    } catch { /* storage off → no "new" tracking, badges just stay off */ }
-  }
   // Points at the current render's paintGrid while the Store is open: lets the
   // async ratings / install-count loaders re-sort the grid once their data lands,
   // so "Top rated" / "Most downloaded" settle without the user re-picking the sort.
@@ -377,11 +346,9 @@
     else close();
   }
 
-  function kindLabel(kind) {
-    return t('gallery_kind_' + kind, t('preset_kind_' + kind, kind));
-  }
-  // The rail names what a view holds, so in the plural.
-  function railLabel(kind) { return t('gallery_rail_' + kind, kindLabel(kind)); }
+  const {
+    kindLabel, railLabel, firstSentence, untilLabel, paintSparksRow,
+  } = window.CommunityGalleryLook;
 
   // ── Anonymous star ratings (proxied: /api/community/ratings|rate) ──────────
   // Aggregates load once per gallery render (batched ids, TTL-cached by the
@@ -421,16 +388,6 @@
   }
 
   // ── Install counts (proxied: /api/community/installs) ─────────────────────
-  // Same shape as the ratings aggregates above: batched, TTL-cached by the local
-  // server, painted into slots once they land.
-  //
-  // The number is what dashboards REPORTED, not how many people own the thing:
-  // reporting is a setting, a reinstall counts again, and nothing identifies the
-  // sender (that is the point — see server/store-catalog/community-installs.js). So it is
-  // labelled "installs" and never "owners" or "downloads", and the tooltip says
-  // what it actually counts. Below MIN_SHOWN it stays blank rather than telling a
-  // creator their work has four installs, which is noise either way.
-  const MIN_INSTALLS_SHOWN = 10;
   let installsMap = {};
   async function loadInstalls(entries) {
     const ids = (entries || []).map((e) => e && e.id).filter(Boolean);
@@ -1012,29 +969,6 @@
   }
 
   // ── The hero: one entry on its own paper ───────────────────────────────────
-  // The pack's own colours, when the catalog's pair can be read. They come from the
-  // server's hex check and only ever reach a CSS variable.
-  function hexRgb(c) {
-    let h = String(c || '').replace('#', '');
-    if (h.length === 3) h = h.split('').map((x) => x + x).join('');
-    if (!/^[0-9a-f]{6}/i.test(h)) return null;
-    const n = parseInt(h.slice(0, 6), 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  }
-  function luminance(rgb) {
-    const [r, g, b] = rgb.map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  }
-  function readablePair(preview) {
-    const paper = hexRgb(preview && preview.bg), ink = hexRgb(preview && preview.text);
-    if (!paper || !ink) return false;
-    const [hi, lo] = [luminance(paper), luminance(ink)].sort((a, b) => b - a);
-    return (hi + 0.05) / (lo + 0.05) >= HERO_CONTRAST;
-  }
-  const firstSentence = (text) => {
-    const m = /^[\s\S]*?(?:[.!?](?:\s|$)|[。！？])/.exec(text);
-    return (m ? m[0] : text).trim();
-  };
 
   // One key: an entry that installs by itself installs from here, any other opens
   // its page, where the choices fit.
@@ -1067,13 +1001,6 @@
   }
 
   // ── The spotlight: what leads the Store ─────────────────────────────────────
-  // Chosen in the hub admin (entry.featured), not inferred from catalog order:
-  // 'main' is the full-width hero, every other featured entry rides in the
-  // column beside it, capped so the top of the Store stays one screenful.
-  // Entries past the cap are not lost — they keep their normal place in the
-  // sections below, exactly as if they had not been featured.
-  const SPOT_SIDE_MAX = 3;
-  function isFeatured(entry) { return !!entry && (entry.featured === 'main' || entry.featured === 'on'); }
   function spotlightPick(limitedList, supportersList, freePool) {
     const featured = sortList(limitedList.concat(supportersList, freePool).filter(isFeatured));
     if (featured.length) {
@@ -1116,25 +1043,6 @@
   // the grid never floods with badges the first time someone opens the Store (#5).
   function isNewEntry(entry) {
     return !!storeSeenPrev && !!entry && !!entry.id && !storeSeenPrev.has(entry.id);
-  }
-
-  // "Available until {d}" — the scheduling deadline on a supporter/limited
-  // entry, the honest urgency line (the server already hides the entry once the
-  // date passes; this just says so up front). Rendered in UTC on purpose:
-  // activeUntil is authored as an end-of-day UTC stamp, and a local-time render
-  // turns "31 July" into "1 August" for anyone east of Greenwich — same rule as
-  // the website home. Null for free entries or without a deadline.
-  function untilLabel(entry, cls) {
-    if (!entry || !entry.activeUntil || !(entry.limited || entry.locked || entry.supportersOnly)) return null;
-    const ts = Date.parse(entry.activeUntil);
-    // An entry brought back by hand outlives its date: the line would no longer be true.
-    if (!Number.isFinite(ts) || ts < Date.now()) return null;
-    const l = t('locale', '');
-    const loc = /^[a-z]{2}(-[A-Za-z0-9]{2,8})*$/.test(l) ? l : undefined;
-    let d;
-    try { d = new Date(ts).toLocaleDateString(loc, { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
-    catch { d = new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
-    return el('div', 'cgal-until' + (cls ? ' ' + cls : ''), t('gallery_until', 'Disponibile fino al {d}').replace('{d}', d));
   }
 
   // What an entry costs or where it stands, in a few words, for the card's line.
@@ -1833,10 +1741,6 @@
     if (has((e) => e.limited)) rows.push(railRow('__limited', t('gallery_limited_section', 'Limited edition'), icon('limited')));
     rail.list.replaceChildren(...rows);
     syncRail();
-  }
-  function paintSparksRow(row) {
-    const state = window.XenonCredits.state;
-    row.querySelector('.cst-railrow-count').textContent = state.status === 'ok' ? window.XenonCredits.format(state.balance) : '';
   }
   // Red count of available updates on Installed: you open it to update. Async
   // (findUpdates joins the catalog against the install index); refreshed on open

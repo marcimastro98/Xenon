@@ -53,7 +53,7 @@ test('a card has no key: the whole card opens the page, where the choice is made
 });
 
 test('Esc walks back one step and leaves what sits above the Store alone', () => {
-  const key = js.slice(js.indexOf('function onStoreKey('), js.indexOf('function kindLabel('));
+  const key = js.slice(js.indexOf('function onStoreKey('), js.indexOf('window.CommunityGalleryLook;'));
   assert.match(key, /if \(infoEl\) closeInfo\(\);\n\s*else if \(detailEntry\) closeDetail\(\);\n\s*else close\(\);/);
   assert.match(key, /\.cs-wrap\.cs-open/);
   assert.match(key, /\.preset-modal-overlay'\)\.length > 1/);
@@ -79,7 +79,7 @@ test('the hub still commands the shelves: one pass over its order, same contract
 
 test('the hero wears the entry\'s colours only when they can be read', () => {
   const start = js.indexOf('function hexRgb(');
-  const end = js.indexOf('const firstSentence');
+  const end = js.indexOf('window.CommunityGalleryPaper =', start);
   const ctx = {};
   vm.runInNewContext(`${js.slice(start, end)}\nthis.readablePair = readablePair;`, Object.assign(ctx, { HERO_CONTRAST: 4.5 }));
   assert.equal(ctx.readablePair({ bg: '#14181c', text: '#f2f4f3' }), true);
@@ -91,7 +91,7 @@ test('the hero wears the entry\'s colours only when they can be read', () => {
 
 test('the first sentence ends at its full stop, in every script', () => {
   const start = js.indexOf('const firstSentence');
-  const end = js.indexOf('// One key: an entry that installs');
+  const end = js.indexOf('// "Available until {d}"', start);
   const ctx = {};
   vm.runInNewContext(`${js.slice(start, end)}\nthis.firstSentence = firstSentence;`, ctx);
   assert.equal(ctx.firstSentence('A clock. It ticks.'), 'A clock.');
