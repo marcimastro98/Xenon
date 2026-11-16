@@ -310,7 +310,7 @@ test('the offer sits in Settings plans, the catalog perks, the letter, the Decem
   const html = read('../index.html');
   const plans = html.slice(html.indexOf('<div class="support-plans">'), html.indexOf('<section class="settings-section support-already">'));
   assert.equal([...plans.matchAll(/<span class="support-plan-sparks"><span data-xspark="offer"><\/span><span data-i18n="support_plan_sparks">/g)].length, 3, 'one line on each of the three plans');
-  const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
+  const gallery = read('../js/community-gallery/community-gallery.js').replace(/\r\n/g, '\n');
   assert.match(gallery, /\['gallery_sup_perk1', 'support_perk_sparks', 'gallery_sup_perk2'/, 'right after the drops');
   assert.match(gallery, /sparks \? window\.XenonCredits\.offerMark\(\) : icon\('check'/);
   assert.match(read('../js/store-supporters/support-card.js'), /\['sparks', 'support_perk_sparks'/);
@@ -403,7 +403,7 @@ test('the chat leads to the Sparks shop when the Scintille run low or out, once 
 });
 
 test('the Store shows Sparks as Xenon\'s credits and sends a buyer to the Sparks tab', () => {
-  const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
+  const gallery = read('../js/community-gallery/community-gallery.js').replace(/\r\n/g, '\n');
   const band = gallery.slice(gallery.indexOf('function sparksBand('), gallery.indexOf('function askBitBlock('));
   assert.match(band, /sparks_shop_sub_bit/);
   assert.match(band, /sparks_shop_open/);

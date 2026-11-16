@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 // Normalised: the working tree may hold CRLF, and this test slices source by
 // exact lines — a checkout's line endings must not decide whether it runs.
-const SRC = readFileSync(join(ROOT, 'server', 'js', 'installed-manager.js'), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(join(ROOT, 'server', 'js', 'installed-manager/installed-manager.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // The real shape, from docs/community/catalog.json.
 const VANGUARD = {

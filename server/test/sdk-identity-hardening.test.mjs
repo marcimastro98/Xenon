@@ -181,7 +181,7 @@ test('/sdk/install decides on the server, and the import review reads what the s
   assert.match(review, /appendReplacesNote\(body, review\)/);
   assert.ok(!/w\.actions|w\.hosts|w\.streams/.test(review), 'never the envelope\'s own description');
   // The Store's Update button falls back to the confirming review.
-  assert.match(read('../js/installed-manager.js'), /d\.error === 'id_exists'[\s\S]{0,80}openImport/);
+  assert.match(read('../js/installed-manager/installed-manager.js'), /d\.error === 'id_exists'[\s\S]{0,80}openImport/);
 });
 
 // ── 3. the shared store group belongs to the grant ───────────────────────────

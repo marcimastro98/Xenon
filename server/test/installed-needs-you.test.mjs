@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
-const SRC = readFileSync(new URL('../js/installed-manager.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(new URL('../js/installed-manager/installed-manager.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
 // A node is enough for what the row builds: class, text, children, listeners.

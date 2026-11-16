@@ -9,8 +9,8 @@ import { createRequire } from 'node:module';
 // and which version is installed. community-gallery.js is a browser IIFE, so the
 // three functions that decide it are lifted out of the source and run against a
 // stubbed settings blob and package list.
-const SRC = readFileSync(fileURLToPath(new URL('../js/community-gallery.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const MGR = readFileSync(fileURLToPath(new URL('../js/installed-manager.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
+const SRC = readFileSync(fileURLToPath(new URL('../js/community-gallery/community-gallery.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
+const MGR = readFileSync(fileURLToPath(new URL('../js/installed-manager/installed-manager.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 
 function lift(src, header) {
   const at = src.indexOf(header);

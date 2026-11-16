@@ -36,7 +36,7 @@ test('from the Store the dialog shows the name, not the code', () => {
   assert.match(dialog, /const fromStore = !!prefill && importSource\.source === 'catalog';/);
   assert.match(dialog, /field\.hidden = true;/);
   assert.match(share, /fileBtn\.hidden = fromStore;/);
-  assert.match(read('js/community-gallery.js'), /name: entry\.name \|\| '' \}\)/);
+  assert.match(read('js/community-gallery/community-gallery.js'), /name: entry\.name \|\| '' \}\)/);
 });
 
 test('no code and no trial: the dialog says how to get one, never to a supporter', () => {
@@ -45,7 +45,7 @@ test('no code and no trial: the dialog says how to get one, never to a supporter
   assert.match(dialog, /Promise\.all\(\[pass, trial, sparks\]\)\.then\(\(\) => \{ passKnown = true;/);
   assert.match(dialog, /joinLink\.rel = 'noopener noreferrer';/);
   // Limited and Sparks-only drops are not opened by a membership: no join line there.
-  assert.match(read('js/community-gallery.js'), /supporterDrop: !entry\.limited && !sparksOnly\(entry\) && \(entry\.locked === true \|\| entry\.supportersOnly === true\)/);
+  assert.match(read('js/community-gallery/community-gallery.js'), /supporterDrop: !entry\.limited && !sparksOnly\(entry\) && \(entry\.locked === true \|\| entry\.supportersOnly === true\)/);
 });
 
 test('on a phone the detail actions stay pinned under the description', () => {
@@ -101,7 +101,7 @@ test('Import on a Sparks-only drop, or with a Sparks code typed, goes through th
 });
 
 test('the Store passes the price and never offers a membership for a Sparks-only drop', () => {
-  const gal = read('js/community-gallery.js');
+  const gal = read('js/community-gallery/community-gallery.js');
   assert.match(gal, /sparks: entry\.limited \? 0 : \(entry\.sparks \|\| 0\), sparksOnly: sparksOnly\(entry\)/);
   assert.match(gal, /const sparksOnly = \(entry\) => !!entry && !entry\.limited && entry\.sparks > 0 && entry\.supportersOnly !== true;/);
   assert.match(gal, /if \(sparksOnly\(entry\)\) \{\s*cta\.appendChild\(importButton\(entry, [^\n]*unlockLabel\(entry\)/);
@@ -134,7 +134,7 @@ test('sold for Sparks: the sheet takes the dialog over and the rules stay here',
 });
 
 test('the Store names the Sparks way in next to the supporter one', () => {
-  const gal = read('js/community-gallery.js');
+  const gal = read('js/community-gallery/community-gallery.js');
   assert.match(gal, /if \(!entry\.limited && entry\.sparks > 0\) \{\s*node\.appendChild\(el\('span', null, t\('gallery_or_sparks'/);
   assert.match(gal, /unlockLabel\(entry, true\)/);
   assert.match(gal, /t\('gallery_unlock_code_or_sparks', 'Unlock with a code or \{price\}'\)/);

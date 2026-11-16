@@ -107,7 +107,7 @@ test('every place that lists the share kinds knows `topbar`', () => {
     [read('../js/preset-share.js'), /const CATALOG_PUBLISH_KINDS = \[([^\]]*)\]/],
     [read('../js/store-catalog/content-installs.js'), /const KINDS = Object\.freeze\(\[([^\]]*)\]/],
     [engineSource('server/store-catalog/community-catalog.js'), /const CATALOG_KINDS = new Set\(\[([^\]]*)\]/],
-    [read('../js/community-gallery.js'), /const KIND_ORDER = \[([^\]]*)\]/],
+    [read('../js/community-gallery/community-gallery.js'), /const KIND_ORDER = \[([^\]]*)\]/],
     [read('../../docs/catalog/index.html'), /const KINDS = \[([^\]]*)\]/],
   ];
   for (const [src, re] of lists) {

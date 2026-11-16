@@ -114,7 +114,7 @@ test('its button opens the Installed tab, on the dashboard and on the screen', (
 test('the page loads it after the messages and the Store, and the old daily toast is gone', () => {
   const html = read('../index.html');
   const at = (f) => html.indexOf(`<script src="js/${f}"></script>`);
-  assert.ok(at('store-catalog/store-update-mail.js') > at('community-gallery.js') && at('community-gallery.js') > 0);
+  assert.ok(at('store-catalog/store-update-mail.js') > at('community-gallery/community-gallery.js') && at('community-gallery/community-gallery.js') > 0);
   assert.ok(at('store-catalog/store-update-mail.js') > at('ai/bit-messages.js') && at('ai/bit-messages.js') > 0);
   assert.doesNotMatch(read('../js/settings.js'), /checkSdkUpdatesDaily/);
 });

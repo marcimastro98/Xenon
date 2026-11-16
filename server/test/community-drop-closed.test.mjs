@@ -13,7 +13,7 @@ import vm from 'node:vm';
 // scarcity meter and a "Claim your copy" button, because `active` was fetched,
 // normalized and then never read. Users saw "5 of 50 left", tapped Claim, and
 // landed on a claim page that turned them away.
-const GALLERY = readFileSync(fileURLToPath(new URL('../js/community-gallery.js', import.meta.url)), 'utf8');
+const GALLERY = readFileSync(fileURLToPath(new URL('../js/community-gallery/community-gallery.js', import.meta.url)), 'utf8');
 const DROP = readFileSync(fileURLToPath(new URL('../js/store-catalog/catalog-drop.js', import.meta.url)), 'utf8');
 const UTILS = readFileSync(fileURLToPath(new URL('../js/utils.js', import.meta.url)), 'utf8');
 

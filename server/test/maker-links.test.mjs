@@ -21,7 +21,7 @@ test('Settings links the Maker beside Themes, Background and Ambient', () => {
 });
 
 test('the Store and the Deck profile menu link the Maker in a new window', () => {
-  for (const file of ['js/community-gallery.js', 'js/deck/deck.js']) {
+  for (const file of ['js/community-gallery/community-gallery.js', 'js/deck/deck.js']) {
     const src = read(file);
     assert.ok(src.includes(`const MAKER_URL = '${MAKER_URL}'`), file);
     assert.match(src, /maker\.href = MAKER_URL; maker\.target = '_blank'; maker\.rel = 'noopener noreferrer'/, file);

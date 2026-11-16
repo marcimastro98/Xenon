@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 // (packages/core/src/store-updates.js), so it is required here directly.
 const require = createRequire(import.meta.url);
 const SU = require('../../packages/core/src/store-updates.js');
-const SRC = readFileSync(fileURLToPath(new URL('../js/community-gallery.js', import.meta.url)), 'utf8');
+const SRC = readFileSync(fileURLToPath(new URL('../js/community-gallery/community-gallery.js', import.meta.url)), 'utf8');
 const loadVersionCompare = () => SU;
 
 test('update join: a prerelease install is not stranded on its beta', () => {
@@ -51,7 +51,7 @@ test('update join: the Installed tab keys updates by pkgId AND by entry id', () 
   // Receipt-installed content (themes, decks, packs) has no pkgId. The tab used
   // to keep only the pkgId half, so a theme with a published update showed no
   // button at all — while the gallery, reading the same findUpdates result, did.
-  const src = readFileSync(fileURLToPath(new URL('../js/installed-manager.js', import.meta.url)), 'utf8');
+  const src = readFileSync(fileURLToPath(new URL('../js/installed-manager/installed-manager.js', import.meta.url)), 'utf8');
   assert.match(src, /updatesById/, 'the entry-id keyed update map is gone');
   assert.match(src, /else out\.updatesById\.set\(entry\.id, entry\)/);
   assert.match(src, /function updateFor/, 'rows must resolve updates through both joins');
@@ -113,7 +113,7 @@ test('update join: a locked entry you own offers its update', async () => {
 });
 
 test('update action: a protected drop goes to the import dialog, not a silent install', () => {
-  const mgr = readFileSync(fileURLToPath(new URL('../js/installed-manager.js', import.meta.url)), 'utf8');
+  const mgr = readFileSync(fileURLToPath(new URL('../js/installed-manager/installed-manager.js', import.meta.url)), 'utf8');
   const at = mgr.indexOf('async function applyUpdate');
   assert.ok(at > 0);
   const body = mgr.slice(at, mgr.indexOf('function renderRow', at));
@@ -131,7 +131,7 @@ test('update join: the Store keeps no second copy of it', () => {
   assert.match(SRC, /storeUpdates\.buildIndex\(packages, installs\)/);
   const html = readFileSync(fileURLToPath(new URL('../index.html', import.meta.url)), 'utf8');
   const shared = html.indexOf('<script src="shared/src/store-updates.js">');
-  assert.ok(shared > 0 && shared < html.indexOf('<script src="js/community-gallery.js">'), 'store-updates.js must load before the Store');
+  assert.ok(shared > 0 && shared < html.indexOf('<script src="js/community-gallery/community-gallery.js">'), 'store-updates.js must load before the Store');
 });
 
 test('update join: packages by id, receipts by entry, edition copies by their base', () => {

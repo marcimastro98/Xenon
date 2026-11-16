@@ -10,7 +10,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (f) => readFileSync(path.join(here, '..', f), 'utf8').replace(/\r\n/g, '\n');
-const js = read('js/community-gallery.js');
+const js = read('js/community-gallery/community-gallery.js');
 const css = read('components/CommunityStore/CommunityStore.css');
 const modal = read('components/SettingsModal/SettingsModal.css');
 

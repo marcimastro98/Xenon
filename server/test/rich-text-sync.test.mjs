@@ -49,7 +49,7 @@ test('the catalog page formats descriptions exactly like the app', () => {
 test('the app loads the shared module and uses it for every description', () => {
   const page = readFileSync(join(ROOT, 'server', 'index.html'), 'utf8');
   assert.match(page, /<script src="shared\/src\/rich-text\.js"><\/script>/);
-  const gallery = readFileSync(join(ROOT, 'server', 'js', 'community-gallery.js'), 'utf8');
+  const gallery = readFileSync(join(ROOT, 'server', 'js', 'community-gallery/community-gallery.js'), 'utf8');
   assert.doesNotMatch(gallery, /el\('[^']+', '[^']+', entry\.description\)/, 'a description rendered raw');
   assert.match(gallery, /descInto\(el\('div', 'cgal-detail-desc'\), entry\.description\)/);
   const site = readFileSync(join(ROOT, 'docs', 'catalog', 'index.html'), 'utf8');

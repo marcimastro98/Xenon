@@ -83,7 +83,7 @@ test('removing a widget takes its button out of the list and its look', () => {
   assert.deepEqual(Object.keys(out.topbarLook.buttons).sort(), ['lock', 'sdk:b']);
   assert.equal(out.topbarLook.surface, 'solid');
   // Both uninstall paths use it.
-  assert.match(read('../js/installed-manager.js'), /withoutSdkTopbarButtons\(hubSettings, \[pkg\.id\]\)/);
+  assert.match(read('../js/installed-manager/installed-manager.js'), /withoutSdkTopbarButtons\(hubSettings, \[pkg\.id\]\)/);
   assert.match(read('../js/preset-share.js'), /withoutSdkTopbarButtons\(HS\(\), widgetDeleteIds\)/);
 });
 

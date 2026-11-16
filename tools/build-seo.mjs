@@ -225,7 +225,7 @@ const PAGE_CSS = `
 // whether or not the picture lands, so a missing screenshot leaves a tinted rectangle
 // instead of collapsing the card and reflowing the grid under the reader's cursor.
 // Sold only for Sparks (the hub's "item" access): no supporter pass opens it. The
-// price in Sparks, or 0. Mirror of sparksOnly() in the app's js/community-gallery.js.
+// price in Sparks, or 0. Mirror of sparksOnly() in the app's js/community-gallery/community-gallery.js.
 function sparksPrice(e) {
   return !e.limited && e.supportersOnly !== true && Number.isInteger(e.sparks) && e.sparks > 0 ? e.sparks : 0;
 }

@@ -139,7 +139,7 @@
       "docs/images/bit.svg": "Names the file only in a comment that says where the drawing of Bit was copied from; it never opens it.",
       "packages/design-system/brand-book.html": "Names the file only in a comment that says where the drawing of Bit was copied from; it never opens it."
     },
-    "server/js/community-gallery.js": {
+    "server/js/community-gallery/community-gallery.js": {
       "docs/catalog/index.html": {
         "how": "The site names the file only in comments that say which code of the app its own page mirrors: where the screenshots are served from, dropClosed and dropUnavailable, and sparksOnly. It never opens the file. Those stay in it, so the comments stay true.",
         "keeps": [

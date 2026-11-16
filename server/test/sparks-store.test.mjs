@@ -233,7 +233,7 @@ test('a supporter reads the plan as included, with no button to join again', asy
 });
 
 test('the Store shelves skip what the spotlight shows, and the membership has its own band', () => {
-  const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
+  const gallery = read('../js/community-gallery/community-gallery.js').replace(/\r\n/g, '\n');
   assert.ok(!gallery.includes('dupIds'), 'no shelf carries spotlight entries again');
   assert.match(gallery, /const notSpot = \(e\) => !spotIds\.has\(e\.id\);/);
   assert.match(gallery, /const items = cap\(shelfLimited\.filter\(notSpot\), b\);/);
@@ -291,7 +291,7 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
 });
 
 test('the Store has a Sparks tab, opened from anywhere, its files loaded in order', () => {
-  const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
+  const gallery = read('../js/community-gallery/community-gallery.js').replace(/\r\n/g, '\n');
   assert.match(gallery, /railRow\('__sparks', t\('xai_balance_unit', 'Sparks'\), mark\)/);
   assert.match(gallery, /filterKind === '__sparks' && window\.SparksStore\) \? 'sparks'/);
   assert.match(gallery, /if \(activeTab === 'sparks'\) \{[\s\S]*?window\.SparksStore\.render\(viewEl, \{/);
@@ -299,7 +299,7 @@ test('the Store has a Sparks tab, opened from anywhere, its files loaded in orde
   assert.match(gallery, /window\.CommunityGallery = \{[^}]*\bopenSparks\b/);
   const html = read('../index.html');
   const store = html.indexOf('<script src="js/store-supporters/sparks-store.js"></script>');
-  assert.ok(store > 0 && store < html.indexOf('<script src="js/community-gallery.js"></script>'), 'the tab is defined before the Store uses it');
+  assert.ok(store > 0 && store < html.indexOf('<script src="js/community-gallery/community-gallery.js"></script>'), 'the tab is defined before the Store uses it');
   assert.ok(html.includes('<link rel="stylesheet" href="components/SparksStore/SparksStore.css">'));
 });
 
@@ -333,7 +333,7 @@ test('every string of the tab is in all 11 languages, placeholders kept, no dash
 
 test('every key the Store and the Sparks tab ask for exists in all 11 languages', () => {
   const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
-  for (const f of ['../js/store-supporters/sparks-store.js', '../js/community-gallery.js']) {
+  for (const f of ['../js/store-supporters/sparks-store.js', '../js/community-gallery/community-gallery.js']) {
     // Literal keys only: a prefix joined to a value at runtime ends in '_'.
     const keys = new Set([...read(f).matchAll(/\bt\('([a-z0-9_]*[a-z0-9])'/g)].map((m) => m[1]));
     assert.ok(keys.size > 20, `${f} keys found`);
@@ -342,7 +342,7 @@ test('every key the Store and the Sparks tab ask for exists in all 11 languages'
 });
 
 test('the rail replaces the old browse bar: kinds, New, the Sparks view, no packs on Discover', () => {
-  const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
+  const gallery = read('../js/community-gallery/community-gallery.js').replace(/\r\n/g, '\n');
   assert.match(gallery, /KIND_ORDER\.filter\(\(k\) => has\(\(e\) => e\.kind === k\)\)/, 'only the kinds the catalog has');
   assert.match(gallery, /railRow\('__new', t\('gallery_new_filter', 'New'\), icon\('new'\), shortCount\(fresh\)\)/);
   assert.ok(!/selKind|newBtn|quickSparks|cgal-quick/.test(gallery), 'the old bar is gone');

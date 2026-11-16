@@ -3,7 +3,7 @@
 // ten seconds to take it back. A vote is final on the hub, so the wait happens here,
 // before anything is sent. The same control sits in Bit's card (card) and on the
 // Store page (voter); what to show and when is js/ai/bit-messages.js and
-// js/community-gallery.js. Names come from a catalog, so all text is textContent.
+// js/community-gallery/community-gallery.js. Names come from a catalog, so all text is textContent.
 (function () {
   const HOLD_S = 10;
   const LEAVE_MS = 45000;   // an untouched card goes, and may come back once in a week

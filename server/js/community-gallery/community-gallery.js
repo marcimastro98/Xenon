@@ -2003,7 +2003,7 @@
   }
 
   // kindIcon + SHOTS_BASE are shared with the Installed tab
-  // (js/installed-manager.js) so both surfaces draw from ONE icon set and ONE
+  // (js/installed-manager/installed-manager.js) so both surfaces draw from ONE icon set and ONE
   // sidecar path rule. shotUrl derives from the entry id the server already
   // charset-pinned — never from catalog-supplied text.
   const shotUrl = (entryId, i, ext) => SHOTS_BASE + encodeURIComponent(entryId) + (i === 1 ? '' : '-' + i) + '.' + ext;

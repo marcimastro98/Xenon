@@ -9,7 +9,7 @@ import { appStringsSource, languagesWith, textsOf } from './i18n-source.mjs';
 // nothing. These lock the fix: refresh once and retry, and say so when it still
 // fails, in every language the app ships.
 
-const ui = readFileSync(new URL('../js/installed-manager.js', import.meta.url), 'utf8');
+const ui = readFileSync(new URL('../js/installed-manager/installed-manager.js', import.meta.url), 'utf8');
 const i18n = appStringsSource();
 
 function addHandler() {

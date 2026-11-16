@@ -35,7 +35,7 @@
    costs nothing and keeps a future too-wide element a local defect. */
 .cgal-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px 22px 28px; min-height: 220px; }
 
-/* ── Installed tab (js/installed-manager.js) ── */
+/* ── Installed tab (js/installed-manager/installed-manager.js) ── */
 /* Deliberately NOT a second gallery: this is an operational list, so rows are
    dense and text-first. Kind chips reuse the rail's visual language. */
 .inst-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }

@@ -259,6 +259,8 @@
     {"from":"server/js/slideshow-widget.js","to":"server/js/windows-tiles/slideshow-widget.js"},
     {"from":"server/js/tile-play.js","to":"server/js/windows-tiles/tile-play.js"},
     {"from":"server/js/deck.js","to":"server/js/deck/deck.js"},
-    {"from":"server/js/xenon-credits.js","to":"server/js/store-supporters/xenon-credits.js"}
+    {"from":"server/js/xenon-credits.js","to":"server/js/store-supporters/xenon-credits.js"},
+    {"from":"server/js/community-gallery.js","to":"server/js/community-gallery/community-gallery.js"},
+    {"from":"server/js/installed-manager.js","to":"server/js/installed-manager/installed-manager.js"}
   ]
 }

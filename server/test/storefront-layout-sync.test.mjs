@@ -133,7 +133,7 @@ test('both copies know the same block types', () => {
 test('every storefront that walks the layout draws all of its block types', () => {
   const RENDERERS = [
     ['docs/catalog/index.html', join(ROOT, 'docs', 'catalog', 'index.html')],
-    ['server/js/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery.js')],
+    ['server/js/community-gallery/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery/community-gallery.js')],
   ];
   let walkers = 0;
   for (const [label, file] of RENDERERS) {
@@ -251,7 +251,7 @@ test('every storefront that walks the layout routes the split through the contra
   // all. The guard below is what keeps that from becoming a silent skip.
   const RENDERERS = [
     ['docs/catalog/index.html', PAGE, /sfSplitLimited\(limited,\s*LAYOUT/],
-    ['server/js/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery.js'), /storefront\.splitLimited\(limited,\s*LAYOUT/],
+    ['server/js/community-gallery/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery/community-gallery.js'), /storefront\.splitLimited\(limited,\s*LAYOUT/],
   ];
   let walkers = 0;
   for (const [label, file, call] of RENDERERS) {

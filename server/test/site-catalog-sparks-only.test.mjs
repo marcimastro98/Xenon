@@ -12,7 +12,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\
 const site = read('../../docs/catalog/index.html');
 const home = read('../../docs/index.html');
 const seo = read('../../tools/build-seo.mjs');
-const app = read('../js/community-gallery.js');
+const app = read('../js/community-gallery/community-gallery.js');
 const SITE_LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
 
 const fnFrom = (src, re) => {

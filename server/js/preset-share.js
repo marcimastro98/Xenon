@@ -5033,7 +5033,7 @@
     }
 
     // uninstallContent / installResourceSummary / legacyImportRecord are the
-    // receipt engine behind the Store's "Installed" tab (js/installed-manager.js)
+    // receipt engine behind the Store's "Installed" tab (js/installed-manager/installed-manager.js)
     // — ONE removal path, so the two surfaces can never disagree about what a
     // download owns or reference-count it differently.
     window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportTopbar, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, updateOwned, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset, peekLocked, buildModal, currentTheme, currentThemeImported, themeImportPatch, sanitizeDeckProfile };

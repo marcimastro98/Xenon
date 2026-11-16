@@ -25,7 +25,7 @@ test('a folder name with a space or dots is not a usable package id', () => {
 
 test('every rejection reason the scan can emit has a user-facing message', () => {
   const src = engineSource('server/sdk-widgets.js');
-  const ui = readFileSync(new URL('../js/installed-manager.js', import.meta.url), 'utf8');
+  const ui = readFileSync(new URL('../js/installed-manager/installed-manager.js', import.meta.url), 'utf8');
   // Reasons reachable from the FOLDER scan (listPackages + normalizeManifest).
   // Payload-only reasons (bad_files, bad_path, file_too_large…) belong to the
   // over-the-wire install path, which reports through its own import dialog.
@@ -43,7 +43,7 @@ test('the rejected block renders before the empty state, not only under a list',
   // A user whose ONLY widget folder was refused has nothing installed, so a
   // block rendered after the early return would never be seen — the exact case
   // that made this invisible in the first place.
-  const ui = readFileSync(new URL('../js/installed-manager.js', import.meta.url), 'utf8');
+  const ui = readFileSync(new URL('../js/installed-manager/installed-manager.js', import.meta.url), 'utf8');
   const emptyReturn = ui.indexOf("if (!rows.length) {");
   const rejInEmpty = ui.indexOf('rejectedBlock(rejected)');
   assert.ok(emptyReturn > 0 && rejInEmpty > 0);
