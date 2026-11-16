@@ -208,14 +208,7 @@
   // ── Modal ───────────────────────────────────────────────────────────────────
   let openOverlay = null;
 
-  // Freeze the animated ambient background while this frosted overlay is up (issue
-  // #56 — see ambient-freeze.js). Reference-counted by token so it composes with the
-  // Settings panel, which is frosted too and can be open underneath us.
-  function freezeAmbient(on) {
-    try {
-      if (typeof window.ambientFreeze === 'function') window.ambientFreeze('update', on);
-    } catch { /* ignore */ }
-  }
+  const { freezeAmbient, notice, pickLang } = window.UpdateLook;
 
   function closeModal() {
     if (!openOverlay) return;
@@ -853,10 +846,6 @@
   const CARDS = () => (window.XenonStartupCards || null);
   function dismissedWhatsNew(id) { const c = CARDS(); return c ? c.whatsNewDismissed(id) : true; }
   function rememberWhatsNew(id) { const c = CARDS(); if (c) c.rememberWhatsNew(id); }
-  const notice = () => window.XenonReleaseNotice;
-
-  // Text fields may be a plain string or a { <lang>: string } map.
-  const pickLang = (v) => notice().localText(v, document.documentElement.lang);
 
   async function loadWhatsNew() {
     try {
