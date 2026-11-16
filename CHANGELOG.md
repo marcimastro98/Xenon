@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [v5.1.1] - 16-11-2026
+
 ### 🐛 Fixed
 - **An app's microphone slider moves only its microphone.** In the Microphone mixer, turning down Discord (or any app that also plays sound) turned down its sound in the Volume mixer too, and the other way round. Each slider and mute button now changes only its own side, on Windows and Linux. Deck keys and the music tile change the app's sound, as before.
 - **Xenon says when Discord refuses your app's Client Secret.** If the secret was reset in the Discord Developer Portal, Xenon could no longer renew the login, and the Discord widgets said "Discord not active, open Discord" while Discord was open. Now the widgets show Discord as not connected, and Settings → Streaming → Discord says the secret was refused and how to replace it. Save the new secret under Edit credentials and the same login works again, with no new link to approve.
