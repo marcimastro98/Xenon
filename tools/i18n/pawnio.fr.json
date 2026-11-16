@@ -1,7 +1,7 @@
 {
   "fr": {
     "meta.title": "PawnIO, c'est quoi ? Le pilote qui lit la température du CPU",
-    "meta.desc": "PawnIO est un pilote Windows signé de namazso que les moniteurs matériels utilisent à la place de WinRing0. Son rôle, pourquoi Xenon l'installe et comment le supprimer.",
+    "meta.desc": "PawnIO est un pilote Windows signé, de namazso, qui remplace WinRing0 dans les outils de monitoring. Son rôle, pourquoi Xenon l'installe, comment l'enlever.",
     "pio.h1": "PawnIO",
     "pio.lede": "Si vous avez trouvé PawnIO parmi vos pilotes, dans une invite d’installation ou dans un message anti-cheat, cette page explique ce que c’est, quelles applications l’utilisent et ce que Xenon en fait.",
     "pio.updated": "Dernière mise à jour : 8 novembre 2026",
@@ -31,7 +31,7 @@
     "pio.faq.need.q": "Ai-je besoin de PawnIO ?",
     "pio.faq.need.a": "Seulement pour les températures dans une app qui l’utilise. Xenon fonctionne sans ; seules les mesures de température manquent.",
     "pio.faq.who.q": "Qui est à l'origine de PawnIO ?",
-    "pio.faq.who.a": "namazso, un développeur indépendant. Il n'est pas fait par Xenon, CORSAIR ou Microsoft.",
+    "pio.faq.who.a": "namazso, un développeur indépendant. Il n'est fait ni par Xenon, ni par CORSAIR, ni par Microsoft.",
     "pio.card.h": "Xenon, le dashboard",
     "pio.card.p": "Xenon transforme un moniteur de rechange, une tablette, votre téléphone ou un CORSAIR Xeneon Edge en panneau de contrôle tactile pour votre PC, avec les températures en direct parmi ses widgets. C'est gratuit et ne nécessite pas de compte. <a href=\"/\">Voyez ce qu'il fait</a>, ou lisez <a href=\"xenon-exe.html\">ce que Xenon exécute sous Windows</a>.",
     "ld.q.virus": "PawnIO est-il un virus ?",

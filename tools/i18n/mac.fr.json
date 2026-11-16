@@ -47,7 +47,7 @@
     "mac.setup.p4": "Les mises à jour fonctionnent comme sous Windows : la nouvelle version est d'abord téléchargée et vérifiée, et l'ancienne est rétablie si la nouvelle ne démarre pas.",
     "mac.setup.zip": "Vous préférez ne pas ouvrir de fenêtre d'application ? Téléchargez l'archive zip du code source depuis <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la version publiée</a>, extrayez-la et double-cliquez sur <code>INSTALL.command</code>. Le dashboard est identique, mais sans l'application, les dossiers protégés par macOS restent inaccessibles.",
     "mac.h.works": "Ce qui fonctionne sur un Mac",
-    "mac.works.p": "Tout ce que votre Mac ne peut pas faire est masqué, plutôt qu’offert puis en échec : une touches du Deck qui ne peut pas fonctionner n’apparaît pas dans l’éditeur, et une tuile sans source de données l’indique.",
+    "mac.works.p": "Tout ce que votre Mac ne peut pas faire est masqué, plutôt qu’offert puis en échec : une touche du Deck qui ne peut pas fonctionner n’apparaît pas dans l’éditeur, et une tuile sans source de données l’indique.",
     "mac.th.area": "Fonctionalité",
     "mac.th.status": "Sur un Mac",
     "mac.row.dash": "Dashboard, tuiles, thèmes, catalogue, widget SDK",
