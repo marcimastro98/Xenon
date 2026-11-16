@@ -211,7 +211,6 @@
         "server/stream-config.example.json",
         "server/actions/obs*.js",
         "server/actions/streamerbot*.js",
-        "server/js/streaming-page.js",
         "server/js/streaming-page/**",
         "server/components/TwitchPanel/**",
         "server/components/TwitchWatchWidget/**",

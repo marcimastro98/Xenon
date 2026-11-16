@@ -75,7 +75,7 @@ test('the state words are translated in every language the app ships', () => {
   const obs = read('../js/streaming/obs-widget.js');
   assert.match(obs, /t\('stream_live', 'Live'\)/);
   assert.match(obs, /t\('obs_recording', 'Recording'\)/);
-  for (const file of ['../js/streaming/obs-widget.js', '../js/streaming-page.js', '../js/streaming/youtubelive-widget.js']) {
+  for (const file of ['../js/streaming/obs-widget.js', '../js/streaming-page/streaming-page.js', '../js/streaming/youtubelive-widget.js']) {
     assert.doesNotMatch(read(file), /'(?:LIVE|REC)'/, `${file}: no word in capitals by hand`);
   }
 });
@@ -163,7 +163,7 @@ test('YouTube Live chat roles take darker shades on a light surface', () => {
 
 test('a viewer\'s name colour reaches the CSS as a variable, made readable on light surfaces', () => {
   for (const [js, css, cls] of [
-    ['../js/streaming-page.js', '../components/TwitchPanel/TwitchPanel.css', 'twitch-chat-user'],
+    ['../js/streaming-page/streaming-page.js', '../components/TwitchPanel/TwitchPanel.css', 'twitch-chat-user'],
     ['../js/streaming/twitchwatch-widget.js', '../components/TwitchWatchWidget/TwitchWatchWidget.css', 'tww-chat-user'],
   ]) {
     const src = read(js);

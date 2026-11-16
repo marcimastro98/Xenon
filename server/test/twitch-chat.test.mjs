@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { parseIrcLines, anonNick, MAX_TEXT } = require('../js/streaming/twitch-chat.js');
 
-// This parser had shipped for versions inside js/streaming-page.js with no test
+// This parser had shipped for versions inside js/streaming-page/streaming-page.js with no test
 // at all, and it was about to be copied a second time into the watching widget.
 // It is now shared, so it is worth pinning: the lines below are the real shapes
 // Twitch sends, and every one of them has a way of going quietly wrong (a colon

@@ -29,7 +29,7 @@ function cut(src, start, endMarker = '\n  }\n') {
 // ── streaming logins ──────────────────────────────────────────────────────
 
 function loginHelpers(fetchImpl) {
-  const src = read('../js/streaming-page.js');
+  const src = read('../js/streaming-page/streaming-page.js');
   const code = cut(src, '  async function postLogin(') + cut(src, '  function genericLoginError(') + cut(src, '  function rpcLoginError(');
   return new Function('fetch', 't', code + '\nreturn { postLogin, genericLoginError, rpcLoginError };')(fetchImpl, T);
 }
@@ -60,7 +60,7 @@ test('a JSON answer is read as it is, and every code has words', async () => {
 });
 
 test('Twitch and YouTube get the same reason, and so does Spotify', () => {
-  const src = read('../js/streaming-page.js');
+  const src = read('../js/streaming-page/streaming-page.js');
   assert.match(src, /const r = await postLogin\(cfg\.base \+ '\/login'\);\n    if \(!r \|\| !r\.ok\) \{ btn\.disabled = false; setNote\(card, genericLoginError\(r\)\); return; \}/);
   assert.doesNotMatch(src, /setNote\(card, t\('streaming_error', 'Could not start login\. Try again\.'\)\)/, 'no bare generic note left');
   const sp = read('../js/media/spotify-settings.js');

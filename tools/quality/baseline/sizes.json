@@ -93,7 +93,7 @@
     "server/js/smart-home.js": 1376,
     "server/js/spotlight.js": 1103,
     "server/js/store-supporters/trial-pass-ui.js": 414,
-    "server/js/streaming-page.js": 666,
+    "server/js/streaming-page/streaming-page.js": 666,
     "server/js/streaming/twitchwatch-widget.js": 1071,
     "server/js/streaming/youtube-widget.js": 858,
     "server/js/streaming/youtubelive-widget.js": 588,

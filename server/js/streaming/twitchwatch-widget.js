@@ -4,7 +4,7 @@
 // and a search. Tap a channel and it plays in the tile. An optional chat card
 // shows that channel's chat beside it.
 //
-// It is deliberately a SEPARATE widget from js/streaming-page.js's Twitch tile,
+// It is deliberately a SEPARATE widget from js/streaming-page/streaming-page.js's Twitch tile,
 // which is the streamer's side: going live, clipping, markers, ads, chat modes.
 // Those two have nothing to do with each other except the account they read, and
 // the same split already happened on the YouTube side for the same reason.

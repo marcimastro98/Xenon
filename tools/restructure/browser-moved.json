@@ -264,6 +264,7 @@
     {"from":"server/js/installed-manager.js","to":"server/js/installed-manager/installed-manager.js"},
     {"from":"server/js/claude-widget.js","to":"server/js/claude-widget/claude-widget.js"},
     {"from":"server/js/codex-widget.js","to":"server/js/codex-widget/codex-widget.js"},
-    {"from":"server/js/discord-widget.js","to":"server/js/discord-widget/discord-widget.js"}
+    {"from":"server/js/discord-widget.js","to":"server/js/discord-widget/discord-widget.js"},
+    {"from":"server/js/streaming-page.js","to":"server/js/streaming-page/streaming-page.js"}
   ]
 }
