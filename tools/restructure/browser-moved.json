@@ -267,6 +267,12 @@
     {"from":"server/js/discord-widget.js","to":"server/js/discord-widget/discord-widget.js"},
     {"from":"server/js/streaming-page.js","to":"server/js/streaming-page/streaming-page.js"},
     {"from":"server/js/remote-control.js","to":"server/js/remote-control/remote-control.js"},
-    {"from":"server/js/spotlight.js","to":"server/js/spotlight/spotlight.js"}
+    {"from":"server/js/spotlight.js","to":"server/js/spotlight/spotlight.js"},
+    {"from":"server/js/capture-annotate-model.js","to":"server/js/capture/capture-annotate-model.js"},
+    {"from":"server/js/capture-annotate.js","to":"server/js/capture/capture-annotate.js"},
+    {"from":"server/js/capture-export-view.js","to":"server/js/capture/capture-export-view.js"},
+    {"from":"server/js/capture-gallery.js","to":"server/js/capture-gallery/capture-gallery.js"},
+    {"from":"server/js/capture-toast.js","to":"server/js/capture-toast/capture-toast.js"},
+    {"from":"server/js/capture-transcript-view.js","to":"server/js/capture/capture-transcript-view.js"}
   ]
 }

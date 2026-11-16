@@ -1,4 +1,4 @@
-// The Gallery over the whole screen (js/capture-gallery.js with its viewer, trim, export and
+// The Gallery over the whole screen (js/capture-gallery/capture-gallery.js with its viewer, trim, export and
 // editor): the rail, the states of the page, one Esc per layer, Space, which key sits where,
 // and every layer letting go of the keyboard while it is still in the page.
 import { test } from 'node:test';
@@ -8,8 +8,8 @@ import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const SCRIPTS = ['capture/capture-gallery-model', 'capture-annotate-model', 'capture/capture-gallery-viewer',
-  'capture-export-view', 'capture-annotate', 'capture-gallery'].map((name) => read(`../js/${name}.js`));
+const SCRIPTS = ['capture/capture-gallery-model', 'capture/capture-annotate-model', 'capture/capture-gallery-viewer',
+  'capture/capture-export-view', 'capture/capture-annotate', 'capture-gallery/capture-gallery'].map((name) => read(`../js/${name}.js`));
 
 const capture = (id, kind, game, daysAgo = 0) => ({
   id, kind, name: id, game, createdAt: Date.now() - daysAgo * 86400000,

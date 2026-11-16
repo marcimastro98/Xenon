@@ -176,7 +176,7 @@ test('the dashboard reads ?open= once, after its scripts, and drops it from the 
   assert.match(src, /hasAttribute\('data-shell-driver'\)/, 'the driver never runs it on itself');
   const html = read('../index.html');
   const at = (f) => html.indexOf('<script src="js/' + f + '"></script>');
-  assert.ok(at('update.js') < at('grid/dashboard-open.js') && at('capture-gallery.js') < at('grid/dashboard-open.js'));
+  assert.ok(at('update.js') < at('grid/dashboard-open.js') && at('capture-gallery/capture-gallery.js') < at('grid/dashboard-open.js'));
 });
 
 test('the countdown card: built once for both surfaces, on the dashboard too', () => {

@@ -192,7 +192,7 @@ test('wired: server, Settings, the toast and the replay notice', () => {
   assert.match(server, /_autoClips\.stop\(\)/);
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /id="settings-replay-clips"[^>]*CaptureSettingsPane\.set\('replayClips'/);
-  const toast = readFileSync(new URL('../js/capture-toast.js', import.meta.url), 'utf8');
+  const toast = readFileSync(new URL('../js/capture-toast/capture-toast.js', import.meta.url), 'utf8');
   assert.match(toast, /d\.auto === 'stutter'\) return;/);
   assert.match(toast, /replay_clip_saved/);
   const replay = readFileSync(new URL('../screens/replay.js', import.meta.url), 'utf8');

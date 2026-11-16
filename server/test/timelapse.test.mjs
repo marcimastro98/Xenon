@@ -200,7 +200,7 @@ function toast() {
     isLayerPage: () => false,
   };
   vm.createContext(sandbox);
-  vm.runInContext(readFileSync(new URL('../js/capture-toast.js', import.meta.url), 'utf8'), sandbox);
+  vm.runInContext(readFileSync(new URL('../js/capture-toast/capture-toast.js', import.meta.url), 'utf8'), sandbox);
   return { C: window.CaptureToast, shown, calls };
 }
 

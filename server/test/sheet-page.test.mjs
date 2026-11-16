@@ -131,7 +131,7 @@ test('a sheet is quiet like a layer page, and only the exact address is one', ()
 });
 
 test('what a sheet must keep doing: toasts, the gallery, placing what was installed, and no widget frames', () => {
-  for (const f of ['alerts/toast.js', 'capture-gallery.js', 'store-catalog/place-installed.js']) {
+  for (const f of ['alerts/toast.js', 'capture-gallery/capture-gallery.js', 'store-catalog/place-installed.js']) {
     assert.match(read('../js/' + f), /isLayerPage\(\) && !isSheetPage\(\)/, f);
   }
   const widgets = read('../js/custom-widget.js');

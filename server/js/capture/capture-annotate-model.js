@@ -1,5 +1,5 @@
 'use strict';
-// The screenshot editor's pure parts (js/capture-annotate.js draws them): the
+// The screenshot editor's pure parts (js/capture/capture-annotate.js draws them): the
 // shapes a user adds, in the PICTURE's own pixels, and how each is painted on a
 // 2D canvas. The same `paint` draws the preview and the saved PNG, so what the
 // user sees is what gets written.

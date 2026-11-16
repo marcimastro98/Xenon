@@ -1,4 +1,4 @@
-/* The screenshot editor (js/capture-annotate.js), over the gallery's viewer and
+/* The screenshot editor (js/capture/capture-annotate.js), over the gallery's viewer and
    loaded with it the first time "Edit" is pressed. Its tokens are the viewer's. */
 .cann {
   position: absolute; inset: 0; z-index: 5;

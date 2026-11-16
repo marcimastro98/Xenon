@@ -259,7 +259,6 @@
         "server/screens/**",
         "server/ffmpeg-install/**",
         "server/js/capture-toast/**",
-        "server/js/capture-*.js",
         "server/js/capture-gallery/**",
         "server/components/CaptureGallery/**",
         "server/js/capture/**"

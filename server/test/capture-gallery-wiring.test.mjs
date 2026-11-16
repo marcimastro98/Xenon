@@ -23,7 +23,7 @@ test('index.html: the stylesheet, the scripts in order, the Settings card', () =
   const html = read('index.html');
   assert.ok(html.includes('href="components/CaptureGallery/CaptureGallery.css"'));
   const at = f => html.indexOf(`<script src="js/${f}"></script>`);
-  const order = ['capture-toast.js', 'capture/capture-gallery-model.js', 'capture/capture-gallery-viewer.js', 'capture-gallery.js'].map(at);
+  const order = ['capture-toast/capture-toast.js', 'capture/capture-gallery-model.js', 'capture/capture-gallery-viewer.js', 'capture-gallery/capture-gallery.js'].map(at);
   assert.ok(order.every(i => i > 0), 'every script is loaded');
   assert.deepEqual(order, order.slice().sort((a, b) => a - b), 'in this order');
   const card = html.slice(html.indexOf('id="settings-capture-gallery"'), html.indexOf('id="settings-capture-shots"'));
@@ -73,7 +73,7 @@ test('CaptureGallery.css and the viewer: 44 px keys, no arrows while trimming', 
 // Item 24: a screenshot is pinned from the viewer by its id, only on the PC
 // where the shell draws layers; deleting it takes its pins away.
 test('the viewer pins a picture by id where the server says it can; delete unpins', () => {
-  const gallery = read('js/capture-gallery.js');
+  const gallery = read('js/capture-gallery/capture-gallery.js');
   assert.match(gallery, /g\.pinnable = r\.pinnable === true;/);
   assert.match(gallery, /pinnable: g\.pinnable === true && !window\.__xenonRemote,/);
   const viewer = read('js/capture/capture-gallery-viewer.js');
@@ -93,7 +93,7 @@ test('the viewer pins a picture by id where the server says it can; delete unpin
 test('the viewer shows Trim, Copy, Export, Transcript and "Find private data" only where the engine has them', () => {
   const server = engineSource();
   assert.match(server, /can: \{\n\s+trim: _captureHost\.has\('trim'\),\n\s+copy: _captureHost\.has\('copy_files'\),\n\s+export: _captureHost\.has\('export'\),\n\s+cover: _captureHost\.has\('cover'\),\n\s+speech: _captureHost\.has\('speech'\),\n\s+\},/);
-  const gallery = read('js/capture-gallery.js');
+  const gallery = read('js/capture-gallery/capture-gallery.js');
   assert.match(gallery, /g\.can = engineCan\(r\.can\);/);
   assert.match(gallery, /export: o\.export !== false, cover: o\.cover !== false, speech: o\.speech !== false,\n\s+trim: o\.trim !== false, copy: o\.copy !== false,/);
   assert.match(gallery, /can: g\.can,/);
@@ -105,6 +105,6 @@ test('the viewer shows Trim, Copy, Export, Transcript and "Find private data" on
   assert.match(viewer, /if \(can\.export\) actions\.appendChild\(btn\(tr\('capg_exp_button', 'Export'\), '', startExport\)\);/);
   assert.match(viewer, /if \(can\.speech \|\| e\.transcript\) actions\.appendChild\(wordsButton\(\)\);/);
   assert.match(viewer, /canFind: can\.cover,/);
-  const annotate = read('js/capture-annotate.js');
+  const annotate = read('js/capture/capture-annotate.js');
   assert.match(annotate, /if \(o\.canFind !== false\) lower\.append\(find\);/);
 });

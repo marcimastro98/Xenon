@@ -1,4 +1,4 @@
-// js/capture-toast.js: "Screenshot saved" / "Recording saved" with "Show", and
+// js/capture-toast/capture-toast.js: "Screenshot saved" / "Recording saved" with "Show", and
 // the "Recording" card while one runs. Pinned here: the game names the toast
 // without ".exe", outside a game it says Screenshot, a layer window stays
 // quiet, other kinds are ignored, "Show" asks the server to reveal the last
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import vm from 'node:vm';
 
-const SRC = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'capture-toast.js'), 'utf8');
+const SRC = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'capture-toast/capture-toast.js'), 'utf8');
 
 function load({ layer = false, gallery = null, model = null } = {}) {
   const shown = [];

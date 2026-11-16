@@ -37,7 +37,7 @@
     "server/js/audio/wavelink-widget.js": 453,
     "server/js/browser-tile.js": 1154,
     "server/js/capabilities/capability-catalog.js": 1339,
-    "server/js/capture-annotate.js": 375,
+    "server/js/capture/capture-annotate.js": 375,
     "server/js/capture/capture-gallery-viewer.js": 546,
     "server/js/claude-widget/claude-widget.js": 2209,
     "server/js/codex-widget/codex-widget.js": 828,

@@ -1,5 +1,5 @@
 'use strict';
-// The gallery's pure parts (js/capture-gallery.js draws them): captures
+// The gallery's pure parts (js/capture-gallery/capture-gallery.js draws them): captures
 // grouped by day, the times on the trim bar, the trim range the handles allow,
 // and the words for an error code. No DOM, so node:test runs it as is.
 (function () {

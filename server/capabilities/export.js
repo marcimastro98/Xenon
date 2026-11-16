@@ -3,7 +3,7 @@
 // the voice: "make the last clip vertical for TikTok", "compress it for
 // Discord", "make a GIF of it". The copy takes seconds to a minute, so the
 // action answers at once and the screen follows over SSE `capture_export`
-// (js/capture-toast.js); Bit's turn waits for the end through `waitFor`
+// (js/capture-toast/capture-toast.js); Bit's turn waits for the end through `waitFor`
 // (server.js), so it can say how big the copy came out.
 //
 // deps.capture: store() → captures.js, exports() → capture-export.js.

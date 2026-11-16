@@ -36,7 +36,7 @@ const namesFolder = (text, file) => new RegExp(`['"\`/]${escaped(path.posix.base
 
 /**
  * @param {string} text a file's text, comments blanked out
- * @param {string} file repo-relative script (`server/js/capture-gallery.js`)
+ * @param {string} file repo-relative script (`server/js/capture-gallery/capture-gallery.js`)
  * @returns {number[]} the lines where the script's name stands without its ending as a whole string, in a text
  *   that builds names ending in .js under a folder the script could be in; none when the text builds no such name
  */

@@ -1,15 +1,15 @@
 'use strict';
-// The gallery's viewer (js/capture-gallery.js opens it over its grid): one
+// The gallery's viewer (js/capture-gallery/capture-gallery.js opens it over its grid): one
 // capture full size, ←/→ through the list, Space plays or pauses, Esc back to
 // the grid.
-//   PC:    Trim (videos), Edit (pictures: js/capture-annotate.js, loaded on
+//   PC:    Trim (videos), Edit (pictures: js/capture/capture-annotate.js, loaded on
 //          first use), Copy (the file, as Explorer copies it), Show in folder,
 //          Delete (a second tap confirms).
 //   Phone: Download, and new copies (Trim, Export, Transcript); Copy, Show in
 //          folder and Delete act on the PC's files and stay the PC's.
-//   Videos: Transcript (js/capture-transcript-view.js, loaded on first use):
+//   Videos: Transcript (js/capture/capture-transcript-view.js, loaded on first use):
 //          written down on the PC, from it or a phone. Export (
-//          js/capture-export-view.js): a vertical, smaller or GIF copy.
+//          js/capture/capture-export-view.js): a vertical, smaller or GIF copy.
 // Trim: two handles on a bar under the video, each seeking the video to where
 // it is; "Save trimmed copy" writes a NEW capture beside the original (the
 // engine copies the streams from the keyframe at or before the start, so it is
@@ -29,7 +29,7 @@
     stutter: S0 + '<path d="M3 12h4l2-6 3 12 2-6h7"/></svg>',
   };
   const DELETE_ARM_MS = 4000;
-  const EDITOR_FILES = ['js/capture-annotate-model.js', 'js/capture-annotate.js'];
+  const EDITOR_FILES = ['js/capture/capture-annotate-model.js', 'js/capture/capture-annotate.js'];
   let editorLoad = null;
   const scripts = new Map(); // src → Promise<boolean>
 
@@ -47,8 +47,8 @@
     }
     return scripts.get(src);
   }
-  const loadTranscript = () => loadScript('js/capture-transcript-view.js', () => !!window.CaptureTranscript);
-  const loadExport = () => loadScript('js/capture-export-view.js', () => !!window.CaptureExport);
+  const loadTranscript = () => loadScript('js/capture/capture-transcript-view.js', () => !!window.CaptureTranscript);
+  const loadExport = () => loadScript('js/capture/capture-export-view.js', () => !!window.CaptureExport);
 
   // The editor's script and style, once per page; false when they fail.
   function loadEditor() {

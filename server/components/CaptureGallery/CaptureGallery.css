@@ -1,4 +1,4 @@
-/* The gallery of captures (js/capture-gallery.js, js/capture/capture-gallery-viewer.js), over the
+/* The gallery of captures (js/capture-gallery/capture-gallery.js, js/capture/capture-gallery-viewer.js), over the
    whole screen. Frame, rail and page are the Store's (CommunityStore.css), so it looks the
    same under every skin; only what is the gallery's own lives here. The keys are its own
    too: .ui-btn would take each skin's look. */

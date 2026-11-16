@@ -1,4 +1,4 @@
-// js/capture-annotate-model.js: the screenshot editor's shapes and painting.
+// js/capture/capture-annotate-model.js: the screenshot editor's shapes and painting.
 // Pinned here: a drag makes a shape inside the picture (any corner order), a
 // tap makes none; a cover is always black and carries no colour; the engine's
 // spots become covers once; a tap finds the topmost mark; undo takes back one
@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const A = require('../js/capture-annotate-model.js');
+const A = require('../js/capture/capture-annotate-model.js');
 
 const SIZE = { width: 1920, height: 1080 };
 const RED = A.COLORS[0];
@@ -116,7 +116,7 @@ test('every tool paints; save() asks for a PNG of the picture\'s own size', () =
     { tool: 'text', color: RED, text: 'hi', x: 0, y: 0 },
   ], SIZE);
   for (const k of ['stroke', 'fill', 'strokeRect', 'fillText']) assert.ok(ctx.calls.some(c => c[0] === k), k);
-  const editor = readFileSync(new URL('../js/capture-annotate.js', import.meta.url), 'utf8');
+  const editor = readFileSync(new URL('../js/capture/capture-annotate.js', import.meta.url), 'utf8');
   assert.match(editor, /out\.width = size\.width;\s+out\.height = size\.height;/);
   assert.match(editor, /toBlob\(resolve, 'image\/png'\)/);
   assert.match(editor, /'\/captures\/save\?id=' \+ encodeURIComponent\(o\.entry\.id\)/);
@@ -128,7 +128,7 @@ test('the viewer loads the editor only when Edit is pressed, pictures only', () 
   const viewer = readFileSync(new URL('../js/capture/capture-gallery-viewer.js', import.meta.url), 'utf8');
   // Screenshots only: a GIF copy is a picture too, but the editor saves a PNG.
   assert.match(viewer, /if \(e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('capg_edit', 'Edit'\), 'is-main', edit\)\);/);
-  assert.match(viewer, /'js\/capture-annotate-model\.js', 'js\/capture-annotate\.js'/);
+  assert.match(viewer, /'js\/capture\/capture-annotate-model\.js', 'js\/capture\/capture-annotate\.js'/);
   assert.match(viewer, /if \(editor \|\| trim \|\| exporting\) return; \/\/ they have their own keys/);
   const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.doesNotMatch(index, /capture-annotate/, 'not in the page until used');

@@ -143,5 +143,5 @@ test('wired everywhere: catalog, route at the PC only, gallery button', () => {
   assert.match(engineSource('server/remote-access.js'), /'\/captures\/send',/, 'REMOTE_DENY');
   assert.match(server, /sendable: transferEnabled\(\) && remoteAccess\.count\(\) > 0/);
   assert.match(read('js/capture/capture-gallery-viewer.js'), /if \(o\.sendable\) actions\.appendChild\(btn\(tr\('capg_send'/);
-  assert.match(read('js/capture-gallery.js'), /sendable: g\.sendable === true && !window\.__xenonRemote/);
+  assert.match(read('js/capture-gallery/capture-gallery.js'), /sendable: g\.sendable === true && !window\.__xenonRemote/);
 });
