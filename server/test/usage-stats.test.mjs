@@ -71,6 +71,18 @@ test('the registry counts each capability run by type, failures included, withou
   assert.deepEqual(await throwing.run({ type: 'perfStats' }), { ok: true }, 'a broken counter never fails the action');
 });
 
+test('a request asked wrong is a use, not a failure; a real failure still counts', () => {
+  for (const error of ['bad_screen', 'unknown_scene', 'needs_scene', 'ambiguous']) {
+    usage.recordCapability({ type: 'desktopScene' }, { ok: false, error, choices: ['Classic'] });
+  }
+  usage.recordCapability({ type: 'desktopScene' }, { ok: false, error: 'failed' });
+  usage.recordCapability({ type: 'desktopScene' }, { ok: false, error: 'unavailable' });
+  usage.recordCapability({ type: 'desktopScene' }, null);
+  // A code that only looks like one of them is still a failure.
+  usage.recordCapability({ type: 'desktopScene' }, { ok: false, error: 'not_bad_screen' });
+  assert.deepEqual(usage._snapshot(), { 'cap.desktopScene': { n: 8, err: 4 } });
+});
+
 test('a placed layer widget also counts by where it went', () => {
   usage.recordCapability({ type: 'layerPlace', widget: 'My private notes' }, { ok: true, placed: { surface: 'overlay', widget: 'notes' } });
   usage.recordCapability({ type: 'layerPlace' }, { ok: true, placed: { surface: 'desktop' } });
@@ -78,7 +90,8 @@ test('a placed layer widget also counts by where it went', () => {
   // Attached to an app: neither surface the hub counts, so only the run itself.
   usage.recordCapability({ type: 'layerPlace' }, { ok: true, placed: { surface: 'anchor' } });
   assert.deepEqual(usage._snapshot(), {
-    'cap.layerPlace': { n: 4, err: 1 },
+    // unknown_widget was a request for a widget that is not there: a use, not a failure.
+    'cap.layerPlace': { n: 4, err: 0 },
     'layer.place.overlay': { n: 1, err: 0 },
     'layer.place.desktop': { n: 1, err: 0 },
   });

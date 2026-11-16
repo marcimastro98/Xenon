@@ -12,7 +12,6 @@ const { checkLatestRelease } = require('./latest-release.js');
 const { semverNewer } = require('./semver.js');
 const versionPing = require('./version-ping.js');
 const { hub } = require('../settings/current.js');
-const { settingsBoot } = require('../settings/boot-state.js');
 const supporterRedeem = require('../store-supporters/supporter-redeem.js');
 const usageStats = require('../engine/usage-stats.js');
 
@@ -132,7 +131,7 @@ const branches = {
     } catch (e) { err500(e.message); }
   },
 
-  'GET /update/check': async (_req, _res, { json, err500, urlObj }) => {
+  'GET /update/check': async (_req, _res, { json, err500, urlObj }, { FRESH_INSTALL }) => {
     // Latest released version vs the running one (probed at most daily,
     // fail-silent — offline simply reports no update). `?force=1` bypasses the
     // cache for the manual "check now" button.
@@ -156,7 +155,9 @@ const branches = {
         version: APP_VERSION,
         enabled: !!(hub.settings && hub.settings.versionPing === true),
         // Only a birth observed at boot may produce a cohort — see version-ping.js.
-        fresh: settingsBoot.fileMissing,
+        // FRESH_INSTALL, not the boot settings read: seedFreshInstall() writes
+        // settings.json before that read, so it called every new install old.
+        fresh: FRESH_INSTALL,
         // Already normalized on both sides (WEATHER_LANGS here, SUPPORTED_LANGS in
         // js/settings/settings.js), so reading it costs nothing and adds no new key.
         lang: (hub.settings && hub.settings.language) || '',

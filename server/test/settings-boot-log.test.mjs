@@ -77,13 +77,19 @@ test('a later startup failure is not reported as an unreadable store', () => {
   assert.match(tail, /a startup step after it failed/, 'and get different sentences');
 });
 
-// version-ping counts a birth from ENOENT alone (see version-ping.js). Feeding
-// a read ERROR into that same null would call every unreadable store a fresh
-// install and bend the retention curve permanently — so the boot read must stay
-// un-flattened.
-test('an unreadable store is never counted as a fresh install', () => {
-  const line = CHAIN.match(/_settingsFileMissingAtBoot = \(s === null\);/);
-  assert.ok(line, 'the fresh-install signal is still ENOENT-only');
-  assert.doesNotMatch(CHAIN.slice(0, CHAIN.indexOf('.then(')), /catch\(\(\) => null\)/,
-    'the boot read is not flattened to null before that test');
+// The version ping counts a birth only from an install seen being created. From
+// 5.0 seedFreshInstall() writes settings.json before the boot read, so "no
+// settings file at that read" stopped being true for every new install, and the
+// hub saw none from 10 Nov 2026. The signal is FRESH_INSTALL: read synchronously
+// before anything writes, ENOENT-only (welcome-sparks.js isFreshDataDir).
+test('the version ping takes its birth from FRESH_INSTALL, not the boot read', () => {
+  assert.match(SERVER, /versionPing\.maybePing\(\{[\s\S]{0,600}?fresh: FRESH_INSTALL,/,
+    'the ping is told about a new install by the signal read before any write');
+  assert.doesNotMatch(SERVER, /_settingsFileMissingAtBoot/,
+    'the flag read after seedFreshInstall() is gone');
+  const seed = SERVER.slice(SERVER.indexOf('async function seedFreshInstall()'));
+  assert.match(seed.slice(0, seed.indexOf('\n}\n')), /versionPing\.noteBirth\(DATA_DIR\)/,
+    'the new install writes its birth down, so a restarted engine still reports it');
+  assert.ok(SERVER.indexOf('const FRESH_INSTALL') < SERVER.indexOf('seedFreshInstall()\n'),
+    'FRESH_INSTALL is read before the seed writes settings');
 });

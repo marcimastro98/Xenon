@@ -420,6 +420,7 @@ const aiLocalServer = require('./ai/ai-local-server');
 const aiAnthropic = require('./ai/ai-anthropic');
 const aiXenon = require('./store-supporters/ai-xenon-credits');
 const welcomeSparks = require('./store-supporters/welcome-sparks');
+const versionPing = require('./updates/version-ping.js');
 require('./ai/ai-creation-labels'); // nothing is taken from it here, but deck/tools.js asks for it inside a function and would read it from disk then
 const aiTurns = require('./ai/ai-turns');
 const aiMyWidgets = require('./ai/ai-my-widgets');
@@ -2900,8 +2901,6 @@ const { _pcControlEnabled } = require('./ai/pc-control-switch.js');
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
 // must not hit the disk that often. Populated at startup and on every POST.
 hub.settings = { ...DEFAULT_HUB_SETTINGS };
-
-const { settingsBoot } = require('./settings/boot-state.js');
 
 const { gameSessionsEnabled } = require('./performance/game-sessions-switch.js');
 
@@ -5521,9 +5520,9 @@ const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
 // The names of this file the tables of routes are handed (feature-routes.js),
 // read once, at the first request. tools/restructure/dispatch-move.mjs writes the list.
 const routeHands = () => ({
-  AI_MODELS, BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, PORT, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, TRANSFER_UNDO_MS,
-  _aiPerformancePlan, _audioToWav16k, _captureCovers, _captureExport, _captureFolder, _captureGallery, _captureHost, _captures,
-  _chatgptAsker, _chatgptPayload, _chatgptStore, _claudeAttach, _claudeBridge, _claudeBridgeAuth, _claudeCommands, _claudeFresh,
+  AI_MODELS, BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, FRESH_INSTALL, PORT, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME,
+  TRANSFER_UNDO_MS, _aiPerformancePlan, _audioToWav16k, _captureCovers, _captureExport, _captureFolder, _captureGallery, _captureHost,
+  _captures, _chatgptAsker, _chatgptPayload, _chatgptStore, _claudeAttach, _claudeBridge, _claudeBridgeAuth, _claudeCommands, _claudeFresh,
   _claudeHistory, _claudeHoldPermission, _claudeInbox, _claudeLinkStatus, _claudeModReply, _claudeRunner, _codexApp, _codexBridge,
   _codexBridgeAuth, _codexChanged, _codexLinkStatus, _codexPayload, _deckConfirms, _deskPageSync, _dropRemoteSockets, _footballPayload,
   _gameSessions, _geminiOneShot, _loadFootballInfo, _menuHotkey, _peerIp, _perfStream, _persistLighting, _processesHistory,
@@ -6770,6 +6769,8 @@ async function seedFreshInstall() {
     if (await readHubSettings()) return;
     await writeHubSettings({ ...DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku' });
     await welcomeSparks.markPending(DATA_DIR);
+    // Kept on disk: an engine restarted before the first update check still knows.
+    await versionPing.noteBirth(DATA_DIR);
     startupLog.write('settings: new install, starting on Bit');
   });
 }
@@ -6866,13 +6867,6 @@ function _startListen(host) {
     let settingsBootRead = false;
     readHubSettings().then(s => {
       settingsBootRead = true;
-      // readHubSettings() answers null on ENOENT, and that is the ONE honest
-      // signal that this is a genuinely fresh install rather than an existing one
-      // whose owner just switched the version ping on. It has to be captured HERE,
-      // at boot: by the time the first ping fires, an old install always has the
-      // file, so asking then would call every late opt-in a new install and
-      // corrupt the retention curve permanently. See version-ping.js.
-      settingsBoot.fileMissing = (s === null);
       if (s) hub.settings = s;
       // Which store this process is actually running on, written down where a
       // person can read it. Reported on Discord as "my whole layout is back to
