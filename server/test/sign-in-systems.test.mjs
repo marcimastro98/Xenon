@@ -73,10 +73,12 @@ test("Task Manager's switch for a Run entry is read from its first byte", () => 
   assert.equal(P.runEntryOff('', 'Xenon'), false, 'no value: nobody touched the switch');
 });
 
-test('the time a Mac booted is read from what sysctl prints', () => {
-  assert.equal(P.bootSeconds('{ sec = 1700000000, usec = 123456 } Tue Nov 14 22:13:20 2023\n'), '1700000000');
-  assert.equal(P.bootSeconds(''), '');
-  assert.equal(P.bootSeconds('sysctl: unknown oid'), '');
+test('the id of a Mac boot is read from what sysctl prints, and nothing else passes for one', () => {
+  assert.equal(P.bootSession('5D2C2B0A-1111-4222-8333-123456789ABC\n'), '5d2c2b0a-1111-4222-8333-123456789abc');
+  assert.equal(P.bootSession(''), '');
+  assert.equal(P.bootSession('sysctl: unknown oid'), '');
+  assert.equal(P.bootSession('{ sec = 1700000000, usec = 123456 } Tue Nov 14 22:13:20 2023\n'), '', 'the time of the boot is not its id');
+  assert.equal(P.bootSession('5D2C2B0A-1111-4222-8333-123456789ABC\nmore\n'), '');
 });
 
 const IN_UNIT = '0::/user.slice/user-1000.slice/user@1000.service/app.slice/xenon-backend.service\n';
@@ -112,10 +114,12 @@ test('a desktop entry switched off by the desktop is read as off', () => {
 test('Windows: the sign-in is the moment the session began, and the start is measured from it', async () => {
   const logonAt = 116444736000000000n + 10000n * 1_800_000_000_000n;   // some moment in 2027
   const logonMs = P.filetimeToMs(logonAt);
-  assert.deepEqual(await win.signIn({ startedAtMs: logonMs + 90_000, logon: async () => logonAt }),
+  // The PC booted hours before, so only the sign-in time is measured against.
+  const sinceBootMs = 6 * 3600_000;
+  assert.deepEqual(await win.signIn({ startedAtMs: logonMs + 90_000, logon: async () => logonAt, sinceBootMs }),
     { id: String(logonAt), ageMs: 90_000 });
   // The same session, an engine restarted hours later: the same sign-in, a larger distance.
-  const later = await win.signIn({ startedAtMs: logonMs + 5 * 3600_000, logon: async () => logonAt });
+  const later = await win.signIn({ startedAtMs: logonMs + 5 * 3600_000, logon: async () => logonAt, sinceBootMs });
   assert.equal(later.id, String(logonAt));
   assert.equal(later.ageMs, 5 * 3600_000);
 });
@@ -137,21 +141,24 @@ function appTask({ enabled = 'true', command = APP_EXE } = {}) {
 }
 const noTask = async () => { throw new Error('ERROR: The system cannot find the file specified.'); };
 const noRunEntry = async () => '';
+// The scheduler's list as schtasks prints it, with the app's task and without it.
+const listed = async () => '"\\Some Other Task","N/A","Ready"\r\n"\\Xenon App","N/A","Ready"\r\n';
+const notListed = async () => '"\\Some Other Task","N/A","Ready"\r\n';
 
 test('Windows: the app opens at sign-in when its own task is there, on, and its program on disk', async () => {
   const asked = [];
   const readTask = async (name) => { asked.push(name); return appTask(); };
-  assert.equal(await win.appAtSignIn({ readTask, query: noRunEntry, exists: yes }), true);
+  assert.equal(await win.appAtSignIn({ tasks: listed, readTask, query: noRunEntry, exists: yes }), true);
   assert.deepEqual(asked, ['Xenon App'], 'the one task the app registers, by name');
 });
 
 test('Windows: a task switched off, left behind, or of another program does not count', async () => {
   const task = (xml) => async () => xml;
-  assert.equal(await win.appAtSignIn({ readTask: task(appTask({ enabled: 'false' })), query: noRunEntry, exists: yes }), false, 'switched off in Task Manager');
-  assert.equal(await win.appAtSignIn({ readTask: task(appTask()), query: noRunEntry, exists: no }), false, 'the app was uninstalled');
-  assert.equal(await win.appAtSignIn({ readTask: task(appTask({ command: 'C:\\Apps\\Other\\other.exe' })), query: noRunEntry, exists: yes }), false);
-  assert.equal(await win.appAtSignIn({ readTask: task('not a task'), query: noRunEntry, exists: yes }), false);
-  assert.equal(await win.appAtSignIn({ readTask: noTask, query: noRunEntry, exists: yes }), false, 'no task and no Run entry');
+  assert.equal(await win.appAtSignIn({ tasks: listed, readTask: task(appTask({ enabled: 'false' })), query: noRunEntry, exists: yes }), false, 'switched off in Task Manager');
+  assert.equal(await win.appAtSignIn({ tasks: listed, readTask: task(appTask()), query: noRunEntry, exists: no }), false, 'the app was uninstalled');
+  assert.equal(await win.appAtSignIn({ tasks: listed, readTask: task(appTask({ command: 'C:\\Apps\\Other\\other.exe' })), query: noRunEntry, exists: yes }), false);
+  assert.equal(await win.appAtSignIn({ tasks: listed, readTask: task('not a task'), query: noRunEntry, exists: yes }), false);
+  assert.equal(await win.appAtSignIn({ tasks: notListed, readTask: noTask, query: noRunEntry, exists: yes }), false, 'no task and no Run entry');
 });
 
 test('Windows: without a task, the Run entry counts unless Task Manager switched it off', async () => {
@@ -160,31 +167,34 @@ test('Windows: without a task, the Run entry counts unless Task Manager switched
     asked.push([key, name]);
     return key === win.RUN_KEY ? RUN_LIST : approved;
   };
-  assert.equal(await win.appAtSignIn({ readTask: noTask, query: runList(''), exists: yes }), true);
+  assert.equal(await win.appAtSignIn({ tasks: notListed, readTask: noTask, query: runList(''), exists: yes }), true);
   assert.deepEqual(asked, [[win.RUN_KEY, 'Xenon'], [win.APPROVED_KEY, 'Xenon']], 'two values of the user, read by name');
   assert.match(win.RUN_KEY, /^HKCU\\/, "the user's own list, never the machine's");
   assert.match(win.APPROVED_KEY, /^HKCU\\/);
   const off = '\r\n    Xenon    REG_BINARY    030000000000000000000000\r\n';
-  assert.equal(await win.appAtSignIn({ readTask: noTask, query: runList(off), exists: yes }), false, 'switched off');
-  assert.equal(await win.appAtSignIn({ readTask: noTask, query: runList(''), exists: no }), false, 'the program is gone');
+  assert.equal(await win.appAtSignIn({ tasks: notListed, readTask: noTask, query: runList(off), exists: yes }), false, 'switched off');
+  assert.equal(await win.appAtSignIn({ tasks: notListed, readTask: noTask, query: runList(''), exists: no }), false, 'the program is gone');
   const other = async (key) => (key === win.RUN_KEY ? '\r\n    Xenon    REG_SZ    "C:\\Apps\\Other\\other.exe"\r\n' : '');
-  assert.equal(await win.appAtSignIn({ readTask: noTask, query: other, exists: yes }), false, 'another program under the same name');
+  assert.equal(await win.appAtSignIn({ tasks: notListed, readTask: noTask, query: other, exists: yes }), false, 'another program under the same name');
 });
 
 // ── macOS ────────────────────────────────────────────────────────────────────
 
-const BOOT = async () => '{ sec = 1700000000, usec = 0 } Tue Nov 14 22:13:20 2023\n';
+const BOOT_SESSION = '5d2c2b0a-1111-4222-8333-123456789abc';
+const BOOT = async () => BOOT_SESSION.toUpperCase() + '\n';
 
 test('macOS: only an engine launchd started as the login agent belongs to a sign-in', async () => {
-  assert.deepEqual(await mac.signIn({ env: { XPC_SERVICE_NAME: mac.AGENT_LABEL }, boot: BOOT }), { id: 'boot-1700000000', ageMs: 0 });
+  assert.deepEqual(await mac.signIn({ env: { XPC_SERVICE_NAME: mac.AGENT_LABEL }, boot: BOOT }), { id: 'boot-' + BOOT_SESSION, ageMs: 0 });
   // Started by the app, from a terminal, or as some other agent: the app is on screen, or nobody signed in.
   for (const env of [{}, { XPC_SERVICE_NAME: '0' }, { XPC_SERVICE_NAME: 'application.com.example.terminal.1' }, { XPC_SERVICE_NAME: mac.AGENT_LABEL + '.other' }]) {
     assert.equal(await mac.signIn({ env, boot: BOOT }), null);
   }
 });
 
-test('macOS: an agent that cannot learn when the Mac booted gives no answer', async () => {
+test('macOS: an agent that cannot learn which boot this is gives no answer', async () => {
   assert.equal(await mac.signIn({ env: { XPC_SERVICE_NAME: mac.AGENT_LABEL }, boot: async () => '' }), null);
+  const bootTime = async () => '{ sec = 1700000000, usec = 0 } Tue Nov 14 22:13:20 2023\n';
+  assert.equal(await mac.signIn({ env: { XPC_SERVICE_NAME: mac.AGENT_LABEL }, boot: bootTime }), null, 'the time of the boot is not its id');
 });
 
 test('macOS: the app opens at sign-in when it has a login agent of its own', async () => {
@@ -213,15 +223,17 @@ const UNIT_FILES = {
   '/proc/self/cgroup': IN_UNIT,
   '/proc/1200/stat': `1200 (systemd) ${STAT_REST} 0 0\n`,
   '/proc/sys/kernel/random/boot_id': BOOT_ID + '\n',
+  // The engine itself, started 300 ticks (3 seconds) after its systemd.
+  '/proc/self/stat': `1300 (node) ${STAT_REST.replace(/4242$/, '4542')} 0 0\n`,
 };
 
 test("Linux: an engine started as the user's unit belongs to the life of that user's systemd", async () => {
   const { readFile, asked } = proc(UNIT_FILES);
-  assert.deepEqual(await linux.signIn({ env: { MANAGERPID: '1200' }, ppid: 77, readFile }), { id: BOOT_ID + ':4242', ageMs: 0 });
-  assert.ok(asked.every((file) => file.startsWith('/proc/')), 'three reads under /proc, nothing else');
+  assert.deepEqual(await linux.signIn({ env: { MANAGERPID: '1200' }, ppid: 77, readFile }), { id: BOOT_ID + ':4242', ageMs: 3000 });
+  assert.ok(asked.every((file) => file.startsWith('/proc/')), 'four reads under /proc, nothing else');
   // An older systemd does not name itself: it is still the parent of its units.
-  assert.deepEqual(await linux.signIn({ env: {}, ppid: 1200, readFile }), { id: BOOT_ID + ':4242', ageMs: 0 });
-  assert.deepEqual(await linux.signIn({ env: { MANAGERPID: 'abc' }, ppid: 1200, readFile }), { id: BOOT_ID + ':4242', ageMs: 0 });
+  assert.deepEqual(await linux.signIn({ env: {}, ppid: 1200, readFile }), { id: BOOT_ID + ':4242', ageMs: 3000 });
+  assert.deepEqual(await linux.signIn({ env: { MANAGERPID: 'abc' }, ppid: 1200, readFile }), { id: BOOT_ID + ':4242', ageMs: 3000 });
 });
 
 test('Linux: a start by hand or from the autostart list is not placed in a sign-in', async () => {

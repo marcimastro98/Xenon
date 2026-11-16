@@ -13,9 +13,35 @@ function filetimeToMs(filetime) {
   return Number(BigInt(filetime) / FILETIME_STEPS_PER_MS - FILETIME_TO_UNIX_MS);
 }
 
+// ── Windows: the scheduler's list ────────────────────────────────────────────
+
+/**
+ * Whether `schtasks /Query /FO CSV /NH` lists a task of this name in the scheduler's top
+ * folder. Each line begins with the task's full name in quotes; the columns after it are in
+ * the language of Windows and are not read.
+ * @returns {boolean}
+ */
+function taskListed(csv, name) {
+  const first = '"\\' + String(name).toLowerCase() + '",';
+  return String(csv || '').split(/\r?\n/).some((line) => line.toLowerCase().startsWith(first));
+}
+
 // ── Windows: the Run list ────────────────────────────────────────────────────
 
-/** The text of one value in what `reg query <key> /v <name>` prints, '' when it is not there. */
+/**
+ * Whether what `reg query <parent of key>` prints lists `key` under it. reg ends with the
+ * same code for a key that is not there and for one it could not read, and says which in the
+ * language of Windows; the parent's list tells the two apart in any language.
+ * @param {string} output @param {string} key the whole key, e.g. HKCU\Software\Example\Run
+ * @returns {boolean}
+ */
+function subkeyListed(output, key) {
+  // reg spells the root out (HKEY_CURRENT_USER for HKCU), so the path below it is compared.
+  const end = '\\' + String(key).split('\\').slice(1).join('\\').toLowerCase();
+  return String(output || '').split(/\r?\n/).some((line) => /^HKEY_/.test(line) && line.trimEnd().toLowerCase().endsWith(end));
+}
+
+/** The text of one value in what `reg query <key>` prints for the key, '' when the key does not hold it. */
 function regValue(output, name, type) {
   const line = new RegExp('^\\s+' + name + '\\s+' + type + '\\s+(.*)$', 'im').exec(String(output || ''));
   return line ? line[1].trim() : '';
@@ -58,10 +84,14 @@ function isProgram(program, exe) {
 
 // ── macOS ────────────────────────────────────────────────────────────────────
 
-/** `sysctl -n kern.boottime` prints `{ sec = 1700000000, usec = 0 } ...`. @returns {string} the seconds, '' when unread */
-function bootSeconds(output) {
-  const found = /\bsec\s*=\s*(\d+)/.exec(String(output || ''));
-  return found ? found[1] : '';
+/**
+ * `sysctl -n kern.bootsessionuuid` prints one UUID, made new each time the Mac boots. Unlike
+ * the time of the boot, it stays the same when the clock is set.
+ * @returns {string} the UUID in lower case, '' when the text is not one
+ */
+function bootSession(output) {
+  const found = /^\s*([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\s*$/i.exec(String(output || ''));
+  return found ? found[1].toLowerCase() : '';
 }
 
 // ── Linux ────────────────────────────────────────────────────────────────────
@@ -84,11 +114,56 @@ function procStartTicks(stat) {
   return text.includes(')') && /^\d+$/.test(ticks || '') ? ticks : '';
 }
 
+// /proc counts the start of a process in clock ticks, 100 to the second on every Linux (USER_HZ).
+const TICK_MS = 10;
+
+/** @returns {number} how long after `earlier` the process `later` started, both as procStartTicks reads them; NaN when either is unread */
+function ticksBetweenMs(earlier, later) {
+  return earlier && later ? (Number(later) - Number(earlier)) * TICK_MS : Number.NaN;
+}
+
+// What a program needs to reach the desktop of the session, and the shape each value must
+// have to be handed on. A path may hold any letter but no control character, quote, dollar or
+// backslash: systemd prints a value it had to escape as $'...', and that is never passed on.
+const PATH_VALUE = /^\/[^\p{Cc}'"$\\]*$/u;
+const SESSION_VARS = Object.freeze({
+  DISPLAY: /^[\w.\-[\]:]*:\d{1,4}(?:\.\d{1,2})?$/,
+  WAYLAND_DISPLAY: /^[\w.\-/]+$/,
+  XAUTHORITY: PATH_VALUE,
+  XDG_RUNTIME_DIR: PATH_VALUE,
+  DBUS_SESSION_BUS_ADDRESS: /^[\w.\-:=,;/%@+]+$/,
+  XDG_CURRENT_DESKTOP: /^[\w\-:]+$/,
+});
+const MAX_VALUE_LENGTH = 1024;
+
+/**
+ * The session's variables out of what `systemctl --user show-environment` prints (one
+ * NAME=value a line): only the names above, each only in its plain shape.
+ * @returns {Record<string, string>}
+ */
+function sessionEnv(output) {
+  /** @type {Record<string, string>} */
+  const env = {};
+  for (const line of String(output || '').split(/\r?\n/)) {
+    const at = line.indexOf('=');
+    const name = line.slice(0, Math.max(at, 0));
+    const value = line.slice(at + 1);
+    if (Object.hasOwn(SESSION_VARS, name) && value.length <= MAX_VALUE_LENGTH && SESSION_VARS[name].test(value)) env[name] = value;
+  }
+  return env;
+}
+
+/** @returns {boolean} whether these variables name a display a browser can open on */
+function hasDisplay(env) {
+  return !!(env && (env.DISPLAY || env.WAYLAND_DISPLAY));
+}
+
 /** @returns {boolean} whether a desktop entry is switched off (`Hidden=true`), as desktops do instead of deleting it */
 function desktopEntryOff(text) {
   return /^\s*Hidden\s*=\s*true\s*$/im.test(String(text || ''));
 }
 
 module.exports = {
-  filetimeToMs, runEntry, runEntryOff, commandProgram, isProgram, bootSeconds, inUnit, procStartTicks, desktopEntryOff,
+  filetimeToMs, taskListed, subkeyListed, runEntry, runEntryOff, commandProgram, isProgram, bootSession, inUnit, procStartTicks,
+  ticksBetweenMs, sessionEnv, hasDisplay, desktopEntryOff,
 };

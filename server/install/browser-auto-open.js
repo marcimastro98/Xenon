@@ -2,9 +2,11 @@
 // fact handed in.
 
 // How long after the sign-in the engine may start and still be the start of that sign-in.
-// Only Windows is measured against it (sign-in-windows.js): its start task leaves no trace of
-// who ran it, and a cold sign-in can take minutes to reach the engine. Past this the start is
-// taken for something else: a restart by hand, an update, a crash.
+// Windows measures from the moment the session signed in (sign-in-windows.js): its start task
+// leaves no trace of who ran it, and a cold sign-in can take minutes to reach the engine.
+// Linux measures from the start of the user's systemd (sign-in-linux.js). macOS has nothing to
+// measure from and answers 0. Past this the start is taken for something else: a restart by
+// hand, an update, a crash, an install.
 const SIGN_IN_WINDOW_MS = 10 * 60 * 1000;
 
 // The port of the installed engine. A copy on any other port (XENON_PORT) is one a developer

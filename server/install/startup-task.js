@@ -130,8 +130,9 @@ function run(args, opts) {
   });
 }
 
-async function readTaskXml(name = TASK_NAME) {
-  const out = await run(['/Query', '/TN', name, '/XML', 'ONE'], { encoding: 'buffer' });
+// `opts` is for a caller that must not wait on a scheduler that does not answer (a time limit).
+async function readTaskXml(name = TASK_NAME, opts = {}) {
+  const out = await run(['/Query', '/TN', name, '/XML', 'ONE'], { ...opts, encoding: 'buffer' });
   return decodeSchtasksOutput(out);
 }
 

@@ -3,6 +3,10 @@
 //   signIn()      → { id, ageMs } | null   the sign-in this start of the engine belongs to
 //   appAtSignIn() → boolean                the Xenon app opens at sign-in and shows the dashboard
 //   canOpen()     → boolean                a browser can be opened from where the engine runs
+// and two more that only some systems have, asked only where they are there:
+//   oldLauncher() → boolean                the task older versions opened the browser with is still registered (Windows)
+//   display()     → object | null          the session's display, once the desktop has one (Linux)
+// A question the system cannot answer rejects, and the engine opens no tab.
 // Picked here once, never by the callers.
 
 /**
