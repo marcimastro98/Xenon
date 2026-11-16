@@ -21,7 +21,7 @@
 // user presses it.
 (function () {
   const {
-    ICONS, t, el, TABS, TAB_LABEL, openStreamingSettings, showActionErr, fmtTime, setLabel, setToggle,
+    ICONS, t, el, TABS, TAB_LABEL, showActionErr, fmtTime, setLabel, setToggle,
   } = window.YoutubeWidgetLook;
   const { tiles, POLL_MS } = window.YoutubeWidgetTiles;
   const api = apiJson; // shared fetch-JSON helper from utils.js
@@ -56,6 +56,16 @@
     hello: null,
   };
   const cur = () => (player.qi >= 0 ? player.queue[player.qi] : null) || null;
+
+  const {
+    blockedText, buildBlockedOverlay,
+  } = window.YoutubeWidgetBlockedOverlay({ player, cur, watchUrl, openOut });
+
+  const {
+    buildLibraryCard,
+  } = window.YoutubeWidgetLibraryCard({ lib, paintLibrary, loadTab, runSearch });
+
+  const { ensure } = window.YoutubeWidgetTileBody({ buildPlayerCard, buildLibraryCard });
 
   // Normal / cinema / fill / full screen, shared with the Twitch tile (see
   // js/streaming/watch-view.js). Here the side panel of the cinema view is the list, so the
@@ -333,28 +343,6 @@
   }
 
   // ── DOM ───────────────────────────────────────────────────────────────────
-  function ensure(mount) {
-    // Bumped when the built markup changes: a hidden widget's DOM is kept in the
-    // pool rather than destroyed, so a stale build would never gain the notice.
-    if (mount.dataset.ytBuilt === '4' && mount.firstChild) return;
-    mount.dataset.ytBuilt = '4';
-    const wrap = el('div', 'yt-wrap');
-    wrap.dataset.view = 'normal';
-
-    const wm = el('div', 'yt-watermark'); wm.innerHTML = ICONS.logo;   // static, trusted SVG
-    wrap.appendChild(wm);
-
-    const notice = el('button', 'yt-setup'); notice.type = 'button'; notice.hidden = true;
-    notice.append(el('span', 'yt-setup-txt', t('youtube_w_setup', 'Connect your YouTube account in Settings → Streaming')));
-    notice.addEventListener('click', openStreamingSettings);
-    wrap.appendChild(notice);
-
-    const cards = el('div', 'yt-cards');
-    cards.append(buildPlayerCard(), buildLibraryCard());
-    wrap.appendChild(cards);
-    mount.replaceChildren(wrap);
-  }
-
   function iconBtn(cls, icon, label, onClick) {
     const b = el('button', 'yt-ib ' + cls); b.type = 'button';
     b.innerHTML = icon;                 // static, trusted SVG
@@ -434,70 +422,6 @@
     barBox.appendChild(bar);
     card.appendChild(barBox);
 
-    return card;
-  }
-
-  // "This video cannot be played inside apps" is the right sentence for a video
-  // the owner locked, and the wrong one for error 153, where every video fails
-  // and none of them is at fault. Saying it anyway sent a macOS user hunting
-  // through his library for one that would work (#126).
-  function blockedText() {
-    if (player.errCode === 153) {
-      return t('youtube_embed_config', 'YouTube would not start the player here. This is not the video: open it in the browser.');
-    }
-    return t('youtube_no_embed', 'This video cannot be played inside apps.');
-  }
-
-  function buildBlockedOverlay() {
-    const blocked = el('div', 'yt-blocked');
-    blocked.append(el('span', 'yt-blocked-txt', blockedText()));
-    const bb = el('button', 'yt-blocked-btn', t('youtube_open_browser', 'Open in the browser'));
-    bb.type = 'button';
-    bb.addEventListener('click', async () => { const v = cur(); const url = v && watchUrl(v.id); if (url) await openOut(url); });
-    blocked.appendChild(bb);
-    return blocked;
-  }
-
-  function buildLibraryCard() {
-    const card = el('section', 'yt-card yt-card--library');
-    card.dataset.systemCard = 'library'; card.dataset.systemCardGroup = 'youtube';
-
-    const tabsRow = el('div', 'yt-tabs');
-    tabsRow.appendChild(el('span', 'yt-logo', 'YouTube'));
-    const TAB_ICON = { liked: ICONS.heart, playlists: ICONS.list, subs: ICONS.subs, search: ICONS.search };
-    TABS.forEach(id => {
-      const b = el('button', 'yt-tab'); b.type = 'button'; b.dataset.ytTab = id;
-      const ico = el('span', 'yt-tab-ico'); ico.innerHTML = TAB_ICON[id];   // static, trusted SVG
-      b.append(ico, el('span', 'yt-tab-lbl', TAB_LABEL[id]()));
-      b.addEventListener('click', () => {
-        lib.tab = id; lib.openPl = null; lib.plItems = null; lib.error = '';
-        if (window.TileTabMemory) TileTabMemory.set('youtube', id);
-        paintLibrary();
-        loadTab(id);
-      });
-      tabsRow.appendChild(b);
-    });
-    card.appendChild(tabsRow);
-
-    const searchRow = el('div', 'yt-search-row');
-    const inp = document.createElement('input');
-    inp.type = 'search'; inp.className = 'yt-search-input'; inp.maxLength = 100;
-    inp.placeholder = t('youtube_search_ph', 'Search on YouTube');
-    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(inp.value); });
-    const go = el('button', 'yt-search-go'); go.type = 'button';
-    go.innerHTML = ICONS.search;                       // static, trusted SVG
-    go.setAttribute('aria-label', t('youtube_tab_search', 'Search'));
-    go.addEventListener('click', () => runSearch(inp.value));
-    searchRow.append(inp, go);
-    card.appendChild(searchRow);
-
-    const crumb = el('button', 'yt-crumb'); crumb.type = 'button';
-    const ci = el('span', 'yt-crumb-ico'); ci.innerHTML = ICONS.back;      // static, trusted SVG
-    crumb.append(ci, el('span', 'yt-crumb-txt'));
-    crumb.addEventListener('click', () => { lib.openPl = null; lib.plItems = null; paintLibrary(); });
-    card.appendChild(crumb);
-
-    card.appendChild(el('div', 'yt-list'));
     return card;
   }
 
