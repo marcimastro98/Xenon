@@ -91,5 +91,5 @@ window.BrowserTileFrames = (wrapper) => {
     }
   }
 
-  return { drawFrame, decodeFrame, handleTabError, setTabUrl };
+  return { drawFrame, handleTabError, setTabUrl };
 };

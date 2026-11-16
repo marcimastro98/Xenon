@@ -117,7 +117,5 @@ window.BrowserTileView = (wrapper) => {
     if (group.mount) group.mount.appendChild(group.wrap);
   }
 
-  return {
-    wireResize, observeVisibility, applyChromeHidden, setChromeHidden, toggleExpand, expand, collapse,
-  };
+  return { wireResize, observeVisibility, applyChromeHidden, setChromeHidden, toggleExpand, expand };
 };
