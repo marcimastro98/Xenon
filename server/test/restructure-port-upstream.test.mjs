@@ -70,7 +70,11 @@ test('the old path is followed through the moves and the splits', (t) => {
 
 test('on this repo, an old path of a split script reaches its entry and every part', () => {
   const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..', '..');
-  const today = filesToday(root, 'server/js/topbar-minimal.js');
-  assert.ok(today.includes('server/js/topbar/topbar-minimal.js'));
-  assert.ok(today.includes('server/js/topbar/topbar-minimal/notch-cuts.js'));
+  const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
+  const parts = read('tools/restructure/extracted-browser.json').moves.filter((move) => move.kind === 'inner');
+  const moved = read('tools/restructure/browser-moved.json').moves.find((move) => parts.some((part) => part.from === move.to));
+  assert.ok(moved, 'some script moved whole and was then split');
+  const today = filesToday(root, moved.from);
+  assert.ok(today.includes(moved.to));
+  for (const part of parts.filter((entry) => entry.from === moved.to)) assert.ok(today.includes(part.file), part.file);
 });
