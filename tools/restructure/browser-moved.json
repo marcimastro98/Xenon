@@ -289,6 +289,9 @@
     {"from":"server/js/ai-turn-wait.js","to":"server/js/ai/ai-turn-wait.js"},
     {"from":"server/js/ai.js","to":"server/js/ai/ai.js"},
     {"from":"server/js/bit-app.js","to":"server/js/ai/bit-app.js"},
-    {"from":"server/js/bit-message-card.js","to":"server/js/bit-message-card/bit-message-card.js"}
+    {"from":"server/js/bit-message-card.js","to":"server/js/bit-message-card/bit-message-card.js"},
+    {"from":"server/js/weather-classic-window.js","to":"server/js/weather/weather-classic-window.js"},
+    {"from":"server/js/weather-classic.js","to":"server/js/weather/weather-classic.js"},
+    {"from":"server/js/weather-tile.js","to":"server/js/weather-tile/weather-tile.js"}
   ]
 }

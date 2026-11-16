@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const Outlook = require('../js/weather/weather-outlook.js');
-const TILE = read('js', 'weather-tile.js');
+const TILE = read('js', 'weather-tile/weather-tile.js');
 const SYSTEM = read('js', 'system.js');
 const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
 const MODAL_CSS = read('components', 'WeatherModal', 'WeatherModal.css');
@@ -170,12 +170,12 @@ test('every change the line can name exists in all 11 languages', () => {
 });
 
 test('the dashboard and a widget window both load everything the tile needs', () => {
-  for (const script of ['js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile.js']) {
+  for (const script of ['js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile/weather-tile.js']) {
     assert.ok(INDEX.includes(`<script src="${script}"></script>`), script);
   }
   assert.ok(INDEX.includes('href="components/WeatherTile/WeatherTile.css"'));
   const line = read('js', 'layers/layer-tiles.js').split('\n').find((l) => /^\s*weather: \{/.test(l));
-  for (const part of ['components/WeatherTile/WeatherTile.css', 'js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile.js']) {
+  for (const part of ['components/WeatherTile/WeatherTile.css', 'js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile/weather-tile.js']) {
     assert.ok(line.includes(part), part);
   }
 });

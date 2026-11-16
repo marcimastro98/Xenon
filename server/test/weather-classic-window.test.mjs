@@ -12,8 +12,8 @@ import vm from 'node:vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8').replace(/\r\n/g, '\n');
-const JS = read('js', 'weather-classic-window.js');
-const CLASSIC = read('js', 'weather-classic.js');
+const JS = read('js', 'weather/weather-classic-window.js');
+const CLASSIC = read('js', 'weather/weather-classic.js');
 const LOOK = read('js', 'weather/weather-look.js');
 const CSS = read('components', 'WeatherModal', 'WeatherClassicWindow.css');
 const TILE_CSS = read('components', 'WeatherTile', 'WeatherClassic.css');
@@ -149,7 +149,7 @@ test('Classic before its files arrive loads them, then draws the window again', 
   assert.equal(s.sb.WeatherLook.renderWindow(s.content), false);
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(s.calls, ['load', 'details']);
-  assert.match(LOOK, /const CLASSIC_WINDOW_JS = 'js\/weather-classic-window\.js';/);
+  assert.match(LOOK, /const CLASSIC_WINDOW_JS = 'js\/weather\/weather-classic-window\.js';/);
   assert.match(LOOK, /const CLASSIC_WINDOW_CSS = 'components\/WeatherModal\/WeatherClassicWindow\.css';/);
   assert.match(LOOK, /js\.async = false;/, 'the window script runs after the tile script');
 });

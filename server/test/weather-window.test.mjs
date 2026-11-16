@@ -14,7 +14,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
-const TILE = read('js', 'weather-tile.js');
+const TILE = read('js', 'weather-tile/weather-tile.js');
 const WINDOW = read('js', 'weather/weather-window.js');
 const SYSTEM = read('js', 'system.js');
 const DOORS = SYSTEM.slice(SYSTEM.indexOf('let weatherWindowLetGo'), SYSTEM.indexOf('async function fetchWeather'));
@@ -310,7 +310,7 @@ test('Esc belongs to the window: the page has no branch of its own', () => {
 
 test('a layer page gets the window with its frame and its focus', () => {
   const entry = read('js', 'layers/layer-tiles.js').split('\n').find((line) => line.includes('weather:'));
-  assert.ok(entry.indexOf('js/weather-tile.js') < entry.indexOf('js/weather/weather-window.js'));
+  assert.ok(entry.indexOf('js/weather-tile/weather-tile.js') < entry.indexOf('js/weather/weather-window.js'));
   assert.ok(entry.includes('js/dialog-focus.js'));
   assert.ok(entry.includes('styles/liquid-sheets.css'));
 });

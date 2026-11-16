@@ -23,7 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const SETTINGS = read('js', 'settings.js');
 const SERVER = engineSource();
-const TILE = read('js', 'weather-tile.js');
+const TILE = read('js', 'weather-tile/weather-tile.js');
 const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
 const I18N = appStringsSource();
 const INDEX = read('index.html');
@@ -164,10 +164,10 @@ test('the style buttons are wired by data attribute and named in every language'
 
 test('the classic files load only for whoever picks them, and the tile asks first', () => {
   const LOOK = read('js', 'weather/weather-look.js');
-  assert.match(LOOK, /'js\/weather-classic\.js'/);
+  assert.match(LOOK, /'js\/weather\/weather-classic\.js'/);
   assert.match(LOOK, /'components\/WeatherTile\/WeatherClassic\.css'/);
   assert.doesNotMatch(INDEX, /weather-classic\.js|WeatherClassic\.css/, 'not in the page for everybody');
-  assert.match(INDEX, /<script src="js\/weather-tile\.js"><\/script>\n<script src="js\/weather\/weather-look\.js"><\/script>/);
+  assert.match(INDEX, /<script src="js\/weather-tile\/weather-tile\.js"><\/script>\n<script src="js\/weather\/weather-look\.js"><\/script>/);
   assert.match(extractFunction(TILE, 'renderWeatherTile'),
     /if \(window\.WeatherLook && window\.WeatherLook\.render\(mounts, data, sec\)\) return;/);
 });

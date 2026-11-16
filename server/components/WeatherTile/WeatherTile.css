@@ -1,4 +1,4 @@
-/* The Weather tile, drawn by js/weather-tile.js into .weather-widget-mount.
+/* The Weather tile, drawn by js/weather-tile/weather-tile.js into .weather-widget-mount.
    It sits on the tile's own sheet on every look, with no painted sky: colour is kept for the
    picture, the rain and the temperatures. Nothing here loops, so it costs nothing while it
    waits. What shows follows the tile's size: details go first, then days, then the line. */

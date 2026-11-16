@@ -1,17 +1,17 @@
-// Which look the Weather tile wears: the 5.x tile (js/weather-tile.js) or the
-// separate cards of Xenon 4.11 (js/weather-classic.js), or a widget of the user's that
+// Which look the Weather tile wears: the 5.x tile (js/weather-tile/weather-tile.js) or the
+// separate cards of Xenon 4.11 (js/weather/weather-classic.js), or a widget of the user's that
 // reads the weather (custom: js/custom-widget.js hosts it), Settings → Weather → Style
 // and Bit's change_setting weather_style. The classic files load the first time
 // someone picks it, so nobody else downloads them; if they cannot load, the tile
 // stays on the new look and says nothing worse than that. The Weather window follows the
-// same Style: Classic brings back 4.11.13's full view (js/weather-classic-window.js).
+// same Style: Classic brings back 4.11.13's full view (js/weather/weather-classic-window.js).
 (() => {
   'use strict';
 
   const LOOKS = ['new', 'classic', 'custom'];
-  const CLASSIC_JS = 'js/weather-classic.js';
+  const CLASSIC_JS = 'js/weather/weather-classic.js';
   const CLASSIC_CSS = 'components/WeatherTile/WeatherClassic.css';
-  const CLASSIC_WINDOW_JS = 'js/weather-classic-window.js';
+  const CLASSIC_WINDOW_JS = 'js/weather/weather-classic-window.js';
   const CLASSIC_WINDOW_CSS = 'components/WeatherModal/WeatherClassicWindow.css';
   let classicLoad = null;
 

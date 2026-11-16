@@ -1,4 +1,4 @@
-/* The classic Weather look (js/weather-classic.js): the 4.11.13 tile, kept as a choice.
+/* The classic Weather look (js/weather/weather-classic.js): the 4.11.13 tile, kept as a choice.
    A painted sky card with the animated sun/cloud/rain stack, then the Details cards, the next
    hours and the next days on the panel's glass. Every rule starts with
    .weather-tile-root.weather-tile-root--classic: the current tile (WeatherTile.css) shares the

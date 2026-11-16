@@ -1,7 +1,7 @@
 'use strict';
 
 // What the Weather tile works out from the forecast before drawing it. Pure, so the tile
-// (js/weather-tile.js) and the tests read the same rules. An hour here is what the tile
+// (js/weather-tile/weather-tile.js) and the tests read the same rules. An hour here is what the tile
 // hands over: { state, rain, min }, with `state` a class from classifyWeatherState, `rain`
 // a chance in percent or null, `min` the minutes since midnight or null.
 (function (root, factory) {

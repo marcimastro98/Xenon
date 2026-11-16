@@ -52,7 +52,7 @@
     mic: { ...SYSTEM, markup: ['system', 'mic', '#picker-overlay'] },
     audio: { ...SYSTEM, markup: ['system', 'mic', 'audio', '#picker-overlay'] },
     // The page builds the tile itself; a tap opens its details, cut from index.html.
-    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'], js: ['js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile/parts.js', 'js/weather-tile/facts-and-render.js', 'js/weather-tile.js', 'js/weather/weather-look.js', 'js/weather/weather-window.js'], markup: ['#weather-overlay'], copies: true },
+    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'], js: ['js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile/parts.js', 'js/weather-tile/facts-and-render.js', 'js/weather-tile/weather-tile.js', 'js/weather/weather-look.js', 'js/weather/weather-window.js'], markup: ['#weather-overlay'], copies: true },
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {

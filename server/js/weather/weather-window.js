@@ -1,7 +1,7 @@
 'use strict';
 
 // The Weather window: the tile's parts at full size, in the order a forecast is read: now,
-// the next hours, the next days, the details. The parts come from js/weather-tile.js, so the
+// the next hours, the next days, the details. The parts come from js/weather-tile/weather-tile.js, so the
 // two never disagree. js/system.js opens and closes it; the tile, the top bar and Bit ask.
 
 // A wrong city or no location is fixed in Settings; a service that is down fixes itself.

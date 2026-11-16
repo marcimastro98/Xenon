@@ -48,7 +48,7 @@ test('clouds and rain do not care about the time', () => {
 
 test('callers pass their own moment', () => {
   // The tile's hours and forecast rows, which the Weather window shows too.
-  const tile = readFileSync(new URL('../js/weather-tile.js', import.meta.url), 'utf8');
+  const tile = readFileSync(new URL('../js/weather-tile/weather-tile.js', import.meta.url), 'utf8');
   const hours = tile.slice(tile.indexOf('function weatherHourRows'));
   assert.match(hours.slice(0, 700), /parseSunTime\(hour\.time\)/);
   assert.match(tile, /const state = classifyWeatherState\(day, WEATHER_DAY_NOON_MIN\);[^\n]*\n[^\n]*\n\s*row\.dataset\.weather = weatherStateIcon\(state\);/);

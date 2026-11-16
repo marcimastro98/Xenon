@@ -1,7 +1,7 @@
 // The classic Weather window: 4.11.13's full view (the painted sky with the place, the
 // temperature and the feels/wind/rain chips, then the Details cards, the next hours and the
 // next days), shown when Settings → Weather → Style is Classic. js/weather/weather-look.js loads it with
-// js/weather-classic.js, whose cards it reuses, and calls render() from renderWeatherDetails.
+// js/weather/weather-classic.js, whose cards it reuses, and calls render() from renderWeatherDetails.
 // The looks are in components/WeatherModal/WeatherClassicWindow.css.
 (function () {
   'use strict';

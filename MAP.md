@@ -46,7 +46,7 @@ One row per tile on the dashboard.
 |---|---|---|
 | **Music** | What is playing, the player buttons, lyrics and Spotify. | `server/media/**` `server/media.ps1` `server/media-key.ps1` `server/js/media/**` `server/js/lyrics-core/**` `server/components/MediaPanel/**` and 3 more |
 | **Sound** | Volume, output devices, the microphone and Wave Link. | `server/audio/**` `server/app-audio/**` `server/soundvolumeview-x64/**` `server/actions/wavelink*.js` `server/actions/voicemeeter*.js` `server/js/volume/**` and 5 more |
-| **Weather** | The weather tile and its full window. | `server/weather/**` `server/js/weather-*.js` `server/js/weather-tile/**` `server/components/WeatherModal/**` `server/components/WeatherTile/**` `server/js/weather/**` |
+| **Weather** | The weather tile and its full window. | `server/weather/**` `server/js/weather-tile/**` `server/components/WeatherModal/**` `server/components/WeatherTile/**` `server/js/weather/**` |
 | **Clock, calendar, tasks, notes** | The clock, the calendar with its feeds, tasks, timers and notes. | `server/time/**` `server/actions/widget-timers.js` `server/js/calendar.js` `server/js/calendar/**` `server/js/tasks.js` `server/js/tasks/**` and 10 more |
 | **Performance and FPS** | Game detection, the frame counter, Performance Mode and Core Shield. | `server/performance/**` `server/perf-session/**` `server/performance.ps1` `server/perf-priority.ps1` `server/processes.ps1` `server/actions/perf-registry.js` and 10 more |
 | **PC numbers** | CPU, GPU, memory, network, fans, battery and power, with their history. | `server/system/**` `server/battery.js` `server/battery.ps1` `server/power/**` `server/device-battery/**` `server/sensor-service/**` and 24 more |

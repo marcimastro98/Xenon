@@ -274,7 +274,7 @@
     mount.replaceChildren(root);
   }
 
-  // parts: the pieces js/weather-classic-window.js builds the classic Weather window from.
+  // parts: the pieces js/weather/weather-classic-window.js builds the classic Weather window from.
   window.WeatherClassic = Object.freeze({
     render,
     parts: Object.freeze({ buildHeroVisual, buildHeroChips, metricCards, createMetric, createHour, formatDate, placeText }),
