@@ -18,7 +18,7 @@ import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
-const WIDGET = read('../js/discord-widget.js');
+const WIDGET = read('../js/discord-widget/discord-widget.js');
 const SERVER = engineSource();
 const SETTINGS = read('../js/settings.js');
 const RPC = engineSource('server/discord/discord-rpc.js');

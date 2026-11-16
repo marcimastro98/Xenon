@@ -14,7 +14,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
-const WIDGET = readFileSync(new URL('../js/discord-widget.js', import.meta.url), 'utf8');
+const WIDGET = readFileSync(new URL('../js/discord-widget/discord-widget.js', import.meta.url), 'utf8');
 const RPC = engineSource('server/discord/discord-rpc.js');
 const CSS = readFileSync(new URL('../components/DiscordWidget/DiscordWidget.css', import.meta.url), 'utf8');
 const I18N = appStringsSource();
@@ -24,7 +24,7 @@ const I18N = appStringsSource();
 // running Discord.
 function lift(name) {
   const at = WIDGET.indexOf('function ' + name + '(');
-  assert.notEqual(at, -1, `js/discord-widget.js must still define ${name}`);
+  assert.notEqual(at, -1, `js/discord-widget/discord-widget.js must still define ${name}`);
   const end = WIDGET.indexOf('\n  }', at) + 4;
   // eslint-disable-next-line no-new-func
   return WIDGET.slice(at, end);

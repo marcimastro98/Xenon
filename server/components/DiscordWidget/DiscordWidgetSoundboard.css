@@ -96,7 +96,7 @@
 }
 .dc-notif-body.is-masked { opacity: 0.5; font-style: italic; }
 /* "Reply": brings Discord forward on this PC with the conversation open
-   (js/discord-widget.js replyButton). An outline, not a filled pill: it sits
+   (js/discord-widget/discord-widget.js replyButton). An outline, not a filled pill: it sits
    on every row, and a column of solid buttons would outshout the messages.
    30px tall, a comfortable target on the Edge's touch panel. */
 .dc-notif-reply {

@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const DI = require('../js/dashboard-instances.js');
-const WIDGET = read('js', 'discord-widget.js');
+const WIDGET = read('js', 'discord-widget/discord-widget.js');
 const LAYOUT = read('js', 'dashboard-layout.js');
 
 test('the Discord tile can be duplicated', () => {

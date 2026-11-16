@@ -196,7 +196,6 @@
       "what": "Voice channel, who is talking, mute and volume per person.",
       "files": [
         "server/discord/**",
-        "server/js/discord-widget.js",
         "server/js/discord-widget/**",
         "server/components/DiscordWidget/**",
         "server/public/images/discord/**"

@@ -80,8 +80,8 @@ test('a refused save puts the old value back', async () => {
 });
 
 test('the tiles save their choices through the helper', () => {
-  assert.match(read('js/discord-widget.js'), /saveTileSetting\(\{ discordFavChannels: next \}\)/);
-  assert.match(read('js/discord-widget.js'), /saveTileSetting\(\{ discordCollapsedGuilds: next \}\)/);
+  assert.match(read('js/discord-widget/discord-widget.js'), /saveTileSetting\(\{ discordFavChannels: next \}\)/);
+  assert.match(read('js/discord-widget/discord-widget.js'), /saveTileSetting\(\{ discordCollapsedGuilds: next \}\)/);
   assert.match(read('js/codex/chatgpt-widget.js'), /saveTileSetting\(\{ chatgptWidget: \{ model: m \} \}\)/);
   assert.match(read('js/media/lyrics-widget-options.js'), /saveTileSetting\(patch\)/);
   assert.match(read('js/notifications/notifications-widget.js'), /isLayerPage\(\) && typeof saveTileSetting === 'function'/);

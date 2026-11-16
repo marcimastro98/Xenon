@@ -54,7 +54,7 @@
     "server/js/deck-model.js": 1456,
     "server/js/deck/deck.js": 3272,
     "server/js/devclean-widget.js": 414,
-    "server/js/discord-widget.js": 454,
+    "server/js/discord-widget/discord-widget.js": 454,
     "server/js/disk-widget.js": 722,
     "server/js/first-run/genesis.js": 374,
     "server/js/football-widget.js": 782,

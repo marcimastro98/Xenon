@@ -63,7 +63,7 @@ test('the faders and the seek line have no handle to draw', () => {
   }
   // The level is the fill: each widget writes it as the value moves.
   assert.match(read('../js/streaming/obs-widget.js'), /\.obs-audio-slider'\); if \(s\) s\.style\.setProperty\('--fill', pct\)/);
-  assert.match(read('../js/discord-widget.js'), /range\.style\.setProperty\('--fill', /);
+  assert.match(read('../js/discord-widget/discord-widget.js'), /range\.style\.setProperty\('--fill', /);
   assert.match(read('../js/streaming/youtube-widget.js'), /seek\.style\.setProperty\('--fill', /);
 });
 

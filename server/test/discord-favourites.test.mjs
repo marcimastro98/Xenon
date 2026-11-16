@@ -17,7 +17,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
-const WIDGET = readFileSync(new URL('../js/discord-widget.js', import.meta.url), 'utf8');
+const WIDGET = readFileSync(new URL('../js/discord-widget/discord-widget.js', import.meta.url), 'utf8');
 const SERVER = engineSource();
 const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
@@ -27,7 +27,7 @@ const CSS = readFileSync(new URL('../components/DiscordWidget/DiscordWidget.css'
 // IIFE top level — so the one pure function is lifted out and run.
 const splitFavourites = (() => {
   const at = WIDGET.indexOf('function splitFavourites(');
-  assert.notEqual(at, -1, 'js/discord-widget.js must still define splitFavourites');
+  assert.notEqual(at, -1, 'js/discord-widget/discord-widget.js must still define splitFavourites');
   const end = WIDGET.indexOf('\n  }', at) + 4;
   // eslint-disable-next-line no-new-func
   return new Function(`${WIDGET.slice(at, end)}; return splitFavourites;`)();

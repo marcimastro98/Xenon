@@ -147,7 +147,7 @@ test('both routes go through the cross-platform launcher', () => {
 });
 
 test('the widget offers Reply only where it can act, and says what happened', () => {
-  const w = read('../js/discord-widget.js');
+  const w = read('../js/discord-widget/discord-widget.js');
   const at = w.indexOf('function replyButton(');
   const body = w.slice(at, w.indexOf('\n  }\n', at));
   assert.match(body, /if \(!n\.channelId\) return null;/);

@@ -78,7 +78,7 @@
 
 /* The avatar: Discord's picture over the person's initial, so a picture that
    cannot load still leaves a clean blurple circle, with Discord's green ring
-   around it while they speak (js/discord-widget.js memberAvatar). */
+   around it while they speak (js/discord-widget/discord-widget.js memberAvatar). */
 .dc-av {
   position: relative; flex: 0 0 auto;
   width: 20px; height: 20px; border-radius: 50%;
