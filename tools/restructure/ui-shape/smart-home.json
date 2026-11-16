@@ -1,0 +1,987 @@
+{
+  "name": "smart-home",
+  "page": "/",
+  "width": 1600,
+  "height": 900,
+  "seed": {
+    "language": "en",
+    "surfaceChoice": {
+      "kind": "auto",
+      "asked": true,
+      "monitor": "",
+      "label": ""
+    },
+    "usageMode": "dashboard",
+    "onboarding": {
+      "seenVersion": 999
+    },
+    "bootSplash": false,
+    "whatsNewSeen": "5.0.0",
+    "releaseNotesSeen": "99.0.0",
+    "homeAssistant": {
+      "url": "http://home.example.invalid:8123",
+      "token": "invented-token-for-the-copy",
+      "entities": [
+        "light.desk",
+        "switch.kettle",
+        "climate.hall",
+        "cover.blind",
+        "fan.ceiling",
+        "media_player.tv",
+        "remote.tv",
+        "button.tv_restart",
+        "vacuum.robot",
+        "sensor.hall_temp",
+        "scene.evening",
+        "lock.door",
+        "alarm_control_panel.home",
+        "number.volume_cap",
+        "select.mode",
+        "valve.garden",
+        "lawn_mower.mower",
+        "humidifier.bedroom",
+        "water_heater.tank"
+      ],
+      "energyEntities": [
+        "sensor.desk_power"
+      ]
+    }
+  },
+  "answers": {
+    "/api/homeassistant/state": {
+      "json": {
+        "configured": true,
+        "connected": true,
+        "tileView": "compact",
+        "areaOrder": [],
+        "entities": [
+          {
+            "id": "light.desk",
+            "domain": "light",
+            "name": "Desk lamp",
+            "area": "Study",
+            "state": "on",
+            "brightness": 180,
+            "rgb": [
+              255,
+              120,
+              60
+            ],
+            "colorModes": [
+              "color_temp",
+              "rgb"
+            ],
+            "minKelvin": 2200,
+            "maxKelvin": 6500,
+            "kelvin": 3000,
+            "effects": [
+              "Rainbow",
+              "Candle"
+            ],
+            "effect": "Candle"
+          },
+          {
+            "id": "switch.kettle",
+            "domain": "switch",
+            "name": "Kettle",
+            "area": "Kitchen",
+            "state": "off"
+          },
+          {
+            "id": "climate.hall",
+            "domain": "climate",
+            "name": "Hall heating",
+            "area": "Hall",
+            "state": "heat",
+            "target": 21,
+            "current": 19.5,
+            "min": 7,
+            "max": 30,
+            "step": 0.5,
+            "hvacAction": "heating",
+            "hvacModes": [
+              "off",
+              "heat",
+              "auto"
+            ],
+            "fanModes": [
+              "low",
+              "high"
+            ],
+            "fanMode": "low",
+            "presetModes": [
+              "eco",
+              "comfort"
+            ],
+            "presetMode": "eco",
+            "swingModes": [
+              "on",
+              "off"
+            ],
+            "swingMode": "off",
+            "currentHumidity": 45
+          },
+          {
+            "id": "cover.blind",
+            "domain": "cover",
+            "name": "Blind",
+            "area": "Study",
+            "state": "open",
+            "features": 255,
+            "position": 60,
+            "tilt": 30
+          },
+          {
+            "id": "fan.ceiling",
+            "domain": "fan",
+            "name": "Ceiling fan",
+            "area": "Bedroom",
+            "state": "on",
+            "features": 15,
+            "pct": 50,
+            "pctStep": 25,
+            "presetModes": [
+              "breeze"
+            ],
+            "presetMode": "breeze",
+            "oscillating": true,
+            "direction": "forward"
+          },
+          {
+            "id": "media_player.tv",
+            "domain": "media_player",
+            "name": "Living TV",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV",
+            "state": "playing",
+            "features": 395199,
+            "title": "A film",
+            "artist": "A studio",
+            "mediaDur": 5400,
+            "mediaPos": 600,
+            "volume": 0.3,
+            "muted": false,
+            "shuffle": false,
+            "repeat": "all",
+            "sources": [
+              "HDMI 1",
+              "TV"
+            ],
+            "source": "TV",
+            "soundModes": [
+              "Movie",
+              "Music"
+            ],
+            "soundMode": "Movie"
+          },
+          {
+            "id": "remote.tv",
+            "domain": "remote",
+            "name": "Living TV remote",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV",
+            "state": "on"
+          },
+          {
+            "id": "button.tv_restart",
+            "domain": "button",
+            "name": "Living TV Restart",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV",
+            "state": "unknown"
+          },
+          {
+            "id": "vacuum.robot",
+            "domain": "vacuum",
+            "name": "Robot",
+            "area": "Living",
+            "state": "docked",
+            "features": 9788,
+            "fanSpeeds": [
+              "quiet",
+              "max"
+            ],
+            "fanSpeed": "quiet",
+            "battery": 80
+          },
+          {
+            "id": "sensor.hall_temp",
+            "domain": "sensor",
+            "name": "Hall temperature",
+            "area": "Hall",
+            "state": "19.5",
+            "unit": "°C",
+            "deviceClass": "temperature"
+          },
+          {
+            "id": "scene.evening",
+            "domain": "scene",
+            "name": "Evening",
+            "area": "Living",
+            "state": "scening"
+          },
+          {
+            "id": "lock.door",
+            "domain": "lock",
+            "name": "Front door",
+            "area": "Hall",
+            "state": "locked"
+          },
+          {
+            "id": "alarm_control_panel.home",
+            "domain": "alarm_control_panel",
+            "name": "Alarm",
+            "area": "Hall",
+            "state": "disarmed",
+            "features": 7,
+            "codeArm": true
+          },
+          {
+            "id": "number.volume_cap",
+            "domain": "number",
+            "name": "Volume cap",
+            "area": "Living",
+            "state": "40",
+            "min": 0,
+            "max": 100,
+            "step": 5,
+            "unit": "%"
+          },
+          {
+            "id": "select.mode",
+            "domain": "select",
+            "name": "House mode",
+            "area": "Hall",
+            "state": "home",
+            "options": [
+              "home",
+              "away",
+              "night"
+            ]
+          },
+          {
+            "id": "valve.garden",
+            "domain": "valve",
+            "name": "Garden valve",
+            "area": "Garden",
+            "state": "closed",
+            "features": 15,
+            "position": 0
+          },
+          {
+            "id": "lawn_mower.mower",
+            "domain": "lawn_mower",
+            "name": "Mower",
+            "area": "Garden",
+            "state": "docked",
+            "features": 7,
+            "battery": 64
+          },
+          {
+            "id": "humidifier.bedroom",
+            "domain": "humidifier",
+            "name": "Humidifier",
+            "area": "Bedroom",
+            "state": "on",
+            "target": 50,
+            "min": 30,
+            "max": 80,
+            "presetModes": [
+              "normal",
+              "sleep"
+            ],
+            "presetMode": "normal"
+          },
+          {
+            "id": "water_heater.tank",
+            "domain": "water_heater",
+            "name": "Water tank",
+            "area": "Kitchen",
+            "state": "eco",
+            "target": 55,
+            "current": 52,
+            "min": 30,
+            "max": 80,
+            "presetModes": [
+              "eco",
+              "boost"
+            ],
+            "presetMode": "eco"
+          }
+        ]
+      }
+    },
+    "/api/homeassistant/entities": {
+      "json": {
+        "ok": true,
+        "entities": [
+          {
+            "id": "light.desk",
+            "domain": "light",
+            "name": "Desk lamp",
+            "area": "Study"
+          },
+          {
+            "id": "switch.kettle",
+            "domain": "switch",
+            "name": "Kettle",
+            "area": "Kitchen"
+          },
+          {
+            "id": "climate.hall",
+            "domain": "climate",
+            "name": "Hall heating",
+            "area": "Hall"
+          },
+          {
+            "id": "media_player.tv",
+            "domain": "media_player",
+            "name": "Living TV",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV"
+          },
+          {
+            "id": "remote.tv",
+            "domain": "remote",
+            "name": "Living TV remote",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV"
+          },
+          {
+            "id": "button.tv_restart",
+            "domain": "button",
+            "name": "Living TV Restart",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV"
+          },
+          {
+            "id": "sensor.hall_temp",
+            "domain": "sensor",
+            "name": "Hall temperature",
+            "area": "Hall",
+            "unit": "°C",
+            "deviceClass": "temperature"
+          },
+          {
+            "id": "sensor.desk_power",
+            "domain": "sensor",
+            "name": "Desk power",
+            "area": "Study",
+            "unit": "W",
+            "deviceClass": "power"
+          },
+          {
+            "id": "scene.evening",
+            "domain": "scene",
+            "name": "Evening",
+            "area": "Living"
+          },
+          {
+            "id": "lock.door",
+            "domain": "lock",
+            "name": "Front door",
+            "area": "Hall"
+          }
+        ]
+      }
+    }
+  },
+  "events": {
+    "homeassistant": {
+      "over": {
+        "configured": true,
+        "connected": true,
+        "tileView": "compact",
+        "areaOrder": [],
+        "entities": [
+          {
+            "id": "light.desk",
+            "domain": "light",
+            "name": "Desk lamp",
+            "area": "Study",
+            "state": "on",
+            "brightness": 180,
+            "rgb": [
+              255,
+              120,
+              60
+            ],
+            "colorModes": [
+              "color_temp",
+              "rgb"
+            ],
+            "minKelvin": 2200,
+            "maxKelvin": 6500,
+            "kelvin": 3000,
+            "effects": [
+              "Rainbow",
+              "Candle"
+            ],
+            "effect": "Candle"
+          },
+          {
+            "id": "switch.kettle",
+            "domain": "switch",
+            "name": "Kettle",
+            "area": "Kitchen",
+            "state": "off"
+          },
+          {
+            "id": "climate.hall",
+            "domain": "climate",
+            "name": "Hall heating",
+            "area": "Hall",
+            "state": "heat",
+            "target": 21,
+            "current": 19.5,
+            "min": 7,
+            "max": 30,
+            "step": 0.5,
+            "hvacAction": "heating",
+            "hvacModes": [
+              "off",
+              "heat",
+              "auto"
+            ],
+            "fanModes": [
+              "low",
+              "high"
+            ],
+            "fanMode": "low",
+            "presetModes": [
+              "eco",
+              "comfort"
+            ],
+            "presetMode": "eco",
+            "swingModes": [
+              "on",
+              "off"
+            ],
+            "swingMode": "off",
+            "currentHumidity": 45
+          },
+          {
+            "id": "cover.blind",
+            "domain": "cover",
+            "name": "Blind",
+            "area": "Study",
+            "state": "open",
+            "features": 255,
+            "position": 60,
+            "tilt": 30
+          },
+          {
+            "id": "fan.ceiling",
+            "domain": "fan",
+            "name": "Ceiling fan",
+            "area": "Bedroom",
+            "state": "on",
+            "features": 15,
+            "pct": 50,
+            "pctStep": 25,
+            "presetModes": [
+              "breeze"
+            ],
+            "presetMode": "breeze",
+            "oscillating": true,
+            "direction": "forward"
+          },
+          {
+            "id": "media_player.tv",
+            "domain": "media_player",
+            "name": "Living TV",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV",
+            "state": "playing",
+            "features": 395199,
+            "title": "A film",
+            "artist": "A studio",
+            "mediaDur": 5400,
+            "mediaPos": 600,
+            "volume": 0.3,
+            "muted": false,
+            "shuffle": false,
+            "repeat": "all",
+            "sources": [
+              "HDMI 1",
+              "TV"
+            ],
+            "source": "TV",
+            "soundModes": [
+              "Movie",
+              "Music"
+            ],
+            "soundMode": "Movie"
+          },
+          {
+            "id": "remote.tv",
+            "domain": "remote",
+            "name": "Living TV remote",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV",
+            "state": "on"
+          },
+          {
+            "id": "button.tv_restart",
+            "domain": "button",
+            "name": "Living TV Restart",
+            "area": "Living",
+            "device": "dev-tv",
+            "deviceName": "Living TV",
+            "state": "unknown"
+          },
+          {
+            "id": "vacuum.robot",
+            "domain": "vacuum",
+            "name": "Robot",
+            "area": "Living",
+            "state": "docked",
+            "features": 9788,
+            "fanSpeeds": [
+              "quiet",
+              "max"
+            ],
+            "fanSpeed": "quiet",
+            "battery": 80
+          },
+          {
+            "id": "sensor.hall_temp",
+            "domain": "sensor",
+            "name": "Hall temperature",
+            "area": "Hall",
+            "state": "19.5",
+            "unit": "°C",
+            "deviceClass": "temperature"
+          },
+          {
+            "id": "scene.evening",
+            "domain": "scene",
+            "name": "Evening",
+            "area": "Living",
+            "state": "scening"
+          },
+          {
+            "id": "lock.door",
+            "domain": "lock",
+            "name": "Front door",
+            "area": "Hall",
+            "state": "locked"
+          },
+          {
+            "id": "alarm_control_panel.home",
+            "domain": "alarm_control_panel",
+            "name": "Alarm",
+            "area": "Hall",
+            "state": "disarmed",
+            "features": 7,
+            "codeArm": true
+          },
+          {
+            "id": "number.volume_cap",
+            "domain": "number",
+            "name": "Volume cap",
+            "area": "Living",
+            "state": "40",
+            "min": 0,
+            "max": 100,
+            "step": 5,
+            "unit": "%"
+          },
+          {
+            "id": "select.mode",
+            "domain": "select",
+            "name": "House mode",
+            "area": "Hall",
+            "state": "home",
+            "options": [
+              "home",
+              "away",
+              "night"
+            ]
+          },
+          {
+            "id": "valve.garden",
+            "domain": "valve",
+            "name": "Garden valve",
+            "area": "Garden",
+            "state": "closed",
+            "features": 15,
+            "position": 0
+          },
+          {
+            "id": "lawn_mower.mower",
+            "domain": "lawn_mower",
+            "name": "Mower",
+            "area": "Garden",
+            "state": "docked",
+            "features": 7,
+            "battery": 64
+          },
+          {
+            "id": "humidifier.bedroom",
+            "domain": "humidifier",
+            "name": "Humidifier",
+            "area": "Bedroom",
+            "state": "on",
+            "target": 50,
+            "min": 30,
+            "max": 80,
+            "presetModes": [
+              "normal",
+              "sleep"
+            ],
+            "presetMode": "normal"
+          },
+          {
+            "id": "water_heater.tank",
+            "domain": "water_heater",
+            "name": "Water tank",
+            "area": "Kitchen",
+            "state": "eco",
+            "target": 55,
+            "current": 52,
+            "min": 30,
+            "max": 80,
+            "presetModes": [
+              "eco",
+              "boost"
+            ],
+            "presetMode": "eco"
+          }
+        ]
+      }
+    },
+    "status": {
+      "over": {
+        "gaming": false,
+        "gameRunning": false,
+        "gameProcess": null
+      }
+    }
+  },
+  "background": [
+    "^GET /network$",
+    "^(GET|POST) /bit/messages",
+    "^GET /index/status$",
+    "^GET /api/community/",
+    "^GET /audio$",
+    "^GET /weather",
+    "^GET /external-events$",
+    "^GET /sdk/widgets$",
+    "^POST /settings "
+  ],
+  "replace": [
+    [
+      "\\.is-glint",
+      ""
+    ],
+    [
+      "(animationend|transitionend):[0-9]+",
+      "$1:n"
+    ]
+  ],
+  "roots": [
+    "[data-dashboard-widget=\"smarthome\"]",
+    "body > .sh-sheet-overlay",
+    "#settings-smarthome-hub",
+    "#settings-energy-hub",
+    "#toast-island"
+  ],
+  "steps": [
+    {
+      "say": "the page has finished starting",
+      "do": "wait",
+      "ms": 3000
+    },
+    {
+      "say": "the Smart Home tile is put on the dashboard",
+      "do": "run",
+      "code": "addWidgetToPage('smarthome', 'dashboard')"
+    },
+    {
+      "say": "the tile has drawn the answered home",
+      "do": "wait",
+      "ms": 3000
+    },
+    {
+      "say": "the switch of the kettle",
+      "do": "click",
+      "on": ".sh-item--toggle:not(.has-sheet) .sh-switch"
+    },
+    {
+      "say": "the scene runs",
+      "do": "click",
+      "on": ".sh-item--run"
+    },
+    {
+      "say": "card 1 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 0
+    },
+    {
+      "say": "every button of the sheet of card 1",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 1",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 2 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 1
+    },
+    {
+      "say": "every button of the sheet of card 2",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 2",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 3 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 2
+    },
+    {
+      "say": "every button of the sheet of card 3",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 3",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 4 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 3
+    },
+    {
+      "say": "every button of the sheet of card 4",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 4",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 5 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 4
+    },
+    {
+      "say": "every button of the sheet of card 5",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 5",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 6 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 5
+    },
+    {
+      "say": "every button of the sheet of card 6",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 6",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 7 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 6
+    },
+    {
+      "say": "every button of the sheet of card 7",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 7",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 8 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 7
+    },
+    {
+      "say": "every button of the sheet of card 8",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 8",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 9 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 8
+    },
+    {
+      "say": "Escape closes the sheet of card 9",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 10 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 9
+    },
+    {
+      "say": "every button of the sheet of card 10",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "Escape closes the sheet of card 10",
+      "do": "press",
+      "key": "Escape"
+    },
+    {
+      "say": "card 11 opens its sheet",
+      "do": "click",
+      "on": ".sh-item--control",
+      "nth": 10
+    },
+    {
+      "say": "every button of the sheet of card 11",
+      "do": "clickEach",
+      "on": ".sh-sheet .sh-abtn, .sh-sheet .sh-chip, .sh-sheet .sh-step, .sh-sheet .sh-seg-btn, .sh-sheet .sh-icobtn, .sh-sheet .sh-swatch"
+    },
+    {
+      "say": "the close button closes the sheet of card 11",
+      "do": "click",
+      "on": ".sh-sheet-close"
+    },
+    {
+      "say": "the tile is shown open: every device's controls inline",
+      "do": "run",
+      "code": "fetch('/api/homeassistant/state').then((r) => r.json()).then((d) => window.SmartHome.onSSE(Object.assign(d, { tileView: 'open' })))"
+    },
+    {
+      "say": "the open tile has drawn",
+      "do": "wait",
+      "ms": 1000
+    },
+    {
+      "say": "Settings opens on Smart Home",
+      "do": "run",
+      "code": "openSettingsCategory('smarthome')"
+    },
+    {
+      "say": "Settings has drawn the devices",
+      "do": "wait",
+      "ms": 2500
+    },
+    {
+      "say": "the device search is typed",
+      "do": "fill",
+      "on": "#settings-smarthome-hub .sh-set-input[type=search]",
+      "text": "living"
+    },
+    {
+      "say": "the device search is emptied",
+      "do": "fill",
+      "on": "#settings-smarthome-hub .sh-set-input[type=search]",
+      "text": " "
+    },
+    {
+      "say": "move button 2 of the order list",
+      "do": "click",
+      "on": "#settings-smarthome-hub .sh-ord-btn",
+      "nth": 1
+    },
+    {
+      "say": "the order list has been saved and drawn again (1)",
+      "do": "wait",
+      "ms": 1200
+    },
+    {
+      "say": "move button 3 of the order list",
+      "do": "click",
+      "on": "#settings-smarthome-hub .sh-ord-btn",
+      "nth": 2
+    },
+    {
+      "say": "the order list has been saved and drawn again (2)",
+      "do": "wait",
+      "ms": 1200
+    },
+    {
+      "say": "move button 6 of the order list",
+      "do": "click",
+      "on": "#settings-smarthome-hub .sh-ord-btn",
+      "nth": 5
+    },
+    {
+      "say": "the order list has been saved and drawn again (3)",
+      "do": "wait",
+      "ms": 1200
+    },
+    {
+      "say": "move button 4 of the order list",
+      "do": "click",
+      "on": "#settings-smarthome-hub .sh-ord-btn",
+      "nth": 3
+    },
+    {
+      "say": "the order list has been saved and drawn again (4)",
+      "do": "wait",
+      "ms": 1200
+    },
+    {
+      "say": "each checkbox of the device list",
+      "do": "clickEach",
+      "on": "#settings-smarthome-hub .sh-set-check input"
+    },
+    {
+      "say": "each way of showing the devices",
+      "do": "chooseEach",
+      "on": "#settings-smarthome-hub select.settings-select"
+    },
+    {
+      "say": "Connect asks the copy",
+      "do": "click",
+      "on": "#settings-smarthome-hub .settings-btn.primary"
+    }
+  ]
+}
