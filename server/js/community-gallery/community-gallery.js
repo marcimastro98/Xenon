@@ -17,8 +17,8 @@
 // below is ever assigned via innerHTML; all catalog-supplied text stays textContent.
 (function () {
   const {
-    t, el, descPlain, descInto, compactCount, ratingLine, limitedLeftText, sparksPriceText, skeleton,
-    memberLine, shortCount,
+    t, el, descPlain, descInto, compactCount, ratingLine, sparksPriceText, skeleton, memberLine,
+    shortCount,
   } = window.CommunityGalleryWords;
   const MAKER_URL = 'https://xenon-app.com/maker/';
   const BMC_URL = 'https://www.buymeacoffee.com/marcimastro98';
@@ -206,8 +206,8 @@
   // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   const {
-    KIND_ORDER, ON_SCREEN_TAG, PAGE, SHELF_MAX, SEE_ALL_FROM, WIDE_SHOT, CENTRED_KINDS,
-    JUST_ADDED_MAX, KIND_SHELF_MIN, INSTALLS_WAIT_MS, MIN_INSTALLS_SHOWN, SPOT_SIDE_MAX, isFeatured,
+    KIND_ORDER, ON_SCREEN_TAG, PAGE, SHELF_MAX, WIDE_SHOT, CENTRED_KINDS, JUST_ADDED_MAX,
+    KIND_SHELF_MIN, INSTALLS_WAIT_MS, MIN_INSTALLS_SHOWN, SPOT_SIDE_MAX, isFeatured,
   } = window.CommunityGalleryLayout;
   const { hexRgb, readablePair } = window.CommunityGalleryPaper;
 
@@ -774,15 +774,6 @@
     syncRows();
   }
 
-  function limitedMeter(entry) {
-    const { total, left } = limitedStock(entry.limited);
-    const meter = el('div', 'cst-meter');
-    const bar = el('div', 'cst-meter-bar'); const fill = el('div', 'cst-meter-fill');
-    fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meter.appendChild(bar);
-    meter.appendChild(el('span', 'cst-meter-left', limitedLeftText(entry)));
-    return meter;
-  }
-
   // The keys of the page, on their own so an install can flip them in place.
   function drawDetailCta() {
     const entry = detailEntry;
@@ -798,21 +789,6 @@
       cta.appendChild(importButton(entry, 'cst-key is-wide', t('gallery_import', 'Install')));
     }
     if (entry.needsNewerApp) cta.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
-  }
-
-  function detailFacts(entry) {
-    const facts = el('dl', 'cst-facts');
-    const fact = (label, value) => {
-      const row = el('div', 'cst-fact');
-      row.appendChild(el('dt', null, label)); row.appendChild(value);
-      facts.appendChild(row);
-    };
-    if (entry.version) fact(t('gallery_fact_version', 'Version'), el('dd', null, entry.version));
-    const installs = el('dd', 'cgal-installs', installsText(entry.id));
-    installs.dataset.id = entry.id;
-    fact(t('gallery_fact_installs', 'Installs'), installs);
-    if (entry.category) fact(t('gallery_fact_category', 'Category'), el('dd', null, t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
-    return facts;
   }
 
   function detailWords(entry) {
@@ -1022,18 +998,9 @@
     return { main, side: [] };
   }
 
-  // The hero and, beside it, the other featured entries as small cards. Alone it
-  // keeps the whole width.
-  function spotlightBlock(main, side) {
-    const wrap = el('div', 'cst-spot' + (side.length ? '' : ' is-solo'));
-    wrap.appendChild(heroBanner(main));
-    if (side.length) {
-      const col = el('div', 'cst-side');
-      side.forEach((entry) => { const c = renderCard(entry); c.classList.add('cst-side-item'); col.appendChild(c); });
-      wrap.appendChild(col);
-    }
-    return wrap;
-  }
+  const {
+    spotlightBlock, shelf,
+  } = window.CommunityGalleryShelves({ heroBanner, renderCard, icon, goView });
 
   // "New" = an entry id this device has never had on screen in the Store.
   // Deliberately id-based, NOT addedAt-vs-last-visit: addedAt is a plain date
@@ -1043,26 +1010,6 @@
   // the grid never floods with badges the first time someone opens the Store (#5).
   function isNewEntry(entry) {
     return !!storeSeenPrev && !!entry && !!entry.id && !storeSeenPrev.has(entry.id);
-  }
-
-  // What an entry costs or where it stands, in a few words, for the card's line.
-  function priceInto(node, entry, quiet) {
-    const state = entryInstallState(entry);
-    const says = (text) => { node.textContent = text; };
-    if (state === 'current') return says(t('gallery_installed', 'Installed'));
-    if (state === 'update') return says(t('gallery_update', 'Update…').replace(/\s*(…|\.\.\.)$/, ''));
-    if (entry.needsNewerApp) return says(t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin);
-    if (entry.limited) {
-      if (dropUnavailable(entry)) return says(dropSoldOut(entry) ? t('gallery_limited_soldout', 'Sold out') : t('gallery_limited_closed', 'Claims closed'));
-      return says(limitedLeftText(entry));
-    }
-    if (sparksOnly(entry)) {
-      if (window.XenonCredits) node.appendChild(window.XenonCredits.spark({ still: true }));
-      node.appendChild(document.createTextNode(String(entry.sparks)));
-      return undefined;
-    }
-    if (entry.locked || entry.supportersOnly) return quiet ? undefined : says(t('gallery_locked_badge', 'Supporters'));
-    return says(t('gallery_price_free', 'Free'));
   }
 
   // One uniform card: the picture, the name, a line of kind and price. No key:
@@ -1166,20 +1113,10 @@
   const trialCovers = (entry) => !!(window.TrialPass && window.TrialPass.covers(entry));
   // Sold for Sparks with no supporter way in (the hub's "Sparks only").
   const sparksOnly = (entry) => !!entry && !entry.limited && entry.sparks > 0 && entry.supportersOnly !== true;
-  // The supporter-tier mark; a Sparks-only drop shows its price instead.
-  // A drop also sold for Sparks names that second way in next to the first.
-  function lockedTierInto(node, entry, label, withUsd) {
-    if (sparksOnly(entry) && window.XenonCredits) {
-      node.appendChild(window.XenonCredits.offerMark());
-      node.appendChild(el('span', null, sparksPriceText(entry.sparks, withUsd)));
-      return;
-    }
-    node.appendChild(icon('supporters'));
-    node.appendChild(el('span', null, label));
-    if (!entry.limited && entry.sparks > 0) {
-      node.appendChild(el('span', null, t('gallery_or_sparks', 'or {price}').replace('{price}', sparksPriceText(entry.sparks, withUsd))));
-    }
-  }
+  const {
+    limitedMeter, detailFacts, priceInto, lockedTierInto,
+  } = window.CommunityGalleryPrice({ entryInstallState, dropUnavailable, dropSoldOut, sparksOnly, icon, installsText });
+
   function tryTrialButton(cls) {
     const b = el('button', cls);
     b.type = 'button';
@@ -1290,60 +1227,8 @@
     return out && out.ok && Array.isArray(out.entries) ? out.entries : [];
   };
 
-  // ── Shelves ────────────────────────────────────────────────────────────────
-  // Previous and next keys appear only when the row has more than it shows.
-  function shelfKeys(row) {
-    const keys = el('div', 'cst-keys');
-    const key = (name, dir) => {
-      const b = el('button', 'cst-step'); b.type = 'button'; b.appendChild(icon(name));
-      b.title = t(dir < 0 ? 'gallery_row_back' : 'gallery_row_next', dir < 0 ? 'Back' : 'Next');
-      b.setAttribute('aria-label', b.title);
-      b.addEventListener('click', () => {
-        const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        row.scrollBy({ left: dir * row.clientWidth, behavior: calm ? 'auto' : 'smooth' });
-      });
-      keys.appendChild(b);
-      return b;
-    };
-    const prev = key('back', -1), next = key('next', 1);
-    row._cstSync = () => {
-      const room = row.scrollWidth - row.clientWidth;
-      keys.hidden = room <= 1;
-      prev.disabled = row.scrollLeft <= 1;
-      next.disabled = row.scrollLeft >= room - 1;
-    };
-    row.addEventListener('scroll', row._cstSync, { passive: true });
-    requestAnimationFrame(row._cstSync);
-    return keys;
-  }
   function syncRows() {
     if (overlayEl) overlayEl.querySelectorAll('.cst-row').forEach((r) => { if (r._cstSync) r._cstSync(); });
-  }
-
-  // A named shelf. opts.more is the view "See all" leads to, opts.lead one line
-  // under the name, opts.quiet a shelf that is history rather than stock, and
-  // opts.grid the layout's form 'grid': every card at once, not a row. opts.card
-  // draws each item instead of the plain card. opts.seeAll keeps the way to the
-  // whole list on a short shelf that does not hold all of it.
-  function shelf(titleText, items, opts) {
-    const o = opts || {};
-    const wrap = el('section', 'cst-shelf' + (o.history ? ' is-history' : ''));
-    const draw = o.card || ((e) => renderCard(e, { quiet: o.quiet }));
-    const head = el('div', 'cst-shelf-head');
-    head.appendChild(el('h2', null, titleText));
-    const row = el('div', o.grid ? 'cst-grid' : 'cst-row');
-    items.forEach((e) => row.appendChild(draw(e)));
-    if (!o.grid) head.appendChild(shelfKeys(row));
-    if (o.more && (o.seeAll || items.length >= SEE_ALL_FROM)) {
-      const all = el('button', 'cst-more', t('gallery_seeall', 'See all').replace(/\s*→\s*$/, ''));
-      all.type = 'button';
-      all.addEventListener('click', () => goView(o.more));
-      head.appendChild(all);
-    }
-    wrap.appendChild(head);
-    if (o.lead) wrap.appendChild(el('p', 'cst-shelf-lead', o.lead));
-    wrap.appendChild(row);
-    return wrap;
   }
 
   // The offer over the posters. A PC that keeps a code has the membership: it is told
@@ -1721,14 +1606,8 @@
     mainEl.scrollTop = 0;
     if (inPlace) regrid(); else paintTab(false);
   }
-  function railRow(id, label, mark, count) {
-    const row = el('button', 'cst-railrow'); row.type = 'button'; row.dataset.view = id;
-    row.appendChild(mark);
-    row.appendChild(el('span', 'cst-railrow-name', label));
-    row.appendChild(el('b', 'cst-railrow-count', count || ''));
-    row.addEventListener('click', () => goView(id));
-    return row;
-  }
+  const { railRow, paintInstalledRow } = window.CommunityGalleryRailRows({ goView, countUpdates });
+
   function fillRail(entries) {
     if (!rail) return;
     const has = (test) => entries.some((e) => e && test(e));
@@ -1741,16 +1620,6 @@
     if (has((e) => e.limited)) rows.push(railRow('__limited', t('gallery_limited_section', 'Limited edition'), icon('limited')));
     rail.list.replaceChildren(...rows);
     syncRail();
-  }
-  // Red count of available updates on Installed: you open it to update. Async
-  // (findUpdates joins the catalog against the install index); refreshed on open
-  // and whenever an install/update lands (via refreshInstalledBadge).
-  function paintInstalledRow(row) {
-    countUpdates().then((n) => {
-      const count = row.querySelector('.cst-railrow-count');
-      count.textContent = n > 0 ? shortCount(n) : '';
-      count.classList.toggle('is-update', n > 0);
-    }).catch(() => { /* best-effort — no count is fine */ });
   }
   function onSearch(input) {
     searchQuery = input.value.trim().toLowerCase(); shown = PAGE;
