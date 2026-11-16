@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const customWidget = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+const customWidget = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
 const main = readFileSync(join(ROOT, 'server', 'js', 'main.js'), 'utf8');
 
 test('Discord snapshot loaders use only fixed local routes', () => {

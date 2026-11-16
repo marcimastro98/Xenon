@@ -134,7 +134,7 @@ test('what a sheet must keep doing: toasts, the gallery, placing what was instal
   for (const f of ['alerts/toast.js', 'capture-gallery/capture-gallery.js', 'store-catalog/place-installed.js']) {
     assert.match(read('../js/' + f), /isLayerPage\(\) && !isSheetPage\(\)/, f);
   }
-  const widgets = read('../js/custom-widget.js');
+  const widgets = read('../js/custom-widget/custom-widget.js');
   assert.match(widgets, /const layerOnly = .*isSheetPage\(\)/);
   assert.match(widgets, /const layerSurface = .*isSheetPage\(\)/);
   assert.match(read('../js/layers-shell/layers-shell.js'), /panel=sheet/, 'only the main page syncs the layers');

@@ -204,7 +204,7 @@ function normalizeManifest(raw, folderId) {
       // The widget may ask to write to the system clipboard — but only through a
       // host-rendered confirmation the user taps for each copy (the widget never
       // copies on its own). Write-only, no read; enforced entirely host-side in
-      // js/custom-widget.js, so there is no server enforcement here.
+      // js/custom-widget/custom-widget.js, so there is no server enforcement here.
       clipboard,
       // The widget may ask the AI the user set for Bit (Sparks, their own key,
       // Ollama or their plan) plain questions, through POST /sdk/ai: no tools,
@@ -216,7 +216,7 @@ function normalizeManifest(raw, folderId) {
       // (a Plex/Plexamp client, a game overlay). Runtime only: it never writes a
       // setting, it cannot touch background/surface/text, it follows the user's
       // "album theme" toggle, and it is released the moment the widget goes away.
-      // Enforced host-side in js/custom-widget.js, like clipboard.
+      // Enforced host-side in js/custom-widget/custom-widget.js, like clipboard.
       accent,
       // The widget may ask to paint its tile over the whole dashboard — the same
       // thing `browserOpen`'s `expand` does for the Browser tile, for a package

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CW = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+const CW = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
 const SHARE = readFileSync(join(ROOT, 'server', 'js', 'presets/preset-share.js'), 'utf8');
 const CSS = readFileSync(join(ROOT, 'server', 'components', 'AskSheet', 'AskSheet.css'), 'utf8');
 

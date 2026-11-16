@@ -55,7 +55,7 @@ const MAX_LAST = 20;
 const PKG_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 
 // ── pure: would the new manifest ask for more than the user approved? ─────────
-// Mirrors grantNeedsReview() in js/custom-widget.js, which stays the authority on
+// Mirrors grantNeedsReview() in js/custom-widget/custom-widget.js, which stays the authority on
 // the dashboard: test/widget-auto-update.test.mjs evaluates that function against
 // this one on the same inputs, so the two cannot drift. `prev` is the manifest of
 // the installed version (for the things a grant cannot express: address slots and

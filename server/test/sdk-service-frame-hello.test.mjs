@@ -1,5 +1,5 @@
 // A background widget frame that never says hello is mounted again
-// (js/custom-widget.js, watchServiceHello / onStreamBack). A frame mounted while
+// (js/custom-widget/custom-widget.js, watchServiceHello / onStreamBack). A frame mounted while
 // the engine was restarting held the browser's error page for good, so its bar
 // chip (Twin Charge's battery) kept an old number or vanished until a reload.
 import { test } from 'node:test';
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
-const src = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const src = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const start = src.indexOf('  const SERVICE_HELLO_WAITS_MS');
 const end = src.indexOf('  function serviceHost() {', start);
 const body = src.slice(start, end);

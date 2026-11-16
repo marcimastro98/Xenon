@@ -21,7 +21,7 @@ test('the built-in scene, an own scene or a removed one never wait', () => {
 });
 
 test('Allow turns community widgets on only with the switch off, and the dialog says it first', () => {
-  const src = read('../js/custom-widget.js');
+  const src = read('../js/custom-widget/custom-widget.js');
   assert.match(src, /turnsOn = stored\.enabled !== true/, 'the stored flag, not the safe-mode mask');
   assert.match(src, /if \(turnsOn\) notes\.push\(t\('cw_perm_turns_on'/);
   assert.match(src, /if \(turnsOn\) patch\.enabled = true;/);

@@ -19,7 +19,7 @@ const SDK_API_VERSION = 1;
 // `twitchWatch` / `twitchChat` / `youtubeLive` are the watching and broadcasting
 // sides of the two builtin tiles. None of them opens a connection of its own:
 // each is fed by the tile that was already reading it (see publishStream in
-// js/custom-widget.js), with a same-origin loader as the fallback for a
+// js/custom-widget/custom-widget.js), with a same-origin loader as the fallback for a
 // dashboard where that tile is absent. That is the whole reason `twitchChat` has
 // no loader at all — a widget must never be able to make Xenon hold a socket
 // open to Twitch on an idle dashboard just by asking for a refresh.
@@ -225,7 +225,7 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
 
 // Per-type limits inside a category: a field the widget sends must be one of
 // these values (absent is fine: the registry's default is always allowed).
-// Mirrored in js/custom-widget.js, where bridge actions are gated.
+// Mirrored in js/custom-widget/custom-widget.js, where bridge actions are gated.
 const SDK_ACTION_LIMITS = Object.freeze({
   screenshot: Object.freeze({ mode: Object.freeze(['take']) }),
   // Never the microphone or the webcam: a widget does not turn either on.

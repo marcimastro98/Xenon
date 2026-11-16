@@ -168,7 +168,7 @@ test('Deck, Bit and widgets reach it through the registry', async () => {
   assert.deepEqual(await caps.run(validateAction({ type: 'sensorHistory', mode: 'on', every: '2' })), { ok: true, enabled: true, everyMin: 2 });
   assert.ok(aiFunctions({ sensorHistory: true }).some((f) => f.name === 'set_sensor_history'));
   assert.ok(sdk.SDK_ACTION_CATEGORIES.performance.includes('sensorHistory'));
-  assert.match(read('../js/custom-widget.js'), /sensorHistory: \{ enabled: 'boolean', everyMin: 'number' \}/);
+  assert.match(read('../js/custom-widget/custom-widget.js'), /sensorHistory: \{ enabled: 'boolean', everyMin: 'number' \}/);
 });
 
 test('Settings shows the interval only while history is collected, with no inline handlers', () => {

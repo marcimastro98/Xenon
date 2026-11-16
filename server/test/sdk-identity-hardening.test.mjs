@@ -23,7 +23,7 @@ const PS = require('../js/presets/preset-share.js');
 const DeckModel = require('../js/deck/deck-model.js');
 const DeckActions = require('../js/deck/deck-actions.js');
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
-const CW_SRC = read('../js/custom-widget.js');
+const CW_SRC = read('../js/custom-widget/custom-widget.js');
 
 // ── 1. a frame that leaves its page ──────────────────────────────────────────
 

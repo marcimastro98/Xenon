@@ -413,7 +413,7 @@ const UsageMode = require('./js/first-run/usage-mode.js'); // dashboard / widget
 const PerfHud = require('./js/performance/perf-hud.js'); // what the Game performance tile shows (shared with the client)
 const ScreenSceneModel = require('./js/ambient/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
 require('./js/look/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
-const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
+const SdkDiagnostics = require('./js/widget-sdk/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai/ai-local');
 const aiOpenai = require('./ai/ai-openai');
 const aiLocalServer = require('./ai/ai-local-server');

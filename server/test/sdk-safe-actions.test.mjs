@@ -13,7 +13,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (rel) => readRaw(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const CW = read('../js/custom-widget.js');
+const CW = read('../js/custom-widget/custom-widget.js');
 const SETTINGS = read('../js/settings.js');
 const I18N = appStringsSource();
 const DOC = read('../../docs/WIDGET_SDK.md');

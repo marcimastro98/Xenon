@@ -126,7 +126,7 @@ test('widgets get it under the audioDevice grant and no other', () => {
   for (const [cat, types] of Object.entries(sdk.SDK_ACTION_CATEGORIES)) {
     assert.equal(types.includes('audioDeviceFirst'), cat === 'audioDevice', cat);
   }
-  assert.match(read('../js/custom-widget.js'), /audioDevice: \['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst'\],/);
+  assert.match(read('../js/custom-widget/custom-widget.js'), /audioDevice: \['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst'\],/);
   const doc = read('../../docs/WIDGET_SDK.md');
   assert.match(doc, /### 5g\. The first output that is connected: `audioDeviceFirst` \(v4\.11\.12\)/);
   assert.match(doc, /\| `audioDevice` \| `audioDevice`, `audioDeviceToggle`, `audioDeviceFirst` \|/);

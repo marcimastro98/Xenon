@@ -208,7 +208,7 @@ test('the preview Deck shows its music screen when the profile styles it', () =>
 // The preview of a page or bundle grants its widgets what they ask for, in the
 // dialog's own shape, so the tile shows the widget instead of a permission card.
 test('a package widget in a page preview is granted exactly what the dialog would grant', () => {
-  const src = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
   const line = /\[pkg\.id\]: \{ (streams: [^\n]*?) \} \},/.exec(src);
   assert.ok(line, 'the dialog grant patch');
   const dialogKeys = [...line[1].matchAll(/(\w+):/g)].map((m) => m[1]).sort();

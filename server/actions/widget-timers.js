@@ -4,7 +4,7 @@
 // from the user's own timers, because every timer action addresses a timer by
 // name, and starting a name that exists restarts it.
 //
-// The host stamps `owner` on what a widget sends (js/custom-widget.js), so a widget
+// The host stamps `owner` on what a widget sends (js/custom-widget/custom-widget.js), so a widget
 // never supplies it. Manifest Deck macros cannot name these actions at all: they
 // run on the server, with nobody to stamp them (SDK_MACRO_ACTION_TYPES).
 

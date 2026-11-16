@@ -59,7 +59,7 @@ test('apply touches one grant and turns widgets on only when asked', () => {
 });
 
 test('every consent flag the dialog grants is built here too', () => {
-  const line = read('../js/custom-widget.js').split('\n').find((l) => l.includes('grants: { ...(cur.grants || {}), [pkg.id]:'));
+  const line = read('../js/custom-widget/custom-widget.js').split('\n').find((l) => l.includes('grants: { ...(cur.grants || {}), [pkg.id]:'));
   const named = [...line.matchAll(/\b([a-zA-Z]+): wants[A-Z][a-zA-Z]*[,\s}]/g)].map((m) => m[1]).filter((n) => n !== 'storageGroup');
   assert.deepEqual([...named].sort(), [...FLAGS].sort());
 });
@@ -70,7 +70,7 @@ test('a phone and a foreign page cannot approve', () => {
 });
 
 test('a screen page saves through the server and takes the approval back if refused', () => {
-  const src = read('../js/custom-widget.js');
+  const src = read('../js/custom-widget/custom-widget.js');
   assert.match(src, /isLayerPage\(\)\) approveFromScreen\(pkg, patch, uh\.values\);\s+else persist\(patch\);/);
   const fn = src.slice(src.indexOf('function approveFromScreen('));
   const body = fn.slice(0, fn.indexOf('\n  }'));

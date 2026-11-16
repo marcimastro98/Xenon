@@ -15,7 +15,7 @@ import { appStringsSource, languagesWith } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
-const BRIDGE = readFileSync(new URL('../js/custom-widget.js', import.meta.url));
+const BRIDGE = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url));
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url));
 const I18N = appStringsSource();
 const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url));
@@ -29,7 +29,7 @@ const { remotePathAllowed } = require('../paired/remote-access.js');
 function placementKit(search, hubSettings, scene) {
   const at = BRIDGE.indexOf('  const LAYER_SURFACES');
   const fnAt = BRIDGE.indexOf('function postPlacement(', at);
-  assert.ok(at > 0 && fnAt > at, 'js/custom-widget.js must still define the placement code');
+  assert.ok(at > 0 && fnAt > at, 'js/custom-widget/custom-widget.js must still define the placement code');
   const end = BRIDGE.indexOf('\n  }', fnAt) + 4;
   const posted = [];
   const window = { location: { search } };

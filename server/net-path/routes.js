@@ -1,5 +1,5 @@
 'use strict';
-// GET /api/net-path: the SDK `netPath` stream, pulled by js/custom-widget.js
+// GET /api/net-path: the SDK `netPath` stream, pulled by js/custom-widget/custom-widget.js
 // while a widget that holds the grant is on screen. A read with a cost: the
 // first one starts echoes that run until IDLE_MS after the last, so it answers
 // only while some package holds the grant, like devStorage. Numbers only: an

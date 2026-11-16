@@ -15,7 +15,7 @@ const sdk = require('../sdk-widgets.js');
 const { createRegistry } = require('../actions/registry.js');
 const { scopeTimerLabel, OWN_LABEL_MAX, OWNED_MAX, SCOPED_LABEL_MAX } = require('../actions/widget-timers.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const CW = read('../js/custom-widget.js');
+const CW = read('../js/custom-widget/custom-widget.js');
 const SERVER = engineSource();
 const SETTINGS = read('../js/settings.js');
 const I18N = appStringsSource();

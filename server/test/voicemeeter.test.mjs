@@ -273,7 +273,7 @@ test('every list that mirrors the SDK allowlist agrees with it', () => {
   // additions each forgot one. They are listed here so a sixth cannot.
   const { SDK_ACTION_CATEGORIES, SDK_STREAMS } = require('../sdk-widgets.js');
   const files = {
-    'js/custom-widget.js': readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8'),
+    'js/custom-widget/custom-widget.js': readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8'),
     'js/settings.js': readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8'),
     '../docs/WIDGET_SDK.md': readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8'),
   };
@@ -282,9 +282,9 @@ test('every list that mirrors the SDK allowlist agrees with it', () => {
   }
   // The client mirror has to grant exactly what the server grants, or a widget
   // is offered a permission the host will refuse.
-  const cw = files['js/custom-widget.js'];
+  const cw = files['js/custom-widget/custom-widget.js'];
   const mirror = /voicemeeter: \[([^\]]*)\]/.exec(cw);
-  assert.ok(mirror, 'js/custom-widget.js has no voicemeeter action list');
+  assert.ok(mirror, 'js/custom-widget/custom-widget.js has no voicemeeter action list');
   const listed = mirror[1].split(',').map((x) => x.trim().replace(/'/g, '')).filter(Boolean);
   assert.deepEqual(listed.sort(), [...SDK_ACTION_CATEGORIES.voicemeeter].sort());
   assert.ok(SDK_STREAMS.includes('voicemeeter'));

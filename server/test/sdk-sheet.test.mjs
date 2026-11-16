@@ -17,7 +17,7 @@ import { makeDom, windowKeys } from './mini-dom.mjs';
 import { namesOf } from './source-names.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const SRC = read('../js/custom-widget.js');
+const SRC = read('../js/custom-widget/custom-widget.js');
 const STRINGS = {
   cw_by: 'by {a}',
 };
@@ -458,7 +458,7 @@ test('the pairing is not a permission question, so it never parks one', () => {
 test('every page that runs widgets has the window, and the code it needs loads once', async () => {
   for (const page of ['index.html', 'layer-lite.html', 'scene.html', 'sdk-service.html']) {
     const html = read(`../${page}`);
-    assert.match(html, /js\/custom-widget\.js/, page);
+    assert.match(html, /js\/custom-widget\/custom-widget\.js/, page);
     assert.equal((html.match(/js\/dialog-focus\.js/g) || []).length, 1, `${page}: dialog-focus`);
     assert.equal((html.match(/js\/deck\/approval-keys\.js/g) || []).length, 1, `${page}: approval-keys`);
   }

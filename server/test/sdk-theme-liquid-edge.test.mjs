@@ -13,7 +13,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const ThemePalette = require('../js/look/theme-palette.js');
-const SRC = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
 
 /** The real computedHex + lookMode + themePayload, for a tile with these computed tokens. */
 function payloadFor(tokens, hubSettings = {}, withFrame = true) {

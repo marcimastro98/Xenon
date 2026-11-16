@@ -1,5 +1,5 @@
 'use strict';
-// GET /api/energy: the SDK `energy` stream, pulled by js/custom-widget.js
+// GET /api/energy: the SDK `energy` stream, pulled by js/custom-widget/custom-widget.js
 // while a widget that holds the grant is on screen. Watt-hours per hour and
 // per day from the sensor history (sensor-history/energy.js), the last
 // reading's watts and whether the history is on. It answers only while some

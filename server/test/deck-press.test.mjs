@@ -196,7 +196,7 @@ test('POST /deck/press is CSRF guarded and takes only an id and an agreement', (
 
 test('no widget can press or place a key', () => {
   const sdk = engineSource('server/sdk-widgets.js');
-  const bridge = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const bridge = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
   for (const src of [sdk, bridge]) {
     assert.doesNotMatch(src, /layerKey/);
     assert.doesNotMatch(src, /deck\/press/);

@@ -20,7 +20,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 const SRC = readFileSync(new URL('../js/widget-sdk/sdk-youtube-player.js', import.meta.url), 'utf8');
-const BRIDGE = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const BRIDGE = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
 
 // A DOM small enough to read: a box with a size, and iframes that remember what
 // was set on them. The module only ever touches this much of one.

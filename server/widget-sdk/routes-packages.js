@@ -8,7 +8,7 @@ const sdkWidgets = require('../sdk-widgets.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const { SDK_WIDGETS_DIR } = require('./data-places.js');
-const SdkDiagnostics = require('../js/sdk-diagnostics.js');
+const SdkDiagnostics = require('../js/widget-sdk/sdk-diagnostics.js');
 const LayersModel = require('../js/layers/layers-model.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */

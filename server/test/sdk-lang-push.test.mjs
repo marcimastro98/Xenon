@@ -20,7 +20,7 @@ const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 // to know why.
 
 test('a language change is pushed to open widgets, like a theme change is', () => {
-  const bridge = read('server/js/custom-widget.js');
+  const bridge = read('server/js/custom-widget/custom-widget.js');
   assert.match(bridge, /function refreshLang\(\)/);
   assert.match(bridge, /post\(entry, \{ type: 'lang', lang: code \}\)/);
   assert.match(bridge, /refreshTheme, refreshLang,/, 'it has to be reachable from outside the bridge');

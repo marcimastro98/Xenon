@@ -153,7 +153,7 @@ test('the route checks the grant, the manifest, and sits on the CSRF lists', () 
 });
 
 test('the host bridges `ai` only for a granted package and always answers', () => {
-  const cw = read('server/js/custom-widget.js');
+  const cw = read('server/js/custom-widget/custom-widget.js');
   const fn = cw.slice(cw.indexOf('function onBridgeAi'), cw.indexOf('// ── Fullscreen tile'));
   assert.match(fn, /pkg\.ai !== true \|\| !grant\.ai/);
   assert.match(fn, /type: 'ai_result'/);

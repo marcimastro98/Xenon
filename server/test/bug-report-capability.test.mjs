@@ -52,7 +52,7 @@ test('the catalog entry, the runner and the AI function line up; widgets never g
   const { d } = deps();
   assert.equal((await createCapabilities({ capture: d.capture }).run({ type: 'bugReport' })).saved, true);
   for (const list of Object.values(SDK_ACTION_CATEGORIES)) assert.ok(!list.includes('bugReport'));
-  assert.doesNotMatch(read('../js/custom-widget.js'), /bugReport/);
+  assert.doesNotMatch(read('../js/custom-widget/custom-widget.js'), /bugReport/);
 });
 
 test('the server wires the replay, both folders and a notice without a path', () => {

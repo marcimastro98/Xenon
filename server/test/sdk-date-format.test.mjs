@@ -14,7 +14,7 @@ const DOC = readFileSync(join(__dirname, '..', '..', 'docs', 'WIDGET_SDK.md'), '
 // out "Friday, 11 September" next to a dashboard set to "Fri 11 Sep".
 
 test('the theme payload carries the date format on both shapes', () => {
-  const src = read('js', 'custom-widget.js');
+  const src = read('js', 'custom-widget/custom-widget.js');
   const fn = src.slice(src.indexOf('function themePayload('), src.indexOf('function langCode('));
   assert.match(fn, /const dateFormat = \(typeof clockDateShape === 'function'\)/);
   // Two return paths (full palette / legacy flat). A field on only one is a

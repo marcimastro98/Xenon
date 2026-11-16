@@ -287,14 +287,14 @@ test('every layout apply forces placed tiles visible first and places them last'
 });
 
 test('custom widgets read a layer assignment before the saved one, and the page loads it all in order', () => {
-  const cw = read('../js/custom-widget.js');
+  const cw = read('../js/custom-widget/custom-widget.js');
   assert.match(cw, /if \(layerAssign\.has\(instId\)\) return layerAssign\.get\(instId\);/);
   // A layer window mounts its slots only, never the hidden dashboard pages.
   assert.match(cw, /const layerOnly = \(window\.LayerHost && window\.LayerHost\.active\) \|\| \(typeof isSheetPage === 'function' && isSheetPage\(\)\);\n\s+const scope = layerOnly \? '\.layer-slot' : '\.pager-page, \.layer-slot';/);
   assert.match(cw, /\.filter\(n => n\.closest\(scope\)( &&|\))/);
   assert.match(cw, /setLayerAssign,/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('src="js/custom-widget.js"') < html.indexOf('src="js/layers/layer-host.js"'));
+  assert.ok(html.indexOf('src="js/custom-widget/custom-widget.js"') < html.indexOf('src="js/layers/layer-host.js"'));
   assert.ok(html.indexOf('src="js/layers/layer-host.js"') < html.indexOf('src="js/main.js"'));
   assert.match(html, /href="components\/LayerHost\/LayerHost\.css"/);
 });
@@ -877,7 +877,7 @@ test('stress: switching pages 100 times never leaks a slot or an atom', () => {
   assert.equal(document.querySelectorAll('[data-dashboard-widget="media"]').length, 1);
 });
 
-// The SDK `layer` message (js/custom-widget.js) marks the widget's frame.
+// The SDK `layer` message (js/custom-widget/custom-widget.js) marks the widget's frame.
 function storeWidgetOnOverlay(layers) {
   const b = editBoot('?layer=overlay:', layers, { shell: true });
   b.host.place();

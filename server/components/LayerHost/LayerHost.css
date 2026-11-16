@@ -110,7 +110,7 @@ html[data-layer-lite] .deck-edit {
   position: relative;
 }
 
-/* A Store widget open at full size (the SDK `expand`, js/custom-widget.js) fills
+/* A Store widget open at full size (the SDK `expand`, js/custom-widget/custom-widget.js) fills
    the window: the box grows with it, so the window is cut to all of it and takes
    every click, and it covers the other widgets at full opacity. */
 .layer-slot:has(.cw-wrap.cw-expanded) {

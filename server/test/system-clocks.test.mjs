@@ -7,7 +7,7 @@ import { engineSource } from './engine-source.mjs';
 
 // Four readings a monitoring widget asked for — CPU / GPU core / GPU memory
 // clock, and the in-game frame rate — reach widgets through the `system` stream,
-// which the SDK forwards UNMODIFIED (publishStream in js/custom-widget.js). That
+// which the SDK forwards UNMODIFIED (publishStream in js/custom-widget/custom-widget.js). That
 // is the whole reason no grant or allowlist changed: a field added to the
 // dashboard's own payload is a field every `system` widget can already read.
 //

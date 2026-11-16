@@ -1,7 +1,7 @@
 'use strict';
 
 // A Store widget that declares `fit` (manifest) sizes its own box on the desktop and
-// over everything: it posts { type: 'layer', fit: { w, h } } in CSS px, js/custom-widget.js
+// over everything: it posts { type: 'layer', fit: { w, h } } in CSS px, js/custom-widget/custom-widget.js
 // passes it here, and the box takes that size from the corner it leans on, so a
 // counter in the top right grows to the left and down, never off the screen. The size
 // is saved through the same layerMove capability every other move uses, so the

@@ -3,7 +3,7 @@
 // read them from `init.limits` instead of spending a request to find out
 // (WIDGET_SDK.md, "Host limits"). The numbers are read from the modules that
 // enforce them; the two that live elsewhere (the bridge's per-frame fetch
-// interval in js/custom-widget.js and the fetch gate in server.js) are pinned
+// interval in js/custom-widget/custom-widget.js and the fetch gate in server.js) are pinned
 // to these by server/test/sdk-limits.test.mjs.
 
 const sdkProxy = require('../sdk-proxy.js');

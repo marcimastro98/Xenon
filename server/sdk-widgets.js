@@ -12,7 +12,7 @@
 // arrive at the local API with `Origin: null` — which isAllowedRequest()
 // deliberately accepts for the iCUE WebView. Without `connect-src 'none'` a
 // hostile widget could call the local API directly. All host interaction goes
-// through the postMessage bridge in js/custom-widget.js instead, where grants
+// through the postMessage bridge in js/custom-widget/custom-widget.js instead, where grants
 // are enforced.
 //
 // Pure and requireable (no server state) so the hostile-input paths are unit
@@ -24,7 +24,7 @@
 // and undocumented. All of these move together:
 //
 //   1. here                       SDK_STREAMS / SDK_ACTION_CATEGORIES
-//   2. server/js/custom-widget.js the bridge that dispatches, and the
+//   2. server/js/custom-widget/custom-widget.js the bridge that dispatches, and the
 //                                 permission LABEL the user reads
 //   3. server/js/settings.js      SDK_WIDGET_STREAMS / SDK_WIDGET_ACTION_CATS,
 //                                 which the permission dialog is built from
@@ -54,7 +54,7 @@ const {
 // The only playSound.file shape SDK code (bridge actions AND manifest macros)
 // may use — sourced from the authority (sound-packs.js) so the server can
 // never drift from the install boundary. The client copies (js/presets/preset-share.js,
-// js/custom-widget.js) must be kept in step by hand.
+// js/custom-widget/custom-widget.js) must be kept in step by hand.
 const SDK_SOUND_FILE_RE = require('./store-catalog/sound-packs').PACK_FILE_RE;
 
 const { WIDGET_ID_RE } = require('./widget-sdk/package-names.js');

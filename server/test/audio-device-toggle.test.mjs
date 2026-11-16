@@ -176,7 +176,7 @@ test('a widget reaches it through the audioDevice grant it may already have', ()
   assert.ok(sdk.SDK_ACTION_TYPES.includes('audioDeviceToggle'));
   // The host's own copy, which gates the bridge before anything is sent.
   // (Later output actions join the same list after it: audioDeviceFirst, v4.11.12.)
-  assert.match(read('../js/custom-widget.js'), /audioDevice: \['audioDevice', 'audioDeviceToggle'(, '[A-Za-z]+')*\],/);
+  assert.match(read('../js/custom-widget/custom-widget.js'), /audioDevice: \['audioDevice', 'audioDeviceToggle'(, '[A-Za-z]+')*\],/);
 });
 
 test('a package can ship it as a Deck macro when it declares the grant', () => {

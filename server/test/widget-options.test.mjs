@@ -170,7 +170,7 @@ test('a paired phone changes what a widget shows, and reads the options', () => 
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the host hands the values in init, passes a change to every copy, and lets a widget set only its own', () => {
-  const cw = src('js/custom-widget.js');
+  const cw = src('js/custom-widget/custom-widget.js');
   assert.match(cw, /options: optionValuesOf\(entry\.pkgId\),/);
   assert.match(cw, /\{ type: 'options', values \}/);
   assert.match(cw, /\} else if \(d\.type === 'option'\) \{\r?\n\s+if \(entry\.ready\) onBridgeOption\(entry, d\);/);

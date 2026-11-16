@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const ThemePalette = require('../js/look/theme-palette.js');
 const TileControls = require('../js/look/tile-controls.js');
-const SRC = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
 
 /** The real themePayload, for a frame on a tile with these controls and computed tokens. */
 function payloadFor(controls, tokens) {

@@ -32,7 +32,7 @@ test('the weather tile brings its styles before the themes and its script before
   const css = page.indexOf('href="components/WeatherModal/WeatherModal.css"');
   assert.ok(css > 0 && css < page.indexOf('href="styles/themes-light.css"'), 'themes still win');
   const js = page.indexOf('src="js/system/system.js"');
-  assert.ok(js > page.indexOf('src="js/custom-widget.js"') && js < page.indexOf('src="js/layers/layer-host.js"'));
+  assert.ok(js > page.indexOf('src="js/custom-widget/custom-widget.js"') && js < page.indexOf('src="js/layers/layer-host.js"'));
   assert.doesNotMatch(page, /<!-- tile (styles|scripts) -->/);
 });
 

@@ -147,7 +147,7 @@ test('the `sensors` stream exists everywhere a stream is declared, and runs only
   const sdk = require('../sdk-widgets.js');
   assert.ok(sdk.SDK_STREAMS.includes('sensors'));
   assert.match(read('server/js/settings.js'), /'processes', 'sensors', 'spotify'/);
-  const cw = read('server/js/custom-widget.js');
+  const cw = read('server/js/custom-widget/custom-widget.js');
   assert.match(cw, /sensors: \['cw_stream_sensors'/);
   assert.match(cw, /streams: \['status', 'system', 'sensors'/);
   assert.match(read('server/js/main.js'), /onData\('sensors'/);

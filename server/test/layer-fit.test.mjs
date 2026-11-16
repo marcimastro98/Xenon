@@ -36,7 +36,7 @@ test('a box within a pixel and a half of the size is left alone', () => {
 });
 
 test('the frame passes `fit` only for a package that declares it, and the pages load the module', () => {
-  const cw = src('js/custom-widget.js');
+  const cw = src('js/custom-widget/custom-widget.js');
   assert.match(cw, /if \(msg\.fit !== undefined\) \{ onBridgeFit\(entry, msg\.fit, reply\); return; \}/);
   assert.match(cw, /pkg\.fit !== true\) \{ reply\(false, 'not_allowed'\)/);
   for (const page of ['index.html', 'layer-lite.html']) assert.match(src(page), /<script src="js\/layers\/layer-fit\.js"><\/script>/, page);

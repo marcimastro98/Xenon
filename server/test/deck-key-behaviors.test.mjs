@@ -224,7 +224,7 @@ test('the gesture reaches the frame, and a release has its own rate lane', () =>
   const server = engineSource();
   assert.match(server, /const lane = gesture && gesture\.type === 'release' \? ':release' : '';/);
   assert.match(server, /broadcastSSE\('sdk_handler', gesture \? \{ pkg, handler, args, callId, gesture \} : \{ pkg, handler, args, callId \}\);/);
-  assert.match(read('../js/custom-widget.js'), /const gesture = window\.DeckActions && window\.DeckActions\.validateGesture\(payload\.gesture\);\s+if \(gesture\) msg\.gesture = gesture;/);
+  assert.match(read('../js/custom-widget/custom-widget.js'), /const gesture = window\.DeckActions && window\.DeckActions\.validateGesture\(payload\.gesture\);\s+if \(gesture\) msg\.gesture = gesture;/);
   assert.match(JS, /const action = gesture && step\.action\.type === 'sdkHandler' \? Object\.assign\(\{\}, step\.action, \{ gesture \}\) : step\.action;/);
   const doc = read('../../docs/WIDGET_SDK.md');
   for (const g of ['`tapOff`', '`press`, `release`', '`repeat`', '`cycle`']) assert.ok(doc.includes(g), g);

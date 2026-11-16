@@ -38,7 +38,7 @@ test('after placing, the dashboard shows the page the widget sits on', () => {
   const place = client.slice(client.indexOf('async function place('), client.indexOf('function issues('));
   assert.ok(place.indexOf('placeCreated') < place.indexOf('devShow'), 'shows it after placing it');
   assert.match(place, /CW\.devShow\(String\(q\.id\), typeof placed === 'string' \? placed : null\)/);
-  const cw = read('../js/custom-widget.js');
+  const cw = read('../js/custom-widget/custom-widget.js');
   assert.match(cw, /function devShow\(pkgId, instId\)/);
   assert.match(cw, /devLookup, devShow,/);
   assert.match(cw.slice(cw.indexOf('function devShow(')), /goToPageOf\(tile\)/);
@@ -54,7 +54,7 @@ test('a pairing dialog closes itself when the server forgets the pairing', () =>
 // came back from widget_issues, so the assistant would chase fixed bugs. A
 // reload of the files (install, Rescan, the tile's Reload) starts both lists over.
 test('reloading widget files clears what the old code reported', () => {
-  const cw = read('../js/custom-widget.js');
+  const cw = read('../js/custom-widget/custom-widget.js');
   const bump = cw.slice(cw.indexOf('function bumpAssets()'), cw.indexOf('async function fetchPackages('));
   assert.match(bump, /assetVersion\+\+;/);
   assert.match(bump, /blockedByPkg\.clear\(\);/);

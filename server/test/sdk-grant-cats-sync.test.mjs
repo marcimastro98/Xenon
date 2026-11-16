@@ -67,7 +67,7 @@ test('settings.js normalizeSdkWidgets keeps the boolean capability grants', () =
 // category names: a type in one list and not the other is an action that
 // validates on one side and is refused on the other.
 test('custom-widget.js ACTION_CATEGORIES mirrors sdk-widgets.js SDK_ACTION_CATEGORIES', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   const block = src.match(/const ACTION_CATEGORIES = \{([\s\S]*?)\n {2}\};/);
   assert.ok(block, 'ACTION_CATEGORIES not found in custom-widget.js');
   const client = {};
@@ -86,7 +86,7 @@ test('custom-widget.js ACTION_CATEGORIES mirrors sdk-widgets.js SDK_ACTION_CATEG
 // it was labelled when `processes` was added, so there is no exception list any
 // more and a new stream cannot be shipped without a sentence explaining it.
 test('custom-widget.js STREAM_LABELS covers every SDK stream', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   const block = src.match(/const STREAM_LABELS = \{([\s\S]*?)\n {2}\};/);
   assert.ok(block, 'STREAM_LABELS not found in custom-widget.js');
   const labelled = new Set([...block[1].matchAll(/^\s{4}([A-Za-z]+):/gm)].map(m => m[1]));
@@ -98,7 +98,7 @@ test('custom-widget.js STREAM_LABELS covers every SDK stream', () => {
 // whose key has no translation shows the fallback English to everyone. Pin every
 // stream key against the language files.
 test('every STREAM_LABELS i18n key exists in all languages', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   const block = src.match(/const STREAM_LABELS = \{([\s\S]*?)\n {2}\};/);
   const keys = [...block[1].matchAll(/^\s{4}[A-Za-z]+:\s*\['([a-z0-9_]+)'/gm)].map(m => m[1]);
   assert.ok(keys.length >= 20, 'expected the full stream label map');
@@ -116,7 +116,7 @@ test('every STREAM_LABELS i18n key exists in all languages', () => {
 // that gains it in an update mounts with the capability silently dead — no
 // badge, no island, no prompt, no error.
 test('custom-widget.js grantNeedsReview covers every boolean capability', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   const fn = src.match(/function grantNeedsReview\(pkg\)\s*\{[\s\S]*?\n {2}\}/);
   assert.ok(fn, 'grantNeedsReview not found in custom-widget.js');
   for (const flag of BOOLEAN_CAPS) {
@@ -128,7 +128,7 @@ test('custom-widget.js grantNeedsReview covers every boolean capability', () => 
 // The grant the Allow button persists must carry every boolean capability too —
 // a capability missing there is granted in the dialog and gone on the next save.
 test('custom-widget.js persists every boolean capability in the grant patch', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   const patch = src.match(/grants: \{ \.\.\.\(cur\.grants \|\| \{\}\), \[pkg\.id\]: \{[^}]*\}/);
   assert.ok(patch, 'grant patch object not found in custom-widget.js');
   for (const flag of BOOLEAN_CAPS) {
@@ -138,7 +138,7 @@ test('custom-widget.js persists every boolean capability in the grant patch', ()
 });
 
 test('advanced island grants can justify a background service frame', () => {
-  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   // planServiceFrames (its behaviour: sdk-service-frames-plan.test.mjs).
   assert.match(src, /else if \(shown && pkg\.islandDynamic === true && grant\.island && grant\.islandDynamic\) tiers\[2\]\.push\(pkg\);/);
 });

@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const wau = require('../store-catalog/widget-auto-update.js');
 const sdk = require('../sdk-widgets.js');
 const codec = require('../js/presets/preset-share.js');
-const CLIENT_SRC = readFileSync(fileURLToPath(new URL('../js/custom-widget.js', import.meta.url)), 'utf8');
+const CLIENT_SRC = readFileSync(fileURLToPath(new URL('../js/custom-widget/custom-widget.js', import.meta.url)), 'utf8');
 
 const NOW = Date.parse('2026-10-10T12:00:00Z');
 

@@ -27,7 +27,7 @@ const SERVER = engineSource();
 const PS1 = read('../disk-io.ps1');
 const SDK = engineSource('server/sdk-widgets.js');
 const SETTINGS = read('../js/settings.js');
-const CUSTOM = read('../js/custom-widget.js');
+const CUSTOM = read('../js/custom-widget/custom-widget.js');
 const I18N = appStringsSource();
 const DOC = read('../../docs/WIDGET_SDK.md');
 

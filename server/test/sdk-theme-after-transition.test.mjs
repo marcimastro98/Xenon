@@ -20,7 +20,7 @@ test('the accent and background still ease on :root (the reason for the re-push)
 });
 
 test('the theme is pushed to widgets again when the colour ease ends', () => {
-  const src = read('js', 'custom-widget.js');
+  const src = read('js', 'custom-widget/custom-widget.js');
   const at = src.indexOf("document.documentElement.addEventListener('transitionend'");
   assert.ok(at > 0, 'custom-widget.js must listen for the end of the colour ease');
   const handler = src.slice(at, src.indexOf('});', at));

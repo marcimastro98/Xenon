@@ -69,7 +69,7 @@ test('the catalog entry, the runner, the AI function and the SDK category line u
   const { d } = deps({ ok: true, drawing: true });
   assert.equal((await createCapabilities({ capture: d.capture }).run({ type: 'screenDraw' })).drawing, true);
   assert.ok(SDK_ACTION_CATEGORIES.layers.includes('screenDraw'));
-  const bridge = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'latin1');
+  const bridge = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'latin1');
   assert.match(bridge, /layers: \['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion'\]/);
 });
 

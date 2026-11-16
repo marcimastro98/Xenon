@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const schema = require('../js/sdk-island-schema.js');
+const schema = require('../js/widget-sdk/sdk-island-schema.js');
 
 test('dynamic island: normalizes a bounded live activity without retaining extras', () => {
   const view = schema.normalize({

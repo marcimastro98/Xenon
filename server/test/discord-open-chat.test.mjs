@@ -179,7 +179,7 @@ test('an SDK widget can open a chat, and only as a hidden, granted action', asyn
   // A Deck key has no message to take the channel id from.
   assert.equal(actionSpec('discordOpenChat').hidden, true);
   assert.ok(sdk.SDK_ACTION_CATEGORIES.discord.includes('discordOpenChat'));
-  assert.match(read('../js/custom-widget.js'), /discord: \[[^\]]*'discordOpenChat'/);
+  assert.match(read('../js/custom-widget/custom-widget.js'), /discord: \[[^\]]*'discordOpenChat'/);
   assert.equal(validateAction({ type: 'discordOpenChat', channel: '9'.repeat(80) }).channel.length, 25);
 
   const run = (result) => reg.createRegistry({ discordOpenChat: async () => result })
@@ -195,7 +195,7 @@ test('an SDK widget can open a chat, and only as a hidden, granted action', asyn
 test('a paired phone is refused the chat, and a widget is told it is on one', () => {
   // It would open Discord on the PC, out of sight of whoever tapped.
   assert.doesNotMatch(read('../paired/remote-actions.js'), /discordOpenChat/);
-  assert.match(read('../js/custom-widget.js'), /remote: !!\(window\.RemoteSurface/);
+  assert.match(read('../js/custom-widget/custom-widget.js'), /remote: !!\(window\.RemoteSurface/);
 });
 
 test('the SDK docs teach the chat action to Bit and to widget authors', () => {

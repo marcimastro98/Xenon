@@ -93,7 +93,7 @@ test('the background frame still allows unsafe-eval and the widget CSP still doe
 // would give widgets a real origin, and with it cookies, localStorage and the
 // parent document. The skill lists all three as impossible.
 test('widget frames are still sandboxed without allow-same-origin', () => {
-  const host = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const host = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   // Only real setAttribute calls count. The file also says "NO allow-same-origin"
   // in a comment, which is the opposite of a violation.
   const sandboxCalls = [...host.matchAll(/setAttribute\(\s*'sandbox'\s*,\s*'([^']*)'/g)].map((m) => m[1]);

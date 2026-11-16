@@ -127,7 +127,7 @@ test('SDK: a widget may switch the modes and rule out the app in front, never na
   assert.equal(sdk.sdkActionWithinLimits({ type: 'gameIgnore', mode: 'current' }), true);
   assert.equal(sdk.sdkActionWithinLimits({ type: 'gameIgnore', mode: 'add', name: 'eldenring' }), false);
   assert.equal(sdk.sdkActionWithinLimits({ type: 'gameIgnore', mode: 'current', name: 'eldenring' }), false);
-  const cw = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const cw = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
   assert.match(cw, /performance: \['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory'\]/);
   assert.match(cw, /gameIgnore: \{ mode: \['current'\], name: \[\] \}/);
   const st = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');

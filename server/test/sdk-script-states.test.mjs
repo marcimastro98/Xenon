@@ -24,7 +24,7 @@ test('scriptStates is a declarable stream in every mirror of the SDK surface', (
   // grant, so the package is granted it and never receives a byte.
   assert.match(read('js', 'settings.js'), /const SDK_WIDGET_STREAMS = Object\.freeze\(\[[^\]]*'scriptStates'/);
   // The permission label the user actually reads before approving.
-  assert.match(read('js', 'custom-widget.js'), /scriptStates: \['cw_stream_scriptstates',/);
+  assert.match(read('js', 'custom-widget/custom-widget.js'), /scriptStates: \['cw_stream_scriptstates',/);
   // And the auto-generated capability table in the guide.
   assert.match(DOC, /\*\*Data streams\*\* \(`streams`\):[^\n]*`scriptStates`/);
 });
@@ -34,7 +34,7 @@ test('a manifest asking for scriptStates keeps it through validation', () => {
   assert.ok(sdk.SDK_STREAMS.includes('scriptStates'));
   // The picker's category map decides where such a package is filed; a stream
   // in no category leaves the package uncategorised in the palette.
-  assert.match(read('js', 'custom-widget.js'), /id: 'system'[^\n]*streams: \[[^\]]*'scriptStates'\]/);
+  assert.match(read('js', 'custom-widget/custom-widget.js'), /id: 'system'[^\n]*streams: \[[^\]]*'scriptStates'\]/);
 });
 
 test('its permission label is translated in every language the app ships', () => {
@@ -68,7 +68,7 @@ test('no bridge path lets a widget WRITE a script state', () => {
   // store is shared and unnamespaced, so one package could overwrite another's
   // name — or the user's own script's.
   assert.match(engineSource(), /const isSdkSensitive =[^\n]*'\/state\/set'/);
-  const bridge = read('js', 'custom-widget.js');
+  const bridge = read('js', 'custom-widget/custom-widget.js');
   assert.ok(!bridge.includes('/state/set'), 'custom-widget.js must not call /state/set');
   assert.ok(!/type === 'scriptState'/.test(bridge), 'no bridge message may set a script state');
   assert.match(DOC, /Read-only, by design/);

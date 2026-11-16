@@ -210,7 +210,7 @@ test('the route is grant-gated, selection-bound and POST; the bridge checks the 
   assert.match(body, /ha\.entities \|\| \[\], ha\.energyEntities/);
   assert.match(body, /sdkTileGate\(pkgId/);
   assert.match(body, /body\.op === 'artwork'\) \{\s*json\(await haQuery\.artwork\(p\.id, allowed\)\)/);
-  const cw = read('server/js/custom-widget.js');
+  const cw = read('server/js/custom-widget/custom-widget.js');
   const fn = cw.slice(cw.indexOf('async function onBridgeHaQuery'));
   assert.match(fn.slice(0, 900), /grant\.streams\.includes\('homeassistant'\)/);
   assert.match(cw, /d\.type === 'haQuery'\) \{\s*if \(entry\.ready\) onBridgeHaQuery/);
@@ -227,6 +227,6 @@ test('an unchanged selection is not broadcast again; a new dashboard is seeded a
 });
 
 test('init tells a tile which copy it is, and tells a service frame nothing', () => {
-  const cw = read('server/js/custom-widget.js');
+  const cw = read('server/js/custom-widget/custom-widget.js');
   assert.match(cw, /instance: entry\.service \|\| entry\.ambient \? null : instanceIdOfEntry\(entry\)/);
 });

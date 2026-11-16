@@ -440,7 +440,7 @@
     return fit ? fit.hasAttribute('data-layer-through') : storeWidgetThrough(slot);
   }
 
-  // A Store widget can ask for the same (the SDK `layer` message, js/custom-widget.js
+  // A Store widget can ask for the same (the SDK `layer` message, js/custom-widget/custom-widget.js
   // marks its frame). Not in a tab group, whose tabs must stay pressable, and not
   // while it is open at full size, whose ✕ must be.
   function storeWidgetThrough(slot) {

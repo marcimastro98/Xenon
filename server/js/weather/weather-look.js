@@ -1,6 +1,6 @@
 // Which look the Weather tile wears: the 5.x tile (js/weather-tile/weather-tile.js) or the
 // separate cards of Xenon 4.11 (js/weather/weather-classic.js), or a widget of the user's that
-// reads the weather (custom: js/custom-widget.js hosts it), Settings → Weather → Style
+// reads the weather (custom: js/custom-widget/custom-widget.js hosts it), Settings → Weather → Style
 // and Bit's change_setting weather_style. The classic files load the first time
 // someone picks it, so nobody else downloads them; if they cannot load, the tile
 // stays on the new look and says nothing worse than that. The Weather window follows the
@@ -59,7 +59,7 @@
   const HOST = 'custom-widget-mount';
   const hasHost = (mount) => !!(mount.firstElementChild && mount.firstElementChild.classList.contains(HOST));
 
-  // Custom: each mount holds one .custom-widget-mount, and js/custom-widget.js
+  // Custom: each mount holds one .custom-widget-mount, and js/custom-widget/custom-widget.js
   // treats the Weather tile as a widget tile (chooser, permission, frame, paused
   // states). The host is kept across weather refreshes so the widget is not
   // reloaded every time; where custom-widget.js is not loaded (a desktop widget

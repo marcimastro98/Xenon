@@ -147,14 +147,14 @@ test('the assistant puts a widget it made on the current page, in its shape', ()
   const body = server.slice(at, server.indexOf("} else if (fnName === 'preset_reference')", at));
   assert.match(body, /clientActions\.push\(\{ action: 'place_created_widget', args: \{ id: r\.id \} \}\)/);
   assert.match(read('js/ai/ai.js'), /case 'place_created_widget':\s*\n\s*if \(window\.CustomWidget && window\.CustomWidget\.placeCreated/);
-  const cw = read('js/custom-widget.js');
+  const cw = read('js/custom-widget/custom-widget.js');
   assert.match(cw, /DG\.sizeForHint\(pkg\.size, page\)/);
   assert.match(cw, /DG\.addWidgetToPage\('custom', page, size\)/);
   assert.match(cw, /addToPage, addAsTab, bindPackages, placeCreated,/);
 });
 
 test('a widget made for a full page gets a page of its own, and is placed once per turn', () => {
-  const cw = read('js/custom-widget.js');
+  const cw = read('js/custom-widget/custom-widget.js');
   const body = cw.slice(cw.indexOf('async function placeCreated'), cw.indexOf('function addAsTab'));
   assert.match(body, /if \(_placing\.has\(pkgId\)\) return null;/);
   assert.match(body, /!DG\.fitsOnPage\(page, span\)/);

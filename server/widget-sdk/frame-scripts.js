@@ -54,7 +54,7 @@ function prepareWidgetHtml(html, assetRoot) {
 //
 // It also names what the CSP REFUSED (a CDN script, inline code, a direct
 // fetch, a remote image), so a widget's author learns why the tile is blank
-// (js/sdk-diagnostics.js validates the report). Each distinct refusal is sent
+// (js/widget-sdk/sdk-diagnostics.js validates the report). Each distinct refusal is sent
 // once, as a CSP directive plus a bare hostname: never a path or query, which
 // can carry a key. The ReportingObserver is buffered, so refusals made while
 // the page parsed (before this deferred script ran) still count; the event

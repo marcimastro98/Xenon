@@ -15,14 +15,14 @@ import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
-const BRIDGE = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const BRIDGE = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8');
 
 // The reader is pure, so what it does with a missing or junk setting can be run.
 const tempUnit = (hubSettings) => {
   const at = BRIDGE.indexOf('function tempUnit() {');
-  assert.notEqual(at, -1, 'js/custom-widget.js must still define tempUnit');
+  assert.notEqual(at, -1, 'js/custom-widget/custom-widget.js must still define tempUnit');
   const end = BRIDGE.indexOf('\n  }', at) + 4;
   // eslint-disable-next-line no-new-func
   return new Function('hubSettings', `${BRIDGE.slice(at, end)}; return tempUnit();`)(hubSettings);
@@ -30,7 +30,7 @@ const tempUnit = (hubSettings) => {
 const hwTempUnit = (hubSettings) => {
   const at = BRIDGE.indexOf('function tempUnit() {');
   const hw = BRIDGE.indexOf('function hwTempUnit() {');
-  assert.notEqual(hw, -1, 'js/custom-widget.js must still define hwTempUnit');
+  assert.notEqual(hw, -1, 'js/custom-widget/custom-widget.js must still define hwTempUnit');
   const end = BRIDGE.indexOf('\n  }', hw) + 4;
   // eslint-disable-next-line no-new-func
   return new Function('hubSettings', `${BRIDGE.slice(at, end)}; return hwTempUnit();`)(hubSettings);

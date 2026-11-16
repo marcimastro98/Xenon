@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const ThemePalette = require('../js/look/theme-palette.js');
-const SRC = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../styles/global.css', import.meta.url), 'utf8');
 
 /** The real computedHex + themePayload, run against a frame with these computed tokens. */

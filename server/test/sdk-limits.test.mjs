@@ -15,7 +15,7 @@ const sdkStore = require('../store-catalog/sdk-store.js');
 const sdkWidgets = require('../sdk-widgets.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const SERVER = engineSource();
-const BRIDGE = read('../js/custom-widget.js');
+const BRIDGE = read('../js/custom-widget/custom-widget.js');
 
 test('every number is the one the host enforces', () => {
   assert.equal(SDK_LIMITS.fetch.maxResponseBytes, sdkProxy.PROXY_MAX_FETCH_BYTES);

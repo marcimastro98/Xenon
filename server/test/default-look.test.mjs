@@ -239,7 +239,7 @@ test('grey text is lighter under Liquid Glass, where the tile is brighter than i
 });
 
 test('widgets keep reading the skin they know', () => {
-  assert.match(read('js', 'custom-widget.js'), /return hs\.styleMode === 'retro' \? 'retro' : 'glass';/);
+  assert.match(read('js', 'custom-widget/custom-widget.js'), /return hs\.styleMode === 'retro' \? 'retro' : 'glass';/);
 });
 
 test('Bit knows the styles and the wallpaper', () => {

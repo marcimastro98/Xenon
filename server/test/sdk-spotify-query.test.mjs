@@ -359,7 +359,7 @@ test('reading is a separate grant from controlling playback', () => {
   assert.ok(sdk.SDK_STREAMS.includes('spotify'), 'the reads need a grant of their own');
   assert.ok(!sdk.SDK_ACTION_CATEGORIES.spotify.includes('spotifyQuery'),
     'reading must not ride the playback action category');
-  const bridge = read('server/js/custom-widget.js');
+  const bridge = read('server/js/custom-widget/custom-widget.js');
   assert.match(bridge, /if \(!grant\.streams\.includes\('spotify'\)\) \{ reply\(\{ ok: false, error: 'not_allowed' \}\); return; \}/);
   const server = engineSource();
   assert.match(server, /sdkGrantsFor\(pkgId\)\.streams\.includes\('spotify'\)/,
@@ -568,7 +568,7 @@ test('the cursors reach the provider through both lists that can drop them', () 
   // The recurring shape of this bug: a param has to be named in the bridge that
   // builds the request AND in the route that reads it back. Missing from either
   // is not an error — the field is simply gone, and the op answers page 1.
-  const bridge = read('server/js/custom-widget.js');
+  const bridge = read('server/js/custom-widget/custom-widget.js');
   const route = engineSource();
   const list = /\['id', 'q', 'types', 'limit', 'offset', 'after', 'before'\]/;
   assert.match(bridge, list, 'the bridge drops the cursors before the route sees them');
@@ -576,7 +576,7 @@ test('the cursors reach the provider through both lists that can drop them', () 
 });
 
 test('a rate limit crosses into the sandbox with its status and its wait', () => {
-  const src = read('server/js/custom-widget.js');
+  const src = read('server/js/custom-widget/custom-widget.js');
   const fn = src.slice(src.indexOf('async function onBridgeSpotifyQuery'));
   const body = fn.slice(0, fn.indexOf('\n  }\n'));
   assert.match(body, /Number\.isFinite\(r\.status\)/);

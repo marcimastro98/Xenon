@@ -10,7 +10,7 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const BRIDGE = read('../js/custom-widget.js');
+const BRIDGE = read('../js/custom-widget/custom-widget.js');
 const LAYER_CSS = read('../components/LayerHost/LayerHost.css');
 const DOC = read('../../docs/WIDGET_SDK.md');
 
@@ -18,7 +18,7 @@ const DOC = read('../../docs/WIDGET_SDK.md');
 function bridge(layerHost) {
   const start = BRIDGE.indexOf('  function layerRectsChanged() {');
   const fn = BRIDGE.indexOf('  function onBridgeLayer(', start);
-  assert.ok(start !== -1 && fn !== -1, 'js/custom-widget.js must still define layerRectsChanged and onBridgeLayer');
+  assert.ok(start !== -1 && fn !== -1, 'js/custom-widget/custom-widget.js must still define layerRectsChanged and onBridgeLayer');
   const end = BRIDGE.indexOf('\n  }\n', fn) + 4;
   const posted = [];
   const refreshed = { n: 0 };

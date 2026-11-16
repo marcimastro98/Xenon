@@ -1,4 +1,4 @@
-// Which background packages get a hidden service frame (js/custom-widget.js,
+// Which background packages get a hidden service frame (js/custom-widget/custom-widget.js,
 // planServiceFrames). Until v5.1 the first four in install order won and the
 // rest were dropped without a word: a badge-only widget installed fifth never
 // showed, and switching other packages off in the top bar did not free a place.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
-const src = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const src = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const start = src.indexOf('  function planServiceFrames(');
 const end = src.indexOf('\n  }\n', start) + 4;
 const plan = vm.runInNewContext('(' + src.slice(start, end).trim() + ')');

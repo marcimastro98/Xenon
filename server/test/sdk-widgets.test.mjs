@@ -784,7 +784,7 @@ test('probe: a scheme set after load, as xenon-client does with the theme, is fo
 });
 
 test('the host matches the frame to what its page says, with a yes or no only', () => {
-  const widget = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const widget = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
   assert.match(widget, /d\.type === 'scheme'\) \{[\s\S]{0,300}entry\.frame\.classList\.toggle\('cw-frame--dark', d\.dark === true\)/);
   const css = readFileSync(new URL('../components/CustomWidget/CustomWidget.css', import.meta.url), 'utf8');
   assert.match(css, /\.cw-frame--dark \{ color-scheme: dark; \}/);

@@ -94,7 +94,7 @@ test('the bar draws the button itself: text only, no widget markup', () => {
   assert.match(src, /const MAX_OWNERS = 4;/);
   // The sweep stops when no button is left.
   assert.match(src, /clearInterval\(sweepTimer\)/);
-  const cw = read('../js/custom-widget.js');
+  const cw = read('../js/custom-widget/custom-widget.js');
   assert.match(cw, /if \(!pkg \|\| pkg\.topbarButton !== true \|\| !grant\.topbarButton\) return;/);
   assert.match(cw, /d\.type === 'topbarButton'/);
   assert.match(cw, /\(pkg\.topbarButton === true && !g\.topbarButton\)/);

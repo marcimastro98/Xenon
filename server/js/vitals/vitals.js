@@ -540,7 +540,7 @@
 
   function renderWidgets() { paint(); }
 
-  // What an SDK widget granted `vitals` reads (js/custom-widget.js): the same
+  // What an SDK widget granted `vitals` reads (js/custom-widget/custom-widget.js): the same
   // numbers Bit reads, frozen with the bars while the user is away.
   // Each meter also carries its name in the user's language, so a widget can
   // label it without its own translations.

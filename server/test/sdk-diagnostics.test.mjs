@@ -1,4 +1,4 @@
-// SDK widget sandbox diagnostics (js/sdk-diagnostics.js): the static scan of a
+// SDK widget sandbox diagnostics (js/widget-sdk/sdk-diagnostics.js): the static scan of a
 // package's own files and the validation of the probe's run-time `blocked`
 // reports, which together tell a widget's author what the sandbox refuses.
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const D = require('../js/sdk-diagnostics.js');
+const D = require('../js/widget-sdk/sdk-diagnostics.js');
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const kinds = (issues) => issues.map((i) => i.kind);

@@ -349,6 +349,9 @@
     {"from":"server/js/tile-shape-presets.js","to":"server/js/look/tile-shape-presets.js"},
     {"from":"server/js/dashboard-presets.js","to":"server/js/presets/dashboard-presets.js"},
     {"from":"server/js/preset-share.js","to":"server/js/presets/preset-share.js"},
-    {"from":"server/js/topbar-share.js","to":"server/js/presets/topbar-share.js"}
+    {"from":"server/js/topbar-share.js","to":"server/js/presets/topbar-share.js"},
+    {"from":"server/js/custom-widget.js","to":"server/js/custom-widget/custom-widget.js"},
+    {"from":"server/js/sdk-diagnostics.js","to":"server/js/widget-sdk/sdk-diagnostics.js"},
+    {"from":"server/js/sdk-island-schema.js","to":"server/js/widget-sdk/sdk-island-schema.js"}
   ]
 }

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SRC = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+const SRC = readFileSync(join(ROOT, 'server', 'js', 'custom-widget/custom-widget.js'), 'utf8');
 
 /** Load the gate with the confirmation dialog replaced by a recording stub. */
 function loadGate() {

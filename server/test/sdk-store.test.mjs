@@ -229,7 +229,7 @@ test('storeNamespace fanout: a group write targets every sibling, a solo write o
 // can stand up. Treat a failure as "the loop protection was removed".
 
 test('sync guard: the host marks post-remount writes quiet and the server keeps them silent', () => {
-  const client = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const client = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
   const server = engineSource();
 
   // Host half: the store write carries the quiet flag.
@@ -250,7 +250,7 @@ test('sync guard: the host marks post-remount writes quiet and the server keeps 
 });
 
 test('store sync restores background service frames after the visible repaint', () => {
-  const client = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const client = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
 
   // A cross-surface store update removes every live frame of the package.
   // paint() only recreates visible tiles; without this explicit reconciliation,

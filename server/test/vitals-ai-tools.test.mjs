@@ -138,7 +138,7 @@ test("the SDK vitals stream names each meter in the user's language and sends Bi
   assert.ok(vitals.includes('const snap = window.VitalsCore.snapshot(cfg(), effectiveNow());'));
   assert.ok(vitals.includes("snap.meters.map((m) => ({ ...m, name: t('vitals_' + m.id, m.id) }))"));
   assert.ok(vitals.includes('return { ok: true, ...snap, meters, away };'));
-  assert.ok(read('../js/custom-widget.js').includes("vitals: Object.freeze({ ttl: 5000, load: async () => (window.VitalsWidget && typeof window.VitalsWidget.sdkSnapshot === 'function'"));
+  assert.ok(read('../js/custom-widget/custom-widget.js').includes("vitals: Object.freeze({ ttl: 5000, load: async () => (window.VitalsWidget && typeof window.VitalsWidget.sdkSnapshot === 'function'"));
 });
 
 test('one missed day is forgiven: a refill two days later keeps the streak going', () => {

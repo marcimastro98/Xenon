@@ -59,7 +59,7 @@ const branches = {
 
   'GET /perf/sessions': async (_req, _res, { json, urlObj }, { _gameSessions }) => {
     // Read-only: the games played and how they ran, for an SDK widget granted
-    // `gameSessions` (js/custom-widget.js loader). Names and numbers, no paths.
+    // `gameSessions` (js/custom-widget/custom-widget.js loader). Names and numbers, no paths.
     const limit = Number(urlObj.searchParams.get('limit')) || 20;
     json(widgetGameSessions(_gameSessions, { enabled: gameSessionsEnabled(), limit }));
   },

@@ -192,7 +192,7 @@
     // pauses, stops or the player closes, and the bar's normal contents come
     // straight back. This is an effective-off mask, never a write: the user's own
     // show/hide choices are untouched throughout (same shape as the safe-mode
-    // masks in js/custom-widget.js). A media segment the user hid stays hidden
+    // masks in js/custom-widget/custom-widget.js). A media segment the user hid stays hidden
     // and never takes anything over.
     const mediaItem = items.find((it) => it && it.id === 'media');
     // …except on a phone, where the media segment is not on screen to receive

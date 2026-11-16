@@ -120,7 +120,7 @@ test('the page loads it after the messages and the Store, and the old daily toas
 });
 
 test('a widget update waiting for a permission says where it is, and opens it', () => {
-  const fn = /function onAutoUpdated\(data\) \{[\s\S]*?\n  \}\n/.exec(read('../js/custom-widget.js'))[0];
+  const fn = /function onAutoUpdated\(data\) \{[\s\S]*?\n  \}\n/.exec(read('../js/custom-widget/custom-widget.js'))[0];
   const waiting = fn.slice(fn.indexOf('if (waiting.length)'));
   assert.match(waiting, /onClick: \(\) => \{ if \(window\.CommunityGallery\) window\.CommunityGallery\.open\('__installed'\); \}/);
   const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });

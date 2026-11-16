@@ -24,7 +24,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { listPackages } = require('../sdk-widgets.js');
 
-const CW = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const CW = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/CustomWidget/CustomWidget.css', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 

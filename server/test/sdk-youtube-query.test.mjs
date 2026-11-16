@@ -281,7 +281,7 @@ test('two orders are two lists, not one cache entry', async () => {
 test('the order survives the bridge and the route', () => {
   // Both forward a fixed list of param names, so a param missing from either
   // one is dropped between the widget and the provider that reads it.
-  assert.match(read('server/js/custom-widget.js'), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
+  assert.match(read('server/js/custom-widget/custom-widget.js'), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
   assert.match(engineSource(), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
 });
 
@@ -334,7 +334,7 @@ test('the route is gated per package, on the read grant and not on a playback on
   const body = server.slice(start, start + 1800);
   assert.match(body, /sdkGrantsFor\(pkgId\)\.streams\.includes\('youtube'\)/);
   assert.match(body, /sdkTileGate\(pkgId/);
-  const bridge = read('server/js/custom-widget.js');
+  const bridge = read('server/js/custom-widget/custom-widget.js');
   assert.match(bridge, /if \(!grant\.streams\.includes\('youtube'\)\) \{ reply\(\{ ok: false, error: 'not_allowed' \}\); return; \}/,
     'the bridge checks too — it is convenience, the server is the boundary');
 });
@@ -348,7 +348,7 @@ test('reading is its own grant, and rides no existing one', () => {
     'and it must not have replaced the broadcast stream either');
   // The five mirrors of the SDK surface (see the header of sdk-widgets.js).
   assert.ok(read('server/js/settings.js').includes("'youtubeLive', 'youtube'"));
-  const labels = read('server/js/custom-widget.js');
+  const labels = read('server/js/custom-widget/custom-widget.js');
   assert.match(labels, /youtube: \['cw_stream_youtube',/);
 });
 

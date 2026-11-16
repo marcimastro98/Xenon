@@ -1,6 +1,6 @@
 // The SDK `capture` category: a widget may START a screenshot, a recording, a
 // replay save or a text copy from an area the user drags, nothing else. Pinned here: the three types and their limits on
-// the server, the same limits in the bridge (js/custom-widget.js, where bridge
+// the server, the same limits in the bridge (js/custom-widget/custom-widget.js, where bridge
 // actions are gated), 'reveal' / replay on-off / the microphone refused on both
 // doors (bridge and manifest macro), a field left out allowed, the permission
 // line in all 11 languages, and the docs section.
@@ -16,7 +16,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sdk = require('../sdk-widgets.js');
-const CW = readFileSync(path.join(ROOT, 'js', 'custom-widget.js'), 'utf8');
+const CW = readFileSync(path.join(ROOT, 'js', 'custom-widget/custom-widget.js'), 'utf8');
 
 // What the bridge posts for a widget's action, run as it is written.
 function bridgeRunAction() {

@@ -115,7 +115,7 @@ test('the SDK route: only with the grant, numbers only, a fixed word on failure'
 test('the stream in the four places, rebuilt field by field in the bridge', () => {
   assert.ok(sdk.SDK_STREAMS.includes('energy'));
   assert.match(read('../js/settings.js'), /const SDK_WIDGET_STREAMS = Object\.freeze\(\[[^\]]*'energy'/);
-  const cw = read('../js/custom-widget.js');
+  const cw = read('../js/custom-widget/custom-widget.js');
   assert.match(cw, /energy: \['cw_stream_energy', /);
   const at = cw.indexOf('    energy: Object.freeze({ ttl: 60000');
   assert.ok(at > 0);

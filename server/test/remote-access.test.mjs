@@ -1063,11 +1063,11 @@ test('the served document carries the asset key, and one helper uses it', () => 
   assert.ok(src.includes('window.__xenonRemote = { device: '), 'the remote marker must still be injected');
   assert.ok(src.includes(", assetKey: '") || src.includes("+ ', assetKey: '"), 'and it must carry assetKey');
 
-  const client = readFileSync(path.join(HERE, '..', 'js', 'custom-widget.js'), 'utf8');
+  const client = readFileSync(path.join(HERE, '..', 'js', 'custom-widget/custom-widget.js'), 'utf8');
   assert.ok(client.includes('function sdkAssetBase('), 'one helper decides the asset base');
   // Every SDK frame must go through it. A second hand-built literal would be a
   // widget that loads unstyled on a phone and correctly everywhere else.
-  for (const f of ['custom-widget.js', 'ambient/ambient-mode.js', 'ambient/ambient-canvas.js']) {
+  for (const f of ['custom-widget/custom-widget.js', 'ambient/ambient-mode.js', 'ambient/ambient-canvas.js']) {
     const s = readFileSync(path.join(HERE, '..', 'js', f), 'utf8');
     assert.ok(!s.includes("frame.src = '/sdk/widget/'"), f + ' must not build the asset base by hand');
   }
