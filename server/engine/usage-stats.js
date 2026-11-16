@@ -152,7 +152,7 @@ function recordCapability(action, result) {
   const type = action && typeof action.type === 'string' ? action.type : '';
   if (!type) return;
   const ok = !!(result && result.ok === true);
-  const askedWrong = !ok && ASKED_WRONG_RE.test(String((result && result.error) || ''));
+  const askedWrong = !ok && ASKED_WRONG_RE.test(String(result?.error || ''));
   record('cap.' + type, !ok && !askedWrong);
   // Only the two surfaces the hub knows; an anchored widget is neither.
   const surface = ok && type === 'layerPlace' && result.placed ? result.placed.surface : '';
