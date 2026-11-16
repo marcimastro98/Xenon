@@ -94,7 +94,7 @@ test('every new string is in all 11 languages', () => {
 // my widget when I tap them".
 test('the Weather window shows the widget, in a host of its own that keeps the tile\'s choice', () => {
   const WINDOW = read('js', 'weather/weather-window.js');
-  const SYSTEM = read('js', 'system.js');
+  const SYSTEM = read('js', 'system/system.js');
   const MODAL_CSS = read('components', 'WeatherModal', 'WeatherModal.css');
   assert.match(extractFunction(WINDOW, 'renderWeatherDetails'),
     /if \(window\.WeatherLook && window\.WeatherLook\.renderWindow\(content\)\) return;/);

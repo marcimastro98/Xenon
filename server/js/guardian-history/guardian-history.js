@@ -2,7 +2,7 @@
 // (temperatures, loads, power, which apps were in front) so the user can SEE the
 // data without asking Xenon AI. Lives in the System tile's History tab, which is
 // revealed only while history is being collected. Read-only: GET /api/guardian/history.
-// The charts themselves are drawn by js/history-chart.js.
+// The charts themselves are drawn by js/history-chart/history-chart.js.
 (function () {
   'use strict';
 

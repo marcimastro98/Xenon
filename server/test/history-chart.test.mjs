@@ -9,8 +9,8 @@ import { makeDom, settle } from './mini-dom.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const CHART_SRC = read('../js/history-chart.js');
-const HISTORY_SRC = read('../js/guardian-history.js');
+const CHART_SRC = read('../js/history-chart/history-chart.js');
+const HISTORY_SRC = read('../js/guardian-history/guardian-history.js');
 const CSS = read('../components/GuardianHistory/GuardianHistory.css');
 const INDEX = read('../index.html');
 // The real Settings → Time format helpers, so the axis hours go through them.
@@ -306,10 +306,10 @@ test('the range sits in the tab bar, hidden until History opens, and the old row
 
 test('the chart engine loads before the History module on the page and in desktop widgets', () => {
   const at = (s) => INDEX.indexOf(`<script src="js/${s}"></script>`);
-  assert.ok(at('store-supporters/spark-path.js') > 0 && at('store-supporters/spark-path.js') < at('history-chart.js') && at('history-chart.js') < at('guardian-history.js'));
+  assert.ok(at('store-supporters/spark-path.js') > 0 && at('store-supporters/spark-path.js') < at('history-chart/history-chart.js') && at('history-chart/history-chart.js') < at('guardian-history/guardian-history.js'));
   const tiles = read('../js/layers/layer-tiles.js');
-  const history = partsOf('server/js/guardian-history.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // the scripts the History module is made of today
-  const chart = partsOf('server/js/history-chart.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // and the chart engine
+  const history = partsOf('server/js/guardian-history/guardian-history.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // the scripts the History module is made of today
+  const chart = partsOf('server/js/history-chart/history-chart.js').map((file) => `'${file.slice('server/'.length)}'`).join(', '); // and the chart engine
   for (const list of [`'js/audio/picker.js', ${chart}, ${history}]`, `power: tile('power', 'PowerWidget', ['js/store-supporters/spark-path.js', ${chart}, ${history}`]) assert.ok(tiles.includes(list), list);
   assert.match(tiles, /null, \['components\/GuardianHistory\/GuardianHistory\.css'\]\)/);
 });

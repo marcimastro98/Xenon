@@ -25,7 +25,7 @@ import { engineSource } from './engine-source.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const SERVER = engineSource();
-const SYSTEM = readFileSync(join(root, 'js', 'system.js'), 'utf8');
+const SYSTEM = readFileSync(join(root, 'js', 'system/system.js'), 'utf8');
 const I18N = appStringsSource();
 
 // The real GEO_IP_SOURCES table and its value guard, lifted out of server.js and
@@ -104,7 +104,7 @@ test('a total weather failure is answered with a reason, not thrown', () => {
 
 test('the reasons the server sends are exactly the ones the client can name', () => {
   const map = SYSTEM.match(/const WEATHER_ERROR_KEYS = \{[\s\S]*?\n\};/);
-  assert.ok(map, 'WEATHER_ERROR_KEYS not found in js/system.js');
+  assert.ok(map, 'WEATHER_ERROR_KEYS not found in js/system/system.js');
   const ctx = {};
   vm.createContext(ctx);
   vm.runInContext(`${map[0]}\nglobalThis.__m = WEATHER_ERROR_KEYS;`, ctx, { filename: 'system.js' });

@@ -71,8 +71,8 @@ test('a caller-supplied option cannot drop the abort signal', () => {
 // Every flag-guarded poller, and what it fetches. A new one belongs in this
 // list: the failure mode is invisible in review and permanent in production.
 const POLLERS = [
-  { file: 'system.js', fn: 'fetchWeather', flag: 'fetchingWeather' },
-  { file: 'system.js', fn: 'fetchSystem', flag: 'fetchingSystem' },
+  { file: 'system/system.js', fn: 'fetchWeather', flag: 'fetchingWeather' },
+  { file: 'system/system.js', fn: 'fetchSystem', flag: 'fetchingSystem' },
   { file: 'system/network.js', fn: 'fetchNetwork', flag: 'fetchingNetwork' },
   { file: 'volume/volume.js', fn: 'fetchAudio', flag: 'fetchingAudio' },
 ];
@@ -116,9 +116,9 @@ test('a failed weather poll keeps the last reading instead of blanking the tile'
   // A request that did not arrive says nothing about the weather, and a forecast
   // from 15 minutes ago is still worth reading. Bounded, though: one from this
   // morning shown as current is worse than an empty card.
-  const src = read('system.js');
+  const src = read('system/system.js');
   const fn = src.match(/function weatherStaleFallback\(\) \{[\s\S]*?\n\}/);
-  assert.ok(fn, 'weatherStaleFallback not found in js/system.js');
+  assert.ok(fn, 'weatherStaleFallback not found in js/system/system.js');
   const ctx = { lastGoodWeather: null, WEATHER_STALE_MAX_MS: 3 * 60 * 60 * 1000, Date };
   vm.createContext(ctx);
   vm.runInContext(`${fn[0]}\nglobalThis.__f = weatherStaleFallback;`, ctx, { filename: 'system.js' });
@@ -135,5 +135,5 @@ test('a failed weather poll keeps the last reading instead of blanking the tile'
 
   // Only a fresh success may become the fallback — re-storing a stale copy would
   // keep renewing its own age and the cap above would never be reached.
-  assert.match(read('system.js'), /if \(data && data\.ok && !data\.stale\) lastGoodWeather = data;/);
+  assert.match(read('system/system.js'), /if \(data && data\.ok && !data\.stale\) lastGoodWeather = data;/);
 });

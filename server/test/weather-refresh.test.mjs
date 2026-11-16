@@ -52,7 +52,7 @@ test('a timer firing on the boundary cannot re-arm into a tight loop', () => {
 // test/poller-deadline.test.mjs.
 
 test('fetchWeather clears its guard in a finally, and its failure render cannot escape', () => {
-  const src = read('js/system.js');
+  const src = read('js/system/system.js');
   const fn = src.slice(src.indexOf('async function fetchWeather('));
   const body = fn.slice(0, fn.indexOf('\nasync function '));
   assert.match(body, /\}\s*finally\s*\{\s*[\s\S]*?fetchingWeather\s*=\s*false;/, 'the guard must clear in a finally');
@@ -66,7 +66,7 @@ test('fetchWeather clears its guard in a finally, and its failure render cannot 
 // normalizer was missing there, so fetchWeather fell back to "auto" and a
 // widget on the desktop showed the IP's town instead of the city the user typed.
 test('fetchWeather keeps a manual city where settings.js is not loaded', async () => {
-  const src = read('js/system.js');
+  const src = read('js/system/system.js');
   const fn = src.slice(src.indexOf('async function fetchWeather('));
   const body = fn.slice(0, fn.indexOf('\nasync function '));
   const urls = [];

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
-const SRC = readFileSync(new URL('../js/system.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/system/system.js', import.meta.url), 'utf8');
 const from = SRC.indexOf('const WEATHER_CLEAR_CODES');
 const to = SRC.indexOf('function weatherStateIcon');
 const ctx = vm.createContext({});

@@ -1,6 +1,6 @@
 // The classic Weather look: the 4.11.13 tile (painted, animated sky card, then the Details
 // cards, the next hours and the next days), kept as a choice because people asked to have it
-// back next to the current tile. It reads the same weatherData and helpers (js/system.js) and
+// back next to the current tile. It reads the same weatherData and helpers (js/system/system.js) and
 // draws into one .weather-widget-mount; the looks live in components/WeatherTile/WeatherClassic.css.
 (function () {
   'use strict';

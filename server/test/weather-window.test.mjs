@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const TILE = read('js', 'weather-tile/weather-tile.js');
 const WINDOW = read('js', 'weather/weather-window.js');
-const SYSTEM = read('js', 'system.js');
+const SYSTEM = read('js', 'system/system.js');
 const DOORS = SYSTEM.slice(SYSTEM.indexOf('let weatherWindowLetGo'), SYSTEM.indexOf('async function fetchWeather'));
 
 const FINE = {

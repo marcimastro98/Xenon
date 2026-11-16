@@ -108,7 +108,7 @@ test('the server: a partial answer asks no sensor and calls an unread choice unk
 });
 
 test('the page: a detail not read yet is not called unavailable, and full beats partial', () => {
-  const page = read('../js/system.js');
+  const page = read('../js/system/system.js');
   assert.match(page, /\(systemAnswerPartial \? '--' : t\('disk_detail_unavailable'\)\)/);
   assert.match(page, /\(systemAnswerPartial \? '--' : t\('ram_detail_unavailable'\)\)/);
   assert.match(page, /function applySystem\(data\) \{[\s\S]{0,160}if \(data\.partial && lastSystemData && !lastSystemData\.partial\) return;\n\s+systemAnswerPartial = !!data\.partial;/);

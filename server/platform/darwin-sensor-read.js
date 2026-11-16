@@ -121,7 +121,7 @@ async function gpu() {
       // What the accelerator currently holds, when the helper could read it.
       // macmon does not report this, so it stays null on that path. Reported
       // even on Apple Silicon, where vramTotal is null because the GPU shares
-      // system memory: js/system.js gates the whole VRAM readout on a positive
+      // system memory: js/system/system.js gates the whole VRAM readout on a positive
       // TOTAL, so the number is simply not shown rather than appearing next to
       // a "--" it cannot be a fraction of. On an Intel Mac with a discrete card
       // both halves are real and the readout works.

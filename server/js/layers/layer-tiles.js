@@ -33,8 +33,8 @@
       'components/AudioSection/AudioSection.css', 'components/AudioSection/AudioSectionAppMixer.css', 'components/MicPanel/MicPanel.css', 'components/MicPanel/MicPanelAppMixer.css',
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
-    js: ['js/grid/fit-row.js', 'js/store-supporters/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/system/network.js', 'js/topbar/status.js', 'js/ai/audio-feedback.js',
-      'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume/volume.js', 'js/audio/mic.js', 'js/audio/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js'],
+    js: ['js/grid/fit-row.js', 'js/store-supporters/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system/system.js', 'js/system/network.js', 'js/topbar/status.js', 'js/ai/audio-feedback.js',
+      'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume/volume.js', 'js/audio/mic.js', 'js/audio/picker.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history/guardian-history.js'],
   };
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
@@ -52,7 +52,7 @@
     mic: { ...SYSTEM, markup: ['system', 'mic', '#picker-overlay'] },
     audio: { ...SYSTEM, markup: ['system', 'mic', 'audio', '#picker-overlay'] },
     // The page builds the tile itself; a tap opens its details, cut from index.html.
-    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'], js: ['js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile/parts.js', 'js/weather-tile/facts-and-render.js', 'js/weather-tile/weather-tile.js', 'js/weather/weather-look.js', 'js/weather/weather-window.js'], markup: ['#weather-overlay'], copies: true },
+    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'], js: ['js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system/system.js', 'js/weather/weather-art.js', 'js/weather/weather-outlook.js', 'js/weather-tile/parts.js', 'js/weather-tile/facts-and-render.js', 'js/weather-tile/weather-tile.js', 'js/weather/weather-look.js', 'js/weather/weather-window.js'], markup: ['#weather-overlay'], copies: true },
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
@@ -65,14 +65,14 @@
     // alert-toasts.js for the "why does it stutter?" line's words, perf-hud.js for the parts shown.
     perf: {
       css: ['components/PerfWidget/PerfWidget.css'],
-      js: ['js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/alerts/alert-toasts.js', 'js/performance/perf-hud.js', 'js/perf-widget/says.js', 'js/perf-widget/perf-widget.js'],
+      js: ['js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system/system.js', 'js/alerts/alert-toasts.js', 'js/performance/perf-hud.js', 'js/perf-widget/says.js', 'js/perf-widget/perf-widget.js'],
       markup: ['perf'],
       global: 'PerfWidget',
       streams: { perf: 'onPerf', system: 'onSystem', perf_net: 'onNet' },
     },
     battery: tile('battery', 'BatteryWidget', ['js/system/battery-widget.js'], { battery: 'onSSE' }),
-    fans: tile('fans', 'FansWidget', ['js/system/sensor-access.js', 'js/fans-widget/readings.js', 'js/fans-widget.js'], { system: 'onSSE' }),
-    power: tile('power', 'PowerWidget', ['js/store-supporters/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history.js', 'js/system/sensor-access.js', 'js/system/power-widget.js'],
+    fans: tile('fans', 'FansWidget', ['js/system/sensor-access.js', 'js/fans-widget/readings.js', 'js/fans-widget/fans-widget.js'], { system: 'onSSE' }),
+    power: tile('power', 'PowerWidget', ['js/store-supporters/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history/guardian-history.js', 'js/system/sensor-access.js', 'js/system/power-widget.js'],
       { system: 'onSSE', homeassistant: 'onHaSSE' }, null, ['components/GuardianHistory/GuardianHistory.css']),
     stocks: tile('stocks', 'StockWidget', ['js/ticker/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),
     football: tile('football', 'FootballWidget', ['js/grid/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget/match-pieces.js', 'js/football-widget.js'], { football: 'onSSE' }),

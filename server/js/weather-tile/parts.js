@@ -2,7 +2,7 @@
 'use strict';
 
 // The Weather tile: now, what changes next, the coming hours as columns, the days, and the
-// details that matter. It reads the shared weatherData (js/system.js) and opens the full
+// details that matter. It reads the shared weatherData (js/system/system.js) and opens the full
 // view on a click; the rules it draws from live in js/weather/weather-outlook.js.
 
 function weatherEl(tag, className, text) {

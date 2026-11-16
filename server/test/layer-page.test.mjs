@@ -31,7 +31,7 @@ test('the weather tile brings its styles before the themes and its script before
   assert.match(LayerPage.compose(HTML, ['weather']), /data-layer-tiles=""/);
   const css = page.indexOf('href="components/WeatherModal/WeatherModal.css"');
   assert.ok(css > 0 && css < page.indexOf('href="styles/themes-light.css"'), 'themes still win');
-  const js = page.indexOf('src="js/system.js"');
+  const js = page.indexOf('src="js/system/system.js"');
   assert.ok(js > page.indexOf('src="js/custom-widget.js"') && js < page.indexOf('src="js/layers/layer-host.js"'));
   assert.doesNotMatch(page, /<!-- tile (styles|scripts) -->/);
 });
@@ -73,7 +73,7 @@ test('System and weather together: markup in the body, each file once, index.htm
   const body = page.indexOf('<body');
   const tile = page.indexOf('data-dashboard-widget="system"');
   assert.ok(tile > body && tile < page.indexOf('src="shared/src/constants.js"'), 'the tile sits before the scripts');
-  assert.equal(page.split('src="js/system.js"').length, 2, 'system.js once');
+  assert.equal(page.split('src="js/system/system.js"').length, 2, 'system.js once');
   assert.equal(page.split('src="js/system/network.js"').length, 2);
   assert.equal(page.split('SystemPanel/SystemPanel.css').length, 2);
   assert.ok(page.indexOf('src="js/system/network.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
@@ -115,8 +115,8 @@ test('the Game performance tile comes cut from the dashboard, sharing system.js 
   assert.match(page, /data-layer-tiles="perf system"|data-layer-tiles="system perf"/);
   assert.match(page, /<section class="panel perf-panel dashboard-widget" data-dashboard-widget="perf"/);
   assert.match(page, /<div class="perf-widget-mount"><\/div>/);
-  assert.equal(page.split('src="js/system.js"').length, 2, 'system.js once');
+  assert.equal(page.split('src="js/system/system.js"').length, 2, 'system.js once');
   assert.ok(page.includes('href="components/PerfWidget/PerfWidget.css"'));
-  assert.ok(page.indexOf('src="js/system.js"') < page.indexOf('src="js/perf-widget/perf-widget.js"'), 'units before the tile');
+  assert.ok(page.indexOf('src="js/system/system.js"') < page.indexOf('src="js/perf-widget/perf-widget.js"'), 'units before the tile');
   assert.ok(page.indexOf('src="js/perf-widget/perf-widget.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
 });

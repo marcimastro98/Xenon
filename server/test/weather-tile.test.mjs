@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const Outlook = require('../js/weather/weather-outlook.js');
 const TILE = read('js', 'weather-tile/weather-tile.js');
-const SYSTEM = read('js', 'system.js');
+const SYSTEM = read('js', 'system/system.js');
 const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
 const MODAL_CSS = read('components', 'WeatherModal', 'WeatherModal.css');
 const LIQUID = read('styles', 'liquid-tiles.css');
