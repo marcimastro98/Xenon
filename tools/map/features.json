@@ -558,7 +558,6 @@
       "files": [
         "server/ticker/**",
         "server/js/football-widget/**",
-        "server/js/football-widget.js",
         "server/components/StockWidget/**",
         "server/components/FootballWidget/**",
         "server/components/NewsWidget/**",

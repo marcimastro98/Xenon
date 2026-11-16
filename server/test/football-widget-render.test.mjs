@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'js', 'football-widget.js'), 'utf8');
+const SRC = readFileSync(join(HERE, '..', 'js', 'football-widget/football-widget.js'), 'utf8');
 
 // The Calcio widget was reported as "useless": four rows, no crests, and every
 // one of them saying "no matches". The data pipeline was fine — the RENDER was

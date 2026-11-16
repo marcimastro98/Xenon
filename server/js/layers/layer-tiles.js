@@ -75,7 +75,7 @@
     power: tile('power', 'PowerWidget', ['js/store-supporters/spark-path.js', 'js/history-chart/numbers.js', 'js/history-chart/words.js', 'js/history-chart/history-chart.js', 'js/guardian-history/charts.js', 'js/guardian-history/guardian-history.js', 'js/system/sensor-access.js', 'js/system/power-widget.js'],
       { system: 'onSSE', homeassistant: 'onHaSSE' }, null, ['components/GuardianHistory/GuardianHistory.css']),
     stocks: tile('stocks', 'StockWidget', ['js/ticker/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),
-    football: tile('football', 'FootballWidget', ['js/grid/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget/match-pieces.js', 'js/football-widget.js'], { football: 'onSSE' }),
+    football: tile('football', 'FootballWidget', ['js/grid/tile-tab-memory.js', 'js/football-widget/match-time.js', 'js/football-widget/match-pieces.js', 'js/football-widget/football-widget.js'], { football: 'onSSE' }),
     news: tile('news', 'NewsWidget', ['js/ticker/news-widget.js'], { news: 'onSSE' }),
     slideshow: tile('slideshow', 'SlideshowWidget', ['js/windows-tiles/slideshow-widget.js'], {}),
     notifications: tile('notifications', 'NotificationsWidget', ['js/notifications/notification-open.js', 'js/notifications/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),

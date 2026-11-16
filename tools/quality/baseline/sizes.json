@@ -57,7 +57,7 @@
     "server/js/discord-widget/discord-widget.js": 454,
     "server/js/disk-widget/disk-widget.js": 722,
     "server/js/first-run/genesis.js": 374,
-    "server/js/football-widget.js": 782,
+    "server/js/football-widget/football-widget.js": 782,
     "server/js/fuzzy-find.js": 367,
     "server/js/gif-read.js": 353,
     "server/js/gif-write.js": 334,

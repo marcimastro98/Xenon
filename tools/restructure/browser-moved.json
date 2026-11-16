@@ -312,6 +312,7 @@
     {"from":"server/js/smart-home.js","to":"server/js/smart-home/smart-home.js"},
     {"from":"server/js/unifi-widget.js","to":"server/js/unifi-widget/unifi-widget.js"},
     {"from":"server/js/call-modal.js","to":"server/js/call-modal/call-modal.js"},
-    {"from":"server/js/transfer-widget.js","to":"server/js/transfer-widget/transfer-widget.js"}
+    {"from":"server/js/transfer-widget.js","to":"server/js/transfer-widget/transfer-widget.js"},
+    {"from":"server/js/football-widget.js","to":"server/js/football-widget/football-widget.js"}
   ]
 }

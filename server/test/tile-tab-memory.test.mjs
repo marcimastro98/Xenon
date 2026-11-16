@@ -64,7 +64,7 @@ test('the module loads before the widgets that use it', () => {
   const at = (src) => html.indexOf('<script src="js/' + src + '"></script>');
   assert.ok(at('grid/tile-tab-memory.js') > 0);
   for (const w of ['discord-widget/discord-widget.js', 'media/spotify-widget.js', 'streaming/streamerbot-widget.js', 'streaming/twitchwatch-widget.js',
-    'streaming/youtube-widget.js', 'phone/phone-widget.js', 'football-widget.js', 'disk-widget/disk-widget.js']) {
+    'streaming/youtube-widget.js', 'phone/phone-widget.js', 'football-widget/football-widget.js', 'disk-widget/disk-widget.js']) {
     assert.ok(at(w) > at('grid/tile-tab-memory.js'), w + ' must load after tile-tab-memory.js');
     const src = read('js', w);
     assert.match(src, /TileTabMemory\.get\(/, w + ' reads the remembered tab');
