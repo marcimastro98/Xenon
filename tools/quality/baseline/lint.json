@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5909,
+  "total": 5906,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -343,8 +343,6 @@
     "server/http/net-guard.js complexity/useOptionalChain": 2,
     "server/http/net-guard.js style/useConst": 1,
     "server/http/request-boundary.js complexity/useOptionalChain": 2,
-    "server/install/browser-auto-open-task.js complexity/useOptionalChain": 1,
-    "server/install/browser-auto-open.js complexity/useOptionalChain": 2,
     "server/install/routes.js complexity/useOptionalChain": 1,
     "server/install/startup-task.js complexity/useOptionalChain": 2,
     "server/js/ai-ask-card.js complexity/useArrowFunction": 1,
