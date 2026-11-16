@@ -748,7 +748,6 @@
         "server/pair.html",
         "server/sw.js",
         "server/js/remote-access-page/**",
-        "server/js/remote-access-*.js",
         "server/js/vendor/**",
         "server/components/RemoteAccessSettings/**",
         "server/components/SurfacePicker/**",

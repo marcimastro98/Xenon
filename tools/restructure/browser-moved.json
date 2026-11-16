@@ -327,6 +327,7 @@
     {"from":"server/js/update.js","to":"server/js/update/update.js"},
     {"from":"server/js/whats-new.js","to":"server/js/whats-new/whats-new.js"},
     {"from":"server/js/onboarding.js","to":"server/js/onboarding/onboarding.js"},
-    {"from":"server/js/usage-ask.js","to":"server/js/usage-ask/usage-ask.js"}
+    {"from":"server/js/usage-ask.js","to":"server/js/usage-ask/usage-ask.js"},
+    {"from":"server/js/remote-access-page.js","to":"server/js/remote-access-page/remote-access-page.js"}
   ]
 }
