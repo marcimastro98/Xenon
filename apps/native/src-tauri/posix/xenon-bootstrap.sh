@@ -219,7 +219,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const [zip, sums, sig] = process.argv.slice(2);
 // Pinned Xenon release-signing public key (copy of UPDATE_PUBKEY_PEM in
-// server/self-update.js — keep all copies in lockstep on rotation).
+// server/updates/self-update.js — keep all copies in lockstep on rotation).
 const PUB = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAlH0Ju7LRPoy6sJlBwPHAhTCv1ck9RmPz9C2V1AzvOBk=
 -----END PUBLIC KEY-----`;

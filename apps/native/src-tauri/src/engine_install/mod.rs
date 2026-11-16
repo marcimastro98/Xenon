@@ -10,7 +10,7 @@
 //! old installer did and starts the engine. No script, no download, no window.
 //!
 //! The copy is a seed: from then on the engine updates itself exactly as
-//! before (server/self-update.js), and the shell never overwrites a NEWER
+//! before (server/updates/self-update.js), and the shell never overwrites a NEWER
 //! engine with its older bundle.
 
 mod copy;

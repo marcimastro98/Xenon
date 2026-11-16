@@ -21,7 +21,7 @@
 #      (server\install.ps1 -Mode native -SkipNativeApp).
 #
 # Trust model: the source zip is verified against the pinned Ed25519 public key
-# below - the SAME key server/self-update.js and server/updates/helper-update.js pin
+# below - the SAME key server/updates/self-update.js and server/updates/helper-update.js pin
 # (rotating the signing key means updating ALL THREE copies; see the rotation
 # checklist in self-update.js). Node.js comes from winget, or, failing that,
 # from the official MSI, which is run only with a valid OpenJS Foundation
@@ -566,7 +566,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const [zip, sums, sig] = process.argv.slice(2);
 // Pinned Xenon release-signing public key (copy of UPDATE_PUBKEY_PEM in
-// server/self-update.js - keep all copies in lockstep on rotation).
+// server/updates/self-update.js - keep all copies in lockstep on rotation).
 const PUB = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAlH0Ju7LRPoy6sJlBwPHAhTCv1ck9RmPz9C2V1AzvOBk=
 -----END PUBLIC KEY-----`;
