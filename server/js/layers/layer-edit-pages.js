@@ -1,4 +1,4 @@
-// Widget pages in the edit bar, loaded by js/layer-edit.js. One chip per page:
+// Widget pages in the edit bar, loaded by js/layer-edit/layer-edit.js. One chip per page:
 // a tap shows that page, a tap on the page shown opens what can be done with
 // it ("When I play", the virtual desktop that brings it up, rename from a list,
 // delete). "+" makes a new page and

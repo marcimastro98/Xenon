@@ -137,7 +137,7 @@ test('what a sheet must keep doing: toasts, the gallery, placing what was instal
   const widgets = read('../js/custom-widget.js');
   assert.match(widgets, /const layerOnly = .*isSheetPage\(\)/);
   assert.match(widgets, /const layerSurface = .*isSheetPage\(\)/);
-  assert.match(read('../js/layers-shell.js'), /panel=sheet/, 'only the main page syncs the layers');
+  assert.match(read('../js/layers-shell/layers-shell.js'), /panel=sheet/, 'only the main page syncs the layers');
   assert.match(read('../js/custom-bg.js'), /function apply\(code, assets, fps, guard\) \{[^}]*isSheetPage\(\)\) return;/, 'no animated background behind a sheet');
 });
 

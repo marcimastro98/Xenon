@@ -231,7 +231,7 @@ function postponeAutoUpdate() {
       // dashboard window's own events would otherwise be seen).
       step(() => { if (window.AmbientMode && typeof window.AmbientMode.onStatus === 'function') window.AmbientMode.onStatus(data); });
       // The same idle time and game state open or close the Ambient scene on
-      // the other screens (wallpaper, screensaver: js/layers-shell.js).
+      // the other screens (wallpaper, screensaver: js/layers-shell/layers-shell.js).
       step(() => { if (window.LayersShell && typeof window.LayersShell.onStatus === 'function') window.LayersShell.onStatus(data); });
       // Greeting splash: same whole-PC idle signal decides PRESENCE, so a
       // day-part boundary crossed while nobody is there holds the greeting

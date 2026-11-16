@@ -3,7 +3,7 @@
 // over everything (/menu, js/menu/screen-menu-page.js) while it is open. The server
 // keeps only whether it is open and on which section, and tells the pages over
 // SSE `screen_menu`; the dashboard, or the "widgets only" driver, turns that into
-// a `menu:` surface for the shell (js/layers-shell.js). Runtime only: a restart
+// a `menu:` surface for the shell (js/layers-shell/layers-shell.js). Runtime only: a restart
 // closes it. Where no shell can draw it, opening it asks the open dashboards to
 // show the same menu as a panel instead (SSE `xenon_menu_panel`).
 //

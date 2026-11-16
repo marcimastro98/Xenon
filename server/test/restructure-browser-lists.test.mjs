@@ -202,7 +202,7 @@ test('every script that loads its own list is asked to by a page of the page che
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/performance/driver-perf.js'), 'utf8'), 'server/js/performance/driver-perf.js')[OWN_ROW].js.slice(-perfMode.length), perfMode);
   const card = partsOf('server/js/game-companion.js');
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/ai/screen-companion.js'), 'utf8'), 'server/js/ai/screen-companion.js')[OWN_ROW].js.slice(-card.length), card);
-  const editor = partsOf('server/js/layer-edit.js');
+  const editor = partsOf('server/js/layer-edit/layer-edit.js');
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, WRITTEN), 'utf8'), WRITTEN).EDIT_SCRIPTS.js.slice(-editor.length), editor);
 });
 

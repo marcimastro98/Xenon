@@ -6,7 +6,7 @@
 // saved screenshot or replay, a timer that ended, a Guardian warning, a goal,
 // a camera, a Deck shortcut that failed. The shell opens this page in a
 // transparent overlay window over the main screen (layers `alerts:` surface,
-// js/layers-shell.js) and cuts the window to the cards, so every click outside
+// js/layers-shell/layers-shell.js) and cuts the window to the cards, so every click outside
 // a card goes to whatever is under it.
 //
 // On macOS and Linux the same window also opens, dashboard or not, for the few
@@ -47,7 +47,7 @@ let hubSettings = {};
   // Routine alerts follow the master Notifiche switch, like on the dashboard.
   const popups = () => onScreen() && window.AlertToasts.popupsAllowed(notifications());
   // The window also opens with the dashboard up, for Bit's vitals popup alone
-  // (js/layers-shell.js): the dashboard then shows every other alert itself.
+  // (js/layers-shell/layers-shell.js): the dashboard then shows every other alert itself.
   const routine = () => !!window.UsageMode && window.UsageMode.widgetsOnly(hubSettings && hubSettings.usageMode);
   const guardianOn = () => {
     const f = hubSettings && hubSettings.aiFeatures;

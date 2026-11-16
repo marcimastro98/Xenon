@@ -34,7 +34,7 @@
   let rectTimer = null;
   let waitingForLoad = false;
   // Edit mode (server layers-edit.js, SSE `layers-edit`): the window takes every click and the editor draws the handles.
-  const EDIT_SCRIPTS = Object.freeze(['js/layer-edit/geometry.js', 'js/layer-edit/words.js', 'js/layer-edit.js']);   // loaded on first use, each after the one before it has run
+  const EDIT_SCRIPTS = Object.freeze(['js/layer-edit/geometry.js', 'js/layer-edit/words.js', 'js/layer-edit/layer-edit.js']);   // loaded on first use, each after the one before it has run
   let editing = false;
   let wholeWindow = false;   // a widget is being dragged: the window takes every click
   let editScript = null;
@@ -526,7 +526,7 @@
 
   if (SHELL) window.addEventListener('resize', scheduleRects);
 
-  // What js/layer-edit.js may touch: the boxes as drawn, and the server's
+  // What js/layer-edit/layer-edit.js may touch: the boxes as drawn, and the server's
   // action runner (the edits are capabilities, validated in actions/registry.js).
   const editApi = Object.freeze({
     root: () => root,

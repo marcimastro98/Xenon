@@ -6,7 +6,7 @@
 //! (the spike measured ~15 MB per extra window, so sharing one matters).
 //!
 //! Driven by the main dashboard, which navigates `xenon-app:layers-sync?d=<json>`
-//! whenever the placements change (js/layers-shell.js). This module opens,
+//! whenever the placements change (js/layers-shell/layers-shell.js). This module opens,
 //! moves and closes the windows to match. Each layer page reports where its
 //! tiles are (`xenon-app:layer-rects?d=`) and the window region is cut to them.
 //!

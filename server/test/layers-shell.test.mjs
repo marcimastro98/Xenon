@@ -1,4 +1,4 @@
-// The main dashboard driving the shell's layer windows (js/layers-shell.js):
+// The main dashboard driving the shell's layer windows (js/layers-shell/layers-shell.js):
 // what it sends, when it stays quiet, and the report that keeps the `layers`
 // probe honest. The shell side is unit-tested in apps/native (layers/spec.rs).
 import { test } from 'node:test';
@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const LayersModel = require('../js/layers/layers-model.js');
 const UsageMode = require('../js/first-run/usage-mode.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SRC = read('../js/layers-shell.js');
+const SRC = read('../js/layers-shell/layers-shell.js');
 const BRIDGE = read('../js/native-bridge.js');
 const AFTER_LOAD_AT = BRIDGE.indexOf('function afterLoad(');
 const AFTER_LOAD = BRIDGE.slice(AFTER_LOAD_AT, BRIDGE.indexOf('\n  }\n', AFTER_LOAD_AT) + 4);
@@ -335,8 +335,8 @@ test('wiring: the main page syncs at the end of every layout apply, after layer-
   assert.match(d, /step\('layerHost', \(\) => window\.LayerHost\.place\(\)\);\n  else if \(window\.LayersShell\) step\('layersShell', \(\) => window\.LayersShell\.sync\(\)\);/);
   assert.match(read('../js/native-bridge.js'), /function onDisplaysChanged\(\) \{\n    \/\/ [^\n]*\n    if \(window\.LayersShell\) window\.LayersShell\.onDisplays\(\);/);
   const html = read('../index.html');
-  assert.ok(html.indexOf('src="js/layers/layers-model.js"') < html.indexOf('src="js/layers-shell.js"'));
-  assert.ok(html.indexOf('src="js/layers/layer-host.js"') < html.indexOf('src="js/layers-shell.js"'));
+  assert.ok(html.indexOf('src="js/layers/layers-model.js"') < html.indexOf('src="js/layers-shell/layers-shell.js"'));
+  assert.ok(html.indexOf('src="js/layers/layer-host.js"') < html.indexOf('src="js/layers-shell/layers-shell.js"'));
 });
 
 // The Ambient scene on the other screens (js/ambient/screen-scene-model.js).
@@ -387,7 +387,7 @@ test('wiring: the dashboard and the driver pass every status on, and load the mo
   assert.match(read('../js/widget-sdk/shell-driver.js'), /window\.LayersShell\.onStatus\(d\)/);
   for (const page of ['../index.html', '../shell-driver.html']) {
     const html = read(page);
-    assert.ok(html.indexOf('js/ambient/screen-scene-model.js') > 0 && html.indexOf('js/ambient/screen-scene-model.js') < html.indexOf('js/layers-shell.js'), page);
+    assert.ok(html.indexOf('js/ambient/screen-scene-model.js') > 0 && html.indexOf('js/ambient/screen-scene-model.js') < html.indexOf('js/layers-shell/layers-shell.js'), page);
   }
   assert.match(engineSource(), /a\.enabled !== false && Number\(a\.saverMinutes\) > 0\) return true;/);
 });

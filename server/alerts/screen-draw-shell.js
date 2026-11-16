@@ -3,7 +3,7 @@
 // Linux): the native shell opens a see-through page over the main screen
 // (/draw, js/alerts/screen-draw-page.js). The server only keeps whether it is open and
 // tells the pages over SSE `screen_draw`; the dashboard, or the "widgets only"
-// driver, turns that into a `draw:` surface for the shell (js/layers-shell.js).
+// driver, turns that into a `draw:` surface for the shell (js/layers-shell/layers-shell.js).
 // Runtime only: a restart closes it.
 //
 // deps:

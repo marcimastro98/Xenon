@@ -88,7 +88,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 | **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/search.ps1` `server/spotlight.html` `server/js/spotlight/**` `server/components/Spotlight/**` `server/components/SearchWidget/**` and 1 more |
 | **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/ffmpeg-install/**` `server/js/capture-toast/**` `server/js/capture-gallery/**` `server/components/CaptureGallery/**` `server/js/capture/**` |
 | **Xenon menu** | The menu that opens over the desktop: widgets, screens, looks, the Store. | `server/menu/**` `server/menu.html` `server/components/XenonMenu/**` `server/js/menu/**` |
-| **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layers/**` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layer-*.js` `server/js/layers-*.js` and 3 more |
+| **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layers/**` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layers-shell/**` `server/components/LayerHost/**` and 1 more |
 | **Alerts and drawing** | Notifications at the top centre of the screen, and drawing over the screen. | `server/alerts/**` `server/screen-alerts.html` `server/draw.html` `server/components/ScreenAlerts/**` `server/components/ScreenDraw/**` `server/components/Toast/**` and 1 more |
 
 ## Connected apps

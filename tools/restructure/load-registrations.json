@@ -12,7 +12,7 @@
       {
         "statement": "const screenMenu = require('./menu/screen-menu').createScreenMenu({",
         "callees": {
-          "server/menu/screen-menu.js": "1d401bbd0d6baa93f3d6e8d9e4b8e33fb5ea6f8c9872c2503f4f121cb01ea93d"
+          "server/menu/screen-menu.js": "e0d9d9611ec3b4c296de98bb1189f0ff541f7428701575320f2d2ec7e32e3c7d"
         },
         "reason": "createScreenMenu declares its own state and functions and returns them; host, broadcast, panel, run, failed, capturing and holding are first called by open(), close() and the other functions it returns."
       },

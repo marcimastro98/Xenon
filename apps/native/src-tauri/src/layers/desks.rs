@@ -1,6 +1,6 @@
 //! Which virtual desktop is shown, for a widget page tied to one
 //! (server/layers/layer-pages.js `deskPageSwitch`). Watched only while some page is
-//! tied to a desktop (the dashboard puts `desks` in the spec, js/layers-shell.js),
+//! tied to a desktop (the dashboard puts `desks` in the spec, js/layers-shell/layers-shell.js),
 //! and pushed to the main webview only when it changes, as
 //! `LayersShell.onDesk({ current, count })`. Desktops count from 1; 0 is a
 //! desktop with no number (a full-screen Space on the Mac).

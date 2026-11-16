@@ -95,6 +95,6 @@ test('"Put it back" returns everything as it was when editing began, and only th
 });
 
 test('a drag never makes tabs: they come from their button alone', () => {
-  const src = readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/layer-edit/layer-edit.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /layerGroup[^\n]*join/);
 });

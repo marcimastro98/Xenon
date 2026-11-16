@@ -1,6 +1,6 @@
 // The choices of one widget in edit mode, beside it on the screen: its name, when it
 // shows, its size, tabs, and the way off the screen. Words, not loose icons: the x, the
-// pin and a line that grew the widget are what this replaced. Loaded by js/layer-edit.js
+// pin and a line that grew the widget are what this replaced. Loaded by js/layer-edit/layer-edit.js
 // the first time a widget is tapped; every choice is a capability run on the server.
 (function () {
   'use strict';

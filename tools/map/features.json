@@ -286,8 +286,6 @@
         "server/layer-lite.html",
         "server/widget-options/**",
         "server/js/layer-edit/**",
-        "server/js/layer-*.js",
-        "server/js/layers-*.js",
         "server/js/layers-shell/**",
         "server/components/LayerHost/**",
         "server/js/layers/**"

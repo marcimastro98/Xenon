@@ -3,7 +3,7 @@
 // The Ambient scene outside the dashboard: behind the desktop icons (an
 // animated wallpaper) and full screen after the PC sits idle (a screensaver).
 // Both are windows of the native shell (apps/native/src-tauri/src/layers),
-// asked for in the same sync as the widget layers (js/layers-shell.js); this
+// asked for in the same sync as the widget layers (js/layers-shell/layers-shell.js); this
 // decides which ones exist right now. Pure, so the rules are tested alone.
 //
 // Screens: each screen's own scene once one is picked for it (`ambientMode.byScreen`,

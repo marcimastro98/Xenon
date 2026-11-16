@@ -1,5 +1,5 @@
 
-/* The choices of the widget tapped: words, beside it (js/layer-edit-card.js). */
+/* The choices of the widget tapped: words, beside it (js/layers/layer-edit-card.js). */
 .layer-edit-card {
   position: absolute;
   left: var(--layer-edit-x, 8px);

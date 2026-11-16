@@ -3,7 +3,7 @@
 // Drawing on the screen on macOS and Linux (draw.html): the native shell shows
 // this page in a see-through window over the main screen while "Draw on
 // screen" is on (server/alerts/screen-draw-shell.js, the `draw:` surface of
-// js/layers-shell.js). The strokes and the keys follow js/alerts/screen-draw-model.js;
+// js/layers-shell/layers-shell.js). The strokes and the keys follow js/alerts/screen-draw-model.js;
 // this only paints them and asks the server to stop, which closes the window.
 // Nothing leaves the page: the drawing is gone when it closes.
 

@@ -47,7 +47,7 @@ const branches = {
 
   'POST /layers/desk': async (req, res, { json }, { _deskPageSync, layersHost }) => {
     // The shell says which virtual desktop is shown (apps/native layers/desks.rs,
-    // through js/layers-shell.js); a page tied to it is shown (layer-pages.js).
+    // through js/layers-shell/layers-shell.js); a page tied to it is shown (layer-pages.js).
     // In CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
     try {
       const body = JSON.parse(await readBody(req, 1024) || '{}');

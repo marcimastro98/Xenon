@@ -1,4 +1,4 @@
-// Widget pages in the edit bar (js/layer-edit-pages.js): the chips, "+", and
+// Widget pages in the edit bar (js/layers/layer-edit-pages.js): the chips, "+", and
 // the sheet of the page shown, run against the real capabilities so a tap goes
 // all the way to the saved layers and back.
 import test from 'node:test';
@@ -13,8 +13,8 @@ const LayersModel = require('../js/layers/layers-model.js');
 const LayerDrag = require('../js/layers/layer-drag.js');
 const LayerSee = require('../js/layers/layer-see.js');
 const { createCapabilities } = require('../capabilities/index.js');
-const EDIT = readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
-const PAGES = readFileSync(new URL('../js/layer-edit-pages.js', import.meta.url), 'utf8');
+const EDIT = readFileSync(new URL('../js/layer-edit/layer-edit.js', import.meta.url), 'utf8');
+const PAGES = readFileSync(new URL('../js/layers/layer-edit-pages.js', import.meta.url), 'utf8');
 
 const W = (id, widget) => ({ id, kind: 'tile', widget, surface: 'desktop', rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.3 } });
 
@@ -85,7 +85,7 @@ test('the page script loads only when edit mode starts, once, and the strip appe
   assert.equal(b.document.head.children.length, 1);
   b.edit.refresh();
   assert.equal(b.document.head.children.length, 1, 'not twice');
-  assert.equal(b.loadPages().src, 'js/layer-edit-pages.js');
+  assert.equal(b.loadPages().src, 'js/layers/layer-edit-pages.js');
   assert.ok(strip(b));
 });
 

@@ -70,7 +70,7 @@
   object-position: top;
 }
 
-/* Widget pages in the edit bar (js/layer-edit-pages.js): a chip per page, the
+/* Widget pages in the edit bar (js/layers/layer-edit-pages.js): a chip per page, the
    shown one filled; "+" makes a new one. The strip scrolls sideways before the
    bar would overflow the window. */
 .layer-page-strip {

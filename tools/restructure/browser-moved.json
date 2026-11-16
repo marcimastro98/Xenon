@@ -273,6 +273,10 @@
     {"from":"server/js/capture-export-view.js","to":"server/js/capture/capture-export-view.js"},
     {"from":"server/js/capture-gallery.js","to":"server/js/capture-gallery/capture-gallery.js"},
     {"from":"server/js/capture-toast.js","to":"server/js/capture-toast/capture-toast.js"},
-    {"from":"server/js/capture-transcript-view.js","to":"server/js/capture/capture-transcript-view.js"}
+    {"from":"server/js/capture-transcript-view.js","to":"server/js/capture/capture-transcript-view.js"},
+    {"from":"server/js/layer-edit-card.js","to":"server/js/layers/layer-edit-card.js"},
+    {"from":"server/js/layer-edit-pages.js","to":"server/js/layers/layer-edit-pages.js"},
+    {"from":"server/js/layer-edit.js","to":"server/js/layer-edit/layer-edit.js"},
+    {"from":"server/js/layers-shell.js","to":"server/js/layers-shell/layers-shell.js"}
   ]
 }

@@ -184,7 +184,7 @@ html[data-layer-editing] .layer-slot[data-when-off]:not([data-peek]) > [data-das
   opacity: 0.45;
 }
 
-/* ── Edit mode (js/layer-edit.js) ─────────────────────────────────────────────
+/* ── Edit mode (js/layer-edit/layer-edit.js) ─────────────────────────────────────────────
    The window takes the clicks on its widgets and on what edit mode adds, no more:
    another window under it stays reachable. The frames show what can be dragged. */
 .layer-edit-frame {

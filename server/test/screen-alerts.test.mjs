@@ -15,7 +15,7 @@ const SRC = read('../js/alerts/screen-alerts.js');
 const tick = () => new Promise((r) => setImmediate(r));
 
 // `widgetsOnly`: the use the window was made for. With the dashboard up it opens
-// for Bit's vitals popup alone (js/layers-shell.js).
+// for Bit's vitals popup alone (js/layers-shell/layers-shell.js).
 async function boot({ settings = {}, shell = true, dpr = 2, sounds = true, update = {}, store = {}, widgetsOnly = true } = {}) {
   const shown = [];
   const dismissed = [];

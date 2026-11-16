@@ -1,4 +1,4 @@
-// Edit mode of a layer window (js/layer-edit.js and js/layer-edit-card.js): the drag, the
+// Edit mode of a layer window (js/layer-edit/layer-edit.js and js/layers/layer-edit-card.js): the drag, the
 // corner, the widget's own choices and "Done" become capability runs; the page saves nothing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,8 +8,8 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const require = createRequire(import.meta.url);
-const SRC = readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
-const CARD = readFileSync(new URL('../js/layer-edit-card.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../js/layer-edit/layer-edit.js', import.meta.url), 'utf8');
+const CARD = readFileSync(new URL('../js/layers/layer-edit-card.js', import.meta.url), 'utf8');
 const LayerDrag = require('../js/layers/layer-drag.js');
 const LayerSee = require('../js/layers/layer-see.js');
 const LayersModel = require('../js/layers/layers-model.js');

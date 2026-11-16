@@ -678,7 +678,7 @@ const EDIT_LIST = /const EDIT_SCRIPTS = Object\.freeze\(\[[^\]]*\]\);/g;
 const withEditor = (...scripts) => SRC.replace(EDIT_LIST, () => `const EDIT_SCRIPTS = Object.freeze([${scripts.map((script) => `'${script}'`).join(', ')}]);`);
 
 function editBoot(search, layers, opts) {
-  const b = boot(search, layers, { src: withEditor('js/layer-edit.js'), ...opts });
+  const b = boot(search, layers, { src: withEditor('js/layer-edit/layer-edit.js'), ...opts });
   b.document.head = b.document.createElement('head');
   b.document.documentElement.appendChild(b.document.head);
   const editor = { started: [], stopped: 0 };
@@ -694,8 +694,8 @@ function editBoot(search, layers, opts) {
 
 test('the editor made of several scripts loads them one after the other, each asked for when the one before has run', () => {
   assert.equal(SRC.match(EDIT_LIST).length, 1, 'the list of the scripts of the editor is written once');
-  assert.match(SRC.match(EDIT_LIST)[0], /'js\/layer-edit\.js'\]\);$/, 'and the editor itself is its last script');
-  const src = withEditor('js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit.js');
+  assert.match(SRC.match(EDIT_LIST)[0], /'js\/layer-edit\/layer-edit\.js'\]\);$/, 'and the editor itself is its last script');
+  const src = withEditor('js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit/layer-edit.js');
   const { host, atom, document, editor, ctx } = editBoot('?layer=desktop:', { enabled: true, widgets: [W()] }, { src });
   atom('weather');
   host.place();
@@ -711,7 +711,7 @@ test('the editor made of several scripts loads them one after the other, each as
   ran(0);
   assert.deepEqual(asked(), ['js/layer-edit/pieces.js', 'js/layer-edit/geometry.js']);
   ran(1);
-  assert.deepEqual(asked(), ['js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit.js'], 'in the order of the list');
+  assert.deepEqual(asked(), ['js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit/layer-edit.js'], 'in the order of the list');
   assert.equal(editor.started.length, 0, 'the editor is not there before its last script has run');
   ctx.window.LayerEdit = { start: (api) => editor.started.push(api), stop: () => { editor.stopped++; }, refresh() {} };
   ran(2);
@@ -742,7 +742,7 @@ test('edit mode loads its script only when turned on, then hands it the boxes an
   assert.equal(document.head.children.length, 0, 'never edited: never loaded');
   es.emit('layers-edit', { on: true });
   const script = loadEditor();
-  assert.equal(script.src, 'js/layer-edit.js');
+  assert.equal(script.src, 'js/layer-edit/layer-edit.js');
   assert.equal(editor.started.length, 1);
   const api = editor.started[0];
   assert.equal(api.surface, 'desktop');

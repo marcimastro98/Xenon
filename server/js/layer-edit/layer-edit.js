@@ -3,10 +3,10 @@
 //
 // Drag a widget to move it (js/layers/layer-drag.js, the same drag as the menu's map). A tap
 // picks it: its name, when it shows, its size and the way off the screen appear beside
-// it (js/layer-edit-card.js, loaded with this file). "Done" ends the mode, "Undo" takes
+// it (js/layers/layer-edit-card.js, loaded with this file). "Done" ends the mode, "Undo" takes
 // back one change, "Put it back" everything since the mode began, "Add" lists the
 // widgets that can be placed; an attached window's bar puts it back on the desktop; the
-// page chips are js/layer-edit-pages.js. Every change is a capability run on the server
+// page chips are js/layers/layer-edit-pages.js. Every change is a capability run on the server
 // (layerMove, layerGroup, layerRemove, layerPlace, layersEdit, layersUndo, layerPage,
 // layerPageEdit, layerAnchor): this page saves nothing itself, and the settings
 // broadcast redraws every window from the saved result.
@@ -90,7 +90,7 @@
     if (!window.LayerEditPages) {
       if (pagesScript) return;
       pagesScript = document.createElement('script');
-      pagesScript.src = 'js/layer-edit-pages.js';
+      pagesScript.src = 'js/layers/layer-edit-pages.js';
       pagesScript.addEventListener('load', () => { if (api && bar) refresh(); });
       document.head.appendChild(pagesScript);
       return;
@@ -356,7 +356,7 @@
     if (d.box) run({ type: 'layerMove', target: d.entry.box.lead.id, position: 'keep', size: 'keep', rect: fractions(d.box, d.origin) });
   }
 
-  // ── The choices of one widget (js/layer-edit-card.js) ─────────────────────
+  // ── The choices of one widget (js/layers/layer-edit-card.js) ─────────────────────
   function otherBoxes(entry) {
     return api.boxes().filter((b) => b.slot !== entry.slot);
   }
@@ -377,7 +377,7 @@
     if (!window.LayerEditCard) {
       if (cardScript) return;
       cardScript = document.createElement('script');
-      cardScript.src = 'js/layer-edit-card.js';
+      cardScript.src = 'js/layers/layer-edit-card.js';
       cardScript.addEventListener('load', () => { if (api && bar) refresh(); });
       document.head.appendChild(cardScript);
       return;
