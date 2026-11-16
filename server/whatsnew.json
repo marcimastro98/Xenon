@@ -445,6 +445,292 @@
   "url": "https://github.com/marcimastro98/Xenon/releases/latest",
   "releases": [
     {
+      "version": "5.1.1",
+      "news": [],
+      "fixes": [
+        {
+          "area": {
+            "it": "Schermi",
+            "en": "Screens",
+            "es": "Pantallas",
+            "fr": "Écrans",
+            "de": "Bildschirme",
+            "pt": "Ecrãs",
+            "ru": "Экраны",
+            "nl": "Schermen",
+            "ko": "화면",
+            "ja": "画面",
+            "zh": "屏幕"
+          },
+          "text": {
+            "it": "Su Windows, mentre gli schermi sono spenti, Xenon non disegna niente: su alcuni PC con scheda NVIDIA il computer si bloccava al risveglio.",
+            "en": "On Windows, Xenon draws nothing while the screens are off: on some PCs with an NVIDIA card the computer froze when the screens woke.",
+            "es": "En Windows, Xenon no dibuja nada mientras las pantallas están apagadas: en algunos PC con tarjeta NVIDIA el equipo se bloqueaba al despertarlas.",
+            "fr": "Sous Windows, Xenon ne dessine plus rien pendant que les écrans sont éteints : sur certains PC avec une carte NVIDIA, l’ordinateur se figeait à leur réveil.",
+            "de": "Unter Windows zeichnet Xenon nichts, solange die Bildschirme aus sind: Auf manchen PCs mit NVIDIA-Karte fror der Rechner beim Aufwachen ein.",
+            "pt": "No Windows, o Xenon não desenha nada enquanto os ecrãs estão desligados: em alguns PC com placa NVIDIA o computador bloqueava ao acordar.",
+            "ru": "В Windows Xenon ничего не рисует, пока экраны выключены: на некоторых ПК с видеокартой NVIDIA компьютер зависал при их включении.",
+            "nl": "Op Windows tekent Xenon niets zolang de schermen uit staan: op sommige pc’s met een NVIDIA-kaart liep de computer vast als de schermen weer aangingen.",
+            "ko": "Windows에서 화면이 꺼져 있는 동안 Xenon은 아무것도 그리지 않습니다. NVIDIA 그래픽 카드가 있는 일부 PC에서 화면이 켜질 때 컴퓨터가 멈췄습니다.",
+            "ja": "Windows で画面がオフの間、Xenon は何も描画しません。NVIDIA のグラフィックカードを搭載した一部の PC で、画面の復帰時にフリーズしていました。",
+            "zh": "在 Windows 上，屏幕关闭期间 Xenon 不再绘制任何内容：在某些配备 NVIDIA 显卡的电脑上，屏幕唤醒时电脑会卡死。"
+          }
+        },
+        {
+          "area": {
+            "it": "Musica",
+            "en": "Music",
+            "es": "Música",
+            "fr": "Musique",
+            "de": "Musik",
+            "pt": "Música",
+            "ru": "Музыка",
+            "nl": "Muziek",
+            "ko": "음악",
+            "ja": "音楽",
+            "zh": "音乐"
+          },
+          "text": {
+            "it": "Sul riquadro musica basso e largo, i tasti di riproduzione restano al loro posto quando un brano parte o si ferma.",
+            "en": "On a short, wide music tile, the play keys stay in place when a song starts or stops.",
+            "es": "En un panel de música bajo y ancho, los botones de reproducción se quedan en su sitio cuando una canción empieza o se detiene.",
+            "fr": "Sur une tuile musique basse et large, les touches de lecture restent à leur place quand un morceau démarre ou s’arrête.",
+            "de": "Auf einer flachen, breiten Musikkachel bleiben die Wiedergabetasten an ihrem Platz, wenn ein Song startet oder stoppt.",
+            "pt": "Num painel de música baixo e largo, as teclas de reprodução ficam no lugar quando uma música começa ou para.",
+            "ru": "На низкой широкой плитке музыки кнопки воспроизведения остаются на месте, когда трек начинается или останавливается.",
+            "nl": "Op een lage, brede muziektegel blijven de afspeeltoetsen op hun plek als een nummer begint of stopt.",
+            "ko": "낮고 넓은 음악 타일에서 노래가 시작되거나 멈출 때 재생 버튼이 제자리에 있습니다.",
+            "ja": "低くて横長の音楽タイルで、曲の再生や停止のときに再生ボタンが動かなくなりました。",
+            "zh": "在矮而宽的音乐磁贴上，歌曲开始或停止时播放按钮保持在原位。"
+          }
+        },
+        {
+          "area": {
+            "it": "Volume",
+            "en": "Volume",
+            "es": "Volumen",
+            "fr": "Volume",
+            "de": "Lautstärke",
+            "pt": "Volume",
+            "ru": "Громкость",
+            "nl": "Volume",
+            "ko": "볼륨",
+            "ja": "音量",
+            "zh": "音量"
+          },
+          "text": {
+            "it": "Nel mixer del microfono, il cursore di un’app cambia solo il suo microfono e non più anche il suo audio.",
+            "en": "In the Microphone mixer, an app’s slider changes only its microphone, no longer its sound too.",
+            "es": "En el mezclador del micrófono, el control de una app cambia solo su micrófono y ya no también su sonido.",
+            "fr": "Dans le mixeur du micro, le curseur d’une app ne change plus que son micro, et plus son son.",
+            "de": "Im Mikrofon-Mixer ändert der Regler einer App nur noch ihr Mikrofon, nicht mehr auch ihren Ton.",
+            "pt": "No misturador do microfone, o controlo de uma app muda só o seu microfone e já não também o som.",
+            "ru": "В микшере микрофона ползунок приложения меняет только его микрофон, а не звук.",
+            "nl": "In de microfoonmixer verandert de schuif van een app alleen de microfoon, niet meer ook het geluid.",
+            "ko": "마이크 믹서에서 앱의 슬라이더는 이제 마이크만 바꾸고 소리는 바꾸지 않습니다.",
+            "ja": "マイクのミキサーで、アプリのスライダーはマイクだけを変え、音声は変えなくなりました。",
+            "zh": "在麦克风混音器中，应用的滑块现在只改变它的麦克风，不再同时改变它的声音。"
+          }
+        },
+        {
+          "area": {
+            "it": "Prestazioni",
+            "en": "Performance",
+            "es": "Rendimiento",
+            "fr": "Performances",
+            "de": "Leistung",
+            "pt": "Desempenho",
+            "ru": "Производительность",
+            "nl": "Prestaties",
+            "ko": "성능",
+            "ja": "パフォーマンス",
+            "zh": "性能"
+          },
+          "text": {
+            "it": "Su Windows, quando il contatore FPS è vuoto, Xenon dice perché e cosa lo risolve: uscire e rientrare in Windows, o un tasto Consenti FPS.",
+            "en": "On Windows, when the FPS counter is empty, Xenon says why and what fixes it: signing out of Windows and back in, or an Allow FPS key.",
+            "es": "En Windows, cuando el contador de FPS está vacío, Xenon dice por qué y cómo arreglarlo: cerrar sesión en Windows y volver a entrar, o un botón Permitir FPS.",
+            "fr": "Sous Windows, quand le compteur FPS est vide, Xenon dit pourquoi et ce qui le règle : se déconnecter de Windows puis se reconnecter, ou une touche Autoriser les FPS.",
+            "de": "Unter Windows sagt Xenon bei leerem FPS-Zähler, warum und was hilft: bei Windows ab- und wieder anmelden oder eine Taste FPS erlauben.",
+            "pt": "No Windows, quando o contador de FPS está vazio, o Xenon diz porquê e o que o resolve: terminar sessão no Windows e voltar a entrar, ou uma tecla Permitir FPS.",
+            "ru": "В Windows, если счётчик FPS пуст, Xenon объясняет почему и что поможет: выйти из Windows и войти снова или кнопка «Разрешить FPS».",
+            "nl": "Op Windows zegt Xenon bij een lege FPS-teller waarom en wat helpt: afmelden bij Windows en weer aanmelden, of een knop FPS toestaan.",
+            "ko": "Windows에서 FPS 카운터가 비어 있으면 Xenon이 이유와 해결 방법을 알려 줍니다. Windows에서 로그아웃 후 다시 로그인하거나 FPS 허용 키를 누르세요.",
+            "ja": "Windows で FPS カウンターが空のとき、Xenon が理由と直し方を表示します。Windows からサインアウトして再サインインするか、「FPS を許可」キーを使います。",
+            "zh": "在 Windows 上，FPS 计数器为空时，Xenon 会说明原因和解决办法：注销 Windows 后重新登录，或使用“允许 FPS”键。"
+          }
+        },
+        {
+          "area": {
+            "it": "Discord",
+            "en": "Discord",
+            "es": "Discord",
+            "fr": "Discord",
+            "de": "Discord",
+            "pt": "Discord",
+            "ru": "Discord",
+            "nl": "Discord",
+            "ko": "Discord",
+            "ja": "Discord",
+            "zh": "Discord"
+          },
+          "text": {
+            "it": "Se Discord rifiuta il Client Secret della tua app, i widget e le Impostazioni lo dicono e spiegano come sostituirlo.",
+            "en": "If Discord refuses your app’s Client Secret, the widgets and Settings say so and how to replace it.",
+            "es": "Si Discord rechaza el Client Secret de tu app, los widgets y los Ajustes lo dicen y explican cómo cambiarlo.",
+            "fr": "Si Discord refuse le Client Secret de ton app, les widgets et les Réglages le disent et expliquent comment le remplacer.",
+            "de": "Lehnt Discord das Client Secret deiner App ab, sagen es die Widgets und die Einstellungen und erklären, wie du es ersetzt.",
+            "pt": "Se o Discord recusar o Client Secret da sua app, os widgets e as Definições dizem-no e explicam como substituí-lo.",
+            "ru": "Если Discord отклоняет Client Secret вашего приложения, виджеты и настройки сообщают об этом и объясняют, как его заменить.",
+            "nl": "Als Discord het Client Secret van je app weigert, zeggen de widgets en de instellingen dat en hoe je het vervangt.",
+            "ko": "Discord가 앱의 Client Secret을 거부하면 위젯과 설정에서 이를 알려 주고 교체 방법을 안내합니다.",
+            "ja": "Discord がアプリの Client Secret を拒否した場合、ウィジェットと設定がそれを伝え、置き換え方を案内します。",
+            "zh": "如果 Discord 拒绝你的应用的 Client Secret，小组件和设置会说明这一点以及如何替换。"
+          }
+        },
+        {
+          "area": {
+            "it": "Widget",
+            "en": "Widgets",
+            "es": "Widgets",
+            "fr": "Widgets",
+            "de": "Widgets",
+            "pt": "Widgets",
+            "ru": "Виджеты",
+            "nl": "Widgets",
+            "ko": "위젯",
+            "ja": "ウィジェット",
+            "zh": "小组件"
+          },
+          "text": {
+            "it": "I widget prendono subito i colori del nuovo tema, e intorno ai widget sopra un gioco non compaiono più riquadri scuri.",
+            "en": "Widgets take the new theme colours right away, and widgets over a game no longer show dark boxes around them.",
+            "es": "Los widgets toman enseguida los colores del nuevo tema, y los widgets sobre un juego ya no muestran recuadros oscuros alrededor.",
+            "fr": "Les widgets prennent tout de suite les couleurs du nouveau thème, et les widgets au-dessus d’un jeu n’ont plus de cadres sombres autour.",
+            "de": "Widgets übernehmen sofort die Farben des neuen Designs, und Widgets über einem Spiel zeigen keine dunklen Kästen mehr.",
+            "pt": "Os widgets ganham logo as cores do novo tema, e os widgets por cima de um jogo já não mostram caixas escuras à volta.",
+            "ru": "Виджеты сразу получают цвета новой темы, а вокруг виджетов поверх игры больше нет тёмных рамок.",
+            "nl": "Widgets nemen meteen de kleuren van het nieuwe thema over, en widgets boven een game tonen geen donkere vakken meer.",
+            "ko": "위젯이 새 테마 색상을 바로 적용하고, 게임 위의 위젯 주변에 더 이상 어두운 상자가 나타나지 않습니다.",
+            "ja": "ウィジェットが新しいテーマの色にすぐ切り替わり、ゲーム上のウィジェットの周りに暗い枠が出なくなりました。",
+            "zh": "小组件会立即采用新主题的颜色，游戏上方的小组件周围也不再出现深色方框。"
+          }
+        },
+        {
+          "area": {
+            "it": "Deck",
+            "en": "Deck",
+            "es": "Deck",
+            "fr": "Deck",
+            "de": "Deck",
+            "pt": "Deck",
+            "ru": "Deck",
+            "nl": "Deck",
+            "ko": "Deck",
+            "ja": "Deck",
+            "zh": "Deck"
+          },
+          "text": {
+            "it": "Il Deck messo sullo schermo si modifica lì, con la matita, e la finestra del Deck non offre più una modifica che non può completare.",
+            "en": "The Deck placed on the screen can be edited there with its pencil, and the Deck window no longer offers an edit mode it cannot finish.",
+            "es": "El Deck colocado en la pantalla se edita allí con su lápiz, y la ventana del Deck ya no ofrece una edición que no puede terminar.",
+            "fr": "Le Deck posé sur l’écran se modifie sur place avec son crayon, et la fenêtre du Deck ne propose plus une édition qu’elle ne peut pas terminer.",
+            "de": "Das auf dem Bildschirm platzierte Deck lässt sich dort mit dem Stift bearbeiten, und das Deck-Fenster bietet keinen Bearbeitungsmodus mehr an, den es nicht abschließen kann.",
+            "pt": "O Deck colocado no ecrã edita-se lá com o lápis, e a janela do Deck já não oferece uma edição que não consegue terminar.",
+            "ru": "Deck на экране теперь можно редактировать прямо там карандашом, а окно Deck больше не предлагает режим правки, который не может завершить.",
+            "nl": "Het Deck op het scherm kun je daar met het potlood bewerken, en het Deck-venster biedt geen bewerkmodus meer die het niet kan afmaken.",
+            "ko": "화면에 놓은 Deck을 연필로 그 자리에서 편집할 수 있고, Deck 창은 더 이상 끝낼 수 없는 편집 모드를 제공하지 않습니다.",
+            "ja": "画面に置いた Deck を鉛筆でその場で編集できます。Deck ウィンドウには、完了できない編集モードが表示されなくなりました。",
+            "zh": "放在屏幕上的 Deck 可以直接用铅笔编辑，Deck 窗口也不再提供无法完成的编辑模式。"
+          }
+        },
+        {
+          "area": {
+            "it": "Sistema",
+            "en": "System",
+            "es": "Sistema",
+            "fr": "Système",
+            "de": "System",
+            "pt": "Sistema",
+            "ru": "Система",
+            "nl": "Systeem",
+            "ko": "시스템",
+            "ja": "システム",
+            "zh": "系统"
+          },
+          "text": {
+            "it": "In modifica scegli quali schede mostra il widget Sistema sullo schermo, per esempio per nascondere gli FPS.",
+            "en": "In edit mode you choose which cards the System widget shows on the screen, for example to hide FPS.",
+            "es": "En modo edición eliges qué tarjetas muestra el widget Sistema en la pantalla, por ejemplo para ocultar los FPS.",
+            "fr": "En mode édition, tu choisis les cartes que le widget Système affiche à l’écran, par exemple pour masquer les FPS.",
+            "de": "Im Bearbeitungsmodus wählst du, welche Karten das System-Widget auf dem Bildschirm zeigt, zum Beispiel ohne FPS.",
+            "pt": "No modo de edição escolhe que cartões o widget Sistema mostra no ecrã, por exemplo para esconder os FPS.",
+            "ru": "В режиме правки вы выбираете, какие карточки показывает виджет «Система» на экране, например, чтобы скрыть FPS.",
+            "nl": "In de bewerkmodus kies je welke kaarten de Systeem-widget op het scherm toont, bijvoorbeeld zonder FPS.",
+            "ko": "편집 모드에서 화면의 시스템 위젯이 보여 줄 카드를 고를 수 있습니다. 예를 들어 FPS를 숨길 수 있습니다.",
+            "ja": "編集モードで、画面のシステムウィジェットに表示するカードを選べます。たとえば FPS を非表示にできます。",
+            "zh": "在编辑模式下，你可以选择屏幕上的系统小组件显示哪些卡片，例如隐藏 FPS。"
+          }
+        },
+        {
+          "area": {
+            "it": "Batteria",
+            "en": "Battery",
+            "es": "Batería",
+            "fr": "Batterie",
+            "de": "Akku",
+            "pt": "Bateria",
+            "ru": "Батарея",
+            "nl": "Batterij",
+            "ko": "배터리",
+            "ja": "バッテリー",
+            "zh": "电池"
+          },
+          "text": {
+            "it": "Un controller PlayStation in Bluetooth non mostra più 5%: finché non manda la sua carica, non compare nessun numero.",
+            "en": "A PlayStation controller on Bluetooth no longer shows 5%: until it sends its charge, no number is shown.",
+            "es": "Un mando de PlayStation por Bluetooth ya no muestra 5 %: hasta que envía su carga, no aparece ningún número.",
+            "fr": "Une manette PlayStation en Bluetooth n’affiche plus 5 % : tant qu’elle n’envoie pas sa charge, aucun chiffre n’apparaît.",
+            "de": "Ein PlayStation-Controller über Bluetooth zeigt nicht mehr 5 %: Bis er seinen Ladestand sendet, steht dort keine Zahl.",
+            "pt": "Um comando PlayStation por Bluetooth já não mostra 5%: até enviar a carga, não aparece nenhum número.",
+            "ru": "Контроллер PlayStation по Bluetooth больше не показывает 5%: пока он не передаст заряд, число не отображается.",
+            "nl": "Een PlayStation-controller via Bluetooth toont geen 5% meer: tot hij zijn lading doorgeeft, staat er geen getal.",
+            "ko": "Bluetooth로 연결된 PlayStation 컨트롤러가 더 이상 5%로 표시되지 않습니다. 충전량을 보내기 전까지는 숫자가 표시되지 않습니다.",
+            "ja": "Bluetooth 接続の PlayStation コントローラーが 5% と表示されなくなりました。充電量が届くまでは数字を表示しません。",
+            "zh": "通过蓝牙连接的 PlayStation 手柄不再显示 5%：在它发送电量之前不显示数字。"
+          }
+        },
+        {
+          "area": {
+            "it": "Linux",
+            "en": "Linux",
+            "es": "Linux",
+            "fr": "Linux",
+            "de": "Linux",
+            "pt": "Linux",
+            "ru": "Linux",
+            "nl": "Linux",
+            "ko": "Linux",
+            "ja": "Linux",
+            "zh": "Linux"
+          },
+          "text": {
+            "it": "Su GNOME e KDE con Wayland l’app Xenon torna fluida.",
+            "en": "On GNOME and KDE with Wayland the Xenon app runs smoothly again.",
+            "es": "En GNOME y KDE con Wayland la app Xenon vuelve a ir fluida.",
+            "fr": "Sous GNOME et KDE avec Wayland, l’app Xenon est de nouveau fluide.",
+            "de": "Unter GNOME und KDE mit Wayland läuft die Xenon-App wieder flüssig.",
+            "pt": "No GNOME e no KDE com Wayland, a app Xenon volta a correr sem engasgos.",
+            "ru": "В GNOME и KDE с Wayland приложение Xenon снова работает плавно.",
+            "nl": "Op GNOME en KDE met Wayland draait de Xenon-app weer soepel.",
+            "ko": "Wayland를 쓰는 GNOME과 KDE에서 Xenon 앱이 다시 부드럽게 작동합니다.",
+            "ja": "Wayland の GNOME と KDE で、Xenon アプリが再び滑らかに動きます。",
+            "zh": "在使用 Wayland 的 GNOME 和 KDE 上，Xenon 应用再次运行流畅。"
+          }
+        }
+      ]
+    },
+    {
       "version": "5.1.0",
       "news": [
         {
