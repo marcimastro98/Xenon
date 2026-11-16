@@ -1063,7 +1063,7 @@ function Install-PresentMonIfNeeded {
       if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
       # Pin the last classic 1.x release: its single-binary CLI (-output_stdout)
-      # is what server/fpsmon.js parses. (2.x uses a different service-based CLI.)
+      # is what server/performance/fpsmon.js parses. (2.x uses a different service-based CLI.)
       # Pinned to the exact asset AND its SHA-256 (the same pair server.js uses
       # for the Settings button): the server runs this exe elevated for its ETW
       # session, so a release asset swapped upstream or a tampered download must
@@ -1527,7 +1527,7 @@ function Start-WidgetServer {
   # Discord: the setup ended cheerfully, the app still had no engine, its splash
   # offered "Try setup again", and this ran again to the same cheerful end.
   #
-  # The engine writes down why it failed since v4.11.6 (server/startup-log.js),
+  # The engine writes down why it failed since v4.11.6 (server/engine/startup-log.js),
   # so there is now something to point at rather than a shrug - and since
   # v4.11.9 start-hidden.vbs writes into the same file when it cannot find a
   # node.exe to start, which is the failure that used to leave it empty.

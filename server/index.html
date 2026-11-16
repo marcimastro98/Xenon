@@ -794,7 +794,7 @@
       </section>
 
       <!-- Ask ChatGPT: conversations answered on the user's ChatGPT plan through
-           OpenAI Codex (server/chatgpt-ask.js). Fed over SSE ('chatgpt'); hidden
+           OpenAI Codex (server/codex/chatgpt-ask.js). Fed over SSE ('chatgpt'); hidden
            by default, added from the "+" palette. -->
       <section class="panel chatgpt-panel dashboard-widget" data-dashboard-widget="chatgpt" data-dashboard-size="normal" data-dashboard-order="39" data-dashboard-hidden="true">
         <div class="chatgpt-widget-mount"></div>
@@ -1658,7 +1658,7 @@
           <a href="https://xenon-app.com/privacy.html#version-ping" target="_blank" rel="noopener"
              data-i18n="settings_version_ping_link">Cosa viene inviato esattamente</a>
         </div>
-        <!-- Both hidden on a paired device: the PC owner's choice (server/usage-stats.js). -->
+        <!-- Both hidden on a paired device: the PC owner's choice (server/engine/usage-stats.js). -->
         <label class="settings-toggle-row" id="settings-usage-stats-row">
           <input class="settings-check" id="settings-usage-stats" type="checkbox" onchange="updateUsageStats(this.checked)">
           <span class="settings-label-line">
@@ -1694,7 +1694,7 @@
       </div>
 
       <!-- Media visualiser. Windows + Xenon Helper only: peak metering does not
-           exist without the native companion (server/audio-levels.js), and there
+           exist without the native companion (server/audio/audio-levels.js), and there
            is no fallback to degrade to. The row says so under the switch rather
            than offering a toggle that silently does nothing. -->
       <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
@@ -3089,7 +3089,7 @@
         </div>
       </div>
 
-      <!-- Game sessions (server/game-sessions.js): shown only where a frame rate
+      <!-- Game sessions (server/performance/game-sessions.js): shown only where a frame rate
            can be read (capability gameSessions); hidden until that is known. -->
       <div class="settings-group" data-settings-cat="performance" id="settings-gamesess-group" data-unavailable="1" hidden>
         <div class="settings-group-head">
@@ -3272,7 +3272,7 @@
         </div>
       </div>
 
-      <!-- Instant Replay (server/replay.js): off by default. The length is any
+      <!-- Instant Replay (server/screens/replay.js): off by default. The length is any
            whole number of seconds from 15 to 3600; the list holds the usual
            ones and "Other" opens a minutes field. The line under the length is
            the disk it takes while on (estimated from the main screen). -->
@@ -3332,7 +3332,7 @@
                 <option value="silent" data-i18n="settings_replay_audio_silent">Senza suono</option>
               </select>
             </label>
-            <!-- Clips saved by themselves around a marked moment (server/capture-autoclips.js). -->
+            <!-- Clips saved by themselves around a marked moment (server/screens/capture-autoclips.js). -->
             <label class="settings-row full">
               <span class="settings-label-line">
                 <span data-i18n="settings_replay_clips">Clip da sola</span>
@@ -3359,7 +3359,7 @@
         </div>
       </div>
 
-      <!-- Recording options (server/capture-settings.js, js/capture/capture-settings-pane.js).
+      <!-- Recording options (server/screens/capture-settings.js, js/capture/capture-settings-pane.js).
            The nav entry shows only where the capture engine runs (capability
            capture); on a paired device the pane says they are set at the PC. -->
       <div class="settings-group" data-settings-cat="capture" id="settings-capture-video-group">
@@ -3438,7 +3438,7 @@
         </div>
       </div>
 
-      <!-- Bug report packages (server/bug-report.js): where the .zip goes, and the
+      <!-- Bug report packages (server/engine/bug-report.js): where the .zip goes, and the
            folder whose newest logs go in it (none until the user picks one). -->
       <div class="settings-group" data-settings-cat="capture" id="settings-bug-group">
         <div class="settings-group-head">
@@ -4273,7 +4273,7 @@
             </details>
           </div>
 
-          <!-- A server the user already runs on this PC (server/ai-local-server.js).
+          <!-- A server the user already runs on this PC (server/ai/ai-local-server.js).
                Key optional and server-only, same pattern as the cloud ones. -->
           <div class="settings-subpanel full" id="settings-localapi-panel" hidden>
             <p class="settings-note" data-i18n="settings_localapi_intro">Per il programma con cui fai già girare un modello su questo PC, se offre un'API compatibile con OpenAI. Xenon si collega e basta: non installa e non avvia niente.</p>
@@ -4312,7 +4312,7 @@
           </div>
 
           <!-- Claude Code / Codex: the user's own subscription through the official
-               program (server/ai-cli.js). No key: the program has its own sign-in,
+               program (server/ai/ai-cli.js). No key: the program has its own sign-in,
                and Xenon never handles it. One panel, filled per provider by settings.js. -->
           <div class="settings-subpanel full" id="settings-cli-panel" hidden>
             <p class="settings-note" id="settings-cli-intro"></p>

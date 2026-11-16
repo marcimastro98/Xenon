@@ -159,7 +159,7 @@ fi
 NODE_MAJOR="$("$NODE_BIN" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
 [ "${NODE_MAJOR:-0}" -ge 18 ] 2>/dev/null || fail "Node.js 18 or newer is required (found $("$NODE_BIN" -v 2>/dev/null || echo 'none'))."
 step "Node.js: $NODE_BIN ($("$NODE_BIN" -v))"
-# 18 and 20 still run Xenon but get no security fixes (server/node-version.js).
+# 18 and 20 still run Xenon but get no security fixes (server/engine/node-version.js).
 [ "${NODE_MAJOR:-0}" -ge 22 ] 2>/dev/null || warn "Node.js $("$NODE_BIN" -v) still runs Xenon but no longer gets security fixes: update it to Node.js 22 or newer when you can."
 
 NPM_BIN="$(command -v npm || true)"

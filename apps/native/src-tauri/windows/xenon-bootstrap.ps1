@@ -21,7 +21,7 @@
 #      (server\install.ps1 -Mode native -SkipNativeApp).
 #
 # Trust model: the source zip is verified against the pinned Ed25519 public key
-# below - the SAME key server/self-update.js and server/helper-update.js pin
+# below - the SAME key server/self-update.js and server/updates/helper-update.js pin
 # (rotating the signing key means updating ALL THREE copies; see the rotation
 # checklist in self-update.js). Node.js comes from winget, or, failing that,
 # from the official MSI, which is run only with a valid OpenJS Foundation

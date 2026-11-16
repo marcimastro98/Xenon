@@ -16,7 +16,7 @@
 #
 # Trust model is identical to the Windows bootstrap: the source zip is verified
 # against the pinned Ed25519 public key below — the SAME key server/
-# self-update.js and server/helper-update.js pin (rotating the signing key means
+# self-update.js and server/updates/helper-update.js pin (rotating the signing key means
 # updating ALL copies; see the rotation checklist in self-update.js). Node.js
 # itself is fetched over TLS only, because on a first install there is nothing
 # local to anchor more trust to. That gap is known and accepted until code
