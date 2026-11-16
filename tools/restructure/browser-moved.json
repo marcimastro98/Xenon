@@ -306,6 +306,8 @@
     {"from":"server/js/history-chart.js","to":"server/js/history-chart/history-chart.js"},
     {"from":"server/js/system.js","to":"server/js/system/system.js"},
     {"from":"server/js/devclean-widget.js","to":"server/js/devclean-widget/devclean-widget.js"},
-    {"from":"server/js/disk-widget.js","to":"server/js/disk-widget/disk-widget.js"}
+    {"from":"server/js/disk-widget.js","to":"server/js/disk-widget/disk-widget.js"},
+    {"from":"server/js/lighting-map.js","to":"server/js/lighting-map/lighting-map.js"},
+    {"from":"server/js/lighting-page.js","to":"server/js/lighting-page/lighting-page.js"}
   ]
 }

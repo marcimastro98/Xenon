@@ -459,7 +459,7 @@ test('controller: a failed write never jams the queue', async () => {
 test('lighting map: an output and its pieces are named after the output', async () => {
   const { readFileSync } = await import('./browser-source.mjs');
   const vm = await import('node:vm');
-  const src = readFileSync(new URL('../js/lighting-map.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/lighting-map/lighting-map.js', import.meta.url), 'utf8');
   const ctx = { window: { LightingUI: { tr: (key, fallback) => fallback } } };
   vm.runInNewContext(src, ctx);
   const { partLabels } = ctx.window.LightingMap;
