@@ -77,6 +77,24 @@ function onWire({ updatedAt, ...device }, now) {
   return now - updatedAt > FRESH_MS ? { ...device, charging: null, lastSeen: updatedAt } : device;
 }
 
+// A dongle device that went quiet keeps its last number on screen for hours; the log says
+// when that started and ended, so an old number can be told from a reader that stopped.
+// Pure: returns the new quiet set and the lines to write.
+function quietChanges(prevQuiet, devices) {
+  const quiet = new Set();
+  const lines = [];
+  for (const d of devices) {
+    if (!DONGLE_SOURCES.has(d.source)) continue;
+    if (d.lastSeen) {
+      quiet.add(d.id);
+      if (!prevQuiet.has(d.id)) lines.push(`[battery] ${d.name} stopped answering, showing ${d.percent}% read at ${new Date(d.lastSeen).toLocaleTimeString()}`);
+    } else if (prevQuiet.has(d.id)) {
+      lines.push(`[battery] ${d.name} answers again: ${d.percent}%`);
+    }
+  }
+  return { quiet, lines };
+}
+
 // `runScript` is a one-shot PowerShell spawn, NOT the shared pwsh-worker: the
 // worker answers the CPU/GPU/network collectors serially, and a ~1s Bluetooth
 // device sweep on it would stall every sensor read behind it. Battery runs at
@@ -86,8 +104,9 @@ function onWire({ updatedAt, ...device }, now) {
 // `systemBattery` (optional): the PC's own pack from power/index.js, for the
 // systems where battery.ps1 cannot run (macOS, Linux). Used only when the
 // script reported no pack itself, so Windows never lists it twice.
-function createBatteryMonitor({ runScript, lighting, systemBattery, peripherals = null }) {
+function createBatteryMonitor({ runScript, lighting, systemBattery, peripherals = null, warn = console.warn }) {
   const twins = createTwins();
+  let quiet = new Set();
   let deviceMap = new Map();
   let cache = { payload: null, updatedAt: 0 };
   let pending = null;
@@ -162,6 +181,9 @@ function createBatteryMonitor({ runScript, lighting, systemBattery, peripherals 
         const devices = [...deviceMap.values()]
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((device) => onWire(device, now));
+        const changes = quietChanges(quiet, devices);
+        quiet = changes.quiet;
+        for (const line of changes.lines) warn(line);
         cache = {
           payload: {
             devices,
@@ -188,4 +210,4 @@ function createBatteryMonitor({ runScript, lighting, systemBattery, peripherals 
   return { getDevices, peripheralsChanged };
 }
 
-module.exports = { createBatteryMonitor, mergeSources, ASLEEP_MS, STALE_MS, TTL_MS, PERIPHERAL_TTL_MS, FRESH_MS };
+module.exports = { createBatteryMonitor, mergeSources, quietChanges, ASLEEP_MS, STALE_MS, TTL_MS, PERIPHERAL_TTL_MS, FRESH_MS };

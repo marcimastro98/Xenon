@@ -164,6 +164,27 @@ test('PlayStation: the short Bluetooth report carries no battery and is left alo
   assert.deepEqual(await model(0x054C, 0x0CE6).read(reportIo(reportLink([short]))), []);
 });
 
+test('PlayStation: the short Bluetooth report padded by Windows is not a USB report at 5%', async () => {
+  for (const [product, length] of [[0x0CE6, 78], [0x09CC, 78]]) {
+    const padded = Buffer.alloc(length);
+    padded.set([0x01, 0x80, 0x80, 0x80, 0x80, 0x08, 0x00, 0x00, 0x00, 0x00]);
+    assert.deepEqual(await model(0x054C, product).read(reportIo(reportLink([padded]))), [], product.toString(16));
+  }
+});
+
+test('PlayStation: a full USB report still gives the charge', async () => {
+  const usb = Buffer.alloc(64);
+  usb[0] = 0x01;
+  usb[20] = 0x7F;     // a motion sensor reading
+  usb[53] = 0x18;     // DualSense: charging, step 8
+  assert.deepEqual(await model(0x054C, 0x0CE6).read(reportIo(reportLink([usb]))), [{ percent: 85, charging: true }]);
+  const ds4 = Buffer.alloc(64);
+  ds4[0] = 0x01;
+  ds4[14] = 0x7F;
+  ds4[30] = 0x1B;     // DualShock 4: on the cable, full step
+  assert.deepEqual(await model(0x054C, 0x09CC).read(reportIo(reportLink([ds4]))), [{ percent: 100, charging: false }]);
+});
+
 test('no model sends a frame known to change a device', async () => {
   const sent = [];
   await Promise.all(MODELS.map((m) => {

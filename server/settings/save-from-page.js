@@ -3,6 +3,7 @@
 // changed and written inside the lock.
 
 const TileSettings = require('../grid/tile-settings.js');
+const { DASHBOARD_CARD_IDS } = require('../grid/layout-defaults.js');
 const VitalsState = require('../vitals/vitals-state.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const winNotif = require('../notification-open/winnotif.js');
@@ -17,7 +18,7 @@ const { refreshWinNotifWatch } = require('../notification-open/watch-refresh.js'
 // layer page (which never writes the whole blob). Same lock, rev bump and
 // broadcast as change_setting; the notifications reader follows its switch.
 async function saveTileSettings(body) {
-  const plan = TileSettings.plan(body);
+  const plan = TileSettings.plan(body, { cards: DASHBOARD_CARD_IDS });
   if (plan.error) return { ok: false, ...plan };
   let rev = null;
   await withHubSettingsLock(async () => {

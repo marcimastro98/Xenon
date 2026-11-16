@@ -33,12 +33,6 @@ html[data-layer-lite] .sys-optimize-btn {
   display: none !important;
 }
 
-/* The Deck's pencil opens the key editor (deck-editor.js), which the light page
-   does not load: the keys are pressed here and edited on the dashboard. */
-html[data-layer-lite] .deck-edit {
-  display: none !important;
-}
-
 .layer-root {
   position: fixed;
   inset: 0;

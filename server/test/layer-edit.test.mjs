@@ -16,7 +16,7 @@ const LayersModel = require('../js/layers/layers-model.js');
 
 const rectOf = (left, top, width, height) => () => ({ left, top, width, height, right: left + width, bottom: top + height });
 
-function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answer, layerKey } = {}) {
+function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answer, layerKey, fetch } = {}) {
   const { document } = makeDom();
   // The page's own nodes need contains() for the cross check; mini-dom has none.
   const make = document.createElement;
@@ -64,6 +64,7 @@ function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answ
   const ctx = {
     window: { LayerKey: layerKey, LayerDrag, LayerSee, LayersModel }, document, Math, Array, WeakMap, Map, Object, String,
     setTimeout, clearTimeout, getComputedStyle: () => ({ getPropertyValue: () => '' }),
+    SERVER: '', fetch, console: { warn() {} }, JSON,
   };
   vm.createContext(ctx);
   vm.runInContext(CARD, ctx);
@@ -510,4 +511,60 @@ test('nothing drawn in a cut window has a shadow, and words have no dark box beh
   const css = readFileSync(new URL('../components/LayerHost/LayerHost.css', import.meta.url), 'utf8');
   assert.doesNotMatch(css, /box-shadow: (?!none)/, 'the cut stops the shadow in a hard black rectangle');
   assert.match(css, /\.layer-edit-frame\.is-words,\s+\.layer-edit-frame\.is-words\.is-dragging \{\s+background: none;/);
+});
+
+// ── What the System tile shows ──
+// Jeff (Nov 2026) could not take the FPS card off his System widget on the screen.
+function systemBoot(ok = true) {
+  const posts = [];
+  const fetch = async (url, init) => { posts.push({ url, body: JSON.parse(init.body) }); return { ok, status: ok ? 200 : 400 }; };
+  const env = boot({ fetch });
+  const cards = ['cpu:main', 'fps:net', 'ping:net'].map((spec) => {
+    const [id, group] = spec.split(':');
+    const el = env.document.createElement('div');
+    el.dataset.systemCard = id;
+    el.dataset.systemCardGroup = group;
+    el.setAttribute('data-system-card', id);
+    el.setAttribute('data-system-card-group', group);
+    env.a.appendChild(el);
+    return el;
+  });
+  env.edit.refresh();
+  return { ...env, posts, cards };
+}
+
+test('a widget with no cards offers no "What it shows"', () => {
+  const { a, root, frameOf } = boot();
+  tap(frameOf(a));
+  assert.equal(named(root, 'What it shows'), undefined);
+});
+
+test('"What it shows" lists the System cards, and a tap hides one on the screen and saves it', async () => {
+  const { a, root, frameOf, posts, cards } = systemBoot();
+  tap(frameOf(a));
+  const open = named(root, 'What it shows');
+  open.click();
+  assert.equal(named(root, 'What it shows').getAttribute('aria-expanded'), 'true');
+  const fps = named(root, 'fps');
+  assert.deepEqual(['cpu', 'fps', 'ping'].map((id) => named(root, id).getAttribute('aria-pressed')), ['true', 'true', 'true']);
+  fps.click();
+  assert.equal(cards[1].dataset.systemCardHidden, 'true', 'gone at once');
+  assert.equal(named(root, 'fps').getAttribute('aria-pressed'), 'false');
+  await settle();
+  assert.deepEqual(posts, [{ url: '/settings/tile', body: { patch: { dashboardCards: { net: { fps: false } } } } }]);
+  named(root, 'fps').click();
+  await settle();
+  assert.equal(cards[1].dataset.systemCardHidden, 'false');
+  assert.deepEqual(posts[1].body, { patch: { dashboardCards: { net: { fps: true } } } });
+});
+
+test('a card the server refused comes back', async () => {
+  const { a, root, frameOf, cards } = systemBoot(false);
+  tap(frameOf(a));
+  named(root, 'What it shows').click();
+  named(root, 'fps').click();
+  await settle();
+  await settle();
+  assert.equal(cards[1].dataset.systemCardHidden, 'false');
+  assert.equal(named(root, 'fps').getAttribute('aria-pressed'), 'true');
 });
