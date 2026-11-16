@@ -30,6 +30,8 @@ on:
       - 'tools/build-page-langs.mjs'
       - 'tools/page-i18n.mjs'
       - 'tools/lang-pages.mjs'
+      - 'tools/lang-copy.mjs'
+      - 'tools/catalog-langs.mjs'
       - 'tools/site-chrome.mjs'
       # Imported by the builders: build-i18n -> home-bake, build-seo ->
       # page-meta -> home-i18n, build-seo -> trial-covers. Pinned by

@@ -25,6 +25,30 @@ export function candidates(path) {
   return last.includes('.') ? [path] : [path, path + '.html'];
 }
 
+// The site's languages besides English (docs/<code>/). The catalog has a copy per language
+// (/zh/catalog/), but its entry pages, the creator pages, /create/ and /submit/ exist once, in
+// English, and crawlers still try them under a language prefix (Search Console listed
+// /zh/create/ as a 404), so a missing localized address is sent to the shared page when that
+// page exists.
+const LANG_PREFIX = /^\/(?:it|es|fr|ja|ko|zh)(\/.+)$/;
+// Addresses with no page of their own whose content lives elsewhere: /creators/ has no index,
+// every creator is listed in the catalog.
+const MOVED = new Map([['/creators/', '/catalog/']]);
+
+/** Where a missing path should go instead, or null. Pure, tested. */
+export function sharedPath(path) {
+  if (MOVED.has(path)) return MOVED.get(path);
+  const m = LANG_PREFIX.exec(path);
+  return m ? m[1] : null;
+}
+
+async function exists(env, request, path) {
+  for (const p of candidates(path)) {
+    if ((await asset(env, request, p)).status !== 404) return true;
+  }
+  return false;
+}
+
 function dress(res, status) {
   const out = new Response(res.body, { status: status || res.status, statusText: status ? '' : res.statusText, headers: res.headers });
   out.headers.set('access-control-allow-origin', '*');
@@ -90,6 +114,11 @@ export default {
         url.pathname += '/';
         return Response.redirect(url.toString(), 301);
       }
+    }
+    const shared = sharedPath(url.pathname);
+    if (shared && await exists(env, request, shared)) {
+      url.pathname = shared;
+      return Response.redirect(url.toString(), 301);
     }
     return dress(await asset(env, request, '/404.html'), 404);
   },

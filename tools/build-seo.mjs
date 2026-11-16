@@ -22,7 +22,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { BIT_PATHS, headerHtml, footerHtml } from './site-chrome.mjs';
-import { LANG_PAGES, HOME_LANGS, langsOf, pathOf } from './lang-pages.mjs';
+import { COPY_PAGES, CATALOG_PAGE, HOME_LANGS, langsOf, pathOf } from './lang-pages.mjs';
+import { buildCatalogCopies } from './catalog-langs.mjs';
 import { LIMITS } from './page-meta.mjs';
 import { trialCovers } from './trial-covers.mjs';
 
@@ -307,10 +308,13 @@ function entryPage(e, indexable, live = []) {
   // so it leads and the plain facts follow it.
   const own = plainDesc(e.description);
   const about = `a ${kindLabel.toLowerCase()} for Xenon by ${e.author}`;
+  const howTo = 'Import it into your local Xenon in one paste.';
+  const padded = `${own.replace(/\.$/, '')}. ${e.name}, ${about}.`;
+  // A two-word line with a short name can still fall under the snippet floor.
   const description = clamp(
-    !own ? `${e.name}, ${about}. Import it into your local Xenon in one paste.`
-      : own.length < MIN_SNIPPET ? `${own.replace(/\.$/, '')}. ${e.name}, ${about}.`
-        : own
+    !own ? `${e.name}, ${about}. ${howTo}`
+      : own.length >= MIN_SNIPPET ? own
+        : padded.length < MIN_SNIPPET ? `${padded} ${howTo}` : padded
   );
   const image = shots > 0 ? shotUrl(e.id, 1) : `${SITE}/images/home/og-card.png`;
 
@@ -802,10 +806,10 @@ ${footerHtml()}
 function catalogIndexBlock(live) {
   const items = live.map((e) =>
     `      <li><a href="/catalog/${encodeURIComponent(e.id)}/">${esc(e.name)}</a> ` +
-    `<span class="k">${esc(KIND_LABEL[e.kind] || e.kind)}</span></li>`
+    `<span class="k" data-kind="${esc(e.kind)}">${esc(KIND_LABEL[e.kind] || e.kind)}</span></li>`
   ).join('\n');
   return `  <nav class="seo-index" aria-label="All community items">
-    <h2>All ${live.length} community items</h2>
+    <h2 data-n="${live.length}">All ${live.length} community items</h2>
     <ul>
 ${items}
     </ul>
@@ -950,10 +954,12 @@ function alternatesOf(page) {
 
 function languageRoutes() {
   const out = [];
-  for (const p of LANG_PAGES) {
+  for (const p of COPY_PAGES) {
+    // The catalog copies change with every new entry, like the English one.
+    const often = p === CATALOG_PAGE;
     for (const l of langsOf(p.page)) {
       if (l === 'en') continue;
-      out.push({ loc: pathOf(p.page, l), file: 'docs/' + l + '/' + p.page, priority: '0.6', changefreq: 'monthly', page: p.page });
+      out.push({ loc: pathOf(p.page, l), file: often ? 'docs/community/catalog.json' : 'docs/' + l + '/' + p.page, priority: often ? '0.7' : '0.6', changefreq: often ? 'daily' : 'monthly', page: p.page });
     }
   }
   return out;
@@ -1075,6 +1081,7 @@ function main() {
   }
 
   patchCatalogPage(live);
+  console.log(`catalog copies: ${buildCatalogCopies(DOCS).join(', ')}`);
   fs.writeFileSync(path.join(DOCS, 'sitemap.xml'), sitemap(urls));
 
   console.log(`sitemap.xml: ${urls.length} URLs (${STATIC_ROUTES.length} static, ${indexed} catalog items)`);
