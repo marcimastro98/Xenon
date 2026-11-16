@@ -3657,7 +3657,7 @@
     if (entry) { try { entry.frame.remove(); } catch {} frames.delete(AMBIENT_INST_ID); }
   }
 
-  // A native canvas Ambient scene (js/ambient-canvas.js) can embed SEVERAL SDK
+  // A native canvas Ambient scene (js/ambient/ambient-canvas.js) can embed SEVERAL SDK
   // widgets at once, unlike a single-package SDK scene. Each embedded frame joins
   // the same bridge with its own instance id (prefixed so the sweeps and the
   // teardown below can find them), and rides the ambient:true visibility rule

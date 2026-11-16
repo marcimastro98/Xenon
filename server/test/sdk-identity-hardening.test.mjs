@@ -138,7 +138,7 @@ test('every SDK frame creator arms the guard before the frame loads', () => {
     const s = read(f);
     assert.ok(s.indexOf('registerAmbientFrame(pkg.id, frame)') < s.indexOf('host.replaceChildren(frame)'), f);
   }
-  const canvas = read('../js/ambient-canvas.js');
+  const canvas = read('../js/ambient/ambient-canvas.js');
   assert.ok(canvas.indexOf('registerCanvasFrame(comp.id, pkg.id, frame)') < canvas.indexOf('body.appendChild(frame)'));
   // A stopped tile says so, and a reload starts it again.
   assert.match(CW_SRC, /leftPage\.get\(instId\) === pkg\.id/);

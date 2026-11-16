@@ -30,7 +30,7 @@
     "server/js/alerts/screen-alerts.js": 515,
     "server/js/alerts/toast-island.js": 573,
     "server/js/alerts/toast.js": 521,
-    "server/js/ambient-canvas.js": 793,
+    "server/js/ambient/ambient-canvas.js": 793,
     "server/js/ambient-scene.js": 464,
     "server/js/ambient/ambient-canvas-editor.js": 484,
     "server/js/ambient/ambient-mode.js": 634,

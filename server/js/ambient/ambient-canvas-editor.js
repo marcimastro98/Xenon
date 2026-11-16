@@ -2,7 +2,7 @@
 // Canvas Ambient editor — change an installed scene right on the screen.
 //
 // Opened from Settings → Ambient (a scene's Edit button). The scene is shown
-// full screen exactly as the screensaver draws it (js/ambient-canvas.js in edit
+// full screen exactly as the screensaver draws it (js/ambient/ambient-canvas.js in edit
 // mode: one page, every element in view, nothing playing), with a toolbar, a
 // selection box and an options panel on top. Tap an element to select it, drag
 // it to move it, drag a corner to resize it; add elements and installed

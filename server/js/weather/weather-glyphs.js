@@ -2,7 +2,7 @@
 
 // The weather glyphs: a minimal single-stroke icon per sky state, simpler than
 // the lock screen's layered weather art. The Weather element of a canvas
-// Ambient scene draws them (js/ambient-canvas-parts.js), on the dashboard and
+// Ambient scene draws them (js/ambient/ambient-canvas-parts.js), on the dashboard and
 // on the desktop scene page (scene.html), so they live apart from any one
 // renderer. Static, trusted markup: never built from data.
 (function () {

@@ -14,7 +14,7 @@ const JS = join(__dirname, '..', 'js');
 const read = (f) => readFileSync(join(JS, f), 'utf8');
 
 test('once-a-second displays tick on a timer, not on every frame', () => {
-  for (const file of ['ambient/lockscreen.js', 'ambient-canvas.js']) {
+  for (const file of ['ambient/lockscreen.js', 'ambient/ambient-canvas.js']) {
     const src = read(file);
     assert.doesNotMatch(src, /requestAnimationFrame\(/, `${file} polls on rAF again`);
     assert.match(src, /setTimeout\([^,]+, 1000 - \(Date\.now\(\) % 1000\)/, `${file} no longer aims at the next second`);

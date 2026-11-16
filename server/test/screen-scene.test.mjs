@@ -33,7 +33,7 @@ test('the page carries the three scene overlays from index.html, and only the sc
   before('js/ambient/screen-scene-model.js', 'js/ambient/screen-scene.js');
   before('js/ambient/scene-feed.js', 'js/ambient/screen-scene.js');
   before('js/ambient/scene-frame-rate.js', 'js/ambient/screen-scene.js');
-  before('js/ambient-scene.js', 'js/ambient-canvas.js');
+  before('js/ambient-scene.js', 'js/ambient/ambient-canvas.js');
   assert.equal(scripts.at(-1), 'js/ambient/screen-scene.js');
   // Never the dashboard's idle logic: it would open and close scenes itself.
   for (const no of ['js/ambient/ambient-mode.js', 'js/ambient/ambient-idle.js', 'js/settings.js', 'js/main.js', 'js/i18n.js']) {
@@ -429,7 +429,7 @@ test('the dashboard keeps the last network reading for the canvas Network elemen
 });
 
 test('the canvas Network element writes the rate and its unit, never an object', () => {
-  const src = read('../js/ambient-canvas.js');
+  const src = read('../js/ambient/ambient-canvas.js');
   const body = src.slice(src.indexOf('    network: {'), src.indexOf('    notifications: {'));
   const fmtSrc = /const fmt = (\(bps\) => \{[\s\S]*?\n {8}\});/.exec(body)[1];
   const ctx = { formatBandwidth: (bps) => ({ value: (bps * 8 / 1e6).toFixed(1), unit: 'Mbps' }), Number };

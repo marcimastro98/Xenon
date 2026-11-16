@@ -121,7 +121,7 @@ test('the window reads and writes the Weather tile\'s assignment, with a frame o
 });
 
 test('a tap on the Ambient weather leaves the scene for the window, only on that style', () => {
-  const AC = read('js', 'ambient-canvas.js');
+  const AC = read('js', 'ambient/ambient-canvas.js');
   assert.match(AC, /if \(WL && WL\.current\(\) === 'custom' && document\.getElementById\('weather-overlay'\)\) \{\s+body\.dataset\.acTouch = '';\s+body\.dataset\.acAct = 'weather-open';/);
   const run = extractFunction(AC, 'runTouch');
   const branch = run.slice(run.indexOf("act === 'weather-open'"));

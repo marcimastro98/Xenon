@@ -439,7 +439,7 @@
     }
   }, 10000);
 
-  // Read side for the Ambient canvas (js/ambient-canvas.js), which can show the
+  // Read side for the Ambient canvas (js/ambient/ambient-canvas.js), which can show the
   // feed with no Notifications tile on the page. `items` is the live array: read
   // it, never change it. null = not loaded yet.
   function snapshot() {

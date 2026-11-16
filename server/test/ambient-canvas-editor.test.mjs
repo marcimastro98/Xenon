@@ -16,7 +16,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const EDITOR = read('../js/ambient/ambient-canvas-editor.js');
 const FORM = read('../js/ambient-canvas-editor-form/ambient-canvas-editor-form.js');
 const FIELDS_SRC = read('../js/ambient/ambient-canvas-editor-fields.js');
-const CANVAS = read('../js/ambient-canvas.js');
+const CANVAS = read('../js/ambient/ambient-canvas.js');
 const SETTINGS = read('../js/settings.js');
 const I18N = appStringsSource();
 const INDEX = read('../index.html');
@@ -39,7 +39,7 @@ function allKeys() {
 }
 
 test('the editor loads after the renderer it drives, with its own stylesheet', () => {
-  const order = ['ambient-scene.js', 'ambient-canvas-parts.js', 'ambient-canvas.js', 'ambient/ambient-canvas-editor-fields.js', 'ambient-canvas-editor-form/ambient-canvas-editor-form.js', 'ambient/ambient-canvas-editor.js']
+  const order = ['ambient-scene.js', 'ambient/ambient-canvas-parts.js', 'ambient/ambient-canvas.js', 'ambient/ambient-canvas-editor-fields.js', 'ambient-canvas-editor-form/ambient-canvas-editor-form.js', 'ambient/ambient-canvas-editor.js']
     .map(f => INDEX.indexOf(`<script src="js/${f}"></script>`));
   assert.ok(order.every(i => i > 0), 'every script is on the page');
   assert.deepEqual(order, order.slice().sort((a, b) => a - b), 'in dependency order');

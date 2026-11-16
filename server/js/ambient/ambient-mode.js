@@ -101,7 +101,7 @@ function ambientIdleCloses(state) {
 }
 
 // The wake gesture over an idle-started scene closes it, except on a touch
-// control of a canvas scene ([data-ac-touch], js/ambient-canvas.js).
+// control of a canvas scene ([data-ac-touch], js/ambient/ambient-canvas.js).
 function ambientTouchTarget(target) {
   return !!(target && typeof target.closest === 'function'
     && target.closest('#ambient-canvas-overlay [data-ac-touch]'));
@@ -209,7 +209,7 @@ if (typeof window !== 'undefined') (function () {
     const overlay = document.getElementById('lockscreen-overlay');
     return !!(overlay && !overlay.hidden);
   }
-  // Native canvas scene overlay is owned by js/ambient-canvas.js (Phase 2). Until
+  // Native canvas scene overlay is owned by js/ambient/ambient-canvas.js (Phase 2). Until
   // that module is present, these degrade to "not open"/"can't mount", so a
   // canvas scene id transparently falls back to the builtin scene.
   function canvasOpen() {

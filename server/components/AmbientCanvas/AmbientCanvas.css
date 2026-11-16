@@ -1,4 +1,4 @@
-/* Native canvas Ambient scene — the host renderer surface (js/ambient-canvas.js).
+/* Native canvas Ambient scene — the host renderer surface (js/ambient/ambient-canvas.js).
    A fullscreen, OLED-friendly screensaver stage of freely-positioned components.
    Components float transparently on the scene background by default; a "card"
    look is composed by placing a shape/image component behind them. */
@@ -165,7 +165,7 @@ body.ambient-canvas-open { overflow: hidden; }
 .ac-stat-val, .ac-net-val { font-size: calc(var(--ac-scale, 1) * clamp(14px, 12cqmin, 4vmin)); font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* ── touch controls ───────────────────────────────────────────────────────────
-   The few things on a scene that can be touched (js/ambient-canvas.js touchBtn).
+   The few things on a scene that can be touched (js/ambient/ambient-canvas.js touchBtn).
    Plain buttons with the look of the element they sit in; a finger-sized hit
    area even when the element is drawn small. */
 .ac-touch {

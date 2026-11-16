@@ -101,7 +101,7 @@ function critiquePage(page, deps) {
 
 // Elements that draw text the viewer reads (everything but pictures and shapes).
 const SILENT_TYPES = new Set(['image', 'shape', 'sdk']);
-// The text element's size is CSS px on the real screen (js/ambient-canvas.js).
+// The text element's size is CSS px on the real screen (js/ambient/ambient-canvas.js).
 const MIN_TEXT_PX = 12;
 const COMFORT_TEXT_PX = 16;
 // WCAG "large": 24px regular, or about 18.7px bold.
