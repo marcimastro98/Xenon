@@ -435,7 +435,7 @@
       {"file":"server/ai/core-tools-dashboard.js","about":"The tools the assistant always has for the dashboard itself: its panels, Performance Mode, timers, opening programs and finding files.","names":["dashboardAiFunctions"]},
       {"file":"server/ai/core-tools-lighting.js","about":"The tools the assistant always has for the RGB lights.","names":["lightingAiFunctions"]},
       {"file":"server/ai/core-tools-appearance.js","about":"The tools the assistant always has to change how the dashboard looks and what it prefers.","names":["appearanceAiFunctions"]},
-      {"file":"server/ai/core-tools-deck-creator.js","about":"The tools the assistant always has to compose Deck keys and to work with what creators make and share.","names":["deckCreatorAiFunctions"],"spelled":{"../js/deck-icons.js":"./js/deck-icons.js"}},
+      {"file":"server/ai/core-tools-deck-creator.js","about":"The tools the assistant always has to compose Deck keys and to work with what creators make and share.","names":["deckCreatorAiFunctions"],"spelled":{"../js/deck/deck-icons.js":"./js/deck/deck-icons.js"}},
       {"file":"server/ai/whisper-ready.js","about":"Whether the speech-to-text program and its model are on this computer, asked at most every ten seconds.","names":["_whisperReady"],"home":true},
       {"file":"server/ai/wake-word-wanted.js","about":"Whether the wake word should be listened for: it is switched on, something would answer it, and speech-to-text is on this computer.","names":["wakeWordWanted"]},
       {"file":"server/ai/wake-word-watch.js","about":"Starts or stops listening for the wake word, to match who is connected and whether a live voice session holds the microphone.","names":["refreshWakeWordWatch"]},

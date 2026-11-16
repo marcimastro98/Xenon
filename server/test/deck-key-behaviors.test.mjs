@@ -10,8 +10,8 @@ import { languagesWith, textsOf } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const M = require('../js/deck-model.js');
-const DA = require('../js/deck-actions.js');
+const M = require('../js/deck/deck-model.js');
+const DA = require('../js/deck/deck-actions.js');
 const B = require('../js/deck/deck-editor-behavior.js');
 const reg = require('../actions/registry.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -243,12 +243,12 @@ test('each behaviour shows only its own gestures', () => {
 });
 
 test('the editor saves only the gestures of the chosen behaviour and loads the card first', () => {
-  const ED = read('../js/deck-editor.js');
+  const ED = read('../js/deck-editor/deck-editor.js');
   assert.match(ED, /if \(!shownTriggers\.includes\(tr\)\) return;/);
   assert.match(ED, /behavior\.collect\(key\);/);
   assert.match(ED, /if \(seg\) shown\.forEach\(\(tr\) => seg\.appendChild\(trigBtns\[tr\]\)\);/, 'gestures shown in the behaviour order');
   assert.match(ED, /paneAction\.appendChild\(behavior\.el\);\n    paneAction\.appendChild\(fTrig\);/);
-  assert.ok(read('../index.html').includes(['server/js/deck/deck-editor-behavior.js', ...partsOf('server/js/deck-editor.js')].map((file) => `<script src="${file.slice('server/'.length)}"></script>`).join('\n')), 'the card, then the editor as the scripts it is made of today');
+  assert.ok(read('../index.html').includes(['server/js/deck/deck-editor-behavior.js', ...partsOf('server/js/deck-editor/deck-editor.js')].map((file) => `<script src="${file.slice('server/'.length)}"></script>`).join('\n')), 'the card, then the editor as the scripts it is made of today');
 });
 
 test('the Behaviour strings exist in all 11 languages', () => {
@@ -298,5 +298,5 @@ test('the editor, the share sanitizer and the import review read one list of slo
   // sanitizer, SDK package refs, action summary, and the hotkey combos the review names
   assert.equal((PS.match(/for \(const name of M\.KEY_TRIGGERS\)/g) || []).length, 4);
   assert.ok(!/DECK_TRIGGERS/.test(PS));
-  assert.match(read('../js/deck-editor.js'), /const TRIGGERS = DM\.KEY_TRIGGERS;/);
+  assert.match(read('../js/deck-editor/deck-editor.js'), /const TRIGGERS = DM\.KEY_TRIGGERS;/);
 });

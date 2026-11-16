@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { setWidgetKey, setHandlerKey, handlerKeyId } = require('../capabilities/widget-key.js');
 const LayersModel = require('../js/layers/layers-model.js');
-const S = require('../js/deck-shortcuts.js');
+const S = require('../js/deck/deck-shortcuts.js');
 
 const W = (id, over = {}) => ({ id, kind: 'tile', widget: 'perf', surface: 'overlay', rect: { x: 0, y: 0, w: 0.2, h: 0.2 }, ...over });
 

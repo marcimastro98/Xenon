@@ -3,7 +3,7 @@
 // actions. ALL execution flows through here — validation/normalisation happens
 // at this boundary, and the OS side-effects are INJECTED so security decisions
 // live in one testable place. Reuses the shared catalog validator.
-const { validateAction, validateGesture } = require('../js/deck-actions.js');
+const { validateAction, validateGesture } = require('../js/deck/deck-actions.js');
 const { scopeTimerLabel } = require('./widget-timers');
 const { obsRequest } = require('./obs.js');
 const { streamerbotRequest } = require('./streamerbot.js');

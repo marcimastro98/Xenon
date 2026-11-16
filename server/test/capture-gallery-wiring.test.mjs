@@ -50,7 +50,7 @@ test('deck.js opens it locally; deck-editor.js has its icon', () => {
   const i = deck.indexOf("action.type === 'gallery'");
   assert.ok(i > 0);
   assert.match(deck.slice(i, i + 200), /filter: action\.filter === 'all' \? '' : action\.filter/);
-  assert.match(read('js/deck-editor.js'), /\n\s+gallery: _ai\(/);
+  assert.match(read('js/deck-editor/deck-editor.js'), /\n\s+gallery: _ai\(/);
 });
 
 test('server.js: delete and trim tell the screens; the voice opens it through gallery_open', () => {

@@ -5,7 +5,7 @@
 // and leaves exactly one name on `window`; the old script takes them back by name
 // on one line.
 //
-//   before, in js/deck-editor.js               after, in js/deck-editor.js
+//   before, in js/deck-editor/deck-editor.js               after, in js/deck-editor/deck-editor.js
 //     function keyOf(e) { ... }                  const { keyOf } = window.DeckEditorKeys;
 //
 //   the new script, js/deck-editor/keys.js (an arrow wrapper: it has no `this` of its own to keep, and lint asks for one)

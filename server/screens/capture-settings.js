@@ -11,7 +11,7 @@
 // another PC's folders here. The only writers are /capture/settings (loopback
 // only) and the recordingOptions capability, both through update() in server.js.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 
 const FPS = Object.freeze([60, 30]);
 // 0 keeps the size of the screen or window; the others bring the short side down.
@@ -60,7 +60,7 @@ const replaySeconds = v => (Number.isInteger(v) && v >= REPLAY_MIN_S && v <= REP
 
 // A shortcut asked for → { key } ('off', or the canonical combo; '' = back to
 // the default), or { bad } / { owner } when it cannot be one. The same rules as
-// a Deck key's shortcut (js/deck-shortcuts.js).
+// a Deck key's shortcut (js/deck/deck-shortcuts.js).
 function replayKeyOf(raw) {
   const s = String(raw == null ? '' : raw).trim().toLowerCase();
   if (s === '') return { key: REPLAY_KEY };

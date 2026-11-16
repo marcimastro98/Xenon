@@ -27,10 +27,10 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
 const { resolveOutputDevice } = require(join(here, '..', 'actions', 'registry.js'));
-const { actionSpec } = require(join(here, '..', 'js', 'deck-actions.js'));
+const { actionSpec } = require(join(here, '..', 'js', 'deck/deck-actions.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
-const EDITOR = read('../js/deck-editor.js');
+const EDITOR = read('../js/deck-editor/deck-editor.js');
 const I18N = appStringsSource();
 const SERVER = engineSource();
 

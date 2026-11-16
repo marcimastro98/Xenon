@@ -15,7 +15,7 @@ const GameIgnore = require('../js/performance/game-ignore.js');
 const gd = require('../performance/gamedetect.js');
 const gameMode = require('../capabilities/game-mode.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const sdk = require('../sdk-widgets.js');
 
 test('names: bare, lowercase, no .exe; paths and junk are refused', () => {
@@ -135,7 +135,7 @@ test('SDK: a widget may switch the modes and rule out the app in front, never na
 });
 
 test('the shortcut runner and the dashboards hand Performance Mode on, never the phone', () => {
-  const { CLIENT_ACTIONS } = require('../js/deck-shortcuts.js');
+  const { CLIENT_ACTIONS } = require('../js/deck/deck-shortcuts.js');
   assert.ok(CLIENT_ACTIONS.includes('perfMode'));
   const deck = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
   assert.match(deck, /action\.type === 'perfMode' && window\.PerfMode && !window\.__xenonRemote && !\(typeof isLayerPage === 'function' && isLayerPage\(\)\)/);

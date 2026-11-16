@@ -9,8 +9,8 @@ import vm from 'node:vm';
 import { languagesWith } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const da = require('../js/deck-actions.js');
-const EDITOR = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
+const da = require('../js/deck/deck-actions.js');
+const EDITOR = readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8');
 const CS = readFileSync(new URL('../js/custom-select.js', import.meta.url), 'utf8');
 
 // The keys of an object literal `const NAME = { key: ..., ... };` in the editor.

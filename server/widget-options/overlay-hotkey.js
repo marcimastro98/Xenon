@@ -1,7 +1,7 @@
 // The keyboard shortcut that shows or hides the overlay, or nothing when the overlay is empty
 // or the shortcut is off.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const { hub } = require('../settings/current.js');
 

@@ -1,7 +1,7 @@
 // The key combination that saves the replay, or none while the replay is off, the capture
 // program is missing or the person switched the shortcut off.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const { _captureHost } = require('./capture-engine-host.js');
 const { captureOptions } = require('./capture-options.js');
 

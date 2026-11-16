@@ -6,7 +6,7 @@
 //
 // deps (injected): layers.js's, plus deck { configs() }.
 const LayersModel = require('../js/layers/layers-model.js');
-const { actionSpec } = require('../js/deck-actions.js');
+const { actionSpec } = require('../js/deck/deck-actions.js');
 const { allKeys, findById, findByTitle, label } = require('./deck-shortcut.js');
 const { pageIdFor, monitorFor } = require('./layers.js');
 const { stepsOf, fingerprint } = require('../deck/deck-press.js');

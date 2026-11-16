@@ -19,7 +19,7 @@ const Recent = require('../sensor-history/recent.js');
 const { createGuardian } = require('../system/guardian.js');
 const gameMode = require('../capabilities/game-mode.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const sdk = require('../sdk-widgets.js');
 
 const METRICS = ['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'mem', 'cpuWatts', 'gpuWatts'];

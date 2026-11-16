@@ -35,7 +35,7 @@ const { createNotificationOpener, platformDeps: notificationOpenDeps } = require
 const layersHost = require('./layers/layers-host').createLayersHost();
 // Edit mode of the layer windows (layers-edit.js): runtime only, told to every
 // open window over SSE `layers-edit`.
-const DeckShortcuts = require('./js/deck-shortcuts.js');
+const DeckShortcuts = require('./js/deck/deck-shortcuts.js');
 const { _altGrKeys } = require('./deck/altgr-keys.js');
 _altGrKeys();
 const { createDeckShortcutRunner } = require('./deck/deck-shortcut-runner');
@@ -2469,7 +2469,7 @@ const { resolveDeckSoundFile } = require('./deck/sound-file.js');
 
 const deckShortcutRunner = createDeckShortcutRunner({
   readConfigs: readDeckConfigs,
-  steps: require('./js/deck-actions.js').triggerSteps,
+  steps: require('./js/deck/deck-actions.js').triggerSteps,
   run: (action) => deckRegistry.run(action),
   broadcast: (event, data) => broadcastSSE(event, data),
   // With no dashboard the PC plays the key's clip itself (deck-sound-player.js).
@@ -5924,7 +5924,7 @@ const handleRequest = async (req, res) => {
             rows: { type: 'NUMBER', description: 'Grid rows (1-8); cols×rows should fit all keys' },
             keys: { type: 'ARRAY', description: 'The deck keys, most essential first (4-10 ideal)', items: { type: 'OBJECT', properties: {
               title: { type: 'STRING', description: 'Short key label in the user\'s language (max ~12 chars)' },
-              icon: { type: 'STRING', description: 'An icon from the Deck\'s own library when one fits: ' + require('./js/deck-icons.js').ids().join(', ') + '. Else a single emoji' },
+              icon: { type: 'STRING', description: 'An icon from the Deck\'s own library when one fits: ' + require('./js/deck/deck-icons.js').ids().join(', ') + '. Else a single emoji' },
               color: { type: 'STRING', description: 'Accent hex color for the key, e.g. #ff3b30' },
               action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, play_sound, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, app_volume_up, app_volume_down, app_mute, ai_voice, ai_chat, ai_prompt, lighting_color, open_app, open_file, open_store_app, open_url, hotkey, webhook, dashboard_page, obs_record, obs_stream, obs_scene, obs_scene_next, twitch_clip, twitch_marker, twitch_ad, twitch_title, twitch_game, twitch_chat, twitch_shoutout, twitch_chatmode, yt_broadcast, sb_action, remote_disconnect, remote_block, remote_screen_cycle' },
               value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt; hex color for lighting_color; URL for open_url/webhook; app path for open_app/open_file; key combo for hotkey (e.g. "ctrl+shift+m"); a page name or next/prev/back for dashboard_page; scene name for obs_scene; app name for app_volume_up/down and app_mute; new title/game/message/login for twitch_title/twitch_game/twitch_chat/twitch_shoutout. Omit otherwise.' },

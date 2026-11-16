@@ -701,7 +701,7 @@ test('a Claude key can never carry a folder path, only a project id', async () =
 });
 
 test('there is no Deck action that answers a pending permission', () => {
-  const { ACTION_CATALOG } = require('../js/deck-actions.js');
+  const { ACTION_CATALOG } = require('../js/deck/deck-actions.js');
   const claude = ACTION_CATALOG.filter(a => a.group === 'claude').map(a => a.type);
   assert.deepEqual(claude.sort(), ['claudeAsk', 'claudeStop']);
 });

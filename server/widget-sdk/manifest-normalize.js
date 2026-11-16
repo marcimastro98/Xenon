@@ -3,7 +3,7 @@
 // Deck extras (macros, states, handlers) among them, with the reason when the manifest is
 // refused.
 
-const { validateAction, clampDelay } = require('../js/deck-actions.js');
+const { validateAction, clampDelay } = require('../js/deck/deck-actions.js');
 // A package may declare the SILHOUETTE of its own tile. It goes through the very
 // same validator a shared preset does (js/dashboard-instances.js) rather than a
 // second copy of the rules here — one boundary, two doors.

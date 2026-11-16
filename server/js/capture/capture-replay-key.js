@@ -1,7 +1,7 @@
 // Settings → Capture → Instant Replay: the shortcut that saves the replay from
 // any app (hubSettings.capture.replayKey, Ctrl+Shift+F10 by default). Tap the
 // button, press the keys, saved; Esc cancels. The same rules and refusals as a
-// Deck key's shortcut (js/deck-shortcuts.js, js/deck/deck-editor-shortcut.js), and
+// Deck key's shortcut (js/deck/deck-shortcuts.js, js/deck/deck-editor-shortcut.js), and
 // the line under it says what the server made of it. window.CaptureReplayKey.
 (function () {
   'use strict';
@@ -122,7 +122,7 @@
     take(combo);
   }
 
-  // Ctrl+Alt+letter can come as a keyup alone (js/deck-shortcuts.js keyupPress).
+  // Ctrl+Alt+letter can come as a keyup alone (js/deck/deck-shortcuts.js keyupPress).
   function onKeyUp(e) {
     swallow(e);
     const pressed = S().keyupPress(e, downs);

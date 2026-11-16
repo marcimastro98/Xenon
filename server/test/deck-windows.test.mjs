@@ -232,7 +232,7 @@ test('the editor closing in the middle of a recording lets go of the keyboard', 
 });
 
 test('the main key comes last, and Save as preset is a tool, not a fourth key', () => {
-  const src = read('../js/deck-editor.js');
+  const src = read('../js/deck-editor/deck-editor.js');
   const at = ['btnDel', 'btnCancel', 'btnSave'].map((key) => src.indexOf(`actions.appendChild(${key});`));
   assert.ok(at[0] > 0 && at[0] < at[1] && at[1] < at[2], 'Delete, Cancel, Save');
   assert.match(src, /styleTools\.appendChild\(btnSavePreset\);/);
@@ -240,12 +240,12 @@ test('the main key comes last, and Save as preset is a tool, not a fourth key', 
 });
 
 test('a press beside the key editor closes only an untouched key', () => {
-  assert.match(read('../js/deck-editor.js'),
+  assert.match(read('../js/deck-editor/deck-editor.js'),
     /e\.target === backdrop && JSON\.stringify\(collectKey\(true\)\) === pristine\) close\(\);/);
 });
 
 test('the key editor holds the keyboard, and gives it back before it goes', () => {
-  const src = read('../js/deck-editor.js');
+  const src = read('../js/deck-editor/deck-editor.js');
   assert.match(src, /backdrop\.letGo = window\.DialogFocus\.hold\(modal, \{[^}]*onEsc: close,/);
   assert.match(src, /leavesKeys: \(\) => shortcut\.recording\(\)/);
   const closing = namesOf(src, 'deck-editor.js').one('close');
@@ -273,7 +273,7 @@ test('promos and the screensaver wait for all four windows', () => {
 test('the window keys are drawn marks, never characters that change with the font', () => {
   const deck = read('../js/deck/deck.js');
   const windows = [
-    read('../js/deck-editor.js'),
+    read('../js/deck-editor/deck-editor.js'),
     read('../js/deck/deck-editor-shortcut.js'),
     namesOf(deck, 'deck.js').all('openDeckStyleModal', 'openAutoSwitchDialog', 'openDeckMixer'),
   ].join('\n');

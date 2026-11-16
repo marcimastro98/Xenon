@@ -65,7 +65,7 @@ test('drawing group tiles never redraws the whole app', () => {
   assert.equal(dashboard.passes.whole, 0);
 });
 
-for (const file of ['dashboard-tabgroups/dashboard-tabgroups.js', 'grid/dashboard-palette.js', 'deck-editor.js']) {
+for (const file of ['dashboard-tabgroups/dashboard-tabgroups.js', 'grid/dashboard-palette.js', 'deck-editor/deck-editor.js']) {
   test(`${file} asks for its own words, not a whole-app pass`, () => {
     assert.doesNotMatch(read(`../js/${file}`), /applyTranslations\(\)/);
   });
@@ -76,5 +76,5 @@ test('the widget palette translates the dialog it opened', () => {
 });
 
 test('the Deck key editor translates the dialog it opened', () => {
-  assert.match(read('../js/deck-editor.js'), /translateStatic\(backdrop\)/);
+  assert.match(read('../js/deck-editor/deck-editor.js'), /translateStatic\(backdrop\)/);
 });

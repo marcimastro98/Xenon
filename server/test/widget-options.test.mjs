@@ -148,7 +148,7 @@ test('list_widget_options reaches Bit on every surface; the layer list keeps the
   const d = { widgetOptions: { list: async () => [{ id: 'alibi', name: 'Alibi', options: [] }] } };
   assert.deepEqual(await capability.list(d), { ok: true, widgets: [{ id: 'alibi', name: 'Alibi', options: [] }] });
   assert.deepEqual(await capability.list({}), { ok: false, error: 'unavailable' });
-  const { ACTION_CATALOG } = require('../js/deck-actions.js');
+  const { ACTION_CATALOG } = require('../js/deck/deck-actions.js');
   const entry = ACTION_CATALOG.find((a) => a.type === 'widgetOptionList');
   assert.equal(entry.capability.ai.name, 'list_widget_options');
   assert.equal(entry.capability.requires, 'widgetOptions', 'never the app: a dashboard tile has options too');

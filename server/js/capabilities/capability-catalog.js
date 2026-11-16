@@ -3,7 +3,7 @@
 // performance overlay, capture, gallery), each declared ONCE here and offered
 // everywhere from this one entry.
 //
-// An entry is a Deck action spec (same shape as js/deck-actions.js
+// An entry is a Deck action spec (same shape as js/deck/deck-actions.js
 // ACTION_CATALOG, which appends these) plus a `capability` block:
 //
 //   domain    'layers' | 'perf' | 'capture' | 'gallery' | 'ai' | 'deck'
@@ -20,7 +20,7 @@
 //             through the same allowlisted registry as a Deck key.
 //
 // Data only: no DOM, no execution. Validation happens where it always has, in
-// validateAction (js/deck-actions.js) and server/actions/registry.js; the
+// validateAction (js/deck/deck-actions.js) and server/actions/registry.js; the
 // effects live in server/capabilities/.
 
 // js/performance/perf-hud.js PERF_HUD_PARTS: this file is also loaded where that one is not.
@@ -1279,7 +1279,7 @@ const CAPABILITIES = [
     },
   },
 
-  // Keyboard shortcuts on Deck keys (js/deck-shortcuts.js). The Deck editor has
+  // Keyboard shortcuts on Deck keys (js/deck/deck-shortcuts.js). The Deck editor has
   // its own card for them, so neither is a key action.
   {
     type: 'deckShortcut', group: 'system', hidden: true, labelKey: 'deck_act_deckShortcut',

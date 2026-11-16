@@ -5,7 +5,7 @@
 // empty folders, repeated titles in one folder and label colours that cannot be
 // read on their cap. Findings use the same paths as the create_preset report.
 
-const DeckActions = require('../js/deck-actions.js');
+const DeckActions = require('../js/deck/deck-actions.js');
 const themePalette = require('../js/theme-palette.js');
 const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding, worstContrast } = require('./ai-preset-critique-core.js');
 

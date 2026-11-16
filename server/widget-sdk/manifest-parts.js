@@ -2,7 +2,7 @@
 // Cleans the parts of a widget's manifest one by one: text and lists, the hosts it asks for and
 // the ones the user fills in, hooks, and what a key handler takes.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const { categoryOfActionType } = require('./surface.js');
 const { SDK_SUB_ID_RE } = require('./package-names.js');
 const {

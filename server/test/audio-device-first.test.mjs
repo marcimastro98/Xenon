@@ -22,7 +22,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { actionSpec, validateAction } = require('../js/deck-actions.js');
+const { actionSpec, validateAction } = require('../js/deck/deck-actions.js');
 // LF only, so the source slices below work on a CRLF checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -99,7 +99,7 @@ test('the catalog: three pickers, the third optional, hidden where outputs canno
 });
 
 function detect(steps) {
-  const src = read('../js/deck-editor.js');
+  const src = read('../js/deck-editor/deck-editor.js');
   const start = src.indexOf('    function detectKeyState() {');
   const end = src.indexOf('\n    }\n', start) + 6;
   const fn = new Function('trig', 'TRIGGERS', 'remoteConfigured', src.slice(start, end) + '\nreturn detectKeyState();');

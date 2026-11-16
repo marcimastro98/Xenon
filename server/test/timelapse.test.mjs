@@ -22,8 +22,8 @@ const timelapse = require('../capabilities/timelapse.js');
 const record = require('../capabilities/record.js');
 const { aiFunctions, aiAction } = require('../capabilities/index.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
-const DeckModel = require('../js/deck-model.js');
-const DeckActions = require('../js/deck-actions.js');
+const DeckModel = require('../js/deck/deck-model.js');
+const DeckActions = require('../js/deck/deck-actions.js');
 
 function rig({ stopReply = { ok: true, reason: 'stopped', seconds: 4, frames: 120, span: 600 } } = {}) {
   const requests = [];
@@ -186,7 +186,7 @@ test('Deck: SSE recording lights the Record key or the Timelapse key, never both
   const read = rel => readFileSync(new URL('../' + rel, import.meta.url), 'utf8');
   assert.match(read('js/deck/deck-feed.js'), /on\('recording', \(d\) => \{ if \(D\(\)\) D\(\)\.refreshStates\(window\.DeckModel\.recordingStates\(d\)\); \}\);/);
   assert.match(read('js/main.js'), /window\.Deck\.refreshStates\(window\.DeckModel\.recordingStates\(d\)\)/);
-  assert.match(read('js/deck-editor.js'), /s\.type === 'timelapse' && \(!s\.params \|\| s\.params\.mode !== 'reveal'\)\)\) return \{ source: 'timelapseOn' \}/);
+  assert.match(read('js/deck-editor/deck-editor.js'), /s\.type === 'timelapse' && \(!s\.params \|\| s\.params\.mode !== 'reveal'\)\)\) return \{ source: 'timelapseOn' \}/);
 });
 
 function toast() {

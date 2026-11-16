@@ -13,8 +13,8 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const PresetShare = require('../js/preset-share.js');
-const DeckModel = require('../js/deck-model.js');
-const DeckActions = require('../js/deck-actions.js');
+const DeckModel = require('../js/deck/deck-model.js');
+const DeckActions = require('../js/deck/deck-actions.js');
 const DEPS = { model: DeckModel, actions: DeckActions };
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');

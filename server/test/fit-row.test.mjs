@@ -86,7 +86,7 @@ test('the System tabs and the Deck segments are fit rows', () => {
   assert.ok(scripts.indexOf('grid/fit-row') < scripts.indexOf('dashboard-layout/dashboard-layout'), 'loaded before the copies of the System tile are made');
   assert.match(read('../js/dashboard-layout/dashboard-layout.js'), /if \(window\.FitRow\) window\.FitRow\.watchAll\(clone\);/);
   assert.match(read('../js/deck/deck-editor-behavior.js'), /seg\.dataset\.fitLevels = '2';/);
-  const ed = read('../js/deck-editor.js');
+  const ed = read('../js/deck-editor/deck-editor.js');
   assert.match(ed, /if \(window\.FitRow\) backdrop\.stopFitRows = window\.FitRow\.watchWithin\(modal, '\.deck-ed-seg-text', 1\);/);
   assert.match(ed, /if \(m\.stopFitRows\) m\.stopFitRows\(\);\n    m\.remove\(\);/, 'closing the editor stops its watcher');
 });

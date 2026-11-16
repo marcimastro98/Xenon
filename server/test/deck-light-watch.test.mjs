@@ -12,10 +12,10 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const DECK = read('../js/deck/deck.js');
-const EDITOR = read('../js/deck-editor.js');
+const EDITOR = read('../js/deck-editor/deck-editor.js');
 
 function loadWatch({ stateKeys = [], status = null } = {}) {
   const start = DECK.indexOf('  const LIGHT_WATCH_MS');

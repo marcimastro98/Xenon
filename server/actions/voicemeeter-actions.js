@@ -10,7 +10,7 @@ function makeActions({ vmSession, edition, getParam, setParam, macroButton }) {
   // ── The Deck actions ──────────────────────────────────────────────────────
   async function runAction(action) {
     const a = action || {};
-    // validateAction (js/deck-actions.js) returns the params FLAT on the action,
+    // validateAction (js/deck/deck-actions.js) returns the params FLAT on the action,
     // the same shape every other provider here reads. Reaching for a .params
     // bag that never exists made every key answer bad_strip.
     const p = a;

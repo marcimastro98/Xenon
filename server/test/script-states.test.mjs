@@ -19,7 +19,7 @@ import { declarationSource, engineSource } from './engine-source.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 
 // ── The state source ────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ test('the deck snapshot carries scriptStates', () => {
 });
 
 test('the key editor offers the script-state binding and saves it', () => {
-  const src = read('js', 'deck-editor.js');
+  const src = read('js', 'deck-editor/deck-editor.js');
   assert.ok(src.includes("field('deck_edit_scriptstate')"));
   assert.ok(src.includes("source: 'scriptState'"));
   // Included in the binding the key is saved with — the trap this feature's

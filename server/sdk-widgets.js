@@ -42,8 +42,8 @@
 
 const fs = require('fs');
 const path = require('path');
-require('./js/deck-actions.js');
-require('./js/deck-shortcuts.js'); // nothing is taken from it here, but it runs code when it loads
+require('./js/deck/deck-actions.js');
+require('./js/deck/deck-shortcuts.js'); // nothing is taken from it here, but it runs code when it loads
 require('./js/dashboard-instances.js'); // nothing is taken from it here, but it runs code when it loads
 
 const {

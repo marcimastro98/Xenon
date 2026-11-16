@@ -3,7 +3,7 @@
 // Windows reads Ctrl+Alt as AltGr, so Ctrl+Alt+E on an Italian keyboard is €:
 // a global shortcut there would take the character away. A key that no
 // installed layout types anything with stays free for Ctrl+Alt (an Italian or
-// US keyboard: Ctrl+Alt+R). js/deck-shortcuts.js useAltGrKeys() takes the list.
+// US keyboard: Ctrl+Alt+R). js/deck/deck-shortcuts.js useAltGrKeys() takes the list.
 // Read through user32 (koffi), no window, no key sent; null when it cannot be
 // read, and then every Ctrl+Alt letter stays refused.
 

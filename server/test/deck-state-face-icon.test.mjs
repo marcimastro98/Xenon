@@ -18,9 +18,9 @@ import { appStringsSource } from './i18n-source.mjs';
 // or an emoji, through the same normalizeIcon and the same renderer.
 
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
-const EDITOR = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
+const EDITOR = readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 
 const face = (icon) => dm.normalizeDeckConfig({

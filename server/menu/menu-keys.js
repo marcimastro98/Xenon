@@ -4,7 +4,7 @@
 // a combination on a function row makes its key (capabilities/function-key.js),
 // or changes the Deck key that already does the same thing.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const { FUNCTIONS, GROUPS, KEY_PREFIX, KEYS_INSTANCE, subKey, available, keyFor } = require('./menu-functions.js');
 const { k, run, open, heading, keyRow } = require('./menu-rows.js');
 const { widgetKeyGroup, HANDLER_KEY_PREFIX } = require('./menu-widget-keys.js');

@@ -1,4 +1,4 @@
-// Keyboard shortcuts on Deck keys: the combo rules (js/deck-shortcuts.js), the
+// Keyboard shortcuts on Deck keys: the combo rules (js/deck/deck-shortcuts.js), the
 // model keeping them on a key, shared codes dropping them, and the runner that
 // plays a key's tap from its shortcut (deck-shortcut-runner.js).
 import { test } from 'node:test';
@@ -7,9 +7,9 @@ import { createRequire } from 'node:module';
 import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
-const S = require('../js/deck-shortcuts.js');
+const S = require('../js/deck/deck-shortcuts.js');
 const { createDeckShortcutRunner } = require('../deck/deck-shortcut-runner.js');
-const { triggerSteps } = require('../js/deck-actions.js');
+const { triggerSteps } = require('../js/deck/deck-actions.js');
 
 // ── combos ──────────────────────────────────────────────────────────────────
 test('combos are spelled one way, whatever was typed', () => {
@@ -89,7 +89,7 @@ test('a key is found by id, folders included', () => {
 });
 
 test('a config round-trip keeps the shortcut', () => {
-  const dm = require('../js/deck-model.js');
+  const dm = require('../js/deck/deck-model.js');
   const fn = dm.normalizeDeckConfig;
   assert.ok(fn, 'deck-model exports a config normalizer');
   const out = fn(configs().a);

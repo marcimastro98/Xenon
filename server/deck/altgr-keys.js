@@ -1,6 +1,6 @@
 // Reads which letters this keyboard types with AltGr and tells the shortcut checker.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const AltGrKeys = require('./altgr-keys-windows.js');
 
 // What this PC's keyboards type with AltGr: a Ctrl+Alt letter none of them types

@@ -210,5 +210,5 @@ test('wired: route, CSRF, phone, Deck error words, gallery button', () => {
   const viewer = read('../js/capture/capture-gallery-viewer.js');
   assert.equal((viewer.match(/e\.clips > 0\) actions\.appendChild\(btn\(tr\('capg_clips'/g) || []).length, 2, 'on the PC and on the phone');
   assert.match(viewer, /act\('\/captures\/clips'/);
-  assert.match(read('../js/deck-editor.js'), /markClips: _ai\(/);
+  assert.match(read('../js/deck-editor/deck-editor.js'), /markClips: _ai\(/);
 });

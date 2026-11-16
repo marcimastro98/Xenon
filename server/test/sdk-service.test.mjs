@@ -157,7 +157,7 @@ test('only the hidden host answers: the page, its order, the route and the phone
   // The widget host is listed as the scripts it is made of today: a part of it loads right before it.
   assert.deepEqual(scripts, ['shared/src/constants.js', 'js/streaming/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
-    'js/theme-palette.js', 'js/look/theme-tokens.js', 'js/native-bridge.js', 'js/deck-actions.js',
+    'js/theme-palette.js', 'js/look/theme-tokens.js', 'js/native-bridge.js', 'js/deck/deck-actions.js',
     'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/widget-sdk/sdk-service.js']);
   assert.doesNotMatch(html, /stylesheet/);
   assert.match(engineSource(), /reqPath === '\/sdk-service' && req\.method === 'GET'[\s\S]{0,400}'sdk-service\.html'/);

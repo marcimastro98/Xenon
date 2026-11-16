@@ -124,7 +124,7 @@ test('the strings and the Deck icons exist, in 11 languages', () => {
     'color_pick_hint', 'measure_pick_hint', 'color_copied', 'measure_copied', 'inspect_not_copied']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }
-  const editor = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
+  const editor = readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8');
   assert.match(editor, /screenColor: _ai\(/);
   assert.match(editor, /screenMeasure: _ai\(/);
 });

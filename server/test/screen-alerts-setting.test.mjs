@@ -9,7 +9,7 @@ import { declarationSource, engineSource } from './engine-source.mjs';
 
 const read = (p) => readRaw(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const SERVER = engineSource();
 const CLIENT = read('../js/settings.js');

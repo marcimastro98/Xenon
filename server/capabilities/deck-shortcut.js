@@ -1,7 +1,7 @@
 'use strict';
 // Deck key shortcuts by voice: "put Ctrl+Shift+F9 on my Music key", "take the
 // shortcut off Mute", "which shortcuts do I have?". The combo rules live in
-// js/deck-shortcuts.js; registering and running is server.js + the runner.
+// js/deck/deck-shortcuts.js; registering and running is server.js + the runner.
 //
 // deps (injected):
 //   deck {
@@ -12,7 +12,7 @@
 //     status()       the per-key verdicts (deck/shortcut-questions.js _deckShortcutStatus)
 //     takenByOthers() the combos the search and page shortcuts hold
 //   }
-const S = require('../js/deck-shortcuts.js');
+const S = require('../js/deck/deck-shortcuts.js');
 
 const OFF_WORDS = new Set(['', 'none', 'off', 'remove', 'clear', 'nessuna', 'no']);
 const CHOICES_MAX = 20;

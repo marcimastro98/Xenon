@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const { createRecorder, FPS, START_TIMEOUT_MS } = require('../screens/recorder.js');
 const { createCapabilities } = require('../capabilities/index.js');
 const { createRegistry } = require('../actions/registry.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 
 function fakeHost({ startReply = { ok: true, width: 2560, height: 720, fps: 60, hdr: false, sound: 'system' }, pill = false } = {}) {

@@ -89,8 +89,8 @@
       {
         "statement": "const deckRegistry = createRegistry(deckRegistryDeps);",
         "callees": {
-          "server/actions/registry.js": "8f48962a40deb9029109f5dccfa099d7fbd8aa8b3795532ffd10ff0b5a31bc15",
-          "server/actions/registry-app-paths.js": "95d5a7ce29d4eef76b340367e30c4d9504a532562941da11f17a373d466ba85e",
+          "server/actions/registry.js": "fbe468be97debcd22e74786f1b75f55c3bdb133f96d867a7f66c279c2eb9d7ae",
+          "server/actions/registry-app-paths.js": "93cdff77306c38f6fa3995a479d456a7dee7556375eb97000e2f528847b283e2",
           "server/actions/registry-open-paths.js": "f6207de9d38676dcb40defbae243773a85c2cdea1f5a6efbc2461c26ccd0cb0d",
           "server/actions/registry-values.js": "0b207071509e48058ab84622c970205734afbbb9bf6443300ff6c2834d7a790d",
           "server/actions/registry-audio-devices.js": "ced1ac18020c9fa3c206c04c34318655a7967711746c4b3738f1ede1e2db8757"
@@ -100,16 +100,16 @@
       {
         "statement": "const deckShortcutRunner = createDeckShortcutRunner({",
         "callees": {
-          "server/deck/deck-shortcut-runner.js": "97f6cd78a0c275749262b150c63698c4c64b5147ceca69b7e0b85339ddfe0254",
+          "server/deck/deck-shortcut-runner.js": "34be4164a952461a182b5a058199cb33f32fa611b1c144766aaf38d3c7988dc5",
           "server/deck/deck-sound-player.js": "168467083e542fe41c58dd3ee5245a6ebcce08b26f29adaca6b3b10e3ff83499",
-          "server/js/deck-actions.js": "46113ca29fae64f0e47a9c42019fb78c66e54d072cd92a75272ee0360f14f9a8"
+          "server/js/deck/deck-actions.js": "2682331fd3129fee61b3ec5d086b3b8d121808964542b1903d31144fdf946389"
         },
         "reason": "createDeckShortcutRunner and createDeckSoundPlayer make empty sets and maps and return their functions; readConfigs, steps, run, broadcast, serverFirst, resolveFile, ffplay and spawn are first called by press, pressKey, handOff or play; deck-actions.js is only asked for its triggerSteps function and is handed nothing."
       },
       {
         "statement": "const deckPress = createDeckPress({",
         "callees": {
-          "server/deck/deck-press.js": "a9bb244ec018111fc4e4dff6e82c0fa60a9597a7155edd91ded558af60f1ff37"
+          "server/deck/deck-press.js": "341b3acb597ab26fba6ee6de1049818cd0c35d4334aa785fa42b10b60f6caa8e"
         },
         "reason": "createDeckPress declares placed, read, press and accept and returns the last three; layers.get, layers.update, readConfigs and runner are first used when one of them is called."
       }

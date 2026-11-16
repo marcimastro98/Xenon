@@ -13,7 +13,7 @@
 // names a file that does not exist, so the key answers not_found forever while
 // the field looks exactly right.
 //
-// This is the POSIX counterpart of unquotePath (js/deck-actions.js), which
+// This is the POSIX counterpart of unquotePath (js/deck/deck-actions.js), which
 // already strips the double quotes Explorer's "Copy as path" adds on Windows.
 // The difference: a backslash and a single quote are both LEGAL in a POSIX
 // filename, so the characters alone cannot decide it — the filesystem does.

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const { createRegistry } = require('../actions/registry.js');
 
 // The `tasks` action category (taskAdd/taskToggle/taskDelete) — the write path

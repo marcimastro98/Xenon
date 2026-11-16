@@ -549,7 +549,7 @@
     const meters = snap.meters.map((m) => ({ ...m, name: t('vitals_' + m.id, m.id) }));
     return { ok: true, ...snap, meters, away };
   }
-  // A Deck key showing a meter (live source 'vitals', js/deck-model.js). tick()
+  // A Deck key showing a meter (live source 'vitals', js/deck/deck-model.js). tick()
   // runs every second, so the Deck repaints only when a whole percent changes.
   let deckSig = '';
   function publishDeck() {

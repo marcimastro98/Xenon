@@ -3,7 +3,7 @@
 // menu-*.js sections beside it): the row texts, the two kinds of act, and the
 // readings more than one section needs. Pure.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const LayersModel = require('../js/layers/layers-model.js');
 
 const k = (key, vars) => (vars ? { key, vars } : { key });

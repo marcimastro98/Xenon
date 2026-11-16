@@ -96,7 +96,7 @@
   const OVERLAY_KEY = 'ctrl+shift+f9';
   // The Xenon menu over the main screen (server/menu/screen-menu.js). Alt+X alone is
   // refused like every one-modifier letter (it is an app's menu key); this one
-  // is free of the system, NVIDIA, Game Bar and AltGr combos (js/deck-shortcuts.js).
+  // is free of the system, NVIDIA, Game Bar and AltGr combos (js/deck/deck-shortcuts.js).
   const MENU_KEY = 'alt+shift+x';
   const KEY_RE = /^(?:off|[a-z0-9]{1,5}(?:\+[a-z0-9]{1,5}){1,4})$/;
 

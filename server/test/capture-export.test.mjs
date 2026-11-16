@@ -17,7 +17,7 @@ const { createCaptureExport, shape, suffixOf, timeoutFor } = require('../screens
 const { createCaptures } = require('../screens/captures.js');
 const exportCap = require('../capabilities/export.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 
 const ROOT = path.join(os.tmpdir(), 'exp');
 

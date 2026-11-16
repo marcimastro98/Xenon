@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode, themeImportPatch } = require('../js/preset-share.js');
-const DeckModel = require('../js/deck-model.js');
-const DeckActions = require('../js/deck-actions.js');
+const DeckModel = require('../js/deck/deck-model.js');
+const DeckActions = require('../js/deck/deck-actions.js');
 
 // Portable-preset format: encode → decode round-trip + rejection of junk, plus
 // the deck-profile sanitization boundary (untrusted profiles are rebuilt, and

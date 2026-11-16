@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const M = require('../js/deck-model.js');
+const M = require('../js/deck/deck-model.js');
 
 const JS = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 

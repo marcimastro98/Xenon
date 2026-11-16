@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 
 test('normalizeDeckConfig fills defaults and clamps cols/rows', () => {
   const c = dm.normalizeDeckConfig(null);

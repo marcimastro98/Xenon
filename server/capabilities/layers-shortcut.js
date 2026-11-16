@@ -3,7 +3,7 @@
 // shortcuts are set, and the hint that tells which key brings the overlay up.
 
 const LayersModel = require('../js/layers/layers-model.js');
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 
 // So the AI can tell the person how to show and hide it over a game.
 function overlayHint(widget, layers) {
@@ -12,7 +12,7 @@ function overlayHint(widget, layers) {
 
 // The ready-made shortcuts: `key` overlay (shows and hides the overlay, the
 // default) or menu (opens the Xenon menu); a combo, or "off". The same rules as
-// a Deck key's shortcut (js/deck-shortcuts.js).
+// a Deck key's shortcut (js/deck/deck-shortcuts.js).
 const SHORTCUT_KEYS = Object.freeze({
   overlay: { field: 'overlayKey', fallback: LayersModel.OVERLAY_KEY },
   menu: { field: 'menuKey', fallback: LayersModel.MENU_KEY },

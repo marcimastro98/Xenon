@@ -12,7 +12,7 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 test('benchmarkRunning is a state source and reads the snapshot', () => {
@@ -65,7 +65,7 @@ test('a dashboard that connects mid-run is seeded once', () => {
 });
 
 test('the editor binds a Benchmark key to the run, except a key that only shows the file', () => {
-  const editor = read('../js/deck-editor.js');
+  const editor = read('../js/deck-editor/deck-editor.js');
   const detect = editor.slice(editor.indexOf('function detectKeyState()'), editor.indexOf('// Manual "reflect a Streamer.bot global"'));
   assert.match(detect, /s\.type === 'benchmark' && \(!s\.params \|\| s\.params\.mode !== 'reveal'\)\)\) return \{ source: 'benchmarkRunning' \}/);
   assert.match(editor, /benchmarkRunning: 'benchmark'/, 'the State tab can name what lights the key');
@@ -100,7 +100,7 @@ test('a dashboard that connects mid-recording is seeded; the editor binds a Reco
   const s = engineSource();
   const seed = s.slice(s.indexOf('sseClients.add(res);'), s.indexOf('// Seed a ringing call.'));
   assert.match(seed, /const rec = _recorder\.status\(\);\n\s+if \(rec\.on\) res\.write\(`event: recording\\ndata: \$\{JSON\.stringify\(\{ \.\.\.rec, seed: true \}\)\}\\n\\n`\);/);
-  const editor = read('../js/deck-editor.js');
+  const editor = read('../js/deck-editor/deck-editor.js');
   assert.match(editor, /s\.type === 'record' && \(!s\.params \|\| s\.params\.mode !== 'reveal'\)\)\) return \{ source: 'recordingOn' \}/);
   assert.match(editor, /recordingOn: 'record'/);
 });

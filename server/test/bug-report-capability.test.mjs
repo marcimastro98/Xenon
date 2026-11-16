@@ -78,7 +78,7 @@ test('strings, the Settings rows and the Deck icon exist, in 11 languages', () =
     'deck_err_busy', 'deck_err_too_big', 'deck_err_write_failed']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }
-  assert.match(read('../js/deck-editor.js'), /bugReport: _ai\(/);
+  assert.match(read('../js/deck-editor/deck-editor.js'), /bugReport: _ai\(/);
   const html = read('../index.html');
   assert.ok(html.includes('data-folder-for="bugreport"') && html.includes('data-folder-for="buglogs"'));
   const errs = require('../js/deck/deck-error-text.js');

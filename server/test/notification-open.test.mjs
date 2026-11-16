@@ -16,7 +16,7 @@ const { createNotificationOpener, platformDeps, findItem } = require('../notific
 const { parseStartApps, createStartAppIds, launchAumid } = require('../notification-open/start-apps.js');
 const { parseNotifyBlock } = require('../notification-open/linux-notif.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const WINDOWS = [

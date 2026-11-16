@@ -110,7 +110,7 @@ test('install → list → resolve → remove; deterministic paths; traversal ne
 
 // Real DeckModel/DeckActions pair, same DEPS shape preset-share expects
 // (mirrors preset-share-logic.test.mjs).
-const DEPS = { model: require('../js/deck-model.js'), actions: require('../js/deck-actions.js') };
+const DEPS = { model: require('../js/deck/deck-model.js'), actions: require('../js/deck/deck-actions.js') };
 
 function profileWithSound(file) {
   return {

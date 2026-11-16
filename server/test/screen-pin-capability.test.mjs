@@ -183,6 +183,6 @@ test('the pin key says where it stays in its own words, in 11 languages', () => 
   for (const k of ['deck_param_screenPin_surface', 'deck_opt_over_windows', 'deck_opt_desktop', 'deck_act_screenPin', 'deck_param_screenPin_source', 'deck_opt_last']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }
-  const editor = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
+  const editor = readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8');
   assert.match(editor, /const key = \(p\.optionKeys && p\.optionKeys\[o\]\) \|\| \('deck_opt_' \+ o\);/);
 });

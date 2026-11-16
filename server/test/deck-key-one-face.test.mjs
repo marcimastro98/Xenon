@@ -7,8 +7,8 @@ import { createRequire } from 'node:module';
 import { appStringsSource, textsOf } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
-const EDITOR = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
+const dm = require('../js/deck/deck-model.js');
+const EDITOR = readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 
 const replayStep = { type: 'replay' };

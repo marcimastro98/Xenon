@@ -4,7 +4,7 @@
 
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const LayerPages = require('../layers/layer-pages.js');
 const WidgetOptions = require('../widget-options/options.js');
 

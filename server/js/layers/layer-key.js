@@ -38,7 +38,7 @@
     if (iconsAsked) return;
     iconsAsked = true;
     const script = document.createElement('script');
-    script.src = 'js/deck-icons.js';
+    script.src = 'js/deck/deck-icons.js';
     script.addEventListener('load', refreshAll);
     document.head.appendChild(script);
   }

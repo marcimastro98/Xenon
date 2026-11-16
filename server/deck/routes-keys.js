@@ -151,7 +151,7 @@ const branches = {
 
   'GET /actions/catalog': async (_req, _res, { json, err500 }, { PORT, capabilityRunner, deckVoicemeeter, keySendAvailable, nativeMedia, phoneKeysAvailable, readHubSettings }) => {
     try {
-      const { ACTION_CATALOG } = require('../js/deck-actions.js');
+      const { ACTION_CATALOG } = require('../js/deck/deck-actions.js');
       const s = (await readHubSettings().catch(() => null)) || {};
       const rc = (s.remoteControl && typeof s.remoteControl === 'object') ? s.remoteControl : {};
       // "configured" = la presenza delle credenziali Sunshine (le scrive
@@ -200,7 +200,7 @@ const branches = {
     // the step. In CSRF_MUTATION_PATHS, denied to paired devices.
     try {
       const body = JSON.parse(await readBody(req, 8 * 1024) || '{}');
-      json(await deckShortcutRunner.handOff(require('../js/deck-actions.js').validateAction(body && body.action)));
+      json(await deckShortcutRunner.handOff(require('../js/deck/deck-actions.js').validateAction(body && body.action)));
     } catch { json({ ok: false, error: 'failed' }); }
   },
 };

@@ -15,8 +15,8 @@
 //   runner      { pressKey(id, refuse) } deck-shortcut-runner.js
 const crypto = require('crypto');
 const { canonical } = require('../paired/remote-actions.js');
-const { actionSpec, triggerSteps } = require('../js/deck-actions.js');
-const S = require('../js/deck-shortcuts.js');
+const { actionSpec, triggerSteps } = require('../js/deck/deck-actions.js');
+const S = require('../js/deck/deck-shortcuts.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const { MAX_STEPS } = require('./deck-shortcut-runner.js');
 

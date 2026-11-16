@@ -14,10 +14,10 @@
 //       deck { update(edit) }, sdkHandlers() → [{ id, name, handlers: [{ id, name, params, granted }] }]
 const crypto = require('crypto');
 const LayersModel = require('../js/layers/layers-model.js');
-const S = require('../js/deck-shortcuts.js');
+const S = require('../js/deck/deck-shortcuts.js');
 const { KEYS_INSTANCE } = require('../menu/menu-functions.js');
 const { findPlaced, resolveRef } = require('./layers.js');
-const DeckModel = require('../js/deck-model.js');
+const DeckModel = require('../js/deck/deck-model.js');
 
 const OFF_WORDS = new Set(['off', 'none', 'remove', 'clear', 'nessuna', 'no']);
 const MODES = Object.freeze(['toggle', 'hold']);

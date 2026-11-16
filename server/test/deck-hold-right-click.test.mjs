@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
-const M = createRequire(import.meta.url)('../js/deck-model.js');
+const M = createRequire(import.meta.url)('../js/deck/deck-model.js');
 
 // LF only, so the slice below finds the function's end on a CRLF checkout too.
 const JS = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');

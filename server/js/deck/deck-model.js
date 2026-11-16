@@ -245,7 +245,7 @@ function normalizeKeyBehavior(raw, key) {
   }
 }
 
-// The shortcut rule lives in js/deck-shortcuts.js. A page that loads the model
+// The shortcut rule lives in js/deck/deck-shortcuts.js. A page that loads the model
 // without that file keeps the stored text as it is, so normalizing there can
 // never delete a shortcut set somewhere else.
 let _deckShortcuts = null;

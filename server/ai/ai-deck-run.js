@@ -1,7 +1,7 @@
 'use strict';
 
 // Bit presses a Deck action (the run_deck_action tool). The action goes through
-// the same validator and the same registry as a key press (js/deck-actions.js,
+// the same validator and the same registry as a key press (js/deck/deck-actions.js,
 // actions/registry.js), so Bit can never do more than a key can. What it adds is
 // one rule a key does not need: an action that runs code, types or presses keys
 // for the user, speaks to other people, unlocks something or cannot be taken
@@ -9,9 +9,9 @@
 // a model's reading of a sentence is not. Opening an app by name stays free: that
 // is open_application, which refuses scripts and paths that run code (ai-pc-apps.js).
 
-const { ACTION_CATALOG, validateAction } = require('../js/deck-actions.js');
+const { ACTION_CATALOG, validateAction } = require('../js/deck/deck-actions.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
-const { CLIENT_ACTIONS } = require('../js/deck-shortcuts.js');
+const { CLIENT_ACTIONS } = require('../js/deck/deck-shortcuts.js');
 
 const CONFIRM_TYPES = new Set([
   // Code, keystrokes and files the user did not pick by hand.

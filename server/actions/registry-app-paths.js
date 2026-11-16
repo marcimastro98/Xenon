@@ -90,7 +90,7 @@ function completeDarwinBundle(p, platform, fileExists) {
   return fileExists(bundle) ? bundle : '';
 }
 
-// The POSIX counterpart of unquotePath (js/deck-actions.js), and it exists for
+// The POSIX counterpart of unquotePath (js/deck/deck-actions.js), and it exists for
 // the same reason: the normal way to get a path onto the clipboard hands you a
 // path that is escaped for a SHELL, and those escapes are not part of the name.
 //

@@ -16,7 +16,7 @@ const Menu = require('../menu/xenon-menu.js');
 const { createScreenMenu, SECTIONS, cleanSection } = require('../menu/screen-menu.js');
 const MenuCap = require('../capabilities/xenon-menu.js');
 const View = require('../js/menu/xenon-menu.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const ra = require('../paired/remote-access.js');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
 const SERVER = engineSource();

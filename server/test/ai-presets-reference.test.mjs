@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 const R = require('../ai/ai-preset-reference.js');
 const PresetShare = require('../js/preset-share.js');
 const TopbarLook = require('../js/topbar/topbar-look.js');
-const DeckModel = require('../js/deck-model.js');
+const DeckModel = require('../js/deck/deck-model.js');
 const AmbientScene = require('../js/ambient-scene.js');
 const DashboardInstances = require('../js/dashboard-instances.js');
 

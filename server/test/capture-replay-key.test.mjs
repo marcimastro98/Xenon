@@ -46,7 +46,7 @@ function load({ hotkeys = { slots: { replay: 'listening' }, taken: [{ combo: 'ct
     setTimeout,
   };
   vm.createContext(sandbox);
-  vm.runInContext(read('deck-shortcuts.js'), sandbox);
+  vm.runInContext(read('deck/deck-shortcuts.js'), sandbox);
   vm.runInContext(read('deck/deck-editor-shortcut.js'), sandbox);
   vm.runInContext(read('capture/capture-replay-key.js'), sandbox);
   // A keydown as the browser sends it, through the listener the recorder holds.

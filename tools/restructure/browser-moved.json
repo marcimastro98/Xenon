@@ -332,6 +332,11 @@
     {"from":"server/js/settings-search.js","to":"server/js/settings-search/settings-search.js"},
     {"from":"server/js/topbar-look.js","to":"server/js/topbar/topbar-look.js"},
     {"from":"server/js/ambient-canvas-parts.js","to":"server/js/ambient/ambient-canvas-parts.js"},
-    {"from":"server/js/ambient-canvas.js","to":"server/js/ambient/ambient-canvas.js"}
+    {"from":"server/js/ambient-canvas.js","to":"server/js/ambient/ambient-canvas.js"},
+    {"from":"server/js/deck-actions.js","to":"server/js/deck/deck-actions.js"},
+    {"from":"server/js/deck-editor.js","to":"server/js/deck-editor/deck-editor.js"},
+    {"from":"server/js/deck-icons.js","to":"server/js/deck/deck-icons.js"},
+    {"from":"server/js/deck-model.js","to":"server/js/deck/deck-model.js"},
+    {"from":"server/js/deck-shortcuts.js","to":"server/js/deck/deck-shortcuts.js"}
   ]
 }

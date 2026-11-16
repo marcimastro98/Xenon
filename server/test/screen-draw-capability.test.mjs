@@ -80,5 +80,5 @@ test('the strings and the Deck icon exist, in 11 languages', () => {
   }
   // The hint sits under the bar on one line: the engine cuts it at 160.
   for (const m of i18n.matchAll(/\bdraw_hint: '((?:[^'\\]|\\.)*)'/g)) assert.ok(m[1].length <= 160, m[1]);
-  assert.match(readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8'), /screenDraw: _ai\(/);
+  assert.match(readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8'), /screenDraw: _ai\(/);
 });

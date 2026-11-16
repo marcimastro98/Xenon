@@ -1,7 +1,7 @@
 // Two questions about keyboard shortcuts: who already holds a combination, and why each Deck
 // shortcut is or is not held.
 
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 const LayersModel = require('../js/layers/layers-model.js');
 const { _hotkey, MAX_HOTKEY_BINDINGS } = require('./hotkey-state.js');
 const { shortcutState } = require('./shortcut-state.js');

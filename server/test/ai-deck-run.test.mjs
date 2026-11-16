@@ -10,7 +10,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const run = require('../ai/ai-deck-run.js');
-const { ACTION_CATALOG } = require('../js/deck-actions.js');
+const { ACTION_CATALOG } = require('../js/deck/deck-actions.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 test('safe actions run, risky ones wait on the card, sounds play in the page', () => {

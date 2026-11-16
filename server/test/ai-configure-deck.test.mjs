@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const step = (action) => ({ steps: [{ action, delayMs: 0 }] });
 
@@ -107,12 +107,12 @@ test('wiring: the tool can add to the Deck in use and make one-face keys', () =>
 
 // Bit names icons from the Deck's own library, so its keys look like the rest.
 test('the Deck icon library has capture icons and is named to the assistant', () => {
-  const icons = require('../js/deck-icons.js');
+  const icons = require('../js/deck/deck-icons.js');
   for (const id of ['replay', 'screenshot', 'timelapse', 'image']) assert.ok(icons.has(id), id);
   const cap = icons.CATEGORIES.find((c) => c.key === 'capture');
   assert.ok(cap && cap.ids.every((id) => icons.has(id)));
   const server = engineSource();
-  assert.equal((server.match(/require\('\.\/js\/deck-icons\.js'\)\.ids\(\)\.join\(', '\)/g) || []).length, 2, 'configure_deck and genesis_setup_deck');
+  assert.equal((server.match(/require\('\.\/js\/deck\/deck-icons\.js'\)\.ids\(\)\.join\(', '\)/g) || []).length, 2, 'configure_deck and genesis_setup_deck');
 });
 
 test('an icon name from the library becomes a drawn icon, anything else an emoji', () => {
@@ -120,7 +120,7 @@ test('an icon name from the library becomes a drawn icon, anything else an emoji
   const at = deck.indexOf('  function aiIcon(');
   const src = deck.slice(at, deck.indexOf('\n  }\n', at) + 4);
   const vm = require('node:vm');
-  const ctx = { window: { DeckIcons: require('../js/deck-icons.js') } };
+  const ctx = { window: { DeckIcons: require('../js/deck/deck-icons.js') } };
   vm.runInNewContext(src + '; this.iconJson = (v) => JSON.stringify(aiIcon(v));', ctx);
   assert.equal(ctx.iconJson('replay'), '{"type":"builtin","value":"replay"}');
   assert.equal(ctx.iconJson('⏪'), '{"type":"emoji","value":"⏪"}');

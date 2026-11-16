@@ -124,7 +124,7 @@ test('every normalizer knows the custom mode and its LED map', () => {
 });
 
 test('a Deck key and the SDK can switch a device to its LED colours', () => {
-  const src = readFileSync(join(SERVER, 'js', 'deck-actions.js'), 'utf8');
+  const src = readFileSync(join(SERVER, 'js', 'deck/deck-actions.js'), 'utf8');
   const line = src.split('\n').find(l => l.includes("type: 'lightDevice'"));
   assert.ok(line, 'lightDevice action missing');
   assert.match(line, /options: \[[^\]]*'custom'/, 'the Deck cannot pick the custom mode');

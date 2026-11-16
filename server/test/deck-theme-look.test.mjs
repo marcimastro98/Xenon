@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const M = require('../js/deck-model.js');
+const M = require('../js/deck/deck-model.js');
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const base = () => M.normalizeDeckConfig({ profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [] }] } }], activeProfile: 'p' });

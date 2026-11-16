@@ -20,7 +20,7 @@ import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const SERVER = engineSource();
 const TIMER = readFileSync(new URL('../js/timer/timer.js', import.meta.url), 'utf8');
-const { ACTION_CATALOG, validateAction } = require('../js/deck-actions.js');
+const { ACTION_CATALOG, validateAction } = require('../js/deck/deck-actions.js');
 
 // The three pure server functions, evaluated out of the source that ships.
 function load(name, extra = '') {

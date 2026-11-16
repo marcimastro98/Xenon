@@ -483,7 +483,6 @@
         "server/deck-popup.html",
         "server/actions/registry*.js",
         "server/js/deck-editor/**",
-        "server/js/deck*.js",
         "server/js/deck/**",
         "server/components/DeckPanel/**"
       ]

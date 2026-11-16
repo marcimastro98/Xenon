@@ -396,7 +396,7 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
     assert.ok(at(f) > 0 && at(f) < at('js/spotlight/spotlight.js'), f);
   }
   // the Deck action picker shows Bit for the AI action
-  assert.match(read('../js/deck-editor.js'), /ai: \(window\.BitApp && BitApp\.icon\('idle'\)\) \|\| _ai\(/);
+  assert.match(read('../js/deck-editor/deck-editor.js'), /ai: \(window\.BitApp && BitApp\.icon\('idle'\)\) \|\| _ai\(/);
   const i18n = appStringsSource();
   for (const key of ['spot_chat', 'spot_ask', 'spot_placeholder_bit', 'deck_act_aiEdgeGlow', 'settings_ai_edge_glow_hint']) {
     const all = strings(i18n, key);

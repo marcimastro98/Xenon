@@ -14,7 +14,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const vm = require('../actions/voicemeeter.js');
-const { ACTION_CATALOG, validateAction } = require('../js/deck-actions.js');
+const { ACTION_CATALOG, validateAction } = require('../js/deck/deck-actions.js');
 
 // ── Editions ────────────────────────────────────────────────────────────────
 

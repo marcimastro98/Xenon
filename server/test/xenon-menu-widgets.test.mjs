@@ -458,7 +458,7 @@ test('a redraw waits only while the page name is being typed on its own screen',
 
 test('the key a refused combination suggests is one Xenon takes', async () => {
   const { readFileSync } = await import('node:fs');
-  const S = (await import('../js/deck-shortcuts.js')).default;
+  const S = (await import('../js/deck/deck-shortcuts.js')).default;
   const source = readFileSync(new URL('../js/menu/xenon-menu.js', import.meta.url), 'utf8');
   const [, key] = /KEY_TO_TRY = '([^']+)'/.exec(source);
   assert.ok(S.normalizeShortcut(key));

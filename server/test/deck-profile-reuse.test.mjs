@@ -22,7 +22,7 @@ import { createRequire } from 'node:module';
 //     reading "Nocturne Control" with nothing to tell them apart.
 
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
 
 function profile(name, keyCount) {

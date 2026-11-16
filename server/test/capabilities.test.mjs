@@ -10,7 +10,7 @@ const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 
 const require = createRequire(import.meta.url);
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
-const { ACTION_CATALOG, validateAction } = require('../js/deck-actions.js');
+const { ACTION_CATALOG, validateAction } = require('../js/deck/deck-actions.js');
 const { createRegistry } = require('../actions/registry.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const SERVER = engineSource();
@@ -73,7 +73,7 @@ test('both pages load the catalog before the Deck actions', () => {
   for (const page of ['../index.html', '../deck-popup.html']) {
     const html = readFileSync(new URL(page, import.meta.url));
     const cat = html.indexOf('js/capabilities/capability-catalog.js');
-    assert.ok(cat > 0 && cat < html.indexOf('js/deck-actions.js'), page);
+    assert.ok(cat > 0 && cat < html.indexOf('js/deck/deck-actions.js'), page);
   }
 });
 

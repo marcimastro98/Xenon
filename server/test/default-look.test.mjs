@@ -274,7 +274,7 @@ test('the light widget window loads the look too, after the skins it overrides',
 });
 
 test('a new Deck wears the tile of the look, a saved one keeps its faceplate', () => {
-  const Deck = require('../js/deck-model.js');
+  const Deck = require('../js/deck/deck-model.js');
   assert.equal(Deck.normalizeDeckConfig(undefined).plate, 'theme');
   assert.equal(Deck.normalizeDeckConfig({ profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [] }] } }] }).plate, 'graphite');
   assert.equal(Deck.normalizeDeckConfig({ plate: 'carbon' }).plate, 'carbon');

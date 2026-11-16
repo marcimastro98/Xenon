@@ -1,5 +1,5 @@
 // A Deck key that shows a Vitals meter (key.live = { source: 'vitals', name }):
-// the face text and colour (js/deck-model.js), and the three pages that feed
+// the face text and colour (js/deck/deck-model.js), and the three pages that feed
 // snapshot.vitals: the dashboard (js/vitals/vitals.js), and the Virtual Deck popup and
 // layer pages (js/deck/deck-feed.js), which compute it from the saved settings.
 import { test } from 'node:test';
@@ -10,7 +10,7 @@ import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const dm = require('../js/deck-model.js');
+const dm = require('../js/deck/deck-model.js');
 const core = require('../js/vitals/vitals-core.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -72,12 +72,12 @@ test('wiring: the dashboard, the popup and layer pages feed it, only on change',
   assert.ok(feed.includes("if (!window.VitalsCore || !hasVitalsKey()) return;"), 'no work without a Vitals key on screen');
   assert.ok(feed.includes("on('settings', () => { vitalsStale = true; vitalsTick(); });"));
   assert.ok(feed.includes('if (!vitalsTimer && window.VitalsCore) vitalsTimer = setInterval(vitalsTick, VITALS_EVERY_MS);'), 'one timer across reconnects');
-  assert.match(read('../deck-popup.html'), /js\/deck-model\.js"><\/script>\n<script src="js\/vitals\/vitals-core\.js">/);
-  assert.ok(read('../js/layers/layer-tiles.js').includes("'js/deck-model.js', 'js/vitals/vitals-core.js',"));
+  assert.match(read('../deck-popup.html'), /js\/deck\/deck-model\.js"><\/script>\n<script src="js\/vitals\/vitals-core\.js">/);
+  assert.ok(read('../js/layers/layer-tiles.js').includes("'js/deck/deck-model.js', 'js/vitals/vitals-core.js',"));
 });
 
 test('the editor offers each meter, and Bit knows the source', () => {
-  const editor = read('../js/deck-editor.js');
+  const editor = read('../js/deck-editor/deck-editor.js');
   assert.ok(editor.includes("o.value = 'vitals:' + m;"));
   assert.ok(editor.includes("else if (liveSource === 'vitals') liveName = v.slice('vitals:'.length);"));
   const server = engineSource();

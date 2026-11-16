@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { DEFAULT_KEYS, seedKeys } = require('../capabilities/function-key.js');
-const S = require('../js/deck-shortcuts.js');
+const S = require('../js/deck/deck-shortcuts.js');
 
 const READY = { shortcuts: true, capture: true, captureRegion: true, captureVideo: true };
 

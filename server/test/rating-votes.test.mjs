@@ -344,7 +344,7 @@ test('a reason goes only with a low vote and only from the list', async () => {
 });
 
 test('no Deck key, widget or macro can vote', () => {
-  const { validateAction } = require('../js/deck-actions.js');
+  const { validateAction } = require('../js/deck/deck-actions.js');
   const { SDK_ACTION_TYPES } = require('../sdk-widgets.js');
   assert.equal(validateAction({ type: aiRateStore.TYPE, entryId: 'neon', stars: 5 }), null);
   assert.ok(!SDK_ACTION_TYPES.includes(aiRateStore.TYPE));

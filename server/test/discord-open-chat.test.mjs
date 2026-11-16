@@ -173,7 +173,7 @@ test('the Reply button stays readable on a light theme', () => {
 });
 
 test('an SDK widget can open a chat, and only as a hidden, granted action', async () => {
-  const { actionSpec, validateAction } = require('../js/deck-actions.js');
+  const { actionSpec, validateAction } = require('../js/deck/deck-actions.js');
   const reg = require('../actions/registry.js');
   const sdk = require('../sdk-widgets.js');
   // A Deck key has no message to take the channel id from.

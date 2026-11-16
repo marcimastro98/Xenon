@@ -18,7 +18,7 @@ import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = engineSource();
-const DeckShortcuts = createRequire(import.meta.url)('../js/deck-shortcuts.js');
+const DeckShortcuts = createRequire(import.meta.url)('../js/deck/deck-shortcuts.js');
 const LayersModel = createRequire(import.meta.url)('../js/layers/layers-model.js');
 const CaptureSettings = createRequire(import.meta.url)('../screens/capture-settings.js');
 const { createWidgetKeys } = createRequire(import.meta.url)('../widget-sdk/widget-keys.js');

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { validateAction, actionSpec } = require('../js/deck-actions.js');
+const { validateAction, actionSpec } = require('../js/deck/deck-actions.js');
 const { createRegistry, normalizeKeys } = require('../actions/registry.js');
 
 // ---------------------------------------------------------------------------

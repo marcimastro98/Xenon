@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const SERVER = engineSource().replace(/\r\n/g, '\n');
 

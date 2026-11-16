@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const { validateAction } = require(join(ROOT, 'js', 'deck-actions.js'));
+const { validateAction } = require(join(ROOT, 'js', 'deck/deck-actions.js'));
 const { createRegistry } = require(join(ROOT, 'actions', 'registry.js'));
 
 test('the catalog keeps a page id, caps it, and keeps an empty one empty', () => {

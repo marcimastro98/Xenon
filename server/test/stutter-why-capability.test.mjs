@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const { createPerfStream } = require('../performance/perf-stream.js');
 
 const presentmon = { backend: 'presentmon', isAvailable: () => true, getFrameStats: () => null, getFramesSince: () => null };

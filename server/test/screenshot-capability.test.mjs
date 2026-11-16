@@ -177,7 +177,7 @@ test('the catalog marks it sensitive, in the capture group, with a Deck label in
   for (const k of ['deck_act_screenshot', 'deck_cat_capture', 'deck_param_target', 'deck_opt_take', 'deck_opt_screen', 'deck_opt_window', 'deck_opt_region', 'shot_saved', 'shot_copied', 'shot_show', 'shot_pick_hint']) {
     assert.equal(i18n.match(new RegExp(`\\b${k}:`, 'g')).length, 11, k);
   }
-  assert.match(readFileSync(path.join(HERE, '..', 'js', 'deck-editor.js'), 'utf8'), /group: 'capture', labelKey: 'deck_cat_capture'/);
+  assert.match(readFileSync(path.join(HERE, '..', 'js', 'deck-editor/deck-editor.js'), 'utf8'), /group: 'capture', labelKey: 'deck_cat_capture'/);
 });
 
 test('a widget reaches it only through the capture category, and only to take one', () => {

@@ -253,7 +253,7 @@ test('the strings exist in 11 languages, keep their placeholders, and the Deck i
     }
     for (const v of found) assert.ok(!v.includes('\u2014'), `${k} has an em-dash`);
   }
-  assert.match(readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8'), /\n {6}steps: _ai\(/);
+  assert.match(readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8'), /\n {6}steps: _ai\(/);
 });
 
 // "Open" / "Show" after a restart: the last document is remembered (capture-last.js),

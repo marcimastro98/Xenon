@@ -7,8 +7,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createScreenMenu } = require('../menu/screen-menu.js');
 const Functions = require('../menu/menu-functions.js');
-const DeckShortcuts = require('../js/deck-shortcuts.js');
-const DeckModel = require('../js/deck-model.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
+const DeckModel = require('../js/deck/deck-model.js');
 
 const menu = (shell = true) => {
   const pushes = [];

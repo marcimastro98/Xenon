@@ -17,7 +17,7 @@
 //   reveal      (file) → opens its folder with the file selected
 
 const { REPLAY_MIN_S, REPLAY_MAX_S, REPLAY_WHEN, REPLAY_AUDIO, REPLAY_CLIPS, replayKeyOf } = require('../screens/capture-settings');
-const DeckShortcuts = require('../js/deck-shortcuts.js');
+const DeckShortcuts = require('../js/deck/deck-shortcuts.js');
 
 const MODES = Object.freeze(['save', 'toggle', 'on', 'off', 'reveal']);
 

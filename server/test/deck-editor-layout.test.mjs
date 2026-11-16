@@ -7,7 +7,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const ED = read('../js/deck-editor.js');
+const ED = read('../js/deck-editor/deck-editor.js');
 const I18N = appStringsSource();
 
 test('the tabs run What it does, State, Look, Effects', () => {

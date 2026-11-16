@@ -8,7 +8,7 @@ import fs from 'node:fs';
 const require = createRequire(import.meta.url);
 const dc = require('../discord/discord-rpc.js');
 const reg = require('../actions/registry.js');
-const { validateAction, actionSpec } = require('../js/deck-actions.js');
+const { validateAction, actionSpec } = require('../js/deck/deck-actions.js');
 
 async function waitFor(predicate, timeoutMs = 1000) {
   const deadline = Date.now() + timeoutMs;

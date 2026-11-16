@@ -1,13 +1,13 @@
 'use strict';
 // A keyboard combination for one function of the Xenon menu. Global shortcuts live
-// on Deck keys (js/deck-shortcuts.js), so the Keys section makes a key for the
+// on Deck keys (js/deck/deck-shortcuts.js), so the Keys section makes a key for the
 // function on a Deck of its own, `keys`, which no page draws. No combination takes
 // the key away again. A new install starts with the three everyone reaches for, in the
 // Ctrl+Shift+F row Xenon already uses (F9 overlay, F10 replay): no system, driver or
 // known app holds them, and the same combinations work on every OS.
 
-const DeckModel = require('../js/deck-model.js');
-const S = require('../js/deck-shortcuts.js');
+const DeckModel = require('../js/deck/deck-model.js');
+const S = require('../js/deck/deck-shortcuts.js');
 const { KEY_PREFIX, KEYS_INSTANCE, functionById, keyActionOf, available, keyFor } = require('../menu/menu-functions.js');
 const { checkCombo } = require('./deck-shortcut.js');
 

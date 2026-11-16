@@ -28,7 +28,7 @@
   const appChecks = () => (typeof window !== 'undefined' && window.DashboardInstances)
     || (() => { try { return require('../../server/js/dashboard-instances.js'); } catch { return null; } })();
   const shortcutRules = () => (typeof window !== 'undefined' && window.DeckShortcuts)
-    || (() => { try { return require('../../server/js/deck-shortcuts.js'); } catch { return null; } })();
+    || (() => { try { return require('../../server/js/deck/deck-shortcuts.js'); } catch { return null; } })();
 
   // A suggested key combination as normalizeKeySuggestion keeps it: only one
   // Xenon can register and nothing else owns. The demo shows it, never binds it.

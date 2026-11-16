@@ -20,8 +20,8 @@ const sdkWidgets = require('../sdk-widgets.js');
 const sdkStore = require('../store-catalog/sdk-store.js');
 const wau = require('../store-catalog/widget-auto-update.js');
 const PS = require('../js/preset-share.js');
-const DeckModel = require('../js/deck-model.js');
-const DeckActions = require('../js/deck-actions.js');
+const DeckModel = require('../js/deck/deck-model.js');
+const DeckActions = require('../js/deck/deck-actions.js');
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 const CW_SRC = read('../js/custom-widget.js');
 

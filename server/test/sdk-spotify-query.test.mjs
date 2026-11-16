@@ -314,7 +314,7 @@ test('the field survives the action catalog, which strips what it does not know'
   // validateAction rebuilds the action from the catalog's declared params, so a
   // field that is not declared never reaches the provider — the whole feature
   // would have been silently dropped one layer above where it is implemented.
-  const { validateAction } = require('../js/deck-actions.js');
+  const { validateAction } = require('../js/deck/deck-actions.js');
   const out = validateAction({
     type: 'spotifyPlayUri', uri: 'spotify:track:abc', contextUri: 'spotify:album:def',
   });

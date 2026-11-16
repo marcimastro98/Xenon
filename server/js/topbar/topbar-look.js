@@ -56,7 +56,7 @@
   const BUTTON_IDS = Object.freeze(Object.keys(BUTTON_SELECTORS));
   // A widget's own bar button (manifest "topbarButton"), keyed by package id.
   const SDK_BUTTON_RE = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
-  // A Deck icon id (js/deck-icons.js). Only the id is stored, never markup; the
+  // A Deck icon id (js/deck/deck-icons.js). Only the id is stored, never markup; the
   // renderer looks it up in the fixed library and ignores an unknown one.
   const ICON_RE = /^[a-zA-Z][a-zA-Z0-9]{0,31}$/;
   const LABEL_MAX = 24;

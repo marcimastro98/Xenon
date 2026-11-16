@@ -23,7 +23,7 @@
 // would ADD a guarded action the Deck did not have is refused (introduces()).
 // Rearranging keys, deleting them and editing free actions still work.
 
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction } = require('../js/deck/deck-actions.js');
 const { haDomainAllowed } = require('../ai/ai-pc-apps.js');
 
 const FREE = new Set([

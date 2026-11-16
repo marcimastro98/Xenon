@@ -92,6 +92,6 @@ test('the toast, the Deck icon and the editor speak 11 languages', () => {
     'cann_none', 'cann_full', 'cann_discard', 'cann_err_ocr', 'cann_err_busy', 'cann_err_save'];
   for (const k of keys) assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   for (const m of i18n.matchAll(/\b(?:cover_done|cann_found): '([^']*)'/g)) assert.ok(m[1].includes('{n}'), m[0]);
-  const editor = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
+  const editor = readFileSync(new URL('../js/deck-editor/deck-editor.js', import.meta.url), 'utf8');
   assert.match(editor, /\n\s+screenCover: _ai\(/);
 });

@@ -165,7 +165,7 @@ test("a page's classic scripts set up in order without a redeclared name", () =>
 test('the dashboard grid keeps its own slot finder when deck-model.js loads after it', () => {
   // index.html order: dashboard-grid.js, then deck-model.js, both classic.
   const ctx = vm.createContext({ window: { addEventListener() {} } });
-  for (const rel of ['js/grid/dashboard-grid.js', 'js/deck-model.js']) {
+  for (const rel of ['js/grid/dashboard-grid.js', 'js/deck/deck-model.js']) {
     vm.runInContext(fs.readFileSync(path.join(SERVER, rel), 'utf8'), ctx, { filename: rel });
   }
   const tile = () => ({ visible: true, page: 'p1', x: 0, y: 0, w: 8, h: 8 });

@@ -20,7 +20,7 @@ function deckCreatorAiFunctions() {
           cols: { type: 'NUMBER', description: 'Grid columns (1-8)' },
           rows: { type: 'NUMBER', description: 'Grid rows (1-8)' },
           keys: { type: 'ARRAY', description: 'The keys (max 32). Each: title, one emoji icon, optional hex color; then EITHER actions (array of typed action objects, run in order on tap; optional double/hold arrays for those gestures) OR kind:"slider" + slider target.', items: { type: 'OBJECT', properties: {
-            title: { type: 'STRING' }, icon: { type: 'STRING', description: 'An icon from the Deck\'s own library, drawn in the Deck\'s look (use one whenever it fits): ' + require('../js/deck-icons.js').ids().join(', ') + '. Only when none fits: one emoji' },
+            title: { type: 'STRING' }, icon: { type: 'STRING', description: 'An icon from the Deck\'s own library, drawn in the Deck\'s look (use one whenever it fits): ' + require('../js/deck/deck-icons.js').ids().join(', ') + '. Only when none fits: one emoji' },
             color: { type: 'STRING', description: 'Hex accent, e.g. #ff3b30' }, kind: { type: 'STRING', description: '"action" (default) or "slider" (a touch fader)' },
             unlit: { type: 'BOOLEAN', description: 'Optional: one face, the key never lights from its action (a key that only saves a replay or a screenshot)' },
             actions: { type: 'ARRAY', description: 'Tap: typed action objects, e.g. [{"type":"micMute","mode":"toggle"}]. Each may carry delayMs.', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },

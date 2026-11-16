@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const { makerPackage, makerGrant, previewCsp, withCsp, widgetFromMessage, packageIdOfSrc, themeFromMessage, bgFromMessage, ambientFromMessage, pageFromMessage, layoutWithPage, PAGE_ID, deckFromMessage, deckStore, DECK_ID, DECK_ITEM, topbarFromMessage } = require('../../tools/demo/maker.js');
 const DashboardPresets = require('../js/dashboard-presets.js');
 const { normalizeManifest } = require('../sdk-widgets.js');
-const DeckModel = require('../js/deck-model.js');
+const DeckModel = require('../js/deck/deck-model.js');
 
 // Shaped like the Maker's buildManifest() output (xenon-maker, src/formats/widget-package.ts).
 const MANIFESTS = [

@@ -12,7 +12,7 @@
 //            catalog() → { tiles: ['weather', …], packages: [{ id, name }] }
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
-require('../js/deck-shortcuts.js'); // nothing is taken from it here, but it runs code when it loads
+require('../js/deck/deck-shortcuts.js'); // nothing is taken from it here, but it runs code when it loads
 const LayerPages = require('../layers/layer-pages.js');
 const { previewPath } = require('../grid/tile-previews.js');
 

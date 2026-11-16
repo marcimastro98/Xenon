@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const da = require('../js/deck-actions.js');
+const da = require('../js/deck/deck-actions.js');
 
 test('ACTION_CATALOG entries each have type, group, labelKey, params[]', () => {
   assert.ok(Array.isArray(da.ACTION_CATALOG) && da.ACTION_CATALOG.length > 0);
