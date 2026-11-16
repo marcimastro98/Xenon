@@ -117,6 +117,21 @@ test('the cutting step moves the chosen lines as they are, writes the script in 
   assert.deepEqual(JSON.parse(on(LEDGER)).moves, [MOVE]);
 });
 
+test('a script made strict by the first line of its wrapper gives the new script the same line, and the standing check asks for it', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const top = ['// What the leaf does.', '(function () {', "  'use strict';", '', "  const ICONS = { dot: '<svg></svg>' };", '  const state = { count: 0 };', ''];
+  const before = script(top, ROW, '', REST);
+  const after = script(top, '  const { row } = window.LeafRows({ ICONS, state, paint });', '', REST);
+  const made = script('// The rows of the leaf.', '', 'window.LeafRows = (wrapper) => {', "  'use strict';", '', '  const { ICONS, state, paint } = wrapper;', '', ROW, '', '  return { row };', '};', '');
+  const cut = cutByHand({ from: FILE, to: ROWS, about: 'The rows of the leaf.', ranges: [[8, 13]], hands: ['ICONS', 'state', 'paint'], gives: ['row'], text: before });
+  assert.equal(cut.targetText, made);
+  assert.equal(cut.newSource, after);
+  assert.deepEqual(answers(made, after), answers(before));
+  const standingHere = (text, part) => innerStateProblems({ source: FILE, text, parts: [{ file: ROWS, text: part, hand: true }], parser }).join('\n');
+  assert.equal(standingHere(after, made), '');
+  assert.match(standingHere(after, made.replace("  'use strict';\n\n", '')), /does not run in the same mode/, 'the moved lines would run under other rules');
+});
+
 test('a cut that uses nothing of the wrapper is handed nothing: an object the old script takes from, held to the same check', (t) => {
   if (!parser) return t.skip(SKIP);
   const MARK = ['  // The mark beside a row: its text between brackets, whatever it is given.', '  function mark(text) {', '    return `[${String(text)}]`;', '  }'];

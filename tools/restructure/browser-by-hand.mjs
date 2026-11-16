@@ -73,6 +73,10 @@ export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {
 
   const strict = lines[0] === "'use strict';";
   const indent = /^[ \t]*/.exec(lines[ranges[0][0] - 1])[0];
+  // A script made strict by the first line of its wrapper, not of the file: the new script is made strict the same way,
+  // or the moved lines would run under other rules (the standing check asks for the same line in both).
+  const opener = lines.findIndex((line) => OPENS.includes(line));
+  const strictInside = opener >= 0 && /^[ \t]+'use strict';$/.test(lines[opener + 1] ?? '') ? [`${indent}'use strict';`, ''] : [];
   const moved = ranges.flatMap(([first, last], index) => [...(index ? [''] : []), ...lines.slice(first - 1, last)]);
   const taking = Object.entries(takes).flatMap(([window, names]) => takeText(names, window, indent));
   // Handed nothing, it is the first form: a script that makes its functions alone and leaves them in one object. Not so the lines of a
@@ -82,7 +86,7 @@ export function cutByHand({ text, from, to, about, ranges, hands = [], takes = {
     ? [`window.${name} = (wrapper) => {`, [...inside(wrapNames(hands, 'const {', '} = wrapper;')), ''], ['return {', '};'], '};', `} = window.${name}({ ${hands.join(', ')} });`]
     : fn ? [`window.${name} = () => {`, [], ['return {', '};'], '};', `} = window.${name}();`]
       : [OPENS[1], [], [`window.${name} = {`, '};'], CLOSES[0], `} = window.${name};`];
-  const targetText = [headerOf(about, strict).trimEnd(), '', opens, ...handed, ...taking, ...(taking.length ? [''] : []),
+  const targetText = [headerOf(about, strict).trimEnd(), '', opens, ...strictInside, ...handed, ...taking, ...(taking.length ? [''] : []),
     ...moved, '', ...inside(wrapNames(gives, back[0], back[1])), closes, ''].join('\n');
   if (targetText.split('\n').length - 1 > MAX_LINES) reasons.push(`${to} would be ${targetText.split('\n').length - 1} lines: a new file stays within ${MAX_LINES}`);
 
