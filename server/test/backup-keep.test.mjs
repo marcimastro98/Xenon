@@ -223,6 +223,30 @@ test('what the import keeps reaches the file that is written', () => {
   assert.deepEqual(written.appFavorites.map((fav) => [fav.key, fav.path]), [['tool', '']]);
 });
 
+test('a backup cannot ask for the browser tab at sign-in, and cannot take the request back', () => {
+  // Nobody asked at this PC: whatever the file says, nobody has.
+  for (const prev of [null, {}, { autoOpenArmed: false }, { autoOpenArmed: 'true' }, { autoOpenArmed: 1 }]) {
+    assert.equal(keepThisPcOnImport({ autoOpenArmed: true, autoOpenBrowser: true }, prev).autoOpenArmed, false, JSON.stringify(prev));
+  }
+  assert.equal(keepThisPcOnImport({}, null).autoOpenArmed, false, 'a file without the key');
+  // Somebody did: a file without the key, or with it off, changes nothing.
+  for (const file of [{}, { autoOpenArmed: false }, { autoOpenArmed: null }]) {
+    assert.equal(keepThisPcOnImport(file, { autoOpenArmed: true }).autoOpenArmed, true, JSON.stringify(file));
+  }
+});
+
+test('the request for the tab in a backup does not reach the file that is written', () => {
+  const { normalizeHubSettings } = require('../settings/normalize-hub-settings.js');
+  const file = { autoOpenArmed: true, autoOpenBrowser: true };
+  // A new PC, and one whose user never asked.
+  assert.equal(normalizeHubSettings(keepThisPcOnImport({ ...file }, null)).autoOpenArmed, false);
+  assert.equal(normalizeHubSettings(keepThisPcOnImport({ ...file }, normalizeHubSettings({}))).autoOpenArmed, false);
+  // The switch itself is an ordinary preference and still travels.
+  assert.equal(normalizeHubSettings(keepThisPcOnImport({ autoOpenArmed: true, autoOpenBrowser: false }, normalizeHubSettings({}))).autoOpenBrowser, false);
+  // The PC that made the backup keeps its own answer.
+  assert.equal(normalizeHubSettings(keepThisPcOnImport({ ...file }, normalizeHubSettings({ autoOpenArmed: true }))).autoOpenArmed, true);
+});
+
 test('the message after an import says it in every language', () => {
   const tables = require('../app-strings/tables.js');
   const words = Object.fromEntries(tables.LANGS.map((code) => [code, tables.parse(readFileSync(new URL(`../js/i18n/${code}.js`, import.meta.url), 'utf8'), code)]));

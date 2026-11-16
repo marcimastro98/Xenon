@@ -203,6 +203,10 @@ function keepThisPcOnImport(incoming, prev) {
   const here = plain(prev?.sdkWidgets);
   if (widgets || here) incoming.sdkWidgets = { ...widgets, ...widgetsOfThisPc(here) };
   if ('appFavorites' in incoming) incoming.appFavorites = favoritesOnImport(incoming.appFavorites, prev?.appFavorites);
+  // Whether somebody asked for a browser tab at every sign-in is said with a click at this PC
+  // (POST /startup/auto-open) and kept by the engine. A file made on another PC, or written by
+  // someone else, must not make this one open a browser when its user signs in.
+  incoming.autoOpenArmed = prev?.autoOpenArmed === true;
   return incoming;
 }
 
