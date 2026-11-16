@@ -101,7 +101,7 @@
     "server/js/ticker/news-widget.js": 337,
     "server/js/ticker/stock-widget.js": 703,
     "server/js/topbar/topbar-look.js": 367,
-    "server/js/topbar/topbar-minimal.js": 1009,
+    "server/js/topbar/topbar-minimal.js": 896,
     "server/js/transfer-widget/transfer-widget.js": 680,
     "server/js/unifi-widget/unifi-widget.js": 785,
     "server/js/update/update.js": 1013,
