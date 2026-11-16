@@ -75,7 +75,7 @@ test('junk payloads show nothing', () => {
 });
 
 test('the camera kinds are the ones the UniFi tile offers, with the same keys', () => {
-  const src = read('../js/unifi-widget.js');
+  const src = read('../js/unifi-widget/unifi-widget.js');
   const block = src.slice(src.indexOf('const NOTIFY_KINDS = ['), src.indexOf('];', src.indexOf('const NOTIFY_KINDS = [')));
   const tile = [...block.matchAll(/\['(\w+)', 'unifi_kind_(\w+)', '([^']+)'\]/g)].map((m) => [m[1], m[2], m[3]]);
   assert.ok(tile.length >= 6);

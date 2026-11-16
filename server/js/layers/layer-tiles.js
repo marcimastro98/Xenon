@@ -101,11 +101,11 @@
     devclean: tile('devclean', 'DevCleanWidget', ['js/store-supporters/devclean-pitch.js', 'js/devclean-widget/says.js', 'js/devclean-widget/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core/timing.js', 'js/lyrics-core/lyrics-core.js', 'js/media/lyrics-view.js', 'js/media/lyrics-translation.js', 'js/media/lyrics-stage.js',
       'js/media/lyrics-widget-options.js', 'js/media/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
-    smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home/smart-home-order.js', 'js/smart-home/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home/units.js', 'js/smart-home/pieces.js', 'js/smart-home.js'],
+    smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home/smart-home-order.js', 'js/smart-home/smart-home-dashboard-tile.js', 'js/smart-home/state-words.js', 'js/smart-home/units.js', 'js/smart-home/pieces.js', 'js/smart-home/smart-home.js'],
       { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/SmartHomePanel/SmartHomePanelControls.css', 'components/CustomSelect/CustomSelect.css']),
     // Seeds itself from /api/lighting/status when drawn; no stream.
     lighting: tile('lighting', 'LightingWidget', ['js/lighting/lighting-widget.js'], {}),
-    unifi: tile('unifi', 'UnifiProtect', ['js/unifi-widget/camera-layout.js', 'js/unifi-widget/shown-cameras.js', 'js/unifi-widget/settings-sections.js', 'js/unifi-widget.js'], { unifi_event: 'onNotification' }, 'UnifiPanel'),
+    unifi: tile('unifi', 'UnifiProtect', ['js/unifi-widget/camera-layout.js', 'js/unifi-widget/shown-cameras.js', 'js/unifi-widget/settings-sections.js', 'js/unifi-widget/unifi-widget.js'], { unifi_event: 'onNotification' }, 'UnifiPanel'),
     // The Agenda with its tabs (Calendar, Tasks, Timer, Notes), and each tab as
     // a tile of its own: its content is the Agenda's tab, pulled out by
     // layer-lite-tiles.js, which also loads their data and feeds the stream.

@@ -1,6 +1,6 @@
 /* UniFi Protect "Cameras" widget: a live grid of the user's cameras as near-live
    JPEG snapshots. Styled to match the Liquid Glass tiles (accent ambience,
-   translucent cards). Rendered into .unifi-widget-mount by js/unifi-widget.js.
+   translucent cards). Rendered into .unifi-widget-mount by js/unifi-widget/unifi-widget.js.
    Reuses the shared sh-set-* rules (from SmartHomePanel.css) for its Settings
    card + camera picker, so only the tile-specific rules live here. */
 .unifi-panel { display: flex; }
@@ -51,7 +51,7 @@
 }
 .up-cam-img.is-live { opacity: 1; }
 /* A quarter-turn (90/270) swaps the image's aspect, so contain it to avoid a
-   mis-crop; the transform itself is set inline by js/unifi-widget.js. */
+   mis-crop; the transform itself is set inline by js/unifi-widget/unifi-widget.js. */
 .up-cam-img--rot { object-fit: contain; }
 /* A camera whose snapshot failed dims and desaturates so it reads as stale. */
 .up-cam--stale .up-cam-img { filter: grayscale(0.7) brightness(0.7); }

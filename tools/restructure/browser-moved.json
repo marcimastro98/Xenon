@@ -308,6 +308,8 @@
     {"from":"server/js/devclean-widget.js","to":"server/js/devclean-widget/devclean-widget.js"},
     {"from":"server/js/disk-widget.js","to":"server/js/disk-widget/disk-widget.js"},
     {"from":"server/js/lighting-map.js","to":"server/js/lighting-map/lighting-map.js"},
-    {"from":"server/js/lighting-page.js","to":"server/js/lighting-page/lighting-page.js"}
+    {"from":"server/js/lighting-page.js","to":"server/js/lighting-page/lighting-page.js"},
+    {"from":"server/js/smart-home.js","to":"server/js/smart-home/smart-home.js"},
+    {"from":"server/js/unifi-widget.js","to":"server/js/unifi-widget/unifi-widget.js"}
   ]
 }

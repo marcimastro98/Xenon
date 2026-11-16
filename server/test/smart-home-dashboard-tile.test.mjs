@@ -59,8 +59,8 @@ test('the route reads only, answers with fixed errors, and a paired device may u
 test('wiring: loaded before smart-home.js, shown in the Smart Home settings once connected', () => {
   const html = read('server/index.html');
   const pos = (src) => html.indexOf('<script src="' + src + '"></script>');
-  assert.ok(pos('js/smart-home/smart-home-dashboard-tile.js') > 0 && pos('js/smart-home/smart-home-dashboard-tile.js') < pos('js/smart-home.js'));
-  const sh = read('server/js/smart-home.js');
+  assert.ok(pos('js/smart-home/smart-home-dashboard-tile.js') > 0 && pos('js/smart-home/smart-home-dashboard-tile.js') < pos('js/smart-home/smart-home.js'));
+  const sh = read('server/js/smart-home/smart-home.js');
   assert.match(sh, /showDashboard\(ha\.url\)/);
   assert.match(sh, /showDashboard\(url\.value\.trim\(\)\)/);
   const mod = read('server/js/smart-home/smart-home-dashboard-tile.js');

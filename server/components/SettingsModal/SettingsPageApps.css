@@ -49,7 +49,7 @@
 #settings-overlay .settings-section:has(.cs-wrap.cs-open) { z-index: 2; }
 #settings-overlay .settings-section-title { padding: 0 2px 10px; color: var(--cst-text); font-size: 17px; font-weight: 700; line-height: 1.3; }
 
-/* ── Smart Home and Cameras: js/smart-home.js and js/unifi-widget.js ── */
+/* ── Smart Home and Cameras: js/smart-home/smart-home.js and js/unifi-widget/unifi-widget.js ── */
 #settings-overlay .sh-set-row {
   display: flex;
   flex-direction: row;

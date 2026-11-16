@@ -517,9 +517,7 @@
         "server/actions/home-assistant*.js",
         "server/actions/unifi*.js",
         "server/js/smart-home/**",
-        "server/js/smart-home*.js",
         "server/js/unifi-widget/**",
-        "server/js/unifi-widget.js",
         "server/components/SmartHomePanel/**",
         "server/components/UnifiPanel/**"
       ]
