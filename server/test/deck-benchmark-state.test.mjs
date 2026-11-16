@@ -20,7 +20,7 @@ test('benchmarkRunning is a state source and reads the snapshot', () => {
   assert.equal(dm.evaluateKeyState({ source: 'benchmarkRunning' }, { benchmarkRunning: true }), true);
   assert.equal(dm.evaluateKeyState({ source: 'benchmarkRunning' }, { benchmarkRunning: false }), false);
   assert.equal(dm.evaluateKeyState({ source: 'benchmarkRunning' }, {}), false);
-  assert.match(read('../js/deck.js'), /const stateSnapshot = \{ benchmarkRunning: false,/);
+  assert.match(read('../js/deck/deck.js'), /const stateSnapshot = \{ benchmarkRunning: false,/);
 });
 
 // Runs main.js's own `benchmark` listener against a fake EventSource.
@@ -77,7 +77,7 @@ test('recordingOn is a state source, fed by the `recording` SSE on the dashboard
   assert.ok(dm.DECK_STATE_SOURCES.includes('recordingOn'));
   assert.equal(dm.evaluateKeyState({ source: 'recordingOn' }, { recordingOn: true }), true);
   assert.equal(dm.evaluateKeyState({ source: 'recordingOn' }, {}), false);
-  assert.match(read('../js/deck.js'), /const stateSnapshot = \{ benchmarkRunning: false, recordingOn: false,/);
+  assert.match(read('../js/deck/deck.js'), /const stateSnapshot = \{ benchmarkRunning: false, recordingOn: false,/);
   const main = read('../js/main.js');
   const start = main.indexOf("    es.addEventListener('recording', e => {");
   assert.ok(start > 0, 'recording listener moved');

@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 const M = createRequire(import.meta.url)('../js/deck-model.js');
 
 // LF only, so the slice below finds the function's end on a CRLF checkout too.
-const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const JS = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 /** bindActionKey, cut out of deck.js and wired to stubs that record what fired. */
 function loadBinder() {

@@ -65,7 +65,7 @@ function smartProfiles({ rules = [], windows = [] } = {}) {
     }),
     render() {},
   };
-  const src = read('../js/deck.js');
+  const src = read('../js/deck/deck.js');
   // The switch row up to its own closing brace: whatever follows it in the script is not part of it.
   vm.runInNewContext(`${namesOf(src, 'deck.js').all('switchRow', 'closeAutoSwitch', 'openAutoSwitchDialog')}
     this.open = openAutoSwitchDialog;`, box);
@@ -253,12 +253,12 @@ test('the key editor holds the keyboard, and gives it back before it goes', () =
 });
 
 test('Deck appearance and the mixer hold the keyboard too, also in the Deck popup', () => {
-  const src = read('../js/deck.js');
+  const src = read('../js/deck/deck.js');
   assert.match(src, /deckStyleLetGo = window\.DialogFocus\.hold\(dialog, \{ onEsc: closeDeckStyleModal \}\);/);
   assert.match(src, /deckMixLetGo = window\.DialogFocus\.hold\(modal, \{ onEsc: closeDeckMixer \}\);/);
   const page = read('../deck-popup.html');
   const helper = page.indexOf('js/dialog-focus.js');
-  assert.ok(helper > 0 && helper < page.indexOf('js/deck.js'), 'loaded before the Deck');
+  assert.ok(helper > 0 && helper < page.indexOf('js/deck/deck.js'), 'loaded before the Deck');
 });
 
 test('promos and the screensaver wait for all four windows', () => {
@@ -271,7 +271,7 @@ test('promos and the screensaver wait for all four windows', () => {
 });
 
 test('the window keys are drawn marks, never characters that change with the font', () => {
-  const deck = read('../js/deck.js');
+  const deck = read('../js/deck/deck.js');
   const windows = [
     read('../js/deck-editor.js'),
     read('../js/deck/deck-editor-shortcut.js'),

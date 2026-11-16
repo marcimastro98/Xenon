@@ -113,7 +113,7 @@ test('the key lights while its first choice is the output in use', () => {
 });
 
 test('after a press the face follows at once, and "none connected" is said in words', () => {
-  const D = read('../js/deck.js');
+  const D = read('../js/deck/deck.js');
   assert.match(D, /const AUDIO_ACTION_TYPES = \[[^\]]*'audioDeviceFirst'/);
   assert.match(D, /AUDIO_ACTION_TYPES\.includes\(action\.type\)\) pollAudioState\(\);/);
   // The sentences live in js/deck/deck-error-text.js, shared with the alerts window.

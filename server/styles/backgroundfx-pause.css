@@ -15,7 +15,7 @@ body.overlay-frozen .grid-plane { animation-play-state: paused; }
    machine the native shell deliberately renders on the chip that drives the
    target display (apps/native/src-tauri/src/gpu.rs) so composited frames are not
    copied cross-adapter — ~1.5 idle CPU cores saved, but far less real-time budget
-   on the weaker chip. js/custom-bg.js and js/deck.js already freeze the animated
+   on the weaker chip. js/custom-bg.js and js/deck/deck.js already freeze the animated
    background and the Deck decor on this signal; the aurora/grid were left out by
    oversight until v4.6.2, which meant the two layers Xenon draws for decoration
    kept animating while the background the USER chose was the one stopped —

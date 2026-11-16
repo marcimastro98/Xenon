@@ -23,7 +23,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
-const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
 
 function profile(name, keyCount) {
   return {

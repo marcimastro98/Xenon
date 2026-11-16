@@ -59,7 +59,7 @@ const escaped = (word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /**
  * What a test holds of a browser file beyond its name.
  * @param {string} source the test's text
- * @param {string} file repo-relative browser file (`server/js/deck.js`)
+ * @param {string} file repo-relative browser file (`server/js/deck/deck.js`)
  * @param {string} scriptText the file's text, with the scripts taken out of it
  * @returns {{ lists: number[], cuts: { line: number, from: string, to: string }[] }} `lists`: lines where the file stands in a list of
  *   scripts and is not written as its parts (`partsOf`); `cuts`: lines that name two whole lines of the file, the ends of a cut

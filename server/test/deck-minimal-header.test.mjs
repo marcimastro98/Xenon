@@ -23,7 +23,7 @@ import { readFileSync } from './browser-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const CSS = readFileSync(new URL('../components/DeckPanel/DeckPanel.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const JS = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 /** The declarations of the first rule whose selector list contains `needle`. */
 function rule(needle) {

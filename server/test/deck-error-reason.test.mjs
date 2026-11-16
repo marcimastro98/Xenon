@@ -14,7 +14,7 @@ import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
-const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
 // The sentences moved to their own file, shared with the on-screen alerts.
 const ERR_TEXT_SRC = readFileSync(new URL('../js/deck/deck-error-text.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
@@ -166,7 +166,7 @@ test('a stopped steps recording is told once on a page with the capture cards', 
 test('every page that loads deck.js loads the sentences first', () => {
   for (const page of ['index.html', 'deck-popup.html']) {
     const html = readFileSync(new URL('../' + page, import.meta.url), 'utf8');
-    const a = html.indexOf('js/deck/deck-error-text.js'), b = html.indexOf('js/deck.js"');
+    const a = html.indexOf('js/deck/deck-error-text.js'), b = html.indexOf('js/deck/deck.js"');
     assert.ok(a > 0 && a < b, page);
     const c = html.indexOf('js/deck/deck-done-text.js');
     assert.ok(c > 0 && c < b, page + ' loads the done notes too');

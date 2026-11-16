@@ -2,7 +2,7 @@
 // Plays a Deck soundboard clip on the PC itself, for a key's keyboard shortcut
 // when no dashboard is there to play it (deck-shortcut-runner.js): "widgets
 // only", or a dashboard that is closed. The dashboard plays clips with an
-// <audio> element (js/deck.js); this is the same play / toggle / stop and
+// <audio> element (js/deck/deck.js); this is the same play / toggle / stop and
 // per-clip volume with the system's own player, one process per clip, killed
 // on stop. Nothing new is installed:
 //   Windows  PowerShell + the system MediaPlayer (mp3, wav, m4a, aac, flac),

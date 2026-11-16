@@ -177,7 +177,7 @@ test('mixer: the app icon is set through the DOM, never interpolated', () => {
   assert.equal(rows[0].img, null, 'a rejected icon falls back to the letter');
   assert.equal(rows[1].img.src, PNG);
   assert.match(read('../js/audio/mic.js'), /renderAppMixerRows\(host, apps\)/);
-  assert.match(read('../js/deck.js'), /renderAppMixerRows\(host, apps\)/);
+  assert.match(read('../js/deck/deck.js'), /renderAppMixerRows\(host, apps\)/);
 });
 
 // ── Timers and notes ─────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const M = require('../js/deck-model.js');
 
-const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const JS = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function loadBinder(trigger) {
   const start = JS.indexOf('  function bindActionKey(');

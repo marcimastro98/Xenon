@@ -15,7 +15,7 @@ const DA = require('../js/deck-actions.js');
 const B = require('../js/deck/deck-editor-behavior.js');
 const reg = require('../actions/registry.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const JS = read('../js/deck.js');
+const JS = read('../js/deck/deck.js');
 
 const norm = (raw) => {
   const c = M.normalizeDeckConfig({ cols: 1, rows: 1, profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [Object.assign({ id: 'k1', kind: 'action' }, raw)] }] } }], activeProfile: 'p' });

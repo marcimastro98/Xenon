@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
-const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/DeckPanel/DeckPanel.css', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];

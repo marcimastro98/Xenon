@@ -14,7 +14,7 @@ import vm from 'node:vm';
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const DECK = read('../js/deck.js');
+const DECK = read('../js/deck/deck.js');
 const EDITOR = read('../js/deck-editor.js');
 
 function loadWatch({ stateKeys = [], status = null } = {}) {

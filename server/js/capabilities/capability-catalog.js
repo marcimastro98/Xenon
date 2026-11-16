@@ -554,7 +554,7 @@ const CAPABILITIES = [
   },
 
   // The gallery of what Xenon captured. The Deck key opens it on the screen it
-  // is pressed on (js/deck.js); from the voice or the Virtual Deck it opens on
+  // is pressed on (js/deck/deck.js); from the voice or the Virtual Deck it opens on
   // the PC's screens. `id` (voice only) opens one capture.
   {
     type: 'gallery', group: 'capture', labelKey: 'deck_act_gallery',

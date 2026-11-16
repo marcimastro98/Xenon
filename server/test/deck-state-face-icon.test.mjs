@@ -19,7 +19,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
-const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
 const EDITOR = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 

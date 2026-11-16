@@ -1,5 +1,5 @@
 // configure_deck makes switches, held keys and confirmed keys, and sets the
-// profile's lit-key cues (js/deck.js applyAiDeck → aiKeyBehavior / aiLookPatch).
+// profile's lit-key cues (js/deck/deck.js applyAiDeck → aiKeyBehavior / aiLookPatch).
 // The model keeps them through normalizeDeckConfig, which is what applyAiDeck
 // saves through; the wiring is checked in the sources.
 import { test } from 'node:test';
@@ -38,7 +38,7 @@ test('the lit-key cues land on the profile look', () => {
 });
 
 test('wiring: applyAiDeck reads the new fields, the tool offers them', () => {
-  const deck = read('../js/deck.js');
+  const deck = read('../js/deck/deck.js');
   assert.ok(deck.includes("const AI_KEY_MODES = ['momentary', 'repeat'];"));
   assert.ok(deck.includes('const extra = { tapOff: k.off, press: k.press, release: k.release };'));
   assert.ok(deck.includes('        aiKeyBehavior(k, key, trig, toSteps);\n        if (!Object.keys(trig).length) continue;'));
@@ -51,9 +51,9 @@ test('wiring: applyAiDeck reads the new fields, the tool offers them', () => {
 });
 
 // "Add a key to my Deck": the keys go in the free slots of the profile in use.
-// The function runs as written in js/deck.js, on the real model, with the store stubbed.
+// The function runs as written in js/deck/deck.js, on the real model, with the store stubbed.
 function addToCurrent(cfg, keys) {
-  const deck = read('../js/deck.js');
+  const deck = read('../js/deck/deck.js');
   const at = deck.indexOf('  function addAiKeysToCurrent(');
   const src = deck.slice(at, deck.indexOf('  function applyAiDeck(', at));
   const out = { saved: null, nav: { path: ['x'], pageIndex: 0 }, toast: '' };
@@ -97,7 +97,7 @@ test('a full Deck gets a new page for the added key', () => {
 });
 
 test('wiring: the tool can add to the Deck in use and make one-face keys', () => {
-  const deck = read('../js/deck.js');
+  const deck = read('../js/deck/deck.js');
   assert.ok(deck.includes("if (keys.length && spec.addTo === 'current') {"));
   assert.ok(deck.includes('if (k.unlit === true) key.unlit = true;'));
   const server = engineSource();
@@ -116,7 +116,7 @@ test('the Deck icon library has capture icons and is named to the assistant', ()
 });
 
 test('an icon name from the library becomes a drawn icon, anything else an emoji', () => {
-  const deck = read('../js/deck.js');
+  const deck = read('../js/deck/deck.js');
   const at = deck.indexOf('  function aiIcon(');
   const src = deck.slice(at, deck.indexOf('\n  }\n', at) + 4);
   const vm = require('node:vm');

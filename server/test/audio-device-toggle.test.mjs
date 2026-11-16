@@ -137,7 +137,7 @@ test('saving a key binds it to the output it switches to', () => {
 });
 
 test('the deck follows the real default output, and asks for it right after a switch', () => {
-  const DECK = read('../js/deck.js');
+  const DECK = read('../js/deck/deck.js');
   assert.match(DECK, /outputDevice: '' \};/, 'seeded empty');
   assert.match(DECK, /const AUDIO_STATE_SOURCES = \[[^\]]*'outputDevice'/);
   assert.match(DECK, /applySliderValues\(\);\s*syncAudioWatch\(\);/);

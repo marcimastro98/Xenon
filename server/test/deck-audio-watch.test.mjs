@@ -14,9 +14,9 @@ import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const DECK = read('../js/deck.js');
+const DECK = read('../js/deck/deck.js');
 
-// The audio-watch block of js/deck.js, run against a fake page.
+// The audio-watch block of js/deck/deck.js, run against a fake page.
 function loadWatch({ stateKeys = [], sliders = [], audio = null } = {}) {
   const start = DECK.indexOf('  const AUDIO_WATCH_MS');
   const end = DECK.indexOf('function syncAudioWatch');

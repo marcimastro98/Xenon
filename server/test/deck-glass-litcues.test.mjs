@@ -16,7 +16,7 @@ test('Glass is a faceplate kept per profile, the default is unchanged', () => {
   assert.equal(M.PLATE_STYLES[0], 'graphite');
   const cfg = M.normalizeDeckConfig({ profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [] }] } }], activeProfile: 'p' });
   assert.equal(M.effectiveDeckLook(M.setProfileLook(cfg, 'p', { plate: 'glass' }), 'p').plate, 'glass');
-  assert.match(read('../js/deck.js'), /'midnight', 'glass', 'theme', 'none'\]/, 'the fallback list knows it too');
+  assert.match(read('../js/deck/deck.js'), /'midnight', 'glass', 'theme', 'none'\]/, 'the fallback list knows it too');
 });
 
 test('the Glass faceplate draws a clear body without a backdrop blur', () => {
@@ -30,7 +30,7 @@ test('the Glass faceplate draws a clear body without a backdrop blur', () => {
 });
 
 test('the preview demonstrates the lit-key switches on any page', () => {
-  const js = read('../js/deck.js');
+  const js = read('../js/deck/deck.js');
   const fn = js.slice(js.indexOf('  function showLitCues(grid, look) {'), js.indexOf('  function buildDeckStylePreview('));
   assert.ok(fn.length > 100);
   assert.match(fn, /if \(!look\.litRing && !look\.dimOff\) return;/, 'nothing changes while both are off');
@@ -48,7 +48,7 @@ test('the Glass label is in all 11 languages', () => {
 test('a chosen label colour beats the Comic ink, on both faces', () => {
   const comic = read('../styles/themes-comic.css');
   assert.match(comic, /\.deck-root\[data-capstyle="vivid"\] \.deck-key \.deck-label \{[^}]*color: var\(--key-label-color, var\(--comic-ink\)\) !important;/);
-  const js = read('../js/deck.js');
+  const js = read('../js/deck/deck.js');
   assert.match(js, /label\.style\.setProperty\('--key-label-color', c\)/);
   assert.match(js, /if \(key\.labelColor\) setLabelColor\(label, key\.labelColor\);/, 'the normal face');
   assert.match(js, /if \(ss\.labelColor\) setLabelColor\(base\.labelEl, on \? ss\.labelColor : base\.labelColor\);/, 'the lit face');

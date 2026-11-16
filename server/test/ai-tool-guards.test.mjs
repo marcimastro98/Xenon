@@ -117,7 +117,7 @@ test('a Codex approval never hides part of the command either', () => {
 });
 
 test('a Deck the assistant builds holds no scripts, typed text or webhooks', () => {
-  const deck = read('../js/deck.js');
+  const deck = read('../js/deck/deck.js');
   assert.match(deck, /const AI_DECK_REFUSED = new Set\(\['runScript', 'typeText', 'webhook'\]\);/);
   assert.match(deck, /if \(AI_DECK_REFUSED\.has\(s\.action\.type\)\) \{ refusedTypes\.add\(s\.action\.type\); return false; \}/);
   assert.doesNotMatch(SERVER, /\{type:"typeText",text:"brb"\}/, 'the tool description no longer suggests one');

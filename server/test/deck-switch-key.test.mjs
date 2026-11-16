@@ -68,7 +68,7 @@ test('the deck-wide cues reach every state-following key', () => {
   const css = readFileSync(new URL('../components/DeckPanel/DeckPanel.css', import.meta.url), 'utf8');
   assert.match(css, /\.deck-root\[data-dimoff="1"\] \.deck-key\.is-stateful:not\(\.is-on\)/);
   assert.match(css, /\.deck-root\[data-litring="1"\] \.deck-key \.deck-key-onfx/);
-  const js = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
   assert.match(js, /btn\.classList\.add\('is-stateful'\)/);
   assert.equal((js.match(/stampDeckLitCues\(root, look\);/g) || []).length, 3, 'deck, style preview and key preview');
 });

@@ -46,7 +46,7 @@ test('main.js: capture and captures refresh it, gallery_open opens it on the PC 
 });
 
 test('deck.js opens it locally; deck-editor.js has its icon', () => {
-  const deck = read('js/deck.js');
+  const deck = read('js/deck/deck.js');
   const i = deck.indexOf("action.type === 'gallery'");
   assert.ok(i > 0);
   assert.match(deck.slice(i, i + 200), /filter: action\.filter === 'all' \? '' : action\.filter/);

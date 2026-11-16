@@ -1,6 +1,6 @@
 'use strict';
 // Gallery capabilities: open the gallery on the PC's screens (the Deck key on
-// a screen opens it right there, js/deck.js; this is the Virtual Deck and the
+// a screen opens it right there, js/deck/deck.js; this is the Virtual Deck and the
 // voice), and list what Xenon captured for Xenon AI ("what did I record
 // yesterday?"). Ids and names only, never a path.
 //

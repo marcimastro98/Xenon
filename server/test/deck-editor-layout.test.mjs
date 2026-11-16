@@ -72,7 +72,7 @@ test('on a phone the keys share one row, never wider than the screen', () => {
 });
 
 test('a macro from the Xenon menu opens on name, actions and shortcut, the rest behind More options', () => {
-  const deck = read('../js/deck.js');
+  const deck = read('../js/deck/deck.js');
   const open = deck.slice(deck.indexOf('async function openMacro'), deck.indexOf('// Render every deck tile'));
   assert.match(open, /simple: true/);
   assert.match(open, /needsShortcut: true/);

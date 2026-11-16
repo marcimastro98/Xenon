@@ -11,7 +11,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const { note } = (await import('../js/deck/deck-done-text.js')).default;
 const tt = (key, fallback) => fallback || key;
-const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 
 test('Do not disturb says the state it ended in', () => {

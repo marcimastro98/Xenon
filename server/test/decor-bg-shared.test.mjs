@@ -16,19 +16,19 @@ const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 test('every page with deck.js loads decor-bg.js before it', () => {
   for (const page of ['index.html', 'deck-popup.html']) {
     const html = read(page);
-    const deck = html.indexOf('<script src="js/deck.js">');
+    const deck = html.indexOf('<script src="js/deck/deck.js">');
     const bg = html.indexOf('<script src="js/look/decor-bg.js">');
     assert.ok(deck > 0, `${page} loads deck.js`);
     assert.ok(bg > 0 && bg < deck, `${page} loads decor-bg.js before deck.js`);
   }
   const { TILES } = require('../js/layers/layer-tiles.js');
   const js = TILES.deck.js;
-  assert.ok(js.indexOf('js/look/decor-bg.js') >= 0 && js.indexOf('js/look/decor-bg.js') < js.indexOf('js/deck.js'), 'light page Deck row');
+  assert.ok(js.indexOf('js/look/decor-bg.js') >= 0 && js.indexOf('js/look/decor-bg.js') < js.indexOf('js/deck/deck.js'), 'light page Deck row');
 });
 
 test('the helpers are defined once, in decor-bg.js', () => {
   assert.doesNotMatch(read('js/dashboard-layout.js'), /function (tileGradCss|paintDecorBgLayer)\(/);
-  assert.doesNotMatch(read('js/deck.js'), /function paintDecorBgLayer\(/);
+  assert.doesNotMatch(read('js/deck/deck.js'), /function paintDecorBgLayer\(/);
 });
 
 test('gradient over image, fit honoured', () => {

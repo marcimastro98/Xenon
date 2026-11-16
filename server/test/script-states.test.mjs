@@ -160,7 +160,7 @@ test('both deck surfaces listen for script_states', () => {
 test('the deck snapshot carries scriptStates', () => {
   // evaluateKeyState reads snapshot.scriptStates; an absent field makes every
   // binding silently false.
-  assert.match(read('js', 'deck.js'), /const stateSnapshot = \{[^\n]*scriptStates: \{\}/);
+  assert.match(read('js', 'deck/deck.js'), /const stateSnapshot = \{[^\n]*scriptStates: \{\}/);
 });
 
 test('the key editor offers the script-state binding and saves it', () => {

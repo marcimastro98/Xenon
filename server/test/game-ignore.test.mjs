@@ -137,7 +137,7 @@ test('SDK: a widget may switch the modes and rule out the app in front, never na
 test('the shortcut runner and the dashboards hand Performance Mode on, never the phone', () => {
   const { CLIENT_ACTIONS } = require('../js/deck-shortcuts.js');
   assert.ok(CLIENT_ACTIONS.includes('perfMode'));
-  const deck = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+  const deck = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
   assert.match(deck, /action\.type === 'perfMode' && window\.PerfMode && !window\.__xenonRemote && !\(typeof isLayerPage === 'function' && isLayerPage\(\)\)/);
   const driver = readFileSync(new URL('../js/performance/driver-perf.js', import.meta.url), 'utf8');
   assert.match(driver, /es\.addEventListener\('deck_shortcut', onDeckStep\)/);

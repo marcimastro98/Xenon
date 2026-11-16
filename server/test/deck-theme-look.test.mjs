@@ -37,11 +37,11 @@ test('the Theme faceplate paints with the tile tokens and gives way inside a tab
     for (const sel of all) assert.match(sel, /:not\(\[data-deck-themeplate\]\)/, f + ': ' + sel);
   }
   assert.match(read('../js/dashboard-tabgroups.js'), /toggleAttribute\('data-deck-themeplate'/);
-  assert.match(read('../js/deck.js'), /mount\.toggleAttribute\('data-deck-themeplate'/);
+  assert.match(read('../js/deck/deck.js'), /mount\.toggleAttribute\('data-deck-themeplate'/);
 });
 
 test('theme colours reach keys without a colour, the music bar and the key well', () => {
-  const js = read('../js/deck.js');
+  const js = read('../js/deck/deck.js');
   assert.match(js, /const themeAccent = !key\.bg && !!\(opts && opts\.themeColors\)/);
   assert.match(js, /accent: key\.bg \|\| \(themeAccent \? THEME_ACCENT : ''\)/, 'a lit face restores the theme accent when it turns off');
   assert.match(js, /function buildNowPlaying\(mediaStyle, themeColors\)/);

@@ -350,7 +350,7 @@ function postponeAutoUpdate() {
     });
     // The Xenon menu asked for with no shell to draw it over the screen (a
     // browser, a phone's dashboard): the same menu as a panel here. Never on a
-    // layer page; a phone opens it only from its own Deck key (js/deck.js
+    // layer page; a phone opens it only from its own Deck key (js/deck/deck.js
     // runClientAction) or tile.
     es.addEventListener('xenon_menu_panel', e => {
       try {

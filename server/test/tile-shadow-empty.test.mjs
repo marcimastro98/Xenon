@@ -20,7 +20,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const GRID = read('../components/DashboardGrid/DashboardGrid.css');
 const DECKCSS = read('../components/DeckPanel/DeckPanel.css');
 const LAYOUT = read('../js/dashboard-layout.js');
-const DECK = read('../js/deck.js');
+const DECK = read('../js/deck/deck.js');
 const GROUPS = read('../js/dashboard-tabgroups.js');
 
 function fakeEl() {

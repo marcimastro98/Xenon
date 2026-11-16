@@ -25,7 +25,7 @@ export const PATCHES = {
   'preset-share.js': [['window.PresetShare = {', 'window.__ps = { openDeckImport, openBundleImport, openThemeImport, openBgImport, openTopbarImport, openIconsImport, openSoundsImport, openPageImport, openLockedShareDialog, openShareDialog }; window.PresetShare = {']],
   'custom-widget.js': [['window.CustomWidget = {', 'window.__cw = { openClipboardConfirm, openExternalConfirm, openPermDialog }; window.CustomWidget = {']],
   'mcp/mcp-dev-client.js': [['window.McpDev = Object.freeze({ listen });', 'window.__pair = showPair; window.McpDev = Object.freeze({ listen });']],
-  'deck.js': [['function openDeckMixer() {', 'window.__mixer = () => openDeckMixer(); window.__deckLook = (t, i, p) => openDeckStyleModal(t, i, p); window.__deckAsw = (t, i) => openAutoSwitchDialog(t, i); function openDeckMixer() {']],
+  'deck/deck.js': [['function openDeckMixer() {', 'window.__mixer = () => openDeckMixer(); window.__deckLook = (t, i, p) => openDeckStyleModal(t, i, p); window.__deckAsw = (t, i) => openAutoSwitchDialog(t, i); function openDeckMixer() {']],
   'update.js': [['window.XenonUpdate = {', 'window.__upd = { showUpdatingOverlay, openReleaseNotes, openUpdateFailed }; window.XenonUpdate = {']],
 };
 

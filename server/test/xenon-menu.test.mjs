@@ -829,7 +829,7 @@ test('bad_shortcut has its own sentence in every language', () => {
 });
 
 test('a phone\'s Xenon menu key opens the panel on the phone, never the PC\'s window', () => {
-  const deck = src('js/deck.js');
+  const deck = src('js/deck/deck.js');
   assert.match(deck, /if \(action\.type === 'xenonMenu' && window\.__xenonRemote && window\.XenonMenuPanel\) \{/);
   assert.match(deck, /if \(mode === 'close'\) P\.close\(\); else P\.open\(action\.section\);\s*return true;/);
 });

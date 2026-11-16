@@ -934,7 +934,7 @@
   // (`__XENON_NATIVE_CAPS__.lowPowerGpu`, computed once from the same signal
   // that picks the WebView2 GPU flag), and `body.low-power-gpu` carries it to
   // every consumer: backgroundfx.css (aurora/grid), js/custom-bg.js (the
-  // animated background) and js/deck.js (animated key decor).
+  // animated background) and js/deck/deck.js (animated key decor).
   //
   // Until v4.6.2 this comment claimed the class paused "the decorative ambient
   // layers only — never the animated background the user actually chose". That

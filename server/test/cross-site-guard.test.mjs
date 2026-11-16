@@ -80,7 +80,7 @@ test('the iCUE widget keeps working', () => {
 
 test('the native splash and public files load from elsewhere', () => {
   assert.equal(refused(req('GET', { ...XSITE, 'sec-fetch-mode': 'no-cors', 'sec-fetch-dest': 'empty' }), '/ping'), false);
-  for (const f of ['/styles/main.css', '/js/deck.js', '/assets/logo.png', '/fonts/inter.woff2', '/icon-pack/x/a.svg', '/uploads/w.jpg', '/sdk/tile/pkg', '/font/f.woff2', '/sound-pack/p/a.mp3']) {
+  for (const f of ['/styles/main.css', '/js/deck/deck.js', '/assets/logo.png', '/fonts/inter.woff2', '/icon-pack/x/a.svg', '/uploads/w.jpg', '/sdk/tile/pkg', '/font/f.woff2', '/sound-pack/p/a.mp3']) {
     assert.equal(refused(req('GET', IMG), f), false, f);
   }
   assert.equal(refused(req('GET', IMG), '/api/x/y.png'), true, 'an API route is never a public file');

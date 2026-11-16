@@ -55,7 +55,7 @@ test('the route validates, and is CSRF-guarded and denied to paired devices', ()
 // because toast.js was missing: both load there before deck.js.
 test('the Deck window has the mixer rows and the error toast', () => {
   const html = read('deck-popup.html');
-  const deck = html.indexOf('<script src="js/deck.js">');
+  const deck = html.indexOf('<script src="js/deck/deck.js">');
   for (const f of ['js/alerts/toast.js', 'js/volume.js']) {
     const at = html.indexOf(`<script src="${f}">`);
     assert.ok(at > 0 && at < deck, `${f} before deck.js`);
@@ -66,7 +66,7 @@ test('the Deck window has the mixer rows and the error toast', () => {
 });
 
 test('deck.js hands off only where the step cannot run', () => {
-  const deck = read('js/deck.js');
+  const deck = read('js/deck/deck.js');
   assert.match(deck, /if \(handsOff\(action\)\) return handOffStep\(action\);\n\s+if \(runClientAction\(action\)\)/);
   assert.match(deck, /action\.type === 'ai'\) return !\(window\.startVoiceSession \|\| window\.openMediaChat \|\| window\.openAiPanel \|\| window\.aiAsk\)/);
   assert.match(deck, /action\.type === 'appMixer' && typeof isLayerPage === 'function' && isLayerPage\(\)/);

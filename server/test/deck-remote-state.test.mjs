@@ -90,6 +90,6 @@ test('a single-panel embed never hosts a Deck, so it never polls', async () => {
 });
 
 test('the Deck answers for every instance in the store, not only the one on screen', () => {
-  assert.match(read('../js/deck.js'), /function usesState\(sources\) \{\n\s+const all = readStore\(\);\n\s+return Object\.keys\(all\)\.some\(\(id\) => window\.DeckStore\.isInstanceKey\(id\) && window\.DeckModel\.deckUsesState\(all\[id\], sources\)\);/);
-  assert.match(read('../js/deck.js'), /window\.Deck = \{[^}]*\busesState\b/);
+  assert.match(read('../js/deck/deck.js'), /function usesState\(sources\) \{\n\s+const all = readStore\(\);\n\s+return Object\.keys\(all\)\.some\(\(id\) => window\.DeckStore\.isInstanceKey\(id\) && window\.DeckModel\.deckUsesState\(all\[id\], sources\)\);/);
+  assert.match(read('../js/deck/deck.js'), /window\.Deck = \{[^}]*\busesState\b/);
 });

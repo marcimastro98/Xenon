@@ -18,7 +18,7 @@ import { readFileSync } from './browser-source.mjs';
 // to the very <body> that becomes the stage.
 
 const CS = readFileSync(new URL('../js/custom-select.js', import.meta.url), 'utf8');
-const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+const DECK = readFileSync(new URL('../js/deck/deck.js', import.meta.url), 'utf8');
 const EDGE_CSS = readFileSync(new URL('../styles/edge-preview.css', import.meta.url), 'utf8');
 
 test('the preview really does clip — the premise of all of this', () => {

@@ -24,7 +24,7 @@ test('every decorative layer honours the hybrid-GPU freeze', () => {
     // [file, what it stops]
     ['styles/backgroundfx.css', 'the aurora + neon grid'],
     ['js/custom-bg.js', "the user's animated background"],
-    ['js/deck.js', 'animated Deck key decor'],
+    ['js/deck/deck.js', 'animated Deck key decor'],
   ];
   for (const [file, what] of consumers) {
     assert.match(read(file), /low-power-gpu/, `${file} must freeze ${what} on a hybrid GPU`);
