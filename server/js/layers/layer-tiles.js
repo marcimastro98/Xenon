@@ -65,7 +65,7 @@
     // alert-toasts.js for the "why does it stutter?" line's words, perf-hud.js for the parts shown.
     perf: {
       css: ['components/PerfWidget/PerfWidget.css'],
-      js: ['js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/alerts/alert-toasts.js', 'js/performance/perf-hud.js', 'js/perf-widget/says.js', 'js/perf-widget.js'],
+      js: ['js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/alerts/alert-toasts.js', 'js/performance/perf-hud.js', 'js/perf-widget/says.js', 'js/perf-widget/perf-widget.js'],
       markup: ['perf'],
       global: 'PerfWidget',
       streams: { perf: 'onPerf', system: 'onSystem', perf_net: 'onNet' },

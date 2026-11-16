@@ -62,7 +62,7 @@ test('the vision check names an AI that cannot see before any screenshot', () =>
 });
 
 test('the card asks the AI set for Bit, sends no key, and explains each problem', () => {
-  const js = read('../js/game-companion.js');
+  const js = read('../js/game-companion/game-companion.js');
   assert.doesNotMatch(js, /geminiApiKey|geminiKeyReady|key: apiKey/);
   assert.match(js, /if \(typeof _aiHasKey === 'function' && !_aiHasKey\(\)\) \{\n\s*showProblem\(out, 'no_ai'\);/);
   assert.match(js, /const PROBLEM_TEXT = \{ no_ai: 'gc_need_key', no_vision: 'gc_no_vision', no_credits: 'gc_no_sparks' \};/);
@@ -110,7 +110,7 @@ test('the card says what a look costs before pressing, and what the last one cos
   ctx.window = ctx;
   ctx.XenonCredits = { active: () => true, format: (n) => String(n), refresh: () => { refreshed++; } };
   vm.createContext(ctx);
-  vm.runInContext(read('../js/game-companion.js'), ctx);
+  vm.runInContext(read('../js/game-companion/game-companion.js'), ctx);
   ctx.GameCompanion.openOverlay();
   await new Promise((r) => setImmediate(r));
   assert.equal(els['gc-cost'].hidden, false);

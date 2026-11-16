@@ -5,7 +5,7 @@
 // the voice opens the card here, in the on-screen alerts window (SSE
 // `game_companion`, server/capabilities/game-companion.js). It is the
 // dashboard's own card (markup served in <template id="screen-companion-markup">,
-// the same CSS and js/game-companion.js) with one change: this window never
+// the same CSS and js/game-companion/game-companion.js) with one change: this window never
 // takes the keyboard, so a click on it never takes the focus from the game,
 // and the typed question gives way to "Ask out loud", which hands over to
 // Bit's voice in the same window (js/ai/screen-bit.js). Nothing loads until the
@@ -20,7 +20,7 @@
   // index.html's order; the same files Bit loads are loaded once (screen-bit.js).
   const SCRIPTS = Object.freeze([
     'shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js',
-    'shared/src/bit-spark.js', 'js/store-supporters/xenon-credits.js', 'js/ai/bit-app.js', 'js/game-companion/says.js', 'js/game-companion.js',
+    'shared/src/bit-spark.js', 'js/store-supporters/xenon-credits.js', 'js/ai/bit-app.js', 'js/game-companion/says.js', 'js/game-companion/game-companion.js',
   ]);
   const IDLE_RELOAD_MS = 60 * 1000;
 

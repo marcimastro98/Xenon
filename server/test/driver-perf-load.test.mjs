@@ -24,9 +24,9 @@ test('the list is a frozen list of scripts, the dashboard\'s own', () => {
   assert.ok(DriverPerf.SCRIPTS.length >= 2);
   for (const src of DriverPerf.SCRIPTS) assert.match(src, /^js\/[\w./-]+\.js$/);
   // The scripts Performance Mode is made of today, in the order a page loads them: they end the list, in that order.
-  const perfMode = partsOf('server/js/performance.js').map((file) => file.slice('server/'.length));
+  const perfMode = partsOf('server/js/performance/performance.js').map((file) => file.slice('server/'.length));
   assert.deepEqual(DriverPerf.SCRIPTS.slice(-perfMode.length), perfMode, 'the script that starts Performance Mode runs last, right after the scripts taken out of it');
-  const settings = DriverPerf.SCRIPTS.indexOf('js/perf-settings.js');
+  const settings = DriverPerf.SCRIPTS.indexOf('js/performance/perf-settings.js');
   assert.ok(settings !== -1 && settings < DriverPerf.SCRIPTS.indexOf(perfMode[0]), 'the settings it reads load before all of them');
   assert.equal(new Set(DriverPerf.SCRIPTS).size, DriverPerf.SCRIPTS.length);
 });

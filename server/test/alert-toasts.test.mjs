@@ -89,7 +89,7 @@ test('wiring: the dashboard builds its pop-ups here, not inline', () => {
   const timer = read('../js/timer/timer.js');
   assert.match(timer, /AlertToasts\.timerDone\(/);
   assert.match(timer, /AlertToasts\.timerChime\(/);
-  assert.match(read('../js/perf-widget.js'), /AlertToasts\.benchmark\(/);
+  assert.match(read('../js/perf-widget/perf-widget.js'), /AlertToasts\.benchmark\(/);
   const html = read('../index.html');
   assert.ok(html.indexOf('js/alerts/toast.js') < html.indexOf('js/alerts/alert-toasts.js'));
   assert.ok(html.indexOf('js/alerts/alert-toasts.js') < html.indexOf('js/main.js'));

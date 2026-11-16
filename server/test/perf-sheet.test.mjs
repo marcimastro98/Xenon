@@ -8,7 +8,7 @@ import { makeDom, settle, windowKeys } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const read = (name) => readFileSync(join(HERE, '..', 'js', name), 'utf8');
-const SRC = read('dialog-focus.js') + read('performance.js');
+const SRC = read('dialog-focus.js') + read('performance/performance.js');
 
 // The window behind "Optimize". It stops the page, so it behaves like every other
 // dialog that does: the focus goes in and comes back, Esc closes it, Tab stays inside,

@@ -12,9 +12,9 @@
 //
 // The driver also keeps its own `performance` block (active session, saved
 // power plan, closed apps) through normalizePerformance, the same normalizer
-// the dashboard saves with (js/perf-settings.js).
+// the dashboard saves with (js/performance/perf-settings.js).
 
-const { PERF_ACTIVITIES, normalizePerformance } = require('../js/perf-settings.js');
+const { PERF_ACTIVITIES, normalizePerformance } = require('../js/performance/perf-settings.js');
 
 const CHOICES = Object.freeze(['optimize', 'ignore', 'never', 'restore']);
 const NOTE_KEYS = Object.freeze(['perf_status_optimized', 'perf_status_failed', 'perf_status_restored', 'perf_auto_on', 'perf_auto_off']);

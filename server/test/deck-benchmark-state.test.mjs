@@ -51,7 +51,7 @@ test('the dashboard lights the key on start, clears it on end, toasts only real 
   assert.equal(m.toasts.length, 2, 'the connect seed lights the key without a toast');
   // The seed never toasts: the wording (alert-toasts.js) says nothing for it.
   assert.equal(require('../js/alerts/alert-toasts.js').benchmark({ running: true, game: 'g', seed: true }, {}), null);
-  assert.match(read('../js/perf-widget.js'), /const toast = window\.AlertToasts\.benchmark\(d, \{ t \}, revealBenchmark\);\n\s+if \(toast\) window\.XenonToast\.show\(toast\);/);
+  assert.match(read('../js/perf-widget/perf-widget.js'), /const toast = window\.AlertToasts\.benchmark\(d, \{ t \}, revealBenchmark\);\n\s+if \(toast\) window\.XenonToast\.show\(toast\);/);
 });
 
 test('the Deck popup follows the same event', () => {

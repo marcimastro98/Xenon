@@ -117,6 +117,6 @@ test('the Game performance tile comes cut from the dashboard, sharing system.js 
   assert.match(page, /<div class="perf-widget-mount"><\/div>/);
   assert.equal(page.split('src="js/system.js"').length, 2, 'system.js once');
   assert.ok(page.includes('href="components/PerfWidget/PerfWidget.css"'));
-  assert.ok(page.indexOf('src="js/system.js"') < page.indexOf('src="js/perf-widget.js"'), 'units before the tile');
-  assert.ok(page.indexOf('src="js/perf-widget.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
+  assert.ok(page.indexOf('src="js/system.js"') < page.indexOf('src="js/perf-widget/perf-widget.js"'), 'units before the tile');
+  assert.ok(page.indexOf('src="js/perf-widget/perf-widget.js"') < page.indexOf('src="js/layers/layer-lite-tiles.js"'));
 });

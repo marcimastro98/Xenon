@@ -123,10 +123,10 @@ test('the panel has every control its script reaches for, and loads in order', (
 
 test('every list of providers on the client knows it', () => {
   assert.match(read('js/settings.js'), /AI_PROVIDER_IDS = \[[^\]]*'localapi'/);
-  for (const file of ['js/ai/ai.js', 'js/performance.js']) {
+  for (const file of ['js/ai/ai.js', 'js/performance/performance.js']) {
     assert.match(read(file), /\['ollama', 'localapi', 'openai'/, file);
   }
-  for (const file of ['js/ai/ai.js', 'js/media/media.js', 'js/disk-widget.js', 'js/performance.js']) {
+  for (const file of ['js/ai/ai.js', 'js/media/media.js', 'js/disk-widget.js', 'js/performance/performance.js']) {
     assert.match(read(file), /=== 'ollama' \|\| \w+ === 'localapi'\) return true/, file);
   }
 });

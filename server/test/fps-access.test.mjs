@@ -123,7 +123,7 @@ test('Settings and the Game performance tile say it, in every language', () => {
   const settings = readFileSync(new URL('../js/system/sensor-access.js', import.meta.url), 'utf8');
   assert.match(settings, /function fpsAccessCard\(r\)/);
   assert.match(settings, /outdatedServiceCard\(r\) \|\| fpsAccessCard\(r\)/);
-  const tile = readFileSync(new URL('../js/perf-widget.js', import.meta.url), 'utf8');
+  const tile = readFileSync(new URL('../js/perf-widget/perf-widget.js', import.meta.url), 'utf8');
   assert.match(tile, /perf\.access === 'signin'/);
   assert.match(tile, /perf\.access === 'rights'/);
   const route = readFileSync(new URL('../sensor-service/routes.js', import.meta.url), 'utf8');

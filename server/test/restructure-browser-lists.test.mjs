@@ -198,9 +198,9 @@ test('every script that loads its own list is asked to by a page of the page che
   }
   assert.deepEqual(ASKED_LISTS, ['server/js/ai/screen-bit.js', 'server/js/ai/screen-companion.js', 'server/js/performance/driver-perf.js', 'server/js/layers/layer-host.js']);
   // Each list ends with the scripts its last script is made of today, in the order a page loads them.
-  const perfMode = ['server/js/perf-settings.js', ...partsOf('server/js/performance.js')];
+  const perfMode = ['server/js/performance/perf-settings.js', ...partsOf('server/js/performance/performance.js')];
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/performance/driver-perf.js'), 'utf8'), 'server/js/performance/driver-perf.js')[OWN_ROW].js.slice(-perfMode.length), perfMode);
-  const card = partsOf('server/js/game-companion.js');
+  const card = partsOf('server/js/game-companion/game-companion.js');
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, 'server/js/ai/screen-companion.js'), 'utf8'), 'server/js/ai/screen-companion.js')[OWN_ROW].js.slice(-card.length), card);
   const editor = partsOf('server/js/layer-edit/layer-edit.js');
   assert.deepEqual(readLists(fs.readFileSync(path.join(ROOT, WRITTEN), 'utf8'), WRITTEN).EDIT_SCRIPTS.js.slice(-editor.length), editor);

@@ -303,7 +303,7 @@
     };
   }
 
-  // Performance Mode (js/performance.js). The suggestion's line per activity,
+  // Performance Mode (js/performance/performance.js). The suggestion's line per activity,
   // as the dashboard's banner says it.
   const PERF_PROMPT_KEYS = Object.freeze({
     gaming: 'perf_banner_msg',

@@ -1,4 +1,4 @@
-/* Game performance tile (js/perf-widget.js): the frame rate large, the lows and
+/* Game performance tile (js/perf-widget/perf-widget.js): the frame rate large, the lows and
    frame time beside it, the newest frame times as a line, CPU/GPU at the foot.
    Without a game the numbers dim and one line says why. */
 
@@ -205,7 +205,7 @@ html[data-layer="overlay"] .perfw-stat { flex-direction: row; justify-content: s
 html[data-layer="overlay"] .perfw-stat-label { overflow: visible; }
 html[data-layer="overlay"] .perfw-graph { flex: none; width: 10em; height: 1.6em; min-height: 0; }
 html[data-layer="overlay"] .perfw-graph .perfw-graph-edge { display: inline; stroke: #000; stroke-width: 3.5; }
-/* Numbers only over a game: no sentence, ever (js/perf-widget.js leaves it empty too). */
+/* Numbers only over a game: no sentence, ever (js/perf-widget/perf-widget.js leaves it empty too). */
 html[data-layer="overlay"] .perfw-wrap .perfw-state { display: none; }
 /* A share of the screen makes a different gap on each side of a wide one (77 px and 43 px
    at 4K), so words put against an edge sit a fixed distance from it, whatever the screen.

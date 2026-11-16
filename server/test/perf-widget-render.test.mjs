@@ -1,4 +1,4 @@
-// js/perf-widget.js: the Game performance tile. Pinned here: idle says why in
+// js/perf-widget/perf-widget.js: the Game performance tile. Pinned here: idle says why in
 // the words of THIS platform, live readings land in the right cells, the graph
 // is a real path, game names are text (never markup), and a tile is built once
 // and then only repainted, because it is meant to sit over a running game.
@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import { makeDom, settle } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'js', 'perf-widget.js'), 'utf8');
+const SRC = readFileSync(join(HERE, '..', 'js', 'perf-widget/perf-widget.js'), 'utf8');
 const LABELS = {
   perf_idle: 'Start a game', perf_no_reader: 'Install PresentMon', perf_mac: 'Mac cannot', perf_linux: 'Use MangoHud', layout_widget_perf: 'Game performance',
   perf_last_more: 'Last game, {n} FPS more', perf_last_less: 'Last game, {n} FPS less',

@@ -385,7 +385,7 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
   assert.doesNotMatch(pill, /🎮/);
   assert.match(pill, /id="gc-pill-icon"/);
   // a still Bit with the controller: game mode holds animation while the pill shows
-  const gc = read('../js/game-companion.js');
+  const gc = read('../js/game-companion/game-companion.js');
   assert.match(gc, /BitApp\.icon\('gaming'\)/);
   const { Xenon } = bootPlayer();
   assert.ok(Xenon.bit.clip('gaming').frames.every((f) => f.ex.includes('controller')));
@@ -421,7 +421,7 @@ test('inside the Game Companion card Bit waits, looks at the screen, answers and
   ctx._aiHasKey = () => keyReady;
   let reply = { ok: true, json: async () => ({ text: 'Prendi la torre a nord.' }) };
   ctx.fetch = async (url) => (url === '/network' ? { json: async () => ({}) } : reply);
-  vm.runInContext(read('../js/game-companion.js'), ctx, { filename: 'game-companion.js' });
+  vm.runInContext(read('../js/game-companion/game-companion.js'), ctx, { filename: 'game-companion.js' });
   const head = () => ctx.BitApp.playerFor(els['gc-bit']);
   const pose = (clipId, tint) => ctx.BitApp.still(clipId, 18, tint);
 

@@ -19,7 +19,7 @@
 // `running: false` is an exact answer. Both halves are pinned below, because the
 // wrong oracle passed a test that only checked "absent → end it".
 //
-// js/performance.js is a browser IIFE with no exports, so the decision is
+// js/performance/performance.js is a browser IIFE with no exports, so the decision is
 // re-implemented here from the source: the test owns the TRUTH TABLE, and the
 // grep guards at the bottom fail if the real code drifts away from it.
 import test from 'node:test';
@@ -32,7 +32,7 @@ import { createRequire } from 'node:module';
 
 const { createPriority } = createRequire(import.meta.url)('../perf-session/priority.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(path.join(HERE, '..', 'js', 'performance.js'), 'utf8');
+const SRC = readFileSync(path.join(HERE, '..', 'js', 'performance/performance.js'), 'utf8');
 const STATS_PS = readFileSync(path.join(HERE, '..', 'performance.ps1'), 'utf8');
 
 // The probe, modelled: what an isRunning reply means. Mirrors _boostedAlive().

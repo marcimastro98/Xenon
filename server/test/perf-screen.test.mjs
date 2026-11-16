@@ -1,5 +1,5 @@
 // Performance Mode with no dashboard ("widgets only"): the hidden driver page
-// runs js/performance.js (js/performance/driver-perf.js), the on-screen alerts window shows
+// runs js/performance/performance.js (js/performance/driver-perf.js), the on-screen alerts window shows
 // the suggestion and the result (js/alerts/screen-alerts.js, js/alerts/alert-toasts.js), and
 // the two talk through the server (perf-screen.js, SSE perf_screen).
 import { test } from 'node:test';
@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const PerfSettings = require('../js/perf-settings.js');
+const PerfSettings = require('../js/performance/perf-settings.js');
 const perfScreen = require('../performance/perf-screen.js');
 const DriverPerf = require('../js/performance/driver-perf.js');
 const AlertToasts = require('../js/alerts/alert-toasts.js');
@@ -34,7 +34,7 @@ test('the Performance Mode rules live in perf-settings.js, loaded before setting
     assert.ok(!s.includes(name), name + ' has one home');
   }
   const html = read('../index.html');
-  assert.ok(html.indexOf('src="js/perf-settings.js"') > 0 && html.indexOf('src="js/perf-settings.js"') < html.indexOf('src="js/settings.js"'));
+  assert.ok(html.indexOf('src="js/performance/perf-settings.js"') > 0 && html.indexOf('src="js/performance/perf-settings.js"') < html.indexOf('src="js/settings.js"'));
 });
 
 // ── the server boundary ──────────────────────────────────────────────────────
@@ -120,12 +120,12 @@ test('the suggestion is one question, and its keys answer it', () => {
 });
 
 test('both surfaces ask through the same card', () => {
-  assert.match(read('../js/performance.js'), /XenonBitCard\.ask\(parts, \{ bit: window\.XenonReleaseNotes\.bit \}\)/);
+  assert.match(read('../js/performance/performance.js'), /XenonBitCard\.ask\(parts, \{ bit: window\.XenonReleaseNotes\.bit \}\)/);
   assert.match(read('../js/alerts/screen-alerts.js'), /XenonBitCard\.ask\(parts, \{\s+bit: window\.XenonReleaseNotes\.bit,\s+lasts: \{ ms: PERF_PROMPT_MS, over: closePerfPrompt \},/);
 });
 
 test('both surfaces tell the result with the same toast', () => {
-  assert.match(read('../js/performance.js'), /XenonToast\.show\(window\.AlertToasts\.perfNote\(note, kind, \{ t: tr \}\)\)/);
+  assert.match(read('../js/performance/performance.js'), /XenonToast\.show\(window\.AlertToasts\.perfNote\(note, kind, \{ t: tr \}\)\)/);
   const note = AlertToasts.perfNote({ key: 'perf_auto_on', activity: 'gaming', freed: '1.2 GB' }, 'ok', ctxEn);
   assert.equal(note.title, en.perf_auto_on.replace('{a}', en.settings_perf_act_gaming));
   assert.equal(note.message, en.perf_freed_ram.replace('{x}', '1.2 GB'), 'what was freed is its own line');
@@ -220,7 +220,7 @@ function page(settings) {
 }
 
 // What the driver page loads for Performance Mode: its settings, then the scripts the mode is made of today, in page order.
-const PERF_SCRIPTS = ['js/perf-settings.js', ...partsOf('server/js/performance.js').map((file) => file.slice('server/'.length))];
+const PERF_SCRIPTS = ['js/performance/perf-settings.js', ...partsOf('server/js/performance/performance.js').map((file) => file.slice('server/'.length))];
 const ON = { performance: { enabled: true, autoSuggest: true, autoMode: 'suggest', opts: { pauseAnimations: true, powerPlan: 'high', priorityBoost: true } } };
 
 test('off by default: nothing is loaded, no event does anything', async () => {

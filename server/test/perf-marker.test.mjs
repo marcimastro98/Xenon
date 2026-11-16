@@ -130,7 +130,7 @@ test('a failed start or stop is logged and the button comes back', async () => {
 test('the setting is kept by the shared normalizer, off by default', () => {
   const ctx = {};
   vm.createContext(ctx);
-  vm.runInContext(read('../js/perf-settings.js') + ';globalThis.__n = normalizePerformance;', ctx);
+  vm.runInContext(read('../js/performance/perf-settings.js') + ';globalThis.__n = normalizePerformance;', ctx);
   assert.equal(ctx.__n({}).barAlways, false);
   assert.equal(ctx.__n({ barAlways: true }).barAlways, true);
   assert.equal(ctx.__n({ barAlways: 'yes' }).barAlways, false, 'only a real true turns it on');
@@ -142,7 +142,7 @@ test('the setting is kept by the shared normalizer, off by default', () => {
 test('the marker sits with the clock, so both chromes show it, and can be hidden like the others', () => {
   const html = read('../index.html');
   assert.match(html, /id="clock-codex" hidden><\/span>\n(?:\s*<!--[\s\S]*?-->\n)?\s*<span class="clock-perf" id="clock-perf" hidden><\/span>/);
-  assert.ok(html.indexOf('<script src="js/performance/perf-marker.js">') > html.indexOf('<script src="js/performance.js">'), 'loaded after Performance Mode');
+  assert.ok(html.indexOf('<script src="js/performance/perf-marker.js">') > html.indexOf('<script src="js/performance/performance.js">'), 'loaded after Performance Mode');
   assert.match(html, /components\/PerfMarker\/PerfMarker\.css/);
   // One island id list, three copies: the dashboard's, the server's, the minimal bar's.
   const ids = (src, re) => JSON.parse(re.exec(src)[1].replace(/'/g, '"'));
@@ -157,7 +157,7 @@ test('the marker sits with the clock, so both chromes show it, and can be hidden
 });
 
 test('Performance Mode tells the bar only when something it shows changed', () => {
-  const src = read('../js/performance.js');
+  const src = read('../js/performance/performance.js');
   const fn = src.slice(src.indexOf('  function applyState() {'), src.indexOf('\n  }\n', src.indexOf('  function applyState() {')));
   assert.match(fn, /if \(sig === state\._stateSig\) return;/);
   assert.match(fn, /window\.dispatchEvent\(new CustomEvent\('xenon:perf-change'/);

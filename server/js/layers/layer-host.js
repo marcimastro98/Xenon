@@ -598,7 +598,7 @@
     editing: () => editing, refreshRects: scheduleRects,
     // For a sheet opened after a wait, past the watch of a press (js/layers/layer-key.js).
     showSheet: markSheet,
-    // For a tile whose words change size inside its box (js/perf-widget.js).
+    // For a tile whose words change size inside its box (js/perf-widget/perf-widget.js).
     fitTo: (node) => { if (observer) observer.observe(node); },
   });
 })();

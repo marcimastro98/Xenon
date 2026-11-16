@@ -510,7 +510,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       meeting: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
     }),
   }),
-  // Performance Mode: defaults and normalizer in js/perf-settings.js (the
+  // Performance Mode: defaults and normalizer in js/performance/perf-settings.js (the
   // "widgets only" driver page runs it too, without this file).
   performance: PERF_DEFAULTS,
   lighting: Object.freeze({

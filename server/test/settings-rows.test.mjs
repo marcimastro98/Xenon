@@ -272,7 +272,7 @@ test('the levers only Windows has are off the page and out of the sheet elsewher
     const row = HTML.slice(HTML.lastIndexOf('<label', HTML.indexOf(`id="${id}"`)), HTML.indexOf(`id="${id}"`));
     assert.match(row, /data-settings-win-only/, id);
   }
-  const perf = read('../js/performance.js');
+  const perf = read('../js/performance/performance.js');
   assert.match(perf, /const windowsLevers = \(\) => !window\.XenonPlatform \|\| window\.XenonPlatform === 'win32';/);
   assert.match(perf, /const closesApps = \(p\) => p\.opts\.manageApps && windowsLevers\(\);/);
   assert.match(perf, /eff\.powerPlan && eff\.powerPlan !== 'none' && windowsLevers\(\)/);

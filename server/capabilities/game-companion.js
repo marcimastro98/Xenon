@@ -1,5 +1,5 @@
 'use strict';
-// Game Companion (js/game-companion.js): Bit's card for the game being played,
+// Game Companion (js/game-companion/game-companion.js): Bit's card for the game being played,
 // with the session time, the FPS and a look at the screen when the user asks.
 // On a dashboard it waits behind its pill; with "widgets only" there is no
 // pill over the game, so a Deck key, its keyboard shortcut or the voice opens

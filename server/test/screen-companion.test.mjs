@@ -25,7 +25,7 @@ test('the card brings the dashboard\'s own files, in the dashboard\'s order', ()
   const at = ScreenCompanion.SCRIPTS.map((f) => INDEX.indexOf(`src="${f}`));
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
-  const CARD = partsOf('server/js/game-companion.js').map((file) => file.slice('server/'.length));
+  const CARD = partsOf('server/js/game-companion/game-companion.js').map((file) => file.slice('server/'.length));
   assert.deepEqual(ScreenCompanion.SCRIPTS.slice(-CARD.length), CARD, 'the card itself last, right after the scripts cut out of it');
   assert.ok(!ScreenCompanion.SCRIPTS.includes('js/ai/ai.js'), 'the card never pulls in the chat');
   for (const f of ['shared/src/bit-spark.js', 'js/store-supporters/xenon-credits.js']) {
@@ -94,7 +94,7 @@ function boot({ markup = true, busy = false, shows = true } = {}) {
       if (node.tagName === 'script') {
         added.push(node.src);
         if (node.src === 'js/ai/ai.js') window._aiHandleWake = () => { wakes += 1; };
-        if (node.src === 'js/game-companion.js') {
+        if (node.src === 'js/game-companion/game-companion.js') {
           window.GameCompanion = {
             isOpen: () => !!overlay && !overlay.hidden,
             show(o) { shown.push(o); if (shows) overlay.hidden = false; return shows; },
@@ -198,7 +198,7 @@ test('Bit and the card share the same files: opened after Bit, only the card\'s 
   const before = b.added.length;
   await b.api.open({});
   const extra = b.added.slice(before);
-  assert.deepEqual(extra, [...ScreenCompanion.CSS, 'markup:gc-overlay', ...partsOf('server/js/game-companion.js').map((file) => file.slice('server/'.length))]);
+  assert.deepEqual(extra, [...ScreenCompanion.CSS, 'markup:gc-overlay', ...partsOf('server/js/game-companion/game-companion.js').map((file) => file.slice('server/'.length))]);
 });
 
 test('a minute after the card closes the page reloads, unless something is still up', async () => {

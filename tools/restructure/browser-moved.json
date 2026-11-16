@@ -296,6 +296,10 @@
     {"from":"server/js/calendar.js","to":"server/js/calendar/calendar.js"},
     {"from":"server/js/notes.js","to":"server/js/notes/notes.js"},
     {"from":"server/js/tasks.js","to":"server/js/tasks/tasks.js"},
-    {"from":"server/js/timer.js","to":"server/js/timer/timer.js"}
+    {"from":"server/js/timer.js","to":"server/js/timer/timer.js"},
+    {"from":"server/js/game-companion.js","to":"server/js/game-companion/game-companion.js"},
+    {"from":"server/js/perf-settings.js","to":"server/js/performance/perf-settings.js"},
+    {"from":"server/js/perf-widget.js","to":"server/js/perf-widget/perf-widget.js"},
+    {"from":"server/js/performance.js","to":"server/js/performance/performance.js"}
   ]
 }

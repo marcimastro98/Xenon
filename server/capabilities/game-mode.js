@@ -83,7 +83,7 @@ async function setSensorHistory(d, action) {
   return { ok: true, enabled: now.enabled, everyMin: now.everyMin };
 }
 
-// Performance Mode lives in the page that runs the session (js/performance.js),
+// Performance Mode lives in the page that runs the session (js/performance/performance.js),
 // so a press from a Stream Deck, a widget or a phone is offered to it here.
 async function perfMode(d, action) {
   const mode = action && action.mode;

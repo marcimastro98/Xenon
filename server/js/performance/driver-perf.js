@@ -1,7 +1,7 @@
 'use strict';
 
 // Performance Mode in "widgets only" (js/widget-sdk/shell-driver.js). On the dashboard,
-// js/performance.js watches the activity, suggests optimizing, runs the
+// js/performance/performance.js watches the activity, suggests optimizing, runs the
 // session and ends it when its game is gone. With no dashboard none of that
 // ran: a session started earlier kept the power plan on High for good, and the
 // suggestion never came. The hidden driver page is the only owner while there
@@ -18,7 +18,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.DriverPerf = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
-  const SCRIPTS = Object.freeze(['js/perf-settings.js', 'js/performance/session-state.js', 'js/performance/app-choice.js', 'js/performance/readings.js', 'js/performance/drawn.js', 'js/performance.js']);
+  const SCRIPTS = Object.freeze(['js/performance/perf-settings.js', 'js/performance/session-state.js', 'js/performance/app-choice.js', 'js/performance/readings.js', 'js/performance/drawn.js', 'js/performance/performance.js']);
   const SCREEN_PATH = '/api/performance/screen';
   const STATE_PATH = '/api/performance/state';
   // What the user set, as opposed to what a session writes while it runs: a

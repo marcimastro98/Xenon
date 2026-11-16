@@ -126,7 +126,7 @@ test('server and client store the same shape, the server writes under the settin
 });
 
 test('the tile hides a part with a class, on the dashboard and on a layer page', () => {
-  const widget = read('js/perf-widget.js');
+  const widget = read('js/perf-widget/perf-widget.js');
   assert.match(widget, /classList\.toggle\('hud-no-' \+ k/);
   assert.match(widget, /classList\.toggle\('is-off'/);
   const css = read('components/PerfWidget/PerfWidget.css');
@@ -134,5 +134,5 @@ test('the tile hides a part with a class, on the dashboard and on a layer page',
     assert.ok(css.includes(`.perfw-wrap.hud-no-${k} ${sel}`), k);
   }
   const { js } = require('../js/layers/layer-tiles.js').TILES.perf;
-  assert.ok(js.indexOf('js/performance/perf-hud.js') >= 0 && js.indexOf('js/performance/perf-hud.js') < js.indexOf('js/perf-widget.js'));
+  assert.ok(js.indexOf('js/performance/perf-hud.js') >= 0 && js.indexOf('js/performance/perf-hud.js') < js.indexOf('js/perf-widget/perf-widget.js'));
 });

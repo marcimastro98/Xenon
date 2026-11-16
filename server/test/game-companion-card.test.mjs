@@ -43,7 +43,7 @@ function boot({ alertsWindow = false } = {}) {
   ctx.window = ctx;
   if (alertsWindow) ctx.ScreenCompanion = {};
   vm.createContext(ctx);
-  vm.runInContext(read('../js/game-companion.js'), ctx);
+  vm.runInContext(read('../js/game-companion/game-companion.js'), ctx);
   return { card: ctx.GameCompanion, els, page, element };
 }
 
