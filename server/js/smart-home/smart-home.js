@@ -52,9 +52,31 @@
   } = window.SmartHomeUnits;
 
 
-  // Latest Home Assistant state (global — one home, shared by every tile instance).
-  let state = { configured: false, connected: false, entities: [], areaOrder: [], tileView: 'auto' };
-  let seeded = false;
+  const homeState = {
+    // Latest Home Assistant state (global — one home, shared by every tile instance).
+    state: { configured: false, connected: false, entities: [], areaOrder: [], tileView: 'auto' },
+    seeded: false,
+    // When the widget has room, each device's FULL controls are shown INLINE; when it
+    // doesn't (small tile / many devices), it falls back to compact cards that open
+    // the modal. The fit is measured per tile and re-checked on resize; a generation
+    // counter forces a fresh attempt when the chosen entities change.
+    renderGen: 0,
+    lastEntitySig: '',
+    tileRO: null,
+    // Tapping a controllable device opens a bottom sheet with exactly the controls
+    // THAT device supports, derived from Home Assistant's supported_features +
+    // attributes (a TV's sources & volume, a thermostat's modes, a blind's position,
+    // a light's colour…). Values live-update from the SSE stream while it's open —
+    // skipped mid-drag so a slider held under the finger never jumps.
+    sheetEl: null,           // the overlay element (built once, reused)
+    sheetBodyEl: null,
+    sheetKind: 'entity',     // 'entity' (one entity) | 'device' (a whole device)
+    sheetId: null,           // entity id OR device id currently shown, null = closed
+    sheetSig: '',            // last-rendered signature (skip idempotent rebuilds)
+    sheetDragging: false,    // a slider is being dragged → don't rebuild under it
+    allEntities: null,          // cached full entity list for the picker
+    entitiesInflight: null,
+  };
 
   // ── Shared helpers ──────────────────────────────────────────────────────────
   function iconFor(e) { return ICONS[ICON_FOR[e.domain] || 'sensor'] || ICONS.sensor; }
@@ -62,31 +84,12 @@
 
 
 
-  // The signature detail: an ON light emits its OWN colour. If Home Assistant
-  // reports the bulb's rgb, the card glows in that hue; otherwise a warm bulb
-  // amber. Switches/plugs glow in the dashboard accent. Brightness scales the
-  // intensity, so a dimmed lamp glows softly and a bright one blooms.
-  function glowRgb(e) {
-    if (e.domain === 'light' && Array.isArray(e.rgb) && e.rgb.length === 3) return e.rgb.join(', ');
-    if (e.domain === 'light') return '255, 197, 122';
-    return 'var(--accent-rgb)';
-  }
-  function glowAlpha(e) {
-    if (e.domain === 'light' && Number.isFinite(e.brightness)) return (0.14 + (e.brightness / 255) * 0.24).toFixed(3);
-    return '0.2';
-  }
+  const { glowRgb, glowAlpha, tintRgb } = window.SmartHomeGlow;
   function applyGlow(node, e) {
     node.style.setProperty('--sh-glow', glowRgb(e));
     node.style.setProperty('--sh-glow-a', glowAlpha(e));
   }
 
-  // Instrument colour-coding for value tiles — by what the sensor measures.
-  const TINT = {
-    temperature: '250, 150, 90', humidity: '90, 170, 250', power: '250, 200, 90', energy: '250, 200, 90',
-    battery: '74, 222, 128', pm25: '74, 222, 128', aqi: '74, 222, 128', illuminance: '250, 210, 120',
-    pressure: '160, 150, 240', carbon_dioxide: '120, 200, 160', voc: '120, 200, 160',
-  };
-  function tintRgb(e) { return TINT[e.deviceClass] || (e.domain === 'climate' ? '250, 150, 90' : 'var(--accent-rgb)'); }
 
   async function callService(domain, service, entityId, data) {
     const out = await api('/api/homeassistant/service', {
@@ -268,26 +271,19 @@
       groups.get(a).push(e);
     });
     const sorted = new Map();
-    window.SmartHomeOrder.sortAreas(Array.from(groups.keys()), areaOrder || state.areaOrder).forEach((a) => sorted.set(a, groups.get(a)));
+    window.SmartHomeOrder.sortAreas(Array.from(groups.keys()), areaOrder || homeState.state.areaOrder).forEach((a) => sorted.set(a, groups.get(a)));
     return sorted;
   }
 
   // ── Adaptive layout ──────────────────────────────────────────────────────────
-  // When the widget has room, each device's FULL controls are shown INLINE; when it
-  // doesn't (small tile / many devices), it falls back to compact cards that open
-  // the modal. The fit is measured per tile and re-checked on resize; a generation
-  // counter forces a fresh attempt when the chosen entities change.
-  let renderGen = 0;
-  let lastEntitySig = '';
-  let tileRO = null;
 
   function ensureTileRO() {
-    if (tileRO || typeof ResizeObserver === 'undefined') return tileRO;
-    tileRO = new ResizeObserver((entries) => {
+    if (homeState.tileRO || typeof ResizeObserver === 'undefined') return homeState.tileRO;
+    homeState.tileRO = new ResizeObserver((entries) => {
       let changed = false;
       entries.forEach((en) => {
         const mount = en.target;
-        if (!document.contains(mount)) { tileRO.unobserve(mount); return; }   // tile gone → prune
+        if (!document.contains(mount)) { homeState.tileRO.unobserve(mount); return; }   // tile gone → prune
         const section = mount.closest('[data-dashboard-widget="smarthome"]');
         if (!section) return;
         const w = Math.round(en.contentRect.width), h = Math.round(en.contentRect.height);
@@ -298,7 +294,7 @@
       });
       if (changed) paint();
     });
-    return tileRO;
+    return homeState.tileRO;
   }
 
   // True while the user is dragging a slider or typing in a Smart Home field —
@@ -330,7 +326,7 @@
   // entities). Simple toggles / value cards don't count — they stay compact.
   function countSheetUnits() {
     let n = 0;
-    groupByArea(state.entities).forEach((items) => {
+    groupByArea(homeState.state.entities).forEach((items) => {
       groupUnits(items).forEach((u) => { if (u.type === 'device' || SHEET_DOMAINS.has(u.entity.domain)) n++; });
     });
     return n;
@@ -338,7 +334,7 @@
 
   function buildBoard(expanded) {
     const board = el('div', 'sh-board' + (expanded ? ' sh-board--expanded' : ''));
-    groupByArea(state.entities).forEach((items, area) => {
+    groupByArea(homeState.state.entities).forEach((items, area) => {
       const group = el('section', 'sh-area');
       const ahead = el('div', 'sh-area-head');
       ahead.appendChild(el('span', 'sh-area-title', area === '~' ? t('smarthome_no_area', 'Other') : area));
@@ -359,37 +355,37 @@
     const brand = el('div', 'sh-brand');
     const logo = el('span', 'sh-logo'); logo.innerHTML = ICONS.home;   // static, trusted SVG
     brand.append(logo, el('span', 'sh-title', t('smarthome_title', 'Smart Home')));
-    const pill = el('span', 'sh-pill' + (state.connected ? ' on' : ''));
+    const pill = el('span', 'sh-pill' + (homeState.state.connected ? ' on' : ''));
     head.append(brand, pill);
     wrap.appendChild(head);
-    if (!state.configured) wrap.appendChild(emptyCard('smarthome_setup'));
-    else if (!state.connected) wrap.appendChild(emptyCard('smarthome_offline'));
-    else if (!state.entities.length) wrap.appendChild(emptyCard('smarthome_pick'));
+    if (!homeState.state.configured) wrap.appendChild(emptyCard('smarthome_setup'));
+    else if (!homeState.state.connected) wrap.appendChild(emptyCard('smarthome_offline'));
+    else if (!homeState.state.entities.length) wrap.appendChild(emptyCard('smarthome_pick'));
     else wrap.appendChild(buildBoard(expanded));
     return wrap;
   }
 
   function paint() {
-    if (sheetDragging || isEditingSmartHome()) return;   // don't rebuild under a drag / typed field
+    if (homeState.sheetDragging || isEditingSmartHome()) return;   // don't rebuild under a drag / typed field
     syncSheet();                 // keep an open control panel in step with live state
     const list = tiles();
     if (!list.length) return;
-    const sig = state.entities.map((e) => e.id).join(',') + '|' + state.tileView;
-    if (sig !== lastEntitySig) { lastEntitySig = sig; renderGen++; }   // devices changed → re-try inline
+    const sig = homeState.state.entities.map((e) => e.id).join(',') + '|' + homeState.state.tileView;
+    if (sig !== homeState.lastEntitySig) { homeState.lastEntitySig = sig; homeState.renderGen++; }   // devices changed → re-try inline
     const ro = ensureTileRO();
     list.forEach((section) => {
       const mount = section.querySelector('.smarthome-widget-mount');
       if (!mount) return;
       if (ro) ro.observe(mount);
-      const hasBoard = state.configured && state.connected && state.entities.length > 0;
+      const hasBoard = homeState.state.configured && homeState.state.connected && homeState.state.entities.length > 0;
       // Settings → Smart Home → Show: 'open' and 'compact' are the user's call;
       // only 'auto' measures the tile.
-      const view = state.tileView;
+      const view = homeState.state.tileView;
       const mode = view === 'open' ? 'expanded' : view === 'compact' ? 'compact'
-        : (section._shGen === renderGen && section._shMode) ? section._shMode : 'auto';
+        : (section._shGen === homeState.renderGen && section._shMode) ? section._shMode : 'auto';
       const expanded = hasBoard && mode !== 'compact';
       mount.replaceChildren(buildWrap(expanded));
-      if (!expanded || view === 'open') { section._shGen = renderGen; section._shMode = !hasBoard ? 'auto' : expanded ? 'expanded' : 'compact'; return; }
+      if (!expanded || view === 'open') { section._shGen = homeState.renderGen; section._shMode = !hasBoard ? 'auto' : expanded ? 'expanded' : 'compact'; return; }
       // Decide after layout. Keep the controls INLINE when there's a single device
       // (worth showing even if it has to scroll — far better than a lone card in a
       // big empty tile) or when everything fits. Fall back to compact cards only
@@ -406,11 +402,11 @@
         }
         if (compact) {
           section._shMode = 'compact';
-          if (!sheetDragging && !isEditingSmartHome()) mount.replaceChildren(buildWrap(false));
+          if (!homeState.sheetDragging && !isEditingSmartHome()) mount.replaceChildren(buildWrap(false));
         } else {
           section._shMode = 'expanded';
         }
-        section._shGen = renderGen;
+        section._shGen = homeState.renderGen;
       });
     });
   }
@@ -418,33 +414,22 @@
   // One-shot seed so a freshly-added tile paints current state without waiting for
   // the next HA change (the SSE stream only pushes on change / watch (re)start).
   async function seed() {
-    if (seeded) return; seeded = true;
+    if (homeState.seeded) return; homeState.seeded = true;
     const d = await api('/api/homeassistant/state');
-    if (d && typeof d === 'object') state = stateFrom(d);
+    if (d && typeof d === 'object') homeState.state = stateFrom(d);
     paint();
   }
 
   function onSSE(data) {
     if (!data || typeof data !== 'object') return;
-    state = stateFrom(data);
-    seeded = true;
+    homeState.state = stateFrom(data);
+    homeState.seeded = true;
     paint();
   }
 
   // ── Device detail sheet (per-device control panel) ───────────────────────────
-  // Tapping a controllable device opens a bottom sheet with exactly the controls
-  // THAT device supports, derived from Home Assistant's supported_features +
-  // attributes (a TV's sources & volume, a thermostat's modes, a blind's position,
-  // a light's colour…). Values live-update from the SSE stream while it's open —
-  // skipped mid-drag so a slider held under the finger never jumps.
-  let sheetEl = null;           // the overlay element (built once, reused)
-  let sheetBodyEl = null;
-  let sheetKind = 'entity';     // 'entity' (one entity) | 'device' (a whole device)
-  let sheetId = null;           // entity id OR device id currently shown, null = closed
-  let sheetSig = '';            // last-rendered signature (skip idempotent rebuilds)
-  let sheetDragging = false;    // a slider is being dragged → don't rebuild under it
 
-  function entityById(id) { return state.entities.find((x) => x.id === id) || null; }
+  function entityById(id) { return homeState.state.entities.find((x) => x.id === id) || null; }
 
   // ---- control primitives ---------------------------------------------------
   function iconBtn(cls, svgPath, onClick, label) {
@@ -499,12 +484,12 @@
     const input = el('input', 'sh-range'); input.type = 'range';
     input.min = String(min); input.max = String(max); input.step = String(step); input.value = String(value);
     setRangeFill(input, value, min, max);
-    input.addEventListener('pointerdown', () => { sheetDragging = true; });
-    const end = () => { sheetDragging = false; };
+    input.addEventListener('pointerdown', () => { homeState.sheetDragging = true; });
+    const end = () => { homeState.sheetDragging = false; };
     input.addEventListener('pointerup', end);
     input.addEventListener('pointercancel', end);
     input.addEventListener('input', () => { out.textContent = fmtNum(input.value) + (unit || ''); setRangeFill(input, Number(input.value), min, max); });
-    input.addEventListener('change', () => { sheetDragging = false; onCommit(Number(input.value)); });
+    input.addEventListener('change', () => { homeState.sheetDragging = false; onCommit(Number(input.value)); });
     g.appendChild(input);
     return g;
   }
@@ -584,12 +569,12 @@
     g.appendChild(head);
     const input = el('input', 'sh-range'); input.type = 'range'; input.min = '0'; input.max = String(dur); input.step = '1'; input.value = String(pos);
     setRangeFill(input, pos, 0, dur);
-    input.addEventListener('pointerdown', () => { sheetDragging = true; });
-    const end = () => { sheetDragging = false; };
+    input.addEventListener('pointerdown', () => { homeState.sheetDragging = true; });
+    const end = () => { homeState.sheetDragging = false; };
     input.addEventListener('pointerup', end);
     input.addEventListener('pointercancel', end);
     input.addEventListener('input', () => { out.textContent = fmtTime(Number(input.value)) + ' / ' + fmtTime(dur); setRangeFill(input, Number(input.value), 0, dur); });
-    input.addEventListener('change', () => { sheetDragging = false; callService('media_player', 'media_seek', e.id, { seek_position: Number(input.value) }); });
+    input.addEventListener('change', () => { homeState.sheetDragging = false; callService('media_player', 'media_seek', e.id, { seek_position: Number(input.value) }); });
     g.appendChild(input);
     return g;
   }
@@ -907,7 +892,7 @@
 
   // ---- sheet shell + lifecycle ----------------------------------------------
   function ensureSheet() {
-    if (sheetEl) return sheetEl;
+    if (homeState.sheetEl) return homeState.sheetEl;
     const ov = el('div', 'sh-sheet-overlay'); ov.hidden = true;
     const sheet = el('div', 'sh-sheet');
     const head = el('div', 'sh-sheet-head');
@@ -925,62 +910,62 @@
     ov.appendChild(sheet);
     ov.addEventListener('click', (ev) => { if (ev.target === ov) closeSheet(); });
     document.body.appendChild(ov);
-    sheetEl = ov; sheetBodyEl = scroll;
-    sheetEl._ico = ico; sheetEl._title = title; sheetEl._sub = sub;
+    homeState.sheetEl = ov; homeState.sheetBodyEl = scroll;
+    homeState.sheetEl._ico = ico; homeState.sheetEl._title = title; homeState.sheetEl._sub = sub;
     return ov;
   }
 
-  function deviceEntitiesById(devId) { return state.entities.filter((x) => x.device === devId); }
+  function deviceEntitiesById(devId) { return homeState.state.entities.filter((x) => x.device === devId); }
 
   // Render the open sheet from live state — a single entity, or all the entities of
   // one physical device. Skips a rebuild when nothing changed (idempotent sig).
   function renderSheet() {
-    if (sheetKind === 'device') {
-      const ents = deviceEntitiesById(sheetId);
+    if (homeState.sheetKind === 'device') {
+      const ents = deviceEntitiesById(homeState.sheetId);
       if (!ents.length) { closeSheet(); return; }
-      const sig = 'dev|' + sheetId + '|' + JSON.stringify(ents);
-      if (sig === sheetSig) return;
-      sheetSig = sig;
+      const sig = 'dev|' + homeState.sheetId + '|' + JSON.stringify(ents);
+      if (sig === homeState.sheetSig) return;
+      homeState.sheetSig = sig;
       const pe = primaryEntity(ents);
       const name = ents[0].deviceName || pe.name;
-      sheetEl._ico.innerHTML = iconFor(pe);   // static, trusted SVG
-      sheetEl._ico.classList.toggle('is-on', ents.some((x) => isOn(x)));
-      sheetEl._title.textContent = name;
-      sheetEl._sub.textContent = (pe.area && pe.area !== '~') ? pe.area : t('smarthome_title');
-      sheetBodyEl.replaceChildren(buildDeviceBody(ents, name));
+      homeState.sheetEl._ico.innerHTML = iconFor(pe);   // static, trusted SVG
+      homeState.sheetEl._ico.classList.toggle('is-on', ents.some((x) => isOn(x)));
+      homeState.sheetEl._title.textContent = name;
+      homeState.sheetEl._sub.textContent = (pe.area && pe.area !== '~') ? pe.area : t('smarthome_title');
+      homeState.sheetBodyEl.replaceChildren(buildDeviceBody(ents, name));
       return;
     }
-    const e = entityById(sheetId);
+    const e = entityById(homeState.sheetId);
     if (!e) { closeSheet(); return; }
     const sig = 'ent|' + e.id + '|' + JSON.stringify(e);
-    if (sig === sheetSig) return;             // unchanged → don't rebuild under the user
-    sheetSig = sig;
-    sheetEl._ico.innerHTML = iconFor(e);      // static, trusted SVG
-    sheetEl._ico.classList.toggle('is-on', isOn(e));
-    sheetEl._title.textContent = e.name;
-    sheetEl._sub.textContent = (e.area && e.area !== '~') ? e.area : t('smarthome_title');
-    sheetBodyEl.replaceChildren(buildSheetBody(e));
+    if (sig === homeState.sheetSig) return;             // unchanged → don't rebuild under the user
+    homeState.sheetSig = sig;
+    homeState.sheetEl._ico.innerHTML = iconFor(e);      // static, trusted SVG
+    homeState.sheetEl._ico.classList.toggle('is-on', isOn(e));
+    homeState.sheetEl._title.textContent = e.name;
+    homeState.sheetEl._sub.textContent = (e.area && e.area !== '~') ? e.area : t('smarthome_title');
+    homeState.sheetBodyEl.replaceChildren(buildSheetBody(e));
   }
 
   function openTarget(kind, id) {
-    sheetKind = kind; sheetId = id; sheetSig = '';
+    homeState.sheetKind = kind; homeState.sheetId = id; homeState.sheetSig = '';
     ensureSheet();
     renderSheet();
-    if (sheetId === null) return;             // renderSheet closed it (nothing to show)
-    sheetEl.hidden = false;
-    requestAnimationFrame(() => { if (sheetEl) sheetEl.classList.add('is-open'); });
+    if (homeState.sheetId === null) return;             // renderSheet closed it (nothing to show)
+    homeState.sheetEl.hidden = false;
+    requestAnimationFrame(() => { if (homeState.sheetEl) homeState.sheetEl.classList.add('is-open'); });
     document.addEventListener('keydown', onSheetKey);
   }
   function openSheet(id) { if (entityById(id)) openTarget('entity', id); }
   function openDevice(devId) { if (deviceEntitiesById(devId).length) openTarget('device', devId); }
 
   function closeSheet() {
-    if (!sheetEl) return;
-    sheetId = null; sheetDragging = false;
-    sheetEl.classList.remove('is-open');
+    if (!homeState.sheetEl) return;
+    homeState.sheetId = null; homeState.sheetDragging = false;
+    homeState.sheetEl.classList.remove('is-open');
     document.removeEventListener('keydown', onSheetKey);
-    const ov = sheetEl;
-    setTimeout(() => { if (sheetId === null) ov.hidden = true; }, 220);
+    const ov = homeState.sheetEl;
+    setTimeout(() => { if (homeState.sheetId === null) ov.hidden = true; }, 220);
   }
 
   function onSheetKey(ev) { if (ev.key === 'Escape') closeSheet(); }
@@ -988,13 +973,11 @@
   // Reflect live state into an open sheet (called on every paint). Rebuild is
   // skipped mid-drag (so a held slider never jumps) and when nothing changed.
   function syncSheet() {
-    if (sheetId === null || !sheetEl || sheetEl.hidden || sheetDragging) return;
+    if (homeState.sheetId === null || !homeState.sheetEl || homeState.sheetEl.hidden || homeState.sheetDragging) return;
     renderSheet();
   }
 
   // ── Settings page (Settings → Smart Home) ────────────────────────────────────
-  let allEntities = null;          // cached full entity list for the picker
-  let entitiesInflight = null;
 
   function settingsMount() { return document.getElementById('settings-smarthome-hub'); }
   function energyMount() { return document.getElementById('settings-energy-hub'); }
@@ -1098,7 +1081,7 @@
         status.textContent = t('settings_ha_ok', 'Connected') + ' · ' + (r.count || 0) + ' ' + t('settings_ha_devices', 'devices');
         // Use the entity list returned by /test directly — the settings save is
         // debounced, so a fresh GET /entities could still read the pre-save config.
-        allEntities = (Array.isArray(r.entities) && r.entities.length) ? r.entities : null;
+        homeState.allEntities = (Array.isArray(r.entities) && r.entities.length) ? r.entities : null;
         view.hidden = false;
         renderPicker(picker);
         showDashboard(url.value.trim());
@@ -1124,7 +1107,7 @@
   // A saved order change shows on this screen's tile at once; other screens get
   // it with the next snapshot, which the save triggers.
   function applyLocally(patch) {
-    state = Object.assign({}, state, patch);
+    homeState.state = Object.assign({}, homeState.state, patch);
     if (tiles().length) paint();
   }
 
@@ -1237,18 +1220,18 @@
     // Only a non-empty list is cached; an empty/failed fetch (transient HA outage,
     // pre-save config) is NOT cached, so re-opening Settings retries instead of
     // staying stuck on an empty picker.
-    if (allEntities && allEntities.length) return Promise.resolve(allEntities);
-    if (!entitiesInflight) {
-      entitiesInflight = api('/api/homeassistant/entities')
+    if (homeState.allEntities && homeState.allEntities.length) return Promise.resolve(homeState.allEntities);
+    if (!homeState.entitiesInflight) {
+      homeState.entitiesInflight = api('/api/homeassistant/entities')
         .then((d) => {
           const list = (d && d.ok && Array.isArray(d.entities)) ? d.entities : [];
-          allEntities = list.length ? list : null;
-          entitiesInflight = null;
+          homeState.allEntities = list.length ? list : null;
+          homeState.entitiesInflight = null;
           return list;
         })
-        .catch(() => { entitiesInflight = null; return []; });
+        .catch(() => { homeState.entitiesInflight = null; return []; });
     }
-    return entitiesInflight;
+    return homeState.entitiesInflight;
   }
 
   // opts (all optional — default is the Smart Home tile's device picker):
@@ -1280,7 +1263,7 @@
       save({ [key]: next });
       const pos = new Map(next.map((id, i) => [id, i]));
       const at = (e) => (pos.has(e.id) ? pos.get(e.id) : next.length);
-      applyLocally({ entities: state.entities.slice().sort((a, b) => at(a) - at(b)) });
+      applyLocally({ entities: homeState.state.entities.slice().sort((a, b) => at(a) - at(b)) });
     }) : null;
 
     // The order of what is already chosen comes first, above the long list.
@@ -1367,7 +1350,7 @@
   // Re-render the tile(s) in the current language — called by i18n's
   // applyTranslations on a live language switch (the tile is built dynamically,
   // so it isn't covered by the [data-i18n] sweep). Mirrors DiscordWidget.
-  function renderWidgets() { sheetSig = ''; if (tiles().length) paint(); else syncSheet(); }
+  function renderWidgets() { homeState.sheetSig = ''; if (tiles().length) paint(); else syncSheet(); }
 
   window.SmartHome = { onSSE, initSettings, renderWidgets };
 
