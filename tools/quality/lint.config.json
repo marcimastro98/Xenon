@@ -8,7 +8,7 @@
     "includes": [
       "**/*.js", "**/*.mjs", "**/*.cjs",
       "!**/node_modules", "!**/vendor", "!**/*.min.js",
-      "!**/test", "!**/sdk-example", "!**/data", "!**/target", "!**/gen", "!**/engine",
+      "!**/test", "!**/sdk-example", "!**/data", "!**/target", "!**/gen", "!**/src-tauri/engine",
       "!**/server/js/i18n"
     ]
   },

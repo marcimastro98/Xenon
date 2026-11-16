@@ -116,7 +116,7 @@ async function flush() {
   _dirty = false;
   await load();
   try { await writeFileAtomic(statePath(), serialize()); }
-  catch (e) { _dirty = true; console.warn('[usage-stats] could not save the counts:', e && e.code); }
+  catch (e) { _dirty = true; console.warn('[usage-stats] could not save the counts:', e?.code); }
 }
 
 /** Wires the module to this install. `enabled` is read on every count. */
@@ -200,7 +200,7 @@ async function maybeSend({ enabled, supporter, day = utcDay() }) {
       // Switched off while sending: what is left stays unsent.
       if (_enabled() !== true) break;
       const out = await _transport(HUB_BASE + '/usage', b);
-      if (!out || out.ok !== true) break;
+      if (out?.ok !== true) break;
       // Only what the hub took leaves; what was counted meanwhile stays.
       for (const ev of b.events) subtract(ev.f, ev.n, ev.err || 0);
       sent += b.events.length;

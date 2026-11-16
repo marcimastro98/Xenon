@@ -263,6 +263,21 @@ test('seconds: 10, 30 or 60, anything else is 30; app names fit a file name', ()
   assert.equal(BR.appName(''), 'Desktop');
 });
 
+test('app names: every character below a space goes, like the nine a file name cannot hold, and nothing else', () => {
+  assert.equal(BR.appName('a\u0000b\u001fc d.EXE'), 'abc d');
+  assert.equal(BR.appName('\t\n'), 'Desktop');
+  assert.equal(BR.appName(' x\\y/z:*?"<>| '), 'xyz');
+  assert.equal(BR.appName('\u{1f600}\u0001game.exe'), '\u{1f600}game');
+  assert.equal(BR.appName('a'.repeat(60)).length, 40);
+  // The rule as one expression, as the code spelled it before: the same answer for every code unit there is.
+  const rule = /[\\/:*?"<>|\x00-\x1f]/g;
+  const asBefore = (proc) => String(proc || '').replace(/\.exe$/i, '').replace(rule, '').trim().slice(0, 40) || 'Desktop';
+  for (let code = 0; code < 0x10000; code += 1) {
+    const name = `a${String.fromCharCode(code)}b`;
+    assert.equal(BR.appName(name), asBefore(name), `U+${code.toString(16)}`);
+  }
+});
+
 test('the date in README and system.txt is one plain format, whatever the language', () => {
   assert.match(BR.whenOf(Date.UTC(2026, 9, 27, 12, 0, 5)), /^2026-10-27 \d\d:00:05 \(UTC[+-]\d\d:\d\d\)$/);
 });

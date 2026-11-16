@@ -39,8 +39,10 @@ function whenOf(ms) {
 }
 
 // "chrome.exe" → "chrome"; anything a file name cannot hold is dropped.
+const LAST_CONTROL_CODE = 0x1f; // U+0000 to U+001F: no file name holds them
 function appName(proc) {
-  const s = String(proc || '').replace(/\.exe$/i, '').replace(/[\\/:*?"<>|\x00-\x1f]/g, '').trim().slice(0, 40);
+  const named = String(proc || '').replace(/\.exe$/i, '').replace(/[\\/:*?"<>|]/g, '');
+  const s = named.split('').filter((ch) => ch.charCodeAt(0) > LAST_CONTROL_CODE).join('').trim().slice(0, 40);
   return s || 'Desktop';
 }
 
@@ -192,15 +194,15 @@ function createBugReport({
       let logsMissing = false;
       let logs = [];
       const lf = await logFolder().catch(() => ({ dir: '' }));
-      if (lf && lf.missing) logsMissing = true;
-      else if (lf && lf.dir) {
+      if (lf?.missing) logsMissing = true;
+      else if (lf?.dir) {
         logsWanted = true;
         const found = await logsOf(lf.dir);
         if (found) logs = found;
         else logsMissing = true;
       }
-      const videoSeconds = video && video.ok ? Math.round(Number(video.seconds) || seconds) : 0;
-      const videoWhy = videoSeconds ? '' : String((video && video.error) || '');
+      const videoSeconds = video?.ok ? Math.round(Number(video.seconds) || seconds) : 0;
+      const videoWhy = videoSeconds ? '' : String(video?.error || '');
       const stamp = when(at);
       const entries = [
         { name: 'README.txt', data: readmeText({ app, when: stamp, seconds, video: videoSeconds, noVideo: videoWhy, shot, logs, logsWanted, logsMissing }) },

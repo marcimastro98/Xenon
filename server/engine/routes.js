@@ -81,8 +81,8 @@ const branches = {
         .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
       html = html.replace('<meta charset="UTF-8">',
         '<meta charset="UTF-8">\n<script>window.__xenonRemote = { device: ' +
-        inlineJson(remote.device && remote.device.name) + ', assetKey: ' +
-        inlineJson(remote.device && remote.device.assetKey) + ' };</script>');
+        inlineJson(remote.device?.name) + ', assetKey: ' +
+        inlineJson(remote.device?.assetKey) + ' };</script>');
     }
     // Never let the WebView serve a stale entry document: index.html carries the
     // early boot-scale recovery script, so a cached copy would pin an old fix.
