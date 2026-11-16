@@ -282,8 +282,12 @@ test('every list that mirrors the SDK allowlist agrees with it', () => {
   }
   // The client mirror has to grant exactly what the server grants, or a widget
   // is offered a permission the host will refuse.
+  // Read from the action map itself: the permission dialog's words (a script that
+  // loads first) also hold a `voicemeeter: [...]` line, the stream's label.
   const cw = files['js/custom-widget/custom-widget.js'];
-  const mirror = /voicemeeter: \[([^\]]*)\]/.exec(cw);
+  const categories = cw.indexOf('const ACTION_CATEGORIES = {');
+  assert.ok(categories >= 0, 'js/custom-widget/custom-widget.js has no ACTION_CATEGORIES map');
+  const mirror = /voicemeeter: \[([^\]]*)\]/.exec(cw.slice(categories));
   assert.ok(mirror, 'js/custom-widget/custom-widget.js has no voicemeeter action list');
   const listed = mirror[1].split(',').map((x) => x.trim().replace(/'/g, '')).filter(Boolean);
   assert.deepEqual(listed.sort(), [...SDK_ACTION_CATEGORIES.voicemeeter].sort());
