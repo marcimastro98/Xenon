@@ -19,7 +19,7 @@
 // broken library.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const WIDGET = readFileSync(new URL('../js/streaming/youtube-widget.js', import.meta.url), 'utf8');

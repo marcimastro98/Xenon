@@ -96,7 +96,7 @@
     "server/js/store-supporters/xenon-credits.js": 481,
     "server/js/streaming-page/streaming-page.js": 666,
     "server/js/streaming/twitchwatch-widget.js": 973,
-    "server/js/streaming/youtube-widget.js": 858,
+    "server/js/streaming/youtube-widget.js": 789,
     "server/js/streaming/youtubelive-widget.js": 588,
     "server/js/ticker/news-widget.js": 337,
     "server/js/ticker/stock-widget.js": 703,
