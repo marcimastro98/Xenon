@@ -1,0 +1,80 @@
+{
+  "name": "spotlight",
+  "page": "/spotlight",
+  "width": 900,
+  "height": 700,
+  "seed": {
+    "language": "en",
+    "surfaceChoice": {
+      "kind": "auto",
+      "asked": true,
+      "monitor": "",
+      "label": ""
+    },
+    "usageMode": "dashboard",
+    "onboarding": {
+      "seenVersion": 999
+    },
+    "bootSplash": false,
+    "whatsNewSeen": "5.0.0",
+    "releaseNotesSeen": "99.0.0"
+  },
+  "answers": {
+    "/search": {
+      "json": {
+        "ok": true,
+        "index": "ready",
+        "wds": "ok",
+        "chips": [
+          { "type": "kind", "kind": "image" },
+          { "type": "ext", "exts": ["png", "jpg"] },
+          { "type": "size", "dir": "min", "bytes": 1048576 },
+          { "type": "date", "range": "today" }
+        ],
+        "apps": [
+          { "id": "app-1", "name": "Sample Calculator" },
+          { "id": "app-2", "name": "Sample Photos" }
+        ],
+        "results": [
+          { "id": "r-1", "name": "Holiday photos", "kind": "folder", "dir": "D:\\Sample\\Pictures", "path": "D:\\Sample\\Pictures\\Holiday photos", "files": 42 },
+          { "id": "r-2", "name": "photo-beach.png", "ext": "png", "kind": "file", "dir": "D:\\Sample\\Pictures", "path": "D:\\Sample\\Pictures\\photo-beach.png", "size": 2345678, "mtime": 1767225600000 },
+          { "id": "r-3", "name": "photo-list.txt", "ext": "txt", "kind": "file", "dir": "D:\\Sample\\Docs", "path": "D:\\Sample\\Docs\\photo-list.txt", "size": 1200, "mtime": 1767225600000, "content": true },
+          { "id": "r-4", "name": "photo-tool.exe", "ext": "exe", "kind": "file", "dir": "D:\\Sample\\Tools", "path": "D:\\Sample\\Tools\\photo-tool.exe", "size": 5400000, "mtime": 1767225600000 },
+          { "id": "r-5", "name": "photo-archive.zip", "ext": "zip", "kind": "file", "dir": "D:\\Sample\\Docs", "path": "D:\\Sample\\Docs\\photo-archive.zip", "size": 98000000, "mtime": 1767225600000 }
+        ]
+      }
+    },
+    "/search/recent": {
+      "json": {
+        "ok": true,
+        "files": [
+          { "id": "r-6", "name": "notes.md", "ext": "md", "kind": "file", "dir": "D:\\Sample\\Docs", "path": "D:\\Sample\\Docs\\notes.md", "size": 3000, "mtime": 1767225600000 }
+        ],
+        "folders": [
+          { "id": "r-7", "name": "Docs", "kind": "folder", "dir": "D:\\Sample", "path": "D:\\Sample\\Docs", "files": 12 }
+        ]
+      }
+    },
+    "/search/icon": { "json": { "ok": false } },
+    "/search/thumb": { "json": { "ok": false } },
+    "/search/open": { "json": { "ok": false, "error": "not_found" } },
+    "/search/reveal": { "json": { "ok": false, "error": "not_found" } }
+  },
+  "roots": [".spotlight"],
+  "background": [],
+  "steps": [
+    { "say": "the window settles", "do": "wait", "ms": 1500 },
+    { "say": "a query shows apps, folders, files and content matches", "do": "fill", "on": ".spot-input", "text": "photo" },
+    { "say": "the results arrive", "do": "wait", "ms": 1200 },
+    { "say": "the arrow moves the selection down", "do": "press", "key": "ArrowDown" },
+    { "say": "and down again, onto a picture with a preview", "do": "press", "key": "ArrowDown" },
+    { "say": "and back up", "do": "press", "key": "ArrowUp" },
+    { "say": "the filter menu opens", "do": "click", "on": ".spot-filter-toggle" },
+    { "say": "a filter adds its words", "do": "click", "on": ".spot-filter-item" },
+    { "say": "the search runs again", "do": "wait", "ms": 1200 },
+    { "say": "removing a chip searches the word as a word", "do": "click", "on": ".spot-chip" },
+    { "say": "the search runs again", "do": "wait", "ms": 1200 },
+    { "say": "an empty box shows what was opened lately", "do": "fill", "on": ".spot-input", "text": " " },
+    { "say": "the recent list arrives", "do": "wait", "ms": 1200 }
+  ]
+}
