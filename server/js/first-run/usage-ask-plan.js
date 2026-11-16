@@ -1,7 +1,7 @@
 'use strict';
 
 // What the first question offers on this PC and what an answer does. Pure, so the dialog
-// (js/usage-ask.js) and the tests read the same rules. A display is the shell's own:
+// (js/usage-ask/usage-ask.js) and the tests read the same rules. A display is the shell's own:
 // { id, name, width, height, x, y, primary, edge }.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;

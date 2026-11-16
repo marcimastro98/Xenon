@@ -3,7 +3,7 @@
 // The picture of the first question: the person's real screens as they stand on the desk,
 // each with what it will show. The screens are laid out live, because they have to fit any
 // monitor, a 32:9 Edge and a screen turned on its side included; what they show are real
-// pictures of Xenon (tools/first-run-shots), one per shape. The words are in js/usage-ask.js
+// pictures of Xenon (tools/first-run-shots), one per shape. The words are in js/usage-ask/usage-ask.js
 // and the rules in js/first-run/usage-ask-plan.js. A monitor's name comes from the monitor itself, so
 // it only ever goes in as text.
 (function () {

@@ -1,4 +1,4 @@
-// The first-run tour (js/onboarding.js). Measured on the real dashboard before
+// The first-run tour (js/onboarding/onboarding.js). Measured on the real dashboard before
 // this was fixed: with the minimal top bar the Bit, Layout and Settings buttons
 // sit in side rails that slide off screen, so the tour spotlit empty space past
 // the edge; the media tile hidden behind its Chat tab got a 0x0 spotlight; on a
@@ -14,7 +14,7 @@ import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const TOUR = read('../js/onboarding.js');
+const TOUR = read('../js/onboarding/onboarding.js');
 
 function fakeEl(tag) {
   const cls = new Set();

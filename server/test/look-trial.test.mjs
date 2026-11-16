@@ -249,6 +249,6 @@ test('the slow melt has its rule, and the page loads the helper before what uses
   const page = src('index.html');
   const at = (file) => page.indexOf(`src="js/${file}"`);
   assert.ok(at('look/view-melt.js') > 0);
-  assert.ok(at('look/view-melt.js') < at('usage-ask.js'));
+  assert.ok(at('look/view-melt.js') < at('usage-ask/usage-ask.js'));
   assert.ok(at('look/view-melt.js') < at('look/look-trial.js'));
 });

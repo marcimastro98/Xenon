@@ -300,7 +300,7 @@
     return true;
   }
 
-  // Called after settings hydrate, where js/usage-ask.js has not taken the question.
+  // Called after settings hydrate, where js/usage-ask/usage-ask.js has not taken the question.
   //
   // Opens immediately. It used to wait 600ms for the shell's first
   // `push_display_state` to land (the caps injected before the page loads carry

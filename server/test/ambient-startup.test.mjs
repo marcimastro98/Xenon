@@ -87,7 +87,7 @@ test('the screen picker, the first-run tour and the greeting hold it back', () =
   }
   // …and those are the classes those modules really create.
   assert.match(read('js', 'paired/surface-picker.js'), /overlay\.className = 'sp-overlay'/);
-  assert.match(read('js', 'onboarding.js'), /overlay\.className = 'onb-overlay'/);
+  assert.match(read('js', 'onboarding/onboarding.js'), /overlay\.className = 'onb-overlay'/);
   assert.match(read('js', 'first-run/greeting.js'), /el\('div', `greeting-splash /);
 });
 
@@ -103,7 +103,7 @@ test('a load that runs the first-run questions is skipped, not waited out', () =
   // The tour is offered, it no longer opens by itself: nobody having taken it holds nothing back.
   assert.doesNotMatch(fn, /getOnboardingSeen/);
   assert.match(read('js', 'paired/surface-picker.js'), /window\.SurfacePicker = \{[^}]*shouldAsk[^}]*isOpen/);
-  assert.match(read('js', 'onboarding.js'), /window\.Onboarding = \{[^}]*isActive[^}]*version: ONBOARDING_VERSION/);
+  assert.match(read('js', 'onboarding/onboarding.js'), /window\.Onboarding = \{[^}]*isActive[^}]*version: ONBOARDING_VERSION/);
 });
 
 test('a running game does not hold it back', () => {
