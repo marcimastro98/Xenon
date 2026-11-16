@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const trialEnd = require('../welcome-trial/trial-end.js');
@@ -39,8 +40,7 @@ test('a broken file reads as a trial that never ended', async () => {
 });
 
 test('the credits module keeps the end when the hub says it, and only then', () => {
-  // The session half of the credits module is its own file here (store-supporters/credits-session.js).
-  const src = read('../store-supporters/ai-xenon-credits.js') + read('../store-supporters/credits-session.js');
+  const src = engineSource('server/store-supporters/ai-xenon-credits.js');
   const over = src.slice(src.indexOf("out.error === 'welcome_over'"));
   assert.match(over.slice(0, 300), /forgetWalletCode\(dataDir\);\s*await welcomeTrialEnd\.noteEnded\(dataDir\);/);
   assert.match(src, /error === 'no_code' && await welcomeTrialEnd\.endedAt\(dataDir\)\) return \{ ok: false, error, trialEnded: true \}/);
