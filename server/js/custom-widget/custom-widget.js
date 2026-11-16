@@ -261,7 +261,6 @@
   const ISLAND_MIN_INTERVAL_MS = 200;   // per-instance island text update rate limit
   const ISLAND_TEXT_MAX = 160;          // island line hard cap (host-rendered textContent)
   const BADGE_MIN_INTERVAL_MS = 500;    // per-instance badge chip update rate limit
-  const BADGE_TEXT_MAX = 20;            // badge chip hard cap — small persistent pill, not a sentence
   const BADGE_TOOLTIP_MAX = 48;         // badge tooltip (title attribute) hard cap
   const BADGE_ICON_MAX = 8;             // badge glyph cap — same bound as a deck state's icon meta
   const TOPBAR_BUTTON_LABEL_MAX = 24;   // bar button label: the same cap the user's own label has (TopbarLook)
@@ -1646,53 +1645,27 @@
   }
 
   // Persistent badge chip: a widget with the `badge` capability may show a
-  // small always-on text chip next to the clock — unlike `island` (one shared
-  // slot, transient), several distinct granted packages may each hold a chip
-  // at once (capped host-side by SdkBadges). Same trust shape as
-  // onBridgeIsland: manifest + grant checked, bounded plain strings,
-  // host-rendered via textContent.
-  //
-  // `icon` + `color` are the optional display meta, the same shape (and the
-  // same strict hex test) a deck key's live badge already accepts from a
-  // widget — the glyph's colour is the widget's own identity (a star is gold,
-  // not accent green), and the host has no business guessing it from the text.
-  // A colour that isn't plain hex is dropped, never passed through: the chip
-  // then renders the glyph in the topbar's own text colour.
+  // small always-on chip next to the clock; several granted packages may each
+  // hold one (capped host-side by SdkBadges). Same trust shape as the island:
+  // manifest + grant checked here, the payload rebuilt by SdkBadges.normalize
+  // (bounded text, strict hex, icons and parts through the island's own block
+  // schema), host-rendered via textContent.
   function onBridgeBadge(entry, grant, msg) {
     const pkg = packageById(entry.pkgId);
-    if (!pkg || pkg.badge !== true || !grant.badge) return;
-    const coerce = (v, max) => {
-      const s = String(v == null ? '' : v);
-      let out = '';
-      for (let i = 0; i < s.length; i++) {
-        const c = s.charCodeAt(i);
-        out += (c <= 31 || c === 127) ? ' ' : s[i];
-      }
-      return out.trim().slice(0, max);
-    };
-    let text = coerce(msg.text, BADGE_TEXT_MAX);
-    let tooltip = coerce(msg.tooltip, BADGE_TOOLTIP_MAX);
-    let icon = coerce(msg.icon, BADGE_ICON_MAX);
-    const rawColor = String(msg.color == null ? '' : msg.color).trim();
-    let color = /^#[0-9a-fA-F]{3,8}$/.test(rawColor) ? rawColor : '';
-    if (msg.op === 'clear' || !text) { text = ''; tooltip = ''; icon = ''; color = ''; }
-    entry.badgeText = text;   // latest wins; the flush reads this
-    entry.badgeTooltip = tooltip;
-    entry.badgeIcon = icon;
-    entry.badgeColor = color;
-    if (entry.badgeFlushTimer) return;   // a flush is pending; it carries the latest text
+    if (!pkg || pkg.badge !== true || !grant.badge || !window.SdkBadges) return;
+    entry.badgeView = msg.op === 'clear' ? null : SdkBadges.normalize(msg);   // latest wins
+    if (entry.badgeFlushTimer) return;   // a flush is pending; it carries the latest view
     const since = Date.now() - (entry.badgeFlushAt || 0);
     const wait = since >= BADGE_MIN_INTERVAL_MS ? 0 : (BADGE_MIN_INTERVAL_MS - since);
     entry.badgeFlushTimer = setTimeout(() => {
       entry.badgeFlushTimer = null;
       entry.badgeFlushAt = Date.now();
-      if (!window.SdkBadges) return;
       // A tap is offered only when the package declared `badge: { action: true }`
-      // AND holds that grant; otherwise no callback is passed and the chip stays
-      // the plain, unpressable text it has always been.
+      // AND holds that grant; otherwise the chip and its meters stay read-only.
+      // A meter's own tap carries its id; the whole chip's tap carries none.
       const tappable = pkg.badgeAction === true && grant.badgeAction === true;
-      const onAction = tappable ? () => post(entry, { type: 'badge_action' }) : null;
-      if (entry.badgeText) SdkBadges.set(entry.pkgId, entry.badgeText, entry.badgeTooltip, entry.badgeIcon, entry.badgeColor, onAction);
+      const onAction = tappable ? (id) => post(entry, id ? { type: 'badge_action', id } : { type: 'badge_action' }) : null;
+      if (entry.badgeView) SdkBadges.set(entry.pkgId, entry.badgeView, onAction);
       else SdkBadges.clear(entry.pkgId);
     }, wait);
   }
