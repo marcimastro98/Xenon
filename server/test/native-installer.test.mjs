@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import crypto from 'node:crypto';
 import { engineSource } from './engine-source.mjs';
 
@@ -119,7 +120,7 @@ test('a setup left from an earlier attempt is never reused', async () => {
 });
 
 // ── The wiring: server.js verifies, the script refuses anything else ─────────
-const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
+const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const SERVER = engineSource();
 const PS = read('../install-native.ps1');
 const WORKFLOW = read('../../.github/workflows/release.yml');

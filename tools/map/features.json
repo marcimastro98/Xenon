@@ -784,6 +784,7 @@
         "server/http/**",
         "server/js/state.js",
         "server/js/native-bridge.js",
+        "server/js/native-bridge/**",
         "server/public/images/logo/**",
         "server/assets/favicon.png"
       ]

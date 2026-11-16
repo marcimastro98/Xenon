@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { looseScripts } from './browser-source.mjs';
+import { looseScripts, readFileSync } from './browser-source.mjs';
 
 // `SERVER` in server/js/state.js is the origin ~50 call sites across 15 modules
 // aim at. It used to resolve to the loopback origin unless the page's HOSTNAME
@@ -110,7 +110,7 @@ const LOOPBACK_EXEMPT = [
 // It used to aim at 127.0.0.1:3030 whatever served the page: with the engine on another
 // port (XENON_PORT) that is another server, and from the online demo it is the visitor's
 // own PC. It follows the same rule as SERVER, read here from the shipped file.
-const BRIDGE_SRC = fs.readFileSync(path.join(HERE, '..', 'js', 'native-bridge.js'), 'utf8');
+const BRIDGE_SRC = readFileSync(path.join(HERE, '..', 'js', 'native-bridge.js'), 'utf8');
 function resolveBridgeServer(location) {
   const at = BRIDGE_SRC.indexOf('const SERVER = ');
   assert.notEqual(at, -1, 'native-bridge.js must still declare `const SERVER =`');

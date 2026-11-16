@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './native-source.mjs';
+import { readFileSync as readBrowser } from './browser-source.mjs';
 
 // The interface scale on the macOS app.
 //
@@ -11,7 +12,7 @@ import { readFileSync } from './native-source.mjs';
 // shrinking their viewport. The macOS shell now applies WKWebView page zoom
 // instead, and the dashboard keeps the CSS path everywhere else.
 
-const BRIDGE = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
+const BRIDGE = readBrowser(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
 const SHELL = readFileSync(new URL('../../apps/native/src-tauri/src/lib.rs', import.meta.url), 'utf8');
 
 function bridgeFn(name) {

@@ -9,7 +9,7 @@
 // panel a user would see is what is asserted, not the shape of the source.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const HTML = readFileSync(new URL('../../apps/native/splash/index.html', import.meta.url), 'utf8')

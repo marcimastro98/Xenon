@@ -5,7 +5,7 @@
 // it until it has nothing left to scroll.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const SRC = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');

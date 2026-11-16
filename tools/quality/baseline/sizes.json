@@ -77,7 +77,7 @@
     "server/js/media/spotify-widget.js": 899,
     "server/js/menu/xenon-menu-widgets.js": 407,
     "server/js/menu/xenon-menu.js": 769,
-    "server/js/native-bridge.js": 1206,
+    "server/js/native-bridge.js": 1136,
     "server/js/notifications/notifications-widget.js": 461,
     "server/js/paired/surface-picker.js": 393,
     "server/js/performance/performance.js": 738,
