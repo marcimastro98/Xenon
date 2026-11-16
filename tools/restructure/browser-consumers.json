@@ -95,6 +95,9 @@
         ]
       }
     },
+    "server/js/topbar/topbar-minimal.js": {
+      "tools/toast-gallery/gallery.html": "A dev tool's own page: it names the file only in a comment that says which call into it the page stands in for, with a window.TopbarMinimal of its own. It never loads the file."
+    },
     "server/components/TopbarMinimal/TopbarMinimal.css": {
       "tools/toast-gallery/gallery.html": "A dev tool's own page, served over server/ by tools/toast-gallery/serve.mjs. The split tool does not edit it: it links the parts by hand right after the sheet, and server/test/restructure-browser-tool-pages.test.mjs fails when one is missing or out of place."
     },

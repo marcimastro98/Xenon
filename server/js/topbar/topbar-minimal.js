@@ -20,20 +20,9 @@
   let els = null;   // reparented topbar elements, captured once
   let ui = null;    // built-once minimal chrome: { pill, left, right }
 
-  // Auto-hide: after the delay in autoHideMs() with no rail interaction the two edge rails
-  // tuck away (class is-auto-hidden), leaving the dashboard clean but keeping the
-  // slim handle peeking so there's a visible arrow to reopen them; a tap on that
-  // handle — or anywhere in the screen-edge strip — brings them back and restarts
-  // the countdown. Opt-out via Settings → Top bar (topbarRailsAutoHide=false),
-  // which keeps them always on screen. Transient visual state only — it never
-  // touches the persisted per-rail collapsed choice (topbarRails).
-  // Settings → Top bar → Side rails sets it (topbarLook.railDelay, seconds).
-  const AUTO_HIDE_DEFAULT_S = 10;
-  function autoHideMs() {
-    const look = typeof hubSettings !== 'undefined' && hubSettings ? hubSettings.topbarLook : null;
-    const s = look && Number.isFinite(look.railDelay) ? look.railDelay : AUTO_HIDE_DEFAULT_S;
-    return s * 1000;
-  }
+  const {
+    autoHideMs, readRailState, writeRailState, autoHideEnabled,
+  } = window.TopbarMinimalRailSettings;
   let autoHideTimer = null;
   let railsHeld = false;   // Settings → Top bar is open: the rails stay out (js/settings/settings-bar-preview.js)
   // Per side, because a touch only ever means ONE side. A rail that is tucked away
@@ -53,47 +42,8 @@
   const suppressHandleToggle = { left: false, right: false };
   const suppressToggleTimer = { left: null, right: null };
 
-  function readRailState() {
-    const s = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarRails) || null;
-    // No stored value → both collapsed (closed), matching the settings default.
-    return { left: !s || s.left !== false, right: !s || s.right !== false };
-  }
+  const { ISLAND_SEG_IDS, ACTION_SELECTORS, actionEl, readIslandItems } = window.TopbarMinimalIds;
 
-  function writeRailState(state) {
-    if (typeof hubSettings === 'undefined' || !hubSettings) return;
-    const next = { left: !!state.left, right: !!state.right };
-    if (typeof normalizeSettings === 'function') {
-      hubSettings = normalizeSettings({ ...hubSettings, topbarRails: next });
-    } else {
-      hubSettings.topbarRails = next;
-    }
-    if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
-  }
-
-  // The reorderable island segments, in their default display order. A new id
-  // must also be added to the canonical list in normalizeTopbarClock (client
-  // settings/normalize-topbar.js AND its server/topbar/settings-normalize.js twin) and labelled in TOPBAR_ISLAND_LABELS,
-  // or it is dropped on the next settings save.
-  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex', 'perf'];
-
-  // The chrome BUTTONS, keyed the same way and carried by the same settings
-  // object (topbarClock.actions). Selector per id, resolved against the whole
-  // document rather than a container, because a button that has been moved to the
-  // other side is no longer where its markup put it. Unlike the island segments
-  // these are NOT required: an id whose element is missing is skipped, and must
-  // never fail the capture — captureTopbarEls returning null disables Minimal
-  // entirely, which is far too big a consequence for one absent button.
-  const ACTION_SELECTORS = {
-    lock: '.qbtn-lock',
-    ambient: '#ambient-topbtn',
-    xenon: '.topbtn-xenon',
-    search: '.qbtn-search',
-    mini: '#topbar-mini-slot',
-    layout: '#layout-edit-toggle',
-    settings: '.qbtn-settings',
-    apps: '.qbtn-apps',
-    favorites: '#app-favorites',
-  };
   const ACTION_IDS = Object.keys(ACTION_SELECTORS);
 
   function captureTopbarEls() {
@@ -143,17 +93,6 @@
     }
   }
 
-  // Element for a chrome-button id, or null when that button is not in this
-  // document (embed views, a future build, a phone). Looked up live: the button
-  // may have been moved into the other container.
-  // A widget's own button (`sdk:<pkg>`, js/widget-sdk/sdk-topbar-button.js) is found by
-  // its data-tb-id.
-  const SDK_ACTION_RE = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
-  function actionEl(id) {
-    const sel = ACTION_SELECTORS[id];
-    if (sel) return document.querySelector(sel);
-    return typeof id === 'string' && SDK_ACTION_RE.test(id) ? document.querySelector('[data-tb-id="' + id + '"]') : null;
-  }
 
   // Read the configured button list. Absent settings mean "canonical order, all
   // visible", which matches the settings default — including the SDK mini slot,
@@ -166,14 +105,6 @@
       hidden: false,
       side: (id === 'layout' || id === 'settings' || id === 'apps' || id === 'favorites') ? 'right' : 'left',
     }));
-  }
-
-  // Read the configured island item list (order + hidden), defaulting to the
-  // canonical order all-visible when settings aren't available yet.
-  function readIslandItems() {
-    const cfg = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarClock) || null;
-    if (cfg && Array.isArray(cfg.items) && cfg.items.length) return cfg.items;
-    return ISLAND_SEG_IDS.map(id => ({ id, hidden: false }));
   }
 
   // Apply the user's segment visibility in BOTH chromes and its order onto the
@@ -419,10 +350,6 @@
   }
 
   // ── Auto-hide (idle → slide off; edge touch → reveal) ────────────────────────
-  function autoHideEnabled() {
-    return (typeof hubSettings === 'undefined' || !hubSettings) || hubSettings.topbarRailsAutoHide !== false;
-  }
-
   function clearAutoHideTimer() {
     if (autoHideTimer) { clearTimeout(autoHideTimer); autoHideTimer = null; }
   }
@@ -562,18 +489,9 @@
   const NOTCH_MS = 360;             // must match the transitions in TopbarMinimal.css
   const notchState = new WeakMap(); // item -> { geo, line, key, leaving }
 
-  function notchEdge(item) {
-    let svg = item.querySelector(':scope > .island-notch-edge');
-    if (!svg) {
-      const ns = 'http://www.w3.org/2000/svg';
-      svg = document.createElementNS(ns, 'svg');
-      svg.setAttribute('class', 'island-notch-edge');
-      svg.setAttribute('aria-hidden', 'true');
-      svg.appendChild(document.createElementNS(ns, 'path'));
-      item.appendChild(svg);
-    }
-    return svg.firstChild;
-  }
+  const {
+    notchEdge, BAR_PROPS, motionOk, SOFT_OPEN, SOFT_PROPS, softEase, boxOf,
+  } = window.TopbarMinimalNotchMotion;
 
   function drawNotch(item, geo, line) {
     const N = window.IslandNotch;
@@ -589,9 +507,6 @@
     path.setAttribute('stroke-width', String(line.width));
   }
 
-  // A tab strip with room beside the cutout keeps its place at the tile top
-  // (island-notch.js besideBar); only what is under the strip moves down.
-  const BAR_PROPS = ['--island-bar-shift', '--island-bar-max', '--island-under'];
   function setBar(item, bar) {
     item.classList.toggle('island-beside', !!bar);
     BAR_PROPS.forEach(p => item.style.removeProperty(p));
@@ -643,40 +558,11 @@
     if (svg) svg.remove();
   }
 
-  // Performance mode and a game hold the island's motion: the cuts then just
-  // appear. Not low-power-gpu: that pause is for loops that cost frames all
-  // session (native-bridge.js), and a cutout opening is one short transition.
-  const MOTION_HOLD = ['perf-mode', 'game-mode'];
-  function motionOk() {
-    if (MOTION_HOLD.some((c) => document.body.classList.contains(c))) return false;
-    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  }
 
-  // A cutout appearing (a page settling, a widget added) opens slowly and evenly,
-  // the content with it: the shared ease-out (TopbarMinimal.css) does most of
-  // its travel in the first frames, which read as a snap for a whole cutout.
-  // The content slides on a CSS transition; the cut itself is written frame by
-  // frame (openSoftly), so it can head for a new shape mid-way when the island
-  // changes as the page arrives (retargetOpening) instead of jumping to it.
-  const SOFT_OPEN = { ms: 620, ease: 'cubic-bezier(.4, 0, .2, 1)' };
-  const SOFT_PROPS = ['--island-notch-ms', '--island-content-ms', '--island-ease'];
   function softOpen(item) {
     item.style.setProperty('--island-notch-ms', '0ms');
     item.style.setProperty('--island-content-ms', SOFT_OPEN.ms + 'ms');
     item.style.setProperty('--island-ease', SOFT_OPEN.ease);
-  }
-
-  // SOFT_OPEN.ease as a function of time (0..1): cubic-bezier(.4, 0, .2, 1),
-  // x solved by Newton steps, so the cut and the content keep one pace.
-  function softEase(t) {
-    const bez = (a, b, s) => 3 * a * s * (1 - s) * (1 - s) + 3 * b * s * s * (1 - s) + s * s * s;
-    let s = t;
-    for (let i = 0; i < 6; i++) {
-      const dx = 3 * 0.4 * (1 - s) * (1 - s) + 6 * (0.2 - 0.4) * s * (1 - s) + 3 * (1 - 0.2) * s * s;
-      if (Math.abs(dx) < 1e-6) break;
-      s = Math.min(1, Math.max(0, s - (bez(0.4, 0.2, s) - t) / dx));
-    }
-    return bez(0, 1, s);
   }
 
   // A cutout appearing: flat (island-notch.js flat), content at the top, then
@@ -761,12 +647,6 @@
     watchedTenant = el;
     new ResizeObserver(scheduleReflow).observe(el);
   }
-
-  const boxOf = (r, radius) => ({
-    left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height,
-    // A pill's radius is far past half its height; clamp it so it can be animated.
-    radius: Math.min(Number.isFinite(radius) ? radius : 0, r.height / 2),
-  });
 
   // Where the island lives, in viewport px: the SDK capsule when a widget has
   // taken it, else the pill. The cutouts wrap this box only: a notification
