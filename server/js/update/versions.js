@@ -17,7 +17,7 @@
   const stripV = (s) => String(s || '').replace(/^v/i, '');
 
   // Minimal semver triple compare: true only when a is strictly newer than b.
-  // Deliberately PERMISSIVE with junk (unlike the fail-closed server/semver.js):
+  // Deliberately PERMISSIVE with junk (unlike the fail-closed server/updates/semver.js):
   // a malformed segment coerces to 0, so a garbled caps.shellVersion still
   // compares — the orchestrator would rather offer a shell update once too
   // often than never on exactly the broken installs that need it.

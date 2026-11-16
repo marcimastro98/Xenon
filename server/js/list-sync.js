@@ -5,7 +5,7 @@
 // an older list then deleted what a phone, another screen or the assistant had
 // added since, and a screen whose first load failed posted an almost empty
 // list over the real one. Now each tap sends only the edit (add, change,
-// delete, see server/list-ops.js); the server applies it to the list it really
+// delete, see server/time/list-ops.js); the server applies it to the list it really
 // has and answers with the result.
 //
 // Edits leave in the order they were made, one at a time. One that cannot reach

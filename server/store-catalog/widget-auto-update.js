@@ -40,7 +40,7 @@
 //     transfer is going on, and at most a few widgets per run.
 
 const crypto = require('crypto');
-const { semverNewer } = require('../semver');
+const { semverNewer } = require('../updates/semver');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A catalog date is a day, not a moment. Two days after it is at least 24 hours

@@ -3,7 +3,7 @@
 
 const { readBody } = require('../http/read-body.js');
 const { notesToText, NOTE_BODY_MAX, textToNotesState } = require('./notes-state.js');
-const listOps = require('../list-ops.js');
+const listOps = require('./list-ops.js');
 const { EVENT_EDIT_FIELDS } = require('./events-normalize.js');
 const { TASK_EDIT_FIELDS } = require('./tasks-normalize.js');
 const { timerState } = require('./timer-list.js');

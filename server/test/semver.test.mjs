@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parseSemver, semverNewer } = require('../semver.js');
+const { parseSemver, semverNewer } = require('../updates/semver.js');
 
 test('parseSemver handles plain and v-prefixed tags', () => {
   assert.deepEqual(parseSemver('3.0.1'), [3, 0, 1]);

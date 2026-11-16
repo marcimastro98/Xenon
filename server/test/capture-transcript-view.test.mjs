@@ -13,7 +13,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const view = require('../js/capture-transcript-view.js');
-const F = require('../transcript-format.js');
+const F = require('../screens/transcript-format.js');
 const read = rel => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const LINES = [{ start: 0, end: 3.6 }, { start: 4.2, end: 7.8 }, { start: 20, end: 22 }];

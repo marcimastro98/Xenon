@@ -2,7 +2,7 @@
 // messages, a code, the limited items and the ratings.
 
 const communityCatalog = require('./community-catalog.js');
-const { semverNewer } = require('../semver.js');
+const { semverNewer } = require('../updates/semver.js');
 const { APP_VERSION } = require('../updates/app-version.js');
 const { hub } = require('../settings/current.js');
 const { readBody } = require('../http/read-body.js');

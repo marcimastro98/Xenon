@@ -9,7 +9,7 @@ import { appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const ops = require('../list-ops.js');
+const ops = require('../time/list-ops.js');
 const ListSync = require('../js/list-sync.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
 const SERVER = engineSource();

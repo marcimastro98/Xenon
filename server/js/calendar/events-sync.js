@@ -30,7 +30,7 @@ function jumpCalendarToday() {
 }
 
 // Each change sends one edit, applied by the server to the events it has
-// (js/list-sync.js, server/list-ops.js), and every screen repaints from the
+// (js/list-sync.js, server/time/list-ops.js), and every screen repaints from the
 // list the server broadcasts (the `agenda` event).
 let _calendarEventsLoaded = false;
 let _calendarLoadRetry = null;

@@ -7,7 +7,7 @@ const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 // ── Persistence ────────────────────────────────────────────────
 //
 // Each tap sends one edit, applied by the server to the list it has
-// (js/list-sync.js, server/list-ops.js), and every screen repaints from the
+// (js/list-sync.js, server/time/list-ops.js), and every screen repaints from the
 // list the server broadcasts. Repeating tasks reopen on the server's clock.
 
 let _tasksLoaded = false;

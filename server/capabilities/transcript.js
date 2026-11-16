@@ -8,7 +8,7 @@
 //
 // deps.capture: store() → captures.js, transcripts() → capture-transcripts.js.
 
-const F = require('../transcript-format');
+const F = require('../screens/transcript-format');
 
 // How long Bit's turn waits for a transcription; a longer one keeps going
 // and the gallery shows when it is done.

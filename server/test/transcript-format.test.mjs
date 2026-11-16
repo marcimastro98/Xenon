@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const F = require('../transcript-format.js');
+const F = require('../screens/transcript-format.js');
 
 test('clock: m:ss under an hour, h:mm:ss over', () => {
   assert.equal(F.clock(0), '0:00');

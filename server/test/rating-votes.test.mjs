@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const {
   createRatingVotes, ownedEntries, inUse, WAIT_MS, SEEN_MS, ASK_EVERY_MS,
 } = require('../store-catalog/rating-votes.js');
-const { createPcId, parseMachineGuid } = require('../pc-id.js');
+const { createPcId, parseMachineGuid } = require('../engine/pc-id.js');
 const aiRateStore = require('../store-catalog/ai-rate-store.js');
 const { parsePlatformUuid } = require('../darwin-collectors.js');
 

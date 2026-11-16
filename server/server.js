@@ -56,7 +56,7 @@ const { createStutterWatch } = require('./performance/stutter-why');
 require('./performance/exclusive-hint');
 const { createGameSessions } = require('./performance/game-sessions');
 require('./time/calendar-reminders');
-const listOps = require('./list-ops');
+const listOps = require('./time/list-ops');
 const sceneImages = require('./ambient/scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./performance/benchmark');
 require('./screens/capture-host');
@@ -74,7 +74,7 @@ require('./vitals/vitals-state'); // vitals.state merge, shared by /settings and
 const CaptureCovers = require('./screens/capture-covers');
 const { createCaptureTranscripts } = require('./screens/capture-transcripts');
 const { createCaptureExport } = require('./screens/capture-export');
-const TranscriptFormat = require('./transcript-format');
+const TranscriptFormat = require('./screens/transcript-format');
 const { createRecorder } = require('./screens/recorder');
 const { createCaptureMarkers } = require('./screens/capture-markers');
 const { createAutoClips } = require('./screens/capture-autoclips');
@@ -519,7 +519,7 @@ const { createSdkAi } = require('./widget-sdk/sdk-ai');
 const { createRoastSparks } = require('./store-supporters/vitals-roast-sparks.js');
 require('./ai/bit-messages.js');
 require('./store-catalog/rating-votes.js');
-require('./pc-id.js');
+require('./engine/pc-id.js');
 require('./mcp/mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
 const mcpDevTools = require('./mcp/mcp-dev-tools');      // ...and what each of their tools does
 

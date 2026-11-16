@@ -280,7 +280,11 @@
     {"from":"server/native-installer.js","to":"server/updates/native-installer.js"},
     {"from":"server/release-notes.js","to":"server/updates/release-notes.js"},
     {"from":"server/version-ping.js","to":"server/updates/version-ping.js"},
-    {"from":"server/embedded-browser.js","to":"server/windows-tiles/embedded-browser.js"}
+    {"from":"server/embedded-browser.js","to":"server/windows-tiles/embedded-browser.js"},
+    {"from":"server/list-ops.js","to":"server/time/list-ops.js"},
+    {"from":"server/pc-id.js","to":"server/engine/pc-id.js"},
+    {"from":"server/semver.js","to":"server/updates/semver.js"},
+    {"from":"server/transcript-format.js","to":"server/screens/transcript-format.js"}
   ],
   "patterns": [
     {"feature":"audio","glob":"server/audio-levels.js","at":2},
@@ -345,6 +349,10 @@
     {"feature":"updates","glob":"server/native-installer.js","at":10},
     {"feature":"updates","glob":"server/version-ping.js","at":12},
     {"feature":"updates","glob":"server/icue-sdk-install.js","at":13},
-    {"feature":"windows-tiles","glob":"server/embedded-browser*.js","at":1}
+    {"feature":"windows-tiles","glob":"server/embedded-browser*.js","at":1},
+    {"feature":"helpers-shared","glob":"server/list-ops.js","at":5},
+    {"feature":"helpers-shared","glob":"server/semver.js","at":6},
+    {"feature":"helpers-shared","glob":"server/pc-id.js","at":7},
+    {"feature":"helpers-shared","glob":"server/transcript-format.js","at":8}
   ]
 }
