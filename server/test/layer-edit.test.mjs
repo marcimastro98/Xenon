@@ -514,7 +514,7 @@ test('nothing drawn in a cut window has a shadow, and words have no dark box beh
 });
 
 // ── What the System tile shows ──
-// Jeff (Nov 2026) could not take the FPS card off his System widget on the screen.
+// A user (Nov 2026) could not take the FPS card off their System widget on the screen.
 function systemBoot(ok = true) {
   const posts = [];
   const fetch = async (url, init) => { posts.push({ url, body: JSON.parse(init.body) }); return { ok, status: ok ? 200 : 400 }; };

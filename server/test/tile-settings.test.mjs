@@ -87,7 +87,7 @@ test('the tiles save their choices through the helper', () => {
   assert.match(read('js/notifications/notifications-widget.js'), /isLayerPage\(\) && typeof saveTileSetting === 'function'/);
 });
 
-// Jeff's System tile on the screen (Nov 2026): no way to hide the FPS card his
+// A user's System tile on the screen (Nov 2026): no way to hide the FPS card their
 // setup cannot fill without going back to the dashboard. The tile sends only
 // which cards show; order and size stay the dashboard's.
 const CARD_IDS = { main: ['cpu', 'gpu', 'ram', 'disk'], net: ['ping', 'fps', 'latency', 'bandwidth'] };
