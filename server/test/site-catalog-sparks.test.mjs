@@ -12,7 +12,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+// A Windows checkout may turn the site files' line ends into CRLF; the patterns below are written for LF.
+const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const site = read('../../docs/catalog/index.html');
 const credits = read('../js/xenon-credits.js');
 const SITE_LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
