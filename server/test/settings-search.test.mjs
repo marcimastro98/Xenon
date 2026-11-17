@@ -55,6 +55,13 @@ test('every widget the palette can offer has hidden search words in all 11 langu
   for (const id of widgetIds()) assertNativeEverywhere('palette_kw_' + id);
 });
 
+// One place, one name: the field searches Xenon (the menu's sections and every page of
+// Settings), in every language and in the page's own fallback text.
+test('the field says it searches Xenon', () => {
+  for (const l of LANGS) assert.match(i18n[l].settings_search_placeholder, /Xenon/, l);
+  assert.match(HTML, /data-i18n-placeholder="settings_search_placeholder"[^>]*placeholder="Cerca in Xenon"/);
+});
+
 test('the search strings are translated in every language block', () => {
   const src = read('../js/i18n.js');
   for (const key of ['settings_search_placeholder', 'settings_search_empty', 'settings_search_recent',

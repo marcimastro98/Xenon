@@ -49936,7 +49936,7 @@ Object.assign(i18n.nl, {
 // the search matches, written natively per language (not translated word by word).
 // Brand names live only in `en`, because every language is searched at once.
 Object.assign(i18n.it, {
-  settings_search_placeholder: "Cerca nelle impostazioni",
+  settings_search_placeholder: "Cerca in Xenon",
   settings_search_empty: "Nessuna impostazione trovata. Prova con un'altra parola.",
   settings_search_recent: "Aperte di recente",
   palette_search_placeholder: "Cerca un widget",
@@ -50035,7 +50035,7 @@ Object.assign(i18n.it, {
   palette_kw_custom: "store, negozio, community, terze parti, estensione, plugin, codice, html",
 });
 Object.assign(i18n.en, {
-  settings_search_placeholder: "Search settings",
+  settings_search_placeholder: "Search Xenon",
   settings_search_empty: "No setting found. Try another word.",
   settings_search_recent: "Recently opened",
   palette_search_placeholder: "Search widgets",
@@ -50134,7 +50134,7 @@ Object.assign(i18n.en, {
   palette_kw_custom: "Store, sdk, community, third party, plugin, extension, html, code, marketplace, package",
 });
 Object.assign(i18n.ko, {
-  settings_search_placeholder: "설정 검색",
+  settings_search_placeholder: "Xenon 검색",
   settings_search_empty: "찾은 설정이 없습니다. 다른 단어로 검색해 보세요.",
   settings_search_recent: "최근에 연 설정",
   palette_search_placeholder: "위젯 검색",
@@ -50233,7 +50233,7 @@ Object.assign(i18n.ko, {
   palette_kw_custom: "스토어, 커뮤니티, 타사, 플러그인, 확장, 코드",
 });
 Object.assign(i18n.ja, {
-  settings_search_placeholder: "設定を検索",
+  settings_search_placeholder: "Xenon を検索",
   settings_search_empty: "該当する設定がありません。別の言葉で検索してください。",
   settings_search_recent: "最近開いた設定",
   palette_search_placeholder: "ウィジェットを検索",
@@ -50332,7 +50332,7 @@ Object.assign(i18n.ja, {
   palette_kw_custom: "ストア, コミュニティ, サードパーティ, プラグイン, 拡張, コード, 自作",
 });
 Object.assign(i18n.zh, {
-  settings_search_placeholder: "搜索设置",
+  settings_search_placeholder: "搜索 Xenon",
   settings_search_empty: "没有找到相关设置。换个词试试。",
   settings_search_recent: "最近打开",
   palette_search_placeholder: "搜索小组件",
@@ -50431,7 +50431,7 @@ Object.assign(i18n.zh, {
   palette_kw_custom: "商店, 社区, 第三方, 插件, 扩展, 代码, 自制",
 });
 Object.assign(i18n.es, {
-  settings_search_placeholder: "Buscar en ajustes",
+  settings_search_placeholder: "Buscar en Xenon",
   settings_search_empty: "No se ha encontrado ningún ajuste. Prueba con otra palabra.",
   settings_search_recent: "Abiertos recientemente",
   palette_search_placeholder: "Buscar widgets",
@@ -50530,7 +50530,7 @@ Object.assign(i18n.es, {
   palette_kw_custom: "tienda, comunidad, terceros, complemento, extensión, código",
 });
 Object.assign(i18n.fr, {
-  settings_search_placeholder: "Rechercher dans les réglages",
+  settings_search_placeholder: "Rechercher dans Xenon",
   settings_search_empty: "Aucun réglage trouvé. Essayez un autre mot.",
   settings_search_recent: "Ouverts récemment",
   palette_search_placeholder: "Rechercher un widget",
@@ -50629,7 +50629,7 @@ Object.assign(i18n.fr, {
   palette_kw_custom: "boutique, communauté, tiers, module, extension, code",
 });
 Object.assign(i18n.de, {
-  settings_search_placeholder: "Einstellungen durchsuchen",
+  settings_search_placeholder: "Xenon durchsuchen",
   settings_search_empty: "Keine Einstellung gefunden. Versuche ein anderes Wort.",
   settings_search_recent: "Zuletzt geöffnet",
   palette_search_placeholder: "Widgets suchen",
@@ -50728,7 +50728,7 @@ Object.assign(i18n.de, {
   palette_kw_custom: "shop, community, drittanbieter, plugin, erweiterung, code",
 });
 Object.assign(i18n.pt, {
-  settings_search_placeholder: "Pesquisar nas definições",
+  settings_search_placeholder: "Pesquisar no Xenon",
   settings_search_empty: "Nenhuma definição encontrada. Experimenta outra palavra.",
   settings_search_recent: "Abertas recentemente",
   palette_search_placeholder: "Pesquisar widgets",
@@ -50827,7 +50827,7 @@ Object.assign(i18n.pt, {
   palette_kw_custom: "loja, comunidade, terceiros, plugin, extensão, código",
 });
 Object.assign(i18n.ru, {
-  settings_search_placeholder: "Поиск по настройкам",
+  settings_search_placeholder: "Поиск в Xenon",
   settings_search_empty: "Ничего не найдено. Попробуйте другое слово.",
   settings_search_recent: "Недавно открытые",
   palette_search_placeholder: "Поиск виджетов",
@@ -50926,7 +50926,7 @@ Object.assign(i18n.ru, {
   palette_kw_custom: "магазин, сообщество, сторонний, плагин, расширение, код",
 });
 Object.assign(i18n.nl, {
-  settings_search_placeholder: "Instellingen doorzoeken",
+  settings_search_placeholder: "Zoeken in Xenon",
   settings_search_empty: "Geen instelling gevonden. Probeer een ander woord.",
   settings_search_recent: "Onlangs geopend",
   palette_search_placeholder: "Widgets zoeken",
