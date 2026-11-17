@@ -7394,4 +7394,5 @@ module.exports = {
   usage_key_other: 'Kies een andere sneltoets',
   usage_key_done: 'Zo werkt het.',
   usage_key_done_line: 'Zo open je Xenon vanuit elke app.',
+  rn_key_any_app: 'Boven elke app',
 };

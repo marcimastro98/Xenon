@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5913,
+  "total": 5911,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -1723,7 +1723,7 @@
     "server/updates/latest-release.js complexity/useOptionalChain": 6,
     "server/updates/native-installer.js complexity/useOptionalChain": 4,
     "server/updates/release-media.js suspicious/noAssignInExpressions": 1,
-    "server/updates/release-notes.js complexity/useOptionalChain": 4,
+    "server/updates/release-notes.js complexity/useOptionalChain": 2,
     "server/updates/routes-update.js complexity/useOptionalChain": 3,
     "server/updates/self-update.js complexity/useOptionalChain": 3,
     "server/updates/version-ping-body.js suspicious/noGlobalIsNan": 1,

@@ -520,16 +520,7 @@
 }
 
 /* ── The fixes of a release, and a failed update ───────────────── */
-.rn-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 4050;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(20, 20, 20, 0.72);
-}
+.rn-overlay { position: fixed; inset: 0; z-index: 4050; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(20, 20, 20, 0.72); }
 .rn-card {
   display: flex;
   flex-direction: column;
@@ -567,6 +558,15 @@
 .rn-new { padding: 14px 0; border-bottom: 1px solid var(--wn-rule); }
 .rn-new-name { font: 800 34px / 1.05 var(--wn-display); }
 .rn-new-line { margin-top: 8px; font: 400 20px / 1.35 var(--wn-body); color: var(--wn-text-2); }
+/* A news row's key and its way into Xenon (js/release-notes-card.js tryRow). */
+.rn-try { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; }
+.rn-try-label { font: 600 17px / 1.2 var(--wn-body); color: var(--wn-text-2); }
+.rn-keys { display: inline-flex; gap: 8px; }
+.rn-key { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0 12px;
+  border: 1px solid var(--wn-rule-2); border-radius: 6px; background: var(--wn-paper-3); color: var(--wn-text); font: 700 19px / 1 var(--wn-body); }
+.rn-try-go { min-height: 44px; margin-left: auto; padding: 0 18px; border: 2px solid var(--wn-text); border-radius: 6px;
+  background: transparent; color: var(--wn-text); font: 700 18px / 1 var(--wn-body); cursor: pointer; }
+.rn-try-go:hover { background: var(--wn-text); color: var(--wn-ink); }
 .rn-fix { padding: 16px 0; border-bottom: 1px solid var(--wn-rule); }
 .rn-fix:last-child { border-bottom: 0; }
 .rn-fix b { display: block; font: 700 22px / 1.2 var(--wn-body); }
@@ -581,17 +581,8 @@
   padding: 14px 36px 28px;
   border-top: 1px solid var(--wn-rule);
 }
-.rn-link {
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0;
-  background: none;
-  border: 0;
-  color: var(--wn-text-2);
-  font: 600 20px / 1 var(--wn-body);
-  text-decoration: underline;
-  cursor: pointer;
-}
+.rn-link { min-height: 44px; min-width: 44px; padding: 0; background: none; border: 0; color: var(--wn-text-2); font: 600 20px / 1 var(--wn-body);
+  text-decoration: underline; cursor: pointer; }
 .rn-link:hover { color: #fff; }
 .rn-main {
   min-height: 56px;
@@ -687,6 +678,7 @@
 .rn-corner .rn-new { padding: 10px 0; }
 .rn-corner .rn-new-name { font-size: 21px; }
 .rn-corner .rn-new-line { margin-top: 4px; font-size: 15px; }
+.rn-corner .rn-key { min-width: 38px; height: 38px; font-size: 16px; }
 .rn-corner .rn-fail { padding: 6px 18px 12px; }
 .rn-corner .rn-fail-first { font-size: 16px; }
 .rn-corner .rn-fail-second { margin-top: 8px; font-size: 15px; }

@@ -7233,4 +7233,5 @@ module.exports = {
   usage_key_other: 'Choisir un autre raccourci',
   usage_key_done: 'C\'est tout.',
   usage_key_done_line: 'C\'est ainsi que Xenon s\'ouvre depuis n\'importe quelle app.',
+  rn_key_any_app: 'Par-dessus n\'importe quelle app',
 };

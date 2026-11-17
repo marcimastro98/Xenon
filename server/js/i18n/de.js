@@ -7252,4 +7252,5 @@ module.exports = {
   usage_key_other: 'Anderes Tastenkürzel wählen',
   usage_key_done: 'Genau so.',
   usage_key_done_line: 'So öffnet sich Xenon aus jeder App.',
+  rn_key_any_app: 'Über jeder App',
 };

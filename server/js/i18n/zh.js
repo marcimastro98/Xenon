@@ -7398,4 +7398,5 @@ module.exports = {
   usage_key_other: '换一个快捷键',
   usage_key_done: '就是这样。',
   usage_key_done_line: '在任何应用中都可以这样打开 Xenon。',
+  rn_key_any_app: '在任何应用上方',
 };

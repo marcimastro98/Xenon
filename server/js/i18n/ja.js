@@ -7398,4 +7398,5 @@ module.exports = {
   usage_key_other: '別のショートカットを選ぶ',
   usage_key_done: 'これで完了です。',
   usage_key_done_line: 'どのアプリからでも、こうして Xenon が開きます。',
+  rn_key_any_app: 'どのアプリの上でも',
 };

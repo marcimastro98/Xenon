@@ -7398,4 +7398,5 @@ module.exports = {
   usage_key_other: '다른 단축키 고르기',
   usage_key_done: '바로 이거예요.',
   usage_key_done_line: '어떤 앱에서든 이렇게 Xenon이 열립니다.',
+  rn_key_any_app: '어떤 앱 위에서든',
 };

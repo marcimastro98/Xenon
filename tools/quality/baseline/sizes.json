@@ -17,7 +17,7 @@
     "server/components/LockScreen/LockScreen.css": 565,
     "server/components/WeatherModal/WeatherClassicWindow.css": 387,
     "server/components/WeatherTile/WeatherClassic.css": 730,
-    "server/components/WhatsNew/WhatsNew.css": 745,
+    "server/components/WhatsNew/WhatsNew.css": 737,
     "server/cpu-temp.ps1": 593,
     "server/deck-hotkey.ps1": 374,
     "server/disk/disk-categories.js": 312,

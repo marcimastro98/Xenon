@@ -7405,4 +7405,5 @@ module.exports = {
   usage_key_other: 'Scegli un altro tasto',
   usage_key_done: 'Ecco.',
   usage_key_done_line: 'Xenon si apre così da qualsiasi app.',
+  rn_key_any_app: 'Sopra qualsiasi app',
 };

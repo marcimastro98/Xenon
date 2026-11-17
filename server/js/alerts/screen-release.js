@@ -77,9 +77,10 @@
       });
     }
 
-    function showNotes(wn, notes) {
+    // No dashboard here: Xenon is the shell's window over the screen.
+    function showNotes(wn, notes, menuKey) {
       up = window.XenonReleaseNotes.cornerNotes({
-        notes, text, tr, url: wn.url, openUrl, onClose: () => done({ notes: notes.version }),
+        notes, text, tr, url: wn.url, openUrl, menuKey, openXenon: openMenu, onClose: () => done({ notes: notes.version }),
       });
     }
 
@@ -102,7 +103,10 @@
       if (!wn) return;
       const { major, notes } = window.XenonReleaseNotice.pick({ wn, whatsNewSeen: was.whatsNew, notesSeen: was.notes });
       if (major) showMajor(wn);
-      else if (notes) showNotes(wn, notes);
+      else if (notes) {
+        const menu = notes.news.some((n) => n.keys) ? await read('/xenon-menu') : null;
+        if (!up) showNotes(wn, notes, menu?.menuKey || '');
+      }
     }
 
     return { check, reopen };

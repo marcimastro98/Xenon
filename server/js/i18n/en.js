@@ -7406,4 +7406,5 @@ module.exports = {
   usage_key_other: 'Choose another shortcut',
   usage_key_done: 'That\'s it.',
   usage_key_done_line: 'This is how Xenon opens from any app.',
+  rn_key_any_app: 'Over any app',
 };

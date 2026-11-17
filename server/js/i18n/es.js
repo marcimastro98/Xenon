@@ -7285,4 +7285,5 @@ module.exports = {
   usage_key_other: 'Elige otro atajo',
   usage_key_done: 'Eso es.',
   usage_key_done_line: 'Así se abre Xenon desde cualquier app.',
+  rn_key_any_app: 'Sobre cualquier app',
 };

@@ -7343,4 +7343,5 @@ module.exports = {
   usage_key_other: 'Выбрать другое сочетание',
   usage_key_done: 'Вот и всё.',
   usage_key_done_line: 'Так Xenon открывается из любого приложения.',
+  rn_key_any_app: 'Поверх любого приложения',
 };

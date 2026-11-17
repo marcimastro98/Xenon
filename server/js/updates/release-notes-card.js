@@ -35,12 +35,32 @@
     return player;
   }
 
-  function rows(notes, text) {
+  // A news row can show the key that opens Xenon and a button to one of its pages
+  // (`keys`, `section` in server/whatsnew.json), each only where it works here: no
+  // key in a browser, no button where the surface has nothing to open. The button
+  // closes the notes first, so Xenon opens on a free screen.
+  function tryRow(item, opts, close) {
+    const row = el('div', 'rn-try');
+    if (item.keys && opts.menuKey) {
+      const keys = el('span', 'rn-keys');   // the keys never break across lines
+      for (const key of opts.menuKey.split('+')) keys.append(el('span', 'rn-key', key.trim()));
+      row.append(el('span', 'rn-try-label', opts.tr('rn_key_any_app')), keys);
+    }
+    if (item.section && opts.openXenon) {
+      row.append(button('rn-try-go', opts.tr('tip_settings'), () => { close(); opts.openXenon(item.section); }));
+    }
+    return row.children.length ? row : null;
+  }
+
+  function rows(notes, opts, close) {
+    const { text } = opts;
     const list = el('div', 'rn-rows');
     for (const item of notes.news) {
       const news = el('div', 'rn-new');
       news.append(el('div', 'rn-new-name', text(item.title)));
       if (item.text) news.append(el('div', 'rn-new-line', text(item.text)));
+      const tryIt = tryRow(item, opts, close);
+      if (tryIt) news.append(tryIt);
       list.append(news);
     }
     for (const fix of notes.fixes) {
@@ -98,13 +118,13 @@
   function notesTitle(notes) { return `Xenon ${window.XenonReleaseNotice.shortVersion(notes.version)}`; }
   const notesMood = (notes) => (notes.news.length ? NEWS_MOOD : REPORT_MOOD);
 
-  // opts: { notes, text, tr, url, openUrl, onClose }
+  // opts: { notes, text, tr, url, openUrl, onClose, menuKey, openXenon(section) }
   function openNotes(opts) {
-    const { notes, text, tr } = opts;
+    const { notes, tr } = opts;
     return modal((card, close) => {
       const player = header(card, 'rn-head-notes', notesTitle(notes), window.XenonReleaseNotice.summary(notes, tr), notesMood(notes));
       const all = opts.url ? button('rn-link', tr('rn_all'), () => opts.openUrl(opts.url)) : null;
-      card.append(rows(notes, text), foot(all, button('rn-main', tr('rn_ok'), close)));
+      card.append(rows(notes, opts, close), foot(all, button('rn-main', tr('rn_ok'), close)));
       return player;
     }, opts.onClose);
   }
@@ -170,7 +190,7 @@
   // opts as openNotes. Closed with Ok only: the collapsed card waits as long as
   // it takes, since seeing it is the only thing that ends it.
   function cornerNotes(opts) {
-    const { notes, text, tr } = opts;
+    const { notes, tr } = opts;
     const count = notes.fixes.length;
     const line = notes.news.length ? window.XenonReleaseNotice.summary(notes, tr)
       : count === 1 ? tr('rn_card_fixed_one') : tr('rn_card_fixed_n').replace('{n}', String(count));
@@ -180,7 +200,8 @@
         remove();
         const gone = expand(notesTitle(notes), window.XenonReleaseNotice.summary(notes, tr), notesMood(notes), (card) => {
           const all = opts.url ? button('rn-link', tr('rn_all'), () => opts.openUrl(opts.url)) : null;
-          card.append(rows(notes, text), foot(all, button('rn-main', tr('rn_ok'), () => { gone(); opts.onClose(); })));
+          const read = () => { gone(); opts.onClose(); };
+          card.append(rows(notes, opts, read), foot(all, button('rn-main', tr('rn_ok'), read)));
         });
       },
     });
