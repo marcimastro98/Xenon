@@ -372,7 +372,7 @@ test('the 25th widget is refused without writing', async () => {
 });
 
 test('server.js gives the runner the shell report, the settings lock and the real widget list', () => {
-  assert.match(SERVER, /settings: \{\n\s+setAiEdgeGlow: \(mode\) => updateAiEdgeGlowSetting\(mode\),\n\s+setUsageMode: \(mode\) => updateUsageModeSetting\(mode\),\n\s+setScreenAlerts: \(on\) => updateScreenAlertsSetting\(on\),\n\s+setDesktopScene: \(patch\) => updateDesktopSceneSetting\(patch\),\n\s+desktopScenes: async [^\n]+\n\s+\},/);
+  assert.match(SERVER, /settings: \{\n\s+setAiEdgeGlow: \(mode\) => updateAiEdgeGlowSetting\(mode\),\n\s+setUsageMode: \(mode, surface\) => updateUsageModeSetting\(mode, surface\),\n\s+setScreenAlerts: \(on\) => updateScreenAlertsSetting\(on\),\n\s+setDesktopScene: \(patch\) => updateDesktopSceneSetting\(patch\),\n\s+desktopScenes: async [^\n]+\n\s+\},/);
   assert.match(SERVER, /layersHost,\n\s+layersEdit,\n\s+drawShell,\n\s+\/\/ Open windows.*\n\s+windows: \(\) => runWindowsTool\(\['list'\], 8000\),\n\s+menu: screenMenu,\n\s+settings: \{\n(?:.*\n){5}\s+\},\n\s+layers: \{\n\s+get: \(\) => _serverHubSettings && _serverHubSettings\.layers,\n\s+update: \(edit\) => updateLayersSetting\(edit\),/);
   assert.match(SERVER, /tiles: DASHBOARD_WIDGET_IDS\.filter\(id => !LAYER_TILE_EXCLUDED\.has\(id\)\)/);
 });

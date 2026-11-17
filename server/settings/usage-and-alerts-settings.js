@@ -25,10 +25,11 @@ async function updateScreenAlertsSetting(on) {
   });
 }
 
-async function updateUsageModeSetting(mode) {
+// `surfaceChoice`, when given, moves the dashboard too (capabilities/usage-mode.js).
+async function updateUsageModeSetting(mode, surfaceChoice) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
-    const saved = await writeHubSettings({ ...cur, usageMode: mode, rev: nextSettingsRev(cur.rev) });
+    const saved = await writeHubSettings({ ...cur, usageMode: mode, ...(surfaceChoice ? { surfaceChoice } : {}), rev: nextSettingsRev(cur.rev) });
     hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     refreshWakeWordWatch();

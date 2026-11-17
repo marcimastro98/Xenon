@@ -75,7 +75,7 @@ test('without the native shell there is nothing to switch: not offered, not run'
 test('the setting is kept on both sides, in the defaults and under the settings lock', () => {
   assert.match(SERVER, /\n {2}usageMode: '',\n/);
   assert.ok(SERVER.includes('usageMode: UsageMode.normalize(source.usageMode),'));
-  assert.match(SERVER, /async function updateUsageModeSetting\(mode\) \{\n {2}return withHubSettingsLock\(/);
+  assert.match(SERVER, /async function updateUsageModeSetting\(mode, surfaceChoice\) \{\n {2}return withHubSettingsLock\(/);
   assert.match(CLIENT, /\n {2}usageMode: '',\n/);
   assert.ok(CLIENT.includes('usageMode: window.UsageMode ? window.UsageMode.normalize(value.usageMode) : \'\','));
 });

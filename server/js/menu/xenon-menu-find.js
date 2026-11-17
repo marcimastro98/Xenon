@@ -12,8 +12,10 @@
   const SKIPPED = new Set(['heading', 'add', 'tunehead', 'map']);
 
   // A block of switches is found switch by switch, a widget's adjustments under its name.
+  // The Screens home is the whole section: what it holds is found as the section's own.
   const ownRows = (r) => {
     if (r.kind === 'checks') return (r.groups || []).flatMap((g) => g.items);
+    if (r.kind === 'home') return (r.tune || []).flatMap(ownRows);
     return r.tune ? [r, ...r.tune.flatMap(ownRows).map((t) => ({ ...t, owner: r.label }))] : [r];
   };
   const named = (r) => (r.owner ? { ...r, label: [r.owner, r.label] } : r);

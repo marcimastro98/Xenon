@@ -9,10 +9,11 @@
 // place through `onOpen`, because only it knows how to get there.
 // Every text is set with textContent; no inline styles.
 (function (root, factory) {
-  const api = factory();
-  if (typeof module === 'object' && module.exports) module.exports = api;
+  const node = typeof module === 'object' && module.exports;
+  const api = factory(node ? require('./xenon-menu-screens.js') : root.XenonMenuScreens);
+  if (node) module.exports = api;
   if (root) root.XenonMenuView = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, function (HomeRow) {
   const CLOSE_FIRST_MS = 300;   // a closing row runs once the menu is off the screen
   const ERROR_FOR_MS = 6000;
   const KEY_TO_TRY = 'ctrl+alt+f9';   // Ctrl+Alt with a letter is AltGr: it is refused
@@ -59,13 +60,12 @@
   }
 
   // The sections as this place shows them: rows only the screen can run
-  // (`screenOnly`) leave the dashboard panel.
+  // (`screenOnly`) leave the dashboard panel, also those the Screens home holds.
   function sectionsFor(data, place) {
     const list = (data && Array.isArray(data.sections)) ? data.sections : [];
-    return list.map((s) => ({
-      ...s,
-      rows: (Array.isArray(s.rows) ? s.rows : []).filter((r) => r && !(r.screenOnly && place !== 'screen')),
-    }));
+    const keep = (rows) => (Array.isArray(rows) ? rows : []).filter((r) => r && !(r.screenOnly && place !== 'screen'));
+    const home = (r) => (r.kind === 'home' && HomeRow ? HomeRow.inPlace(r, keep) : r);
+    return list.map((s) => ({ ...s, rows: keep(s.rows).map(home) }));
   }
 
   // ── The view ───────────────────────────────────────────────────
@@ -77,7 +77,7 @@
     const Icons = (typeof window !== 'undefined' && window.XenonMenuIcons) || null;
     const Palette = (typeof window !== 'undefined' && window.DashboardPalette) || null;
     let data = null;
-    let section = 'now';
+    let section = 'screens';
     let busy = false;
     let recording = null;   // { row, btn, downs } while a key row waits for keys
     let errorTimer = 0;
@@ -375,10 +375,9 @@
 
     const drawTuneHead = (r) => el('h3', 'xm-tunehead', text(r.label, tt));
 
-    const PageEdit = (typeof window !== 'undefined' && window.XenonMenuPageEdit) || null;
-    const pageEdit = PageEdit ? PageEdit.create({ el, button, tt, fill, rowShell, perform, redraw: () => draw(), root: rootEl }) : null;
-
     const say = (x) => text(x, tt);
+    const PageEdit = (typeof window !== 'undefined' && window.XenonMenuPageEdit) || null;
+    const pageEdit = PageEdit ? PageEdit.create({ el, button, say, tt, fill, icon, rowShell, perform, redraw: () => draw(), root: rootEl }) : null;
     const Place = (typeof window !== 'undefined' && window.XenonMenuPlace) || null;
     const placeDraw = Place ? Place.create({ el, button, say, tt, rowShell, perform, post, showError, redraw: () => draw() }) : null;
     const When = (typeof window !== 'undefined' && window.XenonMenuWhen) || null;
@@ -405,7 +404,8 @@
     const Screens = (typeof window !== 'undefined' && window.XenonMenuScreens) || null;
     if (Screens) {
       const live = sceneView ? { slot: sceneView.slot, hold: sceneView.hold, settle: sceneView.settle } : {};
-      DRAW.screens = Screens.create({ el, button, say, DRAW, rowShell, perform, icon, ...live }).draw;
+      const widgetTab = (view, home) => (widgets ? widgets.listFor(home.parts.widgets, view) : []);
+      DRAW.home = Screens.create({ el, button, say, tt, DRAW, rowShell, perform, icon, widgetTab, server, ...live }).draw;
     }
 
     // ── Key recording ──
@@ -663,7 +663,7 @@
         return;
       }
       const sections = sectionsFor(data, place);
-      if (!sections.some((s) => s.id === section)) section = sections.length ? sections[0].id : 'now';
+      if (!sections.some((s) => s.id === section)) section = sections.length ? sections[0].id : 'screens';
       drawNav(sections);
       if (query.trim()) { drawFound(sections); return; }
       const s = sections.find((x) => x.id === section);
@@ -751,14 +751,14 @@
       draw();
       return true;
     };
-    // Ctrl+Z in the Widgets section: one change back, as on the screen.
+    // Ctrl+Z on the Screens page: one change back to the widgets, as on the screen.
     function undoKey(e) {
-      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || String(e.key).toLowerCase() !== 'z' || !widgets || section !== 'widgets') return;
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || String(e.key).toLowerCase() !== 'z' || !widgets || section !== 'screens') return;
       if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName || '')) return;
-      const s = sectionsFor(data, place).find((x) => x.id === 'widgets');
-      if (!s) return;
+      const rows = window.XenonMenuWidgets.rowsOf(sectionsFor(data, place).find((x) => x.id === 'screens'));
+      if (!rows) return;
       e.preventDefault();
-      widgets.undo(s.rows);
+      widgets.undo(rows);
     }
     doc.addEventListener('keydown', undoKey);
 

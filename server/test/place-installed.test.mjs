@@ -101,7 +101,7 @@ test('a pack with several widgets opens the choice instead of picking one', asyn
   assert.equal(screen.action.label, 'Choose');
   screen.action.onClick();
   await settle();
-  assert.deepEqual(d.posts, [['/screen-menu', { open: true, section: 'widgets' }]]);
+  assert.deepEqual(d.posts, [['/screen-menu', { open: true, section: 'screens' }]]);
 });
 
 test('the Maker link asks for it, so it goes straight on screen without asking again', async () => {

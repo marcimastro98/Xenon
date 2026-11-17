@@ -177,3 +177,45 @@ test('a scene list in the menu: a tick on the one in use, the preview in the scr
   li.querySelector('.xm-sceneopt--more').click();
   assert.ok(li.querySelector('.more-row'), 'more scenes opens where they would go');
 });
+
+test('under the screens: the phones paired with this PC and a card to pair one; none where the list is refused', async () => {
+  const { document } = makeDom();
+  globalThis.CSS = globalThis.CSS || { escape: (s) => s };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
+  const button = (cls) => el('button', cls);
+  const settle = () => new Promise((done) => setImmediate(done));
+  const home = { kind: 'home', sub: { key: 'hint' }, screens: [{ key: 'pg', label: { text: 'pg' }, width: 1920, height: 1080, x: 0, y: 0, tabs: [] }] };
+  const asked = [];
+  const done = [];
+  const make = (server) => Screens.create({ el, button, say: (v) => (v && v.text) || (v && v.key) || '', tt: (k) => k, DRAW: {}, rowShell: () => el('li'), perform: (r, act) => done.push(act), icon: () => null, server });
+  const had = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url) => { asked.push(url); return { ok: true, json: async () => ({ devices: [{ id: 'dev1', name: 'Tablet <b>' }, { id: 'dev2' }, { name: 'no id' }] }) }; };
+    const view = make('http://127.0.0.1:3030');
+    const li = view.draw(home);
+    assert.equal(li.querySelectorAll('.xm-scrphone').length, 0, 'nothing drawn before the list is read');
+    await settle();
+    assert.deepEqual(asked, ['http://127.0.0.1:3030/api/remote-access/status']);
+    const cards = li.querySelectorAll('.xm-scrphone');
+    assert.deepEqual(cards.map((b) => b.dataset.keep), ['phone:dev1', 'phone:dev2', 'phone:add']);
+    assert.ok(cards[0].textContent.startsWith('Tablet <b>'), 'a name stays text');
+    assert.ok(cards[1].textContent.startsWith('settings_cat_phone'), 'a device with no name is still called something');
+    assert.ok(cards[0].textContent.includes('xmenu_scr_dashboard'), 'a phone shows the dashboard');
+    cards[2].click();
+    cards[0].click();
+    assert.deepEqual(done, [{ open: 'settings:phone' }, { open: 'settings:phone' }]);
+    view.draw(home);
+    assert.equal(asked.length, 1, 'read again only after a while');
+    globalThis.fetch = async () => ({ ok: false, status: 403 });
+    const phone = make('').draw(home);
+    await settle();
+    assert.equal(phone.querySelectorAll('.xm-scrphone').length, 0, 'a paired device is refused the list and draws none');
+    asked.length = 0;
+    globalThis.fetch = async (url) => { asked.push(url); return { ok: true, json: async () => ({ devices: [] }) }; };
+    make(undefined).draw(home);
+    await settle();
+    assert.deepEqual(asked, [], 'without an engine to ask, nothing is read');
+  } finally {
+    globalThis.fetch = had;
+  }
+});

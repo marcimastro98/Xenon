@@ -29,13 +29,13 @@ const settle = () => new Promise((r) => setTimeout(r, 5));
 
 test('the menu stays aside for as long as the widgets are being moved', async () => {
   const { menu, said, end } = rig();
-  menu.show({ section: 'widgets' });
+  menu.show({ section: 'screens' });
   assert.equal(menu.stepAside({ type: 'edit' }), 'aside');
   await settle();
   assert.equal(said.at(-1).aside, true, 'the action ended, the mode did not');
   end();
   menu.holdEnded(true);
-  assert.deepEqual(said.at(-1), { open: true, section: 'widgets' });
+  assert.deepEqual(said.at(-1), { open: true, section: 'screens' });
 });
 
 test('a one-shot function still comes back at once', async () => {
@@ -49,7 +49,7 @@ test('a one-shot function still comes back at once', async () => {
 
 test('left alone until the mode timed out, the menu does not come up by itself', async () => {
   const { menu, said, end } = rig();
-  menu.show({ section: 'widgets' });
+  menu.show({ section: 'screens' });
   menu.stepAside({ type: 'edit' });
   await settle();
   end();
@@ -92,7 +92,7 @@ test('both ways into the mode from the menu come back, and the page keeps the sc
 
 test('a menu out of sight holds up no widget: the shell knows, the page does not', () => {
   const { menu } = rig();
-  menu.show({ section: 'widgets' });
+  menu.show({ section: 'screens' });
   assert.equal(menu.isBehind(), false);
   menu.setBehind(true);
   assert.equal(menu.isBehind(), true);

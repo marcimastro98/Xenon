@@ -266,7 +266,7 @@
       "id": "menu",
       "area": "desktop",
       "name": "Xenon menu",
-      "what": "The menu that opens over the desktop: widgets, screens, looks, the Store.",
+      "what": "The menu that opens over the desktop: your screens with their widgets and background, capture, keys, the Store.",
       "files": [
         "server/menu/**",
         "server/menu.html",

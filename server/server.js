@@ -211,7 +211,7 @@ const capabilityRunner = capabilities.createCapabilities({
   menu: screenMenu,
   settings: {
     setAiEdgeGlow: (mode) => updateAiEdgeGlowSetting(mode),
-    setUsageMode: (mode) => updateUsageModeSetting(mode),
+    setUsageMode: (mode, surface) => updateUsageModeSetting(mode, surface),
     setScreenAlerts: (on) => updateScreenAlertsSetting(on),
     setDesktopScene: (patch) => updateDesktopSceneSetting(patch),
     desktopScenes: async () => ({ packages: (await _layerCatalog()).scenes, canvases: (hub.settings || {}).ambientScenes, themes: (hub.settings || {}).customThemes }),

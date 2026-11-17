@@ -40,7 +40,7 @@ const state = ({ layers, ...over } = {}) => ({
 });
 const compose = (over) => Menu.compose(state(over));
 const section = (out, id) => out.sections.find((s) => s.id === id);
-const widgetRow = (out, id) => section(out, 'widgets').rows.find((r) => r.id === id);
+const widgetRow = (out, id) => section(out, 'screens').rows.find((r) => r.kind === 'home').parts.widgets.find((r) => r.id === id);
 const tune = (out, id, name) => widgetRow(out, id).tune.find((r) => r.id === id + ':' + name);
 
 test('a widget card has a key that shows it, unset, and the suggestion its creator made as one tap', () => {

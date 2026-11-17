@@ -35,7 +35,7 @@
   // (xenon-menu.js `settings:<cat>`) and a tile's Set up button on a widget on
   // the screen (utils/page-and-text.js openSettingsCategory), mirrored by SETTINGS_CATS in spec.rs.
   const SETTINGS_CATS = ['ambient', 'appearance', 'capture', 'general', 'notifications',
-    'ai', 'smarthome', 'spotify', 'streaming', 'unifi', 'slideshow'];
+    'ai', 'smarthome', 'spotify', 'streaming', 'unifi', 'slideshow', 'phone'];
   // The screens that open alone in the Xenon menu's window (js/ai/sheet-page.js).
   const SHEET_SCREENS = ['settings', 'store', 'sparks', 'gallery', 'chat', 'mixer', 'macro', 'deckkey', 'import', 'whatsnew'];
   const KEY_ID = /^[\w-]{1,64}$/;

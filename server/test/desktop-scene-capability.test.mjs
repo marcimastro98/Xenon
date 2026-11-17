@@ -191,7 +191,7 @@ test('the Classic scene shows the parts it is told, and only real ones', async (
 test('the menu offers the parts only under the Classic scene, and a tap flips one', () => {
   const { compose } = require('../menu/xenon-menu.js');
   const parts = (id) => compose({ probes: { scene: true }, monitors: [{ key: 'm', primary: true }], scene: { id, dashboard: 'm', canvases: [{ id: 'mine', name: 'Mine' }], parts: { clock: true, weather: false, media: true, calendar: true } } })
-    .sections.find((x) => x.id === 'look').rows.find((r) => r.kind === 'screens')
+    .sections.find((x) => x.id === 'screens').rows.find((r) => r.kind === 'home').parts.look.find((r) => r.kind === 'screens')
     .screens[0].tabs.flatMap((t) => t.rows).find((r) => r.id === 'sceneParts-1');
   const row = parts('builtin');
   assert.deepEqual(row.options.map((o) => o.on), [true, false, true, true]);

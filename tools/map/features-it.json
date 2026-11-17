@@ -40,7 +40,7 @@
     "remote-control": ["Controllo remoto", "Usare il PC da un altro dispositivo con Sunshine, Moonlight e Tailscale."],
     "search": ["Ricerca", "Una casella che trova file e app e può chiedere a Bit."],
     "capture": ["Cattura", "Screenshot, registrazione, replay istantaneo, la galleria e il registratore di passaggi."],
-    "menu": ["Menu di Xenon", "Il menu che si apre sopra il desktop: widget, schermi, look, lo Store."],
+    "menu": ["Menu di Xenon", "Il menu che si apre sopra il desktop: i tuoi schermi con widget e sfondo, cattura, tasti, lo Store."],
     "layers": ["Widget sul desktop", "Widget fuori dalla dashboard: sul desktop o sopra un gioco, dove e quando appaiono."],
     "alerts": ["Avvisi e disegno", "Le notifiche in alto al centro dello schermo, e il disegno sopra lo schermo."],
     "bit": ["Bit", "L'assistente: chat e voce, i fornitori di AI, la memoria, gli strumenti, i look e i widget che crea."],

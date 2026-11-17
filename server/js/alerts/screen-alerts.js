@@ -309,7 +309,7 @@ let hubSettings = {};
   window.CommunityGallery = { openSparks: () => window.BitMessages.openSheet({ open: 'sparks' }) };
   // "Widgets only" means no dashboard: what needs one is a choice, made in the menu.
   const openMode = () => fetch(SERVER + '/screen-menu', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section: 'mode' }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section: 'screens' }),
   }).catch(() => { /* the server is restarting */ });
 
   function revealBenchmark() {

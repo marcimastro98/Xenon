@@ -1,10 +1,13 @@
 'use strict';
 
-// The screens of the Look section (rows from server/menu/menu-look.js), laid out like a
-// widget's screen: the real screens stay in place on one side, the one tapped plays its
-// scene, and its choices sit in tabs beside it. A scene list is one answer per line, and
-// passing over a line plays that scene in the screen's picture. Which screen and tab are
-// open is this page's own; a tap redraws only this block.
+// The Screens page of the Xenon menu, its home (row from server/menu/menu-screens.js), laid
+// out like a widget's screen: the real screens stay in place on one side, each saying
+// what it shows, the one tapped plays its scene, and its tabs sit beside it: what it
+// shows, its widgets (js/menu/xenon-menu-widgets.js draws that list) and its background. A
+// scene list is one answer per line, and passing over a line plays that scene in the
+// screen's picture. Which screen and tab are open is this page's own; a tap redraws only
+// this block. Under the screens, the phones and tablets paired with this PC, and a card
+// to pair one.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
   const api = factory(node ? require('./xenon-menu-map.js') : root.XenonMenuMap);
@@ -14,13 +17,46 @@
   // The one shown: the screen tapped before if it is still there, else the first.
   const pickedOf = (screens, key) => screens.find((m) => m.key === key) || screens[0] || null;
   const tabOf = (view, id) => (view.tabs || []).find((t) => t.id === id) || (view.tabs || [])[0] || null;
+  // Pairing and the list of paired devices are on Settings → Phone.
+  const PAIR = Object.freeze({ id: 'pair', act: Object.freeze({ open: 'settings:phone' }) });
+  // The paired list changes only when someone pairs or removes one: read again at most this often.
+  const PHONES_STALE_MS = 30 * 1000;
 
-  // ctx: { el, button, say, DRAW, perform, icon, slot, hold, settle }
+  // The home row as a place shows it (js/xenon-menu.js sectionsFor): `keep` drops what that
+  // place cannot run, and a tab left with nothing there (the dashboard's tiles, seen from
+  // the dashboard) is not drawn.
+  function inPlace(row, keep) {
+    const tabs = (v) => ({ ...v, tabs: (v.tabs || []).map((t) => (t.rows ? { ...t, rows: keep(t.rows) } : t)).filter((t) => t.widgets || !t.rows || t.rows.length) });
+    const parts = Object.fromEntries(Object.entries(row.parts || {}).map(([id, rows]) => [id, keep(rows)]));
+    return { ...row, screens: (row.screens || []).map(tabs), parts, tune: keep(row.tune) };
+  }
+
+  // The phones and tablets paired with this PC, or null. The list is the PC's own: a
+  // paired device is refused it (remote-access.js), and then the page shows none.
+  async function pairedOn(server) {
+    try {
+      const res = await fetch(server + '/api/remote-access/status', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data || !Array.isArray(data.devices)) return null;
+      return data.devices.filter((d) => d && typeof d.id === 'string')
+        .map((d) => ({ id: d.id.slice(0, 64), name: typeof d.name === 'string' ? d.name.slice(0, 60) : '' }));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ctx: { el, button, say, tt, DRAW, perform, icon, rowShell, widgetTab, server, slot, hold, settle }
+  //   widgetTab(view, row) → the nodes of that screen's Widgets tab
+  //   server: the engine's origin ('' on the dashboard's own page); without it, no phones
   function create(ctx) {
     const { el, button, say, DRAW, perform, icon } = ctx;
     let picked = '';
     const chosenTab = new Map();   // screen key -> the tab left open
     let moreOpen = false;
+    let phoneList = null;
+    let phonesReadAt = 0;
+    let shown = null;              // { box, r } painted last, for the list when it arrives
 
     function says(line) {
       const row = el('span', 'xm-scrsays');
@@ -37,9 +73,42 @@
       if (on && live) b.appendChild(live);
       const words = el('span', 'xm-scrwords');
       words.append(el('span', 'xm-scrname', say(m.label)), ...(m.says || []).map(says));
+      if (m.chip) words.appendChild(el('span', 'xm-scrchip' + (m.dashboard ? ' is-dashboard' : ''), say(m.chip)));
       b.appendChild(words);
       b.addEventListener('click', () => pick(m.key));
       return b;
+    }
+
+    // A phone shows the dashboard; a tap, like the last card, leads to pairing.
+    function phoneCard(name, chip, keep, add) {
+      const b = button('xm-scrphone' + (add ? ' is-add' : ''));
+      b.dataset.keep = keep;
+      const words = el('span', 'xm-scrwords');
+      words.appendChild(el('span', 'xm-scrname', name));
+      if (chip) words.appendChild(el('span', 'xm-scrchip is-dashboard', chip));
+      b.append(icon(add ? 'plus' : 'phone') || '', words);
+      b.addEventListener('click', () => perform(PAIR, PAIR.act));
+      return b;
+    }
+
+    function phonesNode() {
+      if (!phoneList) return null;
+      const box = el('div', 'xm-scrphones');
+      const chip = ctx.tt('xmenu_scr_dashboard');
+      box.append(...phoneList.map((p) => phoneCard(p.name || ctx.tt('settings_cat_phone'), chip, 'phone:' + p.id, false)),
+        phoneCard(ctx.tt('xmenu_scr_add_phone'), '', 'phone:add', true));
+      return box;
+    }
+
+    function readPhones() {
+      if (typeof ctx.server !== 'string' || Date.now() - phonesReadAt < PHONES_STALE_MS) return;
+      phonesReadAt = Date.now();
+      pairedOn(ctx.server).then((list) => {
+        const next = Array.isArray(list) ? list : null;
+        if (JSON.stringify(next) === JSON.stringify(phoneList)) return;
+        phoneList = next;
+        if (shown) paint(shown.box, shown.r);
+      }, () => {});
     }
 
     function moreItem(more, redraw) {
@@ -93,8 +162,15 @@
     }
 
     // The tab's rows; a scene list carries the screen's moving preview (`live`).
-    function panelOf(tab, r, redraw) {
+    function panelOf(tab, r, redraw, view) {
       let live = null;
+      if (tab?.widgets) {
+        const box = el('div', 'xm-wpanel xm-scrrows xm-scrwidgets');
+        box.setAttribute('role', 'tabpanel');
+        for (const x of tab.rows || []) if (DRAW[x.kind]) box.appendChild(DRAW[x.kind](x));
+        if (ctx.widgetTab) box.append(...ctx.widgetTab(view, r));
+        return { panel: box, live };
+      }
       const panel = el('div', 'xm-list xm-wpanel xm-scrrows');
       panel.setAttribute('role', 'tabpanel');
       for (const x of tab ? tab.rows : []) {
@@ -122,13 +198,13 @@
         redraw('screen:' + key);
       };
       const tab = view ? tabOf(view, chosenTab.get(view.key)) : null;
-      const { panel, live } = panelOf(tab, r, () => redraw('scenes:more'));
+      const { panel, live } = panelOf(tab, r, () => redraw('scenes:more'), view);
       const shape = MenuMap.layout(r.screens);
       const map = el('div', 'xm-map xm-scrmap');
       map.style.setProperty('--xm-ratio', String(shape.ratio));
-      map.append(...shape.screens.map((m) => screenNode(m, !!view && m.key === view.key, pick, live && live.box)));
+      map.append(...shape.screens.map((m) => screenNode(m, !!view && m.key === view.key, pick, live?.box)));
       const pic = el('div', 'xm-detail-pic');
-      pic.append(map, el('p', 'xm-cap', say(r.sub)));
+      pic.append(...[map, el('p', 'xm-cap', say(r.sub)), phonesNode()].filter(Boolean));
       const choices = el('div', 'xm-detail-choices');
       if (view) {
         const choose = (id) => { chosenTab.set(view.key, id); moreOpen = false; redraw(`screen:${view.key}:${id}`); };
@@ -143,6 +219,7 @@
         parts.push(theme);
       }
       box.replaceChildren(...parts);
+      shown = { box, r };
     }
 
     function draw(r) {
@@ -151,11 +228,12 @@
       const box = el('div', 'xm-detailbox xm-scrbox');
       li.appendChild(box);
       paint(box, r);
+      readPhones();
       return li;
     }
 
     return { draw };
   }
 
-  return { create, pickedOf, tabOf };
+  return { create, pickedOf, tabOf, inPlace };
 });
