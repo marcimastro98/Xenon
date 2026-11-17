@@ -109,7 +109,7 @@ export function footerHtml() {
     <div class="xf-brand">
       ${BRAND}
       <p data-xl="tag">Free widgets for your PC, on any screen. Windows, with macOS and Linux in beta.</p>
-      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">${BIT_LINE}</span></div>
+      <div class="xf-bit"><span data-xl="bit">${BIT_LINE}</span></div>
     </div>
     ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/maker/', 'f.maker', 'Xenon Maker'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
     ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/single-screen.html', 'f.onescreen', 'Xenon on one screen'], ['/fps-overlay.html', 'f.fps', 'FPS overlay'], ['/screen-recorder.html', 'f.recorder', 'Screen recorder'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/compare.html', 'f.compare', 'Xenon and other tools'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
