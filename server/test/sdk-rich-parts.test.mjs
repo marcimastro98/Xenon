@@ -136,6 +136,16 @@ test('detail card: names the widget that opened it, from the package and not fro
   assert.equal(card('pkg.other'), 'cw_clip_widget', 'an unnamed package is "A widget"');
 });
 
+test('detail card: by default the name is the one in the installed package list', () => {
+  const { window, all } = rig();
+  window.CustomWidget = { cachedPackages: () => [{ id: 'pkg.hs', name: 'Headset Monitor' }] };
+  window.SdkBadges.set('pkg.hs', window.SdkBadges.normalize({
+    blocks: [{ type: 'meter', icon: '🎧', value: 1, detail: { title: 'Battery', rows: [] } }],
+  }), null);
+  byClass(all(), 'sdk-meter')[0].click();
+  assert.equal(byClass(all(), 'sdk-detail-from')[0].textContent, 'Headset Monitor');
+});
+
 test('bars: the widget shape and colour travel as custom properties, never a style string', () => {
   const { window } = rig();
   const node = window.SdkBlockRender.render({ type: 'progress', value: 0.4, width: 30, height: 4, color: '#ff8800', orientation: 'vertical' });

@@ -13,9 +13,14 @@
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const t = (key, fallback) => (typeof window.t === 'function' ? window.t(key) : fallback);
-  // Who drew a card: the installed package's name, set by the host
-  // (custom-widget.js). The view never names itself.
-  let nameOf = () => '';
+  // Who drew a card: the installed package's name, from the host's package list
+  // (CustomWidget.cachedPackages). The view never names itself.
+  let nameOf = (pkgId) => {
+    const cw = window.CustomWidget;
+    const list = cw && typeof cw.cachedPackages === 'function' ? cw.cachedPackages() : [];
+    const pkg = Array.isArray(list) ? list.find((item) => item && item.id === pkgId) : null;
+    return pkg && typeof pkg.name === 'string' ? pkg.name : '';
+  };
   function setNameSource(fn) { if (typeof fn === 'function') nameOf = fn; }
 
   function setColor(node, color) {
