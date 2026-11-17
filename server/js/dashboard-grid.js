@@ -141,9 +141,38 @@ const _lastPointer = { x: 0, y: 0 };  // last pointer position (for drop-target 
 let _dragHover = null;                // tile currently flagged as a merge target
 let _affRAF = 0;                      // rAF handle: throttle "+" refresh to one/frame
 
+// GridStack's resize auto-scroll compares the pointer (screen px) with the scroller's
+// clientHeight (layout px). Under the interface scale (CSS zoom on <html>,
+// native-bridge.js) they differ by the zoom, so at 130% a pointer far from the edge
+// read as "at the bottom": every resize step scrolled, and the tile grew and slid off
+// screen (GitHub #158). Same rule, with both sides in screen px; untouched at 100%.
+// The factor is measured as GridStack measures its own (a rect against layout px),
+// so an engine whose rects are already in layout px reads 1 and keeps the original.
+function screenPerLayoutPx() {
+  const el = document.documentElement;
+  const f = el && el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+  return f > 0 && Math.abs(f - 1) > 0.01 ? f : 1;
+}
+function zoomSafeResizeScroll(Utils) {
+  if (!Utils || Utils.__xenonZoomSafe || typeof Utils.updateScrollResize !== 'function') return;
+  const original = Utils.updateScrollResize;
+  Utils.updateScrollResize = function (event, el, distance) {
+    const z = screenPerLayoutPx();
+    if (z === 1) return original.call(this, event, el, distance);
+    const scroller = Utils.getScrollElement(el);
+    const height = scroller.clientHeight * z;
+    const top = scroller === Utils.getScrollElement() ? 0 : scroller.getBoundingClientRect().top;
+    const y = event.clientY - top;
+    if (y < distance) scroller.scrollBy({ behavior: 'smooth', top: (y - distance) / z });
+    else if (y > height - distance) scroller.scrollBy({ behavior: 'smooth', top: (distance - (height - y)) / z });
+  };
+  Utils.__xenonZoomSafe = true;
+}
+
 // Mount (or re-mount) a GridStack on a page's grid element.
 function mountPageGrid(pageId, gridEl) {
   if (!gridEl || typeof GridStack === 'undefined') return null;
+  zoomSafeResizeScroll(GridStack.Utils);
   if (_grids.has(pageId)) {
     const old = _grids.get(pageId);
     watchGridPageBox(old.el && old.el.parentElement, false);
@@ -1152,5 +1181,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, addWidgetToPage, firstFreeSlot: gridFirstFreeSlot, spanForSize, sizeForHint, fitsOnPage, TILE_SIZE_HINTS, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
+  module.exports = { availableWidgets, addableWidgetIds, addWidgetToPage, firstFreeSlot: gridFirstFreeSlot, spanForSize, sizeForHint, fitsOnPage, TILE_SIZE_HINTS, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS, zoomSafeResizeScroll };
 }

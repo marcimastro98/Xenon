@@ -190,7 +190,7 @@ test('the island is measured on the page in view, whichever page the grid was re
 });
 
 test('the notch pass places the island from the grid in view, not from the first unparked page', () => {
-  assert.match(TOPBAR_JS, /N\.gridInView\(ref\.getBoundingClientRect\(\), home && home\.getBoundingClientRect\(\), pagerEl && pagerEl\.getBoundingClientRect\(\)\)/);
+  assert.match(TOPBAR_JS, /N\.gridInView\(layoutRect\(ref\.getBoundingClientRect\(\)\), home && layoutRect\(home\.getBoundingClientRect\(\)\), pagerBox\)/);
 });
 
 test('the island arrives from a dot after the boot splash, and nothing is cut before it', () => {
@@ -222,7 +222,7 @@ test('a sliding page holds still, and its tiles open softly once a page is in pl
   has(TOPBAR_JS, 'pageRestTimer = setTimeout(pageRest, PAGE_REST_MS);');
   has(TOPBAR_JS, 'if (paging) return; // the tiles hold still while a page slides; pageRest catches up');
   // Measured on screen, not from offsetLeft (its offset parent sits off the pager edge).
-  has(TOPBAR_JS, 'const shift = page && pagerEl ? page.getBoundingClientRect().left - pagerLeft : 0;');
+  has(TOPBAR_JS, 'const shift = page && pagerEl ? layoutRect(page.getBoundingClientRect()).left - pagerLeft : 0;');
   has(TOPBAR_JS, 'if (span && Math.abs(shift) > HOME_SLACK) return;');
   has(TOPBAR_JS, 'const left = (n.x || 0) * colWidth + shift;');
   // A finger held mid-swipe: no page in place, nothing changes.

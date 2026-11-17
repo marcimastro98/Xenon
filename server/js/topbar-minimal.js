@@ -327,10 +327,10 @@
     // Opacity does not affect layout, so the "before" box can be measured with
     // the fade already running.
     pill.classList.add('mini-morph-dim');
-    const from = pill.getBoundingClientRect();
+    const from = layoutRect(pill.getBoundingClientRect());
     morphOutTimer = setTimeout(() => {
       mutate();
-      const to = pill.getBoundingClientRect();
+      const to = layoutRect(pill.getBoundingClientRect());
       // Nothing actually resized (e.g. the takeover is switched off, so a
       // play/pause only changed a glyph) — don't animate a box that isn't moving.
       if (Math.abs(to.width - from.width) < 2 && Math.abs(to.height - from.height) < 2) {
@@ -626,7 +626,7 @@
       left: tile.margin + border + px(cs.paddingLeft) + px(bs.marginLeft),
       right: tile.width - tile.margin - px(cs.borderRightWidth) - px(cs.paddingRight) - px(bs.marginRight),
       need: bar.scrollWidth + 1,
-      under: body.getBoundingClientRect().top - top - (px(cs.borderTopWidth) - border),
+      under: layoutRect(body.getBoundingClientRect()).top - top - (px(cs.borderTopWidth) - border),
     };
     barRooms.set(item, room);
     return room;
@@ -762,6 +762,22 @@
     new ResizeObserver(scheduleReflow).observe(el);
   }
 
+  // Under the interface scale (CSS zoom on <html>, native-bridge.js) a rect reads in
+  // screen px while every length written back renders ×zoom, so the cutouts, the
+  // clearance and the morph came out zoomed twice (GitHub #158). Rects read here are
+  // turned into layout px first; at 100% this changes nothing. The factor is measured,
+  // not taken from __pageZoom: an engine that already reports rects in layout px
+  // (WebKit adjusts them for zoom) measures 1 and is left alone.
+  const screenPerLayoutPx = () => {
+    const el = document.documentElement;
+    const f = el && el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    return f > 0 && Math.abs(f - 1) > 0.01 ? f : 1;
+  };
+  const layoutRect = (r) => {
+    const z = screenPerLayoutPx();
+    return { left: r.left / z, right: r.right / z, top: r.top / z, bottom: r.bottom / z, width: r.width / z, height: r.height / z };
+  };
+
   const boxOf = (r, radius) => ({
     left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height,
     // A pill's radius is far past half its height; clamp it so it can be animated.
@@ -786,14 +802,15 @@
       const w = cap.offsetWidth, h = cap.offsetHeight;
       const top = parseFloat(getComputedStyle(cap).top) || 0;
       const align = body.dataset.topbarAlign;
-      const left = align === 'left' ? 12 : align === 'right' ? window.innerWidth - 12 - w : (window.innerWidth - w) / 2;
+      const viewW = document.documentElement.clientWidth; // layout px, as w
+      const left = align === 'left' ? 12 : align === 'right' ? viewW - 12 - w : (viewW - w) / 2;
       return { ...boxOf({ left, right: left + w, top, bottom: top + h, height: h }, parseFloat(getComputedStyle(cap).borderTopLeftRadius)), kind: 'sdk' };
     }
     const cs = getComputedStyle(ui.pill);
     let scaled = false;
     try { scaled = cs.transform !== 'none' && Math.abs(new DOMMatrixReadOnly(cs.transform).a - 1) > 0.001; } catch { /* unparsable: treat as at rest */ }
     if (scaled && restBox) return { ...restBox, kind: 'pill' };
-    const box = boxOf(ui.pill.getBoundingClientRect(), parseFloat(cs.borderTopLeftRadius));
+    const box = boxOf(layoutRect(ui.pill.getBoundingClientRect()), parseFloat(cs.borderTopLeftRadius));
     if (!scaled) restBox = box;
     return { ...box, kind: 'pill' };
   }
@@ -971,9 +988,10 @@
       const home = ref.closest('.pager-page');
       const pagerEl = document.getElementById('dashboard-pager');
       watchPager(pagerEl);
-      const pagerLeft = pagerEl ? pagerEl.getBoundingClientRect().left : 0;
+      const pagerBox = pagerEl ? layoutRect(pagerEl.getBoundingClientRect()) : null;
+      const pagerLeft = pagerBox ? pagerBox.left : 0;
       const span = pagerEl ? pagerEl.clientWidth : 0;
-      const g = N.gridInView(ref.getBoundingClientRect(), home && home.getBoundingClientRect(), pagerEl && pagerEl.getBoundingClientRect());
+      const g = N.gridInView(layoutRect(ref.getBoundingClientRect()), home && layoutRect(home.getBoundingClientRect()), pagerBox);
       if (!g.height || !g.width) { clearIslandTags(); return; }
       const clearance = Math.max(0, Math.ceil(pill.bottom - g.top) + 12);
       if (!clearance) { clearIslandTags(); return; }
@@ -987,7 +1005,7 @@
         // How far this page sits from the view (0 for the page in place). Its own
         // box, not offsetLeft: that counts from the pager's offset parent.
         const page = grid.closest('.pager-page');
-        const shift = page && pagerEl ? page.getBoundingClientRect().left - pagerLeft : 0;
+        const shift = page && pagerEl ? layoutRect(page.getBoundingClientRect()).left - pagerLeft : 0;
         if (span && Math.abs(shift) > HOME_SLACK) return;
         inPlace = true;
         const readable = !editing && !grid.closest('.pager-page.is-parked');
