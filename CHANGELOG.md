@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### ✨ Changed
 - **Bit tells you when its trial Sparks end.** In the last two days of the welcome Sparks, a reminder a day says when they end. When they are over, Bit's chat no longer just asks you to buy Sparks: it says the trial has ended and what supporters get to keep Bit on, with a button to become a supporter and another for the other ways to use Bit.
+- **Ask Bit about your game.** The end-of-game recap and the temperature alerts now have an "Ask Bit" button. It opens Bit with the question already written, for example how your last game went, without changing your layout: if the chat is not on screen it opens as a card over the dashboard. With "widgets only" the recap and the alerts now show at the top of the screen too, and the button opens the search window on Bit's chat. Nothing is sent until you tap send.
 
 ## [v5.1.1] - 16-11-2026
 

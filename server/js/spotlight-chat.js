@@ -108,7 +108,21 @@
   document.addEventListener('keydown', onKey);
   document.addEventListener('paste', onPaste, true);
 
+  // A question handed from a notification (server/spotlight-ask/): the chat
+  // opens on it, unsent. Asked on every show; the server gives it out once.
+  async function takeAsked() {
+    let text = '';
+    try {
+      const res = await fetch('/spotlight/ask/take', { method: 'POST' });
+      const out = res.ok ? await res.json() : null;
+      text = out && typeof out.text === 'string' ? out.text : '';
+    } catch (e) { return; /* no question waits: the search opens as usual */ }
+    if (!text) return;
+    await window.SpotlightChat.open(text, false); // a failure is said by start()
+  }
+
   window.SpotlightChat = {
+    takeAsked,
     // Answers a sentence when the chat could not open, nothing when it did.
     open(text, send) {
       return enter(text)

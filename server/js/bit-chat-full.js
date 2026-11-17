@@ -17,6 +17,7 @@
   let sheet = null;
   let placeholder = null;
   let pane = null;
+  let asCard = false;
 
   const isOpen = () => !!pane;
 
@@ -25,10 +26,12 @@
     if (input && !input.disabled) input.focus({ preventScroll: true });
   }
 
-  function open(target) {
+  // card: on a wide screen the sheet is a card over the dimmed dashboard (ask()).
+  function open(target, card) {
     if (isOpen()) return;
+    asCard = !!card;
     sheet = document.createElement('div');
-    sheet.className = 'bit-sheet';
+    sheet.className = card ? 'bit-sheet bit-sheet-card' : 'bit-sheet';
     sheet.setAttribute('role', 'dialog');
     sheet.setAttribute('aria-modal', 'true');
     sheet.setAttribute('aria-label', typeof t === 'function' ? t('bit_chat_label') : 'Bit');
@@ -51,8 +54,32 @@
     }
     sheet.remove();
     sheet = placeholder = pane = null;
+    asCard = false;
     document.body.classList.remove('bit-sheet-open');
     if (!fromHistory && history.state && history.state[HISTORY_MARK]) history.back();
+  }
+
+  function onScreen(el) {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0
+      && r.left < root.innerWidth && r.top < root.innerHeight;
+  }
+
+  // "Ask Bit" from a notification: the chat where it already is on screen, or in
+  // the sheet when its tile is hidden, on another page or behind another tab, so
+  // asking never changes the layout. The words wait in the box: sending them
+  // spends Sparks, so that stays the person's own tap.
+  function ask(text) {
+    const p = document.getElementById('media-pane-chat');
+    if (!p) return false;
+    if (!isOpen() && !onScreen(p)) open(p, !(root.matchMedia && root.matchMedia(NARROW).matches));
+    const input = p.querySelector('.ai-text-input');
+    if (input && text) {
+      input.value = String(text).slice(0, input.maxLength > 0 ? input.maxLength : undefined);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    focusInput(p);
+    return true;
   }
 
   if (typeof document !== 'undefined') {
@@ -62,6 +89,8 @@
       const target = e.target && e.target.closest ? e.target : null;
       if (!target) return;
       if (target.closest('[data-bit-back]')) { close(false); return; }
+      // A tap on the dimmed dashboard around the card closes it.
+      if (asCard && target === sheet) { close(false); return; }
       const p = target.closest(PANE);
       if (!p) return;
       const ok = shouldOpen({
@@ -86,7 +115,7 @@
     if (narrow && narrow.addEventListener) narrow.addEventListener('change', () => { if (!narrow.matches) close(false); });
   }
 
-  const api = { shouldOpen, close, isOpen };
+  const api = { shouldOpen, close, isOpen, ask };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.BitChatFull = api;
 })(typeof window !== 'undefined' ? window : globalThis);

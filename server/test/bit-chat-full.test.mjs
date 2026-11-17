@@ -39,7 +39,7 @@ class Node {
   querySelector() { return this.input || null; }
 }
 
-function boot({ narrow = true } = {}) {
+function boot({ narrow = true, rect = { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 } } = {}) {
   const html = new Node('html');
   const body = html.appendChild(new Node('body'));
   const tile = body.appendChild(new Node('section'));
@@ -49,12 +49,16 @@ function boot({ narrow = true } = {}) {
   back.attrs['data-bit-back'] = '';
   const log = pane.appendChild(new Node('div'));
   let focused = null;
-  pane.input = { disabled: false, focus: () => { focused = 'input'; } };
+  const events = [];
+  pane.input = { disabled: false, value: '', maxLength: 500, focus: () => { focused = 'input'; }, dispatchEvent: (e) => events.push(e.type) };
+  pane.getBoundingClientRect = () => rect;
   const listeners = {};
   const winListeners = {};
   const historyCalls = [];
   const ctx = {
-    console, Object,
+    console, Object, String,
+    innerWidth: 1920, innerHeight: 1080,
+    Event: class { constructor(type) { this.type = type; } },
     t: (k) => k,
     moveNode: (parent, node, ref = null) => parent.insertBefore(node, ref),
     matchMedia: () => ({ matches: narrow, addEventListener() {} }),
@@ -67,12 +71,13 @@ function boot({ narrow = true } = {}) {
     document: {
       body,
       createElement: (tag) => new Node(tag),
+      getElementById: (id) => (id === 'media-pane-chat' ? pane : null),
       addEventListener: (type, fn) => { listeners[type] = fn; },
     },
   };
   ctx.window = ctx;
   vm.runInNewContext(read('../js/bit-chat-full.js'), ctx);
-  return { ctx, body, tile, pane, back, log, listeners, winListeners, historyCalls, focused: () => focused };
+  return { ctx, body, tile, pane, back, log, listeners, winListeners, historyCalls, events, focused: () => focused };
 }
 
 test('a tap moves the pane into a sheet, and the arrow puts it back in place', () => {
@@ -120,4 +125,48 @@ test('the sheet sits under Settings and the Store, and the script is loaded', ()
   const settingsZ = Number((/\.settings-overlay \{[^}]*z-index: (\d+)/.exec(read('../components/SettingsModal/SettingsPage.css')) || [])[1]);
   assert.ok(z > 0 && z < settingsZ, `sheet ${z} under Settings ${settingsZ}`);
   assert.match(read('../index.html'), /<script src="js\/bit-chat-full\.js"><\/script>/);
+});
+
+// "Ask Bit" from a notification (js/ambient.js): the question waits in the box,
+// unsent, and the layout never changes to show it.
+test('asking with the chat on screen fills the box where it is', () => {
+  const s = boot({ narrow: false, rect: { left: 100, top: 100, right: 400, bottom: 600, width: 300, height: 500 } });
+  assert.equal(s.ctx.BitChatFull.ask('How did my game go?'), true);
+  assert.equal(s.pane.parentNode, s.tile, 'no sheet');
+  assert.equal(s.pane.input.value, 'How did my game go?');
+  assert.deepEqual(s.events, ['input'], 'the box hears it, nothing is sent');
+  assert.equal(s.focused(), 'input');
+});
+
+test('asking with the chat hidden or off screen opens it as a card, and a tap outside closes it', () => {
+  for (const rect of [
+    { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 },
+    { left: 2000, top: 100, right: 2300, bottom: 600, width: 300, height: 500 },
+  ]) {
+    const s = boot({ narrow: false, rect });
+    s.ctx.BitChatFull.ask('Why is my GPU this hot?');
+    const sheet = s.pane.parentNode;
+    assert.equal(sheet.className, 'bit-sheet bit-sheet-card', JSON.stringify(rect));
+    assert.equal(s.pane.input.value, 'Why is my GPU this hot?');
+    s.listeners.click({ target: sheet });
+    assert.equal(s.pane.parentNode, s.tile, 'back in its tile');
+  }
+});
+
+test('on a phone asking opens the full-screen sheet', () => {
+  const s = boot({ narrow: true });
+  s.ctx.BitChatFull.ask('x'.repeat(600));
+  assert.equal(s.pane.parentNode.className, 'bit-sheet');
+  assert.equal(s.pane.input.value.length, 500, 'kept to the box limit');
+});
+
+test('the questions are in every language, and the card has its look', () => {
+  const i18n = read('../js/i18n.js');
+  for (const k of ['bit_ask_recap', 'bit_ask_recap_last', 'bit_ask_hot_gpu', 'bit_ask_hot_cpu']) {
+    const hits = i18n.match(new RegExp('^    ' + k + ': "([^"]*)"', 'gm')) || [];
+    assert.equal(hits.length, 11, k);
+    if (k === 'bit_ask_recap') hits.forEach((h) => assert.ok(h.includes('{game}'), h));
+    hits.forEach((h) => assert.ok(!h.includes('—'), h));
+  }
+  assert.match(read('../components/MediaPanel/MediaPanel.css'), /\.bit-sheet\.bit-sheet-card \{/);
 });

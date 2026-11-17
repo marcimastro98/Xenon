@@ -178,44 +178,21 @@
     speak(text);
   }
 
-  function fmtMinutes(m) {
-    const mins = Math.max(1, Math.round(m || 0));
-    const h = Math.floor(mins / 60);
-    return h > 0 ? `${h}h ${String(mins % 60).padStart(2, '0')}min` : `${mins} min`;
-  }
-
   // Server-side proactive moment (SSE 'briefing'): game-session recap or a
   // sustained-thermal alert. The server already gates each type on its toggle,
   // so the toast always shows; the voice is added only when the ambient
-  // presence is enabled (same discipline as Guardian alerts).
+  // presence is enabled (same discipline as Guardian alerts). The words are
+  // js/briefing-toast.js's, shared with the alerts window; "Ask Bit" opens the
+  // chat here with the question ready (js/bit-chat-full.js).
   function onBriefingMoment(d) {
-    if (!d || typeof d !== 'object') return;
-    let title = 'Xenon';
-    let text = '';
-    if (d.type === 'recap') {
-      const game = String(d.game || '').replace(/\.exe$/i, '');
-      const name = game ? game.charAt(0).toUpperCase() + game.slice(1) : t('brief_recap_title');
-      const parts = [`${name} — ${fmtMinutes(d.minutes)}`];
-      if (typeof d.avgFps === 'number') {
-        parts.push(t('brief_recap_fps')
-          .replace('{avg}', String(d.avgFps))
-          .replace('{max}', String(typeof d.maxFps === 'number' ? d.maxFps : d.avgFps)));
-      }
-      if (typeof d.gpuTempMax === 'number') parts.push(fillTemps(t('brief_recap_gpu'), { v: d.gpuTempMax }));
-      else if (typeof d.cpuTempMax === 'number') parts.push(fillTemps(t('brief_recap_cpu'), { v: d.cpuTempMax }));
-      title = t('brief_recap_title');
-      text = parts.join(' · ');
-    } else if (d.type === 'thermal') {
-      const key = d.metric === 'cpu' ? 'brief_thermal_cpu' : 'brief_thermal_gpu';
-      text = fillTemps(t(key), { v: d.value }).replace('{m}', String(d.minutes));
-    } else if (d.type === 'anomaly') {
-      const key = d.metric === 'cpu' ? 'brief_anomaly_cpu' : 'brief_anomaly_gpu';
-      text = fillTemps(t(key), { v: d.value, b: d.baseline });
-      title = t('brief_anomaly_title');
-    }
-    if (!text) return;
-    if (typeof showHubToast === 'function') showHubToast(title, text, '');
-    if (enabled()) speak(text);
+    const B = window.BriefingToast;
+    const ctx = { t, hwF: typeof hwTempIsF === 'function' && hwTempIsF() };
+    const moment = B ? B.describe(d, ctx) : null;
+    if (!moment) return;
+    const bit = window.BitChatFull;
+    const ask = bit && typeof bit.ask === 'function' ? (q) => bit.ask(q) : null;
+    if (window.XenonToast) window.XenonToast.show(B.toast(moment, ctx, ask));
+    if (enabled()) speak(moment.text);
   }
 
   function tick() {

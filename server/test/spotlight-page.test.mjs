@@ -136,11 +136,13 @@ test('the chat keeps its own field and its size', async () => {
   const p = page();
   await p.boot();
   let focused = 0;
-  p.window.SpotlightChat = { isOpen: () => true, focus() { focused++; } };
+  let asked = 0;
+  p.window.SpotlightChat = { isOpen: () => true, focus() { focused++; }, takeAsked() { asked++; } };
   p.fire('blur');
   p.window.__spotlightShown();
   assert.equal(p.calls.fresh, 0);
   assert.ok(focused > 0);
+  assert.equal(asked, 1, 'a question from a notification is asked for on every show');
   const n = p.calls.signals.length;
   p.fire('spotlight-expand', { detail: { expanded: false } });
   assert.equal(p.calls.signals.length, n, 'the search resetting behind the chat never shrinks the window');

@@ -396,6 +396,25 @@ let hubSettings = {};
     } catch (e) { /* the server is restarting: SSE screen_menu brings the next */ }
   }
 
+  // "Ask Bit" on a game recap or a heat alert: with no dashboard here, Bit's
+  // chat is the search window's, opened on the question (server/spotlight-ask/).
+  async function askInSearch(text) {
+    try {
+      const res = await fetch(SERVER + '/spotlight/ask', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
+      });
+      const out = res.ok ? await res.json() : null;
+      if (out && out.ok) return;
+    } catch (e) { /* said below */ }
+    show({ type: 'warning', kicker: 'Bit', title: tt('spot_chat_failed', 'The chat did not open, try again'), message: '' });
+  }
+
+  function briefing(d) {
+    const B = window.BriefingToast;
+    const moment = B && B.describe(d, ctx());
+    if (moment && popups()) show(B.toast(moment, ctx(), askInSearch));
+  }
+
   // Every event but Bit's vitals popup and the menu's state is for the window of
   // "widgets only".
   const ALWAYS = Object.freeze({ vitals_nag: vitalsPopup, screen_menu: onMenu });
@@ -408,6 +427,7 @@ let hubSettings = {};
     timer_done: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerDone(d && d.label, ctx())); },
     timer_chime: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerChime(d && d.label, d && d.every, ctx())); },
     calendar_reminder: reminder,
+    briefing,
     update_auto: (d) => {
       autoUpdate(d);
       if (d.phase === 'done' || d.phase === 'failed') window.ScreenRelease.check();

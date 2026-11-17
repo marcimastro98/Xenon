@@ -21,6 +21,9 @@ const CLASSIFIED = Object.freeze({
   'POST /api/ffmpeg/install': { remote: false },
   // Whether the sensor service runs and is current: a read, like /system.
   'GET /api/sensor-service': { remote: true },
+  // A question for Bit opens a window on this PC: never from a phone.
+  'POST /spotlight/ask': { remote: false },
+  'POST /spotlight/ask/take': { remote: false },
 });
 
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');

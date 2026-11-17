@@ -15845,8 +15845,8 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/lyrics/offset',
   '/api/lyrics/translate',
   // Suppresses the Edge fallback after the native kiosk opened the Spotlight
-  // window — a drive-by must not be able to swallow the user's hotkey.
-  '/spotlight/claimed',
+  // window, or opens it on a question (spotlight-ask/): not for a drive-by.
+  '/spotlight/claimed', '/spotlight/ask', '/spotlight/ask/take',
   // Takes the sound/AI/mixer step of a Deck shortcut for this dashboard; a drive-by
   // must not be able to swallow the step (deck-shortcut-runner.js).
   '/deck/shortcut-claim',
@@ -17616,7 +17616,7 @@ const handleRequest = async (req, res) => {
 
   } else if (featureRoutes.has(req.method, reqPath)) {
     // A route that lives in its feature's routes.js (feature-routes.js).
-    await featureRoutes.run(req.method, reqPath, req, res, { json, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath });
+    await featureRoutes.run(req.method, reqPath, req, res, { json, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath, readBody, openSpotlight: routeSpotlightHotkey });
 
   } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).
