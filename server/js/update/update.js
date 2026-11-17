@@ -711,6 +711,7 @@
     try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
   }
 
+  // `done` runs when it closes; without it the stage was asked for by hand.
   async function openWhatsNew(wn, done) {
     if (!wn || !wn.id || !Array.isArray(wn.highlights) || !wn.highlights.length || !window.XenonWhatsNewStage) return;
     if (document.querySelector('.wn-stage')) return; // stepped aside for a try of the look, Bit can still ask
@@ -821,6 +822,11 @@
     I.whenIdle(fn, { priority: I.PRIORITY.update, maxTries: Infinity });
   }
 
+  // At startup, curated "What's New" for the running version takes precedence over
+  // the "update available" nudge (you can only act on one popup at a time, and the
+  // update dot/pill stays visible either way). Whichever doesn't auto-open is still
+  // reachable — the update modal from the Settings pill, and What's New from the
+  // version number in Settings.
   async function boot() {
     // Update notices, What's New and the shell catch-up belong to the main
     // dashboard; a layer window has none of that chrome on screen.

@@ -8,11 +8,6 @@
 
   const SHELL_ERR_KEY = 'xenon.update.shellErrPending'; // shell update failed right before a reload
 
-  // At startup, curated "What's New" for the running version takes precedence over
-  // the "update available" nudge (you can only act on one popup at a time, and the
-  // update dot/pill stays visible either way). Whichever doesn't auto-open is still
-  // reachable — the update modal from the Settings pill, and What's New from the
-  // version number in Settings.
   // Failures that happened while no page was watching: an apply that rolled
   // back after the page was closed (the applier's persisted result), or a shell
   // update that errored right before the reload (flag set by runShellPhase).

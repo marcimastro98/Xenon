@@ -32,7 +32,6 @@
     try { return (await (await fetch(SERVER + '/screen-menu', { cache: 'no-store' })).json()).open === true; } catch { return false; }
   }
 
-  // `done` runs when it closes; without it the stage was asked for by hand.
   function openStoreFor(target) {
     const store = window.CommunityGallery;
     if (!store) return;

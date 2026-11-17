@@ -47,10 +47,8 @@
   } = window.PerformanceSessionEnd;
 
 
-  // ── Activity classification (defaults + user customization) ───────
   const { _optRow, renderApps, _perfNote } = window.PerformanceDrawn;
 
-  // ── Server helpers ────────────────────────────────────────────────
   const { powerPlan, perfAction } = window.PerformancePcRequests;
 
   const { aiAvailable, fetchPlan } = window.PerformanceAiPlan;
@@ -147,10 +145,6 @@
     // Safe, reversible tweaks only — closing apps always goes through the sheet.
     await applyOptimizations(savedEffective(currentPerf()), [], { by: 'auto', activity });
   }
-
-  // ── a session must not outlive the app it was started for ─────────
-
-  // ── …and a session started for no app ends when nothing needs it ──
 
   // ── Confirmation sheet ───────────────────────────────────────────
   function buildSheet() {
