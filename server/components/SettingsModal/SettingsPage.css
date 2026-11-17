@@ -1299,7 +1299,7 @@ body[data-panel="sheet"] #settings-overlay > .settings-panel { background: var(-
   #settings-overlay .support-plans { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ── Widgets & sharing ── */
+/* ── Create and share ── */
 #settings-overlay .settings-supporter-row { justify-content: flex-start; }
 #settings-overlay input.settings-supporter-field { flex: 1 1 200px; width: auto; max-width: none; letter-spacing: 0.02em; }
 #settings-overlay .settings-section > .settings-memory-manage { padding: 0 16px 12px; }

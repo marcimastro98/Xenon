@@ -2019,7 +2019,7 @@ a.preset-unlock-forget { text-decoration: none; }
 .trial-end-code { margin-right: auto; }
 .trial-welcome-row { font-size: 0.86rem; color: var(--text, #e7e9ee); }
 
-/* "moved to Widgets & sharing" pointer (shown under Appearance) */
+/* "moved to Create and share" pointer (shown under Appearance) */
 
 /* ── Persistent AI memory viewer (Settings → Xenon AI) ─────────────────────── */
 .settings-memory-manage {
