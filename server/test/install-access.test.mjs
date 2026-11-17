@@ -103,7 +103,12 @@ test('a declined prompt, a failed grant, a launch that fails and an unanswered p
   }
   const { fsImpl } = lockedFs();
   const { spawn } = fakeSpawn('never');
-  await assert.rejects(access(fsImpl, spawn, { timeoutMs: 20 }).ensureStaging('C:\\X\\update', [], true), /access_declined/);
+  // A real prompt keeps the loop alive through its child; the fake holds nothing, and the
+  // unref'd timeout alone lets Node 22 end the file before the answer comes.
+  const keepAlive = setTimeout(() => {}, 5000);
+  try {
+    await assert.rejects(access(fsImpl, spawn, { timeoutMs: 20 }).ensureStaging('C:\\X\\update', [], true), /access_declined/);
+  } finally { clearTimeout(keepAlive); }
 });
 
 test('a grant that reports success but leaves the folder locked is not trusted', async () => {
