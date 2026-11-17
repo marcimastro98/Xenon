@@ -73991,6 +73991,10 @@ function setLang(l) {
   // this, switching language with a key saved made the field read "AIza…" again,
   // which looks exactly like the key was lost.
   if (typeof syncAiSettingsControls === 'function') syncAiSettingsControls();
+  // The system tile writes its words in script ("Up for", the disk label, "free"),
+  // so it kept the old language until the next /system reading. Repaint it from
+  // the last reading; that also redraws the disk on show, not the first one.
+  if (typeof applySystem === 'function' && typeof lastSystemData !== 'undefined' && lastSystemData) applySystem(lastSystemData);
   // Weather text is served in the UI language → refetch. Through the shared
   // debounce timer, so a remote hydrate that changes language AND city fetches
   // once, not twice (settings.js queues the city change on the same timer).
