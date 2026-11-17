@@ -100,7 +100,7 @@
     return t('vitals_today', 'Oggi') + ' ' + time;
   }
 
-  // Server boot fence — bootAt rides the status SSE (see main.js). A last-refill
+  // Server boot fence — bootAt rides the status SSE (see data-stream.js). A last-refill
   // stamp OLDER than the server's start time means the PC was off (or the
   // backend restarted) in between: that downtime is not neglect, so ensureFresh
   // reseeds the vital to full. Until the first status event lands we can't tell

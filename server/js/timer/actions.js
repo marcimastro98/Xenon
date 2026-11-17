@@ -122,7 +122,7 @@ function _patchTimer(id, action) {
     .catch(() => {});
 }
 
-// ── SSE callbacks (called from main.js) ─────────────────────────
+// ── SSE callbacks (called from data-stream.js) ─────────────────────────
 
 // A stopwatch reaching one of its intervals. NOT timer_done: nothing finished,
 // the clock keeps running, and marking it done would stop the thing the person

@@ -440,7 +440,7 @@
     if (!seeded) loadState().then(paint);
   }
 
-  // SSE `wavelink` frame (relayed from main.js). Meters push a couple of times a
+  // SSE `wavelink` frame (relayed from data-stream.js). Meters push a couple of times a
   // second, so skip the paint entirely while the tab is in the background —
   // there is nothing to see and the work is not free.
   function onSSE(d) {

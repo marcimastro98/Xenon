@@ -43,7 +43,7 @@
     if (by) by.innerHTML = BitApp.still(s.pose[0], 18, s.pose[1]);
   }
 
-  // Called from the status SSE/poll pipeline in main.js with the server's
+  // Called from the status SSE/poll pipeline in data-stream.js with the server's
   // `gameRunning` flag (the game is alive, in foreground or background).
   function onStatus(isRunning, processName) {
     if (isRunning) {

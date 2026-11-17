@@ -168,7 +168,7 @@
     draw();
   }
 
-  // Something the rows show changed (main.js relays the SSE events as
+  // Something the rows show changed (data-stream.js relays the SSE events as
   // `xenon-menu-changed`): read again, once, while the tile is on the page.
   function changed() {
     if (!onPage) return;

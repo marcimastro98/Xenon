@@ -287,7 +287,7 @@
     set('replaySeconds', secs);
   }
 
-  // Live state from SSE `replay` (main.js): only the line under the switch.
+  // Live state from SSE `replay` (data-stream.js): only the line under the switch.
   window.addEventListener('xenon:replay', (e) => {
     const st = e && e.detail;
     if (!st || !current) return;

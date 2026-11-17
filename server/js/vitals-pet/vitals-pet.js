@@ -662,7 +662,7 @@
     }
   }
 
-  // Fed by the status SSE (main.js): gaming flag + system idle seconds.
+  // Fed by the status SSE (data-stream.js): gaming flag + system idle seconds.
   function onStatus(data) {
     if (!data || typeof data !== 'object') return;
     if (data.gaming != null) state.status.gaming = !!data.gaming;

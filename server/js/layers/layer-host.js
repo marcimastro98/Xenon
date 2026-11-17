@@ -577,7 +577,7 @@
     } catch (e) { /* keep the mode we have */ }
   }
 
-  // The page's SSE stream (main.js or layer-lite.js) tells the mode; a window
+  // The page's SSE stream (data-stream.js or layer-lite.js) tells the mode; a window
   // opened or reconnected mid-edit reads it.
   function listen(es) {
     es.addEventListener('layers-edit', (e) => {

@@ -5,7 +5,7 @@
 // Each acts only when the server put that tile's code in the page
 // (layer-page.js), so on a page without tiles this file does nothing. Most
 // tiles need only their row in the table: renderWidgets() on every settings
-// pass and their SSE events, as main.js and dashboard-layout.js give them. The
+// pass and their SSE events, as data-stream.js and dashboard-layout.js give them. The
 // System, Media and Agenda tiles have more to do and are driven below; the Deck
 // draws itself and takes the stream from js/deck/deck-feed.js.
 const LayerLiteTiles = (function () {
@@ -214,7 +214,7 @@ const LayerLiteTiles = (function () {
     }
   }
 
-  // The live data carried tiles take from the stream, as main.js hands it to them.
+  // The live data carried tiles take from the stream, as data-stream.js hands it to them.
   function listen(es) {
     const rows = served();
     const on = (name, fn) => es.addEventListener(name, (e) => {

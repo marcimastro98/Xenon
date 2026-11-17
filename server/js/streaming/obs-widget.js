@@ -2,7 +2,7 @@
 // OBS dashboard widget: a unified panel that collects the OBS controls — a live
 // program PREVIEW, go-live / end-stream, start / stop recording, and a SCENE
 // switcher. State is fed by the same SSE the Deck uses (obs / obs_preview),
-// relayed from main.js; actions go through the allowlisted /actions/run
+// relayed from data-stream.js; actions go through the allowlisted /actions/run
 // dispatcher (obsStream / obsRecord / obsScene). Three sections (preview /
 // controls / scenes) carry data-system-card so they hide/reorder like the
 // System panel cards. Renders into .obs-widget-mount.
@@ -277,7 +277,7 @@
     if (!scenesLoaded) loadScenes().then(paint);
   }
 
-  // ── SSE hooks (fed by main.js) ───────────────────────────────────────────
+  // ── SSE hooks (fed by data-stream.js) ───────────────────────────────────────────
   function onObs(s) {
     if (!s) return;
     if (typeof s.obsStreaming === 'boolean') st.streaming = s.obsStreaming;

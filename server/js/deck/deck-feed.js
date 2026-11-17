@@ -1,5 +1,5 @@
 'use strict';
-// The Deck's live states from the stream: the events main.js hands the
+// The Deck's live states from the stream: the events data-stream.js hands the
 // dashboard deck, for a page that runs deck.js without the dashboard (the
 // Virtual Deck popup, a light layer page). attach() adds the listeners to an
 // EventSource the page already has.

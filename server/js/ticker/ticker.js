@@ -4,7 +4,7 @@
 // the screen. It lives as a direct child of <body> (a sibling of .shell), so it
 // is immune to the topbar's minimal-mode reparenting and to `topbarHidden`.
 //
-// It only CONSUMES data pushed over SSE (main.js relays 'stocks' → onStocks);
+// It only CONSUMES data pushed over SSE (data-stream.js relays 'stocks' → onStocks);
 // it never polls. The scroll animation freezes automatically in game / perf /
 // overlay / lockscreen / ambient-scene mode via CSS keyed on the existing body
 // classes (Ticker.css) — no JS is involved in the freeze. Deliberately NOT
@@ -152,7 +152,7 @@
     requestAnimationFrame(rebuild);
   }
 
-  // ── public API (called by main.js SSE relays + settings apply) ──
+  // ── public API (called by data-stream.js SSE relays + settings apply) ──
   const Ticker = {
     onStocks(cache) {
       const quotes = (cache && Array.isArray(cache.quotes)) ? cache.quotes : [];

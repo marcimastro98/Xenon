@@ -475,7 +475,7 @@ if (typeof window !== 'undefined') (function () {
     if (c.enabled !== false && minutes > 0 && Math.min(sysIdleSec, localIdleSec) >= minutes * 60) autoStart();
   }
 
-  // Fed by the status SSE (main.js). idleSec is null when the probe is off or
+  // Fed by the status SSE (data-stream.js). idleSec is null when the probe is off or
   // unsupported → we fall back to the dashboard-local timer, unchanged.
   function onStatus(data) {
     if (!data || typeof data !== 'object') return;

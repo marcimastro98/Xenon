@@ -651,7 +651,7 @@
     chatBuffer.forEach(e => appendChatLine(log, e));
   }
 
-  // ── SSE hooks (fed by main.js, mirroring how the Deck is updated) ─────────
+  // ── SSE hooks (fed by data-stream.js, mirroring how the Deck is updated) ─────────
   function onMic(muted) { micMuted = !!muted; if (twitchTiles().length) paintControls(); }
   // The status stream as a light layer page relays it (layer-lite-tiles.js): a
   // partial payload without the mute state leaves the button alone.

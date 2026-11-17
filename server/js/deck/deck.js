@@ -659,12 +659,12 @@
     _lastDeckErr = { msg, at: now };
     window.XenonToast.show(window.DeckErrorText.keyToast(code, msg, tt));
   }
-  // A key run from its keyboard shortcut failed on the server (main.js SSE).
+  // A key run from its keyboard shortcut failed on the server (data-stream.js SSE).
   window.DeckShortcutFailed = (info) => {
     if (!window.XenonToast || !info) return;
     window.XenonToast.show(window.DeckErrorText.shortcutFailed(info, tt));
   };
-  // A row of the Xenon menu failed after the menu closed (main.js SSE).
+  // A row of the Xenon menu failed after the menu closed (data-stream.js SSE).
   window.XenonMenuFailed = (info) => {
     if (!window.XenonToast || !info) return;
     window.XenonToast.show(window.DeckErrorText.menuFailed(info, tt));
@@ -2774,7 +2774,7 @@
   }
 
   // ── Smart Profiles: foreground-app → profile auto-switch ───────────────
-  // Called from main.js on every `status` SSE push with the foreground exe name
+  // Called from data-stream.js on every `status` SSE push with the foreground exe name
   // (lowercased, no ".exe"). Display-only: a match overrides which profile is
   // rendered via a per-instance volatile flag; the durable activeProfile (and
   // the ops outbox) is never touched. A manual profile pick clears the flag.

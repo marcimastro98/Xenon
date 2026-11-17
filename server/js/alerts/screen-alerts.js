@@ -448,7 +448,7 @@ let hubSettings = {};
     capture_export: (d) => { if (onScreen()) CaptureToast.onExport(d); },
     // "Hey Xenon": the server arms it here only while this window is on.
     wake: () => { if (onScreen() && window.ScreenBit) window.ScreenBit.wake(); },
-    // The voice session's own signals, as main.js relays them to ai.js.
+    // The voice session's own signals, as data-stream.js relays them to ai.js.
     stt_silence: (d) => { if (typeof window._aiOnSttSilence === 'function') window._aiOnSttSilence(d.id); },
     speak_start: () => { if (typeof window._aiOnSpeakStart === 'function') window._aiOnSpeakStart(); },
     deck_shortcut: claimDeckStep,

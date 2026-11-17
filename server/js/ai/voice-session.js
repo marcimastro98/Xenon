@@ -166,7 +166,7 @@ async function startVoiceSessionTurnBased() {
   }
 }
 
-// Server-side "Hey Bit" wake word detected (SSE `wake` from main.js) — open
+// Server-side "Hey Bit" wake word detected (SSE `wake` from data-stream.js) — open
 // a voice session unless one is already live or the assistant is mid-turn.
 function _aiHandleWake() {
   if (_aiVoiceSessionActive || aiListening || aiSpeaking) return;
