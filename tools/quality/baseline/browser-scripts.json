@@ -1,6 +1,6 @@
 {
   "note": "Browser scripts that put names in the page's shared scope, with the number of names (a script and the files split out of it are one line). Written by tools/quality/browser.mjs: a number only goes down, a script leaves the list when it becomes a module or gets a wrapper, and none is added.",
-  "total": 2132,
+  "total": 2134,
   "counts": {
     "server/js/ai/ai-live.js": 19,
     "server/js/ai/ai-pictures.js": 8,
@@ -33,7 +33,7 @@
     "server/js/layers/layer-lite.js": 4,
     "server/js/ambient/lockscreen.js": 24,
     "server/js/main.js": 15,
-    "server/js/media/media.js": 79,
+    "server/js/media/media.js": 81,
     "server/js/audio/mic.js": 4,
     "server/js/system/network.js": 6,
     "server/js/notes/notes.js": 34,

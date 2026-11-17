@@ -39,7 +39,7 @@ test('a full-screen window in front is a game, told once, with its name and proc
   assert.equal(gd.getForegroundProcess(), 'starfall');
   assert.equal(gd.getForegroundPid(), GAME_PID);
   assert.equal(gd.getActivity(), 'gaming');
-  assert.deepEqual(gd.getGamingWindow(), { process: 'starfall.exe', fullscreen: true, ignored: false });
+  assert.deepEqual(gd.getGamingWindow(), { process: 'starfall.exe', fullscreen: true, ignored: false, listed: false });
   assert.deepEqual(gd.getGameDiag(), { gamePid: GAME_PID, gameProc: 'starfall', lastGamingAt: T0, gameSeenAt: T0 });
 });
 
