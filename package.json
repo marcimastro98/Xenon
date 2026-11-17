@@ -23,6 +23,8 @@
     "sizes": "node tools/quality/sizes.mjs",
     "browser": "node tools/quality/browser.mjs",
     "map": "node tools/map/map.mjs",
+    "map:html": "node tools/map/map-html.mjs",
+    "map:open": "node tools/map/map-html.mjs --open",
     "capture:build": "node tools/build-capture.mjs",
     "bit:export": "node tools/bit-export/cli.mjs",
     "doctor": "node tools/doctor.mjs",

@@ -1,0 +1,32 @@
+<title>Xenon Repo Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/*@CSS@*/
+</style>
+
+<header class="top">
+  <div class="row">
+    <div class="name"><b data-t="title"></b><span class="stamp" data-date="@MAP_STAMP@"></span></div>
+    <nav class="views" aria-label="Views">
+      <a href="#mappa" data-view="mappa" data-t="viewMap"></a>
+      <a href="#cartelle" data-view="cartelle" data-t="viewFolders"></a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="it">Italiano</button>
+      <button type="button" data-lang="en">English</button>
+    </div>
+  </div>
+  <div class="row search">
+    <input id="q" type="search" autocomplete="off" spellcheck="false" data-t-placeholder="searchHint" aria-controls="results" aria-expanded="false" role="combobox" aria-autocomplete="list">
+    <div id="results" class="results" role="listbox" hidden></div>
+  </div>
+</header>
+
+<main id="main"></main>
+<p id="said" class="said" role="status" aria-live="polite"></p>
+
+<script>
+/*@JS@*/
+</script>

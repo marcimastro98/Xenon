@@ -23,7 +23,7 @@
   },
   "overrides": [
     {
-      "includes": ["**/server/js/**", "**/server/components/**"],
+      "includes": ["**/server/js/**", "**/server/components/**", "**/tools/map/page/**"],
       "linter": { "rules": { "correctness": { "noUnusedVariables": "off" } } }
     }
   ]
