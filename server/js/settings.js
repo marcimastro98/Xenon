@@ -5312,8 +5312,9 @@ function applySurfaceKind(kind, state) {
   renderSurfaceSection();
 }
 
-// Xenon opens on the screens; alone in the menu's window (a sheet) the menu has them.
-let _settingsCat = isSheetPage() ? 'general' : 'screens';
+// The open page; '' until the first open. Xenon opens on the screens; alone in the menu's
+// window (a sheet) the menu has them, so there it opens on General.
+let _settingsCat = '';
 // A card shown only where its feature runs, decided by a probe that answers
 // later: it stays out of every category until then, and a late answer never
 // shows it inside another category.
@@ -5721,7 +5722,7 @@ function toggleSettings() {
     const nav = $('settings-nav');
     if (nav) nav.classList.remove('is-open');
     renderSettingsModal();
-    settingsSetCategory(_settingsCat);
+    settingsSetCategory(_settingsCat || (isSheetPage() ? 'general' : 'screens'));
     if (window.SettingsSearch) SettingsSearch.onOpen();
     if (window.CaptureSettingsPane) CaptureSettingsPane.probe();
   }

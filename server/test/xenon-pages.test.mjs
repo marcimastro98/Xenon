@@ -105,3 +105,11 @@ test('Bit opens Xenon on any page by name, and only by those names', () => {
   assert.deepEqual(names, [...Pages.PAGES]);
   assert.match(read('js/ai.js'), /openSettings\(window\.XenonPages \? XenonPages\.pageOf\(/);
 });
+
+// Xenon opens on Screens (on General alone in the menu's window). The choice is made at the
+// first open: nothing may run while the page loads, and a sheet is known only then.
+test('Xenon opens on Screens, on General alone in the menu window, chosen at the first open', () => {
+  const src = read('js/settings.js');
+  assert.match(src, /^let _settingsCat = '';\r?$/m);
+  assert.match(src, /settingsSetCategory\(_settingsCat \|\| \(isSheetPage\(\) \? 'general' : 'screens'\)\)/);
+});
