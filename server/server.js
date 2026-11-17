@@ -6605,14 +6605,13 @@ let _eaddrinuseRetries = 0;
 const { EADDRINUSE_MAX_RETRIES, EADDRINUSE_RETRY_MS } = require('./paired/listen-retry.js');
 
 // A new install starts on Bit, with the trial Sparks waiting for its first
-// message (welcome-sparks.js), on the model they can pay for: a widget on the
-// default one costs more than the trial holds, and would stop halfway. Only
-// here, before the first request: an update keeps the AI its owner chose.
+// message (welcome-sparks.js), on the model they can pay for (a widget on the default one
+// would stop halfway), with no release notes to read. Only here: an update keeps its AI.
 async function seedFreshInstall() {
   if (!FRESH_INSTALL) return;
   await withHubSettingsLock(async () => {
     if (await readHubSettings()) return;
-    await writeHubSettings({ ...DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku' });
+    await writeHubSettings({ ...DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku', ...(await require('./updates/notices-at-birth.js').noticesReadAtBirth()) });
     await welcomeSparks.markPending(DATA_DIR);
     // Kept on disk: an engine restarted before the first update check still knows.
     await versionPing.noteBirth(DATA_DIR);

@@ -285,7 +285,7 @@ test('every language has the strings', () => {
 
 test('a new install starts on the model the trial can pay for, and the plain default stays', () => {
   const src = engineSource();
-  assert.match(src, /writeHubSettings\(\{ \.\.\.DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku' \}\)/);
+  assert.ok(src.includes("writeHubSettings({ ...DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku', ...(await require('./updates/notices-at-birth.js').noticesReadAtBirth()) })"));
   assert.match(src, /^ {2}xenonModel: 'sonnet',/m);
 });
 
