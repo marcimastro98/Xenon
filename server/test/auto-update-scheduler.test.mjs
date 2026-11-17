@@ -129,7 +129,8 @@ test('never installs while something is going on', async () => {
 });
 
 test('never installs while someone is at the PC', async () => {
-  const h = harness({ staged: '4.12.0', signals: { idleSec: 30 } });
+  // Long after Xenon started: the startup window has its own tests below.
+  const h = harness({ staged: '4.12.0', signals: { idleSec: 30 }, deps: { startupWindowMs: 0 } });
   await h.au.start();
   await h.advance(6 * H);
   assert.equal(h.calls.apply.length, 0);
@@ -315,7 +316,7 @@ test('GitHub is asked at most every six hours while nothing is pending', async (
 });
 
 test('unknown idle time: installs at night only', async () => {
-  const h = harness({ staged: '4.12.0', signals: { idleSec: null }, hour: 14 });
+  const h = harness({ staged: '4.12.0', signals: { idleSec: null }, hour: 14, deps: { startupWindowMs: 0 } });
   await h.au.start();
   await h.advance(6 * H);
   assert.equal(h.calls.apply.length, 0);
@@ -360,4 +361,122 @@ test('status() tells the settings panel where things stand', async () => {
   assert.equal(s.current, '4.11.10');
   assert.equal(s.reason, 'too_new');
   assert.equal(s.eligibleAt, T0 - 2 * H + AU.MIN_AGE_MS);
+});
+
+// ── Startup window ───────────────────────────────────────────────────────────
+// Someone who switches the PC on, plays and switches it off is never idle for
+// ten minutes. A release downloaded in one session installs in the first
+// minutes of the next one, before the first game, with the same countdown.
+
+test('startup: a release downloaded earlier installs at start with someone at the PC', async () => {
+  const h = harness({ staged: '4.12.0', signals: { idleSec: 5 } });
+  await h.au.start();
+  await h.advance(AU.FIRST_TICK_MS);
+  assert.deepEqual(h.phases(), ['countdown'], 'the same one-minute countdown');
+  assert.equal(h.calls.apply.length, 0, 'not before the countdown ends');
+  await h.advance(AU.COUNTDOWN_MS);
+  assert.equal(h.calls.apply.length, 1);
+  assert.deepEqual(h.calls.apply[0], { quiet: true, hidden: true, port: 3099 });
+});
+
+test('startup: a game already open keeps it waiting, and the window then closes', async () => {
+  const h = harness({ staged: '4.12.0', signals: { blockers: ['game'], idleSec: 5 } });
+  await h.au.start();
+  await h.advance(AU.STARTUP_WINDOW_MS);
+  assert.equal(h.calls.apply.length, 0);
+  assert.equal(h.au.status().reason, 'busy');
+  // The game closes after the window: back to the idle rule, someone is there.
+  h.state.signals = { blockers: [], idleSec: 5 };
+  await h.advance(2 * H);
+  assert.equal(h.calls.apply.length, 0);
+  assert.equal(h.au.status().reason, 'user_active');
+});
+
+test('startup: every blocker counts, not only games', async () => {
+  for (const b of ['game', 'performance', 'transfer', 'disk', 'claude', 'voice', 'call']) {
+    const h = harness({ staged: '4.12.0', signals: { blockers: [b], idleSec: 5 } });
+    await h.au.start();
+    await h.advance(AU.STARTUP_WINDOW_MS + AU.COUNTDOWN_MS);
+    assert.equal(h.calls.apply.length, 0, b);
+  }
+});
+
+test('startup: a game opened during the countdown still cancels it', async () => {
+  const h = harness({ staged: '4.12.0', signals: { idleSec: 5 } });
+  await h.au.start();
+  await h.advance(AU.FIRST_TICK_MS);
+  h.state.signals = { blockers: ['game'], idleSec: 5 };
+  await h.advance(AU.COUNTDOWN_MS);
+  assert.equal(h.calls.apply.length, 0);
+  assert.deepEqual(h.phases(), ['countdown', 'cancelled']);
+});
+
+test('startup: a countdown begun at the end of the window is not lost when it closes', async () => {
+  // Busy until the last look inside an 8.5-minute window (minute 8), so the
+  // minute of countdown ends after the window has closed.
+  const windowMs = 8.5 * 60 * 1000;
+  const h = harness({ staged: '4.12.0', signals: { blockers: ['game'], idleSec: 5 }, deps: { startupWindowMs: windowMs } });
+  await h.au.start();
+  await h.advance(7 * 60 * 1000);
+  h.state.signals = { blockers: [], idleSec: 5 };
+  await h.advance(60 * 1000);
+  assert.deepEqual(h.phases(), ['countdown']);
+  assert.ok(h.now + AU.COUNTDOWN_MS > T0 + windowMs, 'the countdown ends after the window');
+  await h.advance(AU.COUNTDOWN_MS);
+  assert.equal(h.calls.apply.length, 1);
+});
+
+test('startup: "In an hour" holds past the window; then the idle rule decides', async () => {
+  const h = harness({ staged: '4.12.0', signals: { idleSec: 5 } });
+  await h.au.start();
+  await h.advance(AU.FIRST_TICK_MS);
+  h.au.postpone();
+  await h.advance(3 * H);
+  assert.equal(h.calls.apply.length, 0, 'someone is still there after the hour');
+  assert.equal(h.au.status().reason, 'user_active');
+});
+
+test('startup: downloaded inside the window installs now, after it waits for the next start', async () => {
+  const h = harness({ signals: { idleSec: 5 } });
+  await h.au.start();
+  await h.advance(AU.FIRST_TICK_MS);
+  assert.equal(h.calls.prepare.length, 1);
+  await h.advance(60 * 1000);
+  assert.deepEqual(h.phases(), ['countdown']);
+  const late = harness({ signals: { idleSec: 5 }, deps: { startupWindowMs: 60 * 1000 } });
+  await late.au.start();
+  await late.advance(2 * H);
+  assert.equal(late.calls.prepare.length, 1);
+  assert.equal(late.calls.apply.length, 0, 'never in the middle of a session');
+});
+
+test('startup: the other rules still hold', async () => {
+  const cases = [
+    [{ release: { publishedAt: new Date(T0 - 2 * H).toISOString() } }, 'too_new'],
+    [{ release: { noAuto: true } }, 'no_auto_release'],
+    [{ needsElevation: true }, 'needs_elevation'],
+    [{ enabled: false }, 'disabled'],
+  ];
+  for (const [over, reason] of cases) {
+    const h = harness({ staged: '4.12.0', signals: { idleSec: 5 }, ...over });
+    await h.au.start();
+    await h.advance(AU.STARTUP_WINDOW_MS);
+    assert.equal(h.calls.apply.length, 0, reason);
+    assert.equal(h.au.status().reason, reason);
+  }
+});
+
+test('startup: safeNow() lets the app shell catch up at start too', async () => {
+  const h = harness({ signals: { idleSec: 5 } });
+  assert.equal(await h.au.safeNow(), false, 'before start: the idle rule');
+  await h.au.start();
+  assert.equal(await h.au.safeNow(), true, 'just started, nothing going on');
+  h.state.signals = { blockers: ['game'], idleSec: 5 };
+  assert.equal(await h.au.safeNow(), false, 'a game is a game');
+  h.au.stop();
+  const w = harness({ signals: { idleSec: 5 }, deps: { startupWindowMs: 60 * 1000 } });
+  await w.au.start();
+  await w.advance(2 * 60 * 1000);
+  assert.equal(await w.au.safeNow(), false, 'window over: the idle rule again');
+  assert.equal(w.au.status().startupUntil, 0);
 });

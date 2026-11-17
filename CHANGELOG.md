@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### ✨ Changed
 - **Bit tells you when its trial Sparks end.** In the last two days of the welcome Sparks, a reminder a day says when they end. When they are over, Bit's chat no longer just asks you to buy Sparks: it says the trial has ended and what supporters get to keep Bit on, with a button to become a supporter and another for the other ways to use Bit.
 - **Ask Bit about your game.** The end-of-game recap and the temperature alerts now have an "Ask Bit" button. It opens Bit with the question already written, for example how your last game went, without changing your layout: if the chat is not on screen it opens as a card over the dashboard. With "widgets only" the recap and the alerts now show at the top of the screen too, and the button opens the search window on Bit's chat. Nothing is sent until you tap send.
+- **Automatic updates reach people who only play.** Xenon installed a new version by itself only after 10 minutes without anyone at the PC, so someone who switches on, plays and switches off never got it. Now a version already downloaded is also installed in the first minutes after Xenon starts, before a game is open. The one-minute countdown with "In an hour" stays, and nothing installs while a game, a call or a file transfer is going on.
+- **An update that has waited a week says so.** If a new version is still not installed seven days after it came out, the update card shows how many days it has been waiting, and the Xenon app opens that card once a day instead of only its small notice in the corner. The card itself never installs anything.
+
+### 🐛 Fixed
+- **The music keys really stay put now** ([#154](https://github.com/marcimastro98/Xenon/issues/154)). The 5.1.1 fix covered the short, wide music tile. On a taller tile in the Classic look, and on small square tiles, the keys still sat in the middle when nothing was playing and jumped to the left when a song started. They now keep the same place whether something plays or not.
+- **Music playing in Firefox is named properly.** The music tile showed a code like 308046B0AF4A39CB where the app name goes, because that is how Firefox registers itself with Windows. It now shows the site playing, such as YouTube, or Firefox.
 
 ## [v5.1.1] - 16-11-2026
 

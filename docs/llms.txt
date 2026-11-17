@@ -105,6 +105,9 @@ any screen.
   what it does
 - [Sensor panel](https://xenon-app.com/sensor-panel.html): a PC sensor panel on
   a small screen
+- [Xenon next to other tools](https://xenon-app.com/compare.html): what Xenon,
+  Rainmeter, AIDA64 SensorPanel, Wallpaper Engine, MSI Afterburner, the NVIDIA App,
+  Xbox Game Bar, OBS Studio, Stream Deck and Touch Portal each do best
 - [Xeneon Edge widgets and dashboards](https://xenon-app.com/xeneon-edge-widgets.html):
   what iCUE gives an Edge owner, what Xenon adds, with or without iCUE
 - [Your phone as the screen](https://xenon-app.com/phone.html): opening the

@@ -110,6 +110,38 @@
   function rememberDismissed(version) {
     try { localStorage.setItem(DISMISS_KEY, stripV(version)); } catch { /* ignore */ }
   }
+  // An update still waiting after a week has missed every start and every quiet
+  // moment. The notice gets louder, never the install: the native app, which
+  // otherwise shows only its corner toast, opens the full card once a day.
+  const OVERDUE_DAYS = 7;
+  const OVERDUE_KEY = 'xenon.update.overdueShown'; // "<version>@<local day>" of the last such card
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  let overdueCardVersion = '';
+  function waitingDays(info, now) {
+    const at = Date.parse((info && info.publishedAt) || '');
+    if (!Number.isFinite(at) || at > now) return 0;
+    return Math.floor((now - at) / DAY_MS);
+  }
+  function overdueStamp(version, now) {
+    const d = new Date(now);
+    return stripV(version) + '@' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+  function overdueCardDue(info, now) {
+    if (!info || !info.updateAvailable || waitingDays(info, now) < OVERDUE_DAYS) return false;
+    try { return localStorage.getItem(OVERDUE_KEY) !== overdueStamp(info.latest, now); } catch { return true; }
+  }
+  function showOverdueCard(info) {
+    overdueCardVersion = stripV(info.latest);
+    try { localStorage.setItem(OVERDUE_KEY, overdueStamp(info.latest, Date.now())); } catch { /* shown again tomorrow at worst */ }
+    // The card replaces the shell's corner toast for this version: one notice, not two.
+    const N = window.XenonNative;
+    if (N && typeof N.hideUpdatePrompt === 'function') N.hideUpdatePrompt();
+    openModal(info);
+  }
+  function overdueCardShown(version) {
+    return !!overdueCardVersion && (!version || stripV(version) === overdueCardVersion);
+  }
+
   function isVersionSkipped(version) {
     const v = stripV(version);
     return !!v && dismissedVersion() === v;
@@ -381,6 +413,13 @@
     ver.textContent = 'v' + stripV(info.latest) + (from ? ', ' + tr('update_from', 'dalla v') + stripV(from) : '');
     headText.appendChild(title);
     headText.appendChild(ver);
+    const waited = info.updateAvailable ? waitingDays(info, Date.now()) : 0;
+    if (waited >= OVERDUE_DAYS) {
+      const wait = document.createElement('div');
+      wait.className = 'upd-wait';
+      wait.textContent = tr('update_waiting_days', 'In attesa da {n} giorni').replace('{n}', String(waited));
+      headText.appendChild(wait);
+    }
     head.appendChild(headText);
     card.appendChild(head);
 
@@ -1265,6 +1304,7 @@
     // two competing popups is exactly how a user ended up on the GitHub page.
     // The Settings pill still opens this modal on demand (now native-aware).
     if (updatePending && !isNativeShell()) queue.push((next) => { openModal(info); next(); });
+    else if (updatePending && overdueCardDue(info, Date.now())) queue.push((next) => { showOverdueCard(info); next(); });
     runNotices(queue);
   }
 
@@ -1320,6 +1360,8 @@
     // surfaces read and write ONE skipped version, normalized the same way.
     isVersionSkipped,
     skipVersion: rememberDismissed,
+    // True once the week-old card is up for this version: the toast stays away.
+    overdueCardShown,
   };
   window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew, reopen: reopenWhatsNew };
 

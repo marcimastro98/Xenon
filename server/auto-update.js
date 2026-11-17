@@ -27,6 +27,10 @@
 //     transfer, no disk cleanup, no Claude request waiting for an answer, no
 //     live voice session, no call ringing, and the PC idle for 10 minutes.
 //     Where idle time cannot be read, only between 03:00 and 05:00.
+//   - Or in the first 10 minutes after Xenon starts, with nothing going on
+//     either: someone who switches the PC on, plays and switches it off is
+//     never idle for 10 minutes, so the idle rule alone never reached them.
+//     The release is downloaded in one session and installed at the next start.
 //   - A 60-second countdown on every open dashboard first, with a button to
 //     postpone by an hour, and every condition checked again when it ends.
 
@@ -34,6 +38,7 @@ const MIN_AGE_MS = 24 * 60 * 60 * 1000;
 const IDLE_MIN_SEC = 10 * 60;
 const NIGHT_START_HOUR = 3;
 const NIGHT_END_HOUR = 5;
+const STARTUP_WINDOW_MS = 10 * 60 * 1000;
 const FIRST_TICK_MS = 2 * 60 * 1000;
 const TICK_MS = 10 * 60 * 1000;
 const RECHECK_MS = 6 * 60 * 60 * 1000;
@@ -85,6 +90,7 @@ function inNightWindow(hour) {
  *   blockers                                 string[] of things in progress
  *   idleSec                                  number, or null when unknown here
  *   localHour                                0..23
+ *   startup                                  Xenon started less than STARTUP_WINDOW_MS ago
  *   minAgeMs, idleMinSec                     optional overrides (tests, E2E)
  * @param {number} now ms epoch
  * @returns {{action:'hold'|'wait'|'prepare'|'apply', reason:string, blockers?:string[], eligibleAt?:number}}
@@ -113,6 +119,8 @@ function decide(s, now) {
   if (st.postponedUntil && now < st.postponedUntil) return { action: 'wait', reason: 'postponed' };
   const blockers = Array.isArray(st.blockers) ? st.blockers.filter(Boolean) : [];
   if (blockers.length) return { action: 'wait', reason: 'busy', blockers };
+  // Just started, nothing going on yet: the moment before the first game.
+  if (st.startup === true) return { action: 'apply', reason: 'ready_startup' };
 
   const idleMin = Number.isFinite(st.idleMinSec) ? st.idleMinSec : IDLE_MIN_SEC;
   if (typeof st.idleSec === 'number' && Number.isFinite(st.idleSec)) {
@@ -139,7 +147,7 @@ function decide(s, now) {
  *   log(msg)
  *   port                  number, handed to the applier
  *   now(), localHour(), setTimeout, clearTimeout   (default: the real ones)
- *   minAgeMs, idleMinSec                           optional overrides
+ *   minAgeMs, idleMinSec, startupWindowMs          optional overrides
  */
 function createAutoUpdater(deps) {
   const d = deps || {};
@@ -163,6 +171,12 @@ function createAutoUpdater(deps) {
   let lastDecision = { action: 'wait', reason: 'starting' };
   let lastBlockers = [];
   let started = false;
+  let startedAt = 0;
+  const startupWindowMs = Number.isFinite(d.startupWindowMs) ? d.startupWindowMs : STARTUP_WINDOW_MS;
+
+  function inStartupWindow() {
+    return startedAt > 0 && now() - startedAt < startupWindowMs;
+  }
 
   async function persist() {
     try { await d.store.write(record); } catch (e) { log('auto-update: could not save state: ' + (e && e.message)); }
@@ -242,6 +256,7 @@ function createAutoUpdater(deps) {
       blockers,
       idleSec,
       localHour: localHour(),
+      startup: inStartupWindow(),
       minAgeMs: d.minAgeMs,
       idleMinSec: d.idleMinSec,
     };
@@ -298,7 +313,7 @@ function createAutoUpdater(deps) {
         await doPrepare(st.latest);
         next = 60 * 1000;   // prepared: re-decide soon
       } else if (dec.action === 'apply') {
-        startCountdown(st.latest);
+        startCountdown(st.latest, dec.reason === 'ready_startup');
       }
       lastDecision = dec;
       lastBlockers = dec.blockers || [];
@@ -335,9 +350,11 @@ function createAutoUpdater(deps) {
     }
   }
 
-  function startCountdown(version) {
+  // `startup`: started inside the startup window. The window may close during
+  // the minute of countdown; that minute still counts as part of it.
+  function startCountdown(version, startup) {
     const endsAt = now() + COUNTDOWN_MS;
-    countdown = { version, endsAt, timer: null };
+    countdown = { version, endsAt, timer: null, startup: !!startup };
     broadcast('update_auto', { phase: 'countdown', version, endsAt, seconds: Math.round(COUNTDOWN_MS / 1000) });
     log('auto-update: installing ' + version + ' in ' + Math.round(COUNTDOWN_MS / 1000) + 's unless postponed');
     countdown.timer = setT(() => { finishCountdown(); }, COUNTDOWN_MS);
@@ -360,6 +377,7 @@ function createAutoUpdater(deps) {
       // Everything again: the minute of countdown is exactly when someone may
       // have sat down, started a game or begun sending a file.
       const st = await buildState(true);
+      if (countdown.startup) st.startup = true;
       const dec = decide(st, now());
       if (dec.action !== 'apply' || normVer(st.latest) !== normVer(version)) {
         lastDecision = dec;
@@ -425,6 +443,7 @@ function createAutoUpdater(deps) {
       reason: lastDecision.reason,
       blockers: lastBlockers.slice(),
       eligibleAt: Number.isFinite(published) ? published + minAge : 0,
+      startupUntil: inStartupWindow() ? startedAt + startupWindowMs : 0,
       countdownEndsAt: countdown ? countdown.endsAt : 0,
       postponedUntil: postponedUntil > now() ? postponedUntil : 0,
       last: { version: record.version, state: record.state, reason: record.reason, at: record.at },
@@ -438,6 +457,7 @@ function createAutoUpdater(deps) {
     try { sig = await d.signals(); } catch { return false; }
     const blockers = Array.isArray(sig && sig.blockers) ? sig.blockers : [];
     if (blockers.length) return false;
+    if (inStartupWindow()) return true;
     const idleMin = Number.isFinite(d.idleMinSec) ? d.idleMinSec : IDLE_MIN_SEC;
     if (sig && typeof sig.idleSec === 'number') return sig.idleSec >= idleMin;
     return inNightWindow(localHour());
@@ -446,6 +466,7 @@ function createAutoUpdater(deps) {
   async function start() {
     if (started) return;
     started = true;
+    startedAt = now();
     await reconcile();
     if (record.state === 'done' || record.state === 'failed') {
       broadcast('update_auto', { phase: record.state, version: record.version, reason: record.reason });
@@ -465,6 +486,6 @@ function createAutoUpdater(deps) {
 
 module.exports = {
   decide, createAutoUpdater, hasNoAutoMarker, inNightWindow,
-  MIN_AGE_MS, IDLE_MIN_SEC, COUNTDOWN_MS, POSTPONE_MS, TICK_MS, FIRST_TICK_MS, RECHECK_MS,
+  MIN_AGE_MS, IDLE_MIN_SEC, STARTUP_WINDOW_MS, COUNTDOWN_MS, POSTPONE_MS, TICK_MS, FIRST_TICK_MS, RECHECK_MS,
   PREPARE_RETRY_MS, PREPARE_MAX_TRIES, APPLY_TIMEOUT_MS,
 };

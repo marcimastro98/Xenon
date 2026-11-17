@@ -774,6 +774,15 @@ const BROWSER_LABELS = [
   { re: /vivaldi/i, app: 'Vivaldi' },
 ];
 
+// Firefox registers its media under a hash of its install folder ("308046B0AF4A39CB"
+// for the default one), never under its name, so the tile showed that hash as the
+// source (#154). Sixteen hex digits and nothing else is read as Firefox.
+const FIREFOX_SOURCE_RE = /^[0-9A-F]{16}$/i;
+function browserSourceName(source) {
+  const text = String(source || '');
+  return FIREFOX_SOURCE_RE.test(text) ? 'firefox' : text;
+}
+
 function browserMediaSessions() {
   const apps = (typeof audioData !== 'undefined' && audioData && Array.isArray(audioData.speakerApps)) ? audioData.speakerApps : [];
   return apps.filter(a => BROWSER_SOURCE_RE.test(String(a.proc || '')));
@@ -797,7 +806,7 @@ function browserStreamKey(data) {
 // the background-tab memory (on for the live badge, off for picker enumeration
 // so transient rows can't pollute the remembered stream).
 function refineBrowserApp(data, track) {
-  if (!data || !BROWSER_SOURCE_RE.test(String(data.source || ''))) return (data && data.app) || '';
+  if (!data || !BROWSER_SOURCE_RE.test(browserSourceName(data.source))) return (data && data.app) || '';
   const sessions = browserMediaSessions();
   const haystack = sessions.map(s => String(s.win || ''))
     .concat([String(data.title || ''), String(data.album || '')]);
@@ -814,7 +823,7 @@ function refineBrowserApp(data, track) {
     return _browserSiteMemo.app;
   }
   // Site genuinely unknown → name the browser itself; its real icon resolves downstream.
-  const probe = (sessions.length ? String(sessions[0].proc || '') : '') || String(data.source || '');
+  const probe = (sessions.length ? String(sessions[0].proc || '') : '') || browserSourceName(data.source);
   for (const browser of BROWSER_LABELS) if (browser.re.test(probe)) return browser.app;
   return data.app || '';
 }

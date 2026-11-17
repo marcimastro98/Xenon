@@ -128,3 +128,21 @@ test('decide() survives an empty or missing state', () => {
   assert.equal(decide(undefined, NOW).action, 'hold');
   assert.equal(decide({}, NOW).action, 'hold');
 });
+
+test('just started and nothing going on: installs without waiting for idle time', () => {
+  assert.deepEqual(decide(ready({ startup: true, idleSec: 0 }), NOW), { action: 'apply', reason: 'ready_startup' });
+  assert.deepEqual(decide(ready({ startup: true, idleSec: null, localHour: 14 }), NOW), { action: 'apply', reason: 'ready_startup' });
+  // Only a real true opens it.
+  assert.equal(decide(ready({ startup: 'yes', idleSec: 0 }), NOW).reason, 'user_active');
+});
+
+test('just started: every other rule comes first', () => {
+  assert.equal(decide(ready({ startup: true, blockers: ['game'] }), NOW).reason, 'busy');
+  assert.equal(decide(ready({ startup: true, postponedUntil: NOW + H }), NOW).reason, 'postponed');
+  assert.equal(decide(ready({ startup: true, stagedVersion: '' }), NOW).action, 'prepare');
+  assert.equal(decide(ready({ startup: true, publishedAt: new Date(NOW - H).toISOString() }), NOW).reason, 'too_new');
+  assert.equal(decide(ready({ startup: true, failedVersion: '4.12.0' }), NOW).reason, 'failed_before');
+  assert.equal(decide(ready({ startup: true, noAuto: true }), NOW).reason, 'no_auto_release');
+  assert.equal(decide(ready({ startup: true, needsElevation: true }), NOW).reason, 'needs_elevation');
+  assert.equal(decide(ready({ startup: true, enabled: false }), NOW).reason, 'disabled');
+});

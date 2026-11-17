@@ -112,7 +112,7 @@ export function footerHtml() {
       <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">${BIT_LINE}</span></div>
     </div>
     ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/maker/', 'f.maker', 'Xenon Maker'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
-    ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/single-screen.html', 'f.onescreen', 'Xenon on one screen'], ['/fps-overlay.html', 'f.fps', 'FPS overlay'], ['/screen-recorder.html', 'f.recorder', 'Screen recorder'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
+    ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/single-screen.html', 'f.onescreen', 'Xenon on one screen'], ['/fps-overlay.html', 'f.fps', 'FPS overlay'], ['/screen-recorder.html', 'f.recorder', 'Screen recorder'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/compare.html', 'f.compare', 'Xenon and other tools'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
     ${col('project', 'Project', [['/#support', 'f.support', 'Supporters'], ['https://github.com/marcimastro98/Xenon', '', 'GitHub', true], ['https://discord.gg/MBVrw9kZyg', '', 'Discord', true], ['/faq.html', 'f.faq', 'Help and questions'], ['/privacy.html', 'f.privacy', 'Privacy']])}
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">${LEGAL_LINE}</span></div>
@@ -140,6 +140,7 @@ export const GUIDES = [
   ['claude-code.html', 'f.claude'],
   ['codex.html', 'f.codex'],
   ['sensor-panel.html', 'f.sensor'],
+  ['compare.html', 'f.compare'],
   ['xenon-exe.html', 'f.exe'],
 ];
 // Pages with a breadcrumb that are not guides.
@@ -216,6 +217,7 @@ const PAGES = [
   { file: 'docs/screen-recorder.html', lang: false },
   { file: 'docs/5.html', lang: false },
   { file: 'docs/sensor-panel.html', lang: false },
+  { file: 'docs/compare.html', lang: false },
   { file: 'docs/catalog/index.html', lang: true, oldHeader: /<nav class="top">[\s\S]*?<\/nav>\n/ },
   { file: 'docs/create/index.html', lang: false, oldHeader: /<header class="topbar">[\s\S]*?<\/header>\n/, footerBeforeBody: true },
   { file: 'docs/submit/index.html', lang: true, oldHeader: /<header class="top">[\s\S]*?<\/header>\n/, footerBeforeBody: true },
