@@ -1,5 +1,5 @@
-// The two things on the home that move by themselves below the hero: the small
-// game under the real overlay and the Maker clip. Both run only in view, never
+// The things on the home that move by themselves below the hero: the launch video,
+// the small game under the real overlay and the Maker clip. Both run only in view, never
 // under reduced motion, and each has a pause button (WCAG 2.2.2). The game is a
 // scene of our own, drawn in code: no real game's footage or art on the site.
 (function () {
@@ -38,6 +38,52 @@
     const sync = () => { if (inView && !paused) video.play().catch(() => {}); else video.pause(); };
     pauseButton(button, (p) => { paused = p; sync(); });
     new IntersectionObserver((es) => { inView = es[0].isIntersecting; sync(); }, { threshold: 0.25 }).observe(video);
+  }
+
+  // The launch video under the hero. Muted and looping while it is in view (its words are
+  // on screen, so it reads without sound); "Watch with sound", or the hero's link, starts
+  // it again from the top with sound and the player's own controls. It never starts by
+  // itself under reduced motion, with Save-Data or on a 2G connection: the poster and the
+  // button wait for a press. Without this script the page shows the plain player.
+  function film() {
+    const video = document.getElementById('film-v');
+    const sound = document.getElementById('film-sound');
+    const pause = document.getElementById('film-pause');
+    if (!video || !sound || !pause) return;
+    const net = navigator.connection || {};
+    const auto = !reduce && canObserve && !net.saveData && !/2g/.test(net.effectiveType || '');
+    let withSound = false;
+    let paused = false;
+    let inView = false;
+
+    const sync = () => {
+      if (withSound) { if (!inView) video.pause(); return; }
+      if (inView && !paused) video.play().catch(() => {}); else video.pause();
+    };
+    function playWithSound() {
+      withSound = true;
+      video.loop = false;
+      video.muted = false;
+      video.controls = true;
+      video.currentTime = 0;
+      sound.hidden = true;
+      pause.hidden = true;
+      video.play().catch(() => {});
+    }
+
+    video.controls = false;
+    sound.hidden = false;
+    sound.addEventListener('click', playWithSound);
+    document.querySelectorAll('[data-film-go]').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault();
+      video.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+      playWithSound();
+    }));
+    video.addEventListener('ended', () => { if (withSound && window.xtrack) window.xtrack('video_complete', { location: 'film' }); });
+    if (!auto) return;
+    pause.hidden = false;
+    pauseButton(pause, (p) => { paused = p; sync(); });
+    new IntersectionObserver((es) => { inView = es[0].isIntersecting; sync(); }, { threshold: 0.4 }).observe(video);
   }
 
   function game() {
@@ -211,6 +257,7 @@
     new IntersectionObserver((es) => { inView = es[0].isIntersecting; sync(); }, { threshold: 0.2 }).observe(cv);
   }
 
+  film();
   game();
   makerClip();
 })();

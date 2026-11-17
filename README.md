@@ -19,6 +19,8 @@ Temperatures, FPS, music, calendar and touch keys on your desktop, over your gam
 
 <p align="center">New in 5.0: <a href="https://xenon-app.com/5.html">a new look, widgets on your main screen, and Bit</a>.</p>
 
+<p align="center"><a href="https://xenon-app.com/#film"><img src="docs/images/home/launch.webp" alt="Xenon in one minute: the launch video" width="800"></a><br><a href="https://xenon-app.com/#film">Watch Xenon in one minute</a></p>
+
 ![Xenon widgets on a Windows desktop: clock, weather, calendar, music and system readings over the wallpaper](docs/images/home/desktop-widgets.webp)
 
 Download the installer, run it, and press **Complete setup** when the app asks. If Windows warns you about the file, [this explains why and how to check it yourself](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus).

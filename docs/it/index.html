@@ -496,6 +496,19 @@ html:not(.js) .ask, html:not(.js) .pz { display: none; }
 .maker { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px clamp(32px, 5vw, 72px); align-items: center; margin-top: clamp(48px, 6vw, 88px); }
 .maker-f { position: relative; margin: 0; min-width: 0; }
 .maker-v { display: block; width: 100%; height: auto; aspect-ratio: 960 / 720; object-fit: cover; object-position: top; border-radius: 10px; background: var(--g-1); box-shadow: 0 0 0 1px var(--rule); }
+/* The launch video, under the hero: it plays muted while in view (its words are on screen),
+   one press starts it again from the top with sound. It never covers the page. */
+.film { padding-block: clamp(36px, 5vw, 72px); }
+.film-h { margin: 0 0 clamp(16px, 2vw, 26px); font: 800 clamp(30px, 3.4vw, 52px)/1 var(--f-display); letter-spacing: -.02em; }
+/* As tall as the screen allows under the heading, so the whole frame is in view at once. */
+.film-v { max-width: max(320px, calc((100svh - 330px) * 16 / 9)); }
+.film-v video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; background: var(--g-1); box-shadow: 0 0 0 1px var(--rule); }
+.film-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: max(320px, calc((100svh - 330px) * 16 / 9)); margin-top: 10px; }
+.film-sound { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px 0 12px; border: 0; border-radius: 6px; background: none; color: inherit; font: 700 18px/1 var(--f-text); cursor: pointer; }
+.film-sound:hover { background: var(--hover); }
+.film-sound[hidden], .film-bar .pz[hidden] { display: none; }
+.film-sound svg { width: 22px; height: 22px; flex: none; }
+.film-go svg { width: 18px; height: 18px; }
 #catalog .maker h3 { font: 800 clamp(34px, 3.6vw, 56px)/1 var(--f-display); letter-spacing: -.018em; }
 .maker-tx p:not(.links) { margin: 10px 0 0; font-size: clamp(18px, 1.35vw, 20px); line-height: 1.4; color: var(--fg-2); }
 .maker-tx .links { margin-top: 8px; }
@@ -848,6 +861,7 @@ html[data-mobile] .onphone { display: block; }
         <a class="key-alt for-desk" href="/demo/" data-track="demo_click" data-track-location="hero" data-i18n="hero.try">Provalo nel browser</a>
         <div class="act-row for-desk">
           <a class="mk" id="hero-store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" title="Microsoft Store" data-track="store_click" data-track-location="hero"><svg aria-hidden="true"><use href="#i-store"/></svg><span class="sr">Microsoft Store</span></a>
+          <a class="mk film-go" href="#film" data-film-go data-track="video_play" data-track-location="hero"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span data-i18n="film.link">Guarda il video</span></a>
           <a class="mk os-alt" href="#install"><svg aria-hidden="true"><use href="#os-mac"/></svg><svg aria-hidden="true"><use href="#os-linux"/></svg><span data-i18n="hero.alt">Mac e Linux (beta)</span></a>
           <a class="mk" id="p-dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-dc"/></svg><span class="sr">Discord</span><span class="n" data-count="dc"></span></a>
           <a class="mk" id="p-dl" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" title="GitHub"><svg aria-hidden="true"><use href="#i-gh"/></svg><span class="sr">GitHub</span><svg class="down" aria-hidden="true"><use href="#i-dl"/></svg><span class="n" data-count="dl"></span></a>
@@ -890,6 +904,19 @@ html[data-mobile] .onphone { display: block; }
           <button class="cycle" id="cycle" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" id="cycle-l" data-i18n="themes.pause">Metti in pausa i temi</span></button>
         </div>
         <p class="cap" id="scr-cap"><span data-i18n="scr.sample">Dati di esempio dalla demo nel browser.</span> <span id="theme-note" data-i18n-html="theme.liquid">Liquid Glass, il tema con cui parte Xenon.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="paper film" id="film" aria-labelledby="h-film">
+    <div class="w">
+      <h2 class="film-h" id="h-film" data-i18n="film.h2">Xenon in un minuto</h2>
+      <div class="film-v">
+        <video id="film-v" src="/images/home/launch.mp4" poster="/images/home/launch.webp" width="1920" height="1080" muted loop playsinline preload="none" controls aria-label="Il video di Xenon: widget sul desktop, sopra i giochi e su ogni schermo, con Bit" data-i18n-aria="film.alt"></video>
+      </div>
+      <div class="film-bar">
+        <button class="film-sound" id="film-sound" type="button" data-track="video_play" data-track-location="film" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3zM15.5 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.3 5.7a9 9 0 0 1 0 12.6l-1.4-1.4a7 7 0 0 0 0-9.8z"/></svg><span data-i18n="film.sound">Guarda con l'audio</span></button>
+        <button class="pz" id="film-pause" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" data-i18n="anim.pause">Ferma l'animazione</span></button>
       </div>
     </div>
   </section>
@@ -1563,6 +1590,10 @@ html[data-mobile] .onphone { display: block; }
     "ft.recorder": "Screen recorder",
     "theme.liquid": "Liquid Glass, the look Xenon starts with.",
     "cat.sparks": "{n} Sparks",
+    "film.h2": "Xenon in one minute",
+    "film.link": "Watch the video",
+    "film.sound": "Watch with sound",
+    "film.alt": "The Xenon video: widgets on the desktop, over games and on any screen, with Bit",
   };
 
   I18N.fr = {
@@ -1794,6 +1825,10 @@ html[data-mobile] .onphone { display: block; }
     "ft.recorder": "Enregistrer l’écran",
     "theme.liquid": "Liquid Glass, le thème de départ de Xenon.",
     "cat.sparks": "{n} Étincelles",
+    "film.h2": "Xenon en une minute",
+    "film.link": "Voir la vidéo",
+    "film.sound": "Regarder avec le son",
+    "film.alt": "La vidéo de Xenon : des widgets sur le bureau, par-dessus les jeux et sur n'importe quel écran, avec Bit",
   };
 
   I18N.it = {
@@ -2025,6 +2060,10 @@ html[data-mobile] .onphone { display: block; }
     "ft.recorder": "Registrare lo schermo",
     "theme.liquid": "Liquid Glass, il tema con cui parte Xenon.",
     "cat.sparks": "{n} Scintille",
+    "film.h2": "Xenon in un minuto",
+    "film.link": "Guarda il video",
+    "film.sound": "Guarda con l'audio",
+    "film.alt": "Il video di Xenon: widget sul desktop, sopra i giochi e su ogni schermo, con Bit",
   };
 
   I18N.es = {
@@ -2256,6 +2295,10 @@ html[data-mobile] .onphone { display: block; }
     "ft.recorder": "Grabar la pantalla",
     "theme.liquid": "Liquid Glass, el tema con el que arranca Xenon.",
     "cat.sparks": "{n} Chispas",
+    "film.h2": "Xenon en un minuto",
+    "film.link": "Mira el vídeo",
+    "film.sound": "Verlo con sonido",
+    "film.alt": "El vídeo de Xenon: widgets en el escritorio, sobre los juegos y en cualquier pantalla, con Bit",
   };
 
   I18N.ja = {
@@ -2487,6 +2530,10 @@ html[data-mobile] .onphone { display: block; }
     "ft.recorder": "画面録画",
     "theme.liquid": "Liquid Glass、Xenon の初期テーマです。",
     "cat.sparks": "{n} スパーク",
+    "film.h2": "1分でわかる Xenon",
+    "film.link": "動画を見る",
+    "film.sound": "音ありで見る",
+    "film.alt": "Xenon の動画：デスクトップ、ゲームの上、あらゆる画面のウィジェットと Bit",
   };
 
   I18N.ko = {
@@ -2718,6 +2765,10 @@ html[data-mobile] .onphone { display: block; }
     "ft.recorder": "화면 녹화",
     "theme.liquid": "Liquid Glass, Xenon의 기본 테마입니다.",
     "cat.sparks": "스파크 {n}개",
+    "film.h2": "1분 만에 보는 Xenon",
+    "film.link": "영상 보기",
+    "film.sound": "소리와 함께 보기",
+    "film.alt": "Xenon 영상: 데스크톱, 게임 위, 모든 화면의 위젯과 Bit",
   };
 
   I18N.zh = {
@@ -2949,6 +3000,10 @@ html[data-mobile] .onphone { display: block; }
     "ft.recorder": "屏幕录制",
     "theme.liquid": "Liquid Glass，Xenon 的默认主题。",
     "cat.sparks": "{n} 火花",
+    "film.h2": "一分钟了解 Xenon",
+    "film.link": "观看视频",
+    "film.sound": "带声音观看",
+    "film.alt": "Xenon 视频：桌面上、游戏上方和任意屏幕上的小组件，还有 Bit",
   };
 
   // Language engine. Every language has a URL of its own, generated by

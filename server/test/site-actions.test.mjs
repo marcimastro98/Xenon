@@ -81,10 +81,10 @@ test('the hero offers one main key, one outlined key and one row of marks', () =
 test('the marks under the keys are one family: same class, one colour, a name a screen reader can say', () => {
   const row = between(home, '<div class="act-row for-desk">', '<button');
   const marks = row.split('</a>').filter((m) => m.includes('<a '));
-  assert.equal(marks.length, 4);
+  assert.equal(marks.length, 5);
   for (const mark of marks) {
     assert.match(mark, /<a class="mk/);
-    assert.match(mark, /class="sr"|data-i18n="hero\.alt"/, 'a logo alone needs words for a screen reader');
+    assert.match(mark, /class="sr"|data-i18n="(hero\.alt|film\.link)"/, 'a logo alone needs words for a screen reader');
   }
   assert.doesNotMatch(row, /<img/, 'a picture in colour would be the one mark out of line');
   assert.match(rule(home, '.act-row .mk svg'), /width: 22px; height: 22px/);
