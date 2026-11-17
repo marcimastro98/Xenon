@@ -132,6 +132,7 @@
     if (!owners.has(pkgId) && owners.size >= MAX_OWNERS) return;   // cap reached: silent no-op
     const cur = owners.get(pkgId) || {};
     owners.set(pkgId, {
+      pkgId,
       view,
       onAction: typeof onAction === 'function' ? onAction : null,
       node: cur.node,

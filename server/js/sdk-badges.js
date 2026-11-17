@@ -143,7 +143,7 @@
       const box = document.createElement('span');
       box.className = 'sdk-badge-parts';
       const tap = (id) => { if (typeof owner.onAction === 'function') owner.onAction(id); };
-      parts.forEach((block) => { const node = render.render(block, tap); if (node) box.appendChild(node); });
+      parts.forEach((block) => { const node = render.render(block, tap, owner.pkgId); if (node) box.appendChild(node); });
       nodes.push(box);
     }
     owner.chip.replaceChildren(...nodes);
@@ -215,6 +215,7 @@
     if (!owners.has(pkgId) && owners.size >= MAX_BADGES) return;   // cap reached: silent no-op
     const cur = owners.get(pkgId) || {};
     owners.set(pkgId, {
+      pkgId,
       view,
       onAction: typeof onAction === 'function' ? onAction : null,
       chip: cur.chip,

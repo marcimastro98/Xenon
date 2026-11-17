@@ -3653,6 +3653,8 @@ Every key below is optional; leave it out and the part looks exactly as before.
   `progress` 0–1) and a `note` ≤160. Text only, like every part. The card opens
   even without a tap permission, since showing more of what is already on screen
   sends nothing to your widget; Escape, the close button or a tap outside closes it.
+  Above the title the card shows your widget's name as installed, so the words
+  in it always read as yours, never as a message from Xenon.
 
 ```js
 parent.postMessage({ xenonSdk: 1, type: 'mini', op: 'present', tooltip: 'Batteries', blocks: [

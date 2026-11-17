@@ -730,6 +730,8 @@
     const list = (pkgCache && Array.isArray(pkgCache.packages)) ? pkgCache.packages : [];
     return list.find(p => p && p.id === id) || null;
   }
+  // A meter's detail card names its widget from here, never from the view it drew.
+  if (window.SdkBlockRender) window.SdkBlockRender.setNameSource((id) => { const pkg = packageById(id); return pkg && pkg.name ? pkg.name : ''; });
 
   // ── The widget's own options (manifest `options`, v5.0.0) ──────────────────
   // Set in the Xenon menu, resolved by the server (widget-options/) and carried by
