@@ -73723,6 +73723,140 @@ Object.assign(i18n.zh, {
   deck_err_wl_unsupported: '你的 Wave Link 版本没有此功能',
 });
 
+// The other apps a Deck key talks to, and the states it can only report.
+Object.assign(i18n.it, {
+  deck_err_obs_unreachable: 'Xenon non riesce a raggiungere OBS: è aperto, con il server WebSocket acceso?',
+  deck_err_sb_unreachable: 'Xenon non riesce a raggiungere Streamer.bot: è aperto, con il server WebSocket acceso?',
+  deck_err_ha_not_set_up: 'Home Assistant non è ancora impostato: aggiungilo in Impostazioni, Smart Home',
+  deck_err_ha_auth: 'Home Assistant ha rifiutato il token: incollane uno nuovo in Impostazioni, Smart Home',
+  deck_err_ha_unreachable: 'Xenon non riesce a raggiungere Home Assistant: è acceso, e l’indirizzo in Impostazioni, Smart Home è giusto?',
+  deck_err_chroma_unreachable: 'Xenon non riesce a raggiungere Razer Chroma: Razer Synapse è aperto?',
+  deck_err_nothing_running: 'non c’è niente in corso da fermare',
+  deck_err_already_recording: 'una registrazione è già in corso: fermala prima',
+  deck_err_no_second_screen: 'serve un secondo schermo collegato',
+  deck_err_nothing_to_undo: 'non c’è niente da annullare',
+});
+Object.assign(i18n.en, {
+  deck_err_obs_unreachable: 'Xenon cannot reach OBS: is it open, with its WebSocket server on?',
+  deck_err_sb_unreachable: 'Xenon cannot reach Streamer.bot: is it open, with its WebSocket server on?',
+  deck_err_ha_not_set_up: 'Home Assistant is not set up yet: add it in Settings, Smart Home',
+  deck_err_ha_auth: 'Home Assistant refused the token: paste a new one in Settings, Smart Home',
+  deck_err_ha_unreachable: 'Xenon cannot reach Home Assistant: is it on, and is its address right in Settings, Smart Home?',
+  deck_err_chroma_unreachable: 'Xenon cannot reach Razer Chroma: is Razer Synapse open?',
+  deck_err_nothing_running: 'nothing is running to stop',
+  deck_err_already_recording: 'a recording is already going: stop it first',
+  deck_err_no_second_screen: 'this needs a second screen connected',
+  deck_err_nothing_to_undo: 'there is nothing to undo',
+});
+Object.assign(i18n.es, {
+  deck_err_obs_unreachable: 'Xenon no consigue llegar a OBS: ¿está abierto, con su servidor WebSocket activado?',
+  deck_err_sb_unreachable: 'Xenon no consigue llegar a Streamer.bot: ¿está abierto, con su servidor WebSocket activado?',
+  deck_err_ha_not_set_up: 'Home Assistant aún no está configurado: añádelo en Ajustes, Hogar inteligente',
+  deck_err_ha_auth: 'Home Assistant rechazó el token: pega uno nuevo en Ajustes, Hogar inteligente',
+  deck_err_ha_unreachable: 'Xenon no consigue llegar a Home Assistant: ¿está encendido, y su dirección en Ajustes, Hogar inteligente es correcta?',
+  deck_err_chroma_unreachable: 'Xenon no consigue llegar a Razer Chroma: ¿está abierto Razer Synapse?',
+  deck_err_nothing_running: 'no hay nada en marcha que detener',
+  deck_err_already_recording: 'ya hay una grabación en marcha: detenla primero',
+  deck_err_no_second_screen: 'esto necesita una segunda pantalla conectada',
+  deck_err_nothing_to_undo: 'no hay nada que deshacer',
+});
+Object.assign(i18n.fr, {
+  deck_err_obs_unreachable: 'Xenon n’arrive pas à joindre OBS : est-il ouvert, avec son serveur WebSocket activé ?',
+  deck_err_sb_unreachable: 'Xenon n’arrive pas à joindre Streamer.bot : est-il ouvert, avec son serveur WebSocket activé ?',
+  deck_err_ha_not_set_up: 'Home Assistant n’est pas encore configuré : ajoutez-le dans Paramètres, Maison connectée',
+  deck_err_ha_auth: 'Home Assistant a refusé le jeton : collez-en un nouveau dans Paramètres, Maison connectée',
+  deck_err_ha_unreachable: 'Xenon n’arrive pas à joindre Home Assistant : est-il allumé, et son adresse dans Paramètres, Maison connectée est-elle juste ?',
+  deck_err_chroma_unreachable: 'Xenon n’arrive pas à joindre Razer Chroma : Razer Synapse est-il ouvert ?',
+  deck_err_nothing_running: 'rien n’est en cours à arrêter',
+  deck_err_already_recording: 'un enregistrement est déjà en cours : arrêtez-le d’abord',
+  deck_err_no_second_screen: 'il faut un second écran branché',
+  deck_err_nothing_to_undo: 'il n’y a rien à annuler',
+});
+Object.assign(i18n.de, {
+  deck_err_obs_unreachable: 'Xenon erreicht OBS nicht: ist es offen, mit eingeschaltetem WebSocket-Server?',
+  deck_err_sb_unreachable: 'Xenon erreicht Streamer.bot nicht: ist es offen, mit eingeschaltetem WebSocket-Server?',
+  deck_err_ha_not_set_up: 'Home Assistant ist noch nicht eingerichtet: füge es in Einstellungen, Smart Home hinzu',
+  deck_err_ha_auth: 'Home Assistant hat den Token abgelehnt: füge in Einstellungen, Smart Home einen neuen ein',
+  deck_err_ha_unreachable: 'Xenon erreicht Home Assistant nicht: ist es an, und stimmt seine Adresse in Einstellungen, Smart Home?',
+  deck_err_chroma_unreachable: 'Xenon erreicht Razer Chroma nicht: ist Razer Synapse offen?',
+  deck_err_nothing_running: 'gerade läuft nichts, das sich stoppen ließe',
+  deck_err_already_recording: 'eine Aufnahme läuft schon: stoppe sie zuerst',
+  deck_err_no_second_screen: 'dafür muss ein zweiter Bildschirm angeschlossen sein',
+  deck_err_nothing_to_undo: 'es gibt nichts rückgängig zu machen',
+});
+Object.assign(i18n.pt, {
+  deck_err_obs_unreachable: 'O Xenon não consegue chegar ao OBS: está aberto, com o servidor WebSocket ligado?',
+  deck_err_sb_unreachable: 'O Xenon não consegue chegar ao Streamer.bot: está aberto, com o servidor WebSocket ligado?',
+  deck_err_ha_not_set_up: 'o Home Assistant ainda não está configurado: adiciona-o em Definições, Casa inteligente',
+  deck_err_ha_auth: 'o Home Assistant recusou o token: cola um novo em Definições, Casa inteligente',
+  deck_err_ha_unreachable: 'O Xenon não consegue chegar ao Home Assistant: está ligado, e o endereço em Definições, Casa inteligente está certo?',
+  deck_err_chroma_unreachable: 'O Xenon não consegue chegar ao Razer Chroma: o Razer Synapse está aberto?',
+  deck_err_nothing_running: 'não há nada a decorrer para parar',
+  deck_err_already_recording: 'já há uma gravação a decorrer: para-a primeiro',
+  deck_err_no_second_screen: 'isto precisa de um segundo ecrã ligado',
+  deck_err_nothing_to_undo: 'não há nada para anular',
+});
+Object.assign(i18n.nl, {
+  deck_err_obs_unreachable: 'Xenon kan OBS niet bereiken: is het open, met de WebSocket-server aan?',
+  deck_err_sb_unreachable: 'Xenon kan Streamer.bot niet bereiken: is het open, met de WebSocket-server aan?',
+  deck_err_ha_not_set_up: 'Home Assistant is nog niet ingesteld: voeg het toe in Instellingen, Smart Home',
+  deck_err_ha_auth: 'Home Assistant weigerde de token: plak een nieuwe in Instellingen, Smart Home',
+  deck_err_ha_unreachable: 'Xenon kan Home Assistant niet bereiken: staat het aan, en klopt het adres in Instellingen, Smart Home?',
+  deck_err_chroma_unreachable: 'Xenon kan Razer Chroma niet bereiken: is Razer Synapse open?',
+  deck_err_nothing_running: 'er loopt niets om te stoppen',
+  deck_err_already_recording: 'er loopt al een opname: stop die eerst',
+  deck_err_no_second_screen: 'hiervoor moet een tweede scherm aangesloten zijn',
+  deck_err_nothing_to_undo: 'er is niets om ongedaan te maken',
+});
+Object.assign(i18n.ru, {
+  deck_err_obs_unreachable: 'Xenon не может связаться с OBS: он открыт, и его WebSocket-сервер включён?',
+  deck_err_sb_unreachable: 'Xenon не может связаться со Streamer.bot: он открыт, и его WebSocket-сервер включён?',
+  deck_err_ha_not_set_up: 'Home Assistant ещё не настроен: добавьте его в настройках, раздел «Умный дом»',
+  deck_err_ha_auth: 'Home Assistant отклонил токен: вставьте новый в настройках, раздел «Умный дом»',
+  deck_err_ha_unreachable: 'Xenon не может связаться с Home Assistant: он включён, и его адрес в настройках, раздел «Умный дом», верный?',
+  deck_err_chroma_unreachable: 'Xenon не может связаться с Razer Chroma: Razer Synapse открыт?',
+  deck_err_nothing_running: 'сейчас нечего останавливать',
+  deck_err_already_recording: 'запись уже идёт: сначала остановите её',
+  deck_err_no_second_screen: 'для этого нужен подключённый второй экран',
+  deck_err_nothing_to_undo: 'отменять нечего',
+});
+Object.assign(i18n.ko, {
+  deck_err_obs_unreachable: 'Xenon이 OBS에 연결할 수 없습니다: OBS가 열려 있고 WebSocket 서버가 켜져 있나요?',
+  deck_err_sb_unreachable: 'Xenon이 Streamer.bot에 연결할 수 없습니다: 열려 있고 WebSocket 서버가 켜져 있나요?',
+  deck_err_ha_not_set_up: 'Home Assistant가 아직 설정되지 않았습니다: 설정 > 스마트 홈에서 추가하세요',
+  deck_err_ha_auth: 'Home Assistant가 토큰을 거부했습니다: 설정 > 스마트 홈에 새 토큰을 붙여 넣으세요',
+  deck_err_ha_unreachable: 'Xenon이 Home Assistant에 연결할 수 없습니다: 켜져 있고 설정 > 스마트 홈의 주소가 맞나요?',
+  deck_err_chroma_unreachable: 'Xenon이 Razer Chroma에 연결할 수 없습니다: Razer Synapse가 열려 있나요?',
+  deck_err_nothing_running: '멈출 것이 실행 중이지 않습니다',
+  deck_err_already_recording: '이미 녹화 중입니다: 먼저 멈추세요',
+  deck_err_no_second_screen: '두 번째 화면이 연결되어 있어야 합니다',
+  deck_err_nothing_to_undo: '되돌릴 것이 없습니다',
+});
+Object.assign(i18n.ja, {
+  deck_err_obs_unreachable: 'XenonがOBSに接続できません: OBSが開いていて、WebSocketサーバーがオンになっていますか?',
+  deck_err_sb_unreachable: 'XenonがStreamer.botに接続できません: 開いていて、WebSocketサーバーがオンになっていますか?',
+  deck_err_ha_not_set_up: 'Home Assistantがまだ設定されていません: 設定の「スマートホーム」で追加してください',
+  deck_err_ha_auth: 'Home Assistantがトークンを拒否しました: 設定の「スマートホーム」に新しいトークンを貼り付けてください',
+  deck_err_ha_unreachable: 'XenonがHome Assistantに接続できません: 電源は入っていて、設定の「スマートホーム」のアドレスは正しいですか?',
+  deck_err_chroma_unreachable: 'XenonがRazer Chromaに接続できません: Razer Synapseは開いていますか?',
+  deck_err_nothing_running: '止めるものは何も動いていません',
+  deck_err_already_recording: 'すでに録画中です: 先に止めてください',
+  deck_err_no_second_screen: '2台目の画面の接続が必要です',
+  deck_err_nothing_to_undo: '元に戻すものはありません',
+});
+Object.assign(i18n.zh, {
+  deck_err_obs_unreachable: 'Xenon 无法连接到 OBS：它是否已打开，并开启了 WebSocket 服务器？',
+  deck_err_sb_unreachable: 'Xenon 无法连接到 Streamer.bot：它是否已打开，并开启了 WebSocket 服务器？',
+  deck_err_ha_not_set_up: 'Home Assistant 尚未设置：请在设置的“智能家居”中添加',
+  deck_err_ha_auth: 'Home Assistant 拒绝了令牌：请在设置的“智能家居”中粘贴新的令牌',
+  deck_err_ha_unreachable: 'Xenon 无法连接到 Home Assistant：它是否已开启，设置“智能家居”中的地址是否正确？',
+  deck_err_chroma_unreachable: 'Xenon 无法连接到 Razer Chroma：Razer Synapse 是否已打开？',
+  deck_err_nothing_running: '没有正在运行的内容可停止',
+  deck_err_already_recording: '已有录制正在进行：请先停止',
+  deck_err_no_second_screen: '这需要连接第二块屏幕',
+  deck_err_nothing_to_undo: '没有可撤销的内容',
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

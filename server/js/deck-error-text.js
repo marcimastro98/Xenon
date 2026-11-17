@@ -138,6 +138,37 @@
     wl_unknown_effect: ['deck_err_wl_effect', 'that channel does not have this effect in Wave Link'],
     wl_unknown_device: ['deck_err_unknown_device', 'that output device is not connected right now'],
     wl_unsupported: ['deck_err_wl_unsupported', 'your version of Wave Link does not have this'],
+    // The other apps keys talk to (actions/obs.js, streamerbot.js, home-assistant.js,
+    // chroma.js). "unavailable" from the registry means the build lacks the
+    // module, which no person can fix: it stays a code.
+    obs_connect_failed: ['deck_err_obs_unreachable', 'Xenon cannot reach OBS: is it open, with its WebSocket server on?'],
+    obs_closed: ['deck_err_obs_unreachable', 'Xenon cannot reach OBS: is it open, with its WebSocket server on?'],
+    obs_timeout: ['deck_err_obs_unreachable', 'Xenon cannot reach OBS: is it open, with its WebSocket server on?'],
+    obs_request_timeout: ['deck_err_obs_unreachable', 'Xenon cannot reach OBS: is it open, with its WebSocket server on?'],
+    sb_connect_failed: ['deck_err_sb_unreachable', 'Xenon cannot reach Streamer.bot: is it open, with its WebSocket server on?'],
+    sb_closed: ['deck_err_sb_unreachable', 'Xenon cannot reach Streamer.bot: is it open, with its WebSocket server on?'],
+    sb_timeout: ['deck_err_sb_unreachable', 'Xenon cannot reach Streamer.bot: is it open, with its WebSocket server on?'],
+    sb_request_timeout: ['deck_err_sb_unreachable', 'Xenon cannot reach Streamer.bot: is it open, with its WebSocket server on?'],
+    ha_not_configured: ['deck_err_ha_not_set_up', 'Home Assistant is not set up yet: add it in Settings, Smart Home'],
+    ha_auth_invalid: ['deck_err_ha_auth', 'Home Assistant refused the token: paste a new one in Settings, Smart Home'],
+    ha_connect_failed: ['deck_err_ha_unreachable', 'Xenon cannot reach Home Assistant: is it on, and is its address right in Settings, Smart Home?'],
+    ha_closed: ['deck_err_ha_unreachable', 'Xenon cannot reach Home Assistant: is it on, and is its address right in Settings, Smart Home?'],
+    ha_timeout: ['deck_err_ha_unreachable', 'Xenon cannot reach Home Assistant: is it on, and is its address right in Settings, Smart Home?'],
+    ha_request_timeout: ['deck_err_ha_unreachable', 'Xenon cannot reach Home Assistant: is it on, and is its address right in Settings, Smart Home?'],
+    chroma_init_failed: ['deck_err_chroma_unreachable', 'Xenon cannot reach Razer Chroma: is Razer Synapse open?'],
+    chroma_timeout: ['deck_err_chroma_unreachable', 'Xenon cannot reach Razer Chroma: is Razer Synapse open?'],
+    // A key whose field was left empty (actions/registry.js).
+    empty_path: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    empty_text: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    empty_message: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    empty_prompt: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    empty_id: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    empty_effect: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    // Nothing wrong, nothing to do (registry.js, capabilities/record.js, timelapse.js, layers.js).
+    nothing_running: ['deck_err_nothing_running', 'nothing is running to stop'],
+    running: ['deck_err_already_recording', 'a recording is already going: stop it first'],
+    no_second_screen: ['deck_err_no_second_screen', 'this needs a second screen connected'],
+    nothing_to_undo: ['deck_err_nothing_to_undo', 'there is nothing to undo'],
   });
 
   // Nothing is wrong with the key or the PC: it just cannot happen right now.
@@ -145,6 +176,7 @@
     'no_game', 'no_app', 'no_frames', 'too_soon', 'too_short', 'no_file', 'no_steps', 'no_pages', 'no_widgets', 'over_exclusive', 'not_recording',
     'no_marks', 'whole_video', 'already_small', 'no_webcam', 'no_phone', 'transfer_off', 'send_busy',
     'off', 'not_running', 'saving', 'busy', 'vitals_off', 'vital_off', 'companion_off', 'screen_alerts_off', 'wl_disabled',
+    'nothing_running', 'running', 'no_second_screen', 'nothing_to_undo',
   ]);
 
   // The sentence, or the bare code when there is none: an unexplained code is
