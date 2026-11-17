@@ -80,7 +80,7 @@
     "server/js/native-bridge.js": 1136,
     "server/js/notifications/notifications-widget.js": 461,
     "server/js/paired/surface-picker.js": 393,
-    "server/js/performance/performance.js": 738,
+    "server/js/performance/performance.js": 480,
     "server/js/phone/phone-view.js": 787,
     "server/js/phone/phone-widget.js": 720,
     "server/js/presets/dashboard-presets.js": 404,
