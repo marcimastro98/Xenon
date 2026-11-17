@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Widgets can show several readouts in the top bar, the way Vitals does.** A widget's mini slot and its chip next to the clock can now hold up to four small indicators, each an icon over a level bar with its own colour, so four device batteries (mouse, keyboard, controller, headset) fit in one place. Tapping one opens a small card with its details, drawn by Xenon, and the widget can react to each indicator on its own. Widgets can also use Xenon's own icons or their own drawn icon, pick a colour and a size for each piece, shape their bars, and write up to 32 characters in the chip instead of 20. Creators asked for this; widgets made before keep looking exactly the same.
+
 ### ✨ Changed
 - **The search window opens smoothly.** On Alt+Space the bar used to show its last state for an instant and then jump as it reset. Now it opens empty and settles in from left to right: the lens turns into place, the field slides in and the buttons follow, in about a third of a second. With reduced motion turned on in your system it simply fades in. Your recent files now show on every open, at once instead of a moment later, and an open right after the last one is no longer slow: the window keeps its memory for two minutes before giving it back. A browser copy of the search no longer opens on top of it now and then, closing the real one. And when it opens under your mouse, the file under the pointer is no longer picked and previewed by itself: a row follows the mouse once you move it.
 - **Bit tells you when its trial Sparks end.** In the last two days of the welcome Sparks, a reminder a day says when they end. When they are over, Bit's chat no longer just asks you to buy Sparks: it says the trial has ended and what supporters get to keep Bit on, with a button to become a supporter and another for the other ways to use Bit.

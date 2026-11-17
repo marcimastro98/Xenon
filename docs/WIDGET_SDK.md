@@ -3534,9 +3534,10 @@ Allowed blocks (maximum **10** after validation):
 
 | Block | Fields that survive |
 |-------|---------------------|
-| `text` | `text` (≤160 chars), `tone`: `primary\|muted\|accent\|success\|warning\|danger`, `weight`: `normal\|strong`, `maxLines`: `1\|2` |
-| `icon` | `text` (≤8 chars; glyph/emoji), optional strict `color: "#rrggbb"` |
-| `progress` | `value` from `0` to `1` |
+| `text` | `text` (≤160 chars), `tone`: `primary\|muted\|accent\|success\|warning\|danger`, `weight`: `normal\|strong`, `maxLines`: `1\|2`; v5.2: optional `color: "#rrggbb"`, `size`: `small\|medium\|large` |
+| `icon` | `text` (≤8 chars; glyph/emoji), optional strict `color: "#rrggbb"`; v5.2: `name` (an icon of Xenon's library), `path` (your own 24×24 SVG path), `size` |
+| `progress` | `value` from `0` to `1`; v5.2: `color`, `orientation: "vertical"`, `width` (2–160 px), `height` (2–40 px) |
+| `meter` (v5.2) | a glyph over a small bar, like Vitals: `value` 0–1, `icon` (glyph) / `name` / `path`, `label` (≤8 chars), `color`, `size`, optional `id` (its own tap) and `detail` (its own card); see *Block parts*, after 9b |
 | `bars` | `values`: up to 12 numbers from `0` to `1`; `animated: true` uses a host animation that obeys reduced motion, game/idle and GPU pause modes |
 | `builtin` | `value`: `time`, `date` or `weather`; these mirror Xenon's own live readout |
 | `button` | `id` (`^[a-z0-9][a-z0-9_-]{0,31}$`), `label` (≤28 chars), optional `emphasis`; maximum **2** distinct buttons |
@@ -3551,7 +3552,7 @@ Top-level fields:
 - `exit`: `morph` (default), `slide` or `fade`.
 - `duration`: takeover lifetime, clamped to **1,200–30,000 ms** (default 5s).
 
-When a host-rendered button is tapped, the owning frame alone receives:
+When a host-rendered button (or a meter with an `id`) is tapped, the owning frame alone receives:
 
 ```js
 addEventListener('message', (event) => {
@@ -3621,6 +3622,48 @@ contribution without uninstalling it, can hide/reorder Xenon's built-in items,
 and can globally turn timed takeovers off. Treat the island as enhancement, not
 the only place essential information or controls exist.
 
+### Block parts: icons, colours, sizes and meters (v5.2)
+
+The island (9b), the mini slot (9d) and a badge's `blocks` (9c) share one set of parts.
+Every key below is optional; leave it out and the part looks exactly as before.
+
+- **Icons.** Three ways, best first: `path` is one SVG path on a 24×24 box (the
+  `d` attribute only: path commands and numbers, up to 1,200 characters; Xenon
+  builds the `<svg>` around it and paints it in the part's colour). `name` is an
+  icon of Xenon's own library, by id: `battery`, `batteryCharging`, `mouse`,
+  `keyboard`, `cpu`, `storage`, `thermometer`, `gauge`, `bluetooth`, `cloud`,
+  `drop` and the rest of the Deck key icons. The glyph (`text` on an `icon`
+  block, `icon` elsewhere) is the fallback for a name an older Xenon does not
+  know. Lucide and similar sets draw on 24×24 too: copy the icon's path data
+  into `path`, joining several paths into one `d` string. Stroke-only icons
+  need their outline as a filled shape, because Xenon fills the path.
+- **Colour per part.** `color` (strict `#rrggbb`) on a `text`, `icon`, `progress`
+  or `meter` paints that part only; anything else is dropped.
+- **Size.** `size: "small" | "medium" | "large"` on `text`, `icon` and `meter`.
+- **Bar shape.** A `progress` takes `width`, `height` and `orientation: "vertical"`.
+  In the mini slot and in a badge the bar is kept to the row's height.
+- **Meters.** `{ type: 'meter', name: 'mouse', value: 0.35, label: '35%', color: '#22c55e', id: 'mouse' }`
+  is a glyph over a small level bar, the same shape as Xenon's Vitals. Up to
+  **4 meters with an `id`** per view, each with its own tap: it posts the action
+  of the surface it sits on (`island_action`, `mini_action` or `badge_action`)
+  with that `id`. Meter ids do not count against the button limit.
+- **Detail cards.** A meter with `detail: { title, rows, note }` opens a card
+  drawn by Xenon when tapped: `title` ≤40 characters, up to **6 rows**
+  (`label` ≤32, `value` ≤24, optional `icon`/`name`/`path`, `color` and
+  `progress` 0–1) and a `note` ≤160. Text only, like every part. The card opens
+  even without a tap permission, since showing more of what is already on screen
+  sends nothing to your widget; Escape, the close button or a tap outside closes it.
+
+```js
+parent.postMessage({ xenonSdk: 1, type: 'mini', op: 'present', tooltip: 'Batteries', blocks: [
+  { type: 'meter', name: 'mouse', value: 0.8, color: '#22c55e', id: 'mouse',
+    detail: { title: 'Mouse', rows: [{ label: 'Battery', value: '80%', progress: 0.8, name: 'battery' }] } },
+  { type: 'meter', name: 'keyboard', value: 0.2, color: '#f59e0b', id: 'keyboard' },
+  { type: 'meter', icon: '🎮', value: 0.6, color: '#a78bfa', id: 'pad' },
+  { type: 'meter', icon: '🎧', value: 0.95, color: '#38bdf8', id: 'headset' },
+] }, '*');
+```
+
 ### 9c. Persistent badge — `badge` (widget → host) (v4.6)
 
 Declare `"badge": true` and — once granted — your widget may show a small
@@ -3637,9 +3680,9 @@ window.parent.postMessage({ xenonSdk: 1, type: 'badge', op: 'clear' }, '*');
 Rules the host enforces:
 
 - **Plain text only**, rendered via `textContent` — never markup, links or
-  images. Control characters are stripped. `text` is capped at **20
-  characters** — this is a small persistent chip, not a sentence, so keep it
-  tight (a star count, a short status word). An optional `tooltip` (capped at
+  images. Control characters are stripped. `text` is capped at **32
+  characters** (20 before v5.2) — this is a small persistent chip, not a
+  sentence, so keep it tight (a star count, a short status word). An optional `tooltip` (capped at
   **48 characters**) renders as the chip's native title attribute.
 - **An optional glyph in your own colour.** `icon` (capped at **8 characters** —
   a symbol or emoji) renders as the chip's leading glyph, and `color` (a strict
@@ -3649,6 +3692,21 @@ Rules the host enforces:
   Anything that isn't plain hex is dropped and the glyph inherits the text
   colour. Prefer this over putting the symbol in `text`: a glyph inside `text`
   can't be tinted, and an emoji renders chunky next to the pill's typography.
+  Since v5.2 the leading icon can also be `iconName` (an icon of Xenon's
+  library) or `iconPath` (your own 24×24 SVG path), with `icon` as the fallback
+  glyph; see *Block parts*, after 9b.
+- **Size (v5.2).** `size: "small" | "medium" | "large"` scales the whole chip.
+- **Several parts (v5.2).** `blocks` adds up to **4** independently styled parts
+  after the value: `text` (≤32 chars), `icon`, `progress` and `meter`, with their
+  own colour and size (*Block parts*, after 9b). No buttons and no `builtin`. A chip may be
+  parts only, with no `text`:
+
+  ```js
+  parent.postMessage({ xenonSdk: 1, type: 'badge', op: 'set', tooltip: 'Batteries', blocks: [
+    { type: 'meter', name: 'mouse', value: 0.35, label: '35%', color: '#22c55e', id: 'mouse' },
+    { type: 'meter', name: 'keyboard', value: 0.9, label: '90%', color: '#38bdf8', id: 'keyboard' },
+  ] }, '*');
+  ```
 - **Multiple owners, capped.** Unlike Island's single shared slot, several
   *distinct* granted packages may each hold one badge at the same time, up to
   4 concurrent chips. A package trying to claim a 5th slot is silently
@@ -3664,6 +3722,10 @@ Rules the host enforces:
   `dynamic` is: an approval the user gave to a number they can read must never
   grow into something they can press when your package updates. Without the
   grant, the chip renders as the plain text version and no message is sent.
+  With the grant, a meter part that has an `id` is its own button and posts
+  `{ type: 'badge_action', id }` (v5.2); the chip then stops being one big button,
+  so each indicator answers on its own. Without the grant a meter's `detail`
+  card still opens, and no message is sent.
 
   ```js
   addEventListener('message', (e) => {
@@ -3687,7 +3749,7 @@ Rules the host enforces:
 - **Auto-clear.** When your package's last frame goes away (tile removed *and*
   no service frame, package uninstalled, SDK switched off) the host drops your
   chip within a few seconds.
-- An empty `text` on `set` counts as `clear`. There is no reply message.
+- An empty `text` with no `blocks` on `set` counts as `clear`. There is no reply message.
 
 ### 9d. Mini slot — `mini` (widget → host) (v4.11.4)
 
@@ -3702,7 +3764,7 @@ clear about which to reach for:
 | | where | shape | lives for |
 |---|---|---|---|
 | Island | centre, replacing the clock | text, meters, buttons | an activity, transient |
-| Badge | inside the clock | one chip: glyph + value | as long as you keep it |
+| Badge | inside the clock | one chip: glyph + value + up to 4 parts | as long as you keep it |
 | **Mini** | **among the bar's buttons, where the user put it** | **a small row of blocks** | **as long as you keep it** |
 
 Declare it and send the same block payload the island takes:
@@ -3731,6 +3793,8 @@ What differs from the island, and why:
 
 - **4 blocks, 1 button.** The slot sits between real buttons on a bar that also
   has to hold a clock. Blocks past the fourth are dropped, as is a second button.
+  Four `meter` blocks fit, each with its own `id` and `detail` (*Block parts*, after 9b); a
+  tap on one posts `{ type: 'mini_action', id }`.
 - **No `builtin`.** Mirroring the clock into a slot that may sit right next to the
   actual clock is a duplicate, not a feature.
 - **No `mode`, no `duration`, no `layout`.** A slot in the bar is a **state**, not

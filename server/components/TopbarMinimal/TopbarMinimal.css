@@ -608,8 +608,8 @@ body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .s
 .sdk-island-text.tone-warning { color: var(--color-warn); }
 .sdk-island-text.tone-danger { color: var(--color-danger); }
 .sdk-island-progress {
-  width: 72px;
-  height: 5px;
+  width: var(--sdk-bar-w, 72px);
+  height: var(--sdk-bar-h, 5px);
   flex: 0 0 auto;
   border-radius: 999px;
   overflow: hidden;
@@ -620,8 +620,9 @@ body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .s
   width: 100%;
   height: 100%;
   transform-origin: left center;
+  transform: scaleX(var(--sdk-bar-level, 0));
   border-radius: inherit;
-  background: var(--island-accent);
+  background: var(--sdk-part-color, var(--island-accent));
   transition: transform 0.24s ease;
 }
 .sdk-island-bars {

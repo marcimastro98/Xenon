@@ -188,28 +188,14 @@
     tweenHeight(from);
   }
 
-  function toneClass(tone) {
-    return ['muted', 'accent', 'success', 'warning', 'danger'].includes(tone) ? ` tone-${tone}` : '';
-  }
-
+  // Text, icons, bars and meters are drawn by SdkBlockRender (sdk-block-render.js),
+  // which the badge and the mini slot share; this keeps the island-only parts.
   function renderBlock(block, record) {
+    const onAction = (id) => { if (record && typeof record.onAction === 'function') record.onAction(id); };
+    const shared = window.SdkBlockRender ? SdkBlockRender.render(block, onAction) : null;
+    if (shared) return shared;
     let node;
-    if (block.type === 'text') {
-      node = document.createElement('span');
-      node.className = `sdk-island-text${toneClass(block.tone)}${block.weight === 'strong' ? ' is-strong' : ''}${block.maxLines === 2 ? ' two-lines' : ''}`;
-      node.textContent = block.text;
-    } else if (block.type === 'icon') {
-      node = document.createElement('span');
-      node.className = 'sdk-island-icon';
-      node.textContent = block.text;
-      if (block.color) node.style.color = block.color;
-    } else if (block.type === 'progress') {
-      node = document.createElement('span');
-      node.className = 'sdk-island-progress';
-      const fill = document.createElement('span');
-      fill.style.transform = `scaleX(${block.value})`;
-      node.appendChild(fill);
-    } else if (block.type === 'bars') {
+    if (block.type === 'bars') {
       node = document.createElement('span');
       node.className = `sdk-island-bars${block.animated ? ' is-animated' : ''}`;
       block.values.forEach((value, index) => {
@@ -228,9 +214,7 @@
       node.type = 'button';
       node.className = `sdk-island-action${block.emphasis ? ' is-emphasis' : ''}`;
       node.textContent = block.label;
-      node.addEventListener('click', () => {
-        if (record && typeof record.onAction === 'function') record.onAction(block.id);
-      });
+      node.addEventListener('click', () => onAction(block.id));
     } else {
       node = document.createElement('span');
       node.className = `sdk-island-spacer is-${block.size}`;

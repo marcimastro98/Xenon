@@ -186,6 +186,101 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
 /* The Weather chooser's Xenon Maker link wears the button look, not a link's. */
 a.cw-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
+/* ── SDK block parts (js/sdk-block-render.js) ──────────────
+   Shared by the island, the mini slot and badge parts. A widget's colour and a
+   bar's shape arrive as custom properties (--sdk-part-color, --sdk-bar-w/-h,
+   --sdk-bar-level) set from schema-validated values, never as a style string. */
+.sdk-island-icon svg, .sdk-meter-ico svg, .sdk-detail-ico svg, .sdk-badge-ico svg {
+  width: 1em; height: 1em; fill: currentColor; display: block;
+}
+.sdk-island-icon.is-small { min-width: 18px; font-size: 14px; }
+.sdk-island-icon.is-large { min-width: 28px; font-size: 22px; }
+.sdk-island-text.has-color { color: var(--sdk-part-color); }
+.sdk-island-text.is-small { font-size: 11px; }
+.sdk-island-text.is-large { font-size: 16px; }
+.sdk-island-progress.is-vertical { width: var(--sdk-bar-w, 5px); height: var(--sdk-bar-h, 20px); }
+.sdk-island-progress.is-vertical > span { transform-origin: center bottom; transform: scaleY(var(--sdk-bar-level, 0)); }
+
+/* A meter in the Vitals shape: the glyph over a small bar, an optional label
+   beside it. Pressable only when it has an action or a detail card. */
+.sdk-meter {
+  display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
+  padding: 2px 4px; border: 0; border-radius: 7px;
+  background: none; color: inherit; font: inherit;
+  --sdk-meter-ico: 18px; --sdk-meter-w: 20px; --sdk-meter-h: 4px;
+}
+.sdk-meter.is-small { --sdk-meter-ico: 14px; --sdk-meter-w: 16px; --sdk-meter-h: 3px; }
+.sdk-meter.is-large { --sdk-meter-ico: 22px; --sdk-meter-w: 26px; --sdk-meter-h: 5px; }
+button.sdk-meter { cursor: pointer; min-height: 28px; }
+button.sdk-meter:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+button.sdk-meter:active { background: color-mix(in srgb, var(--sdk-part-color, var(--island-accent)) 18%, transparent); }
+button.sdk-meter:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sdk-meter-stack { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.sdk-meter-ico {
+  display: inline-grid; place-items: center; line-height: 1;
+  font-size: var(--sdk-meter-ico); width: var(--sdk-meter-ico); height: var(--sdk-meter-ico);
+  color: var(--sdk-part-color, var(--island-accent));
+}
+.sdk-meter-bar {
+  width: var(--sdk-meter-w); height: var(--sdk-meter-h); border-radius: 1px; overflow: hidden;
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+}
+.sdk-meter-bar > span {
+  display: block; width: 100%; height: 100%;
+  transform-origin: left center; transform: scaleX(var(--sdk-bar-level, 0));
+  background: var(--sdk-part-color, var(--island-accent));
+  transition: transform 0.24s ease;
+}
+.sdk-meter-label { font-size: 12px; font-weight: 700; line-height: 1; white-space: nowrap; color: var(--text); }
+.sdk-meter.is-small .sdk-meter-label { font-size: 11px; }
+.sdk-meter.is-large .sdk-meter-label { font-size: 14px; }
+
+/* The card a meter opens: the Vitals detail card's shape, text only. */
+.sdk-detail-overlay {
+  position: fixed; inset: 0; z-index: 5000;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.sdk-detail-card {
+  width: min(380px, 100%); max-height: calc(100vh - 32px); overflow-y: auto;
+  border-radius: 18px; padding: 14px 16px 16px;
+  color: var(--text); background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 18px 50px color-mix(in srgb, var(--bg) 52%, transparent);
+}
+.sdk-detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sdk-detail-ico { display: inline-grid; place-items: center; font-size: 20px; line-height: 1; color: var(--sdk-part-color, var(--accent)); }
+.sdk-detail-title { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+.sdk-detail-close {
+  flex: 0 0 auto; width: 44px; height: 44px; margin: -8px -8px -8px 0;
+  border: 0; border-radius: 12px; background: none; color: var(--muted-text); font: inherit; font-size: 16px; cursor: pointer;
+}
+.sdk-detail-close:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.sdk-detail-rows { display: grid; gap: 8px; }
+.sdk-detail-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px;
+  min-height: 32px; font-size: 14px;
+}
+.sdk-detail-row > .sdk-detail-ico { font-size: 18px; }
+.sdk-detail-row.has-ico { grid-template-columns: auto 1fr auto; }
+.sdk-detail-label { min-width: 0; color: var(--muted-text); overflow-wrap: anywhere; }
+.sdk-detail-value { font-weight: 750; text-align: end; white-space: nowrap; }
+.sdk-detail-row > .sdk-island-progress { grid-column: 1 / -1; width: 100%; }
+.sdk-detail-note { margin: 12px 0 0; font-size: 13px; line-height: 1.4; color: var(--muted-text); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  .sdk-meter-bar > span { transition: none; }
+}
+
+/* Badge parts and sizes: one step either side of the chip's own size, in both
+   chromes (the minimal one draws its chips a pixel smaller). */
+.sdk-badge.is-small { font-size: 11px; }
+.sdk-badge.is-large { font-size: 15px; }
+body.topbar-minimal .topbar-mini .sdk-badge.is-small { font-size: 10px; }
+body.topbar-minimal .topbar-mini .sdk-badge.is-large { font-size: 14px; }
+.sdk-badge-parts { display: inline-flex; align-items: center; gap: 4px; }
+.sdk-badge-parts .sdk-meter { padding: 0 2px; min-height: 24px; }
+.sdk-badge-parts .sdk-meter-label, .sdk-badge-parts .sdk-island-text { font-size: inherit; }
+
 /* ── Package picker ──────────────────────────────────────────────── */
 .cw-pick-title { flex: 0 0 auto; font-size: 0.76rem; font-weight: 800; opacity: 0.85; padding: 2px 2px 6px; }
 .cw-body:has(.cw-pick-title) { flex-direction: column; min-height: 0; }
@@ -377,7 +472,7 @@ a.cw-btn { display: inline-flex; align-items: center; text-decoration: none; }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  max-width: 190px;
+  max-width: 240px;
   padding: 5px 10px;
   border-radius: 11px;
   background: rgba(255,255,255,0.05);
