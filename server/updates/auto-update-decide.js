@@ -32,7 +32,7 @@ function inNightWindow(hour) {
 
 /**
  * What to do next. Pure: everything it needs is in `s`.
- * @param {object} s
+ * @param {Record<string, any>} s
  *   enabled, supported, needsElevation      booleans
  *   current, latest                          version strings
  *   publishedAt                              ms epoch or ISO string ('' = unknown)
