@@ -2,7 +2,7 @@
 
 const { hub } = require('../settings/current.js');
 const { _hotkey } = require('../deck/hotkey-state.js');
-const { spotlightClaim } = require('./spotlight-window.js');
+const { spotlightClaim } = require('./spotlight-claim.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const screenAlertsPage = require('../alerts/screen-alerts-page.js');

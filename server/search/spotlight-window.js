@@ -3,13 +3,12 @@
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { POWERSHELL_SUPPORTED } = require('../powershell/supported.js');
-const { broadcastSSE } = require('../http/sse-clients.js');
 const { findEdge } = require('../windows-tiles/embedded-browser.js');
 const { PORT } = require('../engine/port.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { _spotlightPopupPids } = require('./spotlight-state.js');
 const { runPowerShellScript } = require('../powershell/run-command.js');
-const { createSpotlightClaim } = require('../spotlight-hotkey/claim.js');
+const { spotlightClaim } = require('./spotlight-claim.js');
 const { DECK_POPUP_TOP_SCRIPT } = require('../deck/script-paths.js');
 
 function openSpotlightPopupWindow() {
@@ -55,11 +54,8 @@ function openSpotlightPopupWindow() {
   return { ok: true };
 }
 
-// Native first, the Edge popup when no native window claims it (spotlight-hotkey/claim.js).
-const spotlightClaim = createSpotlightClaim({
-  broadcast: () => broadcastSSE('spotlight_hotkey', { at: Date.now() }),
-  openFallback: () => { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } },
-});
-function routeSpotlightHotkey() { spotlightClaim.route(); }
+function routeSpotlightHotkey() {
+  spotlightClaim.route();
+}
 
-module.exports = { openSpotlightPopupWindow, routeSpotlightHotkey, spotlightClaim };
+module.exports = { openSpotlightPopupWindow, routeSpotlightHotkey };
