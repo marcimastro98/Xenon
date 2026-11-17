@@ -19,7 +19,7 @@ Temperatures, FPS, music, calendar and touch keys on your desktop, over your gam
 
 <p align="center">New in 5.0: <a href="https://xenon-app.com/5.html">a new look, widgets on your main screen, and Bit</a>.</p>
 
-<p align="center"><a href="https://xenon-app.com/#film"><img src="docs/images/home/launch.webp" alt="Xenon in one minute: the launch video" width="800"></a><br><a href="https://xenon-app.com/#film">Watch Xenon in one minute</a></p>
+https://github.com/user-attachments/assets/b6d5b7c2-d481-4197-ac40-4fce8d358178
 
 ![Xenon widgets on a Windows desktop: clock, weather, calendar, music and system readings over the wallpaper](docs/images/home/desktop-widgets.webp)
 
