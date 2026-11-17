@@ -55,3 +55,23 @@ export function readOutcome(beforeText, nowText) {
   const back = r.rolledBack === true ? ' (previous version restored)' : ' (rollback NOT confirmed)';
   return { done: true, ok: false, detail: why + back + ', see server\\data\\update\\update.log' };
 }
+
+/**
+ * The command line, read strictly: an unknown or misspelt flag (even --help) must stop the
+ * tool, never run the real install with the defaults. { help } | { error } | { ref, dryRun }.
+ */
+export function parseArgs(argv) {
+  const out = { ref: 'HEAD', dryRun: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--help' || a === '-h') return { help: true };
+    if (a === '--dry-run') { out.dryRun = true; continue; }
+    if (a === '--ref') {
+      const v = argv[i + 1];
+      if (!v || v.startsWith('-')) return { error: '--ref needs a git ref' };
+      out.ref = v; i++; continue;
+    }
+    return { error: 'unknown argument: ' + a };
+  }
+  return out;
+}

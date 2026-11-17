@@ -15,17 +15,14 @@ import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TASK_NAME, installRootFromTaskXml, refuseRoot, stagedJson, readOutcome } from './lib.mjs';
+import { TASK_NAME, installRootFromTaskXml, refuseRoot, stagedJson, readOutcome, parseArgs } from './lib.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const sys32 = path.join(process.env.WINDIR || 'C:\\Windows', 'System32');
 const WAIT_MS = 10 * 60 * 1000;
 const PORT = 3030;
 
-function arg(name, fallback) {
-  const i = process.argv.indexOf(name);
-  return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
-}
+const USAGE = 'usage: node tools/dev-install/cli.mjs [--ref <git-ref>] [--dry-run]';
 
 function taskXml() {
   const buf = execFileSync(path.join(sys32, 'schtasks.exe'), ['/Query', '/TN', TASK_NAME, '/XML', 'ONE'], { windowsHide: true });
@@ -75,9 +72,11 @@ const readText = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { ret
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.help) { console.log(USAGE); return; }
+  if (args.error) throw new Error(args.error + '\n' + USAGE);
   if (process.platform !== 'win32') throw new Error('Windows only for now.');
-  const ref = arg('--ref', 'HEAD');
-  const dryRun = process.argv.includes('--dry-run');
+  const { ref, dryRun } = args;
 
   const root = installRootFromTaskXml(taskXml());
   const refusal = refuseRoot(root, repoRoot, fs.existsSync);
@@ -89,7 +88,7 @@ async function main() {
   const dirty = git('status', '--porcelain').split('\n').filter(Boolean).length;
   console.log(`install: ${root}\ninstalled ${installed} -> ${version} (${ref} ${commit})`);
   if (dirty) console.log(`note: ${dirty} uncommitted change(s) in the checkout are NOT included`);
-  if (dryRun) return;
+  if (dryRun) { console.log('dry run: nothing installed'); return; }
 
   const dataDir = path.join(root, 'server', 'data');
   const updDir = path.join(dataDir, 'update');

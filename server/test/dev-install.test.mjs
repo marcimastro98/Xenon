@@ -1,7 +1,7 @@
 // tools/dev-install: the rules that decide where the dev code may go.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installRootFromTaskXml, refuseRoot, stagedJson, readOutcome } from '../../tools/dev-install/lib.mjs';
+import { installRootFromTaskXml, refuseRoot, stagedJson, readOutcome, parseArgs } from '../../tools/dev-install/lib.mjs';
 
 const xml = (args, cmd = 'C:\\Windows\\System32\\wscript.exe') =>
   `<Task><Actions Context="Author"><Exec><Command>${cmd}</Command><Arguments>${args}</Arguments></Exec></Actions></Task>`;
@@ -48,4 +48,15 @@ test('only a result newer than the one before counts, and a failure says if it r
   assert.equal(fail.ok, false);
   assert.match(fail.detail, /npm_install: EPERM \(previous version restored\)/);
   assert.match(readOutcome(old, JSON.stringify({ ok: false, reason: 'verify' })).detail, /rollback NOT confirmed/);
+});
+
+test('an unknown or misspelt argument stops the tool instead of installing', () => {
+  assert.deepEqual(parseArgs([]), { ref: 'HEAD', dryRun: false });
+  assert.deepEqual(parseArgs(['--ref', 'abc123', '--dry-run']), { ref: 'abc123', dryRun: true });
+  assert.deepEqual(parseArgs(['--help']), { help: true });
+  assert.deepEqual(parseArgs(['-h']), { help: true });
+  assert.match(parseArgs(['--dryrun']).error, /unknown argument: --dryrun/);
+  assert.match(parseArgs(['main']).error, /unknown argument: main/);
+  assert.match(parseArgs(['--ref']).error, /--ref needs/);
+  assert.match(parseArgs(['--ref', '--dry-run']).error, /--ref needs/);
 });
