@@ -16,10 +16,11 @@ const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(DIR, 'js', 'capture/capture-settings-pane.js'), 'utf8');
 const HTML = readFileSync(path.join(DIR, 'index.html'), 'utf8');
 const TUNING = ['fps', 'height', 'quality'];
-const IDS = ['settings-capture-video-group', 'settings-nav-capture', 'settings-capture-remote', 'settings-capture-grid', 'settings-capture-shots', 'settings-bench-group', 'settings-bug-group', 'settings-capture-fps',
+const IDS = ['settings-capture-video-group', 'settings-capture-gallery','settings-capture-remote', 'settings-capture-grid', 'settings-capture-shots', 'settings-bench-group', 'settings-bug-group', 'settings-capture-fps',
   'settings-capture-height', 'settings-capture-quality', 'settings-capture-maxgb', 'settings-capture-badge', 'settings-capture-limit-hint',
   'settings-replay-group', 'settings-replay-grid', 'settings-replay-options', 'settings-replay-on', 'settings-replay-state', 'settings-replay-disk', 'settings-replay-seconds',
   'settings-replay-custom', 'settings-replay-minutes', 'settings-replay-when', 'settings-replay-audio', 'settings-capture-why'];
+const GROUPS = ['settings-capture-gallery', 'settings-capture-video-group', 'settings-replay-group', 'settings-bug-group'];
 const KINDS = ['recording', 'screenshot', 'benchmark'];
 const ROWS = [...KINDS, 'bugreport', 'buglogs'];
 
@@ -127,6 +128,23 @@ test('a paired phone gets the note only and asks the server nothing', async () =
   assert.deepEqual(calls, []);
 });
 
+// No engine here: the Capture page is the menu's rows alone, which say why (menu-capture.js).
+// On a phone the probe answering late never brings back what the phone cannot use.
+test('with no engine every capture pane goes; on a phone the replay and bug reports stay away', async () => {
+  const none = load({ caps: { capture: false, captureVideo: true } });
+  none.P.probe();
+  await new Promise((r) => setImmediate(r));
+  for (const id of GROUPS) assert.equal(none.els[id].available, false, id);
+  const phone = load({ remote: true });
+  await phone.P.show();
+  phone.P.probe();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(phone.els['settings-capture-gallery'].available, true);
+  assert.equal(phone.els['settings-replay-group'].available, false);
+  assert.equal(phone.els['settings-bug-group'].available, false);
+  for (const id of GROUPS) assert.match(HTML, new RegExp(`id="${id}" data-unavailable="1"`), id + ' waits for the engine');
+});
+
 test('a change posts only that key with the right type; a refusal says so and reloads', async () => {
   const { P, calls, status, sandbox } = load();
   await P.show();
@@ -143,16 +161,15 @@ test('a change posts only that key with the right type; a refusal says so and re
   assert.ok(calls.length === before + 2);
 });
 
-test('"Back to…" sends that row\'s empty folder; the nav shows only where capture runs', async () => {
+test('"Back to…" sends that row\'s empty folder; the panes show only where capture runs', async () => {
   const { P, calls, els } = load();
   await P.resetFolder();
   await P.resetFolder('screenshot');
   await P.resetFolder('benchmark');
   assert.deepEqual(calls.filter((c) => c.body).map((c) => c.body), [{ folder: '' }, { shotFolder: '' }, { benchFolder: '' }]);
-  els['settings-nav-capture'].hidden = true;
   P.probe();
   await new Promise((r) => setImmediate(r));
-  assert.equal(els['settings-nav-capture'].hidden, false);
+  for (const id of GROUPS) assert.equal(els[id].available, true, id);
   assert.equal(els['settings-bench-group'].available, true);
 });
 

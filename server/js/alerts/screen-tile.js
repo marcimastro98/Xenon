@@ -112,7 +112,7 @@
     g.appendChild(list);
     const actions = el('div', 'scr-actions');
     const add = button('ui-btn ui-btn--secondary', t('xmenu_add'));
-    add.addEventListener('click', () => window.XenonMenuPanel.open('widgets'));
+    add.addEventListener('click', () => window.XenonMenuPanel.open('screens'));
     actions.appendChild(add);
     const edit = rows.find((r) => r.id === 'edit');
     if (edit) {

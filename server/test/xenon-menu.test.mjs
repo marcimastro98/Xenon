@@ -796,7 +796,7 @@ test('in its own window the menu is the window: nothing darkens the app under it
   assert.doesNotMatch(html, /xm-scrim|aria-modal/);
   assert.match(html, /<main class="xm-frame"/);
   assert.doesNotMatch(src('js/menu/screen-menu-page.js'), /pointerdown/, 'a click outside goes to the app under it');
-  assert.match(src('js/menu/xenon-menu.js'), /opts\.place !== 'screen'[\s\S]{0,40}button\('xm-close'\)/);
+  assert.doesNotMatch(src('js/menu/xenon-menu.js'), /xm-close/, 'no X of its own: the window has one, Settings has one');
   assert.match(src('components/XenonMenu/XenonMenu.css'), /\.xm-page \.xm-frame \{[^}]*height: 100vh/);
 });
 

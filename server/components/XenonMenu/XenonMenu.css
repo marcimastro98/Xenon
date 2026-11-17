@@ -1,17 +1,18 @@
-/* The Xenon menu (js/menu/xenon-menu.js): the same frame in its own window (menu.html) and inside
-   the dashboard (js/menu/xenon-menu-panel.js). It is Settings' rail and page, because the menu's
-   window opens Settings and the Store in place and nothing may jump on the way: a section is
+/* The Xenon menu (js/menu/xenon-menu.js): the same rows in its own window (menu.html) and as pages
+   of Settings on the dashboard (js/menu/xenon-menu-panel.js). It is Settings' rail and page, because
+   the menu's window opens Settings and the Store in place and nothing may jump on the way: a section is
    a title over one well, a row is a name on the left and its control on the right. It looks
    the same under every skin: the rules that meet a skin's list carry #xm-root, the id both
    hosts give the root. Colour is left to state: what is chosen is neutral, a switch that is
    on shows the theme's accent, the one main action is the Store's green. */
 
-.xm-scrim {
-  position: fixed; inset: 0; z-index: 9000;
-  display: grid; place-items: center; padding: var(--space-5);
-  background: rgba(0, 0, 0, 0.55);
-}
-.xm-scrim[hidden] { display: none; }
+/* A page of Settings (#settings-place): Settings has the rail, the title and the scroll, and
+   the section is one block across its columns, no wider than its own window would draw it
+   (on the Edge the screens and their tabs would drift a screen apart). */
+#settings-overlay .settings-place { grid-column: 1 / -1; max-width: 1200px; }
+#settings-overlay .settings-group.settings-place::before { content: none; }
+.settings-place > .xm { display: block; height: auto; }
+.settings-place .xm-main { display: block; padding: 0; overflow: visible; scrollbar-gutter: auto; }
 .xm-frame:focus { outline: none; }
 .xm-frame {
   --text: var(--cst-text);
@@ -69,6 +70,7 @@ body.low-power-gpu .xm-frame { -webkit-backdrop-filter: none; backdrop-filter: n
 }
 /* Bit and the Scintilla are made of pixels: a stroke would melt them into a blob. */
 .xm-ic.xm-mark { stroke: none; }
+.xm-ic.xm-fill { fill: currentColor; stroke: none; }
 /* Its 15-cell grid stays crisp only at a whole number of pixels per cell, at 100% and 150% alike. */
 .xm .xm-ic.xspark { width: 30px; height: 30px; margin: -5px; }
 .xm .xm-tile .xm-ic.xspark { margin: -3px; }
@@ -108,6 +110,8 @@ body.low-power-gpu .xm-frame { -webkit-backdrop-filter: none; backdrop-filter: n
 .xm-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .xm-nav-value { flex: none; margin-left: auto; color: var(--cst-text); font-variant-numeric: tabular-nums; }
 .xm-nav-value.is-update { color: var(--cst-danger); }
+/* A group of pages, as Settings names it in its rail. */
+.xm-nav-head { flex: none; padding: 14px 10px 4px; color: var(--cst-muted); font-size: 13px; font-weight: 600; }
 .xm-nav-foot { flex: none; display: flex; flex-direction: column; gap: 2px; padding-top: 8px; border-top: 1px solid var(--cst-sep); }
 
 /* ── One section ── */
@@ -118,19 +122,9 @@ body.low-power-gpu .xm-frame { -webkit-backdrop-filter: none; backdrop-filter: n
   padding: 22px 32px 40px;
 }
 .xm-head { display: flex; align-items: flex-start; gap: var(--space-4); margin-bottom: 28px; }
-.xm-head:has(.xm-close) { padding-right: 48px; }
 .xm-head .xm-words { flex: 1; }
 .xm-title { margin: 0; font-size: 26px; font-weight: 700; line-height: 40px; }
 .xm-head .xm-sub { margin: 0; font-size: 15px; }
-/* Where Settings has its own, and it stays there when the page scrolls. */
-.xm-close {
-  appearance: none; position: absolute; top: 18px; right: 22px; z-index: 3;
-  display: grid; place-items: center; width: 40px; height: 40px;
-  color: var(--cst-text); background: var(--cst-solid); border: 0; border-radius: 10px;
-  box-shadow: inset 0 0 0 1px var(--cst-sep); cursor: pointer;
-}
-.xm-close:hover { background: var(--cst-on); }
-.xm-close .xm-ic { width: 18px; height: 18px; stroke-width: 2.2; }
 /* Kept in sight when the section was scrolled down. */
 .xm-result:not([hidden]) {
   position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--space-3);

@@ -115,7 +115,7 @@
 :root[data-style="liquid"] .onb-dot.active { background: var(--sheet-text); }
 
 /* ── Sheets ────────────────────────────────────────────────────── */
-:root[data-style="liquid"] :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .xm-scrim, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .preset-modal-overlay:not(.cst-overlay, .capg-overlay)) {
+:root[data-style="liquid"] :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .preset-modal-overlay:not(.cst-overlay, .capg-overlay)) {
   background: var(--sheet-scrim);
   -webkit-backdrop-filter: var(--sheet-scrim-blur);
   backdrop-filter: var(--sheet-scrim-blur);

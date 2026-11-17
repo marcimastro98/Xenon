@@ -132,7 +132,9 @@ function syncLangButtons() {
   }
 }
 
-let _settingsCat = 'appearance';
+// The open page; '' until the first open. Xenon opens on the screens; alone in the menu's
+// window (a sheet) the menu has them, so there it opens on General.
+let _settingsCat = '';
 // A card shown only where its feature runs, decided by a probe that answers
 // later: it stays out of every category until then, and a late answer never
 // shows it inside another category.
@@ -145,10 +147,11 @@ function setSettingsCardAvailable(card, ok) {
 }
 
 function settingsSetCategory(cat) {
-  // One page holds both now; links and deep links may still name the old one.
-  if (cat === 'codex') cat = 'claude';
+  // Old names (Codex, Ambient, the menu's old sections) still reach their page.
+  cat = window.XenonPages?.pageOf(cat) || cat;
   _settingsCat = cat;
   if (window.SettingsSearch) SettingsSearch.leave();
+  window.XenonMenuPanel?.page(cat);   // a section of the menu draws itself here
   if (cat === 'appearance') refreshMediaVizStatus();
   const content = document.getElementById('settings-content');
   if (content) {
@@ -264,7 +267,7 @@ function toggleSettings() {
     const nav = $('settings-nav');
     if (nav) nav.classList.remove('is-open');
     renderSettingsModal();
-    settingsSetCategory(_settingsCat);
+    settingsSetCategory(_settingsCat || (isSheetPage() ? 'general' : 'screens'));
     if (window.SettingsSearch) SettingsSearch.onOpen();
     if (window.CaptureSettingsPane) CaptureSettingsPane.probe();
   }

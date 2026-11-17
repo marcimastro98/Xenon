@@ -18,7 +18,7 @@
   const ERROR_FOR_MS = 6000;
   const KEY_TO_TRY = 'ctrl+alt+f9';   // Ctrl+Alt with a letter is AltGr: it is refused
   const REFRESH_DELAY_MS = 250;
-  const FOOT_LINKS = ['store', 'sparks'];   // always in reach, whatever section is open
+  const FOOT_LINKS = ['store', 'sparks'];   // always in reach, whatever page is open
   const BLOCK_OF = Object.freeze({ tile: 'xm-tiles', mode: 'xm-modeblock' });
   const BALANCE_TTL_MS = 30000;
   // What can change a row while the menu is open: settings (widgets, keys,
@@ -72,6 +72,7 @@
   function create(rootEl, opts = {}) {
     const doc = rootEl.ownerDocument;
     const place = opts.place === 'screen' ? 'screen' : 'dashboard';
+    const bare = opts.bare === true;   // a page of Settings, which has the rail and the title
     const server = typeof opts.server === 'string' ? opts.server : '';
     const tt = typeof opts.t === 'function' ? opts.t : (k) => k;
     const Icons = (typeof window !== 'undefined' && window.XenonMenuIcons) || null;
@@ -91,6 +92,7 @@
     let es = null;
     let balance = null;   // whole Sparks, null until the hub has said
     let balanceAt = 0;
+    let showAll = false;   // the pages a Widgets-only setup leaves out, asked for
 
     const el = (tag, cls, txt) => {
       const n = doc.createElement(tag);
@@ -111,7 +113,7 @@
     nav.setAttribute('aria-label', tt('xmenu_title'));
     const main = el('section', 'xm-main');
     main.setAttribute('aria-live', 'polite');
-    rootEl.replaceChildren(nav, main);
+    rootEl.replaceChildren(...(bare ? [main] : [nav, main]));
 
     // What the last function did. It outlives the redraws, and only a place that
     // loads the module has it: the dashboard's own toasts say it there.
@@ -159,7 +161,7 @@
         return true;
       }
       if (row && row.closes && typeof opts.onClose === 'function') {
-        opts.onClose();
+        opts.onClose(act);
         await new Promise((r) => setTimeout(r, CLOSE_FIRST_MS));
       }
       if (act.section) {
@@ -552,33 +554,29 @@
       if (value) value.textContent = balanceText();
     }
 
+    // Xenon's one list (js/menu/xenon-pages.js): this place's sections, then the pages of
+    // Settings, which open in this window (js/ai/sheet-page.js).
     function drawNav(sections) {
       const brand = el('div', 'xm-brand');
       brand.appendChild(el('span', 'xm-brand-name', 'Xenon'));
       const keyLine = menuKeyLine();
       if (keyLine) brand.appendChild(el('span', 'xm-sub', keyLine));
+      const Pages = window.XenonPages;
+      const hidden = showAll || typeof opts.hiddenPages !== 'function' ? [] : opts.hiddenPages();
+      const pick = (page) => (Pages.isSection(page) ? show(page) : perform({ closes: true }, { open: 'settings:' + page }));
+      const rail = { doc, t: tt, icon, btn: 'xm-nav-btn', head: 'xm-nav-head', key: (page) => (Pages.isSection(page) ? 'section' : 'cat'), pick };
       const list = el('div', 'xm-nav-list');
-      for (const s of sections) {
-        const b = button('xm-nav-btn');
-        b.dataset.section = s.id;
-        if (s.id === section && !query.trim()) b.setAttribute('aria-current', 'true');
-        const ic = icon(s.icon);
-        if (ic) b.appendChild(ic);
-        b.appendChild(el('span', 'xm-nav-label', text(s.title, tt)));
-        b.addEventListener('click', () => show(s.id));
-        list.appendChild(b);
+      list.append(...Pages.draw(Pages.rows(sections.map((s) => s.id), hidden), rail));
+      const cur = !query.trim() && [...list.children].find((b) => b.dataset.section === section);
+      if (cur) cur.setAttribute('aria-current', 'true');
+      if (hidden.length) {
+        const more = button('xm-nav-btn xm-nav-more', tt('settings_nav_all'));
+        more.addEventListener('click', () => { showAll = true; draw(); });
+        list.append(more);
       }
       const links = FOOT_LINKS.map((id) => findTile(sections, id)).filter(Boolean).map(drawFootLink);
-      const settings = button('xm-settings');
-      settings.dataset.row = 'settings';
-      settings.append(icon('settings') || '', el('span', 'xm-nav-label', tt('settings_title')));
-      settings.addEventListener('click', () => perform({ closes: true }, { open: 'settings:general' }));
-      const bit = button('xm-bit');
-      bit.dataset.row = 'bit';
-      bit.append(icon('bit') || '', el('span', 'xm-nav-label', tt('xmenu_bit')));
-      bit.addEventListener('click', () => perform({ closes: true }, { open: 'chat' }));
       const foot = el('div', 'xm-nav-foot');
-      foot.append(...links, settings, bit);
+      foot.append(...links, ...Pages.draw(Pages.foot(), { ...rail, btn: 'xm-settings' }));
       const typing = !!findEl && doc.activeElement === findEl;
       if (!findEl) {
         findEl = findField();
@@ -586,8 +584,7 @@
       }
       nav.replaceChildren(brand, findBox, list, foot);
       if (typing) findEl.focus();
-      // On a phone the sections are a scrolling row: keep the chosen one in view.
-      const cur = list.querySelector('[aria-current="true"]');
+      // On a phone the pages are a scrolling row: keep the chosen one in view.
       if (cur && typeof cur.scrollIntoView === 'function') cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
@@ -597,17 +594,11 @@
       const head = el('header', 'xm-head');
       const words = el('div', 'xm-words');
       if (own && own.back) words.append(own.back);
-      words.append(el('h1', 'xm-title', text(view.title, tt)), el('p', 'xm-sub', text(view.sub, tt)));
+      // As a page of Settings, Settings says the section's name; a widget's screen says its own.
+      if (!bare || own) words.append(el('h1', 'xm-title', text(view.title, tt)));
+      words.append(el('p', 'xm-sub', text(view.sub, tt)));
       head.append(words);
       if (own && own.action) head.append(own.action);
-      // In its own window the X is the window's.
-      if (opts.place !== 'screen') {
-        const close = button('xm-close');
-        close.setAttribute('aria-label', tt('xmenu_close'));
-        close.appendChild(icon('close') || doc.createTextNode('×'));
-        close.addEventListener('click', () => { if (typeof opts.onClose === 'function') opts.onClose(); });
-        head.append(close);
-      }
       const err = el('p', 'xm-error');
       err.setAttribute('role', 'status');
       paintError(err);
@@ -664,7 +655,7 @@
       }
       const sections = sectionsFor(data, place);
       if (!sections.some((s) => s.id === section)) section = sections.length ? sections[0].id : 'screens';
-      drawNav(sections);
+      if (!bare) drawNav(sections);
       if (query.trim()) { drawFound(sections); return; }
       const s = sections.find((x) => x.id === section);
       if (s) drawMain(s);

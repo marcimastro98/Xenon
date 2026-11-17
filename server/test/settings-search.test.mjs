@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { createRequire } from 'node:module';
 
 // The Settings search and the "add widget" search index what the page and
 // i18n.js already say, plus hidden words per category and per widget. These
@@ -23,12 +24,9 @@ function loadI18n() {
 }
 const i18n = loadI18n();
 
-// Categories as the sidebar lists them, plus the one settings.js adds at
-// runtime (external calendars).
+// Pages as the rail lists them (js/menu/xenon-pages.js): the menu's sections, Settings' categories.
 function categories() {
-  const cats = new Set(['calendar']);
-  for (const m of HTML.matchAll(/data-settings-cat="([a-z]+)"[^>]*onclick="settingsSetCategory\(/g)) cats.add(m[1]);
-  return [...cats];
+  return [...createRequire(import.meta.url)('../js/menu/xenon-pages.js').PAGES];
 }
 
 function widgetIds() {
@@ -56,6 +54,13 @@ test('every Settings category has hidden search words in all 11 languages', () =
 
 test('every widget the palette can offer has hidden search words in all 11 languages', () => {
   for (const id of widgetIds()) assertNativeEverywhere('palette_kw_' + id);
+});
+
+// One place, one name: the field searches Xenon (the menu's sections and every page of
+// Settings), in every language and in the page's own fallback text.
+test('the field says it searches Xenon', () => {
+  for (const l of LANGS) assert.match(i18n[l].settings_search_placeholder, /Xenon/, l);
+  assert.match(HTML, /data-i18n-placeholder="settings_search_placeholder"[^>]*placeholder="Cerca in Xenon"/);
 });
 
 test('the search strings are translated in every language block', () => {

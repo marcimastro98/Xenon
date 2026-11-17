@@ -78,7 +78,7 @@
     // is the agents' own fullscreen request, and it outranks anything promotional by
     // the same argument as the first-run surfaces above.
     '.ask-overlay',
-    '.xm-scrim',               // the Xenon menu on the dashboard: it sits above any card
+    '#settings-place > #xm-root',   // a section of the Xenon menu, open in Settings
     '.widget-palette-overlay', // the "+" gallery: someone is choosing a widget
     '.deck-ed-backdrop',       // the Deck's key editor and Smart Profiles: work in progress
     '.deck-mix-backdrop',      // the Deck's mixer

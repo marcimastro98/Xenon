@@ -199,6 +199,7 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
       // A search in progress is cleared first; the next Esc closes Settings.
       if (window.SettingsSearch && SettingsSearch.handleEscape()) return;
+      if (window.XenonMenuPanel?.escape()) return;   // a widget's screen of the menu
       closeSettings();
       return;
     }

@@ -209,28 +209,9 @@ function _initCalendarFeedsSection() {
     return;
   }
 
-  const nav = document.getElementById('settings-nav');
+  // Its row in the rail is js/menu/xenon-pages.js's.
   const content = document.getElementById('settings-content');
-  if (!nav || !content) return; // markup not ready
-
-  // Nav button
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'settings-nav-btn';
-  btn.dataset.settingsCat = 'calendar';
-  btn.addEventListener('click', () => settingsSetCategory('calendar'));
-  // Calendar icon (same style as the other nav icons)
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-  const btnLabel = document.createElement('span');
-  btnLabel.setAttribute('data-i18n', 'settings_calendar'); // live-retranslates on language switch
-  btnLabel.textContent = t('settings_calendar');
-  btn.appendChild(btnLabel);
-  // In the "Widget" sidebar section, after the feeds, so the calendar sits with the other widget categories
-  // instead of dangling at the bottom of the list.
-  const navScroll = document.getElementById('settings-nav-scroll') || nav;
-  const next = navScroll.querySelector('.settings-nav-btn[data-settings-cat="slideshow"]');
-  if (next) navScroll.insertBefore(btn, next);
-  else navScroll.appendChild(btn);
+  if (!content) return; // markup not ready
 
   // Section container (matches existing settings-group pattern)
   const section = document.createElement('div');
