@@ -192,7 +192,7 @@
   // which the badge and the mini slot share; this keeps the island-only parts.
   function renderBlock(block, record) {
     const onAction = (id) => { if (record && typeof record.onAction === 'function') record.onAction(id); };
-    const shared = window.SdkBlockRender ? SdkBlockRender.render(block, onAction) : null;
+    const shared = window.SdkBlockRender ? SdkBlockRender.render(block, onAction, record?.pkgId) : null;
     if (shared) return shared;
     let node;
     if (block.type === 'bars') {

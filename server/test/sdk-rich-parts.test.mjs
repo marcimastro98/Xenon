@@ -115,6 +115,37 @@ test('detail card: a meter opens a host-drawn card, text only, and Escape closes
   assert.equal((document._handlers.keydown || []).length, 0, 'and took its key listener with it');
 });
 
+// The card covers the screen and its words are the widget's, so it says which
+// widget drew it: the name comes from the installed package, never from the view,
+// and a widget it cannot name is "A widget", so the card never reads as Xenon's.
+test('detail card: names the widget that opened it, from the package and not from the view', () => {
+  const { window, all } = rig();
+  window.SdkBlockRender.setNameSource((pkgId) => (pkgId === 'pkg.hs' ? 'Headset Monitor' : ''));
+  const card = (pkgId) => {
+    const view = window.SdkBadges.normalize({
+      blocks: [{ type: 'meter', icon: '🎧', value: 1, detail: { title: 'Xenon security check', rows: [] } }],
+    });
+    window.SdkBadges.set(pkgId, view, null);
+    const meters = byClass(all(), 'sdk-meter');
+    meters[meters.length - 1].click();
+    const from = byClass(all(), 'sdk-detail-from')[0];
+    return from && from.textContent;
+  };
+  assert.equal(card('pkg.hs'), 'Headset Monitor');
+  window.SdkBlockRender.closeDetail();
+  assert.equal(card('pkg.other'), 'cw_clip_widget', 'an unnamed package is "A widget"');
+});
+
+test('detail card: by default the name is the one in the installed package list', () => {
+  const { window, all } = rig();
+  window.CustomWidget = { cachedPackages: () => [{ id: 'pkg.hs', name: 'Headset Monitor' }] };
+  window.SdkBadges.set('pkg.hs', window.SdkBadges.normalize({
+    blocks: [{ type: 'meter', icon: '🎧', value: 1, detail: { title: 'Battery', rows: [] } }],
+  }), null);
+  byClass(all(), 'sdk-meter')[0].click();
+  assert.equal(byClass(all(), 'sdk-detail-from')[0].textContent, 'Headset Monitor');
+});
+
 test('bars: the widget shape and colour travel as custom properties, never a style string', () => {
   const { window } = rig();
   const node = window.SdkBlockRender.render({ type: 'progress', value: 0.4, width: 30, height: 4, color: '#ff8800', orientation: 'vertical' });

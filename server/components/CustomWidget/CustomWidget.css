@@ -250,7 +250,9 @@ button.sdk-meter:focus-visible { outline: 2px solid var(--accent); outline-offse
 }
 .sdk-detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .sdk-detail-ico { display: inline-grid; place-items: center; font-size: 20px; line-height: 1; color: var(--sdk-part-color, var(--accent)); }
-.sdk-detail-title { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+.sdk-detail-words { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.sdk-detail-from { margin: 0; font-size: 12px; color: var(--muted-text); overflow-wrap: anywhere; }
+.sdk-detail-title { margin: 0; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
 .sdk-detail-close {
   flex: 0 0 auto; width: 44px; height: 44px; margin: -8px -8px -8px 0;
   border: 0; border-radius: 12px; background: none; color: var(--muted-text); font: inherit; font-size: 16px; cursor: pointer;

@@ -13,6 +13,15 @@
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const t = (key, fallback) => (typeof window.t === 'function' ? window.t(key) : fallback);
+  // Who drew a card: the installed package's name, from the host's package list
+  // (CustomWidget.cachedPackages). The view never names itself.
+  let nameOf = (pkgId) => {
+    const cw = window.CustomWidget;
+    const list = cw && typeof cw.cachedPackages === 'function' ? cw.cachedPackages() : [];
+    const pkg = Array.isArray(list) ? list.find((item) => item && item.id === pkgId) : null;
+    return pkg && typeof pkg.name === 'string' ? pkg.name : '';
+  };
+  function setNameSource(fn) { if (typeof fn === 'function') nameOf = fn; }
 
   function setColor(node, color) {
     if (color) node.style.setProperty('--sdk-part-color', color);
@@ -74,7 +83,7 @@
 
   // A meter is pressable when it has something to do: its own action id, its
   // detail card, or both (the card opens and the widget is told).
-  function meter(block, onAction) {
+  function meter(block, onAction, pkgId) {
     const pressable = !!(block.id || block.detail);
     const node = document.createElement(pressable ? 'button' : 'span');
     node.className = `sdk-meter${sizeClass(block.size)}`;
@@ -100,7 +109,7 @@
     if (block.detail?.title) node.setAttribute('aria-label', block.detail.title);
     node.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (block.detail) openDetail(block.detail, block, node);
+      if (block.detail) openDetail(block.detail, block, node, pkgId);
       if (block.id && typeof onAction === 'function') onAction(block.id);
     });
     return node;
@@ -139,7 +148,7 @@
     return node;
   }
 
-  function detailHead(detail, owner) {
+  function detailHead(detail, owner, pkgId) {
     const head = document.createElement('div');
     head.className = 'sdk-detail-head';
     if (owner && (owner.text || owner.name || owner.path)) head.appendChild(iconNode(owner, 'sdk-detail-ico'));
@@ -153,11 +162,21 @@
     close.setAttribute('aria-label', t('close', 'Close'));
     close.textContent = '✕';
     close.addEventListener('click', closeDetail);
-    head.append(title, close);
+    // The card covers the screen with the widget's words, so it always says whose
+    // they are: it can never pass for a message from Xenon.
+    const from = document.createElement('p');
+    from.className = 'sdk-detail-from';
+    let who = '';
+    try { who = typeof pkgId === 'string' && pkgId ? String(nameOf(pkgId) || '') : ''; } catch { who = ''; }
+    from.textContent = who || t('cw_clip_widget', 'A widget');
+    const words = document.createElement('div');
+    words.className = 'sdk-detail-words';
+    words.append(from, title);
+    head.append(words, close);
     return head;
   }
 
-  function openDetail(detail, owner, returnTo) {
+  function openDetail(detail, owner, returnTo, pkgId) {
     closeDetail();
     const overlay = document.createElement('div');
     overlay.className = 'sdk-detail-overlay';
@@ -167,7 +186,7 @@
     card.setAttribute('aria-modal', 'true');
     if (detail.title) card.setAttribute('aria-labelledby', 'sdk-detail-title');
     setColor(card, owner?.color);
-    card.appendChild(detailHead(detail, owner));
+    card.appendChild(detailHead(detail, owner, pkgId));
     if (detail.rows.length) {
       const rows = document.createElement('div');
       rows.className = 'sdk-detail-rows';
@@ -192,13 +211,13 @@
 
   // One entry point for the parts this file owns; anything else returns null and
   // the caller (sdk-island.js renderBlock) draws it.
-  function render(block, onAction) {
+  function render(block, onAction, pkgId) {
     if (block.type === 'text') return text(block);
     if (block.type === 'icon') return icon(block);
     if (block.type === 'progress') return progress(block);
-    if (block.type === 'meter') return meter(block, onAction);
+    if (block.type === 'meter') return meter(block, onAction, pkgId);
     return null;
   }
 
-  window.SdkBlockRender = { render, iconNode, openDetail, closeDetail };
+  window.SdkBlockRender = { render, iconNode, openDetail, closeDetail, setNameSource };
 })();
