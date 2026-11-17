@@ -396,7 +396,7 @@
   }
 
   // A count the owner ADDS to the real button and removes again (the Store's
-  // updates on the gear, community-gallery.js refreshStoreDot), so the button is
+  // updates on the gear, refreshStoreDot in community-gallery/store-dot.js), so the button is
   // watched for it rather than one element. The copy wears the same class, so it
   // looks and reads the same: red for updates, the accent for new things.
   function mirrorCount(btn, realSel, cls) {

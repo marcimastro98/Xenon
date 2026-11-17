@@ -338,7 +338,7 @@
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', false);
     // The visit we just made advanced the marker, clearing (or shrinking) the
     // "new since last visit" set — update the Settings dot to match (#5).
-    try { refreshStoreDot(); } catch { /* defined below; hoisted */ }
+    try { refreshStoreDot(); } catch { /* store-dot.js, taken below; close() runs after load */ }
   }
 
   // Esc walks back one step: the sheet, the entry's page, then the Store. Taken in
