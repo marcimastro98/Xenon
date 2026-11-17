@@ -17,8 +17,7 @@
 // below is ever assigned via innerHTML; all catalog-supplied text stays textContent.
 (function () {
   const {
-    t, el, descPlain, descInto, compactCount, ratingLine, sparksPriceText, skeleton, memberLine,
-    shortCount,
+    t, el, descPlain, descInto, sparksPriceText, skeleton, memberLine, shortCount,
   } = window.CommunityGalleryWords;
   const MAKER_URL = 'https://xenon-app.com/maker/';
   const BMC_URL = 'https://www.buymeacoffee.com/marcimastro98';
@@ -207,7 +206,7 @@
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   const {
     KIND_ORDER, ON_SCREEN_TAG, PAGE, SHELF_MAX, WIDE_SHOT, CENTRED_KINDS, JUST_ADDED_MAX,
-    KIND_SHELF_MIN, INSTALLS_WAIT_MS, MIN_INSTALLS_SHOWN, SPOT_SIDE_MAX, isFeatured,
+    KIND_SHELF_MIN, INSTALLS_WAIT_MS, SPOT_SIDE_MAX, isFeatured,
   } = window.CommunityGalleryLayout;
   const { hexRgb, readablePair } = window.CommunityGalleryPaper;
 
@@ -235,10 +234,19 @@
     return ['spotlight', 'limited', 'supporters', 'kinds', 'archive']
       .map((type) => ({ type, on: true, form: '', source: '', autoplayOver: 0, max: 0 }));
   }
-  // Browse state (kept while the overlay is open).
-  let searchQuery = '';
+  const storeState = {
+    // Browse state (kept while the overlay is open).
+    searchQuery: '',
+    sortBy: 'feat',
+    // Aggregates load once per gallery render (batched ids, TTL-cached by the
+    // local server) and paint into every .cgal-stars slot in the DOM. Averages
+    // show only once an entry reaches the server's minimum vote count, so a
+    // single vote can't dress up as consensus.
+    ratingsMap: {},
+    ratingsMin: 5,
+    installsMap: {},
+  };
   let activeKind = '';
-  let sortBy = 'feat';
   let shown = PAGE;
   let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine) | 'sparks' (the Sparks shop)
   // Set to a repaint fn while the Store is open, cleared on close. Lets an install
@@ -351,61 +359,44 @@
   } = window.CommunityGalleryLook;
 
   // ── Anonymous star ratings (proxied: /api/community/ratings|rate) ──────────
-  // Aggregates load once per gallery render (batched ids, TTL-cached by the
-  // local server) and paint into every .cgal-stars slot in the DOM. Averages
-  // show only once an entry reaches the server's minimum vote count, so a
-  // single vote can't dress up as consensus.
-  let ratingsMap = {};
-  let ratingsMin = 5;
   async function loadRatings(entries) {
     const ids = (entries || []).map((e) => e && e.id).filter(Boolean);
     if (!ids.length) return;
     for (let i = 0; i < ids.length; i += 100) {
       const out = await api('/api/community/ratings?ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')));
       if (!out || !out.ok || !out.ratings) continue;
-      ratingsMin = Number(out.minDisplayCount) || ratingsMin;
-      Object.assign(ratingsMap, out.ratings);
+      storeState.ratingsMin = Number(out.minDisplayCount) || storeState.ratingsMin;
+      Object.assign(storeState.ratingsMap, out.ratings);
     }
     // Ordering by rating? The freshly-loaded scores change it — re-sort, then
     // refill the star/install slots the rebuilt cards expose.
-    if (sortBy === 'rated' && typeof regrid === 'function') regrid();
+    if (storeState.sortBy === 'rated' && typeof regrid === 'function') regrid();
     paintStars(); paintInstalls();
   }
-  function starsText(r) {
-    if (!r || !Number.isFinite(Number(r.avg)) || (Number(r.count) || 0) < ratingsMin) return '';
-    return '★ ' + Number(r.avg).toFixed(1) + ' · ' + r.count;
-  }
-  // The card has room for the score alone; the page says how many voted.
-  function starsShort(r) {
-    return starsText(r) ? '★ ' + Number(r.avg).toFixed(1) : '';
-  }
+  const {
+    starsText, starsShort, installsText, ratingBoxInto,
+  } = window.CommunityGalleryRatings({ api, storeState, paintStars });
   function paintStars() {
     if (!overlayEl) return;
     overlayEl.querySelectorAll('.cgal-stars[data-id]').forEach((slot) => {
-      const r = ratingsMap[slot.dataset.id];
+      const r = storeState.ratingsMap[slot.dataset.id];
       slot.textContent = slot.dataset.short ? starsShort(r) : starsText(r);
     });
   }
 
   // ── Install counts (proxied: /api/community/installs) ─────────────────────
-  let installsMap = {};
   async function loadInstalls(entries) {
     const ids = (entries || []).map((e) => e && e.id).filter(Boolean);
     if (!ids.length) return;
     for (let i = 0; i < ids.length; i += 100) {
       const out = await api('/api/community/installs?ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')));
       if (!out || !out.ok || !out.counts) continue;
-      Object.assign(installsMap, out.counts);
+      Object.assign(storeState.installsMap, out.counts);
     }
     // Ordering by downloads? The freshly-loaded counts change it — re-sort, then
     // refill the install/star slots the rebuilt cards expose.
-    if (sortBy === 'installs' && typeof regrid === 'function') regrid();
+    if (storeState.sortBy === 'installs' && typeof regrid === 'function') regrid();
     paintInstalls(); paintStars();
-  }
-  function installsText(id) {
-    const n = Number(installsMap[id]) || 0;
-    if (n < MIN_INSTALLS_SHOWN) return '';
-    return '↓ ' + compactCount(n);
   }
   function paintInstalls() {
     if (!overlayEl) return;
@@ -416,47 +407,6 @@
         ? t('gallery_installs_title', 'Installs reported by dashboards that count them. Not a number of owners.')
         : '';
     });
-  }
-
-  function ratingBoxInto(host, entry) {
-    const box = el('div', 'cgal-rate');
-    host.appendChild(box);
-    const showScore = (extra) => {
-      const row = el('div', 'cgal-rate-score');
-      if (extra) row.appendChild(extra);
-      const avg = starsText(ratingsMap[entry.id]);
-      if (avg) row.appendChild(el('span', 'cgal-rate-avg', avg));
-      if (row.firstChild) box.appendChild(row);
-    };
-    const draw = (state) => {
-      box.replaceChildren();
-      if (state.state === 'open') {
-        window.XenonRatingCard.voter(box, {
-          tr: t,
-          vote: (stars, why) => api('/api/community/rate', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ entryId: entry.id, stars, why }),
-          }),
-          voted: async (stars) => {
-            if (window.XenonToast) XenonToast.show({ type: 'success', title: t('rate_done'), important: true });
-            const fresh = await api('/api/community/ratings?ids=' + encodeURIComponent(entry.id));
-            if (fresh && fresh.ok && fresh.ratings) { Object.assign(ratingsMap, fresh.ratings); paintStars(); }
-            draw({ state: 'voted', stars });
-          },
-          failed: (out) => {
-            if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_rating_error'), important: true });
-            load(out);
-          },
-        });
-        return;
-      }
-      showScore(state.state === 'voted' && state.stars ? window.XenonRatingCard.given(state.stars) : null);
-      box.appendChild(el('p', 'cgal-rate-say', ratingLine(state)));
-    };
-    const load = () => api('/api/community/rating-state?id=' + encodeURIComponent(entry.id))
-      .then((state) => { if (state && state.ok) draw(state); })
-      .catch(() => { /* offline: the card's average is still there */ });
-    load();
   }
 
   // Lazy live preview for 'bg' entries: mount the sandboxed iframe only while
@@ -1025,7 +975,7 @@
     left.appendChild(el('span', null, kindLabel(entry.kind)));
     // Async-filled slot (paintStars): empty until the aggregates land, and stays
     // empty below the minimum vote count.
-    const stars = el('span', 'cgal-stars', starsShort(ratingsMap[entry.id]));
+    const stars = el('span', 'cgal-stars', starsShort(storeState.ratingsMap[entry.id]));
     stars.dataset.id = entry.id; stars.dataset.short = '1';
     left.appendChild(stars);
     line.appendChild(left);
@@ -1188,39 +1138,7 @@
     return idx ? storeUpdates.findUpdates(entries, idx) : [];
   }
 
-  function matchesBrowse(entry) {
-    if (searchQuery) {
-      const hay = [entry.name, entry.author, entry.description,
-        entry.publisher && entry.publisher.handle, ...(entry.tags || [])].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(searchQuery.replace(/^#/, ''))) return false;
-    }
-    return true;
-  }
-  // Rating score for the "Top rated" sort: the displayed average, or -1 when the
-  // entry is unrated or still below the min vote count (so those sink to the
-  // bottom instead of tying at 0 with genuinely low-rated ones).
-  function ratedScore(e) {
-    const r = e && ratingsMap[e.id];
-    if (!r || (Number(r.count) || 0) < ratingsMin) return -1;
-    return Number(r.avg) || 0;
-  }
-  function ratedCount(e) { const r = e && ratingsMap[e.id]; return (r && Number(r.count)) || 0; }
-  function installCount(e) { return (e && Number(installsMap[e.id])) || 0; }
-  function sortList(list) {
-    if (sortBy === 'name') return list.slice().sort((a, b) => a.name.localeCompare(b.name));
-    // 'new' reads the date, NOT the file position: sorting on `_i` descending
-    // assumes new entries are appended at the BOTTOM of catalog.json, but they
-    // go on top — so "Newest" listed the oldest first. ISO dates compare
-    // correctly as strings; no addedAt sorts last, ties keep catalog order.
-    if (sortBy === 'new') return list.slice().sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) || ((a._i || 0) - (b._i || 0)));
-    // Install counts and ratings load asynchronously AFTER the first paint, so at
-    // that moment these order by whatever has arrived (often nothing) and ties fall
-    // back to catalog order; loadInstalls/loadRatings re-run paintGrid once their
-    // data lands, so the order settles without the user touching anything.
-    if (sortBy === 'installs') return list.slice().sort((a, b) => (installCount(b) - installCount(a)) || ((a._i || 0) - (b._i || 0)));
-    if (sortBy === 'rated') return list.slice().sort((a, b) => (ratedScore(b) - ratedScore(a)) || (ratedCount(b) - ratedCount(a)) || ((a._i || 0) - (b._i || 0)));
-    return list.slice().sort((a, b) => (a._i || 0) - (b._i || 0));   // 'feat' = catalog order
-  }
+  const { matchesBrowse, installCount, sortList } = window.CommunityGalleryOrder({ storeState });
 
   const catalogEntries = async () => {
     const out = await api('/api/community/catalog');
@@ -1306,7 +1224,7 @@
   function viewName() {
     if (activeTab === 'installed') return t('gallery_tab_installed', 'Installed');
     if (activeTab === 'sparks') return t('xai_balance_unit', 'Sparks');
-    if (searchQuery) return t('gallery_results', 'Results');
+    if (storeState.searchQuery) return t('gallery_results', 'Results');
     const names = {
       '': t('gallery_tab_browse', 'Discover'),
       __new: t('gallery_new_filter', 'New'),
@@ -1376,7 +1294,7 @@
     // moment for the counts. A late answer only fills the numbers: what is already
     // on screen does not move.
     const counts = loadInstalls(all).catch(() => { /* offline: catalog order */ });
-    const countsWait = Object.keys(installsMap).length ? null : Promise.race([counts, new Promise((go) => { setTimeout(go, INSTALLS_WAIT_MS); })]);
+    const countsWait = Object.keys(storeState.installsMap).length ? null : Promise.race([counts, new Promise((go) => { setTimeout(go, INSTALLS_WAIT_MS); })]);
     await Promise.all([findUpdates(browse), countsWait]);
     if (!overlayEl || turn !== renderTurn) return;
 
@@ -1392,8 +1310,8 @@
      ['installs', t('gallery_sort_installs', 'Most downloaded')], ['rated', t('gallery_sort_rated', 'Top rated')],
      ['name', t('gallery_sort_name', 'Name A–Z')]]
       .forEach(([v, label]) => { const o = document.createElement('option'); o.value = v; o.textContent = label; selSort.appendChild(o); });
-    selSort.value = sortBy;
-    selSort.addEventListener('change', () => { sortBy = selSort.value; paintGrid(); });
+    selSort.value = storeState.sortBy;
+    selSort.addEventListener('change', () => { storeState.sortBy = selSort.value; paintGrid(); });
     sortWrap.appendChild(selSort); listHead.appendChild(sortWrap);
     if (window.initCustomSelect) initCustomSelect(selSort);
 
@@ -1415,7 +1333,7 @@
     const newestFirst = (list) => list.slice().sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
 
     function paintList(frag) {
-      if (searchQuery) {
+      if (storeState.searchQuery) {
         const found = sortList(all.filter(matchesBrowse));
         if (found.length) return flatInto(frag, found);
         frag.appendChild(askBitBlock());
@@ -1545,11 +1463,11 @@
     function paintGrid() {
       if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
       const frag = document.createDocumentFragment();
-      const home = !activeKind && !searchQuery;
+      const home = !activeKind && !storeState.searchQuery;
       listHead.hidden = home;
       listTitle.textContent = viewName();
       sortWrap.hidden = activeKind === '__new' || activeKind === '__added';
-      if (selSort.value !== sortBy) { selSort.value = sortBy; if (selSort._csSync) selSort._csSync(); }
+      if (selSort.value !== storeState.sortBy) { selSort.value = storeState.sortBy; if (selSort._csSync) selSort._csSync(); }
       if (home) paintHome(frag); else paintList(frag);
       host.replaceChildren(frag);
     }
@@ -1585,7 +1503,7 @@
   // ── The rail: every view of the Store, always in sight ─────────────────────
   function syncRail() {
     if (!rail) return;
-    const here = activeTab === 'installed' ? '__installed' : activeTab === 'sparks' ? '__sparks' : (searchQuery ? null : activeKind);
+    const here = activeTab === 'installed' ? '__installed' : activeTab === 'sparks' ? '__sparks' : (storeState.searchQuery ? null : activeKind);
     overlayEl.querySelectorAll('.cst-railrow').forEach((row) => {
       const on = row.dataset.view === here;
       row.classList.toggle('on', on);
@@ -1600,12 +1518,14 @@
     activeTab = tab;
     if (tab === 'browse') activeKind = id;
     shown = PAGE;
-    searchQuery = '';
+    storeState.searchQuery = '';
     if (rail) rail.search.value = '';
     syncRail();
     mainEl.scrollTop = 0;
     if (inPlace) regrid(); else paintTab(false);
   }
+  const { countUpdates, refreshStoreDot } = window.CommunityGalleryStoreDot({ api, findUpdates });
+
   const { railRow, paintInstalledRow } = window.CommunityGalleryRailRows({ goView, countUpdates });
 
   function fillRail(entries) {
@@ -1622,7 +1542,7 @@
     syncRail();
   }
   function onSearch(input) {
-    searchQuery = input.value.trim().toLowerCase(); shown = PAGE;
+    storeState.searchQuery = input.value.trim().toLowerCase(); shown = PAGE;
     if (searchTimer) clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       searchTimer = null;
@@ -1688,7 +1608,7 @@
     // so stop the dashboard animating (and re-blurring) under it.
     // Shared token is safe — close() above runs synchronously before this refreeze.
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', true);
-    searchQuery = ''; sortBy = 'feat'; shown = PAGE; viewScroll = 0;
+    storeState.searchQuery = ''; storeState.sortBy = 'feat'; shown = PAGE; viewScroll = 0;
     activeTab = (filterKind === '__installed') ? 'installed' : (filterKind === '__sparks' && window.SparksStore) ? 'sparks' : 'browse';
     activeKind = (activeTab === 'browse' && filterKind !== '__sparks' && filterKind) || '';
     if (window.InstalledManager) InstalledManager.reset();
@@ -1780,58 +1700,6 @@
   // sidecar path rule. shotUrl derives from the entry id the server already
   // charset-pinned — never from catalog-supplied text.
   const shotUrl = (entryId, i, ext) => SHOTS_BASE + encodeURIComponent(entryId) + (i === 1 ? '' : '-' + i) + '.' + ext;
-  // Count catalog entries this device has never seen in the Store — for the count
-  // on the Settings gear and the "Open the Store" buttons. Read-only: it never
-  // touches the seen set (browsing the Store is what marks entries seen), and
-  // returns 0 when the Store was never opened, so nothing is flagged before the
-  // first browse (#5).
-  async function newSinceLastVisit() {
-    const seen = readSeenIds();
-    if (!seen) return 0;   // never browsed the Store yet → nothing to advertise
-    try {
-      const out = await api('/api/community/catalog');
-      if (!out || !out.ok || !Array.isArray(out.entries)) return 0;
-      return out.entries.filter((e) => e && e.id && !seen.has(e.id)).length;
-    } catch { return 0; }
-  }
-  // Number of OWNED catalog items with an update available — the red badge on the
-  // Store buttons and the Installed tab. Standalone (works while the Store is
-  // closed): findUpdates() re-reads the install index and joins it against the
-  // catalog exactly like the Store's own "Aggiornamenti" section, so the three
-  // never disagree.
-  async function countUpdates() {
-    try {
-      const out = await api('/api/community/catalog');
-      if (!out || !out.ok || !Array.isArray(out.entries)) return 0;
-      const ups = await findUpdates(out.entries);
-      return Array.isArray(ups) ? ups.length : 0;
-    } catch { return 0; }
-  }
-  // Paint (or clear) the badge on the Settings entry points to the Store. UPDATES
-  // win — a red count of owned items with a newer version, the actionable "open
-  // the Store and update" signal. With none pending it falls back to the accent
-  // "N new since your last visit" discovery count (#5). Refreshed at boot, when the
-  // Store closes, and whenever an install/update lands.
-  function refreshStoreDot() {
-    // The Settings entry points to the Store, plus the topbar Settings gear —
-    // the gear is what you see WITHOUT opening anything, so the count reaches
-    // you on the dashboard itself and clears once the Store is opened.
-    const btns = document.querySelectorAll('.settings-nav-store, .settings-store-open, .qbtn-settings');
-    if (!btns.length) return;
-    Promise.all([countUpdates(), newSinceLastVisit()]).then(([updates, fresh]) => {
-      const n = updates > 0 ? updates : fresh;
-      const isUpdate = updates > 0;
-      btns.forEach((btn) => {
-        let dot = btn.querySelector('.cgal-store-dot');
-        if (n > 0) {
-          if (!dot) { dot = el('span', 'cgal-store-dot'); btn.appendChild(dot); }
-          dot.textContent = n > 99 ? '99+' : String(n);
-          dot.classList.toggle('is-new', !isUpdate);   // accent for "new", red for updates
-          dot.title = isUpdate ? t('gallery_updates', 'Updates') : t('gallery_new_filter', 'New');
-        } else if (dot) { dot.remove(); }
-      });
-    }).catch(() => { /* best-effort — no dot is fine */ });
-  }
 
   // An install committed anywhere (a catalog receipt written in preset-share.js
   // fires 'xenon-content-installed') asks an open Store to re-read its install
