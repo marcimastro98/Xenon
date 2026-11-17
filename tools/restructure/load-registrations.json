@@ -112,6 +112,33 @@
           "server/deck/deck-press.js": "341b3acb597ab26fba6ee6de1049818cd0c35d4334aa785fa42b10b60f6caa8e"
         },
         "reason": "createDeckPress declares placed, read, press and accept and returns the last three; layers.get, layers.update, readConfigs and runner are first used when one of them is called."
+      },
+      {
+        "statement": "const diskSpace = createDiskSpace({",
+        "callees": {
+          "server/disk/diskspace.js": "703252ff95ea6346e79f5c2b8b9bf72301f2b107913f0dad19b620f0070f7455",
+          "server/disk/linux-trash.js": "84e9a6e929ee23eae175e1390fdfcc26556f3f8ff2320ab2612fc025ca5686fe",
+          "server/disk-space/machine-places.js": "4b525d87ed5960457b9405355460a69f29c5cc189dd7831482ca6684330e40ed",
+          "server/disk-space/volumes.js": "f184a7611c718050d9e9a4ad5115f9afc049895a0adc433c2fbae2281d8b96db",
+          "server/disk-space/delete-guard.js": "642a0437171ff0e7c742fea71a6d8d7e9726c504a1a84cf5ee621096ff164f7d",
+          "server/disk-space/scan.js": "05966214852cc89c899d4fd2a005336fc1eb3a75d07e7cab2144748e0d06de34",
+          "server/disk-space/clean-job.js": "ddb3074a1d8d0c25dd333d17a3582300c3c7f33b4a0d2fe91d6b62b1455e911f",
+          "server/disk-space/browse.js": "40f23f3f1c3cdd556217735bb7882537e45e4b2ccfd39d981c552e28186e6c9d",
+          "server/disk-space/overview.js": "c8b7edae3f5e9ebe6a1772fad9713229023088e1a555f79e19414170b2f0c36c",
+          "server/disk-space/status.js": "d21e1ece6ec8a9f848559c79be8f6c9f7e206d8bc113ef6c1d2e171473f79510"
+        },
+        "reason": "createDiskSpace reads its options into constants and hands getVolumes, getIndexRoots, getDriveDetails, getSettings, onCleanProgress, onDiskUpdate, revealExternal and shellDelete to the make functions of disk-space/, which keep them in closures and first call them from status, overview, browse, reveal, startScan or clean; createLinuxTrash only returns its delete function."
+      },
+      {
+        "statement": "const devClean = createDevClean({",
+        "callees": {
+          "server/disk/devclean.js": "e577344267cc979168c5242e1c05367ffd50912f5d38785ec8ea0483130409ea",
+          "server/disk/devclean-docker.js": "473b53203de2fd83980dd4316598e4875e85215a9d7893e28cd63255a10ef09e",
+          "server/disk/devclean-ollama.js": "0d4b9b217319bc107765a5096838090a18c48ee98e3452f07668e8b2a94742e9",
+          "server/disk/devclean-vscode.js": "5115a69a3bbfb1fa75cbfae44b2a2b475c77303ec713b50c90253639915083e8",
+          "server/disk/devclean-vhdx.js": "db03716372a05a0fc181e55bdd958ec646ce47664e3654b70b9a9bd4effc7022"
+        },
+        "reason": "createDevClean and the four sources it makes declare maps, empty variables and functions and return them; run, getSettings, trash, spawnDetached and onProgress are first called by overview, clean or compact, and storageRoots only reads the platform, the environment and the home folder."
       }
     ]
   }

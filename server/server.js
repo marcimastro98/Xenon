@@ -119,15 +119,11 @@ const { liveMediaSnapshot } = require('./media/snapshot.js');
 
 const { svvEachApp } = require('./audio/app-each.js');
 
-const { cpuSnapshot, getCpuName } = require('./system/cpu.js');
+const { cpuSnapshot } = require('./system/cpu.js');
 
 const {
-  RAM_INFO_RETRY_MS, IDLE_POLL_MS, IDLE_POLL_FAST_MS, IDLE_AWAY_SEC, BATTERY_POLL_GAME_MS,
+  IDLE_POLL_MS, IDLE_POLL_FAST_MS, IDLE_AWAY_SEC, BATTERY_POLL_GAME_MS,
 } = require('./system/timings.js');
-
-const { DISK_LETTERS_TTL } = require('./disk/details-timings.js');
-
-const { joinDiskDetails } = require('./disk/details-shape.js');
 
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
 
@@ -354,7 +350,7 @@ const gameDetect = require('./performance/gamedetect');
 const audioLevels = require('./audio/audio-levels');
 const winNotif = require('./notification-open/winnotif');
 const { lowerPriority } = require('./programs/child-priority');
-const { createMountedDisks } = require('./disk/mounted-disks');
+require('./disk/mounted-disks');
 const calls = require('./transfer/calls');
 const wakeWord = require('./ai/wakeword');
 const sdkWidgets = require('./sdk-widgets');
@@ -397,8 +393,8 @@ require('./transfer/phone');                    // the paired phone: phonebook +
 require('./search/linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./disk/linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 require('./js/store-catalog/content-installs'); // validated import receipts shared with Settings
-const { createFirstReading, createFactReader } = require('./system/first-reading');
-const SensorSources = require('./js/system/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
+require('./system/first-reading');
+require('./js/system/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 require('./js/performance/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
 require('./js/system/sensor-history.js'); // the sensor-history setting (shared with Settings)
 require('./ai/sensor-source-ai.js'); // Bit picks one (sensor_source)
@@ -900,7 +896,7 @@ let _macFdaTimer = null;
 
 const { usableIndexRoots } = require('./search/index-roots.js');
 
-const { volumeDetailsProbe, diskModelsProbe, getDiskDetails } = require('./disk/drive-details.js');
+const { getDiskDetails } = require('./disk/drive-details.js');
 
 const { SETTINGS_FILE } = require('./settings/settings-file.js');
 
@@ -1516,7 +1512,7 @@ function _onMediaChangedPush() {
 
 const { _normalizeTimer } = require('./time/timer-normalize.js');
 
-const { readRamInfo } = require('./system/ram-info.js');
+require('./system/ram-info.js');
 
 // Neither host above can run off Windows: there is no SMTC and no PowerShell.
 // Both other platforms have their own now-playing source behind the SAME
@@ -1590,7 +1586,6 @@ setInterval(() => {
   }
 }, 1500).unref();
 
-const { sensorReads } = require('./system/sensor-reads-state.js');
 const { sensorCache } = require('./system/sensor-cache.js');
 const { sttDevice } = require('./ai/stt-device-state.js');
 
@@ -1623,185 +1618,13 @@ const { getWeather } = require('./weather/get-weather.js');
 
 const { getCpuUsage } = require('./system/cpu-usage.js');
 
-const { diskLetters } = require('./disk/letters-state.js');
+require('./disk/engine-mounted-disks.js');
 
-const mountedDisks = nativeCollectors ? createMountedDisks(() => nativeCollectors.disks()) : null;
+const { getAllDisksInfo } = require('./disk/all-disks-info.js');
 
-async function getAllDisksInfo({ waitForDetails = true } = {}) {
-  if (mountedDisks) return mountedDisks();
-  const drives = [];
-  const details = waitForDetails
-    ? await getDiskDetails()
-    : joinDiskDetails(volumeDetailsProbe.data || {}, diskModelsProbe.data || {});
-  // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
-  // letters change rarely. Cache the set that resolved for 60s and probe only
-  // those; a stale (or empty) cache triggers a full A–Z re-scan so a newly
-  // mounted/removed drive still appears within a minute. Free-space is still
-  // read live on each call — only the dead letters are skipped.
-  const now = Date.now();
-  const fresh = diskLetters.cache.letters && diskLetters.cache.letters.length &&
-                (now - diskLetters.cache.at) < DISK_LETTERS_TTL;
-  const letters = fresh ? diskLetters.cache.letters : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  const valid = [];
-  for (const letter of letters) {
-    try {
-      if (typeof fs.promises.statfs === 'function') {
-        const s = await fs.promises.statfs(letter + ':\\');
-        const total = Number(s.blocks) * Number(s.bsize);
-        const free = Number(s.bfree) * Number(s.bsize);
-        if (total > 0) {
-          valid.push(letter);
-          const drive = letter + ':';
-          const detail = details[drive.toUpperCase()] || {};
-          drives.push({
-            drive,
-            total,
-            used: total - free,
-            free,
-            percent: Math.round(((total - free) / total) * 100),
-            label: detail.label || '',
-            // The name of the physical disk. The detail line falls back to it
-            // when the volume has no label of its own, which is the default on
-            // a Windows install: without it that line reads "NTFS - Fixed".
-            model: detail.model || '',
-            fileSystem: detail.fileSystem || '',
-            driveType: detail.driveType || '',
-          });
-        }
-      }
-    } catch { }
-  }
-  // Only refresh the cache after a full scan, and never store an empty result
-  // (a transient failure must not pin us to "no drives" for 60s).
-  if (!fresh && valid.length) diskLetters.cache = { letters: valid, at: now };
-  return drives.length ? drives : null;
-}
+require('./system/engine-ram-info.js');
 
-const ramInfo = createFactReader(readRamInfo, { retryMs: RAM_INFO_RETRY_MS });
-
-const firstSystemReading = createFirstReading();
-
-// What getSystemInfo can say without waiting for a source that has not answered yet.
-function knownSystemSources() {
-  return Promise.all([
-    sensorReads.gpuCache, getAllDisksInfo({ waitForDetails: false }), ramInfo.known(), sensorCache.reading.cpuTemp,
-    nativeCollectors ? nativeCollectors.memory() : null,
-  ]);
-}
-
-// `partialOk` is for a page that is painting: until the first full read lands it gets
-// what is known now, marked `partial`, and the feed brings the rest. Everyone else
-// waits, because a reading that is missing must not read as a sensor that is gone.
-async function getSystemInfo({ partialOk = false } = {}) {
-  const { value: [gpu, disks, ramDetail, cpuTemp, mem], partial } = await firstSystemReading(Promise.all([
-    getGpuInfo(), getAllDisksInfo(), ramInfo.get(), getCpuTemp(),
-    // os.freemem() is ullAvailPhys on Windows — already "what a new workload
-    // could get" — but only the truly free pages on macOS and Linux, where the
-    // OS keeps that near zero on purpose. Same call, different meaning, so the
-    // seam answers it per platform (see each collector's `memory()`); Windows
-    // keeps the os module it always used.
-    nativeCollectors ? nativeCollectors.memory() : null,
-  ]), partialOk ? knownSystemSources : null);
-  const totalMem = (mem && mem.total) || os.totalmem();
-  const usedMem = mem ? mem.used : totalMem - os.freemem();
-
-  // Fans: motherboard/CPU headers from the cpu collector (RPM), plus the GPU's
-  // own fans — LHM gives RPM, nvidia-smi only a percent, so a fan entry carries
-  // either `rpm` or `pct` and the client renders unit-aware.
-  // `kind` is the typed discriminator clients key on ('mb' = a motherboard fan
-  // header, 'psu' = the power supply's own fan, 'gpu' = on the graphics card) —
-  // `name` is pure presentation, so a motherboard header literally named "GPU"
-  // must never match.
-  //
-  // Only fans wired to a motherboard header report a tachometer here: fans on an
-  // AIO pump, a Corsair Commander or any fan hub are invisible to the board, and
-  // fans daisy-chained onto one header report as a single reading. The list is
-  // therefore "what the hardware exposes", never "every fan in the case".
-  const fans = sensorCache.reading.fans.map(f => ({ ...f }));
-  // Prefer each fan's real tachometer over nvidia-smi's fan.speed, which is the
-  // curve's TARGET: an idle card in zero-RPM mode reports a percent while the
-  // fans are stopped. The percent stays the fallback for cards LHM can't read.
-  if (Array.isArray(gpu.gpuFans) && gpu.gpuFans.length) {
-    gpu.gpuFans.forEach(f => fans.push({ name: f.name, kind: 'gpu', rpm: f.rpm }));
-  } else if (gpu.gpuFanRpm !== null && gpu.gpuFanRpm !== undefined) fans.push({ name: 'GPU', kind: 'gpu', rpm: gpu.gpuFanRpm });
-  else if (gpu.gpuFanPct !== null && gpu.gpuFanPct !== undefined) fans.push({ name: 'GPU', kind: 'gpu', pct: gpu.gpuFanPct });
-
-  // Power draw in watts. `total` is strictly CPU+GPU (labelled as such client-
-  // side — never a whole-system estimate); `psu` appears only when a digital
-  // PSU (Corsair HXi/RMi & co.) is visible to LHM.
-  const cpuWatts = sensorCache.reading.cpuWatts;
-  const gpuWatts = gpu.gpuWatts === undefined ? null : gpu.gpuWatts;
-  const power = {
-    cpu: cpuWatts,
-    gpu: gpuWatts,
-    psu: sensorCache.reading.psuWatts,
-    total: (cpuWatts !== null && gpuWatts !== null) ? Math.round((cpuWatts + gpuWatts) * 10) / 10 : null,
-  };
-
-  const info = {
-    now: new Date().toISOString(),
-    hostname: os.hostname(),
-    uptime: Math.round(os.uptime()),
-    cpu: getCpuUsage(),
-    cpuTemp,
-    cpuName: getCpuName(),
-    // Live clock speeds in MHz, null where the platform exposes none. Added for
-    // the SDK's `system` stream, which forwards this payload untouched — so a
-    // monitoring widget reads them with the grant it already has.
-    cpuClockMHz: sensorCache.reading.cpuClockMHz,
-    // Why the LHM-backed readings (cpuTemp, `fans`, power.cpu/psu) may be empty:
-    // 'ok' | 'needs_admin' (LHM installed but unelevated → no kernel driver) |
-    // 'missing'. Lets the widgets name the actual fix instead of guessing.
-    sensorAccess: sensorCache.reading.sensorAccess,
-    memory: {
-      used: usedMem,
-      total: totalMem,
-      percent: Math.round((usedMem / totalMem) * 100),
-    },
-    ramName: ramDetail && ramDetail.name ? ramDetail.name : null,
-    ramDetail,
-    gpu: gpu.gpu,
-    gpuName: gpu.gpuName,
-    gpuTemp: gpu.gpuTemp,
-    vramUsed: gpu.vramUsed,
-    vramTotal: gpu.vramTotal,
-    gpuClockMHz: gpu.gpuClockMHz === undefined ? null : gpu.gpuClockMHz,
-    vramClockMHz: gpu.vramClockMHz === undefined ? null : gpu.vramClockMHz,
-    // In-game frame rate, or null when nothing is being measured.
-    //
-    // It rides `system` rather than `status`, which is where it was asked for.
-    // `status` is broadcast ONLY when it changes, plus a 30s heartbeat, because
-    // its payload is identical tick after tick on an idle PC and every SSE event
-    // wakes each connected renderer. FPS changes constantly, so putting it there
-    // would turn a mostly-silent stream into a permanent 3s broadcast on every
-    // open dashboard — reinstating exactly the idle cost that dedup removed.
-    // `system` already broadcasts unconditionally every 5s, so this rides along
-    // for the price of an in-memory read: PresentMon (or MangoHud on Linux)
-    // fills the table continuously, and getCurrentFps only looks at it.
-    fps: (() => { try { return fpsMonitor.getCurrentFps(); } catch { return null; } })(),
-    fans,
-    power,
-    disks,
-    // Which OS is answering. Tiles that have to explain an absence need it:
-    // "no fan sensors" is a different sentence on a PC (install the companion,
-    // re-run the installer) than on a Linux box, where the kernel publishes
-    // every tachometer it can see and there is nothing to install. Sent with
-    // the readings so a tile never has to render its explanation before it
-    // knows which one is true.
-    platform: process.platform,
-  };
-
-  // The user's sensor choices (Settings → Sensor sources) go over the automatic
-  // readings HERE and nowhere else, so every consumer of this payload (system
-  // tile, Deck, AI, lighting, Guardian, the SDK `system` stream) follows the
-  // choice without knowing it exists. `sensorSources` says per metric where
-  // the number came from.
-  const sources = SensorSources.normalizeSensorSources(hub.settings && hub.settings.sensorSources);
-  if (partial) info.partial = true;
-  const unread = partial ? null : [];
-  const readings = !partial && Object.keys(sources).length ? await readChosenSensors(sources) : unread;
-  return SensorSources.applySensorSources(info, sources, readings, { cpuTemp: sensorCache.reading.cpuTempSource });
-}
+require('./system/engine-first-reading.js');
 
 require('./system/packet-loss-count.js');
 
@@ -2882,11 +2705,9 @@ const { _overlayHotkey } = require('./widget-options/overlay-hotkey.js');
 
 const { sensorRateMs } = require('./system/sensor-rate.js');
 
-const { collectSensors, readChosenSensors } = require('./system/sensors-read.js');
+const { collectSensors } = require('./system/sensors-read.js');
 
-const { getCpuTemp } = require('./system/cpu-temp.js');
-
-const { getGpuInfo } = require('./system/gpu-read.js');
+const { getSystemInfo } = require('./system/system-info.js');
 
 const {
   sdkFeatureEnabled, sdkPkgSuspended, sdkGrantsFor, sdkStreamGranted, _sdkStreamGranted,

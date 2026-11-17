@@ -517,7 +517,12 @@
       {"file":"server/windows-tiles/engine-browser.js","about":"The engine's host of the browser a Browser tile shows.","names":["embeddedBrowser"],"wire":{"first":"embeddedBrowser","last":"embeddedBrowser"}},
       {"file":"server/store-catalog/engine-rating-votes.js","about":"The engine's keeper of the votes on Store entries.","names":["ratingVotes"],"wire":{"first":"ratingVotes","last":"ratingVotes"}},
       {"file":"server/sensor-service/engine-fps-notice.js","about":"The engine's one pop-up per version about the Windows permission that FPS needs.","names":["_fpsNotice"],"wire":{"first":"_fpsNotice","last":"_fpsNotice"},"spelled":{"./fps-notice.js":"./sensor-service/fps-notice.js","./fps-access.js":"./sensor-service/fps-access.js"}},
-      {"file":"server/screens/engine-capture-last.js","about":"The engine's memory of the last steps document and bug report, for after a restart.","names":["_captureLast"],"wire":{"first":"_captureLast","last":"_captureLast"}}
+      {"file":"server/screens/engine-capture-last.js","about":"The engine's memory of the last steps document and bug report, for after a restart.","names":["_captureLast"],"wire":{"first":"_captureLast","last":"_captureLast"}},
+      {"file":"server/disk/engine-mounted-disks.js","about":"The engine's reader of the mounted disks off Windows, or none on Windows.","names":["mountedDisks"],"wire":{"first":"mountedDisks","last":"mountedDisks"}},
+      {"file":"server/system/engine-ram-info.js","about":"The engine's reader of the memory sticks, asked again after a failed read.","names":["ramInfo"],"wire":{"first":"ramInfo","last":"ramInfo"}},
+      {"file":"server/system/engine-first-reading.js","about":"The engine's wait for the first full reading of the system, so a painting page can get what is known now.","names":["firstSystemReading"],"wire":{"first":"firstSystemReading","last":"firstSystemReading"}},
+      {"file":"server/disk/all-disks-info.js","about":"Every disk of this machine with its size, free space, label and model: drive letters on Windows, the mounts the collector finds elsewhere.","names":["getAllDisksInfo"]},
+      {"file":"server/system/system-info.js","about":"The whole reading of the system that the System tile, the SDK system stream, Bit, Guardian and the lights share, with the sensor sources the person chose laid over it.","names":["knownSystemSources","getSystemInfo"]}
     ],
     "server/paired/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
