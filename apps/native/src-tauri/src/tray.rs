@@ -1,6 +1,6 @@
-//! System-tray icon for the Xenon kiosk: show / hide the window, restart, exit —
-//! plus the screen controls (full-screen, which monitor, or "on my phone"),
-//! remembered across launches.
+//! System-tray icon for the Xenon kiosk: open Xenon, show / hide the window, restart,
+//! exit, plus the screen controls (full-screen, which monitor, or "on my phone"),
+//! remembered across launches. Its words are tray_words.rs's, in the dashboard's language.
 //!
 //! The dashboard keeps running in the backend service regardless of this window,
 //! so "Hide" just parks the kiosk and "Exit" only closes the native shell — the
@@ -19,23 +19,23 @@ use crate::{monitor, prefs};
 pub(crate) const OPEN_MENU_JS: &str = "try{fetch('/screen-menu',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"open\":true}'}).catch(function(){})}catch(e){}";
 
 pub fn build(app: &App) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Show Xenon", true, None::<&str>)?;
-    let hide = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
-    let restart = MenuItem::with_id(app, "restart", "Restart", true, None::<&str>)?;
+    let saved = prefs::load(app.handle());
+    let words = crate::tray_words::for_code(saved.language.as_deref());
+    let show = MenuItem::with_id(app, "show", words.show, true, None::<&str>)?;
+    let hide = MenuItem::with_id(app, "hide", words.hide, true, None::<&str>)?;
+    let restart = MenuItem::with_id(app, "restart", words.restart, true, None::<&str>)?;
     // Where the shell writes down what happened to it (see crash_log.rs). It is
     // in the tray because the file's entire purpose is to be found and pasted
     // into a bug report, and "open %APPDATA%\com.marcimastro98.xenon" is the
     // kind of instruction that gets a report abandoned instead of answered.
-    let crash_log = MenuItem::with_id(app, "crash-log", "Open crash log", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
-    // The Xenon menu over the screen (screen-menu.js), for when its shortcut is
-    // forgotten. Only where the shell can draw it.
+    let crash_log = MenuItem::with_id(app, "crash-log", words.crash_log, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", words.quit, true, None::<&str>)?;
+    // Xenon over the screen (screen-menu.js), for a forgotten shortcut; only where the shell draws it.
     let xenon_menu = crate::layers::draws_menu()
-        .then(|| MenuItem::with_id(app, "xenon-menu", "Open Xenon menu", true, None::<&str>))
+        .then(|| MenuItem::with_id(app, "xenon-menu", words.open, true, None::<&str>))
         .transpose()?;
 
     let window = app.get_webview_window("main");
-    let saved = prefs::load(app.handle());
     let displays_now = window.as_ref().map(monitor::displays).unwrap_or_default();
 
     // Full-screen is meaningless in exactly two states: on the Edge panel, which
@@ -56,7 +56,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let fullscreen = CheckMenuItem::with_id(
         app,
         "fullscreen",
-        "Fullscreen",
+        words.fullscreen,
         placement_controls,
         saved.fullscreen && placement_controls,
         None::<&str>,
@@ -70,7 +70,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
     // index is the unstable half (`\\.\DISPLAYn` is assigned by order), so an id
     // keyed on the index would quietly point at a different physical screen after
     // a replug. A stale id simply no longer resolves, and the pick is refused.
-    let displays = Submenu::new(app, "Show on", !phone)?;
+    let displays = Submenu::with_id(app, "show-on", words.show_on, !phone)?;
     for d in &displays_now {
         let id = &d.id;
         let item = MenuItem::with_id(app, format!("mon:{id}"), d.tray_label(), true, None::<&str>)?;
@@ -78,8 +78,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
     }
 
     // The two screen choices that name no monitor.
-    let auto = MenuItem::with_id(app, "place-auto", "Automatic", true, None::<&str>)?;
-    let on_phone = MenuItem::with_id(app, "place-phone", "On my phone / tablet", true, None::<&str>)?;
+    let auto = MenuItem::with_id(app, "place-auto", words.automatic, true, None::<&str>)?;
+    let on_phone = MenuItem::with_id(app, "place-phone", words.phone, true, None::<&str>)?;
 
     // Windows moves the mouse to every touch; this puts it back on the monitor
     // it was on once the touch ends (see cursor_guard.rs). Windows-only.
@@ -87,7 +87,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let cursor_guard = CheckMenuItem::with_id(
         app,
         "cursor-guard",
-        "Keep mouse on its screen",
+        words.cursor_guard,
         true,
         saved.cursor_guard,
         None::<&str>,
@@ -99,7 +99,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let focus_guard = CheckMenuItem::with_id(
         app,
         "focus-guard",
-        "Keep games focused",
+        words.focus_guard,
         true,
         saved.focus_guard,
         None::<&str>,
@@ -117,18 +117,18 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let gpu_pin = CheckMenuItem::with_id(
         app,
         "gpu-pin",
-        "Match render GPU to screen (next launch)",
+        words.gpu_pin,
         true,
         saved.gpu_pin,
         None::<&str>,
     )?;
 
     let menu = Menu::new(app)?;
-    menu.append(&show)?;
-    menu.append(&hide)?;
     if let Some(item) = &xenon_menu {
         menu.append(item)?;
     }
+    menu.append(&show)?;
+    menu.append(&hide)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&fullscreen)?;
     if displays_now.len() > 1 {
@@ -148,6 +148,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
     menu.append(&crash_log)?;
     menu.append(&restart)?;
     menu.append(&quit)?;
+    crate::tray_words::keep(menu.clone());
 
     // The check items are set from inside the event handler, so they need their
     // own clones (menu-item handles are cheap, reference-counted clones).
