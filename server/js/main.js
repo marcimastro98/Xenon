@@ -349,7 +349,7 @@ function postponeAutoUpdate() {
       es.addEventListener(name, () => window.dispatchEvent(new Event('xenon-menu-changed')));
     });
     // The Xenon menu asked for with no shell to draw it over the screen (a
-    // browser, a phone's dashboard): the same menu as a panel here. Never on a
+    // browser, a phone's dashboard): the same section, a page of Settings here. Never on a
     // layer page; a phone opens it only from its own Deck key (js/deck.js
     // runClientAction) or tile.
     es.addEventListener('xenon_menu_panel', e => {
@@ -1063,6 +1063,7 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
       // A search in progress is cleared first; the next Esc closes Settings.
       if (window.SettingsSearch && SettingsSearch.handleEscape()) return;
+      if (window.XenonMenuPanel && XenonMenuPanel.escape()) return;   // a widget's screen of the menu
       closeSettings();
       return;
     }

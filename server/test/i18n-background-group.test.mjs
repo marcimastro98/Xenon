@@ -16,6 +16,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const Pages = createRequire(import.meta.url)('../js/xenon-pages.js');
 
 const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -76,8 +79,8 @@ test('the group heading and upload row carry their keys', () => {
 // Leaving the rail's name untranslated hid the whole category rather than one
 // row: the user was scanning a Spanish sidebar for a Spanish word.
 test('the sidebar entry for the category has its own translated name', () => {
-  const nav = HTML.slice(HTML.indexOf('class="settings-nav-btn" data-settings-cat="background"'));
-  assert.match(nav.slice(0, nav.indexOf('</button>')), /data-i18n="settings_cat_background"/);
+  const row = Pages.rows(Pages.SECTIONS, []).find((r) => r.page === 'background');
+  assert.equal(row.label, 'settings_cat_background');
   assert.equal((I18N.match(/\bsettings_cat_background["']?:/g) || []).length, LANGS.length);
 });
 

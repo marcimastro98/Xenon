@@ -23,6 +23,8 @@ export const VIEWPORTS = [
   { name: 'phone-side', width: 844, height: 390, isMobile: true, hasTouch: true, extra: true },
   { name: 'small-side', width: 667, height: 375, isMobile: true, hasTouch: true, extra: true },
   { name: 'small-phone', width: 360, height: 640, isMobile: true, hasTouch: true, extra: true },
+  // The CORSAIR Xeneon Edge: very wide and short, where Settings lays its pages out in two columns.
+  { name: 'edge', width: 2560, height: 720, extra: true },
 ];
 
 // The sizes a scene is shot at: the ones it names, or every size that is not an extra.

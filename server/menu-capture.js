@@ -92,7 +92,8 @@ function captureSection(st) {
   if (p.captureVideo) rows.push(...recordRows(c, p));
   if (p.captureReplay) rows.push(...replayRows(c));
   rows.push(...folderRows(st, p));
-  rows.push({ kind: 'button', id: 'all', label: k('xmenu_all_options'), sub: k('xmenu_sub_all_options'), action: k('xmenu_open'), act: open('settings:capture'), closes: true });
+  // On the dashboard these rows sit over Settings' capture page itself.
+  rows.push({ kind: 'button', id: 'all', label: k('xmenu_all_options'), sub: k('xmenu_sub_all_options'), action: k('xmenu_open'), act: open('settings:capture'), closes: true, screenOnly: true });
   return rows;
 }
 

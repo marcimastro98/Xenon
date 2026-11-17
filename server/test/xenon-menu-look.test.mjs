@@ -35,10 +35,10 @@ test('a switch that is on shows it on a light theme too', () => {
   assert.doesNotMatch(MENU, /data-appearance="light"\] #xm-root \.xm-switch \.ui-toggle-track \{/);
 });
 
-test('the menu\'s own window is solid, the panel on the dashboard is a sheet', () => {
+test('the menu\'s own window is solid; on the dashboard it is a page of Settings, with no sheet of its own', () => {
   assert.match(MENU, /\.xm-page \.xm-frame \{[^}]*backdrop-filter: none/);
-  assert.match(SHEETS, /\.ask-overlay, \.xm-scrim, /);
-  assert.match(SHEETS, /\.ask-sheet, \.xm-frame, /);
+  assert.doesNotMatch(SHEETS + MENU, /xm-scrim/);
+  assert.match(MENU, /#settings-overlay \.settings-place \{ grid-column: 1 \/ -1; max-width: \d+px; \}/);
 });
 
 test('a key the menu cannot record still does something', () => {
@@ -53,10 +53,12 @@ test('the three ways of using Xenon stand apart from the list under them', () =>
   assert.doesNotMatch(MENU, /\.xm-list:has\(/);
 });
 
-test('on a phone the X stays in the corner, it never takes a row of its own', () => {
+// One way to close: the window's own X, or Settings' close key. The rail's group
+// names give way on a phone, where the rail folds.
+test('the menu draws no X of its own; on a phone the rail drops its group names', () => {
+  assert.doesNotMatch(MENU, /\.xm-close/);
   const phone = MENU.slice(MENU.indexOf('@media (max-width: 720px)'), MENU.indexOf('@media (pointer: coarse)'));
-  assert.match(phone, /\.xm-close \{ position: absolute;/);
-  assert.match(phone, /\.xm-head \{ position: relative;/);
+  assert.match(phone, /\.xm-nav-head \{ display: none; \}/);
 });
 
 test('the line a widget snaps to and the guide\'s cards do not share a class', () => {

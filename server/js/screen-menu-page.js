@@ -4,7 +4,7 @@
 // in a window with a title bar, on top only of a game, while the server says the menu is
 // open (server/screen-menu.js, the `menu:` surface of js/layers-shell.js) and
 // gives it the keyboard. The menu itself is js/xenon-menu.js, the same one the
-// dashboard shows as a panel. This page only themes it, closes it on Esc (the X
+// dashboard shows as pages of Settings, with the same rail (js/xenon-pages.js). This page only themes it, closes it on Esc (the X
 // is the window's own, layers/menu_window.rs) and sends the verbs that lead
 // elsewhere on their way: Settings, the Store, Scintille and the gallery open in
 // this same window (a sheet, js/sheet-page.js, which comes back here), the
@@ -25,6 +25,7 @@
   let stepped = false;   // out of the picture while a one-shot function runs
   let staying = false;   // a result's button turned this window into another screen
   let view = null;
+  let settings = null;   // the hub's, for the pages of Settings this setup leaves out
 
   // ── Theme and language, as the other layer pages apply them ──
   function resolveAppearance(mode) {
@@ -47,6 +48,7 @@
   }
 
   function applySettings(hs) {
+    if (hs) settings = hs;
     if (!hs || !window.ThemeTokens) return;
     const el = document.documentElement;
     const skin = ThemeTokens.applySkin(el, hs);
@@ -183,6 +185,7 @@
       openLink: window.__xenonSignal ? (url) => { window.location.href = url; } : undefined,
       onResultAction,
       onEvent,
+      hiddenPages: () => (window.SheetUsage ? SheetUsage.hiddenCategories(settings) : []),
     });
     sayResults();
     let left = '';

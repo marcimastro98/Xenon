@@ -35,8 +35,7 @@ test('the player paints the same paths', () => {
 });
 
 test('the fixed faces drawn by hand are not snapped either', () => {
-  const html = read('../index.html');
-  const faces = html.match(/<svg class="bit-nav-sprite".*?<\/svg>/s)[0];
-  assert.doesNotMatch(faces, /crispEdges/);
+  // Bit's row in the rail is drawn by the player now (js/xenon-menu-icons.js MARKS).
+  assert.match(read('../js/xenon-menu-icons.js'), /bit: \(\) => \(window\.BitApp \? window\.BitApp\.icon\(/);
   assert.doesNotMatch(read('../js/bit-message-card.js'), /crispEdges/);
 });

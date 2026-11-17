@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
 
 // The Settings search and the "add widget" search index what the page and
 // i18n.js already say, plus hidden words per category and per widget. These
@@ -22,12 +23,9 @@ function loadI18n() {
 }
 const i18n = loadI18n();
 
-// Categories as the sidebar lists them, plus the one settings.js adds at
-// runtime (external calendars).
+// Pages as the rail lists them (js/xenon-pages.js): the menu's sections, Settings' categories.
 function categories() {
-  const cats = new Set(['calendar']);
-  for (const m of HTML.matchAll(/data-settings-cat="([a-z]+)"[^>]*onclick="settingsSetCategory\(/g)) cats.add(m[1]);
-  return [...cats];
+  return [...createRequire(import.meta.url)('../js/xenon-pages.js').PAGES];
 }
 
 function widgetIds() {

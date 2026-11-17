@@ -5,6 +5,9 @@
 /* global hubSettings, setAppearance, applyHubSettings, openSettings, openDayModal, XenonCredits, XenonCreditsSettings, CommunityGallery, SparksMail, BitMessages,
    setLang, _aiDropWelcome, _aiAppendBubble, updateMediaChatKeyState */
 
+import { createRequire } from 'node:module';
+import { menuState, PHONES } from '../menu-shots/fixture.mjs';
+
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
 const BALANCE_FULL = { ...BALANCE_LOW, balance: 260, included: 260 };
 
@@ -97,7 +100,19 @@ async function deckKeyState() {
   return null;
 }
 
+// Xenon, one place (js/xenon-pages.js): a section of the menu and a page of Settings
+// under one rail, with the menu's invented answer (tools/menu-shots/fixture.mjs).
+const XenonMenu = createRequire(import.meta.url)('../../server/xenon-menu.js');
+const XENON_ROUTES = { '/xenon-menu': { ...XenonMenu.compose(menuState()), altGrKeys: [] }, '/api/remote-access/status': { devices: PHONES } };
+const XENON_SIZES = ['desk', 'phone', 'edge'];
+const xenonScenes = {
+  'xenon-screens': { routes: XENON_ROUTES, sizes: XENON_SIZES, open: async () => { openSettings('screens'); await new Promise((r) => setTimeout(r, 1500)); return null; } },
+  'xenon-capture': { routes: XENON_ROUTES, sizes: XENON_SIZES, open: async () => { openSettings('capture'); await new Promise((r) => setTimeout(r, 1500)); return null; } },
+  'xenon-weather': { routes: XENON_ROUTES, sizes: XENON_SIZES, open: async () => { openSettings('weather'); await new Promise((r) => setTimeout(r, 1500)); return null; } },
+};
+
 export const SCENES = {
+  ...xenonScenes,
   ...chipScenes,
   // Settings → Bit with a low balance: the three packs.
   'sparks-settings': {

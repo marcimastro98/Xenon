@@ -17,10 +17,11 @@
 // The shell also calls run() directly when the dashboard is already loaded
 // (monitor::open_dashboard).
 (function (root, factory) {
-  const api = factory();
-  if (typeof module === 'object' && module.exports) module.exports = api;
+  const node = typeof module === 'object' && module.exports;
+  const api = factory(node ? require('./xenon-pages.js') : root.XenonPages);
+  if (node) module.exports = api;
   if (root) root.DashboardOpen = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, function (Pages) {
   const PARAMS = ['open', 'filter', 'id', 'cat', 'kind', 'entry', 'deck', 'profile', 'path', 'page', 'slot'];
   const GALLERY_FILTERS = ['video', 'screenshot'];
   // The Ambient category is `lock` inside Settings; an unknown one hides every pane.
@@ -31,9 +32,10 @@
   const STORE_KINDS = ['ambient', '__screen', '__installed'];
   // One creation of the Store, the button of a message from Bit (js/bit-messages.js).
   const ENTRY_ID = /^[a-z0-9][a-z0-9_-]{0,60}$/;
-  // Settings categories the shell may ask for: the ones the Xenon menu opens
-  // (xenon-menu.js `settings:<cat>`) and a tile's Set up button on a widget on
-  // the screen (utils.js openSettingsCategory), mirrored by SETTINGS_CATS in spec.rs.
+  // Settings categories the shell may ask for: the ones the Xenon menu's rows open
+  // and a tile's Set up button on a widget on the screen (utils.js
+  // openSettingsCategory), mirrored by SETTINGS_CATS in spec.rs. Its window's
+  // rail opens any page of Settings in a sheet (js/xenon-pages.js isCat).
   const SETTINGS_CATS = ['ambient', 'appearance', 'capture', 'general', 'notifications',
     'ai', 'smarthome', 'spotify', 'streaming', 'unifi', 'slideshow', 'phone'];
   // The screens that open alone in the Xenon menu's window (js/sheet-page.js).
@@ -47,6 +49,8 @@
   const ASK_MAX_AGE_MS = 60 * 1000;
   const ASK_MAX_CHARS = 2000;
 
+  const isCat = (cat) => SETTINGS_CATS.includes(cat) || !!(Pages && Pages.isCat(cat));
+
   // What a request may carry, from untrusted input (a URL or an SSE payload).
   function normalize(o) {
     if (!o || typeof o !== 'object') return null;
@@ -55,7 +59,7 @@
       if (typeof o.entry === 'string' && ENTRY_ID.test(o.entry)) return { open: 'store', entry: o.entry };
       return STORE_KINDS.includes(o.kind) ? { open: 'store', kind: o.kind } : { open: 'store' };
     }
-    if (o.open === 'settings') return SETTINGS_CATS.includes(o.cat) ? { open: 'settings', cat: o.cat } : { open: 'settings' };
+    if (o.open === 'settings') return isCat(o.cat) ? { open: 'settings', cat: o.cat } : { open: 'settings' };
     if (o.open === 'macro') return typeof o.id === 'string' && KEY_ID.test(o.id) ? { open: 'macro', id: o.id } : { open: 'macro' };
     if (o.open === 'deckkey') return deckKey(o);
     if (o.open !== 'gallery') return null;

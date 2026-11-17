@@ -117,8 +117,8 @@ if (typeof window !== 'undefined') (function () {
   const OVERLAY_IDS = ['ai-overlay', 'settings-overlay', 'weather-overlay', 'app-switcher', 'tab-switcher', 'day-modal'];
   // `.ask-overlay` is a Codex or Claude Code request: a tool call is blocked on a tap,
   // so starting a screensaver over it would hide the one thing on screen that
-  // someone is waiting for. `.xm-scrim` is the Xenon menu on the dashboard, as Settings above.
-  const OVERLAY_SELECTOR = '.preset-modal-overlay, .cw-perm-backdrop, .ask-overlay, .xm-scrim, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, dialog[open]';
+  // someone is waiting for. The Xenon menu on the dashboard is a page of Settings, above.
+  const OVERLAY_SELECTOR = '.preset-modal-overlay, .cw-perm-backdrop, .ask-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, dialog[open]';
 
   let idleTimer = null;
   let lastRearm = 0;

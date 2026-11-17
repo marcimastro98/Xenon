@@ -67,7 +67,7 @@
   }
 
   function applyEngine() {
-    if (!engine || isRemote()) return;
+    if (!engine || engine.capture !== true || isRemote()) return;
     // A catalog without the key (an older server) keeps the row, as before.
     setSettingsCardAvailable($id('settings-capture-video-group'), engine.captureVideo !== false);
     setSettingsCardAvailable($id('settings-replay-group'), engine.captureReplay !== false);
@@ -86,17 +86,21 @@
     }
   }
 
-  // The nav entry shows only where the capture engine runs; the benchmark
-  // folder also needs a benchmark that can run here. What this engine cannot
-  // do (on macOS: the timer pill) is
-  // hidden, not offered and then refused.
+  // The capture panes show only where the capture engine runs (the menu's capture
+  // rows above them say why when it does not); the benchmark folder also needs a
+  // benchmark that can run here. What this engine cannot do (on macOS: the timer
+  // pill) is hidden, not offered and then refused.
   function probe() {
-    const nav = $id('settings-nav-capture');
-    if (!nav || probing) return;
+    const gallery = $id('settings-capture-gallery');
+    if (!gallery || probing) return;
     probing = apiJson('/actions/catalog').then((d) => {
       if (!d) { probing = null; return; }   // asked again on the next open
       const caps = d.capabilities || {};
-      nav.hidden = caps.capture !== true;
+      const on = caps.capture === true;
+      setSettingsCardAvailable(gallery, on);
+      setSettingsCardAvailable($id('settings-capture-video-group'), on);   // applyEngine says more
+      setSettingsCardAvailable($id('settings-replay-group'), on && !isRemote());
+      setSettingsCardAvailable($id('settings-bug-group'), on && !isRemote());
       setSettingsCardAvailable($id('settings-bench-group'), caps.capture === true && caps.benchmark === true && !isRemote());
       engine = caps;
       platform = typeof d.platform === 'string' ? d.platform : '';

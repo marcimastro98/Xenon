@@ -813,7 +813,7 @@ function _aiExecuteClientAction(action, args) {
       if (typeof toggleWeatherDetails === 'function') toggleWeatherDetails();
       break;
     case 'open_settings':
-      if (typeof toggleSettings === 'function') toggleSettings();
+      if (typeof openSettings === 'function') openSettings(window.XenonPages ? XenonPages.pageOf(args && args.page) : '');   // opens, never closes
       break;
     case 'open_app_switcher':
       if (typeof toggleAppSwitcher === 'function') toggleAppSwitcher();
