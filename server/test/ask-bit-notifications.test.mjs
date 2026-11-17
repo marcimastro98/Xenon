@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const B = require('../js/briefing-toast.js');
@@ -130,7 +131,7 @@ test('asking keeps the question and opens the search window; a bad body opens no
 });
 
 test('neither path is open to a paired device, and both are CSRF-guarded', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS'), server.indexOf(']);', server.indexOf('const CSRF_MUTATION_PATHS')));
   for (const p of ['/spotlight/ask', '/spotlight/ask/take']) {
     assert.equal(remotePathAllowed(p, 'POST'), false, p);
