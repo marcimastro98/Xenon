@@ -14,7 +14,7 @@ const { lookSection } = require('./menu-look.js');
 // gets, and what search finds under the home.
 function modeSection(st) {
   const rows = [];
-  if ((st.probes || {}).usageMode) {
+  if (st.probes?.usageMode) {
     const value = st.usageMode || 'dashboard';
     rows.push({
       kind: 'mode', id: 'mode', label: k('xmenu_mode'), value,
@@ -34,14 +34,14 @@ function modeSection(st) {
 
 // The screen a widget row is on: its monitor (menu-widgets.js keeps only a known one),
 // else the main screen; an app's window has no screen of its own and follows the app.
-const screenOfRow = (r, main) => (r.at && r.at.monitor) || main;
+const screenOfRow = (r, main) => r.at?.monitor || main;
 
 // Dashboard or widgets, on one screen. The dashboard goes where it is chosen and the
 // widgets stay on the other screens; widgets on the dashboard's own screen closes the
 // dashboard. "Not asked yet" behaves as the dashboard, so it keeps both. The answer in
 // use never runs (the mode row only acts on the other one).
 function showsRow(st, n, here) {
-  if (!(st.probes || {}).usageMode) return null;
+  if (!st.probes?.usageMode) return null;
   const mode = st.usageMode === 'widgets' || !st.usageMode ? 'both' : st.usageMode;
   return {
     kind: 'mode', id: 'shows-' + n, label: k('xmenu_scr_shows'), value: here ? 'dashboard' : 'widgets',
@@ -111,7 +111,7 @@ function screensSection(st) {
   const map = look.find((r) => r.kind === 'screens');
   const screens = screensOf(st);
   const ctx = {
-    st, dash: String((st.scene || {}).dashboard || ''), looks: map ? map.screens : [],
+    st, dash: String(st.scene?.dashboard || ''), looks: map ? map.screens : [],
     widgetRows: widgets.filter((r) => r.kind === 'widget'),
     alerts: mode.filter((r) => r.id === 'alerts'),
     wait: look.filter((r) => r.id === 'sceneWait'),

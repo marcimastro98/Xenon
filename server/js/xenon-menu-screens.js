@@ -22,6 +22,15 @@
   // The paired list changes only when someone pairs or removes one: read again at most this often.
   const PHONES_STALE_MS = 30 * 1000;
 
+  // The home row as a place shows it (js/xenon-menu.js sectionsFor): `keep` drops what that
+  // place cannot run, and a tab left with nothing there (the dashboard's tiles, seen from
+  // the dashboard) is not drawn.
+  function inPlace(row, keep) {
+    const tabs = (v) => ({ ...v, tabs: (v.tabs || []).map((t) => (t.rows ? { ...t, rows: keep(t.rows) } : t)).filter((t) => t.widgets || !t.rows || t.rows.length) });
+    const parts = Object.fromEntries(Object.entries(row.parts || {}).map(([id, rows]) => [id, keep(rows)]));
+    return { ...row, screens: (row.screens || []).map(tabs), parts, tune: keep(row.tune) };
+  }
+
   // The phones and tablets paired with this PC, or null. The list is the PC's own: a
   // paired device is refused it (remote-access.js), and then the page shows none.
   async function pairedOn(server) {
@@ -155,7 +164,7 @@
     // The tab's rows; a scene list carries the screen's moving preview (`live`).
     function panelOf(tab, r, redraw, view) {
       let live = null;
-      if (tab && tab.widgets) {
+      if (tab?.widgets) {
         const box = el('div', 'xm-wpanel xm-scrrows xm-scrwidgets');
         box.setAttribute('role', 'tabpanel');
         for (const x of tab.rows || []) if (DRAW[x.kind]) box.appendChild(DRAW[x.kind](x));
@@ -193,7 +202,7 @@
       const shape = MenuMap.layout(r.screens);
       const map = el('div', 'xm-map xm-scrmap');
       map.style.setProperty('--xm-ratio', String(shape.ratio));
-      map.append(...shape.screens.map((m) => screenNode(m, !!view && m.key === view.key, pick, live && live.box)));
+      map.append(...shape.screens.map((m) => screenNode(m, !!view && m.key === view.key, pick, live?.box)));
       const pic = el('div', 'xm-detail-pic');
       pic.append(...[map, el('p', 'xm-cap', say(r.sub)), phonesNode()].filter(Boolean));
       const choices = el('div', 'xm-detail-choices');
@@ -226,5 +235,5 @@
     return { draw };
   }
 
-  return { create, pickedOf, tabOf };
+  return { create, pickedOf, tabOf, inPlace };
 });

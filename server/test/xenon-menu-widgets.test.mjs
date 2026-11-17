@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 const View = require('../js/xenon-menu-widget-view.js');
 const XenonMenuMap = require('../js/xenon-menu-map.js');
 const LayerSee = require('../js/layer-see.js');
+const PageEdit = require('../js/xenon-menu-page-edit.js');
 globalThis.window = { XenonMenuWidgetView: View, XenonMenuMap, LayerSee, matchMedia: () => ({ matches: false }) };
 const { create, onPage } = require('../js/xenon-menu-widgets.js');
 
@@ -92,16 +93,21 @@ function rig(over = {}) {
   main.scrollTop = 40;
   main.querySelectorAll = () => all(main).filter((n) => n.dataset.keep);
   const DRAW = Object.fromEntries(['status', 'toggle', 'checks', 'choice', 'pages', 'mode', 'button', 'key', 'pageEdit', 'place', 'guide', 'tunehead', 'when'].map((k) => [k, (r) => Object.assign(node('row', k, r.id), { row: r })]));
-  const widgets = create({
+  const ui = {
     el: node,
     button: (cls, label) => node('button', cls, label),
-    say, tt: (k) => k, fill: (s, v) => `${s}:${Object.values(v).join(',')}`, factLine: (list) => list.map(say).join(' '),
+    say, tt: (k) => k, fill: (s, v) => `${s}:${Object.values(v).join(',')}`,
     icon: (n) => node('svg', 'xm-ic', n),
-    switchFor: (r) => { const s = node('switch', 'xm-switch'); s.dataset.keep = r.id; return s; },
     perform: async (_row, act, onDone) => { log.acts.push(act); if (onDone) onDone(over.res || {}); return true; },
     redraw: () => { log.redraws += 1; },
+  };
+  // The bar of pages is the real one; the page's own screen is stood in for.
+  const pageEdit = PageEdit.create(ui);
+  const widgets = create({
+    ...ui, factLine: (list) => list.map(say).join(' '),
+    switchFor: (r) => { const s = node('switch', 'xm-switch'); s.dataset.keep = r.id; return s; },
     server: 'http://x', DRAW, Place: { picture: () => node('img', 'xm-app-icon') }, Palette: null,
-    pageEdit: { typing: () => !!over.typing, drawScreen: (r) => ({ name: node('field', 'xm-page-name', r.name), gone: node('div', 'xm-gone') }) },
+    pageEdit: { bar: pageEdit.bar, typing: () => !!over.typing, drawScreen: (r) => ({ name: node('field', 'xm-page-name', r.name), gone: node('div', 'xm-gone') }) },
     peek: over.peek, main, clearFind: () => { log.cleared += 1; }, show: () => { log.shows += 1; widgets.reset(); },
   });
   DRAW.widget = widgets.drawRow;

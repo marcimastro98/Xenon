@@ -26,9 +26,9 @@
   const onPage = (rows, page) => widgetsOf(rows).filter((r) => !page || r.page === page);
   // The widget rows of a section: its home row carries them.
   const homeOf = (s) => (s && Array.isArray(s.rows) ? s.rows.find((r) => r.kind === 'home') : null);
-  const rowsOf = (s) => { const home = homeOf(s); return home && home.parts ? home.parts.widgets : null; };
+  const rowsOf = (s) => { const home = homeOf(s); return home?.parts ? home.parts.widgets : null; };
   // A card's act, sent to the screen it was added from; without one it goes to the main screen.
-  const onScreen = (act, monitor) => (monitor && act && act.run && PLACING.includes(act.run.type) ? { ...act, run: { ...act.run, monitor } } : act);
+  const onScreen = (act, monitor) => (monitor && act?.run && PLACING.includes(act.run.type) ? { ...act, run: { ...act.run, monitor } } : act);
 
   // ctx: { el, button, say, tt, fill, factLine, icon, switchFor, perform, redraw, server,
   //        DRAW, Place, Palette, pageEdit, peek, main, clearFind, show }
@@ -136,43 +136,8 @@
       return li;
     }
 
-    // ── The list of a page ──
-    function pageChip(pages, o) {
-      const isNew = o.value === 'new';
-      const b = button(isNew ? 'xm-choice xm-pageadd' : 'xm-choice', isNew ? null : say(o.label));
-      b.dataset.keep = `pages:${o.value}`;
-      if (isNew) {
-        b.setAttribute('aria-label', say(o.label));
-        b.append(icon('plus') || '+');
-      } else b.setAttribute('aria-pressed', String(o.value === pages.value));
-      b.addEventListener('click', () => { if (o.value !== pages.value) perform(pages, o.act); });
-      return b;
-    }
-
-    function pageBar(pages) {
-      const bar = el('div', 'xm-pagebar');
-      bar.setAttribute('role', 'group');
-      bar.setAttribute('aria-label', say(pages.label));
-      bar.append(...pages.options.map((o) => pageChip(pages, o)));
-      return bar;
-    }
-
-    function pageLink(edit) {
-      const change = button('xm-link xm-pageedit', tt('xmenu_page_edit'));
-      change.dataset.keep = 'pageEdit';
-      change.addEventListener('click', () => { go({ name: 'page', id: edit.page }); redraw(); });
-      return change;
-    }
-
-    function pagesBlock(rows, pages) {
-      const box = el('div', 'xm-pages');
-      const bar = pageBar(pages);
-      const edit = byKind(rows, 'pageEdit');
-      if (edit) bar.appendChild(pageLink(edit));
-      box.append(bar, el('p', 'xm-sub xm-pages-how', say(pages.how)));
-      return box;
-    }
-
+    // ── The list of a page (its bar is js/xenon-menu-page-edit.js) ──
+    const openPage = (id) => { go({ name: 'page', id }); redraw(); };
     const pageName = (pages, id) => say(pages.options.find((o) => o.value === id).label);
 
     // A screen, or a page of it, with nothing on it: what goes there, and the first one.
@@ -276,7 +241,7 @@
       const where = byId(rows, 'map');
       const drawn = where && mine.length ? mapScreens(where, screen) : null;
       const body = [
-        pages && pagesBlock(rows, pages),
+        pages && pageEdit?.bar(pages, byKind(rows, 'pageEdit'), openPage),
         drawn && mapBlock(where, mine, drawn),
         mine.length ? groups(mine) : emptyScreen(add, pages, monitor),
         mine.length && actions(undoButton(rows), addButton(add, monitor)),
@@ -291,7 +256,7 @@
     function addCard(c) {
       const b = button('xm-addchoice');
       b.append(addThumb(c), el('span', 'xm-addname', say(c.label)));
-      if (c.tile && Palette && Palette.forSupporters(c.tile)) b.appendChild(el('span', 'xm-addtag', tt('palette_supporters')));
+      if (c.tile && Palette?.forSupporters(c.tile)) b.appendChild(el('span', 'xm-addtag', tt('palette_supporters')));
       if (c.sub) b.appendChild(el('span', 'xm-sub xm-addsub', say(c.sub)));
       if (c.rec) b.appendChild(el('span', 'xm-sub xm-addsub', factLine([c.rec], tt)));
       return b;
@@ -301,7 +266,7 @@
     // reach the page a moment later, so the new id is held until they do.
     function placed(res) {
       reset();
-      go({ name: 'widget', id: (res.placed && res.placed.id) || res.id, fresh: true });
+      go({ name: 'widget', id: res.placed?.id || res.id, fresh: true });
     }
 
     function paintCards(add, list) {
@@ -368,7 +333,7 @@
       return {
         back: backButton(),
         title: r.label,
-        sub: { text: factLine([peek && peek.held() && r.peek ? r.peek : r.now].filter(Boolean), tt) },
+        sub: { text: factLine([peek?.held() && r.peek ? r.peek : r.now].filter(Boolean), tt) },
         action: actions(undoButton(rows), switchFor(r, fill(tt('xmenu_widget_show'), { name: say(r.label) }))),
         body: [widgetView.detail(r, where ? where.screens : [], near)],
       };

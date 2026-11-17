@@ -9,10 +9,11 @@
 // place through `onOpen`, because only it knows how to get there.
 // Every text is set with textContent; no inline styles.
 (function (root, factory) {
-  const api = factory();
-  if (typeof module === 'object' && module.exports) module.exports = api;
+  const node = typeof module === 'object' && module.exports;
+  const api = factory(node ? require('./xenon-menu-screens.js') : root.XenonMenuScreens);
+  if (node) module.exports = api;
   if (root) root.XenonMenuView = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, function (HomeRow) {
   const CLOSE_FIRST_MS = 300;   // a closing row runs once the menu is off the screen
   const ERROR_FOR_MS = 6000;
   const KEY_TO_TRY = 'ctrl+alt+f9';   // Ctrl+Alt with a letter is AltGr: it is refused
@@ -63,10 +64,7 @@
   function sectionsFor(data, place) {
     const list = (data && Array.isArray(data.sections)) ? data.sections : [];
     const keep = (rows) => (Array.isArray(rows) ? rows : []).filter((r) => r && !(r.screenOnly && place !== 'screen'));
-    // A tab left with nothing in this place (the dashboard's tiles, seen from the dashboard) is not drawn.
-    const tabs = (v) => ({ ...v, tabs: (v.tabs || []).map((t) => (t.rows ? { ...t, rows: keep(t.rows) } : t)).filter((t) => t.widgets || !t.rows || t.rows.length) });
-    const parts = (p) => Object.fromEntries(Object.entries(p || {}).map(([id, rows]) => [id, keep(rows)]));
-    const home = (r) => (r.kind === 'home' ? { ...r, screens: (r.screens || []).map(tabs), parts: parts(r.parts), tune: keep(r.tune) } : r);
+    const home = (r) => (r.kind === 'home' && HomeRow ? HomeRow.inPlace(r, keep) : r);
     return list.map((s) => ({ ...s, rows: keep(s.rows).map(home) }));
   }
 
@@ -377,10 +375,9 @@
 
     const drawTuneHead = (r) => el('h3', 'xm-tunehead', text(r.label, tt));
 
-    const PageEdit = (typeof window !== 'undefined' && window.XenonMenuPageEdit) || null;
-    const pageEdit = PageEdit ? PageEdit.create({ el, button, tt, fill, rowShell, perform, redraw: () => draw(), root: rootEl }) : null;
-
     const say = (x) => text(x, tt);
+    const PageEdit = (typeof window !== 'undefined' && window.XenonMenuPageEdit) || null;
+    const pageEdit = PageEdit ? PageEdit.create({ el, button, say, tt, fill, icon, rowShell, perform, redraw: () => draw(), root: rootEl }) : null;
     const Place = (typeof window !== 'undefined' && window.XenonMenuPlace) || null;
     const placeDraw = Place ? Place.create({ el, button, say, tt, rowShell, perform, post, showError, redraw: () => draw() }) : null;
     const When = (typeof window !== 'undefined' && window.XenonMenuWhen) || null;

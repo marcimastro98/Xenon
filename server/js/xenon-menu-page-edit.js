@@ -1,8 +1,9 @@
 'use strict';
 
-// The row of the Xenon menu that renames or deletes the selected page of widgets.
-// It holds what is being typed, so a redraw of the menu takes nothing away. Deleting
-// a page that has widgets asks once, saying how many go with it.
+// The pages of widgets in the Xenon menu: the bar that picks one (a chip each, "+" for a
+// new one, the way to the open page's own screen), and the row that renames or deletes
+// the selected page. It holds what is being typed, so a redraw of the menu takes
+// nothing away. Deleting a page that has widgets asks once, saying how many go with it.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
@@ -10,9 +11,9 @@
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   const IDLE = Object.freeze({ page: '', mode: '', name: '' });
 
-  // ctx: { el, button, tt, fill, rowShell, perform, redraw, root }
+  // ctx: { el, button, say, tt, fill, icon, rowShell, perform, redraw, root }
   function create(ctx) {
-    const { el, button, tt, fill, rowShell, perform, redraw, root } = ctx;
+    const { el, button, say, tt, fill, icon, rowShell, perform, redraw, root } = ctx;
     let state = IDLE;
     let saving = false;
 
@@ -118,6 +119,36 @@
       return { name: nameOnScreen(r, shown), gone };
     }
 
+    // ── The bar of pages ──
+    function chip(pages, o) {
+      const isNew = o.value === 'new';
+      const b = button(isNew ? 'xm-choice xm-pageadd' : 'xm-choice', isNew ? null : say(o.label));
+      b.dataset.keep = `pages:${o.value}`;
+      if (isNew) {
+        b.setAttribute('aria-label', say(o.label));
+        b.append(icon('plus') || '+');
+      } else b.setAttribute('aria-pressed', String(o.value === pages.value));
+      b.addEventListener('click', () => { if (o.value !== pages.value) perform(pages, o.act); });
+      return b;
+    }
+
+    // `edit`: the open page's row, when it has a screen of its own, which `openPage(id)` opens.
+    function bar(pages, edit, openPage) {
+      const row = el('div', 'xm-pagebar');
+      row.setAttribute('role', 'group');
+      row.setAttribute('aria-label', say(pages.label));
+      row.append(...pages.options.map((o) => chip(pages, o)));
+      if (edit) {
+        const change = button('xm-link xm-pageedit', tt('xmenu_page_edit'));
+        change.dataset.keep = 'pageEdit';
+        change.addEventListener('click', () => openPage(edit.page));
+        row.appendChild(change);
+      }
+      const box = el('div', 'xm-pages');
+      box.append(row, el('p', 'xm-sub xm-pages-how', say(pages.how)));
+      return box;
+    }
+
     // After a redraw the field is new: put the cursor back in it, once, when renaming starts.
     function focusName() {
       const field = root.querySelector('.xm-page-name');
@@ -125,7 +156,7 @@
     }
 
     return {
-      draw, drawScreen, reset, focusName,
+      draw, drawScreen, bar, reset, focusName,
       holds: () => state.mode === 'rename',
       typing: () => root.ownerDocument.activeElement === root.querySelector('.xm-page-name'),
     };
