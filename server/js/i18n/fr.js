@@ -7193,4 +7193,8 @@ module.exports = {
   bit_trial_end_other: 'Autres options',
   bit_trial_remind_title: 'Vos Étincelles d\'essai se terminent le {date}',
   bit_trial_remind_body: 'Les supporters gardent Bit allumé, avec {n} Étincelles chaque mois.',
+  bit_ask_recap: 'Comment s\'est passée ma partie de {game} ?',
+  bit_ask_recap_last: 'Comment s\'est passée ma dernière partie ?',
+  bit_ask_hot_gpu: 'Pourquoi mon GPU chauffe autant ?',
+  bit_ask_hot_cpu: 'Pourquoi mon CPU chauffe autant ?',
 };

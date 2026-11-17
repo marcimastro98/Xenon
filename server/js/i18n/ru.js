@@ -7303,4 +7303,8 @@ module.exports = {
   bit_trial_end_other: 'Другие способы',
   bit_trial_remind_title: 'Пробные Искры закончатся {date}',
   bit_trial_remind_body: 'Спонсоры продолжают пользоваться Bit: {n} Искр каждый месяц.',
+  bit_ask_recap: 'Как прошла игра в {game}?',
+  bit_ask_recap_last: 'Как прошла последняя игра?',
+  bit_ask_hot_gpu: 'Почему видеокарта так греется?',
+  bit_ask_hot_cpu: 'Почему процессор так греется?',
 };

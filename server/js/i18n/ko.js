@@ -7358,4 +7358,8 @@ module.exports = {
   bit_trial_end_other: '다른 방법',
   bit_trial_remind_title: '체험용 스파크가 {date}에 끝나요',
   bit_trial_remind_body: '후원자는 매달 스파크 {n}개로 Bit를 계속 쓸 수 있어요.',
+  bit_ask_recap: '{game} 플레이 어땠어?',
+  bit_ask_recap_last: '마지막 게임 어땠어?',
+  bit_ask_hot_gpu: 'GPU가 왜 이렇게 뜨거워?',
+  bit_ask_hot_cpu: 'CPU가 왜 이렇게 뜨거워?',
 };

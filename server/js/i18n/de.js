@@ -7212,4 +7212,8 @@ module.exports = {
   bit_trial_end_other: 'Andere Wege',
   bit_trial_remind_title: 'Deine Test-Funken enden am {date}',
   bit_trial_remind_body: 'Unterstützer behalten Bit, mit {n} Funken jeden Monat.',
+  bit_ask_recap: 'Wie lief meine Runde {game}?',
+  bit_ask_recap_last: 'Wie lief meine letzte Runde?',
+  bit_ask_hot_gpu: 'Warum ist meine GPU so heiß?',
+  bit_ask_hot_cpu: 'Warum ist meine CPU so heiß?',
 };

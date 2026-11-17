@@ -33,7 +33,7 @@ The screen itself: the grid of tiles, how it looks, the top bar, the scenes show
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene.html` `server/js/ambient*.js` `server/js/ambient-canvas-editor-form/**` `server/components/AmbientCanvas/**` `server/components/AmbientCanvasEditor/**` and 3 more |
+| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene.html` `server/js/ambient*.js` `server/js/briefing-toast.js` `server/js/ambient-canvas-editor-form/**` `server/components/AmbientCanvas/**` and 4 more |
 | **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/topbar/**` `server/js/topbar-look-settings/**` `server/js/topbar-media/**` `server/components/Topbar/**` `server/components/TopbarMedia/**` `server/components/TopbarMinimal/**` and 1 more |
 | **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/js/custom-bg.js` `server/components/Base/**` `docs/THEME_SYSTEM.md` `server/assets/decor/**` and 3 more |
 | **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/js/main.js` `server/js/dashboard-*.js` `server/js/dashboard-layout/**` `server/js/dashboard-tabgroups/**` and 8 more |
@@ -85,7 +85,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/search.ps1` `server/spotlight.html` `server/js/spotlight/**` `server/components/Spotlight/**` `server/components/SearchWidget/**` and 1 more |
+| **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/spotlight-ask/**` `server/search.ps1` `server/spotlight.html` `server/js/spotlight/**` `server/components/Spotlight/**` and 2 more |
 | **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/ffmpeg-install/**` `server/js/capture-toast/**` `server/js/capture-gallery/**` `server/components/CaptureGallery/**` `server/js/capture/**` |
 | **Xenon menu** | The menu that opens over the desktop: widgets, screens, looks, the Store. | `server/menu/**` `server/menu.html` `server/components/XenonMenu/**` `server/js/menu/**` |
 | **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layers/**` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layers-shell/**` `server/components/LayerHost/**` and 1 more |

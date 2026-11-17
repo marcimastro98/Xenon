@@ -7245,4 +7245,8 @@ module.exports = {
   bit_trial_end_other: 'Otras opciones',
   bit_trial_remind_title: 'Tus Chispas de prueba se acaban el {date}',
   bit_trial_remind_body: 'Los mecenas mantienen a Bit encendido, con {n} Chispas cada mes.',
+  bit_ask_recap: '¿Qué tal fue la partida a {game}?',
+  bit_ask_recap_last: '¿Qué tal fue la última partida?',
+  bit_ask_hot_gpu: '¿Por qué la GPU está tan caliente?',
+  bit_ask_hot_cpu: '¿Por qué la CPU está tan caliente?',
 };

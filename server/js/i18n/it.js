@@ -7365,4 +7365,8 @@ module.exports = {
   bit_trial_end_other: 'Altri modi',
   bit_trial_remind_title: 'Le Scintille di prova finiscono il {date}',
   bit_trial_remind_body: 'Con i sostenitori Bit resta acceso, con {n} Scintille ogni mese.',
+  bit_ask_recap: 'Com\'è andata la partita a {game}?',
+  bit_ask_recap_last: 'Com\'è andata l\'ultima partita?',
+  bit_ask_hot_gpu: 'Perché la GPU è così calda?',
+  bit_ask_hot_cpu: 'Perché la CPU è così calda?',
 };

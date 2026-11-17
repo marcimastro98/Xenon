@@ -7358,4 +7358,8 @@ module.exports = {
   bit_trial_end_other: '其他方式',
   bit_trial_remind_title: '试用火花将于 {date} 结束',
   bit_trial_remind_body: '支持者每月有 {n} 火花，可以继续使用 Bit。',
+  bit_ask_recap: '我玩 {game} 的表现怎么样？',
+  bit_ask_recap_last: '上一局游戏表现怎么样？',
+  bit_ask_hot_gpu: 'GPU 为什么这么热？',
+  bit_ask_hot_cpu: 'CPU 为什么这么热？',
 };

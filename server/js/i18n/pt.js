@@ -7242,4 +7242,8 @@ module.exports = {
   bit_trial_end_other: 'Outras opções',
   bit_trial_remind_title: 'As tuas Faíscas de teste terminam a {date}',
   bit_trial_remind_body: 'Os apoiantes mantêm o Bit ligado, com {n} Faíscas por mês.',
+  bit_ask_recap: 'Como correu o jogo de {game}?',
+  bit_ask_recap_last: 'Como correu o último jogo?',
+  bit_ask_hot_gpu: 'Porque é que a GPU está tão quente?',
+  bit_ask_hot_cpu: 'Porque é que o CPU está tão quente?',
 };

@@ -7366,4 +7366,8 @@ module.exports = {
   bit_trial_end_other: 'Other ways',
   bit_trial_remind_title: 'Your trial Sparks end on {date}',
   bit_trial_remind_body: 'Supporters keep Bit on, with {n} Sparks every month.',
+  bit_ask_recap: 'How did my {game} session go?',
+  bit_ask_recap_last: 'How did my last game go?',
+  bit_ask_hot_gpu: 'Why is my GPU this hot?',
+  bit_ask_hot_cpu: 'Why is my CPU this hot?',
 };

@@ -200,6 +200,8 @@ const REMOTE_ADMIN = new Set([
   '/api/devclean/compact',
   // A 115 MB download that puts programs on the PC.
   '/api/ffmpeg/install',
+  // A question for Bit opens the search window on the PC, with the words typed.
+  '/spotlight/ask', '/spotlight/ask/take',
   '/api/features/devclean/unlock',
   '/api/features/lyrics/unlock',
   // Throws away the PC's remembered supporter pass: only the person at the PC

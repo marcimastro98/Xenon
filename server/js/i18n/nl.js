@@ -7354,4 +7354,8 @@ module.exports = {
   bit_trial_end_other: 'Andere manieren',
   bit_trial_remind_title: 'Je proefvonken stoppen op {date}',
   bit_trial_remind_body: 'Supporters houden Bit aan, met {n} Vonken per maand.',
+  bit_ask_recap: 'Hoe ging mijn potje {game}?',
+  bit_ask_recap_last: 'Hoe ging mijn laatste potje?',
+  bit_ask_hot_gpu: 'Waarom is mijn GPU zo warm?',
+  bit_ask_hot_cpu: 'Waarom is mijn CPU zo warm?',
 };

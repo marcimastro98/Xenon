@@ -7358,4 +7358,8 @@ module.exports = {
   bit_trial_end_other: 'ほかの方法',
   bit_trial_remind_title: 'お試しスパークは {date} に終了します',
   bit_trial_remind_body: 'サポーターなら毎月 {n} スパークで Bit を使い続けられます。',
+  bit_ask_recap: '{game} のプレイはどうだった？',
+  bit_ask_recap_last: '前回のゲームはどうだった？',
+  bit_ask_hot_gpu: 'GPU がこんなに熱いのはなぜ？',
+  bit_ask_hot_cpu: 'CPU がこんなに熱いのはなぜ？',
 };

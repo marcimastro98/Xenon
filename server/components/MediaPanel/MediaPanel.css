@@ -250,3 +250,19 @@
 }
 .bit-sheet > [data-chatf="pane"] { flex: 1 1 auto; min-height: 0; }
 body.bit-sheet-open { overflow: hidden; }
+/* "Ask Bit" on a wide screen (BitChatFull.ask): the same chat as a card over the
+   dimmed dashboard. No blur: a full-screen blur costs the Edge's integrated GPU. */
+.bit-sheet.bit-sheet-card {
+  align-items: center; justify-content: center;
+  padding: clamp(10px, 3vh, 28px);
+  background: rgba(6, 7, 9, 0.72);
+}
+.bit-sheet-card > [data-chatf="pane"] {
+  flex: 0 1 auto; box-sizing: border-box;
+  width: min(460px, 100%); height: min(640px, 100%);
+  padding: 12px;
+  background: var(--surface, rgb(var(--panel-rgb, 17, 19, 20)));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-modal);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}

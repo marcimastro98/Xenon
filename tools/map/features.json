@@ -239,6 +239,7 @@
       "what": "One box that finds files and apps and can ask Bit.",
       "files": [
         "server/search/**",
+        "server/spotlight-ask/**",
         "server/search.ps1",
         "server/spotlight.html",
         "server/js/spotlight/**",
@@ -603,6 +604,7 @@
         "server/ambient/**",
         "server/scene.html",
         "server/js/ambient*.js",
+        "server/js/briefing-toast.js",
         "server/js/ambient-canvas-editor-form/**",
         "server/components/AmbientCanvas/**",
         "server/components/AmbientCanvasEditor/**",

@@ -92,6 +92,7 @@ let hubSettings = {};
     leftAlone = false;
     takeKeyboard();
     refreshLook();
+    if (chat()) chat().takeAsked();
   };
 
   window.addEventListener('blur', () => { leftAlone = true; });
@@ -147,6 +148,7 @@ let hubSettings = {};
     const hs = await readSettings();
     if (hs) applySettings(hs);
     window.Spotlight.open();
+    if (chat()) chat().takeAsked();
   }
 
   if (FRAMELESS) {
