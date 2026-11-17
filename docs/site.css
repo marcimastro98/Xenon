@@ -768,7 +768,6 @@ html.xh-lock, html.xh-lock body { overflow: hidden; }
 .xf-brand .xh-brand { justify-self: start; }
 .xf-brand p { margin: 0; font-size: 15.5px; line-height: 1.5; max-width: 42ch; color: var(--bone-1); }
 .xf-bit { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--bone-1); }
-.xf-bit img { width: 36px; height: 36px; image-rendering: pixelated; }
 .xf-col { grid-column: span 2; }
 .xf-col h2 { font: 700 16px/1.3 var(--sans); margin: 0 0 12px; color: var(--bone-0); letter-spacing: 0; }
 .xf-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; font-size: 15.5px; }
