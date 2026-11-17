@@ -1118,9 +1118,12 @@
     });
   }
 
-  function openReleaseNotes(wn, notes, done) {
+  // Xenon on the dashboard is the page the gear opens, here on every surface.
+  async function openReleaseNotes(wn, notes, done) {
+    const key = notes.news.some((n) => n.keys) ? await menuKey() : '';
     window.XenonReleaseNotes.openNotes({
-      notes, text: pickLang, tr: trKey, url: wn.url, openUrl: openExternal,
+      notes, text: pickLang, tr: trKey, url: wn.url, openUrl: openExternal, menuKey: key,
+      openXenon: (section) => { if (typeof openSettings === 'function') openSettings(section); },
       onClose: () => {
         CARDS().rememberUpdateNotice({ notes: notes.version });
         done();

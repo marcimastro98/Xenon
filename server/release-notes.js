@@ -53,13 +53,20 @@ function normalizeMore(raw, text) {
   return items.length ? { title: text(raw.title), items, note: text(raw.note) } : null;
 }
 
+// What a news row may add: the key that opens Xenon (`keys`) and a button to one of
+// its pages (`section`). Each is left out when absent, so plain rows stay as they were.
+function newsTry(n) {
+  const section = oneOf(MENU_SECTIONS, n?.section);
+  return { ...(n?.keys === true ? { keys: true } : {}), ...(section ? { section } : {}) };
+}
+
 function normalizeRelease(raw, text) {
   if (!raw || typeof raw !== 'object' || !VERSION.test(String(raw.version || ''))) return null;
   const fixes = (Array.isArray(raw.fixes) ? raw.fixes : []).slice(0, MAX_ROWS)
     .map((f) => ({ area: text(f && f.area), text: text(f && f.text) }))
     .filter((f) => f.area && f.text);
   const news = (Array.isArray(raw.news) ? raw.news : []).slice(0, MAX_ROWS)
-    .map((n) => ({ title: text(n && n.title), text: text(n && n.text) }))
+    .map((n) => ({ title: text(n?.title), text: text(n?.text), ...newsTry(n) }))
     .filter((n) => n.title);
   return fixes.length || news.length ? { version: raw.version, news, fixes } : null;
 }

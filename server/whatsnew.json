@@ -1,5 +1,5 @@
 {
-  "_note": "The after-update story, written by hand with every release. See tools/whats-new-media/README.md and .claude/docs/release-flow.md. `id` + `intro` + `highlights` + `more` are the full-screen What's New of a MAJOR: bump `id` only for one, it opens for everyone until they close it. Each highlight is one sheet: `color` (green, lavender, yellow, blue, orange), `clip` (a Bit clip; never a yellow Bit on yellow, never a green one on green), `scene` (menu, capture, fps, bit: a panel drawn in js/whats-new-scenes.js), `section` (the Xenon menu section its button opens), `go` (sparks, supporters, maker: a button that closes the sheets and goes there), optional `media` instead of the scene: a file of server/assets/whatsnew (.mp4 needs a `poster` .webp beside it, tools/whats-new-media builds them) or a GitHub-hosted image. `releases` lists every patch and minor since the last major, newest anywhere: { version, fixes: [{ area, text }], news: [{ title, text }] }, each text a { <lang>: string } map in all 11 languages; a test fails when the running version has neither an `id` nor an entry. Text may be a plain string or a map.",
+  "_note": "The after-update story, written by hand with every release. See tools/whats-new-media/README.md and .claude/docs/release-flow.md. `id` + `intro` + `highlights` + `more` are the full-screen What's New of a MAJOR: bump `id` only for one, it opens for everyone until they close it. Each highlight is one sheet: `color` (green, lavender, yellow, blue, orange), `clip` (a Bit clip; never a yellow Bit on yellow, never a green one on green), `scene` (menu, capture, fps, bit: a panel drawn in js/whats-new-scenes.js), `section` (the Xenon menu section its button opens), `go` (sparks, supporters, maker: a button that closes the sheets and goes there), optional `media` instead of the scene: a file of server/assets/whatsnew (.mp4 needs a `poster` .webp beside it, tools/whats-new-media builds them) or a GitHub-hosted image. `releases` lists every patch and minor since the last major, newest anywhere: { version, fixes: [{ area, text }], news: [{ title, text }] }, each text a { <lang>: string } map in all 11 languages; a test fails when the running version has neither an `id` nor an entry. Text may be a plain string or a map. A news row may add `keys: true` (the keys that open Xenon, where they exist) and `section` (a button that opens Xenon on that page).",
   "id": "5.0.0",
   "title": {
     "it": "Novità di Xenon 5.0",
@@ -444,6 +444,42 @@
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest",
   "releases": [
+    {
+      "version": "5.2.0",
+      "news": [
+        {
+          "title": {
+            "it": "Xenon, un posto solo",
+            "en": "Xenon, one place",
+            "es": "Xenon, un solo lugar",
+            "fr": "Xenon, un seul endroit",
+            "de": "Xenon, ein einziger Ort",
+            "pt": "Xenon, um só lugar",
+            "ru": "Xenon: всё в одном месте",
+            "nl": "Xenon, één plek",
+            "ko": "Xenon, 한곳에서",
+            "ja": "Xenon をひとつの場所に",
+            "zh": "Xenon,一处搞定"
+          },
+          "text": {
+            "it": "Il menu e le Impostazioni sono una cosa sola, Xenon. Si apre su Schermi: cosa mostra ogni schermo, i suoi widget e lo sfondo.",
+            "en": "The menu and Settings are one thing, Xenon. It opens on Screens: what each screen shows, its widgets and its background.",
+            "es": "El menú y los Ajustes son una sola cosa, Xenon. Se abre en Pantallas: qué muestra cada pantalla, sus widgets y su fondo.",
+            "fr": "Le menu et les Réglages ne font qu'un : Xenon. Il s'ouvre sur la page Écrans : ce qu'affiche chaque écran, ses widgets et son fond.",
+            "de": "Menü und Einstellungen sind eins: Xenon. Es öffnet sich auf der Seite Bildschirme: was jeder Bildschirm zeigt, seine Widgets und sein Hintergrund.",
+            "pt": "O menu e as Definições são uma coisa só, o Xenon. Abre na página Ecrãs: o que cada ecrã mostra, os seus widgets e o fundo.",
+            "ru": "Меню и настройки стали одним целым, Xenon. Он открывается на странице «Экраны»: что показывает каждый экран, его виджеты и фон.",
+            "nl": "Het menu en Instellingen zijn één geheel: Xenon. Het opent op de pagina Schermen: wat elk scherm toont, de widgets en de achtergrond.",
+            "ko": "메뉴와 설정은 하나, Xenon입니다. 화면 페이지에서 열리며, 화면마다 보여 줄 내용과 위젯, 배경을 정할 수 있습니다.",
+            "ja": "メニューと設定はひとつ、Xenon です。「画面」ページで開き、画面ごとの表示内容、ウィジェット、背景を決められます。",
+            "zh": "菜单和设置是同一个地方:Xenon。它从“屏幕”页面打开,可设置每块屏幕显示什么、它的小组件和背景。"
+          },
+          "keys": true,
+          "section": "screens"
+        }
+      ],
+      "fixes": []
+    },
     {
       "version": "5.1.1",
       "news": [],

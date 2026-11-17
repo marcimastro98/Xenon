@@ -6,6 +6,7 @@
    setLang, _aiDropWelcome, _aiAppendBubble, updateMediaChatKeyState */
 
 import { createRequire } from 'node:module';
+import { notesScenes } from './notes-scenes.mjs';
 import { menuState, PHONES } from '../menu-shots/fixture.mjs';
 
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
@@ -137,6 +138,7 @@ async function firstRun({ step = '', late = false, done = false } = {}) {
 
 export const SCENES = {
   ...xenonScenes,
+  ...notesScenes,
   'first-run': { sizes: ['desk', 'phone', 'edge'], open: firstRun, arg: {} },
   'first-run-key': { sizes: ['desk', 'phone', 'edge'], open: firstRun, arg: { step: 'key' } },
   'first-run-key-late': { sizes: ['desk', 'phone'], open: firstRun, arg: { step: 'key', late: true } },
