@@ -459,7 +459,7 @@
             "nl": "Xenon, één plek",
             "ko": "Xenon, 한곳에서",
             "ja": "Xenon をひとつの場所に",
-            "zh": "Xenon,一处搞定"
+            "zh": "Xenon，一处搞定"
           },
           "text": {
             "it": "Il menu e le Impostazioni sono una cosa sola, Xenon. Si apre su Schermi: cosa mostra ogni schermo, i suoi widget e lo sfondo.",
@@ -472,7 +472,7 @@
             "nl": "Het menu en Instellingen zijn één geheel: Xenon. Het opent op de pagina Schermen: wat elk scherm toont, de widgets en de achtergrond.",
             "ko": "메뉴와 설정은 하나, Xenon입니다. 화면 페이지에서 열리며, 화면마다 보여 줄 내용과 위젯, 배경을 정할 수 있습니다.",
             "ja": "メニューと設定はひとつ、Xenon です。「画面」ページで開き、画面ごとの表示内容、ウィジェット、背景を決められます。",
-            "zh": "菜单和设置是同一个地方:Xenon。它从“屏幕”页面打开,可设置每块屏幕显示什么、它的小组件和背景。"
+            "zh": "菜单和设置是同一个地方：Xenon。它从“屏幕”页面打开，可设置每块屏幕显示什么、它的小组件和背景。"
           },
           "keys": true,
           "section": "screens"

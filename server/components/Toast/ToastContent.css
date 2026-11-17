@@ -133,6 +133,9 @@
   overflow: hidden;
 }
 
+/* A card with its own buttons explains a choice: it may take a few more lines. */
+.xtoast:has(.xtoast-actions) .xtoast-msg { -webkit-line-clamp: 4; }
+
 /* Explicit toast actions (opts.actions) — a second choice next to the toast's
    own tap action. Touch-sized, because the Edge is a touchscreen. */
 .xtoast-actions {

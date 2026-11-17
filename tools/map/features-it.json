@@ -66,7 +66,7 @@
     "grid": ["Griglia e pagine", "La pagina della dashboard: riquadri su una griglia, pagine, schede, spostare e ridimensionare."],
     "updates": ["Aggiornamenti", "Trova una nuova versione, ne controlla la firma, la installa e mostra le novità."],
     "install": ["Installazione e disinstallazione", "Gli script che mettono e tolgono Xenon da un PC, su Windows, macOS e Linux, e il suo avvio all'accesso."],
-    "first-run": ["Primo avvio", "Il caricamento, il benvenuto, l'unica domanda su come si usa lo schermo e il tasto che apre Xenon."],
+    "first-run": ["Primo avvio", "Il caricamento, il benvenuto, la domanda sullo schermo, il tasto che apre Xenon e i suggerimenti mostrati una volta."],
     "paired": ["Telefoni e tablet", "L'abbinamento di un altro dispositivo, il suo HTTPS e le notifiche che gli arrivano."],
     "settings": ["Impostazioni", "Le pagine delle impostazioni, la loro ricerca e il salvataggio senza perdite. La colonna è l'elenco del menu di Xenon."],
     "words": ["Testi", "Ogni testo dell'app in 11 lingue, un file per lingua."],

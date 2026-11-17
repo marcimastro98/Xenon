@@ -7399,4 +7399,12 @@ module.exports = {
   usage_key_done: 'これで完了です。',
   usage_key_done_line: 'どのアプリからでも、こうして Xenon が開きます。',
   rn_key_any_app: 'どのアプリの上でも',
+  hint_game_title: 'ゲームの上に Xenon',
+  hint_game_text: 'ゲーム中に {key} を押すと、ウィジェット、キャプチャ、パフォーマンスを使えます。',
+  hint_phone_line: 'Xenon の画面のひとつになりました。',
+  hint_dash_title: 'ダッシュボードは Xenon の中にあります',
+  hints_again_title: 'ヒント',
+  hints_again_btn: 'もう一度表示',
+  hints_again_done: '必要なときにヒントがまた表示されます。',
+  hints_again_failed: 'うまくいきませんでした。少ししてからもう一度お試しください。',
 };

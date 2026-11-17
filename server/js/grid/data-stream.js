@@ -611,16 +611,9 @@
         if (aside) showHubToast('Xenon', tr('store_unreadable_title', 'A file could not be read'), tr('store_set_aside', ''));
       } catch {}
     });
+    // A device paired: the toast, and the first time where it is now (js/xenon-hints.js).
     es.addEventListener('remote_paired', e => {
-      try {
-        if (window.__xenonRemote) return;          // a phone does not need to be told about itself
-        const d = JSON.parse(e.data) || {};
-        const tr = (k, fb) => (typeof t === 'function' && t(k)) || fb;
-        if (typeof showHubToast === 'function') {
-          showHubToast('Xenon', tr('ra_paired_toast_title', 'New device paired'),
-            String(d.name || '').slice(0, 60) + '. ' + tr('ra_paired_toast_hint', 'If you did not pair it, remove it in Settings, Phone.'));
-        }
-      } catch {}
+      try { window.XenonHints?.paired(JSON.parse(e.data) || {}); } catch {}
     });
     es.addEventListener('deck', e => {
       // Another open dashboard saved a Deck change — adopt the server copy live,

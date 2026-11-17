@@ -7344,4 +7344,12 @@ module.exports = {
   usage_key_done: 'Вот и всё.',
   usage_key_done_line: 'Так Xenon открывается из любого приложения.',
   rn_key_any_app: 'Поверх любого приложения',
+  hint_game_title: 'Xenon поверх игры',
+  hint_game_text: 'Нажмите {key} поверх игры: виджеты, захват и производительность.',
+  hint_phone_line: 'Теперь это один из ваших экранов в Xenon.',
+  hint_dash_title: 'Панель находится в Xenon',
+  hints_again_title: 'Подсказки',
+  hints_again_btn: 'Показать снова',
+  hints_again_done: 'Подсказки появятся снова, когда пригодятся.',
+  hints_again_failed: 'Не получилось. Попробуйте ещё раз чуть позже.',
 };

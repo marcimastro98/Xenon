@@ -485,8 +485,8 @@ let hubSettings = {};
     gaming = !!d.gaming;
     applyGameClass();
     if (first || (wasGaming && !gaming)) {
-      window.ScreenRelease.check();
-      window.BitMessages.check();
+      [window.ScreenRelease, window.BitMessages].forEach((part) => { part.check(); });
+      window.XenonHints?.screen({ first, gameEnded: wasGaming && !gaming, state: () => ({ widgetsOnly: routine(), gaming }) });
     }
   }
 

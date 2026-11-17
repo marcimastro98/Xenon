@@ -7234,4 +7234,12 @@ module.exports = {
   usage_key_done: 'C\'est tout.',
   usage_key_done_line: 'C\'est ainsi que Xenon s\'ouvre depuis n\'importe quelle app.',
   rn_key_any_app: 'Par-dessus n\'importe quelle app',
+  hint_game_title: 'Xenon par-dessus le jeu',
+  hint_game_text: 'Appuyez sur {key} par-dessus un jeu pour les widgets, la capture et les performances.',
+  hint_phone_line: 'C’est maintenant l’un de vos écrans dans Xenon.',
+  hint_dash_title: 'Le tableau de bord est dans Xenon',
+  hints_again_title: 'Astuces',
+  hints_again_btn: 'Réafficher',
+  hints_again_done: 'Les astuces reviendront au bon moment.',
+  hints_again_failed: 'Cela n’a pas fonctionné. Réessayez dans un instant.',
 };

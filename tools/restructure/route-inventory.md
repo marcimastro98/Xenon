@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-535 routes.
-- Asked by: 1 before the chain, 56 chain, 8 feature, 4 socket, 466 table.
-- Paired device: 21 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 12 no: a GET that changes something, 4 no: sockets take the loopback door only, 408 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 354 (none), 172 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+538 routes.
+- Asked by: 1 before the chain, 56 chain, 11 feature, 4 socket, 466 table.
+- Paired device: 24 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 12 no: a GET that changes something, 4 no: sockets take the loopback door only, 408 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 355 (none), 174 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -348,6 +348,9 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | POST | `/font` | table | server/look/routes.js | yes |  |  |  |
 | DELETE | `/font/*` | chain | server/look/routes.js | yes |  |  |  |
 | POST | `/ha/deck-watch` | table | server/smart-home/routes.js | yes |  |  |  |
+| GET | `/hints` | feature | server/hints/routes.js | no: REMOTE_ADMIN |  |  |  |
+| POST | `/hints/reset` | feature | server/hints/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
+| POST | `/hints/seen` | feature | server/hints/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
 | GET | `/i18n-langs.json` | feature | server/app-strings/routes.js | yes |  |  |  |
 | POST | `/icon-pack` | table | server/store-catalog/routes-packs.js | yes | CSRF_MUTATION_PATHS |  |  |
 | DELETE | `/icon-pack/*` | chain | server/store-catalog/routes-packs.js | yes | isPackMutation |  |  |

@@ -7286,4 +7286,12 @@ module.exports = {
   usage_key_done: 'Eso es.',
   usage_key_done_line: 'Así se abre Xenon desde cualquier app.',
   rn_key_any_app: 'Sobre cualquier app',
+  hint_game_title: 'Xenon sobre el juego',
+  hint_game_text: 'Pulsa {key} sobre un juego para widgets, captura y rendimiento.',
+  hint_phone_line: 'Ahora es una de tus pantallas en Xenon.',
+  hint_dash_title: 'El panel está en Xenon',
+  hints_again_title: 'Consejos',
+  hints_again_btn: 'Mostrar de nuevo',
+  hints_again_done: 'Los consejos volverán cuando sirvan.',
+  hints_again_failed: 'No ha funcionado. Inténtalo de nuevo en un momento.',
 };

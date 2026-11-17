@@ -7283,4 +7283,12 @@ module.exports = {
   usage_key_done: 'É isso.',
   usage_key_done_line: 'É assim que o Xenon abre a partir de qualquer app.',
   rn_key_any_app: 'Por cima de qualquer app',
+  hint_game_title: 'Xenon por cima do jogo',
+  hint_game_text: 'Prime {key} por cima de um jogo para widgets, captura e desempenho.',
+  hint_phone_line: 'Agora é um dos teus ecrãs no Xenon.',
+  hint_dash_title: 'O painel está no Xenon',
+  hints_again_title: 'Dicas',
+  hints_again_btn: 'Mostrar de novo',
+  hints_again_done: 'As dicas voltam quando fizerem falta.',
+  hints_again_failed: 'Não resultou. Tenta de novo daqui a pouco.',
 };

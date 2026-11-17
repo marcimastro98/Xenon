@@ -25,6 +25,10 @@ const CLASSIFIED = Object.freeze({
   // A question for Bit opens a window on this PC: never from a phone.
   'POST /spotlight/ask': { remote: false },
   'POST /spotlight/ask/take': { remote: false },
+  // The hints this PC has shown: read and reset at the PC only.
+  'GET /hints': { remote: false },
+  'POST /hints/seen': { remote: false },
+  'POST /hints/reset': { remote: false },
 });
 
 const SERVER = engineSource();

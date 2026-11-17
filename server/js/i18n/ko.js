@@ -7399,4 +7399,12 @@ module.exports = {
   usage_key_done: '바로 이거예요.',
   usage_key_done_line: '어떤 앱에서든 이렇게 Xenon이 열립니다.',
   rn_key_any_app: '어떤 앱 위에서든',
+  hint_game_title: '게임 위의 Xenon',
+  hint_game_text: '게임 중에 {key}를 누르면 위젯, 캡처, 성능을 쓸 수 있습니다.',
+  hint_phone_line: '이제 Xenon의 화면 중 하나입니다.',
+  hint_dash_title: '대시보드는 Xenon에 있습니다',
+  hints_again_title: '도움말',
+  hints_again_btn: '다시 보기',
+  hints_again_done: '필요할 때 도움말이 다시 나타납니다.',
+  hints_again_failed: '실패했습니다. 잠시 후 다시 시도하세요.',
 };

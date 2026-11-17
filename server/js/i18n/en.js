@@ -7407,4 +7407,12 @@ module.exports = {
   usage_key_done: 'That\'s it.',
   usage_key_done_line: 'This is how Xenon opens from any app.',
   rn_key_any_app: 'Over any app',
+  hint_game_title: 'Xenon over your game',
+  hint_game_text: 'Press {key} over a game for widgets, capture and performance.',
+  hint_phone_line: 'It is now one of your screens in Xenon.',
+  hint_dash_title: 'The dashboard is in Xenon',
+  hints_again_title: 'Hints',
+  hints_again_btn: 'Show again',
+  hints_again_done: 'The hints will come back when they help.',
+  hints_again_failed: 'That did not work. Try again in a moment.',
 };

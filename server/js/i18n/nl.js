@@ -7395,4 +7395,12 @@ module.exports = {
   usage_key_done: 'Zo werkt het.',
   usage_key_done_line: 'Zo open je Xenon vanuit elke app.',
   rn_key_any_app: 'Boven elke app',
+  hint_game_title: 'Xenon boven je game',
+  hint_game_text: 'Druk op {key} boven een game voor widgets, opname en prestaties.',
+  hint_phone_line: 'Het is nu een van je schermen in Xenon.',
+  hint_dash_title: 'Het dashboard staat in Xenon',
+  hints_again_title: 'Tips',
+  hints_again_btn: 'Opnieuw tonen',
+  hints_again_done: 'De tips komen terug wanneer ze helpen.',
+  hints_again_failed: 'Dat lukte niet. Probeer het zo opnieuw.',
 };

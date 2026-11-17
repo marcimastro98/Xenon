@@ -4314,8 +4314,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // back for the user either.
   '/update/auto/postpone',
   // Marks What's New and the fixes of a release as read. A page on another site
-  // could otherwise make sure the user never hears about an update.
-  '/update/notice-seen',
+  // could otherwise make sure the user never hears about an update. The hints the same.
+  '/update/notice-seen', '/hints/seen', '/hints/reset',
   // Bit's messages: filing one, or spending the day's on a page nobody sees, is
   // not something another site may do for the user.
   '/bit/messages/file',
@@ -5582,7 +5582,7 @@ const handleRequest = async (req, res) => {
 
   } else if (featureRoutes.has(req.method, reqPath)) {
     // A route that lives in its feature's routes.js (feature-routes.js).
-    await featureRoutes.run(req.method, reqPath, req, res, { json, err500, reqPath, urlObj, isRemote, jsonpCb, remote, sendPage, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath, readBody, openSpotlight: routeSpotlightHotkey }, routeHands);
+    await featureRoutes.run(req.method, reqPath, req, res, { json, err500, dataDir: DATA_DIR, reqPath, urlObj, isRemote, jsonpCb, remote, sendPage, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath, readBody, openSpotlight: routeSpotlightHotkey }, routeHands);
 
   } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {
     await deckBranches['DELETE /deck/sounds/*'](req, res, { json, err500, reqPath, urlObj, isRemote });

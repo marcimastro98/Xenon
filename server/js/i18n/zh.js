@@ -7399,4 +7399,12 @@ module.exports = {
   usage_key_done: '就是这样。',
   usage_key_done_line: '在任何应用中都可以这样打开 Xenon。',
   rn_key_any_app: '在任何应用上方',
+  hint_game_title: '游戏上方的 Xenon',
+  hint_game_text: '在游戏中按 {key}，即可使用小组件、捕获和性能。',
+  hint_phone_line: '它现在是你在 Xenon 中的屏幕之一。',
+  hint_dash_title: '仪表板在 Xenon 里',
+  hints_again_title: '提示',
+  hints_again_btn: '再次显示',
+  hints_again_done: '需要时提示会再次出现。',
+  hints_again_failed: '没有成功。请稍后再试。',
 };
