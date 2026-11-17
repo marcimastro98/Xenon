@@ -69,7 +69,7 @@ export function biggestFunction(text, file, parser) {
 export function leftOf(root, parser) {
   const read = (file) => readFileSync(path.join(root, file), 'utf8');
   const ledger = readBrowserLedger(root);
-  const made = new Map(ledger.moves.filter((move) => ['script', 'inner', 'inline'].includes(move.kind)).map((move) => [move.file, move.from]));
+  const made = new Map(ledger.moves.filter((move) => ['script', 'inner', 'inline', 'after'].includes(move.kind)).map((move) => [move.file, move.from]));
   const files = Object.keys(JSON.parse(read(SIZES)).files).filter((file) => SCRIPT.test(file));
   const rows = withOneSearch(root, files, () => files.map((file) => {
     const text = read(file);

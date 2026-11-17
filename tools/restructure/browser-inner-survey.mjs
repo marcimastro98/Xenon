@@ -92,7 +92,7 @@ export function ourScripts(root) {
  *   is `{ file, lines, wrapped: false, node: true, why }`: nothing leaves it, and `why` says who loads it
  */
 export function surveyAll(root, parser, ledger) {
-  const made = new Set(ledger.moves.filter((move) => ['script', 'inner', 'inline'].includes(move.kind)).map((move) => move.file));
+  const made = new Set(ledger.moves.filter((move) => ['script', 'inner', 'inline', 'after'].includes(move.kind)).map((move) => move.file));
   const read = (file) => readFileSync(path.join(root, file), 'utf8');
   const files = ourScripts(root).filter((file) => !made.has(file));
   const scripts = withOneSearch(root, files, () => files.map((file) => {

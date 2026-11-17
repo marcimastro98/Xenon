@@ -295,11 +295,12 @@ test('a note that names a file outside the checkout, or anything a cut does not 
   assert.equal(fs.existsSync(note), false);
 });
 
-test('every hand cut on the real list is an inner move, handed names or none, and the test reader hands its file out with its script', () => {
+test('every hand cut on the real list is an inner or after move, handed names or none, and the test reader hands its file out with its script', () => {
   const { moves } = JSON.parse(fs.readFileSync(new URL(`../../${LEDGER}`, import.meta.url), 'utf8'));
   for (const move of moves.filter((entry) => entry.hand !== undefined)) {
     assert.equal(move.hand, true, `${move.file}: hand is true or absent`);
-    assert.equal(move.kind, 'inner', `${move.file}: only a script cut out of a wrapper is recorded by hand`);
+    // Statements that run right after their script (`after`) are the other cut made by hand.
+    assert.ok(move.kind === 'inner' || move.kind === 'after', `${move.file}: only a script cut out of a wrapper, or statements run after their script, is recorded by hand`);
     assert.ok(move.hands === undefined || (Array.isArray(move.hands) && move.hands.length > 0), `${move.file}: a hand cut is handed what it uses of the wrapper, or is not handed anything`);
     assert.ok(partsOf(move.from).includes(move.file), `${move.file} is read with ${move.from}`);
   }

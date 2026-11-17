@@ -91,7 +91,8 @@ export function heldByText(source, file, scriptText) {
  */
 export function testsHeldByText(root, file) {
   const parts = readBrowserLedger(root).moves.filter((move) => move.from === file && (move.kind === 'script' || move.kind === 'inner')).map((move) => move.file);
-  const scriptText = [...parts, file].map((part) => readFileSync(path.join(root, part), 'utf8')).join('\n');
+  const after = readBrowserLedger(root).moves.filter((move) => move.from === file && move.kind === 'after').map((move) => move.file);
+  const scriptText = [...parts, file, ...after].map((part) => readFileSync(path.join(root, part), 'utf8')).join('\n');
   const found = [];
   for (const mention of mentionsOf(root, file)) {
     if (mention.kind !== 'test') continue;

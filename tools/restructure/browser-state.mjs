@@ -5,7 +5,9 @@
 // nothing it needs for a first value comes after it. For every script turned
 // into a module: it still says so, and every page loads it as one, last. And for
 // every script made of functions taken out of a wrapper: it is still only those
-// functions and the one name it leaves on `window` (browser-inner-proof.mjs).
+// functions and the one name it leaves on `window` (browser-inner-proof.mjs). For
+// every script made of statements that run right after their own: it declares
+// nothing and runs in the same mode.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -19,7 +21,7 @@ import { readWrapper } from './browser-inner-plan.mjs';
 import { innerStateProblems } from './browser-inner-proof.mjs';
 import { insideStateProblems } from './browser-inside-proof.mjs';
 import { ourScripts } from './browser-inner-survey.mjs';
-import { innerPartsOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
+import { afterFilesOf, innerPartsOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { ASKED_LISTS, BUILT_LIST, LIST_FILES, listRunProblems, listsHold } from './browser-lists.mjs';
 import { moduleStateProblems } from './browser-module.mjs';
 import { nodeLoadersOf, nodeLoadProblems } from './browser-node-loads.mjs';
@@ -85,6 +87,19 @@ function scriptProblems(run, texts, parser, root = null) {
   return { problems, names: declared(state) };
 }
 
+// Statements moved to a script that runs right after their own (an `after` move): the new script declares nothing in
+// the shared scope, so every name stays where it was declared, and it runs in the same mode (strict or not).
+export function afterProblems(file, parts, texts, parser) {
+  if (parts.length === 0) return [];
+  const state = analyzeRun([file, ...parts].map((part) => ({ file: part, text: texts(part) })), parser);
+  const problems = state.records.filter((record) => record.fileIndex > 0 && record.names.length)
+    .map((record) => `${record.file}:${record.line[0]} declares ${record.names.join(', ')}: a script that runs after ${file} holds only statements`);
+  state.strict.forEach((strict, index) => {
+    if (index > 0 && strict !== state.strict[0]) problems.push(`${parts[index - 1]} does not run in the same mode (strict or not) as ${file}`);
+  });
+  return problems;
+}
+
 /**
  * @param {{ root: string, parser: any, tests?: boolean, base?: (file: string) => string | null }} job
  *   `base`: reads a file as it was at an earlier revision, to compare the names a split file declares
@@ -111,6 +126,8 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
       for (const part of run) problems.push(...readStylesheet(read(part)).problems.map((problem) => `${part}: ${problem}`));
       continue;
     }
+    const after = afterFilesOf(ledger, file);
+    problems.push(...afterProblems(file, after, read, parser));
     const inner = innerPartsOf(ledger, file).map((part) => ({ ...part, text: read(part.file) }));
     if (inner.length) {
       madeOfMoved.push(...inner.map((part) => ({ source: file, text: part.text })));
@@ -119,9 +136,11 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
       problems.push(...nodeLoadersOf(root, file).slice(0, 1).map((loader) => `${file} is loaded by Node (${loader}), where the scripts made of its functions do not load before it`));
       continue;
     }
-    const now = scriptProblems(run, read, parser, root);
+    // The checks of a script and the ones that load before it; what runs after it is held by afterProblems.
+    const own = run.filter((part) => !after.includes(part));
+    const now = scriptProblems(own, read, parser, root);
     problems.push(...now.problems);
-    const was = base ? run.filter((part) => base(part) !== null) : [];
+    const was = base ? own.filter((part) => base(part) !== null) : [];
     if (was.length && scriptProblems(was, base, parser).names.join('\n') !== now.names.join('\n')) {
       problems.push(`${file} and its scripts do not declare the same top-level names as before`);
     }

@@ -1,6 +1,6 @@
 'use strict';
-// The demo's UI layer, loaded LAST — after js/main.js, so the fake EventSource
-// created by initDataStream() is already registered and the grid has mounted.
+// The demo's UI layer, loaded LAST — after js/main.js and js/grid/data-stream.js, so the
+// fake EventSource created by initDataStream() is already registered and the grid has mounted.
 // Everything data-shaped lives in demo/boot.js; this file only adds what a
 // visitor sees: the badge, the conversion prompts, the "not in the demo" marks,
 // and the catalog hand-off.

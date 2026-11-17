@@ -134,7 +134,7 @@ const madeBy = (move) => (move.kind === 'style' ? move.parts.map((part) => part.
 // and every split file followed (or led) by all its parts with nothing between.
 function loadProblems(was, now, ledger, what) {
   const problems = [];
-  const made = new Set(ledger.moves.filter((move) => ['script', 'style', 'inner'].includes(move.kind)).flatMap(madeBy).map(addressOf));
+  const made = new Set(ledger.moves.filter((move) => ['script', 'style', 'inner', 'after'].includes(move.kind)).flatMap(madeBy).map(addressOf));
   const [old, cur] = [was, now].map((list) => list.filter((address) => !made.has(address)));
   if (old.join('\n') !== cur.join('\n')) {
     const [gone, added] = [extra(cur, old), extra(old, cur)];

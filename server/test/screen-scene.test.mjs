@@ -3,7 +3,7 @@
 // PC's screensaver, one shell window per screen.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
+import { partsOf, readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
@@ -36,7 +36,7 @@ test('the page carries the three scene overlays from index.html, and only the sc
   before('js/ambient-scene.js', 'js/ambient/ambient-canvas.js');
   assert.equal(scripts.at(-1), 'js/ambient/screen-scene.js');
   // Never the dashboard's idle logic: it would open and close scenes itself.
-  for (const no of ['js/ambient/ambient-mode.js', 'js/ambient/ambient-idle.js', 'js/settings/settings.js', 'js/main.js', 'js/i18n.js']) {
+  for (const no of ['js/ambient/ambient-mode.js', 'js/ambient/ambient-idle.js', 'js/settings/settings.js', ...partsOf('server/js/main.js').map((file) => file.slice('server/'.length)), 'js/i18n.js']) {
     assert.ok(!scripts.includes(no), no);
   }
   for (const s of scripts) assert.ok(s === 'layer-i18n.js' || s.startsWith('js/') || s.startsWith('shared/'), s);

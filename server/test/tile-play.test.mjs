@@ -6,13 +6,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
 const { parseTilePlay, createTilePlay } = require('../windows-tiles/tile-play.js');
-const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
+const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('Twitch: link, @name or login plays; words search', () => {
   assert.deepEqual(parseTilePlay({ tile: 'twitch', target: 'https://www.twitch.tv/Ibai/videos' }), { tile: 'twitch', value: 'ibai' });

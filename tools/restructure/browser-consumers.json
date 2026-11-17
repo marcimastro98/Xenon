@@ -216,6 +216,15 @@
           "card"
         ]
       }
+    },
+    "server/js/main.js": {
+      "packages/mcp/test/folder.test.mjs": "Names a main.js inside a widget folder it writes in a test; it never opens the dashboard's file.",
+      "server/mcp/mcp-dev-tools.js": "Names a main.js of its own: the entry of the starter widget it writes. It never opens the dashboard's file.",
+      "server/test/mcp-dev-tools.test.mjs": "Reads the main.js of the starter widget the MCP tools write, never the dashboard's file.",
+      "server/test/perf-tools.test.mjs": "Names js/main.js only inside sample trace records and addresses it hands the trace reader; it never opens the file.",
+      "server/test/quality-browser.test.mjs": "Names the path only to ask whether the ratchet counts it as a browser script; it never opens the file.",
+      "tools/build-demo.mjs": "Writes the demo page from server/index.html and puts its own layer right after the tag of js/grid/data-stream.js, the script that runs after main.js and makes the stream the demo stands in for. server/test/demo-build.test.mjs holds that tag to one.",
+      "tools/site-review/forms.mjs": "Names main.js as the file of a widget in a sample audit report; it never opens the dashboard's file."
     }
   }
 }

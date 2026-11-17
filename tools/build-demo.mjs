@@ -174,14 +174,14 @@ log('materialized shared/src from packages/core');
     + '<script src="js/first-run/boot-splash.js"></script>',
     'demo boot scripts before js/first-run/boot-splash.js');
 
-  // 4c. The UI layer LAST, so the fake EventSource main.js created is already
-  //     registered and the grid has mounted.
-  html = patchOnce(html, '<script src="js/main.js"></script>',
-    '<script src="js/main.js"></script>\n'
+  // 4c. The UI layer LAST, so the fake EventSource js/grid/data-stream.js created
+  //     (it loads right after main.js) is already registered and the grid has mounted.
+  html = patchOnce(html, '<script src="js/grid/data-stream.js"></script>',
+    '<script src="js/grid/data-stream.js"></script>\n'
     + `<link rel="stylesheet" href="demo/demo.css?v=${version}">\n`
     + `<script src="demo/demo.js?v=${version}"></script>\n`
     + `<script src="demo/maker.js?v=${version}"></script>`,
-    'demo UI layer after js/main.js');
+    'demo UI layer after js/grid/data-stream.js');
 
   // 4d. Remove the Xeneon Edge fractional-DPR block. It applies CSS zoom to
   //     <html>, is iCUE-iframe-specific, cannot help a browser tab, and would

@@ -9,7 +9,8 @@ import path from 'node:path';
 export const BROWSER_LEDGER = 'tools/restructure/extracted-browser.json';
 const NOTE = 'What tools/restructure took out of which browser file, in order. Written by `browser extract`, `browser split-css`, '
   + '`browser inline`, `browser module`, `browser inner` and `browser state`, read by `browser verify` and by server/test/browser-source.mjs. Do not edit by hand.';
-// The one line a person writes: an `inner` move with `hand: true`, for a script cut out of a wrapper by hand (see readBrowserLedger).
+// The lines a person writes: an `inner` move with `hand: true`, for a script cut out of a wrapper by hand, and an `after` move
+// (see readBrowserLedger).
 
 /**
  * @param {string} root
@@ -29,7 +30,10 @@ const NOTE = 'What tools/restructure took out of which browser file, in order. W
  *   `browser verify` cannot redo such a move and does not try, the standing check reads the script like any other in the handed form, and only
  *   the rule that keeps a decision in its script is not asked of it, because a person judged that; `inside: '<function>'` on a hand cut whose
  *   lines stood in that function of the script and not in its wrapper: browser-inside.mjs writes it, browser-inside-proof.mjs is its standing check;
- *   `waits: ['<call>']` beside it names calls a person read and found to keep the function they are given for later, as a listener does).
+ *   `waits: ['<call>']` beside it names calls a person read and found to keep the function they are given for later, as a listener does),
+ *   or `{ kind: 'after', from, file, about, hand: true }` (top-level statements a person moved, lines unchanged, to a script that loads
+ *   right after the old one, because they read names the old one declares while it runs: the new script declares nothing, runs in the
+ *   same mode, and the pages load it on the next tag).
  */
 export function readBrowserLedger(root) {
   try {
@@ -84,15 +88,18 @@ export function writeBrowserLedger(root, ledger) {
 /**
  * The files one split file is made of today, in the order a page loads them.
  * A script's new files load before it (the ones made of its top-level declarations, or of functions of its wrapper),
- * a stylesheet's parts after it.
+ * except the ones made of statements that run after it (`after`); a stylesheet's parts after it.
  * @param {{ moves: any[] }} ledger @param {string} file repo-relative
- * @returns {string[]} always ends (script) or starts (stylesheet) with `file` itself
+ * @returns {string[]} ends with `file` itself (a script without an `after` part) or starts with it (a stylesheet)
  */
 export function runOf(ledger, file) {
   const scripts = ledger.moves.filter((move) => (move.kind === 'script' || move.kind === 'inner') && move.from === file).map((move) => move.file);
   const parts = ledger.moves.filter((move) => move.kind === 'style' && move.from === file).flatMap((move) => move.parts.map((part) => part.file));
-  return [...scripts, file, ...parts];
+  return [...scripts, file, ...afterFilesOf(ledger, file), ...parts];
 }
+
+/** @param {{ moves: any[] }} ledger @param {string} file @returns {string[]} the scripts made of its statements that load right after it, in order */
+export const afterFilesOf = (ledger, file) => ledger.moves.filter((move) => move.kind === 'after' && move.from === file).map((move) => move.file);
 
 /** @param {{ moves: any[] }} ledger @param {string} file @returns {string[]} the scripts made of functions taken out of its wrapper, in load order */
 export const innerFilesOf = (ledger, file) => ledger.moves.filter((move) => move.kind === 'inner' && move.from === file).map((move) => move.file);
@@ -107,5 +114,5 @@ export const innerPartsOf = (ledger, file) => ledger.moves.filter((move) => move
 
 /** @param {{ moves: any[] }} ledger @returns {string[]} every script or stylesheet something was taken out of */
 export function splitFiles(ledger) {
-  return [...new Set(ledger.moves.filter((move) => ['script', 'style', 'inner'].includes(move.kind)).map((move) => move.from))];
+  return [...new Set(ledger.moves.filter((move) => ['script', 'style', 'inner', 'after'].includes(move.kind)).map((move) => move.from))];
 }

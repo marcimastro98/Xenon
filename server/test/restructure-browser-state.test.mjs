@@ -15,7 +15,7 @@ import { builtListsWith, consumerProblems, keptNames, knownConsumers, mentionsOf
 import { readBrowserLedger, runOf, splitFiles } from '../../tools/restructure/browser-ledger.mjs';
 import { firstReadCounts } from '../../tools/restructure/browser-cli.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
-import { stateProblems } from '../../tools/restructure/browser-state.mjs';
+import { afterProblems, stateProblems } from '../../tools/restructure/browser-state.mjs';
 import { heldByText, retarget } from '../../tools/restructure/browser-test-readers.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 
@@ -180,4 +180,24 @@ test('the page check says what a split changed in a page, and nothing when it ch
   assert.match(diff({ widgets: 'clock' }), /the widgets on the page differ \(undefined before, clock now\)/);
   assert.equal(diff({ name: 'phone' }), 'wide: opened before, not opened now\nphone: not recorded before');
   assert.equal(diff({}, { opened: true, changed: false }), 'settings: "changed" failed');
+});
+
+test('statements moved to run right after their script load after it, declare nothing and run in its mode', (t) => {
+  const file = 'server/js/boot.js';
+  const stream = 'server/js/boot/stream.js';
+  const moves = { moves: [{ kind: 'inner', from: file, file: 'server/js/boot/words.js' }, { kind: 'after', from: file, file: stream, hand: true }] };
+  assert.deepEqual(runOf(moves, file), ['server/js/boot/words.js', file, stream], 'before it, itself, then what runs after it');
+  assert.deepEqual(splitFiles(moves), [file]);
+  const one = { moves: [moves.moves[1]] };
+  const page = (scripts) => ({ views: [view({ scripts })], settings: { opened: true, changed: true } });
+  assert.deepEqual(compareRecordings(page(['/js/boot.js']), page(['/js/boot.js', '/js/boot/stream.js']), one), [], 'the page check takes the new tag as the move');
+  assert.match(compareRecordings(page(['/js/boot.js']), page(['/js/boot/stream.js', '/js/boot.js']), one).join('\n'), /do not load in a row/);
+  if (!parser) return t.skip('TypeScript is not installed here (npm run quality:install)');
+  const texts = { [file]: "'use strict';\nconst need = { a: 1 };\n", [stream]: "'use strict';\n(function () { if (need.a) go(); }());\n" };
+  const read = (part) => texts[part];
+  assert.deepEqual(afterProblems(file, [stream], read, parser), []);
+  texts[stream] = "'use strict';\nconst late = 1;\n(function () { if (need.a) go(); }());\n";
+  assert.match(afterProblems(file, [stream], read, parser).join('\n'), /stream\.js:2 declares late/);
+  texts[stream] = '(function () { if (need.a) go(); }());\n';
+  assert.match(afterProblems(file, [stream], read, parser).join('\n'), /does not run in the same mode/);
 });

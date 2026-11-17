@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -12,7 +13,7 @@ import { declarationSource, engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const snaps = require('../store-catalog/store-snapshots.js');
 // LF on a CRLF (Windows) checkout too, so the patterns below match everywhere.
-const readLf = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const readLf = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SERVER = engineSource();
 const MAIN = readLf('../js/main.js');
 const I18N = appStringsSource();
@@ -34,8 +35,8 @@ test('one copy a day of each store, the last seven kept', async () => {
   }
   const list = snaps.listSnapshots(d.dir, f);
   assert.equal(list.length, 7);
-  assert.equal(JSON.parse(fs.readFileSync(list[0].path, 'utf8')).day, 9, 'newest first');
-  assert.equal(JSON.parse(fs.readFileSync(list[6].path, 'utf8')).day, 3);
+  assert.equal(JSON.parse(readFileSync(list[0].path, 'utf8')).day, 9, 'newest first');
+  assert.equal(JSON.parse(readFileSync(list[6].path, 'utf8')).day, 3);
 });
 
 test('a file that does not parse is never copied, so it cannot push out the good copies', async () => {
@@ -48,7 +49,7 @@ test('a file that does not parse is never copied, so it cannot push out the good
   for (let i = 1; i < 12; i++) await snaps.snapshotStores(d.dir, [f], { now: t0 + i * DAY });
   const list = snaps.listSnapshots(d.dir, f);
   assert.equal(list.length, 1);
-  assert.equal(fs.readFileSync(list[0].path, 'utf8'), '{"ok":1}');
+  assert.equal(readFileSync(list[0].path, 'utf8'), '{"ok":1}');
 });
 
 test('a damaged store is put back from its newest valid copy and kept aside', async () => {
@@ -65,8 +66,8 @@ test('a damaged store is put back from its newest valid copy and kept aside', as
   const r = snaps.recoverIfUnreadable(d.dir, f, { now: t0 + 2 * DAY });
   assert.equal(r.state, 'restored');
   assert.match(r.from, /^settings-2026-11-01\.json$/);
-  assert.equal(fs.readFileSync(f, 'utf8'), '{"layout":"old"}');
-  assert.equal(fs.readFileSync(path.join(snaps.snapshotsDir(d.dir), r.aside), 'utf8'), '\u0000\u0000\u0000', 'the damaged file is kept');
+  assert.equal(readFileSync(f, 'utf8'), '{"layout":"old"}');
+  assert.equal(readFileSync(path.join(snaps.snapshotsDir(d.dir), r.aside), 'utf8'), '\u0000\u0000\u0000', 'the damaged file is kept');
 });
 
 test('with no copy to go back to, the damaged file is left exactly as it is', () => {
@@ -74,7 +75,7 @@ test('with no copy to go back to, the damaged file is left exactly as it is', ()
   const f = d.file('notes.json');
   fs.writeFileSync(f, '{"half":');
   assert.equal(snaps.recoverIfUnreadable(d.dir, f).state, 'unrecoverable');
-  assert.equal(fs.readFileSync(f, 'utf8'), '{"half":');
+  assert.equal(readFileSync(f, 'utf8'), '{"half":');
   assert.equal(snaps.recoverIfUnreadable(d.dir, d.file('missing.json')).state, 'missing');
   fs.writeFileSync(f, '{"fine":true}');
   assert.equal(snaps.recoverIfUnreadable(d.dir, f).state, 'ok');
@@ -131,7 +132,7 @@ test('a damaged list with no copy is kept aside and starts again; settings are l
   const r = snaps.recoverIfUnreadable(d.dir, tasks, { setAsideIfNoCopy: true });
   assert.equal(r.state, 'set_aside');
   assert.equal(fs.existsSync(tasks), false, 'the store starts again empty');
-  assert.equal(fs.readFileSync(path.join(snaps.snapshotsDir(d.dir), r.aside), 'utf8'), '[{"id":', 'nothing is lost');
+  assert.equal(readFileSync(path.join(snaps.snapshotsDir(d.dir), r.aside), 'utf8'), '[{"id":', 'nothing is lost');
   assert.match(SERVER, /const setAsideIfNoCopy = file !== SETTINGS_FILE;/);
   assert.match(MAIN, /s\.state === 'set_aside'/);
 });

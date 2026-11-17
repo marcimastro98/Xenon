@@ -5,6 +5,8 @@
 // or a rule would lose it the day it moves. These readers follow the list of what
 // was moved (tools/restructure/extracted-browser.json) and hand back the parts in
 // the order the page loads them, so the same assertion keeps reading the same code.
+// Statements that must run after their script (main.js and its data stream) go to a
+// script that loads right after it, and are handed back after it.
 //
 // `readFileSync` here takes the place of the one from node:fs in a test: for a
 // file that was never split it is the same call.
@@ -34,8 +36,10 @@ function recordedMoves() {
 export function partsOf(file) {
   const mine = recordedMoves().filter((move) => move.from === file);
   const before = mine.filter((move) => move.kind === 'script' || move.kind === 'inner').map((move) => move.file);
-  const after = mine.filter((move) => move.kind === 'style').flatMap((move) => move.parts.map((part) => part.file));
-  return [...before, file, ...after];
+  // Statements moved to a script that runs right after the file (`after`), then a stylesheet's parts.
+  const after = mine.filter((move) => move.kind === 'after').map((move) => move.file);
+  const parts = mine.filter((move) => move.kind === 'style').flatMap((move) => move.parts.map((part) => part.file));
+  return [...before, file, ...after, ...parts];
 }
 
 const read = (file) => fs.readFileSync(join(REPO, file), 'utf8');
@@ -58,6 +62,7 @@ export function looseScripts() {
  * The text a page gets for one browser file: every script taken out of it and then
  * the script itself, or a stylesheet followed by its parts. For a stylesheet that
  * is the old file byte for byte.
+ * A script made of statements that run after the file comes after it.
  * @param {string} file repo-relative, with forward slashes
  * @returns {string}
  */
