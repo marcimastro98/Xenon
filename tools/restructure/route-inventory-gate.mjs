@@ -36,9 +36,11 @@ export function readGate(engine, parser, root) {
   const sdk = SDK_LINE.exec(engine);
   const pack = PACK_LINE.exec(engine);
   if (!sdk || !pack) throw new Error('isSdkSensitive or isPackMutation is not written as the inventory reads it');
-  const require = createRequire(path.join(root, 'server', 'paired', 'remote-access.js'));
-  const remote = require('./remote-access.js');
-  const refused = require('./refused-paths.js');
+  // Loaded from the repo given, by full path: the gate under test is that copy's, not this tool's.
+  const load = createRequire(import.meta.url);
+  const paired = path.join(root, 'server', 'paired');
+  const remote = load(path.join(paired, 'remote-access.js'));
+  const refused = load(path.join(paired, 'refused-paths.js'));
   const csrf = setOfTexts(engine, parser, 'CSRF_MUTATION_PATHS');
   remote.useGetMutators(new Set(csrf));
   return { remote, refused, csrf: new Set(csrf), jsonp: new Set(setOfTexts(engine, parser, 'JSONP_PATHS')),
