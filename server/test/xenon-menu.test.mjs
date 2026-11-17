@@ -1488,3 +1488,23 @@ test('Capture: where videos and pictures go, changed with the PC folder dialog, 
   assert.ok(row(noVideo, 'capture', 'shotFolder'));
   assert.equal(section(Menu.compose(full()), 'capture').rows.some((r) => r.id === 'h-folders'), false);
 });
+
+// One action, one name: a person told "Edit the widgets on screen" must find those words in the
+// menu, on the Deck key and from Bit (a user could not find "What it shows..." under another name).
+test('editing the widgets on screen has one name on every surface', () => {
+  const { CAPABILITIES } = require('../js/capability-catalog.js');
+  const deck = CAPABILITIES.find((c) => c.type === 'layersEdit');
+  assert.equal(deck.labelKey, 'deck_act_layersEdit');
+  const fn = Functions.functionById('edit');
+  assert.equal(fn.label, deck.labelKey);
+  assert.equal(fn.name, dict.en.deck_act_layersEdit);
+  assert.deepEqual(row(Menu.compose(full()), 'widgets', 'edit').label, { key: deck.labelKey });
+  assert.match(deck.capability.ai.description, /"Edit the widgets on screen"/);
+  assert.match(deck.capability.ai.description, /What it shows/);
+  for (const lang of LANGS) {
+    assert.equal(dict[lang].xmenu_edit, undefined, lang + ' old name gone');
+    assert.ok(dict[lang].deck_act_layersEdit, lang + ' name');
+    assert.ok(dict[lang].xmenu_sub_edit, lang + ' line');
+    if (lang !== 'en') assert.notEqual(dict[lang].xmenu_sub_edit, dict.en.xmenu_sub_edit, lang + ' translated');
+  }
+});

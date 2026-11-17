@@ -57,7 +57,8 @@ const FUNCTIONS = Object.freeze([
   screen('settings', 'settings:general', 'settings', 'settings_title', 'Settings'),
   { ...screen('mixer', 'mixer', 'mixer', 'deck_act_appMixer', 'Mixer'), probe: 'appAudio' },
   screen('whatsnew', 'whatsnew', 'whatsnew', 'xmenu_whatsnew', "What's New"),
-  { id: 'edit', group: 'xenon', icon: 'edit', label: 'xmenu_edit', name: 'Move widgets', probe: 'layers', action: { type: 'layersEdit', mode: 'on' }, returns: true },
+  // The Deck action's own words: one action, one name on every surface.
+  { id: 'edit', group: 'xenon', icon: 'edit', label: 'deck_act_layersEdit', name: 'Edit the widgets on screen', probe: 'layers', action: { type: 'layersEdit', mode: 'on' }, returns: true },
   { id: 'page', group: 'xenon', icon: 'pages', label: 'xmenu_next_page', name: 'Next widget page', probe: 'widgetPages', action: { type: 'layerPage' }, inPlace: true },
 ]);
 
