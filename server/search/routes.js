@@ -2,7 +2,7 @@
 
 const { hub } = require('../settings/current.js');
 const { _hotkey } = require('../deck/hotkey-state.js');
-const { searchShortcut } = require('./shortcut-claim.js');
+const { spotlightClaim } = require('./spotlight-window.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const screenAlertsPage = require('../alerts/screen-alerts-page.js');
@@ -33,7 +33,7 @@ const branches = {
     // The native kiosk claims the hotkey: it just opened the frameless
     // Spotlight window, so the Edge fallback must NOT also fire. In
     // CSRF_MUTATION_PATHS.
-    searchShortcut.claimed = true;
+    spotlightClaim.claim();
     json({ ok: true });
   },
 

@@ -6,7 +6,7 @@
 // opens/refocuses the /spotlight Edge app-mode window on the main PC. State is
 // surfaced to Settings via GET /search/hotkey-status; 'taken' means another
 // app (PowerToys Run on Alt+Space, typically) owns the combo.
-const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, failures: 0, bindings: [], slots: {} };
+const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, failures: 0, bindings: [], slots: {}, recheck: false, takenChecks: 0 };
 
 // The table the helper is handed, in the order it is handed it: the helper
 // addresses a combo by its POSITION, so this array IS the wire format and the

@@ -9,8 +9,7 @@ const { PORT } = require('../engine/port.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const { _spotlightPopupPids } = require('./spotlight-state.js');
 const { runPowerShellScript } = require('../powershell/run-command.js');
-const { spotlightClaim } = require('./spotlight-claim-state.js');
-const { searchShortcut } = require('./shortcut-claim.js');
+const { createSpotlightClaim } = require('../spotlight-hotkey/claim.js');
 const { DECK_POPUP_TOP_SCRIPT } = require('../deck/script-paths.js');
 
 function openSpotlightPopupWindow() {
@@ -56,15 +55,11 @@ function openSpotlightPopupWindow() {
   return { ok: true };
 }
 
-function routeSpotlightHotkey() {
-  searchShortcut.claimed = false;
-  broadcastSSE('spotlight_hotkey', { at: Date.now() });
-  if (spotlightClaim.timer) clearTimeout(spotlightClaim.timer);
-  spotlightClaim.timer = setTimeout(() => {
-    spotlightClaim.timer = null;
-    if (!searchShortcut.claimed) { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } }
-  }, 450);
-  spotlightClaim.timer.unref();
-}
+// Native first, the Edge popup when no native window claims it (spotlight-hotkey/claim.js).
+const spotlightClaim = createSpotlightClaim({
+  broadcast: () => broadcastSSE('spotlight_hotkey', { at: Date.now() }),
+  openFallback: () => { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } },
+});
+function routeSpotlightHotkey() { spotlightClaim.route(); }
 
-module.exports = { openSpotlightPopupWindow, routeSpotlightHotkey };
+module.exports = { openSpotlightPopupWindow, routeSpotlightHotkey, spotlightClaim };

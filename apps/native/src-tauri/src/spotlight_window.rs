@@ -24,7 +24,7 @@
 //! elsewhere, so you can copy from another app and come back with the hotkey. It
 //! stays out of captures, or "look at my screen" would photograph the chat itself.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -40,6 +40,12 @@ const SETTLE: Duration = Duration::from_millis(1500);
 const EDGE: f64 = 48.0;
 
 static CHAT: AtomicBool = AtomicBool::new(false);
+/// How long a hidden search keeps its memory. Searches come in bursts: right
+/// after a hide, the next open was paying to fill the webview back up (slow,
+/// uneven frames on Alt+Space). Hidden longer than this, it gives it back.
+const LOW_AFTER: Duration = Duration::from_secs(120);
+/// Bumped on every show and hide, so a late timer from an older hide does nothing.
+static TURN: AtomicU64 = AtomicU64::new(0);
 
 /// Top-left logical position that centers the pill horizontally on the primary
 /// monitor, a Spotlight-like quarter down from its top.
@@ -74,6 +80,7 @@ fn fit(wanted: f64, h: f64, top: f64, tall: f64) -> (f64, f64) {
 /// and is built hidden: built visible, it took the foreground before its webview
 /// was ready, and the first press after launch showed nothing.
 fn reveal(app: &AppHandle, win: &tauri::WebviewWindow, chat: bool) {
+    TURN.fetch_add(1, Ordering::SeqCst);
     crate::memory_level::set_low(win, false);
     let _ = win.show();
     // Re-assert on every open: cheap, and it survives anything that
@@ -203,8 +210,16 @@ fn hide(app: &AppHandle) {
     leave_chat(app);
     if let Some(win) = app.get_webview_window(LABEL) {
         let _ = win.hide();
-        // Hidden between searches, often for hours: give its memory back.
-        crate::memory_level::set_low(&win, true);
+        // Hidden between searches, often for hours: give its memory back, once
+        // it is clear no new search is coming at once.
+        let turn = TURN.fetch_add(1, Ordering::SeqCst) + 1;
+        let later = win.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(LOW_AFTER);
+            if TURN.load(Ordering::SeqCst) == turn && !later.is_visible().unwrap_or(true) {
+                crate::memory_level::set_low(&later, true);
+            }
+        });
         // Back to the compact pill so the NEXT open never flashes tall.
         let _ = win.set_size(LogicalSize::new(W, H_COMPACT));
     }

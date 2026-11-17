@@ -274,7 +274,14 @@
     // opened from Xenon. Otherwise (the tile by default) the pill alone,
     // Apple-style: the panel body only exists while there is text.
     let recentReq = 0;
+    let idle = Promise.resolve();   // settles once the empty state has its final size
+    // The last recents shown. An open draws them at once, so the native window
+    // grows before the bar comes in, instead of opening short and growing once
+    // the server answers; the fresh list replaces them when it comes.
+    let recentGroups = null;
+    let hoverArmed = false;          // the pointer moved over this list (see the results)
     function renderIdle() {
+      hoverArmed = false;
       listEl.textContent = '';
       statusEl.textContent = '';
       chipsEl.textContent = '';
@@ -284,9 +291,20 @@
       hidePreview();
       input.setAttribute('aria-expanded', 'false');
       input.removeAttribute('aria-activedescendant');
+      idle = Promise.resolve();
       if (!filterMenu.hidden) { setExpanded(true); return; }
-      setExpanded(false);
-      if (typeof opts.showRecent === 'function' && opts.showRecent()) void loadRecent();
+      const recents = typeof opts.showRecent === 'function' && opts.showRecent();
+      const cached = recents ? recentGroups : null;
+      if (cached) showRecentGroups(cached);
+      else setExpanded(false);
+      if (!recents) return;
+      const fresh = loadRecent();
+      if (!cached) idle = fresh;
+    }
+
+    function showRecentGroups(groups) {
+      setExpanded(true);
+      renderGroups(groups, []);
     }
 
     async function loadRecent() {
@@ -298,13 +316,27 @@
         ['spot_recent_files', 'Aperti di recente', out.files || []],
         ['spot_recent_folders', 'Cartelle che usi', out.folders || []],
       ].filter((g) => g[2].length);
-      if (!groups.length) return;
-      setExpanded(true);
-      renderGroups(groups, []);
+      recentGroups = groups.length ? groups : null;
+      if (groups.length) { showRecentGroups(groups); return; }
+      listEl.textContent = '';
+      lastResults = [];
+      setExpanded(false);
     }
 
     // ── results ──
     function rowsOf() { return listEl.querySelectorAll('.spot-row'); }
+
+    // A list drawn under a resting pointer must not pick the row it lands on:
+    // the search window opening under the mouse selected that file, popped its
+    // preview and moved the highlight. Hover selects once the pointer moves.
+    listEl.addEventListener('pointermove', (e) => {
+      if (hoverArmed || !(e.movementX || e.movementY)) return;
+      hoverArmed = true;
+      const row = e.target && e.target.closest ? e.target.closest('.spot-row') : null;
+      const index = row ? Array.prototype.indexOf.call(rowsOf(), row) : -1;
+      if (index >= 0 && index !== selIndex) setSelected(index);
+    });
+    listEl.addEventListener('pointerleave', () => { hoverArmed = false; });
 
     function setSelected(i, quiet) {
       const rows = rowsOf();
@@ -405,7 +437,7 @@
 
       lastResults.push(r);
       const index = lastResults.length - 1;
-      row.addEventListener('mouseenter', () => { if (selIndex !== index) setSelected(index); });
+      row.addEventListener('mouseenter', () => { if (hoverArmed && selIndex !== index) setSelected(index); });
       row.addEventListener('click', () => act('open', r, row));
       if (r.app) return row;
 
@@ -451,7 +483,7 @@
       row.append(askFace(), mid);
       lastResults.push({ ask: true });
       const index = lastResults.length - 1;
-      row.addEventListener('mouseenter', () => { if (selIndex !== index) setSelected(index); });
+      row.addEventListener('mouseenter', () => { if (hoverArmed && selIndex !== index) setSelected(index); });
       row.addEventListener('click', () => { void askBit(true); });
       listEl.appendChild(row);
       input.setAttribute('aria-expanded', 'true');
@@ -663,6 +695,7 @@
       // A line under the bar, for what a host has to tell.
       say(text) { setExpanded(true); statusEl.textContent = text; },
       reset,
+      idle: () => idle,
       setQuery(q) { input.value = q || ''; runSearch(); },
       greet() { if (bit) bit.greet(); },
       // Stop pending work without touching the DOM (overlay close, tile teardown).
@@ -826,6 +859,8 @@
     say(text) { open(); spotState.ui.say(text); },
     toggle() { if (spotState.openState) close(); else open(); },
     isOpen() { return spotState.openState; },
+    // The bar's empty state is in place, recents and all (or never came).
+    idle() { return spotState.ui ? spotState.ui.idle() : Promise.resolve(); },
     createSearchUI,
     chatHandler,
     greet,

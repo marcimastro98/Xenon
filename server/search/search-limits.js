@@ -14,8 +14,11 @@ const FOLDERS_MAX = 8;                // folder results asked of the index
 const POOL_MAX = 12;                  // usage-log files re-checked per query
 const QUERY_MAX = 200;                // typed queries; a pasted path may be longer
 const PASTED_STAT_MS = 1500;          // a mapped drive that does not answer is not a result
+const RECENT_STAT_MS = 150;           // a recent's path answering later is shown as it last was
+const RECENT_STATS_MAX = 64;          // paths whose last answer is remembered
 
 module.exports = {
   HOST_IDLE_MS, HOST_RETRY_MS, REQ_TIMEOUT_MS, RESULTS_CACHE_MAX, WDS_MAX, USAGE_SAVE_DEBOUNCE_MS,
   CATALOG_STASH_MS, CATALOG_STASH_MAX, FOLDERS_MAX, POOL_MAX, QUERY_MAX, PASTED_STAT_MS,
+  RECENT_STAT_MS, RECENT_STATS_MAX,
 };

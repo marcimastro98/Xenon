@@ -780,6 +780,16 @@ function _scheduleHotkeyRetry(ms) {
   }, Math.max(1000, ms || pause));
   shortcutState.retryTimer.unref();
 }
+// A helper that holds SOME combos keeps running, so the exit path never looks
+// again at the ones another app had at that moment: Alt+Space stayed dead for
+// the whole session after the other app let it go. Look again with the same
+// backoff, by restarting the helper (it registers everything in one go).
+function _recheckTakenHotkeys() {
+  const pause = Math.min(HOTKEY_RETRY_MS * (2 ** _hotkey.takenChecks), HOTKEY_RETRY_MAX_MS);
+  _hotkey.takenChecks++;
+  _hotkey.recheck = true;
+  _scheduleHotkeyRetry(pause);
+}
 const { _cancelHotkeyRetry } = require('./deck/hotkey-retry-cancel.js');
 
 const { _linuxHotkey } = require('./deck/engine-linux-hotkey.js');
@@ -796,7 +806,7 @@ function refreshHotkeyListener() {
   // Set BEFORE dispatching: both paths read it to resolve a press, and the
   // Linux one derives each slot's route from the index into this table.
   const changed = combos.join('\u0000') !== _hotkey.combos;
-  if (changed) _hotkey.failures = 0;
+  if (changed) { _hotkey.failures = 0; _hotkey.takenChecks = 0; }
   _hotkey.bindings = bindings;
   _hotkey.combos = combos.join('\u0000');
   if (_linuxHotkey) {
@@ -806,7 +816,15 @@ function refreshHotkeyListener() {
     return;
   }
   if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; _hotkey.slots = {}; return; }
-  if (_hotkey.proc && !changed) return;   // already right
+  if (_hotkey.proc && !changed && !_hotkey.recheck) return;   // already right
+  if (_hotkey.proc && !changed) {
+    // A recheck: start the new helper only once the old one has let its combos
+    // go, or the new one finds every combo held, by us.
+    _hotkey.proc.once('exit', () => { if (!_shuttingDown) { try { refreshHotkeyListener(); } catch { /* next save retries */ } } });
+    _stopHotkeyListener();
+    return;
+  }
+  _hotkey.recheck = false;
   _stopHotkeyListener();
   _widgetKeys.setRelease(false);
   let helperOk = false;
@@ -863,6 +881,8 @@ function refreshHotkeyListener() {
         if (_hotkey.slots.spotlight && _hotkey.slots.spotlight !== 'listening') {
           _hotkey.state = _hotkey.slots.spotlight;
         }
+        if (Object.values(_hotkey.slots).includes('taken')) _recheckTakenHotkeys();
+        else _hotkey.takenChecks = 0;
       } else if (ev.event === 'hotkey') {
         try { routeHotkeyIndex(at); } catch {}
       } else if (ev.event === 'release') {
