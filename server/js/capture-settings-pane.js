@@ -67,7 +67,7 @@
   }
 
   function applyEngine() {
-    if (!engine || engine.capture !== true || isRemote()) return;
+    if (engine?.capture !== true || isRemote()) return;
     // A catalog without the key (an older server) keeps the row, as before.
     setSettingsCardAvailable($id('settings-capture-video-group'), engine.captureVideo !== false);
     setSettingsCardAvailable($id('settings-replay-group'), engine.captureReplay !== false);

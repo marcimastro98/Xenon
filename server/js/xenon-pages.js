@@ -5,11 +5,11 @@
 // (server/xenon-menu.js, drawn by js/xenon-menu.js), the others are Settings' panes.
 // Capture is both: on the dashboard the menu's capture rows sit over Settings'
 // capture panes (js/xenon-menu-panel.js), in the window "All options" opens them.
-(function (root, factory) {
+((root, factory) => {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.XenonPages = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, () => {
   const SECTIONS = Object.freeze(['screens', 'now', 'capture', 'keys']);
   // [page, label key, icon of js/xenon-menu-icons.js], group by group.
   const GROUPS = Object.freeze([
@@ -88,16 +88,17 @@
   // Settings' rail, drawn as soon as this script runs: the markup above it is parsed,
   // and js/settings.js reads the rail later (platform rows, the search, the sheet).
   // Its foot (the Store, the Sparks, FOOT) is the page's own markup.
+  const page = typeof window !== 'undefined' ? /** @type {any} */ (window) : null;   // icons, Settings, words
   function fillSettings(doc, t) {
     const list = doc.getElementById('settings-nav-scroll');
-    const icons = typeof window !== 'undefined' && window.XenonMenuIcons;
+    const icons = page?.XenonMenuIcons;
     if (!list || !icons) return;
-    const pick = (page) => { if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory(page); };
+    const pick = (p) => { if (typeof page.settingsSetCategory === 'function') page.settingsSetCategory(p); };
     const o = { doc, t, icon: (name) => icons.make(doc, name), btn: 'settings-nav-btn', head: 'settings-nav-label', key: 'settingsCat', pick };
     list.replaceChildren(...draw(rows(SECTIONS, []), o));
   }
 
-  if (typeof document !== 'undefined' && typeof window.t === 'function') fillSettings(document, window.t);
+  if (typeof document !== 'undefined' && typeof page?.t === 'function') fillSettings(document, page.t);
 
   return Object.freeze({ SECTIONS, PAGES, pageOf, isSection, isCat, rows, foot, draw });
 });

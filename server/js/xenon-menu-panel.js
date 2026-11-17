@@ -72,7 +72,7 @@
 
   // Esc leaves a widget's screen first, and is left alone while a key is recorded or
   // a name typed. True when it was taken here and Settings stays.
-  function escape() {
+  function stepBack() {
     if (!isOpen() || box().hidden) return false;
     return view.holdsEsc() || view.stepBack();
   }
@@ -88,5 +88,5 @@
     new MutationObserver(() => { if (shade.hidden) drop(); }).observe(shade, { attributes: true, attributeFilter: ['hidden'] });
   }
 
-  window.XenonMenuPanel = { open, close, openVerb, isOpen, page, escape };
+  window.XenonMenuPanel = { open, close, openVerb, isOpen, page, escape: stepBack };
 })();
