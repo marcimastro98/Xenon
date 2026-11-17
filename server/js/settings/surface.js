@@ -2,20 +2,11 @@
 // applying a choice.
 'use strict';
 
-// First-run tutorial state. The getter is read by onboarding.js to decide
-// whether to auto-start the tour; the setter records the version the user just
-// finished/skipped and persists it to the server so it survives a storage wipe.
+// The last version of the guided tour taken, from before 5.2.0: above 0, this PC ran
+// Xenon before (js/release-notice.js returningUser).
 function getOnboardingSeen() {
   return (hubSettings && hubSettings.onboarding && Number(hubSettings.onboarding.seenVersion)) || 0;
 }
-window.getOnboardingSeen = getOnboardingSeen;
-
-function setOnboardingSeen(version) {
-  const v = Math.max(0, Math.floor(Number(version) || 0));
-  hubSettings = normalizeSettings({ ...hubSettings, onboarding: { seenVersion: v } });
-  saveHubSettings();
-}
-window.setOnboardingSeen = setOnboardingSeen;
 
 // The chosen screen. Read by surface-picker.js to decide whether to ask, and by
 // the Settings → Schermo panel to render the current choice. Server-backed on

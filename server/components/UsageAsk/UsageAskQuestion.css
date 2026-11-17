@@ -26,7 +26,6 @@
   line-height: 1.45;
   color: var(--sp-muted);
 }
-.ua-key { white-space: nowrap; color: var(--sp-text); }
 
 .ua-cards {
   display: flex;

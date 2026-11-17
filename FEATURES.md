@@ -112,7 +112,7 @@ When a tile is left with a single item inside, its tab bar hides automatically f
 
 All layout choices are saved automatically (locally and to the server), so the dashboard stays the way you left it after a refresh or restart. On upgrade the layout migrates automatically while preserving your other settings (theme, weather, API key…).
 
-**First run:** Xenon asks one question, how you want to use it, and then stays out of the way for the first day. The side rails peek out once so you can see them, Bit offers **Show me around** in its chat, and with widgets on, three starter widgets are already on your desktop. The guided tour starts only when you ask for it: **Show me around**, or **Settings → About → Tutorial**.
+**First run:** Xenon asks one question, how you want to use it, and then stays out of the way for the first day. In the Xenon app its last step has you press the key that opens Xenon over any app (Alt+Shift+X unless you change it), so you know the way in from the start. The side rails peek out once so you can see them, and with widgets on, three starter widgets are already on your desktop.
 
 ---
 

@@ -13,7 +13,7 @@
   .cs-panel, .widget-palette-modal, .tile-style-pop, .preset-modal, .cgal-modal,
   .native-promo, .wc-modal, .cw-modal, .upd-card, .discord-invite,
   .deck-pmenu, .deck-style-dialog, .deck-ed-modal, .deck-mix-modal, .deck-asw, .deck-toast, .xfer-sheet,
-  .event-toast, .gc-pill, .gc-card, .perf-sheet, .weather-panel, .ai-pc-card, .onb-card, .diskw-advisor-dialog
+  .event-toast, .gc-pill, .gc-card, .perf-sheet, .weather-panel, .ai-pc-card, .diskw-advisor-dialog
 ) {
   color: var(--text);
   background-color: var(--surface);

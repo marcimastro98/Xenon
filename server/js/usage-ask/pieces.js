@@ -1,6 +1,6 @@
 // What the question about how Xenon is used is drawn from: its words and elements, the mode saved
-// today, the key of the Xenon menu as text, the screens of this PC, the line under the choices, and
-// the short show of the side buttons.
+// today, the screens of this PC, the line under the choices, the last step that has the person press
+// the key opening Xenon (js/usage-ask/key-step.js), and the short show of the side buttons.
 'use strict';
 
 (() => {
@@ -27,11 +27,11 @@
   const settings = () => (typeof hubSettings === 'object' && hubSettings) || {};
   const current = () => (window.UsageMode ? window.UsageMode.normalize(settings().usageMode) : '');
 
-  function menuKeyText() {
+  // The key that opens Xenon over any app, as stored: 'off' when turned off.
+  function menuCombo() {
     const layers = settings().layers || {};
     const combo = typeof layers.menuKey === 'string' && layers.menuKey ? layers.menuKey : 'alt+shift+x';
-    return window.DeckShortcuts && typeof window.DeckShortcuts.formatShortcut === 'function'
-      ? window.DeckShortcuts.formatShortcut(combo) : combo;
+    return (combo !== 'off' && window.DeckShortcuts?.normalizeShortcut?.(combo)) || combo;
   }
 
   function displays() {
@@ -41,11 +41,23 @@
   }
 
   function subLine() {
-    const sub = el('p', 'ua-sub');
-    // The key combination never breaks across lines ("Alt + Shift" / "+ X").
-    const [before, after = ''] = tr('usage_ask_sub', 'Change it any time from the Xenon menu ({key}) or by asking Bit.').split('{key}');
-    sub.append(el('span', '', before), el('span', 'ua-key', menuKeyText()), el('span', '', after));
-    return sub;
+    return el('p', 'ua-sub', tr('usage_ask_sub', 'Change it any time in Xenon or by asking Bit.'));
+  }
+
+  // The last step where this app draws Xenon over the screen: the person presses its key.
+  // Before anything moves: the dialog is still on the screen they answered on, and "Widgets
+  // only" would trade this page for the driver page.
+  function keyStep(overlay, answer) {
+    const combo = menuCombo();
+    const caps = window.__XENON_NATIVE_CAPS__ || {};
+    if (answer.phone || caps.menu !== true || combo === 'off' || !window.UsageAskKey) return Promise.resolve('');
+    const mac = /Mac/i.test(navigator.platform || '');
+    const format = (c) => (window.DeckShortcuts ? window.DeckShortcuts.formatShortcut(c, mac) : c);
+    // The picture now shows the answer: its screens are no longer there to tap.
+    const left = /** @type {HTMLElement} */ (overlay.querySelector('.ua-left'));
+    left.inert = true;
+    left.querySelector('.ua-hint').classList.remove('is-on');
+    return window.UsageAskKey.run(overlay.querySelector('.ua-right'), { tr, combo, format });
   }
 
   // With the tour gone from the first run, this is how the side buttons get seen.
@@ -64,6 +76,6 @@
   }
 
   window.UsageAskPieces = {
-    TITLE, plan, tr, el, current, displays, subLine, peekRails, leavesForDriver,
+    TITLE, plan, tr, el, current, displays, subLine, keyStep, peekRails, leavesForDriver,
   };
 })();

@@ -56,9 +56,8 @@ body[data-panel="sheet"] .deck-mix-apps { max-width: 720px; }
   body[data-panel="sheet"] #settings-overlay .settings-nav-scroll { flex: 0 0 auto; overflow: visible; }
 }
 
-/* Rows that lead back to where the person already is, or start the dashboard's tour. */
-body[data-panel="sheet"] #settings-overlay .settings-row:has([onclick="openXenonMenu()"]),
-body[data-panel="sheet"] #settings-overlay .settings-tutorial-group { display: none; }
+/* Rows that lead back to where the person already is. */
+body[data-panel="sheet"] #settings-overlay .settings-row:has([onclick="openXenonMenu()"]) { display: none; }
 
 /* What only the dashboard has, for who has no dashboard (js/ai/sheet-usage.js). The
    category in use stays: a tile's Set up button or a search result can lead to it. */

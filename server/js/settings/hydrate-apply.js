@@ -230,8 +230,8 @@ async function _hydrateHubSettingsImpl() {
     // The first-run question, now that the persisted state is authoritative: one,
     // never two in a row. The app that draws widgets asks how Xenon is used, and
     // that answer says where the dashboard goes too; the browser and other shells
-    // have only the screen to ask about. No tour: nobody asked for one yet, so it
-    // waits a tap away, in Settings and among Bit's starters.
+    // have only the screen to ask about. No tour: the question ends with the person
+    // pressing the key that opens Xenon (js/usage-ask/key-step.js).
     //
     // DEFERRED, and what it waits for is the SCRIPT TAGS, not the page. This
     // function is started at the bottom of settings.js — a script tag ~80 tags

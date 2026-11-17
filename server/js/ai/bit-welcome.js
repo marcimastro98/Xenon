@@ -15,11 +15,9 @@
     return 'bit_hello_' + HELLO_FROM.find(([from]) => h >= from)[1];
   }
 
-  // { icon, key, vars, cost, run }: what to ask, from what this PC has. A city typed
+  // { icon, key, vars, cost }: what to ask, from what this PC has. A city typed
   // in the weather settings names it; music playing turns the timer starter into
   // one that also lowers it; the widget starter shows its rough price on Sparks.
-  // Until the tour has been taken it comes first: it runs here, with no question
-  // to the AI, so it spends no Sparks.
   function starters(ctx = {}) {
     const city = String(ctx.city || '').trim();
     const weather = city
@@ -27,14 +25,13 @@
       : { icon: 'weather', key: 'bit_start_weather' };
     const clock = ctx.playing ? { icon: 'music', key: 'bit_start_music_timer' } : { icon: 'timer', key: 'bit_start_timer' };
     const widget = { icon: 'widget', key: 'bit_start_widget', cost: Number.isFinite(ctx.widgetCost) ? ctx.widgetCost : null };
-    return ctx.tourUnseen ? [{ icon: 'tour', key: 'bit_start_tour', run: 'tour' }, weather, widget] : [weather, clock, widget];
+    return [weather, clock, widget];
   }
 
   const ICONS = {
     weather: '<path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4 12.5 3.5 3.5 0 0 0 7.5 19z"/>',
     music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
     timer: '<circle cx="12" cy="14" r="8"/><path d="M12 10v4l2.5 2M9.5 2.5h5"/>',
-    tour: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
     widget: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/>',
   };
 
@@ -56,8 +53,7 @@
     const ask = fillVars(tr(s.key), s.vars);
     const b = el('button', 'bit-starter');
     b.type = 'button';
-    if (s.run) b.dataset.bitRun = s.run;
-    else b.dataset.bitAsk = ask;
+    b.dataset.bitAsk = ask;
     b.insertAdjacentHTML('afterbegin', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[s.icon]}</svg>`);
     const words = el('span', 'bit-starter-words');
     words.append(el('span', '', ask));
@@ -78,7 +74,6 @@
       city: w.mode === 'manual' ? w.city : '',
       playing: typeof hasActiveMedia === 'function' && !!hasActiveMedia(),
       widgetCost: onSparks && XenonCredits.widgetCost ? XenonCredits.widgetCost() : null,
-      tourUnseen: !!(window.Onboarding && window.Onboarding.unseen()),
     };
   }
 
@@ -175,7 +170,6 @@
     document.addEventListener('click', (e) => {
       const b = e.target && e.target.closest && e.target.closest('.bit-starter');
       if (!b) return;
-      if (b.dataset.bitRun === 'tour') { if (window.Onboarding) window.Onboarding.start(); return; }
       if (b.dataset.bitAsk && typeof aiSendMessage === 'function') aiSendMessage(b.dataset.bitAsk, false);
     });
   }

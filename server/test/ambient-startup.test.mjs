@@ -79,31 +79,27 @@ test('it waits for anything the user has to deal with first', () => {
   assert.equal(ambientStartupDecision({ ...CLEAR, hidden: true }), 'wait');
 });
 
-test('the screen picker, the first-run tour and the greeting hold it back', () => {
+test('the screen picker and the greeting hold it back', () => {
   const sel = MODE.match(/const STARTUP_OVERLAY_SELECTOR = '([^']+)'/);
   assert.ok(sel, 'STARTUP_OVERLAY_SELECTOR is declared');
-  for (const cls of ['.sp-overlay', '.onb-overlay', '.greeting-splash']) {
+  for (const cls of ['.sp-overlay', '.greeting-splash']) {
     assert.ok(sel[1].includes(cls), `${cls} must hold the startup open back`);
   }
   // …and those are the classes those modules really create.
   assert.match(read('js', 'paired/surface-picker.js'), /overlay\.className = 'sp-overlay'/);
-  assert.match(read('js', 'onboarding/onboarding.js'), /overlay\.className = 'onb-overlay'/);
   assert.match(read('js', 'first-run/greeting.js'), /el\('div', `greeting-splash /);
 });
 
 test('a load that runs the first-run questions is skipped, not waited out', () => {
-  // The screen picker and the tour open a beat AFTER the hydrate the startup
-  // check runs on, so an empty screen at that instant proves nothing — and the
-  // tour, answered or not, would be pointing at a dashboard hidden behind a scene.
+  // The screen picker opens a beat AFTER the hydrate the startup check runs on,
+  // so an empty screen at that instant proves nothing.
   assert.equal(ambientStartupDecision({ ...CLEAR, firstRun: true }), 'skip');
   // Read the way those modules decide it themselves.
   const fn = extractFunction(MODE, 'firstRunPending');
   assert.match(fn, /sp\.shouldAsk\(\)/);
-  assert.match(fn, /onb\.isActive\(\)/);
-  // The tour is offered, it no longer opens by itself: nobody having taken it holds nothing back.
-  assert.doesNotMatch(fn, /getOnboardingSeen/);
+  assert.match(fn, /sp\.isOpen\(\)/);
+  assert.doesNotMatch(fn, /Onboarding/);
   assert.match(read('js', 'paired/surface-picker.js'), /window\.SurfacePicker = \{[^}]*shouldAsk[^}]*isOpen/);
-  assert.match(read('js', 'onboarding/onboarding.js'), /window\.Onboarding = \{[^}]*isActive[^}]*version: ONBOARDING_VERSION/);
 });
 
 test('a running game does not hold it back', () => {

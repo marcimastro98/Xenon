@@ -7,6 +7,7 @@
 
 import { createRequire } from 'node:module';
 import { menuState, PHONES } from '../menu-shots/fixture.mjs';
+import { firstRunScenes } from './first-run-scenes.mjs';
 
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
 const BALANCE_FULL = { ...BALANCE_LOW, balance: 260, included: 260 };
@@ -113,6 +114,7 @@ const xenonScenes = {
 
 export const SCENES = {
   ...xenonScenes,
+  ...firstRunScenes,
   ...chipScenes,
   // Settings → Bit with a low balance: the three packs.
   'sparks-settings': {
@@ -187,16 +189,6 @@ export const SCENES = {
       await new Promise((r) => setTimeout(r, 4500));
       openSettings('general');
       await new Promise((r) => setTimeout(r, 900));
-      return null;
-    },
-  },
-  // The guided tour on its first and last stop (`tour`, `tour-last`).
-  tour: { open: async () => { window.Onboarding.start(); await new Promise((r) => setTimeout(r, 700)); return null; } },
-  'tour-last': {
-    open: async () => {
-      window.Onboarding.start();
-      for (let i = 0; i < 3; i++) document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-      await new Promise((r) => setTimeout(r, 700));
       return null;
     },
   },

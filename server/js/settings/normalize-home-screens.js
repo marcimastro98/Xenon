@@ -201,7 +201,8 @@ function normalizeSecondScreen(value) {
   return { fps, quality, width: match ? match[0] : d.width, height: match ? match[1] : d.height, fit, touchControl };
 }
 
-// First-run tutorial state: just a monotonic "last seen version" integer.
+// The guided tour's last version taken, a plain integer. The tour is gone since 5.2.0;
+// above 0 it still tells an update from a new install.
 function normalizeOnboarding(value) {
   const v = value && typeof value === 'object' ? value : {};
   const seen = Number(v.seenVersion);

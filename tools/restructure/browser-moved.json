@@ -326,7 +326,6 @@
     {"from":"server/js/dashboard-tabgroups.js","to":"server/js/dashboard-tabgroups/dashboard-tabgroups.js"},
     {"from":"server/js/update.js","to":"server/js/update/update.js"},
     {"from":"server/js/whats-new.js","to":"server/js/whats-new/whats-new.js"},
-    {"from":"server/js/onboarding.js","to":"server/js/onboarding/onboarding.js"},
     {"from":"server/js/usage-ask.js","to":"server/js/usage-ask/usage-ask.js"},
     {"from":"server/js/remote-access-page.js","to":"server/js/remote-access-page/remote-access-page.js"},
     {"from":"server/js/settings-search.js","to":"server/js/settings-search/settings-search.js"},

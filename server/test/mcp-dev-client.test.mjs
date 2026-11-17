@@ -16,11 +16,10 @@ function zIndexOf(css, selector) {
   return Number(m[1]);
 }
 
-test('the pairing dialog sits above the first-run, tour and update overlays', () => {
+test('the pairing dialog sits above the first-run and update overlays', () => {
   const pair = zIndexOf(read('../components/AskSheet/AskSheet.css'), '.ask-overlay');
   const others = [
     zIndexOf(read('../components/SurfacePicker/SurfacePicker.css'), '.sp-overlay'),
-    zIndexOf(read('../components/Onboarding/Onboarding.css'), '.onb-overlay'),
     zIndexOf(read('../components/UpdateModal/UpdateModal.css'), '.upd-overlay'),
   ];
   for (const z of others) assert.ok(pair > z, `pair ${pair} must be above ${z}`);

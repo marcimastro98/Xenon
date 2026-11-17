@@ -497,9 +497,6 @@
       if (spec.dot) mirrorDot(b, spec.dot);
       if (spec.count) mirrorCount(b, spec.sel, spec.count);
       if (spec.id) b.dataset.phAction = spec.id;
-      // Names the topbar button this one stands in for, so the first-run tour
-      // (js/onboarding/onboarding.js) can point here when that button is hidden.
-      if (spec.sel) b.dataset.phFor = spec.sel;
       b.addEventListener('click', () => {
         if (spec.run) { try { spec.run(); } catch (e) { console.warn('[phone-view] dock action failed', spec.id, e); } return; }
         const real = document.querySelector(spec.sel);

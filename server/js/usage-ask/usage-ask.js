@@ -7,11 +7,11 @@
 // browser and to shells without widgets.
 //
 // The person always chooses; the recommended row starts selected. Someone updating is not
-// asked: they get 'both', which moves nothing on any screen. The Xenon menu, Settings and
-// Bit change it later.
+// asked: they get 'both', which moves nothing on any screen. Xenon and Bit change it later.
+// Where this app draws Xenon over the screen, the last step has the person press its key.
 (function () {
   const {
-    TITLE, plan, tr, el, current, displays, subLine, peekRails, leavesForDriver,
+    TITLE, plan, tr, el, current, displays, subLine, keyStep, peekRails, leavesForDriver,
   } = window.UsageAskPieces;
   const DRIVER_WAIT_MS = 4000; // a window that should have left for the driver page and did not
 
@@ -165,6 +165,7 @@
 
   function close() {
     if (!overlay) return;
+    if (window.UsageAskKey?.isOn()) window.UsageAskKey.cancel();
     document.removeEventListener('keydown', onKey, true);
     overlay.remove();
     overlay = null;
@@ -175,13 +176,12 @@
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('usage-ask', false);
   }
 
-  // The menu is the way in once widgets are on the screen, and it shows its key
-  // at the top: opening it once teaches the key better than a line of text.
-  function showMenu() {
-    if (!(window.__XENON_NATIVE_CAPS__ || {}).menu) return;
+  // Xenon over the screen on `section`, for "Choose another shortcut": the key itself may be
+  // what does not work, so it is never the way there.
+  function openMenu(section) {
     fetch(SERVER + '/screen-menu', {
-      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{"open":true,"section":"screens"}',
-    }).catch((e) => console.warn('[usage-ask] the Xenon menu did not open', e));
+      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section }),
+    }).catch((e) => console.warn('[usage-ask] Xenon did not open', e));
   }
 
   function placeDashboard(answer) {
@@ -212,6 +212,7 @@
     if (leaving) return;
     leaving = true;
     const answer = plan().answer({ mode, list, dash });
+    const key = await keyStep(overlay, answer);
     const toDriver = leavesForDriver(answer);
     // The dialog melts into what the person just chose. "Widgets only" has no dashboard to
     // melt into: the dialog stays until the window goes, so the dashboard never shows.
@@ -220,7 +221,7 @@
     // Before the mode: 'widgets' trades this page for the small driver page.
     await placeStarters(answer);
     const saved = typeof updateUsageMode === 'function' ? updateUsageMode(answer.usage) : null;
-    if (answer.usage !== 'dashboard' && !answer.phone) showMenu();
+    if (key === 'other') openMenu('keys');
     if (answer.usage !== 'widgets' && !answer.phone) peekRails();
     await saved;
     if (toDriver) setTimeout(close, DRIVER_WAIT_MS);
@@ -231,7 +232,7 @@
   // the phone key, which have their own click. No Esc: the question has no "later", and the
   // preselected answer is one tap away.
   function onKey(e) {
-    if (!overlay) return;
+    if (!overlay || window.UsageAskKey?.isOn()) return;
     overlay.classList.add('is-keyed');
     const modes = plan().cards(list);
     const i = modes.indexOf(picked);

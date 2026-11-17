@@ -73,7 +73,7 @@ test('busy() covers the two first-run surfaces, which nothing may cover', () => 
   // fires ~20s after load and the hub message ~35s, and both found the screen
   // idle while "Dove vuoi Xenon?" was on it.
   const { iq, state } = harness();
-  for (const sel of ['.sp-overlay', '.onb-overlay']) {
+  for (const sel of ['.sp-overlay']) {
     state.overlays = [sel];
     assert.equal(iq.busy(), true, sel + ' must block an interruption');
   }

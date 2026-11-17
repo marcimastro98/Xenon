@@ -277,13 +277,10 @@ test('only the first start moves a PC to Bit: the plain default stays Gemini', (
   assert.equal(src.split("aiProvider: 'xenon'").length - 1, 1);
 });
 
-test('every language has the strings, and no line mentions a Chat tab any more', () => {
+test('every language has the strings', () => {
   const src = appStringsSource();
   assert.equal(src.split(/\bbit_welcome_until"?:/).length - 1, 11);
   assert.equal(src.split('{date}').length - 1 >= 11, true);
-  const bodies = src.split('\n').filter((l) => /onb_ai_body"?:/.test(l));
-  assert.equal(bodies.length, 11);
-  bodies.forEach((l) => assert.ok(!/Chat tab|scheda Chat|Chat-Tab|pestaña Chat|onglet Chat|separador Chat|tabblad Chat/.test(l), l));
 });
 
 test('a new install starts on the model the trial can pay for, and the plain default stays', () => {

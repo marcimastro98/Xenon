@@ -152,7 +152,7 @@ test('a low window keeps the pages in reach: the rows under them scroll with the
 // as much, or the widgets-only list comes back whole (it did, 30 rows instead of 19).
 test('what the window hides outweighs the page', () => {
   const css = read('../components/SheetPage/SheetPage.css');
-  for (const hide of ['.sheet-off:not(.active)', '[data-dash-card]', '.settings-tutorial-group', '.settings-row:has([onclick="openXenonMenu()"])']) {
+  for (const hide of ['.sheet-off:not(.active)', '[data-dash-card]', '.settings-row:has([onclick="openXenonMenu()"])']) {
     const line = css.split('\n').find((l) => l.includes(hide));
     assert.ok(line, hide);
     assert.ok(line.includes('#settings-overlay'), hide + ' has no id');
@@ -172,7 +172,7 @@ test('the pages are wired: the menu goes to a sheet in place, and the dashboard 
   assert.ok(at(index, 'ai/sheet-page.js') < at(index, 'main.js'));
   assert.match(index, /components\/SheetPage\/SheetPage\.css/);
   assert.match(read('../js/main.js'), /VALID_PANELS = \[.*'sheet'\]/);
-  assert.match(read('../js/main.js'), /XenonSheet\.onMenu/);
+  assert.match(read('../js/main.js'), /\['XenonSheet', 'LayersShell', 'UsageAskKey'\]\.forEach\(\(name\) => \{ try \{ window\[name\]\?\.onMenu/);
 
   const page = read('../js/menu/screen-menu-page.js');
   assert.doesNotMatch(page, /open-dashboard\?' \+/, 'no screen goes through the dashboard signal any more');

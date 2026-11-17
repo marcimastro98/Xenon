@@ -64,7 +64,6 @@
     // "idle" because neither selector was here, and both drew straight over the
     // dialog. They are listed above everything else because they outrank it.
     '.sp-overlay',             // "Where do you want Xenon?" (first run)
-    '.onb-overlay',            // the guided tour that follows it
     '.upd-overlay',            // update available
     '.wn-stage',               // What's New of a major, full screen
     '.rn-overlay',             // what a release fixed, or a failed update

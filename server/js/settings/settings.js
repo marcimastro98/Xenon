@@ -558,10 +558,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // just an enable flag. Wave Link: enable + optional pinned port (0 = auto-scan).
   chroma: Object.freeze({ enabled: false }),
   wavelink: Object.freeze({ enabled: false, port: 0 }),
-  // First-run tutorial state. `seenVersion` is the ONBOARDING_VERSION the user
-  // last finished/skipped; 0 = never seen, so the tour shows once. Persisted in
-  // settings (not just localStorage) so a Xeneon Edge WebView storage wipe can't
-  // make the tutorial reappear on every boot.
+  // The last version of the guided tour taken; the tour is gone since 5.2.0. Kept
+  // as stored: above 0 it still tells an update from a new install.
   onboarding: Object.freeze({ seenVersion: 0 }),
   // Which screen the user chose for Xenon, asked once at first run.
   //   kind:  'auto'   — whatever the machine offers (the historical behaviour)

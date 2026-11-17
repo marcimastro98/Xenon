@@ -310,8 +310,8 @@
         }
         // THE keystone. Answering this on the FIRST try sets
         // _hubHydratedFromServer, which stops the 4 s retry loop, unparks every
-        // server-bound save, and lets Onboarding.maybeStart() run — the guided
-        // tour only ever fires from the hydrate success path.
+        // server-bound save, and lets the first-run question run: it only ever
+        // starts from the hydrate success path.
         return ok({ settings: Object.assign({}, settings, { rev: settingsRev }) });
 
       case '/status': return { status: 200, body: statusPayload() };

@@ -32,7 +32,7 @@ const using = (lang, re, skip = new Set()) => Object.entries(ALL[lang])
 
 // The reader talking to Bit or to the app, not the app talking to the reader.
 const FR_READER_VOICE = new Set([
-  'bit_start_tour', 'bit_start_widget', 'bit_start_timer', 'bit_start_music_timer', 'wn_s_bit_ask',
+  'bit_start_widget', 'bit_start_timer', 'bit_start_music_timer', 'wn_s_bit_ask',
   'gallery_ask_bit_draft', 'capg_tx_bit_prompt', 'deck_ph_prompt', 'settings_bg_code_ai_hint',
   'settings_replay_on_hint', 'ra_https_setup',
   // "Ton" here is the noun: the tone of Bit's roasts.

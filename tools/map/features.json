@@ -713,12 +713,10 @@
       "id": "first-run",
       "area": "engine",
       "name": "First run",
-      "what": "The loader, the welcome, and the one question about how the screen is used.",
+      "what": "The loader, the welcome, the one question about how the screen is used, and the key that opens Xenon.",
       "files": [
         "server/first-run/**",
-        "server/js/onboarding/**",
         "server/js/usage-ask/**",
-        "server/components/Onboarding/**",
         "server/components/UsageAsk/**",
         "server/components/BootSplash/**",
         "server/components/XenonLoader/**",

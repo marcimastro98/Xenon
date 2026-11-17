@@ -41,8 +41,8 @@ function normalizeHubInstall(source) {
     rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
     // Identity of THIS settings store — see the mint in writeHubSettings.
     storeId: SETTINGS_STORE_ID_RE.test(String(source.storeId || '')) ? String(source.storeId) : '',
-    // First-run tutorial state (client-owned): round-tripped so a Xeneon Edge
-    // WebView localStorage wipe can't make the tour reappear every boot.
+    // The guided tour's last version taken (client-owned; the tour is gone since 5.2.0):
+    // round-tripped because above 0 it still tells an update from a new install.
     onboarding: normalizeServerOnboarding(source.onboarding),
     // Persisted UI language ('' = follow the browser). Round-tripped so the
     // user's choice survives a browser-storage reset (e.g. a Windows restart).
