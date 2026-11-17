@@ -355,6 +355,7 @@
     {"from":"server/js/sdk-island-schema.js","to":"server/js/widget-sdk/sdk-island-schema.js"},
     {"from":"server/js/settings.js","to":"server/js/settings/settings.js"},
     {"from":"server/js/briefing-toast.js","to":"server/js/ambient/briefing-toast.js"},
-    {"from":"server/js/bit-trial-end.js","to":"server/js/store-supporters/bit-trial-end.js"}
+    {"from":"server/js/bit-trial-end.js","to":"server/js/store-supporters/bit-trial-end.js"},
+    {"from":"server/js/spotlight-motion.js","to":"server/js/search/spotlight-motion.js"}
   ]
 }

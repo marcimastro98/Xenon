@@ -1,4 +1,4 @@
-// The native search window's open and close (js/spotlight-motion.js): the
+// The native search window's open and close (js/search/spotlight-motion.js): the
 // contents stay hidden while the window is away and settle in two frames after
 // it shows, so the first picture of an open is never the last search.
 import { test } from 'node:test';
@@ -19,7 +19,7 @@ function rig() {
   const timers = [];
   const ctx = { window: {}, location: { search: '' }, document: doc };
   vm.createContext(ctx);
-  vm.runInContext(read('../js/spotlight-motion.js'), ctx);
+  vm.runInContext(read('../js/search/spotlight-motion.js'), ctx);
   const m = ctx.window.SpotlightMotion.create(doc, {
     raf: (fn) => frames.push(fn),
     timers: {
@@ -106,9 +106,9 @@ test('the page wires it to the native window only, and the CSS keeps it to the c
   assert.ok(html.indexOf('SpotlightWindow.css') > html.indexOf('Spotlight/Spotlight.css'));
   for (const rule of css.match(/^html\.[^{]+/gm)) assert.match(rule, /^html\.spotlight-frameless-host\.spot-(away|enter)\b/, rule);
   const head = html.slice(0, html.indexOf('</head>'));
-  assert.ok(head.includes('src="js/spotlight-motion.js"'), 'hidden before the first paint, so in the head');
-  assert.ok(head.indexOf('SpotlightWindow.css') < head.indexOf('js/spotlight-motion.js'));
-  const motion = read('../js/spotlight-motion.js');
+  assert.ok(head.includes('src="js/search/spotlight-motion.js"'), 'hidden before the first paint, so in the head');
+  assert.ok(head.indexOf('SpotlightWindow.css') < head.indexOf('js/search/spotlight-motion.js'));
+  const motion = read('../js/search/spotlight-motion.js');
   assert.match(motion, /if \(\/\[\?&\]frameless=1\/\.test\(location\.search\)\) \{\n\s+document\.documentElement\.classList\.add\('spotlight-frameless-host', 'spot-away'\);/, 'only the native window starts hidden');
   assert.match(css, /prefers-reduced-motion/);
   assert.doesNotMatch(css, /spot-leaving/);

@@ -1,4 +1,4 @@
-/* ── The native search window's open (js/spotlight-motion.js) ──
+/* ── The native search window's open (js/search/spotlight-motion.js) ──
    Only the window's CONTENTS move: the window itself is an opaque panel that
    Windows shows at once (see spotlight.html). While it is away they are hidden,
    so an open starts from the bare panel, never from the last search; then the

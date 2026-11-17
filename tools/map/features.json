@@ -240,7 +240,6 @@
         "server/search/**",
         "server/spotlight-ask/**",
         "server/spotlight-hotkey/**",
-        "server/js/spotlight-motion.js",
         "server/search.ps1",
         "server/spotlight.html",
         "server/js/spotlight/**",
