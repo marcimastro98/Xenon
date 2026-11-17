@@ -157,6 +157,10 @@ details .body ol { padding-left: 20px; }
 .tablewrap th, .tablewrap td { text-align: left; padding: 10px 16px 10px 0; border-bottom: 1px solid var(--line); }
 .tablewrap th { color: var(--text); font-weight: 700; font-size: 15px; }
 .tablewrap td { color: var(--muted); }
+/* A table with many columns keeps a readable width and scrolls instead of
+   folding its words a letter at a time on a phone. */
+.tablewrap table.wide { min-width: 720px; }
+.tablewrap table.wide th[scope="row"] { white-space: nowrap; }
 pre { margin: 0 0 16px; padding: 16px 18px; background: var(--g-1); border-radius: var(--r-1); overflow-x: auto; }
 pre code { background: none; padding: 0; font-size: 15px; }
 

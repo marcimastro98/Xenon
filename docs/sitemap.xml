@@ -112,7 +112,7 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/catalog/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/catalog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/catalog/"/>
-    <lastmod>2026-11-12T08:57:35+01:00</lastmod>
+    <lastmod>2026-11-16T22:40:14+01:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
@@ -261,7 +261,7 @@
   </url>
   <url>
     <loc>https://xenon-app.com/releases.html</loc>
-    <lastmod>2026-11-16T09:05:23+01:00</lastmod>
+    <lastmod>2026-11-17T01:02:28+01:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -346,6 +346,19 @@
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html"/>
     <lastmod>2026-11-11T07:46:50+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/compare.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/compare.html"/>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -1582,6 +1595,84 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://xenon-app.com/es/compare.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/compare.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/fr/compare.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/compare.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/it/compare.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/compare.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ja/compare.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/compare.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ko/compare.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/compare.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/zh/compare.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/compare.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/compare.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://xenon-app.com/es/single-screen.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/single-screen.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/single-screen.html"/>
@@ -2011,7 +2102,7 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/catalog/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/catalog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/catalog/"/>
-    <lastmod>2026-11-12T08:57:35+01:00</lastmod>
+    <lastmod>2026-11-16T22:40:14+01:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -2025,7 +2116,7 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/catalog/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/catalog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/catalog/"/>
-    <lastmod>2026-11-12T08:57:35+01:00</lastmod>
+    <lastmod>2026-11-16T22:40:14+01:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -2039,7 +2130,7 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/catalog/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/catalog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/catalog/"/>
-    <lastmod>2026-11-12T08:57:35+01:00</lastmod>
+    <lastmod>2026-11-16T22:40:14+01:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -2053,7 +2144,7 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/catalog/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/catalog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/catalog/"/>
-    <lastmod>2026-11-12T08:57:35+01:00</lastmod>
+    <lastmod>2026-11-16T22:40:14+01:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -2067,7 +2158,7 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/catalog/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/catalog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/catalog/"/>
-    <lastmod>2026-11-12T08:57:35+01:00</lastmod>
+    <lastmod>2026-11-16T22:40:14+01:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -2081,7 +2172,7 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/catalog/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/catalog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/catalog/"/>
-    <lastmod>2026-11-12T08:57:35+01:00</lastmod>
+    <lastmod>2026-11-16T22:40:14+01:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -2135,13 +2226,13 @@
   </url>
   <url>
     <loc>https://xenon-app.com/catalog/tgk-workstation-monitor/</loc>
-    <lastmod>2026-09-26</lastmod>
+    <lastmod>2026-11-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/catalog/tgk-monitor-performance-metrics/</loc>
-    <lastmod>2026-11-08</lastmod>
+    <lastmod>2026-11-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
