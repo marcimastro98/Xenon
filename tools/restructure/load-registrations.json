@@ -29,12 +29,12 @@
       {
         "statement": "gameDetect.setIgnoreSource(() => hub.settings && hub.settings.gameIgnore);",
         "callees": {
-          "server/performance/gamedetect.js": "805e4b51024bf70b44cf46fa39e6dd11052a8834f734f1a4db29f989ca304721",
+          "server/performance/gamedetect.js": "10286166a2ea8c08f108ad3b31f8b12dd7876d90ad3f45389af9605b223d8008",
           "server/performance/game-activity.js": "68e27d2bc3b3cd7e505952e8da5d34d65da91a799b24a0ba8f95592c5d30b989",
           "server/performance/game-ignore-lists.js": "dbd16e1526270a6cb01a66f64d42c47b7e635495d2a8fb6bba9a203da1920aed",
-          "server/performance/game-judge.js": "a81ac868122554e2fc7f1a4738b8d21b433781428df4dce288a10da0b317fe0f",
+          "server/performance/game-judge.js": "4e28ea96ac21255ee849b07067460d55489fdd41a474fce66c8f0aacaa26f65f",
           "server/performance/game-readings.js": "41bba9e208ce9bac37008b05acf449bada855cb031e971de254345205b60c5bd",
-          "server/performance/game-watch-state.js": "5924695e7d5187b87a3160951a904cb2b89f1f3de50be5c09f7370df784f93a7"
+          "server/performance/game-watch-state.js": "bae1178f0e0a1a538549533f98c796f9954991600ec234df4d13685c77a71ac3"
         },
         "reason": "setIgnoreSource stores the function in a property of gameWatch (performance/game-watch-state.js) and clears a cached list; the function is first called by userIgnore in performance/game-judge.js, when isIgnoredProc checks a process. The modules gamedetect.js loads call nothing of the app when they load."
       },
