@@ -81,7 +81,7 @@
     screenColor: { cancelled: 'boolean', picking: 'boolean' },
     screenMeasure: { cancelled: 'boolean', picking: 'boolean' },
     screenDraw: { drawing: 'boolean' },
-    xenonMenu: { where: ['screen', 'dashboard', 'closed'], section: ['now', 'widgets', 'overlay', 'capture', 'keys', 'look', 'mode'] },
+    xenonMenu: { where: ['screen', 'dashboard', 'closed'], section: ['screens', 'now', 'capture', 'keys'] },
     gameMode: { gameMode: 'boolean' },
     sensorHistory: { enabled: 'boolean', everyMin: 'number' },
     gameIgnore: { added: 'flag' },

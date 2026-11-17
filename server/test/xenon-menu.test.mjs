@@ -54,7 +54,10 @@ const full = (over = {}) => ({
   ...over,
 });
 const LAPTOP = { battery: { percent: 18, plugged: false, charging: false, minutesLeft: 75 }, saver: false, mode: 'balanced', modes: ['saver', 'balanced', 'performance'], canSet: true };
-const section = (out, id) => out.sections.find((s) => s.id === id);
+// Widgets, Look and the mode are parts of the Screens home now: read as they were.
+const PARTS = new Set(['widgets', 'look', 'mode']);
+const homeRow = (out) => out.sections.find((s) => s.id === 'screens').rows.find((r) => r.kind === 'home');
+const section = (out, id) => (PARTS.has(id) ? { id, rows: homeRow(out).parts[id] } : out.sections.find((s) => s.id === id));
 const row = (out, sec, id) => section(out, sec).rows.find((r) => r.id === id);
 // Look keeps its rows inside the screens row: in each screen's tabs, and what is kept for
 // every screen in `tune`.
@@ -69,9 +72,9 @@ function walk(node, visit) {
   if (node && typeof node === 'object') { visit(node); Object.values(node).forEach((v) => walk(v, visit)); }
 }
 
-test('six sections in the approved order, each with a title and a line under it', () => {
+test('four sections in the approved order, each with a title and a line under it', () => {
   const out = Menu.compose(full());
-  assert.deepEqual(out.sections.map((s) => s.id), ['now', 'widgets', 'capture', 'keys', 'look', 'mode']);
+  assert.deepEqual(out.sections.map((s) => s.id), ['screens', 'now', 'capture', 'keys']);
   assert.deepEqual(SECTIONS, out.sections.map((s) => s.id));
   for (const s of out.sections) {
     assert.equal(s.title.key, 'xmenu_sec_' + s.id);
@@ -96,7 +99,7 @@ test('every text key the menu can show exists in all 11 languages', () => {
   const states = [full(), full({ usageMode: 'dashboard', replay: { enabled: false } }), full({ probes: {} }),
     full({ replay: { enabled: true, waiting: true }, last: { createdAt: NOW - 3 * 86400000 } }),
     full({ probes: { powerMode: true }, power: LAPTOP }), full({ power: { ...LAPTOP, battery: { ...LAPTOP.battery, charging: true } } })];
-  for (const st of states) walk(Menu.compose(st), (n) => { if (typeof n.key === 'string' && !n.type) keys.add(n.key); });   // `type`: a Deck action's own `key` param
+  for (const st of states) walk(Menu.compose(st), (n) => { if (typeof n.key === 'string' && !n.type && !n.tabs) keys.add(n.key); });   // `type`: a Deck action's own `key` param; `tabs`: a screen's own key
   for (const lang of LANGS) {
     for (const key of keys) assert.ok(typeof dict[lang][key] === 'string' && dict[lang][key], lang + ' ' + key);
   }
@@ -464,10 +467,11 @@ test('the guide is open until a widget is placed, and offers the app only where 
   assert.equal(section(Menu.compose(full()), 'widgets').rows[0].id, 'add');
 });
 
-test('a key or link to the old Overlay section lands on Widgets', () => {
-  assert.equal(cleanSection('overlay'), 'widgets');
+test('a key or link to an old section lands on Screens, which holds them now', () => {
+  for (const old of ['overlay', 'widgets', 'look', 'mode']) assert.equal(cleanSection(old), 'screens', old);
   assert.equal(cleanSection('capture'), 'capture');
-  assert.equal(cleanSection('nope'), 'now');
+  assert.equal(cleanSection('nope'), 'screens');
+  assert.equal(cleanSection('now'), 'now');
 });
 
 test('the webcam row shows what the webcam does', () => {
@@ -636,11 +640,19 @@ test('one interface, two places: the same sections and rows, only screen-only ro
     const dash = View.sectionsFor(data, 'dashboard');
     assert.deepEqual(screen.map((s) => s.id), dash.map((s) => s.id));
     screen.forEach((s, i) => {
-      const extra = s.rows.filter((r) => !dash[i].rows.includes(r));
+      const ids = dash[i].rows.map((r) => r.id);
+      const extra = s.rows.filter((r) => !ids.includes(r.id));
       assert.ok(extra.every((r) => r.screenOnly === true), s.id + ' has a row only one place shows');
-      assert.deepEqual(dash[i].rows, s.rows.filter((r) => !r.screenOnly));
+      assert.deepEqual(ids, s.rows.filter((r) => !r.screenOnly).map((r) => r.id));
     });
+    // Inside the Screens home too: in every tab, every part and what search finds.
+    const nested = (secs) => { const ids = []; walk(secs.find((x) => x.id === 'screens').rows, (n) => { if (n.screenOnly) ids.push(n.id); }); return ids; };
+    assert.deepEqual(nested(dash), [], 'the panel shows no screen-only row of the home');
   }
+  const two = full({ usageMode: 'both', monitors: [{ key: 'A', name: 'DELL', primary: true, width: 2560, height: 1440, x: 0, y: 0 }, { key: 'C', name: 'EDGE', width: 2560, height: 720, x: 0, y: 1440 }], scene: { dashboard: 'C' } });
+  const tabsOf = (place) => View.sectionsFor(Menu.compose(two), place)[0].rows[0].screens[1].tabs.map((t) => [t.id, (t.rows || []).map((r) => r.id)]);
+  assert.deepEqual(tabsOf('screen').slice(0, 2), [['shows', ['shows-2']], ['widgets', ['tiles']]]);
+  assert.deepEqual(tabsOf('dashboard').map(([id]) => id), ['shows', 'look'], 'the tiles are opened from the screen menu only, and the tab left empty is not drawn');
   // Both places draw with the one view, never a copy of their own.
   for (const f of ['js/screen-menu-page.js', 'js/xenon-menu-panel.js']) assert.match(src(f), /XenonMenuView\.create\(/, f);
   assert.match(src('js/screen-tile.js'), /\/xenon-menu'/, 'the tile reads the same rows');
@@ -678,11 +690,11 @@ test('the menu says when Xenon is recording, so only then it stays out of the vi
   let recording = false;
   const m = createScreenMenu({ host: { menus: () => true }, broadcast: (s) => pushes.push(s), capturing: () => recording });
   m.show();
-  assert.deepEqual(pushes.at(-1), { open: true, section: 'now' }, 'no recording: the user can photograph it');
+  assert.deepEqual(pushes.at(-1), { open: true, section: 'screens' }, 'no recording: the user can photograph it');
   m.close();
   recording = true;
   m.show();
-  assert.deepEqual(pushes.at(-1), { open: true, section: 'now', capturing: true });
+  assert.deepEqual(pushes.at(-1), { open: true, section: 'screens', capturing: true });
   assert.equal(m.get().capturing, true, 'a page that reconnects reads it too');
   recording = false;
   m.show({ section: 'keys' });
@@ -720,19 +732,19 @@ test('screen menu state: open only while a shell can draw it, else the dashboard
   const panels = [];
   let shell = true;
   const m = createScreenMenu({ host: { menus: () => shell }, broadcast: (s) => pushes.push(s), panel: (s) => panels.push(s) });
-  assert.deepEqual(m.get(), { open: false, section: 'now' });
+  assert.deepEqual(m.get(), { open: false, section: 'screens' });
   assert.equal(m.show({ section: 'capture' }), 'screen');
   assert.equal(m.show({ section: 'capture' }), 'screen');
   assert.equal(pushes.length, 1, 'opening it again on the same section pushes nothing');
   assert.equal(m.toggle(), 'closed');
   assert.deepEqual(pushes.at(-1), { open: false, section: 'capture' });
   assert.equal(m.show({ section: '../etc' }), 'screen');
-  assert.equal(m.get().section, 'now', 'an unknown section is "now"');
+  assert.equal(m.get().section, 'screens', 'an unknown section is the home');
   shell = false;
   assert.equal(m.get().open, false, 'a shell that quit takes the menu with it');
   assert.equal(m.toggle({ section: 'keys' }), 'dashboard');
   assert.deepEqual(panels, [{ section: 'keys' }]);
-  assert.equal(cleanSection(undefined), 'now');
+  assert.equal(cleanSection(undefined), 'screens');
 });
 
 test('a row that closes the menu over the screen: the server closes it, then runs the action', async () => {
@@ -790,16 +802,17 @@ test('capability: toggle by default, open and close, reports where it went', () 
   assert.deepEqual(MenuCap.run({}, { mode: 'open' }), { ok: false, error: 'unavailable' });
   const m = createScreenMenu({ host: { menus: () => true }, broadcast: () => {} });
   const d = { menu: m };
-  assert.deepEqual(MenuCap.run(d, { section: 'look' }), { ok: true, where: 'screen', section: 'look' });
-  assert.deepEqual(MenuCap.run(d, {}), { ok: true, where: 'closed', section: 'look' });
-  assert.deepEqual(MenuCap.run(d, { mode: 'close' }), { ok: true, where: 'closed', section: 'look' });
+  assert.deepEqual(MenuCap.run(d, { section: 'look' }), { ok: true, where: 'screen', section: 'screens' }, 'an old section opens its new home');
+  assert.deepEqual(MenuCap.run(d, { mode: 'open', section: 'capture' }), { ok: true, where: 'screen', section: 'capture' });
+  assert.deepEqual(MenuCap.run(d, {}), { ok: true, where: 'closed', section: 'capture' });
+  assert.deepEqual(MenuCap.run(d, { mode: 'close' }), { ok: true, where: 'closed', section: 'capture' });
   assert.equal(MenuCap.run(d, { mode: 'bogus' }).where, 'screen', 'an unknown mode toggles');
   // No shell: the panel opens on the dashboards on the section asked, and says so.
   const panels = [];
   const dash = { menu: createScreenMenu({ host: { menus: () => false }, panel: (p) => panels.push(p), broadcast: () => {} }) };
   assert.deepEqual(MenuCap.run(dash, { mode: 'open', section: 'keys' }), { ok: true, where: 'dashboard', section: 'keys' });
-  assert.deepEqual(MenuCap.run(dash, { mode: 'open' }), { ok: true, where: 'dashboard', section: 'now' });
-  assert.deepEqual(panels, [{ section: 'keys' }, { section: 'now' }]);
+  assert.deepEqual(MenuCap.run(dash, { mode: 'open' }), { ok: true, where: 'dashboard', section: 'screens' });
+  assert.deepEqual(panels, [{ section: 'keys' }, { section: 'screens' }]);
   assert.ok(validateAction({ type: 'xenonMenu', mode: 'open', section: 'capture' }));
 });
 
@@ -1233,7 +1246,7 @@ test('the menu closed while it stood aside stays closed', async () => {
   m.stepAside({ type: 'screenColor' });
   m.close();
   await settled();
-  assert.deepEqual(pushes.at(-1), { open: false, section: 'now' });
+  assert.deepEqual(pushes.at(-1), { open: false, section: 'screens' });
   assert.equal(m.get().aside, undefined);
 });
 
@@ -1279,7 +1292,7 @@ test('"Look": a chosen scene that is not approved says so and leads to the appro
   assert.equal(r.sub.key, 'ambient_scene_wait');
   assert.deepEqual(r.act, { open: 'settings:ambient' });
   const ready = Menu.compose(full({ scenes: [{ id: 'night', name: 'Night' }], scene: { id: 'night' } }));
-  assert.equal(ready.sections.find((s) => s.id === 'look').rows.some((x) => x.id === 'sceneWait'), false);
+  assert.equal(section(ready, 'look').rows.some((x) => x.id === 'sceneWait'), false);
 });
 
 test('"Capture" holds only what is chosen when using it; what is set once stays in Settings', () => {

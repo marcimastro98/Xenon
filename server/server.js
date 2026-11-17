@@ -201,7 +201,7 @@ const capabilityRunner = capabilities.createCapabilities({
   menu: screenMenu,
   settings: {
     setAiEdgeGlow: (mode) => updateAiEdgeGlowSetting(mode),
-    setUsageMode: (mode) => updateUsageModeSetting(mode),
+    setUsageMode: (mode, surface) => updateUsageModeSetting(mode, surface),
     setScreenAlerts: (on) => updateScreenAlertsSetting(on),
     setDesktopScene: (patch) => updateDesktopSceneSetting(patch),
     desktopScenes: async () => ({ packages: (await _layerCatalog()).scenes, canvases: (_serverHubSettings || {}).ambientScenes, themes: (_serverHubSettings || {}).customThemes }),
@@ -12665,10 +12665,11 @@ async function updatePerformanceSetting(performance) {
   });
 }
 
-async function updateUsageModeSetting(mode) {
+// `surfaceChoice`, when given, moves the dashboard too (capabilities/usage-mode.js).
+async function updateUsageModeSetting(mode, surfaceChoice) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
-    const saved = await writeHubSettings({ ...cur, usageMode: mode, rev: nextSettingsRev(cur.rev) });
+    const saved = await writeHubSettings({ ...cur, usageMode: mode, ...(surfaceChoice ? { surfaceChoice } : {}), rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     refreshWakeWordWatch();

@@ -77,7 +77,7 @@
         : tr('place_offer_msg', 'Installed. Want it on your screen?'),
       action: {
         label: many ? tr('place_many_btn', 'Choose') : tr('place_offer_btn', 'Put on screen'),
-        onClick: () => (many ? post('/screen-menu', { open: true, section: 'widgets' }) : place(ids[0])),
+        onClick: () => (many ? post('/screen-menu', { open: true, section: 'screens' }) : place(ids[0])),
       },
     };
   }

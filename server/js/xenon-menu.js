@@ -59,13 +59,15 @@
   }
 
   // The sections as this place shows them: rows only the screen can run
-  // (`screenOnly`) leave the dashboard panel.
+  // (`screenOnly`) leave the dashboard panel, also those the Screens home holds.
   function sectionsFor(data, place) {
     const list = (data && Array.isArray(data.sections)) ? data.sections : [];
-    return list.map((s) => ({
-      ...s,
-      rows: (Array.isArray(s.rows) ? s.rows : []).filter((r) => r && !(r.screenOnly && place !== 'screen')),
-    }));
+    const keep = (rows) => (Array.isArray(rows) ? rows : []).filter((r) => r && !(r.screenOnly && place !== 'screen'));
+    // A tab left with nothing in this place (the dashboard's tiles, seen from the dashboard) is not drawn.
+    const tabs = (v) => ({ ...v, tabs: (v.tabs || []).map((t) => (t.rows ? { ...t, rows: keep(t.rows) } : t)).filter((t) => t.widgets || !t.rows || t.rows.length) });
+    const parts = (p) => Object.fromEntries(Object.entries(p || {}).map(([id, rows]) => [id, keep(rows)]));
+    const home = (r) => (r.kind === 'home' ? { ...r, screens: (r.screens || []).map(tabs), parts: parts(r.parts), tune: keep(r.tune) } : r);
+    return list.map((s) => ({ ...s, rows: keep(s.rows).map(home) }));
   }
 
   // ── The view ───────────────────────────────────────────────────
@@ -77,7 +79,7 @@
     const Icons = (typeof window !== 'undefined' && window.XenonMenuIcons) || null;
     const Palette = (typeof window !== 'undefined' && window.DashboardPalette) || null;
     let data = null;
-    let section = 'now';
+    let section = 'screens';
     let busy = false;
     let recording = null;   // { row, btn, downs } while a key row waits for keys
     let errorTimer = 0;
@@ -405,7 +407,8 @@
     const Screens = (typeof window !== 'undefined' && window.XenonMenuScreens) || null;
     if (Screens) {
       const live = sceneView ? { slot: sceneView.slot, hold: sceneView.hold, settle: sceneView.settle } : {};
-      DRAW.screens = Screens.create({ el, button, say, DRAW, rowShell, perform, icon, ...live }).draw;
+      const widgetTab = (view, home) => (widgets ? widgets.listFor(home.parts.widgets, view) : []);
+      DRAW.home = Screens.create({ el, button, say, tt, DRAW, rowShell, perform, icon, widgetTab, server, ...live }).draw;
     }
 
     // ── Key recording ──
@@ -663,7 +666,7 @@
         return;
       }
       const sections = sectionsFor(data, place);
-      if (!sections.some((s) => s.id === section)) section = sections.length ? sections[0].id : 'now';
+      if (!sections.some((s) => s.id === section)) section = sections.length ? sections[0].id : 'screens';
       drawNav(sections);
       if (query.trim()) { drawFound(sections); return; }
       const s = sections.find((x) => x.id === section);
@@ -751,14 +754,14 @@
       draw();
       return true;
     };
-    // Ctrl+Z in the Widgets section: one change back, as on the screen.
+    // Ctrl+Z on the Screens page: one change back to the widgets, as on the screen.
     function undoKey(e) {
-      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || String(e.key).toLowerCase() !== 'z' || !widgets || section !== 'widgets') return;
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || String(e.key).toLowerCase() !== 'z' || !widgets || section !== 'screens') return;
       if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName || '')) return;
-      const s = sectionsFor(data, place).find((x) => x.id === 'widgets');
-      if (!s) return;
+      const rows = window.XenonMenuWidgets.rowsOf(sectionsFor(data, place).find((x) => x.id === 'screens'));
+      if (!rows) return;
       e.preventDefault();
-      widgets.undo(s.rows);
+      widgets.undo(rows);
     }
     doc.addEventListener('keydown', undoKey);
 

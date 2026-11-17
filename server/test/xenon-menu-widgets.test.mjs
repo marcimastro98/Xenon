@@ -1,5 +1,6 @@
-// The Widgets section of the Xenon menu: two levels, the map of the screens, and the
-// way back. The rows are the shape server/menu-widgets.js sends.
+// The widgets of the Xenon menu, in the Widget tab of each screen on the Screens page:
+// the list of one screen, a widget's own screen, the map and the way back. The rows are
+// the shape server/menu-widgets.js sends, carried by the home row of server/menu-screens.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -80,6 +81,11 @@ const twoPages = (rows = []) => ({ id: 'widgets', title: { key: 'w' }, sub: { ke
   ...rows,
 ] });
 
+// The Screens section the menu gets: its home row carries the widget rows.
+const home = (s) => ({ id: 'screens', title: s.title, sub: s.sub, rows: [{ kind: 'home', id: 'home', screens: [], parts: { widgets: s.rows } }] });
+// The main screen's tab, holding every widget of the rows.
+const mainTab = (rows) => ({ key: '', main: true, widgets: rows.filter((r) => r.kind === 'widget').map((r) => r.id) });
+
 function rig(over = {}) {
   const log = { acts: [], redraws: 0, shows: 0, cleared: 0 };
   const main = node('main');
@@ -99,10 +105,11 @@ function rig(over = {}) {
     peek: over.peek, main, clearFind: () => { log.cleared += 1; }, show: () => { log.shows += 1; widgets.reset(); },
   });
   DRAW.widget = widgets.drawRow;
-  const body = (s) => { const box = node('body'); box.append(...widgets.screen(s).body); return box; };
-  // What a redraw does: the screen goes on the page, then the focus settles.
+  const list = (s) => widgets.listFor(s.rows, mainTab(s.rows));
+  const body = (s) => { const box = node('body'); box.append(...list(s)); return box; };
+  // What a redraw does: a level of its own, or the Screens page with the tab, then the focus settles.
   const paint = (s) => {
-    const shown = widgets.screen(s);
+    const shown = widgets.screen(home(s)) || { title: s.title, body: list(s) };
     main.replaceChildren(...[shown.back, shown.action, ...shown.body].filter(Boolean));
     widgets.settle();
     return shown;
@@ -140,7 +147,7 @@ test('a widget stays on the real screen only while its own screen is open', () =
   const shown = paint(s);
   assert.equal(asked.at(-1), 'lw_a');
   assert.equal(shown.sub.text, 'held', 'the words say it is held up');
-  widgets.screen({ id: 'other', rows: [] });
+  widgets.screen({ id: 'now', rows: [] });
   assert.equal(asked.at(-1), null, 'another section lets it go');
   paint(s);
   assert.equal(asked.at(-1), 'lw_a');
@@ -177,10 +184,11 @@ test('each row goes in its tab, in server order, with the headings left to the t
   assert.equal(View.partOf(widget('w1', 'p1'), 'nope'), undefined);
 });
 
-test('only the widgets section is laid out here, and not without widget layers', () => {
+test('only the Screens home has widget levels, and not without widget layers', () => {
   const { widgets } = rig();
   assert.equal(widgets.screen({ id: 'now', rows: [add] }), null);
-  assert.equal(widgets.screen({ id: 'widgets', rows: [{ kind: 'status', id: 'noLayers' }] }), null);
+  assert.equal(widgets.screen(home({ rows: [{ kind: 'status', id: 'noLayers' }] })), null);
+  assert.deepEqual(widgets.listFor([{ kind: 'status', id: 'noLayers' }], mainTab([])).length, 1, 'the server words stand alone');
 });
 
 test('the list shows one page: its widgets, how pages change and the add button', () => {
@@ -194,7 +202,8 @@ test('the list shows one page: its widgets, how pages change and the add button'
   assert.equal(named(page, 'Uno').attrs['aria-pressed'], 'true');
   assert.equal(named(page, 'Due').attrs['aria-pressed'], 'false');
   assert.ok(named(page, 'w1') && !named(page, 'w2'));
-  assert.ok(named(widgets.screen(s).action, 'add'));
+  assert.ok(named(page, 'add'));
+  assert.equal(widgets.screen(home(s)), null, 'the list is the tab, not a level of its own');
 });
 
 test('pressing another page changes the page on the screen; pressing the current one does nothing', () => {
@@ -207,19 +216,30 @@ test('pressing another page changes the page on the screen; pressing the current
 });
 
 test('an empty page says so and the one add button moves into the middle of it', () => {
-  const { widgets, body } = rig();
+  const { body } = rig();
   const s = { ...twoPages(), rows: [add, pages('p2'), pageEditRow('p2'), widget('w1', 'p1')] };
-  assert.equal(widgets.screen(s).action, null);
   const page = body(s);
   assert.ok(named(page, 'xmenu_page_empty:Due'));
-  assert.ok(named(page, 'add'));
+  assert.equal(all(page).filter((n) => n.dataset.keep === 'add').length, 1, 'one add button');
 });
 
-test('nothing placed on the only page: the server words, the add button and the guide', () => {
+test('an empty screen says so, and its add button places on that screen', async () => {
+  const { widgets, log, paint, main } = rig({ res: { ok: true } });
+  const s = { ...twoPages(), rows: [add, widget('w1', 'p1', { at: { surface: 'desktop', rect, monitor: 'b' } })] };
+  const page = node('body');
+  page.append(...widgets.listFor(s.rows, { key: 'B', main: false, widgets: [] }));
+  assert.ok(named(page, 'xmenu_scr_no_widgets'));
+  all(page).find((n) => n.dataset.keep === 'add').on.click();
+  paint({ ...s, rows: [{ ...add, choices: [{ value: 'w', label: { text: 'W' }, act: { run: { type: 'layerPlace', widget: 'weather' } } }] }] });
+  await all(main).find((n) => n.cls === 'xm-addlist').kids[0].on.click();
+  assert.deepEqual(log.acts.at(-1), { run: { type: 'layerPlace', widget: 'weather', monitor: 'B' } });
+});
+
+test('nothing placed on the only page: the screen says so, offers the first one and the guide', () => {
   const { body } = rig();
   const none = { kind: 'status', id: 'noWidgets', label: { key: 'none' }, value: { key: 'hint' } };
   const page = body({ id: 'widgets', rows: [add, none, { kind: 'guide', id: 'guide' }, { kind: 'button', id: 'newPage' }] });
-  assert.ok(named(page, 'none') && named(page, 'hint') && named(page, 'add'));
+  assert.ok(named(page, 'xmenu_scr_no_widgets') && named(page, 'xmenu_scr_no_widgets_sub') && named(page, 'xmenu_add_first'));
   assert.ok(named(page, 'guide') && named(page, 'newPage'));
 });
 
@@ -408,7 +428,8 @@ test('a widget on an app draws the window with its name and picture, and a word 
 test('adding: one tap places it where it starts and opens its screen, even before the rows arrive', async () => {
   const { widgets, log, paint, main } = rig({ res: { ok: true, placed: { id: 'w9' } } });
   const s = twoPages();
-  all(paint(s).action).find((n) => n.on.click).on.click();
+  paint(s);
+  all(main).find((n) => n.dataset.keep === 'add').on.click();
   const shown = paint(s);
   assert.equal(shown.title.text, 'xmenu_add_to:Uno');
   assert.ok(named(main, 'store') && named(main, 'yourWidgets') && named(main, 'ownWidget') && named(main, 'guide'), 'the other ways to get one are here');

@@ -1,9 +1,11 @@
 'use strict';
 
-// The Widgets section of the Xenon menu, in two levels: the map of the screens over the
-// list of one page, split by when each widget is seen, and from it one screen for a
-// widget, for a page, or for adding. The rows, their acts and their words all come from
-// the server (server/menu-widgets.js); this file only lays them out.
+// The widgets of the Xenon menu, in two levels: on the Screens page the list of one
+// screen's widgets on one page, split by when each is seen (its Widgets tab, drawn by
+// js/xenon-menu-screens.js), and from it one screen for a widget, for a page, or for
+// adding one to that screen. The rows, their acts and their words all come from the
+// server (server/menu-widgets.js, carried by the home row of server/menu-screens.js);
+// this file only lays them out.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
@@ -13,12 +15,20 @@
   const GROUP_WORDS = Object.freeze({ always: 'see_always', game: 'see_game', app: 'see_apps', desktop: 'see_desktop', other: 'see_other' });
   const VIEW_WORDS = Object.freeze({ now: 'see_view_now', always: 'see_always', game: 'see_game', app: 'see_apps', desktop: 'see_desktop' });
   const MORE = Object.freeze(['store', 'yourWidgets', 'ownWidget']);
+  // The section that holds them, and the acts that place a widget on a screen.
+  const HOST = 'screens';
+  const PLACING = Object.freeze(['layerPlace', 'layerKey']);
 
   const byId = (rows, id) => rows.find((r) => r.id === id);
   const byKind = (rows, kind) => rows.find((r) => r.kind === kind);
   const widgetsOf = (rows) => rows.filter((r) => r.kind === 'widget');
   // Those of the page in view; with one page there is nothing to tell apart.
   const onPage = (rows, page) => widgetsOf(rows).filter((r) => !page || r.page === page);
+  // The widget rows of a section: its home row carries them.
+  const homeOf = (s) => (s && Array.isArray(s.rows) ? s.rows.find((r) => r.kind === 'home') : null);
+  const rowsOf = (s) => { const home = homeOf(s); return home && home.parts ? home.parts.widgets : null; };
+  // A card's act, sent to the screen it was added from; without one it goes to the main screen.
+  const onScreen = (act, monitor) => (monitor && act && act.run && PLACING.includes(act.run.type) ? { ...act, run: { ...act.run, monitor } } : act);
 
   // ctx: { el, button, say, tt, fill, factLine, icon, switchFor, perform, redraw, server,
   //        DRAW, Place, Palette, pageEdit, peek, main, clearFind, show }
@@ -39,7 +49,7 @@
 
     function open(next) {
       clearFind();
-      show('widgets');
+      show(HOST);
       go(next);
       redraw();
     }
@@ -96,11 +106,12 @@
       return b;
     }
 
-    function addButton(add) {
-      const b = button('ui-btn ui-btn--primary xm-act', say(add.label));
+    // `monitor`: the screen it adds to, '' for the main one.
+    function addButton(add, monitor = '', label = '') {
+      const b = button('ui-btn ui-btn--primary xm-act', label || say(add.label));
       b.dataset.keep = 'add';
       b.prepend(icon('plus') || '');
-      b.addEventListener('click', () => { go({ name: 'add' }, 'addsearch'); redraw(); });
+      b.addEventListener('click', () => { go({ name: 'add', monitor }, 'addsearch'); redraw(); });
       return b;
     }
 
@@ -164,11 +175,11 @@
 
     const pageName = (pages, id) => say(pages.options.find((o) => o.value === id).label);
 
-    function emptyPage(rows, add, pages) {
-      const none = byId(rows, 'noWidgets');
+    // A screen, or a page of it, with nothing on it: what goes there, and the first one.
+    function emptyScreen(add, pages, monitor) {
       const box = el('div', 'xm-pageempty');
-      const title = pages ? fill(tt('xmenu_page_empty'), { name: pageName(pages, pages.value) }) : say(none.label);
-      box.append(el('p', 'xm-label', title), el('p', 'xm-sub', pages ? tt('xmenu_page_empty_hint') : say(none.value)), addButton(add));
+      const title = pages ? fill(tt('xmenu_page_empty'), { name: pageName(pages, pages.value) }) : tt('xmenu_scr_no_widgets');
+      box.append(el('p', 'xm-label', title), el('p', 'xm-sub', tt(pages ? 'xmenu_page_empty_hint' : 'xmenu_scr_no_widgets_sub')), addButton(add, monitor, tt('xmenu_add_first')));
       return box;
     }
 
@@ -209,13 +220,22 @@
       return group;
     }
 
-    function mapBlock(row, mine) {
+    // `screens`: the ones drawn, the screen whose tab this is.
+    function mapBlock(row, mine, screens) {
       const shown = mine.filter(inView);
       const box = el('div', 'xm-mapblock');
       const line = el('div', 'xm-mapline');
       line.append(el('span', 'xm-sub', say(row.label)), viewChips(row));
-      box.append(line, map.draw(row.screens, shown, ''), el('p', 'xm-sub xm-mapcount', fill(tt('see_count'), { n: shown.length, all: mine.length })));
+      box.append(line, map.draw(screens, shown, ''), el('p', 'xm-sub xm-mapcount', fill(tt('see_count'), { n: shown.length, all: mine.length })));
       return box;
+    }
+
+    // The map's picture of this screen: the main one has no key there (menu-widgets.js).
+    // With no screen known, every one the map has.
+    function mapScreens(where, screen) {
+      if (!screen.key) return where.screens;
+      const one = where.screens.find((m) => (screen.main ? !m.key : m.key === screen.key)) || (screen.main ? where.screens[0] : null);
+      return one ? [one] : null;
     }
 
     function groups(mine) {
@@ -242,23 +262,29 @@
       return box;
     }
 
-    function listScreen(s) {
-      const { rows } = s;
+    // One screen's widgets, for its tab on the Screens page. `screen` is the home row's
+    // view of it: whether it is the main one, its key and the ids of the widgets on it.
+    function listFor(rows, screen) {
       const add = byId(rows, 'add');
+      if (!add) return [listOf(rows.filter((r) => DRAW[r.kind]))];
       const pages = byId(rows, 'pages');
-      const mine = onPage(rows, pages ? pages.value : '');
+      const ids = new Set(screen.widgets || []);
+      const mine = onPage(rows, pages ? pages.value : '').filter((r) => ids.has(r.id));
+      const monitor = screen.main ? '' : screen.key;
       const lone = byId(rows, 'newPage');
       const guide = byKind(rows, 'guide');
       const where = byId(rows, 'map');
+      const drawn = where && mine.length ? mapScreens(where, screen) : null;
       const body = [
         pages && pagesBlock(rows, pages),
-        mine.length && where && mapBlock(where, mine),
-        mine.length ? groups(mine) : emptyPage(rows, add, pages),
+        drawn && mapBlock(where, mine, drawn),
+        mine.length ? groups(mine) : emptyScreen(add, pages, monitor),
+        mine.length && actions(undoButton(rows), addButton(add, monitor)),
         lone && listOf([lone]),
         !widgetsOf(rows).length && guide && listOf([guide]),
         footer(rows),
       ];
-      return { title: s.title, sub: s.sub, action: mine.length ? actions(undoButton(rows), addButton(add)) : null, body: body.filter(Boolean) };
+      return body.filter(Boolean);
     }
 
     // ── Adding ──
@@ -285,7 +311,7 @@
       const items = (add.choices || []).filter(inCat).filter((c) => !q || says(c).includes(q));
       list.replaceChildren(...items.map((c) => {
         const b = addCard(c);
-        b.addEventListener('click', () => perform(add, c.act, placed));
+        b.addEventListener('click', () => perform(add, onScreen(c.act, view.monitor), placed));
         return b;
       }));
       if (!items.length) list.appendChild(el('p', 'xm-empty', tt('xmenu_add_none')));
@@ -358,7 +384,7 @@
     }
 
     // What the section looks like now, or null for the section as the server gives it
-    // (no widget layers on this machine, or any other section).
+    // (the Screens page itself, no widget layers on this machine, or any other section).
     function screen(s) {
       const own = viewOf(s);
       if (peek && !(own && view.name === 'widget')) peek.show(null);
@@ -366,23 +392,24 @@
     }
 
     function viewOf(s) {
-      if (s.id !== 'widgets' || !byId(s.rows, 'add')) return null;
-      if (view.name === 'add') return addScreen(s.rows);
+      const rows = rowsOf(s);
+      if (!rows || !byId(rows, 'add')) return null;
+      if (view.name === 'add') return addScreen(rows);
       if (view.name === 'widget') {
-        const r = widgetsOf(s.rows).find((x) => x.id === view.id);
+        const r = widgetsOf(rows).find((x) => x.id === view.id);
         if (r) {
           view = { name: 'widget', id: r.id };
           if (peek) peek.show(r.id);
-          return widgetScreen(r, s.rows);
+          return widgetScreen(r, rows);
         }
         if (!view.fresh) view = LIST;
       }
       if (view.name === 'page') {
-        const edit = byKind(s.rows, 'pageEdit');
-        if (edit && edit.page === view.id) return pageScreen(s.rows, edit);
+        const edit = byKind(rows, 'pageEdit');
+        if (edit && edit.page === view.id) return pageScreen(rows, edit);
         view = LIST;
       }
-      return listScreen(s);
+      return null;
     }
 
     // After a redraw: back to the top on a new level, and the focus where it belongs.
@@ -397,11 +424,11 @@
     }
 
     return {
-      screen, drawRow, reset, stepBack, settle,
+      screen, drawRow, reset, stepBack, settle, listFor,
       holds: () => map.holds() || (view.name === 'page' && !!pageEdit && pageEdit.typing()),
       undo: (rows) => { const row = byId(rows, 'undoStep'); if (row) perform(row, row.act); },
     };
   }
 
-  return { create, onPage };
+  return { create, onPage, onScreen, rowsOf };
 });

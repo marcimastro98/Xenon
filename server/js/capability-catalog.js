@@ -1005,7 +1005,7 @@ const CAPABILITIES = [
       domain: 'layers', risk: 'safe', requires: 'layers',
       ai: {
         name: 'edit_layer_widgets',
-        description: 'Turn on (or off) the editing of the widgets on the desktop and in the overlay, so the user moves them by dragging, resizes them from the corner, drops one on another to make tabs and removes them with the cross; tapping a widget opens its card with When, Tabs with..., What it shows... (which parts it shows, e.g. hide the FPS card of the system widget) and Remove. While it is on those windows take every click; "Done" on screen, this tool with mode off, or ten minutes without changes end it. Everywhere in the app it is called "Edit the widgets on screen" (Xenon menu → Widgets, and the Deck key): use that name when telling the person where it is. Use it for "let me move my widgets", "I want to arrange my desktop widgets" or "hide a part of a widget".',
+        description: 'Turn on (or off) the editing of the widgets on the desktop and in the overlay, so the user moves them by dragging, resizes them from the corner, drops one on another to make tabs and removes them with the cross; tapping a widget opens its card with When, Tabs with..., What it shows... (which parts it shows, e.g. hide the FPS card of the system widget) and Remove. While it is on those windows take every click; "Done" on screen, this tool with mode off, or ten minutes without changes end it. Everywhere in the app it is called "Edit the widgets on screen" (Xenon menu → Screens → the Widgets tab of a screen, and the Deck key): use that name when telling the person where it is. Use it for "let me move my widgets", "I want to arrange my desktop widgets" or "hide a part of a widget".',
         params: { mode: 'toggle (default), on or off' },
       },
     },
@@ -1133,13 +1133,13 @@ const CAPABILITIES = [
   // buried in Settings.
   {
     type: 'usageMode', group: 'xenon', labelKey: 'deck_act_usageMode',
-    params: [{ name: 'mode', kind: 'select', options: ['dashboard', 'widgets', 'both'] }],
+    params: [{ name: 'mode', kind: 'select', options: ['dashboard', 'widgets', 'both'] }, { name: 'screen', kind: 'text', maxLen: 2, optional: true }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'usageMode',
       ai: {
         name: 'set_usage_mode',
-        description: 'Choose how this PC uses Xenon: dashboard (the full dashboard window, on a second screen, the Xeneon Edge or this one), widgets (no dashboard window at all: only the widgets placed on the screen, the menu and the shortcuts, the lightest) or both. The app window switches at once; the tray\'s "Show Xenon" still opens the dashboard when asked. Use it for "I only want the widgets", "no dashboard on this PC", "give me the dashboard back".',
-        params: { mode: 'dashboard, widgets or both' },
+        description: 'Choose how this PC uses Xenon: dashboard (the full dashboard window, on a second screen, the Xeneon Edge or this one), widgets (no dashboard window at all: only the widgets placed on the screen, the menu and the shortcuts, the lightest) or both. The app window switches at once; the tray\'s "Show Xenon" still opens the dashboard when asked. screen puts the dashboard on that screen too (dashboard or both): its number, 1 being the main screen; error "bad_screen" comes with the numbers in "choices". Use it for "I only want the widgets", "no dashboard on this PC", "give me the dashboard back", "put the dashboard on my second screen".',
+        params: { mode: 'dashboard, widgets or both', screen: 'Optional: the screen number for the dashboard, 1 the main one' },
       },
     },
   },
@@ -1150,17 +1150,16 @@ const CAPABILITIES = [
     type: 'xenonMenu', group: 'xenon', labelKey: 'deck_act_xenonMenu',
     params: [
       { name: 'mode', kind: 'select', options: ['toggle', 'open', 'close'], optionKeys: { open: 'deck_opt_xmenu_open' } },
-      { name: 'section', kind: 'select', labelKey: 'deck_param_xmenu_section', options: ['now', 'widgets', 'capture', 'keys', 'look', 'mode'], optionKeys: {
-        now: 'xmenu_sec_now', widgets: 'xmenu_sec_widgets', capture: 'xmenu_sec_capture',
-        keys: 'xmenu_sec_keys', look: 'xmenu_sec_look', mode: 'xmenu_sec_mode',
+      { name: 'section', kind: 'select', labelKey: 'deck_param_xmenu_section', options: ['screens', 'now', 'capture', 'keys'], optionKeys: {
+        screens: 'xmenu_sec_screens', now: 'xmenu_sec_now', capture: 'xmenu_sec_capture', keys: 'xmenu_sec_keys',
       } },
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'xenonMenu',
       ai: {
         name: 'open_xenon_menu',
-        description: 'Open or close the Xenon menu: one place for everything Xenon does on the main screen. Sections: now (screenshot, area, record, save the replay, gallery, performance over the game), widgets (every widget on the screen: on the desktop, above apps and games or attached to an app, when it shows, the performance readings, the pages), capture (recording and replay options), keys (every shortcut and macro, with conflicts), look (theme, animated wallpaper, screensaver) and mode (dashboard, widgets only or both). With the app it opens over the screen (Alt+Shift+X by default); otherwise it opens as a panel on the dashboard. mode: toggle (default), open or close; section: which one to show first (now by default). Returns "where": screen, dashboard or closed. Use it for "open the Xenon menu", "show me the shortcuts", "where are my widget settings". To change a setting directly, call its own function instead.',
-        params: { mode: 'toggle (default), open or close', section: 'now (default), widgets, capture, keys, look or mode' },
+        description: 'Open or close the Xenon menu: one place for everything Xenon does on the main screen. Sections: screens (the home: every screen of this PC as it stands on the desk; for each one what it shows, the dashboard or the widgets, its widgets on the desktop, above apps and games or attached to an app, when they show, the widget pages, and its animated wallpaper, screensaver or Ambient scene), now (screenshot, area, record, save the replay, gallery, performance over the game), capture (recording and replay options) and keys (every shortcut and macro, with conflicts). The old section names widgets, look and mode open screens. With the app it opens over the screen (Alt+Shift+X by default); otherwise it opens as a panel on the dashboard. mode: toggle (default), open or close; section: which one to show first (screens by default). Returns "where": screen, dashboard or closed. Use it for "open the Xenon menu", "show me the shortcuts", "where are my widget settings". To change a setting directly, call its own function instead.',
+        params: { mode: 'toggle (default), open or close', section: 'screens (default), now, capture or keys' },
       },
     },
   },

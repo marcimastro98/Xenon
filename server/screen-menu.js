@@ -29,20 +29,21 @@
 
 const DashboardOpen = require('./js/dashboard-open.js');
 
-const SECTIONS = ['now', 'widgets', 'capture', 'keys', 'look', 'mode'];
-// A key or a saved link from before the two widget sections became one.
-const RENAMED = Object.freeze({ overlay: 'widgets' });
+const SECTIONS = ['screens', 'now', 'capture', 'keys'];
+// A key or a saved link from before: the widgets, the look and how Xenon is used are
+// all on the Screens page now, and the two widget sections were one before that.
+const RENAMED = Object.freeze({ overlay: 'screens', widgets: 'screens', look: 'screens', mode: 'screens' });
 const CLOSE_FIRST_MS = 300;
 const ASK_MAX_CHARS = 2000;
 
 function cleanSection(value) {
   const id = RENAMED[value] || value;
-  return SECTIONS.includes(id) ? id : 'now';
+  return SECTIONS.includes(id) ? id : 'screens';
 }
 
 function createScreenMenu({ host, broadcast, panel, run, failed, delayMs = CLOSE_FIRST_MS, capturing, holding } = {}) {
   let open = false;
-  let section = 'now';
+  let section = 'screens';
   let hidden = false;
   let sheet = null;   // the screen this window opens alone, until it closes
   let ask = '';       // a Deck key's question for the chat that sheet opens, taken once

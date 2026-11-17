@@ -219,7 +219,7 @@
   function showMenu() {
     if (!(window.__XENON_NATIVE_CAPS__ || {}).menu) return;
     fetch(SERVER + '/screen-menu', {
-      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{"open":true,"section":"widgets"}',
+      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{"open":true,"section":"screens"}',
     }).catch((e) => console.warn('[usage-ask] the Xenon menu did not open', e));
   }
 

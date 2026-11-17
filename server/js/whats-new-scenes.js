@@ -6,7 +6,7 @@
   const WAVE = [34, 52, 40, 66, 58, 74, 48, 60, 82, 70, 92, 64, 54, 76, 88, 96, 72, 60, 84, 68, 50, 62, 78, 44, 58, 36, 48, 30, 42, 26, 38, 22];
   const FRAMES = [22, 24, 21, 23, 26, 22, 21, 24, 23, 22, 25, 23, 21, 22, 24, 26, 23, 22, 21, 24, 28, 34, 92, 46, 30, 24, 22, 23, 21, 24, 22, 23, 25, 22, 21, 23, 24, 22, 26, 23, 21, 22, 24, 23];
   const SPIKE = 60;   // above this a frame bar is the stutter, in orange
-  const MENU_SECTIONS = ['now', 'widgets', 'capture', 'keys', 'look', 'mode'];
+  const MENU_SECTIONS = ['screens', 'now', 'capture', 'keys'];
   const SVG = 'http://www.w3.org/2000/svg';
   // A night road as stepped blocks: [x, y, width, height, colour] on a 64 x 24 grid.
   const PICTURE = [
@@ -42,7 +42,7 @@
     const side = el('div', 'wn-side');
     side.append(el('div', 'wn-side-name', tr('xmenu_title')));
     for (const id of MENU_SECTIONS) {
-      side.append(el('div', id === 'widgets' ? 'wn-side-row is-on' : 'wn-side-row', tr(`xmenu_sec_${id}`)));
+      side.append(el('div', id === 'screens' ? 'wn-side-row is-on' : 'wn-side-row', tr(`xmenu_sec_${id}`)));
     }
     const main = el('div', 'wn-menu-main');
     main.append(

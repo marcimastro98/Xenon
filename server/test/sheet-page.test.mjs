@@ -91,7 +91,7 @@ test('the server opens a sheet only where a shell draws the menu, and forgets it
   const { m, pushes } = menu();
   assert.equal(m.showSheet({ open: 'update' }), 'closed', 'nothing a sheet cannot show');
   assert.equal(m.showSheet({ open: 'settings', cat: 'nope', evil: 1 }), 'screen');
-  assert.deepEqual(pushes.at(-1), { open: true, section: 'now', sheet: { open: 'settings' } });
+  assert.deepEqual(pushes.at(-1), { open: true, section: 'screens', sheet: { open: 'settings' } });
   assert.deepEqual(m.get().sheet, { open: 'settings' }, 'the window that opens now reads it');
 
   m.show({ section: 'keys' });

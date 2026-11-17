@@ -160,9 +160,9 @@ pub fn out_of_captures(key: &str, spec: &Spec) -> bool {
 
 /// Settings categories the Xenon menu opens (server/xenon-menu.js), the same
 /// list as SETTINGS_CATS in server/js/dashboard-open.js.
-const SETTINGS_CATS: [&str; 11] = [
+const SETTINGS_CATS: [&str; 12] = [
     "ambient", "appearance", "capture", "general", "notifications", "ai", "smarthome", "spotify", "streaming", "unifi",
-    "slideshow",
+    "slideshow", "phone",
 ];
 
 /// A dashboard screen a window may ask for, `(open, cat)`: the alerts window's

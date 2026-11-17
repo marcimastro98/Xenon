@@ -2815,7 +2815,7 @@ action: { type: 'layerPage', page: 'next' }            // a page name or number;
 action: { type: 'screenDraw', mode: 'toggle' }         // drawing on the screen; mode: 'toggle' | 'start' | 'stop'
 // { ok: true, drawing: true } = open now; { ok: false, error: 'unsupported' | 'unavailable' }
 action: { type: 'xenonMenu', mode: 'open', section: 'keys' } // mode: 'toggle' | 'open' | 'close'
-// section: 'now' | 'widgets' | 'capture' | 'keys' | 'look' | 'mode' ('overlay', the old name, opens 'widgets')
+// section: 'screens' | 'now' | 'capture' | 'keys' (the old 'widgets', 'look', 'mode' and 'overlay' open 'screens')
 // { ok: true, where: 'screen' | 'dashboard' | 'closed', section } ; { ok: false, error: 'unavailable' }
 action: { type: 'gameCompanion' }                     // Bit's card for the game being played
 // { ok: true } ; { ok: false, error: 'companion_off' | 'screen_alerts_off' | 'unavailable' }

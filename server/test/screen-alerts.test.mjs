@@ -350,7 +350,7 @@ test('when Bit needs the dashboard the card leads to the menu, where the choice 
   assert.equal(card.title, 'Bit');
   await card.actions[0].onClick();
   assert.equal(b.signals.at(-1), undefined, 'never the dashboard itself');
-  assert.deepEqual(b.posts.at(-1).body, { open: true, section: 'mode' });
+  assert.deepEqual(b.posts.at(-1).body, { open: true, section: 'screens' });
 });
 
 test("with the dashboard up the window shows Bit's vitals popup and leaves every other alert to the dashboard", async () => {
