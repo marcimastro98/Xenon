@@ -1005,7 +1005,7 @@ const CAPABILITIES = [
       domain: 'layers', risk: 'safe', requires: 'layers',
       ai: {
         name: 'edit_layer_widgets',
-        description: 'Turn on (or off) the editing of the widgets on the desktop and in the overlay, so the user moves them by dragging, resizes them from the corner, drops one on another to make tabs and removes them with the cross. While it is on those windows take every click; "Done" on screen, this tool with mode off, or ten minutes without changes end it. Use it for "let me move my widgets" or "I want to arrange my desktop widgets".',
+        description: 'Turn on (or off) the editing of the widgets on the desktop and in the overlay, so the user moves them by dragging, resizes them from the corner, drops one on another to make tabs and removes them with the cross; tapping a widget opens its card with When, Tabs with..., What it shows... (which parts it shows, e.g. hide the FPS card of the system widget) and Remove. While it is on those windows take every click; "Done" on screen, this tool with mode off, or ten minutes without changes end it. Everywhere in the app it is called "Edit the widgets on screen" (Xenon menu → Widgets, and the Deck key): use that name when telling the person where it is. Use it for "let me move my widgets", "I want to arrange my desktop widgets" or "hide a part of a widget".',
         params: { mode: 'toggle (default), on or off' },
       },
     },

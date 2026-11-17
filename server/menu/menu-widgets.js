@@ -250,7 +250,7 @@ function placedRows(st) {
     heading('yours', 'xmenu_your_widgets'),
     { kind: 'toggle', id: 'shown', label: k('xmenu_widgets_shown'), sub: k('xmenu_sub_shown'), on: L.enabled && LayersModel.surfaceShown(L, 'all'),
       acts: { on: run({ type: 'layersToggle', mode: 'on', surface: 'all' }), off: run({ type: 'layersToggle', mode: 'off', surface: 'all' }) } },
-    { kind: 'button', id: 'edit', label: k('xmenu_edit'), sub: k('xmenu_sub_edit'), action: k('xmenu_do_start'), act: run({ type: 'layersEdit', mode: 'on' }), closes: true, returns: true },
+    { kind: 'button', id: 'edit', label: k('deck_act_layersEdit'), sub: k('xmenu_sub_edit'), action: k('xmenu_do_start'), act: run({ type: 'layersEdit', mode: 'on' }), closes: true, returns: true },
   ];
   if (L.pages.length < 2) return rows.concat(L.widgets.map((w) => widgetRow(w, st)));
   L.pages.forEach((pg, i) => {
