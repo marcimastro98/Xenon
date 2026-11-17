@@ -137,14 +137,13 @@ function setLang(l) {
     }
   } catch (e) { /* a widget bridge that is not up yet is not an error */ }
   if (typeof syncLangButtons === 'function') syncLangButtons();
-  // The AI key fields set their own placeholder ("•••••••• saved" vs the format
-  // hint) because applyTranslations can only restore one of the two — without
-  // this, switching language with a key saved made the field read "AIza…" again,
-  // which looks exactly like the key was lost.
+  // The AI key fields set their own placeholder (saved vs format hint): applyTranslations restores
+  // only one, and a saved key then read "AIza…" again, as if it were lost.
   if (typeof syncAiSettingsControls === 'function') syncAiSettingsControls();
-  // Weather text is served in the UI language → refetch. Through the shared
-  // debounce timer, so a remote hydrate that changes language AND city fetches
-  // once, not twice (settings.js queues the city change on the same timer).
+  // The system tile writes its words in script: repaint it, or it waits for the next reading.
+  if (typeof applySystem === 'function' && typeof lastSystemData !== 'undefined' && lastSystemData) applySystem(lastSystemData);
+  // Weather text is served in the UI language: refetch, through the shared debounce timer so a
+  // remote hydrate changing language AND city fetches once (settings.js queues the city there).
   if (typeof queueWeatherSettingsRefresh === 'function') queueWeatherSettingsRefresh();
   else if (typeof fetchWeather === 'function') fetchWeather();
 }
