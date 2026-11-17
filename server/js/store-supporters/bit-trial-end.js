@@ -7,7 +7,7 @@
 // from "buy Sparks" into the supporter offer: what a month costs and buys, the
 // way to join, and the other ways for whoever wants none of it.
 //
-// The offer's numbers come from js/sparks-store.js, so they never drift from the
+// The offer's numbers come from js/store-supporters/sparks-store.js, so they never drift from the
 // Store. Both links go through the hub's counted redirect, under their own
 // labels, so the hub can tell whether this ask works.
 (function () {

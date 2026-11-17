@@ -183,7 +183,7 @@
   // so the toast always shows; the voice is added only when the ambient
   // presence is enabled (same discipline as Guardian alerts). The words are
   // js/ambient/briefing-toast.js's, shared with the alerts window; "Ask Bit" opens the
-  // chat here with the question ready (js/bit-chat-full.js).
+  // chat here with the question ready (js/ai/bit-chat-full.js).
   function onBriefingMoment(d) {
     const B = window.BriefingToast;
     const ctx = { t, hwF: typeof hwTempIsF === 'function' && hwTempIsF() };

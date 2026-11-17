@@ -1,10 +1,10 @@
 'use strict';
 // "Ask Bit" from a notification where there is no dashboard to answer in.
 //
-// The alerts window of "widgets only" (js/screen-alerts.js) hands the question
+// The alerts window of "widgets only" (js/alerts/screen-alerts.js) hands the question
 // here, and the search window opens the same way its shortcut opens it
 // (routeSpotlightHotkey in server.js). When it shows, the search page takes the
-// question (js/spotlight-chat.js) and puts it in Bit's chat box, unsent.
+// question (js/search/spotlight-chat.js) and puts it in Bit's chat box, unsent.
 //
 // One question is kept, in memory and for a short time: a few words the app
 // wrote itself, never stored or sent anywhere. Both paths are POST, listed in

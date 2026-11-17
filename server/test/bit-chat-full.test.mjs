@@ -127,7 +127,7 @@ test('the sheet sits under Settings and the Store, and the script is loaded', ()
   assert.match(read('../index.html'), /<script src="js\/ai\/bit-chat-full\.js"><\/script>/);
 });
 
-// "Ask Bit" from a notification (js/ambient.js): the question waits in the box,
+// "Ask Bit" from a notification (js/ambient/ambient.js): the question waits in the box,
 // unsent, and the layout never changes to show it.
 test('asking with the chat on screen fills the box where it is', () => {
   const s = boot({ narrow: false, rect: { left: 100, top: 100, right: 400, bottom: 600, width: 300, height: 500 } });
