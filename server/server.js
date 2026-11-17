@@ -53,6 +53,7 @@ const { createPerfStream } = require('./performance/perf-stream');
 require('./system/packet-loss');
 require('./performance/perf-net');
 const { createStutterWatch } = require('./performance/stutter-why');
+const { createGameGuess } = require('./game-guess/watch.js');
 require('./performance/exclusive-hint');
 const { createGameSessions } = require('./performance/game-sessions');
 require('./time/calendar-reminders');
@@ -334,6 +335,8 @@ const capabilityRunner = capabilities.createCapabilities({
     update: (key, change) => updateHubSettingKey(key, change),
   },
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  front: () => gameDetect.getForegroundProcess(),
+  neverGame: (name) => gameDetect.isNeverGame(name),
   handToDashboard: (action) => deckShortcutRunner.handToDashboard(action),
   // Global shortcuts need the Helper (Windows/macOS) or GNOME's keybindings (Linux).
   shortcutsAvailable: () => process.platform === 'linux' || fs.existsSync(HELPER_EXE),
@@ -360,6 +363,7 @@ const signalrgb = require('./lights/signalrgb');
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 gameDetect.setIgnoreSource(() => hub.settings && hub.settings.gameIgnore);
+gameDetect.setAlwaysSource(() => hub.settings && hub.settings.gameAlways);
 // …and the other way: PresentMon sees every presenter on the machine, so it asks
 // which window is in front before deciding which one is the game. Wired here
 // rather than by requiring across, because these two modules already read each
@@ -7303,6 +7307,13 @@ const _stutterWatch = createStutterWatch({
   culprit: perfSession.culprit,
 });
 const { _exclusiveHint } = require('./performance/engine-exclusive-hint.js');
+// A windowed app that draws like a game, Xenon not seeing a game: asked once (game-guess/watch.js).
+const _gameGuess = createGameGuess({
+  front: () => gameDetect.getGamingWindow(), frontPid: () => gameDetect.getForegroundPid(),
+  frames: () => fpsMonitor.getFrontFrames(), gaming: () => gameDetect.isGaming(),
+  windowedNonGame: (name) => gameDetect.isWindowedNonGame(name),
+  broadcast: (payload) => broadcastSSE('game_guess', payload),
+});
 const { _fpsNotice } = require('./sensor-service/engine-fps-notice.js');
 const _perfStream = createPerfStream({
   fps: fpsMonitor,
@@ -7408,6 +7419,7 @@ async function _systemTick() {
         const game = gameDetect.isGameRunning() ? gameDetect.getGameProcess() : '';
         _stutterWatch.onSystem(game ? { ...sys, cpuMaxCore: cpuRead.maxCore } : null, game);
         try { _exclusiveHint.onTick(game); } catch {}
+        try { _gameGuess.onTick(); } catch {}
         _fpsNotice.onTick(game);
       } catch {}
     } catch {}

@@ -22,6 +22,10 @@ const gameWatch = {
   ignoreSource: null,
   ignoreRef: null,
   ignoreSet: new Set(),
+  // The user's own "this is a game" list (gameAlways), read the same way.
+  alwaysSource: null,
+  alwaysRef: null,
+  userGames: new Set(),
   // Fires right after the gaming state flips (entered/left a game). Wired by
   // server.js to broadcast the status immediately: with the native probe pushing
   // a line the instant the foreground changes, state flips no longer wait for

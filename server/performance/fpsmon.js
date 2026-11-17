@@ -25,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const { createGameSession } = require('./fps-game-session');
 const { createReaderLog, createStderrTail } = require('./fps-reader-log');
+const { createFrontFrames } = require('../game-guess/front-frames.js');
 
 const {
   pickEntry, entryFps, entryStats, entryWindow, entryFramesSince, entryForGame,
@@ -64,9 +65,17 @@ function isAvailable() {
   return PRESENTMON_CANDIDATES.some(c => { try { return fs.existsSync(c); } catch { return false; } });
 }
 
-function handleRow(fields, game) {
+// The app in front's composed frames, which the row filter drops: kept apart, only
+// to ask whether it is a game (game-guess/), never counted as one.
+const _frontFrames = createFrontFrames();
+function getFrontFrames() { return _frontFrames.read(); }
+
+function handleRow(fields, game, front) {
   const r = rowValues(_csv.cols, fields, game);
-  if (!r) return;
+  if (!r) {
+    if (front) _frontFrames.add(rowValues(_csv.cols, fields, { pid: front, name: '' }));
+    return;
+  }
   if (r.composed && isTrackedGame(game, r.pid, r.name)) _gameFrames.want(r.pid);
   const entry = entryFor(r);
   entry.exclusive = r.exclusive;
@@ -75,10 +84,12 @@ function handleRow(fields, game) {
 
 function onData(chunk) {
   const game = trackedGame();
+  let front = '';
+  try { front = _foregroundPid ? String(_foregroundPid() || '') : ''; } catch { front = ''; }
   readRows(_csv, chunk, (fields) => {
     fpsWatch.consecutiveFastFails = 0; // we're getting real data → healthy
     _readerLog.rows();
-    handleRow(fields, game);
+    handleRow(fields, game, front);
   });
   _gameFrames.tick();
 }
@@ -264,7 +275,7 @@ function stopFpsMonitor() {
 
 module.exports = {
   startFpsMonitor, stopFpsMonitor, pauseFpsMonitor, resumeFpsMonitor,
-  getCurrentFps, getFpsDetail, getFrameStats, getFrameWindow, getFramesSince, getGamingProcess, setForegroundPid, setTrackedGame,
+  getCurrentFps, getFpsDetail, getFrameStats, getFrameWindow, getFramesSince, getGamingProcess, getFrontFrames, setForegroundPid, setTrackedGame,
   isGaming, isAvailable, reload,
   // Pure, and exported so every decision this module makes can be pinned
   // without a Windows box with a game running on it.

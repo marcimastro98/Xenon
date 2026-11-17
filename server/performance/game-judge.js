@@ -49,17 +49,45 @@ function isIgnoredProc(name) {
   return IGNORE_PROC_RE.test(name) || userIgnore().has(bareName(name));
 }
 
+// Only the built-in list: the apps that can never be a game whatever the user
+// says (the dashboard's own host, the shell, the browsers). The user's lists
+// cannot override it, or Xenon's own window would trip game mode.
+function isNeverGame(name) {
+  return !!name && IGNORE_PROC_RE.test(name);
+}
+
+// The user's own "this is a game" list (the gameAlways setting, same shape as
+// gameIgnore). For games the detector cannot see by itself: a game in a window
+// that Windows composes like a desktop app never reaches PresentMon's game
+// filter, so neither the full-screen rule nor the windowed hint catches it
+// (Final Fantasy XI clients from a multi-window launcher did exactly that).
+// A listed app in front IS the game; "not a game" still wins.
+function isUserGame(name) {
+  if (!name || isIgnoredProc(name)) return false;
+  let list = null;
+  try { const source = gameWatch.alwaysSource; list = source ? source() : null; } catch { list = null; }
+  if (list !== gameWatch.alwaysRef) {
+    gameWatch.alwaysRef = list;
+    gameWatch.userGames = new Set((Array.isArray(list) ? list : []).map(bareName).filter(Boolean));
+  }
+  return gameWatch.userGames.has(bareName(name));
+}
+
+// Media players, editors and chat apps: never a windowed game (the list above).
+function isWindowedNonGame(name) { return !!name && WINDOWED_IGNORE_RE.test(bareName(name)); }
+
 const PID_DEAD_CONFIRM_MS = 2500; // a second negative this much later confirms the game exited
 
-// True while a real game owns the FOREGROUND window — full-screen, or windowed when
-// the PresentMon hint confirms it is the active presenter. A short grace window
+// True while a real game owns the FOREGROUND window — full-screen, on the user's
+// "this is a game" list, or windowed when the PresentMon hint confirms it is the
+// active presenter. A short grace window
 // keeps it stable across brief focus changes so game mode doesn't blink. Drives
 // game-mode/performance (which should follow focus — effects resume when you tab
 // out). The Companion pill uses isGameRunning() instead.
 function isGaming() {
   const s = gameWatch.last;
   if (s && (Date.now() - s.at) < STALE_MS && !isIgnoredProc(s.process)
-      && (s.fullscreen || _windowedGameActive(s))) {
+      && (s.fullscreen || isUserGame(s.process) || _windowedGameActive(s))) {
     gameWatch.lastGamingAt = Date.now();
     gameWatch.gameSeenAt = gameWatch.lastGamingAt;
     gameWatch.gameProc = String(s.process || '').toLowerCase().replace(/\.exe$/, '');  // remember the real game
@@ -107,5 +135,6 @@ function isGameRunning() {
 
 module.exports = {
   STALE_MS, GRACE_MS, WINDOWED_MIN_FPS, _windowedGameActive, bareName, userIgnore, isIgnoredProc,
+  isNeverGame, isUserGame, isWindowedNonGame,
   PID_DEAD_CONFIRM_MS, isGaming, _pidAlive, isGameRunning,
 };

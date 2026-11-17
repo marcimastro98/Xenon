@@ -43,6 +43,7 @@ function normalizeHubScreen(source) {
     // Same rule as the browser's normalizeSettings (js/system/sensor-sources.js).
     sensorSources: SensorSources.normalizeSensorSources(source.sensorSources),
     gameIgnore: GameIgnore.normalizeGameIgnore(source.gameIgnore),
+    gameAlways: GameIgnore.normalizeGameIgnore(source.gameAlways), // "this is a game" (same rule)
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
     upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,

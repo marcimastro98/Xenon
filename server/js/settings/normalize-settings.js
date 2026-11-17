@@ -59,6 +59,7 @@ function normalizeSettings(source) {
     // One rule with the server (js/system/sensor-sources.js, loaded before this file).
     sensorSources: window.SensorSources ? window.SensorSources.normalizeSensorSources(value.sensorSources) : {},
     gameIgnore: window.GameIgnore ? window.GameIgnore.normalizeGameIgnore(value.gameIgnore) : [],
+    gameAlways: window.GameIgnore ? window.GameIgnore.normalizeGameIgnore(value.gameAlways) : [],
     safeMode: value.safeMode === true,
     hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),

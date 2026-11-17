@@ -405,6 +405,7 @@
       "what": "Game detection, the frame counter, Performance Mode and Core Shield.",
       "files": [
         "server/performance/**",
+        "server/game-guess/**",
         "server/perf-session/**",
         "server/performance.ps1",
         "server/perf-priority.ps1",

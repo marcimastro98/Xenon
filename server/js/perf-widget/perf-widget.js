@@ -265,5 +265,22 @@
     if (toast) window.XenonToast.show(toast);
   }
 
-  window.PerfWidget = { renderWidgets, onPerf, onSystem, onNet, onBenchmark, onStutterWhy, onExclusiveHint, onFpsAccess, graphPath };
+  // An app in a window that draws like a game (SSE 'game_guess', asked once). Not
+  // on a paired device: the lists are the PC's, and a phone may not change them.
+  function onGameGuess(d) {
+    if (!window.XenonToast || !window.AlertToasts || window.__xenonRemote) return;
+    if (typeof isLayerPage === 'function' && isLayerPage()) return;
+    const ctx = { t };
+    const toast = window.AlertToasts.gameGuess(d, ctx, async (name, isGame) => {
+      const out = await apiJson(SERVER + '/actions/run', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: isGame ? 'gameAlways' : 'gameIgnore', mode: 'add', name }),
+      });
+      window.XenonToast.show(window.AlertToasts.gameGuessDone(name, isGame, out, ctx));
+    });
+    // A question nobody asked for: it follows the master Notifiche switch.
+    if (toast && typeof showAlertToast === 'function') showAlertToast(toast);
+  }
+
+  window.PerfWidget = { renderWidgets, onPerf, onSystem, onNet, onBenchmark, onStutterWhy, onExclusiveHint, onFpsAccess, onGameGuess, graphPath };
 })();

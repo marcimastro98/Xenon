@@ -34,7 +34,9 @@ const HELPER_PROBE_EXE = path.join(__dirname, '..', 'helper',
 
 const { gameWatch } = require('./game-watch-state.js');
 
-const { STALE_MS, isIgnoredProc, isGaming, isGameRunning } = require('./game-judge.js');
+const {
+  STALE_MS, isIgnoredProc, isGaming, isGameRunning, isNeverGame, isUserGame, isWindowedNonGame,
+} = require('./game-judge.js');
 
 // Inject a frame-presentation hint provider (server.js wires PresentMon here).
 // Optional: without it, detection is fullscreen-only as before.
@@ -45,6 +47,11 @@ function setGameHint(fn) {
 function setIgnoreSource(fn) {
   gameWatch.ignoreSource = typeof fn === 'function' ? fn : null;
   gameWatch.ignoreRef = undefined;
+}
+
+function setAlwaysSource(fn) {
+  gameWatch.alwaysSource = typeof fn === 'function' ? fn : null;
+  gameWatch.alwaysRef = undefined;
 }
 
 
@@ -159,7 +166,7 @@ function getForegroundPid() {
 function getGamingWindow() {
   const s = gameWatch.last;
   if (!s || (Date.now() - s.at) >= STALE_MS) return null;
-  return { process: s.process || '?', fullscreen: s.fullscreen, ignored: isIgnoredProc(s.process) };
+  return { process: s.process || '?', fullscreen: s.fullscreen, ignored: isIgnoredProc(s.process), listed: isUserGame(s.process) };
 }
 
 function startGameDetect() {
@@ -174,4 +181,4 @@ function stopGameDetect() {
   if (gameWatch.linuxProbe) { try { gameWatch.linuxProbe.stop(); } catch { /* ignore */ } gameWatch.linuxProbe = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, applySample, setGameHint, onGamingChange, isIgnoredProc, setIgnoreSource };
+module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, applySample, setGameHint, onGamingChange, isIgnoredProc, setIgnoreSource, isNeverGame, isUserGame, isWindowedNonGame, setAlwaysSource };
