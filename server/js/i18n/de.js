@@ -7262,4 +7262,7 @@ module.exports = {
   hints_again_done: 'Die Hinweise kommen wieder, wenn sie helfen.',
   hints_again_failed: 'Das hat nicht geklappt. Versuch es gleich noch einmal.',
   bit_start_xenon: 'Was kann ich mit Xenon machen?',
+  surface_where: 'Wo sich das Dashboard öffnet',
+  surface_mode_pc: 'Nur auf diesem PC',
+  surface_mode_pc_hint: 'Auf dem Bildschirm, den du unter Bildschirme wählst.',
 };

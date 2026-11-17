@@ -7408,4 +7408,7 @@ module.exports = {
   hints_again_done: '需要时提示会再次出现。',
   hints_again_failed: '没有成功。请稍后再试。',
   bit_start_xenon: '我能用 Xenon 做什么？',
+  surface_where: '仪表板在哪里打开',
+  surface_mode_pc: '只在这台电脑上',
+  surface_mode_pc_hint: '在“屏幕”里选的那块屏幕上打开。',
 };

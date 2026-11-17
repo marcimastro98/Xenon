@@ -7243,4 +7243,7 @@ module.exports = {
   hints_again_done: 'Les astuces reviendront au bon moment.',
   hints_again_failed: 'Cela n’a pas fonctionné. Réessayez dans un instant.',
   bit_start_xenon: 'Que puis-je faire avec Xenon ?',
+  surface_where: 'Où s’ouvre le tableau de bord',
+  surface_mode_pc: 'Uniquement sur ce PC',
+  surface_mode_pc_hint: 'Sur l’écran choisi dans Écrans.',
 };

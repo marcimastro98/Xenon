@@ -7408,4 +7408,7 @@ module.exports = {
   hints_again_done: '필요할 때 도움말이 다시 나타납니다.',
   hints_again_failed: '실패했습니다. 잠시 후 다시 시도하세요.',
   bit_start_xenon: 'Xenon으로 뭘 할 수 있어?',
+  surface_where: '대시보드가 열리는 곳',
+  surface_mode_pc: '이 PC에서만',
+  surface_mode_pc_hint: '\'화면\'에서 고른 화면에 열립니다.',
 };

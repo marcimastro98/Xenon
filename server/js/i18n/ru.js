@@ -7353,4 +7353,7 @@ module.exports = {
   hints_again_done: 'Подсказки появятся снова, когда пригодятся.',
   hints_again_failed: 'Не получилось. Попробуйте ещё раз чуть позже.',
   bit_start_xenon: 'Что я могу делать с Xenon?',
+  surface_where: 'Где открывается панель',
+  surface_mode_pc: 'Только на этом ПК',
+  surface_mode_pc_hint: 'На экране, который вы выбираете в разделе «Экраны».',
 };

@@ -219,3 +219,36 @@ test('under the screens: the phones paired with this PC and a card to pair one; 
     globalThis.fetch = had;
   }
 });
+
+test('the screens in their order on the desk, each its own shape; a phone paired again counts once', async () => {
+  const { document } = makeDom();
+  globalThis.CSS = globalThis.CSS || { escape: (s) => s };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
+  const button = (cls) => el('button', cls);
+  const scr = (key, x, y, width, height) => ({ key, label: { text: key }, width, height, x, y, tabs: [] });
+  const home = { kind: 'home', screens: [scr('main', 0, 0, 3840, 2160), scr('edge', 573, 2160, 2560, 720), scr('side', -1080, 128, 1080, 1920)] };
+  const day = 86400000;
+  const devices = [
+    { id: 'dev_old', name: 'iPhone', createdAt: 100 * day, lastSeenAt: 150 * day },
+    { id: 'dev_new', name: 'iPhone', createdAt: 150 * day, lastSeenAt: 200 * day },
+    { id: 'dev_tab', name: 'Tablet', createdAt: 10 * day, lastSeenAt: 199 * day },
+  ];
+  const had = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ devices }) });
+    const view = Screens.create({ el, button, say: (v) => (v && v.text) || '', tt: (k) => k, DRAW: {}, rowShell: () => el('li'), perform: () => {}, icon: () => null, server: 'http://127.0.0.1:3030' });
+    const li = view.draw(home);
+    assert.deepEqual(li.querySelectorAll('.xm-scrpick').map((b) => b.dataset.keep), ['screen:side', 'screen:main', 'screen:edge'], 'left to right on the desk');
+    const glass = li.querySelectorAll('.xm-scrpick').map((b) => b.querySelector('.xm-scrglass'));
+    const size = (g) => [parseFloat(g.style.getPropertyValue('--xm-gw')), parseFloat(g.style.getPropertyValue('--xm-gh'))];
+    const [side, main, edge] = glass.map(size);
+    assert.ok(side[1] > side[0], 'a portrait screen stands upright');
+    assert.ok(Math.abs(main[0] * 1.6 / main[1] - 16 / 9) < 0.01, 'a 16:9 screen keeps 16:9 in the 1.6 box');
+    assert.ok(edge[0] > 80 && Math.abs(edge[0] * 1.6 / edge[1] - 2560 / 720) < 0.01, 'the Edge is a long strip');
+    await new Promise((done) => setImmediate(done));
+    assert.deepEqual(li.querySelectorAll('.xm-scrphone').map((b) => b.dataset.keep), ['phone:dev_new', 'phone:dev_tab', 'phone:add'],
+      'the record left when the same phone was paired again is not a second phone');
+  } finally {
+    globalThis.fetch = had;
+  }
+});

@@ -1,7 +1,6 @@
 /* The Widgets section of the Xenon menu: the map, the list of a page and one screen per
    widget. Where a widget sits arrives as custom properties from js/menu/xenon-menu-map.js and
-   js/menu/xenon-menu-widget-view.js. The same map shows the screens in Look
-   (js/menu/xenon-menu-screens.js, .xm-scr*). */
+   js/menu/xenon-menu-widget-view.js. The Screens page has its own sheet, XenonMenuScreens.css. */
 
 /* ── The list ── */
 .xm-wrow { position: relative; min-height: 72px; flex-wrap: nowrap; }
@@ -77,49 +76,6 @@
 .xm-snap { position: absolute; z-index: 6; background: var(--accent); pointer-events: none; }
 .xm-snap--x { top: 0; bottom: 0; left: var(--xm-at); width: 1px; }
 .xm-snap--y { left: 0; right: 0; top: var(--xm-at); height: 1px; }
-/* The Screens page: each screen is a button that says what it shows (js/menu/xenon-menu-screens.js). */
-.xm-scrbox { display: flex; flex-direction: column; gap: var(--space-3); width: 100%; }
-.xm-scrpick {
-  appearance: none; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-height: 44px;
-  padding: 6px 8px; overflow: hidden; font: inherit; color: var(--text); text-align: start; cursor: pointer;
-}
-.xm-scrpick:hover { background: var(--cst-well); }
-.xm-scrpick[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.xm-scrname, .xm-scrsays { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xm-scrname { font-size: 12px; font-weight: 600; }
-.xm-scrsays { display: block; font-size: 11px; color: var(--text-dim); }
-.xm-scrsays-label::after { content: ": "; }
-.xm-scrrows { width: 100%; }
-/* What a screen shows: one answer per line, so each says what it does in full. */
-.xm-scrrows .xm-modes { grid-template-columns: minmax(0, 1fr); }
-/* The screen tapped plays its scene behind its name, drawn at four times its size and
-   scaled down, so the scene keeps the screen's own shape. */
-.xm-scrpick .xm-scene-view { position: absolute; inset: 0; width: auto; max-width: none; aspect-ratio: auto; border-radius: 0; }
-.xm-scrpick .xm-scene-frame { width: 400%; height: 400%; transform: scale(.25); }
-.xm-scrwords {
-  position: relative; display: flex; flex-direction: column; gap: 1px; max-width: 100%; padding: 2px 6px;
-  background: color-mix(in srgb, var(--cst-solid) 82%, transparent); border-radius: 6px; align-self: flex-start;
-}
-.xm-scrtitle { margin: 0; font-size: 17px; font-weight: 600; }
-.xm-scrtheme { margin-top: var(--space-5); }
-.xm-scrchip {
-  align-self: flex-start; max-width: 100%; padding: 1px 7px; overflow: hidden; font-size: 11px; line-height: 16px;
-  color: var(--text-dim); text-overflow: ellipsis; white-space: nowrap; background: var(--cst-well); border-radius: 999px;
-}
-.xm-scrchip.is-dashboard { color: var(--text); background: color-mix(in srgb, var(--accent) 24%, transparent); }
-.xm-scrwidgets { gap: var(--space-3); }
-/* The phones and tablets paired with this PC, under the screens; the last card pairs one. */
-.xm-scrphones { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
-.xm-scrphone {
-  appearance: none; display: flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 100%; min-height: 48px;
-  padding: 6px 12px 6px 8px; font: inherit; color: var(--cst-text); text-align: start; cursor: pointer;
-  background: var(--cst-well); border: 1px solid transparent; border-radius: 10px;
-}
-.xm-scrphone:hover { background: var(--cst-on); }
-.xm-scrphone > svg { flex: none; width: 22px; height: 22px; }
-.xm-scrphone .xm-scrwords { align-self: center; padding: 0; background: none; }
-.xm-scrphone.is-add { color: var(--cst-muted); background: none; border: 1px dashed var(--cst-sep); }
-.xm-scrphone.is-add:hover { color: var(--cst-text); background: var(--cst-well); }
 .xm-wtab-value { max-width: 100%; font-size: 12px; font-weight: 400; color: var(--cst-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A scene list: one per line, a tick on the one in use. */
 .xm-scenelist { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 2px; background: var(--cst-well); border-radius: 10px; }

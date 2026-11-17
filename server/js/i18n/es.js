@@ -7295,4 +7295,7 @@ module.exports = {
   hints_again_done: 'Los consejos volverán cuando sirvan.',
   hints_again_failed: 'No ha funcionado. Inténtalo de nuevo en un momento.',
   bit_start_xenon: '¿Qué puedo hacer con Xenon?',
+  surface_where: 'Dónde se abre el panel',
+  surface_mode_pc: 'Solo en este PC',
+  surface_mode_pc_hint: 'En la pantalla que eliges en Pantallas.',
 };

@@ -294,6 +294,7 @@
 <link rel="stylesheet" href="components/XenonMenu/XenonMenuChoices.css">
 <link rel="stylesheet" href="components/XenonMenu/XenonMenuGuide.css">
 <link rel="stylesheet" href="components/XenonMenu/XenonMenuWidgets.css">
+<link rel="stylesheet" href="components/XenonMenu/XenonMenuScreens.css">
 <link rel="stylesheet" href="components/SheetPage/SheetPage.css">
 </head>
 <body>
@@ -2728,18 +2729,10 @@
         <p class="settings-note" data-i18n="settings_slideshow_note">Tocca l'immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.</p>
       </div>
 
-      <!-- Schermo. The question the first-run picker asks, kept somewhere the
-           user can change their mind. The category id and its title key are the
-           ones the DDC/CI panel used before v4.8.0 removed it; the slot and the
-           11 translations of "Schermo" were still there, unused.
-
-           The body is rendered by js/settings/settings.js (renderSurfaceSection): the
-           monitor list only exists inside the native shell, so what belongs here
-           depends on where the dashboard is being read. -->
-      <div class="settings-group settings-span-all" data-settings-cat="display">
-        <div class="settings-group-head">
-          <span class="settings-hint" data-i18n="surface_settings_hint">Dove vive Xenon: uno schermo di questo PC, oppure il tuo telefono o tablet.</span>
-        </div>
+      <!-- Under Schermi (#settings-place), what is left of the old Schermo page: the
+           dashboard window's own switch and warnings (js/settings/surface.js). The screen
+           that shows the dashboard is chosen on the screens; "phone or this PC" is on Telefono. -->
+      <div class="settings-group settings-span-all" data-settings-cat="screens" data-unavailable="1">
         <div id="settings-surface-body"></div>
       </div>
 
@@ -2747,7 +2740,7 @@
            js/grid/edge-preview.js when not running in the native app. Hidden via display (not `hidden`):
            the settings category switcher owns `hidden` and would re-reveal the row on every
            category change. -->
-      <div data-dash-card class="settings-group settings-behavior-group" data-settings-cat="display" id="settings-edge-preview-row" style="display:none">
+      <div data-dash-card class="settings-group settings-behavior-group" data-settings-cat="screens" id="settings-edge-preview-row" style="display:none">
         <label class="settings-toggle-row">
           <input class="settings-check" id="settings-edge-preview" type="checkbox" onchange="if(window.EdgePreview)EdgePreview.setEnabled(this.checked)">
           <span class="settings-label-line">
@@ -3546,6 +3539,7 @@
              the settings blob a phone receives never carries a path on this PC. -->
         <div id="settings-transfer" data-transferf="mount"></div>
       </div>
+      <div class="settings-group settings-span-all" data-settings-cat="phone" id="settings-surface-phone" hidden></div>
 
       <div class="settings-group settings-group-bare" data-settings-cat="remote" hidden>
         <!-- Remote Control wizard renders here (settings.js → RemoteControl.init()).

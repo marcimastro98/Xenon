@@ -7404,4 +7404,7 @@ module.exports = {
   hints_again_done: 'De tips komen terug wanneer ze helpen.',
   hints_again_failed: 'Dat lukte niet. Probeer het zo opnieuw.',
   bit_start_xenon: 'Wat kan ik met Xenon doen?',
+  surface_where: 'Waar het dashboard opent',
+  surface_mode_pc: 'Alleen op deze pc',
+  surface_mode_pc_hint: 'Op het scherm dat je kiest bij Schermen.',
 };

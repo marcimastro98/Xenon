@@ -176,9 +176,9 @@ function settingsSetCategory(cat) {
   if ((cat === 'capture' || cat === 'performance') && window.CaptureSettingsPane) CaptureSettingsPane.show();
   if (cat === 'performance') for (const p of [window.SensorSourcesPage, window.GameIgnorePage]) if (p) p.show();
   if (cat === 'performance') syncExpanderSummaries();
-  // The monitor list is live: rendered on open, and re-rendered by the shell's
-  // push when a display is plugged in or out while the panel is on screen.
-  if (cat === 'display') renderSurfaceSection();
+  // The window's rows under Schermi and the phone question (js/settings/surface.js): drawn
+  // on open, and again by the shell's push when a display is plugged in or out.
+  if (cat === 'screens' || cat === 'phone') renderSurfaceSection();
   // News feeds live in the widget, which may not be on the dashboard at all
   // while the ticker still streams news — mount the same editor here, and let
   // it go when another pane is showing so it stops taking repaints.

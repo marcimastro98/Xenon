@@ -8,10 +8,30 @@ export const MONITORS = [
   { key: 'M2', name: 'XENEON EDGE', width: 2560, height: 720, x: 0, y: 1440 },
 ];
 
+const NOW = Date.UTC(2026, 10, 17, 10, 0, 0);
+const DAY = 24 * 60 * 60 * 1000;
+
 export const PHONES = [
-  { id: 'dev_a1', name: 'Pixel 8' },
-  { id: 'dev_b2', name: 'iPad Air' },
+  { id: 'dev_a1', name: 'Pixel 8', createdAt: NOW - 40 * DAY, lastSeenAt: NOW - DAY },
+  { id: 'dev_b2', name: 'iPad Air', createdAt: NOW - 20 * DAY, lastSeenAt: NOW - 2 * DAY },
 ];
+
+// A busier desk (MENU_DESK=three): a 4K monitor, a portrait one on its left, the Edge under
+// it, and one phone paired twice: the first pairing was last seen when the second was made.
+export const DESKS = {
+  two: { monitors: MONITORS, phones: PHONES },
+  three: {
+    monitors: [
+      { key: 'M1', name: 'LG 27UP850', primary: true, width: 3840, height: 2160, x: 0, y: 0 },
+      { key: 'M2', name: 'DELL P2422H', width: 1080, height: 1920, x: -1080, y: 128 },
+      { key: 'M3', name: 'XENEON EDGE', width: 2560, height: 720, x: 573, y: 2160 },
+    ],
+    phones: [
+      { id: 'dev_c3', name: 'iPhone', createdAt: NOW - 110 * DAY, lastSeenAt: NOW - 58 * DAY },
+      { id: 'dev_d4', name: 'iPhone', createdAt: NOW - 58 * DAY, lastSeenAt: NOW - 3 * 60 * 60 * 1000 },
+    ],
+  },
+};
 
 // The look of a new install (DEFAULT_HUB_SETTINGS in server.js), as /settings sends it.
 export const LOOK = {
@@ -35,7 +55,7 @@ export function menuState(over = {}) {
     monitors: MONITORS,
     scene: { wallpaper: true, dashboard: 'M2' },
     keys: { menu: 'alt+shift+x' },
-    now: Date.UTC(2026, 10, 17, 10, 0, 0),
+    now: NOW,
     usageMode: 'both',
     alertsOn: true,
     ...over,

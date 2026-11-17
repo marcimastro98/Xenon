@@ -7408,4 +7408,7 @@ module.exports = {
   hints_again_done: '必要なときにヒントがまた表示されます。',
   hints_again_failed: 'うまくいきませんでした。少ししてからもう一度お試しください。',
   bit_start_xenon: 'Xenon で何ができる？',
+  surface_where: 'ダッシュボードを開く場所',
+  surface_mode_pc: 'この PC だけ',
+  surface_mode_pc_hint: '「画面」で選んだ画面に開きます。',
 };

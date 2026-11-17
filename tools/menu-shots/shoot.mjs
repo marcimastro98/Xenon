@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPlaywright } from '../toast-gallery/shoot.mjs';
-import { LOOK, PHONES, menuState } from './fixture.mjs';
+import { DESKS, LOOK, menuState } from './fixture.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SERVER_DIR = path.join(ROOT, 'server');
@@ -42,7 +42,7 @@ export function inside(base, rel) {
 }
 
 /** The menu page and its fake answers; `lang()` is the language the next page asks for. */
-export function startMenuServer(lang) {
+export function startMenuServer(lang, desk = DESKS[process.env.MENU_DESK] || DESKS.two) {
   const Menu = require(path.join(SERVER_DIR, 'menu', 'xenon-menu.js'));
   const LayerI18n = require(path.join(SERVER_DIR, 'layers', 'layer-strings.js'));
   const json = (res, body) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
@@ -54,8 +54,8 @@ export function startMenuServer(lang) {
       else if (p === '/layer-i18n.js') p2(res, await LayerI18n.scriptFor(LayerI18n.wantedLanguages(lang(), ''), lang()), '.js');
       else if (p === '/settings') json(res, { settings: { ...LOOK, language: lang() } });
       else if (p === '/screen-menu') json(res, { open: true, section: 'screens' });
-      else if (p === '/xenon-menu') json(res, { ...Menu.compose(menuState()), altGrKeys: [] });
-      else if (p === '/api/remote-access/status') json(res, { devices: PHONES });
+      else if (p === '/xenon-menu') json(res, { ...Menu.compose(menuState({ monitors: desk.monitors })), altGrKeys: [] });
+      else if (p === '/api/remote-access/status') json(res, { devices: desk.phones });
       else {
         const file = p.startsWith('/shared/') ? inside(CORE_DIR, p.slice('/shared'.length)) : inside(SERVER_DIR, p);
         if (!file) { res.writeHead(404); res.end(); return; }

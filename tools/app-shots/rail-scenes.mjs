@@ -19,4 +19,6 @@ export const railScenes = {
   'rail-ru': scene('ru', ['desk']),
   'rail-ja': scene('ja', ['desk']),
   'rail-content-de': scene('de', ['desk'], 'weather'),
+  // Where the dashboard opens, on Telefono since the old Schermo page joined Schermi.
+  'rail-phone-it': scene('it', ['desk', 'phone'], 'phone'),
 };

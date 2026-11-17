@@ -56,7 +56,7 @@ test('every page is listed once, and every page of Settings has panes to show', 
 test('old names land on their page; anything else on none', () => {
   assert.equal(Pages.pageOf('codex'), 'claude');
   assert.equal(Pages.pageOf('ambient'), 'lock');
-  for (const old of ['mode', 'widgets', 'look', 'overlay']) assert.equal(Pages.pageOf(old), 'screens', old);
+  for (const old of ['mode', 'widgets', 'look', 'overlay', 'display']) assert.equal(Pages.pageOf(old), 'screens', old);
   assert.equal(Pages.pageOf('weather'), 'weather');
   for (const bad of ['', '../x', 'constructor', undefined]) assert.equal(Pages.pageOf(bad), '', String(bad));
 });

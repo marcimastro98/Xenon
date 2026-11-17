@@ -17,8 +17,7 @@
       ['capture', 'xmenu_sec_capture', 'camera'], ['keys', 'xmenu_sec_keys', 'keyboard']] },
     { label: 'settings_title', pages: [['general', 'settings_cat_general', 'sliders'],
       ['appearance', 'settings_cat_appearance', 'paint'], ['island', 'settings_cat_island', 'island'],
-      ['background', 'settings_cat_background', 'picture'], ['display', 'settings_display_title', 'monitor'],
-      ['notifications', 'settings_cat_notifications', 'bell'], ['lock', 'settings_ambient', 'moon'],
+      ['background', 'settings_cat_background', 'picture'], ['notifications', 'settings_cat_notifications', 'bell'], ['lock', 'settings_ambient', 'moon'],
       ['ai', 'settings_cat_bit', 'bit'], ['bit', 'settings_vitals', 'pulse']] },
     { label: 'settings_nav_widgets', pages: [['weather', 'settings_weather', 'cloud'],
       ['stocks', 'settings_cat_feeds', 'chart'], ['calendar', 'settings_calendar', 'calendar'],
@@ -35,8 +34,9 @@
   // Under the list on every height, after the Store and the Sparks that each host draws.
   const FOOT = Object.freeze([['support', 'settings_cat_support', 'heart'], ['about', 'settings_cat_about', 'info']]);
   const foot = () => FOOT.map(([page, label, icon]) => ({ page, label, icon }));
-  // Names that links, Bit and older menus still use.
-  const ALIASES = Object.freeze({ codex: 'claude', ambient: 'lock', mode: 'screens', widgets: 'screens', look: 'screens', overlay: 'screens' });
+  // Names that links, Bit and older menus still use. The old Schermo page (display) is
+  // Schermi now: the screen is chosen on the screens, the phone question is on Telefono.
+  const ALIASES = Object.freeze({ codex: 'claude', ambient: 'lock', mode: 'screens', widgets: 'screens', look: 'screens', overlay: 'screens', display: 'screens' });
   const PAGES = Object.freeze([...GROUPS.flatMap((g) => g.pages), ...FOOT].map(([id]) => id));
 
   const pageOf = (id) => {

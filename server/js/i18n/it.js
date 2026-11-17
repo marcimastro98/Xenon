@@ -7415,4 +7415,7 @@ module.exports = {
   hints_again_done: 'I suggerimenti torneranno quando servono.',
   hints_again_failed: 'Non è riuscito. Riprova tra poco.',
   bit_start_xenon: 'Cosa posso fare con Xenon?',
+  surface_where: 'Dove si apre la dashboard',
+  surface_mode_pc: 'Solo su questo PC',
+  surface_mode_pc_hint: 'Sullo schermo che scegli in Schermi.',
 };

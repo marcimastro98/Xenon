@@ -7292,4 +7292,7 @@ module.exports = {
   hints_again_done: 'As dicas voltam quando fizerem falta.',
   hints_again_failed: 'Não resultou. Tenta de novo daqui a pouco.',
   bit_start_xenon: 'O que posso fazer com o Xenon?',
+  surface_where: 'Onde abre o painel',
+  surface_mode_pc: 'Só neste PC',
+  surface_mode_pc_hint: 'No ecrã que escolhes em Ecrãs.',
 };

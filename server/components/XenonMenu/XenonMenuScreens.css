@@ -1,0 +1,48 @@
+/* The Screens page, the home of Xenon (js/menu/xenon-menu-screens.js): a card per screen,
+   phone and tablet, like a device list, with the true shape drawn in it and its name and
+   what it shows under it; the size of a shape comes from the script (--xm-gw, --xm-gh). */
+.xm-scrbox { display: flex; flex-direction: column; gap: var(--space-3); width: 100%; }
+.xm-scrcap { margin: 0 0 var(--space-3); }
+.xm-scrtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: var(--space-3); }
+.xm-scrtile {
+  appearance: none; position: relative; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0;
+  padding: var(--space-2) var(--space-2) var(--space-3); font: inherit; color: var(--cst-text); text-align: start;
+  background: var(--cst-well); border: 1px solid transparent; border-radius: 12px; cursor: pointer;
+}
+.xm-scrtile:hover { background: var(--cst-on); }
+.xm-scrtile[aria-pressed="true"] { background: var(--cst-on); border-color: var(--accent); }
+.xm-scrshot { display: grid; place-items: center; width: 100%; aspect-ratio: 1.6; }
+.xm-scrglass {
+  position: relative; display: grid; place-items: center; width: var(--xm-gw); height: var(--xm-gh); overflow: hidden;
+  color: var(--cst-muted); background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+}
+.xm-scrglass.is-phone { border-width: 2px; border-radius: 9px; }
+.xm-scrtile[aria-pressed="true"] .xm-scrglass { border-color: var(--accent); }
+.xm-scrglass .xm-ic, .xm-scrglass > svg { width: 20px; height: 20px; }
+.xm-scrwords { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; padding: 0 var(--space-1); }
+.xm-scrname {
+  display: -webkit-box; max-width: 100%; overflow: hidden; font-size: 13px; font-weight: 600; line-height: 1.3;
+  overflow-wrap: anywhere; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.xm-scrsays { display: block; max-width: 100%; overflow: hidden; font-size: 11px; color: var(--text-dim); text-overflow: ellipsis; white-space: nowrap; }
+.xm-scrsays-label::after { content: ": "; }
+.xm-scrchip {
+  max-width: 100%; padding: 1px 8px; overflow: hidden; font-size: 11.5px; line-height: 18px; color: var(--cst-muted);
+  text-overflow: ellipsis; white-space: nowrap; background: var(--cst-solid); border-radius: 999px;
+}
+.xm-scrchip.is-dashboard { color: var(--text); background: color-mix(in srgb, var(--accent) 24%, transparent); }
+/* The last card pairs a phone or tablet: an outline, nothing in it yet. */
+.xm-scrphone.is-add { color: var(--cst-muted); background: none; border: 1px dashed var(--cst-sep); }
+.xm-scrphone.is-add:hover { color: var(--cst-text); background: var(--cst-well); }
+.xm-scrphone.is-add .xm-scrglass { background: none; border-style: dashed; border-color: var(--cst-sep); }
+.xm-scrphone.is-add .xm-scrname { font-weight: 500; }
+/* The screen tapped plays its scene in its picture, drawn at four times its size and
+   scaled down, so the scene keeps the screen's own shape. */
+.xm-scrglass .xm-scene-view { position: absolute; inset: 0; width: auto; max-width: none; aspect-ratio: auto; border-radius: 0; }
+.xm-scrglass .xm-scene-frame { width: 400%; height: 400%; transform: scale(.25); }
+.xm-scrtitle { margin: 0; font-size: 17px; font-weight: 600; }
+.xm-scrrows { width: 100%; }
+/* What a screen shows: one answer per line, so each says what it does in full. */
+.xm-scrrows .xm-modes { grid-template-columns: minmax(0, 1fr); }
+.xm-scrwidgets { gap: var(--space-3); }
+.xm-scrtheme { margin-top: var(--space-5); }
