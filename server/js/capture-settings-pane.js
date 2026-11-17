@@ -86,22 +86,19 @@
     }
   }
 
-  // The capture panes show only where the capture engine runs (the menu's capture
-  // rows above them say why when it does not); the benchmark folder also needs a
-  // benchmark that can run here. What this engine cannot do (on macOS: the timer
-  // pill) is hidden, not offered and then refused.
+  // The capture panes show only where the capture engine runs (the menu's rows above them
+  // say why when it does not), the benchmark folder only where a benchmark runs too. What
+  // this engine cannot do (on macOS: the timer pill) is hidden, not offered and then refused.
   function probe() {
-    const gallery = $id('settings-capture-gallery');
-    if (!gallery || probing) return;
+    if (!$id('settings-capture-gallery') || probing) return;
     probing = apiJson('/actions/catalog').then((d) => {
       if (!d) { probing = null; return; }   // asked again on the next open
       const caps = d.capabilities || {};
       const on = caps.capture === true;
-      setSettingsCardAvailable(gallery, on);
-      setSettingsCardAvailable($id('settings-capture-video-group'), on);   // applyEngine says more
-      setSettingsCardAvailable($id('settings-replay-group'), on && !isRemote());
-      setSettingsCardAvailable($id('settings-bug-group'), on && !isRemote());
-      setSettingsCardAvailable($id('settings-bench-group'), caps.capture === true && caps.benchmark === true && !isRemote());
+      const pc = on && !isRemote();   // replay, bug reports and benchmarks are the PC's own
+      const shown = { 'settings-capture-gallery': on, 'settings-capture-video-group': on,   // applyEngine says more
+        'settings-replay-group': pc, 'settings-bug-group': pc, 'settings-bench-group': pc && caps.benchmark === true };
+      for (const [id, ok] of Object.entries(shown)) setSettingsCardAvailable($id(id), ok);
       engine = caps;
       platform = typeof d.platform === 'string' ? d.platform : '';
       applyEngine();
