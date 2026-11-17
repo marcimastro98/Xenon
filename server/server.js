@@ -384,6 +384,7 @@ const { createFileSearch } = require('./filesearch');           // local file se
 const { createDiskSpace } = require('./diskspace');
 const { createDevClean } = require('./devclean');
 const featureRoutes = require('./feature-routes.js');           // the routes added since this file stopped growing
+require('./install/engine-link.js').connect({ readHubSettings, updateHubSettingKey });   // the sign-in tab reads and writes settings through these
 const { createFeatureUnlock } = require('./feature-unlock');
 const { createTrialPass } = require('./trial-pass');
 const { createTrialVault } = require('./trial-vault');
@@ -3227,27 +3228,6 @@ function runPowerShellCommand(command, timeout = 5000) {
   });
 }
 
-// ── "Open dashboard in browser at logon" task ────────────────────────────────
-// A per-user Scheduled Task ("Xenon Edge Dashboard") that runs open-dashboard.vbs
-// at logon. The server already auto-starts at logon via its own task; this one
-// just opens the browser tab for people who use the dashboard in a real browser
-// (Xeneon Edge loads the iframe itself, so it never wants this). Registered on
-// demand from the client and reflected back so the toggle shows the true state.
-//
-// The task outlives the file it points at, and that asymmetry is the whole bug
-// behind the "Can not find script file ...\server\open-dashboard.vbs" box some
-// people meet at every single logon while Xenon itself starts perfectly well:
-// Windows keeps running the task, wscript.exe finds nothing at the path, and
-// says so in a modal nobody can act on. Two things put the pair out of step —
-// the install root moving (the engine lives in %LOCALAPPDATA%\Programs\Xenon
-// now, and a task registered by an older layout still carries the old one), and
-// the script no longer being on disk at all, a .vbs run at logon being textbook
-// antivirus bait for an unsigned project. So the task is reconciled against the
-// disk at boot: repointed when the path is stale, removed when there is no
-// launcher left for it to point at.
-const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
-const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
-const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
 const { psEscape, psQuote } = require('./ps-quote');
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
@@ -3257,118 +3237,6 @@ function isNetworkPath(p) {
   const s = String(p || '').trim();
   if (/^[\\/]{2}[?.][\\/]/.test(s)) return /^[\\/]{2}[?.][\\/]UNC[\\/]/i.test(s);
   return /^[\\/]{2}/.test(s);
-}
-
-// Doubles every quote PowerShell ends a single-quoted string on (ps-quote.js).
-function psSingleQuote(value) {
-  return psEscape(value);
-}
-
-// Is the launcher this feature needs still on disk?
-function openDashboardLauncherPresent() {
-  try { return fs.existsSync(OPEN_DASHBOARD_VBS); } catch { return false; }
-}
-
-// What to do with the logon task, given where it points and what is on disk:
-//   'none'   — no task at all, or one that already points at the launcher we ship;
-//   'repair' — it points somewhere else (an install that moved) while the launcher
-//              is right here, so re-register it at the correct path;
-//   'remove' — there is no launcher any more, so the task can only produce the
-//              wscript error box. Take it out rather than leave it firing forever.
-// It never answers 'create': a task is only ever registered by an explicit choice
-// in the dashboard, so a pure-Edge install cannot grow a surprise browser tab out
-// of a repair pass. Pure, so the rule is testable without a Windows scheduler.
-function autoOpenTaskFix(state) {
-  // The task stores its target as a quoted wscript argument, so the quotes come
-  // back with it. Windows paths are case-insensitive and accept either slash.
-  const norm = (p) => String(p == null ? '' : p)
-    .trim()
-    .replace(/^"+|"+$/g, '')
-    .replace(/\//g, '\\')
-    .replace(/\\+$/, '')
-    .toLowerCase();
-  const taskScript = norm(state && state.taskScript);
-  if (!taskScript) return 'none';                       // nothing registered
-  if (!(state && state.launcherPresent)) return 'remove';
-  return taskScript === norm(state.scriptPath) ? 'none' : 'repair';
-}
-
-// Returns { enabled, launcher, taskScript }. `enabled` is the state worth
-// reporting to the dashboard — the task exists AND the script it runs is there —
-// so the toggle can no longer sit on "on" for a task that only raises an error.
-async function getBrowserAutoOpenState() {
-  if (!AUTO_OPEN_SUPPORTED) return { enabled: false, launcher: 'ok', taskScript: '' };
-  const launcher = openDashboardLauncherPresent() ? 'ok' : 'missing';
-  const cmd =
-    `$t = Get-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -ErrorAction SilentlyContinue; ` +
-    `$arg = ''; if ($t) { $a = @($t.Actions)[0]; if ($a) { $arg = [string]$a.Arguments } } ` +
-    `Write-Output (@{ ok = $true; enabled = [bool]$t; argument = $arg } | ConvertTo-Json -Compress)`;
-  try {
-    const out = await runPowerShellCommand(cmd, 8000);
-    const exists = !!(out && out.enabled === true);
-    return { enabled: exists && launcher === 'ok', launcher, taskScript: (out && out.argument) || '' };
-  } catch {
-    return { enabled: false, launcher, taskScript: '' };
-  }
-}
-
-// Registers (enabled) or removes the logon task. Returns { enabled }, plus a
-// `reason` when the request could not be honoured.
-async function setBrowserAutoOpen(enabled) {
-  if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
-  // Registering a task for a script that is not there buys an error box at every
-  // logon and nothing else. Refuse, and name the reason so the dashboard can stop
-  // asking for it instead of re-posting the same request on every page load.
-  if (enabled === true && !openDashboardLauncherPresent()) {
-    return { enabled: false, reason: 'launcher_missing' };
-  }
-  let cmd;
-  if (enabled) {
-    const vbs = psSingleQuote(OPEN_DASHBOARD_VBS);
-    cmd =
-      `$ErrorActionPreference = 'Stop'; ` +
-      `try { ` +
-        `$wscript = Join-Path $env:WINDIR 'System32\\wscript.exe'; ` +
-        `$user = "$env:USERDOMAIN\\$env:USERNAME"; ` +
-        `$action = New-ScheduledTaskAction -Execute $wscript -Argument ('"' + '${vbs}' + '"'); ` +
-        `$trigger = New-ScheduledTaskTrigger -AtLogon -User $user; ` +
-        // Interactive + Limited so the browser opens in the user's visible session
-        // (a SYSTEM/Highest task would open invisibly in session 0).
-        `$principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited; ` +
-        `$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero); ` +
-        `Register-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null; ` +
-        `Write-Output '{"ok":true,"enabled":true}' ` +
-      `} catch { Write-Output (@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress) }`;
-  } else {
-    cmd =
-      `try { Unregister-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Confirm:$false -ErrorAction SilentlyContinue } catch { }; ` +
-      `Write-Output '{"ok":true,"enabled":false}'`;
-  }
-  const out = await runPowerShellCommand(cmd, 12000);
-  if (out && out.ok === false) throw new Error(out.error || 'Task registration failed');
-  return { enabled: enabled === true };
-}
-
-// Bring the logon task in line with what is actually on disk. Called once at
-// boot; silent and free when there is nothing to fix, which is the normal case.
-// Note this can only take effect from the NEXT logon: by the time the server is
-// up, the task has already run for this one.
-async function reconcileBrowserAutoOpenTask() {
-  if (!AUTO_OPEN_SUPPORTED) return;
-  const state = await getBrowserAutoOpenState();
-  const fix = autoOpenTaskFix({
-    taskScript: state.taskScript,
-    scriptPath: OPEN_DASHBOARD_VBS,
-    launcherPresent: state.launcher === 'ok',
-  });
-  if (fix === 'none') return;
-  if (fix === 'repair') {
-    await setBrowserAutoOpen(true);
-    console.log('[startup] browser auto-open task repointed at ' + OPEN_DASHBOARD_VBS);
-    return;
-  }
-  await setBrowserAutoOpen(false);
-  console.log('[startup] browser auto-open task removed: ' + OPEN_DASHBOARD_VBS + ' is missing');
 }
 
 // ── Persistent PowerShell collector worker ───────────────────────────────────
@@ -10228,10 +10096,15 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Windows keeps a separate default for calls (Discord, Teams): true = moving
   // the output or input moves that one too, as Xenon always did.
   audioSetCommunications: true,
-  // Open the dashboard in the default browser at Windows logon. The user's
-  // intent (default on); the actual scheduled task is registered/removed by
-  // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
+  // Open the dashboard in the default browser when the user signs in. The
+  // switch in Settings (default on), shown only to a dashboard in a real browser.
   autoOpenBrowser: true,
+  // The other half of that switch, and the engine's own: true once a dashboard
+  // in a real browser at the PC asked for the tab (POST /startup/auto-open, its
+  // only writer besides the move from the old scheduled task). The switch alone
+  // cannot say it, being on for everyone by default: the app and a screen that
+  // embeds the dashboard never ask, so they never get a browser tab at sign-in.
+  autoOpenArmed: false,
   // Anonymous version ping — ON by default for installs made from v4.8.0 onwards;
   // the switch is in Settings → Generale → Aggiornamenti. Sends only {version, os}
   // on the update check the app already makes; never the install id. See
@@ -11822,6 +11695,7 @@ function normalizeHubSettings(value) {
     hideOnRdp: source.hideOnRdp === true,
     audioSetCommunications: source.audioSetCommunications !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,
+    autoOpenArmed: source.autoOpenArmed === true,
     versionPing: source.versionPing === true,
     // `!== false` on purpose: absent means on, so existing installs keep getting
     // announcements and drop cards rather than being silently switched off by an
@@ -13270,6 +13144,11 @@ async function applyBackup(bundle, { remote = false } = {}) {
       // first write mints one when there is none). Adopting the backup's would
       // tell every surface here that the store changed under them.
       incoming.storeId = (prev && prev.storeId) || '';
+      // Whether somebody asked for a browser tab at every sign-in is said with a
+      // click at this PC (POST /startup/auto-open) and kept by the engine. A file
+      // made on another PC, or written by someone else, must not make this one
+      // open a browser when its user signs in.
+      incoming.autoOpenArmed = !!prev && prev.autoOpenArmed === true;
       // The anonymous feature counts are the PC owner's choice, as on POST
       // /settings: a backup posted from a paired device keeps the stored value.
       if (remote) incoming.usageStats = !!(prev && prev.usageStats === true);
@@ -15946,6 +15825,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // A vertical, smaller or GIF copy of a video, and stopping one.
   '/captures/export',
   '/captures/export-cancel',
+  // Asks for a browser tab at every sign-in (install/auto-open-switch.js).
+  '/startup/auto-open',
 ]);
 
 function isAllowedRequest(req) {
@@ -17631,7 +17512,7 @@ const handleRequest = async (req, res) => {
 
   } else if (featureRoutes.has(req.method, reqPath)) {
     // A route that lives in its feature's routes.js (feature-routes.js).
-    await featureRoutes.run(req.method, reqPath, req, res, { json, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath, readBody, openSpotlight: routeSpotlightHotkey });
+    await featureRoutes.run(req.method, reqPath, req, res, { json, err500, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath, readBody, openSpotlight: routeSpotlightHotkey });
 
   } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).
@@ -19432,6 +19313,11 @@ const handleRequest = async (req, res) => {
       if (prev && prev.storeId) {
         incoming.storeId = prev.storeId;
       }
+      // Whether a real browser asked for the tab at sign-in belongs to the engine
+      // (POST /startup/auto-open). No page carries the key, so every save arrives
+      // without it and would read as nobody having asked; and a page that did send
+      // it must not be able to ask this way. Keep the stored value, always.
+      incoming.autoOpenArmed = !!prev && prev.autoOpenArmed === true;
       // Usage history is server-owned for the same reason storeId is: the browser
       // does not model it, so every generic save would arrive without it and
       // normalizeHubSettings would rebuild it as a brand-new install — resetting
@@ -20921,29 +20807,6 @@ const handleRequest = async (req, res) => {
       try { probe.destroy(); } catch (e) { /* ignore */ }   // free its keep-alive sockets to the console
       json(r);
     } catch (e) { json({ ok: false, error: (e && e.message) || 'unifi_failed' }); }
-
-  } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
-    // Reports whether opening the dashboard in the browser at logon is supported
-    // (Windows only) and whether the logon task currently exists.
-    try {
-      const state = await getBrowserAutoOpenState();
-      // `reason` tells the dashboard the difference between "you have this off"
-      // and "this cannot work here": without it the client would keep posting
-      // enabled=true on every page load against a launcher that is not there.
-      json({
-        ok: true,
-        supported: AUTO_OPEN_SUPPORTED,
-        enabled: state.enabled,
-        reason: state.launcher === 'missing' ? 'launcher_missing' : undefined,
-      });
-    } catch (e) { err500(e.message); }
-
-  } else if (reqPath === '/startup/auto-open' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      const state = await setBrowserAutoOpen(body && body.enabled === true);
-      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled, reason: state.reason });
-    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
     try {
@@ -26511,12 +26374,14 @@ async function seedFreshInstall() {
 }
 
 // Scheduled tasks that only matter at the next sign-in, so nobody waits for them.
+const { reconcileBrowserAutoOpenTask } = require('./install/browser-auto-open-task.js');
 const LEFTOVER_TASKS_DELAY_MS = 60 * 1000;
 function tidyLeftoverTasks() {
-  // The logon task that opens the dashboard in a browser outlives the script it
-  // points at, and a stale one greets the user with a wscript error box at every
-  // sign-in (see reconcileBrowserAutoOpenTask). It reads one scheduled task, and
-  // only writes when something is out of step.
+  // The task older versions registered to open the dashboard in a browser at
+  // sign-in runs a script that no longer ships, and greets the user with an
+  // error box at every sign-in. The engine opens that tab itself now, so the
+  // task is removed, and what it meant is kept (install/browser-auto-open-task.js).
+  // One read of one task; it writes only where the task is still there.
   reconcileBrowserAutoOpenTask().catch(() => {});
   // OpenRGB was removed from the product. Tear down anything a previous version
   // may have left so it never launches itself again: drop the auto-start
@@ -26559,6 +26424,9 @@ function _startListen(host) {
       .then(() => migrateSdkGrantGroups())
       .catch((e) => console.warn('[sdk] grant group migration failed:', e && e.message));
     setTimeout(tidyLeftoverTasks, LEFTOVER_TASKS_DELAY_MS).unref();
+    // The browser tab of this sign-in, when one was asked for (install/sign-in-open.js).
+    // Decided now, before the old task is read: the start after an update opens none.
+    require('./install/sign-in-open.js').openDashboardAtSignIn({ port: PORT });
     getAudioInfo().then(info => {
       if (info && info.mic && typeof info.mic.muted === 'boolean') isMuted = info.mic.muted;
       console.log('Speaker cache:', cachedSpeakerId);

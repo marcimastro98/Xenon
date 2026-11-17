@@ -28,7 +28,8 @@ const path = (rel) => fileURLToPath(new URL(rel, import.meta.url));
 
 const INSTALL = read('../install.ps1');
 const UNINSTALL = read('../uninstall.ps1');
-const SERVER = read('../server.js');
+// The old browser task's name now lives with the code that removes it.
+const BROWSER_TASK = read('../install/browser-auto-open-task.js');
 const README = read('../../README.md');
 const CHANGELOG = read('../../CHANGELOG.md');
 
@@ -105,8 +106,8 @@ test('the uninstaller removes every logon task anything registers', () => {
 
   // The engine's own task, from install.ps1 …
   assert.equal(INSTALL.match(/\$appName\s*=\s*'([^']+)'/)[1], appName);
-  // … and the optional browser one, registered by the server at runtime.
-  const browser = SERVER.match(/const BROWSER_TASK_NAME\s*=\s*'([^']+)'/)[1];
+  // … and the browser one older versions registered at runtime (now only removed).
+  const browser = BROWSER_TASK.match(/const BROWSER_TASK_NAME\s*=\s*'([^']+)'/)[1];
   assert.ok(removed.has(browser), `uninstall.ps1 leaves the "${browser}" task behind`);
   // … and the native app's sign-in task, which its own uninstaller leaves behind.
   const shell = readFileSync(path('../../apps/native/src-tauri/src/login_task.rs'), 'utf8')

@@ -24,6 +24,9 @@ const CLASSIFIED = Object.freeze({
   // A question for Bit opens a window on this PC: never from a phone.
   'POST /spotlight/ask': { remote: false },
   'POST /spotlight/ask/take': { remote: false },
+  // The browser tab at sign-in opens on this PC's screen: asked for and read at the PC only.
+  'GET /startup/auto-open': { remote: false },
+  'POST /startup/auto-open': { remote: false },
 });
 
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');

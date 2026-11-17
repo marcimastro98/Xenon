@@ -72,6 +72,11 @@ const SERVER_OWNED = {
   // wire like fileTransfer.inboxDir (capture-settings.js), so without the guard
   // a save from any surface would send the recordings back to Videos.
   capture: 'incoming.capture = prev.capture;',
+  // Whether a dashboard in a real browser asked for the tab at sign-in. Written
+  // only by POST /startup/auto-open and by the move from the old scheduled task;
+  // a save keeps the stored value whatever the page sent, so no page can ask for
+  // the tab through /settings, and no save can take the answer back.
+  autoOpenArmed: 'incoming.autoOpenArmed = !!prev && prev.autoOpenArmed === true;',
 };
 
 test('every settings key the browser does not send is kept from the persisted copy', () => {

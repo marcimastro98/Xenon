@@ -432,9 +432,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   sdkAiDailyCap: 50,
   // Spotify tile: start the closed desktop app minimized (Windows, macOS).
   spotifyStartMinimized: false,
-  // Open the dashboard in the default browser at Windows logon (default on).
-  // Only reconciled into a real scheduled task from a standalone browser view —
-  // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
+  // Open the dashboard in the default browser when the user signs in (default on).
+  // The engine opens the tab, and only for someone who turned this on in a real
+  // browser at the PC (see updateAutoOpenBrowser and reconcileAutoOpenBrowser).
   autoOpenBrowser: true,
   // Anonymous version ping — ON by default for installs made from v4.8.0 onwards;
   // the switch is in Settings → Generale → Aggiornamenti. Sends only {version, os}
@@ -3693,8 +3693,8 @@ async function _hydrateHubSettingsImpl() {
       if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
     }
     if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
-    // Bring the logon "open in browser" task in line with the saved intent —
-    // a no-op inside the Edge iframe, so pure-Edge installs never get a tab.
+    // Tell the engine what the "open in the browser at sign-in" switch says: a
+    // no-op in an embedded view, the app and on a paired device, which never get a tab.
     reconcileAutoOpenBrowser();
     // The first-run question, now that the persisted state is authoritative: one,
     // never two in a row. The app that draws widgets asks how Xenon is used, and
@@ -8919,37 +8919,41 @@ function updateLockWidgetSetting(key, enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// ── "Open dashboard in browser at logon" toggle ──────────────────────
-// Real-browser-only: inside the Xeneon Edge iCUE iframe the iframe loads the
-// dashboard itself, so the toggle is meaningless there and is hidden. We detect
-// the embedded case with window.top !== window.self (cross-origin safe — access
-// throws, which we treat as embedded). On non-Windows the server reports it
-// unsupported and the row stays hidden.
-let _autoOpenSupported = null; // null = unknown until the server reconcile runs
+// ── "Open the dashboard in the browser at sign-in" switch ───────────────
+// For a real browser on the PC only: an embedded view (window.top !== window.self,
+// a throw counts as embedded) loads the dashboard itself, so the row is hidden.
+// The engine opens the tab, says whether it can on this computer, and opens it
+// only for someone who asked, with a click on this switch. The setting is on by
+// default for everyone, so loading the page never asks; it may take a request
+// back (switch off here, engine still holding one) and otherwise shows what the
+// engine holds. _autoOpenEngine: what the engine said last, null until asked.
+const _autoOpenEngine = { supported: null, asked: null };
 
 function isEmbeddedView() {
   try { return window.top !== window.self; } catch { return true; }
 }
 
-// Where the browser-at-logon task is none of this page's business. The Xenon app
-// counts: it is a top window, but it opens itself at logon, and taking it for a
-// browser registered the task from the app with the default "on", so Chrome
-// opened at every logon beside the app.
+// Where the browser tab at sign-in is none of this page's business. The Xenon app
+// counts: it is a top window, but it opens itself at sign-in, and taking it for a
+// browser asked for the tab from the app with the default "on", so a browser
+// opened at every sign-in beside the app. A paired device counts too: the tab
+// opens on the PC, and the engine refuses the request from a phone anyway.
 function autoOpenNotOurs() {
-  return isEmbeddedView() || window.__XENON_NATIVE__ === true || window.isTauri === true;
+  return isEmbeddedView() || window.__XENON_NATIVE__ === true || window.isTauri === true || !!window.__xenonRemote;
 }
 
 function syncAutoOpenBrowserControl() {
   const row = $('settings-auto-open-row');
   const check = $('settings-auto-open');
   if (!row || !check) return;
-  // Hide inside the Edge iframe, or where the server says it isn't supported.
+  // Hide in an embedded view, the app and on a paired device, or where the engine says it cannot open the tab.
   // Use display (not the `hidden` attribute) because the settings category
   // switcher owns `hidden` to show/hide whole category groups — toggling it here
   // would fight that. display:none wins regardless of the category state.
-  const hide = autoOpenNotOurs() || _autoOpenSupported === false;
+  const hide = autoOpenNotOurs() || _autoOpenEngine.supported === false;
   row.style.display = hide ? 'none' : '';
-  check.checked = hubSettings.autoOpenBrowser !== false;
+  // On only when the setting is on and the engine holds a request (or has not said yet).
+  check.checked = hubSettings.autoOpenBrowser !== false && _autoOpenEngine.asked !== false;
 }
 
 // ── Swipe-to-page navigation ────────────────────────────────────────────────
@@ -9334,32 +9338,27 @@ function updateStackMode(mode) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// The click on the switch: the one place a request for the tab is made.
 function updateAutoOpenBrowser(checked) {
   const enabled = checked === true;
   hubSettings = normalizeSettings({ ...hubSettings, autoOpenBrowser: enabled });
   saveHubSettings();
+  _autoOpenEngine.asked = enabled;
   syncAutoOpenBrowserControl();
-  // Register/remove the actual logon task. The setting persists regardless; if
-  // the task call fails we surface it instead of pretending it worked.
+  // Tell the engine, which is what opens the tab. The setting persists regardless;
+  // if the call fails we surface it instead of pretending it worked.
+  const failed = () => { _autoOpenEngine.asked = null; setSettingsStatus('settings_error', 'error'); };
   fetch('/startup/auto-open', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ enabled }),
   }).then(r => r.json()).then(data => {
-    if (data && data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
-    // The server refused because open-dashboard.vbs is not on disk — an antivirus
-    // quarantine, or an install that never finished. Registering the task anyway
-    // is what produces the "Can not find script file" box at every logon, so the
-    // row goes away here exactly as it does where the feature is unsupported.
-    if (data && data.reason === 'launcher_missing') {
-      _autoOpenSupported = false;
-      syncAutoOpenBrowserControl();
-      setSettingsStatus('settings_error', 'error');
-      return;
-    }
-    if (!data || data.ok !== true) { setSettingsStatus('settings_error', 'error'); return; }
+    if (data && data.supported === false) { _autoOpenEngine.supported = false; _autoOpenEngine.asked = false; syncAutoOpenBrowserControl(); return; }
+    if (!data || data.ok !== true) { failed(); return; }
+    _autoOpenEngine.asked = data.enabled === true;
+    syncAutoOpenBrowserControl();
     setSettingsStatus('settings_saved', 'ok');
-  }).catch(() => setSettingsStatus('settings_error', 'error'));
+  }).catch(failed);
 }
 
 // Claude Code widget: the approval cards and the topbar marker. Saved like any
@@ -9701,29 +9700,27 @@ window.XenonStartupCards = {
   usageHistory,
 };
 
-// Brings the real scheduled task in line with the user's saved intent — but
-// only from a standalone browser, never from the Edge iframe. So a pure-Edge
-// install never registers a browser-open task (no surprise tab), while a
-// browser user gets auto-open from their first visit onward.
+// On load, learns what the engine holds, but only from a real browser on the PC:
+// never from an embedded view, the app or a paired device. It never asks for the
+// tab: that takes a click on the switch (updateAutoOpenBrowser). The one thing it
+// may send is "no": the switch is off in these settings and the engine still
+// holds a request, as after a backup restored with the switch off.
 async function reconcileAutoOpenBrowser() {
   if (autoOpenNotOurs()) { syncAutoOpenBrowserControl(); return; }
   try {
     const res = await fetch('/startup/auto-open', { cache: 'no-store' });
     if (!res.ok) { syncAutoOpenBrowserControl(); return; } // old server / not yet restarted
     const data = await res.json().catch(() => ({}));
-    if (!data || data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
-    // Same as above, on the path that runs on every page load: with no launcher
-    // on disk there is nothing to reconcile towards, and re-posting the request
-    // each time would only keep asking for a task that cannot work.
-    if (data.reason === 'launcher_missing') { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
-    _autoOpenSupported = true;
-    const want = hubSettings.autoOpenBrowser !== false;
-    if (data.enabled !== want) {
-      await fetch('/startup/auto-open', {
+    if (!data || data.supported === false) { _autoOpenEngine.supported = false; syncAutoOpenBrowserControl(); return; }
+    _autoOpenEngine.supported = true;
+    _autoOpenEngine.asked = data.enabled === true;
+    if (_autoOpenEngine.asked && hubSettings.autoOpenBrowser === false) {
+      const off = await fetch('/startup/auto-open', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: want }),
-      }).catch(() => {});
+        body: JSON.stringify({ enabled: false }),
+      }).catch(() => null);
+      if (off?.ok) _autoOpenEngine.asked = false;
     }
   } catch { /* leave row as-is; non-fatal */ }
   syncAutoOpenBrowserControl();

@@ -130,8 +130,9 @@ function run(args, opts) {
   });
 }
 
-async function readTaskXml(name = TASK_NAME) {
-  const out = await run(['/Query', '/TN', name, '/XML', 'ONE'], { encoding: 'buffer' });
+// `opts` is for a caller that must not wait on a scheduler that does not answer (a time limit).
+async function readTaskXml(name = TASK_NAME, opts = {}) {
+  const out = await run(['/Query', '/TN', name, '/XML', 'ONE'], { ...opts, encoding: 'buffer' });
   return decodeSchtasksOutput(out);
 }
 
@@ -215,7 +216,7 @@ async function checkStartupTask({ dataDir, repair = true } = {}) {
 }
 
 module.exports = {
-  TASK_NAME, NO_TIME_LIMIT, REPAIRABLE, APP_TASK_NAME,
+  TASK_NAME, NO_TIME_LIMIT, REPAIRABLE, APP_TASK_NAME, APP_EXE,
   parseTaskXml, taskProblems, repairTaskXml, decodeSchtasksOutput, checkStartupTask,
-  taskCommand, appTaskOrphaned,
+  taskCommand, appTaskOrphaned, readTaskXml, runSchtasks: run,
 };
