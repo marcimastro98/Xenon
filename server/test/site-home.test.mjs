@@ -32,12 +32,29 @@ const section = (id) => {
 };
 
 test('the sections come in the order of the plan, Download last', () => {
-  assert.deepEqual(sectionIds(), ['widgets', 'screens', 'games', 'bit', 'catalog', 'support', 'faq', 'install']);
+  assert.deepEqual(sectionIds(), ['film', 'widgets', 'screens', 'games', 'bit', 'catalog', 'support', 'faq', 'install']);
   assert.doesNotMatch(home, /id="controls"|id="price"|id="make"|id="community"/);
 });
 
 test('the hero offers the demo beside Download', () => {
   assert.match(home, /<a class="key-alt for-desk" href="\/demo\/"[^>]*data-i18n="hero\.try">Try it in your browser<\/a>/);
+});
+
+// The launch video sits under the hero and never in front of the page (no full-screen intro:
+// Google ranks a mobile page lower when a cover hides its content on arrival). It loads
+// nothing until it is in view, plays muted while there, and one press plays it with sound.
+test('the launch video is a section under the hero, light until seen, with sound one press away', () => {
+  const s = section('film');
+  const video = /<video id="film-v"[^>]*>/.exec(s)[0];
+  assert.ok(video.includes('src="/images/home/launch.mp4" poster="/images/home/launch.webp"'));
+  for (const attr of ['muted', 'playsinline', 'preload="none"', 'controls', 'width="1920" height="1080"', 'data-i18n-aria="film.alt"']) assert.ok(video.includes(attr), attr);
+  assert.doesNotMatch(video, /\sautoplay|data-play/, 'it starts from the script, in view only, never by attribute');
+  assert.match(s, /<button class="film-sound" id="film-sound"[^>]*data-track="video_play"[^>]*hidden>/);
+  assert.match(s, /<button class="pz" id="film-pause"[^>]*hidden>/, 'the muted loop can be paused (WCAG 2.2.2)');
+  const hero = home.slice(home.indexOf('<section class="hero"'), home.indexOf('id="film"'));
+  assert.match(hero, /<a class="mk film-go" href="#film" data-film-go data-track="video_play"/);
+  for (const file of ['launch.mp4', 'launch.webp']) assert.ok(existsSync(join(root, 'docs', 'images', 'home', file)), file);
+  assert.match(homeScripts, /function film\(\)[\s\S]*saveData[\s\S]*IntersectionObserver/, 'it respects Save-Data and plays only in view');
 });
 
 test('every picture below the hero is a real file with its size, alt text and lazy loading', () => {
@@ -277,5 +294,7 @@ test('the assistant paragraph calls Sparks Xenon\'s credits, never Bit\'s, in ev
 test('the usage counter watches exactly the home sections', () => {
   const src = readFileSync(join(root, 'docs/analytics.js'), 'utf8');
   const watched = /const HOME_SECTIONS = \[([^\]]+)\]/.exec(src)[1].match(/'([^']+)'/g).map((s) => s.slice(1, -1));
-  assert.deepEqual([...watched].sort(), [...sectionIds()].sort());
+  // The video counts its plays as events (video_play, video_complete), not as a section seen:
+  // the hub's list of home sections stays as it is.
+  assert.deepEqual([...watched].sort(), sectionIds().filter((id) => id !== 'film').sort());
 });
