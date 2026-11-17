@@ -1,5 +1,6 @@
 'use strict';
 const { psQuote } = require('../powershell/ps-quote');
+const { createInstallAccess } = require('./install-access.js');
 
 // ── Self-update (safe two-step) ───────────────────────────────────────────────
 // The "safer variant": preparing an update is fully NON-destructive — we download
@@ -106,6 +107,7 @@ function createSelfUpdate(opts) {
   // `powershell` name resolves oddly under ShellExecute).
   const psExe = path.join(process.env.SystemRoot || process.env.windir || 'C:\\Windows',
     'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  const access = o.installAccess || createInstallAccess({ root, platform, fsImpl: f, spawn, psExe });
 
   const {
     isGitCheckout, unsupportedReason, supported, _installWritable, needsElevation,
@@ -210,12 +212,14 @@ function createSelfUpdate(opts) {
   }
   function isPreparing() { return !!suRun.preparing; }
 
-  async function _prepare({ tag, version }) {
+  // allowGrant: the user tapped Update, so a folder only an administrator can
+  // write may be fixed with one UAC prompt (install-access.js). Never from the
+  // automatic updater, which has nobody to answer it.
+  async function _prepare({ tag, version, allowGrant }) {
     if (!tag || !version) throw new Error('bad_args');
     if (isGitCheckout()) throw new Error('git_checkout');
 
-    _rm(updDir);
-    f.mkdirSync(updDir, { recursive: true });
+    await access.ensureStaging(updDir, [zipPath, extractDir, appDir], !!allowGrant);
 
     // 1) Download the source zip for the tag (streamed to disk), hashing the
     //    bytes as they pass so verification needs no second read.

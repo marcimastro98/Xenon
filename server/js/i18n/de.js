@@ -4610,6 +4610,8 @@ module.exports = {
   update_reason_cleanup_failed: 'Aufräumen alter Dateien fehlgeschlagen',
   update_reason_stop_server_failed: 'der laufende Server ließ sich nicht stoppen',
   update_reason_unknown: 'unerwarteter Fehler',
+  update_reason_install_protected: 'Xenon liegt in einem Ordner, den dieses Konto nicht ändern darf',
+  update_reason_access_declined: 'Windows hat um Erlaubnis für den Xenon-Ordner gebeten und sie wurde nicht erteilt: versuch es noch einmal und wähle Ja',
   whatsnew_sub: 'Sieh dir an, was sich in dieser Version geändert hat',
   whatsnew_all: 'Alle Änderungen',
   settings_backup_export: 'Backup exportieren',

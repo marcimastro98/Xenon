@@ -90,7 +90,7 @@ const branches = {
       if (!selfUpdate.supported()) { json({ ok: false, error: 'unsupported' }); return; }
       const u = await checkLatestRelease(true);
       if (!u.ok || !semverNewer(u.latest, APP_VERSION)) { json({ ok: false, error: 'no_update' }); return; }
-      const r = await selfUpdate.prepare({ tag: u.tag, version: u.latest });
+      const r = await selfUpdate.prepare({ tag: u.tag, version: u.latest, allowGrant: true });
       json(r);
     } catch (e) { json({ ok: false, error: String(e && e.message || e) }); }
   },

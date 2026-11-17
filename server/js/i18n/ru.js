@@ -4664,6 +4664,8 @@ module.exports = {
   update_reason_cleanup_failed: 'не удалось очистить старые файлы',
   update_reason_stop_server_failed: 'не удалось остановить работающий сервер',
   update_reason_unknown: 'непредвиденная ошибка',
+  update_reason_install_protected: 'Xenon находится в папке, которую эта учётная запись не может изменять',
+  update_reason_access_declined: 'Windows запросила разрешение на изменение папки Xenon, но его не дали: попробуйте снова и выберите «Да»',
   whatsnew_sub: 'Посмотрите, что изменилось в этой версии',
   whatsnew_all: 'Все изменения',
   settings_backup: 'Резервная копия',

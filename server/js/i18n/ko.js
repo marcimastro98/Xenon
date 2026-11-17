@@ -4702,6 +4702,8 @@ module.exports = {
   update_reason_cleanup_failed: '이전 파일 정리 실패',
   update_reason_stop_server_failed: '실행 중인 서버를 중지할 수 없습니다',
   update_reason_unknown: '예기치 않은 오류',
+  update_reason_install_protected: 'Xenon이 이 계정으로 변경할 수 없는 폴더에 있습니다',
+  update_reason_access_declined: 'Windows가 Xenon 폴더를 변경할 권한을 요청했지만 허용되지 않았습니다. 다시 시도하고 예를 선택하세요',
   whatsnew_sub: '이 버전에서 달라진 점을 확인하세요',
   whatsnew_all: '모든 변경 사항',
   settings_backup: '백업',

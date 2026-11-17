@@ -4698,6 +4698,8 @@ module.exports = {
   update_reason_cleanup_failed: 'opruimen van oude bestanden mislukt',
   update_reason_stop_server_failed: 'de draaiende server kon niet worden gestopt',
   update_reason_unknown: 'onverwachte fout',
+  update_reason_install_protected: 'Xenon staat in een map die dit account niet kan wijzigen',
+  update_reason_access_declined: 'Windows vroeg toestemming om de Xenon-map te wijzigen en die werd niet gegeven: probeer het opnieuw en kies Ja',
   whatsnew_sub: 'Bekijk wat er is veranderd in deze versie',
   whatsnew_all: 'Alle wijzigingen',
   settings_backup: 'Back-up',

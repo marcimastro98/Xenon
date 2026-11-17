@@ -4626,6 +4626,8 @@ module.exports = {
   update_reason_cleanup_failed: 'falha na limpeza de ficheiros antigos',
   update_reason_stop_server_failed: 'não foi possível parar o servidor em execução',
   update_reason_unknown: 'erro inesperado',
+  update_reason_install_protected: 'O Xenon está numa pasta que esta conta não pode alterar',
+  update_reason_access_declined: 'O Windows pediu autorização para alterar a pasta do Xenon e não foi dada: tenta de novo e escolhe Sim',
   whatsnew_sub: 'Vê o que mudou nesta versão',
   whatsnew_all: 'Todas as alterações',
   settings_backup: 'Cópia de segurança',

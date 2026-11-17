@@ -676,6 +676,7 @@
         "server/updates/**",
         "server/update-apply.ps1",
         "server/update-apply.sh",
+        "server/grant-install-access.ps1",
         "server/helper-update.ps1",
         "server/release-asset-cli.js",
         "server/native-installer-cli.js",

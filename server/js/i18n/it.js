@@ -4709,6 +4709,8 @@ module.exports = {
   update_reason_cleanup_failed: 'pulizia dei vecchi file non riuscita',
   update_reason_stop_server_failed: 'impossibile fermare il server in esecuzione',
   update_reason_unknown: 'errore imprevisto',
+  update_reason_install_protected: 'Xenon è in una cartella che questo account non può modificare',
+  update_reason_access_declined: 'Windows ha chiesto il permesso per la cartella di Xenon e non è stato dato: riprova e scegli Sì',
   whatsnew_sub: 'Scopri cosa è cambiato in questa versione',
   whatsnew_all: 'Tutte le novità',
   settings_backup: 'Backup',

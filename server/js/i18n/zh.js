@@ -4702,6 +4702,8 @@ module.exports = {
   update_reason_cleanup_failed: '清理旧文件失败',
   update_reason_stop_server_failed: '无法停止正在运行的服务器',
   update_reason_unknown: '意外错误',
+  update_reason_install_protected: 'Xenon 所在的文件夹无法由此账户修改',
+  update_reason_access_declined: 'Windows 请求修改 Xenon 文件夹的权限，但未获准许：请重试并选择“是”',
   whatsnew_sub: '看看此版本有哪些变化',
   whatsnew_all: '全部更新内容',
   settings_backup: '备份',

@@ -4702,6 +4702,8 @@ module.exports = {
   update_reason_cleanup_failed: '古いファイルの整理に失敗しました',
   update_reason_stop_server_failed: '実行中のサーバーを停止できませんでした',
   update_reason_unknown: '予期しないエラー',
+  update_reason_install_protected: 'Xenon はこのアカウントでは変更できないフォルダーにあります',
+  update_reason_access_declined: 'Windows が Xenon フォルダーを変更する許可を求めましたが、許可されませんでした。もう一度試して「はい」を選んでください',
   whatsnew_sub: 'このバージョンの変更点を見る',
   whatsnew_all: 'すべての変更点',
   settings_backup: 'バックアップ',
