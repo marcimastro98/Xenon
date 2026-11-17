@@ -447,6 +447,8 @@ const REMOTE_ADMIN = new Set([
   '/api/ffmpeg/install',
   // A question for Bit opens the search window on the PC, with the words typed.
   '/spotlight/ask', '/spotlight/ask/take',
+  // The hints this PC has shown (hints/routes.js): they are about the PC, not a phone.
+  '/hints', '/hints/seen', '/hints/reset',
   '/api/features/devclean/unlock',
   '/api/features/lyrics/unlock',
   // Throws away the PC's remembered supporter pass: only the person at the PC

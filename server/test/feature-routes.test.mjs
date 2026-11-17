@@ -27,6 +27,9 @@ const CLASSIFIED = Object.freeze({
   // The browser tab at sign-in opens on this PC's screen: asked for and read at the PC only.
   'GET /startup/auto-open': { remote: false },
   'POST /startup/auto-open': { remote: false },
+  'GET /hints': { remote: false },
+  'POST /hints/seen': { remote: false },
+  'POST /hints/reset': { remote: false },
 });
 
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');

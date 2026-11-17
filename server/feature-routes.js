@@ -14,6 +14,7 @@ const FEATURES = Object.freeze([
   require('./ffmpeg-install/routes.js'),
   require('./spotlight-ask/routes.js'),
   require('./install/routes.js'),
+  require('./hints/routes.js'),
 ]);
 
 const ROUTES = new Map(FEATURES.flatMap((f) => Object.entries(f.routes)));
