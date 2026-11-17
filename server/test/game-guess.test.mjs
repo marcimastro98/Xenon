@@ -49,7 +49,7 @@ test('fpsmon reads the app in front\'s composed row only through its pid', () =>
   assert.equal(fpsmon.rowValues(cols, row, { pid: '5555', name: '' }), null, 'an app in the background never counts');
   assert.equal(fpsmon.rowValues(cols, ['chrome.exe', '4242', 'Composed: Flip', '16.6'], { pid: '4242', name: '' }), null,
     'a browser in front never counts');
-  const src = read('../performance/fpsmon.js');
+  const src = engineSource('server/performance/fpsmon.js');
   assert.match(src, /if \(!r\) \{\n {4}if \(front\) _frontFrames\.add\(rowValues\(_csv\.cols, fields, \{ pid: front, name: '' \}\)\);\n {4}return;/);
   assert.equal(typeof fpsmon.getFrontFrames, 'function');
 });
