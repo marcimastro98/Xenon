@@ -100,7 +100,7 @@
     "cc.cta.p": "無料で、アカウントは不要です。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"/download.html\">ダウンロードページ</a>で自分のシステムを選んでください。先に見てみたい場合は、<a href=\"/demo/\">ブラウザのデモ</a>を開いてください。",
     "cc.jump.widgets": "自分のウィジェット",
     "cc.h.widgets": "自分のウィジェットを作る",
-    "cc.widgets.p1": "Claude Code でコードを書いているなら、Xenon のウィジェットも作れます。<strong>設定 → ウィジェットと共有 → Claude Code または Codex でウィジェットを作る</strong>で <strong>Claude Code を接続</strong> を押してください。Claude Code がウィジェット SDK を読み、フォルダーにウィジェットを書き、ダッシュボードにインストールし、発生したエラーとタイルの画像を確認して修正します。",
+    "cc.widgets.p1": "Claude Code でコードを書いているなら、Xenon のウィジェットも作れます。<strong>Xenon → 作成と共有 → Claude Code または Codex でウィジェットを作る</strong>で <strong>Claude Code を接続</strong> を押してください。Claude Code がウィジェット SDK を読み、フォルダーにウィジェットを書き、ダッシュボードにインストールし、発生したエラーとタイルの画像を確認して修正します。",
     "cc.widgets.p2": "初回はダッシュボードで許可するか確認されます。ウィジェットの権限を承認することはなく、あなたが作ったウィジェットだけを変更し、Xenon が動いている PC からだけ使えます。<a href=\"/create/#mcp\">仕組みと手動での追加方法</a>。"
   }
 }

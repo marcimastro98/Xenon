@@ -67,7 +67,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/single-screen.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/single-screen.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/single-screen.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon を使うのにセカンドモニターは必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Xenon アプリでは、ウィジェットをデスクトップやアプリの上に置けます。Xenon メニューは Alt+Shift+X でどのアプリの上にも開きます。セカンドスクリーンやペアリングしたスマートフォンは任意です。"}},{"@type":"Question","name":"オーバーレイはゲームの中に入り込みますか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Xenon はゲームの上に自分のウィンドウを描き、Windows では PresentMon でフレームタイムを読み取ります。ゲームのプロセスにコードを読み込むことはありません。"}},{"@type":"Question","name":"インスタントリプレイには NVIDIA か AMD のグラフィックカードが必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Windows と macOS では、システム自身のキャプチャとビデオエンコーダーを使うので、どのグラフィックカードでも動きます。初期設定ではオフで、保持した数分間はメモリではなくディスクに置かれます。"}},{"@type":"Question","name":"これらの機能は有料ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。画面上のウィジェット、オーバーレイ、スクリーンショット、録画、インスタントリプレイ、ギャラリーは無料で、アカウントも不要です。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon を使うのにセカンドモニターは必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Xenon アプリでは、ウィジェットをデスクトップやアプリの上に置けます。Alt+Shift+X を押すと、どのアプリの上にも Xenon が開きます。セカンドスクリーンやペアリングしたスマートフォンは任意です。"}},{"@type":"Question","name":"オーバーレイはゲームの中に入り込みますか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Xenon はゲームの上に自分のウィンドウを描き、Windows では PresentMon でフレームタイムを読み取ります。ゲームのプロセスにコードを読み込むことはありません。"}},{"@type":"Question","name":"インスタントリプレイには NVIDIA か AMD のグラフィックカードが必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Windows と macOS では、システム自身のキャプチャとビデオエンコーダーを使うので、どのグラフィックカードでも動きます。初期設定ではオフで、保持した数分間はメモリではなくディスクに置かれます。"}},{"@type":"Question","name":"これらの機能は有料ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。画面上のウィジェット、オーバーレイ、スクリーンショット、録画、インスタントリプレイ、ギャラリーは無料で、アカウントも不要です。"}}]}</script>
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
@@ -119,7 +119,7 @@
           <a class="pg-key" data-dl href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="page_top" data-xl="cta">Windows版をダウンロード</a>
           <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">ブラウザで試す</a>
         </div>
-        <p class="updated" data-i18n="os.updated">最終更新：2026年10月30日</p>
+        <p class="updated" data-i18n="os.updated">最終更新：2026年11月18日</p>
       </div>
       <figure class="pg-pic"><img src="/images/home/desktop-widgets.webp" width="1600" height="900" fetchpriority="high" decoding="async" alt="Xenon のウィジェットが置かれたデスクトップ。開いたウィンドウの横に天気、音楽、システムのグラフ" data-i18n-alt="os.pic.alt"></figure>
     </div>
@@ -128,7 +128,7 @@
     <nav class="jump" aria-labelledby="jump-h">
       <p id="jump-h" data-xl="onpage">このページの内容</p>
       <a href="#widgets" data-i18n="os.jump.widgets">ウィジェット</a>
-      <a href="#menu" data-i18n="os.jump.menu">Xenon メニュー</a>
+      <a href="#menu" data-i18n="os.jump.menu">Xenon をひとつの場所に</a>
       <a href="#perf" data-i18n="os.jump.perf">ゲームのパフォーマンス</a>
       <a href="#capture" data-i18n="os.jump.capture">キャプチャ</a>
       <a href="#phone" data-i18n="os.jump.phone">スマートフォン</a>
@@ -141,13 +141,13 @@
     <h2 id="widgets" data-i18n="os.h.widgets">画面上のウィジェット</h2>
     <p data-i18n-html="os.widgets.p1">Bit に<strong>「天気をデスクトップの右上に置いて」</strong>と頼むと、ウィジェットがそこに表示されます。ウィジェットは<strong>デスクトップ</strong>に置けばウィンドウの下にあり、デスクトップを表示すると前に出ます。<strong>すべての上</strong>に置けば、アプリやボーダーレスウィンドウのゲームの上に表示されます。<strong>アプリの横</strong>に置けば、そのウィンドウについて動き、最小化すると隠れます。</p>
     <p data-i18n="os.widgets.p2">ウィジェットの横をクリックすると、その下にあるものに届きます。ウィジェットをクリックしても、使っていたウィンドウのフォーカスは奪われません。ダッシュボードのどのタイルも、Store のどのウィジェットも画面に置けます。</p>
-    <p data-i18n-html="os.widgets.p3">手で並べるには、Bit に「ウィジェットを動かしたい」と頼むか、Deck キーの<strong>画面上のウィジェットを編集</strong>を押します。ドラッグで移動、ウィジェットを押すと選択肢が出ます。Xenon メニューの画面マップでも同じことができ、別のモニターへも移せます。ウィジェットは「仕事」や「ゲーム」のようなページに分けられます。<strong>ゲーム中</strong>に設定したページはゲームの実行中に自動で表示され、ページを仮想デスクトップに連動させることもできます。</p>
-    <p data-i18n-html="os.widgets.p3b">ウィジェットはルールに従わせることもできます。Xenon メニューでウィジェットの<strong>調整</strong>を開き、<strong>表示するとき</strong>を選びます。ゲーム中、音楽の再生中、通話中、OBS で配信中だけ、特定のアプリが手前にあるときだけ、指定した時間帯だけなどを選べます。ウィジェットのページも同じように設定できます。その状況が始まると前面に出て、終わると元のページに戻ります。</p>
-    <p data-i18n-html="os.widgets.p3c">ウィジェットに専用のキーの組み合わせを付けることもできます。Xenon メニューでウィジェットの<strong>調整</strong>を開き、<strong>キー</strong>で設定します。押すたびに表示と非表示が切り替わるか、押している間だけ表示されます。カタログのウィジェットは、その機能をキーに割り当てることもできます。すべてのキーは<strong>ショートカットとマクロ</strong>に並びます。</p>
+    <p data-i18n-html="os.widgets.p3">手で並べるには、Bit に「ウィジェットを動かしたい」と頼むか、Deck キーの<strong>画面上のウィジェットを編集</strong>を押します。ドラッグで移動、ウィジェットを押すと選択肢が出ます。Xenon（Alt+Shift+X）の<strong>画面</strong>にある画面マップでも同じことができ、別のモニターへも移せます。ウィジェットは「仕事」や「ゲーム」のようなページに分けられます。<strong>ゲーム中</strong>に設定したページはゲームの実行中に自動で表示され、ページを仮想デスクトップに連動させることもできます。</p>
+    <p data-i18n-html="os.widgets.p3b">ウィジェットはルールに従わせることもできます。Xenon の<strong>画面</strong>でウィジェットを押し、<strong>表示するとき</strong>を選びます。ゲーム中、音楽の再生中、通話中、OBS で配信中だけ、特定のアプリが手前にあるときだけ、指定した時間帯だけなどを選べます。ウィジェットのページも同じように設定できます。その状況が始まると前面に出て、終わると元のページに戻ります。</p>
+    <p data-i18n-html="os.widgets.p3c">ウィジェットに専用のキーの組み合わせを付けることもできます。Xenon の<strong>画面</strong>でウィジェットを押し、<strong>キー</strong>で設定します。押すたびに表示と非表示が切り替わるか、押している間だけ表示されます。カタログのウィジェットは、その機能をキーに割り当てることもできます。すべてのキーは<strong>ショートカットとマクロ</strong>に並びます。</p>
     <p data-i18n-html="os.widgets.p4">ダッシュボードがまったく要らない場合は、設定の「一般」にある「Xenon の使い方」で<strong>ウィジェットのみ</strong>を選びます。するとアプリはダッシュボードのウィンドウを、隠れたものも含めて持たなくなり、メモリの使用量が減ります。クリップの保存やタイマーの終了などの通知は画面の右上に表示され、Bit は今までどおり「Hey Bit」に応えます。</p>
 
-    <h2 id="menu" data-i18n="os.h.menu">Xenon メニュー</h2>
-    <p data-i18n-html="os.menu.p1">どのアプリでも、ボーダーレスウィンドウのゲームでも、<strong>Alt+Shift+X</strong> を押すと画面の上に 1 つのメニューが開きます。スクリーンショット、範囲、録画、ギャラリー、ウィジェットとその置き場所、ページ、キャプチャのオプション、見た目、Xenon の使い方があり、すべてのキーボードショートカットも 1 か所にまとまっています。ほかのアプリがすでに使っているショートカットには、そのアプリの名前が表示されます。</p>
+    <h2 id="menu" data-i18n="os.h.menu">Xenon をひとつの場所に</h2>
+    <p data-i18n-html="os.menu.p1">どのアプリでも、ボーダーレスウィンドウのゲームでも、<strong>Alt+Shift+X</strong> を押すと画面の上に Xenon が開きます。すべてがそろうひとつの場所で、ダッシュボードの歯車アイコンから開くものと同じです。最初は<strong>画面</strong>で、モニターとペアリングしたスマートフォンが地図で表示されます。1 つ押すと、何を表示するか（ダッシュボードかウィジェットのみ）、そのウィジェット、背景を選べます。ほかにスクリーンショット、範囲、録画、ギャラリー、設定、ストアがあり、すべてのキーボードショートカットも 1 か所にまとまっています。ほかのアプリがすでに使っているショートカットには、そのアプリの名前が表示されます。</p>
     <p data-i18n="os.menu.p2">トレイ、Deck キー、または Bit に頼んでも開けます。コントローラーでは、中央にある 2 つの小さなボタンを同時に少し押し続けます。Xbox タイプのコントローラーではビューとメニュー、PlayStation のコントローラーではクリエイトと OPTIONS です。十字キーで移動、A で決定、B で閉じます。</p>
 
     <h2 id="perf" data-i18n="os.h.perf">ゲームの上にパフォーマンスを表示</h2>
@@ -167,14 +167,14 @@
     <p data-i18n-html="os.phone.p1">モニターが 1 台なら、ポケットのスマートフォンをセカンドスクリーンにできます。Xenon とペアリングすると、あなたの Wi-Fi 経由でダッシュボードが表示されます。FPS を表示するゲームパフォーマンスタイルを置けば、ゲームの上には何も重なりません。Deck キーで PC のリプレイを保存したり、スクリーンショットを撮ったりもできます。<a href="/ja/phone.html">スマートフォンのペアリング方法</a>。</p>
 
     <h2 id="systems" data-i18n="os.h.systems">Mac と Linux では</h2>
-    <p data-i18n="os.systems.p1">画面上のウィジェット、ウィジェットのみ、Xenon メニュー、スクリーンショット、録画は macOS と Linux でもベータ版として動作します。まだ実機の Mac や Linux PC では試していないので、動かないものがあれば教えてください。システムでできないことは表示されず、その理由は設定に書かれています。</p>
+    <p data-i18n="os.systems.p1">画面上のウィジェット、ウィジェットのみ、アプリの上の Xenon、スクリーンショット、録画は macOS と Linux でもベータ版として動作します。まだ実機の Mac や Linux PC では試していないので、動かないものがあれば教えてください。システムでできないことは表示されず、その理由は設定に書かれています。</p>
     <p data-i18n="os.systems.p2">Linux では、使える機能がデスクトップ環境とインストール済みのツールによって変わります。ウィジェットには、コンポジター付きの X11 セッション、または gtk-layer-shell ライブラリを入れた KDE Plasma、Sway、Hyprland が必要です。Wayland の GNOME では、アプリが自分のウィンドウをほかのウィンドウの下や上に置けません。SteamOS のゲームモードではゲームの上に何も開けないので、スマートフォンを使ってください。</p>
 
     <h2 id="limits" data-i18n="os.h.limits">Xenon がしないこと</h2>
     <p data-i18n="os.limits.p1">Xenon は自分のウィンドウだけを描き、ゲームのプロセスに入ることはありません。そのため、排他的フルスクリーンのゲームの上には描けません。タイルにそう表示され、ゲームの画面設定でボーダーレスに切り替えられます。オーバークロック、電圧やファンの変更、ドライバー設定の変更は行いません。</p>
 
     <h2 id="faq" data-i18n="os.h.faq">よくある質問</h2>
-    <details><summary data-i18n="os.faq.second.q">Xenon を使うのにセカンドモニターは必要ですか？</summary><div class="body"><p data-i18n="os.faq.second.a">いいえ。Xenon アプリでは、ウィジェットをデスクトップやアプリの上に置けます。Xenon メニューは Alt+Shift+X でどのアプリの上にも開きます。セカンドスクリーンやペアリングしたスマートフォンは任意です。</p></div></details>
+    <details><summary data-i18n="os.faq.second.q">Xenon を使うのにセカンドモニターは必要ですか？</summary><div class="body"><p data-i18n="os.faq.second.a">いいえ。Xenon アプリでは、ウィジェットをデスクトップやアプリの上に置けます。Alt+Shift+X を押すと、どのアプリの上にも Xenon が開きます。セカンドスクリーンやペアリングしたスマートフォンは任意です。</p></div></details>
     <details><summary data-i18n="os.faq.cheat.q">オーバーレイはゲームの中に入り込みますか？</summary><div class="body"><p data-i18n="os.faq.cheat.a">いいえ。Xenon はゲームの上に自分のウィンドウを描き、Windows では PresentMon でフレームタイムを読み取ります。ゲームのプロセスにコードを読み込むことはありません。</p></div></details>
     <details><summary data-i18n="os.faq.gpu.q">インスタントリプレイには NVIDIA か AMD のグラフィックカードが必要ですか？</summary><div class="body"><p data-i18n="os.faq.gpu.a">いいえ。Windows と macOS では、システム自身のキャプチャとビデオエンコーダーを使うので、どのグラフィックカードでも動きます。初期設定ではオフで、保持した数分間はメモリではなくディスクに置かれます。</p></div></details>
     <details><summary data-i18n="os.faq.price.q">これらの機能は有料ですか？</summary><div class="body"><p data-i18n="os.faq.price.a">いいえ。画面上のウィジェット、オーバーレイ、スクリーンショット、録画、インスタントリプレイ、ギャラリーは無料で、アカウントも不要です。</p></div></details>

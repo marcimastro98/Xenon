@@ -18,6 +18,7 @@
   // { icon, key, vars, cost }: what to ask, from what this PC has. A city typed
   // in the weather settings names it; music playing turns the timer starter into
   // one that also lowers it; the widget starter shows its rough price on Sparks.
+  // The first asks what Xenon can do: the question a new install has (topic xenon-place).
   function starters(ctx = {}) {
     const city = String(ctx.city || '').trim();
     const weather = city
@@ -25,10 +26,11 @@
       : { icon: 'weather', key: 'bit_start_weather' };
     const clock = ctx.playing ? { icon: 'music', key: 'bit_start_music_timer' } : { icon: 'timer', key: 'bit_start_timer' };
     const widget = { icon: 'widget', key: 'bit_start_widget', cost: Number.isFinite(ctx.widgetCost) ? ctx.widgetCost : null };
-    return [weather, clock, widget];
+    return [{ icon: 'xenon', key: 'bit_start_xenon' }, weather, clock, widget];
   }
 
   const ICONS = {
+    xenon: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
     weather: '<path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4 12.5 3.5 3.5 0 0 0 7.5 19z"/>',
     music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
     timer: '<circle cx="12" cy="14" r="8"/><path d="M12 10v4l2.5 2M9.5 2.5h5"/>',

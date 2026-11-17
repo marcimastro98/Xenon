@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { notesScenes } from './notes-scenes.mjs';
 import { hintsScenes } from './hints-scenes.mjs';
 import { railScenes } from './rail-scenes.mjs';
+import { bitWelcomeScenes } from './bit-welcome-scenes.mjs';
 import { menuState, PHONES } from '../menu-shots/fixture.mjs';
 
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
@@ -143,6 +144,7 @@ export const SCENES = {
   ...notesScenes,
   ...hintsScenes,
   ...railScenes,
+  ...bitWelcomeScenes,
   'first-run': { sizes: ['desk', 'phone', 'edge'], open: firstRun, arg: {} },
   'first-run-key': { sizes: ['desk', 'phone', 'edge'], open: firstRun, arg: { step: 'key' } },
   'first-run-key-late': { sizes: ['desk', 'phone'], open: firstRun, arg: { step: 'key', late: true } },
@@ -192,14 +194,14 @@ export const SCENES = {
       setLang('en');
       hubSettings.aiProvider = 'xenon';
       updateMediaChatKeyState();
-      document.querySelector('.tabgroup-tab[data-member="chat"]').click();
+      BitChatFull.ask('');
       await new Promise((r) => setTimeout(r, 400));
       _aiDropWelcome();
       _aiAppendBubble('user', 'Save the last 42 seconds to my Desktop');
       _aiAppendBubble('assistant', 'Saved to your Desktop. The replay keeps 30 seconds, so the clip is 30 seconds long. Want me to keep 60 from now on?');
       _aiAppendBubble('user', 'Why is my game stuttering?');
       _aiAppendBubble('assistant', 'One CPU core is at 100% and the GPU is waiting for it.');
-      return '.panel.tabgroup:has(.chat-panel)';
+      return BitChatFull.isOpen() ? '.bit-sheet' : '#media-pane-chat';
     },
   },
   // The Store's Installed page with widgets still waiting for their permissions.

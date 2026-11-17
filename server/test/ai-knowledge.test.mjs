@@ -154,3 +154,18 @@ test('the Sparks cards match how Sparks really work', () => {
   assert.match(body('purchases-and-refunds'), /can go below zero until the next pack/);
   for (const t of ak.TOPICS) assert.doesNotMatch(t.title + t.body, /Bit's credits/, t.id);
 });
+
+// The question a new install has ("what can it do, where is everything") finds the
+// card about the one place; it does not take over questions that belong elsewhere.
+test('questions about Xenon itself find the one-place card, and only those', () => {
+  const first = (q) => ak.lookup(q).results[0]?.topic;
+  for (const q of ['what can Xenon do', 'Xenon features overview', 'alt+shift+x does nothing', 'where is the dashboard in widgets only', 'dove trovo il menu'])
+    assert.equal(first(q), 'xenon-place', q);
+  for (const [q, topic] of [['what are sparks', 'ai-credits'], ['xeneon edge touchscreen', 'screens'], ['can I get a refund', 'purchases-and-refunds']])
+    assert.equal(first(q), topic, q);
+  const card = ak.TOPICS.find((t) => t.id === 'xenon-place').body;
+  assert.match(card, /Alt\+Shift\+X/);
+  assert.match(card, /Create and share/);
+  assert.match(card, /Show again/);
+  assert.doesNotMatch(card, /Widgets & sharing|tour (starts|opens)/);
+});
