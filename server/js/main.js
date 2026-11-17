@@ -338,6 +338,7 @@ function postponeAutoUpdate() {
     es.addEventListener('screen_menu', e => {
       try { if (window.XenonSheet) window.XenonSheet.onMenu(JSON.parse(e.data)); } catch {}
       try { if (window.LayersShell && typeof window.LayersShell.onMenu === 'function') window.LayersShell.onMenu(JSON.parse(e.data)); } catch {}
+      try { window.UsageAskKey?.onMenu(JSON.parse(e.data)); } catch {}
     });
     // Bit's vitals popup on this PC (macOS, Linux): the on-screen alerts window.
     es.addEventListener('vitals_nag', e => {

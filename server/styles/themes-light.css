@@ -464,7 +464,6 @@
 :root[data-appearance="light"] .tile-style-pop,
 :root[data-appearance="light"] .discord-invite,
 :root[data-appearance="light"] .deck-toast,
-:root[data-appearance="light"] .onb-card,
 :root[data-appearance="light"] .tab-panel,
 :root[data-appearance="light"] .layout-fab {
   color: var(--text);

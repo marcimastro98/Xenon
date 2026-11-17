@@ -31,10 +31,10 @@ test('the starters fit this PC: the typed city, the music playing, the widget pr
   assert.equal(W.fillVars('domani a {city}?', rich[0].vars), 'domani a Milano?');
 });
 
-test('until the tour is taken, Bit offers it in place of the timer', () => {
-  assert.deepEqual(W.starters({ tourUnseen: true }).map((s) => s.key), ['bit_start_tour', 'bit_start_weather', 'bit_start_widget']);
-  assert.equal(W.starters({ tourUnseen: true })[0].run, 'tour');
-  assert.equal(W.starters({}).some((s) => s.run), false);
+test('every starter is a question to Bit: the tour is gone', () => {
+  assert.deepEqual(W.starters({}).map((s) => s.key), ['bit_start_weather', 'bit_start_timer', 'bit_start_widget']);
+  assert.equal(W.starters({}).some((s) => 'run' in s), false);
+  assert.doesNotMatch(read('../js/bit-welcome.js'), /Onboarding|bitRun|\btour\b/);
 });
 
 test('a plain timer shows a timer, the music one the note', () => {
@@ -86,24 +86,6 @@ test('a tap on a starter sends its words through the shared session, from any co
   assert.deepEqual(sent, [['Che tempo fa domani?', false]]);
 });
 
-test('the tour starter opens the tour here: nothing goes to the AI, no Sparks are spent', () => {
-  const listeners = {};
-  const sent = [];
-  let tours = 0;
-  const ctx = {
-    console, Number, String, Object,
-    document: { addEventListener: (type, fn) => { listeners[type] = fn; } },
-    aiSendMessage: (text, voice) => sent.push([text, voice]),
-    Onboarding: { start: () => { tours += 1; } },
-  };
-  ctx.window = ctx;
-  vm.runInNewContext(read('../js/bit-welcome.js'), ctx);
-  const starter = { dataset: { bitRun: 'tour' } };
-  listeners.click({ target: { closest: (sel) => (sel === '.bit-starter' ? starter : null) } });
-  assert.equal(tours, 1);
-  assert.deepEqual(sent, []);
-});
-
 test('the welcome shows only in an empty, ready chat and leaves on the first message', () => {
   const ai = read('../js/ai.js');
   const render = ai.slice(ai.indexOf('function _aiRenderWelcomeIfEmpty'), ai.indexOf('function _aiDropWelcome'));
@@ -117,7 +99,7 @@ test('the welcome shows only in an empty, ready chat and leaves on the first mes
 
 test('every word of the welcome is in all 11 languages', () => {
   const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
-  const keys = ['bit_welcome_line', 'bit_start_label', 'bit_start_weather', 'bit_start_weather_city', 'bit_start_timer', 'bit_start_music_timer', 'bit_start_widget', 'bit_start_tour', 'bit_start_cost',
+  const keys = ['bit_welcome_line', 'bit_start_label', 'bit_start_weather', 'bit_start_weather_city', 'bit_start_timer', 'bit_start_music_timer', 'bit_start_widget', 'bit_start_cost',
     ...['morning', 'afternoon', 'evening', 'night'].map((h) => 'bit_hello_' + h)];
   for (const l of LANGS) {
     for (const k of keys) {

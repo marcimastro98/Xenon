@@ -152,7 +152,7 @@ test('a low window keeps the pages in reach: the rows under them scroll with the
 // as much, or the widgets-only list comes back whole (it did, 30 rows instead of 19).
 test('what the window hides outweighs the page', () => {
   const css = read('../components/SheetPage/SheetPage.css');
-  for (const hide of ['.sheet-off:not(.active)', '[data-dash-card]', '.settings-tutorial-group', '.settings-row:has([onclick="openXenonMenu()"])']) {
+  for (const hide of ['.sheet-off:not(.active)', '[data-dash-card]', '.settings-row:has([onclick="openXenonMenu()"])']) {
     const line = css.split('\n').find((l) => l.includes(hide));
     assert.ok(line, hide);
     assert.ok(line.includes('#settings-overlay'), hide + ' has no id');

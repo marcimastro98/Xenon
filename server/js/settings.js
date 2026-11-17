@@ -772,10 +772,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // just an enable flag. Wave Link: enable + optional pinned port (0 = auto-scan).
   chroma: Object.freeze({ enabled: false }),
   wavelink: Object.freeze({ enabled: false, port: 0 }),
-  // First-run tutorial state. `seenVersion` is the ONBOARDING_VERSION the user
-  // last finished/skipped; 0 = never seen, so the tour shows once. Persisted in
-  // settings (not just localStorage) so a Xeneon Edge WebView storage wipe can't
-  // make the tutorial reappear on every boot.
+  // The last version of the guided tour taken; the tour is gone since 5.2.0. Kept
+  // as stored: above 0 it still tells an update from a new install.
   onboarding: Object.freeze({ seenVersion: 0 }),
   // Which screen the user chose for Xenon, asked once at first run.
   //   kind:  'auto'   — whatever the machine offers (the historical behaviour)
@@ -2244,7 +2242,8 @@ function normalizeSecondScreen(value) {
   return { fps, quality, width: match ? match[0] : d.width, height: match ? match[1] : d.height, fit, touchControl };
 }
 
-// First-run tutorial state: just a monotonic "last seen version" integer.
+// The guided tour's last version taken, a plain integer. The tour is gone since 5.2.0;
+// above 0 it still tells an update from a new install.
 function normalizeOnboarding(value) {
   const v = value && typeof value === 'object' ? value : {};
   const seen = Number(v.seenVersion);
@@ -3290,20 +3289,11 @@ function syncHubLighting(lighting) {
 }
 window.syncHubLighting = syncHubLighting;
 
-// First-run tutorial state. The getter is read by onboarding.js to decide
-// whether to auto-start the tour; the setter records the version the user just
-// finished/skipped and persists it to the server so it survives a storage wipe.
+// The last version of the guided tour taken, from before 5.2.0: above 0, this PC ran
+// Xenon before (js/release-notice.js returningUser).
 function getOnboardingSeen() {
   return (hubSettings && hubSettings.onboarding && Number(hubSettings.onboarding.seenVersion)) || 0;
 }
-window.getOnboardingSeen = getOnboardingSeen;
-
-function setOnboardingSeen(version) {
-  const v = Math.max(0, Math.floor(Number(version) || 0));
-  hubSettings = normalizeSettings({ ...hubSettings, onboarding: { seenVersion: v } });
-  saveHubSettings();
-}
-window.setOnboardingSeen = setOnboardingSeen;
 
 // The chosen screen. Read by surface-picker.js to decide whether to ask, and by
 // the Settings → Schermo panel to render the current choice. Server-backed on
@@ -3699,8 +3689,8 @@ async function _hydrateHubSettingsImpl() {
     // The first-run question, now that the persisted state is authoritative: one,
     // never two in a row. The app that draws widgets asks how Xenon is used, and
     // that answer says where the dashboard goes too; the browser and other shells
-    // have only the screen to ask about. No tour: nobody asked for one yet, so it
-    // waits a tap away, in Settings and among Bit's starters.
+    // have only the screen to ask about. No tour: the question ends with the person
+    // pressing the key that opens Xenon (js/usage-ask-key.js).
     //
     // DEFERRED, and what it waits for is the SCRIPT TAGS, not the page. This
     // function is started at the bottom of settings.js — a script tag ~80 tags

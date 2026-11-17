@@ -11,6 +11,7 @@ const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
 const SRC = src('js/usage-ask.js');
 const SCRIPTS = ['view-melt', 'usage-mode', 'screen-name', 'layer-drag', 'xenon-menu-map', 'usage-ask-plan', 'usage-ask-picture', 'usage-ask']
   .map((name) => src('js/' + name + '.js'));
+const KEY_STEP = src('js/usage-ask-key.js');
 
 const screen = (id, name, more = {}) => ({
   id, name, label: 'Display ' + id, width: 2560, height: 1440, x: 0, y: 0, primary: false, edge: false, ...more,
@@ -19,7 +20,9 @@ const MAIN = screen('A', 'DELL', { primary: true });
 const SIDE = screen('B', 'LG', { x: 2560 });
 const EDGE = screen('C', 'XENEON EDGE', { width: 2560, height: 720, y: 1440, edge: true });
 
-function load({ native = true, caps = { layers: true, menu: true }, usageMode = '', remote = false, layerPage = false, displays = [MAIN], refuse = [], offline = [], search = '' } = {}) {
+// `key`: with the last step, "press the key" (js/usage-ask-key.js); without it the question
+// ends on Continue, as where the shell cannot draw Xenon.
+function load({ native = true, caps = { layers: true, menu: true }, usageMode = '', remote = false, layerPage = false, displays = [MAIN], refuse = [], offline = [], search = '', key = false, menuKey = 'ctrl+alt+m' } = {}) {
   const { document } = makeDom();
   const make = document.createElement;
   document.createElement = (t) => {
@@ -28,11 +31,15 @@ function load({ native = true, caps = { layers: true, menu: true }, usageMode = 
     return el;
   };
   const keyHandlers = [];
-  document.addEventListener = (type, fn) => { if (type === 'keydown') keyHandlers.push(fn); };
-  document.removeEventListener = (_type, fn) => {
-    const i = keyHandlers.indexOf(fn);
-    if (i >= 0) keyHandlers.splice(i, 1);
+  const upHandlers = [];
+  const listFor = (type) => (type === 'keydown' ? keyHandlers : type === 'keyup' ? upHandlers : null);
+  document.addEventListener = (type, fn) => listFor(type)?.push(fn);
+  document.removeEventListener = (type, fn) => {
+    const list = listFor(type);
+    const i = list ? list.indexOf(fn) : -1;
+    if (i >= 0) list.splice(i, 1);
   };
+  const blurs = [];
   const log = [];
   const placed = [];
   const surfaces = [];
@@ -43,7 +50,7 @@ function load({ native = true, caps = { layers: true, menu: true }, usageMode = 
   const state = { displays, dismissed: 0 };
   const ctx = {
     document, console: { ...console, warn() {} },
-    hubSettings: { usageMode, layers: { menuKey: 'ctrl+alt+m' } },
+    hubSettings: { usageMode, layers: { menuKey } },
     t: (k) => k,
     SERVER: 'http://x',
     updateUsageMode: async (v) => { log.push('usage:' + v); },
@@ -51,7 +58,7 @@ function load({ native = true, caps = { layers: true, menu: true }, usageMode = 
     fetch: async (url, init) => {
       if (url.endsWith('/screen-menu')) {
         log.push('menu');
-        assert.equal(init.body, '{"open":true,"section":"widgets"}', 'on the widgets just placed');
+        assert.equal(init.body, '{"open":true,"section":"keys"}', 'on the shortcuts, where another key is chosen');
         return { ok: true };
       }
       const action = JSON.parse(init.body);
@@ -62,10 +69,14 @@ function load({ native = true, caps = { layers: true, menu: true }, usageMode = 
     },
     isLayerPage: () => layerPage,
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    clearTimeout: () => {},
   };
   ctx.location = { search };
   ctx.URLSearchParams = URLSearchParams;
   ctx.window = ctx;
+  ctx.addEventListener = (type, fn) => { if (type === 'blur') blurs.push(fn); };
+  ctx.removeEventListener = (type, fn) => { if (type === 'blur') blurs.splice(blurs.indexOf(fn), 1); };
+  ctx.navigator = { platform: 'Win32' };
   ctx.self = ctx;
   ctx.top = ctx;
   ctx.__XENON_NATIVE__ = native;
@@ -79,11 +90,12 @@ function load({ native = true, caps = { layers: true, menu: true }, usageMode = 
   ctx.TopbarMinimal = { peekRails: (on) => rails.push(on) };
   ctx.XenonToast = { dismissAll: () => { state.dismissed += 1; } };
   ctx.ambientFreeze = (who, on) => freezes.push([who, on]);
-  ctx.DeckShortcuts = { formatShortcut: (c) => c.toUpperCase() };
+  ctx.DeckShortcuts = { formatShortcut: (c) => c.split('+').map((p) => p.toUpperCase()).join(' + '), normalizeShortcut: (c) => c };
   vm.createContext(ctx);
-  SCRIPTS.forEach((code) => vm.runInContext(code, ctx));
-  const key = (k, more = {}) => keyHandlers.slice().forEach((fn) => fn({ key: k, preventDefault() {}, ...more }));
-  return { ctx, document, log, placed, surfaces, chosen, freezes, rails, timers, state, key, keyHandlers, U: ctx.UsageAsk };
+  (key ? [...SCRIPTS.slice(0, -1), KEY_STEP, SCRIPTS.at(-1)] : SCRIPTS).forEach((code) => vm.runInContext(code, ctx));
+  const press = (k, more = {}) => keyHandlers.slice().forEach((fn) => fn({ key: k, type: 'keydown', preventDefault() {}, ...more }));
+  const release = (k, more = {}) => upHandlers.slice().forEach((fn) => fn({ key: k, type: 'keyup', preventDefault() {}, ...more }));
+  return { ctx, document, log, placed, surfaces, chosen, freezes, rails, timers, state, key: press, release, blurs, keyHandlers, U: ctx.UsageAsk };
 }
 
 const rows = (d) => d.document.querySelectorAll('.ua-card');
@@ -161,7 +173,7 @@ test('asked only in the app that draws widgets, only once, never on a phone, a l
   assert.equal(load({ native: false }).U.maybeStart(), false);
 });
 
-test('one dialog: radio rows, the key under the title, nothing else speaking over it', () => {
+test('one dialog: radio rows, nothing else speaking over it', () => {
   const d = load();
   assert.equal(d.U.maybeStart(), true);
   assert.equal(d.U.isOpen(), true);
@@ -171,7 +183,7 @@ test('one dialog: radio rows, the key under the title, nothing else speaking ove
   assert.match(overlay.className, /\bsp-overlay\b/);
   assert.equal(d.document.querySelector('.ua-cards').getAttribute('role'), 'radiogroup');
   assert.deepEqual(rows(d).map((c) => c.getAttribute('aria-checked')), ['true', 'false', 'false']);
-  assert.match(d.document.querySelector('.ua-sub').textContent, /\(CTRL\+ALT\+M\)/);
+  assert.equal(d.document.querySelector('.ua-sub').textContent, 'Change it any time in Xenon or by asking Bit.', 'the key waits for the last step');
   assert.equal(d.document.activeElement, onRow(d), 'focus starts on the chosen row');
   assert.deepEqual(d.freezes, [['usage-ask', true]]);
   assert.ok(d.document.body.classList.contains('first-run-asking'), 'toasts hold back while it is open');
@@ -279,11 +291,11 @@ test('a row that leaves with its screens falls back to the advice', () => {
   assert.equal(onRow(d).dataset.mode, 'both');
 });
 
-test('widgets: three starters, then the answer, then the menu once', async () => {
+test('widgets: three starters, then the answer', async () => {
   const d = load();
   d.U.maybeStart();
   await go(d);
-  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets', 'menu']);
+  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets']);
   assert.deepEqual({ ...d.placed[0] }, { type: 'layerPlace', widget: 'weather', surface: 'desktop', position: 'top-right', size: 'medium' });
   assert.deepEqual(d.rails, [], 'no rails where there is no dashboard');
 });
@@ -292,7 +304,7 @@ test("widgets in the app's own window: no melt into the dashboard, the dialog wa
   const d = load({ search: '?shell=main' });
   d.U.maybeStart();
   await go(d);
-  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets', 'menu']);
+  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets']);
   assert.ok(rows(d).length > 0, 'still covering the dashboard while the window becomes the driver page');
   const stay = d.timers.find((t) => t.ms === 4000);
   assert.ok(stay, 'a window that did not leave closes the dialog anyway');
@@ -324,12 +336,12 @@ test('dashboard: nothing placed, no menu, the side rails show themselves and go'
   assert.deepEqual(d.rails, [true, false]);
 });
 
-test('both: starters, menu and rails; the widgets follow when the dashboard takes the main screen', async () => {
+test('both: starters and rails; the widgets follow when the dashboard takes the main screen', async () => {
   const d = load({ displays: [MAIN, SIDE] });
   d.U.maybeStart();
   monitor(d, 'A').click();
   await go(d);
-  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:both', 'menu']);
+  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:both']);
   assert.equal(d.placed[0].monitor, 'B');
   assert.deepEqual(d.chosen, [['A', true]]);
   assert.deepEqual(d.rails, [true]);
@@ -373,7 +385,7 @@ test('a widget that cannot be placed does not cost the answer', async () => {
     const d = load(opts);
     d.U.maybeStart();
     await go(d);
-    assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets', 'menu']);
+    assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets']);
   }
 });
 
@@ -465,12 +477,122 @@ test('every text in all 11 languages, removed words gone', () => {
     'usage_ask_phone_title', 'usage_ask_widgets_one_body', 'usage_ask_dash_one_body', 'usage_ask_phone_body', 'usage_ask_phone_line', 'usage_ask_phone_go', 'usage_ask_screen_hint'];
   const holes = {
     usage_ask_both_body: ['{dash}', '{desk}'], usage_ask_widgets_body: ['{desk}'], usage_ask_dash_body: ['{dash}'],
-    usage_ask_screen_aria: ['{name}'], usage_ask_sub: ['{key}'],
+    usage_ask_screen_aria: ['{name}'],
   };
+  keys.push('usage_key_title', 'usage_key_line', 'usage_key_later', 'usage_key_stuck', 'usage_key_other', 'usage_key_done', 'usage_key_done_line');
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
     const words = ctx.i18n[lang];
     for (const k of keys) assert.ok(words[k], lang + ' ' + k);
     for (const [k, marks] of Object.entries(holes)) marks.forEach((m) => assert.ok(words[k].includes(m), lang + ' ' + k + ' ' + m));
     for (const gone of ['usage_ask_pick', 'usage_ask_chosen']) assert.equal(words[gone], undefined, lang + ' ' + gone);
+    assert.ok(!words.usage_ask_sub.includes('{key}'), lang + ': the key is the last step now');
+    if (lang !== 'en') keys.filter((k) => k.startsWith('usage_key_')).forEach((k) => assert.notEqual(words[k], ctx.i18n.en[k], lang + ' ' + k));
   }
+});
+
+// The last step: press the key that opens Xenon (js/usage-ask-key.js).
+const title = (d) => d.document.querySelector('.ua-head h2').textContent;
+const chips = (d) => d.document.querySelectorAll('.uak-key');
+const timer = (d, ms) => d.timers.find((t) => t.ms === ms);
+
+test('where this app draws Xenon, Continue leads to the key, and nothing moves before it', async () => {
+  const d = load({ key: true });
+  d.U.maybeStart();
+  await go(d);
+  assert.equal(title(d), 'Last thing: open Xenon');
+  assert.deepEqual(chips(d).map((c) => [c.textContent, c.dataset.part]), [['CTRL', 'ctrl'], ['ALT', 'alt'], ['M', 'm']]);
+  assert.equal(d.document.querySelector('.uak-keys').getAttribute('aria-label'), 'CTRL + ALT + M');
+  assert.equal(d.document.querySelectorAll('.ua-card').length, 0, 'the question has been answered');
+  assert.deepEqual(d.log, [], 'the dialog stays on the screen it was answered on');
+  assert.equal(d.document.activeElement, d.document.querySelector('.uak'), 'the step takes the focus, never a button');
+  assert.equal(d.document.querySelector('.ua-left').inert, true, 'the screens are the answer now, not buttons');
+  assert.ok(!d.document.querySelector('.ua-hint').classList.contains('is-on'));
+});
+
+test('the press, seen on SSE screen_menu, says so and then the answer goes through', async () => {
+  const d = load({ key: true });
+  d.U.maybeStart();
+  await go(d);
+  d.ctx.UsageAskKey.onMenu({ open: false });
+  assert.equal(title(d), 'Last thing: open Xenon', 'a close is not a press');
+  d.ctx.UsageAskKey.onMenu({ open: true, section: 'screens' });
+  assert.equal(title(d), "That's it.");
+  assert.ok(chips(d).every((c) => c.classList.contains('is-down')));
+  assert.equal(d.document.querySelector('.uak-later').hidden, true);
+  assert.deepEqual(d.log, []);
+  timer(d, 1800).fn();
+  await settle(60);
+  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets'], 'Xenon is already open: nothing opens it again');
+  assert.match(src('js/main.js'), /es\.addEventListener\('screen_menu'[\s\S]{0,400}window\.UsageAskKey\?\.onMenu\(JSON\.parse\(e\.data\)\)/);
+});
+
+test('Later, or Esc, ends the step and opens nothing', async () => {
+  for (const how of ['button', 'esc']) {
+    const d = load({ key: true });
+    d.U.maybeStart();
+    await go(d);
+    if (how === 'button') d.document.querySelector('.uak-later').click();
+    else d.key('Escape');
+    await settle(60);
+    assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets'], how);
+    assert.equal(d.ctx.UsageAskKey.isOn(), false, how);
+    assert.equal(d.keyHandlers.length, 0, how + ': no key listener left');
+  }
+});
+
+test('no press in 20 seconds offers another key, which opens Xenon on the shortcuts', async () => {
+  const d = load({ key: true });
+  d.U.maybeStart();
+  await go(d);
+  const late = d.document.querySelector('.uak-late');
+  assert.equal(late.hidden, true);
+  timer(d, 20000).fn();
+  assert.equal(late.hidden, false);
+  late.querySelector('button').click();
+  await settle(60);
+  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets', 'menu']);
+});
+
+test('a held modifier lights its chip; letting go or losing the window puts it down', async () => {
+  const d = load({ key: true });
+  d.U.maybeStart();
+  await go(d);
+  const [ctrl, alt] = chips(d);
+  d.key('Control', { type: 'keydown' });
+  d.key('Alt', { type: 'keydown' });
+  assert.ok(ctrl.classList.contains('is-down') && alt.classList.contains('is-down'));
+  d.release('Control');
+  assert.ok(!ctrl.classList.contains('is-down'));
+  d.blurs.forEach((fn) => fn());
+  assert.ok(!alt.classList.contains('is-down'));
+  d.key('Enter', { type: 'keydown' });
+  await settle(60);
+  assert.deepEqual(d.log, [], 'Enter does not answer the question twice');
+});
+
+test('no key step on the phone answer, without Xenon over the screen, or with the key off', async () => {
+  const cases = [
+    [{ key: true, caps: { layers: true } }, ['place:weather', 'place:media', 'place:system', 'usage:widgets']],
+    [{ key: true, menuKey: 'off' }, ['place:weather', 'place:media', 'place:system', 'usage:widgets']],
+  ];
+  for (const [opts, log] of cases) {
+    const d = load(opts);
+    d.U.maybeStart();
+    await go(d);
+    assert.deepEqual(d.log, log, JSON.stringify(opts));
+  }
+  const phone = load({ key: true });
+  phone.U.maybeStart();
+  pick(phone, 'phone');
+  await go(phone);
+  assert.deepEqual(phone.log, ['phone', 'place:weather', 'place:media', 'place:system', 'usage:both']);
+});
+
+test('the page loads the key step before the question, its look after the question\'s, and no tour', () => {
+  const html = src('index.html');
+  const at = (s) => html.indexOf(s);
+  assert.ok(at('js/usage-ask-key.js') > 0, 'the key step is loaded');
+  assert.ok(at('js/usage-ask-key.js') < at('js/usage-ask.js"'), 'before the question that runs it');
+  assert.ok(at('components/UsageAsk/UsageAskKey.css') > at('components/UsageAsk/UsageAsk.css'));
+  assert.doesNotMatch(html, /onboarding|Onboarding|onb_/);
 });

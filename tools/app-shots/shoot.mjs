@@ -71,7 +71,7 @@ async function shoot(browser, base, scene, v, outDir) {
     page.on('pageerror', (e) => errors.push(String(e.message).slice(0, 200)));
     await page.goto(base, { waitUntil: 'load' });
     await page.waitForTimeout(2000);
-    const sel = await page.evaluate(SCENES[scene].open);
+    const sel = await page.evaluate(SCENES[scene].open, SCENES[scene].arg);
     await page.waitForTimeout(400);
     const file = path.join(outDir, `${scene}-${v.name}.png`);
     const crop = cropTarget(scene, sel);

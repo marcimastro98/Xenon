@@ -86,7 +86,7 @@
   --wn-main: var(--sheet-main);
   --wn-main-ink: var(--sheet-main-ink);
 }
-:root[data-style="liquid"] :is(.bm-card:not(.is-face), .rn-corner:not(.rn-corner-major), .discord-invite, .onb-card) {
+:root[data-style="liquid"] :is(.bm-card:not(.is-face), .rn-corner:not(.rn-corner-major), .discord-invite) {
   border-color: var(--sheet-edge);
   border-radius: 16px;
   background: var(--sheet-sheen), linear-gradient(var(--sheet-card) 0 0), var(--sheet-under);
@@ -105,14 +105,6 @@
 :root[data-style="liquid"] .discord-invite-join { background: var(--sheet-main); color: var(--sheet-main-ink); }
 :root[data-style="liquid"] .support-ask-already { border-top-color: var(--sheet-line); }
 :root[data-style="liquid"] .support-ask-already:hover { color: var(--sheet-text); }
-
-:root[data-style="liquid"] .onb-card {
-  --text: var(--sheet-text); --muted-text: var(--sheet-muted);
-  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover);
-  color: var(--sheet-text);
-}
-:root[data-style="liquid"] .onb-dot { background: var(--sheet-line); }
-:root[data-style="liquid"] .onb-dot.active { background: var(--sheet-text); }
 
 /* ── Sheets ────────────────────────────────────────────────────── */
 :root[data-style="liquid"] :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .preset-modal-overlay:not(.cst-overlay, .capg-overlay)) {

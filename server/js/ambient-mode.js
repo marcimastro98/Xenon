@@ -573,19 +573,17 @@ if (typeof window !== 'undefined') (function () {
   // the server rather than the blind local mirror, then for anything on screen
   // the user has to deal with first.
   const STARTUP_BUSY_CLASSES = BUSY_BODY_CLASSES.filter(cl => cl !== 'game-mode' && cl !== 'perf-mode');
-  const STARTUP_OVERLAY_SELECTOR = '.sp-overlay, .onb-overlay, .greeting-splash';
+  const STARTUP_OVERLAY_SELECTOR = '.sp-overlay, .greeting-splash';
   const STARTUP_POLL_MS = 500;
-  const STARTUP_GIVE_UP_MS = 10 * 60 * 1000;   // a first-run tour left open all morning is not a startup any more
+  const STARTUP_GIVE_UP_MS = 10 * 60 * 1000;   // a first-run question left open all morning is not a startup any more
 
-  // The first-run question still to be asked, or the tour running: read the way
-  // surface-picker.js and onboarding.js decide it themselves. usage-ask.js counts
-  // too: it answers the screen question, and until it does that one is pending.
+  // The first-run question still to be asked: read the way surface-picker.js decides
+  // it itself. usage-ask.js counts too: it answers the screen question, and until it
+  // does that one is pending.
   function firstRunPending() {
     const sp = window.SurfacePicker;
     if (sp && typeof sp.shouldAsk === 'function' && sp.shouldAsk()) return true;
-    if (sp && typeof sp.isOpen === 'function' && sp.isOpen()) return true;
-    const onb = window.Onboarding;
-    return !!(onb && typeof onb.isActive === 'function' && onb.isActive());
+    return !!(sp && typeof sp.isOpen === 'function' && sp.isOpen());
   }
 
   function collectStartupState() {

@@ -1,0 +1,67 @@
+/* The first run's last step: press the key that opens Xenon (js/usage-ask-key.js). It
+   takes the question's place in the same column, with the same tokens (UsageAsk.css). */
+.uak { display: flex; flex-direction: column; }
+.uak:focus { outline: none; }
+.uak.is-done .uak-line { color: var(--sp-text); }
+
+.uak-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(16px, 3vh, 28px);
+}
+/* A key cap: a darker lip at the bottom, pressed down and green while it is held. */
+.uak-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  height: 64px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: var(--sp-well);
+  box-shadow: inset 0 0 0 1px var(--sp-line), inset 0 -4px 0 rgba(0, 0, 0, 0.32);
+  color: var(--sp-text);
+  font-size: 22px;
+  font-weight: 700;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+.uak-key.is-down {
+  background: var(--wn-main);
+  color: var(--wn-main-ink);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  transform: translateY(3px);
+}
+.uak-plus { color: var(--sp-muted); font-size: 18px; font-weight: 600; }
+
+.uak-late {
+  margin: 16px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--sp-muted);
+}
+.uak-later {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: clamp(16px, 3vh, 28px);
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--sp-well);
+  color: var(--sp-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.uak-later:hover { background: var(--sp-well-hover); }
+.uak-later:focus-visible { outline: 2px solid var(--sp-focus); outline-offset: 2px; }
+
+@media (max-width: 900px) {
+  .uak-key { min-width: 54px; height: 54px; padding: 0 14px; font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .uak-key { transition: none; }
+  .uak-key.is-down { transform: none; }
+}

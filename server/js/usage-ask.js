@@ -7,8 +7,9 @@
 // browser and to shells without widgets.
 //
 // The person always chooses; the recommended row starts selected. Someone updating is not
-// asked: they get 'both', which moves nothing on any screen. The Xenon menu, Settings and
-// Bit change it later.
+// asked: they get 'both', which moves nothing on any screen. Xenon and Bit change it later.
+// Where this app draws Xenon over the screen, the last step has the person press its key
+// (js/usage-ask-key.js).
 (function () {
   const TITLE = {
     both: 'usage_ask_both_title', widgets: 'usage_ask_widgets_title', dashboard: 'usage_ask_dash_title', phone: 'usage_ask_phone_title',
@@ -45,11 +46,11 @@
   const settings = () => (typeof hubSettings === 'object' && hubSettings) || {};
   const current = () => (window.UsageMode ? window.UsageMode.normalize(settings().usageMode) : '');
 
-  function menuKeyText() {
+  // The key that opens Xenon over any app, as stored: 'off' when turned off.
+  function menuCombo() {
     const layers = settings().layers || {};
     const combo = typeof layers.menuKey === 'string' && layers.menuKey ? layers.menuKey : 'alt+shift+x';
-    return window.DeckShortcuts && typeof window.DeckShortcuts.formatShortcut === 'function'
-      ? window.DeckShortcuts.formatShortcut(combo) : combo;
+    return (combo !== 'off' && window.DeckShortcuts?.normalizeShortcut?.(combo)) || combo;
   }
 
   // Only in the app on this PC, where the widgets can be drawn, and only once.
@@ -147,11 +148,7 @@
   }
 
   function subLine() {
-    const sub = el('p', 'ua-sub');
-    // The key combination never breaks across lines ("Alt + Shift" / "+ X").
-    const [before, after = ''] = tr('usage_ask_sub', 'Change it any time from the Xenon menu ({key}) or by asking Bit.').split('{key}');
-    sub.append(el('span', '', before), el('span', 'ua-key', menuKeyText()), el('span', '', after));
-    return sub;
+    return el('p', 'ua-sub', tr('usage_ask_sub', 'Change it any time in Xenon or by asking Bit.'));
   }
 
   function phoneLine() {
@@ -204,6 +201,7 @@
 
   function close() {
     if (!overlay) return;
+    if (window.UsageAskKey?.isOn()) window.UsageAskKey.cancel();
     document.removeEventListener('keydown', onKey, true);
     overlay.remove();
     overlay = null;
@@ -214,13 +212,28 @@
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('usage-ask', false);
   }
 
-  // The menu is the way in once widgets are on the screen, and it shows its key
-  // at the top: opening it once teaches the key better than a line of text.
-  function showMenu() {
-    if (!(window.__XENON_NATIVE_CAPS__ || {}).menu) return;
+  // Xenon over the screen on `section`, for "Choose another shortcut": the key itself may be
+  // what does not work, so it is never the way there.
+  function openMenu(section) {
     fetch(SERVER + '/screen-menu', {
-      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{"open":true,"section":"screens"}',
-    }).catch((e) => console.warn('[usage-ask] the Xenon menu did not open', e));
+      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section }),
+    }).catch((e) => console.warn('[usage-ask] Xenon did not open', e));
+  }
+
+  // The last step where this app draws Xenon over the screen: the person presses its key.
+  // Before anything moves: the dialog is still on the screen they answered on, and "Widgets
+  // only" would trade this page for the driver page.
+  function keyStep(answer) {
+    const combo = menuCombo();
+    const caps = window.__XENON_NATIVE_CAPS__ || {};
+    if (answer.phone || caps.menu !== true || combo === 'off' || !window.UsageAskKey) return Promise.resolve('');
+    const mac = /Mac/i.test(navigator.platform || '');
+    const format = (c) => (window.DeckShortcuts ? window.DeckShortcuts.formatShortcut(c, mac) : c);
+    // The picture now shows the answer: its screens are no longer there to tap.
+    const left = overlay.querySelector('.ua-left');
+    left.inert = true;
+    left.querySelector('.ua-hint').classList.remove('is-on');
+    return window.UsageAskKey.run(overlay.querySelector('.ua-right'), { tr, combo, format });
   }
 
   function placeDashboard(answer) {
@@ -266,6 +279,7 @@
     if (leaving) return;
     leaving = true;
     const answer = plan().answer({ mode, list, dash });
+    const key = await keyStep(answer);
     const toDriver = leavesForDriver(answer);
     // The dialog melts into what the person just chose. "Widgets only" has no dashboard to
     // melt into: the dialog stays until the window goes, so the dashboard never shows.
@@ -274,7 +288,7 @@
     // Before the mode: 'widgets' trades this page for the small driver page.
     await placeStarters(answer);
     const saved = typeof updateUsageMode === 'function' ? updateUsageMode(answer.usage) : null;
-    if (answer.usage !== 'dashboard' && !answer.phone) showMenu();
+    if (key === 'other') openMenu('keys');
     if (answer.usage !== 'widgets' && !answer.phone) peekRails();
     await saved;
     if (toDriver) setTimeout(close, DRIVER_WAIT_MS);
@@ -285,7 +299,7 @@
   // the phone key, which have their own click. No Esc: the question has no "later", and the
   // preselected answer is one tap away.
   function onKey(e) {
-    if (!overlay) return;
+    if (!overlay || window.UsageAskKey?.isOn()) return;
     overlay.classList.add('is-keyed');
     const modes = plan().cards(list);
     const i = modes.indexOf(picked);
