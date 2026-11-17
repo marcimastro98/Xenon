@@ -1720,7 +1720,7 @@ module.exports = {
   settings_updates_toast_one: '{name} のアップデート',
   settings_updates_toast_n: '{n}件のコンテンツに更新があります',
   settings_auto_update: 'Xenon を自動更新',
-  settings_auto_update_hint: 'PC を使っていないときに新しいバージョンを入れます。オフなら通知だけです',
+  settings_auto_update_hint: 'PC の起動時か使っていないときに新しいバージョンを入れます。ゲーム中は入れません。オフなら通知だけです',
   settings_widget_auto_update: 'ウィジェットを自動更新',
   settings_widget_auto_update_hint: 'ストアのウィジェットの新しいバージョンを自動でインストールします。新しい権限を求めるウィジェットは自動では更新せず、あなたの承認を待ちます。オフにしても、「インストール済みを管理」からワンタップで更新できます',
   settings_widget_auto_update_last: '最後の自動更新: {names}（{when}）',
@@ -7362,4 +7362,5 @@ module.exports = {
   bit_ask_recap_last: '前回のゲームはどうだった？',
   bit_ask_hot_gpu: 'GPU がこんなに熱いのはなぜ？',
   bit_ask_hot_cpu: 'CPU がこんなに熱いのはなぜ？',
+  update_waiting_days: '{n} 日間待機中',
 };

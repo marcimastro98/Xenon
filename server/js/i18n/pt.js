@@ -1720,7 +1720,7 @@ module.exports = {
   settings_updates_toast_one: 'Atualização para {name}',
   settings_updates_toast_n: '{n} conteúdos têm uma atualização',
   settings_auto_update: 'Atualizar o Xenon sozinho',
-  settings_auto_update_hint: 'Instala as novas versões quando não usas o PC. Desligado, só te avisa',
+  settings_auto_update_hint: 'Instala as novas versões ao ligar o PC ou quando não o usas, nunca durante um jogo. Desligado, só te avisa',
   settings_widget_auto_update: 'Atualizar os widgets sozinho',
   settings_widget_auto_update_hint: 'Instala sozinho as novas versões dos widgets da loja. Nunca atualiza um widget que pede permissões novas: esse fica contigo. Desligado, as atualizações continuam a um toque em Gerir instalados',
   settings_widget_auto_update_last: 'Última atualização automática: {names} ({when})',
@@ -7246,4 +7246,5 @@ module.exports = {
   bit_ask_recap_last: 'Como correu o último jogo?',
   bit_ask_hot_gpu: 'Porque é que a GPU está tão quente?',
   bit_ask_hot_cpu: 'Porque é que o CPU está tão quente?',
+  update_waiting_days: 'À espera há {n} dias',
 };

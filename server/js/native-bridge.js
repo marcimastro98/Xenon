@@ -167,6 +167,7 @@
 
   // ── Native shell: "update available" toast ───────────────────────────
   let updatePromptShown = false;
+  let updatePromptId = 0;
   function showUpdatePrompt(version) {
     if (!isNative || updatePromptShown) return;
     if (!window.XenonToast || typeof window.XenonToast.show !== 'function') return;
@@ -177,9 +178,11 @@
     // than one extra toast.
     const upd0 = window.XenonUpdate;
     if (upd0 && typeof upd0.isVersionSkipped === 'function' && upd0.isVersionSkipped(ver)) return;
+    // A week-old update already has its full card on screen (update.js).
+    if (upd0 && typeof upd0.overdueCardShown === 'function' && upd0.overdueCardShown(ver)) return;
     updatePromptShown = true;
     const msg = tr('native_update_tap', 'Tap to install the latest version.') + (ver ? ' (v' + ver + ')' : '');
-    window.XenonToast.show({
+    updatePromptId = window.XenonToast.show({
       type: 'info',
       duration: 0, // stays until tapped or dismissed
       title: tr('native_update_title', 'Update available'),
@@ -217,6 +220,14 @@
         }
       },
     });
+  }
+
+  // update.js opens the full card for an update that has waited a week; the
+  // corner toast for the same version goes, so the screen carries one notice.
+  function hideUpdatePrompt() {
+    if (!updatePromptId || !window.XenonToast || typeof window.XenonToast.dismiss !== 'function') return;
+    window.XenonToast.dismiss(updatePromptId);
+    updatePromptId = 0;
   }
 
   // ── Browser / iCUE: "install the native app" promo ───────────────────
@@ -1106,6 +1117,7 @@
     choosePhoneScreen: choosePhoneScreen,
     setScreenFullscreen: setScreenFullscreen,
     showUpdatePrompt: showUpdatePrompt,
+    hideUpdatePrompt: hideUpdatePrompt,
     onShellUpdateEvent: onShellUpdateEvent,
     setShellUpdateListener: setShellUpdateListener,
     initNativePromo: initNativePromo,

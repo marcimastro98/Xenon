@@ -2,6 +2,7 @@
 // The waits of the automatic updater, how many times a download is tried, and the download
 // errors that trying again cannot fix.
 
+const STARTUP_WINDOW_MS = 10 * 60 * 1000;
 const FIRST_TICK_MS = 2 * 60 * 1000;
 const TICK_MS = 10 * 60 * 1000;
 const RECHECK_MS = 6 * 60 * 60 * 1000;
@@ -19,6 +20,6 @@ const PERMANENT_PREPARE_ERRORS = new Set([
 
 
 module.exports = {
-  FIRST_TICK_MS, TICK_MS, RECHECK_MS, COUNTDOWN_MS, POSTPONE_MS, PREPARE_RETRY_MS,
+  STARTUP_WINDOW_MS, FIRST_TICK_MS, TICK_MS, RECHECK_MS, COUNTDOWN_MS, POSTPONE_MS, PREPARE_RETRY_MS,
   PREPARE_MAX_TRIES, APPLY_TIMEOUT_MS, PERMANENT_PREPARE_ERRORS,
 };

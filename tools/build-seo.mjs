@@ -935,6 +935,8 @@ const STATIC_ROUTES = [
   { loc: '/claude-code.html', file: 'docs/claude-code.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/codex.html', file: 'docs/codex.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/sensor-panel.html', file: 'docs/sensor-panel.html', priority: '0.7', changefreq: 'monthly' },
+  // Xenon next to Rainmeter, AIDA64, Afterburner and Wallpaper Engine.
+  { loc: '/compare.html', file: 'docs/compare.html', priority: '0.7', changefreq: 'monthly' },
   // Xenon without a second monitor: widgets on the desktop, the game overlay, capture.
   { loc: '/single-screen.html', file: 'docs/single-screen.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/fps-overlay.html', file: 'docs/fps-overlay.html', priority: '0.8', changefreq: 'monthly' },

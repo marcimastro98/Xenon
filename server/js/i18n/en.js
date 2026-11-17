@@ -1720,7 +1720,7 @@ module.exports = {
   settings_updates_toast_one: 'Update available for {name}',
   settings_updates_toast_n: '{n} items have an update',
   settings_auto_update: 'Auto-update Xenon',
-  settings_auto_update_hint: 'Installs new versions while you\'re not using the PC. Off, it only tells you',
+  settings_auto_update_hint: 'Installs new versions when you switch the PC on or while you\'re not using it, never during a game. Off, it only tells you',
   settings_widget_auto_update: 'Update widgets automatically',
   settings_widget_auto_update_hint: 'Installs new versions of Store widgets on its own. It never updates a widget that asks for new permissions: that one stays up to you. Off, updates are still one tap away in Manage installed',
   settings_widget_auto_update_last: 'Last automatic update: {names} ({when})',
@@ -7370,4 +7370,5 @@ module.exports = {
   bit_ask_recap_last: 'How did my last game go?',
   bit_ask_hot_gpu: 'Why is my GPU this hot?',
   bit_ask_hot_cpu: 'Why is my CPU this hot?',
+  update_waiting_days: 'Waiting for {n} days',
 };

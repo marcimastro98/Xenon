@@ -1720,7 +1720,7 @@ module.exports = {
   settings_updates_toast_one: '{name} 업데이트',
   settings_updates_toast_n: '{n}개 항목에 업데이트가 있습니다',
   settings_auto_update: 'Xenon 자동 업데이트',
-  settings_auto_update_hint: 'PC를 쓰지 않을 때 새 버전을 설치합니다. 끄면 알려 주기만 합니다',
+  settings_auto_update_hint: 'PC를 켤 때나 쓰지 않을 때 새 버전을 설치하고, 게임 중에는 설치하지 않습니다. 끄면 알려 주기만 합니다',
   settings_widget_auto_update: '위젯 자동 업데이트',
   settings_widget_auto_update_hint: '스토어 위젯의 새 버전을 알아서 설치합니다. 새 권한을 요청하는 위젯은 자동으로 업데이트하지 않으며, 그 경우는 직접 승인해야 합니다. 꺼두면 설치된 항목 관리에서 한 번의 탭으로 업데이트할 수 있습니다',
   settings_widget_auto_update_last: '마지막 자동 업데이트: {names} ({when})',
@@ -7362,4 +7362,5 @@ module.exports = {
   bit_ask_recap_last: '마지막 게임 어땠어?',
   bit_ask_hot_gpu: 'GPU가 왜 이렇게 뜨거워?',
   bit_ask_hot_cpu: 'CPU가 왜 이렇게 뜨거워?',
+  update_waiting_days: '{n}일째 대기 중',
 };

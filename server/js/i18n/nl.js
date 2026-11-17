@@ -1720,7 +1720,7 @@ module.exports = {
   settings_updates_toast_one: 'Update voor {name}',
   settings_updates_toast_n: '{n} items hebben een update',
   settings_auto_update: 'Xenon automatisch bijwerken',
-  settings_auto_update_hint: 'Installeert nieuwe versies als je de pc niet gebruikt. Uit: alleen een melding',
+  settings_auto_update_hint: 'Installeert nieuwe versies als je de pc aanzet of niet gebruikt, nooit tijdens een game. Uit: alleen een melding',
   settings_widget_auto_update: 'Widgets automatisch bijwerken',
   settings_widget_auto_update_hint: 'Installeert nieuwe versies van winkelwidgets vanzelf. Een widget die nieuwe machtigingen vraagt wordt nooit automatisch bijgewerkt: dat blijft aan jou. Uitgeschakeld blijven updates met één tik beschikbaar in Geïnstalleerde beheren',
   settings_widget_auto_update_last: 'Laatste automatische update: {names} ({when})',
@@ -7358,4 +7358,5 @@ module.exports = {
   bit_ask_recap_last: 'Hoe ging mijn laatste potje?',
   bit_ask_hot_gpu: 'Waarom is mijn GPU zo warm?',
   bit_ask_hot_cpu: 'Waarom is mijn CPU zo warm?',
+  update_waiting_days: 'Wacht al {n} dagen',
 };

@@ -8,9 +8,11 @@ const { TICK_MS, COUNTDOWN_MS, POSTPONE_MS } = require('./auto-update-limits.js'
 function makeCountdown({
   d, now, setT, clearT, log, broadcast, su, auState, persist, schedule, buildState,
 }) {
-  function startCountdown(version) {
+  // `startup`: started inside the startup window. The window may close during
+  // the minute of countdown; that minute still counts as part of it.
+  function startCountdown(version, startup) {
     const endsAt = now() + COUNTDOWN_MS;
-    auState.countdown = { version, endsAt, timer: null };
+    auState.countdown = { version, endsAt, timer: null, startup: !!startup };
     broadcast('update_auto', { phase: 'countdown', version, endsAt, seconds: Math.round(COUNTDOWN_MS / 1000) });
     log('auto-update: installing ' + version + ' in ' + Math.round(COUNTDOWN_MS / 1000) + 's unless postponed');
     auState.countdown.timer = setT(() => { finishCountdown(); }, COUNTDOWN_MS);
@@ -33,6 +35,7 @@ function makeCountdown({
       // Everything again: the minute of countdown is exactly when someone may
       // have sat down, started a game or begun sending a file.
       const st = await buildState(true);
+      if (auState.countdown.startup) st.startup = true;
       const dec = decide(st, now());
       if (dec.action !== 'apply' || normVer(st.latest) !== normVer(version)) {
         auState.lastDecision = dec;

@@ -27,6 +27,10 @@
 //     transfer, no disk cleanup, no Claude request waiting for an answer, no
 //     live voice session, no call ringing, and the PC idle for 10 minutes.
 //     Where idle time cannot be read, only between 03:00 and 05:00.
+//   - Or in the first 10 minutes after Xenon starts, with nothing going on
+//     either: someone who switches the PC on, plays and switches it off is
+//     never idle for 10 minutes, so the idle rule alone never reached them.
+//     The release is downloaded in one session and installed at the next start.
 //   - A 60-second countdown on every open dashboard first, with a button to
 //     postpone by an hour, and every condition checked again when it ends.
 
@@ -34,7 +38,7 @@ const {
   MIN_AGE_MS, IDLE_MIN_SEC, normVer, hasNoAutoMarker, inNightWindow, decide,
 } = require('./auto-update-decide.js');
 const {
-  FIRST_TICK_MS, TICK_MS, RECHECK_MS, COUNTDOWN_MS, POSTPONE_MS, PREPARE_RETRY_MS,
+  STARTUP_WINDOW_MS, FIRST_TICK_MS, TICK_MS, RECHECK_MS, COUNTDOWN_MS, POSTPONE_MS, PREPARE_RETRY_MS,
   PREPARE_MAX_TRIES, APPLY_TIMEOUT_MS,
 } = require('./auto-update-limits.js');
 
@@ -60,7 +64,7 @@ const { makeSteps } = require('./auto-update-steps.js');
  *   log(msg)
  *   port                  number, handed to the applier
  *   now(), localHour(), setTimeout, clearTimeout   (default: the real ones)
- *   minAgeMs, idleMinSec                           optional overrides
+ *   minAgeMs, idleMinSec, startupWindowMs          optional overrides
  */
 function createAutoUpdater(deps) {
   const d = deps || {};
@@ -85,6 +89,7 @@ function createAutoUpdater(deps) {
     lastDecision: { action: 'wait', reason: 'starting' },
     lastBlockers: [],
     started: false,
+    startedAt: 0,
   };
 
   async function persist() {
@@ -133,7 +138,7 @@ function createAutoUpdater(deps) {
         await doPrepare(st.latest);
         next = 60 * 1000;   // prepared: re-decide soon
       } else if (dec.action === 'apply') {
-        startCountdown(st.latest);
+        startCountdown(st.latest, dec.reason === 'ready_startup');
       }
       auState.lastDecision = dec;
       auState.lastBlockers = dec.blockers || [];
@@ -159,6 +164,7 @@ function createAutoUpdater(deps) {
   async function start() {
     if (auState.started) return;
     auState.started = true;
+    auState.startedAt = now();
     await reconcile();
     if (auState.record.state === 'done' || auState.record.state === 'failed') {
       broadcast('update_auto', { phase: auState.record.state, version: auState.record.version, reason: auState.record.reason });
@@ -178,6 +184,6 @@ function createAutoUpdater(deps) {
 
 module.exports = {
   decide, createAutoUpdater, hasNoAutoMarker, inNightWindow,
-  MIN_AGE_MS, IDLE_MIN_SEC, COUNTDOWN_MS, POSTPONE_MS, TICK_MS, FIRST_TICK_MS, RECHECK_MS,
+  MIN_AGE_MS, IDLE_MIN_SEC, STARTUP_WINDOW_MS, COUNTDOWN_MS, POSTPONE_MS, TICK_MS, FIRST_TICK_MS, RECHECK_MS,
   PREPARE_RETRY_MS, PREPARE_MAX_TRIES, APPLY_TIMEOUT_MS,
 };

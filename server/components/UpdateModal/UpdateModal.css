@@ -79,6 +79,14 @@
   opacity: 0.92;
 }
 
+/* A week-old update: said once, in the warning colour, under the version. */
+.upd-wait {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-warn);
+}
+
 .upd-notes-title {
   font-size: 15px;
   font-weight: 700;

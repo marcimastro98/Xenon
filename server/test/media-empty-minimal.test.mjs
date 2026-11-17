@@ -53,6 +53,9 @@ test('the keys keep their sideways place when a track starts or stops (#154)', (
   const rule = css.match(/\.media-panel\.is-empty \.media-actions \{([^}]*)\}/);
   assert.ok(rule, 'the empty keys rule exists');
   assert.doesNotMatch(rule[1], /justify-self/);
+  // In the Classic look the column is a flex stack, where align-self is the
+  // sideways axis: centre there moved the keys on every tall tile (5.1.1).
+  assert.doesNotMatch(rule[1], /align-self/);
   assert.match(css, /\.media-panel \.media-actions\s+\{ grid-column: 2; grid-row: 1 \/ -1; justify-self: end; \}/);
   assert.match(css, /\.media-panel \.media-actions \{ grid-column: 1; grid-row: 4; justify-self: start;/);
 });

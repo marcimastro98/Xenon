@@ -1720,7 +1720,7 @@ module.exports = {
   settings_updates_toast_one: '{name} 有更新',
   settings_updates_toast_n: '{n} 个内容有更新',
   settings_auto_update: '自动更新 Xenon',
-  settings_auto_update_hint: '在你不用电脑时安装新版本。关闭后只提醒你',
+  settings_auto_update_hint: '在开机时或你不用电脑时安装新版本，游戏中从不安装。关闭后只提醒你',
   settings_widget_auto_update: '自动更新小组件',
   settings_widget_auto_update_hint: '自动安装商店小组件的新版本。要求新权限的小组件不会自动更新，需要你来确认。关闭后，仍可在“管理已安装内容”中一键更新',
   settings_widget_auto_update_last: '最近一次自动更新：{names}（{when}）',
@@ -7362,4 +7362,5 @@ module.exports = {
   bit_ask_recap_last: '上一局游戏表现怎么样？',
   bit_ask_hot_gpu: 'GPU 为什么这么热？',
   bit_ask_hot_cpu: 'CPU 为什么这么热？',
+  update_waiting_days: '已等待 {n} 天',
 };

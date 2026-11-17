@@ -3,8 +3,15 @@
 // status the dashboard shows, and whether this moment is a safe one.
 
 const { MIN_AGE_MS, IDLE_MIN_SEC, normVer, inNightWindow } = require('./auto-update-decide.js');
+const { STARTUP_WINDOW_MS } = require('./auto-update-limits.js');
 
 function makeState({ d, now, localHour, su, auState }) {
+  const startupWindowMs = Number.isFinite(d.startupWindowMs) ? d.startupWindowMs : STARTUP_WINDOW_MS;
+
+  function inStartupWindow() {
+    return auState.startedAt > 0 && now() - auState.startedAt < startupWindowMs;
+  }
+
   async function buildState(withSignals) {
     const rel = auState.release || {};
     const latest = normVer(rel.latest);
@@ -34,6 +41,7 @@ function makeState({ d, now, localHour, su, auState }) {
       blockers,
       idleSec,
       localHour: localHour(),
+      startup: inStartupWindow(),
       minAgeMs: d.minAgeMs,
       idleMinSec: d.idleMinSec,
     };
@@ -54,6 +62,7 @@ function makeState({ d, now, localHour, su, auState }) {
       reason: auState.lastDecision.reason,
       blockers: auState.lastBlockers.slice(),
       eligibleAt: Number.isFinite(published) ? published + minAge : 0,
+      startupUntil: inStartupWindow() ? auState.startedAt + startupWindowMs : 0,
       countdownEndsAt: auState.countdown ? auState.countdown.endsAt : 0,
       postponedUntil: auState.postponedUntil > now() ? auState.postponedUntil : 0,
       last: { version: auState.record.version, state: auState.record.state, reason: auState.record.reason, at: auState.record.at },
@@ -67,6 +76,7 @@ function makeState({ d, now, localHour, su, auState }) {
     try { sig = await d.signals(); } catch { return false; }
     const blockers = Array.isArray(sig && sig.blockers) ? sig.blockers : [];
     if (blockers.length) return false;
+    if (inStartupWindow()) return true;
     const idleMin = Number.isFinite(d.idleMinSec) ? d.idleMinSec : IDLE_MIN_SEC;
     if (sig && typeof sig.idleSec === 'number') return sig.idleSec >= idleMin;
     return inNightWindow(localHour());

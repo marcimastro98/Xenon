@@ -44,6 +44,7 @@ function inNightWindow(hour) {
  *   blockers                                 string[] of things in progress
  *   idleSec                                  number, or null when unknown here
  *   localHour                                0..23
+ *   startup                                  Xenon started less than STARTUP_WINDOW_MS ago
  *   minAgeMs, idleMinSec                     optional overrides (tests, E2E)
  * @param {number} now ms epoch
  * @returns {{action:'hold'|'wait'|'prepare'|'apply', reason:string, blockers?:string[], eligibleAt?:number}}
@@ -72,6 +73,8 @@ function decide(s, now) {
   if (st.postponedUntil && now < st.postponedUntil) return { action: 'wait', reason: 'postponed' };
   const blockers = Array.isArray(st.blockers) ? st.blockers.filter(Boolean) : [];
   if (blockers.length) return { action: 'wait', reason: 'busy', blockers };
+  // Just started, nothing going on yet: the moment before the first game.
+  if (st.startup === true) return { action: 'apply', reason: 'ready_startup' };
 
   const idleMin = Number.isFinite(st.idleMinSec) ? st.idleMinSec : IDLE_MIN_SEC;
   if (typeof st.idleSec === 'number' && Number.isFinite(st.idleSec)) {
