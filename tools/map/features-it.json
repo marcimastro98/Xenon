@@ -69,7 +69,7 @@
     "first-run": ["Primo avvio", "Il caricamento, il benvenuto, la domanda sullo schermo, il tasto che apre Xenon e i suggerimenti mostrati una volta."],
     "paired": ["Telefoni e tablet", "L'abbinamento di un altro dispositivo, il suo HTTPS e le notifiche che gli arrivano."],
     "settings": ["Impostazioni", "Le pagine delle impostazioni, la loro ricerca e il salvataggio senza perdite. La colonna è l'elenco del menu di Xenon."],
-    "words": ["Testi", "Ogni testo dell'app in 11 lingue, un file per lingua."],
+    "words": ["Testi", "Ogni testo dell'app in 11 lingue, un file per lingua, e il glossario che dà un nome solo a ogni cosa."],
     "platform": ["Lettori per sistema", "Quello che macOS e Linux leggono al posto degli script di Windows: stessi dati, stessa forma, un file per dato."],
     "engine-core": ["Cuore del motore", "Avvia il motore, risponde a ogni richiesta, decide chi può chiedere; più la segnalazione dei bug e i conteggi anonimi."],
     "helpers-shared": ["Piccoli strumenti condivisi", "Aiuti usati da molte funzioni: scritture sicure dei file, confronto delle versioni, zip, virgolette, finestre di dialogo."],

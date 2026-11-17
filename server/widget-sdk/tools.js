@@ -23,7 +23,7 @@ const branches = {
       // validateWidgetPayload boundary (installWidgetPayload is the ONE writer).
       // Never grants, never assigns — the user approves permissions on first use.
       if (!sdkFeatureEnabled()) {
-        fnResult = { ok: false, error: 'sdk_disabled', hint: 'Ask the user to enable Community widgets in Settings → Widgets & sharing first.' };
+        fnResult = { ok: false, error: 'sdk_disabled', hint: 'Ask the user to enable Community widgets in Xenon → Create and share first.' };
       } else {
         // A file whose content is "attached:N" becomes that attached picture.
         const placed = aiPictures.resolvePictures(Array.isArray(fnArgs.files) ? fnArgs.files.slice(0, 40) : [], pictures);

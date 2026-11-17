@@ -1,0 +1,16 @@
+{
+  "_about": "One name per thing in the app (server/js/i18n.js). Each group lists keys that name the same thing on different surfaces (menu, rail, Deck, Store, first run): in every language they must read the same. server/test/i18n-glossary.test.mjs checks it. A key that names a different thing with the same English word (the weather's 'Now', Home Assistant's dashboards) does not belong here.",
+  "groups": {
+    "screens-page": { "what": "The Screens page of Xenon", "keys": ["xmenu_sec_screens"] },
+    "capture": { "what": "Capture: the page and the Deck category", "keys": ["xmenu_sec_capture", "deck_cat_capture", "settings_cat_capture"] },
+    "dashboard": { "what": "The dashboard, as a choice of what a screen shows and as a page", "keys": ["xmenu_tile_dashboard", "xmenu_mode_dashboard", "xmenu_scr_dashboard", "deck_opt_dashboard", "settings_sec_dashboard", "page_dashboard"] },
+    "widgets-only": { "what": "The 'widgets only' way of using Xenon", "keys": ["usage_ask_widgets_title", "xmenu_mode_widgets", "deck_opt_widgets"] },
+    "edit-widgets-on-screen": { "what": "The action that edits the widgets over the desktop: one key for the menu and the Deck", "keys": ["deck_act_layersEdit"] },
+    "settings-word": { "what": "The word for settings on buttons and titles", "keys": ["ui_settings", "settings_title", "topbar_btn_settings", "ph_settings"] },
+    "phone": { "what": "The phone, as a page and as a Deck category", "keys": ["settings_cat_phone", "deck_cat_phone"] },
+    "deck": { "what": "The Deck, a product name", "keys": ["gallery_cat_deck", "settings_ctxprof_col_deck", "layout_widget_deck"] },
+    "store": { "what": "The Store, a product name", "keys": ["ui_store", "xmenu_store"] },
+    "background": { "what": "Backgrounds, as a page and as a Store kind", "keys": ["settings_cat_background", "gallery_kind_bg"] },
+    "create-and-share": { "what": "The page for making, importing and sharing widgets", "keys": ["settings_cat_sdk"] }
+  }
+}

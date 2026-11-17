@@ -759,12 +759,13 @@
       "id": "words",
       "area": "engine",
       "name": "Words",
-      "what": "Every text of the app in 11 languages, one file per language.",
+      "what": "Every text of the app in 11 languages, one file per language, and the glossary that keeps one name per thing.",
       "files": [
         "server/js/i18n.js",
         "server/js/i18n/**",
         "server/js/i18n-load.js",
-        "server/app-strings/**"
+        "server/app-strings/**",
+        "tools/i18n/app-glossary.json"
       ]
     },
     {

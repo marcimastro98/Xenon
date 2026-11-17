@@ -10,6 +10,7 @@ import { menuState, PHONES } from '../menu-shots/fixture.mjs';
 import { firstRunScenes } from './first-run-scenes.mjs';
 import { notesScenes } from './notes-scenes.mjs';
 import { hintsScenes } from './hints-scenes.mjs';
+import { railScenes } from './rail-scenes.mjs';
 
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
 const BALANCE_FULL = { ...BALANCE_LOW, balance: 260, included: 260 };
@@ -119,6 +120,7 @@ export const SCENES = {
   ...firstRunScenes,
   ...notesScenes,
   ...hintsScenes,
+  ...railScenes,
   ...chipScenes,
   // Settings → Bit with a low balance: the three packs.
   'sparks-settings': {

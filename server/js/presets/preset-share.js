@@ -2730,7 +2730,7 @@
 
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
-      desc.textContent = tr('preset_share_desc', 'Copy the link or download the file. The recipient imports it from Settings → Widgets & sharing → Import.');
+      desc.textContent = tr('preset_share_desc', 'Copy the link or download the file. The recipient imports it from Xenon → Create and share → Import.');
       body.appendChild(desc);
 
       // A background export has nothing to pick from — there is only ever ONE

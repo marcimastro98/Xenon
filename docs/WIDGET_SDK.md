@@ -14,7 +14,7 @@ permissions before it renders.
    filter and tap **Hello Xenon** under *Examples to install*: that installs
    `hello-xenon`, the reference widget this guide is based on (source in
    `server/sdk-example/hello-xenon/`), and puts it on the page. Adding a widget
-   switches third-party widgets on (Settings → Widgets & sharing) if they were off.
+   switches third-party widgets on (Xenon → Create and share) if they were off.
 2. To develop your own: create a folder under `server/data/widgets/<your-id>/`
    with a `manifest.json` and an `index.html`, then open **+** again. The panel
    reads the installed widgets every time it opens, so yours is listed under
@@ -59,7 +59,7 @@ do the whole loop itself: read this reference, write a starter, install the
 widget, put it on your dashboard, read the errors it hits while it runs, look at
 a picture of its tile, and fix what is wrong.
 
-In Xenon, **Settings → Widgets & sharing → Build widgets with Claude Code or
+In Xenon, **Create and share → Build widgets with Claude Code or
 Codex** has a **Connect** button for each. By hand:
 
 ```sh
