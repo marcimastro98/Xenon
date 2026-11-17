@@ -1,0 +1,51 @@
+/* ── The native search window's open (js/spotlight-motion.js) ──
+   Only the window's CONTENTS move: the window itself is an opaque panel that
+   Windows shows at once (see spotlight.html). While it is away they are hidden,
+   so an open starts from the bare panel, never from the last search; then the
+   bar settles in from left to right: the lens turns into place, the field
+   slides in, the buttons follow. Short and decelerating, no glow, no bounce. */
+
+html.spotlight-frameless-host.spot-away .spot-shell > * {
+  opacity: 0;
+}
+
+html.spotlight-frameless-host.spot-enter .spot-bar > *,
+html.spotlight-frameless-host.spot-enter .spot-shell > :not(.spot-bar) {
+  animation: spot-window-in 240ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+}
+html.spotlight-frameless-host.spot-enter .spot-bar-icon {
+  animation-name: spot-window-lens;
+  animation-duration: 300ms;
+}
+html.spotlight-frameless-host.spot-enter .spot-input {
+  animation-name: spot-window-field;
+  animation-delay: 30ms;
+}
+html.spotlight-frameless-host.spot-enter .spot-filter-toggle { animation-delay: 70ms; }
+html.spotlight-frameless-host.spot-enter .spot-bit { animation-delay: 100ms; }
+html.spotlight-frameless-host.spot-enter .spot-close { animation-delay: 130ms; }
+
+@keyframes spot-window-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes spot-window-lens {
+  from { opacity: 0; transform: scale(0.7) rotate(-20deg); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes spot-window-field {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The dashboard overlay's pop is for a pill floating over the dashboard; here
+   the window is the pill, and the movement above replaces it. */
+body.spotlight-frameless .spotlight.spot-pop .spot-shell { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html.spotlight-frameless-host.spot-enter .spot-bar > *,
+  html.spotlight-frameless-host.spot-enter .spot-shell > :not(.spot-bar) {
+    animation: spot-window-fade 120ms ease-out both;
+  }
+  @keyframes spot-window-fade { from { opacity: 0; } to { opacity: 1; } }
+}

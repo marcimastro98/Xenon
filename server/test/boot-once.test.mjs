@@ -61,7 +61,7 @@ test('a shortcut another app holds is looked at less and less often', () => {
   assert.match(server, /Math\.max\(1000, ms \|\| pause\)/);
   assert.match(server, /_hotkey\.diedAt = Date\.now\(\);\n\s+_hotkey\.failures\+\+;\n\s+\/\/ 'taken' means another app owns the combo/);
   assert.match(server, /if \(ev\.event === 'ready'\) \{\n\s+_hotkey\.state = 'listening';\n\s+_hotkey\.failures = 0;/);
-  assert.match(server, /if \(changed\) _hotkey\.failures = 0;/, 'a new shortcut starts from the short pause');
+  assert.match(server, /if \(changed\) \{ _hotkey\.failures = 0; _hotkey\.takenChecks = 0; \}/, 'a new shortcut starts from the short pause');
 });
 
 test('through a game the background steps back when Game Mode or a Performance session asks for it', () => {

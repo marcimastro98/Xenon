@@ -168,3 +168,35 @@ test('thumbTarget only answers raster images', async () => {
   assert.equal(await fsr.thumbTarget('r0000000000000000'), null);
   await fsr.stop();
 });
+
+test('recent() never waits on a path that answers slowly: it shows it as it last was', async () => {
+  const dataDir = tmp();
+  const a = path.join(dataDir, 'slow.txt');
+  writeFileSync(a, 'x');
+  const fsr = createFileSearch({ dataDir, openExternal: async () => {} });
+  fsr._setHostRunner(async () => [{ p: a, n: 'slow.txt', s: 1, m: NOW }]);
+  const r = await fsr.search('slow.txt', { now: NOW });
+  await fsr.open(r.results[0].id);
+  const fs = require('fs');
+  const real = fs.promises.stat;
+  let release;
+  const asleep = new Promise((res) => { release = res; });
+  try {
+    fs.promises.stat = async (p) => { await asleep; return real(p); };   // a drive spinning up
+    const t0 = Date.now();
+    const cold = await fsr.recent();
+    assert.ok(Date.now() - t0 < 1000, 'the list comes without the drive');
+    assert.deepEqual(cold.files.map((f) => f.name), [], 'never seen answer: not offered yet');
+    release();
+    await new Promise((res) => setTimeout(res, 20));
+    let pending;
+    fs.promises.stat = async (p) => { await new Promise((res) => { pending = res; }); return real(p); };
+    const warm = await fsr.recent();
+    assert.deepEqual(warm.files.map((f) => f.name), ['slow.txt'], 'the late answer is kept for the next open');
+    pending();
+  } finally {
+    fs.promises.stat = real;
+    release();
+    await fsr.stop();
+  }
+});

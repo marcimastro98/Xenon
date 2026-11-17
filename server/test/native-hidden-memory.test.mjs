@@ -47,7 +47,10 @@ test('a window that starts hidden and the search window are covered too', () => 
   assert.match(LIB, /!win\.is_visible\(\)\.unwrap_or\(true\)[\s\S]{0,80}set_low\(&win, true\)/);
   assert.match(LIB, /Focused\(true\)[\s\S]{0,200}set_low\(&focused, false\)/, 'focus is the safety net');
   const hide = fnBody(SPOT, 'hide');
-  assert.match(hide, /set_low\(&win, true\)/);
+  assert.match(hide, /let turn = TURN\.fetch_add\(1, Ordering::SeqCst\) \+ 1;[\s\S]{0,120}std::thread::sleep\(LOW_AFTER\);\n\s+if TURN\.load\(Ordering::SeqCst\) == turn && !later\.is_visible\(\)\.unwrap_or\(true\) \{\n\s+crate::memory_level::set_low\(&later, true\);/, 'the search keeps its memory a while, so the next Alt+Space is not slow');
+  assert.match(fnBody(SPOT, 'reveal'), /TURN\.fetch_add\(1, Ordering::SeqCst\);/, 'a show cancels the pending switch');
+  const lowAfter = Number(/const LOW_AFTER: Duration = Duration::from_secs\((\d+)\);/.exec(SPOT)[1]);
+  assert.ok(lowAfter >= 30 && lowAfter <= 600, 'long enough for a burst of searches, short enough to give the memory back');
   assert.ok(SPOT.indexOf('set_low(win, false)') >= 0 && SPOT.indexOf('set_low(win, false)') < SPOT.indexOf('win.show()'));
 });
 

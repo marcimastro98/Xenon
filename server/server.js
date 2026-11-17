@@ -1472,7 +1472,7 @@ const fileSearch = createFileSearch({
 // opens/refocuses the /spotlight Edge app-mode window on the main PC. State is
 // surfaced to Settings via GET /search/hotkey-status; 'taken' means another
 // app (PowerToys Run on Alt+Space, typically) owns the combo.
-const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, failures: 0, bindings: [], slots: {} };
+const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, failures: 0, bindings: [], slots: {}, recheck: false, takenChecks: 0 };
 
 // The table the helper is handed, in the order it is handed it: the helper
 // addresses a combo by its POSITION, so this array IS the wire format and the
@@ -1691,22 +1691,12 @@ function openSpotlightPopupWindow() {
   return { ok: true };
 }
 
-// Native first: the hotkey is broadcast to every dashboard; a NATIVE kiosk
-// webview opens the frameless Tauri Spotlight window and claims it (POST
-// /spotlight/claimed). No claim within the window → the Edge app-mode popup
-// opens instead, so browser-only installs lose nothing.
-let _spotlightClaimTimer = null;
-let _spotlightClaimed = false;
-function routeSpotlightHotkey() {
-  _spotlightClaimed = false;
-  broadcastSSE('spotlight_hotkey', { at: Date.now() });
-  if (_spotlightClaimTimer) clearTimeout(_spotlightClaimTimer);
-  _spotlightClaimTimer = setTimeout(() => {
-    _spotlightClaimTimer = null;
-    if (!_spotlightClaimed) { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } }
-  }, 450);
-  _spotlightClaimTimer.unref();
-}
+// Native first, the Edge popup when no native window claims it (spotlight-hotkey/claim.js).
+const spotlightClaim = require('./spotlight-hotkey/claim.js').createSpotlightClaim({
+  broadcast: () => broadcastSSE('spotlight_hotkey', { at: Date.now() }),
+  openFallback: () => { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } },
+});
+function routeSpotlightHotkey() { spotlightClaim.route(); }
 
 // One pending retry at a time. Without it a single helper crash disabled the
 // global shortcut until the user re-saved settings or restarted the app:
@@ -1722,6 +1712,16 @@ function _scheduleHotkeyRetry(ms) {
     try { refreshHotkeyListener(); } catch { /* next save will retry */ }
   }, Math.max(1000, ms || pause));
   _hotkeyRetryTimer.unref();
+}
+// A helper that holds SOME combos keeps running, so the exit path never looks
+// again at the ones another app had at that moment: Alt+Space stayed dead for
+// the whole session after the other app let it go. Look again with the same
+// backoff, by restarting the helper (it registers everything in one go).
+function _recheckTakenHotkeys() {
+  const pause = Math.min(HOTKEY_RETRY_MS * (2 ** _hotkey.takenChecks), HOTKEY_RETRY_MAX_MS);
+  _hotkey.takenChecks++;
+  _hotkey.recheck = true;
+  _scheduleHotkeyRetry(pause);
 }
 function _cancelHotkeyRetry() {
   if (_hotkeyRetryTimer) { clearTimeout(_hotkeyRetryTimer); _hotkeyRetryTimer = null; }
@@ -1799,7 +1799,7 @@ function refreshHotkeyListener() {
   // Set BEFORE dispatching: both paths read it to resolve a press, and the
   // Linux one derives each slot's route from the index into this table.
   const changed = combos.join('\u0000') !== _hotkey.combos;
-  if (changed) _hotkey.failures = 0;
+  if (changed) { _hotkey.failures = 0; _hotkey.takenChecks = 0; }
   _hotkey.bindings = bindings;
   _hotkey.combos = combos.join('\u0000');
   if (_linuxHotkey) {
@@ -1809,7 +1809,15 @@ function refreshHotkeyListener() {
     return;
   }
   if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; _hotkey.slots = {}; return; }
-  if (_hotkey.proc && !changed) return;   // already right
+  if (_hotkey.proc && !changed && !_hotkey.recheck) return;   // already right
+  if (_hotkey.proc && !changed) {
+    // A recheck: start the new helper only once the old one has let its combos
+    // go, or the new one finds every combo held, by us.
+    _hotkey.proc.once('exit', () => { if (!_shuttingDown) { try { refreshHotkeyListener(); } catch { /* next save retries */ } } });
+    _stopHotkeyListener();
+    return;
+  }
+  _hotkey.recheck = false;
   _stopHotkeyListener();
   _widgetKeys.setRelease(false);
   let helperOk = false;
@@ -1866,6 +1874,8 @@ function refreshHotkeyListener() {
         if (_hotkey.slots.spotlight && _hotkey.slots.spotlight !== 'listening') {
           _hotkey.state = _hotkey.slots.spotlight;
         }
+        if (Object.values(_hotkey.slots).includes('taken')) _recheckTakenHotkeys();
+        else _hotkey.takenChecks = 0;
       } else if (ev.event === 'hotkey') {
         try { routeHotkeyIndex(at); } catch {}
       } else if (ev.event === 'release') {
@@ -23218,7 +23228,7 @@ const handleRequest = async (req, res) => {
     // The native kiosk claims the hotkey: it just opened the frameless
     // Spotlight window, so the Edge fallback must NOT also fire. In
     // CSRF_MUTATION_PATHS.
-    _spotlightClaimed = true;
+    spotlightClaim.claim();
     json({ ok: true });
 
   } else if (reqPath === '/deck/press' && req.method === 'GET') {

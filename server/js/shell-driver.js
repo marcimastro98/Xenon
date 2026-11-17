@@ -117,6 +117,8 @@ let hubSettings = {};
 
     function onStreamOpen() {
       onSettingsEvent();
+      // The native app is here: no Edge search over its own (as main.js).
+      fetch(SERVER + '/spotlight/claimed', { method: 'POST' }).catch(() => {});
       if (window.LayersShell && typeof window.LayersShell.onStream === 'function') window.LayersShell.onStream();
     }
 

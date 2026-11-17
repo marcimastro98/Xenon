@@ -35,6 +35,8 @@ function page({ settings = { appearance: 'light', language: 'de' }, search = '?f
       greet() {},
       open() { calls.open++; },
       fresh() { calls.fresh++; },
+      isOpen: () => calls.open > 0,
+      idle: () => Promise.resolve(),
       _setCloseNav(fn) { calls.closeNav = fn; },
     },
   };
@@ -45,6 +47,8 @@ function page({ settings = { appearance: 'light', language: 'de' }, search = '?f
       body: { classList: { add() {} } },
       documentElement: { lang: '', classList: { add() {} } },
       get activeElement() { return box.active; },
+      querySelector: (sel) => (sel === '.spotlight.spot-expanded' && box.expanded ? {} : null),
+      hasFocus: () => box.focused !== false,
       addEventListener: (k, f) => { (docListeners[k] ||= []).push(f); },
     },
     fetch: async () => ({ ok: true, json: async () => (wrap ? { settings } : settings) }),
@@ -130,6 +134,40 @@ test('text left from a search abandoned by clicking away is cleared on the next 
   p.fire('blur');
   p.window.__spotlightShown();
   assert.equal(p.calls.fresh, 1);
+});
+
+test('a bar never opened is opened fresh on show, so its recents size the window', async () => {
+  const p = page();
+  p.window.__spotlightShown();
+  assert.equal(p.calls.fresh, 1);
+});
+
+test('shown again as it was, a bar with its list asks the shell for the tall window again', async () => {
+  const p = page();
+  await p.boot();
+  p.box.expanded = true;
+  const n = p.calls.signals.length;
+  p.window.__spotlightShown();
+  assert.equal(p.calls.fresh, 0);
+  assert.deepEqual(p.calls.signals.slice(n), ['xenon-app:spotlight-expand']);
+  p.box.expanded = false;
+  p.window.__spotlightShown();
+  assert.equal(p.calls.signals.length, n + 1, 'a compact bar asks for nothing');
+});
+
+test('a close never opens the bar again in the hidden window', async () => {
+  const p = page();
+  await p.boot();
+  const opened = p.calls.open;
+  p.box.focused = false;
+  p.calls.closeNav();
+  await beat();
+  assert.equal(p.calls.open, opened, 'its recents would grow a window the shell then shrinks');
+  assert.ok(p.calls.signals.includes('xenon-app:spotlight-close'));
+  p.box.focused = true;
+  p.calls.closeNav();
+  await beat();
+  assert.equal(p.calls.open, opened + 1, 'a window the shell did not hide gets its bar back');
 });
 
 test('the chat keeps its own field and its size', async () => {

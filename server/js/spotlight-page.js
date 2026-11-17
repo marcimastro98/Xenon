@@ -17,6 +17,14 @@ let hubSettings = {};
   // Windows can hand the webview the focus a moment after the window gets it.
   const FOCUS_RETRY_MS = [60, 200, 500];
   const FRAMELESS = /[?&]frameless=1/.test(location.search);
+  // A new window's first moments: the shell takes the focus back instead of
+  // hiding it (SETTLE in spotlight_window.rs), and the page may never hear of it.
+  const SETTLE_MS = 1600;
+  // How long an open waits for the recents, so the window has its size before the bar comes in.
+  const RECENT_WAIT_MS = 120;
+  const bornAt = Date.now();
+  // The native window's open and close (spotlight-motion.js); Edge app mode has its own.
+  const motion = FRAMELESS && window.SpotlightMotion ? window.SpotlightMotion.create(document) : null;
 
   let canResize = false;
   let leftAlone = false;   // focus went elsewhere: the shell hid the bar, text and all
@@ -87,16 +95,37 @@ let hubSettings = {};
   }
 
   window.__spotlightShown = function () {
-    if (leftAlone && !chatOpen() && window.Spotlight) window.Spotlight.fresh();
-    if (!chatOpen() && window.Spotlight) window.Spotlight.greet();
+    // Every reset below happens unseen, then the bar settles in.
+    if (motion) motion.away();
+    // The kiosk's claim can come late; without one the server opens the Edge
+    // search too, which takes the focus and closes this window.
+    if (FRAMELESS) fetch('/spotlight/claimed', { method: 'POST' }).catch(() => {});
+    const S = window.Spotlight;
+    if (S && !chatOpen()) {
+      if (leftAlone || !S.isOpen()) S.fresh();
+      // Shown again as it was: the shell made the window compact, the list says how tall it is.
+      else if (document.querySelector('.spotlight.spot-expanded')) signal('spotlight-expand');
+      S.greet();
+    }
     leftAlone = false;
     takeKeyboard();
     refreshLook();
     if (chat()) chat().takeAsked();
+    if (motion) motion.enterAfter(S && !chatOpen() ? S.idle() : null, RECENT_WAIT_MS);
   };
 
-  window.addEventListener('blur', () => { leftAlone = true; });
-  window.addEventListener('focus', focusField);
+  window.addEventListener('blur', () => {
+    leftAlone = true;
+    // The shell is hiding the window: what it draws now is what the next open shows first.
+    if (motion && !chatOpen() && Date.now() - bornAt > SETTLE_MS) motion.away();
+  });
+  window.addEventListener('focus', () => {
+    // A focus loss the shell did not act on.
+    if (motion && motion.isAway()) motion.enter();
+    focusField();
+  });
+  // Whatever happened, a window someone touches is never an empty bar.
+  window.addEventListener('pointerdown', () => { if (motion && motion.isAway()) motion.enter(); });
 
   function resizeTo(height) {
     if (!canResize) return;
@@ -131,9 +160,17 @@ let hubSettings = {};
 
   function closeWindow() {
     if (FRAMELESS) {
+      // Hidden now, so the next show starts from the bare panel.
+      if (motion) motion.away();
       signal('spotlight-close');
-      // The shell hides the window; reopen the bar so the NEXT show is live.
-      setTimeout(() => window.Spotlight.open(), 250);
+      // The bar opens again with the next show (__spotlightShown), never in the
+      // hidden window: there its recents grew a window the shell then shrank.
+      setTimeout(() => {
+        // Still here and focused: the shell did not hide it, so never leave an empty bar.
+        if (!document.hasFocus()) return;
+        window.Spotlight.open();
+        if (motion) motion.enter();
+      }, 250);
       return;
     }
     window.close();
@@ -149,11 +186,13 @@ let hubSettings = {};
     if (hs) applySettings(hs);
     window.Spotlight.open();
     if (chat()) chat().takeAsked();
+    if (motion) motion.enter();
   }
 
   if (FRAMELESS) {
     document.body.classList.add('spotlight-frameless');
     document.documentElement.classList.add('spotlight-frameless-host');
+    if (motion) motion.away();
   }
   document.addEventListener('DOMContentLoaded', boot);
 })();

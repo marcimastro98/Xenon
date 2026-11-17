@@ -43,6 +43,8 @@ const FOLDERS_MAX = 8;                // folder results asked of the index
 const POOL_MAX = 12;                  // usage-log files re-checked per query
 const QUERY_MAX = 200;                // typed queries; a pasted path may be longer
 const PASTED_STAT_MS = 1500;          // a mapped drive that does not answer is not a result
+const RECENT_STAT_MS = 150;           // a recent's path answering later is shown as it last was
+const RECENT_STATS_MAX = 64;          // paths whose last answer is remembered
 
 function createFileSearch(opts) {
   const o = opts || {};
@@ -542,6 +544,23 @@ function createFileSearch(opts) {
     };
   }
 
+  // What recent() last learned about each path (fs.Stats, or null: gone). The
+  // empty search opens on Alt+Space: one drive asleep or a share that does not
+  // answer held the whole list for seconds, checked one path after the other.
+  // Now all are checked at once, a slow one is shown as it last was, and its
+  // late answer is kept for the next open.
+  const recentStats = new Map();
+  function rememberStat(p, st) {
+    recentStats.delete(p);
+    recentStats.set(p, st);
+    if (recentStats.size > RECENT_STATS_MAX) recentStats.delete(recentStats.keys().next().value);
+  }
+  async function statRecent(p) {
+    const answer = fs.promises.stat(p).catch(() => null).then((st) => { rememberStat(p, st); return { st }; });
+    const got = await withTimeout(answer, RECENT_STAT_MS);
+    return got ? got.st : (recentStats.get(p) || null);
+  }
+
   // What the empty search shows: files and folders recently opened from Xenon,
   // newest first, each checked to still exist. From the usage log only, which
   // lives in DATA_DIR and is never served as is.
@@ -553,17 +572,16 @@ function createFileSearch(opts) {
       .filter((r) => isPathRec(r) && Number.isFinite(r.last))
       .sort((a, b) => b.last - a.last)
       .slice(0, max * 2);
+    const stats = await Promise.all(recs.map((r) => statRecent(r.p)));
     const files = [];
-    for (const r of recs) {
-      if (files.length >= max) break;
-      try {
-        const st = await fs.promises.stat(r.p);
-        files.push(publicResult({
-          path: r.p, name: path.basename(r.p), dir: path.dirname(r.p),
-          size: st.isFile() ? st.size : 0, mtime: st.mtimeMs, folder: st.isDirectory(),
-        }, []));
-      } catch { /* gone: not offered */ }
-    }
+    recs.forEach((r, i) => {
+      const st = stats[i];
+      if (!st || files.length >= max) return;   // gone: not offered
+      files.push(publicResult({
+        path: r.p, name: path.basename(r.p), dir: path.dirname(r.p),
+        size: st.isFile() ? st.size : 0, mtime: st.mtimeMs, folder: st.isDirectory(),
+      }, []));
+    });
     // The folders those files live in, by how often the user opens from them.
     const byDir = new Map();
     for (const r of Object.values(u.opens || {})) {
@@ -573,14 +591,13 @@ function createFileSearch(opts) {
       e.n += r.n || 1;
       byDir.set(d.toLowerCase(), e);
     }
+    const dirs = [...byDir.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+    const dirStats = await Promise.all(dirs.map((e) => statRecent(e.dir)));
     const folders = [];
-    for (const e of [...byDir.values()].sort((a, b) => b.n - a.n).slice(0, 8)) {
-      if (folders.length >= 4) break;
-      try {
-        if (!(await fs.promises.stat(e.dir)).isDirectory()) continue;
-        folders.push(publicResult({ path: e.dir, name: path.basename(e.dir) || e.dir, dir: path.dirname(e.dir), size: 0, mtime: 0, folder: true }, []));
-      } catch { /* gone */ }
-    }
+    dirs.forEach((e, i) => {
+      if (folders.length >= 4 || !dirStats[i] || !dirStats[i].isDirectory()) return;   // gone
+      folders.push(publicResult({ path: e.dir, name: path.basename(e.dir) || e.dir, dir: path.dirname(e.dir), size: 0, mtime: 0, folder: true }, []));
+    });
     return { ok: true, files, folders };
   }
 
