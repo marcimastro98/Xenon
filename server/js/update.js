@@ -533,7 +533,7 @@
         ui.statusEl.className = 'upd-status error';
         // Surface the server's reason code (e.g. version_mismatch, download_failed)
         // so a failed prepare is diagnosable from a screenshot, not a blind dead end.
-        const reason = r && r.error ? ' (' + r.error + ')' : '';
+        const reason = r && r.error ? ' (' + updReasonText(r.error) + ')' : '';
         ui.statusEl.textContent = tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.') + reason;
       }
     });
@@ -751,7 +751,7 @@
         let r;
         try { r = await (await fetch('/update/prepare', { method: 'POST' })).json(); } catch { r = null; }
         if (!r || !r.ok) {
-          const reason = r && r.error ? ' (' + r.error + ')' : '';
+          const reason = r && r.error ? ' (' + updReasonText(r.error) + ')' : '';
           ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
             tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.') + reason,
             () => nativeUpdateFlow(info));
