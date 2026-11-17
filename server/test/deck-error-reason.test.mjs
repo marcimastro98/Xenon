@@ -76,6 +76,12 @@ const KEYS = [
   // Screenshot and recording keys.
   'deck_err_no_window', 'deck_err_no_encoder', 'deck_err_disk_full',
   'deck_err_over_exclusive', 'deck_err_no_frames', 'deck_err_too_soon', 'deck_err_no_game', 'deck_err_no_pages', 'deck_err_no_widgets', 'deck_err_save_failed',
+  // Wave Link (actions/wavelink.js): the ones a person can act on.
+  'deck_err_wl_off', 'deck_err_wl_unreachable', 'deck_err_wl_channel', 'deck_err_wl_mix', 'deck_err_wl_not_in_mix',
+  'deck_err_wl_effect', 'deck_err_wl_unsupported',
+  // The other apps a key talks to, and the states a key can only report.
+  'deck_err_obs_unreachable', 'deck_err_sb_unreachable', 'deck_err_ha_not_set_up', 'deck_err_ha_auth', 'deck_err_ha_unreachable',
+  'deck_err_chroma_unreachable', 'deck_err_nothing_running', 'deck_err_already_recording', 'deck_err_no_second_screen', 'deck_err_nothing_to_undo',
 ];
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
@@ -140,6 +146,47 @@ test('the sentence fits every key that can get the code', async () => {
 });
 
 // "This key could not run" over "open a game first" reads as a broken key.
+// A Discord report: a Wave Link key toasted the bare code "wl_disabled".
+test('Wave Link says why in a sentence; the codes only a report can use stay codes', async () => {
+  const { describe, keyToast } = (await import('../js/deck/deck-error-text.js')).default;
+  const tt = (_key, fallback) => fallback;
+  const off = describe('wl_disabled', tt);
+  assert.match(off, /^Wave Link is off in Xenon/);
+  assert.equal(keyToast('wl_disabled', off, tt).type, 'info', 'a switch left off is a note, not a failure');
+  for (const code of ['wl_not_found', 'wl_connect_failed', 'wl_probe_timeout', 'wl_probe_failed', 'wl_closed', 'wl_request_timeout']) {
+    assert.match(describe(code, tt), /cannot reach Wave Link/, code);
+  }
+  for (const code of ['wl_unknown_channel', 'wl_unknown_mix', 'wl_channel_not_in_mix', 'wl_unknown_effect', 'wl_unsupported']) {
+    assert.notEqual(describe(code, tt), code, code);
+    assert.equal(keyToast(code, 'x', tt).type, 'error', code);
+  }
+  assert.equal(describe('wl_unknown_device', tt), 'That output device is not connected right now');
+  for (const code of ['wl_wrong_app', 'wl_no_origin', 'wl_no_appinfo', 'wl_request_failed', 'wl_config_failed', 'wl_failed']) {
+    assert.equal(describe(code, tt), code, code + ' stays a code for the report');
+  }
+});
+
+test('a key that cannot reach its app, or has nothing to work on, says so in a sentence', async () => {
+  const { describe, keyToast } = (await import('../js/deck/deck-error-text.js')).default;
+  const tt = (_key, fallback) => fallback;
+  const groups = {
+    'cannot reach OBS': ['obs_connect_failed', 'obs_closed', 'obs_timeout', 'obs_request_timeout'],
+    'cannot reach Streamer.bot': ['sb_connect_failed', 'sb_closed', 'sb_timeout', 'sb_request_timeout'],
+    'cannot reach Home Assistant': ['ha_connect_failed', 'ha_closed', 'ha_timeout', 'ha_request_timeout'],
+    'not set up yet: pick': ['empty_path', 'empty_text', 'empty_message', 'empty_prompt', 'empty_id', 'empty_effect'],
+  };
+  for (const [said, codes] of Object.entries(groups)) for (const code of codes) assert.match(describe(code, tt), new RegExp(said), code);
+  assert.match(describe('ha_not_configured', tt), /Settings, Smart Home/);
+  assert.match(describe('ha_auth_invalid', tt), /token/);
+  assert.match(describe('chroma_init_failed', tt), /Razer/);
+  for (const code of ['nothing_running', 'running', 'no_second_screen', 'nothing_to_undo']) {
+    assert.notEqual(describe(code, tt), code, code);
+    assert.equal(keyToast(code, 'x', tt).type, 'info', code + ': nothing is broken');
+  }
+  // Wiring that only a broken build can miss stays a code for the report.
+  for (const code of ['obs_unavailable', 'chroma_unavailable', 'obs_config_failed', 'bad_args', 'ambiguous']) assert.equal(describe(code, tt), code, code);
+});
+
 test('a normal situation is a note, a real failure stays an error', async () => {
   const { keyToast } = (await import('../js/deck/deck-error-text.js')).default;
   const tt = (_key, fallback) => fallback;

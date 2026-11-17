@@ -175,9 +175,12 @@ function createWaveLink(getConfig, opts) {
 
   function connect() {
     if (wlLink.ready) return wlLink.ready;
-    wlLink.ready = new Promise((resolve, reject) => {
+    const attempt = new Promise((resolve, reject) => {
       let settled = false;
-      const done = (err) => { if (settled) return; settled = true; if (err) { reject(err); close(); } else { wlLink.reconnectDelay = 2000; bumpIdle(); resolve(); } };
+      // A failure forgets this attempt. close() alone does not: with no socket
+      // yet it has nothing to close and returns early, which kept the rejection
+      // as `ready` and handed it to every later call until the engine restarted.
+      const done = (err) => { if (settled) return; settled = true; if (err) { if (wlLink.ready === attempt) wlLink.ready = null; reject(err); close(); } else { wlLink.reconnectDelay = 2000; bumpIdle(); resolve(); } };
       Promise.resolve().then(getConfig).then((cfg) => {
         if (settled) return;
         const c = cfg || {};
@@ -193,8 +196,9 @@ function createWaveLink(getConfig, opts) {
         }, (e) => done(e instanceof Error ? e : new Error('wl_connect_failed')));
       }, (e) => done(e instanceof Error ? e : new Error('wl_config_failed')));
     });
-    wlLink.ready.catch(() => {});
-    return wlLink.ready;
+    wlLink.ready = attempt;
+    attempt.catch(() => {});
+    return attempt;
   }
 
   function request(method, params) {
