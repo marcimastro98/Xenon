@@ -3,7 +3,7 @@
 // windowed one the frame reader confirms, the grace time, the user's own list, the process that
 // is asked if it lives.
 
-const { IGNORE_PROC_RE, WINDOWED_IGNORE_RE } = require('./game-ignore-lists.js');
+const { IGNORE_PROC_RE, WINDOWED_IGNORE_RE, VIDEO_PLAYER_RE } = require('./game-ignore-lists.js');
 const { gameWatch } = require('./game-watch-state.js');
 
 const STALE_MS = 6000;           // ignore probe data older than this
@@ -46,14 +46,14 @@ function userIgnore() {
 
 function isIgnoredProc(name) {
   if (!name) return false;
-  return IGNORE_PROC_RE.test(name) || userIgnore().has(bareName(name));
+  return isNeverGame(name) || userIgnore().has(bareName(name));
 }
 
-// Only the built-in list: the apps that can never be a game whatever the user
-// says (the dashboard's own host, the shell, the browsers). The user's lists
-// cannot override it, or Xenon's own window would trip game mode.
+// Only the built-in lists: the apps that can never be a game whatever the user
+// says (the dashboard's own host, the shell, the browsers, the video players).
+// The user's lists cannot override them, or Xenon's own window would trip game mode.
 function isNeverGame(name) {
-  return !!name && IGNORE_PROC_RE.test(name);
+  return !!name && (IGNORE_PROC_RE.test(name) || VIDEO_PLAYER_RE.test(bareName(name)));
 }
 
 // The user's own "this is a game" list (the gameAlways setting, same shape as

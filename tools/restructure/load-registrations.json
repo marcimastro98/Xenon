@@ -31,8 +31,8 @@
         "callees": {
           "server/performance/gamedetect.js": "10286166a2ea8c08f108ad3b31f8b12dd7876d90ad3f45389af9605b223d8008",
           "server/performance/game-activity.js": "68e27d2bc3b3cd7e505952e8da5d34d65da91a799b24a0ba8f95592c5d30b989",
-          "server/performance/game-ignore-lists.js": "dbd16e1526270a6cb01a66f64d42c47b7e635495d2a8fb6bba9a203da1920aed",
-          "server/performance/game-judge.js": "4e28ea96ac21255ee849b07067460d55489fdd41a474fce66c8f0aacaa26f65f",
+          "server/performance/game-ignore-lists.js": "b01f5086c5e63692f97b0090ccda89302123517329b83f2afda1694fd335163e",
+          "server/performance/game-judge.js": "e423e11409e80f8aa282ee2ceb933d00415a99f2c4c46faa3eb4313e788ea7f5",
           "server/performance/game-readings.js": "41bba9e208ce9bac37008b05acf449bada855cb031e971de254345205b60c5bd",
           "server/performance/game-watch-state.js": "bae1178f0e0a1a538549533f98c796f9954991600ec234df4d13685c77a71ac3"
         },

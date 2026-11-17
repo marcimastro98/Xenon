@@ -52,3 +52,31 @@ test('the rest of the ignore list still holds', () => {
     assert.equal(gd.isIgnoredProc(name), false, 'must NOT be ignored: ' + name);
   }
 });
+
+test('a video played full screen is never taken for a game', () => {
+  // A video opened full screen in the Windows player showed the FPS counter as if
+  // a game had started. Players on every system the probe runs on.
+  for (const name of [
+    'Microsoft.Media.Player', 'Video.UI', 'Microsoft.Photos', 'wmplayer', 'vlc',
+    'mpc-hc64', 'mpc-be64', 'PotPlayerMini64', 'mpv', 'smplayer', 'kodi', 'Plex',
+    'Plex HTPC', 'stremio', 'totem', 'celluloid', 'haruna', 'showtime', 'clapper',
+    'iina', 'QuickTime Player',
+  ]) {
+    assert.equal(gd.isIgnoredProc(name), true, 'must be ignored: ' + name);
+    assert.equal(gd.isNeverGame(name), true, 'the user lists cannot make it a game: ' + name);
+  }
+  for (const name of ['plexus', 'mpvarena', 'showtime-tycoon', 'kodiak', 'totemtribe', 'giinacraft']) {
+    assert.equal(gd.isIgnoredProc(name), false, 'must NOT be ignored: ' + name);
+  }
+});
+
+test('the Store apps host is never taken for the game, so the FPS counter closes', () => {
+  // Store apps (the Windows Media Player, Films & TV) draw inside ApplicationFrameHost,
+  // and the probe reports the host. It lives for the whole session, so once taken for
+  // the game, the PID check kept "a game is running" and the FPS counter on until a reboot.
+  assert.equal(gd.isIgnoredProc('ApplicationFrameHost'), true);
+  gd.applySample({ fullscreen: true, process: 'applicationframehost', pid: process.pid });
+  assert.equal(gd.isGaming(), false);
+  assert.equal(gd.isGameRunning(), false);
+  assert.equal(gd.getGameProcess(), '');
+});

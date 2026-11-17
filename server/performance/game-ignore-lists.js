@@ -52,7 +52,11 @@
 // probe reads them exactly as it reads a game. `foot`, `kitty` and `konsole`
 // are matched exactly for the same reason `cmd` and `wt` are — they are short
 // enough to swallow a real game's name as a substring.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|nvidia overlay|nvidia share|gamebar|steamwebhelper|docker|rancher|podman|gnome-shell|plasmashell|kwin_|xfdesktop|nautilus|gnome-terminal|gnome-console|ptyxis|xdg-desktop-portal|^(?:code(?:[ -]+insiders)?|cursor|devenv|claude|chatgpt|cmd|wt|hyper|steam|mutter|konsole|kitty|foot|xterm|dolphin|thunar|xenon(?:-native|-helper|-capture)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
+// ApplicationFrameHost draws every Store app's window (the Windows Media Player,
+// Films & TV), so the probe reports the host, not the app. Like the overlays it
+// lives for the whole session: a video opened full screen there held the FPS
+// counter on until a reboot.
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|applicationframehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|nvidia overlay|nvidia share|gamebar|steamwebhelper|docker|rancher|podman|gnome-shell|plasmashell|kwin_|xfdesktop|nautilus|gnome-terminal|gnome-console|ptyxis|xdg-desktop-portal|^(?:code(?:[ -]+insiders)?|cursor|devenv|claude|chatgpt|cmd|wt|hyper|steam|mutter|konsole|kitty|foot|xterm|dolphin|thunar|xenon(?:-native|-helper|-capture)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players and creative
 // editors also present flip-model frames continuously, so a focused windowed
@@ -64,4 +68,10 @@ const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplo
 // redraw while you type or scroll and sit maximised on a second monitor.
 const WINDOWED_IGNORE_RE = /vlc|mpc-|wmplayer|potplayer|kodi|plex|mpv|video\.ui|netflix|primevideo|stremio|photoshop|illustrator|afterfx|premiere|blender|resolve|unrealeditor|cinema 4d|krita|lightroom|capcut|whatsapp|telegram|ms-teams|^signal$|notion|figma/i;
 
-module.exports = { IGNORE_PROC_RE, WINDOWED_IGNORE_RE };
+// Video players: a video full screen has exactly a game's shape (whole monitor,
+// no title bar, frames at a steady rate), so these are ruled out in every window
+// state, unlike the editors above. Windows, Linux and macOS players; short or
+// common words are matched exactly.
+const VIDEO_PLAYER_RE = /microsoft\.media\.player|video\.ui|microsoft\.photos|wmplayer|vlc|mpc-hc|mpc-be|potplayer|smplayer|stremio|netflix|primevideo|quicktime player|^(?:mpv|kodi|plex(?: htpc| media player)?|totem|celluloid|haruna|showtime|clapper|iina)$/i;
+
+module.exports = { IGNORE_PROC_RE, WINDOWED_IGNORE_RE, VIDEO_PLAYER_RE };

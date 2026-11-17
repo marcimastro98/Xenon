@@ -49,6 +49,7 @@ if (process.platform === 'linux') {
     getFramesSince: () => null,
     // No frames of the app in front to ask about: MangoHud runs inside one game.
     getFrontFrames: () => null,
+    setTrackedGame: () => { /* the game is the one MangoHud runs in */ },
     setForegroundPid: () => { /* MangoHud only ever sees the game it launched */ },
     getGamingProcess: () => impl.getGamingProcess(),
     isGaming: () => impl.isGaming(),
