@@ -7407,4 +7407,5 @@ module.exports = {
   hints_again_btn: 'もう一度表示',
   hints_again_done: '必要なときにヒントがまた表示されます。',
   hints_again_failed: 'うまくいきませんでした。少ししてからもう一度お試しください。',
+  bit_start_xenon: 'Xenon で何ができる？',
 };

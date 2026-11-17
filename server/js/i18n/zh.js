@@ -7407,4 +7407,5 @@ module.exports = {
   hints_again_btn: '再次显示',
   hints_again_done: '需要时提示会再次出现。',
   hints_again_failed: '没有成功。请稍后再试。',
+  bit_start_xenon: '我能用 Xenon 做什么？',
 };

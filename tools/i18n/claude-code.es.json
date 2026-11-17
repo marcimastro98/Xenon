@@ -100,7 +100,7 @@
     "cc.cta.p": "Gratis y sin cuenta. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Descarga Xenon para Windows</a> o elige tu sistema en la <a href=\"/download.html\">página de descargas</a>. Para echar un vistazo antes, abre la <a href=\"/demo/\">demo en el navegador</a>.",
     "cc.jump.widgets": "Tus widgets",
     "cc.h.widgets": "Crear tus propios widgets",
-    "cc.widgets.p1": "Si escribes código en Claude Code, también puede crear widgets para Xenon. En <strong>Ajustes → Widgets y compartir → Crea widgets con Claude Code o Codex</strong>, pulsa <strong>Conectar Claude Code</strong>. Claude Code lee el SDK de widgets, escribe el widget en una carpeta, lo instala en tu panel, lee los errores que encuentra y mira una imagen de su recuadro, y luego lo corrige.",
+    "cc.widgets.p1": "Si escribes código en Claude Code, también puede crear widgets para Xenon. En <strong>Xenon → Crear y compartir → Crea widgets con Claude Code o Codex</strong>, pulsa <strong>Conectar Claude Code</strong>. Claude Code lee el SDK de widgets, escribe el widget en una carpeta, lo instala en tu panel, lee los errores que encuentra y mira una imagen de su recuadro, y luego lo corrige.",
     "cc.widgets.p2": "La primera vez, el panel te pregunta si lo permites. Nunca aprueba los permisos de un widget, solo cambia widgets hechos por ti y funciona solo desde el PC donde corre Xenon. <a href=\"/create/#mcp\">Cómo funciona y cómo añadirlo a mano</a>."
   }
 }

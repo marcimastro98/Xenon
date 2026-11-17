@@ -7352,4 +7352,5 @@ module.exports = {
   hints_again_btn: 'Показать снова',
   hints_again_done: 'Подсказки появятся снова, когда пригодятся.',
   hints_again_failed: 'Не получилось. Попробуйте ещё раз чуть позже.',
+  bit_start_xenon: 'Что я могу делать с Xenon?',
 };

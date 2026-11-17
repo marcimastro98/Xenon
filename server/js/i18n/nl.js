@@ -7403,4 +7403,5 @@ module.exports = {
   hints_again_btn: 'Opnieuw tonen',
   hints_again_done: 'De tips komen terug wanneer ze helpen.',
   hints_again_failed: 'Dat lukte niet. Probeer het zo opnieuw.',
+  bit_start_xenon: 'Wat kan ik met Xenon doen?',
 };

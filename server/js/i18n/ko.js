@@ -7407,4 +7407,5 @@ module.exports = {
   hints_again_btn: '다시 보기',
   hints_again_done: '필요할 때 도움말이 다시 나타납니다.',
   hints_again_failed: '실패했습니다. 잠시 후 다시 시도하세요.',
+  bit_start_xenon: 'Xenon으로 뭘 할 수 있어?',
 };

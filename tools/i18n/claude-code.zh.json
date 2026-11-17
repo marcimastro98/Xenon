@@ -100,7 +100,7 @@
     "cc.cta.p": "免费，无需账号。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或者在<a href=\"/download.html\">下载页面</a>选择你的系统。想先看看，可以打开<a href=\"/demo/\">浏览器演示</a>。",
     "cc.jump.widgets": "你的小组件",
     "cc.h.widgets": "制作你自己的小组件",
-    "cc.widgets.p1": "如果你在 Claude Code 中写代码，它也能为 Xenon 制作小组件。在<strong>设置 → 小组件与分享 → 用 Claude Code 或 Codex 制作小组件</strong>中，点击<strong>连接 Claude Code</strong>。Claude Code 会阅读小组件 SDK，在文件夹中编写小组件，安装到你的仪表板，查看遇到的错误和磁贴截图，然后修正它。",
+    "cc.widgets.p1": "如果你在 Claude Code 中写代码，它也能为 Xenon 制作小组件。在<strong>Xenon → 创建与分享 → 用 Claude Code 或 Codex 制作小组件</strong>中，点击<strong>连接 Claude Code</strong>。Claude Code 会阅读小组件 SDK，在文件夹中编写小组件，安装到你的仪表板，查看遇到的错误和磁贴截图，然后修正它。",
     "cc.widgets.p2": "第一次使用时，仪表板会询问是否允许。它绝不会批准小组件的权限，只修改你自己做的小组件，并且只能在运行 Xenon 的电脑上使用。<a href=\"/create/#mcp\">工作原理及手动添加方法</a>。"
   }
 }

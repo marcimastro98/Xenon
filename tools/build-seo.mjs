@@ -429,7 +429,7 @@ function entryPage(e, indexable, live = []) {
       `<a class="pg-key" href="${SUPPORT}" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="catalog_item">Become a supporter</a>` +
       `<a class="pg-alt" href="${inCatalog}">I have a code</a>`;
     note = `Included for supporters, 5 USD a month. Unlock it in the catalog with your code, ` +
-      `then paste it into Xenon under Settings → Widgets &amp; sharing → Import.`;
+      `then paste it into Xenon under Create and share → Import.`;
     if (trialCovers(e, Date.now())) {
       note += ` Or <a href="${TRIAL}" target="_blank" rel="noopener" data-track="trial_click" data-track-location="catalog_item">try it free for 7 days</a>, once per PC, with no card.`;
     }
@@ -438,7 +438,7 @@ function entryPage(e, indexable, live = []) {
       `<a class="pg-key" href="${inCatalog}">Copy the code in the catalog</a>` +
       `<a class="pg-alt" href="/">Get Xenon</a>`;
     note = `Free. Copy the share code, then paste it into Xenon under ` +
-      `Settings → Widgets &amp; sharing → Import. Everything stays on your machine.`;
+      `Create and share → Import. Everything stays on your machine.`;
   }
 
   // The steps a visitor actually has to perform, written out instead of implied
@@ -463,7 +463,7 @@ function entryPage(e, indexable, live = []) {
     } else {
       steps.push(`<a href="${inCatalog}">Open ${esc(e.name)} in the catalog</a> and press Copy code.`);
     }
-    steps.push(`In Xenon, open <b>Settings → Widgets &amp; sharing → Import</b> and paste the code.`);
+    steps.push(`In Xenon, open <b>Create and share → Import</b> and paste the code.`);
     steps.push(`Xenon shows you what the code contains before anything is applied. Confirm, and ` +
       `${esc(e.name)} is in Xenon.`);
     steps.push(e.appVersionMin

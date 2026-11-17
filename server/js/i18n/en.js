@@ -7415,4 +7415,5 @@ module.exports = {
   hints_again_btn: 'Show again',
   hints_again_done: 'The hints will come back when they help.',
   hints_again_failed: 'That did not work. Try again in a moment.',
+  bit_start_xenon: 'What can I do with Xenon?',
 };

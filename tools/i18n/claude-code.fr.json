@@ -100,7 +100,7 @@
     "cc.cta.p": "Gratuit, sans compte. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Télécharger Xenon pour Windows</a>, ou choisissez votre système sur la <a href=\"/download.html\">page de téléchargement</a>. Pour vous familiariser, ouvrez la <a href=\"/demo/\">démo du navigateur</a>.",
     "cc.jump.widgets": "Vos widgets",
     "cc.h.widgets": "Créer vos propres widgets",
-    "cc.widgets.p1": "Si vous codez dans Claude Code, il peut aussi créer des widgets pour Xenon. Dans <strong>Réglages → Widgets et partage → Créer des widgets avec Claude Code ou Codex</strong>, appuyez sur <strong>Connecter Claude Code</strong>. Claude Code lit alors le SDK des widgets, écrit le widget dans un dossier, l'installe sur votre tableau de bord, lit les erreurs qu'il rencontre et regarde une image de sa tuile, puis le corrige.",
+    "cc.widgets.p1": "Si vous codez dans Claude Code, il peut aussi créer des widgets pour Xenon. Dans <strong>Xenon → Créer et partager → Créer des widgets avec Claude Code ou Codex</strong>, appuyez sur <strong>Connecter Claude Code</strong>. Claude Code lit alors le SDK des widgets, écrit le widget dans un dossier, l'installe sur votre tableau de bord, lit les erreurs qu'il rencontre et regarde une image de sa tuile, puis le corrige.",
     "cc.widgets.p2": "La première fois, le tableau de bord vous demande s'il faut l'autoriser. Il n'approuve jamais les permissions d'un widget, ne modifie que les widgets que vous avez faits et ne fonctionne que depuis le PC où tourne Xenon. <a href=\"/create/#mcp\">Comment ça marche, et comment l'ajouter à la main</a>."
   }
 }

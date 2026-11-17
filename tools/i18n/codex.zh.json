@@ -61,7 +61,7 @@
     "ld.a5": "会话和审批可以。套餐窗口只存在于 ChatGPT 套餐中，因此使用 API 密钥时磁贴没有可显示的窗口。",
     "cx.jump.widgets": "你的小组件",
     "cx.h.widgets": "制作你自己的小组件",
-    "cx.widgets.p1": "如果你在 Codex 中写代码，它也能为 Xenon 制作小组件。在<strong>设置 → 小组件与分享 → 用 Claude Code 或 Codex 制作小组件</strong>中，点击<strong>连接 Codex</strong>。Codex 会阅读小组件 SDK，在文件夹中编写小组件，安装到你的仪表板，查看遇到的错误和磁贴截图，然后修正它。",
+    "cx.widgets.p1": "如果你在 Codex 中写代码，它也能为 Xenon 制作小组件。在<strong>Xenon → 创建与分享 → 用 Claude Code 或 Codex 制作小组件</strong>中，点击<strong>连接 Codex</strong>。Codex 会阅读小组件 SDK，在文件夹中编写小组件，安装到你的仪表板，查看遇到的错误和磁贴截图，然后修正它。",
     "cx.widgets.p2": "第一次使用时，仪表板会询问是否允许。它绝不会批准小组件的权限，只修改你自己做的小组件，并且只能在运行 Xenon 的电脑上使用。<a href=\"/create/#mcp\">工作原理及手动添加方法</a>。",
     "cx.pic.alt": "Codex 磁贴：一条修改文件的请求及其回复按钮、两个正在工作的会话，以及套餐的 5 小时和每周用量"
   }

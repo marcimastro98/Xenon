@@ -21,26 +21,26 @@ test('the hello follows the hour, with the night on both sides of midnight', () 
 
 test('the starters fit this PC: the typed city, the music playing, the widget price', () => {
   const plain = W.starters({});
-  assert.deepEqual(plain.map((s) => s.key), ['bit_start_weather', 'bit_start_timer', 'bit_start_widget']);
-  assert.equal(plain[2].cost, null, 'no price off the Scintille');
+  assert.deepEqual(plain.map((s) => s.key), ['bit_start_xenon', 'bit_start_weather', 'bit_start_timer', 'bit_start_widget']);
+  assert.equal(plain[3].cost, null, 'no price off the Scintille');
 
   const rich = W.starters({ city: '  Milano ', playing: true, widgetCost: 80 });
-  assert.equal(rich[0].key, 'bit_start_weather_city');
-  assert.deepEqual(rich[0].vars, { city: 'Milano' });
-  assert.equal(rich[1].key, 'bit_start_music_timer');
-  assert.equal(rich[2].cost, 80);
-  assert.equal(W.fillVars('domani a {city}?', rich[0].vars), 'domani a Milano?');
+  assert.equal(rich[1].key, 'bit_start_weather_city');
+  assert.deepEqual(rich[1].vars, { city: 'Milano' });
+  assert.equal(rich[2].key, 'bit_start_music_timer');
+  assert.equal(rich[3].cost, 80);
+  assert.equal(W.fillVars('domani a {city}?', rich[1].vars), 'domani a Milano?');
 });
 
 test('every starter is a question to Bit: the tour is gone', () => {
-  assert.deepEqual(W.starters({}).map((s) => s.key), ['bit_start_weather', 'bit_start_timer', 'bit_start_widget']);
+  assert.deepEqual(W.starters({}).map((s) => s.key), ['bit_start_xenon', 'bit_start_weather', 'bit_start_timer', 'bit_start_widget']);
   assert.equal(W.starters({}).some((s) => 'run' in s), false);
   assert.doesNotMatch(read('../js/ai/bit-welcome.js'), /Onboarding|bitRun|\btour\b/);
 });
 
 test('a plain timer shows a timer, the music one the note', () => {
-  assert.equal(W.starters({})[1].icon, 'timer');
-  assert.equal(W.starters({ playing: true })[1].icon, 'music');
+  assert.equal(W.starters({})[2].icon, 'timer');
+  assert.equal(W.starters({ playing: true })[2].icon, 'music');
 });
 
 test('voice ending on an empty chat brings the welcome back', () => {
