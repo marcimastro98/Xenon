@@ -21,7 +21,7 @@
   const SHELL_QUIET_FIRST_MS = 2 * 60 * 1000;
   const SHELL_QUIET_EVERY_MS = 10 * 60 * 1000;
 
-  const { tr, applyFailureText, trKey, failureReason } = window.UpdateFailureWords;
+  const { tr, applyFailureText, trKey, failureReason, updReasonText } = window.UpdateFailureWords;
 
   // An update still waiting after a week has missed every start and every quiet
   // moment. The notice gets louder, never the install: the native app, which

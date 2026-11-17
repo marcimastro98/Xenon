@@ -42,5 +42,5 @@
     return [updReasonText(lr.reason), detail].filter(Boolean).join(': ') || applyFailureText(lr);
   }
 
-  window.UpdateFailureWords = { tr, applyFailureText, trKey, failureReason };
+  window.UpdateFailureWords = { tr, applyFailureText, trKey, failureReason, updReasonText };
 })();

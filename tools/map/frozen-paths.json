@@ -39,6 +39,7 @@
     "server/enable-sensors.ps1",
     "server/foreground.ps1",
     "server/gpu.ps1",
+    "server/grant-install-access.ps1",
     "server/helper-update.ps1",
     "server/icue-sdk-update.ps1",
     "server/icue-sharpen.ps1",
