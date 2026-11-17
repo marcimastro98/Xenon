@@ -82,7 +82,7 @@
         fetchedAt = Date.now();
       } else {
         const noCode = out && (out.error === 'no_code' || out.error === 'bad_code');
-        // `trialEnded`: the welcome Sparks ran out of days here (js/bit-trial-end.js).
+        // `trialEnded`: the welcome Sparks ran out of days here (js/store-supporters/bit-trial-end.js).
         state = { ...EMPTY, status: noCode ? 'no_code' : 'error', welcome: !!out && out.welcome === true, trialEnded: noCode && out.trialEnded === true };
       }
       inflight = null;

@@ -1,5 +1,5 @@
 // The end of the welcome Sparks: kept by the server (welcome-trial/trial-end.js),
-// shown in Bit's chat (js/bit-trial-end.js). The rules these tests hold:
+// shown in Bit's chat (js/store-supporters/bit-trial-end.js). The rules these tests hold:
 //  - the first end is kept on disk, a second one changes nothing, a broken file
 //    reads as "never ended";
 //  - the reminder comes only in the last two days, once a day;
@@ -104,7 +104,7 @@ function load({ state, now = Date.now(), stored = '', withStore = true }) {
   ctx.window.open = (url) => opened.push(url);
   if (withStore) ctx.window.SparksStore = { MEMBER_USD: 5, MONTHLY: 300 };
   vm.createContext(ctx);
-  vm.runInContext(read('../js/bit-trial-end.js'), ctx);
+  vm.runInContext(read('../js/store-supporters/bit-trial-end.js'), ctx);
   return { api: ctx.window.BitTrialEnd, card, words, opened, toasts, storage, ctx, fire: () => onChange(state) };
 }
 
@@ -169,6 +169,6 @@ test('every word is in all 11 languages, and the page loads the script', () => {
     for (const k of KEYS) assert.equal((strings.match(new RegExp('^  ' + k + ": '", 'gm')) || []).length, 1, `${k} [${code}]`);
     assert.ok(!/bit_trial_[a-z_]+: '[^']*—/.test(strings), `no em-dash in the new strings [${code}]`);
   }
-  assert.match(read('../index.html'), /<script src="js\/store-supporters\/trial-pass-ui\.js"><\/script>\n<script src="js\/bit-trial-end\.js"><\/script>/);
+  assert.match(read('../index.html'), /<script src="js\/store-supporters\/trial-pass-ui\.js"><\/script>\n<script src="js\/store-supporters\/bit-trial-end\.js"><\/script>/);
   assert.match(read('../js/store-supporters/xenon-credits.js'), /if \(window\.BitTrialEnd\) window\.BitTrialEnd\.paint\(\);/);
 });

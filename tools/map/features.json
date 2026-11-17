@@ -108,8 +108,7 @@
         "server/components/XenonCredits/**",
         "server/components/DiscordInvite/**",
         "server/js/store-supporters/**",
-        "server/welcome-trial/**",
-        "server/js/bit-trial-end.js"
+        "server/welcome-trial/**"
       ]
     },
     {
@@ -604,7 +603,6 @@
         "server/ambient/**",
         "server/scene.html",
         "server/js/ambient*.js",
-        "server/js/briefing-toast.js",
         "server/js/ambient-canvas-editor-form/**",
         "server/components/AmbientCanvas/**",
         "server/components/AmbientCanvasEditor/**",

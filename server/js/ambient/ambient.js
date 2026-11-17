@@ -182,7 +182,7 @@
   // sustained-thermal alert. The server already gates each type on its toggle,
   // so the toast always shows; the voice is added only when the ambient
   // presence is enabled (same discipline as Guardian alerts). The words are
-  // js/briefing-toast.js's, shared with the alerts window; "Ask Bit" opens the
+  // js/ambient/briefing-toast.js's, shared with the alerts window; "Ask Bit" opens the
   // chat here with the question ready (js/bit-chat-full.js).
   function onBriefingMoment(d) {
     const B = window.BriefingToast;

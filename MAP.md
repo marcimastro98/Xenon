@@ -33,7 +33,7 @@ The screen itself: the grid of tiles, how it looks, the top bar, the scenes show
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene.html` `server/js/ambient*.js` `server/js/briefing-toast.js` `server/js/ambient-canvas-editor-form/**` `server/components/AmbientCanvas/**` and 4 more |
+| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene.html` `server/js/ambient*.js` `server/js/ambient-canvas-editor-form/**` `server/components/AmbientCanvas/**` `server/components/AmbientCanvasEditor/**` and 3 more |
 | **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/topbar/**` `server/js/topbar-look-settings/**` `server/js/topbar-media/**` `server/components/Topbar/**` `server/components/TopbarMedia/**` `server/components/TopbarMinimal/**` and 1 more |
 | **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/js/custom-bg.js` `server/components/Base/**` `docs/THEME_SYSTEM.md` `server/assets/decor/**` and 3 more |
 | **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/js/main.js` `server/js/dashboard-*.js` `server/js/dashboard-layout/**` `server/js/dashboard-tabgroups/**` and 8 more |
@@ -75,7 +75,7 @@ The catalog of looks and widgets, and what supporters get.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends. | `server/store-supporters/**` `server/components/SparksStore/**` `server/components/SupportAsk/**` `server/components/SupportGoal/**` `server/components/XenonCredits/**` `server/components/DiscordInvite/**` and 3 more |
+| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends. | `server/store-supporters/**` `server/components/SparksStore/**` `server/components/SupportAsk/**` `server/components/SupportGoal/**` `server/components/XenonCredits/**` `server/components/DiscordInvite/**` and 2 more |
 | **Store** | The catalog: browse, buy, install, rate and update looks, widgets and packs. | `server/store-catalog/**` `server/community-*.js` `server/icon-packs.js` `server/sound-packs.js` `server/js/community-gallery/**` `server/js/installed-manager/**` and 4 more |
 | **Sharing a look** | Export and import of themes, pages and packs as a code, with the safety checks on what comes in. | `server/js/presets/**` |
 

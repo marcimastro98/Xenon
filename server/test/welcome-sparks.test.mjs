@@ -222,7 +222,7 @@ test('when the hub says they ended, the code is forgotten and this PC has none',
   hub({ '/ai/session': { ok: false, error: 'welcome_over' } });
   await assert.rejects(send(d), (e) => e.code === 'no_code');
   assert.equal(await wallet.readWalletCode(d), '');
-  // The end is kept, so the chat can offer what keeps Bit on (js/bit-trial-end.js).
+  // The end is kept, so the chat can offer what keeps Bit on (js/store-supporters/bit-trial-end.js).
   assert.deepEqual(await X.balance(d), { ok: false, error: 'no_code', trialEnded: true });
 });
 

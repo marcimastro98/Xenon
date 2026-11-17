@@ -1,7 +1,7 @@
 // "Ask Bit" on the game recap and the heat alerts (server/briefing.js). The rules
 // these tests hold:
 //  - the dashboard and the alerts window of "widgets only" say the same words
-//    (js/briefing-toast.js), in the user's hardware unit;
+//    (js/ambient/briefing-toast.js), in the user's hardware unit;
 //  - the card carries "Ask Bit" only when someone can answer, and the question
 //    is never sent by itself;
 //  - with no dashboard the question goes to the search window through the server
@@ -13,7 +13,7 @@ import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const B = require('../js/briefing-toast.js');
+const B = require('../js/ambient/briefing-toast.js');
 const ask = require('../spotlight-ask/routes.js');
 const { remotePathAllowed } = require('../paired/remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -66,7 +66,7 @@ test('the card has "Ask Bit" only with someone to answer, and asking sends nothi
 });
 
 test('no hard °C and no em-dash in what the card prints', () => {
-  for (const line of read('../js/briefing-toast.js').split('\n')) {
+  for (const line of read('../js/ambient/briefing-toast.js').split('\n')) {
     if (/^\s*(\/\/|\*)/.test(line)) continue;
     assert.ok(!/°C|—/.test(line), line.trim());
   }
@@ -84,9 +84,9 @@ test('the dashboard and the alerts window both use the shared card', () => {
   assert.match(alerts, /fetch\(SERVER \+ '\/spotlight\/ask'/);
   assert.match(alerts, /calendar_reminder: reminder,\n    briefing,/, 'listened to only in "widgets only"');
   for (const page of ['../index.html', '../screen-alerts.html']) {
-    assert.match(read(page), /<script src="js\/briefing-toast\.js"><\/script>/, page);
+    assert.match(read(page), /<script src="js\/ambient\/briefing-toast\.js"><\/script>/, page);
   }
-  assert.ok(read('../index.html').indexOf('js/briefing-toast.js') < read('../index.html').indexOf('js/ambient/ambient.js'));
+  assert.ok(read('../index.html').indexOf('js/ambient/briefing-toast.js') < read('../index.html').indexOf('js/ambient/ambient.js'));
 });
 
 test('the search window takes the question on every show and opens the chat unsent', () => {
