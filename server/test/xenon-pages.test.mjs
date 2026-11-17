@@ -111,3 +111,19 @@ test('Xenon opens on Screens, on General alone in the menu window, chosen at the
   assert.match(src, /^let _settingsCat = '';\r?$/m);
   assert.match(src, /settingsSetCategory\(_settingsCat \|\| \(isSheetPage\(\) \? 'general' : 'screens'\)\)/);
 });
+
+// The gear opens Xenon, and where the app draws the menu its tooltip says the key too
+// (a browser or a phone has no such key). The row that opens the window names Xenon.
+test('the gear opens Xenon and says its key only where the key works', () => {
+  const i18n = loadI18n();
+  for (const l of LANGS) {
+    assert.match(i18n[l].tip_settings, /Xenon/, 'tip_settings in ' + l);
+    assert.match(i18n[l].settings_menu_window, /Xenon/, 'settings_menu_window in ' + l);
+    if (l !== 'en') assert.notEqual(i18n[l].settings_menu_window, i18n.en.settings_menu_window, l);
+  }
+  const code = read('js/settings/platform-usage.js');
+  assert.match(code, /const menu = window\.__XENON_NATIVE__ === true && window\.__XENON_NATIVE_CAPS__\?\.menu === true;/);
+  assert.match(code, /gear\.title = menu && key \? `\$\{t\('tip_settings'\)\} \(\$\{key\}\)` : t\('tip_settings'\);/);
+  assert.match(HTML, /data-i18n="settings_menu_window"/);
+  assert.doesNotMatch(HTML, /settings_menu_hint/);
+});

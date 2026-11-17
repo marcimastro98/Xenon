@@ -429,7 +429,6 @@ module.exports = {
   ai_talk: 'Talk',
   settings_nav_all: 'Show all',
   settings_menu_open: 'Open',
-  settings_menu_hint: 'Widgets, capture and shortcuts, over any app.',
   screen_needs_dash_msg: 'This needs the dashboard.',
   place_needs_app: 'Installed. Open the Xenon app to put it on your screen.',
   place_failed_title: 'Could not put it on the screen',
@@ -2913,7 +2912,7 @@ module.exports = {
   tip_lock: 'Lock screen',
   tip_send: 'Send',
   tip_apps: 'Open applications',
-  tip_settings: 'Appearance settings',
+  tip_settings: 'Open Xenon',
   ui_lock: 'Lock',
   ui_layout: 'Layout',
   ui_settings: 'Settings',
@@ -7415,4 +7414,5 @@ module.exports = {
   settings_kw_screens: 'screens, monitors, widgets, dashboard, what it shows, widgets only, phone, tablet, second screen, wallpaper, scene, desktop, edit the widgets on screen, add widget',
   settings_kw_now: 'now, quick actions, overlay, fps, in-game performance, screenshot, microphone, mute, ask bit, chat, power saving, power mode',
   settings_kw_keys: 'shortcuts, hotkeys, macros, keys, key combination, alt+shift+x, menu key, open xenon, record a key, keyboard',
+  settings_menu_window: 'Xenon over your apps',
 };

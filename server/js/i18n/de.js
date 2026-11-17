@@ -429,7 +429,6 @@ module.exports = {
   ai_talk: 'Sprechen',
   settings_nav_all: 'Alle anzeigen',
   settings_menu_open: 'Öffnen',
-  settings_menu_hint: 'Widgets, Aufnahme und Tastenkürzel, über jeder App.',
   screen_needs_dash_msg: 'Dafür brauchst du das Dashboard.',
   place_needs_app: 'Installiert. Öffne die Xenon-App, um es auf den Bildschirm zu legen.',
   place_failed_title: 'Konnte nicht auf den Bildschirm gelegt werden',
@@ -2868,7 +2867,7 @@ module.exports = {
   tip_lock: 'Bildschirm sperren',
   tip_send: 'Senden',
   tip_apps: 'Geöffnete Anwendungen',
-  tip_settings: 'Darstellungseinstellungen',
+  tip_settings: 'Xenon öffnen',
   ui_lock: 'Sperren',
   ui_layout: 'Layout',
   ui_settings: 'Einstellungen',
@@ -7261,4 +7260,5 @@ module.exports = {
   settings_kw_screens: 'Bildschirme, Monitore, Widgets, Dashboard, was er zeigt, nur Widgets, Handy, Tablet, zweiter Bildschirm, Hintergrundbild, Szene, Desktop, Widgets auf dem Bildschirm bearbeiten, Widget hinzufügen',
   settings_kw_now: 'sofort, Schnellaktionen, Overlay, FPS, Leistung im Spiel, Screenshot, Mikrofon, stumm, Bit fragen, Chat, Energiesparen, Energiemodus',
   settings_kw_keys: 'Tastenkürzel, Hotkeys, Makros, Tasten, Tastenkombination, Alt+Shift+X, Menütaste, Xenon öffnen, Taste aufnehmen, Tastatur',
+  settings_menu_window: 'Xenon über allen Apps',
 };

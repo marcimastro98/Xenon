@@ -429,7 +429,6 @@ module.exports = {
   ai_talk: 'Praten',
   settings_nav_all: 'Alles tonen',
   settings_menu_open: 'Openen',
-  settings_menu_hint: 'Widgets, opname en sneltoetsen, boven elke app.',
   screen_needs_dash_msg: 'Hiervoor is het dashboard nodig.',
   place_needs_app: 'Geïnstalleerd. Open de Xenon-app om het op je scherm te zetten.',
   place_failed_title: 'Kon niet op het scherm worden gezet',
@@ -2906,7 +2905,7 @@ module.exports = {
   tip_lock: 'Vergrendelscherm',
   tip_send: 'Verzenden',
   tip_apps: 'Toepassingen openen',
-  tip_settings: 'Uiterlijkinstellingen',
+  tip_settings: 'Xenon openen',
   ui_lock: 'Vergrendelen',
   ui_layout: 'Indeling',
   ui_settings: 'Instellingen',
@@ -7403,4 +7402,5 @@ module.exports = {
   settings_kw_screens: 'schermen, monitoren, widgets, dashboard, wat het toont, alleen widgets, telefoon, tablet, tweede scherm, achtergrond, scène, bureaublad, widgets op het scherm bewerken, widget toevoegen',
   settings_kw_now: 'direct, snelle acties, overlay, fps, prestaties in games, schermafbeelding, microfoon, dempen, vraag het bit, chat, energiebesparing, energiemodus',
   settings_kw_keys: 'sneltoetsen, toetscombinaties, macro\'s, toetsen, toetscombinatie, alt+shift+x, menutoets, xenon openen, toets opnemen, toetsenbord',
+  settings_menu_window: 'Xenon boven andere apps',
 };

@@ -429,7 +429,6 @@ module.exports = {
   ai_talk: '말하기',
   settings_nav_all: '모두 보기',
   settings_menu_open: '열기',
-  settings_menu_hint: '위젯, 캡처, 단축키를 어떤 앱 위에서든 사용합니다.',
   screen_needs_dash_msg: '이 작업에는 대시보드가 필요합니다.',
   place_needs_app: '설치했습니다. 화면에 놓으려면 Xenon 앱을 여세요.',
   place_failed_title: '화면에 놓지 못했습니다',
@@ -2907,7 +2906,7 @@ module.exports = {
   tip_lock: '화면 잠금',
   tip_send: '보내기',
   tip_apps: '열린 앱',
-  tip_settings: '모양 설정',
+  tip_settings: 'Xenon 열기',
   ui_lock: '잠금',
   ui_layout: '레이아웃',
   ui_settings: '설정',
@@ -7407,4 +7406,5 @@ module.exports = {
   settings_kw_screens: '화면, 모니터, 위젯, 대시보드, 표시할 내용, 위젯만, 휴대폰, 태블릿, 보조 화면, 배경화면, 장면, 바탕 화면, 화면의 위젯 편집, 위젯 추가',
   settings_kw_now: '바로 실행, 빠른 작업, 오버레이, fps, 게임 성능, 스크린샷, 마이크, 음소거, bit에게 묻기, 채팅, 절전, 전원 모드',
   settings_kw_keys: '단축키, 핫키, 매크로, 키, 키 조합, alt+shift+x, 메뉴 키, xenon 열기, 키 녹화, 키보드',
+  settings_menu_window: '앱 위에 Xenon 열기',
 };

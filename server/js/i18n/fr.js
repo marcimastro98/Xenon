@@ -429,7 +429,6 @@ module.exports = {
   ai_talk: 'Parler',
   settings_nav_all: 'Tout afficher',
   settings_menu_open: 'Ouvrir',
-  settings_menu_hint: 'Widgets, capture et raccourcis, par-dessus n\'importe quelle app.',
   screen_needs_dash_msg: 'Il faut le tableau de bord pour cela.',
   place_needs_app: 'Installé. Ouvrez l\'app Xenon pour le mettre à l\'écran.',
   place_failed_title: 'Impossible de le mettre à l\'écran',
@@ -2866,7 +2865,7 @@ module.exports = {
   tip_lock: 'Verrouiller l\'écran',
   tip_send: 'Envoyer',
   tip_apps: 'Applications ouvertes',
-  tip_settings: 'Réglages d\'apparence',
+  tip_settings: 'Ouvrir Xenon',
   ui_lock: 'Verrouiller',
   ui_layout: 'Disposition',
   ui_settings: 'Réglages',
@@ -7242,4 +7241,5 @@ module.exports = {
   settings_kw_screens: 'écrans, moniteurs, widgets, tableau de bord, ce qu\'il affiche, widgets seuls, téléphone, tablette, second écran, fond d\'écran, scène, bureau, modifier les widgets à l\'écran, ajouter un widget',
   settings_kw_now: 'tout de suite, actions rapides, superposition, fps, performances en jeu, capture d\'écran, micro, muet, demander à bit, chat, économie d\'énergie, mode d\'alimentation',
   settings_kw_keys: 'raccourcis, raccourcis clavier, macros, touches, combinaison de touches, alt+shift+x, touche du menu, ouvrir xenon, enregistrer une touche, clavier',
+  settings_menu_window: 'Xenon par-dessus vos apps',
 };

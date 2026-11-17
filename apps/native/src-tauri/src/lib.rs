@@ -96,6 +96,7 @@ mod show_desktop;
 mod spotlight_window;
 mod startup;
 mod tray;
+mod tray_words;
 #[cfg(windows)]
 mod twitch_login;
 #[cfg(target_os = "linux")]

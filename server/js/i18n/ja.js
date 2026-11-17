@@ -429,7 +429,6 @@ module.exports = {
   ai_talk: '話す',
   settings_nav_all: 'すべて表示',
   settings_menu_open: '開く',
-  settings_menu_hint: 'ウィジェット、キャプチャ、ショートカットをどのアプリの上でも。',
   screen_needs_dash_msg: 'これにはダッシュボードが必要です。',
   place_needs_app: 'インストールしました。画面に置くにはXenonアプリを開いてください。',
   place_failed_title: '画面に置けませんでした',
@@ -2907,7 +2906,7 @@ module.exports = {
   tip_lock: '画面をロック',
   tip_send: '送信',
   tip_apps: '開いているアプリ',
-  tip_settings: '外観設定',
+  tip_settings: 'Xenon を開く',
   ui_lock: 'ロック',
   ui_layout: 'レイアウト',
   ui_settings: '設定',
@@ -7407,4 +7406,5 @@ module.exports = {
   settings_kw_screens: '画面, モニター, ウィジェット, ダッシュボード, 表示する内容, ウィジェットのみ, スマートフォン, タブレット, セカンドスクリーン, 壁紙, シーン, デスクトップ, 画面上のウィジェットを編集, ウィジェットを追加',
   settings_kw_now: 'すぐに, クイック操作, オーバーレイ, fps, ゲーム中のパフォーマンス, スクリーンショット, マイク, ミュート, bitに聞く, チャット, 省電力, 電源モード',
   settings_kw_keys: 'ショートカット, ホットキー, マクロ, キー, キーの組み合わせ, alt+shift+x, メニューキー, xenonを開く, キーを記録, キーボード',
+  settings_menu_window: 'アプリの上に Xenon を開く',
 };

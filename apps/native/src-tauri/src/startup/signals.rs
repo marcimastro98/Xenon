@@ -34,7 +34,9 @@ pub(super) fn app(nav_handle: &tauri::AppHandle, url: &tauri::Url) {
             let code = url.query_pairs().find(|(k, _)| k == "l")
                 .and_then(|(_, v)| prefs::clean_language(&v));
             if let Some(code) = code {
-                prefs::update(nav_handle, |p| p.language = Some(code));
+                prefs::update(nav_handle, |p| p.language = Some(code.clone()));
+                // The tray says it now, from a plain thread like the ones above.
+                std::thread::spawn(move || tray_words::relabel(&code));
             }
         }
         // The Twitch tile's "Sign in to Twitch": twitch.tv's own

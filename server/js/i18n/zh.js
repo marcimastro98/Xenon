@@ -429,7 +429,6 @@ module.exports = {
   ai_talk: '说话',
   settings_nav_all: '显示全部',
   settings_menu_open: '打开',
-  settings_menu_hint: '小组件、截图录屏和快捷键，可在任何应用上方使用。',
   screen_needs_dash_msg: '这需要仪表板。',
   place_needs_app: '已安装。打开 Xenon 应用即可放到屏幕上。',
   place_failed_title: '无法放到屏幕上',
@@ -2907,7 +2906,7 @@ module.exports = {
   tip_lock: '锁定屏幕',
   tip_send: '发送',
   tip_apps: '打开的应用',
-  tip_settings: '外观设置',
+  tip_settings: '打开 Xenon',
   ui_lock: '锁定',
   ui_layout: '布局',
   ui_settings: '设置',
@@ -7407,4 +7406,5 @@ module.exports = {
   settings_kw_screens: '屏幕, 显示器, 小组件, 仪表板, 显示内容, 仅小组件, 手机, 平板, 副屏, 壁纸, 场景, 桌面, 编辑屏幕上的小组件, 添加小组件',
   settings_kw_now: '立即, 快捷操作, 叠加层, fps, 游戏性能, 截图, 麦克风, 静音, 问 bit, 聊天, 节能, 电源模式',
   settings_kw_keys: '快捷键, 热键, 宏, 按键, 组合键, alt+shift+x, 菜单键, 打开 xenon, 录制按键, 键盘',
+  settings_menu_window: '在应用上方打开 Xenon',
 };
