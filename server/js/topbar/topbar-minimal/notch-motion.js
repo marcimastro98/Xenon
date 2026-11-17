@@ -1,5 +1,6 @@
 // The parts of the island's cutouts that keep no state: the edge line of a cut, the tab strip's
-// properties, when motion may play, the soft opening's timing and pace, and a box read from a rect.
+// properties, when motion may play, the soft opening's timing and pace, and a box read from a rect
+// (in layout px, also under the interface scale).
 
 (() => {
   'use strict';
@@ -53,6 +54,22 @@
     return bez(0, 1, s);
   }
 
+  // Under the interface scale (CSS zoom on <html>, native-bridge.js) a rect reads in
+  // screen px while every length written back renders ×zoom, so the cutouts, the
+  // clearance and the morph came out zoomed twice (GitHub #158). Rects are turned into
+  // layout px first; at 100% this changes nothing. The factor is measured, not taken
+  // from __pageZoom: an engine that already reports rects in layout px (WebKit adjusts
+  // them for zoom) measures 1 and is left alone.
+  const screenPerLayoutPx = () => {
+    const el = document.documentElement;
+    const f = el?.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    return f > 0 && Math.abs(f - 1) > 0.01 ? f : 1;
+  };
+  const layoutRect = (r) => {
+    const z = screenPerLayoutPx();
+    return { left: r.left / z, right: r.right / z, top: r.top / z, bottom: r.bottom / z, width: r.width / z, height: r.height / z };
+  };
+
   const boxOf = (r, radius) => ({
     left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height,
     // A pill's radius is far past half its height; clamp it so it can be animated.
@@ -60,6 +77,6 @@
   });
 
   window.TopbarMinimalNotchMotion = {
-    notchEdge, BAR_PROPS, motionOk, SOFT_OPEN, SOFT_PROPS, softEase, boxOf,
+    notchEdge, BAR_PROPS, motionOk, SOFT_OPEN, SOFT_PROPS, softEase, boxOf, layoutRect,
   };
 })();
