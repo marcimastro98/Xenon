@@ -63,7 +63,7 @@
     "server/js/grid/dashboard-palette.js": 690,
     "server/js/grid/dashboard-portrait.js": 362,
     "server/js/grid/data-stream.js": 862,
-    "server/js/installed-manager/installed-manager.js": 686,
+    "server/js/installed-manager/installed-manager.js": 600,
     "server/js/layer-edit/layer-edit.js": 576,
     "server/js/layers/layer-host.js": 604,
     "server/js/layers/layers-model.js": 695,

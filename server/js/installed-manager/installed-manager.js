@@ -39,53 +39,7 @@
 
   // ── Rejected widget folders ────────────────────────────────────────────────
 
-  // Build the row list. Two kinds of row, and they never describe the same
-  // thing twice:
-  //   • a receipt — the download unit; removing it removes its whole footprint
-  //   • an SDK package — an individually removable widget
-  // A widget-kind receipt that owns exactly one package IS that package, so it
-  // renders as a single enriched row. A bundle's widgets stay individually
-  // listed (that granularity existed before this tab and must survive): removing
-  // one drops it from the bundle's receipt via forgetInstalledContentResource.
-  async function collect() {
-    let packages = [];
-    try {
-      const d = await fetch('/sdk/widgets').then((r) => r.json());
-      packages = (d && d.packages) || [];
-    } catch { /* server unreachable → receipts only */ }
-    const records = (typeof ContentInstalls !== 'undefined')
-      ? ContentInstalls.normalizeContentInstalls(HS().contentInstalls) : [];
-    let legacy = null;
-    try { legacy = PS() ? await PS().legacyImportRecord(records, packages) : null; } catch { legacy = null; }
-    const all = legacy ? records.concat([legacy]) : records;
-
-    const pkgById = new Map(packages.map((p) => [p.id, p]));
-    const merged = new Set();   // packages already represented by their own receipt
-    const rows = all.slice().sort((a, b) => (b.installedAt || 0) - (a.installedAt || 0)).map((record) => {
-      const ids = record.resources.widgetIds || [];
-      const solo = (record.kind === 'widget' && ids.length === 1 && ContentInstalls.resourceCount(record.resources) === 1)
-        ? pkgById.get(ids[0]) : null;
-      if (solo) merged.add(solo.id);
-      return { record, pkg: solo || null };
-    });
-    // A bundle's widgets stay individually listed, so the SAME package appears
-    // twice: once as the download it came in, once as the removable widget. The
-    // widget half had nothing to look itself up with — the catalog publishes the
-    // BUNDLE (pkgId: null), not its parts — so it fell back to the grey glyph and
-    // the two rows for one thing looked like two different things. The receipt
-    // already records which widgets it installed, so the owner is provable rather
-    // than guessed, and the widget row inherits the artwork of the package it
-    // arrived in.
-    const ownerByPkg = new Map();
-    for (const record of all) {
-      for (const id of (record.resources.widgetIds || [])) {
-        if (!merged.has(id) && !ownerByPkg.has(id)) ownerByPkg.set(id, record);
-      }
-    }
-    packages.filter((p) => !merged.has(p.id))
-      .forEach((pkg) => rows.push({ record: null, pkg, owner: ownerByPkg.get(pkg.id) || null }));
-    return rows;
-  }
+  const { collect } = window.InstalledManagerRowList;
 
   // ONE catalog read serves both jobs: which rows have an update, and which have
   // a published screenshot. The update JOIN stays CommunityGallery.findUpdates —
@@ -215,21 +169,7 @@
     repaint();
   }
 
-  // The catalog entry offering a newer version of this row, joined the same two
-  // ways the rows themselves are built: SDK packages by pkgId, receipt-installed
-  // content by the entry id it came from.
-  function updateFor(row, cat) {
-    if (row.pkg && cat.updates.has(row.pkg.id)) return cat.updates.get(row.pkg.id);
-    if (row.record && row.record.source === 'catalog' && row.record.sourceId) {
-      const direct = cat.updatesById.get(row.record.sourceId);
-      if (direct) return direct;
-      // Same copy-id/entry-id gap entryFor() closes: an update published for the
-      // drop is an update for every copy of it.
-      const drop = cat.byDropId.get(row.record.sourceId);
-      return (drop && cat.updatesById.get(drop.id)) || null;
-    }
-    return null;
-  }
+  const { updateFor, leftOutOfBackground, needsYou, greenRow } = window.InstalledManagerRowNeeds;
 
   // Apply an available update. Returns true when the row should repaint.
   //
@@ -352,32 +292,6 @@
       ? CustomWidget.getSandboxIssues(pkg.id) : [];
     const issues = window.SdkDiagnostics ? SdkDiagnostics.mergeIssues(scanned, live) : scanned;
     if (issues.length) info.appendChild(issuesBlock(issues));
-  }
-
-  // What a row waits on from the person: a new version, or a permission without
-  // which an installed widget never runs. Said in words under the name, so the
-  // list answers "does anything need me?" without reading the keys.
-  // A background package past the cap of hidden frames: it only works while its
-  // tile is on screen, and the row says so instead of the widget going quiet.
-  function leftOutOfBackground(row) {
-    const CW = window.CustomWidget;
-    return !!(row.pkg && CW && typeof CW.serviceLeftOut === 'function' && CW.serviceLeftOut().includes(row.pkg.id));
-  }
-
-  function needsYou(row, cat) {
-    const upd = updateFor(row, cat);
-    if (upd) return { kind: 'update', text: t('installed_state_update', 'Versione {v} disponibile').replace('{v}', String(upd.version)) };
-    if (row.pkg && window.CustomWidget && typeof CustomWidget.packageGranted === 'function' && !CustomWidget.packageGranted(row.pkg)) {
-      return { kind: 'allow', text: t('installed_state_allow', 'Spento finché non dai i permessi') };
-    }
-    return null;
-  }
-
-  // One green key per page, for the next thing to do: "Update all" when it is
-  // offered, otherwise the first shown row that waits on the person.
-  function greenRow(shown, cat, sweeping) {
-    if (sweeping) return null;
-    return shown.find((row) => needsYou(row, cat)) || null;
   }
 
   function renderRow(row, cat, repaint, isGreen) {

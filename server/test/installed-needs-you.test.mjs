@@ -23,8 +23,13 @@ function makeEl(tag, className, text) {
 
 // needsYou, greenRow and renderRow lifted verbatim; the rest of the module stubbed.
 function load({ updates = {}, ungranted = [] } = {}) {
-  const body = SRC.slice(SRC.indexOf('  // What a row waits on from the person'), SRC.indexOf('  // Paint into `host`'));
-  assert.ok(body.includes('function renderRow'), 'renderRow moved: update this test');
+  // needsYou and greenRow live in row-needs.js, renderRow in the list's own script;
+  // the reader hands both back in load order.
+  const needs = SRC.slice(SRC.indexOf('  // What a row waits on from the person'), SRC.indexOf('  window.InstalledManagerRowNeeds'));
+  const row = SRC.slice(SRC.indexOf('  function renderRow'), SRC.indexOf('  // Paint into `host`'));
+  assert.ok(needs.includes('function needsYou') && needs.includes('function greenRow'), 'needsYou or greenRow moved: update this test');
+  assert.ok(row.includes('function renderRow'), 'renderRow moved: update this test');
+  const body = needs + row;
   const ctx = {
     el: makeEl,
     t: (k) => (k === 'installed_state_update' ? 'V{v}' : k === 'installed_state_allow' ? 'ALLOW' : k),
