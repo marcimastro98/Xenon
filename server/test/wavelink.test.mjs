@@ -282,3 +282,36 @@ test('the 3.x handshake constants are the ones the server actually requires', ()
   assert.equal(wl.WL3_ORIGIN, 'streamdeck://', 'without this exact Origin the server answers HTTP 401');
   assert.deepEqual(wl.WL3_METER_TYPES, ['channel', 'mix']);
 });
+
+// ── a failed first connection is not remembered ──
+
+// Every socket refuses at once, so the sweep finishes fast and finds nothing.
+function refusingSocket(counter) {
+  return class RefusingSocket {
+    constructor() { counter.opened++; this.handlers = {}; setTimeout(() => (this.handlers.error || []).forEach((f) => f({})), 0); }
+    addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
+    close() {}
+  };
+}
+
+// Reported on Discord: Wave Link switched on in Settings, the app open, and
+// "Test connection" still answered wl_disabled. A key pressed while the switch
+// was off had failed the first connection, and that rejected promise was kept
+// and handed back to every later attempt until the engine restarted: the same
+// trap for "Xenon started before Wave Link", stuck on "not reachable".
+test('switching Wave Link on after a refused attempt connects again without a restart', async () => {
+  const counter = { opened: 0 };
+  let enabled = false;
+  const client = wl.createWaveLink(async () => ({ enabled }), {
+    WebSocketImpl: refusingSocket(counter), readPublishedPort: async () => null,
+  });
+  assert.deepEqual(await client.test(), { ok: false, error: 'wl_disabled' });
+  assert.equal(counter.opened, 0, 'switched off, nothing is dialled');
+  enabled = true;
+  const second = await client.test();
+  assert.notEqual(second.error, 'wl_disabled', 'the switch is read again on the next attempt');
+  const dialled = counter.opened;
+  assert.ok(dialled > 0, 'the next attempt really dials');
+  await client.test();
+  assert.ok(counter.opened > dialled, 'a failed sweep is retried too, so opening Wave Link later works');
+});
