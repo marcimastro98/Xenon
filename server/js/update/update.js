@@ -16,7 +16,7 @@
     hasUpdate,
   } = window.UpdateVersions;
   const RESULT_ACK_KEY = 'xenon.update.resultAck'; // last apply failure already shown as a toast
-  const SHELL_ERR_KEY = 'xenon.update.shellErrPending'; // shell update failed right before a reload
+  const { SHELL_ERR_KEY, surfaceStartupTaskNotice, surfaceShellFailure } = window.UpdateBootToasts;
   // How often a waiting app update asks whether this is a quiet moment.
   const SHELL_QUIET_FIRST_MS = 2 * 60 * 1000;
   const SHELL_QUIET_EVERY_MS = 10 * 60 * 1000;
@@ -703,46 +703,13 @@
   function dismissedWhatsNew(id) { const c = CARDS(); return c ? c.whatsNewDismissed(id) : true; }
   function rememberWhatsNew(id) { const c = CARDS(); if (c) c.rememberWhatsNew(id); }
 
-  async function loadWhatsNew() {
-    try {
-      const res = await fetch('/whatsnew');
-      if (!res.ok) return null;
-      return await res.json();
-    } catch { return null; }
-  }
-
-  // The menu takes the screen only where a shell draws it: never on a phone.
-  async function menuKey() {
-    if (!isNativeShell()) return '';
-    try { return (await (await fetch(SERVER + '/xenon-menu')).json()).menuKey || ''; } catch { return ''; }
-  }
-
-  async function openScreenMenu(section) {
-    try {
-      const res = await fetch(SERVER + '/screen-menu', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section }),
-      });
-      return res.ok ? (await res.json()).where : 'closed';
-    } catch { return 'closed'; }
-  }
-
-  async function screenMenuOpen() {
-    try { return (await (await fetch(SERVER + '/screen-menu', { cache: 'no-store' })).json()).open === true; } catch { return false; }
-  }
+  const {
+    loadWhatsNew, menuKey, openScreenMenu, screenMenuOpen, openStoreFor, lookOffer,
+  } = window.UpdateWhatsNewLinks;
 
   function openExternal(url) {
     try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
   }
-
-  // `done` runs when it closes; without it the stage was asked for by hand.
-  function openStoreFor(target) {
-    const store = window.CommunityGallery;
-    if (!store) return;
-    if (target === 'supporters') store.openSupporters();
-    else store.openSparks();
-  }
-
-  const lookOffer = () => (window.LookTrial && window.LookTrial.offered() ? window.LookTrial : null);
 
   async function openWhatsNew(wn, done) {
     if (!wn || !wn.id || !Array.isArray(wn.highlights) || !wn.highlights.length || !window.XenonWhatsNewStage) return;
@@ -835,71 +802,6 @@
   }
 
   // ── Entry points ─────────────────────────────────────────────────────────────
-  // At startup, curated "What's New" for the running version takes precedence over
-  // the "update available" nudge (you can only act on one popup at a time, and the
-  // update dot/pill stays visible either way). Whichever doesn't auto-open is still
-  // reachable — the update modal from the Settings pill, and What's New from the
-  // version number in Settings.
-  // Failures that happened while no page was watching: an apply that rolled
-  // back after the page was closed (the applier's persisted result), or a shell
-  // update that errored right before the reload (flag set by runShellPhase).
-  // Shown once, then acknowledged.
-  // ── Will Xenon still be here after the next sign-in? ───────────────────────
-  // The engine checks its own per-logon startup task and puts back the three
-  // conditions the installer owns (see server/install/startup-task.js). Two things are
-  // worth a word here, and nothing else is: a repair, because the app changed
-  // something on this PC without being asked; and a task that is switched OFF,
-  // because that one is the user's to turn back on and until they do, Xenon
-  // will simply not be there tomorrow — with nothing on screen to say why. That
-  // silence is what this exists for: it was reported as days of features going
-  // wrong, by someone whose engine kept being stopped.
-  //
-  // Once per load, and never on a healthy install.
-  async function surfaceStartupTaskNotice() {
-    let st = null;
-    try { st = await fetch('/api/startup-task').then((r) => r.json()); } catch { return; }
-    if (!st || !st.ok || !st.found || !window.XenonToast) return;
-    const problems = Array.isArray(st.problems) ? st.problems : [];
-    const repaired = Array.isArray(st.repaired) ? st.repaired : [];
-    if (problems.includes('disabled')) {
-      window.XenonToast.show({
-        type: 'warning',
-        duration: 0,   // sticky: this is the one notice that costs the user their next session
-        title: tr('startup_task_off_title', 'Xenon will not start at your next sign-in'),
-        message: tr('startup_task_off_msg', 'Its startup entry has been switched off. Xenon never does that itself: Windows and cleanup or antivirus tools can. Turn it back on in Task Manager, under Startup apps, where it is listed as Xenon.'),
-      });
-    } else if (repaired.length) {
-      window.XenonToast.show({
-        type: 'info',
-        duration: 10000,
-        title: tr('startup_task_fixed_title', 'Xenon repaired its own startup entry'),
-        message: tr('startup_task_fixed_msg', 'Something had changed the conditions it starts under: it would have stopped on battery, or been stopped after a few days. Those are back as they were installed.'),
-      });
-    }
-  }
-
-  function surfaceShellFailure(info) {
-    try {
-      if (localStorage.getItem(SHELL_ERR_KEY)) {
-        localStorage.removeItem(SHELL_ERR_KEY);
-        // The flag records "the shell update produced no outcome in time", not
-        // a proven failure — an install can simply outlast the watchdog. If the
-        // shell is in fact current now, the update landed: say nothing.
-        const caps = window.__XENON_NATIVE_CAPS__ || {};
-        const shellCurrent = !!(info && info.latest && caps.shellVersion
-          && !semverNewer(stripV(info.latest), caps.shellVersion));
-        if (!shellCurrent && window.XenonToast) {
-          window.XenonToast.show({
-            type: 'error',
-            duration: 12000,
-            title: tr('update_failed_title', 'Aggiornamento non riuscito'),
-            message: tr('update_native_shell_error', 'L’app non è riuscita a completare il proprio aggiornamento. La dashboard è aggiornata: riproverà al prossimo avvio.'),
-          });
-        }
-      }
-    } catch { /* localStorage unavailable */ }
-  }
-
   // This modal arrives on its own clock: `boot()` awaits `/update/check`, which
   // on a fresh install is a live GitHub call plus the media probes, so it can
   // land seconds after the first-run screen question opened. It used to render
