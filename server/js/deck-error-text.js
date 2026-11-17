@@ -105,6 +105,10 @@
     bad_app_name: ['deck_err_bad_app_name', 'the app name on this key is not a program name'],
     bad_every: ['deck_err_bad_every', 'choose how often to sample: 1, 2, 5, 10 or 15 minutes'],
     list_full: ['deck_err_game_ignore_full', 'the Not games list is full: remove an app in Settings, Performance'],
+    // The "this is a game" list, its opposite.
+    games_full: ['deck_err_games_full', 'the Always games list is full: remove an app in Settings, Performance'],
+    no_app: ['deck_err_no_app', 'Bring the game to the front first'],
+    never_a_game: ['deck_err_never_a_game', 'Xenon never treats this app as a game: a browser, the desktop or Xenon itself'],
     // Voicemeeter. Every one of these is something the person holding the
     // machine can fix — install it, start it, pick a strip their edition has —
     // which is the bar this map sets. The opaque ones (read/write refused by
@@ -123,7 +127,7 @@
 
   // Nothing is wrong with the key or the PC: it just cannot happen right now.
   const NOTICES = new Set([
-    'no_game', 'no_frames', 'too_soon', 'too_short', 'no_file', 'no_steps', 'no_pages', 'no_widgets', 'over_exclusive', 'not_recording',
+    'no_game', 'no_app', 'no_frames', 'too_soon', 'too_short', 'no_file', 'no_steps', 'no_pages', 'no_widgets', 'over_exclusive', 'not_recording',
     'no_marks', 'whole_video', 'already_small', 'no_webcam', 'no_phone', 'transfer_off', 'send_busy',
     'off', 'not_running', 'saving', 'busy', 'vitals_off', 'vital_off', 'companion_off', 'screen_alerts_off',
   ]);

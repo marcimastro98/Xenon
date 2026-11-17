@@ -77,6 +77,7 @@ const { createPacketLoss } = require('./packet-loss');
 const { createPerfNet } = require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 const { createExclusiveHint } = require('./exclusive-hint');
+const { createGameGuess } = require('./game-guess/watch.js');
 const { overExclusive } = require('./capabilities/over-screen');
 const { createGameSessions, widgetSnapshot: widgetGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
@@ -324,6 +325,8 @@ const capabilityRunner = capabilities.createCapabilities({
     update: (key, change) => updateHubSettingKey(key, change),
   },
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  front: () => gameDetect.getForegroundProcess(),
+  neverGame: (name) => gameDetect.isNeverGame(name),
   handToDashboard: (action) => deckShortcutRunner.handToDashboard(action),
   // Global shortcuts need the Helper (Windows/macOS) or GNOME's keybindings (Linux).
   shortcutsAvailable: () => process.platform === 'linux' || fs.existsSync(HELPER_EXE),
@@ -354,6 +357,7 @@ const signalrgb = require('./signalrgb');
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 gameDetect.setIgnoreSource(() => _serverHubSettings && _serverHubSettings.gameIgnore);
+gameDetect.setAlwaysSource(() => _serverHubSettings && _serverHubSettings.gameAlways);
 // …and the other way: PresentMon sees every presenter on the machine, so it asks
 // which window is in front before deciding which one is the game. Wired here
 // rather than by requiring across, because these two modules already read each
@@ -11797,6 +11801,7 @@ function normalizeHubSettings(value) {
     // Same rule as the browser's normalizeSettings (js/sensor-sources.js).
     sensorSources: SensorSources.normalizeSensorSources(source.sensorSources),
     gameIgnore: GameIgnore.normalizeGameIgnore(source.gameIgnore),
+    gameAlways: GameIgnore.normalizeGameIgnore(source.gameAlways), // "this is a game" (same rule)
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
     upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
@@ -27293,6 +27298,13 @@ const _exclusiveHint = createExclusiveHint({
   },
   broadcast: (payload) => broadcastSSE('exclusive_hint', payload),
 });
+// A windowed app that draws like a game, Xenon not seeing a game: asked once (game-guess/watch.js).
+const _gameGuess = createGameGuess({
+  front: () => gameDetect.getGamingWindow(), frontPid: () => gameDetect.getForegroundPid(),
+  frames: () => fpsMonitor.getFrontFrames(), gaming: () => gameDetect.isGaming(),
+  windowedNonGame: (name) => gameDetect.isWindowedNonGame(name),
+  broadcast: (payload) => broadcastSSE('game_guess', payload),
+});
 // FPS needs a Windows permission since 5.1.0: one pop-up per version (fps-notice.js).
 const _fpsNotice = require('./sensor-service/fps-notice.js').createFpsNotice({
   access: require('./sensor-service/fps-access.js').instance(), dataDir: DATA_DIR, version: APP_VERSION,
@@ -27430,6 +27442,7 @@ async function _systemTick() {
         const game = gameDetect.isGameRunning() ? gameDetect.getGameProcess() : '';
         _stutterWatch.onSystem(game ? { ...sys, cpuMaxCore: cachedCpuMaxCore } : null, game);
         try { _exclusiveHint.onTick(game); } catch {}
+        try { _gameGuess.onTick(); } catch {}
         _fpsNotice.onTick(game);
       } catch {}
     } catch {}

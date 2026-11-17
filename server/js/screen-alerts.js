@@ -409,6 +409,22 @@ let hubSettings = {};
     show({ type: 'warning', kicker: 'Bit', title: tt('spot_chat_failed', 'The chat did not open, try again'), message: '' });
   }
 
+  // "Is it a game?" (server/game-guess/): the answer goes to the user's lists.
+  function gameGuess(d) {
+    if (!popups()) return;
+    show(AlertToasts.gameGuess(d, ctx(), async (name, isGame) => {
+      let out = null;
+      try {
+        const res = await fetch(SERVER + '/actions/run', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: isGame ? 'gameAlways' : 'gameIgnore', mode: 'add', name }),
+        });
+        out = res.ok ? await res.json() : null;
+      } catch (e) { out = null; }
+      show(AlertToasts.gameGuessDone(name, isGame, out, ctx()));
+    }));
+  }
+
   function briefing(d) {
     const B = window.BriefingToast;
     const moment = B && B.describe(d, ctx());
@@ -428,6 +444,7 @@ let hubSettings = {};
     timer_chime: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerChime(d && d.label, d && d.every, ctx())); },
     calendar_reminder: reminder,
     briefing,
+    game_guess: gameGuess,
     update_auto: (d) => {
       autoUpdate(d);
       if (d.phase === 'done' || d.phase === 'failed') window.ScreenRelease.check();

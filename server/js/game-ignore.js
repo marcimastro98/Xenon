@@ -7,6 +7,11 @@
 //
 //   gameIgnore: ['claude', 'someapp']   bare process names, lowercase, no .exe
 //
+// The opposite list, gameAlways ("this is a game": a game in a window the
+// detector cannot see), has the same shape and the same cap, so it is
+// normalized by these same two functions. A name sits on one list at most:
+// adding it to one takes it off the other (capabilities/game-mode.js, Settings).
+//
 // Pure, shared by the browser (normalizeSettings, the Settings list) and the
 // server (normalizeHubSettings, gamedetect), so one rule reads the list.
 

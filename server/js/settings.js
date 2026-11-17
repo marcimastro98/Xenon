@@ -706,6 +706,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   chatgptWidget: Object.freeze({ model: 'default' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   gameIgnore: Object.freeze([]), // apps the user says are not games (js/game-ignore.js)
+  gameAlways: Object.freeze([]), // apps the user says ARE games, e.g. one in a window (same rule)
   bgGuard: true, // slow down, then still, an animated background that weighs on the PC (js/bg-guard.js)
   // Smart context profiles: per-activity page/lighting/deck/style that auto-apply
   // when the foreground activity changes and revert when it ends
@@ -1837,6 +1838,7 @@ function normalizeSettings(source) {
     // One rule with the server (js/sensor-sources.js, loaded before this file).
     sensorSources: window.SensorSources ? window.SensorSources.normalizeSensorSources(value.sensorSources) : {},
     gameIgnore: window.GameIgnore ? window.GameIgnore.normalizeGameIgnore(value.gameIgnore) : [],
+    gameAlways: window.GameIgnore ? window.GameIgnore.normalizeGameIgnore(value.gameAlways) : [],
     safeMode: value.safeMode === true,
     hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),

@@ -355,5 +355,38 @@
     };
   }
 
-  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, stutterAppShort, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS, fpsAccess };
+  // An app in a window drawing like a game while Xenon sees no game (server/
+  // game-guess/watch.js, SSE `game_guess`): asked once. `onAnswer(name, isGame)`
+  // saves the answer in the user's lists, so the card never comes back for it.
+  function gameGuess(d, ctx, onAnswer) {
+    const name = String((d && d.process) || '').replace(/\.exe$/i, '').slice(0, 40);
+    if (!name || typeof onAnswer !== 'function') return null;
+    return {
+      type: 'info',
+      kicker: tr(ctx, 'settings_gamemode', 'Game mode'),
+      title: tr(ctx, 'game_guess_title', 'Is {app} a game?').replace('{app}', name),
+      message: tr(ctx, 'game_guess_msg', 'If it is, Xenon shows its FPS and turns on game mode.'),
+      duration: 30000,
+      actions: [
+        { label: tr(ctx, 'settings_gamealways_is_game', 'It\'s a game'), primary: true, onClick: () => onAnswer(name, true) },
+        { label: tr(ctx, 'settings_gameignore_not_game', 'Not a game'), onClick: () => onAnswer(name, false) },
+      ],
+    };
+  }
+
+  // What the answer did: the action's reply ({ ok } or { error }) in, the card out.
+  function gameGuessDone(name, isGame, out, ctx) {
+    if (!out || out.ok !== true) {
+      return { type: 'error', kicker: tr(ctx, 'settings_gamemode', 'Game mode'), title: tr(ctx, 'game_guess_failed', 'Not saved, try again in Settings, Performance'), message: '' };
+    }
+    const key = isGame ? 'game_guess_yes_done' : 'game_guess_no_done';
+    const fallback = isGame ? '{app} counts as a game now' : 'Xenon will not ask about {app} again';
+    return {
+      type: 'success', important: true, kicker: tr(ctx, 'settings_gamemode', 'Game mode'), duration: 5000,
+      title: tr(ctx, key, fallback).replace('{app}', name),
+      message: tr(ctx, 'game_guess_where', 'You can change it in Settings, Performance.'),
+    };
+  }
+
+  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, stutterAppShort, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS, fpsAccess, gameGuess, gameGuessDone };
 });

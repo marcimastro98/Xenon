@@ -2130,6 +2130,7 @@
       powerMode: _ai('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
       gameMode: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4M15 11h.01M18 13h.01"/><path d="M12 2v3"/>'),
       gameIgnore: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4"/><path d="M3 3l18 18"/>'),
+      gameAlways: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4"/><path d="M15 11l1.5 1.5L19 10"/>'),
       perfMode: _ai('<path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/>'),
       dnd: _ai('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
       sensorHistory: _ai('<path d="M3 3v18h18"/><path d="m7 14 3-3 3 2 4-5"/><circle cx="18" cy="17" r="3"/><path d="M18 15.8V17l.8.6"/>'),

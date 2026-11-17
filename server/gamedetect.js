@@ -165,6 +165,42 @@ function setIgnoreSource(fn) {
   _ignoreRef = undefined;
 }
 
+// Only the built-in list: the apps that can never be a game whatever the user
+// says (the dashboard's own host, the shell, the browsers). The user's lists
+// cannot override it, or Xenon's own window would trip game mode.
+function isNeverGame(name) {
+  return !!name && IGNORE_PROC_RE.test(name);
+}
+
+// The user's own "this is a game" list (the gameAlways setting, same shape as
+// gameIgnore). For games the detector cannot see by itself: a game in a window
+// that Windows composes like a desktop app never reaches PresentMon's game
+// filter, so neither the full-screen rule nor the windowed hint catches it
+// (Final Fantasy XI clients from a multi-window launcher did exactly that).
+// A listed app in front IS the game; "not a game" still wins.
+let _alwaysSource = null;
+let _alwaysRef = null;
+let _userGames = new Set();
+
+function setAlwaysSource(fn) {
+  _alwaysSource = typeof fn === 'function' ? fn : null;
+  _alwaysRef = undefined;
+}
+
+function isUserGame(name) {
+  if (!name || isIgnoredProc(name)) return false;
+  let list = null;
+  try { list = _alwaysSource ? _alwaysSource() : null; } catch { list = null; }
+  if (list !== _alwaysRef) {
+    _alwaysRef = list;
+    _userGames = new Set((Array.isArray(list) ? list : []).map(bareName).filter(Boolean));
+  }
+  return _userGames.has(bareName(name));
+}
+
+// Media players, editors and chat apps: never a windowed game (the list above).
+function isWindowedNonGame(name) { return !!name && WINDOWED_IGNORE_RE.test(bareName(name)); }
+
 // Fires right after the gaming state flips (entered/left a game). Wired by
 // server.js to broadcast the status immediately: with the native probe pushing
 // a line the instant the foreground changes, state flips no longer wait for
@@ -285,15 +321,16 @@ let _gameSeenAt = 0;            // last time the game was CONFIRMED alive (foreg
 let _pidFirstDeadAt = 0;        // first liveness probe that reported the PID gone (0 = alive)
 const PID_DEAD_CONFIRM_MS = 2500; // a second negative this much later confirms the game exited
 
-// True while a real game owns the FOREGROUND window — full-screen, or windowed when
-// the PresentMon hint confirms it is the active presenter. A short grace window
+// True while a real game owns the FOREGROUND window — full-screen, on the user's
+// "this is a game" list, or windowed when the PresentMon hint confirms it is the
+// active presenter. A short grace window
 // keeps it stable across brief focus changes so game mode doesn't blink. Drives
 // game-mode/performance (which should follow focus — effects resume when you tab
 // out). The Companion pill uses isGameRunning() instead.
 function isGaming() {
   const s = _last;
   if (s && (Date.now() - s.at) < STALE_MS && !isIgnoredProc(s.process)
-      && (s.fullscreen || _windowedGameActive(s))) {
+      && (s.fullscreen || isUserGame(s.process) || _windowedGameActive(s))) {
     _lastGamingAt = Date.now();
     _gameSeenAt = _lastGamingAt;
     _gameProc = String(s.process || '').toLowerCase().replace(/\.exe$/, '');  // remember the real game
@@ -397,7 +434,7 @@ function getForegroundPid() {
 function getGamingWindow() {
   const s = _last;
   if (!s || (Date.now() - s.at) >= STALE_MS) return null;
-  return { process: s.process || '?', fullscreen: s.fullscreen, ignored: isIgnoredProc(s.process) };
+  return { process: s.process || '?', fullscreen: s.fullscreen, ignored: isIgnoredProc(s.process), listed: isUserGame(s.process) };
 }
 
 function startGameDetect() {
@@ -412,4 +449,4 @@ function stopGameDetect() {
   if (_linuxProbe) { try { _linuxProbe.stop(); } catch { /* ignore */ } _linuxProbe = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc, setIgnoreSource };
+module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc, setIgnoreSource, isNeverGame, isUserGame, isWindowedNonGame, setAlwaysSource, applySample };

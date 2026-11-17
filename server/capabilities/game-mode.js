@@ -8,11 +8,19 @@
 //                must never treat as a game. "current" rules out the app that
 //                counts as a game right now, the one-tap answer to a false
 //                positive.
+//   gameAlways   hubSettings.gameAlways, the opposite list: apps that ARE games
+//                although the detector cannot see it (a game in a window that
+//                Windows composes like a desktop app). "current" adds the app
+//                in front. A name sits on one list at most: adding it to one
+//                takes it off the other, so the last word the user said wins.
 //
 // deps (injected):
 //   settingKeys { get(key), update(key, change) → Promise<stored value> }
 //            update runs `change` inside the settings lock
 //   game     () → bare process name of the game running now, or ''
+//   front    () → bare process name of the app in front, or ''
+//   neverGame(name) → true for the built-in apps that are never a game (the
+//            dashboard's own host, the shell, browsers): not addable as a game
 //   handToDashboard(action) → Promise<bool>  offers a step to this PC's
 //            dashboard or "widgets only" driver page; true when one took it
 
@@ -38,30 +46,48 @@ function currentGame(d) {
   try { return GameIgnore.normalizeGameIgnoreName(typeof d.game === 'function' ? d.game() : ''); } catch { return ''; }
 }
 
-// The app the action is about: the game in front for "current", else `name`.
-function targetName(d, action) {
-  return action.mode === 'current' ? currentGame(d) : GameIgnore.normalizeGameIgnoreName(action.name);
+function frontApp(d) {
+  try { return GameIgnore.normalizeGameIgnoreName(typeof d.front === 'function' ? d.front() : ''); } catch { return ''; }
 }
 
-async function editIgnore(d, action) {
+function neverGame(d, name) {
+  try { return typeof d.neverGame === 'function' && d.neverGame(name) === true; } catch { return false; }
+}
+
+// The two lists differ only in which app "current" means, what a full list is
+// called and which names they refuse; the writing is the same.
+const LISTS = Object.freeze({
+  gameIgnore: { other: 'gameAlways', current: currentGame, noCurrent: 'no_game', full: 'list_full' },
+  gameAlways: { other: 'gameIgnore', current: frontApp, noCurrent: 'no_app', full: 'games_full', refuse: neverGame },
+});
+
+async function editList(d, action, key) {
   if (!usable(d && d.settingKeys)) return { ok: false, error: 'unavailable' };
+  const spec = LISTS[key];
   const a = action || {};
   if (!IGNORE_MODES.includes(a.mode)) return { ok: false, error: 'bad_mode', choices: IGNORE_MODES.slice() };
-  const read = () => GameIgnore.normalizeGameIgnore(d.settingKeys.get('gameIgnore'));
-  if (a.mode === 'list') return { ok: true, list: read(), current: currentGame(d) };
-  const name = targetName(d, a);
-  if (!name) return { ok: false, error: a.mode === 'current' ? 'no_game' : 'bad_app_name' };
+  const read = (k) => GameIgnore.normalizeGameIgnore(d.settingKeys.get(k));
+  if (a.mode === 'list') return { ok: true, list: read(key), current: spec.current(d) };
+  const name = a.mode === 'current' ? spec.current(d) : GameIgnore.normalizeGameIgnoreName(a.name);
+  if (!name) return { ok: false, error: a.mode === 'current' ? spec.noCurrent : 'bad_app_name' };
   const adding = a.mode !== 'remove';
-  if (adding && !read().includes(name) && read().length >= GameIgnore.GAME_IGNORE_MAX) {
-    return { ok: false, error: 'list_full', max: GameIgnore.GAME_IGNORE_MAX };
+  if (adding && spec.refuse && spec.refuse(d, name)) return { ok: false, error: 'never_a_game', name };
+  if (adding && !read(key).includes(name) && read(key).length >= GameIgnore.GAME_IGNORE_MAX) {
+    return { ok: false, error: spec.full, max: GameIgnore.GAME_IGNORE_MAX };
   }
-  const saved = await d.settingKeys.update('gameIgnore', (cur) => {
+  const saved = await d.settingKeys.update(key, (cur) => {
     const list = GameIgnore.normalizeGameIgnore(cur);
     if (!adding) return list.filter((n) => n !== name);
     return list.includes(name) ? list : [...list, name];
   });
+  if (adding && read(spec.other).includes(name)) {
+    await d.settingKeys.update(spec.other, (cur) => GameIgnore.normalizeGameIgnore(cur).filter((n) => n !== name));
+  }
   return { ok: true, name, [adding ? 'added' : 'removed']: true, list: GameIgnore.normalizeGameIgnore(saved) };
 }
+
+const editIgnore = (d, action) => editList(d, action, 'gameIgnore');
+const editAlways = (d, action) => editList(d, action, 'gameAlways');
 
 // The sensor history switch and interval (hubSettings.sensorHistory,
 // js/sensor-history.js); guardian.js reads both on its next tick.
@@ -92,4 +118,4 @@ async function perfMode(d, action) {
   return (await d.handToDashboard({ type: 'perfMode', mode })) ? { ok: true } : { ok: false, error: 'no_dashboard' };
 }
 
-module.exports = { SWITCH, IGNORE_MODES, setGameMode, editIgnore, setSensorHistory, perfMode };
+module.exports = { SWITCH, IGNORE_MODES, setGameMode, editIgnore, editAlways, setSensorHistory, perfMode };

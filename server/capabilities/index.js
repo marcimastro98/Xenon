@@ -264,6 +264,7 @@ function createCapabilities(deps) {
       case 'notificationOpen': return notifications.openApp(d, action);
       case 'gameMode': return gameMode.setGameMode(d, action);
       case 'gameIgnore': return gameMode.editIgnore(d, action);
+      case 'gameAlways': return gameMode.editAlways(d, action);
       case 'sensorHistory': return gameMode.setSensorHistory(d, action);
       case 'energyUsage': return energy.usage(d);
       case 'perfMode': return gameMode.perfMode(d, action);

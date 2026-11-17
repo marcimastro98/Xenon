@@ -1337,6 +1337,8 @@ body[data-panel="sheet"] #settings-overlay > .settings-panel { background: var(-
 .perf-app-chip-x:hover { color: var(--cst-text); }
 .perf-app-empty { color: var(--cst-muted); }
 .perf-app-add { display: flex; flex-wrap: wrap; gap: 8px; }
+/* "In front now: pol  [It's a game]": the name sits on the button's line. */
+.perf-app-add.game-ignore-now { align-items: center; }
 #settings-overlay input.perf-app-input { flex: 1 1 200px; width: auto; max-width: 280px; }
 
 #settings-overlay .gamesess-wrap { display: block; padding: 0; }

@@ -368,6 +368,9 @@ function postponeAutoUpdate() {
     es.addEventListener('fps_access', e => {
       try { if (window.PerfWidget) window.PerfWidget.onFpsAccess(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('game_guess', e => {
+      try { if (window.PerfWidget) window.PerfWidget.onGameGuess(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('capture', e => {
       try { if (window.CaptureToast) window.CaptureToast.onCapture(JSON.parse(e.data)); } catch {}
       if (window.CaptureGallery) window.CaptureGallery.changed();

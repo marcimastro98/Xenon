@@ -159,8 +159,26 @@ const CAPABILITIES = [
       domain: 'perf', risk: 'safe', requires: 'gameMode',
       ai: {
         name: 'set_not_a_game',
-        description: 'The apps Xenon must never treat as a game (Settings, Performance, Game mode, "Not games"). Xenon decides an app is a game when it is full screen, or windowed and drawing at game frame rates, so a chat or AI app kept maximised can switch game mode on by mistake. "current" adds the app that counts as a game right now (error "no_game" when none does), "add" and "remove" take name, the app\'s process name without .exe (e.g. "claude"), "list" returns the list and current, the app detected now. Returns list. Errors: "bad_app_name", "list_full". Use it for "Claude is not a game", "stop treating this app as a game".',
+        description: 'The apps Xenon must never treat as a game (Settings, Performance, Game mode, "Not games"). Xenon decides an app is a game when it is full screen, or windowed and drawing at game frame rates, so a chat or AI app kept maximised can switch game mode on by mistake. "current" adds the app that counts as a game right now (error "no_game" when none does), "add" and "remove" take name, the app\'s process name without .exe (e.g. "claude"), "list" returns the list and current, the app detected now. Returns list. Errors: "bad_app_name", "list_full". Adding a name takes it off the "Always games" list. Use it for "Claude is not a game", "stop treating this app as a game". For the opposite (a game Xenon misses), use set_is_a_game.',
         params: { mode: 'current, add, remove or list', name: 'the app\'s process name, for add and remove' },
+      },
+    },
+  },
+  // The opposite list: apps that ARE games although the detector cannot see it
+  // (a game in a window Windows composes like a desktop app). "current" is the
+  // app in front; built-in non-games (Xenon itself, browsers) are refused.
+  {
+    type: 'gameAlways', group: 'perf', labelKey: 'deck_act_gameAlways',
+    params: [
+      { name: 'mode', kind: 'select', options: ['current', 'add', 'remove', 'list'], optionKeys: { current: 'deck_opt_always_current', add: 'deck_opt_ignore_add', remove: 'deck_opt_ignore_remove', list: 'deck_opt_ignore_list' } },
+      { name: 'name', kind: 'text', maxLen: 64, optional: true, labelKey: 'deck_param_app' },
+    ],
+    capability: {
+      domain: 'perf', risk: 'safe', requires: 'gameMode',
+      ai: {
+        name: 'set_is_a_game',
+        description: 'The apps Xenon must always treat as a game when they are in front (Settings, Performance, Game mode, "Always games"). For a game Xenon does not detect, mostly one played in a window: no game mode, no FPS, no Game Companion for it. "current" adds the app in front now (error "no_app" when it is Xenon or nothing), "add" and "remove" take name, the process name without .exe (e.g. "pol" for Final Fantasy XI), "list" returns the list and current, the app in front. Adding a name takes it off the "Not games" list. Errors: "bad_app_name", "never_a_game" (a browser, the desktop or Xenon itself), "games_full". Use it for "Xenon does not see my game", "no FPS in this game", "treat this app as a game".',
+        params: { mode: 'current, add, remove or list', name: 'the process name without .exe, for add and remove' },
       },
     },
   },
