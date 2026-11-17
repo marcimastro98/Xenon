@@ -12423,16 +12423,21 @@ function syncLayersWhy(caps) {
   }
 }
 
+// The key that opens Xenon over any app: said under the row that opens it, and on the
+// gear's tooltip where this app draws the menu (a browser or a phone has no such key).
+function syncMenuKeyHint() {
+  if (!window.DeckShortcuts) return;
+  const key = window.DeckShortcuts.formatShortcut(window.LayersModel.normalize(hubSettings.layers).menuKey);
+  const el = $('settings-menu-key');
+  if (el) el.textContent = t('xmenu_key_opens').replace('{key}', key);
+  const gear = document.querySelector('.qbtn-settings');
+  const menu = window.__XENON_NATIVE__ === true && window.__XENON_NATIVE_CAPS__?.menu === true;
+  if (gear) gear.title = menu && key ? `${t('tip_settings')} (${key})` : t('tip_settings');
+}
+
 // How this PC uses Xenon (js/usage-mode.js). Only the native app can drop the
 // dashboard window for the widgets, so elsewhere the row is hidden; where the
 // app cannot draw them, a line says why instead.
-function syncMenuKeyHint() {
-  const el = $('settings-menu-key');
-  if (!el || !window.DeckShortcuts) return;
-  const key = window.DeckShortcuts.formatShortcut(window.LayersModel.normalize(hubSettings.layers).menuKey);
-  el.textContent = t('xmenu_key_opens').replace('{key}', key);
-}
-
 function syncUsageModeControl() {
   const group = $('settings-usage-mode-group');
   const caps = window.__XENON_NATIVE_CAPS__ || {};
