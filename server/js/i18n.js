@@ -73621,6 +73621,108 @@ Object.assign(i18n.nl, {
   weather_metric_clouds_sub: 'bedekking',
 });
 
+// Wave Link keys say why they could not run (js/deck-error-text.js), the way
+// Voicemeeter's do, instead of toasting the bare code.
+Object.assign(i18n.it, {
+  deck_err_wl_off: 'Wave Link è spento in Xenon: accendilo in Impostazioni, Streaming',
+  deck_err_wl_unreachable: 'Xenon non riesce a raggiungere Wave Link: l’app è aperta?',
+  deck_err_wl_channel: 'quel canale di Wave Link non è nel tuo mixer: sceglilo di nuovo nell’editor del Deck',
+  deck_err_wl_mix: 'quel mix di Wave Link non esiste più: scegline un altro nell’editor del Deck',
+  deck_err_wl_not_in_mix: 'quel canale non è in questo mix di Wave Link',
+  deck_err_wl_effect: 'quel canale non ha questo effetto in Wave Link',
+  deck_err_wl_unsupported: 'la tua versione di Wave Link non ha questa funzione',
+});
+Object.assign(i18n.en, {
+  deck_err_wl_off: 'Wave Link is off in Xenon: turn it on in Settings, Streaming',
+  deck_err_wl_unreachable: 'Xenon cannot reach Wave Link: is the app open?',
+  deck_err_wl_channel: 'that Wave Link channel is not in your mixer: pick it again in the Deck editor',
+  deck_err_wl_mix: 'that Wave Link mix does not exist anymore: pick another in the Deck editor',
+  deck_err_wl_not_in_mix: 'that channel is not in this Wave Link mix',
+  deck_err_wl_effect: 'that channel does not have this effect in Wave Link',
+  deck_err_wl_unsupported: 'your version of Wave Link does not have this',
+});
+Object.assign(i18n.es, {
+  deck_err_wl_off: 'Wave Link está apagado en Xenon: actívalo en Ajustes, Streaming',
+  deck_err_wl_unreachable: 'Xenon no consigue llegar a Wave Link: ¿está abierta la app?',
+  deck_err_wl_channel: 'ese canal de Wave Link no está en tu mezclador: elígelo de nuevo en el editor del Deck',
+  deck_err_wl_mix: 'esa mezcla de Wave Link ya no existe: elige otra en el editor del Deck',
+  deck_err_wl_not_in_mix: 'ese canal no está en esta mezcla de Wave Link',
+  deck_err_wl_effect: 'ese canal no tiene este efecto en Wave Link',
+  deck_err_wl_unsupported: 'tu versión de Wave Link no tiene esto',
+});
+Object.assign(i18n.fr, {
+  deck_err_wl_off: 'Wave Link est désactivé dans Xenon : activez-le dans Paramètres, Streaming',
+  deck_err_wl_unreachable: 'Xenon n’arrive pas à joindre Wave Link : l’app est-elle ouverte ?',
+  deck_err_wl_channel: 'ce canal Wave Link n’est pas dans votre mixeur : choisissez-le à nouveau dans l’éditeur du Deck',
+  deck_err_wl_mix: 'ce mix Wave Link n’existe plus : choisissez-en un autre dans l’éditeur du Deck',
+  deck_err_wl_not_in_mix: 'ce canal n’est pas dans ce mix Wave Link',
+  deck_err_wl_effect: 'ce canal n’a pas cet effet dans Wave Link',
+  deck_err_wl_unsupported: 'votre version de Wave Link n’a pas cette fonction',
+});
+Object.assign(i18n.de, {
+  deck_err_wl_off: 'Wave Link ist in Xenon aus: schalte es in Einstellungen, Streaming ein',
+  deck_err_wl_unreachable: 'Xenon erreicht Wave Link nicht: ist die App offen?',
+  deck_err_wl_channel: 'dieser Wave-Link-Kanal ist nicht in deinem Mixer: wähle ihn im Deck-Editor neu',
+  deck_err_wl_mix: 'dieser Wave-Link-Mix existiert nicht mehr: wähle im Deck-Editor einen anderen',
+  deck_err_wl_not_in_mix: 'dieser Kanal ist nicht in diesem Wave-Link-Mix',
+  deck_err_wl_effect: 'dieser Kanal hat diesen Effekt in Wave Link nicht',
+  deck_err_wl_unsupported: 'deine Wave-Link-Version kann das nicht',
+});
+Object.assign(i18n.pt, {
+  deck_err_wl_off: 'o Wave Link está desligado no Xenon: liga-o em Definições, Streaming',
+  deck_err_wl_unreachable: 'O Xenon não consegue chegar ao Wave Link: a app está aberta?',
+  deck_err_wl_channel: 'esse canal do Wave Link não está no teu misturador: escolhe-o de novo no editor do Deck',
+  deck_err_wl_mix: 'essa mistura do Wave Link já não existe: escolhe outra no editor do Deck',
+  deck_err_wl_not_in_mix: 'esse canal não está nesta mistura do Wave Link',
+  deck_err_wl_effect: 'esse canal não tem este efeito no Wave Link',
+  deck_err_wl_unsupported: 'a tua versão do Wave Link não tem isto',
+});
+Object.assign(i18n.nl, {
+  deck_err_wl_off: 'Wave Link staat uit in Xenon: zet het aan in Instellingen, Streaming',
+  deck_err_wl_unreachable: 'Xenon kan Wave Link niet bereiken: is de app open?',
+  deck_err_wl_channel: 'dat Wave Link-kanaal zit niet in je mixer: kies het opnieuw in de Deck-editor',
+  deck_err_wl_mix: 'die Wave Link-mix bestaat niet meer: kies een andere in de Deck-editor',
+  deck_err_wl_not_in_mix: 'dat kanaal zit niet in deze Wave Link-mix',
+  deck_err_wl_effect: 'dat kanaal heeft dit effect niet in Wave Link',
+  deck_err_wl_unsupported: 'jouw versie van Wave Link heeft dit niet',
+});
+Object.assign(i18n.ru, {
+  deck_err_wl_off: 'Wave Link выключен в Xenon: включите его в настройках, раздел «Стриминг»',
+  deck_err_wl_unreachable: 'Xenon не может связаться с Wave Link: приложение открыто?',
+  deck_err_wl_channel: 'этого канала Wave Link нет в вашем микшере: выберите его заново в редакторе Deck',
+  deck_err_wl_mix: 'этого микса Wave Link больше нет: выберите другой в редакторе Deck',
+  deck_err_wl_not_in_mix: 'этого канала нет в этом миксе Wave Link',
+  deck_err_wl_effect: 'у этого канала нет такого эффекта в Wave Link',
+  deck_err_wl_unsupported: 'в вашей версии Wave Link этого нет',
+});
+Object.assign(i18n.ko, {
+  deck_err_wl_off: 'Xenon에서 Wave Link가 꺼져 있어요: 설정 > 스트리밍에서 켜세요',
+  deck_err_wl_unreachable: 'Xenon이 Wave Link에 연결할 수 없습니다: 앱이 열려 있나요?',
+  deck_err_wl_channel: '그 Wave Link 채널이 믹서에 없습니다: Deck 편집기에서 다시 고르세요',
+  deck_err_wl_mix: '그 Wave Link 믹스는 더 이상 없습니다: Deck 편집기에서 다른 것을 고르세요',
+  deck_err_wl_not_in_mix: '그 채널은 이 Wave Link 믹스에 없습니다',
+  deck_err_wl_effect: '그 채널에는 Wave Link에서 이 효과가 없습니다',
+  deck_err_wl_unsupported: '사용 중인 Wave Link 버전에는 이 기능이 없습니다',
+});
+Object.assign(i18n.ja, {
+  deck_err_wl_off: 'XenonでWave Linkがオフです: 設定の「ストリーミング」でオンにしてください',
+  deck_err_wl_unreachable: 'XenonがWave Linkに接続できません: アプリは開いていますか?',
+  deck_err_wl_channel: 'そのWave Linkチャンネルはミキサーにありません: Deck エディターで選び直してください',
+  deck_err_wl_mix: 'そのWave Linkミックスはもうありません: Deck エディターで別のものを選んでください',
+  deck_err_wl_not_in_mix: 'そのチャンネルはこのWave Linkミックスにありません',
+  deck_err_wl_effect: 'そのチャンネルにはWave Linkでこのエフェクトがありません',
+  deck_err_wl_unsupported: 'お使いのWave Linkのバージョンにはこの機能がありません',
+});
+Object.assign(i18n.zh, {
+  deck_err_wl_off: 'Xenon 中的 Wave Link 已关闭：请在设置的“直播”中开启',
+  deck_err_wl_unreachable: 'Xenon 无法连接到 Wave Link：应用是否已打开？',
+  deck_err_wl_channel: '你的混音器中没有该 Wave Link 通道：请在 Deck 编辑器中重新选择',
+  deck_err_wl_mix: '该 Wave Link 混音已不存在：请在 Deck 编辑器中选择另一个',
+  deck_err_wl_not_in_mix: '该通道不在此 Wave Link 混音中',
+  deck_err_wl_effect: '该通道在 Wave Link 中没有此效果',
+  deck_err_wl_unsupported: '你的 Wave Link 版本没有此功能',
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

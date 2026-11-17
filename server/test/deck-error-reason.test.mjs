@@ -73,6 +73,9 @@ const KEYS = [
   // Screenshot and recording keys.
   'deck_err_no_window', 'deck_err_no_encoder', 'deck_err_disk_full',
   'deck_err_over_exclusive', 'deck_err_no_frames', 'deck_err_too_soon', 'deck_err_no_game', 'deck_err_no_pages', 'deck_err_no_widgets', 'deck_err_save_failed',
+  // Wave Link (actions/wavelink.js): the ones a person can act on.
+  'deck_err_wl_off', 'deck_err_wl_unreachable', 'deck_err_wl_channel', 'deck_err_wl_mix', 'deck_err_wl_not_in_mix',
+  'deck_err_wl_effect', 'deck_err_wl_unsupported',
 ];
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
@@ -137,6 +140,26 @@ test('the sentence fits every key that can get the code', async () => {
 });
 
 // "This key could not run" over "open a game first" reads as a broken key.
+// A Discord report: a Wave Link key toasted the bare code "wl_disabled".
+test('Wave Link says why in a sentence; the codes only a report can use stay codes', async () => {
+  const { describe, keyToast } = (await import('../js/deck-error-text.js')).default;
+  const tt = (_key, fallback) => fallback;
+  const off = describe('wl_disabled', tt);
+  assert.match(off, /^Wave Link is off in Xenon/);
+  assert.equal(keyToast('wl_disabled', off, tt).type, 'info', 'a switch left off is a note, not a failure');
+  for (const code of ['wl_not_found', 'wl_connect_failed', 'wl_probe_timeout', 'wl_probe_failed', 'wl_closed', 'wl_request_timeout']) {
+    assert.match(describe(code, tt), /cannot reach Wave Link/, code);
+  }
+  for (const code of ['wl_unknown_channel', 'wl_unknown_mix', 'wl_channel_not_in_mix', 'wl_unknown_effect', 'wl_unsupported']) {
+    assert.notEqual(describe(code, tt), code, code);
+    assert.equal(keyToast(code, 'x', tt).type, 'error', code);
+  }
+  assert.equal(describe('wl_unknown_device', tt), 'That output device is not connected right now');
+  for (const code of ['wl_wrong_app', 'wl_no_origin', 'wl_no_appinfo', 'wl_request_failed', 'wl_config_failed', 'wl_failed']) {
+    assert.equal(describe(code, tt), code, code + ' stays a code for the report');
+  }
+});
+
 test('a normal situation is a note, a real failure stays an error', async () => {
   const { keyToast } = (await import('../js/deck-error-text.js')).default;
   const tt = (_key, fallback) => fallback;

@@ -123,13 +123,28 @@
     voicemeeter_bad_param: ['deck_err_vm_bad_param', 'that is not a Voicemeeter parameter name'],
     voicemeeter_bad_macro: ['deck_err_vm_bad_macro', 'that macro button number does not exist'],
     voicemeeter_bad_value: ['deck_err_vm_bad_value', 'Voicemeeter will not take that value'],
+    // Wave Link (actions/wavelink.js), on the same bar: what the person can fix
+    // gets a sentence; a refused handshake or a failed request stays its code.
+    wl_disabled: ['deck_err_wl_off', 'Wave Link is off in Xenon: turn it on in Settings, Streaming'],
+    wl_not_found: ['deck_err_wl_unreachable', 'Xenon cannot reach Wave Link: is the app open?'],
+    wl_connect_failed: ['deck_err_wl_unreachable', 'Xenon cannot reach Wave Link: is the app open?'],
+    wl_probe_timeout: ['deck_err_wl_unreachable', 'Xenon cannot reach Wave Link: is the app open?'],
+    wl_probe_failed: ['deck_err_wl_unreachable', 'Xenon cannot reach Wave Link: is the app open?'],
+    wl_closed: ['deck_err_wl_unreachable', 'Xenon cannot reach Wave Link: is the app open?'],
+    wl_request_timeout: ['deck_err_wl_unreachable', 'Xenon cannot reach Wave Link: is the app open?'],
+    wl_unknown_channel: ['deck_err_wl_channel', 'that Wave Link channel is not in your mixer: pick it again in the Deck editor'],
+    wl_unknown_mix: ['deck_err_wl_mix', 'that Wave Link mix does not exist anymore: pick another in the Deck editor'],
+    wl_channel_not_in_mix: ['deck_err_wl_not_in_mix', 'that channel is not in this Wave Link mix'],
+    wl_unknown_effect: ['deck_err_wl_effect', 'that channel does not have this effect in Wave Link'],
+    wl_unknown_device: ['deck_err_unknown_device', 'that output device is not connected right now'],
+    wl_unsupported: ['deck_err_wl_unsupported', 'your version of Wave Link does not have this'],
   });
 
   // Nothing is wrong with the key or the PC: it just cannot happen right now.
   const NOTICES = new Set([
     'no_game', 'no_app', 'no_frames', 'too_soon', 'too_short', 'no_file', 'no_steps', 'no_pages', 'no_widgets', 'over_exclusive', 'not_recording',
     'no_marks', 'whole_video', 'already_small', 'no_webcam', 'no_phone', 'transfer_off', 'send_busy',
-    'off', 'not_running', 'saving', 'busy', 'vitals_off', 'vital_off', 'companion_off', 'screen_alerts_off',
+    'off', 'not_running', 'saving', 'busy', 'vitals_off', 'vital_off', 'companion_off', 'screen_alerts_off', 'wl_disabled',
   ]);
 
   // The sentence, or the bare code when there is none: an unexplained code is
