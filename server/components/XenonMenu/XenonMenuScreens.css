@@ -1,45 +1,81 @@
-/* The Screens page, the home of Xenon (js/menu/xenon-menu-screens.js): a card per screen,
-   phone and tablet, like a device list, with the true shape drawn in it and its name and
-   what it shows under it; the size of a shape comes from the script (--xm-gw, --xm-gh). */
+/* The Screens page, the home of Xenon (js/menu/xenon-menu-screens.js): the real screens
+   where they stand on the desk (--xm-s*, from js/menu/xenon-menu-map.js), each a face with
+   its name and what it shows, a gutter between screens that touch; the phones and tablets
+   paired with this PC under the desk. */
 .xm-scrbox { display: flex; flex-direction: column; gap: var(--space-3); width: 100%; }
-.xm-scrcap { margin: 0 0 var(--space-3); }
-.xm-scrtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: var(--space-3); }
-.xm-scrtile {
-  appearance: none; position: relative; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0;
-  padding: var(--space-2) var(--space-2) var(--space-3); font: inherit; color: var(--cst-text); text-align: start;
-  background: var(--cst-well); border: 1px solid transparent; border-radius: 12px; cursor: pointer;
+.xm-scrcap { margin: 0 0 var(--space-2); }
+.xm-scrdesk { display: grid; place-items: center; padding: var(--space-2); background: var(--cst-well); border-radius: 14px; }
+/* Never taller than about half the window: the tabs beside or under it stay in reach. */
+.xm-scrmap { position: relative; width: 100%; max-width: calc(42vh * var(--xm-ratio)); aspect-ratio: var(--xm-ratio); }
+.xm-scrmon {
+  appearance: none; position: absolute; left: var(--xm-sleft); top: var(--xm-stop); width: var(--xm-swidth); height: var(--xm-sheight);
+  padding: 3px; font: inherit; color: var(--cst-text); background: none; border: 0; cursor: pointer;
 }
-.xm-scrtile:hover { background: var(--cst-on); }
-.xm-scrtile[aria-pressed="true"] { background: var(--cst-on); border-color: var(--accent); }
-.xm-scrshot { display: grid; place-items: center; width: 100%; aspect-ratio: 1.6; }
-.xm-scrglass {
-  position: relative; display: grid; place-items: center; width: var(--xm-gw); height: var(--xm-gh); overflow: hidden;
-  color: var(--cst-muted); background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+.xm-scrmon:focus-visible { outline: none; }
+.xm-scrface {
+  position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 6px;
+  overflow: hidden; text-align: center; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px;
+  container-type: size; transition: border-color 0.15s ease;
 }
-.xm-scrglass.is-phone { border-width: 2px; border-radius: 9px; }
-.xm-scrtile[aria-pressed="true"] .xm-scrglass { border-color: var(--accent); }
-.xm-scrglass .xm-ic, .xm-scrglass > svg { width: 20px; height: 20px; }
-.xm-scrwords { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; padding: 0 var(--space-1); }
+.xm-scrmon:hover .xm-scrface { border-color: color-mix(in srgb, var(--text) 35%, transparent); }
+.xm-scrmon[aria-pressed="true"] .xm-scrface { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.xm-scrmon:focus-visible .xm-scrface { outline: 2px solid var(--accent); outline-offset: 2px; }
+.xm-scrwords { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
 .xm-scrname {
-  display: -webkit-box; max-width: 100%; overflow: hidden; font-size: 13px; font-weight: 600; line-height: 1.3;
+  display: -webkit-box; max-width: 100%; overflow: hidden; font-size: 12.5px; font-weight: 600; line-height: 1.25;
   overflow-wrap: anywhere; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 .xm-scrsays { display: block; max-width: 100%; overflow: hidden; font-size: 11px; color: var(--text-dim); text-overflow: ellipsis; white-space: nowrap; }
 .xm-scrsays-label::after { content: ": "; }
 .xm-scrchip {
-  max-width: 100%; padding: 1px 8px; overflow: hidden; font-size: 11.5px; line-height: 18px; color: var(--cst-muted);
-  text-overflow: ellipsis; white-space: nowrap; background: var(--cst-solid); border-radius: 999px;
+  max-width: 100%; padding: 1px 8px; overflow: hidden; font-size: 11px; line-height: 17px; color: var(--cst-muted);
+  text-overflow: ellipsis; white-space: nowrap; background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 999px;
 }
 .xm-scrchip.is-dashboard { color: var(--text); background: color-mix(in srgb, var(--accent) 24%, transparent); }
-/* The last card pairs a phone or tablet: an outline, nothing in it yet. */
+/* A short screen (an Edge, a bar) writes smaller on one line each, a shorter one smaller
+   still, and only the shortest keeps just the name; a narrow one (a monitor on its side) gives its words the whole width. */
+@container (max-height: 50px) {
+  .xm-scrface { padding: 2px 6px; }
+  .xm-scrwords { gap: 2px; }
+  .xm-scrname { font-size: 11.5px; -webkit-line-clamp: 1; }
+  .xm-scrchip { font-size: 10px; line-height: 14px; }
+}
+@container (max-height: 30px) {
+  .xm-scrface { padding: 1px 6px; }
+  .xm-scrwords { gap: 1px; }
+  .xm-scrname { font-size: 10.5px; line-height: 12px; }
+  .xm-scrchip { font-size: 9px; line-height: 12px; }
+}
+@container (max-height: 22px) { .xm-scrchip { display: none; } }
+@container (max-width: 84px) {
+  .xm-scrface { padding: 4px 2px; }
+  .xm-scrname { font-size: 11px; -webkit-line-clamp: 3; }
+  .xm-scrchip { padding: 1px 3px; font-size: clamp(7.5px, 15cqi, 9px); line-height: 13px; white-space: normal; text-overflow: clip; border-radius: 6px; }
+}
+/* The screen tapped plays its scene behind its words, drawn at four times its size and
+   scaled down, so the scene keeps the screen's own shape. */
+.xm-scrface .xm-scene-view { position: absolute; inset: 0; width: auto; max-width: none; aspect-ratio: auto; border-radius: 0; }
+.xm-scrface .xm-scene-frame { width: 400%; height: 400%; transform: scale(.25); }
+.xm-scrface .xm-scene-view ~ .xm-scrwords { padding: 4px 8px; background: color-mix(in srgb, var(--cst-solid) 82%, transparent); border-radius: 8px; }
+/* Phones are not on the desk: a row under it, each drawn as a small phone; the last pairs one. */
+.xm-scrphones { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.xm-scrphone {
+  appearance: none; display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; min-height: 52px;
+  padding: 6px 14px 6px 12px; font: inherit; color: var(--cst-text); text-align: start; cursor: pointer;
+  background: var(--cst-well); border: 1px solid transparent; border-radius: 12px;
+}
+.xm-scrphone:hover { background: var(--cst-on); }
+.xm-scrphone-shape {
+  flex: none; display: grid; place-items: center; width: 18px; height: 32px; color: var(--cst-muted);
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: 5px;
+}
+.xm-scrphone-shape .xm-ic, .xm-scrphone-shape > svg { width: 14px; height: 14px; }
+.xm-scrphone .xm-scrwords { align-items: flex-start; }
+.xm-scrphone .xm-scrname { -webkit-line-clamp: 1; }
 .xm-scrphone.is-add { color: var(--cst-muted); background: none; border: 1px dashed var(--cst-sep); }
 .xm-scrphone.is-add:hover { color: var(--cst-text); background: var(--cst-well); }
-.xm-scrphone.is-add .xm-scrglass { background: none; border-style: dashed; border-color: var(--cst-sep); }
+.xm-scrphone.is-add .xm-scrphone-shape { background: none; border-style: dashed; border-color: var(--cst-sep); }
 .xm-scrphone.is-add .xm-scrname { font-weight: 500; }
-/* The screen tapped plays its scene in its picture, drawn at four times its size and
-   scaled down, so the scene keeps the screen's own shape. */
-.xm-scrglass .xm-scene-view { position: absolute; inset: 0; width: auto; max-width: none; aspect-ratio: auto; border-radius: 0; }
-.xm-scrglass .xm-scene-frame { width: 400%; height: 400%; transform: scale(.25); }
 .xm-scrtitle { margin: 0; font-size: 17px; font-weight: 600; }
 .xm-scrrows { width: 100%; }
 /* What a screen shows: one answer per line, so each says what it does in full. */

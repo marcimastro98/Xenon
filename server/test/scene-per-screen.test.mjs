@@ -220,7 +220,7 @@ test('under the screens: the phones paired with this PC and a card to pair one; 
   }
 });
 
-test('the screens in their order on the desk, each its own shape; a phone paired again counts once', async () => {
+test('the screens where they stand on the desk, each its own shape; a phone paired again counts once', async () => {
   const { document } = makeDom();
   globalThis.CSS = globalThis.CSS || { escape: (s) => s };
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
@@ -238,13 +238,18 @@ test('the screens in their order on the desk, each its own shape; a phone paired
     globalThis.fetch = async () => ({ ok: true, json: async () => ({ devices }) });
     const view = Screens.create({ el, button, say: (v) => (v && v.text) || '', tt: (k) => k, DRAW: {}, rowShell: () => el('li'), perform: () => {}, icon: () => null, server: 'http://127.0.0.1:3030' });
     const li = view.draw(home);
-    assert.deepEqual(li.querySelectorAll('.xm-scrpick').map((b) => b.dataset.keep), ['screen:side', 'screen:main', 'screen:edge'], 'left to right on the desk');
-    const glass = li.querySelectorAll('.xm-scrpick').map((b) => b.querySelector('.xm-scrglass'));
-    const size = (g) => [parseFloat(g.style.getPropertyValue('--xm-gw')), parseFloat(g.style.getPropertyValue('--xm-gh'))];
-    const [side, main, edge] = glass.map(size);
-    assert.ok(side[1] > side[0], 'a portrait screen stands upright');
-    assert.ok(Math.abs(main[0] * 1.6 / main[1] - 16 / 9) < 0.01, 'a 16:9 screen keeps 16:9 in the 1.6 box');
-    assert.ok(edge[0] > 80 && Math.abs(edge[0] * 1.6 / edge[1] - 2560 / 720) < 0.01, 'the Edge is a long strip');
+    const map = li.querySelector('.xm-scrmap');
+    const ratio = parseFloat(map.style.getPropertyValue('--xm-ratio'));
+    const at = Object.fromEntries(li.querySelectorAll('.xm-scrpick').map((b) => [b.dataset.keep.slice(7),
+      Object.fromEntries(['left', 'top', 'width', 'height'].map((n) => [n, parseFloat(b.style.getPropertyValue('--xm-s' + n))]))]));
+    assert.deepEqual(Object.keys(at).sort(), ['edge', 'main', 'side']);
+    const { side, main, edge } = at;
+    assert.ok(side.left + side.width <= main.left + 0.01, 'the side screen stands left of the main one, as on the desk');
+    assert.ok(edge.top >= main.top + main.height - 0.01, 'the Edge sits under the main screen');
+    const shape = (s) => (s.width * ratio) / s.height;
+    assert.ok(shape(side) < 1, 'a portrait screen stands upright');
+    assert.ok(Math.abs(shape(main) - 16 / 9) < 0.02, 'a 16:9 screen keeps 16:9');
+    assert.ok(Math.abs(shape(edge) - 2560 / 720) < 0.05, 'the Edge is a long strip');
     await new Promise((done) => setImmediate(done));
     assert.deepEqual(li.querySelectorAll('.xm-scrphone').map((b) => b.dataset.keep), ['phone:dev_new', 'phone:dev_tab', 'phone:add'],
       'the record left when the same phone was paired again is not a second phone');

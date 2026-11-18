@@ -1,19 +1,19 @@
 'use strict';
 
 // The Screens page of the Xenon menu, its home (row from server/menu/menu-screens.js), laid
-// out like a widget's screen: on one side a card per screen, in their order on the desk,
-// each with its true shape drawn, its name and what it shows under it; the one tapped
-// plays its scene, and its tabs sit beside it: what it shows, its widgets
-// (js/menu/xenon-menu-widgets.js draws that list) and its background. A scene list is one
-// answer per line, and passing over a line plays that scene in the screen's picture. Which
-// screen and tab are open is this page's own; a tap redraws only this block. After the
-// screens, a card per phone or tablet paired with this PC, and one to pair another.
+// out like a widget's screen: the real screens where they stand on the desk on one side,
+// each saying what it shows, the one tapped plays its scene, and its tabs sit beside it:
+// what it shows, its widgets (js/menu/xenon-menu-widgets.js draws that list) and its
+// background. A scene list is one answer per line, and passing over a line plays that scene
+// in the screen's picture. Which screen and tab are open is this page's own; a tap redraws
+// only this block. Under the desk, the phones and tablets paired with this PC, and a card
+// to pair one.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const api = factory();
+  const api = factory(node ? require('./xenon-menu-map.js') : root.XenonMenuMap);
   if (node) module.exports = api;
   if (root) root.XenonMenuScreens = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, function (MenuMap) {
   // The one shown: the screen tapped before if it is still there, else the first.
   const pickedOf = (screens, key) => screens.find((m) => m.key === key) || screens[0] || null;
   const tabOf = (view, id) => (view.tabs || []).find((t) => t.id === id) || (view.tabs || [])[0] || null;
@@ -21,21 +21,6 @@
   const PAIR = Object.freeze({ id: 'pair', act: Object.freeze({ open: 'settings:phone' }) });
   // The paired list changes only when someone pairs or removes one: read again at most this often.
   const PHONES_STALE_MS = 30 * 1000;
-  // A card's picture box (wide, like most screens) and how much of it a shape may fill,
-  // so every shape keeps air around it; a phone is drawn upright.
-  const SLOT = 1.6;
-  const FILL = 0.86;
-  const PHONE = 9 / 19.5;
-
-  // A screen of shape `ratio`, as large as fits the box: its width and height in percent.
-  function fit(ratio) {
-    const r = ratio > 0 && Number.isFinite(ratio) ? ratio : 16 / 9;
-    return r >= SLOT ? { w: FILL * 100, h: FILL * SLOT / r * 100 } : { w: FILL * r / SLOT * 100, h: FILL * 100 };
-  }
-
-  // Left to right as they stand on the desk, then top to bottom; a screen with no place keeps its turn.
-  const deskOrder = (screens) => screens.map((m, i) => ({ m, i }))
-    .sort((a, b) => (a.m.x ?? 0) - (b.m.x ?? 0) || (a.m.y ?? 0) - (b.m.y ?? 0) || a.i - b.i).map((p) => p.m);
 
   // A phone paired again keeps its old record until it is removed on Telefono: a record
   // last used when another of the same name was paired is that same phone, not a second one.
@@ -85,51 +70,46 @@
       return row;
     }
 
-    // The card's picture: the shape in its box. `look` names a phone or the pairing card.
-    function picture(ratio, look) {
-      const box = el('span', 'xm-scrshot');
-      const glass = el('span', 'xm-scrglass' + look);
-      const size = fit(ratio);
-      glass.style.setProperty('--xm-gw', size.w + '%');
-      glass.style.setProperty('--xm-gh', size.h + '%');
-      box.appendChild(glass);
-      return { box, glass };
-    }
-
-    function wordsOf(name, chip, dashboard, lines) {
-      const words = el('span', 'xm-scrwords');
-      words.append(el('span', 'xm-scrname', name), ...lines);
-      if (chip) words.appendChild(el('span', 'xm-scrchip' + (dashboard ? ' is-dashboard' : ''), chip));
-      return words;
-    }
-
+    // A screen where it stands on the desk (--xm-s*, from js/menu/xenon-menu-map.js): the
+    // button keeps a gutter around its face, so screens that touch on the desk stay apart.
     function screenNode(m, on, pick, live) {
-      const b = button('xm-scrtile xm-scrpick');
+      const b = button('xm-scrmon xm-scrpick');
+      for (const n of ['left', 'top', 'width', 'height']) b.style.setProperty('--xm-s' + n, m[n] + '%');
       b.setAttribute('aria-pressed', String(on));
       b.dataset.keep = 'screen:' + m.key;
-      const { box, glass } = picture(m.width && m.height ? m.width / m.height : 0, '');
-      if (on && live) glass.appendChild(live);
-      b.append(box, wordsOf(say(m.label), m.chip ? say(m.chip) : '', m.dashboard, (m.says || []).map(says)));
+      const face = el('span', 'xm-scrface');
+      if (on && live) face.appendChild(live);
+      const words = el('span', 'xm-scrwords');
+      words.append(el('span', 'xm-scrname', say(m.label)), ...(m.says || []).map(says));
+      if (m.chip) words.appendChild(el('span', 'xm-scrchip' + (m.dashboard ? ' is-dashboard' : ''), say(m.chip)));
+      face.appendChild(words);
+      b.appendChild(face);
       b.addEventListener('click', () => pick(m.key));
       return b;
     }
 
-    // A phone shows the dashboard; a tap, like the last card, leads to pairing.
+    // A phone shows the dashboard; a tap, like the last card, leads to pairing. Phones are
+    // not on the desk, so they sit under it, each drawn as a small phone.
     function phoneCard(name, chip, keep, add) {
-      const b = button('xm-scrtile xm-scrphone' + (add ? ' is-add' : ''));
+      const b = button('xm-scrphone' + (add ? ' is-add' : ''));
       b.dataset.keep = keep;
-      const { box, glass } = picture(PHONE, ' is-phone');
-      if (add) glass.append(icon('plus') || '');
-      b.append(box, wordsOf(name, chip, true, []));
+      const shape = el('span', 'xm-scrphone-shape');
+      if (add) shape.append(icon('plus') || '');
+      const words = el('span', 'xm-scrwords');
+      words.appendChild(el('span', 'xm-scrname', name));
+      if (chip) words.appendChild(el('span', 'xm-scrchip is-dashboard', chip));
+      b.append(shape, words);
       b.addEventListener('click', () => perform(PAIR, PAIR.act));
       return b;
     }
 
-    function phoneNodes() {
-      if (!phoneList) return [];
+    function phonesNode() {
+      if (!phoneList) return null;
+      const box = el('div', 'xm-scrphones');
       const chip = ctx.tt('xmenu_scr_dashboard');
-      return [...phoneList.map((p) => phoneCard(p.name || ctx.tt('settings_cat_phone'), chip, 'phone:' + p.id, false)),
-        phoneCard(ctx.tt('xmenu_scr_add_phone'), '', 'phone:add', true)];
+      box.append(...phoneList.map((p) => phoneCard(p.name || ctx.tt('settings_cat_phone'), chip, 'phone:' + p.id, false)),
+        phoneCard(ctx.tt('xmenu_scr_add_phone'), '', 'phone:add', true));
+      return box;
     }
 
     function readPhones() {
@@ -231,10 +211,14 @@
       };
       const tab = view ? tabOf(view, chosenTab.get(view.key)) : null;
       const { panel, live } = panelOf(tab, r, () => redraw('scenes:more'), view);
-      const tiles = el('div', 'xm-scrtiles xm-scrmap');
-      tiles.append(...deskOrder(r.screens || []).map((m) => screenNode(m, !!view && m.key === view.key, pick, live?.box)), ...phoneNodes());
+      const shape = MenuMap.layout(r.screens || []);
+      const map = el('div', 'xm-scrmap');
+      map.style.setProperty('--xm-ratio', String(shape.ratio));
+      map.append(...shape.screens.map((m) => screenNode(m, !!view && m.key === view.key, pick, live?.box)));
+      const desk = el('div', 'xm-scrdesk');
+      desk.appendChild(map);
       const pic = el('div', 'xm-detail-pic');
-      pic.append(el('p', 'xm-cap xm-scrcap', say(r.sub)), tiles);
+      pic.append(...[el('p', 'xm-cap xm-scrcap', say(r.sub)), desk, phonesNode()].filter(Boolean));
       const choices = el('div', 'xm-detail-choices');
       if (view) {
         const choose = (id) => { chosenTab.set(view.key, id); moreOpen = false; redraw(`screen:${view.key}:${id}`); };
