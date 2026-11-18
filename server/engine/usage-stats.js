@@ -13,7 +13,7 @@
 //      drops every other id; server/test/usage-stats.test.mjs keeps them in step.
 //   2. No install id. The only split is free or supporter, and that is a
 //      boolean read from "is a supporter code saved here", never the code.
-//      A failure also carries a WORD for why (kindOf below), from the hub's fixed
+//      A failure also carries a WORD for why (usage-why.js), from the hub's fixed
 //      list (src/usage-features.js ERROR_KINDS): "unavailable", "failed"... Never
 //      the error text, which can carry an argument of the action.
 //   3. At most one send per UTC day, riding the update check the app already
@@ -26,28 +26,20 @@
 //
 // docs/privacy.html describes this file to users; change both together.
 
-const https = require('https');
 const path = require('path');
 const fsp = require('fs').promises;
 const { writeFileAtomic } = require('../files/atomic-write');
 const { HUB_BASE } = require('../store-supporters/supporter-redeem');
-const { armDeadline } = require('../http/net-guard');
+const { ERROR_KINDS, askedWrong, kindOf } = require('./usage-why');
+const { postBatch } = require('./usage-post');
 
 const STATE_BASENAME = 'usage-stats.json';
-const FETCH_TIMEOUT_MS = 6000;
-// `timeout` is an idle timeout only; a hub that trickles bytes would hold the
-// request, and the single-flight read waiting on it, open forever. This bounds
-// the whole request (net-guard.armDeadline).
-const FETCH_DEADLINE_MS = 15000;
 const SAVE_DELAY_MS = 30 * 1000;
 // The hub's own limits (feature-usage.js): a bigger batch is refused whole.
 const MAX_EVENTS = 64;
 const MAX_COUNT = 500;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ID_RE = /^(cap\.[A-Za-z]{1,40}|layer\.place\.(desktop|overlay))$/;
-// The reasons the app can give (the hub's list also holds the Maker's sign-in ones).
-const ERROR_KINDS = Object.freeze(['unavailable', 'failed', 'refused', 'nothing', 'busy', 'other']);
-
 let _transport = postBatch;   // swappable for tests
 let _dataDir = '';
 let _enabled = () => false;
@@ -100,7 +92,7 @@ function capKinds(cell) {
 
 function addKinds(cell, kinds, sign) {
   for (const kind of Object.keys(kinds || {})) {
-    const next = Math.max(0, Math.min(MAX_COUNT, ((cell.kinds && cell.kinds[kind]) || 0) + sign * kinds[kind]));
+    const next = Math.max(0, Math.min(MAX_COUNT, (cell.kinds?.[kind] || 0) + sign * kinds[kind]));
     cell.kinds = { ...cell.kinds, [kind]: next };
   }
   capKinds(cell);
@@ -177,33 +169,6 @@ function record(id, failed = false, kind = '') {
   return true;
 }
 
-// A request the feature turned down because it was asked wrong (a scene name
-// that does not exist, a bad screen number): the answer carries the valid
-// choices and Bit asks again. Counted as a use, not a failure, or the failed
-// count of every feature Bit can call says how often Bit guessed, not whether
-// the feature works.
-//
-// The same goes for a request the person's own setup turns down on purpose: a
-// shortcut already taken or reserved, a widget or function that is not there, a
-// permission not granted. The feature answered as it should.
-const ASKED_WRONG_RE = /^(bad_|unknown_|needs_)|^(ambiguous|in_use|reserved|no_widget|no_function|not_granted)$/;
-
-// The error word of a result → one word from ERROR_KINDS. Rules in order; a word
-// nobody mapped is 'other', so a new error never leaks its own text.
-const KIND_RULES = [
-  [/unavailable$|^unsupported$/, 'unavailable'],
-  [/failed$|^http_/, 'failed'],
-  [/^(over_exclusive|screen_alerts_off|history_off|companion_off|blocked_ext|args_not_supported|sized_by_itself)$/, 'refused'],
-  [/^running$/, 'busy'],
-  [/^(no_|not_|nothing_|first_session$)/, 'nothing'],
-];
-
-function kindOf(error) {
-  const word = String(error || '');
-  const rule = KIND_RULES.find(([re]) => re.test(word));
-  return rule ? rule[1] : 'other';
-}
-
 /**
  * The registry's choke point: one capability run and its result. A placed
  * layer widget also counts by where it went (desktop or over games).
@@ -212,8 +177,7 @@ function recordCapability(action, result) {
   const type = action && typeof action.type === 'string' ? action.type : '';
   if (!type) return;
   const ok = !!(result && result.ok === true);
-  const askedWrong = !ok && ASKED_WRONG_RE.test(String(result?.error || ''));
-  const failed = !ok && !askedWrong;
+  const failed = !ok && !askedWrong(result?.error);
   record('cap.' + type, failed, failed ? kindOf(result?.error) : '');
   // Only the two surfaces the hub knows; an anchored widget is neither.
   const surface = ok && type === 'layerPlace' && result.placed ? result.placed.surface : '';
@@ -299,31 +263,6 @@ function subtract(id, n, err, kinds) {
   c.err = Math.min(c.n, Math.max(0, c.err - err));
   addKinds(c, kinds, -1);
   if (!c.n) _counts.delete(id);
-}
-
-function postBatch(url, body) {
-  return new Promise((resolve) => {
-    if (!/^https:\/\//i.test(url)) return resolve({ ok: false });
-    const payload = JSON.stringify(body);
-    let req;
-    try {
-      req = https.request(url, {
-        method: 'POST',
-        timeout: FETCH_TIMEOUT_MS,
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-      }, (res) => {
-        res.resume();
-        // 204 is the hub's "counted". A redirect is a failure, never followed.
-        resolve({ ok: res.statusCode >= 200 && res.statusCode < 300 });
-      });
-    } catch {
-      return resolve({ ok: false });
-    }
-    req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', () => resolve({ ok: false }));
-    armDeadline(req, FETCH_DEADLINE_MS);
-    req.end(payload);
-  });
 }
 
 module.exports = {
