@@ -22,6 +22,7 @@ const SHAPES = Object.freeze({
 const FIELDS = Object.freeze({
   discordFavChannels: 'list',
   discordCollapsedGuilds: 'list',
+  discordFavOnly: 'bool',
   chatgptWidget: 'object',
   mediaLyrics: 'bool',
   lyricsTranslate: 'bool',

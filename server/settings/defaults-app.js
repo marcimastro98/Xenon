@@ -106,6 +106,7 @@ const HUB_DEFAULTS_APP = Object.freeze({
   // stays collapsed and two servers with the same name are told apart.
   discordFavChannels: Object.freeze([]),
   discordCollapsedGuilds: Object.freeze([]),
+  discordFavOnly: false,
 });
 
 module.exports = { HUB_DEFAULTS_APP };

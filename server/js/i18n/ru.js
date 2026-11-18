@@ -4814,7 +4814,7 @@ module.exports = {
   deck_act_haScript: 'Запустить скрипт',
   deck_act_haButton: 'Нажать кнопку',
   deck_act_haCallService: 'Вызвать службу (дополнительно)',
-  deck_act_windowMove: 'Переместить окно',
+  deck_act_windowMove: 'Переместить активное окно',
   deck_param_entity: 'Устройство (entity)',
   deck_param_service: 'Служба (напр. light.turn_on)',
   deck_param_data: 'Данные (JSON, необязательно)',
@@ -7356,4 +7356,8 @@ module.exports = {
   surface_where: 'Где открывается панель',
   surface_mode_pc: 'Только на этом ПК',
   surface_mode_pc_hint: 'На экране, который вы выбираете в разделе «Экраны».',
+  settings_slideshow_dim: 'Затемнить фото',
+  settings_slideshow_dim_off: 'Нет',
+  discord_w_only_starred: 'Только избранные',
+  discord_w_show_all: 'Показать все',
 };

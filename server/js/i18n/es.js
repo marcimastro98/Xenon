@@ -4772,7 +4772,7 @@ module.exports = {
   deck_act_haScript: 'Ejecutar script',
   deck_act_haButton: 'Pulsar botón',
   deck_act_haCallService: 'Llamar a un servicio (avanzado)',
-  deck_act_windowMove: 'Mover ventana',
+  deck_act_windowMove: 'Mover la ventana en primer plano',
   deck_param_entity: 'Dispositivo (entidad)',
   deck_param_service: 'Servicio (p. ej. light.turn_on)',
   deck_param_data: 'Datos (JSON, opcional)',
@@ -7298,4 +7298,8 @@ module.exports = {
   surface_where: 'Dónde se abre el panel',
   surface_mode_pc: 'Solo en este PC',
   surface_mode_pc_hint: 'En la pantalla que eliges en Pantallas.',
+  settings_slideshow_dim: 'Oscurecer fotos',
+  settings_slideshow_dim_off: 'No',
+  discord_w_only_starred: 'Solo favoritos',
+  discord_w_show_all: 'Mostrar todos',
 };

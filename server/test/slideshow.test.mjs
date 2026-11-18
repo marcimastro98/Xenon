@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const S = require('../js/windows-tiles/slideshow-widget.js');   // the shared sanitizer (client + server own the SAME rules)
@@ -14,10 +15,20 @@ test('sanitizeSlideshow: junk input returns the safe defaults', () => {
   for (const v of [null, undefined, 42, 'x', [], {}]) {
     assert.deepEqual(S.sanitizeSlideshow(v), {
       images: [], source: 'library', folder: '', shuffle: false,
-      pauseGame: true,
+      pauseGame: true, dim: 0,
       intervalMs: S.INTERVAL_DEFAULT, fit: 'cover',
     });
   }
+});
+
+test('a picture may stay up to an hour, and photos darken by up to 90%', () => {
+  assert.equal(S.INTERVAL_MAX, 60 * 60 * 1000, 'a slideshow used as a wallpaper changer');
+  assert.equal(S.sanitizeSlideshow({ intervalMs: 3600000 }).intervalMs, 3600000);
+  assert.equal(S.sanitizeSlideshow({ dim: 40 }).dim, 40);
+  assert.equal(S.sanitizeSlideshow({ dim: 100 }).dim, S.DIM_MAX, 'never a black tile');
+  assert.equal(S.sanitizeSlideshow({ dim: -5 }).dim, 0);
+  assert.equal(S.sanitizeSlideshow({ dim: 'dark' }).dim, 0);
+  assert.match(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /id="settings-slideshow-interval" min="2" max="3600"/);
 });
 
 test('sanitizeSlideshow: source falls back to the uploaded library', () => {

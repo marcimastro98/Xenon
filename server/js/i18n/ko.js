@@ -4859,7 +4859,7 @@ module.exports = {
   deck_act_haScript: '스크립트 실행',
   deck_act_haButton: '버튼 누르기',
   deck_act_haCallService: '서비스 호출 (고급)',
-  deck_act_windowMove: '창 이동',
+  deck_act_windowMove: '맨 앞 창 이동',
   deck_param_entity: '기기 (엔티티)',
   deck_param_service: '서비스 (예: light.turn_on)',
   deck_param_data: '데이터 (JSON, 선택)',
@@ -7411,4 +7411,8 @@ module.exports = {
   surface_where: '대시보드가 열리는 곳',
   surface_mode_pc: '이 PC에서만',
   surface_mode_pc_hint: '\'화면\'에서 고른 화면에 열립니다.',
+  settings_slideshow_dim: '사진 어둡게',
+  settings_slideshow_dim_off: '끔',
+  discord_w_only_starred: '즐겨찾기만',
+  discord_w_show_all: '모두 보기',
 };

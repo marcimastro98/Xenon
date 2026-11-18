@@ -4755,7 +4755,7 @@ module.exports = {
   deck_act_haScript: 'Skript ausführen',
   deck_act_haButton: 'Taste drücken',
   deck_act_haCallService: 'Dienst aufrufen (erweitert)',
-  deck_act_windowMove: 'Fenster verschieben',
+  deck_act_windowMove: 'Fenster im Vordergrund verschieben',
   deck_param_entity: 'Gerät (Entität)',
   deck_param_service: 'Dienst (z. B. light.turn_on)',
   deck_param_data: 'Daten (JSON, optional)',
@@ -7265,4 +7265,8 @@ module.exports = {
   surface_where: 'Wo sich das Dashboard öffnet',
   surface_mode_pc: 'Nur auf diesem PC',
   surface_mode_pc_hint: 'Auf dem Bildschirm, den du unter Bildschirme wählst.',
+  settings_slideshow_dim: 'Fotos abdunkeln',
+  settings_slideshow_dim_off: 'Aus',
+  discord_w_only_starred: 'Nur Favoriten',
+  discord_w_show_all: 'Alle anzeigen',
 };

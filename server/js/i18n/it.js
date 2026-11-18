@@ -4866,7 +4866,7 @@ module.exports = {
   deck_act_haScript: 'Esegui script',
   deck_act_haButton: 'Premi pulsante',
   deck_act_haCallService: 'Chiama servizio (avanzato)',
-  deck_act_windowMove: 'Sposta finestra',
+  deck_act_windowMove: 'Sposta la finestra in primo piano',
   deck_param_entity: 'Dispositivo (entity)',
   deck_param_service: 'Servizio (es. light.turn_on)',
   deck_param_data: 'Dati (JSON, opzionale)',
@@ -7418,4 +7418,8 @@ module.exports = {
   surface_where: 'Dove si apre la dashboard',
   surface_mode_pc: 'Solo su questo PC',
   surface_mode_pc_hint: 'Sullo schermo che scegli in Schermi.',
+  settings_slideshow_dim: 'Scurisci le foto',
+  settings_slideshow_dim_off: 'No',
+  discord_w_only_starred: 'Solo preferiti',
+  discord_w_show_all: 'Mostra tutti',
 };

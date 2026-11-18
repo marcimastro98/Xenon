@@ -74,8 +74,9 @@
   // cannot be seen. Notably NOT offered: freezing on inactivity (see globalFreeze).
   const PAUSE_KEYS = ['pauseGame'];
   const INTERVAL_MIN = 1500;
-  const INTERVAL_MAX = 120000;
+  const INTERVAL_MAX = 3600000;   // an hour: a slideshow used as a wallpaper changer
   const INTERVAL_DEFAULT = 6000;
+  const DIM_MAX = 90;
 
   function clampInt(v, lo, hi, dflt) {
     const n = Math.round(Number(v));
@@ -112,9 +113,8 @@
       source: SLIDE_SOURCES.includes(src.source) ? src.source : 'library',
       folder: sanitizeFolderPath(src.folder),
       shuffle: src.shuffle === true,
-      // Default ON: freezing while a game has the machine is the cheap, safe
-      // behaviour, so only an explicit `false` turns it off.
-      pauseGame: src.pauseGame !== false,
+      pauseGame: src.pauseGame !== false,   // default on: the cheap, safe behaviour in a game
+      dim: clampInt(src.dim, 0, DIM_MAX, 0),   // percent darker, for photos behind other tiles
       intervalMs: clampInt(src.intervalMs, INTERVAL_MIN, INTERVAL_MAX, INTERVAL_DEFAULT),
       fit: FIT_MODES.includes(src.fit) ? src.fit : 'cover',
     };
@@ -134,7 +134,7 @@
   const CAPS = {
     SLIDE_DATA_RE, SLIDE_UPLOAD_RE, SLIDE_MAX_COUNT, SLIDE_MAX_CHARS, SLIDES_TOTAL_MAX,
     SLIDE_SOURCES, SLIDE_FOLDER_MAX_CHARS, SLIDE_FOLDER_MAX_FILES, SLIDE_FOLDER_MAX_BYTES, PAUSE_KEYS,
-    FIT_MODES, INTERVAL_MIN, INTERVAL_MAX, INTERVAL_DEFAULT,
+    FIT_MODES, INTERVAL_MIN, INTERVAL_MAX, INTERVAL_DEFAULT, DIM_MAX,
   };
 
   // ── Browser: the tile UI ──────────────────────────────────────────────────
@@ -486,8 +486,8 @@
       // still held that image: thaw first, then the normal assignment below runs.
       const wantFreeze = shouldFreeze(tile);
       if (!wantFreeze) thawTile(ui);
-      // Only touch src when it actually changes — re-setting it would restart an
-      // animated GIF from frame 0 on every unrelated repaint.
+      ui.root.style.setProperty('--sl-filter', c.dim ? 'brightness(' + (1 - c.dim / 100) + ')' : 'none');
+      // Only touch src when it changes: re-setting it restarts a GIF from frame 0.
       if (ui.src !== uri && !ui.frozen) { ui.img.src = uri; ui.src = uri; }
       else if (ui.src !== uri && wantFreeze) {
         // The rotation moved on while the tile is still (a game is running). Load

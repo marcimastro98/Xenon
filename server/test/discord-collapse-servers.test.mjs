@@ -101,7 +101,7 @@ test('one button does collapse-all and expand-all', () => {
   assert.match(body, /const anyOpen = known\.some\(id => !isCollapsed\(id\)\)/);
   assert.match(body, /if \(!anyOpen\) \{ saveCollapsed\(collapsedIds\(\)\.filter\(id => !known\.includes\(id\)\)\); return; \}/);
   // Only from two servers up — with one it is the header's own caret.
-  assert.match(WIDGET, /if \(ids\.length > 1\) \{/);
+  assert.match(WIDGET, /if \(ids\.length > 1( && !onlyFav)?\) \{/);
 });
 
 test('favourites never folds', () => {

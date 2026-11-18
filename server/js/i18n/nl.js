@@ -4855,7 +4855,7 @@ module.exports = {
   deck_act_haScript: 'Script uitvoeren',
   deck_act_haButton: 'Knop indrukken',
   deck_act_haCallService: 'Service aanroepen (geavanceerd)',
-  deck_act_windowMove: 'Venster verplaatsen',
+  deck_act_windowMove: 'Venster op de voorgrond verplaatsen',
   deck_param_entity: 'Apparaat (entity)',
   deck_param_service: 'Service (bijv. light.turn_on)',
   deck_param_data: 'Gegevens (JSON, optioneel)',
@@ -7407,4 +7407,8 @@ module.exports = {
   surface_where: 'Waar het dashboard opent',
   surface_mode_pc: 'Alleen op deze pc',
   surface_mode_pc_hint: 'Op het scherm dat je kiest bij Schermen.',
+  settings_slideshow_dim: 'Foto\'s donkerder maken',
+  settings_slideshow_dim_off: 'Uit',
+  discord_w_only_starred: 'Alleen favorieten',
+  discord_w_show_all: 'Alles tonen',
 };

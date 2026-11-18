@@ -37,6 +37,8 @@
 }
 .sl-fit-cover .sl-img { object-fit: cover; }
 .sl-fit-contain .sl-img { object-fit: contain; }
+/* Darken photos (Settings > Slideshow): a still filter, none at all when off. */
+.sl-stage .sl-img { filter: var(--sl-filter, none); }
 
 /* Empty state — shown until the user adds images. */
 .sl-empty {

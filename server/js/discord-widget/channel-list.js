@@ -16,6 +16,22 @@ window.DiscordWidgetChannelList = (wrapper) => {
 
   // The Channels tab: the joinable voice channels grouped by server, using the full
   // widget height. The current call's members/speaking live in the Controls tab.
+  // "Only starred" (asked on Discord): a small tile shows just the channels you use.
+  const favOnly = () => typeof hubSettings === 'object' && hubSettings?.discordFavOnly === true;
+  // The tapped tile repaints at once; any other Discord tile on its next paint.
+  function toggleFavOnly(mount) {
+    if (typeof saveTileSetting !== 'function') return;
+    saveTileSetting({ discordFavOnly: !favOnly() }).then((ok) => { if (!ok) paintChannels(mount); });
+    paintChannels(mount);
+  }
+  const barButton = (label, onClick, cls) => {
+    const b = el('button', 'dc-guild-all-btn' + (cls ? ' ' + cls : ''));
+    b.type = 'button';
+    b.title = label;
+    b.addEventListener('click', onClick);
+    return b;
+  };
+
   function paintChannels(mount) {
     const list = mount.querySelector('.dc-chan-list');
     if (!list) return;
@@ -38,7 +54,8 @@ window.DiscordWidgetChannelList = (wrapper) => {
       + '#' + favIds().join(',')
       // Collapsing a server changes what is drawn and nothing else, so without
       // it in the signature the tap would repaint nothing until a member moved.
-      + '#' + collapsedIds().join(',');
+      + '#' + collapsedIds().join(',')
+      + '#' + favOnly();
     if (list.dataset.dcSig === sig) {
       if (linked && discordState.channels && discordState.channels.length) {
         syncMemberStates(list, discordState.channels.flatMap(c => membersFor(c)));
@@ -129,11 +146,18 @@ window.DiscordWidgetChannelList = (wrapper) => {
     // Collapse/expand everything. Only from two servers up: with one, it is the
     // header's own caret wearing a different hat.
     const ids = groups.map(g => g.id).filter(Boolean);
-    if (ids.length > 1) {
+    const onlyFav = favOnly() && pinned.length > 0;
+    const bar = el('div', 'dc-guild-all');
+    if (pinned.length) {
+      const label = onlyFav ? t('discord_w_show_all', 'Show all') : t('discord_w_only_starred', 'Only starred');
+      const b = barButton(label, () => toggleFavOnly(mount), 'dc-fav-only');
+      b.setAttribute('aria-pressed', String(onlyFav));
+      b.append(el('span', null, label));
+      bar.appendChild(b);
+    }
+    if (ids.length > 1 && !onlyFav) {
       const allShut = ids.every(isCollapsed);
-      const bar = el('div', 'dc-guild-all');
-      const b = el('button', 'dc-guild-all-btn');
-      b.type = 'button';
+      const b = barButton('', () => toggleAllGuilds(ids));
       b.classList.toggle('is-collapsed', allShut);
       const caret = el('span', 'dc-guild-caret');
       caret.innerHTML = ICONS.caret;                                        // static, trusted SVG
@@ -142,10 +166,10 @@ window.DiscordWidgetChannelList = (wrapper) => {
         : t('discord_w_collapse_all', 'Collapse all');
       b.append(caret, el('span', null, label));
       b.title = label;
-      b.addEventListener('click', () => toggleAllGuilds(ids));
       bar.appendChild(b);
-      frag.appendChild(bar);
     }
+    if (bar.childElementCount) frag.appendChild(bar);
+    if (onlyFav) { list.replaceChildren(frag); return; }
     groups.forEach((g) => {
       // A group with no id cannot be remembered, so it is drawn the way it
       // always was: a plain heading, always open.

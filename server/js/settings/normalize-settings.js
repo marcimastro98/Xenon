@@ -113,6 +113,7 @@ function normalizeSettings(source) {
     shareNudgeSeen: value.shareNudgeSeen === true,
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     discordCollapsedGuilds: normalizeSnowflakeList(value.discordCollapsedGuilds),
+    discordFavOnly: value.discordFavOnly === true,
     catalogStats: value.catalogStats === true,
     ratingAsks: value.ratingAsks !== false,
     usageStats: value.usageStats === true,

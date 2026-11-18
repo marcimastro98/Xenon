@@ -167,6 +167,31 @@ function drawSlideshowThumb(canvas, uri) {
 // anytime — no-ops when the pane isn't in the DOM, and skips the grid rebuild when
 // the image set is unchanged.
 function renderSlideshowSettings() {
+  // Darken photos, built once under Fit: the page's markup does not grow.
+  function slideshowDimRow() {
+    const existing = $('settings-slideshow-dim');
+    if (existing) return existing;
+    const fitRow = $('settings-slideshow-fit')?.closest('.settings-row');
+    if (!fitRow) return null;
+    const row = document.createElement('label');
+    row.className = 'settings-row';
+    const line = document.createElement('span');
+    line.className = 'settings-label-line';
+    const name = document.createElement('span');
+    name.dataset.i18n = 'settings_slideshow_dim';
+    name.textContent = t('settings_slideshow_dim');
+    const value = document.createElement('span');
+    value.className = 'settings-value';
+    value.id = 'settings-slideshow-dim-value';
+    line.append(name, value);
+    const input = document.createElement('input');
+    Object.assign(input, { className: 'settings-range', id: 'settings-slideshow-dim', type: 'range', min: '0', max: String(window.SlideshowWidget?.DIM_MAX || 90), step: '5' });
+    input.addEventListener('input', () => { value.textContent = input.value + '%'; });
+    input.addEventListener('change', () => updateSlideshowCfg({ dim: Number(input.value) }));
+    row.append(line, input);
+    fitRow.after(row);
+    return input;
+  }
   const c = normalizeSlideshow(hubSettings.slideshow);
   const cap = window.SlideshowWidget ? SlideshowWidget.SLIDE_MAX_COUNT : 200;
   const isFolder = c.source === 'folder';
@@ -193,6 +218,10 @@ function renderSlideshowSettings() {
   const intInput = $('settings-slideshow-interval');
   if (intInput && document.activeElement !== intInput) intInput.value = String(Math.round(c.intervalMs / 1000));
   setSelect($('settings-slideshow-fit'), c.fit);
+  const dim = slideshowDimRow();
+  if (dim && document.activeElement !== dim) dim.value = String(c.dim);
+  const dimValue = $('settings-slideshow-dim-value');
+  if (dimValue) dimValue.textContent = c.dim ? c.dim + '%' : t('settings_slideshow_dim_off');
   const countEl = $('settings-slideshow-count');
   if (countEl) countEl.textContent = c.images.length + ' / ' + cap;
   if (isFolder) refreshSlideshowFolderStatus(false);

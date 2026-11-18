@@ -4741,7 +4741,7 @@ module.exports = {
   deck_act_haScript: 'Lancer un script',
   deck_act_haButton: 'Appuyer sur un bouton',
   deck_act_haCallService: 'Appeler un service (avancé)',
-  deck_act_windowMove: 'Déplacer une fenêtre',
+  deck_act_windowMove: 'Déplacer la fenêtre au premier plan',
   deck_param_entity: 'Appareil (entité)',
   deck_param_service: 'Service (ex. light.turn_on)',
   deck_param_data: 'Données (JSON, facultatif)',
@@ -7246,4 +7246,8 @@ module.exports = {
   surface_where: 'Où s’ouvre le tableau de bord',
   surface_mode_pc: 'Uniquement sur ce PC',
   surface_mode_pc_hint: 'Sur l’écran choisi dans Écrans.',
+  settings_slideshow_dim: 'Assombrir les photos',
+  settings_slideshow_dim_off: 'Non',
+  discord_w_only_starred: 'Favoris seulement',
+  discord_w_show_all: 'Tout afficher',
 };

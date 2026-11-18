@@ -4859,7 +4859,7 @@ module.exports = {
   deck_act_haScript: 'スクリプト実行',
   deck_act_haButton: 'ボタンを押す',
   deck_act_haCallService: 'サービス呼び出し（詳細）',
-  deck_act_windowMove: 'ウィンドウ移動',
+  deck_act_windowMove: '最前面のウィンドウを移動',
   deck_param_entity: 'デバイス（エンティティ）',
   deck_param_service: 'サービス（例: light.turn_on）',
   deck_param_data: 'データ（JSON、任意）',
@@ -7411,4 +7411,8 @@ module.exports = {
   surface_where: 'ダッシュボードを開く場所',
   surface_mode_pc: 'この PC だけ',
   surface_mode_pc_hint: '「画面」で選んだ画面に開きます。',
+  settings_slideshow_dim: '写真を暗くする',
+  settings_slideshow_dim_off: 'オフ',
+  discord_w_only_starred: 'お気に入りのみ',
+  discord_w_show_all: 'すべて表示',
 };

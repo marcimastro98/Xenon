@@ -4859,7 +4859,7 @@ module.exports = {
   deck_act_haScript: '运行脚本',
   deck_act_haButton: '按下按钮',
   deck_act_haCallService: '调用服务（高级）',
-  deck_act_windowMove: '移动窗口',
+  deck_act_windowMove: '移动最前面的窗口',
   deck_param_entity: '设备（实体）',
   deck_param_service: '服务（如 light.turn_on）',
   deck_param_data: '数据（JSON，可选）',
@@ -7411,4 +7411,8 @@ module.exports = {
   surface_where: '仪表板在哪里打开',
   surface_mode_pc: '只在这台电脑上',
   surface_mode_pc_hint: '在“屏幕”里选的那块屏幕上打开。',
+  settings_slideshow_dim: '调暗照片',
+  settings_slideshow_dim_off: '关',
+  discord_w_only_starred: '仅收藏',
+  discord_w_show_all: '显示全部',
 };

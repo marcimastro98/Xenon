@@ -2708,7 +2708,7 @@
           </div>
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_slideshow_interval">Durata per immagine (secondi)</span></span>
-            <input type="number" id="settings-slideshow-interval" min="2" max="120" step="1" inputmode="numeric" onchange="updateSlideshowCfg({ intervalMs: Math.round(Number(this.value)) * 1000 })">
+            <input type="number" id="settings-slideshow-interval" min="2" max="3600" step="1" inputmode="numeric" onchange="updateSlideshowCfg({ intervalMs: Math.round(Number(this.value)) * 1000 })">
           </label>
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_slideshow_fit">Adattamento</span></span>

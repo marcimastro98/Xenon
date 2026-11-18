@@ -4866,7 +4866,7 @@ module.exports = {
   deck_act_haScript: 'Run script',
   deck_act_haButton: 'Press button',
   deck_act_haCallService: 'Call service (advanced)',
-  deck_act_windowMove: 'Move window',
+  deck_act_windowMove: 'Move the window in front',
   deck_param_entity: 'Device (entity)',
   deck_param_service: 'Service (e.g. light.turn_on)',
   deck_param_data: 'Data (JSON, optional)',
@@ -7419,4 +7419,8 @@ module.exports = {
   surface_where: 'Where the dashboard opens',
   surface_mode_pc: 'Only on this PC',
   surface_mode_pc_hint: 'On the screen you choose in Screens.',
+  settings_slideshow_dim: 'Darken photos',
+  settings_slideshow_dim_off: 'Off',
+  discord_w_only_starred: 'Only starred',
+  discord_w_show_all: 'Show all',
 };

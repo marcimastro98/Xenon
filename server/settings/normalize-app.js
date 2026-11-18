@@ -53,6 +53,7 @@ function normalizeHubApp(source) {
     // has no business surviving a round trip through the store.
     discordFavChannels: normalizeSnowflakeList(source.discordFavChannels),
     discordCollapsedGuilds: normalizeSnowflakeList(source.discordCollapsedGuilds),
+    discordFavOnly: source.discordFavOnly === true,
   };
 }
 

@@ -36,6 +36,7 @@ function makeWorld(slideshow) {
       tagName: tag.toUpperCase(), className: '', children: [], parentNode: null,
       attrs: {}, handlers: {}, hidden: false, textContent: '', innerHTML: '',
       naturalWidth: 0, naturalHeight: 0, drawn: 0,
+      style: { props: {}, setProperty(k, v) { this.props[k] = v; } },
       get clientWidth() { return n.hidden ? 0 : 300; },
       get clientHeight() { return n.hidden ? 0 : 200; },
       get classList() {
