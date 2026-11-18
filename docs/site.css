@@ -768,6 +768,13 @@ html.xh-lock, html.xh-lock body { overflow: hidden; }
 .xf-brand .xh-brand { justify-self: start; }
 .xf-brand p { margin: 0; font-size: 15.5px; line-height: 1.5; max-width: 42ch; color: var(--bone-1); }
 .xf-bit { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--bone-1); }
+/* The official channels: icon keys like the bar's marks, 40 px with a mouse and 44 px under a
+   finger; the row starts where the text does, the padding sits in the margin. */
+.xf-social { list-style: none; margin: 0 0 0 -10px; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
+.xf-social a { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; border-radius: 10px; color: var(--bone-1); text-decoration: none; }
+.xf-social a:hover { color: var(--bone-0); background: var(--g-2); }
+.xf-social svg { width: 20px; height: 20px; }
+@media (pointer: coarse) { .xf-social a { min-width: 44px; min-height: 44px; } }
 .xf-col { grid-column: span 2; }
 .xf-col h2 { font: 700 16px/1.3 var(--sans); margin: 0 0 12px; color: var(--bone-0); letter-spacing: 0; }
 .xf-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; font-size: 15.5px; }

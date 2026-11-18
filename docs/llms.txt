@@ -148,6 +148,10 @@ any screen.
 - [Widget SDK](https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md)
 - [xenon-mcp](https://xenon-app.com/create/#mcp): an MCP server (npm `xenon-mcp`) that lets Claude Code, Codex or any MCP client read the Widget SDK, install a widget on the local Xenon, read its runtime errors and screenshot its tile
 - [Discord](https://discord.gg/MBVrw9kZyg)
+- [YouTube](https://www.youtube.com/@xenon-app)
+- [Instagram](https://www.instagram.com/xenon.app/)
+- [TikTok](https://www.tiktok.com/@xenon27555)
+- [Facebook](https://www.facebook.com/profile.php?id=61596514267824)
 
 ## Sharing between users
 
