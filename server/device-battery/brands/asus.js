@@ -37,10 +37,10 @@ function keyboardReader(atLevel) {
 }
 
 const mouse = (productIds, scale) => ({
-  label: 'ROG wireless mouse', products: ids(ASUS, productIds), page: 0xFF01, usbInterface: 0, size: CHANNEL_BYTES, read: mouseReader(scale),
+  label: 'ROG wireless mouse', kind: 'mouse', products: ids(ASUS, productIds), page: 0xFF01, usbInterface: 0, size: CHANNEL_BYTES, read: mouseReader(scale),
 });
 const keyboard = (label, productIds, atLevel) => ({
-  label, products: ids(ASUS, productIds), page: 0xFF00, size: CHANNEL_BYTES, read: keyboardReader(atLevel),
+  label, kind: 'keyboard', products: ids(ASUS, productIds), page: 0xFF00, size: CHANNEL_BYTES, read: keyboardReader(atLevel),
 });
 
 module.exports = [

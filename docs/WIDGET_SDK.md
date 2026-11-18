@@ -818,9 +818,18 @@ at all. GPU watts come from nvidia-smi and are unaffected by either.
 The `battery` stream is separate — it broadcasts on its own ~90s tick:
 
 ```js
-{ devices: [{ id: 'k100 air', name: 'K100 AIR', percent: 62, charging: null, source: 'corsair' }],
+{ devices: [{ id: 'k100 air', name: 'K100 AIR', percent: 62, charging: null, source: 'corsair', kind: 'keyboard' }],
   sources: { corsair: true, bluetooth: true, peripherals: true } }
 ```
+
+`kind` (v5.2) says what the device is: `'mouse'`, `'keyboard'`, `'headset'` (headphones and
+earbuds too, their case included), `'controller'`, `'system'` (the PC's own battery), `'ups'`,
+`'other'` (the hardware says what it is, and it is none of these: a speaker, a phone, a
+presenter) or `'unknown'` (the hardware does not say). It comes from what the device or the OS
+declares (the iCUE device type, the Logitech device type, the Bluetooth class, the HID usage,
+or the model's product id), never from the name, so a renamed mouse is still a mouse. Use it
+to pick an icon or to find "my mouse" without matching names, and treat `'unknown'` as "show
+it, with a plain battery icon". A device keeps its kind while it is asleep.
 
 `source` is `'corsair'` (via the iCUE bridge), `'bluetooth'`, `'system'` (a laptop
 battery pack or a USB-connected UPS), `'logitech'` or `'razer'` (a mouse or keyboard
@@ -3825,15 +3834,15 @@ when your tile is not on screen. Without it, your slot is dropped a few seconds
 after your last frame goes away.
 
 **Example: one mouse's charge.** `battery.devices` is sorted by name, so never take
-the first entry for "my mouse": find it by name, and ask the user for the name they
-see in the Batteries widget. The whole widget, with `{ "streams": ["battery"], "mini": true,
-"background": true }` in its manifest:
+the first entry for "my mouse": take the one whose `kind` is `'mouse'`, and when there are
+several (or none says so) ask the user for the name they see in the Batteries widget. The
+whole widget, with `{ "streams": ["battery"], "mini": true, "background": true }` in its manifest:
 
 ```js
 window.addEventListener('message', (e) => {
   const msg = e.data;
   if (!msg || msg.type !== 'data' || msg.stream !== 'battery') return;
-  const device = msg.data.devices.find((d) => /pro x 2/i.test(d.name));
+  const device = msg.data.devices.find((d) => d.kind === 'mouse');
   if (!device) parent.postMessage({ xenonSdk: 1, type: 'mini', op: 'clear' }, '*');
   else parent.postMessage({
     xenonSdk: 1, type: 'mini', op: 'present', tooltip: device.name,
@@ -3848,7 +3857,7 @@ parent.postMessage({ xenonSdk: 1, type: 'hello' }, '*');
 ```
 
 In Xenon Maker the same readout needs no code: a source `battery.device.<name>.level`
-(also `.charging`, `.name` and `.asleep`), fired once when the widget appears. What sits in the
+(also `.charging`, `.name`, `.asleep` and `.kind`), fired once when the widget appears. What sits in the
 bar then follows its data by itself.
 
 ### 9e. Bar button — `topbarButton` (widget → host) (v5.0)

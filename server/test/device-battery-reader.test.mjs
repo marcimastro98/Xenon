@@ -250,7 +250,7 @@ test('macOS: the table reads a real Akko reply through this backend', async () =
   const guard = createGuard();
   const hid = createHidDarwin({ getApi: () => io });
   const devices = await readDongles(hid, guard);
-  assert.deepEqual(devices, [{ name: 'Akko 2.4G', percent: 28, charging: null, source: 'dongle' }]);
+  assert.deepEqual(devices, [{ name: 'Akko 2.4G', percent: 28, charging: null, source: 'dongle', kind: 'keyboard' }]);
 });
 
 test('macOS: with Input Monitoring off the guard knows, and nothing is listed', async () => {

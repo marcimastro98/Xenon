@@ -9,6 +9,8 @@
 // A `link` is what a backend hands over: write(bytes) and read(timeoutMs), the
 // latter resolving to one input report with its report id first, or null.
 
+const { kindOfHidppType } = require('./kinds');
+
 const LONG_REPORT = 0x11;
 const LONG_REPORT_BYTES = 20;
 const SOFTWARE_ID = 0x0A;         // tells our replies from G HUB's on a shared device
@@ -33,6 +35,7 @@ const UNIT_ID_START = 1;
 const UNIT_ID_END = 5;
 const NAME_GET_LENGTH = 0;
 const NAME_GET_CHARS = 1;
+const NAME_GET_TYPE = 2;
 const UNIFIED_GET_STATUS = 1;
 const STATUS_GET_LEVEL = 0;
 const VOLTAGE_GET = 0;
@@ -139,8 +142,7 @@ async function readLevel(ask, index) {
   return null;
 }
 
-async function readName(ask, index) {
-  const at = await featureIndex(ask, index, FEATURE_DEVICE_NAME);
+async function readName(ask, index, at) {
   if (!at) return FALLBACK_NAME;
   const size = await ask(index, at, NAME_GET_LENGTH);
   if (!size.data) return FALLBACK_NAME;
@@ -152,6 +154,13 @@ async function readName(ask, index) {
     name += text;
   }
   return name.slice(0, size.data[0]).trim() || FALLBACK_NAME;
+}
+
+// What the device says it is (keyboard, mouse, headset...), in the same feature as its name.
+async function readType(ask, index, at) {
+  if (!at) return 'unknown';
+  const reply = await ask(index, at, NAME_GET_TYPE);
+  return reply.data ? kindOfHidppType(reply.data[0]) : 'unknown';
 }
 
 // Its own serial: two mice of one model have the same name, wherever they are plugged in.
@@ -175,7 +184,8 @@ async function readDevice(ask, index) {
   const level = await readLevel(ask, index);
   if (!level) return null;
   const unit = await readUnit(ask, index);
-  return { name: await readName(ask, index), ...level, ...(unit ? { unit } : {}) };
+  const at = await featureIndex(ask, index, FEATURE_DEVICE_NAME);
+  return { name: await readName(ask, index, at), ...level, kind: await readType(ask, index, at), ...(unit ? { unit } : {}) };
 }
 
 // Everything with a battery behind one link: the device itself, or a receiver's slots.

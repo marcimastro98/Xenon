@@ -22,4 +22,4 @@ async function read(io) {
   return [];
 }
 
-module.exports = [{ label: 'Keychron wireless mouse', products: ids(0x3434, [0xD028]), page: 0xFFC1, size: 64, read }];
+module.exports = [{ label: 'Keychron wireless mouse', kind: 'mouse', products: ids(0x3434, [0xD028]), page: 0xFFC1, size: 64, read }];

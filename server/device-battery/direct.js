@@ -1,8 +1,10 @@
 'use strict';
 // Runs the table in brands/ against the HID devices plugged in. A model says which
 // collection to talk to and how to read it:
-//   { label, products, read(io), page?, usage?, usbInterface?, size?, feature?, listenOnly?, vendor?, named? }
+//   { label, products, read(io), kind?, page?, usage?, usbInterface?, size?, feature?, listenOnly?, vendor?, named? }
 // `named` is for a chip maker's vendor id, which other products share: no match, no bytes.
+// `kind` is what every product id of the model is (mouse, keyboard, headset, controller); a
+// model whose ids mix kinds leaves it out, and a reading can still say it (a receiver's slot).
 // `io` is all a model can do: ask (a report out, a matching report back), listen (no
 // report out), feature (a feature report out and back) and wait.
 
@@ -61,11 +63,12 @@ function fits(model, info) {
 
 function named(model, info, readings) {
   const name = info.product || model.label;
-  return readings.map(({ percent, charging, suffix }) => ({
+  return readings.map(({ percent, charging, suffix, kind }) => ({
     name: suffix ? `${name} ${suffix}` : name,
     percent,
     charging,
     source: 'dongle',
+    kind: kind || model.kind || 'unknown',
     ...(model.vendor ? { vendor: model.vendor } : {}),
   }));
 }

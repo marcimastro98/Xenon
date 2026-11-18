@@ -9,6 +9,7 @@ const { readLink } = require('./hidpp');
 const razer = require('./razer');
 const { readDirect } = require('./direct');
 const { createGuard } = require('./guard');
+const { kindOfUsages } = require('./kinds');
 
 const IOREG = '/usr/sbin/ioreg';
 const IOREG_ARGS = ['-r', '-l', '-k', 'BatteryPercent', '-w0'];
@@ -19,16 +20,31 @@ const PROFILER_TIMEOUT_MS = 10000;
 const LOGITECH_VENDOR = 0x046D;
 const VENDOR_USAGE_PAGE = 0xFF00;
 
+// The HID usage the registry entry declares for itself (a mouse is page 1, usage 2).
+function kindOfRegistry(block) {
+  const page = /"PrimaryUsagePage" = (\d+)/.exec(block);
+  const usage = /"PrimaryUsage" = (\d+)/.exec(block);
+  return page && usage ? kindOfUsages([[Number(page[1]), Number(usage[1])]]) : 'unknown';
+}
+
 function parseIoreg(text) {
   const devices = [];
   for (const block of String(text).split('+-o ').slice(1)) {
     const name = /"Product" = "([^"]+)"/.exec(block);
     const percent = /"BatteryPercent" = (\d+)/.exec(block);
     const address = /"DeviceAddress" = "([^"]+)"/.exec(block);
-    if (name && percent) devices.push({ name: name[1], percent: Number(percent[1]), charging: null, source: 'bluetooth', ...(address ? { unit: address[1] } : {}) });
+    if (name && percent) devices.push({ name: name[1], percent: Number(percent[1]), charging: null, source: 'bluetooth', kind: kindOfRegistry(block), ...(address ? { unit: address[1] } : {}) });
   }
   return devices;
 }
+
+// system_profiler's minor type is the Bluetooth Class of Device written out in words.
+const MINOR_TYPES = new Map([
+  ['headphones', 'headset'], ['headset', 'headset'], ['mouse', 'mouse'], ['trackpad', 'mouse'],
+  ['keyboard', 'keyboard'], ['gamepad', 'controller'], ['joystick', 'controller'], ['speaker', 'other'],
+]);
+
+const kindOfMinorType = (text) => MINOR_TYPES.get(String(text ?? '').trim().toLowerCase()) || 'unknown';
 
 function readRegistry() {
   return new Promise((resolve, reject) => {
@@ -57,8 +73,9 @@ function parseProfiler(text) {
       const levels = [info.device_batteryLevelMain, info.device_batteryLevelLeft, info.device_batteryLevelRight].map(percentOf).filter((p) => p !== null);
       const inCase = percentOf(info.device_batteryLevelCase);
       const unit = info.device_address ? { unit: String(info.device_address) } : {};
-      if (levels.length) devices.push({ name, percent: Math.min(...levels), charging: null, source: 'bluetooth', ...unit });
-      if (inCase !== null) devices.push({ name: `${name} case`, percent: inCase, charging: null, source: 'bluetooth', ...unit });
+      const kind = kindOfMinorType(info.device_minorType);
+      if (levels.length) devices.push({ name, percent: Math.min(...levels), charging: null, source: 'bluetooth', kind, ...unit });
+      if (inCase !== null) devices.push({ name: `${name} case`, percent: inCase, charging: null, source: 'bluetooth', kind, ...unit });
     }
   }
   return devices;

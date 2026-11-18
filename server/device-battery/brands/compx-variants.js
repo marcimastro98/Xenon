@@ -50,6 +50,6 @@ async function readXs1(io) {
 }
 
 module.exports = [
-  { label: 'ATK Zero', products: ids(0x373B, [0x1155, 0x124F]), page: 0xFF05, usage: 1, size: 64, read: readAtkZero },
-  { label: 'Pulsar XS-1', products: ids(0x3710, [0x5403, 0x3408]), page: 0xFFFF, usage: 1, usbInterface: 3, feature: true, size: 1 + XS1_BYTES, read: readXs1 },
+  { label: 'ATK Zero', kind: 'mouse', products: ids(0x373B, [0x1155, 0x124F]), page: 0xFF05, usage: 1, size: 64, read: readAtkZero },
+  { label: 'Pulsar XS-1', kind: 'mouse', products: ids(0x3710, [0x5403, 0x3408]), page: 0xFFFF, usage: 1, usbInterface: 3, feature: true, size: 1 + XS1_BYTES, read: readXs1 },
 ];

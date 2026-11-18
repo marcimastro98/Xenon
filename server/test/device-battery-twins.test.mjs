@@ -141,7 +141,7 @@ test('a Logitech device with no serial, or an empty one, has no unit', async () 
 
 test('battery.ps1 finds the address in the ids Windows gives Bluetooth nodes, and only there', () => {
   const script = readFileSync(new URL('../battery.ps1', import.meta.url), 'utf8');
-  const address = new RegExp(/-match '([^']+)'\) \{ \$unit/.exec(script)[1]);
+  const address = new RegExp(/\$addressPattern = '([^']+)'/.exec(script)[1]);
   const found = (id) => (address.exec(id) || [])[1];
   assert.equal(found('BTHENUM\\DEV_A1B2C3D4E5F6\\7&1A2B3C4D&0&BLUETOOTHDEVICE_A1B2C3D4E5F6'), 'A1B2C3D4E5F6');
   assert.equal(found('BTHENUM\\{0000111E-0000-1000-8000-00805F9B34FB}_VID&0001004C_PID&200E\\7&1A2B3C4D&0&A1B2C3D4E5F6_C00000000'), 'A1B2C3D4E5F6');

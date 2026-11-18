@@ -36,9 +36,10 @@ function devicesFrom({ connected, adverts }) {
   const reading = nearby.length ? decodeAdvert(nearby[0].hex) : null;
   if (!reading) return [];
   const devices = [];
-  // The lower bud is the one that ends the listening.
-  if (reading.buds.length) devices.push({ name, percent: Math.min(...reading.buds), charging: reading.budsCharging, source: 'bluetooth' });
-  if (reading.case !== null) devices.push({ name: `${name} case`, percent: reading.case, charging: reading.caseCharging, source: 'bluetooth' });
+  // The lower bud is the one that ends the listening. Only Apple's earbuds and headphones send
+  // this advert, so both entries, the case too, belong to a headset.
+  if (reading.buds.length) devices.push({ name, percent: Math.min(...reading.buds), charging: reading.budsCharging, source: 'bluetooth', kind: 'headset' });
+  if (reading.case !== null) devices.push({ name: `${name} case`, percent: reading.case, charging: reading.caseCharging, source: 'bluetooth', kind: 'headset' });
   return devices;
 }
 

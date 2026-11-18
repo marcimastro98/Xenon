@@ -5,6 +5,7 @@
 // keyboard collection the system keeps for itself can still answer.
 
 const { boundedCall: call } = require('../hid/bounded-call');
+const { kindOfUsages } = require('./kinds');
 
 const USAGE_PAGE_DEVICE_CONTROLS = 0x06;
 const USAGE_BATTERY_STRENGTH = 0x20;
@@ -78,16 +79,23 @@ async function readCollection(a, info, guard) {
   }
 }
 
+// The kind every top-level collection of this product declares (mouse, keyboard, game pad).
+function kindOfProduct(info, infos) {
+  const same = infos.filter((i) => i.vendorId === info.vendorId && i.productId === info.productId);
+  return kindOfUsages(same.map((i) => [i.usagePage, i.usage]));
+}
+
 // known(info): a device a brand protocol already reads, so it is not listed twice.
 async function readStandard(hid, known, guard) {
   const a = load();
   const devices = new Map();
-  for (const info of await hid.listAll()) {
+  const infos = await hid.listAll();
+  for (const info of infos) {
     if (!info.featureLength || !info.product || known(info) || info.path.toLowerCase().includes(BLUETOOTH_LE_HID)) continue;
     const percent = await readCollection(a, info, guard).catch(() => null);
-    if (percent !== null) devices.set(info.product, { name: info.product, percent, charging: null, source: 'dongle' });
+    if (percent !== null) devices.set(info.product, { name: info.product, percent, charging: null, source: 'dongle', kind: kindOfProduct(info, infos) });
   }
   return [...devices.values()];
 }
 
-module.exports = { readStandard, scaleUsage };
+module.exports = { readStandard, scaleUsage, kindOfProduct };

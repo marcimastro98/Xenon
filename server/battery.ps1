@@ -30,6 +30,17 @@ $OutputEncoding = $utf8NoBom
 # per-vendor reader, not a wider sweep.
 $batteryKey   = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
 $connectedKey = '{83DA6326-97A6-4088-9453-A1923F573B29} 15'
+# What kind of device it is comes from the hardware, never the name: the Class of Device a
+# classic device sends (DEVPKEY_Bluetooth_ClassOfDevice), or for a Bluetooth LE one the
+# Mouse and Keyboard nodes Windows made from its HID collections, found through
+# DEVPKEY_Device_Parent. battery.js turns both into a kind.
+$classKey     = '{2BD67D8B-8BEB-48D5-87E0-6CDA3428040A} 10'
+$parentKey    = '{4340A6C5-93FA-4706-972C-7B648008A5A7} 8'
+$addressPattern = '(?:DEV_|[&_])([0-9A-Fa-f]{12})(?:[\\_&]|$)'
+$inputClasses = @('Mouse', 'Keyboard')
+$parents = @{}
+$inputNodes = @()
+$classes = @{}
 
 # Windows appends the Bluetooth profile role to the node name ("Zone Vibe 100
 # Hands-Free AG"). Not localized - these are protocol names - so trimming them
@@ -47,15 +58,20 @@ try {
       $name = ([string]$dev.Name).Trim()
       if (-not $name) { continue }
 
-      $res = Invoke-CimMethod -InputObject $dev -MethodName GetDeviceProperties -Arguments @{ devicePropertyKeys = [string[]]@($batteryKey, $connectedKey) } -ErrorAction SilentlyContinue
+      $res = Invoke-CimMethod -InputObject $dev -MethodName GetDeviceProperties -Arguments @{ devicePropertyKeys = [string[]]@($batteryKey, $connectedKey, $classKey, $parentKey) } -ErrorAction SilentlyContinue
       if ($null -eq $res -or $null -eq $res.deviceProperties) { continue }
 
       $raw = $null
       $connected = $null
+      $cod = $null
       foreach ($prop in @($res.deviceProperties)) {
         if ($prop.KeyName -eq $batteryKey) { $raw = $prop.Data }
         elseif ($prop.KeyName -eq $connectedKey) { $connected = $prop.Data }
+        # Windows answers a key it has a name for under that name, not the one asked.
+        elseif ($prop.KeyName -in @($classKey, 'DEVPKEY_Bluetooth_ClassOfDevice')) { $cod = $prop.Data }
+        elseif ($prop.KeyName -in @($parentKey, 'DEVPKEY_Device_Parent') -and $prop.Data) { $parents[[string]$dev.DeviceID] = [string]$prop.Data }
       }
+      if ($inputClasses -contains [string]$dev.PNPClass) { $inputNodes += $dev }
       $name = ($name -replace $profileSuffix, '').Trim()
       if (-not $name) { continue }
       if ($name.Length -gt 64) { $name = $name.Substring(0, 64) }
@@ -63,7 +79,8 @@ try {
       # Two headphones of one model share a name: the address in a node's id tells them
       # apart. Not every node has it (HID ones do not), and it stays inside the server.
       $unit = ''
-      if (([string]$dev.DeviceID) -match '(?:DEV_|[&_])([0-9A-Fa-f]{12})(?:[\\_&]|$)') { $unit = $Matches[1].ToUpperInvariant() }
+      if (([string]$dev.DeviceID) -match $addressPattern) { $unit = $Matches[1].ToUpperInvariant() }
+      if ($unit -and $null -ne $cod -and [int64]$cod -gt 0) { $classes[$unit] = [int64]$cod }
       $who = "$key|$unit"
       if ($connected -is [bool] -and $connected) {
         $connectedNames[$who] = $true
@@ -81,6 +98,21 @@ try {
   }
 } catch { }
 
+# A Mouse or Keyboard node has no address of its own: the first parent with one owns it.
+$inputs = @{}
+foreach ($node in $inputNodes) {
+  $id = $parents[[string]$node.DeviceID]
+  for ($hop = 0; $id -and $hop -lt 6; $hop++) {
+    if ($id -match $addressPattern) {
+      $owner = $Matches[1].ToUpperInvariant()
+      if (-not $inputs.ContainsKey($owner)) { $inputs[$owner] = @() }
+      if ($inputs[$owner] -notcontains [string]$node.PNPClass) { $inputs[$owner] += [string]$node.PNPClass }
+      break
+    }
+    $id = $parents[$id]
+  }
+}
+
 # Nodes with an address first, so one without it can tell it mirrors a device already listed.
 $withAddress = @($readings | Where-Object { $_.unit })
 $withoutAddress = @($readings | Where-Object { -not $_.unit })
@@ -96,7 +128,10 @@ foreach ($reading in ($withAddress + $withoutAddress)) {
   $seen[$reading.who] = $true
   $seen[$reading.key] = $true
 
-  $devices += [pscustomobject]@{ name = $reading.name; percent = $reading.percent; unit = $reading.unit }
+  $device = [ordered]@{ name = $reading.name; percent = $reading.percent; unit = $reading.unit }
+  if ($reading.unit -and $classes.ContainsKey($reading.unit)) { $device.cod = $classes[$reading.unit] }
+  if ($reading.unit -and $inputs.ContainsKey($reading.unit)) { $device.inputs = @($inputs[$reading.unit]) }
+  $devices += [pscustomobject]$device
 }
 
 # System battery packs (laptops) and USB-connected UPS units: Win32_Battery is
@@ -119,7 +154,10 @@ try {
       if ($seen.ContainsKey($key)) { continue }
       $seen[$key] = $true
 
-      $devices += [pscustomobject]@{ name = $name; percent = $percent; charging = $charging; type = 'system' }
+      # The bus that enumerated it says what it is: ACPI lists the PC's own pack, a USB UPS
+      # arrives through HID. battery.js turns this into the kind.
+      $bus = ([string]$b.PNPDeviceID -split '\\')[0].ToUpperInvariant()
+      $devices += [pscustomobject]@{ name = $name; percent = $percent; charging = $charging; type = 'system'; bus = $bus }
     } catch { }
   }
 } catch { }

@@ -14,4 +14,4 @@ async function read(io) {
   return r && r[5] !== STATUS_FAILED ? reading(validPercent(r[10]), CHARGING_STATES.has(r[11])) : [];
 }
 
-module.exports = [{ label: 'Alienware AW620M', products: ids(0x413C, [0x302D, 0x302E]), page: 0xFF00, usage: 1, size: 65, read }];
+module.exports = [{ label: 'Alienware AW620M', kind: 'mouse', products: ids(0x413C, [0x302D, 0x302E]), page: 0xFF00, usage: 1, size: 65, read }];

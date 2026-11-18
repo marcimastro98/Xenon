@@ -52,6 +52,6 @@ function listener(layout, decode) {
 }
 
 module.exports = [
-  { label: 'DualSense', products: ids(SONY, [0x0CE6, 0x0DF2]), page: 1, usage: 5, listenOnly: true, read: listener(DUALSENSE, decodeDualSense) },
-  { label: 'DualShock 4', products: ids(SONY, [0x05C4, 0x09CC, 0x0BA0]), page: 1, usage: 5, listenOnly: true, read: listener(DUALSHOCK, decodeDualShock) },
+  { label: 'DualSense', kind: 'controller', products: ids(SONY, [0x0CE6, 0x0DF2]), page: 1, usage: 5, listenOnly: true, read: listener(DUALSENSE, decodeDualSense) },
+  { label: 'DualShock 4', kind: 'controller', products: ids(SONY, [0x05C4, 0x09CC, 0x0BA0]), page: 1, usage: 5, listenOnly: true, read: listener(DUALSHOCK, decodeDualShock) },
 ];

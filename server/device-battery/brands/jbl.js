@@ -11,4 +11,4 @@ async function read(io) {
   return r ? reading(validPercent(r[1])) : [];
 }
 
-module.exports = [{ label: 'JBL Quantum 910', products: ids(0x0ECB, [0x2088]), page: 0xFF13, usage: 1, listenOnly: true, read }];
+module.exports = [{ label: 'JBL Quantum 910', kind: 'headset', products: ids(0x0ECB, [0x2088]), page: 0xFF13, usage: 1, listenOnly: true, read }];

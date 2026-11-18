@@ -15,6 +15,7 @@
 
 const path = require('path');
 const { createTwins } = require('./device-battery/twins');
+const { normalizeKind, kindOfCorsairType, kindOfWindowsEntry } = require('./device-battery/kinds');
 
 const BATTERY_SCRIPT = path.join(__dirname, 'battery.ps1');
 const PERIPHERAL_SOURCES = new Set(['logitech', 'razer', 'dongle', 'usb', 'bluetooth']);
@@ -46,12 +47,16 @@ function mergeSources(corsair, bluetooth, prevMap, now, peripherals = []) {
     const pct = Number(dev.percent);
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) return;
     const key = name.toLowerCase();
+    // A route that cannot tell the kind never takes away one an earlier read or route knew.
+    const kind = normalizeKind(dev.kind);
+    const known = map.get(key);
     map.set(key, {
       id: key,
       name,
       percent: Math.round(pct),
       charging: typeof dev.charging === 'boolean' ? dev.charging : null,
       source: dev.type === 'system' ? 'system' : source,
+      kind: kind === 'unknown' && known ? known.kind : kind,
       updatedAt: now,
     });
   };
@@ -117,7 +122,8 @@ function createBatteryMonitor({ runScript, lighting, systemBattery, peripherals 
   async function readCorsair() {
     try {
       const res = await lighting.getBatteryLevels();
-      return { available: !!(res && res.ok), devices: (res && res.devices) || [] };
+      const devices = ((res && res.devices) || []).map(({ corsairType, ...d }) => ({ ...d, kind: kindOfCorsairType(corsairType) }));
+      return { available: !!(res && res.ok), devices };
     } catch {
       return { available: false, devices: [] };
     }
@@ -129,7 +135,8 @@ function createBatteryMonitor({ runScript, lighting, systemBattery, peripherals 
       let devs = data && data.devices;
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
       if (devs && !Array.isArray(devs)) devs = [devs];
-      return { available: true, devices: Array.isArray(devs) ? devs : [] };
+      const devices = Array.isArray(devs) ? devs.filter((d) => d && typeof d === 'object').map((d) => ({ ...d, kind: kindOfWindowsEntry(d) })) : [];
+      return { available: true, devices };
     } catch {
       return { available: false, devices: [] };
     }
@@ -160,7 +167,7 @@ function createBatteryMonitor({ runScript, lighting, systemBattery, peripherals 
     try {
       const b = await systemBattery();
       // Plugged in counts as charging, as battery.ps1 reads Win32_Battery.
-      return b ? [{ name: 'Battery', percent: b.percent, charging: b.charging === true || b.plugged === true, type: 'system' }] : [];
+      return b ? [{ name: 'Battery', percent: b.percent, charging: b.charging === true || b.plugged === true, type: 'system', kind: 'system' }] : [];
     } catch {
       return [];
     }

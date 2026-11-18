@@ -72,6 +72,6 @@ const VOIDS = [0x1B1C, 0x1B27, 0x0A14, 0x0A16, 0x0A17, 0x0A1D, 0x0A1A, 0x1B2A, 0
 
 module.exports = [
   { vendor: 'corsair', label: 'Corsair wireless device', products: ids(CORSAIR, SLIPSTREAM), page: 0xFF42, size: REPORT_BYTES + 1, read: readPeripheral },
-  { vendor: 'corsair', label: 'Corsair headset', products: ids(CORSAIR, HEADSETS), page: 0xFF42, usage: 1, size: REPORT_BYTES, read: readHeadset },
-  { vendor: 'corsair', label: 'Corsair Void', products: ids(CORSAIR, VOIDS), page: 0xFFC5, usage: 1, size: REPORT_BYTES, read: readVoid },
+  { vendor: 'corsair', label: 'Corsair headset', kind: 'headset', products: ids(CORSAIR, HEADSETS), page: 0xFF42, usage: 1, size: REPORT_BYTES, read: readHeadset },
+  { vendor: 'corsair', label: 'Corsair Void', kind: 'headset', products: ids(CORSAIR, VOIDS), page: 0xFFC5, usage: 1, size: REPORT_BYTES, read: readVoid },
 ];

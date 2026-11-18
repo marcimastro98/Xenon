@@ -12,6 +12,7 @@ const { readDirect } = require('./direct');
 const { openReports } = require('../hid/hid-reports-linux');
 const { createGuard } = require('./guard');
 const { readBluez } = require('./bluez');
+const { applicationUsages, kindOfUsages } = require('./kinds');
 
 const POWER_SUPPLY_DIR = '/sys/class/power_supply';
 const HIDRAW_DIR = '/sys/class/hidraw';
@@ -33,6 +34,15 @@ function sourceOf(entry) {
   return BLUETOOTH_NAME.test(entry) ? 'bluetooth' : 'usb';
 }
 
+// What the kernel knows the device is: a UPS says so in its type, and a HID peripheral's
+// battery hangs off the HID device, whose report descriptor declares its collections (the
+// HID++ driver writes one per paired device that says mouse or keyboard).
+async function kindOf(dir) {
+  if ((await attribute(dir, 'type')) === 'UPS') return 'ups';
+  const descriptor = await fsp.readFile(path.join(dir, 'device', 'report_descriptor')).catch(() => null);
+  return descriptor ? kindOfUsages(applicationUsages(descriptor)) : 'unknown';
+}
+
 // The PC's own pack has scope System or none: only peripherals say Device.
 async function readEntry(root, entry) {
   const dir = path.join(root, entry);
@@ -42,7 +52,7 @@ async function readEntry(root, entry) {
   if (percent == null || !name) return null;
   const status = await attribute(dir, 'status');
   const unit = (await attribute(dir, 'serial_number')) || (BLUETOOTH_NAME.exec(entry) || [''])[0];
-  return { name, percent, charging: status === 'Charging' || status === 'Full', source: sourceOf(entry), ...(unit ? { unit } : {}) };
+  return { name, percent, charging: status === 'Charging' || status === 'Full', source: sourceOf(entry), kind: await kindOf(dir), ...(unit ? { unit } : {}) };
 }
 
 async function readPowerSupplies(root = POWER_SUPPLY_DIR) {
@@ -87,4 +97,4 @@ async function read({ ask = true, guard = createGuard() } = {}) {
   return [...direct, ...razerDevices, ...bluetooth, ...supplies];
 }
 
-module.exports = { read, readPowerSupplies, sourceOf, kernelDrives };
+module.exports = { read, readPowerSupplies, sourceOf, kernelDrives, kindOf };

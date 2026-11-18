@@ -6,6 +6,7 @@
 
 const { connectSystemBus, stringDictionary } = require('./dbus-client');
 const { devicesFrom } = require('./apple-adverts');
+const { kindOfBluetooth } = require('./kinds');
 
 const BLUEZ = 'org.bluez';
 const OBJECT_MANAGER = 'org.freedesktop.DBus.ObjectManager';
@@ -21,6 +22,10 @@ const LISTEN_STEPS = 6;
 const GUARD_KEY = 'bluez-scan';
 
 const nameOf = (device) => device.Alias || device.Name || '';
+
+// What the device sent about itself: its Class of Device, its LE Appearance, or the Icon
+// BlueZ made from one of them.
+const kindOfDevice = (device) => kindOfBluetooth({ cod: device.Class, appearance: device.Appearance, icon: device.Icon });
 
 // A renamed pair still says who made it, but so does an iPhone, hence the audio icon.
 const isPair = (device) => PAIR_NAME.test(nameOf(device))
@@ -38,7 +43,7 @@ function parseObjects(managed) {
   const pairs = connected.map((object) => object[DEVICE]).filter(isPair);
   return {
     batteries: connected.filter((object) => Number.isInteger(object[BATTERY]?.Percentage)).map((object) => (
-      { name: nameOf(object[DEVICE]), percent: object[BATTERY].Percentage, charging: null, source: 'bluetooth', ...(object[DEVICE].Address ? { unit: String(object[DEVICE].Address) } : {}) }
+      { name: nameOf(object[DEVICE]), percent: object[BATTERY].Percentage, charging: null, source: 'bluetooth', kind: kindOfDevice(object[DEVICE]), ...(object[DEVICE].Address ? { unit: String(object[DEVICE].Address) } : {}) }
     )),
     connected: pairs.map(nameOf),
     adapter: pairs[0]?.Adapter ?? null,

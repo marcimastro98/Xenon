@@ -44,9 +44,10 @@ function decode(reply) {
   const keyboard = slotPercent(reply, KEYBOARD);
   const mouse = slotPercent(reply, MOUSE);
   if (keyboard !== null && mouse !== null) {
-    return [{ percent: keyboard, charging: null, suffix: 'keyboard' }, { percent: mouse, charging: null, suffix: 'mouse' }];
+    return [{ percent: keyboard, charging: null, suffix: 'keyboard', kind: 'keyboard' }, { percent: mouse, charging: null, suffix: 'mouse', kind: 'mouse' }];
   }
-  return reading(keyboard ?? mouse);
+  // The slot it answered in says which of the two it is.
+  return reading(keyboard ?? mouse).map((r) => ({ ...r, kind: keyboard !== null ? 'keyboard' : 'mouse' }));
 }
 
 async function read(io) {

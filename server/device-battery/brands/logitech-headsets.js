@@ -40,7 +40,7 @@ function reader(feature, sub, curve) {
 }
 
 const model = (label, productIds, feature, sub, curve, page = 0xFF43, usage = 0x0202) => ({
-  label, products: ids(LOGITECH, productIds), page, usage, size: FRAME_BYTES, read: reader(feature, sub, curve),
+  label, kind: 'headset', products: ids(LOGITECH, productIds), page, usage, size: FRAME_BYTES, read: reader(feature, sub, curve),
 });
 
 // ASTRO A50 Gen 5, as HaloBattery (MIT) reads it. The short reply is only an acknowledgement.
@@ -58,7 +58,7 @@ module.exports = [
   model('Logitech G535', [0x0AC4], 0x05, 0x0D, CURVE_G535, 0x000C, 0x0001),
   model('Logitech G533', [0x0A66], 0x07, 0x01, CURVE_G533),
   model('Logitech G headset', [0x0A5C, 0x0A89, 0x0AB5, 0x0AFE, 0x0B1F, 0x0A5B, 0x0A87], 0x08, 0x0A, CURVE_G633),
-  { label: 'ASTRO A50', products: ids(LOGITECH, [0x0B1C]), page: 0xFF32, usage: 0x0074, size: 64, read: readA50 },
+  { label: 'ASTRO A50', kind: 'headset', products: ids(LOGITECH, [0x0B1C]), page: 0xFF32, usage: 0x0074, size: 64, read: readA50 },
 ];
 module.exports.percentFromCurve = percentFromCurve;
 module.exports.CURVE_PRO = CURVE_PRO;

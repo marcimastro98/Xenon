@@ -45,7 +45,7 @@ async function readSwitch(io) {
 }
 
 module.exports = [
-  { label: 'Steam Controller', products: ids(0x28DE, [0x1304, 0x1305]), page: 0xFF00, usage: 1, listenOnly: true, read: readSteam },
-  { label: '8BitDo Pro 3', products: ids(0x2DC8, [0x6009]), page: 1, listenOnly: true, read: read8BitDo },
-  { label: 'Nintendo Switch controller', products: ids(0x057E, [0x2009, 0x2006, 0x2007]), page: 1, listenOnly: true, read: readSwitch },
+  { label: 'Steam Controller', kind: 'controller', products: ids(0x28DE, [0x1304, 0x1305]), page: 0xFF00, usage: 1, listenOnly: true, read: readSteam },
+  { label: '8BitDo Pro 3', kind: 'controller', products: ids(0x2DC8, [0x6009]), page: 1, listenOnly: true, read: read8BitDo },
+  { label: 'Nintendo Switch controller', kind: 'controller', products: ids(0x057E, [0x2009, 0x2006, 0x2007]), page: 1, listenOnly: true, read: readSwitch },
 ];

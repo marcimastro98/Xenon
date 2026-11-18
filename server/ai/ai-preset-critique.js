@@ -131,7 +131,7 @@ function critiquePackage(entry) {
     if (!used && !misread.includes(stream)) out.push(finding('fix', 'manifest.streams', 'asks for the "' + stream + '" stream but no file uses it', 'remove it, so the user is not asked for data the widget never reads'));
   }
   if (/\bdevices\s*\[\s*0\s*\]/.test(text) && (entry.streams || []).includes('battery')) {
-    out.push(finding('fix', 'index.html', 'takes the first battery device, which is whichever name sorts first: another device can show up here', 'find the device by name, and show nothing when it is missing'));
+    out.push(finding('fix', 'index.html', 'takes the first battery device, which is whichever name sorts first: another device can show up here', 'find the device by its kind (d.kind === \'mouse\') or by the name the user gives, and show nothing when it is missing'));
   }
   if (!(entry.streams || []).length && /\btype\s*[!=]==?\s*['"]data['"]/.test(text)) {
     out.push(finding('fix', 'manifest.streams', 'waits for stream data but asks for no stream, so nothing ever arrives', 'list the streams it reads in manifest.streams'));

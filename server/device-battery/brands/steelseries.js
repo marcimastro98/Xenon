@@ -40,7 +40,7 @@ function decodeNovaPro(r) {
   return reading(percentOfSteps(r[6], NOVA_PRO_STEPS), r[NOVA_PRO_STATE] === NOVA_PRO_CABLE);
 }
 
-const headset = (label, productIds, read, size, page, usage) => ({ label, products: ids(STEELSERIES, productIds), read, size, page, usage });
+const headset = (label, productIds, read, size, page, usage) => ({ label, kind: 'headset', products: ids(STEELSERIES, productIds), read, size, page, usage });
 
 // The mice answer on a fixed USB interface and name no collection of their own.
 const MOUSE_WIRED = 0x92;
@@ -66,7 +66,7 @@ async function readRival(io) {
   return reply ? reading(validPercent(reply[0]), reply[2] !== 0) : [];
 }
 
-const mouse = (label, productIds, read, usbInterface = 3) => ({ label, products: ids(STEELSERIES, productIds), usbInterface, size: MOUSE_BYTES, read });
+const mouse = (label, productIds, read, usbInterface = 3) => ({ label, kind: 'mouse', products: ids(STEELSERIES, productIds), usbInterface, size: MOUSE_BYTES, read });
 
 module.exports = [
   headset('SteelSeries Arctis', [0x12B3, 0x12B6, 0x12D7, 0x12D5], echoed([0x06, 0x12], (r) => (r[2] === 1 ? [] : reading(validPercent(r[3])))), 31, 0xFF43, 0x0202),

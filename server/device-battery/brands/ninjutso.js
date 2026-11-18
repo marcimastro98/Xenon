@@ -26,7 +26,7 @@ function reader(needsOnline) {
 }
 
 const model = (productId, needsOnline) => ({
-  label: 'Ninjutso Sora V2', products: ids(NORDIC, [productId]), page: 0xFFA0, named: NAME, feature: true, size: REPORT_BYTES, read: reader(needsOnline),
+  label: 'Ninjutso Sora V2', kind: 'mouse', products: ids(NORDIC, [productId]), page: 0xFFA0, named: NAME, feature: true, size: REPORT_BYTES, read: reader(needsOnline),
 });
 
 module.exports = [model(0xAE1C, true), model(0xAE12, false)];

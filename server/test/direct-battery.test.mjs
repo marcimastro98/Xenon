@@ -50,14 +50,14 @@ test('no device is in two models, and each model can read', () => {
 
 test('Akko: the keyboard charge from the reply of a real receiver', async () => {
   const link = featureLink(['00 00 1c 00 00 01 01 01']);
-  assert.deepEqual(await model(0x3151, 0x4011).read(featureIo(link)), [{ percent: 28, charging: null }]);
+  assert.deepEqual(await model(0x3151, 0x4011).read(featureIo(link)), [{ percent: 28, charging: null, kind: 'keyboard' }]);
   assert.deepEqual([...link.sent[0]], [0x00, 0xF7]);
 });
 
 test('receiver: a keyboard and a mouse both on are told apart', async () => {
   const link = featureLink(['00 01 32 46 00 00 01']);
   const found = await model(0x3151, 0x402D).read(featureIo(link));
-  assert.deepEqual(found.map((d) => [d.percent, d.suffix]), [[50, 'keyboard'], [70, 'mouse']]);
+  assert.deepEqual(found.map((d) => [d.percent, d.suffix, d.kind]), [[50, 'keyboard', 'keyboard'], [70, 'mouse', 'mouse']]);
 });
 
 test('receiver: a reply it has not filled yet is asked again, then given up', async () => {
@@ -235,7 +235,7 @@ const akko = { path: 'a', vendorId: 0x3151, productId: 0x4011, usagePage: 0xFFFF
 
 test('readDirect: names a device by what it calls itself and marks it a dongle', async () => {
   const transport = { list: async () => [akko], open: async () => featureLink(['00 00 1c 00 00 01 01']) };
-  assert.deepEqual(await readDirect(transport), [{ name: 'Akko 2.4G Wireless Keyboard', percent: 28, charging: null, source: 'dongle' }]);
+  assert.deepEqual(await readDirect(transport), [{ name: 'Akko 2.4G Wireless Keyboard', percent: 28, charging: null, source: 'dongle', kind: 'keyboard' }]);
 });
 
 test('readDirect: a device outside the table is never opened', async () => {

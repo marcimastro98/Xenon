@@ -30,8 +30,8 @@ test('another Apple message, or too short, is no reading', () => {
 test('the connected pair takes the name, the lower bud and a row for the case', () => {
   const low = '0719012420738a973100';
   assert.deepEqual(devicesFrom({ connected: ['AirPods Pro'], adverts: [{ rssi: -50, hex: low }] }), [
-    { name: 'AirPods Pro', percent: 80, charging: true, source: 'bluetooth' },
-    { name: 'AirPods Pro case', percent: 70, charging: false, source: 'bluetooth' },
+    { name: 'AirPods Pro', percent: 80, charging: true, source: 'bluetooth', kind: 'headset' },
+    { name: 'AirPods Pro case', percent: 70, charging: false, source: 'bluetooth', kind: 'headset' },
   ]);
 });
 
@@ -55,15 +55,15 @@ test('no helper, an old helper or bad output is no reading, and the guard is lef
 
 test('macOS: one-piece headphones under Main, and a 0 or a stray value is no level', () => {
   const text = JSON.stringify({ SPBluetoothDataType: [{ device_connected: [
-    { 'AirPods Max': { device_batteryLevelMain: '85%' } },
+    { 'AirPods Max': { device_batteryLevelMain: '85%', device_minorType: 'Headphones' } },
     { 'MX Master 3S': { device_batteryLevelMain: '0%' } },
     { Buds: { device_batteryLevelLeft: ' 40 % ', device_batteryLevelRight: 'n/a', device_batteryLevelCase: 72 } },
     { Odd: { device_batteryLevelMain: '140%' } },
   ] }] });
   assert.deepEqual(parseProfiler(text), [
-    { name: 'AirPods Max', percent: 85, charging: null, source: 'bluetooth' },
-    { name: 'Buds', percent: 40, charging: null, source: 'bluetooth' },
-    { name: 'Buds case', percent: 72, charging: null, source: 'bluetooth' },
+    { name: 'AirPods Max', percent: 85, charging: null, source: 'bluetooth', kind: 'headset' },
+    { name: 'Buds', percent: 40, charging: null, source: 'bluetooth', kind: 'unknown' },
+    { name: 'Buds case', percent: 72, charging: null, source: 'bluetooth', kind: 'unknown' },
   ]);
 });
 
@@ -73,7 +73,7 @@ test('macOS: each bud and the case from system_profiler, connected devices only'
     device_not_connected: [{ 'Old AirPods': { device_batteryLevelLeft: '10%' } }],
   }] });
   assert.deepEqual(parseProfiler(text), [
-    { name: 'AirPods Pro', percent: 90, charging: null, source: 'bluetooth' },
-    { name: 'AirPods Pro case', percent: 70, charging: null, source: 'bluetooth' },
+    { name: 'AirPods Pro', percent: 90, charging: null, source: 'bluetooth', kind: 'unknown' },
+    { name: 'AirPods Pro case', percent: 70, charging: null, source: 'bluetooth', kind: 'unknown' },
   ]);
 });

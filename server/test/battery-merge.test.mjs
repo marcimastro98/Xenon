@@ -101,7 +101,7 @@ test('the PC pack from power/ shows where battery.ps1 cannot run, never twice on
   // macOS/Linux: no PowerShell, the PC pack comes from power/.
   const posix = createBatteryMonitor({ runScript: async () => { throw new Error('no pwsh'); }, lighting, systemBattery: pack });
   const a = await posix.getDevices();
-  assert.deepEqual(a.devices, [{ id: 'battery', name: 'Battery', percent: 64, charging: true, source: 'system' }]);
+  assert.deepEqual(a.devices, [{ id: 'battery', name: 'Battery', percent: 64, charging: true, source: 'system', kind: 'system' }]);
   // Windows: battery.ps1 already reported the pack, power/ is not asked.
   let asked = 0;
   const win = createBatteryMonitor({

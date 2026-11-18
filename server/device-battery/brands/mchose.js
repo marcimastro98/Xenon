@@ -30,7 +30,7 @@ async function readA5(io) {
 }
 
 module.exports = [
-  { label: 'MCHOSE G7', products: ids(0xA8A5, [0x2255]), page: 0xFF01, size: 65, read: readG7 },
-  { label: 'MCHOSE X9', products: ids(0x3837, [0x6045]), page: 0xFF90, usage: 1, size: 64, read: readX9 },
-  { label: 'MCHOSE A5 Pro Max', products: ids(0x2023, [0xF013, 0xF015, 0xF019]), page: 0xFFFF, feature: true, size: 65, read: readA5 },
+  { label: 'MCHOSE G7', kind: 'mouse', products: ids(0xA8A5, [0x2255]), page: 0xFF01, size: 65, read: readG7 },
+  { label: 'MCHOSE X9', kind: 'mouse', products: ids(0x3837, [0x6045]), page: 0xFF90, usage: 1, size: 64, read: readX9 },
+  { label: 'MCHOSE A5 Pro Max', kind: 'mouse', products: ids(0x2023, [0xF013, 0xF015, 0xF019]), page: 0xFFFF, feature: true, size: 65, read: readA5 },
 ];

@@ -12,4 +12,4 @@ async function read(io) {
   return r ? reading(validPercent(r[4])) : [];
 }
 
-module.exports = [{ label: 'Akko S9 Ultra', products: ids(0x36EB, [0x1087]), page: 0x008C, usage: 1, size: 64, read }];
+module.exports = [{ label: 'Akko S9 Ultra', kind: 'headset', products: ids(0x36EB, [0x1087]), page: 0x008C, usage: 1, size: 64, read }];

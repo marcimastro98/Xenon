@@ -89,10 +89,10 @@ async function readHaste2(io) {
 }
 
 module.exports = [
-  { label: 'HyperX Cloud III Wireless', products: ids(HP, [0x05B7, 0x0C9D, 0x0995, 0x0795]), page: 0xFF13, usage: 1, size: 62, read: readCloud3 },
-  { label: 'HyperX Cloud III S Wireless', products: ids(HP, [0x02CC, 0x06BE]), size: 64, read: readCloud3S },
-  { label: 'HyperX Cloud Alpha 2 Wireless', products: ids(HP, [0x08BE]), page: 0xFF13, usage: 0xFF00, size: 64, read: readAlpha2 },
-  { label: 'HyperX Cloud II Wireless', products: ids(HP, [0x0696, 0x018B]), page: 0xFF90, usage: 0x0303, size: 52, read: readCloud2 },
-  { label: 'HyperX Cloud Alpha Wireless', products: ids(HP, [0x098D]), size: 31, read: readAlphaWireless },
-  { label: 'HyperX Pulsefire Haste 2 Wireless', products: ids(HP, [0x0F98]), usbInterface: 2, size: 64, read: readHaste2 },
+  { label: 'HyperX Cloud III Wireless', kind: 'headset', products: ids(HP, [0x05B7, 0x0C9D, 0x0995, 0x0795]), page: 0xFF13, usage: 1, size: 62, read: readCloud3 },
+  { label: 'HyperX Cloud III S Wireless', kind: 'headset', products: ids(HP, [0x02CC, 0x06BE]), size: 64, read: readCloud3S },
+  { label: 'HyperX Cloud Alpha 2 Wireless', kind: 'headset', products: ids(HP, [0x08BE]), page: 0xFF13, usage: 0xFF00, size: 64, read: readAlpha2 },
+  { label: 'HyperX Cloud II Wireless', kind: 'headset', products: ids(HP, [0x0696, 0x018B]), page: 0xFF90, usage: 0x0303, size: 52, read: readCloud2 },
+  { label: 'HyperX Cloud Alpha Wireless', kind: 'headset', products: ids(HP, [0x098D]), size: 31, read: readAlphaWireless },
+  { label: 'HyperX Pulsefire Haste 2 Wireless', kind: 'mouse', products: ids(HP, [0x0F98]), usbInterface: 2, size: 64, read: readHaste2 },
 ];

@@ -45,6 +45,6 @@ async function readBlackShark(io) {
 }
 
 module.exports = [
-  { label: 'Razer Barracuda Pro', products: ids(RAZER, [0x053A]), page: 0xFF00, size: 64, read: readBarracuda },
-  { label: 'Razer BlackShark V2 Pro', products: ids(RAZER, [0x0555, 0x0556]), page: 0xFF00, size: 64, read: readBlackShark },
+  { label: 'Razer Barracuda Pro', kind: 'headset', products: ids(RAZER, [0x053A]), page: 0xFF00, size: 64, read: readBarracuda },
+  { label: 'Razer BlackShark V2 Pro', kind: 'headset', products: ids(RAZER, [0x0555, 0x0556]), page: 0xFF00, size: 64, read: readBlackShark },
 ];

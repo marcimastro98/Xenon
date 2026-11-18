@@ -34,9 +34,9 @@ test('linux: any brand with a kernel driver is listed, the PC pack is not', asyn
   const devices = await readPowerSupplies(root);
   const byName = Object.fromEntries(devices.map((d) => [d.name, d]));
   assert.equal(devices.length, 3);
-  assert.deepEqual(byName['PRO X 2'], { name: 'PRO X 2', percent: 99, charging: false, source: 'logitech' });
-  assert.deepEqual(byName['Aerox 3'], { name: 'Aerox 3', percent: 41, charging: true, source: 'usb' });
-  assert.deepEqual(byName.Keyboard, { name: 'Keyboard', percent: 70, charging: true, source: 'usb' });
+  assert.deepEqual(byName['PRO X 2'], { name: 'PRO X 2', percent: 99, charging: false, source: 'logitech', kind: 'unknown' });
+  assert.deepEqual(byName['Aerox 3'], { name: 'Aerox 3', percent: 41, charging: true, source: 'usb', kind: 'unknown' });
+  assert.deepEqual(byName.Keyboard, { name: 'Keyboard', percent: 70, charging: true, source: 'usb', kind: 'unknown' });
 });
 
 test('linux: the entry name tells the transport', () => {
@@ -62,6 +62,8 @@ test('macos: ioreg blocks with a product and a level, nothing else', () => {
     '+-o AppleDeviceManagementHIDEventService  <class AppleDeviceManagementHIDEventService>',
     '    {',
     '      "Product" = "Magic Mouse"',
+    '      "PrimaryUsagePage" = 1',
+    '      "PrimaryUsage" = 2',
     '      "BatteryPercent" = 86',
     '    }',
     '+-o IOHIDInterface  <class IOHIDInterface>',
@@ -69,7 +71,7 @@ test('macos: ioreg blocks with a product and a level, nothing else', () => {
     '      "BatteryPercent" = 12',
     '    }',
   ].join('\n');
-  assert.deepEqual(parseIoreg(text), [{ name: 'Magic Mouse', percent: 86, charging: null, source: 'bluetooth' }]);
+  assert.deepEqual(parseIoreg(text), [{ name: 'Magic Mouse', percent: 86, charging: null, source: 'bluetooth', kind: 'mouse' }]);
   assert.deepEqual(parseIoreg(''), []);
 });
 

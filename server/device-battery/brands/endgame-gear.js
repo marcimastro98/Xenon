@@ -23,4 +23,4 @@ async function read(io) {
   return [];
 }
 
-module.exports = [{ label: 'Endgame Gear OP1w', products: ids(0x3367, [0x1970, 0x1984]), page: 0xFF01, usage: 2, feature: true, size: 64, read }];
+module.exports = [{ label: 'Endgame Gear OP1w', kind: 'mouse', products: ids(0x3367, [0x1970, 0x1984]), page: 0xFF01, usage: 2, feature: true, size: 64, read }];

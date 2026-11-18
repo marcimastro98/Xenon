@@ -32,6 +32,6 @@ async function readBuds(io) {
 }
 
 module.exports = [
-  { label: 'Sony PULSE 3D', products: ids(SONY, [0x0D5E]), page: 0xFF01, usage: 0x0020, listenOnly: true, read: readPulse },
-  { label: 'Sony INZONE Buds', products: ids(SONY, [0x0EC2]), listenOnly: true, read: readBuds },
+  { label: 'Sony PULSE 3D', kind: 'headset', products: ids(SONY, [0x0D5E]), page: 0xFF01, usage: 0x0020, listenOnly: true, read: readPulse },
+  { label: 'Sony INZONE Buds', kind: 'headset', products: ids(SONY, [0x0EC2]), listenOnly: true, read: readBuds },
 ];

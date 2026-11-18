@@ -38,7 +38,7 @@ async function readGamepads(guard) {
     if ((await call(get, pad, DEVTYPE_GAMEPAD, info)) !== ERROR_SUCCESS) continue;
     const percent = decode(info);
     if (percent === null) continue;
-    devices.push({ name: devices.length ? `${NAME} ${devices.length + 1}` : NAME, percent, charging: null, source: 'dongle' });
+    devices.push({ name: devices.length ? `${NAME} ${devices.length + 1}` : NAME, percent, charging: null, source: 'dongle', kind: 'controller' });
   }
   guard.leave();
   return devices;

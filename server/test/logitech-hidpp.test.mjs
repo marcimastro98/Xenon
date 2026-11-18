@@ -22,10 +22,11 @@ function report(index, featureIndex, tag, data) {
   return bytes;
 }
 
-// A device as HID++ sees it: features by id, in the order of their index.
-function simDevice({ name = 'PRO X 2', features = {}, protocol = 4 }) {
+// A device as HID++ sees it: features by id, in the order of their index. `type` is the
+// 0x0005 device type (3 = mouse, 0 = keyboard, 8 = headset).
+function simDevice({ name = 'PRO X 2', type = 3, features = {}, protocol = 4 }) {
   const ids = [NAME_FEATURE, ...Object.keys(features).map(Number)];
-  return { name, features, protocol, indexOf: (id) => ids.indexOf(id) + 1, idAt: (at) => ids[at - 1] };
+  return { name, type, features, protocol, indexOf: (id) => ids.indexOf(id) + 1, idAt: (at) => ids[at - 1] };
 }
 
 // devices: { [index]: simDevice }. Anything else answers "unknown device".
@@ -49,7 +50,8 @@ function simLink(devices, { noise = [], silent = false } = {}) {
       }
       const id = device.idAt(at);
       if (id === NAME_FEATURE) {
-        const data = fn === 0 ? [device.name.length] : [...Buffer.from(device.name.slice(bytes[4], bytes[4] + 16))];
+        const chars = () => [...Buffer.from(device.name.slice(bytes[4], bytes[4] + 16))];
+        const data = fn === 0 ? [device.name.length] : fn === 2 ? [device.type] : chars();
         queue.push(report(index, at, tag, data));
         return;
       }
@@ -130,17 +132,17 @@ test('voltage: the charging flag, and no voltage means no reading', () => {
 
 test('readLink: a mouse on its cable answers on the direct index', async () => {
   const link = simLink({ 0xFF: simDevice({ features: { 0x1004: [100, 8, 3, 1] } }) });
-  assert.deepEqual(await hidpp.readLink(link), [{ name: 'PRO X 2', percent: 100, charging: true }]);
+  assert.deepEqual(await hidpp.readLink(link), [{ name: 'PRO X 2', percent: 100, charging: true, kind: 'mouse' }]);
 });
 
 test('readLink: a receiver lists what is on its slots, and skips the empty ones', async () => {
   const link = simLink({
     1: simDevice({ features: { 0x1004: [99, 8, 0, 0] } }),
-    3: simDevice({ name: 'MX Keys Mini', features: { 0x1000: [60, 50, 0] } }),
+    3: simDevice({ name: 'MX Keys Mini', type: 0, features: { 0x1000: [60, 50, 0] } }),
   });
   assert.deepEqual(await hidpp.readLink(link), [
-    { name: 'PRO X 2', percent: 99, charging: false },
-    { name: 'MX Keys Mini', percent: 60, charging: false },
+    { name: 'PRO X 2', percent: 99, charging: false, kind: 'mouse' },
+    { name: 'MX Keys Mini', percent: 60, charging: false, kind: 'keyboard' },
   ]);
 });
 
@@ -164,7 +166,9 @@ test('readLink: a name longer than one report arrives whole', async () => {
 test('readLink: no name feature still gives a reading', async () => {
   const device = simDevice({ features: { 0x1000: [60, 50, 0] } });
   const plain = { ...device, indexOf: (id) => (id === 0x1000 ? 1 : 0), idAt: () => 0x1000 };
-  assert.equal((await hidpp.readLink(simLink({ 1: plain })))[0].name, 'Logitech device');
+  const [read] = await hidpp.readLink(simLink({ 1: plain }));
+  assert.equal(read.name, 'Logitech device');
+  assert.equal(read.kind, 'unknown');
 });
 
 test('readLink: HID++ 1.0 devices are left out, not misread', async () => {
@@ -191,10 +195,20 @@ test('nothing sent ever leaves the read-only functions', async () => {
   const device = simDevice({ features: { 0x1004: [], 0x1000: [], 0x1001: [] } });
   const allowed = new Map([
     [0, [0, 1]],                         // root: getFeature, ping
-    [device.indexOf(0x0005), [0, 1]],    // name: length, characters
+    [device.indexOf(0x0005), [0, 1, 2]], // name: length, characters, device type
     [device.indexOf(0x1004), [1]],       // unified battery: status
   ]);
   for (const bytes of link.sent) {
     assert.ok(allowed.get(bytes[2])?.includes(bytes[3] >> 4), `feature ${bytes[2]} function ${bytes[3] >> 4}`);
   }
+});
+
+test('readLink: the kind is the type the device reports, never its name', async () => {
+  const kindOf = async (type, name = 'Logitech device') => (await hidpp.readLink(simLink({ 1: simDevice({ name, type, features: { 0x1000: [60, 50, 0] } }) })))[0].kind;
+  assert.equal(await kindOf(8, 'Mouse Keyboard'), 'headset');
+  assert.equal(await kindOf(5), 'mouse');      // trackball
+  assert.equal(await kindOf(2), 'keyboard');   // numpad
+  assert.equal(await kindOf(12), 'controller');
+  assert.equal(await kindOf(6), 'other');      // presenter
+  assert.equal(await kindOf(200), 'unknown');
 });

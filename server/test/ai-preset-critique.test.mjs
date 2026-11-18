@@ -266,7 +266,7 @@ test('widget: a stream read off the message itself is a fix, and asking for it s
 
 test('widget: falling back to the first battery device is a fix', () => {
   const html = SCHEME + '<script>onmessage = (e) => { if (e.data.stream === "battery") draw(e.data.data.devices.find(pick) || e.data.data.devices[0]); }</script>';
-  assert.match(find(critique('widget', pkg({ streams: ['battery'] }, html)), /first battery device/).hint, /by name/);
+  assert.match(find(critique('widget', pkg({ streams: ['battery'] }, html)), /first battery device/).hint, /by its kind .* or by the name/);
 });
 
 test('widget: listening for stream data while asking for no stream is a fix', () => {

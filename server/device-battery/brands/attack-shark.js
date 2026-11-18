@@ -24,5 +24,5 @@ async function read(io) {
 }
 
 module.exports = [{
-  label: 'Attack Shark mouse', products: ids(0x1D57, [0xFA60, 0xFA55, 0xFA61, 0xFA50, 0xFA62, 0xFA56]), usbInterface: 2, listenOnly: true, read,
+  label: 'Attack Shark mouse', kind: 'mouse', products: ids(0x1D57, [0xFA60, 0xFA55, 0xFA61, 0xFA50, 0xFA62, 0xFA56]), usbInterface: 2, listenOnly: true, read,
 }];

@@ -67,7 +67,7 @@ function reader(prefix) {
 }
 
 const model = (label, productId, prefix) => ({
-  label, products: ids(LOGITECH, [productId]), page: 0xFFA0, usage: 1, size: 64, read: reader(prefix),
+  label, kind: 'headset', products: ids(LOGITECH, [productId]), page: 0xFFA0, usage: 1, size: 64, read: reader(prefix),
 });
 
 module.exports = [

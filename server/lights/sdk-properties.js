@@ -88,7 +88,8 @@ async function getBatteryLevels() {
       }
       const percent = buf.readInt32LE(8);
       if (percent < 0 || percent > 100) continue;
-      out.push({ name: String(dev.model || '').trim(), percent, unit: String(dev.id || '') });
+      // The SDK's own CorsairDeviceType: battery.js turns it into the device's kind.
+      out.push({ name: String(dev.model || '').trim(), percent, unit: String(dev.id || ''), corsairType: Number(dev.type) || 0 });
     } catch { /* per-device failure: skip, never fail the batch */ }
   }
   return { ok: true, devices: out.filter(d => d.name) };

@@ -13,4 +13,4 @@ async function read(io) {
   return r[0] === REPORT && r[1] === BATTERY ? reading(validPercent(r[3])) : [];
 }
 
-module.exports = [{ label: 'Redragon M910-KS', products: ids(0x258A, [0x002F]), page: 0xFF00, feature: true, size: 8, read }];
+module.exports = [{ label: 'Redragon M910-KS', kind: 'mouse', products: ids(0x258A, [0x002F]), page: 0xFF00, feature: true, size: 8, read }];

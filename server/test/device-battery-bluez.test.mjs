@@ -62,7 +62,7 @@ test('Battery1 of a connected device is listed, of a gone one is not', () => {
     { ...device({ Name: 'WH-1000XM5', Connected: true }), ...LEVEL },
     { ...device({ Name: 'Old', Connected: false }), ...LEVEL },
   ));
-  assert.deepEqual(seen.batteries, [{ name: 'WH-1000XM5', percent: 64, charging: null, source: 'bluetooth' }]);
+  assert.deepEqual(seen.batteries, [{ name: 'WH-1000XM5', percent: 64, charging: null, source: 'bluetooth', kind: 'unknown' }]);
 });
 
 test('no pair connected: no scan, and the bus is closed', async () => {

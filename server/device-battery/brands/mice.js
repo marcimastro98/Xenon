@@ -39,9 +39,9 @@ async function readNzxt(io) {
 }
 
 module.exports = [
-  { label: 'Glorious wireless mouse', products: ids(0x258A, [0x2022, 0x2011, 0x2033, 0x2036, 0x2034, 0x201A]), feature: true, size: GLORIOUS_BYTES, read: readGlorious },
-  { label: 'WLMouse Beast X Max', products: ids(0x36A7, [0xA880]), feature: true, size: GLORIOUS_BYTES, read: readGlorious },
-  { label: 'Lamzu Maya X', products: ids(0x373E, [0x001E, 0x001C]), page: 0xFFFF, feature: true, size: GLORIOUS_BYTES, read: readGlorious },
-  { label: 'VAXEE mouse', products: ids(0x3057, [0x1001, 0x1002, 0x2001, 0x2002]), page: 0xFF05, feature: true, read: readVaxee },
-  { label: 'NZXT Lift Elite', products: ids(0x1E71, [0x2101, 0x2129]), page: 0xFFCA, usage: 1, size: 64, read: readNzxt },
+  { label: 'Glorious wireless mouse', kind: 'mouse', products: ids(0x258A, [0x2022, 0x2011, 0x2033, 0x2036, 0x2034, 0x201A]), feature: true, size: GLORIOUS_BYTES, read: readGlorious },
+  { label: 'WLMouse Beast X Max', kind: 'mouse', products: ids(0x36A7, [0xA880]), feature: true, size: GLORIOUS_BYTES, read: readGlorious },
+  { label: 'Lamzu Maya X', kind: 'mouse', products: ids(0x373E, [0x001E, 0x001C]), page: 0xFFFF, feature: true, size: GLORIOUS_BYTES, read: readGlorious },
+  { label: 'VAXEE mouse', kind: 'mouse', products: ids(0x3057, [0x1001, 0x1002, 0x2001, 0x2002]), page: 0xFF05, feature: true, read: readVaxee },
+  { label: 'NZXT Lift Elite', kind: 'mouse', products: ids(0x1E71, [0x2101, 0x2129]), page: 0xFFCA, usage: 1, size: 64, read: readNzxt },
 ];

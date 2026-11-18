@@ -39,5 +39,5 @@ const products = [
   ...ids(0x260D, [0x1175, 0x1193, 0x1154, 0x1196]),
 ];
 
-module.exports = [{ label: 'Wireless mouse', products, page: 0xFF02, usage: 2, size: FRAME_BYTES, read }];
+module.exports = [{ label: 'Wireless mouse', kind: 'mouse', products, page: 0xFF02, usage: 2, size: FRAME_BYTES, read }];
 module.exports.frame = frame;
