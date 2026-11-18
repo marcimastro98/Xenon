@@ -7422,4 +7422,6 @@ module.exports = {
   settings_slideshow_dim_off: 'Spento',
   discord_w_only_starred: 'Solo preferiti',
   discord_w_show_all: 'Mostra tutti',
+  discord_w_star_server: 'Aggiungi il server ai preferiti',
+  discord_w_unstar_server: 'Togli il server dai preferiti',
 };

@@ -107,6 +107,8 @@ const HUB_DEFAULTS_APP = Object.freeze({
   discordFavChannels: Object.freeze([]),
   discordCollapsedGuilds: Object.freeze([]),
   discordFavOnly: false,
+  // Whole servers starred in the Channels tab: every channel of one counts as a favourite.
+  discordFavGuilds: Object.freeze([]),
 });
 
 module.exports = { HUB_DEFAULTS_APP };

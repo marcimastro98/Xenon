@@ -54,6 +54,7 @@ function normalizeHubApp(source) {
     discordFavChannels: normalizeSnowflakeList(source.discordFavChannels),
     discordCollapsedGuilds: normalizeSnowflakeList(source.discordCollapsedGuilds),
     discordFavOnly: source.discordFavOnly === true,
+    discordFavGuilds: normalizeSnowflakeList(source.discordFavGuilds),
   };
 }
 

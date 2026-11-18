@@ -7360,4 +7360,6 @@ module.exports = {
   settings_slideshow_dim_off: 'Выкл.',
   discord_w_only_starred: 'Только избранные',
   discord_w_show_all: 'Показать все',
+  discord_w_star_server: 'Добавить сервер в избранное',
+  discord_w_unstar_server: 'Убрать сервер из избранного',
 };

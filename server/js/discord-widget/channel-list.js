@@ -9,6 +9,7 @@ window.DiscordWidgetChannelList = (wrapper) => {
 
   const {
     splitFavourites, favIds, isFav, groupByGuild, collapsedIds, isCollapsed,
+    favGuildIds, isFavGuild, splitStarredGuilds,
   } = window.DiscordWidgetLists;
   const { t } = window.DiscordWidgetTabs;
   const { syncMemberStates } = window.DiscordWidgetMemberState;
@@ -22,6 +23,15 @@ window.DiscordWidgetChannelList = (wrapper) => {
   function toggleFavOnly(mount) {
     if (typeof saveTileSetting !== 'function') return;
     saveTileSetting({ discordFavOnly: !favOnly() }).then((ok) => { if (!ok) paintChannels(mount); });
+    paintChannels(mount);
+  }
+  // A new starred server goes to the bottom of the starred ones, as a channel does.
+  function toggleFavGuild(guildId, mount) {
+    const key = String(guildId || '');
+    if (!key || typeof saveTileSetting !== 'function') return;
+    const cur = favGuildIds();
+    const next = cur.includes(key) ? cur.filter((x) => x !== key) : cur.concat([key]);
+    saveTileSetting({ discordFavGuilds: next }).then((ok) => { if (!ok) paintChannels(mount); });
     paintChannels(mount);
   }
   const barButton = (label, onClick, cls) => {
@@ -55,6 +65,7 @@ window.DiscordWidgetChannelList = (wrapper) => {
       // Collapsing a server changes what is drawn and nothing else, so without
       // it in the signature the tap would repaint nothing until a member moved.
       + '#' + collapsedIds().join(',')
+      + '#' + favGuildIds().join(',')
       + '#' + favOnly();
     if (list.dataset.dcSig === sig) {
       if (linked && discordState.channels && discordState.channels.length) {
@@ -132,30 +143,54 @@ window.DiscordWidgetChannelList = (wrapper) => {
       h.title = label;
       h.setAttribute('aria-label', (g.name || '') + ' — ' + label);
       h.addEventListener('click', () => toggleGuild(g.id));
-      return h;
+      // The server's star sits BESIDE the heading, never inside it (a button in a
+      // button is invalid), so starring never folds the server and vice versa.
+      const row = el('div', 'dc-guild-row');
+      row.append(h, guildStar(g));
+      return row;
+    };
+
+    const guildStar = (g) => {
+      const starred = isFavGuild(g.id);
+      const star = el('button', 'dc-chan-fav dc-guild-fav');
+      star.type = 'button';
+      star.classList.toggle('is-on', starred);
+      star.innerHTML = ICONS.star;                                          // static, trusted SVG
+      const label = starred
+        ? t('discord_w_unstar_server', 'Remove server from favourites')
+        : t('discord_w_star_server', 'Add server to favourites');
+      star.title = label;
+      star.setAttribute('aria-label', (g.name || '') + ' — ' + label);
+      star.setAttribute('aria-pressed', String(starred));
+      star.addEventListener('click', (ev) => { ev.stopPropagation(); toggleFavGuild(g.id, mount); });
+      return star;
     };
 
     const { pinned, rest } = splitFavourites(discordState.channels, favIds());
-    const groups = Array.from(groupByGuild(rest).values());
+    // Starred servers come first, right under the starred channels.
+    const split = splitStarredGuilds(Array.from(groupByGuild(rest).values()), favGuildIds());
     // Favourites is not a server and never collapses: it is the shortcut PAST
     // the scrolling, so hiding it would work against the thing being asked for.
     if (pinned.length) {
       frag.appendChild(el('div', 'dc-guild dc-guild--fav', t('discord_w_favourites', 'Favourites')));
       pinned.forEach(channelRow);
     }
-    // Collapse/expand everything. Only from two servers up: with one, it is the
-    // header's own caret wearing a different hat.
+    // "Only starred" keeps the starred channels and the starred servers.
+    const anyStarred = pinned.length > 0 || split.starred.length > 0;
+    const onlyFav = favOnly() && anyStarred;
+    const groups = onlyFav ? split.starred : split.starred.concat(split.others);
     const ids = groups.map(g => g.id).filter(Boolean);
-    const onlyFav = favOnly() && pinned.length > 0;
     const bar = el('div', 'dc-guild-all');
-    if (pinned.length) {
+    if (anyStarred) {
       const label = onlyFav ? t('discord_w_show_all', 'Show all') : t('discord_w_only_starred', 'Only starred');
       const b = barButton(label, () => toggleFavOnly(mount), 'dc-fav-only');
       b.setAttribute('aria-pressed', String(onlyFav));
       b.append(el('span', null, label));
       bar.appendChild(b);
     }
-    if (ids.length > 1 && !onlyFav) {
+    // Collapse/expand everything shown. Only from two servers up: with one, it is
+    // the header's own caret wearing a different hat.
+    if (ids.length > 1) {
       const allShut = ids.every(isCollapsed);
       const b = barButton('', () => toggleAllGuilds(ids));
       b.classList.toggle('is-collapsed', allShut);
@@ -169,7 +204,6 @@ window.DiscordWidgetChannelList = (wrapper) => {
       bar.appendChild(b);
     }
     if (bar.childElementCount) frag.appendChild(bar);
-    if (onlyFav) { list.replaceChildren(frag); return; }
     groups.forEach((g) => {
       // A group with no id cannot be remembered, so it is drawn the way it
       // always was: a plain heading, always open.

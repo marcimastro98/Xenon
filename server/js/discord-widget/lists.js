@@ -1,6 +1,6 @@
 // How the Discord tile orders what it lists: the pinned voice channels taken out on top in the
 // order they were starred, the rest grouped by server, which channels are pinned and which servers
-// are folded as the settings remember them, and the time of a notification.
+// are folded or starred as the settings remember them, and the time of a notification.
 'use strict';
 
 (() => {
@@ -65,6 +65,27 @@
 
   function isCollapsed(guildId) { return !!guildId && collapsedIds().includes(String(guildId)); }
 
+  // Starred servers (asked on Discord: "I'd like to star a whole server"). Every
+  // channel of a starred server counts as a favourite: the server moves up under
+  // the starred channels and stays under "Only starred". Kept as a server with its
+  // heading, so its star (the way to unstar it) and its fold stay reachable.
+  function favGuildIds() {
+    const v = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.discordFavGuilds : null;
+    return Array.isArray(v) ? v : [];
+  }
+
+  function isFavGuild(guildId) { return !!guildId && favGuildIds().includes(String(guildId)); }
+
+  // Pure: the server groups split into the starred ones, in the order they were
+  // starred (like the channels), and the others in the list's own order.
+  function splitStarredGuilds(groups, ids) {
+    const all = Array.isArray(groups) ? groups : [];
+    const want = Array.isArray(ids) ? ids.map(String) : [];
+    const starred = want.map((id) => all.find((g) => g && g.id && String(g.id) === id)).filter(Boolean);
+    const others = all.filter((g) => !starred.includes(g));
+    return { starred, others };
+  }
+
   function fmtNotifTime(at) {
     if (!Number.isFinite(at)) return '';
     try { return new Date(at).toLocaleTimeString([], timeParts()); }
@@ -72,6 +93,7 @@
   }
 
   window.DiscordWidgetLists = {
-    splitFavourites, favIds, isFav, groupByGuild, collapsedIds, isCollapsed, fmtNotifTime,
+    splitFavourites, favIds, isFav, groupByGuild, collapsedIds, isCollapsed,
+    favGuildIds, isFavGuild, splitStarredGuilds, fmtNotifTime,
   };
 })();

@@ -7411,4 +7411,6 @@ module.exports = {
   settings_slideshow_dim_off: 'Uit',
   discord_w_only_starred: 'Alleen favorieten',
   discord_w_show_all: 'Alles tonen',
+  discord_w_star_server: 'Server aan favorieten toevoegen',
+  discord_w_unstar_server: 'Server uit favorieten verwijderen',
 };

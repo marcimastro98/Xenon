@@ -7415,4 +7415,6 @@ module.exports = {
   settings_slideshow_dim_off: '끔',
   discord_w_only_starred: '즐겨찾기만',
   discord_w_show_all: '모두 보기',
+  discord_w_star_server: '서버를 즐겨찾기에 추가',
+  discord_w_unstar_server: '서버를 즐겨찾기에서 제거',
 };

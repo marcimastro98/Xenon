@@ -7415,4 +7415,6 @@ module.exports = {
   settings_slideshow_dim_off: 'オフ',
   discord_w_only_starred: 'お気に入りのみ',
   discord_w_show_all: 'すべて表示',
+  discord_w_star_server: 'サーバーをお気に入りに追加',
+  discord_w_unstar_server: 'サーバーをお気に入りから削除',
 };

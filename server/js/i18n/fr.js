@@ -7250,4 +7250,6 @@ module.exports = {
   settings_slideshow_dim_off: 'Désactivé',
   discord_w_only_starred: 'Favoris seulement',
   discord_w_show_all: 'Tout afficher',
+  discord_w_star_server: 'Ajouter le serveur aux favoris',
+  discord_w_unstar_server: 'Retirer le serveur des favoris',
 };

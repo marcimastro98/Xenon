@@ -7415,4 +7415,6 @@ module.exports = {
   settings_slideshow_dim_off: '关',
   discord_w_only_starred: '仅收藏',
   discord_w_show_all: '显示全部',
+  discord_w_star_server: '收藏整个服务器',
+  discord_w_unstar_server: '取消收藏服务器',
 };

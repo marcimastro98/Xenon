@@ -228,6 +228,13 @@ button.dc-guild.is-collapsed .dc-guild-caret,
 .dc-guild-all-btn.is-collapsed .dc-guild-caret { transform: rotate(-90deg); }
 button.dc-guild:hover .dc-guild-caret { color: #c7ccdd; }
 button.dc-guild.is-collapsed { background: #171a26; color: #9aa2ba; }
+/* A server heading with its star beside it (js/discord-widget/channel-list.js
+   guildHeader): the row carries the heading's margins, the heading takes the
+   room, the star keeps the same thumb-sized column as the channel stars. */
+.dc-guild-row { display: flex; align-items: stretch; gap: 4px; margin: 6px 0 3px; }
+.dc-guild-row:first-child { margin-top: 0; }
+.dc-guild-row > button.dc-guild { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; }
+.dc-guild-row:hover .dc-guild-fav { opacity: 1; }
 
 /* Collapse/expand everything — one control, because while anything is open it
    closes everything and once all are closed it opens them. Right-aligned and
