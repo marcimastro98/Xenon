@@ -1,19 +1,16 @@
 'use strict';
-// What Bit's open_application and close_application tools may touch.
+// What Bit's open_application tool may touch.
 //
-// Both run with no confirmation card, so they must never be more than what
-// their names promise. The model's arguments can be steered by text it read
+// It runs with no confirmation card, so it must never be more than what
+// its name promises. The model's arguments can be steered by text it read
 // (a web page, a news headline, a message, a calendar invite), and before
 // this open_application handed ANY string to Windows' ShellExecute: a network
-// path (\\host\share\x.hta), a search-ms: or ms-*: link, a script file. And
-// close_application matched process names with wildcards, so a target of "*"
-// or "e" force-closed nearly everything the user had open.
+// path (\\host\share\x.hta), a search-ms: or ms-*: link, a script file.
 //
 // open: an app by name, a website, or a file on this PC that is not a script
 // or another type that runs when opened. Anything else is refused with a
 // reason the model can repeat. Running commands has its own tool with a
 // confirmation card (PC Control).
-// close: one process by its exact name, never one of Windows' own or Xenon.
 
 const { normalizeUrl, isBlockedOpenPath, isAllowedAppPath } = require('../actions/registry');
 
@@ -57,27 +54,6 @@ function openTarget(raw, protocolMap = {}) {
   return { ok: true, target: v, kind: 'name' };
 }
 
-// Processes that are Windows itself, or Xenon: closing one logs the user out,
-// crashes the session or takes the assistant down mid-answer.
-const PROTECTED = new Set([
-  'system', 'idle', 'registry', 'smss', 'csrss', 'wininit', 'winlogon', 'services', 'lsass', 'lsaiso',
-  'svchost', 'dwm', 'explorer', 'fontdrvhost', 'sihost', 'ctfmon', 'taskhostw', 'runtimebroker',
-  'searchhost', 'startmenuexperiencehost', 'shellexperiencehost', 'textinputhost', 'audiodg',
-  'spoolsv', 'securityhealthservice', 'msmpeng', 'nissrv', 'conhost', 'dllhost', 'wudfhost',
-  'node', 'xenon-native', 'xenon-helper', 'powershell', 'pwsh',
-]);
-
-/** @returns {{ ok: true, name: string } | { ok: false, error: string }} */
-function closeTarget(raw, closeMap = {}) {
-  const v = String(raw == null ? '' : raw).trim();
-  if (!v) return { ok: false, error: 'empty' };
-  const name = String(closeMap[v.toLowerCase()] || v).replace(/\.exe$/i, '').trim();
-  // Exact names only: no wildcards, no paths.
-  if (!/^[\p{L}\p{N}][\p{L}\p{N} ._+-]{0,63}$/u.test(name)) return { ok: false, error: 'bad_name' };
-  if (PROTECTED.has(name.toLowerCase())) return { ok: false, error: 'protected' };
-  return { ok: true, name };
-}
-
 // Home Assistant domains Bit may not drive by itself. Its tool has no
 // confirmation card, and a sentence it read could otherwise unlock the front
 // door, disarm the alarm, open the garage or run any script the house has.
@@ -107,4 +83,4 @@ function numberSaidByUser(number, userText) {
   return said.some((d) => d.replace(/^00/, '').endsWith(tail) || (d.length >= 6 && n.endsWith(d)));
 }
 
-module.exports = { openTarget, closeTarget, isNetworkPath, PROTECTED, HA_GUARDED, haDomainAllowed, numberSaidByUser };
+module.exports = { openTarget, isNetworkPath, HA_GUARDED, haDomainAllowed, numberSaidByUser };

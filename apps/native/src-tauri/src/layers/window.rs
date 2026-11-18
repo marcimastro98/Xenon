@@ -43,6 +43,9 @@ pub(super) fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
     });
     let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(layer_url(&s.key)?))
         .focused(false)
+        // macOS: the click that picks a widget while another app is in front must reach it, not only
+        // wake Xenon up (a no-op elsewhere).
+        .accept_first_mouse(true)
         // Built visible and out of sight: win32::apply puts it in place. A
         // window built hidden and shown natively would keep its webview hidden.
         .visible(true)

@@ -36,7 +36,7 @@ function dashboardAiFunctions() {
         { name: 'open_application', description: 'Open an app, website, or file on the user\'s PC. For well-known apps use their plain name (spotify, chrome, notepad, obs, vlc…). For Steam use exactly "steam", for Discord use "discord". Full URLs (https://…) and absolute file paths also work.', parameters: { type: 'OBJECT', properties: {
           target: { type: 'STRING', description: 'App name (e.g. "spotify", "steam", "discord"), full URL, or absolute file path' },
         }, required: ['target'] } },
-        { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
+        { name: 'close_application', description: 'Close a running application on the user\'s PC, politely, the way its own X does (an app with unsaved work can still ask). Use the plain app name as its window is listed (e.g. "spotify", "chrome", "notepad", "discord"). Never Xenon or the system\'s own processes.', parameters: { type: 'OBJECT', properties: {
           target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
         }, required: ['target'] } },
         // ── Local file search ──

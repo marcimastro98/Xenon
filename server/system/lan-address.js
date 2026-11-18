@@ -11,7 +11,7 @@ const { pairingAddresses } = require('../paired/own-address.js');
 // Adapters that are not the PC's own link to the router: hypervisor switches, containers, VPNs and
 // tunnels, Apple's peer-to-peer links. Node names an interface by its system name (Windows: the
 // name in Network Connections; macOS/Linux: en0, eth0, wlan0...).
-const VIRTUAL_NAME = /virtual|vethernet|hyper-v|vmware|vmnet|virtualbox|vbox|docker|podman|wsl|^br-|^veth|^virbr|^lxc|^lxd|tailscale|zerotier|^zt|^utun|^tun|^tap|^wg|wireguard|vpn|^ppp|^ipsec|^awdl|^llw|^bridge|^anpi|^ham|loopback|bluetooth|^lo\d*$/i;
+const VIRTUAL_NAME = /virtual|vethernet|hyper-v|vmware|vmnet|virtualbox|vbox|docker|podman|wsl|^br-|^veth|^virbr|^lxc|^lxd|tailscale|zerotier|^zt|^utun|^tun|^tap|^wg|wireguard|vpn|^ppp|^ipsec|^awdl|^llw|^bridge|^anpi|^ap\d|^vnic|^vmenet|^p2p|^gif|^stf|^ham|loopback|bluetooth|^lo\d*$/i;
 const LINK_LOCAL = /^169\.254\./;
 
 /** @param {Record<string, any[]>} interfaces @param {(name: string) => boolean} keep */

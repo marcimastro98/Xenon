@@ -43,16 +43,17 @@ test('open_application: apps, websites and documents, never network paths, speci
   for (const [t, err] of Object.entries(refused)) assert.equal(apps.openTarget(t, MAP).error, err, t);
 });
 
-test('close_application: one process by its exact name, never Windows or Xenon', () => {
-  assert.deepEqual(apps.closeTarget('obs', { obs: 'obs64' }), { ok: true, name: 'obs64' });
-  assert.deepEqual(apps.closeTarget('chrome.exe'), { ok: true, name: 'chrome' });
-  for (const t of ['*', 'e*', '[a-z]*', 'C:\\x\\app.exe', '']) assert.equal(apps.closeTarget(t).ok, false, t);
-  for (const t of ['explorer', 'svchost', 'lsass', 'winlogon', 'node', 'xenon-native', 'csrss']) {
-    assert.equal(apps.closeTarget(t).error, 'protected', t);
-  }
-  // The PowerShell no longer matches around the name.
-  assert.match(SERVER, /Get-Process -Name '\$\{psEsc\}' -EA SilentlyContinue/);
-  assert.doesNotMatch(SERVER, /Get-Process -Name '\*\$\{psEsc\}\*'/);
+test('close_application: hands the app to the Deck closeApp action, which asks and never forces', async () => {
+  const { branches } = require('../ai/tools.js');
+  const seen = [];
+  const run = async (target, result) => branches.close_application({ fnArgs: { target }, runAction: async (a) => { seen.push(a); return result; } });
+  assert.deepEqual(await run('spotify', { ok: true }), { ok: true, closed: 'spotify' });
+  assert.deepEqual(seen[0], { type: 'closeApp', app: 'spotify', mode: 'close' });
+  assert.deepEqual(await run('explorer', { ok: false, error: 'app_protected' }), { error: 'app_protected' });
+  assert.deepEqual(await run('  ', { ok: true }), { error: 'target mancante' });
+  assert.equal(seen.length, 2, 'an empty name never reaches the action');
+  // No process killing of its own any more.
+  assert.doesNotMatch(read('../ai/tools.js'), /Stop-Process|execFile|powershell/i);
 });
 
 test('Home Assistant: lights and comfort yes; locks, alarms, covers and scripts no', () => {
@@ -79,12 +80,10 @@ test('a phone number the user did not give is not dialled', () => {
   assert.match(SERVER, /fnResult = await aiPhoneTool\(fnName, fnArgs, latestUserText\);/);
 });
 
-test('the wiring: open and close go through the checks before PowerShell', () => {
+test('the wiring: open goes through the checks before PowerShell', () => {
   const open = SERVER.slice(SERVER.indexOf("} else if (fnName === 'open_application') {"), SERVER.indexOf("} else if (fnName === 'close_application') {"));
   // The start itself lives in ai/open-on-this-pc.js, one way per system.
   assert.ok(open.indexOf('aiPcApps.openTarget(') > 0 && open.indexOf('aiPcApps.openTarget(') < open.indexOf('await openOnThisPc(allowed)'));
-  const close = SERVER.slice(SERVER.indexOf("} else if (fnName === 'close_application') {"), SERVER.indexOf("} else if (fnName === 'search_files') {"));
-  assert.ok(close.indexOf('aiPcApps.closeTarget(') < close.indexOf("execFile('powershell.exe'"));
 });
 
 test('remembered facts are data, never instructions', () => {

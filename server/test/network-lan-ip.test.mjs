@@ -29,6 +29,9 @@ test('the home network address wins over virtual adapters, VPNs and loopback', (
 
 test('macOS and Linux names are read the same way', () => {
   assert.equal(lanAddress(null, { lo0: [v4('127.0.0.1', true)], utun3: [v4('10.8.0.2')], en0: [v4('10.0.0.15')] }), '10.0.0.15');
+  // Mac virtual links (Parallels, Internet Sharing, VM switches) never stand in for the Wi-Fi address.
+  assert.equal(lanAddress(null, { vmenet0: [v4('10.211.55.2')], ap1: [v4('192.168.2.1')], vnic0: [v4('10.37.129.2')], en0: [v4('192.168.1.40')] }), '192.168.1.40');
+  assert.equal(lanAddress(null, { vmenet0: [v4('10.211.55.2')], ap1: [v4('192.168.2.1')] }), null);
   assert.equal(lanAddress(null, { lo: [v4('127.0.0.1', true)], docker0: [v4('172.17.0.1')], 'br-1a2b': [v4('172.18.0.1')], wlan0: [v4('192.168.0.33')] }), '192.168.0.33');
 });
 
