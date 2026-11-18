@@ -106,7 +106,7 @@ test('once settings and data are in, Bit says hello and leaves', () => {
 
 test('a page of Settings in the Xenon window leaves once the settings are in and its page is open', () => {
   const sheet = boot({ search: '?panel=sheet&open=settings&cat=general' });
-  assert.ok(sheet.classes.has('is-sheet'), 'a plain ground, Bit only on a slow load');
+  assert.ok(sheet.classes.has('is-sheet'), 'Bit loads at once, no hello');
   sheet.advance(120);
   sheet.api.ready('settings');
   sheet.advance(200);

@@ -10,11 +10,11 @@
 // a slow or offline backend.
 //
 // In the Xenon window a page of Settings opens on the dashboard alone (`?panel=sheet`,
-// js/ai/sheet-page.js), with no tiles behind it to wait for: the splash is a plain
-// ground there, gone once the settings are in and the page has opened its screen (the
-// load event, when js/grid/dashboard-open.js opens it, and a painted frame after it:
+// js/ai/sheet-page.js), with no tiles behind it to wait for: Bit loads there from the
+// first frame (a plain ground that grew Bit after 0.8 s read as a black screen, then a
+// load), with no hello, gone once the settings are in and the page has opened its screen
+// (the load event, when js/grid/dashboard-open.js opens it, and a painted frame after it:
 // lifted on the settings alone it showed the dashboard's wallpaper for a moment).
-// Bit shows only on a slow load.
 //
 // The colours are a snapshot of the applied theme, written by remember() after
 // a settings apply, in a tiny key of their own: the settings blob can be
