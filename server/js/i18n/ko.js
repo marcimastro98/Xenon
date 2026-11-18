@@ -7424,4 +7424,11 @@ module.exports = {
   see_through: '클릭 통과',
   see_through_sub: '클릭이 뒤에 있는 것에 전달됩니다. 편집 모드에서는 계속 옮길 수 있습니다.',
   layer_edit_hint_keys: '화살표 키로 1px, Shift로 10px 움직입니다. Shift+Alt로 크기를 바꿉니다.',
+  deck_act_closeApp: '앱 닫기 또는 최소화',
+  deck_info_closeApp: '고른 앱의 모든 창을 닫거나 최소화합니다. 맨 앞에 있는 앱이 아니어도 됩니다. 닫기는 앱의 X 버튼과 같아서 저장할지 물어볼 수 있습니다. macOS에서는 최소화하면 앱이 가려집니다.',
+  deck_opt_runningapp: '열려 있는 앱 선택…',
+  deck_err_app_not_open: '그 앱은 지금 열린 창이 없습니다',
+  deck_err_app_protected: '이 앱은 Xenon이 닫거나 최소화하지 않습니다. 시스템의 일부이거나 Xenon 자체입니다',
+  deck_err_app_close_refused: '앱이 닫히지 않았습니다. 작업을 저장할지 등 무언가를 묻고 있을 수 있습니다',
+  deck_err_no_window_tool: 'wmctrl과 xdotool이 필요합니다. 패키지 관리자로 설치하세요',
 };

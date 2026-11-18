@@ -53,7 +53,7 @@ const { parseNetDev, parsePing, network } = require('./linux-network.js');
 const {
   MAX_WINDOWS, XPROP_CONCURRENCY, runX, PROTECTED_CLASSES, appFromExe, parseWmctrl,
   parseWindowProps, windowProps, parseClientList, parseWindowIdentity, listRowsViaXprop,
-  focusWindow, closeWindow,
+  focusWindow, closeWindow, minimizeWindow,
 } = require('./linux-windows.js');
 
 
@@ -113,8 +113,13 @@ async function listWindows() {
 async function windows(action, id) {
   if (action === 'focus') return focusWindow(id);
   if (action === 'close') return closeWindow(id);
+  if (action === 'minimize') return minimizeWindow(id);
   return listWindows();
 }
+
+// The Deck's "Close app" key acts on the windows listed above, which Wayland
+// does not give to an app: offered on X11 sessions only.
+async function appWindowsAvailable(env = process.env) { return !linuxSession(env).wayland; }
 
 const {
   cubicToLinear, parsePwDump, buildAudioRows, markStopped, soundingRows, resolveTargets,
@@ -165,7 +170,7 @@ async function machineId() {
 
 module.exports = {
   machineId,
-  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, soundingRows, audioCommand, audioAvailable, lock,
+  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, appWindowsAvailable, audioRows, soundingRows, audioCommand, audioAvailable, lock,
   sendKeys, keysAvailable, hideWindows, hideWindowsTool, notify, processes, processTable, idleSeconds, parseLoginctlIdle, parseXprintidle,
   // exported for unit tests
   parseProcStat,

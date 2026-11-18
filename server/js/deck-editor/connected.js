@@ -31,6 +31,7 @@
     scenesPromise: null,
     sourcesPromise: null,
     appsPromise: null,
+    runningAppsPromise: null,   // apps with a window open now (closeApp's picker)
     storeAppsPromise: null,
     sbActionsPromise: null,
     sbCodeTriggersPromise: null,

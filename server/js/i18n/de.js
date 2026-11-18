@@ -7278,4 +7278,11 @@ module.exports = {
   see_through: 'Klicks gehen hindurch',
   see_through_sub: 'Klicks erreichen, was dahinter liegt. Im Bearbeitungsmodus kannst du es trotzdem verschieben.',
   layer_edit_hint_keys: 'Pfeiltasten verschieben es um 1 px, mit Umschalt um 10. Umschalt+Alt ändert die Größe.',
+  deck_act_closeApp: 'App schließen oder minimieren',
+  deck_info_closeApp: 'Schließt oder minimiert alle Fenster der gewählten App, auch wenn sie nicht im Vordergrund ist. Schließen wirkt wie ihr X, die App kann also noch fragen, ob du speichern willst. Unter macOS blendet Minimieren die App aus.',
+  deck_opt_runningapp: 'Wähle eine geöffnete App…',
+  deck_err_app_not_open: 'diese App hat gerade kein Fenster offen',
+  deck_err_app_protected: 'Xenon schließt oder minimiert diese App nicht: sie gehört zum System oder ist Xenon selbst',
+  deck_err_app_close_refused: 'die App wurde nicht geschlossen: vielleicht fragt sie dich etwas, etwa ob du speichern willst',
+  deck_err_no_window_tool: 'dafür braucht es wmctrl und xdotool: installiere sie mit deinem Paketmanager',
 };

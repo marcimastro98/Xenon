@@ -164,8 +164,16 @@ async function closeWindow(decId) {
   return { ok: true, app: props.cls || exe.name || '', path: exe.path };
 }
 
+// Minimizing is a client message too (WM_CHANGE_STATE, IconicState). xdotool
+// sends it; wmctrl has no minimize, so without xdotool the key says so.
+async function minimizeWindow(decId) {
+  if (!/^\d{1,24}$/.test(String(decId || ''))) return { ok: false, error: 'not_found' };
+  if (await runX('xdotool', ['windowminimize', String(decId)], 5000) !== null) return { ok: true };
+  return { ok: false, error: 'no_window_tool' };
+}
+
 module.exports = {
   MAX_WINDOWS, XPROP_CONCURRENCY, xEnv, runX, PROTECTED_CLASSES, appFromExe, parseWmctrl,
   parseWindowProps, windowProps, parseClientList, parseWindowIdentity, listRowsViaXprop,
-  focusWindow, windowPid, closeWindow,
+  focusWindow, windowPid, closeWindow, minimizeWindow,
 };

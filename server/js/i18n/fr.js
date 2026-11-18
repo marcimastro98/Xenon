@@ -7259,4 +7259,11 @@ module.exports = {
   see_through: 'Laisser passer les clics',
   see_through_sub: 'Les clics atteignent ce qui se trouve derrière. En mode édition, vous pouvez toujours le déplacer.',
   layer_edit_hint_keys: 'Les flèches le déplacent de 1 px, avec Maj de 10. Maj+Alt change sa taille.',
+  deck_act_closeApp: 'Fermer ou réduire une appli',
+  deck_info_closeApp: 'Ferme ou réduit toutes les fenêtres de l\'appli choisie, même si ce n\'est pas celle au premier plan. Fermer agit comme son X : l\'appli peut encore vous proposer d\'enregistrer. Sur macOS, réduire masque l\'appli.',
+  deck_opt_runningapp: 'Choisissez une appli ouverte…',
+  deck_err_app_not_open: 'cette appli n\'a aucune fenêtre ouverte pour le moment',
+  deck_err_app_protected: 'Xenon ne ferme ni ne réduit cette appli : elle fait partie du système, ou c\'est Xenon lui-même',
+  deck_err_app_close_refused: 'l\'appli ne s\'est pas fermée : elle vous demande peut-être quelque chose, comme d\'enregistrer votre travail',
+  deck_err_no_window_tool: 'il faut wmctrl et xdotool : installez-les avec votre gestionnaire de paquets',
 };

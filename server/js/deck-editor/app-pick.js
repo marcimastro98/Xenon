@@ -1,9 +1,9 @@
 // The choices of the deck editor for what lives on the PC and in the dashboard: a Claude project, a
-// dashboard page, an app, a Store app, an audio device.
+// dashboard page, an app (playing, or with a window open), a Store app, an audio device.
 'use strict';
 
 window.DeckEditorAppPick = (wrapper) => {
-    const { audioApps, audioDevices, claudeProjects, enhanceSelects, input, storeApps, t } = wrapper;
+    const { audioApps, audioDevices, claudeProjects, enhanceSelects, input, runningApps, storeApps, t } = wrapper;
 
     // A param control for the claudeProject kind: a dropdown of the projects a
     // run may be started in, stored by id. The list is the server's — the same
@@ -95,6 +95,31 @@ window.DeckEditorAppPick = (wrapper) => {
       return wrap;
     }
 
+    // A param control for the runningApp kind (the closeApp key): the same typed
+    // field plus quick pick as audioApp, the pick listing the apps with a window
+    // open now, so an app that is closed at the moment can still be typed.
+    function runningAppPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_app');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      runningApps().then((items) => {
+        if (!items?.length) return;
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const ph = document.createElement('option'); ph.value = '';
+        ph.setAttribute('data-i18n', 'deck_opt_runningapp'); ph.textContent = t('deck_opt_runningapp');
+        sel.appendChild(ph);
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = items.some((it) => it.value === step.params[name]) ? step.params[name] : '';
+        sel.addEventListener('change', () => { if (sel.value) { txt.value = sel.value; step.params[name] = sel.value; } });
+        wrap.appendChild(sel);
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
     // A param control for the storeApp kind: a dropdown of installed Store/UWP apps
     // (value = AppUserModelID, label = friendly name). Pure dropdown — the AUMID is
     // cryptic, so it isn't typed by hand. A previously-saved app that is no longer
@@ -158,6 +183,6 @@ window.DeckEditorAppPick = (wrapper) => {
 
     return {
       claudeProjectPickControl, dashboardPageControl, appPickControl, storeAppPickControl,
-      audioDevicePickControl,
+      audioDevicePickControl, runningAppPickControl,
     };
 };

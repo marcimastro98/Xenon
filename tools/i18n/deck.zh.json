@@ -33,7 +33,7 @@
     "deck.act.wl": "<strong>Wave Link。</strong>设置输入、输出或混音的音量，或者将其静音。在 Wave Link 2 上，按键还可以切换监听；在 Wave Link 3 上，按键可以开关效果并选择输出设备。",
     "deck.act.ha": "<strong>Home Assistant。</strong>切换设备开关，设置灯光，控制媒体播放器、窗帘、温控、风扇、扫地机器人、门锁或警报，激活场景，运行脚本，按下按钮，或者调用任何服务。",
     "deck.act.light": "<strong>灯光。</strong>打开或关闭灯光，设置颜色或效果，单独调整某个设备，为单个风扇、灯带或水泵上色，或者把灯光交还给自动模式。Razer Chroma 设备和 SignalRGB 效果有各自的按键。",
-    "deck.act.window": "<strong>窗口。</strong>把你刚才在用的窗口移到下一台或上一台显示器，贴靠到左半边或右半边，最大化、最小化或居中。",
+    "deck.act.window": "<strong>窗口。</strong>把你刚才在用的窗口移到下一台或上一台显示器，贴靠到左半边或右半边，最大化、最小化或居中。也可以关闭或最小化你选择的应用，即使它在其他窗口后面：关闭和点它的 X 一样，它仍可能询问你是否保存。",
     "deck.act.ai": "<strong>Bit 和 Claude Code。</strong>向 AI 发送提示词，开始语音会话或打开聊天。在你的某个项目中发起一个 Claude Code 请求，或者停止正在运行的请求。按键本身不授予任何权限：当 Claude Code 请求运行命令时，请求会显示在屏幕上，由你来批准。",
     "deck.act.more": "<strong>更多。</strong>通过蓝牙配对的手机打电话或发短信，结束远程会话或阻止远程访问，以及使用你安装的社区小组件添加的按键，每一个都要先经过你的允许。",
     "deck.h.steps": "多步按键",

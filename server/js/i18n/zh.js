@@ -7424,4 +7424,11 @@ module.exports = {
   see_through: '让点击穿过',
   see_through_sub: '点击会落到它后面的内容上。在编辑模式中仍可移动它。',
   layer_edit_hint_keys: '方向键每次移动 1 px，按住 Shift 移动 10 px。Shift+Alt 调整大小。',
+  deck_act_closeApp: '关闭或最小化应用',
+  deck_info_closeApp: '关闭或最小化你所选应用的所有窗口，即使它不在最前面。关闭的效果和点它的 X 一样，应用仍可能询问你是否保存。在 macOS 上，最小化会隐藏该应用。',
+  deck_opt_runningapp: '选择已打开的应用…',
+  deck_err_app_not_open: '该应用目前没有打开的窗口',
+  deck_err_app_protected: 'Xenon 不会关闭或最小化这个应用：它是系统的一部分，或就是 Xenon 本身',
+  deck_err_app_close_refused: '应用没有关闭：它可能正在询问你，比如是否保存工作',
+  deck_err_no_window_tool: '需要 wmctrl 和 xdotool：请用软件包管理器安装',
 };

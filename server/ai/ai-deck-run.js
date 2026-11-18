@@ -17,7 +17,7 @@ const CONFIRM_TYPES = new Set([
   // Code, keystrokes and files the user did not pick by hand.
   'runScript', 'typeText', 'hotkey', 'openFile', 'openApp', 'openStoreApp', 'sdkMacro', 'sdkHandler', 'claudeAsk',
   // The PC, the phone and the remote session.
-  'lockWorkstation', 'phoneCall', 'phoneMessage', 'remoteDisconnect', 'remoteBlock',
+  'lockWorkstation', 'closeApp', 'phoneCall', 'phoneMessage', 'remoteDisconnect', 'remoteBlock',
   // Sent to other people or to the internet.
   'webhook', 'twitchChat', 'twitchTitle', 'twitchGame', 'twitchAd', 'twitchShoutout', 'twitchChatMode',
   'ytBroadcast', 'obsStream', 'sbDoAction', 'sbSendMessage', 'sbCodeTrigger',

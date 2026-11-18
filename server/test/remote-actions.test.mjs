@@ -45,7 +45,7 @@ test('every action type the Deck knows is classified, and the free list holds no
   // The powerful ones must not be free.
   for (const t of ['openApp', 'openFile', 'runScript', 'typeText', 'hotkey', 'webhook', 'openUrl', 'openStoreApp',
     'launchSteamGame', 'haLock', 'haAlarm', 'haCover', 'haCallService', 'haScript', 'haButton', 'obsStream',
-    'obsRecord', 'twitchChat', 'ytBroadcast', 'sbDoAction', 'sdkHandler', 'sdkMacro', 'claudeAsk', 'windowMove',
+    'obsRecord', 'twitchChat', 'ytBroadcast', 'sbDoAction', 'sdkHandler', 'sdkMacro', 'claudeAsk', 'windowMove', 'closeApp',
     'remoteBlock', 'usageMode', 'desktopWallpaper', 'bugReport', 'sendCapture']) {
     assert.equal(ra.FREE.has(t), false, t + ' must only run as a key the user built');
   }

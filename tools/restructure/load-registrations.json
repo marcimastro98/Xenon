@@ -89,7 +89,8 @@
       {
         "statement": "const deckRegistry = createRegistry(deckRegistryDeps);",
         "callees": {
-          "server/actions/registry.js": "fbe468be97debcd22e74786f1b75f55c3bdb133f96d867a7f66c279c2eb9d7ae",
+          "server/actions/registry.js": "58d1a1cbd258b259a1825b4dce390d01fa017d3087e306ba35da08b023131040",
+          "server/actions/registry-app-window.js": "0b737e7e68ad2d8f8ca0da4dc774175c6c6203a6208f6942628dbe142d7f3191",
           "server/actions/registry-app-paths.js": "93cdff77306c38f6fa3995a479d456a7dee7556375eb97000e2f528847b283e2",
           "server/actions/registry-open-paths.js": "f6207de9d38676dcb40defbae243773a85c2cdea1f5a6efbc2461c26ccd0cb0d",
           "server/actions/registry-values.js": "0b207071509e48058ab84622c970205734afbbb9bf6443300ff6c2834d7a790d",
@@ -102,7 +103,7 @@
         "callees": {
           "server/deck/deck-shortcut-runner.js": "34be4164a952461a182b5a058199cb33f32fa611b1c144766aaf38d3c7988dc5",
           "server/deck/deck-sound-player.js": "168467083e542fe41c58dd3ee5245a6ebcce08b26f29adaca6b3b10e3ff83499",
-          "server/js/deck/deck-actions.js": "2682331fd3129fee61b3ec5d086b3b8d121808964542b1903d31144fdf946389"
+          "server/js/deck/deck-actions.js": "caa37431e849750a6a67269e043ab3e72a655386cc4410fbeba421d10b2059ab"
         },
         "reason": "createDeckShortcutRunner and createDeckSoundPlayer make empty sets and maps and return their functions; readConfigs, steps, run, broadcast, serverFirst, resolveFile, ffplay and spawn are first called by press, pressKey, handOff or play; deck-actions.js is only asked for its triggerSteps function and is handed nothing."
       },

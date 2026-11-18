@@ -7424,4 +7424,11 @@ module.exports = {
   see_through: 'クリックを通す',
   see_through_sub: 'クリックは後ろにあるものに届きます。編集モードでは移動できます。',
   layer_edit_hint_keys: '矢印キーで 1 px、Shift で 10 px 動きます。Shift+Alt でサイズを変えます。',
+  deck_act_closeApp: 'アプリを閉じる・最小化',
+  deck_info_closeApp: '選んだアプリのすべてのウィンドウを閉じるか最小化します。手前のアプリでなくても動作します。閉じる操作はアプリの×ボタンと同じなので、保存を確認されることがあります。macOS では最小化するとアプリが非表示になります。',
+  deck_opt_runningapp: '開いているアプリを選択…',
+  deck_err_app_not_open: 'そのアプリは今、ウィンドウを開いていません',
+  deck_err_app_protected: 'このアプリは Xenon では閉じたり最小化したりしません。システムの一部か、Xenon 自身です',
+  deck_err_app_close_refused: 'アプリが閉じませんでした。保存するかどうかなど、何かを確認しているのかもしれません',
+  deck_err_no_window_tool: 'wmctrl と xdotool が必要です。パッケージマネージャーでインストールしてください',
 };

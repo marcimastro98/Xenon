@@ -20,7 +20,8 @@
   const {
     obsScenes, obsSources, sbActions, sbCodeTriggers, sbGlobals, discordChannels, discordSounds,
     signalRgbEffects, claudeProjects, wlChannels, wlMixOptions, vmStripOptions, vmBusOptions,
-    wlEffectOptions, wlOutputOptions, lightingLists, lightDevices, audioApps, storeApps, audioDevices,
+    wlEffectOptions, wlOutputOptions, lightingLists, lightDevices, audioApps, runningApps, storeApps,
+    audioDevices,
   } = window.DeckEditorMenuLists;
 
 
@@ -381,10 +382,9 @@
   // opts: { key (existing or null), onSave(rawKey), onDelete() }
   function open(opts) {
     close();
-    // Re-fetch OBS scene/source lists and the running-app list on each open so
-    // scenes/sources just created in OBS — and apps just launched — show up
-    // without a page reload.
-    state.scenesPromise = null; state.sourcesPromise = null; state.appsPromise = null; state.storeAppsPromise = null; state.audioDevicesPromise = null; state.sbActionsPromise = null; state.sbCodeTriggersPromise = null; state.sbGlobalsPromise = null; state.discordChannelsPromise = null; state.discordSoundsPromise = null; state.haEntitiesPromise = null; state.wlChannelsPromise = null; state.wlStatePromise = null; state.vmStatePromise = null; state.lightDevicesPromise = null; state.sdkWidgetsPromise = null; state.signalRgbEffectsPromise = null;
+    // Re-fetch every picker list on each open, so OBS scenes just created and
+    // apps just launched show up without a page reload.
+    state.scenesPromise = null; state.sourcesPromise = null; state.appsPromise = null; state.runningAppsPromise = null; state.storeAppsPromise = null; state.audioDevicesPromise = null; state.sbActionsPromise = null; state.sbCodeTriggersPromise = null; state.sbGlobalsPromise = null; state.discordChannelsPromise = null; state.discordSoundsPromise = null; state.haEntitiesPromise = null; state.wlChannelsPromise = null; state.wlStatePromise = null; state.vmStatePromise = null; state.lightDevicesPromise = null; state.sdkWidgetsPromise = null; state.signalRgbEffectsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -1290,8 +1290,8 @@
 
     const {
       claudeProjectPickControl, dashboardPageControl, appPickControl, storeAppPickControl,
-      audioDevicePickControl,
-    } = window.DeckEditorAppPick({ audioApps, audioDevices, claudeProjects, enhanceSelects, input, storeApps, t });
+      audioDevicePickControl, runningAppPickControl,
+    } = window.DeckEditorAppPick({ audioApps, audioDevices, claudeProjects, enhanceSelects, input, runningApps, storeApps, t });
 
     const fSlider = field('deck_edit_slider');
     const sliderTargetSel = document.createElement('select'); sliderTargetSel.className = 'deck-ed-input';
@@ -1942,7 +1942,7 @@
 
     const {
       stepParams,
-    } = window.DeckEditorStepParams({ DA, appPickControl, audioDevicePickControl, claudeProjectPickControl, dashboardPageControl, discordChannelPickControl, discordSoundPickControl, field, haEntityPickControl, hotkeyCaptureControl, input, lightDevicePickControl, lightPartPickControl, obsPickControl, obsScenes, obsSources, sbActionPickControl, sbCodeTriggerPickControl, sdkHandlerParams, sdkMacroPickControl, signalRgbEffectPickControl, soundPickControl, storeAppPickControl, swatchRow, t, vmBusOptions, vmStripOptions, wlChannelPickControl, wlEffectOptions, wlMixOptions, wlOutputOptions, wlPickControl });
+    } = window.DeckEditorStepParams({ DA, appPickControl, audioDevicePickControl, claudeProjectPickControl, dashboardPageControl, discordChannelPickControl, discordSoundPickControl, field, haEntityPickControl, hotkeyCaptureControl, input, lightDevicePickControl, lightPartPickControl, obsPickControl, obsScenes, obsSources, runningAppPickControl, sbActionPickControl, sbCodeTriggerPickControl, sdkHandlerParams, sdkMacroPickControl, signalRgbEffectPickControl, soundPickControl, storeAppPickControl, swatchRow, t, vmBusOptions, vmStripOptions, wlChannelPickControl, wlEffectOptions, wlMixOptions, wlOutputOptions, wlPickControl });
 
     function renderSteps() {
       stepsHost.replaceChildren();

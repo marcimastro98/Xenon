@@ -7,7 +7,7 @@ window.DeckEditorStepParams = (wrapper) => {
       DA, appPickControl, audioDevicePickControl, claudeProjectPickControl, dashboardPageControl,
       discordChannelPickControl, discordSoundPickControl, field, haEntityPickControl,
       hotkeyCaptureControl, input, lightDevicePickControl, lightPartPickControl, obsPickControl,
-      obsScenes, obsSources, sbActionPickControl, sbCodeTriggerPickControl, sdkHandlerParams,
+      obsScenes, obsSources, runningAppPickControl, sbActionPickControl, sbCodeTriggerPickControl, sdkHandlerParams,
       sdkMacroPickControl, signalRgbEffectPickControl, soundPickControl, storeAppPickControl, swatchRow,
       t, vmBusOptions, vmStripOptions, wlChannelPickControl, wlEffectOptions, wlMixOptions,
       wlOutputOptions, wlPickControl,
@@ -63,6 +63,12 @@ window.DeckEditorStepParams = (wrapper) => {
         if (p.kind === 'audioApp') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(appPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'runningApp') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(runningAppPickControl(step, p.name));
           host.appendChild(f);
           return;
         }

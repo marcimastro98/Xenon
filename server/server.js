@@ -606,8 +606,9 @@ const { MEDIAREMOTE_DIR } = require('./media/script-paths.js');
 const { ENABLE_SENSORS_SCRIPT } = require('./system/script-paths.js');
 require('./sensor-service/engine-reader.js');
 const {
-  DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT, DECK_WINDOW_SCRIPT,
+  DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT,
 } = require('./deck/script-paths.js');
+const { appWindows } = require('./app-windows/app-windows.js');
 const { PROCESSES_SCRIPT } = require('./performance/script-paths.js');
 require('./performance/script-paths.js');
 const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
@@ -2231,14 +2232,8 @@ const deckRegistryDeps = {
   // edition check; a machine without Voicemeeter answers a named error rather
   // than throwing.
   voicemeeter: (action) => deckVoicemeeter.runAction(action),
-  // Move/snap/minimise the foreground window (a discrete allowlisted verb passed
-  // as a single argv element to the window helper — never a shell string).
-  windowAction: async (verb) => {
-    try {
-      const r = await runPowerShellScript(DECK_WINDOW_SCRIPT, [verb], 6000);
-      return (r && r.ok === false) ? { ok: false, error: r.error || 'window_failed' } : { ok: true };
-    } catch { return { ok: false, error: 'window_failed' }; }
-  },
+  // The window in front, and close or minimize a named app (app-windows/app-windows.js).
+  windowAction: appWindows.windowAction, appWindows,
   // SDK widget macro resolver: "pkg/macroId" → the macro's validated steps, or
   // null. Steps come from the NORMALIZED manifest (rebuilt through the shared
   // catalog validator, restricted to the SDK's low-risk action types) and are

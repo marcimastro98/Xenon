@@ -72,7 +72,9 @@ const { parsePing, parseNetstatIb, network } = require('./darwin-network.js');
 const { parseAppList, parseHelperWindows, quitAppArgs } = require('./darwin-apps.js');
 
 
-const { windows } = require('./darwin-windows.js');
+const { windows, hideAppArgs } = require('./darwin-windows.js');
+// The Deck's "Close app" key: every macOS session lists its apps (darwin-windows.js).
+const appWindowsAvailable = async () => true;
 
 const {
   parseVolumeSettings, parseAudioDevices, buildAudioRows, withCurrentOutput, isCaptureTarget,
@@ -217,10 +219,10 @@ const {
 
 module.exports = {
   machineId, parsePlatformUuid,
-  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
+  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, appWindowsAvailable, audioRows, audioCommand, audioAvailable, lock,
   hideWindows, hideWindowsTool, notify, processes, processTable, fullDiskAccess, rootReachesHome, idleSeconds, parseHidIdleTime,
   // exported for unit tests
-  quitAppArgs, parsePsTime, parsePsProcesses, parsePsTable,
+  quitAppArgs, hideAppArgs, parsePsTime, parsePsProcesses, parsePsTable,
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
   parseIoregDisks, parseHideResult,

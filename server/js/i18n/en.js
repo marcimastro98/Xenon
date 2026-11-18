@@ -7432,4 +7432,11 @@ module.exports = {
   see_through: 'Clicks pass through',
   see_through_sub: 'Clicks reach what is behind it. In edit mode you can still move it.',
   layer_edit_hint_keys: 'Arrow keys move it by 1 px, Shift by 10. Shift+Alt changes its size.',
+  deck_act_closeApp: 'Close or minimize an app',
+  deck_info_closeApp: 'Closes or minimizes every window of the app you pick, even when it is not the one in front. Closing works like its X, so the app can still ask you to save. On macOS, minimize hides the app.',
+  deck_opt_runningapp: 'Pick an open app…',
+  deck_err_app_not_open: 'that app has no window open right now',
+  deck_err_app_protected: 'Xenon does not close or minimize this app: it is part of the system, or Xenon itself',
+  deck_err_app_close_refused: 'the app did not close: it may be asking you something, like saving your work',
+  deck_err_no_window_tool: 'this needs wmctrl and xdotool: install them with your package manager',
 };

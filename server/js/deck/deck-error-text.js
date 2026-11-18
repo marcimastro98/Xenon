@@ -164,6 +164,12 @@
     empty_prompt: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
     empty_id: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
     empty_effect: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    empty_app: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
+    // Close or minimize an app (actions/registry-app-window.js).
+    app_not_open: ['deck_err_app_not_open', 'that app has no window open right now'],
+    app_protected: ['deck_err_app_protected', 'Xenon does not close or minimize this app: it is part of the system, or Xenon itself'],
+    app_close_refused: ['deck_err_app_close_refused', 'the app did not close: it may be asking you something, like saving your work'],
+    no_window_tool: ['deck_err_no_window_tool', 'this needs wmctrl and xdotool: install them with your package manager'],
     // Nothing wrong, nothing to do (registry.js, capabilities/record.js, timelapse.js, layers.js).
     nothing_running: ['deck_err_nothing_running', 'nothing is running to stop'],
     running: ['deck_err_already_recording', 'a recording is already going: stop it first'],
@@ -176,7 +182,7 @@
     'no_game', 'no_app', 'no_frames', 'too_soon', 'too_short', 'no_file', 'no_steps', 'no_pages', 'no_widgets', 'over_exclusive', 'not_recording',
     'no_marks', 'whole_video', 'already_small', 'no_webcam', 'no_phone', 'transfer_off', 'send_busy',
     'off', 'not_running', 'saving', 'busy', 'vitals_off', 'vital_off', 'companion_off', 'screen_alerts_off', 'wl_disabled',
-    'nothing_running', 'running', 'no_second_screen', 'nothing_to_undo',
+    'nothing_running', 'running', 'no_second_screen', 'nothing_to_undo', 'app_not_open',
   ]);
 
   // The sentence, or the bare code when there is none: an unexplained code is

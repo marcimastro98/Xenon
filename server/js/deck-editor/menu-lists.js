@@ -192,6 +192,24 @@
     return state.appsPromise;
   }
 
+  // Lazy fetch of the apps with a window open now, from /windows (the same list the
+  // app switcher shows). Promise<{value,label}[]>, value = the app name the window
+  // list gives, which is what the closeApp key matches on.
+  function runningApps() {
+    if (!state.runningAppsPromise) state.runningAppsPromise = fetch('/windows').then((r) => r.json()).then((d) => {
+      const seen = new Set();
+      const out = [];
+      for (const w of (d && Array.isArray(d.windows)) ? d.windows : []) {
+        const value = (w && typeof w.app === 'string') ? w.app.trim() : '';
+        if (!value || seen.has(value.toLowerCase())) continue;
+        seen.add(value.toLowerCase());
+        out.push({ value, label: value });
+      }
+      return out.sort((a, b) => a.label.localeCompare(b.label));
+    }).catch(() => []);
+    return state.runningAppsPromise;
+  }
+
   // Lazy fetch of installed Store/UWP apps from /apps/store. Returns
   // Promise<{value,label}[]> where value is the AppUserModelID and label the app name.
   function storeApps() {
@@ -227,6 +245,7 @@
   window.DeckEditorMenuLists = {
     obsScenes, obsSources, sbActions, sbCodeTriggers, sbGlobals, discordChannels, discordSounds,
     signalRgbEffects, claudeProjects, wlChannels, wlMixOptions, vmStripOptions, vmBusOptions,
-    wlEffectOptions, wlOutputOptions, lightingLists, lightDevices, audioApps, storeApps, audioDevices,
+    wlEffectOptions, wlOutputOptions, lightingLists, lightDevices, audioApps, runningApps, storeApps,
+    audioDevices,
   };
 })();

@@ -4,7 +4,7 @@
 // server action registry (require). No DOM, no execution here.
 //
 // param.kind: 'text' | 'path' | 'url' | 'color' | 'select' (select carries
-//             `options`) | 'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' |
+//             `options`) | 'audioApp' | 'runningApp' | 'storeApp' | 'obsScene' | 'obsSource' |
 //             'sbAction' | 'sbCodeTrigger' | 'discordChannel' | 'discordSound' |
 //             'haEntity' | 'wlChannel' | 'lightDevice' | 'lightPart' | 'sound' (picker controls) |
 //             'hidden' (no control: another param's picker sets it).
@@ -163,6 +163,7 @@ const ACTION_CATALOG = [
   { type: 'haButton',      group: 'homeassistant', labelKey: 'deck_act_haButton',      params: [{ name: 'entity', kind: 'haEntity', domain: 'button' }] },
   { type: 'haCallService', group: 'homeassistant', labelKey: 'deck_act_haCallService', params: [{ name: 'service', kind: 'text' }, { name: 'entity', kind: 'text' }, { name: 'data', kind: 'text' }] },
   { type: 'windowMove',    group: 'system', requires: 'powershell', labelKey: 'deck_act_windowMove', params: [{ name: 'dir', kind: 'select', options: ['next-monitor', 'prev-monitor', 'left', 'right', 'maximize', 'minimize', 'center'] }] },
+  { type: 'closeApp',      group: 'system', requires: 'appWindows', labelKey: 'deck_act_closeApp', params: [{ name: 'app', kind: 'runningApp' }, { name: 'mode', kind: 'select', strict: true, options: ['close', 'minimize'] }] },
   { type: 'remoteDisconnect',  group: 'remote', labelKey: 'deck_act_remoteDisconnect',  params: [] },
   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },
@@ -220,9 +221,6 @@ const ACTION_CATALOG = [
   { type: 'taskAdd',    group: 'tasks', hidden: true, labelKey: 'deck_act_taskAdd',    params: [{ name: 'text', kind: 'text' }] },
   { type: 'taskToggle', group: 'tasks', hidden: true, labelKey: 'deck_act_taskToggle', params: [{ name: 'id', kind: 'text' }] },
   { type: 'taskDelete', group: 'tasks', hidden: true, labelKey: 'deck_act_taskDelete', params: [{ name: 'id', kind: 'text' }] },
-  // A macro contributed by an installed SDK widget package. `macro` is the
-  // composite "pkg/macroId" ref; the server resolves it against the package
-  // manifest and re-validates every step at run time (see actions/registry.js).
   // Claude Code — start a run in one of the user's projects, or stop the one
   // going. The key carries the project id (never a path: the server holds the
   // allowlist and the runner is the authority on it), the prompt, and an
@@ -233,6 +231,7 @@ const ACTION_CATALOG = [
   // without showing it removes the one step the approval flow exists for.
   { type: 'claudeAsk',  group: 'claude', labelKey: 'deck_act_claudeAsk',  params: [{ name: 'projectId', kind: 'claudeProject' }, { name: 'prompt', kind: 'text', maxLen: 2000, labelKey: 'deck_param_claude_prompt' }, { name: 'model', kind: 'text', optional: true, maxLen: 40 }] },
   { type: 'claudeStop', group: 'claude', labelKey: 'deck_act_claudeStop', params: [] },
+  // An SDK widget package's macro, "pkg/macroId": resolved against its manifest, every step re-validated (actions/registry.js).
   { type: 'sdkMacro', group: 'sdk', labelKey: 'deck_act_sdkMacro', params: [{ name: 'macro', kind: 'sdkMacro' }] },
   // A handler action answered by the widget package's own code: `handler` is the
   // composite "pkg/handlerId" ref; `args` is a JSON string the editor composes

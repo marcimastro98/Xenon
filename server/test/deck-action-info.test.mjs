@@ -62,7 +62,7 @@ test('every picker category has a name in all 11 languages', () => {
 test('actions sit where people look for them', () => {
   const groupOf = (type) => da.actionSpec(type).group;
   for (const type of ['openApp', 'openFile', 'runScript', 'openUrl', 'launchSteamGame', 'webhook']) assert.equal(groupOf(type), 'launch', type);
-  for (const type of ['hotkey', 'typeText', 'lockWorkstation', 'windowMove', 'powerMode', 'dnd']) assert.equal(groupOf(type), 'system', type);
+  for (const type of ['hotkey', 'typeText', 'lockWorkstation', 'windowMove', 'closeApp', 'powerMode', 'dnd']) assert.equal(groupOf(type), 'system', type);
   for (const type of ['phoneCall', 'phoneMessage']) assert.equal(groupOf(type), 'phone', type);
   for (const type of ['dashboardPage', 'deckState', 'xenonMenu', 'usageMode', 'layersToggle', 'desktopWallpaper']) assert.equal(groupOf(type), 'xenon', type);
   assert.ok(!CATEGORY_GROUPS.some((c) => c.group === 'window'), 'the old mixed "Windows" group is gone');

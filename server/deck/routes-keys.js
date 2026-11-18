@@ -18,6 +18,7 @@ const { DATA_DIR } = require('../engine/paths.js');
 const { nativeCollectors } = require('../system/native-collectors.js');
 const { SVV } = require('../audio/svv-path.js');
 const { streamingLive } = require('../streaming/live.js');
+const { appWindows } = require('../app-windows/app-windows.js');
 
 const SERVER_DIR = path.join(__dirname, '..');
 
@@ -190,7 +191,7 @@ const branches = {
       // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
       // is optional, so the answer is "is there a media host" — not "which OS".
       const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
-      json({ catalog: ACTION_CATALOG, platform: process.platform, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || streamingLive.obsWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable(), ...capabilityRunner.probes() } });
+      json({ catalog: ACTION_CATALOG, platform: process.platform, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || streamingLive.obsWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable(), appWindows: await appWindows.available(), ...capabilityRunner.probes() } });
     } catch (e) { err500(e.message); }
   },
 

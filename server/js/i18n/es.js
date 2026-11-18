@@ -7311,4 +7311,11 @@ module.exports = {
   see_through: 'Deja pasar los clics',
   see_through_sub: 'Los clics llegan a lo que hay detrás. En modo edición puedes seguir moviéndolo.',
   layer_edit_hint_keys: 'Las flechas lo mueven 1 px, con Mayús 10. Mayús+Alt cambia su tamaño.',
+  deck_act_closeApp: 'Cerrar o minimizar una app',
+  deck_info_closeApp: 'Cierra o minimiza todas las ventanas de la app que elijas, aunque no sea la que está delante. Cerrar funciona como su X, así que la app aún puede pedirte que guardes. En macOS, minimizar oculta la app.',
+  deck_opt_runningapp: 'Elige una app abierta…',
+  deck_err_app_not_open: 'esa app no tiene ninguna ventana abierta ahora mismo',
+  deck_err_app_protected: 'Xenon no cierra ni minimiza esta app: forma parte del sistema o es el propio Xenon',
+  deck_err_app_close_refused: 'la app no se cerró: puede que te esté preguntando algo, como si quieres guardar',
+  deck_err_no_window_tool: 'hacen falta wmctrl y xdotool: instálalos con tu gestor de paquetes',
 };

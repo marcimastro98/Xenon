@@ -7420,4 +7420,11 @@ module.exports = {
   see_through: 'Klikken gaan erdoorheen',
   see_through_sub: 'Klikken bereiken wat erachter ligt. In de bewerkmodus kun je het nog steeds verplaatsen.',
   layer_edit_hint_keys: 'Pijltjestoetsen verplaatsen het 1 px, met Shift 10. Shift+Alt verandert de grootte.',
+  deck_act_closeApp: 'Een app sluiten of minimaliseren',
+  deck_info_closeApp: 'Sluit of minimaliseert alle vensters van de app die je kiest, ook als die niet vooraan staat. Sluiten werkt als het kruisje van de app, dus de app kan nog vragen of je wilt opslaan. Op macOS verbergt minimaliseren de app.',
+  deck_opt_runningapp: 'Kies een geopende app…',
+  deck_err_app_not_open: 'die app heeft nu geen venster open',
+  deck_err_app_protected: 'Xenon sluit of minimaliseert deze app niet: hij hoort bij het systeem, of is Xenon zelf',
+  deck_err_app_close_refused: 'de app is niet gesloten: misschien vraagt hij iets, zoals of je je werk wilt opslaan',
+  deck_err_no_window_tool: 'hiervoor zijn wmctrl en xdotool nodig: installeer ze met je pakketbeheerder',
 };

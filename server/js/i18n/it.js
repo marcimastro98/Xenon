@@ -7431,4 +7431,11 @@ module.exports = {
   see_through: 'Lascia passare i clic',
   see_through_sub: 'I clic arrivano a ciò che c\'è dietro. In modifica puoi comunque spostarlo.',
   layer_edit_hint_keys: 'Le frecce lo spostano di 1 px, con Maiusc di 10. Maiusc+Alt ne cambia la misura.',
+  deck_act_closeApp: 'Chiudi o riduci a icona un\'app',
+  deck_info_closeApp: 'Chiude o riduce a icona tutte le finestre dell\'app che scegli, anche se non è quella in primo piano. Chiudere funziona come la sua X, quindi l\'app può ancora chiederti di salvare. Su macOS, riduci a icona nasconde l\'app.',
+  deck_opt_runningapp: 'Scegli un\'app aperta…',
+  deck_err_app_not_open: 'quell\'app non ha finestre aperte in questo momento',
+  deck_err_app_protected: 'Xenon non chiude né riduce a icona questa app: fa parte del sistema, o è Xenon stesso',
+  deck_err_app_close_refused: 'l\'app non si è chiusa: forse ti sta chiedendo qualcosa, ad esempio se salvare il lavoro',
+  deck_err_no_window_tool: 'servono wmctrl e xdotool: installali con il gestore di pacchetti',
 };

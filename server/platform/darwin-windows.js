@@ -54,7 +54,27 @@ async function windows(action, id) {
       ? { ok: false, error: 'not_found', app: hit.app }
       : { ok: true, app: hit.app, path: hit.path };
   }
+  if (action === 'minimize') return hideApp(id);
   return { windows: await listApps() };
 }
 
-module.exports = { listApps, windows };
+// Minimizing an app on macOS is hiding it, what Command-H does: AppKit's
+// NSRunningApplication.hide through osascript's JavaScript bridge, the pid an
+// argument and never part of the script. No System Events, so no prompt.
+const HIDE_APP_JXA = `
+ObjC.import('AppKit');
+function run(argv) {
+  const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(Number(argv[0]));
+  if (!app || app.isNil()) return 'gone';
+  return app.hide ? 'ok' : 'refused';
+}`;
+
+const hideAppArgs = (pid) => ['-l', 'JavaScript', '-e', HIDE_APP_JXA, String(Number(pid))];
+
+async function hideApp(id) {
+  if (!/^\d{1,24}$/.test(String(id || ''))) return { ok: false, error: 'not_found' };
+  const out = String(await runSoft('/usr/bin/osascript', hideAppArgs(id), 8000) || '').trim();
+  return out === 'ok' ? { ok: true } : { ok: false, error: out === 'gone' ? 'not_found' : 'window_failed' };
+}
+
+module.exports = { listApps, windows, hideAppArgs };

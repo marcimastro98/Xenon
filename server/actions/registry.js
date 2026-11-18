@@ -22,6 +22,7 @@ const {
   completeWindowsEnvPath,
 } = require('./registry-app-paths.js');
 const { isBlockedOpenPath, isRunnableScriptPath } = require('./registry-open-paths.js');
+const { runWindowAction } = require('./registry-app-window.js');
 
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,
 //         mediaAction(cmd)->Promise, micMute(mode)->Promise<{muted}>, volume(mode)->Promise,
@@ -587,14 +588,8 @@ function createRegistry(deps) {
           const r = await d.signalRgbEffect(effect);
           return r && r.ok === false ? { ok: false, error: r.error || 'failed' } : { ok: true };
         }
-        case 'windowMove': {
-          // Move/snap/minimise the foreground window. `dir` is constrained to the
-          // catalog's option list, so the verb handed to the PowerShell helper is
-          // always one of a fixed allowlist (never free-form input).
-          if (typeof d.windowAction !== 'function') return { ok: false, error: 'window_unavailable' };
-          const r = await d.windowAction(action.dir);
-          return r && r.ok === false ? { ok: false, error: r.error || 'window_failed' } : { ok: true };
-        }
+        // The window in front, or every window of a named app (registry-app-window.js).
+        case 'windowMove': case 'closeApp': return await runWindowAction(action, d);
         case 'remoteDisconnect': {
           if (!d.remote) return { ok: false, error: 'remote_unavailable' };
           await d.remote.closeSession();

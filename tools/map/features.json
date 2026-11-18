@@ -481,6 +481,7 @@
         "server/deck-*.ps1",
         "server/deck-popup.html",
         "server/actions/registry*.js",
+        "server/app-windows/**",
         "server/js/deck-editor/**",
         "server/js/deck/**",
         "server/components/DeckPanel/**"
