@@ -7357,7 +7357,7 @@ module.exports = {
   surface_mode_pc: 'Только на этом ПК',
   surface_mode_pc_hint: 'На экране, который вы выбираете в разделе «Экраны».',
   settings_slideshow_dim: 'Затемнить фото',
-  settings_slideshow_dim_off: 'Нет',
+  settings_slideshow_dim_off: 'Выкл.',
   discord_w_only_starred: 'Только избранные',
   discord_w_show_all: 'Показать все',
 };

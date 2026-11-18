@@ -7296,7 +7296,7 @@ module.exports = {
   surface_mode_pc: 'Só neste PC',
   surface_mode_pc_hint: 'No ecrã que escolhes em Ecrãs.',
   settings_slideshow_dim: 'Escurecer fotos',
-  settings_slideshow_dim_off: 'Não',
+  settings_slideshow_dim_off: 'Desligado',
   discord_w_only_starred: 'Só favoritos',
   discord_w_show_all: 'Mostrar todos',
 };

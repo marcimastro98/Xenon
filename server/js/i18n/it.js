@@ -7419,7 +7419,7 @@ module.exports = {
   surface_mode_pc: 'Solo su questo PC',
   surface_mode_pc_hint: 'Sullo schermo che scegli in Schermi.',
   settings_slideshow_dim: 'Scurisci le foto',
-  settings_slideshow_dim_off: 'No',
+  settings_slideshow_dim_off: 'Spento',
   discord_w_only_starred: 'Solo preferiti',
   discord_w_show_all: 'Mostra tutti',
 };
