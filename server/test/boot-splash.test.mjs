@@ -14,7 +14,7 @@ const SRC = read('../js/first-run/boot-splash.js');
 const LOOK_KEY = 'xeneonedge.bootLook.v1';
 
 // Runs boot-splash.js against a fake page and hand-driven timers.
-function boot({ stored = null, computed = {}, reduced = false, readyState } = {}) {
+function boot({ stored = null, computed = {}, reduced = false, readyState, search = '' } = {}) {
   let now = 0;
   const timers = new Map();
   let nextId = 1;
@@ -37,6 +37,8 @@ function boot({ stored = null, computed = {}, reduced = false, readyState } = {}
     CSS: { supports: (_p, v) => /^(#[0-9a-f]{3,8}|rgba?\([\d.,\s%]+\))$/i.test(v) },
     getComputedStyle: () => ({ getPropertyValue: (p) => computed[p] || '' }),
     matchMedia: (q) => ({ matches: reduced && q.includes('reduce') }),
+    location: { search },
+    URLSearchParams,
     document: {
       readyState,
       getElementById: (id) => (id === 'boot-splash' ? el : null),
@@ -98,6 +100,21 @@ test('once settings and data are in, Bit says hello and leaves', () => {
   assert.ok(noData.classes.has('is-ready'), 'a screen without a System tile does not wait for the cap');
   noData.advance(670);
   assert.ok(noData.classes.has('is-leaving'));
+});
+
+test('a page of Settings in the Xenon window leaves as soon as the settings are in', () => {
+  const sheet = boot({ search: '?panel=sheet&open=settings&cat=general' });
+  assert.ok(sheet.classes.has('is-sheet'), 'a plain ground, Bit only on a slow load');
+  sheet.advance(120);
+  sheet.api.ready('settings');
+  sheet.advance(0);
+  assert.ok(sheet.classes.has('is-leaving'), 'no wait for data, the minimum or the hello');
+  assert.ok(!sheet.classes.has('is-ready'));
+  const dash = boot({ search: '?panel=media' });
+  assert.ok(!dash.classes.has('is-sheet'));
+  dash.api.ready('settings');
+  dash.advance(0);
+  assert.ok(!dash.classes.has('is-leaving'), 'the dashboard still waits for its data');
 });
 
 test('without motion there is no hello: it just leaves', () => {

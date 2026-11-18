@@ -26,6 +26,9 @@
   visibility: hidden;
 }
 .boot-splash.is-neutral { background: #06080a; }
+/* A page of Settings in the Xenon window: a plain ground, Bit only on a slow load. */
+.boot-splash.is-sheet .boot-splash-bit { opacity: 0; animation: boot-splash-late 0s linear 0.8s forwards; }
+@keyframes boot-splash-late { to { opacity: 1; } }
 
 /* 5 screen pixels per Bit pixel (the box is 20x19 cells), 7 on big screens. */
 .boot-splash-bit {
