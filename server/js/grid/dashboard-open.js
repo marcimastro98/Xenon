@@ -45,6 +45,8 @@
   const DECK_INSTANCE = /^deck(~[a-z0-9]{1,40})?$/;
   const FOLDER_DEPTH_MAX = 8;   // deck-model.js walks no deeper
   const INDEX = /^\d{1,3}$/;
+  // A row of Settings, as its search names it (js/settings-search/index-of-rows.js).
+  const ROW_ID = /^[a-z]{1,20}\|[A-Za-z0-9_]{1,80}(#\d{1,2})?$/;
   const ASK_KEY = 'xenon.deckAsk';
   const ASK_MAX_AGE_MS = 60 * 1000;
   const ASK_MAX_CHARS = 2000;
@@ -52,6 +54,12 @@
   const isCat = (cat) => SETTINGS_CATS.includes(cat) || !!Pages?.isCat(cat);
 
   // What a request may carry, from untrusted input (a URL or an SSE payload).
+  // A page of Settings, and a row on it as Settings' search names rows.
+  function settings(o) {
+    if (!isCat(o.cat)) return { open: 'settings' };
+    return typeof o.id === 'string' && ROW_ID.test(o.id) ? { open: 'settings', cat: o.cat, id: o.id } : { open: 'settings', cat: o.cat };
+  }
+
   function normalize(o) {
     if (!o || typeof o !== 'object') return null;
     if (SIMPLE.includes(o.open)) return { open: o.open };
@@ -59,7 +67,7 @@
       if (typeof o.entry === 'string' && ENTRY_ID.test(o.entry)) return { open: 'store', entry: o.entry };
       return STORE_KINDS.includes(o.kind) ? { open: 'store', kind: o.kind } : { open: 'store' };
     }
-    if (o.open === 'settings') return isCat(o.cat) ?{ open: 'settings', cat: o.cat } : { open: 'settings' };
+    if (o.open === 'settings') return settings(o);
     if (o.open === 'macro') return typeof o.id === 'string' && KEY_ID.test(o.id) ? { open: 'macro', id: o.id } : { open: 'macro' };
     if (o.open === 'deckkey') return deckKey(o);
     if (o.open !== 'gallery') return null;
@@ -171,6 +179,8 @@
     if (req.open === 'settings') {
       if (typeof window.openSettings !== 'function') return false;
       window.openSettings(SETTINGS_PANES[req.cat] || req.cat);
+      const search = /** @type {any} */ (window).SettingsSearch;
+      if (req.id && search) requestAnimationFrame(() => search.revealId(req.id));
       return true;
     }
     if (req.open === 'macro') {

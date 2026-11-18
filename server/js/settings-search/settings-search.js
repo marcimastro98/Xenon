@@ -246,5 +246,13 @@
     return false;
   }
 
-  window.SettingsSearch = { init, onOpen, handleEscape, leave, _build: build };
+  // A row asked for by its id (the Xenon window's search, js/grid/dashboard-open.js).
+  function revealId(id) {
+    ensureIndex(true);
+    reveal(entries.find((e) => e.id === id), false);
+  }
+
+  // `rowsIn(doc, pages)`: the rows of another copy of the page, for the Xenon window's
+  // search (js/menu/xenon-menu-settings-find.js), which has no Settings of its own.
+  window.SettingsSearch = { init, onOpen, handleEscape, leave, revealId, rowsIn: build, _build: build };
 })();

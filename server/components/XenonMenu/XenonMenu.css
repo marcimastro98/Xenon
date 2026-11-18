@@ -149,6 +149,8 @@ body.low-power-gpu .xm-frame { -webkit-backdrop-filter: none; backdrop-filter: n
 .xm-error[hidden] { display: none; }
 .xm-body { min-width: 0; display: flex; flex-direction: column; gap: 28px; }
 .xm-empty { margin: 0; color: var(--cst-muted); }
+/* What a search matched (js/fuzzy-find.js renderHighlighted), as in Settings' own search. */
+.xm-row mark { padding: 0 1px; color: inherit; background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 3px; }
 
 /* Quick actions */
 /* Three columns at most: wider, the last tile sat alone on its own row. */

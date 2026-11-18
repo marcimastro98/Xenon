@@ -37,17 +37,33 @@
     window.location.replace(address);
   }
 
-  // Opened straight from a key, the tray or Bit there is no menu to go back to, and
-  // one would land over the game: the window goes first, then its page changes.
-  function done() {
-    if (leaving) return;
-    let section = '';
-    try { section = sessionStorage.getItem(SECTION_KEY) || ''; } catch (e) { /* no menu to come back to */ }
-    if (section) { go(MENU_ADDRESS); return; }
+  // The window goes first, then its page changes back to the menu for the next open.
+  function hideWindow() {
     fetch(SERVER + '/screen-menu', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: false }),
     }).catch(() => { /* the server is restarting: the shell closes it with the server */ })
       .then(() => go(MENU_ADDRESS));
+  }
+
+  // Opened straight from a key, the tray or Bit there is no menu to go back to, and
+  // one would land over the game.
+  function done() {
+    if (leaving) return;
+    let section = '';
+    try { section = sessionStorage.getItem(SECTION_KEY) || ''; } catch (e) { /* no menu to come back to */ }
+    if (section) go(MENU_ADDRESS);
+    else hideWindow();
+  }
+
+  // Settings here is a page of Xenon with the same rail as the menu, not a layer over a
+  // dashboard: it has no close button (components/SheetPage), and Esc closes the window
+  // as it does on the menu's pages, once a search or a widget's screen is done with.
+  function escSettings(e) {
+    const search = document.getElementById('settings-search-input');
+    if (search?.value) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (!window.XenonMenuPanel?.escape()) hideWindow();
   }
 
   function watch() {
@@ -97,6 +113,7 @@
     if (e.key !== 'Escape') return;
     inner = !!document.querySelector(INNER_LAYERS);
     overlays = document.querySelectorAll('.preset-modal-overlay').length;
+    if (!inner && overlays === 0 && settingsOpen() && !leaving) escSettings(e);
   }, true);
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || e.defaultPrevented || inner) return;
@@ -111,7 +128,7 @@
   });
 
   function onMenu(d) {
-    if (!d || d.open !== true) return;   // closed: the shell takes the window away
+    if (d?.open !== true) return;   // closed: the shell takes the window away
     const next = d.sheet ? DashboardOpen.sheetAddress(d.sheet) : '';
     if (next) { go(next); return; }
     try { sessionStorage.setItem(SECTION_KEY, d.section || ''); } catch (e) { /* the first section */ }

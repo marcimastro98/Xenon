@@ -59,8 +59,9 @@ function sheetPage({ settingsHidden = true, overlays = [], section = 'now' } = {
   };
   vm.runInNewContext(read('../js/ai/sheet-page.js'), ctx);
   const press = (key = 'Escape', extra = {}) => {
-    const e = { key, defaultPrevented: false, ...extra };
-    listeners.keydown.forEach((f) => f(e));
+    let stopped = false;
+    const e = { key, defaultPrevented: false, preventDefault() { e.defaultPrevented = true; }, stopImmediatePropagation() { stopped = true; }, ...extra };
+    for (const f of listeners.keydown) { if (stopped) break; f(e); }
   };
   return { ctx, window, replaced, posts, stored, press, settings };
 }
@@ -75,6 +76,13 @@ test('only the screens the menu window can hold open as a sheet, with safe value
   assert.equal(sheetAddress({ open: 'mixer' }), '/?panel=sheet&open=mixer');
   assert.equal(sheetAddress({ open: 'macro', id: 'k1' }), '/?panel=sheet&open=macro&id=k1');
   assert.equal(sheetAddress({ open: 'settings', cat: '../x' }), '/?panel=sheet&open=settings');
+  // A row of Settings found by the Xenon window's search: its id only with its page, only as the search names rows.
+  assert.equal(sheetAddress({ open: 'settings', cat: 'weather', id: 'weather|weather_location' }), '/?panel=sheet&open=settings&id=weather%7Cweather_location&cat=weather');
+  assert.equal(sheetAddress({ open: 'settings', cat: 'about', id: 'about|deck_act_bugReport#2' }), '/?panel=sheet&open=settings&id=about%7Cdeck_act_bugReport%232&cat=about');
+  for (const id of ['<b>', 'weather|x y', 'weather', 'Weather|x', 'weather|' + 'x'.repeat(81), 7]) {
+    assert.equal(sheetAddress({ open: 'settings', cat: 'weather', id }), '/?panel=sheet&open=settings&cat=weather', String(id));
+  }
+  assert.equal(sheetAddress({ open: 'settings', id: 'weather|weather_location' }), '/?panel=sheet&open=settings', 'no page, no row');
   for (const open of ['update', 'dashboard', 'nope', '', null]) {
     assert.equal(sheet({ open }), null, String(open));
     assert.equal(sheetAddress({ open }), '');
@@ -196,14 +204,31 @@ test('a screen asked for elsewhere replaces the sheet; a menu section goes back 
   assert.deepEqual(c.replaced, [], 'closed: the shell takes the window away');
 });
 
-test('Esc closes the screen only when nothing sits above it', () => {
+test('Esc closes the screen only when nothing sits above it', async () => {
   const calls = [];
   const closing = (page) => { page.ctx.closeSettings = () => calls.push('settings'); };
 
+  // Settings is a page of the window: Esc closes the window, never back to Screens.
   const plain = sheetPage({ settingsHidden: false });
   closing(plain);
   plain.press();
-  assert.deepEqual(calls, ['settings']);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(calls, []);
+  assert.deepEqual(plain.posts, [{ url: '/screen-menu', body: { open: false } }]);
+  assert.deepEqual(plain.replaced, ['/menu?back=1']);
+
+  const widget = sheetPage({ settingsHidden: false });
+  widget.ctx.window.XenonMenuPanel = { escape: () => true };
+  widget.press();
+  assert.deepEqual(widget.posts, [], "a widget's screen in Settings closes first");
+
+  const searching = sheetPage({ settingsHidden: false });
+  searching.settings.value = 'meteo';
+  closing(searching);
+  searching.press();
+  assert.deepEqual(searching.posts, [], 'a search is cleared first');
+  calls.length = 0;
 
   calls.length = 0;
   const dialog = sheetPage({ settingsHidden: false, overlays: ['.preset-modal-overlay'] });
@@ -221,6 +246,10 @@ test('Esc closes the screen only when nothing sits above it', () => {
   answered.press('Escape', { defaultPrevented: true });
   answered.press('a');
   assert.deepEqual(calls, []);
+});
+
+test('Settings in the window has no close button: it would only lead back to Screens', () => {
+  assert.ok(read('../components/SheetPage/SheetPage.css').includes('body[data-panel="sheet"] #settings-overlay .settings-close { display: none; }'));
 });
 
 test('a dashboard-only mark sits on the whole card, so no orphan toggle stays behind its title', () => {

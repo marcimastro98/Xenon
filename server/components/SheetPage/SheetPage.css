@@ -8,6 +8,10 @@ body[data-panel="sheet"] #bg-static,
 body[data-panel="sheet"] #bg-grid,
 body[data-panel="sheet"] #user-bg-layer { display: none; }
 
+/* Settings is a page of the window here, with the menu's rail: Esc closes the window
+   (js/ai/sheet-page.js), a close button would only lead back to Screens. */
+body[data-panel="sheet"] #settings-overlay .settings-close { display: none; }
+
 body[data-panel="sheet"] .settings-overlay,
 body[data-panel="sheet"] .cgal-overlay {
   padding: 0;

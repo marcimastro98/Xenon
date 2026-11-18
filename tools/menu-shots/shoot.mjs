@@ -5,6 +5,7 @@
 // Playwright is borrowed as in tools/toast-gallery (../xenon-maker or XENON_PLAYWRIGHT).
 // Run: node tools/menu-shots/shoot.mjs [outDir]   (default <temp>/xenon-menu-shots)
 //   MENU_LANGS=it,de  MENU_SIZES=phone,edge  narrow the sweep.
+//   MENU_FIND=posizione  adds a picture of the search for that text (menu rows and Settings rows).
 
 import { createServer } from 'node:http';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -50,7 +51,8 @@ export function startMenuServer(lang, desk = DESKS[process.env.MENU_DESK] || DES
     const url = new URL(req.url, 'http://127.0.0.1');
     const p = url.pathname;
     try {
-      if (p === '/menu') p2(res, await readFile(path.join(SERVER_DIR, 'menu.html')), '.html');
+      if (p === '/') p2(res, await readFile(path.join(SERVER_DIR, 'index.html')), '.html');
+      else if (p === '/menu') p2(res, await readFile(path.join(SERVER_DIR, 'menu.html')), '.html');
       else if (p === '/layer-i18n.js') p2(res, await LayerI18n.scriptFor(LayerI18n.wantedLanguages(lang(), ''), lang()), '.js');
       else if (p === '/settings') json(res, { settings: { ...LOOK, language: lang() } });
       else if (p === '/screen-menu') json(res, { open: true, section: 'screens' });
@@ -114,6 +116,7 @@ async function main() {
           await page.waitForSelector('.xm-scrmap', { timeout: 8000 });
           await page.waitForTimeout(400);
           const shots = [['main', null], ['edge', () => page.locator('.xm-scrpick').nth(1).click()], ['widgets', () => page.locator('.xm-wtab').nth(1).click()]];
+          if (process.env.MENU_FIND) shots.push(['find', async () => { await page.locator('.xm-find').fill(process.env.MENU_FIND); await page.waitForTimeout(600); }]);
           for (const [name, step] of shots) {
             if (step) { await step(); await page.waitForTimeout(250); }
             const file = `${code}-${s.name}-${name}.png`;

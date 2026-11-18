@@ -10,7 +10,7 @@
   const LABEL_MAX = 90;
   const VALUE_SEL = 'option[data-i18n], .settings-seg-btn[data-i18n], .settings-seg [data-i18n], button[data-i18n]';
 
-  const content = () => document.getElementById('settings-content');
+  const content = (doc = document) => doc.getElementById('settings-content');
 
   // Every language for one key; see FuzzyFind.i18nFields for the weights.
   function fieldsFor(key, weight, opts) {
@@ -29,10 +29,12 @@
     return headKey;
   }
 
-  function build() {
+  // `doc`: the page, or the dashboard's markup read by the Xenon window
+  // (js/menu/xenon-menu-settings-find.js), whose rail is not drawn: `cats` names its pages.
+  function build(doc = document, cats = null) {
     const list = [];
-    const catKeys = {};
-    document.querySelectorAll('#settings-nav [data-settings-cat]').forEach((b) => {
+    const catKeys = cats ? { ...cats } : {};
+    if (!cats) doc.querySelectorAll('#settings-nav [data-settings-cat]').forEach((b) => {
       if (b.hidden) return;
       const cat = b.dataset.settingsCat;
       // The Supporta footer button names the category in its title; its label
@@ -48,7 +50,7 @@
       });
     }
 
-    const root = content();
+    const root = content(doc);
     if (!root) return list;
     const seen = new Set();
     for (const card of root.children) {

@@ -556,13 +556,12 @@
 
     // Xenon's one list (js/menu/xenon-pages.js): this place's sections, then the pages of
     // Settings, which open in this window (js/ai/sheet-page.js).
-    function drawNav(sections) {
+    function drawNav(sections, hidden) {
       const brand = el('div', 'xm-brand');
       brand.appendChild(el('span', 'xm-brand-name', 'Xenon'));
       const keyLine = menuKeyLine();
       if (keyLine) brand.appendChild(el('span', 'xm-sub', keyLine));
       const Pages = window.XenonPages;
-      const hidden = showAll || typeof opts.hiddenPages !== 'function' ? [] : opts.hiddenPages();
       const pick = (page) => (Pages.isSection(page) ? show(page) : perform({ closes: true }, { open: 'settings:' + page }));
       const rail = { doc, t: tt, icon, btn: 'xm-nav-btn', head: 'xm-nav-head', key: (page) => (Pages.isSection(page) ? 'section' : 'cat'), pick };
       const list = el('div', 'xm-nav-list');
@@ -634,7 +633,7 @@
       }
     }
 
-    function drawFound(sections) {
+    function drawFound(sections, hidden) {
       const err = el('p', 'xm-error');
       err.setAttribute('role', 'status');
       paintError(err);
@@ -644,7 +643,7 @@
         body.appendChild(el('h2', 'xm-heading', text(s.title, tt)));
         drawRows(body, s.rows.filter((r) => r.kind !== 'heading'));
       }
-      if (!found.length) body.appendChild(el('p', 'xm-empty', tt('xmenu_search_none')));
+      body.append(...(window.XenonMenuSettingsFind?.draw({ el, button, tt, query, server, hidden, none: !found.length, open: (cat, id) => perform({ closes: true }, { open: `settings:${cat}:${id}` }), redraw: draw }) || (found.length ? [] : [el('p', 'xm-empty', tt('xmenu_search_none'))])));
       main.replaceChildren(err, resultBox, body);
     }
 
@@ -655,8 +654,9 @@
       }
       const sections = sectionsFor(data, place);
       if (!sections.some((s) => s.id === section)) section = sections.length ? sections[0].id : 'screens';
-      if (!bare) drawNav(sections);
-      if (query.trim()) { drawFound(sections); return; }
+      const hidden = showAll || typeof opts.hiddenPages !== 'function' ? [] : opts.hiddenPages();
+      if (!bare) drawNav(sections, hidden);
+      if (query.trim()) { drawFound(sections, hidden); return; }
       const s = sections.find((x) => x.id === section);
       if (s) drawMain(s);
     }

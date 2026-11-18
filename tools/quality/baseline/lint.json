@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5911,
+  "total": 5910,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -405,7 +405,6 @@
     "server/js/ai/sheet-chat.js complexity/useOptionalChain": 2,
     "server/js/ai/sheet-chat.js suspicious/useIterableCallbackReturn": 1,
     "server/js/ai/sheet-page.js complexity/useArrowFunction": 1,
-    "server/js/ai/sheet-page.js complexity/useOptionalChain": 1,
     "server/js/ai/sheet-page.js suspicious/useIterableCallbackReturn": 1,
     "server/js/ai/sheet-usage.js complexity/useArrowFunction": 2,
     "server/js/ai/sheet-usage.js complexity/useOptionalChain": 2,

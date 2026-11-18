@@ -84,8 +84,8 @@
 
   // Verbs that lead out of the menu.
   function openVerb(verb) {
-    const [what, arg] = String(verb || '').split(':');
-    if (toSheet(what === 'macro' ? { open: what, id: arg } : { open: what, cat: arg, kind: arg }) || what !== 'dashboard') return;
+    const [what, arg, row] = String(verb || '').split(':');
+    if (toSheet(what === 'macro' ? { open: what, id: arg } : { open: what, cat: arg, kind: arg, id: row }) || what !== 'dashboard') return;
     signal('open-dashboard?open=dashboard');
   }
 

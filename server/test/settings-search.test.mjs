@@ -124,7 +124,7 @@ test('cards of the categories that are not open are indexed too', () => {
   // "abilita vitals" found nothing unless Bit was already open. Found on the
   // first real use. Only [hidden] BELOW the card may exclude a row.
   const src = read('../js/settings-search/settings-search.js');
-  const build = src.slice(src.indexOf('function build()'), src.indexOf('function ensureIndex('));
+  const build = src.slice(src.indexOf('function build('), src.indexOf('function ensureIndex('));
   assert.doesNotMatch(build, /reachable\(card\b/);
   assert.match(build, /reachable\(row, card\)/);
 });
