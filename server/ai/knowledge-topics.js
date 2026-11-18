@@ -210,6 +210,12 @@ const TOPICS = [
     body: 'The dashboard is a local web app, so any screen can render it: the native Xenon app (a fullscreen kiosk shell of the same dashboard, bundled with the installer) on whichever display you point it at, http://127.0.0.1:3030 in any browser, your phone or tablet over your own Wi-Fi once paired in Settings → Phone (beta), or the iCUE widget package. A CORSAIR Xeneon Edge (14.5", 2560×720, touch) is one of those screens and the UI is tuned for its proportions, but nothing requires one. The same instance can be open on several screens at once: pages, settings and the Deck stay in sync live across all of them, and the Deck can also pop out as the Virtual Deck window on the main monitor.',
   },
   {
+    id: 'widgets-edit',
+    title: 'Editing the widgets on screen: moving, sizing, letting clicks through',
+    keywords: ['edit the widgets', 'modifica i widget', 'sposta widget', 'move widget', 'arrow keys', 'frecce', 'pixel', 'click through', 'clicks pass through', 'lascia passare i clic', 'clic attraverso', 'non cliccabile', 'not clickable'],
+    body: 'The widgets on the desktop or over games are arranged in edit mode: the Deck key or the Screens page in Xenon ("Edit the widgets on screen"), or ask Bit (edit_layer_widgets). Drag a widget to move it: it pulls onto the screen edges and the other widgets with a visible line. Tap one to pick it: its card beside it has When it shows, the sizes, Tabs with, What it shows, Remove and Clicks pass through. The corner of the picked widget resizes it. With a widget picked, the arrow keys move it 1 pixel a press, 10 with Shift, and Shift+Alt with an arrow changes its size by 1 pixel; it stops at the screen edge and saves once the keys rest. Keys typed into a text field stay there; Ctrl+Z undoes the last change. Clicks pass through keeps a widget visible but lets every click land on the window, desktop or game behind it, like a sticker over the screen. Edit mode always makes it clickable again, so it can be picked and switched back off; Screens has the same switch and Bit sets it with move_layer_widget through on or off. A widget grouped as tabs always takes clicks, so the tabs stay pressable. Done ends the mode.',
+  },
+  {
     // The question new users actually have: what Xenon can do and where things are.
     id: 'xenon-place',
     title: 'What Xenon can do, and the one place to find everything (Screens, widgets, the key)',

@@ -69,6 +69,14 @@ test('a widget may drop its panel: only a real yes is kept, and tabs follow thei
   assert.deepEqual(tabs(false).map((w) => 'bare' in w), [false, false]);
 });
 
+test('clicks pass through a widget only on a real yes, kept on save and with its tabs', () => {
+  assert.equal(L.normalize({ widgets: [W({ through: true })] }).widgets[0].through, true);
+  for (const junk of [false, 'true', 1, null, 'on']) assert.equal('through' in L.normalize({ widgets: [W({ through: junk })] }).widgets[0], false);
+  const saved = L.normalize(JSON.parse(JSON.stringify(L.normalize({ widgets: [W({ through: true })] }))));
+  assert.equal(saved.widgets[0].through, true, 'survives a save and a restart');
+  assert.equal('through' in L.updateWidget(L.normalize({ widgets: [W({ through: true })] }), 'lw_abcd1234', { through: false }).layers.widgets[0], false);
+});
+
 test('opacity, show rule, screens and monitor key are bounded', () => {
   const n = L.normalize({ screens: 'moon', excludeFromCapture: false, widgets: [W({ opacity: 0, show: 'never', monitor: 'x'.repeat(65) })] });
   assert.equal(n.screens, 'auto');

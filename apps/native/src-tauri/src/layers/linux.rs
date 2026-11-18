@@ -233,6 +233,20 @@ pub fn set_region(handle: isize, rects: Vec<[i32; 4]>, _through: Vec<[i32; 4]>, 
     });
 }
 
+/// A widget picked in edit mode takes the keyboard for its arrows, and lets it
+/// go after (keys.rs). Main thread. A sync while it is held (`configure`) puts
+/// the window back to taking none: the next pick asks again.
+pub fn set_keys(handle: isize, on: bool) {
+    let Some(w) = find(handle) else { return };
+    if layer_shell() {
+        layer_shell::keyboard(&w, on);
+    }
+    w.set_accept_focus(on);
+    if on {
+        w.present();
+    }
+}
+
 /// `xenon-app:scene-pause` from a wallpaper page: on battery it is hidden
 /// until the charger is back. Main thread: the navigation hooks run there.
 pub fn set_paused(handle: isize, paused: bool) {

@@ -39,6 +39,7 @@ const LAYER_OVERLAY: c_int = 3;
 const EDGES: [c_int; 4] = [0, 1, 2, 3]; // left, right, top, bottom
 const KEYBOARD_NONE: c_int = 0;
 const KEYBOARD_EXCLUSIVE: c_int = 1;
+const KEYBOARD_ON_DEMAND: c_int = 2;
 
 /// The functions Xenon calls, all present since gtk-layer-shell 0.6 (2021).
 struct Api {
@@ -171,6 +172,18 @@ pub fn place_glow(w: &gtk::Window, monitor: Option<&gtk::gdk::Monitor>) {
         (a.set_keyboard_mode)(p, KEYBOARD_NONE);
         if let Some(m) = monitor {
             (a.set_monitor)(p, m.as_ptr());
+        }
+    }
+}
+
+/// The keyboard when the window is clicked (on demand), for a widget picked in
+/// edit mode (keys.rs), or none again. Main thread, a window already placed.
+pub fn keyboard(w: &gtk::Window, on: bool) {
+    let Some(a) = api() else { return };
+    // SAFETY: a live GtkWindow found by the caller, on the main thread.
+    unsafe {
+        if (a.is_layer_window)(w.as_ptr()) != 0 {
+            (a.set_keyboard_mode)(w.as_ptr(), if on { KEYBOARD_ON_DEMAND } else { KEYBOARD_NONE });
         }
     }
 }

@@ -7366,4 +7366,7 @@ module.exports = {
   net_lan_ip_card: 'IP-адрес этого ПК',
   net_lan_ip_show: 'Показывать IP-адрес этого ПК',
   net_lan_ip_hide: 'Скрыть IP-адрес этого ПК',
+  see_through: 'Пропускать клики',
+  see_through_sub: 'Клики попадают в то, что под ним. В режиме правки его по-прежнему можно двигать.',
+  layer_edit_hint_keys: 'Стрелки двигают его на 1 px, с Shift на 10. Shift+Alt меняет размер.',
 };

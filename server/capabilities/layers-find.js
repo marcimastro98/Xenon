@@ -31,6 +31,7 @@ function describe(w, catalog, cur) {
   if (w.group) { out.group = w.group; out.active = !!w.active; }
   if (w.opacity < 1) out.opacity = Math.round(w.opacity * 100);
   if (w.bare) out.bare = true;
+  if (w.through && !w.group) out.clicksThrough = true;   // tabs always take clicks
   if (w.off) out.hidden = true;
   // The key that shows or hides it (capabilities/widget-key.js).
   if (w.key) { out.shortcut = DeckShortcuts.formatShortcut(w.key.combo); out.shortcutMode = w.key.hold ? 'hold' : 'toggle'; }

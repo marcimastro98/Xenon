@@ -7421,4 +7421,7 @@ module.exports = {
   net_lan_ip_card: 'このPCのIPアドレス',
   net_lan_ip_show: 'このPCのIPアドレスを表示',
   net_lan_ip_hide: 'このPCのIPアドレスを隠す',
+  see_through: 'クリックを通す',
+  see_through_sub: 'クリックは後ろにあるものに届きます。編集モードでは移動できます。',
+  layer_edit_hint_keys: '矢印キーで 1 px、Shift で 10 px 動きます。Shift+Alt でサイズを変えます。',
 };

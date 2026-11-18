@@ -7429,4 +7429,7 @@ module.exports = {
   net_lan_ip_card: 'This PC\'s IP address',
   net_lan_ip_show: 'Show this PC\'s IP address',
   net_lan_ip_hide: 'Hide this PC\'s IP address',
+  see_through: 'Clicks pass through',
+  see_through_sub: 'Clicks reach what is behind it. In edit mode you can still move it.',
+  layer_edit_hint_keys: 'Arrow keys move it by 1 px, Shift by 10. Shift+Alt changes its size.',
 };

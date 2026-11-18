@@ -234,8 +234,8 @@
       out.show = When.toShow(when) || 'always';
       if (!When.toShow(when)) out.when = when;
     }
-    // Without its panel: only what the widget paints itself, for words over a game.
-    if (raw.bare === true) out.bare = true;
+    // Without its panel (words over a game); `through`: clicks reach what is behind it.
+    for (const flag of ['bare', 'through']) if (raw[flag] === true) out[flag] = true;
     const key = normalizeKey(raw.key);
     if (key) out.key = key;
     if (raw.off === true) out.off = true;

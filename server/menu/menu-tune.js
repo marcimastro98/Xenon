@@ -165,6 +165,8 @@ function tuneRows(w, st) {
   if (free && w.widget !== LayersModel.PIN && !LayersModel.isKey(w) && !fitsItself(w, st)) rows.push(sizeRow(id('size'), box, move, k(hud ? 'xmenu_hud_text' : 'xmenu_size'), hud ? TEXT_SIZES : BOX_SIZES));
   rows.push(choiceRow(id('opacity'), k('xmenu_hud_opacity'), Math.round(box.opacity * 100), OPACITIES.map((o) => [o, { text: o + '%' }]), (v) => move({ opacity: String(v) })));
   if (hasPanel(w)) rows.push(toggleRow(id('bare'), k('xmenu_bare_on'), !!box.bare, move({ bare: 'on' }), move({ bare: 'off' })));
+  // Tabs must stay pressable, so a widget in tabs never lets clicks through (js/layers/layer-host.js).
+  if (!w.group) rows.push(toggleRow(id('through'), k('see_through'), !!w.through, move({ through: 'on' }), move({ through: 'off' }), k('see_through_sub')));
   if (free) rows.push(...widgetKeyRows(w, st, id));
   if (isPerf(w)) return rows.concat(head('what', 'xmenu_tune_what'), hudRows(id, st));
   const own = optionRows(w, st, id);

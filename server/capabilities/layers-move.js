@@ -36,7 +36,9 @@ async function move(d, action) {
   if (action.when && when === undefined) return { ok: false, error: 'bad_when' };
   const bare = action.bare === 'on' ? true : action.bare === 'off' ? false : null;
   const off = action.visible === 'off' ? true : action.visible === 'on' ? false : null;
-  const sameBox = keepPos && keepSize && opacity == null && !show && when === undefined && bare == null && off == null;
+  // Clicks pass through it to what is behind; edit mode still takes them (js/layers/layer-host.js).
+  const through = action.through === 'on' ? true : action.through === 'off' ? false : null;
+  const sameBox = keepPos && keepSize && opacity == null && !show && when === undefined && bare == null && off == null && through == null;
   const where = placeFor(d, action);
   if (where && where.error) return { ok: false, error: where.error };
   if (!exact && sameBox && !action.page && !where) return { ok: false, error: 'nothing_to_change' };
@@ -77,6 +79,7 @@ async function move(d, action) {
     if (when !== undefined) { patch.when = when; patch.show = 'always'; }
     if (bare != null) patch.bare = bare;
     if (off != null) patch.off = off;
+    if (through != null) patch.through = through;
     return LayersModel.updateWidget(now, id, patch);
   });
   if (!res || res.error) return { ok: false, error: (res && res.error) || 'failed' };

@@ -57,6 +57,7 @@ pub use pad_winmm::serve as pad_reader;
 #[cfg(windows)]
 mod ffi;
 mod glow;
+mod keys;
 #[cfg(target_os = "linux")]
 mod glow_linux;
 #[cfg(target_os = "macos")]

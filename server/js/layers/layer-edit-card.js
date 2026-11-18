@@ -1,6 +1,7 @@
 // The choices of one widget in edit mode, beside it on the screen: its name, when it
-// shows, its size, tabs, what it shows, and the way off the screen. Words, not loose icons: the x, the
-// pin and a line that grew the widget are what this replaced. Loaded by js/layer-edit/layer-edit.js
+// shows, its size, whether clicks pass through it, tabs, what it shows, and the way off
+// the screen. Words, not loose icons: the x, the pin and a line that grew the widget are
+// what this replaced. Loaded by js/layer-edit/layer-edit.js
 // the first time a widget is tapped; every choice is a capability run on the server.
 (function () {
   'use strict';
@@ -159,6 +160,17 @@
     return group;
   }
 
+  // Clicks pass through it to what is behind, outside edit mode (js/layers/layer-host.js
+  // clicksThrough), so this card can always switch it back off. Not for tabs: they stay pressable.
+  function throughRow(entry) {
+    if (entry.box.members.length > 1) return null;
+    const w = entry.box.lead;
+    const on = w.through === true;
+    const label = ctx.tr('see_through', 'Clicks pass through');
+    const sub = ctx.tr('see_through_sub', 'Clicks reach what is behind it. In edit mode you can still move it.');
+    return row(label, sub, on, () => ctx.run({ type: 'layerMove', target: w.id, through: on ? 'off' : 'on' }));
+  }
+
   function fill() {
     const entry = ctx.entry();
     if (!entry) { hide(); return; }
@@ -167,7 +179,7 @@
     name.textContent = ctx.nameOf(w);
     const when = button('layer-edit-card-btn', ctx.tr('see_when', 'When: {what}').replace('{what}', ctx.tagOf(w)), () => toggle('when'));
     when.setAttribute('aria-expanded', String(open === 'when'));
-    const parts = [name, when, sizes(w)];
+    const parts = [name, when, sizes(w), throughRow(entry)];
     if (ctx.others(entry).length) {
       const tabs = button('layer-edit-card-btn', ctx.tr('see_tabs', 'Tabs with...'), () => toggle('tabs'));
       tabs.setAttribute('aria-expanded', String(open === 'tabs'));

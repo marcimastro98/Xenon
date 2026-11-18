@@ -938,3 +938,65 @@ test('in a tab group a Store widget never lets clicks through, so the tabs can b
   flush();
   assert.equal(signals.at(-1), TAKES);
 });
+
+// A widget set to let clicks through (its `through`, from the edit card, the menu or Bit).
+function throughTile(layers) {
+  const b = editBoot('?layer=overlay:', layers, { shell: true });
+  b.atom('weather'); b.atom('media');
+  b.host.place();
+  const slot = slotsOf(b.document)[0];
+  slot.getBoundingClientRect = () => ({ left: 10, top: 20, width: 200, height: 100 });
+  return { ...b, slot };
+}
+
+test('a widget set to let clicks through is drawn but never in the way, and edit mode takes them back', () => {
+  const { slot, host, signals, flush, loadEditor, editor } = throughTile({ enabled: true, widgets: [W({ surface: 'overlay', through: true })] });
+  assert.equal(slot.dataset.through, 'true');
+  flush();
+  assert.equal(signals.at(-1), PASSES, 'the mouse goes to what is under it');
+  const es = fakeStream();
+  host.listen(es);
+  es.emit('layers-edit', { on: true });
+  loadEditor();
+  flush();
+  assert.equal(signals.at(-1), TAKES + '&edit=1', 'never locked out: in edit mode it can be picked and moved');
+  editor.started[0].wantKeys(true);
+  flush();
+  assert.equal(signals.at(-1), TAKES + '&edit=1&keys=1', 'a picked widget asks for the arrow keys');
+  es.emit('layers-edit', { on: false });
+  flush();
+  assert.equal(signals.at(-1), PASSES, 'out of edit mode the keyboard is let go and clicks pass again');
+});
+
+test('the mark comes off with the setting, and a widget in tabs keeps taking clicks', () => {
+  const { slot, host, ctx, signals, flush } = throughTile({ enabled: true, widgets: [W({ surface: 'overlay', through: true })] });
+  ctx.hubSettings.layers = { enabled: true, widgets: [W({ surface: 'overlay' })] };
+  host.place(); flush();
+  assert.equal(slot.dataset.through, undefined);
+  assert.equal(signals.at(-1), TAKES);
+  const tabs = throughTile({ enabled: true, widgets: [
+    W({ surface: 'overlay', through: true, group: 'lt_grp00001', active: true }),
+    W({ id: 'lw_aaaa0002', widget: 'media', surface: 'overlay', through: true, group: 'lt_grp00001' }),
+  ] });
+  tabs.flush();
+  assert.equal(tabs.signals.at(-1), TAKES, 'the tabs must stay pressable');
+});
+
+test('the arrow keys are asked for only while editing, and once per change', () => {
+  const { host, signals, flush, loadEditor, editor } = throughTile({ enabled: true, widgets: [W({ surface: 'overlay' })] });
+  const es = fakeStream();
+  host.listen(es);
+  es.emit('layers-edit', { on: true });
+  loadEditor();
+  flush();
+  const before = signals.length;
+  editor.started[0].wantKeys(false);
+  flush();
+  assert.equal(signals.length, before, 'nothing changed, nothing sent');
+  editor.started[0].wantKeys(true);
+  flush();
+  assert.equal(signals.at(-1), TAKES + '&edit=1&keys=1');
+  editor.started[0].wantKeys(false);
+  flush();
+  assert.equal(signals.at(-1), TAKES + '&edit=1');
+});

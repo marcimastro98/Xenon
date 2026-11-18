@@ -125,7 +125,7 @@ function widgetRow(w, st) {
   return {
     kind: 'widget', id: w.id, label: widgetName(w, st), ...widgetThumb(w, st), page: w.page || L.page, at: atOf(w, st),
     on: !w.off, acts: free ? { on: visible('on'), off: visible('off') } : {}, group, shown: now.on,
-    value: [...tabFact(w, L.widgets), ...placeOf(w), ...(screen ? [screen] : []), ...when, ...(w.bare ? [k('xmenu_bare')] : [])],
+    value: [...tabFact(w, L.widgets), ...placeOf(w), ...(screen ? [screen] : []), ...when, ...(w.bare ? [k('xmenu_bare')] : []), ...(w.through && !w.group ? [k('see_through')] : [])],
     ...(now.says ? { now: now.says } : {}),
     // What its own screen says instead, while the menu holds it up (layers-peek.js).
     ...(now.peek ? { peek: now.peek } : {}),

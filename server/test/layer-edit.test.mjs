@@ -10,13 +10,14 @@ import { makeDom } from './mini-dom.mjs';
 const require = createRequire(import.meta.url);
 const SRC = readFileSync(new URL('../js/layer-edit/layer-edit.js', import.meta.url), 'utf8');
 const CARD = readFileSync(new URL('../js/layers/layer-edit-card.js', import.meta.url), 'utf8');
+const NUDGE = readFileSync(new URL('../js/layer-edit/nudge.js', import.meta.url), 'utf8');
 const LayerDrag = require('../js/layers/layer-drag.js');
 const LayerSee = require('../js/layers/layer-see.js');
 const LayersModel = require('../js/layers/layers-model.js');
 
 const rectOf = (left, top, width, height) => () => ({ left, top, width, height, right: left + width, bottom: top + height });
 
-function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answer, layerKey, fetch } = {}) {
+function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answer, layerKey, fetch, clock, fine = false } = {}) {
   const { document } = makeDom();
   // The page's own nodes need contains() for the cross check; mini-dom has none.
   const make = document.createElement;
@@ -50,6 +51,7 @@ function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answ
   const rects = { n: 0 };
   const leans = [];
   const whole = [];
+  const keys = [];
   const api = {
     root: () => root,
     surface,
@@ -59,21 +61,24 @@ function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answ
     lean: (slot, rect) => { leans.push({ ...rect }); },
     refreshRects: () => { rects.n++; },
     wholeWindow: (on) => { whole.push(on); },
+    wantKeys: (on) => { keys.push(on); },
     run: async (action) => { runs.push({ ...action }); return answer ? answer(action) : reply; },
   };
   const ctx = {
     window: { LayerKey: layerKey, LayerDrag, LayerSee, LayersModel }, document, Math, Array, WeakMap, Map, Object, String,
-    setTimeout, clearTimeout, getComputedStyle: () => ({ getPropertyValue: () => '' }),
-    SERVER: '', fetch, console: { warn() {} }, JSON,
+    setTimeout: clock ? clock.set : setTimeout, clearTimeout: clock ? clock.clear : clearTimeout,
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+    SERVER: '', fetch, console: { warn() {} }, JSON, matchMedia: () => ({ matches: fine }),
   };
   vm.createContext(ctx);
+  vm.runInContext(NUDGE, ctx);
   vm.runInContext(CARD, ctx);
   vm.runInContext(SRC, ctx);
   const edit = ctx.window.LayerEdit;
   edit.start(api);
   runs.length = 0;   // start asks layerList whether attaching exists; tests count what follows
   const frameOf = (s) => s.children.find(n => n.className.includes('layer-edit-frame'));
-  return { document, root, a, b, edit, runs, placed, frameOf, leans, whole, rects, boxes };
+  return { document, root, a, b, edit, runs, placed, frameOf, leans, whole, rects, boxes, keys };
 }
 
 const fire = (node, type, ev = {}) => (node._handlers[type] || []).forEach(fn => fn({
@@ -567,4 +572,145 @@ test('a card the server refused comes back', async () => {
   await settle();
   assert.equal(cards[1].dataset.systemCardHidden, 'false');
   assert.equal(named(root, 'fps').getAttribute('aria-pressed'), 'true');
+});
+
+// ── Clicks passing through, and the arrow keys ──
+test('"Clicks pass through" is a switch on the card that keeps it open, and tabs never offer it', async () => {
+  const { a, root, runs, frameOf, boxes } = boot();
+  tap(frameOf(a));
+  const row = named(root, 'Clicks pass through');
+  assert.equal(row.getAttribute('aria-pressed'), 'false');
+  assert.match(row.textContent, /edit mode/, 'it says how to get the widget back');
+  row.click();
+  await settle();
+  assert.deepEqual(runs, [{ type: 'layerMove', target: 'lw_a1', through: 'on' }]);
+  assert.ok(root.querySelector('.layer-edit-card'), 'the card stays open');
+  boxes[0].box.lead.through = true;
+  tap(frameOf(a)); tap(frameOf(a));
+  named(root, 'Clicks pass through').click();
+  await settle();
+  assert.deepEqual(runs.at(-1), { type: 'layerMove', target: 'lw_a1', through: 'off' });
+  const tabs = boot({ grouped: true });
+  tap(tabs.frameOf(tabs.a));
+  assert.equal(named(tabs.root, 'Clicks pass through'), undefined);
+});
+
+// Timers run by hand: the save waits for the keys to rest.
+function handClock() {
+  const due = new Map();
+  let n = 0;
+  return {
+    set: (fn) => { due.set(++n, fn); return n; },
+    clear: (id) => { due.delete(id); },
+    run: () => { const fns = [...due.values()]; due.clear(); fns.forEach((fn) => fn()); },
+  };
+}
+const press = (document, key, ev = {}) => {
+  let stopped = false;
+  fire(document, 'keydown', { key, target: document.body, preventDefault() { stopped = true; }, ...ev });
+  return stopped;
+};
+
+test('a picked widget asks for the keys; letting it go gives them back', () => {
+  const { a, frameOf, keys } = boot();
+  tap(frameOf(a));
+  assert.equal(keys.at(-1), true);
+  tap(frameOf(a));
+  assert.equal(keys.at(-1), false);
+});
+
+test('the arrows move the picked widget 1 px, 10 with Shift, and save once when the keys rest', async () => {
+  const clock = handClock();
+  const { a, document, frameOf, runs } = boot({ clock });
+  tap(frameOf(a));
+  assert.ok(press(document, 'ArrowRight'));
+  press(document, 'ArrowRight');
+  press(document, 'ArrowDown', { shiftKey: true });
+  assert.equal(a.style._props['--layer-x'], '0.2%', 'drawn at once');
+  assert.equal(a.style._props['--layer-y'], '2%');
+  assert.deepEqual(runs, [], 'not one save per press');
+  clock.run();
+  await settle();
+  assert.deepEqual(runs, [{ type: 'layerMove', target: 'lw_a1', position: 'keep', size: 'keep', rect: '0.002,0.02,0.2,0.2' }]);
+});
+
+test('the arrows stop at the screen edge, like a drag', async () => {
+  const clock = handClock();
+  const { a, document, frameOf, runs } = boot({ clock });
+  tap(frameOf(a));
+  for (let i = 0; i < 5; i++) press(document, 'ArrowLeft', { shiftKey: true });
+  press(document, 'ArrowUp');
+  clock.run();
+  await settle();
+  assert.equal(runs[0].rect, '0,0,0.2,0.2');
+});
+
+test('Shift+Alt+arrows change the size by 1 px, and a move then a resize is one save of both', async () => {
+  const clock = handClock();
+  const { a, document, frameOf, runs } = boot({ clock });
+  tap(frameOf(a));
+  press(document, 'ArrowRight', { shiftKey: true });
+  press(document, 'ArrowRight', { shiftKey: true, altKey: true });
+  press(document, 'ArrowDown', { shiftKey: true, altKey: true });
+  press(document, 'ArrowRight');
+  await settle();
+  assert.deepEqual(runs, [], 'nothing saved while the keys go on');
+  clock.run();
+  await settle();
+  assert.deepEqual(runs.map((r) => r.rect), ['0.011,0,0.201,0.202'], 'the size kept through the last move');
+});
+
+test('picking another widget saves the first one\'s steps first', async () => {
+  const clock = handClock();
+  const { a, b, document, frameOf, runs } = boot({ clock });
+  tap(frameOf(a));
+  press(document, 'ArrowDown');
+  tap(frameOf(b));
+  press(document, 'ArrowUp');
+  await settle();
+  assert.deepEqual(runs.map((r) => r.target), ['lw_a1'], 'the first is saved before the second moves');
+  clock.run();
+  await settle();
+  assert.deepEqual(runs.map((r) => r.target), ['lw_a1', 'lw_b1']);
+});
+
+test('a press of the pointer saves the steps at once, so a drag after them is never undone', async () => {
+  const clock = handClock();
+  const { a, document, frameOf, runs } = boot({ clock });
+  tap(frameOf(a));
+  press(document, 'ArrowRight');
+  fire(document, 'pointerdown');
+  await settle();
+  assert.deepEqual(runs.map((r) => r.rect), ['0.001,0,0.2,0.2']);
+  clock.run();
+  fire(document, 'pointerdown');
+  await settle();
+  assert.equal(runs.length, 1, 'saved once');
+});
+
+test('the arrows are left alone with nothing picked, in a text field, and with Ctrl, Cmd or Alt alone', async () => {
+  const clock = handClock();
+  const { a, document, frameOf, runs } = boot({ clock });
+  assert.equal(press(document, 'ArrowRight'), false, 'nothing picked');
+  tap(frameOf(a));
+  const field = document.createElement('input');
+  assert.equal(press(document, 'ArrowRight', { target: field }), false);
+  assert.equal(press(document, 'ArrowRight', { target: { tagName: 'DIV', isContentEditable: true } }), false);
+  for (const mod of ['ctrlKey', 'metaKey', 'altKey']) assert.equal(press(document, 'ArrowRight', { [mod]: true }), false, mod);
+  assert.equal(press(document, 'a'), false);
+  clock.run();
+  await settle();
+  assert.deepEqual(runs, []);
+});
+
+test('the hint names the keys only where there is a mouse, and only while a widget is picked', () => {
+  const hint = (root) => root.children.find((n) => n.className === 'layer-edit-bar').children[0].textContent;
+  const mouse = boot({ fine: true });
+  tap(mouse.frameOf(mouse.a));
+  assert.match(hint(mouse.root), /Arrow keys/);
+  tap(mouse.frameOf(mouse.a));
+  assert.match(hint(mouse.root), /Drag/);
+  const touch = boot({ fine: false });
+  tap(touch.frameOf(touch.a));
+  assert.doesNotMatch(hint(touch.root), /Arrow keys/);
 });

@@ -34,9 +34,10 @@
   let rectTimer = null;
   let waitingForLoad = false;
   // Edit mode (server layers-edit.js, SSE `layers-edit`): the window takes every click and the editor draws the handles.
-  const EDIT_SCRIPTS = Object.freeze(['js/layer-edit/geometry.js', 'js/layer-edit/words.js', 'js/layer-edit/layer-edit.js']);   // loaded on first use, each after the one before it has run
+  const EDIT_SCRIPTS = Object.freeze(['js/layer-edit/nudge.js', 'js/layer-edit/geometry.js', 'js/layer-edit/words.js', 'js/layer-edit/layer-edit.js']);   // loaded on first use, each after the one before it has run
   let editing = false;
   let wholeWindow = false;   // a widget is being dragged: the window takes every click
+  let keys = false;   // a widget is picked: the window asks for the keyboard, for its arrows (layers/keys.rs)
   let editScript = null;
   let shownBoxes = [];   // [{ key, slot, box, shown }] from the last place()
   let whenOff = new Set();   // ids the server says a rule hides now
@@ -205,7 +206,7 @@
     slot.style.setProperty('--layer-py', String(share.y));
     slot.style.setProperty('--layer-opacity', String(w.opacity));
     slot.dataset.show = w.show;
-    if (w.bare) slot.dataset.bare = 'true'; else delete slot.dataset.bare;
+    for (const flag of ['bare', 'through']) { if (w[flag]) slot.dataset[flag] = 'true'; else delete slot.dataset[flag]; }
     // A Store widget draws its own layout, so a single button may stay that small.
     if (w.kind === 'sdk' && !w.group) slot.dataset.small = 'true'; else delete slot.dataset.small;
     lean(slot, r);
@@ -414,13 +415,10 @@
     }
   }
 
-  // Inside the native shell the window is cut to these rectangles, so clicks
-  // anywhere else reach the desktop or the game below (layers/win32.rs). Device
-  // pixels of this window; re-sent when a slot moves, resizes or hides. A signal
-  // during the initial load would abort it, so the first one waits for it to end
-  // (`XenonNative.afterLoad`: the `load` event itself may never come).
-  // A tile that is only words marks them (data-layer-fit): the window is cut to
-  // those, with room for their dark edge, instead of to the whole box.
+  // In the shell the window is cut to these rectangles, so clicks elsewhere reach the desktop or
+  // the game below (layers/win32.rs). Device pixels; re-sent when a slot moves, resizes or hides.
+  // The first waits for the load to end (`XenonNative.afterLoad`): a signal would abort it.
+  // A tile that is only words marks them (data-layer-fit): the cut is those, with their dark edge.
   function fitNode(slot) {
     return !editing && slot.querySelector ? slot.querySelector(':scope > [data-dashboard-widget] [data-layer-fit]') : null;
   }
@@ -432,10 +430,11 @@
     return { left: r.left - FIT_EDGE_PX, top: r.top - FIT_EDGE_PX, width: r.width + 2 * FIT_EDGE_PX, height: r.height + 2 * FIT_EDGE_PX };
   }
 
-  // Words with nothing to press also let clicks through (data-layer-through): the
-  // window still draws them, and what lies under them stays usable.
+  // Words with nothing to press also let clicks through (data-layer-through), and so does a
+  // widget set to (its `through`, the edit card) unless it is tabs: drawn, never in the way.
   function clicksThrough(slot) {
     if (editing) return false;
+    if (slot.dataset.through === 'true' && !tabsOf.get(slot) && !slot.querySelector('.cw-expanded')) return true;
     const fit = fitNode(slot);
     return fit ? fit.hasAttribute('data-layer-through') : storeWidgetThrough(slot);
   }
@@ -508,7 +507,7 @@
     // windows over the others while it is on (layers/win32.rs).
     const rects = rectsNow();
     const signal = 'xenon-app:layer-rects?d=' + encodeURIComponent(rects.solid)
-      + (rects.through ? '&t=' + encodeURIComponent(rects.through) : '') + (editing ? '&edit=1' : '');
+      + (rects.through ? '&t=' + encodeURIComponent(rects.through) : '') + (editing ? '&edit=1' : '') + (editing && keys ? '&keys=1' : '');
     if (signal === lastRects) return;
     lastRects = signal;
     try { window.location.href = (window.__xenonSignal || String)(signal); } catch (e) { /* not native */ }
@@ -538,6 +537,7 @@
     lean,
     refreshRects: scheduleRects,
     wholeWindow: (on) => { wholeWindow = on === true; scheduleRects(); },
+    wantKeys: (on) => { if (keys !== (on === true)) { keys = on === true; scheduleRects(); } },
     run: async (action) => {
       try {
         const r = await fetch('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) });
@@ -561,7 +561,7 @@
     const next = on === true;
     if (next === editing) return;
     editing = next;
-    wholeWindow = false;
+    wholeWindow = keys = false;
     if (editing && !window.LayerEdit && !editScript) startEditor(0);
     else if (editing) startEditor();
     else if (window.LayerEdit) window.LayerEdit.stop();

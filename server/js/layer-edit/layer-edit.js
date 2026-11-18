@@ -1,15 +1,12 @@
 // Edit mode of a layer window, loaded by js/layers/layer-host.js the first time the
 // mode is turned on (so a window that is never edited never carries it).
 //
-// Drag a widget to move it (js/layers/layer-drag.js, the same drag as the menu's map). A tap
-// picks it: its name, when it shows, its size and the way off the screen appear beside
-// it (js/layers/layer-edit-card.js, loaded with this file). "Done" ends the mode, "Undo" takes
-// back one change, "Put it back" everything since the mode began, "Add" lists the
-// widgets that can be placed; an attached window's bar puts it back on the desktop; the
-// page chips are js/layers/layer-edit-pages.js. Every change is a capability run on the server
-// (layerMove, layerGroup, layerRemove, layerPlace, layersEdit, layersUndo, layerPage,
-// layerPageEdit, layerAnchor): this page saves nothing itself, and the settings
-// broadcast redraws every window from the saved result.
+// Drag a widget to move it (js/layers/layer-drag.js, as the menu's map). A tap picks it: its
+// choices appear beside it (js/layers/layer-edit-card.js) and the arrow keys move it
+// (js/layer-edit/nudge.js). "Done" ends the mode, "Undo" takes back one change, "Put it back"
+// everything since the mode began, "Add" lists what can be placed; the page chips are
+// js/layers/layer-edit-pages.js. Every change is a capability run on the server: this page
+// saves nothing itself, and the settings broadcast redraws every window from the result.
 (function () {
   'use strict';
 
@@ -281,6 +278,9 @@
     const share = window.LayersModel.shareOf({ x: b.x / origin.width, y: b.y / origin.height, w: b.w / origin.width, h: b.h / origin.height });
     slot.style.setProperty('--layer-px', String(share.x));
     slot.style.setProperty('--layer-py', String(share.y));
+    // Words lean on the side they are on: seen now, not after the drop.
+    api.lean(slot, rectOf(b, origin));
+    if (wordsOf(slot) && frames.get(slot)) hugWords(slot, frames.get(slot));
   }
 
   // A line the box sits on, across the screen, for as long as it does.
@@ -334,9 +334,6 @@
     const step = drag.mode === 'move' ? moved(drag, dx, dy) : stretched(drag, dx, dy);
     drag.box = step.box;
     showAt(drag.entry.slot, step.box, drag.origin);
-    // Words lean on the side they are on: seen now, not after the drop.
-    api.lean(drag.entry.slot, rectOf(step.box, drag.origin));
-    if (drag.words) hugWords(drag.entry.slot, drag.frame);
     showGuide('x', step.guides.x, drag.origin);
     showGuide('y', step.guides.y, drag.origin);
   }
@@ -362,15 +359,16 @@
   }
 
   const cardContext = () => ({
-    api, run, tr, nameOf, tagOf, others: otherBoxes, canAttach: () => canAttach, attach: openAttach, closeSheet,
+    api, run, tr, nameOf, tagOf, others: otherBoxes, canAttach: () => canAttach, attach: openAttach, closeSheet, show: showAt,
     entry: () => api.boxes().find((b) => b.key === picked) || null,
-    closed: () => { picked = ''; refresh(); },
+    closed: () => { picked = ''; refresh(); }, geometry: { wordsOf, seenBox, fractions, moved, stretched },
   });
 
   function pick(entry) {
     closeSheet();
     picked = picked === entry.key ? '' : entry.key;
     refresh();
+    say(picked && window.LayerEditNudge?.hasKeys() ? tr('layer_edit_hint_keys', 'Arrow keys move it by 1 px, Shift by 10. Shift+Alt changes its size.') : HINT());
   }
 
   function drawCard() {
@@ -507,6 +505,7 @@
       hugWords(entry.slot, frame);
     }
     if (picked && !api.boxes().some((e) => e.key === picked)) picked = '';
+    api.wantKeys?.(!!picked);   // the arrows reach this window only while one is picked
     if (picked) drawCard();
     else if (window.LayerEditCard) window.LayerEditCard.hide();
     placeBar();
@@ -514,6 +513,7 @@
 
   function onKey(e) {
     if (e.key === 'Escape' && picked) { picked = ''; refresh(); return; }
+    if (picked && window.LayerEditNudge?.key(e, cardContext())) return;
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && String(e.key).toLowerCase() === 'z') {
       e.preventDefault();
       stepBack();

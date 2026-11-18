@@ -7421,4 +7421,7 @@ module.exports = {
   net_lan_ip_card: '이 PC의 IP 주소',
   net_lan_ip_show: '이 PC의 IP 주소 표시',
   net_lan_ip_hide: '이 PC의 IP 주소 숨기기',
+  see_through: '클릭 통과',
+  see_through_sub: '클릭이 뒤에 있는 것에 전달됩니다. 편집 모드에서는 계속 옮길 수 있습니다.',
+  layer_edit_hint_keys: '화살표 키로 1px, Shift로 10px 움직입니다. Shift+Alt로 크기를 바꿉니다.',
 };

@@ -292,6 +292,22 @@ test('a placed widget offers to drop its panel, says when it has, and the pin an
   assert.ok(bareOf({ widget: 'perf' }), 'on the desktop the tile has a panel');
 });
 
+test('a placed widget can let clicks pass through, says so, and a widget in tabs never offers it', () => {
+  const rowFor = (w) => Menu.compose(full({ layers: { ...full().layers, pages: [], page: '', widgets: [{ id: 'lw_xxxx0001', kind: 'tile', rect: { x: 0.7, y: 0, w: 0.2, h: 0.3 }, opacity: 1, show: 'always', surface: 'desktop', ...w }] } }));
+  const throughOf = (w) => tuneOf(rowFor(w), 'widgets', 'lw_xxxx0001', 'through');
+  const plain = throughOf({ widget: 'weather' });
+  assert.equal(plain.kind, 'toggle');
+  assert.equal(plain.on, false);
+  assert.equal(plain.label.key, 'see_through');
+  assert.deepEqual(plain.acts.on.run, { type: 'layerMove', target: 'lw_xxxx0001', through: 'on' });
+  const on = throughOf({ widget: 'weather', through: true });
+  assert.equal(on.on, true);
+  assert.deepEqual(on.acts.off.run, { type: 'layerMove', target: 'lw_xxxx0001', through: 'off' });
+  assert.ok(row(rowFor({ widget: 'weather', through: true }), 'widgets', 'lw_xxxx0001').value.some((v) => v.key === 'see_through'), 'it says so');
+  assert.equal(row(rowFor({ widget: 'weather' }), 'widgets', 'lw_xxxx0001').value.some((v) => v.key === 'see_through'), false);
+  assert.ok(throughOf({ widget: 'pin' }), 'also a widget with no panel');
+});
+
 test('"Widgets": everything placed, page by page, with place, corner and when; add lists tiles and widgets', () => {
   const out = Menu.compose(full());
   const widgets = section(out, 'widgets').rows.filter((r) => r.kind === 'widget');
@@ -374,9 +390,9 @@ test('above everything, the size row of the readings is the size of the words', 
 test('every placed widget gets the same adjustments: the HUD is not a thing apart', () => {
   const out = Menu.compose(full());
   const ids = (id, sec) => row(out, sec, id).tune.filter((r) => r.kind !== 'tunehead').map((r) => r.id.split(':')[1]);
-  assert.deepEqual(ids('lw_wthr01', 'widgets'), ['place', 'page', 'corner', 'when', 'size', 'opacity', 'bare', 'tabs']);
+  assert.deepEqual(ids('lw_wthr01', 'widgets'), ['place', 'page', 'corner', 'when', 'size', 'opacity', 'bare', 'through', 'tabs']);
   // Tabs come before what it shows: that part is drawn on the widget's screen itself.
-  assert.deepEqual(ids('lw_perf01', 'widgets'), ['place', 'page', 'corner', 'when', 'size', 'opacity', 'tabs', 'parts', 'layout']);
+  assert.deepEqual(ids('lw_perf01', 'widgets'), ['place', 'page', 'corner', 'when', 'size', 'opacity', 'through', 'tabs', 'parts', 'layout']);
   const size = tuneOf(out, 'widgets', 'lw_wthr01', 'size');
   assert.equal(size.label.key, 'xmenu_size');
   assert.deepEqual(size.options.map((o) => o.value), ['small', 'medium', 'large']);

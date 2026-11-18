@@ -570,7 +570,7 @@ test('the AI never sees the exact-rectangle param: it is for edit mode only', ()
   const fns = aiFunctions({ layers: true });
   const move = fns.find(f => f.name === 'move_layer_widget');
   assert.ok(move);
-  assert.deepEqual(Object.keys(move.parameters.properties).sort(), ['bare', 'opacity', 'page', 'position', 'screen', 'show', 'size', 'surface', 'target', 'visible', 'when'], 'where it sits, see-through and when it shows by voice, never the exact box');
+  assert.deepEqual(Object.keys(move.parameters.properties).sort(), ['bare', 'opacity', 'page', 'position', 'screen', 'show', 'size', 'surface', 'target', 'through', 'visible', 'when'], 'where it sits, see-through and when it shows by voice, never the exact box');
   const act = aiAction('move_layer_widget', { target: 'weather', position: 'top', rect: '0,0,1,1' });
   assert.equal(act.rect, undefined);
 });
@@ -729,6 +729,26 @@ test('a move can take a widget out of its panel and put it back, on its box', as
   const writes = L.state.writes;
   assert.equal((await run.run({ type: 'layerMove', target: 'weather', bare: 'keep' })).error, 'nothing_to_change');
   assert.equal((await run.run({ type: 'layerMove', target: 'weather', bare: 'maybe' })).error, 'nothing_to_change');
+  assert.equal(L.state.writes, writes);
+});
+
+test('a move can let clicks pass through a widget and take them back, in its place', async () => {
+  const L = fakeLayers();
+  const run = runner(L);
+  await run.run({ type: 'layerPlace', widget: 'weather' });
+  const rect = L.state.layers.widgets[0].rect;
+  const res = await run.run({ type: 'layerMove', target: 'weather', through: 'on' });
+  assert.equal(res.ok, true);
+  assert.equal(res.widget.clicksThrough, true, 'Bit can say so');
+  assert.equal(L.state.layers.widgets[0].through, true);
+  assert.deepEqual(L.state.layers.widgets[0].rect, rect, 'the place is kept');
+  await run.run({ type: 'layerMove', target: 'weather', opacity: '60' });
+  assert.equal(L.state.layers.widgets[0].through, true, 'another change leaves it');
+  await run.run({ type: 'layerMove', target: 'weather', through: 'off' });
+  assert.equal('through' in L.state.layers.widgets[0], false, 'off is stored as nothing');
+  const writes = L.state.writes;
+  assert.equal((await run.run({ type: 'layerMove', target: 'weather', through: 'keep' })).error, 'nothing_to_change');
+  assert.equal((await run.run({ type: 'layerMove', target: 'weather', through: 'yes' })).error, 'nothing_to_change');
   assert.equal(L.state.writes, writes);
 });
 

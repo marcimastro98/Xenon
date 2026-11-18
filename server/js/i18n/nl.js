@@ -7417,4 +7417,7 @@ module.exports = {
   net_lan_ip_card: 'IP-adres van deze pc',
   net_lan_ip_show: 'IP-adres van deze pc tonen',
   net_lan_ip_hide: 'IP-adres van deze pc verbergen',
+  see_through: 'Klikken gaan erdoorheen',
+  see_through_sub: 'Klikken bereiken wat erachter ligt. In de bewerkmodus kun je het nog steeds verplaatsen.',
+  layer_edit_hint_keys: 'Pijltjestoetsen verplaatsen het 1 px, met Shift 10. Shift+Alt verandert de grootte.',
 };

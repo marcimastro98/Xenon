@@ -889,15 +889,14 @@ const CAPABILITIES = [
       { name: 'show', kind: 'select', options: ['keep', 'always', 'gaming', 'notGaming'] },
       // Any other rule, in the text form of js/layers/layer-when.js: "music, app:obs64".
       { name: 'when', kind: 'text', maxLen: 200, optional: true },
-      // Without its panel (on) or with it (off): only what the widget paints itself.
-      { name: 'bare', kind: 'select', options: ['keep', 'on', 'off'] },
-      // Hides this one widget and keeps its place; the menu has a switch on every row.
-      { name: 'visible', kind: 'select', options: ['keep', 'on', 'off'] },
+      { name: 'bare', kind: 'select', options: ['keep', 'on', 'off'] },   // without its panel: only what the widget paints
+      { name: 'visible', kind: 'select', options: ['keep', 'on', 'off'] },   // hides this one widget, keeps its place
+      // Clicks pass through it to what is behind (on); edit mode always takes them back.
+      { name: 'through', kind: 'select', options: ['keep', 'on', 'off'] },
       // Under the windows or above everything. An app's window is layerAnchor's.
       { name: 'surface', kind: 'select', options: ['keep', 'desktop', 'overlay'] },
       { name: 'screen', kind: 'select', options: ['keep', 'main', 'second'] },
-      // A screen by its key, from the menu's list of screens.
-      { name: 'monitor', kind: 'text', maxLen: 64, optional: true },
+      { name: 'monitor', kind: 'text', maxLen: 64, optional: true },   // a screen by its key, from the menu's list
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
@@ -914,6 +913,7 @@ const CAPABILITIES = [
           opacity: 'How opaque, 20 to 100 percent (100 = solid), only when the user asks to see through it: "make the pinned screenshot half transparent" = 50',
           bare: 'on takes away the panel behind the widget, so only its own words and pictures show: "no background on the clock"; off puts it back; keep (default) leaves it',
           visible: 'off hides this one widget and keeps it in its place: "hide the clock"; on shows it again; keep (default) leaves it',
+          through: 'on lets clicks pass through the widget to the window, desktop or game behind it, while it stays visible: "let my clicks go through the FPS counter"; off makes it clickable again; keep (default) leaves it. Not for widgets grouped as tabs. In edit mode every widget takes clicks again',
           surface: 'desktop = under the windows, overlay = above apps and games; keep (default) leaves it. It also takes a widget off the app it follows',
           screen: 'main or second; keep (default) leaves it',
         },

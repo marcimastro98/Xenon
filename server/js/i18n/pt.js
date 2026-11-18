@@ -7305,4 +7305,7 @@ module.exports = {
   net_lan_ip_card: 'Endereço IP deste PC',
   net_lan_ip_show: 'Mostrar o endereço IP deste PC',
   net_lan_ip_hide: 'Ocultar o endereço IP deste PC',
+  see_through: 'Deixa passar os cliques',
+  see_through_sub: 'Os cliques chegam ao que está por trás. No modo de edição continuas a poder movê-lo.',
+  layer_edit_hint_keys: 'As setas movem-no 1 px, com Shift 10. Shift+Alt muda o tamanho.',
 };

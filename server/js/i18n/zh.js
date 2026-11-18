@@ -7421,4 +7421,7 @@ module.exports = {
   net_lan_ip_card: '这台电脑的 IP 地址',
   net_lan_ip_show: '显示这台电脑的 IP 地址',
   net_lan_ip_hide: '隐藏这台电脑的 IP 地址',
+  see_through: '让点击穿过',
+  see_through_sub: '点击会落到它后面的内容上。在编辑模式中仍可移动它。',
+  layer_edit_hint_keys: '方向键每次移动 1 px，按住 Shift 移动 10 px。Shift+Alt 调整大小。',
 };

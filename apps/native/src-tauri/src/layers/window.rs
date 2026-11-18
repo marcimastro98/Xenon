@@ -2,7 +2,7 @@
 
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
-use super::{Live, MENU_ASIDE, MENU_CAPS, menu_window, NEXT_LABEL, shield, spec};
+use super::{keys, Live, MENU_ASIDE, MENU_CAPS, menu_window, NEXT_LABEL, shield, spec};
 #[cfg(target_os = "linux")]
 use super::{linux as backend, native_handle};
 #[cfg(target_os = "macos")]
@@ -141,6 +141,10 @@ fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str,
         "xenon-app" if url.path() == "layer-rects" => {
             let editing = url.query_pairs().any(|(k, v)| k == "edit" && v == "1");
             report_rects(app, label, url, Some(editing));
+            // A widget picked in edit mode: its arrow keys need this window's keyboard (keys.rs).
+            if keys::asks(kind) {
+                keys::want(app, label, editing && url.query_pairs().any(|(k, v)| k == "keys" && v == "1"));
+            }
             false
         }
         // The wallpaper's page on battery (server/js/ambient/screen-scene.js).
