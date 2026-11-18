@@ -55,6 +55,7 @@ function normalizeHubApp(source) {
     discordCollapsedGuilds: normalizeSnowflakeList(source.discordCollapsedGuilds),
     discordFavOnly: source.discordFavOnly === true,
     discordFavGuilds: normalizeSnowflakeList(source.discordFavGuilds),
+    networkShowIp: source.networkShowIp === true,
   };
 }
 

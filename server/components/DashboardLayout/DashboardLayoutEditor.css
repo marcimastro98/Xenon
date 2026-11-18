@@ -187,6 +187,8 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
 
 .layout-control-btn:active,
 .layout-chip:active { transform: scale(0.94); }
+/* A switch among the card's buttons (the Network card's IP line) reads as on. */
+.layout-control-btn[aria-pressed="true"] { color: var(--green); }
 
 .layout-control-btn svg,
 .layout-chip svg {

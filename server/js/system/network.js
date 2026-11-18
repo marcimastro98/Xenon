@@ -128,8 +128,30 @@ function applyNetworkInto(root, data) {
 
 function applyNetwork(data) {
   lastNetworkData = data;
+  // This PC's address on the local network, under the speeds, while Settings has networkShowIp
+  // on. The server sends lanIp only then (server/system/lan-address.js); the setting is checked
+  // here too, so turning it off hides the line at once. It takes the caption's place, so the
+  // card keeps its height.
+  const on = typeof hubSettings === 'object' && hubSettings !== null && hubSettings.networkShowIp === true;
+  const ipText = (typeof t === 'function' ? t('net_lan_ip') : 'IP {ip}').replace('{ip}', typeof data.lanIp === 'string' ? data.lanIp : '--');
+  const showLanIp = (root) => {
+    const card = root.querySelector('[data-system-card="bandwidth"]');
+    if (!card) return;
+    const caption = card.querySelector(':scope > .stat-sub');
+    let line = card.querySelector(':scope > .net-lan-ip');
+    if (on && !line) {
+      line = document.createElement('div');
+      line.className = 'net-lan-ip';
+      if (caption) caption.after(line); else card.appendChild(line);
+    }
+    if (caption) caption.hidden = on;
+    if (!line) return;
+    line.hidden = !on;
+    line.textContent = on ? ipText : '';
+    line.title = on ? ipText : '';
+  };
   if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
-    window.DashboardGrid.forEachInstance('system', root => applyNetworkInto(root, data));
+    window.DashboardGrid.forEachInstance('system', (root) => { applyNetworkInto(root, data); showLanIp(root); });
   }
 }
 

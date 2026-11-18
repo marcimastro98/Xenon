@@ -2,6 +2,8 @@
 // devices and the history of its hardware health.
 
 const { sensorCache } = require('./sensor-cache.js');
+const { hub } = require('../settings/current.js');
+const { lanAddress } = require('./lan-address.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -18,8 +20,13 @@ const branches = {
   },
 
   'GET /network': async (_req, _res, { json, err500 }, { getNetworkInfo }) => {
-    try   { json(await getNetworkInfo()); }
-    catch (e) { err500(e.message); }
+    try {
+      const info = await getNetworkInfo();
+      // The PC's LAN address only while the user asked the Network card for it, and only here:
+      // getNetworkInfo() is shared with Bit and the perf readings, and the Widget SDK's
+      // `network` stream copies named fields, so lanIp never reaches a third-party widget.
+      json(hub.settings && hub.settings.networkShowIp === true ? { ...info, lanIp: lanAddress(info) } : info);
+    } catch (e) { err500(e.message); }
   },
 
   'GET /api/guardian/history': async (_req, _res, { json }, { guardian }) => {

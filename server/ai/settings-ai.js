@@ -13,6 +13,7 @@ const PREFS = Object.freeze({
   lyrics_translate: { path: ['lyricsTranslate'], values: ON_OFF, def: false, about: 'translate the lyrics with the AI Bit uses (one request per song)' },
   visualizer: { path: ['mediaVisualizer'], values: ['off', 'minimal', 'wave'], about: 'the sound wave under the song in the Music tile' },
   hardware_temp_unit: { path: ['hwTempUnit'], values: ['auto', 'c', 'f'], about: 'CPU and GPU temperatures; auto follows the weather unit' },
+  network_ip: { path: ['networkShowIp'], values: ON_OFF, def: false, about: "this PC's IP address on the local network, shown on the Network card of the System tile" },
   date_format: { path: ['clockDateFormat'], values: ['full', 'medium', 'short'], about: 'how the clock writes the date' },
   pause_when_idle: { path: ['idleAnimationPause'], values: ON_OFF, def: true, about: 'pause the background animations while nobody uses the PC' },
   startup_logo: { path: ['bootSplash'], values: ON_OFF, def: true, about: 'the Xenon logo while the dashboard loads' },

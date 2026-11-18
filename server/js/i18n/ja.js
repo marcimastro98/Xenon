@@ -7417,4 +7417,8 @@ module.exports = {
   discord_w_show_all: 'すべて表示',
   discord_w_star_server: 'サーバーをお気に入りに追加',
   discord_w_unstar_server: 'サーバーをお気に入りから削除',
+  net_lan_ip: 'IP {ip}',
+  net_lan_ip_card: 'このPCのIPアドレス',
+  net_lan_ip_show: 'このPCのIPアドレスを表示',
+  net_lan_ip_hide: 'このPCのIPアドレスを隠す',
 };

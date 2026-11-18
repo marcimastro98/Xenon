@@ -115,6 +115,7 @@ function normalizeSettings(source) {
     discordCollapsedGuilds: normalizeSnowflakeList(value.discordCollapsedGuilds),
     discordFavOnly: value.discordFavOnly === true,
     discordFavGuilds: normalizeSnowflakeList(value.discordFavGuilds),
+    networkShowIp: value.networkShowIp === true,
     catalogStats: value.catalogStats === true,
     ratingAsks: value.ratingAsks !== false,
     usageStats: value.usageStats === true,

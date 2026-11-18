@@ -109,6 +109,9 @@ const HUB_DEFAULTS_APP = Object.freeze({
   discordFavOnly: false,
   // Whole servers starred in the Channels tab: every channel of one counts as a favourite.
   discordFavGuilds: Object.freeze([]),
+  // The System tile's Network card shows this PC's address on the local network. Off by default:
+  // it is only shown on screens the user turns it on for (server/system/lan-address.js).
+  networkShowIp: false,
 });
 
 module.exports = { HUB_DEFAULTS_APP };

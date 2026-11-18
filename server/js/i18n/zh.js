@@ -7417,4 +7417,8 @@ module.exports = {
   discord_w_show_all: '显示全部',
   discord_w_star_server: '收藏整个服务器',
   discord_w_unstar_server: '取消收藏服务器',
+  net_lan_ip: 'IP {ip}',
+  net_lan_ip_card: '这台电脑的 IP 地址',
+  net_lan_ip_show: '显示这台电脑的 IP 地址',
+  net_lan_ip_hide: '隐藏这台电脑的 IP 地址',
 };

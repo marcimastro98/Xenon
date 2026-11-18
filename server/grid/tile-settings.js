@@ -24,6 +24,7 @@ const FIELDS = Object.freeze({
   discordCollapsedGuilds: 'list',
   discordFavOnly: 'bool',
   discordFavGuilds: 'list',
+  networkShowIp: 'bool',
   chatgptWidget: 'object',
   mediaLyrics: 'bool',
   lyricsTranslate: 'bool',

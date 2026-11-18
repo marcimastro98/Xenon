@@ -7417,4 +7417,8 @@ module.exports = {
   discord_w_show_all: '모두 보기',
   discord_w_star_server: '서버를 즐겨찾기에 추가',
   discord_w_unstar_server: '서버를 즐겨찾기에서 제거',
+  net_lan_ip: 'IP {ip}',
+  net_lan_ip_card: '이 PC의 IP 주소',
+  net_lan_ip_show: '이 PC의 IP 주소 표시',
+  net_lan_ip_hide: '이 PC의 IP 주소 숨기기',
 };

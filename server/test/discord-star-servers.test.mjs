@@ -1,6 +1,5 @@
-// Starring a whole server in the Discord tile's Channels tab. Asked on Discord: someone who
-// joins every channel of one server stars them one at a time, and "Only starred" then needs
-// each of them starred again after a new channel appears.
+// Starring a whole server in the Discord tile's Channels tab: without it, someone who joins
+// every channel of one server stars them one at a time, and again for each new channel.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';

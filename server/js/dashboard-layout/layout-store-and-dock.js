@@ -36,6 +36,8 @@ const DASHBOARD_LAYOUT_ICONS = Object.freeze({
   grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 9 5Zm0 7a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 9 12Zm0 7a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 9 19Zm9.2-14a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Zm0 7a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Zm0 7a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Z"/></svg>',
   tune: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17v2h6v-2H3Zm0-12v2h10V5H3Zm10 16v-2h8v-2h-8v-2h-2v6h2ZM7 9v2H3v2h4v2h2V9H7Zm14 4v-2H11v2h10Zm-6-4h2V7h4V5h-4V3h-2v6Z"/></svg>',
   swap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10l-3-3 1.4-1.4L20.8 8l-5.4 5.4L14 12l3-3H7V7Zm10 10H7l3 3-1.4 1.4L3.2 16l5.4-5.4L10 12l-3 3h10v2Z"/></svg>',
+  // A small network map: the PC's own address on the local network.
+  lanIp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3h4v4h-4zM11.25 7h1.5v4h-1.5zM5.25 11h13.5v1.5H5.25zM5.25 12.5h1.5V15h-1.5zM17.25 12.5h1.5V15h-1.5zM4 15h4v4H4zM16 15h4v4h-4z"/></svg>',
 });
 
 function getDashboardLayout() {
@@ -124,6 +126,18 @@ function createDashboardControls(element, kind, groupId, itemId) {
       createLayoutIconButton('layout-control-btn', 'layout_hide', DASHBOARD_LAYOUT_ICONS.hide, () => hideDashboardLayoutItem(kind, groupId, itemId)),
       createLayoutIconButton('layout-control-btn', 'layout_move_next', DASHBOARD_LAYOUT_ICONS.next, () => moveDashboardLayoutItem(kind, groupId, itemId, 1)),
     );
+  }
+  // The Network card's own choice: this PC's LAN address under the speeds (networkShowIp,
+  // js/system/network.js), the same switch as "What it shows" on a widget on the screen.
+  if (kind === 'card' && itemId === 'bandwidth' && typeof saveTileSetting === 'function') {
+    const on = Boolean(hubSettings && hubSettings.networkShowIp === true);
+    const ipButton = createLayoutIconButton('layout-control-btn', on ? 'net_lan_ip_hide' : 'net_lan_ip_show', DASHBOARD_LAYOUT_ICONS.lanIp, () => {
+      saveTileSetting({ networkShowIp: !on });
+      createDashboardControls(element, kind, groupId, itemId);
+      if (typeof applyNetwork === 'function' && typeof lastNetworkData !== 'undefined' && lastNetworkData) applyNetwork(lastNetworkData);
+    });
+    ipButton.setAttribute('aria-pressed', String(on));
+    controls.insertBefore(ipButton, controls.lastChild);
   }
   host.appendChild(controls);
 }

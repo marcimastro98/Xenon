@@ -9,7 +9,6 @@ window.DiscordWidgetChannelList = (wrapper) => {
 
   const {
     splitFavourites, favIds, isFav, groupByGuild, collapsedIds, isCollapsed,
-    favGuildIds, isFavGuild, splitStarredGuilds,
   } = window.DiscordWidgetLists;
   const { t } = window.DiscordWidgetTabs;
   const { syncMemberStates } = window.DiscordWidgetMemberState;
@@ -25,6 +24,20 @@ window.DiscordWidgetChannelList = (wrapper) => {
     saveTileSetting({ discordFavOnly: !favOnly() }).then((ok) => { if (!ok) paintChannels(mount); });
     paintChannels(mount);
   }
+  // Starred servers: every channel of one counts as a favourite. The server moves up under the
+  // starred channels and stays under "Only starred", kept as a server with its heading so its
+  // star (the way to unstar it) and its fold stay reachable.
+  const favGuildIds = () => {
+    const v = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.discordFavGuilds : null;
+    return Array.isArray(v) ? v : [];
+  };
+  const isFavGuild = (guildId) => !!guildId && favGuildIds().includes(String(guildId));
+  // The server groups split into the starred ones, in the order they were starred (like the
+  // channels), and the others in the list's own order.
+  const splitStarredGuilds = (groups, ids) => {
+    const starred = ids.map(String).map((id) => groups.find((g) => g.id && String(g.id) === id)).filter(Boolean);
+    return { starred, others: groups.filter((g) => !starred.includes(g)) };
+  };
   // A new starred server goes to the bottom of the starred ones, as a channel does.
   function toggleFavGuild(guildId, mount) {
     const key = String(guildId || '');

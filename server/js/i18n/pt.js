@@ -7301,4 +7301,8 @@ module.exports = {
   discord_w_show_all: 'Mostrar todos',
   discord_w_star_server: 'Adicionar o servidor aos favoritos',
   discord_w_unstar_server: 'Remover o servidor dos favoritos',
+  net_lan_ip: 'IP {ip}',
+  net_lan_ip_card: 'Endereço IP deste PC',
+  net_lan_ip_show: 'Mostrar o endereço IP deste PC',
+  net_lan_ip_hide: 'Ocultar o endereço IP deste PC',
 };

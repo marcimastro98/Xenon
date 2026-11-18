@@ -204,6 +204,7 @@ Real-time hardware readouts, from performance counters and LibreHardwareMonitor 
 
 - Live **download / upload** throughput (MB/s) from the active adapter
 - **Ping** and **jitter** to a configurable target
+- **This PC's IP address** on your local network, under the speeds on the Network card, when you turn it on: in Layout mode with the card's network button, on a widget on the screen under **What it shows...**, or by asking Bit. Off by default, and never passed to widgets from the Store or the Widget SDK
 - **Real in-game FPS**: the actual frame rate of the running game, including **exclusive-fullscreen** titles, via **PresentMon**, which setup downloads for you. Falls back to a DWM reading (windowed/borderless only) if PresentMon isn't present.
 
 

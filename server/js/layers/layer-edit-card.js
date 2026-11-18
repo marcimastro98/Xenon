@@ -115,10 +115,31 @@
   }
 
   function cardsMenu(entry) {
-    return cardNodes(entry).map((el) => {
+    const rows = cardNodes(entry).map((el) => {
       const on = el.dataset.systemCardHidden !== 'true';
       const id = el.dataset.systemCard;
       return row(ctx.tr('layout_card_' + id, id), '', on, () => showCard(el, !on));
+    });
+    if (entry.slot.querySelector('[data-system-card="bandwidth"]')) rows.push(lanIpRow());
+    return rows;
+  }
+
+  // The Network card's own choice: this PC's address on the local network under the speeds
+  // (networkShowIp, drawn by js/system/network.js). Off until asked for.
+  function lanIpRow() {
+    const on = typeof hubSettings === 'object' && hubSettings !== null && hubSettings.networkShowIp === true;
+    return row(ctx.tr('net_lan_ip_card', "This PC's IP address"), '', on, async () => {
+      if (typeof saveTileSetting !== 'function') return;
+      const repaint = () => {
+        if (typeof applyNetwork === 'function' && typeof lastNetworkData !== 'undefined' && lastNetworkData) applyNetwork(lastNetworkData);
+      };
+      const saved = saveTileSetting({ networkShowIp: !on });
+      fill();
+      repaint();
+      // The address comes with the next reading, once the server has the choice; a refused
+      // save has put the setting back, so the card and the row follow it.
+      if (await saved) { if (typeof fetchNetwork === 'function') fetchNetwork(); } else repaint();
+      if (node) fill();
     });
   }
 

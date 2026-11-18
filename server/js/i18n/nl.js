@@ -7413,4 +7413,8 @@ module.exports = {
   discord_w_show_all: 'Alles tonen',
   discord_w_star_server: 'Server aan favorieten toevoegen',
   discord_w_unstar_server: 'Server uit favorieten verwijderen',
+  net_lan_ip: 'IP {ip}',
+  net_lan_ip_card: 'IP-adres van deze pc',
+  net_lan_ip_show: 'IP-adres van deze pc tonen',
+  net_lan_ip_hide: 'IP-adres van deze pc verbergen',
 };
