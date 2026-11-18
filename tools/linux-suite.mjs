@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The test suite on real Linux, in a throwaway container. The working tree goes in as a tar: a
 // bind mount of a Windows checkout would bring the junction at server/shared along. It runs as an
-// ordinary user, because root passes every permission check. Needs Docker running; the exit code
+// ordinary user, because root passes every permission check. The tar carries no history, so the
+// container makes a repository of it (init + add): the restructure tests ask what is tracked. Needs Docker running; the exit code
 // is the suite's.
 //   node tools/linux-suite.mjs                                  every test
 //   node tools/linux-suite.mjs server/test/linux-index.test.mjs  only these
@@ -38,7 +39,7 @@ function inContainer(tests) {
     'apt-get update -qq && apt-get install -y -qq --no-install-recommends git procps python3 > /dev/null',
     'mkdir -p /tmp/w && cd /tmp/w && tar xf -',
     'chown -R node:node /tmp/w',
-    `su node -c "cd /tmp/w && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node tools/link-shared.mjs && ${run}"`,
+    `su node -c "cd /tmp/w && git init -q && git add -A && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && node tools/link-shared.mjs && ${run}"`,
   ].join('\n');
 }
 
