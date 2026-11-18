@@ -105,4 +105,8 @@ pub(super) fn cut(w: &gtk::Window, rects: &[[i32; 4]]) {
         let _ = region.union_rectangle(&RectangleInt::new(x, y, right - x, bottom - y));
     }
     w.input_shape_combine_region(Some(&region));
+    // On Wayland GTK hands the new input region to the compositor with the next
+    // frame, and a still page draws none: the cut would wait for whatever repaints
+    // next and clicks would keep following the old one. A redraw makes that frame.
+    w.queue_draw();
 }
