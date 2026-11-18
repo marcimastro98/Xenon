@@ -622,7 +622,7 @@ function parkForPlacement(targets) {
 function pageOccupiedRects(pageId, exceptId, layoutArg) {
   const layout = layoutArg || (typeof getDashboardLayout === 'function' ? getDashboardLayout() : null);
   if (!layout) return [];
-  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+  const groupOf = (id) => Object.values(layout.groups || {}).some((g) => g?.members?.includes(id));
   const rects = [];
   // primary widgets + copies, via the shared placement helper
   const placements = (window.DashboardInstances)
@@ -651,9 +651,9 @@ function pageOccupiedRects(pageId, exceptId, layoutArg) {
 // yields the later/duplicated tiles.
 function resolveLayoutOverlaps(layout) {
   if (!layout || typeof layout !== 'object') return false;
-  const DT = (typeof window !== 'undefined') ? window.DashboardTabGroups : null;
-  const groupOf = (id) => (DT ? DT.widgetGroupOf(layout.groups, id) : null);
   const groups = layout.groups || {};
+  // Tabs share their group's cell, read from the layout: a layout applied before tab groups loaded once stacked a whole page.
+  const groupOf = (id) => Object.values(layout.groups || {}).some((g) => g?.members?.includes(id));
   const copies = Array.isArray(layout.copies) ? layout.copies : [];
   const widgetIds = (typeof DASHBOARD_WIDGET_IDS !== 'undefined') ? DASHBOARD_WIDGET_IDS : Object.keys(layout.widgets || {});
   const pageIds = Array.isArray(layout.pages) ? layout.pages.map(p => p.id) : [];
@@ -775,8 +775,7 @@ function distributeCols(weights, columns, min = 2) {
 // widget id → relative width weight (>1 = wider tile); a grouped tab-tile takes
 // the widest weight among its members, a copy takes its base widget's weight.
 function packPageItems(layout, pageId, weights) {
-  const _tg = (typeof window !== 'undefined') ? window.DashboardTabGroups : null;
-  const groupOf = (id) => (_tg ? _tg.widgetGroupOf(layout.groups, id) : null);
+  const groupOf = (id) => Object.values(layout.groups || {}).some((g) => g?.members?.includes(id));
   const wOf = (id) => {
     const v = weights && weights[id];
     return (typeof v === 'number' && v > 0) ? v : 1;
@@ -1004,7 +1003,7 @@ function pageRowSpan(pageId, plan) {
   if (plan) return window.DashboardPortrait.planRowSpan(plan, pageId);
   if (typeof getDashboardLayout !== 'function') return 0;
   const layout = getDashboardLayout();
-  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+  const groupOf = (id) => Object.values(layout.groups || {}).some((g) => g?.members?.includes(id));
   let rows = 0;
   Object.keys(layout.widgets || {}).forEach((id) => {
     const w = layout.widgets[id];
@@ -1034,7 +1033,7 @@ function pageRowSpan(pageId, plan) {
 function pageTileCount(pageId) {
   if (typeof getDashboardLayout !== 'function') return 0;
   const layout = getDashboardLayout();
-  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+  const groupOf = (id) => Object.values(layout.groups || {}).some((g) => g?.members?.includes(id));
   let count = 0;
   Object.keys(layout.widgets || {}).forEach((id) => {
     const w = layout.widgets[id];

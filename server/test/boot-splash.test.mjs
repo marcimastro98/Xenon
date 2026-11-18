@@ -39,6 +39,8 @@ function boot({ stored = null, computed = {}, reduced = false, readyState, searc
     matchMedia: (q) => ({ matches: reduced && q.includes('reduce') }),
     location: { search },
     URLSearchParams,
+    addEventListener: (type, fn) => { listeners['win:' + type] = fn; },
+    requestAnimationFrame: (fn) => sandbox.setTimeout(fn, 16),
     document: {
       readyState,
       getElementById: (id) => (id === 'boot-splash' ? el : null),
@@ -102,14 +104,25 @@ test('once settings and data are in, Bit says hello and leaves', () => {
   assert.ok(noData.classes.has('is-leaving'));
 });
 
-test('a page of Settings in the Xenon window leaves as soon as the settings are in', () => {
+test('a page of Settings in the Xenon window leaves once the settings are in and its page is open', () => {
   const sheet = boot({ search: '?panel=sheet&open=settings&cat=general' });
   assert.ok(sheet.classes.has('is-sheet'), 'a plain ground, Bit only on a slow load');
   sheet.advance(120);
   sheet.api.ready('settings');
-  sheet.advance(0);
+  sheet.advance(200);
+  assert.ok(!sheet.classes.has('is-leaving'), 'the settings alone showed the wallpaper before the page was open');
+  sheet.listeners['win:load']();
+  sheet.advance(40);
   assert.ok(sheet.classes.has('is-leaving'), 'no wait for data, the minimum or the hello');
   assert.ok(!sheet.classes.has('is-ready'));
+
+  const late = boot({ search: '?panel=sheet&open=store' });
+  late.listeners['win:load']();
+  late.advance(40);
+  assert.ok(!late.classes.has('is-leaving'), 'an open page still waits for the settings');
+  late.api.ready('settings');
+  late.advance(0);
+  assert.ok(late.classes.has('is-leaving'));
   const dash = boot({ search: '?panel=media' });
   assert.ok(!dash.classes.has('is-sheet'));
   dash.api.ready('settings');

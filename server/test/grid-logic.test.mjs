@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const g = require('../js/grid/dashboard-grid.js');
 
@@ -153,6 +154,37 @@ test('packPageItems weights a tab-group tile by its widest member', () => {
   } finally {
     globalThis.window = prev;
   }
+});
+
+test('resolveLayoutOverlaps knows the tabs of a group before the tab groups script has loaded', () => {
+  // Settings arriving from the server mid-load applied the layout while
+  // window.DashboardTabGroups did not exist yet: every tab and every copy inside a
+  // group counted as a tile of its own, the whole page was stacked down the screen
+  // and saved. Found on a real dashboard (18 Nov 2026), shape kept, names invented.
+  const layout = {
+    pages: [{ id: 'p1', name: 'P' }],
+    widgets: {
+      chat: { visible: true, page: 'p1', x: 0, y: 0, w: 9, h: 24 },
+      media: { visible: true, page: 'p1', x: 8, y: 8, w: 8, h: 8 },
+      deck: { visible: true, page: 'p1', x: 8, y: 2, w: 8, h: 22 },
+      system: { visible: true, page: 'p1', x: 16, y: 0, w: 8, h: 24 },
+    },
+    copies: [{ id: 'custom~aaaa', widget: 'custom', page: 'p1', x: 16, y: 0, w: 8, h: 38 }, { id: 'custom~bbbb', widget: 'custom', page: 'p1', x: 0, y: 0, w: 8, h: 38 }],
+    groups: {
+      'g-a': { id: 'g-a', page: 'p1', x: 0, y: 0, w: 8, h: 35, members: ['deck', 'custom~bbbb'] },
+      'g-b': { id: 'g-b', page: 'p1', x: 8, y: 0, w: 8, h: 35, members: ['chat', 'media'] },
+      'g-c': { id: 'g-c', page: 'p1', x: 16, y: 0, w: 8, h: 35, members: ['system', 'custom~aaaa'] },
+    },
+  };
+  const before = JSON.stringify(layout);
+  assert.equal(globalThis.window?.DashboardTabGroups, undefined, 'the tab groups script is not here');
+  assert.equal(g.resolveLayoutOverlaps(layout), false);
+  assert.equal(JSON.stringify(layout), before);
+});
+
+test('the layout is never healed in the Xenon window, which shows no dashboard', () => {
+  const src = readFileSync(new URL('../js/dashboard-layout/edit-mode.js', import.meta.url), 'utf8');
+  assert.ok(src.includes('!dashboardLayoutEditing && !isSheetPage() && typeof window.DashboardGrid?.resolveLayoutOverlaps'));
 });
 
 test('resolveLayoutOverlaps is a no-op for a healthy non-overlapping layout', () => {

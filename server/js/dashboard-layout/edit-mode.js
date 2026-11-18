@@ -13,8 +13,9 @@ function applyDashboardLayout() {
   // a duplicated Media+Chat tab-group stacked on the seeded one — its hidden
   // chat then bleeds through the front tile's playback). Skip while editing so a
   // live drag's transient overlap isn't reflowed mid-gesture; a healthy layout
-  // never overlaps, so this is a no-op for everyone else. Persist once if moved.
-  if (!dashboardLayoutEditing && window.DashboardGrid && typeof window.DashboardGrid.resolveLayoutOverlaps === 'function') {
+  // never overlaps, so this is a no-op for everyone else. Persist once if moved. Never in the Xenon
+  // window's page (a sheet): it shows no dashboard, and a layout it misread would be saved for it.
+  if (!dashboardLayoutEditing && !isSheetPage() && typeof window.DashboardGrid?.resolveLayoutOverlaps === 'function') {
     if (window.DashboardGrid.resolveLayoutOverlaps(layout)) {
       saveDashboardLayout(layout, { status: false });
     }

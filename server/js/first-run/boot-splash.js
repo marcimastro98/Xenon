@@ -11,7 +11,10 @@
 //
 // In the Xenon window a page of Settings opens on the dashboard alone (`?panel=sheet`,
 // js/ai/sheet-page.js), with no tiles behind it to wait for: the splash is a plain
-// ground there, gone as soon as the settings are in, and Bit shows only on a slow load.
+// ground there, gone once the settings are in and the page has opened its screen (the
+// load event, when js/grid/dashboard-open.js opens it, and a painted frame after it:
+// lifted on the settings alone it showed the dashboard's wallpaper for a moment).
+// Bit shows only on a slow load.
 //
 // The colours are a snapshot of the applied theme, written by remember() after
 // a settings apply, in a tiny key of their own: the settings blob can be
@@ -39,6 +42,7 @@
     try { return new URLSearchParams(location.search).get('panel') === 'sheet'; } catch { return false; }
   })();
   let done = !el;
+  let opened = !sheet;   // the sheet's screen is open under the splash
   let capTimer = 0;
   let settleTimer = 0;
   let rememberTimer = 0;
@@ -97,7 +101,7 @@
   function ready(part) {
     if (done || !(part in parts) || parts[part]) return;
     parts[part] = true;
-    if (sheet && part === 'settings') hide(true);
+    if (sheet && part === 'settings') { if (opened) hide(true); }
     else if (parts.settings && parts.data) hide();
     else if (part === 'settings') settleTimer = setTimeout(hide, SETTLE_MS);
   }
@@ -137,7 +141,12 @@
   } else {
     el.classList.add('is-neutral');
   }
-  if (sheet) el.classList.add('is-sheet');
+  if (sheet) {
+    el.classList.add('is-sheet');
+    const shown = () => { opened = true; if (parts.settings) hide(true); };
+    // After every other load listener (the screen opens in one), then one painted frame.
+    window.addEventListener('load', () => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(shown)), 0), { once: true });
+  }
   // A tap means "let me in": no hello, even if it already started.
   el.addEventListener('pointerdown', () => (done ? leave() : hide(true)), { once: true });
   // The cap is for a slow backend, so it counts from a parsed page. On a cold or

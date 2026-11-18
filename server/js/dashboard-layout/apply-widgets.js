@@ -18,7 +18,7 @@ function landscapeTargets(layout, groupOf) {
 
 function applyDashboardWidgets(layout) {
   const groups = layout.groups || {};
-  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(groups, id) : null);
+  const groupOf = (id) => Object.values(groups).some((g) => g?.members?.includes(id));   // from the layout, as in resolveLayoutOverlaps
   // On a vertical screen every tile is placed by the vertical layout instead
   // (js/grid/dashboard-portrait.js); the landscape geometry is not touched.
   const plan = window.DashboardPortrait ? window.DashboardPortrait.activePlan(layout) : null;
@@ -112,7 +112,7 @@ function applyDashboardWidgets(layout) {
     if (!(window.DashboardInstances && window.DashboardInstances.isDuplicable(copy.widget))) return;
     // A copy that belongs to a tab-group is rendered INSIDE the group
     // (renderGroupTile), not as a standalone tile — skip it here.
-    if (window.DashboardTabGroups && window.DashboardTabGroups.widgetGroupOf(layout.groups, copy.id)) return;
+    if (Object.values(layout.groups || {}).some((g) => g?.members?.includes(copy.id))) return;
     const targetGrid = dashboardPageGrid(copy.page);
     if (!targetGrid) return;
     let item = document.querySelector('.grid-stack-item[gs-id="' + copy.id + '"]');
