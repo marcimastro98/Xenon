@@ -13,6 +13,9 @@
 //      drops every other id; server/test/usage-stats.test.mjs keeps them in step.
 //   2. No install id. The only split is free or supporter, and that is a
 //      boolean read from "is a supporter code saved here", never the code.
+//      A failure also carries a WORD for why (kindOf below), from the hub's fixed
+//      list (src/usage-features.js ERROR_KINDS): "unavailable", "failed"... Never
+//      the error text, which can carry an argument of the action.
 //   3. At most one send per UTC day, riding the update check the app already
 //      makes (/update/check, like version-ping.js). The day is written BEFORE
 //      the request, so a network failure costs one attempt, not a retry storm.
@@ -42,11 +45,13 @@ const MAX_EVENTS = 64;
 const MAX_COUNT = 500;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ID_RE = /^(cap\.[A-Za-z]{1,40}|layer\.place\.(desktop|overlay))$/;
+// The reasons the app can give (the hub's list also holds the Maker's sign-in ones).
+const ERROR_KINDS = Object.freeze(['unavailable', 'failed', 'refused', 'nothing', 'busy', 'other']);
 
 let _transport = postBatch;   // swappable for tests
 let _dataDir = '';
 let _enabled = () => false;
-let _counts = new Map();      // id -> { n, err }
+let _counts = new Map();      // id -> { n, err, kinds? }
 let _sent = '';               // UTC day of the last send attempt
 let _loaded = null;           // promise of the first read from disk
 let _saveTimer = null;
@@ -66,9 +71,39 @@ function parseState(raw) {
     const c = counts[id];
     if (!ID_RE.test(id) || !c || typeof c !== 'object') continue;
     const n = clamp(c.n);
-    if (n) out.counts.set(id, { n, err: Math.min(n, clamp(c.err)) });
+    if (!n) continue;
+    const cell = { n, err: Math.min(n, clamp(c.err)) };
+    readKinds(cell, c.kinds);
+    out.counts.set(id, cell);
   }
   return out;
+}
+
+// Only words from the list, each a clamped count; a foreign key costs that key.
+function readKinds(cell, kinds) {
+  if (!kinds || typeof kinds !== 'object' || Array.isArray(kinds)) return;
+  for (const kind of Object.keys(kinds)) if (ERROR_KINDS.includes(kind) && clamp(kinds[kind])) cell.kinds = { ...cell.kinds, [kind]: clamp(kinds[kind]) };
+  capKinds(cell);
+}
+
+// The reasons never add up to more than the failures they explain.
+function capKinds(cell) {
+  if (!cell.kinds) return;
+  let room = cell.err;
+  for (const kind of Object.keys(cell.kinds)) {
+    cell.kinds[kind] = Math.min(cell.kinds[kind], room);
+    room -= cell.kinds[kind];
+    if (!cell.kinds[kind]) delete cell.kinds[kind];
+  }
+  if (!Object.keys(cell.kinds).length) delete cell.kinds;
+}
+
+function addKinds(cell, kinds, sign) {
+  for (const kind of Object.keys(kinds || {})) {
+    const next = Math.max(0, Math.min(MAX_COUNT, ((cell.kinds && cell.kinds[kind]) || 0) + sign * kinds[kind]));
+    cell.kinds = { ...cell.kinds, [kind]: next };
+  }
+  capKinds(cell);
 }
 
 function clamp(v) {
@@ -78,7 +113,7 @@ function clamp(v) {
 
 function serialize() {
   const counts = {};
-  for (const [id, c] of _counts) counts[id] = c.err ? { n: c.n, err: c.err } : { n: c.n };
+  for (const [id, c] of _counts) counts[id] = c.err ? { n: c.n, err: c.err, ...(c.kinds ? { kinds: c.kinds } : {}) } : { n: c.n };
   return JSON.stringify({ v: 1, sent: _sent, counts });
 }
 
@@ -95,7 +130,9 @@ function load() {
     for (const [id, c] of st.counts) {
       const cur = _counts.get(id) || { n: 0, err: 0 };
       const n = Math.min(MAX_COUNT, cur.n + c.n);
-      _counts.set(id, { n, err: Math.min(n, cur.err + c.err) });
+      const merged = { n, err: Math.min(n, cur.err + c.err), ...(cur.kinds ? { kinds: { ...cur.kinds } } : {}) };
+      addKinds(merged, c.kinds, 1);
+      _counts.set(id, merged);
     }
     if (st.sent > _sent) _sent = st.sent;
   })();
@@ -125,12 +162,15 @@ function configure({ dataDir, enabled }) {
   _enabled = typeof enabled === 'function' ? enabled : () => false;
 }
 
-/** One use of a feature; `failed` when it did not work. A no-op while off. */
-function record(id, failed = false) {
+/** One use of a feature; `failed` when it did not work, `kind` says why (ERROR_KINDS). A no-op while off. */
+function record(id, failed = false, kind = '') {
   if (!ID_RE.test(String(id)) || _enabled() !== true) return false;
   const c = _counts.get(id) || { n: 0, err: 0 };
   c.n = Math.min(MAX_COUNT, c.n + 1);
-  if (failed) c.err = Math.min(c.n, c.err + 1);
+  if (failed) {
+    c.err = Math.min(c.n, c.err + 1);
+    if (ERROR_KINDS.includes(kind)) addKinds(c, { [kind]: 1 }, 1);
+  }
   _counts.set(id, c);
   load().catch(() => {});
   scheduleSave();
@@ -142,7 +182,27 @@ function record(id, failed = false) {
 // choices and Bit asks again. Counted as a use, not a failure, or the failed
 // count of every feature Bit can call says how often Bit guessed, not whether
 // the feature works.
-const ASKED_WRONG_RE = /^(bad_|unknown_|needs_)|^ambiguous$/;
+//
+// The same goes for a request the person's own setup turns down on purpose: a
+// shortcut already taken or reserved, a widget or function that is not there, a
+// permission not granted. The feature answered as it should.
+const ASKED_WRONG_RE = /^(bad_|unknown_|needs_)|^(ambiguous|in_use|reserved|no_widget|no_function|not_granted)$/;
+
+// The error word of a result → one word from ERROR_KINDS. Rules in order; a word
+// nobody mapped is 'other', so a new error never leaks its own text.
+const KIND_RULES = [
+  [/unavailable$|^unsupported$/, 'unavailable'],
+  [/failed$|^http_/, 'failed'],
+  [/^(over_exclusive|screen_alerts_off|history_off|companion_off|blocked_ext|args_not_supported|sized_by_itself)$/, 'refused'],
+  [/^running$/, 'busy'],
+  [/^(no_|not_|nothing_|first_session$)/, 'nothing'],
+];
+
+function kindOf(error) {
+  const word = String(error || '');
+  const rule = KIND_RULES.find(([re]) => re.test(word));
+  return rule ? rule[1] : 'other';
+}
 
 /**
  * The registry's choke point: one capability run and its result. A placed
@@ -153,7 +213,8 @@ function recordCapability(action, result) {
   if (!type) return;
   const ok = !!(result && result.ok === true);
   const askedWrong = !ok && ASKED_WRONG_RE.test(String(result?.error || ''));
-  record('cap.' + type, !ok && !askedWrong);
+  const failed = !ok && !askedWrong;
+  record('cap.' + type, failed, failed ? kindOf(result?.error) : '');
   // Only the two surfaces the hub knows; an anchored widget is neither.
   const surface = ok && type === 'layerPlace' && result.placed ? result.placed.surface : '';
   if (surface === 'overlay' || surface === 'desktop') record('layer.place.' + surface);
@@ -178,7 +239,11 @@ function buildBatches(counts, tier) {
     if (!c.n) continue;
     // person: this install used it in this report, which the hub adds up as
     // "installs that used it today" without knowing which install.
-    events.push(c.err ? { f: id, n: c.n, err: c.err, person: true } : { f: id, n: c.n, person: true });
+    const ev = { f: id, n: c.n };
+    if (c.err) ev.err = c.err;
+    if (c.err && c.kinds) ev.kinds = { ...c.kinds };
+    ev.person = true;
+    events.push(ev);
   }
   const out = [];
   for (let i = 0; i < events.length; i += MAX_EVENTS) {
@@ -210,7 +275,7 @@ async function maybeSend({ enabled, supporter, day = utcDay() }) {
       const out = await _transport(HUB_BASE + '/usage', b);
       if (out?.ok !== true) break;
       // Only what the hub took leaves; what was counted meanwhile stays.
-      for (const ev of b.events) subtract(ev.f, ev.n, ev.err || 0);
+      for (const ev of b.events) subtract(ev.f, ev.n, ev.err || 0, ev.kinds);
       sent += b.events.length;
     }
     // Off by now: clear() removed the file, do not write it back.
@@ -227,11 +292,12 @@ async function maybeSend({ enabled, supporter, day = utcDay() }) {
   try { return await _inflight; } finally { _inflight = null; }
 }
 
-function subtract(id, n, err) {
+function subtract(id, n, err, kinds) {
   const c = _counts.get(id);
   if (!c) return;
   c.n = Math.max(0, c.n - n);
   c.err = Math.min(c.n, Math.max(0, c.err - err));
+  addKinds(c, kinds, -1);
   if (!c.n) _counts.delete(id);
 }
 
@@ -269,6 +335,8 @@ module.exports = {
   clear,
   buildBatches,
   parseState,
+  kindOf,
+  ERROR_KINDS,
   STATE_BASENAME,
   MAX_EVENTS,
   MAX_COUNT,

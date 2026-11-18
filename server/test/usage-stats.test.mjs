@@ -65,7 +65,7 @@ test('the registry counts each capability run by type, failures included, withou
   assert.deepEqual(await reg.run({ type: 'perfStats' }), { ok: true });
   assert.deepEqual(await reg.run({ type: 'perfStats' }), { ok: false, error: 'no_game' });
   assert.deepEqual(await reg.run({ type: 'perfStats' }), { ok: false, error: 'capability_failed' });
-  assert.deepEqual(usage._snapshot(), { 'cap.perfStats': { n: 3, err: 2 } });
+  assert.deepEqual(usage._snapshot(), { 'cap.perfStats': { n: 3, err: 2, kinds: { nothing: 1, failed: 1 } } });
 
   const throwing = createRegistry({ runCapability: async () => ({ ok: true }), countCapability: () => { throw new Error('x'); } });
   assert.deepEqual(await throwing.run({ type: 'perfStats' }), { ok: true }, 'a broken counter never fails the action');
@@ -80,7 +80,49 @@ test('a request asked wrong is a use, not a failure; a real failure still counts
   usage.recordCapability({ type: 'desktopScene' }, null);
   // A code that only looks like one of them is still a failure.
   usage.recordCapability({ type: 'desktopScene' }, { ok: false, error: 'not_bad_screen' });
-  assert.deepEqual(usage._snapshot(), { 'cap.desktopScene': { n: 8, err: 4 } });
+  assert.deepEqual(usage._snapshot(), { 'cap.desktopScene': { n: 8, err: 4, kinds: { failed: 1, unavailable: 1, other: 1, nothing: 1 } } });
+});
+
+test('a request the setup turns down on purpose is a use, not a failure', () => {
+  for (const error of ['in_use', 'reserved', 'no_widget', 'no_function', 'not_granted']) {
+    usage.recordCapability({ type: 'layerWidgetKey' }, { ok: false, error });
+  }
+  assert.deepEqual(usage._snapshot(), { 'cap.layerWidgetKey': { n: 5, err: 0 } });
+});
+
+test('a failure carries one word for why, never the error text', () => {
+  const cases = {
+    unavailable: 'unavailable', obs_unavailable: 'unavailable', unsupported: 'unavailable',
+    failed: 'failed', write_failed: 'failed', http_502: 'failed',
+    over_exclusive: 'refused', screen_alerts_off: 'refused',
+    running: 'busy', no_game: 'nothing', not_recording: 'nothing', nothing_running: 'nothing',
+    'C:\Users\someone\file.txt: EACCES': 'other', capability_x: 'other', '': 'other',
+  };
+  for (const [error, kind] of Object.entries(cases)) assert.equal(usage.kindOf(error), kind, error);
+  assert.equal(usage.kindOf(undefined), 'other');
+  assert.equal(usage.kindOf({ message: 'secret' }), 'other');
+  for (const k of Object.values(cases)) assert.ok(usage.ERROR_KINDS.includes(k));
+});
+
+test('the reasons are kept on disk, sent with the batch and taken off once the hub has them', async () => {
+  for (const error of ['unavailable', 'unavailable', 'failed']) usage.recordCapability({ type: 'desktopScene' }, { ok: false, error });
+  await usage.flush();
+  const saved = JSON.parse(fs.readFileSync(file(), 'utf8'));
+  assert.deepEqual(saved.counts['cap.desktopScene'], { n: 3, err: 3, kinds: { unavailable: 2, failed: 1 } });
+
+  usage._reset();
+  usage.configure({ dataDir: dir, enabled: () => on });
+  usage._setTransport(async (url, body) => { calls.push({ url, body }); return { ok: true }; });
+  usage.recordCapability({ type: 'desktopScene' }, { ok: false, error: 'failed' }); // counted before the read ends
+  const sent = await usage.maybeSend({ enabled: true, supporter: false, day: '2026-10-30' });
+  assert.equal(sent.ok, true);
+  assert.deepEqual(calls[0].body.events, [{ f: 'cap.desktopScene', n: 4, err: 4, kinds: { unavailable: 2, failed: 2 }, person: true }]);
+  assert.deepEqual(usage._snapshot(), {}, 'what the hub took is gone, reasons included');
+});
+
+test('a foreign reason in the state file, or one above the failures, costs only itself', () => {
+  const st = usage.parseState({ v: 1, counts: { 'cap.perfStats': { n: 5, err: 2, kinds: { failed: 1, 'my text': 4, unavailable: 9 } } } });
+  assert.deepEqual(st.counts.get('cap.perfStats'), { n: 5, err: 2, kinds: { failed: 1, unavailable: 1 } });
 });
 
 test('a placed layer widget also counts by where it went', () => {
@@ -221,10 +263,13 @@ test('every app id is one the hub accepts', { skip: !fs.existsSync(HUB_FEATURES)
   assert.deepEqual(mine, [...hub.USAGE_FEATURES.app].sort());
 
   const { normalizeBatch } = await import(pathToFileURL(HUB_USAGE).href);
-  const counts = new Map(mine.map((f) => [f, { n: 3, err: 1 }]));
+  const counts = new Map(mine.map((f) => [f, { n: 3, err: 1, kinds: { unavailable: 1 } }]));
   for (const b of usage.buildBatches(counts, 'supporter')) {
     const n = normalizeBatch(JSON.parse(JSON.stringify(b)));
     assert.equal(n.error, undefined);
     assert.equal(n.rows.length, b.events.length, 'the hub keeps every event');
+    assert.ok(n.rows.every((r) => r.kinds.unavailable === 1), 'and the reason with it');
   }
+  // Every reason the app can give is on the hub's list, or the hub would drop it.
+  for (const k of usage.ERROR_KINDS) assert.ok(hub.ERROR_KINDS.includes(k), k);
 });
