@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices } = require('../js/grid/dashboard-pager.js');
+const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices, restsOnPage } = require('../js/grid/dashboard-pager.js');
 
 test('computeParkedIndices: every active page except the current one', () => {
   const pages = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
@@ -67,4 +67,18 @@ test('computeActivePages: a page with a visible widget stays', () => {
     lighting: { visible: true, page: 'lighting' },
   };
   assert.deepEqual(computeActivePages(all, widgets, false), ['dashboard', 'lighting']);
+});
+
+test('restsOnPage: true only on a page, within 2 px of zoom rounding', () => {
+  const stops = [0, 1654, 3308];
+  assert.equal(restsOnPage(0, stops), true);
+  assert.equal(restsOnPage(1655.5, stops), true);
+  assert.equal(restsOnPage(1650, stops), false);
+  assert.equal(restsOnPage(800, stops), false);
+});
+
+test('restsOnPage: nothing to compare means nothing to wait for', () => {
+  assert.equal(restsOnPage(300, []), true);
+  assert.equal(restsOnPage(NaN, [0, 10]), true);
+  assert.equal(restsOnPage(300, null), true);
 });

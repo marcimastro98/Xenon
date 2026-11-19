@@ -1,11 +1,10 @@
-// Dashboard pager — generic horizontal multi-page surface.
-// Pure navigation helpers live at the top (no DOM access) so they are unit-
-// testable under Node; the DOM controller is added in a later task. The
-// bottom export guard is inert in the browser (no `module` global there).
+// Dashboard pager — generic horizontal multi-page surface. Pure helpers at the top (no DOM)
+// are unit-tested under Node; the bottom export guard is inert in the browser.
 (function () {
   'use strict';
 
   const WHEEL_THRESHOLD = 24; // px; below this we treat the wheel as noise
+  const SETTLE_MAX_WAITS = 20; // off a page, a scroll settle waits its 90 ms this many times at most
   // Putting the view back where it was after a rebuild is not a navigation: the
   // pager's CSS asks for smooth scrolling, and a smooth restore travels from
   // wherever the rebuild left the scroll (page 1 once the old sections are
@@ -64,6 +63,14 @@
     return out;
   }
 
+  // A scroll is over when the view rests on a page (2 px of zoom rounding), not when
+  // scroll events pause: a slow WebKitGTK frame outlasts the pause, and settling then
+  // parked the page sliding in and woke every page again. Pure, so testable.
+  function restsOnPage(scrollLeft, stops) {
+    if (!Number.isFinite(scrollLeft) || !Array.isArray(stops) || !stops.length) return true;
+    return stops.some(x => Math.abs(x - scrollLeft) <= 2);
+  }
+
   const pages = [];        // { id, label, element, onEnter, onLeave }
   let viewport = null;     // the scroll-snap container
   let dotsHost = null;     // element that holds the dot buttons
@@ -79,11 +86,9 @@
     return pages[currentIndex] ? pages[currentIndex].id : null;
   }
 
-  // The page before this one. This is what a single "toggle between my two
-  // pages" shortcut actually wants, and it keeps working when there are three.
-  // Returns whether there WAS a previous page: an SDK widget is told whether its
-  // action did anything, and "nowhere to go back to" is a real answer rather
-  // than a silent success.
+  // The page before this one: what a "toggle between my two pages" shortcut wants, also with
+  // three. Returns whether there WAS one: an SDK widget is told "nowhere to go back to"
+  // as a real answer, not a silent success.
   function goBack() {
     if (!lastPageId) return false;
     goToPage(lastPageId);
@@ -158,12 +163,10 @@
     if (woke && window.AmbientIdle) window.AmbientIdle.sweep();
   }
 
-  // Park once things settle WITHOUT a scroll: boot and page-set rebuilds land on
-  // their target via scrollTo with no position change, so no scroll event (and
-  // thus no settle-callback park) ever fires — an idle Edge that boots to page 1
-  // and sits there for hours got zero parking, the feature's headline scenario.
-  // A short delay lets the initial layout/grid fit measure fully rendered pages;
-  // any real scroll meanwhile unparks first and re-parks on its own settle.
+  // Park once things settle WITHOUT a scroll: boot and page-set rebuilds scrollTo with no
+  // position change, so no scroll settle ever parks (an idle Edge on page 1 for hours got
+  // none). The delay lets the first layout/grid fit measure rendered pages; a real scroll
+  // meanwhile unparks first and re-parks on its own settle.
   let parkSettleTimer = null;
   function scheduleParkSettle() {
     if (typeof setTimeout !== 'function') return;
@@ -171,16 +174,12 @@
     parkSettleTimer = setTimeout(() => { parkSettleTimer = null; parkInactivePages(); }, 1000);
   }
 
-  // True when `el` is on the page the user is actually looking at. The pager
-  // keeps non-current pages mounted (just transformed off-screen), so a tile on
-  // page 2 still has a non-null offsetParent and passes document.hidden — this is
-  // the correct gate for "should this widget keep polling / animating". An element
-  // not inside any pager page (topbar, lockscreen, modal) is always "current".
+  // True when `el` is on the page the user is looking at. Non-current pages stay mounted
+  // off-screen (a tile on page 2 has an offsetParent and passes document.hidden), so this
+  // is the gate for "keep polling / animating". Outside any page (topbar, modal): current.
   function isOnCurrentPage(el) {
     if (!el || !(el instanceof Element)) return true;
-    // Single-panel embeds (?panel=media, ?panel=system, …) show exactly one panel
-    // with no pager navigation — never gate their polling on page position, even
-    // if the saved layout authored that widget on a non-first page.
+    // Single-panel embeds (?panel=media…) have no pager: never gate them on page position.
     if (typeof document !== 'undefined' && document.body && document.body.dataset.panel) return true;
     const page = el.closest('.pager-page');
     if (!page) return true;
@@ -200,20 +199,16 @@
     });
   }
 
-  // Opt-in (topbarClock.pageLabels): the dots carry the page names instead of
-  // being anonymous circles. Read live rather than cached — the option lives in
-  // the island editor and must take effect on the next renderDots() with no
-  // reload. Applies in BOTH chromes: the dots host sits in the topbar and is
-  // only carried into the pill by Minimal.
+  // Opt-in (topbarClock.pageLabels): the dots carry the page names. Read live, not cached:
+  // the island editor's change shows on the next renderDots(). Both chromes (Minimal only
+  // carries the topbar's dots host into the pill).
   function labelsEnabled() {
     const cfg = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarClock) || null;
     return !!(cfg && cfg.pageLabels === true);
   }
 
-  // Re-label a registered page without rebuilding the pager. A label is captured
-  // at registration, so a page named by a seed key would otherwise stay in the
-  // previous language until the next page mutation — invisible while the dots
-  // were circles, plain to see once they carry text.
+  // Re-label a registered page without a rebuild: a label captured at registration would keep
+  // a seed-named page in the previous language until the next page change.
   function setLabel(id, label) {
     const page = pages.find(p => p.id === id);
     if (!page || typeof label !== 'string' || !label) return false;
@@ -353,10 +348,8 @@
   function setCurrentIndex(index) {
     const next = clampPageIndex(index, pages.length);
     if (next === currentIndex) { renderDots(); return; }
-    // The page we are leaving, by ID and not by index: a page added or removed
-    // between two presses renumbers every index, and "go back" would then take
-    // you somewhere you have never been. An id that no longer exists simply
-    // does nothing, which is the honest answer.
+    // The page we are leaving, by id: an added or removed page renumbers every index, and
+    // "go back" would land somewhere you have never been. A gone id does nothing.
     lastPageId = pages[currentIndex] ? pages[currentIndex].id : null;
     const leaving = pages[currentIndex];
     if (leaving && leaving.onLeave) { try { leaving.onLeave(); } catch (e) { console.error(e); } }
@@ -366,17 +359,20 @@
       entered.add(arriving.id);
       try { arriving.onEnter(); } catch (e) { console.error(e); }
     }
-    // Off-screen pages stay mounted but are cut off from live data (onVisiblePage
-    // gates the push loops, so a parked page stops costing network/API). The flip
-    // side is that whatever sits there is stale the instant it scrolls back in —
-    // it holds the last value it saw and only recovers on the NEXT change, which
-    // for a push-on-change feed may be minutes away or never. Announce the turn so
-    // anything gated on visibility can refresh what it's showing. `onEnter` can't
-    // serve this: it fires once per page, ever.
+    // Off-screen pages are cut off from live data (onVisiblePage gates the push loops), so a
+    // returning page shows its last value until the NEXT change, maybe never. Announce the turn
+    // so anything gated on visibility refreshes (onEnter fires once per page, ever).
     try {
       window.dispatchEvent(new CustomEvent('xenon:page-change', { detail: { id: arriving ? arriving.id : '' } }));
     } catch { /* no CustomEvent */ }
     renderDots();
+  }
+
+  // Where a page sits in the scroll. offsetLeft counts from .shell, which starts before
+  // the pager: scrolling to it went that far past the page, for scroll-snap to pull back.
+  function stopOf(page) {
+    const first = pages.find(p => p.active !== false && p.element);
+    return first ? page.element.offsetLeft - first.element.offsetLeft : 0;
   }
 
   // Index of the active page whose element offset is nearest the scroll position.
@@ -384,7 +380,7 @@
     let best = currentIndex, bestDist = Infinity;
     pages.forEach((p, i) => {
       if (p.active === false || !p.element) return;
-      const dist = Math.abs(p.element.offsetLeft - viewport.scrollLeft);
+      const dist = Math.abs(stopOf(p) - viewport.scrollLeft);
       if (dist < bestDist) { bestDist = dist; best = i; }
     });
     return best;
@@ -398,7 +394,7 @@
     const page = want && pages.find(p => p.id === want.id);
     if (!page || page.active === false || !viewport || !page.element) return;
     unparkAll();   // render the target during the smooth scroll; settle re-parks
-    viewport.scrollTo({ left: page.element.offsetLeft, behavior: 'smooth' });
+    viewport.scrollTo({ left: stopOf(page), behavior: 'smooth' });
     setCurrentIndex(pages.indexOf(page));
   }
 
@@ -442,7 +438,7 @@
       if (firstActive >= 0) {
         currentIndex = firstActive;
         unparkAll();
-        if (viewport && pages[firstActive].element) viewport.scrollTo({ left: pages[firstActive].element.offsetLeft, behavior: RESTORE_SCROLL });
+        if (viewport && pages[firstActive].element) viewport.scrollTo({ left: stopOf(pages[firstActive]), behavior: RESTORE_SCROLL });
         scheduleParkSettle();   // covers a same-offset jump that fires no scroll event
       }
     }
@@ -474,7 +470,9 @@
       unparkAll();
       clearTimeout(parkSettleTimer);
       clearTimeout(scrollSettleTimer);
-      scrollSettleTimer = setTimeout(() => {
+      const settle = (waits) => { scrollSettleTimer = setTimeout(() => {
+        const stops = pages.filter(p => p.active !== false && p.element).map(stopOf);
+        if (waits < SETTLE_MAX_WAITS && !restsOnPage(viewport.scrollLeft, stops)) { settle(waits + 1); return; }
         setCurrentIndex(nearestActiveIndex());
         // Park AFTER setCurrentIndex: the xenon:page-change replay (custom-widget)
         // runs with everything unparked, so returning frames have real boxes.
@@ -485,7 +483,8 @@
         // otherwise its top-row header sits under the clock pill. Cheap + no-op
         // in full-topbar mode.
         if (window.TopbarMinimal && window.TopbarMinimal.reflowIsland) window.TopbarMinimal.reflowIsland();
-      }, 90);
+      }, 90); };
+      settle(0);
     }, { passive: true });
 
     viewport.addEventListener('wheel', (ev) => {
@@ -550,7 +549,7 @@
     renderDots();
     unparkAll();   // fresh page set: never carry a stale .is-parked over
     if (viewport && pages[currentIndex] && pages[currentIndex].element) {
-      viewport.scrollTo({ left: pages[currentIndex].element.offsetLeft, behavior: RESTORE_SCROLL });
+      viewport.scrollTo({ left: stopOf(pages[currentIndex]), behavior: RESTORE_SCROLL });
     }
     scheduleParkSettle();   // re-park even when the scrollTo lands on the same offset
   }
@@ -586,6 +585,6 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices, navigateTo };
+    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices, restsOnPage, navigateTo };
   }
 })();

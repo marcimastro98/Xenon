@@ -53,7 +53,8 @@ function makePager() {
     classList: classes(log, 'viewport'),
     scrollLeft: 0,
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
-    scrollTo() {},
+    scrolls: [],
+    scrollTo(opts) { this.scrolls.push(opts); },
   };
   const dot = () => ({ dataset: {}, classList: classes([], 'dot'), setAttribute() {}, addEventListener() {}, appendChild() {} });
   const window = { dispatchEvent() {}, AmbientIdle: { sweep() { log.push('sweep'); } } };
@@ -75,7 +76,7 @@ function makePager() {
   pager.init({ viewport, dots: { appendChild() {}, textContent: '' } });
   const settle = () => { while (timers.length) timers.shift()(); };
   const scroll = () => listeners.scroll.forEach((fn) => fn());
-  return { pager, log, home, other, body, settle, scroll };
+  return { pager, log, home, other, body, settle, scroll, viewport, timers };
 }
 
 test('motion stops before the lock', () => {
@@ -299,4 +300,47 @@ test('parked pages stop motion and only .is-parked holds the lock', () => {
 test('a switched-off background layer stops its loop', () => {
   const css = read('styles/backgroundfx.css');
   assert.match(css, /body:not\(\.aurora-on\) \.aurora-blob,\s+body:not\(\.grid-on\) \.grid-plane \{ animation-play-state: paused; \}/);
+});
+
+// Pages measured from the shell, as in the app: the first page sits at the
+// shell's padding, not at 0, and one page is one viewport wide.
+function pagerOnShell() {
+  const p = makePager();
+  p.home.offsetLeft = 18;
+  p.other.offsetLeft = 18 + 1654;
+  p.settle();
+  return p;
+}
+
+test('a slow frame mid-glide does not park the page sliding in', () => {
+  const { other, home, viewport, timers, scroll, pager } = pagerOnShell();
+  viewport.scrollLeft = 800;
+  scroll();
+  timers.shift()();
+  assert.equal(other.classList.contains('is-parking'), false, 'still between pages: nothing parks');
+  assert.equal(home.classList.contains('is-parking'), false);
+  assert.equal(timers.length, 1, 'it waits again');
+  viewport.scrollLeft = 1654;
+  timers.shift()();
+  assert.equal(pager.getCurrentPage(), 'other');
+  assert.equal(home.classList.contains('is-parked'), true, 'at rest on a page, the one left behind parks');
+  assert.equal(other.classList.contains('is-parked'), false);
+});
+
+test('a scroll that never rests on a page still settles', () => {
+  const { home, viewport, timers, scroll } = pagerOnShell();
+  viewport.scrollLeft = 1200;
+  scroll();
+  let runs = 0;
+  while (timers.length && runs < 100) { timers.shift()(); runs++; }
+  assert.ok(runs > 1 && runs <= 21, `waits a bounded number of times (${runs})`);
+  assert.equal(home.classList.contains('is-parked'), true);
+});
+
+test('a dot tap scrolls to where the page sits in the pager, not in the shell', () => {
+  const { viewport, pager } = pagerOnShell();
+  pager.goToPage('other');
+  assert.equal(viewport.scrolls.at(-1).left, 1654);
+  pager.goToPage('home');
+  assert.equal(viewport.scrolls.at(-1).left, 0);
 });
