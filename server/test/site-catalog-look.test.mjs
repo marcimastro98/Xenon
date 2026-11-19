@@ -245,3 +245,12 @@ test('the dialog holds words a visitor can use: no colour codes, no tags, no pla
 test('the catalog writes Xenon with its capital, whatever the entry says', () => {
   assert.match(page, /\/\^xenon\$\/i\.test\(entry\.author\) \? 'Xenon' : entry\.author/);
 });
+
+test('the featured entries beside the main one show their whole picture, in a row under it', () => {
+  // A column beside the main card stretched each one to its height and cut the
+  // 1280x680 Store shot to a 132px sliver.
+  assert.match(rules('.spot'), /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.doesNotMatch(rules('.spot-card'), /grid-template-columns/);
+  assert.match(rules('.spot-media::before'), /aspect-ratio: 32 \/ 17/);
+  assert.match(rules('.spot-side'), /auto-fit/);
+});
