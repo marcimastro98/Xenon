@@ -760,30 +760,29 @@
     .drop-card { grid-template-columns: 1fr; }
     .drop-media { margin: 0; border-radius: 0; }
   }
-  /* ── Spotlight: the main featured card plus the column beside it ──
+  /* ── Spotlight: the main featured card, then the others in a row under it ──
      Rendered only when the catalog features more than one entry; a single
-     featured entry keeps the full-width drop card. The column is capped at
-     three in JS so this block never outgrows the card next to it. */
-  .spot { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(250px, 1fr); gap: 16px; align-items: stretch; }
+     featured entry keeps the full-width drop card. The others used to sit in a
+     column beside the main card: stretched to its height, every Store shot
+     (1280x680) was cut to a 132px sliver. In a row each picture shows whole, at
+     its own shape, with the text beside it, and drops under it on a narrow card.
+     JS caps the row at three. */
+  .spot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
   #content > .spot:first-child, #content > .drop-card:first-child { margin-top: clamp(32px, 4vw, 56px); }
   .spot > .drop-card { margin: 0; }
-  .spot-side { display: grid; grid-auto-rows: 1fr; gap: 16px; min-width: 0; }
-  .spot-card { position: relative; display: grid; grid-template-columns: 132px minmax(0, 1fr); border-radius: var(--r-2); overflow: hidden; cursor: pointer; scroll-margin-top: calc(90px + var(--strip-h, 0px)); background: var(--g-1); }
+  .spot-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; min-width: 0; }
+  .spot-card { position: relative; display: flex; flex-wrap: wrap; align-items: center; border-radius: var(--r-2); overflow: hidden; cursor: pointer; scroll-margin-top: calc(90px + var(--strip-h, 0px)); background: var(--g-1); }
   .spot-card:focus-visible { outline: 2px solid var(--plasma); outline-offset: 2px; }
-  .spot-media { position: relative; overflow: hidden; background: var(--g-2); min-height: 104px; }
+  .spot-media { position: relative; flex: 1 1 240px; align-self: stretch; overflow: hidden; background: var(--g-2); }
+  .spot-media::before { content: ''; display: block; aspect-ratio: 32 / 17; }
   .spot-media > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .spot-media .cat-shots { position: absolute; inset: 0; }
-  .spot-info { display: flex; flex-direction: column; justify-content: center; gap: 9px; padding: 15px 17px; min-width: 0; }
+  .spot-info { flex: 1 1 220px; display: flex; flex-direction: column; justify-content: center; gap: 9px; padding: 16px 20px; min-width: 0; }
   .spot-name { font: 700 19px/1.2 var(--display); letter-spacing: -.008em; }
   .spot-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .spot-foot .cat-copy, .spot-foot .cat-unlock, .spot-foot .cat-soldout { padding-inline: 14px; font-size: 15px; }
   .spot-foot .cat-hint, .spot-foot .cat-limited-actions { flex-basis: 100%; }
   .spot-foot .cat-limited-actions { grid-template-columns: 1fr; }
-  @media (max-width: 1080px) {
-    .spot { grid-template-columns: 1fr; }
-    .spot-side { grid-auto-rows: auto; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  }
-  @media (max-width: 560px) { .spot-card { grid-template-columns: 104px minmax(0, 1fr); } }
   /* ── Duo: exactly two featured entries — both get the full stage, upright at
      equal width. A lone side card stretched to the main card's height read as
      broken. Scoped to the width where they actually sit side by side; below
