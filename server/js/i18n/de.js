@@ -7296,7 +7296,7 @@ module.exports = {
   support_sheet_monthly: 'Monatlich',
   support_sheet_per_year: '{price} im Jahr',
   support_sheet_per_month: '{price} im Monat',
-  support_sheet_yearly_note: '{price} im Monat, {save} weniger als monatlich',
+  support_sheet_yearly_note: '{price} im Monat, 2 Monate gratis',
   support_sheet_yearly_theme: 'Dazu ein Theme, das auf Wunsch für dich gebaut wird',
   support_sheet_monthly_note: 'Jederzeit kündbar',
   support_sheet_annual_hint: 'Wähle auf der nächsten Seite "Pay annually".',

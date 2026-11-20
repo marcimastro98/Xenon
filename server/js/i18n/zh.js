@@ -7442,7 +7442,7 @@ module.exports = {
   support_sheet_monthly: '按月',
   support_sheet_per_year: '每年 {price}',
   support_sheet_per_month: '每月 {price}',
-  support_sheet_yearly_note: '折合每月 {price}，比按月付少 {save}',
+  support_sheet_yearly_note: '折合每月 {price}，免费 2 个月',
   support_sheet_yearly_theme: '另可按需为你定制一个主题',
   support_sheet_monthly_note: '随时可取消',
   support_sheet_annual_hint: '在下一页选择“Pay annually”。',

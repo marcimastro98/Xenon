@@ -44,7 +44,7 @@
 
   // The membership's prices, the one place the app reads them from. They must
   // match the Supporter tier on the Buy Me a Coffee page: change both together.
-  const SUPPORT_PRICES = Object.freeze({ currency: 'EUR', monthly: 5, yearly: 46 });
+  const SUPPORT_PRICES = Object.freeze({ currency: 'USD', monthly: 5, yearly: 50 });
 
   // The hub's pass trial page in the app's language. The hub speaks the site's
   // 7 languages and falls back on its own for the others.

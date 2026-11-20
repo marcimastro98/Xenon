@@ -145,7 +145,7 @@ const FLOWS = {
     check('yearly is listed first', (await page.locator('.support-sheet-plan').first().getAttribute('data-plan')) === 'yearly');
     check('the yearly line is shown', await hintShown(page));
     check('the main key goes to the hub with the label and the yearly plan', (await go(page).getAttribute('href')) === HUB + '?s=store-locked&p=yearly');
-    check('the prices are the constant\'s', /€46/.test(await page.locator('.support-sheet').textContent()) && /€5/.test(await page.locator('.support-sheet').textContent()));
+    check('the prices are the constant\'s', /\$50/.test(await page.locator('.support-sheet').textContent()) && /\$5/.test(await page.locator('.support-sheet').textContent()));
   },
   async 'monthly drops the plan from the link and the line'(page) {
     await openFromLink(page, 'settings');
@@ -227,7 +227,7 @@ const FLOWS = {
     await page.evaluate(() => { window.openSettings('support'); });
     await page.waitForTimeout(300);
     const prices = await page.evaluate(() => [...document.querySelectorAll('[data-support-price]')].map((b) => b.textContent));
-    check('monthly and yearly tiles', prices.join('|') === '€5|€46', prices.join('|'));
+    check('monthly and yearly tiles', prices.join('|') === '$5|$50', prices.join('|'));
     await page.locator('.support-plan[data-support-plan="yearly"]').click();
     await page.waitForSelector('.support-sheet', { timeout: 3000 });
     check('the yearly tile opens the sheet on yearly with its label', (await go(page).getAttribute('href')) === HUB + '?s=settings-year&p=yearly');

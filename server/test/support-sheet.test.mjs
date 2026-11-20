@@ -54,18 +54,18 @@ test('without the shared constants the links still reach Buy Me a Coffee', () =>
 
 test('the prices come from the one constant, in the viewer\'s language', () => {
   const en = Sheet.priceTexts(consts.SUPPORT_PRICES, 'en');
-  assert.deepEqual(en, { year: '€46', month: '€5', yearMonth: '€3.83', less: '€1.17' });
+  assert.deepEqual(en, { year: '$50', month: '$5', yearMonth: '$4.17', less: '$0.83' });
   const it = Sheet.priceTexts(consts.SUPPORT_PRICES, 'it');
-  assert.match(it.year, /^46\s€$/);
-  assert.match(it.yearMonth, /^3,83\s€$/);
+  assert.match(it.year, /^50\s(USD|\$)$/);
+  assert.match(it.yearMonth, /^4,17\s(USD|\$)$/);
   const other = Sheet.priceTexts({ currency: 'EUR', monthly: 6, yearly: 60 }, 'en');
   assert.deepEqual(other, { year: '€60', month: '€6', yearMonth: '€5', less: '€1' }, 'nothing else holds a price');
   assert.equal(Sheet.money(5, 'EUR', 'not a language'), '5 EUR');
 });
 
-test('no other file of the app writes the membership\'s price in euros', () => {
+test('no other file of the app writes the membership\'s price by hand', () => {
   const src = read('js/store-supporters/support-sheet.js');
-  assert.doesNotMatch(src, /\b46\b|3[.,]83/);
+  assert.doesNotMatch(src, /\b50\b|4[.,]17/);
   assert.match(src, /consts\(\)\.SUPPORT_PRICES/);
 });
 

@@ -7442,7 +7442,7 @@ module.exports = {
   support_sheet_monthly: '월간',
   support_sheet_per_year: '연 {price}',
   support_sheet_per_month: '월 {price}',
-  support_sheet_yearly_note: '월 {price}, 월간보다 {save} 저렴',
+  support_sheet_yearly_note: '월 {price}, 2개월 무료',
   support_sheet_yearly_theme: '요청하면 나만을 위한 테마도 만들어 드립니다',
   support_sheet_monthly_note: '언제든지 해지 가능',
   support_sheet_annual_hint: '다음 페이지에서 "Pay annually"를 선택하세요.',

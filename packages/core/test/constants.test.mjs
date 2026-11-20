@@ -48,7 +48,7 @@ test('supportUrl names the yearly plan, and monthly stays the plain link', () =>
 
 test('the membership prices live in one frozen place', () => {
   assert.ok(Object.isFrozen(c.SUPPORT_PRICES));
-  assert.deepEqual({ ...c.SUPPORT_PRICES }, { currency: 'EUR', monthly: 5, yearly: 46 });
+  assert.deepEqual({ ...c.SUPPORT_PRICES }, { currency: 'USD', monthly: 5, yearly: 50 });
   assert.ok(c.SUPPORT_PRICES.yearly < c.SUPPORT_PRICES.monthly * 12, 'the yearly plan is the cheaper one');
 });
 

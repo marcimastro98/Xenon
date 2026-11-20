@@ -27,7 +27,7 @@
   function money(amount, currency, code) {
     const digits = Number.isInteger(amount) ? 0 : 2;
     try {
-      return new Intl.NumberFormat(code || 'en', { style: 'currency', currency, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount);
+      return new Intl.NumberFormat(code || 'en', { style: 'currency', currency, currencyDisplay: 'narrowSymbol', minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount);
     } catch { return amount.toFixed(digits) + ' ' + currency; }
   }
 

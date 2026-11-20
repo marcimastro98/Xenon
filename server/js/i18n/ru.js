@@ -7387,7 +7387,7 @@ module.exports = {
   support_sheet_monthly: 'Ежемесячно',
   support_sheet_per_year: '{price} в год',
   support_sheet_per_month: '{price} в месяц',
-  support_sheet_yearly_note: '{price} в месяц, на {save} меньше, чем помесячно',
+  support_sheet_yearly_note: '{price} в месяц, 2 месяца бесплатно',
   support_sheet_yearly_theme: 'И тема, сделанная для вас по запросу',
   support_sheet_monthly_note: 'Можно отменить в любой момент',
   support_sheet_annual_hint: 'На следующей странице выберите «Pay annually».',

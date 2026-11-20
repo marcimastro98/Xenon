@@ -7442,7 +7442,7 @@ module.exports = {
   support_sheet_monthly: '月払い',
   support_sheet_per_year: '年 {price}',
   support_sheet_per_month: '月 {price}',
-  support_sheet_yearly_note: '月あたり {price}、月払いより {save} 安い',
+  support_sheet_yearly_note: '月あたり {price}、2か月分無料',
   support_sheet_yearly_theme: 'リクエストに応じてあなた専用のテーマも制作',
   support_sheet_monthly_note: 'いつでも解約できます',
   support_sheet_annual_hint: '次のページで「Pay annually」を選んでください。',
