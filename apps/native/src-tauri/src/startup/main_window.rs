@@ -54,6 +54,10 @@ pub(super) fn builder<'a>(
         // where phone mode still launches the app.
         .visible(!start_hidden)
         .focused(!start_hidden)
+        // macOS: a click on the dashboard while another app is in front must do what it
+        // points at, not only wake Xenon up (two clicks for a permission card, #159). The
+        // cards' own arming delay still drops a click that comes too early. A no-op elsewhere.
+        .accept_first_mouse(true)
         .center();
     // On macOS `transparent` exists only behind the `macos-private-api`
     // feature, which `macOSPrivateApi` in tauri.conf.json switches on —
