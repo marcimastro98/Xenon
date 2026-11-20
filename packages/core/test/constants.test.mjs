@@ -38,6 +38,20 @@ test('supportUrl goes through the hub counter with a validated label', () => {
   assert.equal(c.supportUrl(''), base + '?s=other');
 });
 
+test('supportUrl names the yearly plan, and monthly stays the plain link', () => {
+  const base = 'https://xenon-supporter-hub.xenonedge.workers.dev/go/support';
+  assert.equal(c.supportUrl('settings', 'yearly'), base + '?s=settings&p=yearly');
+  assert.equal(c.supportUrl('settings', 'monthly'), base + '?s=settings');
+  assert.equal(c.supportUrl('settings', 'sparks'), base + '?s=settings', 'Sparks packs have their own page');
+  assert.equal(c.supportUrl('settings', '&p=evil'), base + '?s=settings');
+});
+
+test('the membership prices live in one frozen place', () => {
+  assert.ok(Object.isFrozen(c.SUPPORT_PRICES));
+  assert.deepEqual({ ...c.SUPPORT_PRICES }, { currency: 'EUR', monthly: 5, yearly: 46 });
+  assert.ok(c.SUPPORT_PRICES.yearly < c.SUPPORT_PRICES.monthly * 12, 'the yearly plan is the cheaper one');
+});
+
 test('the trial page opens in the app language when the hub has it', () => {
   const base = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
   assert.equal(c.trialUrl('it'), base + '?lang=it');

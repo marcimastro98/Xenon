@@ -29,17 +29,22 @@
 
   // Every "support Xenon" button goes through the supporter hub, which counts
   // which surface it came from (no identifier, only a daily total per label)
-  // and then redirects to Buy Me a Coffee: the membership page by default, the
-  // one-time page for plan 'once'. Without it nobody could tell which ask works.
+  // and then redirects to Buy Me a Coffee: the membership page by default and
+  // for plan 'yearly' (counted apart), the one-time page for plan 'once'.
+  // Without it nobody could tell which ask works.
   const SUPPORT_REDIRECT = 'https://xenon-supporter-hub.xenonedge.workers.dev/go/support';
   const SUPPORT_SOURCE_RE = /^[a-z0-9][a-z0-9_-]{0,23}$/;
 
   function supportUrl(source, plan) {
     const s = String(source || '').toLowerCase();
     let url = SUPPORT_REDIRECT + '?s=' + (SUPPORT_SOURCE_RE.test(s) ? s : 'other');
-    if (plan === 'once') url += '&p=once';
+    if (plan === 'once' || plan === 'yearly') url += '&p=' + plan;
     return url;
   }
+
+  // The membership's prices, the one place the app reads them from. They must
+  // match the Supporter tier on the Buy Me a Coffee page: change both together.
+  const SUPPORT_PRICES = Object.freeze({ currency: 'EUR', monthly: 5, yearly: 46 });
 
   // The hub's pass trial page in the app's language. The hub speaks the site's
   // 7 languages and falls back on its own for the others.
@@ -50,5 +55,5 @@
     return /^[a-z]{2}$/.test(base) ? TRIAL_PAGE + '?lang=' + base : TRIAL_PAGE;
   }
 
-  return { LOOPBACK_ORIGIN, SUPPORTED_LANGS, DEFAULT_LANG, normalizeLangCode, supportUrl, trialUrl };
+  return { LOOPBACK_ORIGIN, SUPPORTED_LANGS, DEFAULT_LANG, normalizeLangCode, supportUrl, SUPPORT_PRICES, trialUrl };
 });
