@@ -99,7 +99,7 @@
       "id": "store-supporters",
       "area": "store",
       "name": "Supporters and Sparks",
-      "what": "Supporter codes, Sparks, the trial pass, what they unlock, the sheet before joining, and the hub's messages.",
+      "what": "Supporter codes, Sparks, the trial pass and its sheet that asks for it by email, what they unlock, the sheet before joining, and the hub's messages.",
       "files": [
         "server/store-supporters/**",
         "server/components/SparksStore/**",
