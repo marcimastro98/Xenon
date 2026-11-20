@@ -226,7 +226,7 @@
   }
 
   function toast(type, message) {
-    if (window.XenonToast) window.XenonToast.show({ type, title: type === 'success' ? t('trial_sheet_on_title') : t('trial_sheet_title'), message, duration: 8000 });
+    if (window.XenonToast) window.XenonToast.show({ type, title: type === 'success' ? t('trial_sheet_on_title') : t('trial_sheet_title'), message, duration: 8000, important: true });
   }
 
   async function answered(out) {
