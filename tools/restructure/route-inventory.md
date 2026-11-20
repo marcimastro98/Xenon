@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-539 routes.
-- Asked by: 1 before the chain, 56 chain, 12 feature, 4 socket, 466 table.
-- Paired device: 25 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 12 no: a GET that changes something, 4 no: sockets take the loopback door only, 408 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 355 (none), 175 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+543 routes.
+- Asked by: 1 before the chain, 56 chain, 16 feature, 4 socket, 466 table.
+- Paired device: 29 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 12 no: a GET that changes something, 4 no: sockets take the loopback door only, 408 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 356 (none), 178 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -124,6 +124,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | POST | `/api/community/supporter/save` | table | server/store-supporters/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
 | GET | `/api/community/trial` | table | server/store-supporters/routes-unlock.js | yes |  |  |  |
 | POST | `/api/community/trial/check` | table | server/store-supporters/routes-unlock.js | yes | CSRF_MUTATION_PATHS |  |  |
+| POST | `/api/community/trial/forget` | feature | server/trial-link/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
+| GET | `/api/community/trial/pending` | feature | server/trial-link/routes.js | no: REMOTE_ADMIN |  |  |  |
+| POST | `/api/community/trial/poll` | feature | server/trial-link/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
+| POST | `/api/community/trial/request` | feature | server/trial-link/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
 | POST | `/api/community/trial/tried` | table | server/store-supporters/routes-unlock.js | yes | CSRF_MUTATION_PATHS |  |  |
 | POST | `/api/community/update` | table | server/store-supporters/routes.js | yes | CSRF_MUTATION_PATHS |  |  |
 | GET | `/api/companion/cost` | table | server/ai/routes-voice.js | yes |  |  |  |

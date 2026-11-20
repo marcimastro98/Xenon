@@ -31,6 +31,12 @@ const CLASSIFIED = Object.freeze({
   'POST /hints/reset': { remote: false },
   // The PC's screens went off or came back: only the PC knows.
   'POST /screens-off': { remote: false },
+  // The trial asked from the app: the request names this PC to the hub and the poll
+  // hands back a trial code, so the PC only; a paired phone opens the hub's page.
+  'GET /api/community/trial/pending': { remote: false },
+  'POST /api/community/trial/request': { remote: false },
+  'POST /api/community/trial/poll': { remote: false },
+  'POST /api/community/trial/forget': { remote: false },
 });
 
 const SERVER = engineSource();

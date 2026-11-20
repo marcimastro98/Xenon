@@ -132,7 +132,7 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/community/buy',
   '/api/community/sparks/save',
   '/api/community/sparks/forget',
-  // The pass trial: hub calls and writes, by POST only (request/poll/forget: trial-claim.js). The read
+  // The pass trial: hub calls and writes, by POST only (request/poll/forget: trial-link/). The read
   // (/api/community/trial) is deliberately absent, like the supporter boolean.
   '/api/community/trial/check',
   '/api/community/trial/tried', '/api/community/trial/request', '/api/community/trial/poll', '/api/community/trial/forget',

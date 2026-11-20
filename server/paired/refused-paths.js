@@ -217,7 +217,7 @@ const REMOTE_ADMIN = new Set([
   '/api/community/supporter/save',
   '/api/community/sparks/save',
   '/api/community/buy',
-  // The trial asked from the app (trial-claim.js): the request names this PC to the hub
+  // The trial asked from the app (trial-link/routes.js): the request names this PC to the hub
   // and the poll hands back a trial code. A paired phone opens the hub's /trial page.
   '/api/community/trial/pending', '/api/community/trial/request', '/api/community/trial/poll',
   '/api/community/trial/forget',

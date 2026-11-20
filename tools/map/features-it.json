@@ -29,7 +29,7 @@
     "tests": ["Test", "I controlli automatici, lanciati da npm test."],
     "mcp": ["xenon-mcp", "Permette a Claude Code o Codex di creare e provare un widget su uno Xenon acceso."],
     "shared-core": ["Nucleo condiviso e brand", "Costanti e formattatori usati sia dal motore sia dallo schermo, e il riferimento del brand."],
-    "store-supporters": ["Sostenitori e Scintille", "Codici dei sostenitori, il portafoglio delle Scintille, il pass di prova e il suo foglio che lo chiede via email, cosa sbloccano, il foglio prima di unirsi e i messaggi dell'hub."],
+    "store-supporters": ["Sostenitori e Scintille", "Codici dei sostenitori, il portafoglio delle Scintille, il pass di prova chiesto via email, cosa sbloccano, il foglio prima di unirsi e i messaggi dell'hub."],
     "store-catalog": ["Store", "Il catalogo: sfogliare, comprare, installare, votare e aggiornare look, widget e pacchetti."],
     "presets": ["Condividere un look", "Esportare e importare temi, pagine e pacchetti come codice, con i controlli su quello che entra."],
     "widget-sdk": ["SDK dei widget", "Fa girare i widget degli altri in una sandbox, solo con i permessi concessi."],

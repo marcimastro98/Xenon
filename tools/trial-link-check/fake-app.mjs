@@ -1,6 +1,6 @@
 // The page's world for tools/trial-link-check: a static copy of server/, a fake hub,
 // and the app routes the trial sheet calls. The trial routes are the app's own module
-// (store-supporters/trial-claim.js) talking to the fake hub; the redeem is a fake of the
+// (trial-link/trial-link.js) talking to the fake hub; the redeem is a fake of the
 // Lyrics unlock route that takes only the code the fake hub issued.
 
 import fs from 'node:fs';
@@ -15,7 +15,7 @@ export const ROOT = path.resolve(HERE, '..', '..', 'server');
 const require = createRequire(import.meta.url);
 const LayerStrings = require(path.join(ROOT, 'layers/layer-strings.js'));
 const { SUPPORTED_LANGS } = require(path.join(ROOT, 'shared', 'src', 'constants.js'));
-export const { createTrialClaim, matchCodeOf, FILE: CLAIM_FILE } = require(path.join(ROOT, 'store-supporters', 'trial-claim.js'));
+export const { createTrialClaim, matchCodeOf, FILE: CLAIM_FILE } = require(path.join(ROOT, 'trial-link', 'trial-link.js'));
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 export const HUB_CODE = 'XT-K7RW-M3NP-Q9TX';

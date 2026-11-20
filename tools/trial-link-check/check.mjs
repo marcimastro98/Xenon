@@ -1,6 +1,6 @@
 // The free week asked from the app, on the real page: a locked Store item, "Try 7
 // days free", the email, the wait with its match code, the hub confirming, the trial
-// on with its end date. The app's own server module (store-supporters/trial-claim.js)
+// on with its end date. The app's own server module (trial-link/trial-link.js)
 // answers the sheet, talking to a fake hub in this process; the redeem is a fake of
 // the Lyrics unlock route that accepts only the code the fake hub issued. Nothing
 // leaves for the net and no real server is touched. Playwright is borrowed as in

@@ -1,7 +1,7 @@
 'use strict';
 
 // The pass trial without copying a code, this PC's side. The trial sheet
-// (js/store-supporters/trial-sheet.js) sends the address here; this module asks
+// (js/store-supporters/trial-sheet.js) sends the address to routes.js; this module asks
 // the hub to email the trial (POST /trial/request) with a CLAIM: 32 random bytes
 // made for this one request, never an id this PC already has. The email's
 // "Start the trial" button confirms the address on the hub; the sheet then asks
@@ -22,7 +22,7 @@ const fsp = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const { writeFileAtomic } = require('../files/atomic-write.js');
-const supporterRedeem = require('./supporter-redeem.js');
+const supporterRedeem = require('../store-supporters/supporter-redeem.js');
 
 const FILE = 'trial-claim.json';
 const LIFE_MS = 24 * 60 * 60 * 1000;

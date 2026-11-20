@@ -1,6 +1,6 @@
 'use strict';
 // The free week asked from the app, with no code to copy. The sheet takes an
-// email; the server (store-supporters/trial-claim.js) asks the hub to send it with
+// email; the server (trial-link/trial-link.js) asks the hub to send it with
 // a random claim. The email's "Start the trial" button confirms the address, and
 // this sheet, which asks the server now and then, gets the trial code back once.
 // It redeems that code where a pasted code goes (POST /api/features/lyrics/unlock,

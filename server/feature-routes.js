@@ -15,6 +15,7 @@ const FEATURES = Object.freeze([
   require('./spotlight-ask/routes.js'),
   require('./hints/routes.js'),
   require('./screens-off/routes.js'),
+  require('./trial-link/routes.js'),
 ]);
 
 const ROUTES = new Map(FEATURES.flatMap((f) => Object.entries(f.routes)));

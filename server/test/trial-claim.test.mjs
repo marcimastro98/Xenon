@@ -1,4 +1,4 @@
-// The pass trial without copying a code, this PC's side (store-supporters/trial-claim.js).
+// The pass trial without copying a code, this PC's side (trial-link/).
 //
 // The rules these tests hold:
 //  - a request sends the hub a fresh random claim, never this PC's id as the claim,
@@ -16,9 +16,10 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const { createTrialClaim, matchCodeOf, LIFE_MS, POLL_GAP_MS, MATCH_ALPHABET, FILE } = require('../store-supporters/trial-claim.js');
+const { createTrialClaim, matchCodeOf, LIFE_MS, POLL_GAP_MS, MATCH_ALPHABET, FILE } = require('../trial-link/trial-link.js');
 const ra = require('../paired/remote-access.js');
 
 const CODE = 'XT-ABCD-EFGH-JKLM';
@@ -213,16 +214,34 @@ test('a paired phone reaches none of it; the writes are CSRF-guarded on both lis
   }
   assert.equal(ra.remotePathAllowed('/api/community/trial/pending', 'GET'), false);
   const src = (rel) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8');
-  const server = src('server.js');
+  const server = engineSource();
   const block = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['));
   const csrf = block.slice(0, block.indexOf(']);'));
-  const remote = src('paired/remote-access.js');
+  const remote = engineSource('server/paired/remote-access.js');
   for (const p of ['/api/community/trial/request', '/api/community/trial/poll', '/api/community/trial/forget']) {
     assert.ok(csrf.includes(`'${p}'`), 'server.js CSRF ' + p);
     assert.ok(remote.includes(`'${p}'`), 'remote-access CSRF ' + p);
   }
-  const routes = src('store-supporters/routes-unlock.js');
-  for (const r of ['GET /api/community/trial/pending', 'POST /api/community/trial/request', 'POST /api/community/trial/poll', 'POST /api/community/trial/forget']) {
-    assert.ok(routes.includes(`'${r}'`), r);
-  }
+  const routes = Object.keys(require('../trial-link/routes.js').routes).sort();
+  assert.deepEqual(routes, ['GET /api/community/trial/pending', 'POST /api/community/trial/forget', 'POST /api/community/trial/poll', 'POST /api/community/trial/request']);
+});
+
+test('the routes read the body, hand the work over, and refuse a body that is not an object', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'xenon-trial-routes-'));
+  const routes = require('../trial-link/routes.js');
+  routes.stop();
+  try {
+    const sent = [];
+    const ctx = (body) => ({ json: (v) => sent.push(v), err500: (m) => sent.push({ err500: m }), dataDir, readBody: async () => body });
+    const hands = { trialPass: { status: async () => ({ state: 'active' }) } };
+    await routes.routes['POST /api/community/trial/request'](null, null, ctx('not json'), hands);
+    await routes.routes['POST /api/community/trial/request'](null, null, ctx('null'), hands);
+    await routes.routes['POST /api/community/trial/request'](null, null, ctx(JSON.stringify({ email: 'a@example.com' })), hands);
+    await routes.routes['GET /api/community/trial/pending'](null, null, ctx(''), hands);
+    await routes.routes['POST /api/community/trial/poll'](null, null, ctx(''), hands);
+    assert.deepEqual(sent, [
+      { ok: false, error: 'bad_request' }, { ok: false, error: 'bad_request' },
+      { ok: false, error: 'trial_used' }, { ok: true, pending: false }, { ok: true, state: 'none' },
+    ], 'a PC that had its trial never reaches the hub');
+  } finally { routes.stop(); rmSync(dataDir, { recursive: true, force: true }); }
 });
