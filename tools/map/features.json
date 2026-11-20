@@ -435,6 +435,7 @@
         "server/sensor-service/**",
         "server/sensor-service.ps1",
         "server/sensor-history/**",
+        "server/screens-off/**",
         "server/cpu-temp.ps1",
         "server/gpu.ps1",
         "server/network.ps1",

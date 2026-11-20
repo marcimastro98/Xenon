@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-538 routes.
-- Asked by: 1 before the chain, 56 chain, 11 feature, 4 socket, 466 table.
-- Paired device: 24 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 12 no: a GET that changes something, 4 no: sockets take the loopback door only, 408 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 355 (none), 174 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+539 routes.
+- Asked by: 1 before the chain, 56 chain, 12 feature, 4 socket, 466 table.
+- Paired device: 25 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 12 no: a GET that changes something, 4 no: sockets take the loopback door only, 408 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 355 (none), 175 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -413,6 +413,7 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | GET | `/screen-draw` | table | server/alerts/routes.js | no: REMOTE_DENY |  |  |  |
 | GET | `/screen-menu` | table | server/menu/routes.js | no: REMOTE_DENY | CSRF_MUTATION_PATHS |  |  |
 | POST | `/screen-menu` | table | server/menu/routes.js | no: REMOTE_DENY | CSRF_MUTATION_PATHS |  |  |
+| POST | `/screens-off` | feature | server/screens-off/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
 | GET | `/sdk-service` | table | server/widget-sdk/routes.js | no: REMOTE_DENY |  |  |  |
 | POST | `/sdk/ai` | table | server/widget-sdk/routes-calls.js | yes | CSRF_MUTATION_PATHS |  |  |
 | GET | `/sdk/asset/*` | chain | server/widget-sdk/routes-images.js | yes |  |  |  |

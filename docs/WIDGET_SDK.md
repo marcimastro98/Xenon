@@ -1199,7 +1199,9 @@ Settings → Performance → *Sensor sources*, and `system` says which one it is
 
 The `sensors` stream is the whole catalog, for a widget that wants more than the
 headline numbers: the liquid temperature of an AIO, a VRM, one fan by name, the
-hot spot of a GPU. One payload every 3 seconds:
+hot spot of a GPU. One payload every 3 seconds. While the PC's screens are off
+(and for 15 seconds after they wake) this stream, `system` and `processes` send
+nothing, unless a paired device is watching: keep the last values.
 
 ```js
 if (m.type === 'data' && m.stream === 'sensors') {

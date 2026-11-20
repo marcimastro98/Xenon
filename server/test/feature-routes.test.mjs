@@ -29,6 +29,8 @@ const CLASSIFIED = Object.freeze({
   'GET /hints': { remote: false },
   'POST /hints/seen': { remote: false },
   'POST /hints/reset': { remote: false },
+  // The PC's screens went off or came back: only the PC knows.
+  'POST /screens-off': { remote: false },
 });
 
 const SERVER = engineSource();

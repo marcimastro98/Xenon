@@ -169,6 +169,8 @@ test('bin: prints its version, and speaks MCP on stdin', async () => {
     let out = '';
     p.stdout.on('data', (c) => { out += c; });
     p.on('close', () => resolve(out));
+    // --version exits without reading stdin: on macOS the write can then fail with EPIPE.
+    p.stdin.on('error', () => {});
     p.stdin.end(input || '');
   });
   assert.equal((await run(['--version'])).trim(), pkg.version);

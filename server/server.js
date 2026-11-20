@@ -3278,6 +3278,7 @@ const { readEvents, readTasks } = require('./time/store-read.js');
 const { readIdleSeconds, _idleProbe } = require('./system/idle-seconds.js');
 
 const { backgroundHeld } = require('./performance/background-held.js');
+const screensOff = require('./screens-off/state.js');
 
 const { _guardHelperMediaBlindSpot, mediaScriptArgs } = require('./media/helper-blind-spot.js');
 
@@ -3613,7 +3614,7 @@ const { announceProcessesProblem } = require('./performance/processes-problem.js
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  if (!processesWanted()) return;
+  if (!processesWanted() || screensOff.readsWait(sseClients)) return;
   if (_processesBusy) return;
   if (backgroundHeld() && Date.now() - _processesPolledAt < PROCESSES_POLL_GAME_MS) return;
   _processesPolledAt = Date.now();
@@ -3645,7 +3646,7 @@ setInterval(async () => {
 const { SENSORS_STREAM_POLL_MS } = require('./system/sensors-stream-timing.js');
 let _sensorsStreamBusy = false;
 setInterval(async () => {
-  if (sseClients.size === 0 || _sensorsStreamBusy || !sdkStreamGranted('sensors')) return;
+  if (sseClients.size === 0 || _sensorsStreamBusy || !sdkStreamGranted('sensors') || screensOff.readsWait(sseClients)) return;
   _sensorsStreamBusy = true;
   try {
     const r = await collectSensors(null);
@@ -4309,8 +4310,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // back for the user either.
   '/update/auto/postpone',
   // Marks What's New and the fixes of a release as read. A page on another site
-  // could otherwise make sure the user never hears about an update. The hints the same.
-  '/update/notice-seen', '/hints/seen', '/hints/reset',
+  // could otherwise make sure the user never hears about an update. The hints and screens-off the same.
+  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off',
   // Bit's messages: filing one, or spending the day's on a page nobody sees, is
   // not something another site may do for the user.
   '/bit/messages/file',
@@ -7404,15 +7405,11 @@ async function broadcastMediaNow() {
 
 setInterval(() => { broadcastMediaNow().catch(() => {}); }, 2000).unref();
 
-// 5s, matched to the caches underneath rather than picked as a feel. getCpuTemp
-// and getGpuInfo each hold their reading for 5s, so this is the fastest cadence
-// that costs nothing extra: every tick now lands on a fresh read instead of
-// re-sending a value up to two seconds old, which is where the "sensors feel
-// slow" impression came from. Going BELOW 5s would mean lowering those caches
-// too, and that is the expensive half — on Windows they are LibreHardwareMonitor
-// round-trips through the persistent worker, paid continuously on a machine that
-// is often also running a game. If a faster rate is ever offered it belongs in
-// Settings, saying what it costs, not as a new default for everyone.
+// 5s by default, matched to the 5s caches of getCpuTemp and getGpuInfo, so every
+// tick lands on a fresh read. Faster means lowering those caches too, and on
+// Windows they are LibreHardwareMonitor round-trips through the persistent worker,
+// paid continuously on a machine often running a game. While the PC's screens are
+// off nothing is read unless a paired device watches (screens-off/state.js).
 // Self-rescheduling rather than a fixed interval: the cadence is a setting now,
 // and a setInterval would hold whatever it was created with until a restart.
 // Each tick reads it again, so a change in Settings applies to the next one.
@@ -7421,7 +7418,7 @@ setInterval(() => { broadcastMediaNow().catch(() => {}); }, 2000).unref();
 // the interval (a cold LHM call, a busy machine) would otherwise queue ticks on
 // top of each other, and at 1s that stops being theoretical.
 async function _systemTick() {
-  if (sseClients.size > 0) {
+  if (sseClients.size > 0 && !screensOff.readsWait(sseClients)) {
     try {
       const sys = await getSystemInfo();
       broadcastSSE('system', sys);

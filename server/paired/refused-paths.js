@@ -204,6 +204,8 @@ const REMOTE_ADMIN = new Set([
   '/spotlight/ask', '/spotlight/ask/take',
   // The hints this PC has shown (hints/routes.js): they are about the PC, not a phone.
   '/hints', '/hints/seen', '/hints/reset',
+  // The PC's screens went off or came back (screens-off/routes.js): only the PC knows.
+  '/screens-off',
   '/api/features/devclean/unlock',
   '/api/features/lyrics/unlock',
   // Throws away the PC's remembered supporter pass: only the person at the PC

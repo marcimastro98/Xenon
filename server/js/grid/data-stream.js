@@ -829,10 +829,10 @@
         window._reconcileSettingsAfterReconnect();
       }
       if (window.LayersShell && typeof window.LayersShell.onStream === 'function') window.LayersShell.onStream();
-      // The native app is here, so the server waits for its claim on the search
-      // shortcut instead of opening the Edge search over it (spotlight-hotkey/claim.js).
+      // The native app: it claims the search shortcut (spotlight-hotkey/claim.js) and says if the screens are off.
       if ((window.__XENON_NATIVE__ === true || window.isTauri === true) && !isLayerPage()) {
         fetch('/spotlight/claimed', { method: 'POST' }).catch(() => {});
+        if (window.ambientFreeze && typeof window.ambientFreeze.reportScreens === 'function') window.ambientFreeze.reportScreens();
       }
       // Back after a drop: background widget frames mounted while the engine was
       // away hold an error page, so they are mounted again now.
