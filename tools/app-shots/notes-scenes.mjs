@@ -7,15 +7,16 @@
 import { readFileSync } from 'node:fs';
 
 const WHATSNEW = JSON.parse(readFileSync(new URL('../../server/whatsnew.json', import.meta.url), 'utf8'));
-const ROW = WHATSNEW.releases.find((r) => r.version === '5.2.0')?.news[0];
+const REL = WHATSNEW.releases.find((r) => r.version === '5.2.0');
+const ROW = REL?.news[0];
 
-async function releaseNotes({ lang = 'it', corner = false, row } = {}) {
+async function releaseNotes({ lang = 'it', corner = false, row, rel } = {}) {
   const pause = (ms) => new Promise((r) => setTimeout(r, ms));
   setLang(lang);
   await pause(400);
   const text = (v) => (v && typeof v === 'object' ? v[lang] || v.en : v || '');
   const opts = {
-    notes: { version: '5.2.0', news: [row], fixes: [] }, text, tr: (k) => t(k),
+    notes: rel || { version: '5.2.0', news: [row], fixes: [] }, text, tr: (k) => t(k),
     url: 'https://example.com/releases', openUrl() {}, menuKey: 'Alt+Shift+X', openXenon() {}, onClose() {},
   };
   if (corner) {
@@ -37,4 +38,7 @@ export const notesScenes = {
   'notes-xenon-ru': scene('ru', false, ['desk', 'phone']),
   'notes-xenon-ja': scene('ja', false, ['phone']),
   'notes-xenon-corner': scene('it', true, ['desk', 'phone']),
+  // The whole 5.2.0 notes, every row and fix, as an updater sees them.
+  'notes-520-full': { sizes: ['desk', 'phone', 'edge'], open: releaseNotes, arg: { lang: 'it', rel: REL } },
+  'notes-520-full-de': { sizes: ['phone'], open: releaseNotes, arg: { lang: 'de', rel: REL } },
 };

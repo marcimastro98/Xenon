@@ -476,9 +476,487 @@
           },
           "keys": true,
           "section": "screens"
+        },
+        {
+          "title": {
+            "it": "Prova il pass sostenitore gratis per 7 giorni",
+            "en": "Try the supporter pass free for 7 days",
+            "es": "Prueba gratis el pase de mecenas 7 días",
+            "fr": "Essayez le pass supporter gratuitement pendant 7 jours",
+            "de": "Teste den Unterstützer-Pass 7 Tage kostenlos",
+            "pt": "Experimente o passe de apoiante grátis durante 7 dias",
+            "ru": "Попробуйте пропуск спонсора бесплатно 7 дней",
+            "nl": "Probeer de supporterpas 7 dagen gratis",
+            "ko": "후원자 패스를 7일 동안 무료로 써 보세요",
+            "ja": "サポーターパスを7日間無料で",
+            "zh": "免费试用支持者通行证 7 天"
+          },
+          "text": {
+            "it": "Scrivi la tua email dentro Xenon, premi Inizia la prova nell'email, anche dal telefono, e la settimana parte da sola su questo PC. Nessun codice da copiare.",
+            "en": "Type your email right in Xenon, press Start the trial in the email, even on your phone, and the week starts on this PC by itself. No code to copy.",
+            "es": "Escribe tu correo dentro de Xenon, pulsa Empezar la prueba en el correo, también desde el móvil, y la semana empieza sola en este PC. Sin códigos que copiar.",
+            "fr": "Saisissez votre e-mail dans Xenon, appuyez sur Commencer l'essai dans l'e-mail, même depuis votre téléphone, et la semaine démarre toute seule sur ce PC. Aucun code à copier.",
+            "de": "Gib deine E-Mail direkt in Xenon ein, tippe in der E-Mail auf „Start the trial“, auch am Handy, und die Woche beginnt auf diesem PC von selbst. Kein Code zum Kopieren.",
+            "pt": "Escreva o seu email no Xenon, toque em \"Start the trial\" no email, até no telemóvel, e a semana começa sozinha neste PC. Sem códigos para copiar.",
+            "ru": "Введите почту прямо в Xenon, нажмите «Start the trial» в письме, хоть с телефона, и неделя начнётся на этом ПК сама. Код копировать не нужно.",
+            "nl": "Typ je e-mail in Xenon, tik in de e-mail op „Start the trial”, ook op je telefoon, en de week begint vanzelf op deze pc. Geen code om te kopiëren.",
+            "ko": "Xenon에서 이메일을 입력하고 메일의 체험 시작을 누르면(휴대폰에서도 됩니다) 이 PC에서 일주일이 저절로 시작됩니다. 복사할 코드는 없습니다.",
+            "ja": "Xenon でメールアドレスを入力し、届いたメールで「お試しを始める」を押すだけ（スマホからでも OK）。この PC で1週間が自動で始まります。コードのコピーは不要です。",
+            "zh": "在 Xenon 中输入邮箱，在邮件里点“开始试用”（手机上也可以），这台电脑上的一周试用就会自动开始。无需复制任何代码。"
+          }
+        },
+        {
+          "title": {
+            "it": "Widget che lasciano passare i clic",
+            "en": "Widgets that let clicks through",
+            "es": "Widgets que dejan pasar los clics",
+            "fr": "Des widgets qui laissent passer les clics",
+            "de": "Widgets, durch die Klicks hindurchgehen",
+            "pt": "Widgets que deixam passar os cliques",
+            "ru": "Виджеты, пропускающие клики",
+            "nl": "Widgets waar klikken doorheen gaan",
+            "ko": "클릭이 통과하는 위젯",
+            "ja": "クリックを通すウィジェット",
+            "zh": "让点击穿过的小组件"
+          },
+          "text": {
+            "it": "Mentre modifichi i widget sullo schermo, tocca un widget e attiva Lascia passare i clic: resta visibile e ogni clic arriva a quello che c'è dietro. Le frecce lo spostano di un pixel alla volta.",
+            "en": "While editing the widgets on screen, tap one and turn on Clicks pass through: it stays visible and every click lands on what is behind it. The arrow keys move it one pixel at a time.",
+            "es": "Al editar los widgets en pantalla, toca uno y activa Deja pasar los clics: sigue visible y cada clic llega a lo que hay detrás. Las flechas lo mueven de píxel en píxel.",
+            "fr": "Pendant que vous modifiez les widgets à l'écran, touchez-en un et activez Laisser passer les clics : il reste visible et chaque clic atteint ce qui se trouve derrière. Les flèches le déplacent pixel par pixel.",
+            "de": "Beim Bearbeiten der Widgets auf dem Bildschirm tippst du eines an und schaltest Klicks gehen hindurch ein: Es bleibt sichtbar, und jeder Klick landet auf dem, was dahinter liegt. Die Pfeiltasten verschieben es pixelweise.",
+            "pt": "Ao editar os widgets no ecrã, toque num e ative Deixa passar os cliques: continua visível e cada clique chega ao que está por trás. As setas movem-no um píxel de cada vez.",
+            "ru": "Во время изменения виджетов на экране нажмите на виджет и включите «Пропускать клики»: он останется виден, а каждый клик попадёт в то, что под ним. Стрелки двигают его на один пиксель.",
+            "nl": "Tik tijdens het bewerken van de widgets op het scherm op een widget en zet Klikken gaan erdoorheen aan: hij blijft zichtbaar en elke klik komt aan bij wat erachter ligt. Met de pijltjestoetsen verschuif je hem per pixel.",
+            "ko": "화면의 위젯을 편집하는 동안 위젯을 누르고 클릭 통과를 켜세요. 위젯은 그대로 보이고 클릭은 모두 그 뒤에 있는 것으로 갑니다. 화살표 키로 1픽셀씩 옮길 수 있습니다.",
+            "ja": "画面上のウィジェットを編集中にウィジェットをタップし、「クリックを通す」をオンに。表示はそのままで、クリックは背後のものに届きます。矢印キーで1ピクセルずつ動かせます。",
+            "zh": "编辑屏幕上的小组件时，点一下某个小组件并打开“让点击穿过”：它仍然可见，每次点击都会落到它后面的内容上。方向键可以一次移动一个像素。"
+          },
+          "section": "screens"
+        },
+        {
+          "title": {
+            "it": "I giochi in finestra non sfuggono più",
+            "en": "Games in a window no longer slip by",
+            "es": "Los juegos en ventana ya no se escapan",
+            "fr": "Les jeux en fenêtre ne passent plus inaperçus",
+            "de": "Spiele im Fenster rutschen nicht mehr durch",
+            "pt": "Os jogos em janela já não passam despercebidos",
+            "ru": "Игры в окне больше не ускользают",
+            "nl": "Games in een venster glippen er niet meer door",
+            "ko": "창 모드 게임도 놓치지 않습니다",
+            "ja": "ウィンドウ表示のゲームも見逃しません",
+            "zh": "窗口模式的游戏不再被漏掉"
+          },
+          "text": {
+            "it": "Se un'app in finestra disegna come un gioco, Xenon chiede una volta se lo è. In Impostazioni, Prestazioni c'è anche la lista Sempre giochi.",
+            "en": "When an app in a window draws like a game, Xenon asks once whether it is one. Settings, Performance also has an Always games list.",
+            "es": "Si una app en ventana dibuja como un juego, Xenon pregunta una vez si lo es. En Ajustes, Rendimiento también está la lista Siempre juegos.",
+            "fr": "Quand une app en fenêtre s'affiche comme un jeu, Xenon demande une fois si c'en est un. Réglages, Performances propose aussi la liste Toujours des jeux.",
+            "de": "Wenn eine App im Fenster wie ein Spiel zeichnet, fragt Xenon einmal, ob es eins ist. Unter Einstellungen, Leistung gibt es dazu die Liste Immer Spiele.",
+            "pt": "Quando uma app em janela desenha como um jogo, o Xenon pergunta uma vez se é. Em Definições, Desempenho há também a lista Sempre jogos.",
+            "ru": "Если приложение в окне рисует как игра, Xenon один раз спросит, игра ли это. В «Настройки» → «Производительность» есть и список «Всегда игры».",
+            "nl": "Als een app in een venster tekent als een game, vraagt Xenon één keer of het er een is. Onder Instellingen, Prestaties staat ook de lijst Altijd games.",
+            "ko": "창 모드 앱이 게임처럼 그려지면 Xenon이 게임인지 한 번 묻습니다. 설정 > 성능에는 항상 게임 목록도 있습니다.",
+            "ja": "ウィンドウのアプリがゲームのように描画していると、Xenon がゲームかどうかを一度だけ確認します。設定の「パフォーマンス」には「常にゲーム」リストもあります。",
+            "zh": "当窗口中的应用像游戏一样绘制画面时，Xenon 会询问一次它是否是游戏。设置的“性能”里还有“始终是游戏”列表。"
+          }
+        },
+        {
+          "title": {
+            "it": "Chiedi a Bit della tua partita",
+            "en": "Ask Bit about your game",
+            "es": "Pregunta a Bit por tu partida",
+            "fr": "Demandez à Bit comment s'est passée votre partie",
+            "de": "Frag Bit nach deinem Spiel",
+            "pt": "Pergunte ao Bit sobre o seu jogo",
+            "ru": "Спросите Bit о своей игре",
+            "nl": "Vraag Bit naar je potje",
+            "ko": "Bit에게 게임에 대해 물어보세요",
+            "ja": "ゲームのことを Bit に聞く",
+            "zh": "问问 Bit 你这局打得怎么样"
+          },
+          "text": {
+            "it": "Il riepilogo di fine partita e gli avvisi di temperatura hanno un pulsante Chiedi a Bit, con la domanda già scritta. Non parte nulla finché non premi invio.",
+            "en": "The end-of-game recap and the temperature alerts have an Ask Bit button, with the question already written. Nothing is sent until you tap send.",
+            "es": "El resumen de fin de partida y los avisos de temperatura tienen un botón Preguntar a Bit, con la pregunta ya escrita. No se envía nada hasta que pulsas enviar.",
+            "fr": "Le récap de fin de partie et les alertes de température ont un bouton Demander à Bit, avec la question déjà écrite. Rien n'est envoyé tant que vous n'appuyez pas sur envoyer.",
+            "de": "Die Zusammenfassung nach dem Spiel und die Temperaturwarnungen haben einen Knopf Bit fragen, mit fertig formulierter Frage. Gesendet wird erst, wenn du auf Senden tippst.",
+            "pt": "O resumo do fim do jogo e os alertas de temperatura têm um botão Perguntar ao Bit, com a pergunta já escrita. Nada é enviado até tocar em enviar.",
+            "ru": "В итогах игры и предупреждениях о температуре есть кнопка «Спросить Bit» с уже написанным вопросом. Ничего не отправится, пока вы не нажмёте «Отправить».",
+            "nl": "Het overzicht na een potje en de temperatuurmeldingen hebben een knop Vraag het Bit, met de vraag al ingevuld. Er wordt niets verstuurd tot je op verzenden tikt.",
+            "ko": "게임 종료 요약과 온도 경고에 Bit에게 묻기 버튼이 생겼고, 질문이 미리 적혀 있습니다. 보내기를 누르기 전에는 아무것도 전송되지 않습니다.",
+            "ja": "ゲーム終了時のまとめと温度の警告に「Bit に聞く」ボタンが付き、質問はあらかじめ入力済み。送信を押すまで何も送られません。",
+            "zh": "游戏结束总结和温度警告里新增了“问 Bit”按钮，问题已经帮你写好。在你点发送之前不会发送任何内容。"
+          }
+        },
+        {
+          "title": {
+            "it": "Un tasto del Deck che chiude un'app",
+            "en": "A Deck key that closes an app",
+            "es": "Una tecla del Deck que cierra una app",
+            "fr": "Une touche du Deck qui ferme une appli",
+            "de": "Eine Deck-Taste, die eine App schließt",
+            "pt": "Uma tecla do Deck que fecha uma app",
+            "ru": "Клавиша Deck, которая закрывает приложение",
+            "nl": "Een Deck-toets die een app sluit",
+            "ko": "앱을 닫는 Deck 키",
+            "ja": "アプリを閉じる Deck キー",
+            "zh": "关闭应用的 Deck 按键"
+          },
+          "text": {
+            "it": "Chiudi o riduci a icona un'app agisce su tutte le finestre dell'app che scegli, anche se è dietro le altre. Chiude come la X dell'app, così il lavoro non salvato può ancora essere salvato.",
+            "en": "Close or minimize an app acts on every window of the app you pick, even behind others. It closes like the app's own X, so unsaved work can still be saved.",
+            "es": "Cerrar o minimizar una app actúa sobre todas las ventanas de la app que elijas, aunque esté detrás de otras. Cierra como la X de la propia app, así el trabajo sin guardar aún se puede guardar.",
+            "fr": "Fermer ou réduire une appli agit sur toutes les fenêtres de l'appli choisie, même cachée derrière d'autres. Elle ferme comme le X de l'appli, donc un travail non enregistré peut encore l'être.",
+            "de": "App schließen oder minimieren wirkt auf alle Fenster der gewählten App, auch hinter anderen. Sie schließt wie das X der App, ungespeicherte Arbeit lässt sich also noch sichern.",
+            "pt": "Fechar ou minimizar uma app atua em todas as janelas da app que escolher, mesmo atrás de outras. Fecha como o X da própria app, por isso o trabalho por guardar ainda pode ser guardado.",
+            "ru": "«Закрыть или свернуть приложение» действует на все окна выбранного приложения, даже за другими окнами. Закрывает как крестик самого приложения, так что несохранённое ещё можно сохранить.",
+            "nl": "Een app sluiten of minimaliseren werkt op elk venster van de app die je kiest, ook achter andere vensters. Het sluit zoals de X van de app zelf, dus niet-opgeslagen werk kan nog worden bewaard.",
+            "ko": "앱 닫기 또는 최소화는 고른 앱의 모든 창에 적용되며, 다른 창 뒤에 있어도 됩니다. 앱의 X처럼 닫으므로 저장하지 않은 작업도 저장할 수 있습니다.",
+            "ja": "「アプリを閉じる・最小化」は、選んだアプリのすべてのウィンドウに働きます。他のウィンドウの後ろにあっても大丈夫。アプリ自身の × と同じように閉じるので、未保存の作業も保存できます。",
+            "zh": "“关闭或最小化应用”作用于你所选应用的所有窗口，即使它在其他窗口后面。它像应用自己的 X 一样关闭，未保存的内容仍可保存。"
+          }
+        },
+        {
+          "title": {
+            "it": "Canali e server preferiti in Discord",
+            "en": "Starred channels and servers in Discord",
+            "es": "Canales y servidores favoritos en Discord",
+            "fr": "Salons et serveurs favoris dans Discord",
+            "de": "Markierte Kanäle und Server in Discord",
+            "pt": "Canais e servidores favoritos no Discord",
+            "ru": "Избранные каналы и серверы в Discord",
+            "nl": "Kanalen en servers met een ster in Discord",
+            "ko": "Discord의 즐겨찾기 채널과 서버",
+            "ja": "Discord のお気に入りチャンネルとサーバー",
+            "zh": "Discord 中加星标的频道和服务器"
+          },
+          "text": {
+            "it": "Nel riquadro Discord metti la stella a un canale o a un intero server, poi mostra solo i preferiti.",
+            "en": "In the Discord tile, star a channel or a whole server, then show only your starred ones.",
+            "es": "En el recuadro de Discord, marca con estrella un canal o un servidor entero y muestra solo tus favoritos.",
+            "fr": "Dans la tuile Discord, mettez une étoile sur un salon ou sur tout un serveur, puis n'affichez que vos favoris.",
+            "de": "Markiere in der Discord-Kachel einen Kanal oder einen ganzen Server mit einem Stern und zeige dann nur deine markierten.",
+            "pt": "No mosaico do Discord, marque com estrela um canal ou um servidor inteiro e mostre só os seus favoritos.",
+            "ru": "В плитке Discord отметьте звёздочкой канал или целый сервер и показывайте только избранное.",
+            "nl": "Geef in de Discord-tegel een kanaal of een hele server een ster en toon daarna alleen je favorieten.",
+            "ko": "Discord 타일에서 채널이나 서버 전체에 별표를 달고, 별표한 것만 볼 수 있습니다.",
+            "ja": "Discord タイルでチャンネルやサーバー全体にスターを付け、スター付きだけを表示できます。",
+            "zh": "在 Discord 磁贴中为频道或整个服务器加星标，然后只显示加星标的内容。"
+          }
+        },
+        {
+          "title": {
+            "it": "Gli aggiornamenti arrivano anche a chi gioca e basta",
+            "en": "Updates reach people who only play",
+            "es": "Las actualizaciones llegan también a quien solo juega",
+            "fr": "Les mises à jour arrivent aussi chez ceux qui ne font que jouer",
+            "de": "Updates erreichen auch alle, die nur spielen",
+            "pt": "As atualizações chegam também a quem só joga",
+            "ru": "Обновления доходят и до тех, кто только играет",
+            "nl": "Updates bereiken ook wie alleen maar speelt",
+            "ko": "게임만 하는 분께도 업데이트가 도착합니다",
+            "ja": "ゲームだけする人にもアップデートが届きます",
+            "zh": "只玩游戏的用户也能收到更新"
+          },
+          "text": {
+            "it": "Una versione già scaricata si installa nei primi minuti dopo l'avvio di Xenon, prima che apri un gioco. Mai durante un gioco, una chiamata o un trasferimento.",
+            "en": "A version already downloaded installs in the first minutes after Xenon starts, before you open a game. Never during a game, a call or a transfer.",
+            "es": "Una versión ya descargada se instala en los primeros minutos tras abrir Xenon, antes de que abras un juego. Nunca durante un juego, una llamada o una transferencia.",
+            "fr": "Une version déjà téléchargée s'installe dans les premières minutes après le démarrage de Xenon, avant que vous lanciez un jeu. Jamais pendant un jeu, un appel ou un transfert.",
+            "de": "Eine bereits geladene Version wird in den ersten Minuten nach dem Start von Xenon installiert, bevor du ein Spiel öffnest. Nie während eines Spiels, Anrufs oder Transfers.",
+            "pt": "Uma versão já descarregada instala-se nos primeiros minutos após o Xenon arrancar, antes de abrir um jogo. Nunca durante um jogo, uma chamada ou uma transferência.",
+            "ru": "Уже скачанная версия ставится в первые минуты после запуска Xenon, до того как вы откроете игру. Никогда во время игры, звонка или передачи файла.",
+            "nl": "Een al gedownloade versie wordt in de eerste minuten na het starten van Xenon geïnstalleerd, voordat je een game opent. Nooit tijdens een game, een gesprek of een overdracht.",
+            "ko": "이미 받은 버전은 Xenon이 시작된 뒤 처음 몇 분 안에, 게임을 열기 전에 설치됩니다. 게임, 통화, 파일 전송 중에는 절대 설치하지 않습니다.",
+            "ja": "ダウンロード済みのバージョンは、Xenon の起動後すぐ、ゲームを開く前にインストールされます。ゲーム中、通話中、転送中には行いません。",
+            "zh": "已下载的版本会在 Xenon 启动后的头几分钟内、你打开游戏之前安装。游戏、通话或传输文件时绝不会安装。"
+          }
         }
       ],
-      "fixes": []
+      "fixes": [
+        {
+          "area": {
+            "it": "Wave Link",
+            "en": "Wave Link",
+            "es": "Wave Link",
+            "fr": "Wave Link",
+            "de": "Wave Link",
+            "pt": "Wave Link",
+            "ru": "Wave Link",
+            "nl": "Wave Link",
+            "ko": "Wave Link",
+            "ja": "Wave Link",
+            "zh": "Wave Link"
+          },
+          "text": {
+            "it": "Wave Link si collega appena lo attivi, senza riavviare, e i suoi tasti dicono nella tua lingua perché non sono partiti.",
+            "en": "Wave Link connects as soon as you switch it on, with no restart, and its keys say in your language why they could not run.",
+            "es": "Wave Link se conecta en cuanto lo activas, sin reiniciar, y sus teclas dicen en tu idioma por qué no funcionaron.",
+            "fr": "Wave Link se connecte dès que vous l'activez, sans redémarrage, et ses touches disent dans votre langue pourquoi elles n'ont pas pu agir.",
+            "de": "Wave Link verbindet sich, sobald du es einschaltest, ohne Neustart, und seine Tasten sagen in deiner Sprache, warum sie nicht laufen konnten.",
+            "pt": "O Wave Link liga-se assim que o ativa, sem reiniciar, e as suas teclas dizem no seu idioma porque não funcionaram.",
+            "ru": "Wave Link подключается сразу после включения, без перезапуска, а его клавиши на вашем языке объясняют, почему не сработали.",
+            "nl": "Wave Link maakt verbinding zodra je het aanzet, zonder herstart, en de toetsen zeggen in jouw taal waarom ze niet werkten.",
+            "ko": "Wave Link는 켜는 즉시 다시 시작 없이 연결되고, 키가 실행되지 않으면 그 이유를 사용자의 언어로 알려 줍니다.",
+            "ja": "Wave Link はオンにした瞬間に再起動なしで接続し、キーが動かなかったときはその理由をあなたの言語で伝えます。",
+            "zh": "Wave Link 打开后立即连接，无需重启；按键无法执行时会用你的语言说明原因。"
+          }
+        },
+        {
+          "area": {
+            "it": "Deck",
+            "en": "Deck",
+            "es": "Deck",
+            "fr": "Deck",
+            "de": "Deck",
+            "pt": "Deck",
+            "ru": "Deck",
+            "nl": "Deck",
+            "ko": "Deck",
+            "ja": "Deck",
+            "zh": "Deck"
+          },
+          "text": {
+            "it": "I tasti di OBS, Streamer.bot, Home Assistant e Razer Chroma dicono cosa controllare invece di mostrare un codice.",
+            "en": "Keys for OBS, Streamer.bot, Home Assistant and Razer Chroma say what to check instead of showing a code.",
+            "es": "Las teclas de OBS, Streamer.bot, Home Assistant y Razer Chroma dicen qué revisar en lugar de mostrar un código.",
+            "fr": "Les touches OBS, Streamer.bot, Home Assistant et Razer Chroma disent quoi vérifier au lieu d'afficher un code.",
+            "de": "Tasten für OBS, Streamer.bot, Home Assistant und Razer Chroma sagen, was zu prüfen ist, statt einen Code zu zeigen.",
+            "pt": "As teclas do OBS, Streamer.bot, Home Assistant e Razer Chroma dizem o que verificar em vez de mostrar um código.",
+            "ru": "Клавиши OBS, Streamer.bot, Home Assistant и Razer Chroma говорят, что проверить, вместо того чтобы показывать код.",
+            "nl": "Toetsen voor OBS, Streamer.bot, Home Assistant en Razer Chroma zeggen wat je moet nakijken in plaats van een code te tonen.",
+            "ko": "OBS, Streamer.bot, Home Assistant, Razer Chroma 키가 코드 대신 무엇을 확인해야 하는지 알려 줍니다.",
+            "ja": "OBS、Streamer.bot、Home Assistant、Razer Chroma のキーは、コードの代わりに確認すべきことを表示します。",
+            "zh": "OBS、Streamer.bot、Home Assistant 和 Razer Chroma 的按键会说明该检查什么，而不是显示一串代码。"
+          }
+        },
+        {
+          "area": {
+            "it": "Dashboard",
+            "en": "Dashboard",
+            "es": "Panel",
+            "fr": "Tableau de bord",
+            "de": "Dashboard",
+            "pt": "Painel",
+            "ru": "Панель",
+            "nl": "Dashboard",
+            "ko": "대시보드",
+            "ja": "ダッシュボード",
+            "zh": "仪表板"
+          },
+          "text": {
+            "it": "La dashboard si apre sulla pagina che avevi lasciato: un widget che apre un sito nel riquadro Browser non ti sposta più.",
+            "en": "The dashboard opens on the page you left: a widget opening a site in the Browser tile no longer moves you.",
+            "es": "El panel se abre en la página en la que lo dejaste: un widget que abre un sitio en el recuadro Navegador ya no te mueve.",
+            "fr": "Le tableau de bord s'ouvre sur la page que vous aviez quittée : un widget qui ouvre un site dans la tuile Navigateur ne vous déplace plus.",
+            "de": "Das Dashboard öffnet sich auf der Seite, die du verlassen hast: Ein Widget, das eine Website in der Browser-Kachel öffnet, verschiebt dich nicht mehr.",
+            "pt": "O painel abre na página onde o deixou: um widget que abre um site no mosaico Navegador já não o muda de página.",
+            "ru": "Панель открывается на той странице, где вы её оставили: виджет, открывающий сайт в плитке браузера, больше не переключает страницу.",
+            "nl": "Het dashboard opent op de pagina waar je was: een widget die een site opent in de Browser-tegel verplaatst je niet meer.",
+            "ko": "대시보드가 마지막으로 보던 페이지에서 열립니다. 브라우저 타일에 사이트를 여는 위젯이 더 이상 페이지를 바꾸지 않습니다.",
+            "ja": "ダッシュボードは最後に見ていたページで開きます。ブラウザータイルでサイトを開くウィジェットが、ページを勝手に切り替えなくなりました。",
+            "zh": "仪表板会在你上次离开的页面打开：在浏览器磁贴中打开网站的小组件不会再把你带到别的页面。"
+          }
+        },
+        {
+          "area": {
+            "it": "Prestazioni",
+            "en": "Performance",
+            "es": "Rendimiento",
+            "fr": "Performances",
+            "de": "Leistung",
+            "pt": "Desempenho",
+            "ru": "Производительность",
+            "nl": "Prestaties",
+            "ko": "성능",
+            "ja": "パフォーマンス",
+            "zh": "性能"
+          },
+          "text": {
+            "it": "Un video a schermo intero non apre più il contatore FPS, e il contatore non resta più acceso dopo Film e TV.",
+            "en": "A full-screen video no longer opens the FPS counter, and the counter no longer stays on after Films & TV.",
+            "es": "Un vídeo a pantalla completa ya no abre el contador de FPS, y el contador ya no se queda encendido después de Películas y TV.",
+            "fr": "Une vidéo en plein écran n'ouvre plus le compteur FPS, et le compteur ne reste plus affiché après Films et TV.",
+            "de": "Ein Video im Vollbild öffnet den FPS-Zähler nicht mehr, und der Zähler bleibt nach Filme & TV nicht mehr an.",
+            "pt": "Um vídeo em ecrã inteiro já não abre o contador de FPS, e o contador já não fica ligado depois do Filmes e TV.",
+            "ru": "Видео на весь экран больше не открывает счётчик FPS, и счётчик больше не остаётся после «Кино и ТВ».",
+            "nl": "Een video op volledig scherm opent de FPS-teller niet meer, en de teller blijft niet meer aan na Films en tv.",
+            "ko": "전체 화면 동영상이 더 이상 FPS 카운터를 열지 않으며, 영화 및 TV 이후에 카운터가 계속 켜져 있지 않습니다.",
+            "ja": "全画面の動画で FPS カウンターが開かなくなり、「映画 & テレビ」のあとにカウンターが残ることもなくなりました。",
+            "zh": "全屏视频不会再打开 FPS 计数器，“电影和电视”关闭后计数器也不会一直开着。"
+          }
+        },
+        {
+          "area": {
+            "it": "Ricerca",
+            "en": "Search",
+            "es": "Búsqueda",
+            "fr": "Recherche",
+            "de": "Suche",
+            "pt": "Pesquisa",
+            "ru": "Поиск",
+            "nl": "Zoeken",
+            "ko": "검색",
+            "ja": "検索",
+            "zh": "搜索"
+          },
+          "text": {
+            "it": "Alt+Spazio riprende da solo la scorciatoia della ricerca appena un'altra app la lascia libera.",
+            "en": "Alt+Space takes the search shortcut back by itself as soon as another app lets it go.",
+            "es": "Alt+Espacio recupera solo el atajo de búsqueda en cuanto otra app lo deja libre.",
+            "fr": "Alt+Espace reprend tout seul le raccourci de recherche dès qu'une autre app le libère.",
+            "de": "Alt+Leertaste holt sich das Suchkürzel von selbst zurück, sobald eine andere App es freigibt.",
+            "pt": "Alt+Espaço recupera sozinho o atalho de pesquisa assim que outra app o liberta.",
+            "ru": "Alt+Пробел сам возвращает себе сочетание поиска, как только другое приложение его освободит.",
+            "nl": "Alt+Spatie pakt de zoeksnelkoppeling vanzelf terug zodra een andere app hem loslaat.",
+            "ko": "다른 앱이 검색 단축키를 놓아주면 Alt+Space가 스스로 다시 가져옵니다.",
+            "ja": "ほかのアプリが検索のショートカットを手放すと、Alt+Space が自動で取り戻します。",
+            "zh": "其他应用一旦释放搜索快捷键，Alt+空格 就会自动把它拿回来。"
+          }
+        },
+        {
+          "area": {
+            "it": "Aggiornamenti",
+            "en": "Updates",
+            "es": "Actualizaciones",
+            "fr": "Mises à jour",
+            "de": "Updates",
+            "pt": "Atualizações",
+            "ru": "Обновления",
+            "nl": "Updates",
+            "ko": "업데이트",
+            "ja": "アップデート",
+            "zh": "更新"
+          },
+          "text": {
+            "it": "L'aggiornamento funziona di nuovo quando Xenon sta in una cartella protetta come Programmi.",
+            "en": "Updating works again when Xenon sits in a protected folder such as Program Files.",
+            "es": "La actualización vuelve a funcionar cuando Xenon está en una carpeta protegida como Archivos de programa.",
+            "fr": "La mise à jour fonctionne de nouveau quand Xenon se trouve dans un dossier protégé comme Program Files.",
+            "de": "Das Update klappt wieder, wenn Xenon in einem geschützten Ordner wie Programme liegt.",
+            "pt": "A atualização volta a funcionar quando o Xenon está numa pasta protegida como Programas.",
+            "ru": "Обновление снова работает, когда Xenon лежит в защищённой папке, например Program Files.",
+            "nl": "Bijwerken werkt weer als Xenon in een beveiligde map staat, zoals Program Files.",
+            "ko": "Xenon이 Program Files 같은 보호된 폴더에 있어도 다시 업데이트됩니다.",
+            "ja": "Program Files のような保護されたフォルダーに Xenon があっても、アップデートが再びできるようになりました。",
+            "zh": "Xenon 位于 Program Files 等受保护文件夹时，更新又能正常进行了。"
+          }
+        },
+        {
+          "area": {
+            "it": "Musica",
+            "en": "Music",
+            "es": "Música",
+            "fr": "Musique",
+            "de": "Musik",
+            "pt": "Música",
+            "ru": "Музыка",
+            "nl": "Muziek",
+            "ko": "음악",
+            "ja": "音楽",
+            "zh": "音乐"
+          },
+          "text": {
+            "it": "I tasti della musica restano al loro posto su ogni forma di riquadro, che qualcosa suoni o no.",
+            "en": "The music keys stay in place on every tile shape, whether something plays or not.",
+            "es": "Las teclas de música se quedan en su sitio en cualquier forma de recuadro, suene algo o no.",
+            "fr": "Les touches de musique restent en place sur toutes les formes de tuile, qu'un morceau joue ou non.",
+            "de": "Die Musiktasten bleiben bei jeder Kachelform an ihrem Platz, ob etwas läuft oder nicht.",
+            "pt": "As teclas de música ficam no lugar em qualquer forma de mosaico, esteja algo a tocar ou não.",
+            "ru": "Кнопки музыки остаются на месте в плитке любой формы, играет что-то или нет.",
+            "nl": "De muziektoetsen blijven op hun plek in elke tegelvorm, of er nu iets speelt of niet.",
+            "ko": "음악 키가 어떤 모양의 타일에서도, 재생 중이든 아니든 제자리에 있습니다.",
+            "ja": "音楽のボタンは、どの形のタイルでも、再生中かどうかに関係なく同じ位置にとどまります。",
+            "zh": "无论磁贴是什么形状、是否在播放，音乐按键都会待在原位。"
+          }
+        },
+        {
+          "area": {
+            "it": "Widget",
+            "en": "Widgets",
+            "es": "Widgets",
+            "fr": "Widgets",
+            "de": "Widgets",
+            "pt": "Widgets",
+            "ru": "Виджеты",
+            "nl": "Widgets",
+            "ko": "위젯",
+            "ja": "ウィジェット",
+            "zh": "小组件"
+          },
+          "text": {
+            "it": "Con la scala dell'interfaccia sopra il 100% i widget sullo schermo si spostano e ridimensionano come devono.",
+            "en": "With the interface scale above 100%, widgets on the screen move and resize as they should.",
+            "es": "Con la escala de la interfaz por encima del 100 %, los widgets en pantalla se mueven y cambian de tamaño como deben.",
+            "fr": "Avec une échelle d'interface au-dessus de 100 %, les widgets à l'écran se déplacent et se redimensionnent correctement.",
+            "de": "Mit einer Oberflächenskalierung über 100 % lassen sich Widgets auf dem Bildschirm wieder richtig verschieben und skalieren.",
+            "pt": "Com a escala da interface acima de 100%, os widgets no ecrã movem-se e redimensionam-se como devem.",
+            "ru": "При масштабе интерфейса выше 100 % виджеты на экране двигаются и меняют размер как надо.",
+            "nl": "Met een interfaceschaal boven 100% verplaatsen en schalen widgets op het scherm weer zoals het hoort.",
+            "ko": "인터페이스 배율이 100%를 넘어도 화면의 위젯이 제대로 이동하고 크기가 바뀝니다.",
+            "ja": "インターフェースの拡大率が 100% を超えていても、画面上のウィジェットを正しく移動・リサイズできます。",
+            "zh": "界面缩放高于 100% 时，屏幕上的小组件也能正常移动和调整大小。"
+          }
+        },
+        {
+          "area": {
+            "it": "Mac e Linux",
+            "en": "Mac and Linux",
+            "es": "Mac y Linux",
+            "fr": "Mac et Linux",
+            "de": "Mac und Linux",
+            "pt": "Mac e Linux",
+            "ru": "Mac и Linux",
+            "nl": "Mac en Linux",
+            "ko": "Mac 및 Linux",
+            "ja": "Mac と Linux",
+            "zh": "Mac 和 Linux"
+          },
+          "text": {
+            "it": "Sul Mac basta un clic sulla dashboard anche mentre usi un'altra app. Nell'app Linux il cambio pagina è più fluido.",
+            "en": "On a Mac one click on the dashboard is enough while you use another app. In the Linux app, changing page is smoother.",
+            "es": "En el Mac basta un clic en el panel aunque estés usando otra app. En la app de Linux, cambiar de página es más fluido.",
+            "fr": "Sur Mac, un seul clic sur le tableau de bord suffit même quand vous utilisez une autre app. Dans l'app Linux, changer de page est plus fluide.",
+            "de": "Auf dem Mac genügt ein Klick aufs Dashboard, auch wenn du gerade eine andere App nutzt. In der Linux-App wechseln Seiten flüssiger.",
+            "pt": "No Mac basta um clique no painel mesmo enquanto usa outra app. Na app de Linux, mudar de página é mais fluido.",
+            "ru": "На Mac хватает одного клика по панели, даже когда вы в другом приложении. В приложении для Linux страницы переключаются плавнее.",
+            "nl": "Op een Mac is één klik op het dashboard genoeg, ook terwijl je een andere app gebruikt. In de Linux-app wisselen pagina's soepeler.",
+            "ko": "Mac에서는 다른 앱을 쓰는 중에도 대시보드를 한 번만 클릭하면 됩니다. Linux 앱에서는 페이지 전환이 더 부드럽습니다.",
+            "ja": "Mac では、ほかのアプリを使っている間もダッシュボードは1回のクリックで反応します。Linux アプリではページの切り替えがなめらかになりました。",
+            "zh": "在 Mac 上，即使正在使用其他应用，点一下仪表板就够了。Linux 应用中切换页面更流畅。"
+          }
+        },
+        {
+          "area": {
+            "it": "Backup",
+            "en": "Backup",
+            "es": "Copia de seguridad",
+            "fr": "Sauvegarde",
+            "de": "Backup",
+            "pt": "Cópia de segurança",
+            "ru": "Резервная копия",
+            "nl": "Back-up",
+            "ko": "백업",
+            "ja": "バックアップ",
+            "zh": "备份"
+          },
+          "text": {
+            "it": "Ripristinare un backup non accende più permessi da solo, e chiede prima di portare tasti del Deck che avviano programmi.",
+            "en": "Restoring a backup no longer switches permissions on by itself, and it asks before bringing in Deck keys that start programs.",
+            "es": "Restaurar una copia ya no activa permisos por su cuenta, y pregunta antes de traer teclas del Deck que abren programas.",
+            "fr": "Restaurer une sauvegarde n'active plus d'autorisations toute seule, et demande avant d'importer des touches du Deck qui lancent des programmes.",
+            "de": "Ein Backup wiederherzustellen schaltet keine Berechtigungen mehr von selbst ein und fragt, bevor Deck-Tasten kommen, die Programme starten.",
+            "pt": "Restaurar uma cópia já não ativa permissões sozinha, e pergunta antes de trazer teclas do Deck que abrem programas.",
+            "ru": "Восстановление копии больше не включает разрешения само по себе и спрашивает, прежде чем добавить клавиши Deck, запускающие программы.",
+            "nl": "Een back-up terugzetten zet geen rechten meer vanzelf aan en vraagt het eerst voordat Deck-toetsen terugkomen die programma's starten.",
+            "ko": "백업을 복원해도 권한이 저절로 켜지지 않으며, 프로그램을 실행하는 Deck 키를 가져오기 전에 먼저 묻습니다.",
+            "ja": "バックアップを復元しても権限が勝手にオンになることはなくなり、プログラムを起動する Deck キーを取り込む前に確認します。",
+            "zh": "恢复备份不会再自动开启权限，在导入会启动程序的 Deck 按键前也会先询问你。"
+          }
+        }
+      ]
     },
     {
       "version": "5.1.1",
