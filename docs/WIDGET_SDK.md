@@ -2606,6 +2606,11 @@ Rules worth knowing before you build on it:
   together. `no_browser_tile` now means what it says, that the dashboard has no
   Browser tile at all; handle it by telling the user to add one. (Before v4.11 it
   also came back whenever the tile was merely hidden.)
+- **Only a tap brings a hidden tile into view** (5.2+). Called while the user is
+  not touching your widget, for example as it loads or from a timer, `browserOpen`
+  uses a Browser tile that is already on screen and otherwise fails with
+  `not_visible`, so it never changes the page the user is on. Open the page from a
+  button instead.
 - **It replaces the tile's active tab.** Treat it as "put this on screen", not as
   "open a window I own". The user can still use the tabs, the address bar and their
   own favourites afterwards.

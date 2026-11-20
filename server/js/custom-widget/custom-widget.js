@@ -1289,12 +1289,9 @@
       post(entry, { type: 'action_result', id: reqId, ok, error: ok ? undefined : 'failed' });
       return;
     }
-    // The Browser tile is a dashboard surface, not a server action, so it is
-    // dispatched here the same way soundboard goes to deck.js. browser-tile.js
-    // re-checks the scheme and refuses when no tile is visible; the widget still
-    // never touches the relay or sees the page.
-    //
-    // The destination needs the same two gates openUrl gets, for a stronger
+    // The Browser tile is a dashboard surface, not a server action: dispatched here like
+    // soundboard to deck.js; browser-tile.js re-checks the scheme, and the widget never
+    // touches the relay or sees the page. The destination needs openUrl's two gates, for a stronger
     // reason: the tile is a cookie-bearing Chromium, so a navigation the widget
     // names is network access outside the manifest host allowlist. Loopback and
     // LAN addresses are refused outright (browser-tile.js repeats the check —
@@ -1317,7 +1314,10 @@
         post(entry, { type: 'action_result', id: reqId, ok: false, error: 'declined' });
         return;
       }
-      const res = BrowserTile.openFromSdk(msg.action.url, { expand: msg.action.expand === true });
+      // A tap in the widget (or the approval just clicked) may bring a hidden Browser tile
+      // into view; a call with no tap, such as one made while the widget loads, may not.
+      const tapped = navigator.userActivation?.isActive !== false;
+      const res = BrowserTile.openFromSdk(msg.action.url, { expand: msg.action.expand === true, reveal: tapped });
       post(entry, { type: 'action_result', id: reqId, ok: !!(res && res.ok), error: (res && res.ok) ? undefined : ((res && res.error) || 'failed') });
       return;
     }

@@ -95,3 +95,20 @@ test('a hidden group defers the open so the page is not launched at the size flo
   assert.ok(body.includes("relaySend({ type: 'navigate', tile: tab.tileId, url }); return;"),
     'an already-open tab must still be navigated, visible or not');
 });
+
+// Only a tap may move the dashboard. A widget that opened its page in the Browser tile as
+// it loaded took the user to that tile's page every time Xenon started (Discord, Nov 2026).
+test('without a tap, a hidden Browser tile is not brought into view', () => {
+  const body = namesOf(SRC, 'browser-tile.js').one('openFromSdk');
+  const quietAt = body.indexOf("if (!target && opts && opts.reveal === false) return { ok: false, error: groups.size ? 'not_visible' : 'no_browser_tile' };");
+  assert.ok(quietAt > 0, 'a call with reveal:false must stop before revealBrowserTile');
+  assert.ok(quietAt < body.indexOf('target = revealBrowserTile();'), 'the stop must come before the reveal');
+});
+
+test('the SDK dispatcher tells the tile whether the widget was tapped', () => {
+  const CW = readFileSync(join(ROOT, 'server', 'js', 'custom-widget', 'custom-widget.js'), 'utf8');
+  const at = CW.indexOf("if (msg.action.type === 'browserOpen') {");
+  const branch = CW.slice(at, CW.indexOf('return;\n    }', CW.indexOf('BrowserTile.openFromSdk(', at)));
+  assert.ok(branch.includes('const tapped = navigator.userActivation?.isActive !== false;'), 'the tap is read from userActivation');
+  assert.ok(branch.includes('BrowserTile.openFromSdk(msg.action.url, { expand: msg.action.expand === true, reveal: tapped })'), 'and handed to the tile');
+});

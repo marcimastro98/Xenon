@@ -707,15 +707,10 @@
     return !host.includes('.');   // a bare name is an intranet host
   }
 
-  // Bring a Browser tile into view when none is visible. Refusing instead was the
-  // shipped behaviour and it made the feature unusable in the layout people
-  // actually build: put the widget that asks and the Browser it aims at in one tab
-  // group — the obvious way to fit two big tiles on the Edge — and they can never
-  // be visible at the same time, so every call answered `no_browser_tile`.
-  //
-  // The refusal existed so a tile was never navigated behind the user's back, out
-  // of sight. Revealing it is the answer to that concern rather than an exception
-  // to it: the tile the widget replaces is the tile the user is then looking at.
+  // Bring a Browser tile into view when none is visible. Refusing made the feature useless
+  // in a common layout: the widget asking and its Browser as two tabs of one tile can never
+  // be visible together. A tile is still never navigated out of sight: the tile the widget
+  // replaces is the one the user is then looking at.
   //
   // A perf/game-mode pause is left alone. That is a deliberate global stop with the
   // user in a game, and stealing the screen back for a widget is not a repair.
@@ -768,6 +763,9 @@
     // view instead of refusing — never navigate one that stays out of sight.
     let target = null;
     groups.forEach((group) => { if (!target && group.visible) target = group; });
+    // Only a tap moves the dashboard: a widget opening its page as it loads took the
+    // user to the Browser tile's page at every start (Discord, Nov 2026).
+    if (!target && opts && opts.reveal === false) return { ok: false, error: groups.size ? 'not_visible' : 'no_browser_tile' };
     if (!target) target = revealBrowserTile();
     if (!target) return { ok: false, error: 'no_browser_tile' };
     navigateActive(target, parsed.href);
