@@ -140,7 +140,7 @@ log('materialized shared/src from packages/core');
 //      is mounted. These URLs never go through the image allowlist (a preset id
 //      is already validated), so the change is local to the demo.
 {
-  const file = join(OUT, 'js', 'tile-decor-presets.js');
+  const file = join(OUT, 'js', 'look', 'tile-decor-presets.js');
   let src = readFileSync(file, 'utf8');
   src = patchOnce(src, '`/assets/decor/frame-', '`assets/decor/frame-', 'tile-decor-presets.js frame URL → relative');
   src = patchOnce(src, '`/assets/decor/overlay-', '`assets/decor/overlay-', 'tile-decor-presets.js sticker URL → relative');
