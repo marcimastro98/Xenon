@@ -4400,11 +4400,11 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/community/buy',
   '/api/community/sparks/save',
   '/api/community/sparks/forget',
-  // The pass trial: /check reaches the hub, /tried writes what the trial took off.
+  // The pass trial: /check and /request reach the hub, /tried, /poll and /forget write.
   // POST-only; the matching read (/api/community/trial) is not listed, so a paired
   // phone can show the state of the trial.
   '/api/community/trial/check',
-  '/api/community/trial/tried',
+  '/api/community/trial/tried', '/api/community/trial/request', '/api/community/trial/poll', '/api/community/trial/forget',
   // Automatic limited stock is a read, but a cache miss reaches the Hub.
   '/api/community/limited-status',
   // A YouTube search is 100 of the account's 10,000 daily quota units, so the

@@ -3280,7 +3280,7 @@
       tryBtn.type = 'button';
       tryBtn.className = 'settings-btn subtle preset-unlock-forget';
       tryBtn.textContent = tr('trial_try_btn', 'Try 7 days free');
-      tryBtn.addEventListener('click', () => { if (window.TrialPass) window.TrialPass.openTry('import'); });
+      tryBtn.addEventListener('click', () => { if (window.TrialPass) window.TrialPass.openTry('import', { onCode: (code) => { unlockField.value = code; importBtn.click(); } }); });
       tryRow.appendChild(tryText); tryRow.appendChild(tryBtn);
       unlockWrap.appendChild(tryRow);
 

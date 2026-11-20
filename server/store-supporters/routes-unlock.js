@@ -4,6 +4,11 @@
 const { readBody } = require('../http/read-body.js');
 const supporterRedeem = require('./supporter-redeem.js');
 const { DATA_DIR } = require('../engine/paths.js');
+const { createTrialClaim } = require('./trial-claim.js');
+
+// Made on first use: the trial pass it reads comes with the request's engine hands.
+let trialClaim = null;
+function claimsFor(trialPass) { if (!trialClaim) trialClaim = createTrialClaim({ dataDir: DATA_DIR, trialPass }); return trialClaim; }
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -53,6 +58,29 @@ const branches = {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await trialPass.setTried(body && body.tried, { end: !!(body && body.end === true) }));
     } catch (e) { err500(e.message); }
+  },
+
+  'GET /api/community/trial/pending': async (_req, _res, { json, err500 }, { trialPass }) => {
+    // The trial without copying a code (trial-claim.js): the sheet asks for the
+    // email, then waits for its button. Three POSTs in CSRF_MUTATION_PATHS and,
+    // with this read, in REMOTE_ADMIN: the request names this PC to the hub and the
+    // poll hands back a code, so a paired phone opens the hub's /trial page instead.
+    try { json(await claimsFor(trialPass).pending()); } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/community/trial/request': async (req, _res, { json, err500 }, { trialPass }) => {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}') || {};
+      json(await claimsFor(trialPass).request({ email: body.email, news: body.news === true, lang: body.lang }));
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/community/trial/poll': async (_req, _res, { json, err500 }, { trialPass }) => {
+    try { json(await claimsFor(trialPass).poll()); } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/community/trial/forget': async (_req, _res, { json, err500 }, { trialPass }) => {
+    try { json(await claimsFor(trialPass).forget()); } catch (e) { err500(e.message); }
   },
 
   'GET /api/features/lyrics': async (_req, _res, { json, err500 }, { featureUnlock }) => {

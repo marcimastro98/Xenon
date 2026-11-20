@@ -143,7 +143,7 @@
 
   function openLink(url) { try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { /* popup blocked */ } }
   const supportUrl = (source) => { const c = window.Xenon?.constants; return typeof c?.supportUrl === 'function' ? c.supportUrl(source) : BMC_MEMBERSHIP; };
-  const openTry = () => openLink(window.Xenon.constants.trialUrl(typeof lang === 'string' ? lang : ''));
+  const openTry = (source, opts) => (window.TrialSheet ? window.TrialSheet.open(source, opts) : openLink(window.Xenon.constants.trialUrl(typeof lang === 'string' ? lang : '')));
   const openSupport = (source, plan) => (window.SupportSheet ? window.SupportSheet.open(source || 'trial-end', { plan }) : openLink(supportUrl(source || 'trial-end')));
   // The Store's rule for offering the free week: this install never had the trial and keeps no supporter code.
   const available = async () => { const [tr, sup] = await Promise.all([call('/api/community/trial'), call('/api/community/supporter')]); return tr?.ok === true && tr.used === false && !sup?.saved; };

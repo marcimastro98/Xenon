@@ -41,8 +41,7 @@
      to Comic Sans MS / system fonts if offline. -->
 <script src="js/look/skin-fonts.js" async></script>
 
-<!-- Bit's pictures on the splash, ahead of the stylesheets: fetched when their turn
-     comes, Bit is missing from the screen until they arrive. -->
+<!-- Bit's pictures on the splash, ahead of the stylesheets: fetched in turn, Bit is missing until they arrive. -->
 <link rel="preload" as="image" href="public/images/loader/bit-recharge.svg" media="(prefers-reduced-motion: no-preference)">
 <link rel="preload" as="image" href="public/images/loader/bit-hello.svg" media="(prefers-reduced-motion: no-preference)">
 
@@ -5539,6 +5538,7 @@
 <script src="js/store-supporters/trial-pass-ui.js"></script>
 <script src="js/store-supporters/bit-trial-end.js"></script>
 <script src="js/store-supporters/support-sheet.js"></script>
+<script src="js/store-supporters/trial-sheet.js"></script>
 <!-- Share card: composes the postable PNG. Loaded after preset-share.js only for
      readability — openShareDialog() checks window.ShareCard at click time, so the
      order between the two is not load-bearing. -->

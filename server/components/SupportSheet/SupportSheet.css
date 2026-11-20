@@ -89,3 +89,30 @@
   color: var(--muted-text); font-size: 14px; text-decoration: underline; text-underline-offset: 3px;
 }
 .support-sheet-once:hover { color: var(--text); }
+
+/* The trial sheet (js/store-supporters/trial-sheet.js) sits in this same frame: the email,
+   the three lines of the wait with the code the email shows, then "Trial on". */
+.trial-sheet-body, .trial-sheet-form, .trial-sheet-paste, .trial-sheet-paste-box { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.trial-sheet-paste-box[hidden], .trial-sheet-paste .support-sheet-alt[hidden], .trial-sheet .support-sheet-alt[hidden] { display: none; }
+.trial-sheet-label { margin: 0 0 -6px; font-size: 14px; font-weight: 600; color: var(--muted-text); }
+.trial-sheet-input {
+  box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--control-bg);
+  color: var(--text); font: inherit; font-size: 16px;
+}
+.trial-sheet-input:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
+.trial-sheet-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
+.trial-sheet-check input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+.trial-sheet-error { margin: 0; font-size: 14px; line-height: 1.4; color: var(--color-danger, rgb(var(--danger-rgb))); }
+.trial-sheet-error:empty { display: none; }
+.trial-sheet-steps { display: grid; gap: 8px; margin: 0; padding: 0 0 0 20px; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.trial-sheet-match-box {
+  display: grid; gap: 6px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--control-bg);
+}
+.trial-sheet-note { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted-text); }
+.trial-sheet-match { margin: 0; font: 700 28px/1.1 ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: 0.18em; color: var(--text); }
+.trial-sheet-status { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted-text); }
+.trial-sheet .support-sheet-go { border: 0; font-family: inherit; cursor: pointer; }
+.trial-sheet .support-sheet-go:disabled { opacity: 0.6; cursor: default; }
+.trial-sheet .support-sheet-alt { flex: none; width: 100%; }
