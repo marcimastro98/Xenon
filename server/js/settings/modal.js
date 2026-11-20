@@ -190,6 +190,7 @@ function settingsSetCategory(cat) {
   // The supporter count under the support buttons (js/store-supporters/support-goal.js). Cached
   // an hour by the server, so opening the pane again costs nothing.
   if (cat === 'support' && window.XenonSupportGoal) XenonSupportGoal.fill($('settings-support-goal'));
+  if (cat === 'support' && window.SupportSheet) SupportSheet.paintPrices();
   packSettingsColumns();
 }
 

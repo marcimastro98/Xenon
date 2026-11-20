@@ -60,11 +60,12 @@ test('the new strings carry no em dash (plain-language rule)', () => {
 
 // Monthly and yearly both land on the membership page (the hub's default plan);
 // the yearly tile carries its own source label so the hub counts it apart.
+// It names its plan too, so the support sheet opens on yearly and the hub counts it.
 test('the three price tiles go through the hub counter, monthly first and the only filled one', () => {
   const links = [...PAGE.matchAll(/href="(https:\/\/xenon-supporter-hub[^"]+)"/g)].map(m => m[1]);
   assert.deepEqual(links, [
     'https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings',
-    'https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings-year',
+    'https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings-year&amp;p=yearly',
     'https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings&amp;p=once',
   ]);
   // The hub folds an unknown label into 'other' (download-redirect.js normalizeSource).

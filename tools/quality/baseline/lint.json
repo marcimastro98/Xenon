@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5910,
+  "total": 5908,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -598,7 +598,7 @@
     "server/js/custom-widget/theme-payload.js style/useConst": 1,
     "server/js/custom-widget/tile-body.js complexity/useOptionalChain": 3,
     "server/js/dashboard-instances.js complexity/useOptionalChain": 5,
-    "server/js/dashboard-layout/apply-widgets.js complexity/useOptionalChain": 12,
+    "server/js/dashboard-layout/apply-widgets.js complexity/useOptionalChain": 11,
     "server/js/dashboard-layout/apply-widgets.js suspicious/useIterableCallbackReturn": 2,
     "server/js/dashboard-layout/clones.js suspicious/useIterableCallbackReturn": 6,
     "server/js/dashboard-layout/dock-and-presets.js complexity/useOptionalChain": 7,
@@ -1159,7 +1159,7 @@
     "server/js/store-supporters/support-goal.js complexity/useArrowFunction": 1,
     "server/js/store-supporters/support-goal.js complexity/useOptionalChain": 3,
     "server/js/store-supporters/trial-pass-ui.js complexity/useArrowFunction": 1,
-    "server/js/store-supporters/trial-pass-ui.js complexity/useOptionalChain": 14,
+    "server/js/store-supporters/trial-pass-ui.js complexity/useOptionalChain": 13,
     "server/js/store-supporters/xenon-credits.js complexity/useArrowFunction": 1,
     "server/js/store-supporters/xenon-credits.js complexity/useOptionalChain": 8,
     "server/js/store-supporters/xenon-credits.js suspicious/noPrototypeBuiltins": 1,

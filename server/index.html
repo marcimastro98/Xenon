@@ -116,6 +116,7 @@
 <link rel="stylesheet" href="components/SettingsModal/SettingsPageSmallScreens.css">
 <link rel="stylesheet" href="components/XenonCredits/XenonCredits.css">
 <link rel="stylesheet" href="components/BuySheet/BuySheet.css">
+<link rel="stylesheet" href="components/SupportSheet/SupportSheet.css">
 <link rel="stylesheet" href="components/SparksStore/SparksStore.css">
 <link rel="stylesheet" href="components/WeatherModal/WeatherModal.css">
 <link rel="stylesheet" href="components/WeatherModal/WeatherModalBlocks.css">
@@ -3972,9 +3973,7 @@
         </section>
       </div>
 
-      <!-- Sostieni Xenon. The ask, the three ways to pay as whole tappable tiles,
-           then what someone who already supports needs. The monthly plan is the
-           page's one main action. -->
+      <!-- Sostieni Xenon: the ask, the three ways to pay as tappable tiles (monthly and yearly open the support sheet), then what someone who already supports needs. -->
       <div class="settings-group settings-group-bare settings-support-group" data-settings-cat="support" hidden>
         <section class="settings-section">
           <div class="settings-section-title" data-i18n="support_ask_title">Xenon è gratis, e resta gratis</div>
@@ -3988,14 +3987,14 @@
         </section>
 
         <div class="support-plans">
-          <a class="support-plan is-main" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings" target="_blank" rel="noopener noreferrer">
-            <span class="support-plan-price"><b data-i18n="support_plan_month_price">5&nbsp;$</b> <span data-i18n="support_plan_month_unit">al mese</span></span>
+          <a class="support-plan is-main" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings" data-support-source="settings" data-support-plan="monthly" target="_blank" rel="noopener noreferrer">
+            <span class="support-plan-price"><b data-support-price="monthly"></b> <span data-i18n="support_plan_month_unit">al mese</span></span>
             <span class="support-plan-sparks"><span data-xspark="offer"></span><span data-i18n="support_plan_sparks">300 Scintille al mese</span></span>
             <span class="support-plan-note" data-i18n="support_plan_month_note">Temi e widget riservati, il ruolo su Discord e il tuo nome sul sito.</span>
             <span class="support-plan-cta" data-i18n="support_ask_monthly">Sostieni ogni mese</span>
           </a>
-          <a class="support-plan" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings-year" target="_blank" rel="noopener noreferrer">
-            <span class="support-plan-price"><b data-i18n="support_plan_year_price">50&nbsp;$</b> <span data-i18n="support_plan_year_unit">all'anno</span></span>
+          <a class="support-plan" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings-year&amp;p=yearly" data-support-source="settings-year" data-support-plan="yearly" target="_blank" rel="noopener noreferrer">
+            <span class="support-plan-price"><b data-support-price="yearly"></b> <span data-i18n="support_plan_year_unit">all'anno</span></span>
             <span class="support-plan-sparks"><span data-xspark="offer"></span><span data-i18n="support_plan_sparks">300 Scintille al mese</span></span>
             <span class="support-plan-note" data-i18n="support_plan_year_note">Tutto quello del mensile, più un tema costruito su misura per te.</span>
             <span class="support-plan-cta" data-i18n="support_plan_year_cta">Sostieni per un anno</span>
@@ -4046,7 +4045,7 @@
             <span class="settings-note" id="xai-offer-line"></span>
             <div class="xai-actions">
               <button type="button" class="settings-btn primary" id="xai-use" onclick="XenonCredits.useXenon()" data-i18n="xai_offer_use" hidden>Usa le Scintille</button>
-              <a class="settings-btn primary" id="xai-support" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=ai" target="_blank" rel="noopener noreferrer" data-i18n="xai_offer_support" hidden>Diventa sostenitore</a>
+              <a class="settings-btn primary" id="xai-support" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=ai" data-support-source="ai" target="_blank" rel="noopener noreferrer" data-i18n="xai_offer_support" hidden>Diventa sostenitore</a>
               <button type="button" class="settings-btn" id="xai-have-code" onclick="openSupporterCode()" data-i18n="xai_offer_have_code" hidden>Ho già un codice</button>
             </div>
           </div>
@@ -5536,10 +5535,10 @@
 <script src="js/community-gallery/community-gallery.js"></script>
 <script src="js/store-catalog/catalog-drop.js"></script>
 <script src="js/store-catalog/store-update-mail.js"></script>
-<!-- The 7-day pass trial: reminders, the end-of-trial clean-up and card. Uses
-     PresetShare / CommunityGallery / CustomWidget at call time only. -->
+<!-- The 7-day pass trial (reminders, end clean-up and card); then the sheet every "become a supporter" key opens. -->
 <script src="js/store-supporters/trial-pass-ui.js"></script>
 <script src="js/store-supporters/bit-trial-end.js"></script>
+<script src="js/store-supporters/support-sheet.js"></script>
 <!-- Share card: composes the postable PNG. Loaded after preset-share.js only for
      readability — openShareDialog() checks window.ShareCard at click time, so the
      order between the two is not load-bearing. -->

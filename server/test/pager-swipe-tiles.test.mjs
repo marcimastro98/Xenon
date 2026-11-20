@@ -11,7 +11,7 @@ const COMPONENTS = new URL('../components/', import.meta.url);
 // pager is the scroller itself, and the widget palette (DashboardGrid) opens over it.
 const OVER_THE_PAGE = new Set([
   'AmbientCanvasEditor', 'BitMessage', 'CaptureGallery', 'ColorPicker', 'CommunityStore', 'DashboardGrid',
-  'DashboardPager', 'LayerHost', 'SettingsModal', 'Spotlight', 'SurfacePicker', 'Topbar',
+  'DashboardPager', 'LayerHost', 'SettingsModal', 'Spotlight', 'SupportSheet', 'SurfacePicker', 'Topbar',
 ]);
 
 test('no tile stops the page swipe', () => {

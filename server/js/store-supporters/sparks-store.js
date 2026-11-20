@@ -121,6 +121,7 @@
   // so the offer reads the same wherever it is met. A PC that keeps a supporter
   // code reads that it is included, with no button to join again.
   // opts: { supporter, href, icon(name), primary }
+  // and source, the label the support sheet counts.
   function plan(opts) {
     const mine = !!opts.supporter;
     const box = el('section', 'sparks-plan' + (mine ? ' is-mine' : ''));
@@ -142,6 +143,7 @@
     const go = document.createElement('a');
     go.className = 'cgal-btn sparks-plan-btn' + (opts.primary ? ' primary' : '');
     go.href = opts.href;
+    go.dataset.supportSource = opts.source;   // the support sheet opens first (support-sheet.js)
     go.target = '_blank';
     go.rel = 'noopener noreferrer';
     go.textContent = t('gallery_supporters_join');
@@ -255,7 +257,7 @@
     const owner = { supporter, any: supporter || wallet };
     const items = (Array.isArray(entries) ? entries : []).filter(soldForSparks);
     const state = credits ? credits.state : null;
-    root.replaceChildren(hero(state, items.length > 0), packs(state, owner), plan({ supporter: owner.supporter, href: ctx.supportHref('sparks-shop'), icon: ctx.icon, primary: true }), uses(ctx, items));
+    root.replaceChildren(hero(state, items.length > 0), packs(state, owner), plan({ supporter: owner.supporter, href: ctx.supportHref('sparks-shop'), source: 'sparks-shop', icon: ctx.icon, primary: true }), uses(ctx, items));
     // A purchase landing or a new balance repaints the tab while it is open.
     if (credits) {
       const off = credits.onChange(() => {

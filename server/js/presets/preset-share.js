@@ -3296,7 +3296,7 @@
       const consts = window.Xenon && window.Xenon.constants;
       joinLink.href = consts && typeof consts.supportUrl === 'function'
         ? consts.supportUrl('store-unlock') : 'https://www.buymeacoffee.com/marcimastro98/membership';
-      joinLink.target = '_blank'; joinLink.rel = 'noopener noreferrer';
+      joinLink.target = '_blank'; joinLink.rel = 'noopener noreferrer'; joinLink.dataset.supportSource = 'store-unlock';
       joinLink.textContent = tr('gallery_supporters_join', 'Become a supporter');
       joinRow.appendChild(joinText); joinRow.appendChild(joinLink);
       unlockWrap.appendChild(joinRow);

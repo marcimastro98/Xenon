@@ -49,8 +49,11 @@
     return row;
   }
 
+  // The way to the membership: the support sheet opens first (support-sheet.js), the
+  // href is where the link goes on a page without it.
   function outLink(node, href) {
     node.href = href; node.target = '_blank'; node.rel = 'noopener noreferrer';
+    node.dataset.supportSource = 'store-unlock';
     return node;
   }
 

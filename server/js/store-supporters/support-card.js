@@ -120,7 +120,8 @@
 
     const monthly = el('button', 'bm-go', t('support_letter_monthly', 'Support with 5 USD a month'));
     monthly.type = 'button';
-    monthly.addEventListener('click', () => { open(supportLink('monthly')); close(); });
+    // The support sheet (support-sheet.js) says what joining gets first; the page itself without it.
+    monthly.addEventListener('click', () => { close(); if (window.SupportSheet) window.SupportSheet.open('app-ask', { plan: 'monthly' }); else open(supportLink('monthly')); });
     const once = el('button', 'bm-quiet', t('support_letter_once', 'Just once: 5 or 25 USD'));
     once.type = 'button';
     once.addEventListener('click', () => { open(supportLink('once')); close(); });

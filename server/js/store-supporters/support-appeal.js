@@ -89,7 +89,8 @@
     const actions = el('div', 'discord-invite-actions');
     const monthly = el('button', 'discord-invite-join support-ask-monthly', t('support_ask_monthly', 'Support monthly'));
     monthly.type = 'button';
-    monthly.addEventListener('click', () => { open(supportLink('monthly')); remember(); hide(); });
+    // The support sheet (support-sheet.js) says what joining gets first; the page itself without it.
+    monthly.addEventListener('click', () => { remember(); hide(); if (window.SupportSheet) window.SupportSheet.open('app-appeal', { plan: 'monthly' }); else open(supportLink('monthly')); });
 
     const once = el('button', 'discord-invite-dismiss support-ask-once', t('support_ask_once', 'Just once: $5 or $25'));
     once.type = 'button';

@@ -107,12 +107,12 @@
 :root[data-style="liquid"] .support-ask-already:hover { color: var(--sheet-text); }
 
 /* ── Sheets ────────────────────────────────────────────────────── */
-:root[data-style="liquid"] :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .preset-modal-overlay:not(.cst-overlay, .capg-overlay)) {
+:root[data-style="liquid"] :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .support-sheet-overlay, .preset-modal-overlay:not(.cst-overlay, .capg-overlay)) {
   background: var(--sheet-scrim);
   -webkit-backdrop-filter: var(--sheet-scrim-blur);
   backdrop-filter: var(--sheet-scrim-blur);
 }
-:root[data-style="liquid"] :is(.upd-card, .rn-card, .perf-sheet, .weather-panel, .day-modal-card, .ai-pc-card, .picker-panel, .call-card, .gc-card, .diskw-advisor-dialog, .ask-sheet, .xm-frame, .widget-palette-modal, .deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw, .xfer-sheet, .preset-modal:not(.cst, .cgal-modal)) {
+:root[data-style="liquid"] :is(.upd-card, .rn-card, .perf-sheet, .weather-panel, .day-modal-card, .ai-pc-card, .picker-panel, .call-card, .gc-card, .diskw-advisor-dialog, .ask-sheet, .xm-frame, .widget-palette-modal, .deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw, .xfer-sheet, .support-sheet, .preset-modal:not(.cst, .cgal-modal)) {
   border: 1px solid var(--sheet-edge);
   border-radius: 16px;
   background: var(--sheet-sheen), linear-gradient(var(--sheet-fill) 0 0);
@@ -127,6 +127,10 @@
   --pal-well: var(--sheet-well);
   --pal-well-hover: var(--sheet-well-hover);
   --pal-line: var(--sheet-line);
+}
+/* The support sheet reads the theme roles: on glass they are the sheet's own. */
+:root[data-style="liquid"] .support-sheet {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover); --line: var(--sheet-line);
 }
 /* Send to PC stands on the bottom edge of a phone, so it keeps square feet there. */
 :root[data-style="liquid"] .xfer-sheet {

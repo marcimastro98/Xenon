@@ -53,8 +53,8 @@ test('it reads no token of the chrome: liquid-chrome.css is not in the alerts wi
 });
 
 test('the scrim blurs once and the sheet is fill and rim', () => {
-  assert.match(bodyOf(`${SKIN} :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .preset-modal-overlay:not(.cst-overlay, .capg-overlay))`), /backdrop-filter: var\(--sheet-scrim-blur\)/);
-  const sheet = bodyOf(`${SKIN} :is(.upd-card, .rn-card, .perf-sheet, .weather-panel, .day-modal-card, .ai-pc-card, .picker-panel, .call-card, .gc-card, .diskw-advisor-dialog, .ask-sheet, .xm-frame, .widget-palette-modal, .deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw, .xfer-sheet, .preset-modal:not(.cst, .cgal-modal))`);
+  assert.match(bodyOf(`${SKIN} :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .support-sheet-overlay, .preset-modal-overlay:not(.cst-overlay, .capg-overlay))`), /backdrop-filter: var\(--sheet-scrim-blur\)/);
+  const sheet = bodyOf(`${SKIN} :is(.upd-card, .rn-card, .perf-sheet, .weather-panel, .day-modal-card, .ai-pc-card, .picker-panel, .call-card, .gc-card, .diskw-advisor-dialog, .ask-sheet, .xm-frame, .widget-palette-modal, .deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw, .xfer-sheet, .support-sheet, .preset-modal:not(.cst, .cgal-modal))`);
   assert.doesNotMatch(sheet, /backdrop-filter/);
   assert.match(sheet, /var\(--sheet-fill\)/);
   // The base rule of this sheet has a blur of its own, for the other skins.

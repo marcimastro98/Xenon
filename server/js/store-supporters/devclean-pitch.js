@@ -80,6 +80,7 @@
       const join = el(h, 'a', 'devclean-btn devclean-btn-accent devclean-btn-big devclean-link',
         h.tr('devclean_join', 'Diventa sostenitore'));
       join.href = s.supportUrl;
+      join.dataset.supportSource = 'devclean';
       join.target = '_blank';
       join.rel = 'noopener noreferrer';
       actions.appendChild(join);

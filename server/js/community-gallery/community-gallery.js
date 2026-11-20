@@ -569,7 +569,7 @@
   // "Become a supporter": the way to the membership page for someone without a code.
   function becomeSupporterButton(cls, source) {
     const a = el('a', cls, t('gallery_supporters_join', 'Become a supporter'));
-    a.href = supportHref(source || 'store-locked'); a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.href = supportHref(source || 'store-locked'); a.target = '_blank'; a.rel = 'noopener noreferrer'; a.dataset.supportSource = source || 'store-locked';
     return a;
   }
 

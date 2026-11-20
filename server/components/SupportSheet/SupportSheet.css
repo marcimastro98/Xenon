@@ -1,0 +1,91 @@
+/* The sheet every "become a supporter" key opens first (js/store-supporters/support-sheet.js):
+   what a supporter gets, the two ways to pay, then the way on to the payment page. It
+   sits above the Store and the widgets' own windows. The colours are the theme's roles,
+   so it reads on every skin, light and dark; the picked plan carries the accent. */
+
+.support-sheet-overlay {
+  position: fixed; inset: 0; z-index: 12200;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(8px, 3vh, 28px) 16px; box-sizing: border-box;
+  /* No blur: a full-screen blur is a per-frame cost on the Edge's integrated GPU. */
+  background: rgba(6, 7, 9, 0.72);
+  color: var(--text);
+  animation: support-sheet-in 0.16s ease-out;
+}
+@keyframes support-sheet-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .support-sheet-overlay { animation: none; } }
+
+.support-sheet {
+  box-sizing: border-box; width: min(480px, 100%); max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 14px; padding: 20px;
+  background: var(--surface, rgb(var(--panel-rgb, 17, 19, 20)));
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-modal);
+  outline: none;
+}
+.support-sheet:lang(ko) { word-break: keep-all; }
+
+.support-sheet-head { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.support-sheet-title { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 22px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; text-wrap: balance; }
+.support-sheet-close {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px 0 0; padding: 0;
+  border: 0; border-radius: var(--radius-control); background: transparent; color: var(--muted-text); cursor: pointer;
+}
+.support-sheet-close:hover { background: var(--hover-bg); color: var(--text); }
+.support-sheet-x { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+.support-sheet-lead { margin: -6px 0 0; font-size: 15px; line-height: 1.4; color: var(--muted-text); }
+
+.support-sheet-perks { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.support-sheet-perk { display: flex; align-items: flex-start; gap: 10px; min-width: 0; font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+.support-sheet-perk > :first-child { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+.support-sheet-perk [data-xspark] { display: grid; place-items: center; }
+.support-sheet-perk [data-xspark] svg { width: 16px; height: 16px; }
+.support-sheet-check { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+.support-sheet-plans { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.support-sheet-legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--muted-text); }
+.support-sheet-plan {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 56px; min-width: 0; box-sizing: border-box; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--control-bg); cursor: pointer;
+}
+.support-sheet-plan:hover { background: var(--hover-bg); }
+.support-sheet-plan.is-picked { border-color: var(--accent); background: var(--active-bg); }
+.support-sheet-plan:has(input:focus-visible) { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+.support-sheet-plan input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); }
+.support-sheet-plan-words { display: grid; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.support-sheet-plan-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.support-sheet-plan-name { font-size: 16px; font-weight: 700; }
+.support-sheet-plan-price { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.support-sheet-plan-note { font-size: 14px; line-height: 1.35; color: var(--muted-text); overflow-wrap: anywhere; }
+
+.support-sheet-hint { margin: 0; font-size: 14px; line-height: 1.4; color: var(--text); }
+.support-sheet-hint[hidden] { display: none; }
+
+.support-sheet-go {
+  display: flex; align-items: center; justify-content: center; min-height: 48px; box-sizing: border-box; padding: 10px 16px;
+  border-radius: var(--radius-control); background: var(--accent); color: var(--on-accent);
+  font-size: 16px; font-weight: 700; text-align: center; text-decoration: none; overflow-wrap: anywhere;
+}
+.support-sheet-go:hover { filter: brightness(1.06); }
+.support-sheet-go:focus-visible, .support-sheet-alt:focus-visible, .support-sheet-once:focus-visible, .support-sheet-close:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px;
+}
+
+.support-sheet-note { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted-text); }
+
+.support-sheet-alts { display: flex; flex-wrap: wrap; gap: 8px; }
+.support-sheet-alt {
+  flex: 1 1 160px; min-height: 44px; padding: 8px 14px; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: var(--radius-control); background: transparent;
+  color: var(--text); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.support-sheet-alt:hover { background: var(--hover-bg); }
+.support-sheet-alt[hidden] { display: none; }
+
+.support-sheet-once {
+  align-self: center; display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px;
+  color: var(--muted-text); font-size: 14px; text-decoration: underline; text-underline-offset: 3px;
+}
+.support-sheet-once:hover { color: var(--text); }

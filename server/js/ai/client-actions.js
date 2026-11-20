@@ -12,6 +12,9 @@ function _aiExecuteClientAction(action, args) {
     case 'open_app_switcher':
       if (typeof toggleAppSwitcher === 'function') toggleAppSwitcher();
       break;
+    case 'open_support_sheet':
+      if (window.SupportSheet) SupportSheet.open('bit');
+      break;
     case 'open_sparks_shop':
       if (window.XenonCredits && typeof XenonCredits.openShop === 'function') XenonCredits.openShop();
       break;

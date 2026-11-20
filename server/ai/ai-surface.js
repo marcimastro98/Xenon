@@ -15,7 +15,7 @@ const SCREEN_OK = new Set(['close_ai_panel', 'refresh_tasks', 'refresh_calendar'
 
 // The screen's list, plus what the page in the menu's window can carry out.
 const SHEET_OK = new Set([
-  ...SCREEN_OK, 'open_settings', 'open_sparks_shop', 'open_store_entry', 'change_theme', 'customize_appearance',
+  ...SCREEN_OK, 'open_settings', 'open_sparks_shop', 'open_support_sheet', 'open_store_entry', 'change_theme', 'customize_appearance',
   'create_dashboard_style', 'configure_preferences', 'set_media_source',
 ]);
 

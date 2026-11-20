@@ -40,7 +40,9 @@
     catch { return new Date(ms).toLocaleDateString(); }
   }
 
+  // The support sheet (support-sheet.js) first; the hub's page when this page has none.
   function openSupport(source) {
+    if (window.SupportSheet) { window.SupportSheet.open(source); return; }
     const c = window.Xenon && window.Xenon.constants;
     if (!c || typeof c.supportUrl !== 'function') return;
     try { window.open(c.supportUrl(source), '_blank', 'noopener,noreferrer'); } catch { /* popup blocked */ }

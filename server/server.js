@@ -2426,7 +2426,7 @@ async function runAiTool(fnName, fnArgs, deps) {
 
   // show_lock_screen is the pre-v4.4 name for start_ambient_mode — kept as an
   // alias so old AI memories/prompts keep working.
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'open_store_entry', 'open_whats_new', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'style_tile', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'open_support_sheet', 'open_store_entry', 'open_whats_new', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'style_tile', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     const widgetsOnly = UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode);

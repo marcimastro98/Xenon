@@ -222,7 +222,7 @@
         actions.appendChild(btn('lyw-btn is-big', tr('lyrics_trial_start', 'Prova gratis per 7 giorni'), startTrial, busy));
       }
       const join = el('a', trialAvailable ? 'lyw-btn is-accent' : 'lyw-btn is-big', tr('devclean_join', 'Diventa sostenitore'));
-      join.href = supportHref('lyrics');
+      join.href = supportHref('lyrics'); join.dataset.supportSource = 'lyrics';
       join.target = '_blank';
       join.rel = 'noopener noreferrer';
       actions.appendChild(join);
@@ -381,7 +381,7 @@
     const trialRow = el('p', 'lyw-trial');
     const trialText = el('span');
     const keep = el('a', '', tr('devclean_join', 'Diventa sostenitore'));
-    keep.href = supportHref('lyrics-trial');
+    keep.href = supportHref('lyrics-trial'); keep.dataset.supportSource = 'lyrics-trial';
     keep.target = '_blank';
     keep.rel = 'noopener noreferrer';
     // A PC that keeps a supporter code unlocks right here instead.

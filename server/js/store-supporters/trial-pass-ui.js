@@ -142,12 +142,11 @@
   }
 
   function openLink(url) { try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { /* popup blocked */ } }
-  function supportUrl(source) {
-    const c = window.Xenon && window.Xenon.constants;
-    return (c && typeof c.supportUrl === 'function') ? c.supportUrl(source) : BMC_MEMBERSHIP;
-  }
+  const supportUrl = (source) => { const c = window.Xenon?.constants; return typeof c?.supportUrl === 'function' ? c.supportUrl(source) : BMC_MEMBERSHIP; };
   const openTry = () => openLink(window.Xenon.constants.trialUrl(typeof lang === 'string' ? lang : ''));
-  const openSupport = (source) => openLink(supportUrl(source || 'trial-end'));
+  const openSupport = (source, plan) => (window.SupportSheet ? window.SupportSheet.open(source || 'trial-end', { plan }) : openLink(supportUrl(source || 'trial-end')));
+  // The Store's rule for offering the free week: this install never had the trial and keeps no supporter code.
+  const available = async () => { const [tr, sup] = await Promise.all([call('/api/community/trial'), call('/api/community/supporter')]); return tr?.ok === true && tr.used === false && !sup?.saved; };
   function openCodeField() {
     if (typeof window.openSettings === 'function') window.openSettings('sdk');
     const field = document.getElementById('settings-supporter-code');
@@ -292,7 +291,7 @@
     addKey('settings-btn', t('trial_not_now', 'Not now'), close);
     addKey('settings-btn primary', items.length
       ? t('trial_keep', 'Keep them, 5 USD a month')
-      : t('trial_support', 'Become a supporter'), () => { openSupport('trial-end'); close(); });
+      : t('trial_support', 'Become a supporter'), () => { close(); openSupport('trial-end', items.length ? 'monthly' : ''); });
     body.appendChild(keys);
   }
 
@@ -407,7 +406,7 @@
   setTimeout(boot, BOOT_DELAY_MS);
 
   window.TrialPass = {
-    covers, dateText, openTry, openSupport, openCodeField, putBack, refresh,
+    covers, dateText, openTry, openSupport, openCodeField, putBack, refresh, available,
     status: () => status,
     endedWidget: (pkgId) => endedTile(status, pkgId, supporterSaved),
   };
