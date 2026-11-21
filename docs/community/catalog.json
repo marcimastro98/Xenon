@@ -595,7 +595,8 @@
         "album-art",
         "interactive"
       ],
-      "version": "5.3.1",
+      "version": "5.3.2",
+      "changelog": "Square and portrait tiles: the skip buttons, the volume wheel and the expand button stay inside the tile.",
       "appVersionMin": "4.11.0",
       "preview": {
         "accent": "#a861c5",
@@ -603,11 +604,9 @@
         "text": "#f2e6d4"
       },
       "shots": 4,
-      "active": true,
-      "activeUntil": "2026-09-25T23:59:59+02:00",
       "addedAt": "2026-08-25",
       "codeFile": true,
-      "updatedAt": "2026-08-28"
+      "updatedAt": "2026-11-21"
     },
     {
       "id": "workload",
