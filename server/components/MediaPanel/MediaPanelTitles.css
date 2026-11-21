@@ -146,27 +146,14 @@
   text-overflow: ellipsis;
 }
 
-/* Nothing playing: only the picture and the controls, the controls centred on
-   the picture. No app name and no title on screen; the title leaves the flow but
-   stays readable to screen readers. A source picker, when there is one, stays. */
+/* Nothing playing: only the picture and the controls on screen. The words keep
+   their room, invisible, so the keys stay exactly where a song puts them: centred
+   on the picture, they dropped a line each time a track started (#154). The title
+   stays readable to screen readers; a source picker, when there is one, shows. */
 .media-panel.is-empty .ph-label { display: none; }
-.media-panel.is-empty .media-app-row:not(:has(.media-source-picker:not([hidden]))) { display: none; }
-.media-panel.is-empty .app-pill { display: none; }
-/* The keys sit level with the picture's centre, whether the column is a flex
-   stack or Liquid Glass's grid. Sideways they keep the place the layout gives
-   them while music plays: centred here, they jumped when a track started (#154).
-   No align-self on the keys: in the flex stack it is the SIDEWAYS axis, and
-   centre there moved them right on every tile taller than 300px. */
-.media-panel.is-empty .media-content { justify-content: center; align-content: center; grid-template-rows: auto; }
-.media-panel.is-empty .media-actions { grid-area: auto / 1 / auto / -1; margin-top: 0; }
-.media-panel.is-empty .media-textblock {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
+.media-panel.is-empty :is(.media-textblock, .app-pill) { opacity: 0; pointer-events: none; }
+.media-panel.is-empty .media-app-row:not(:has(.media-source-picker:not([hidden]))) { visibility: hidden; }
+.media-panel.is-empty .media-artist:empty::before { content: '\a0'; }
 
 .media-actions {
   display: flex;

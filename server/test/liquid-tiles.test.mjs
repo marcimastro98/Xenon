@@ -76,7 +76,9 @@ test('a bare widget\'s dark words get a light edge', () => {
 
 test('nothing playing: no hint under the title, and the picture has no caption', () => {
   const css = read('../components/MediaPanel/MediaPanel.css');
-  assert.doesNotMatch(css, /\.media-panel\.is-empty \.media-artist/);
+  // The artist line only keeps one blank, invisible line of room (#154): no words.
+  const artist = css.match(/\.media-panel\.is-empty \.media-artist[^{]*\{[^}]*\}/g) || [];
+  assert.deepEqual(artist, [".media-panel.is-empty .media-artist:empty::before { content: '\\a0'; }"]);
   assert.match(css, /\.media-panel\.is-empty \.ph-label \{ display: none; \}/);
   assert.match(read('../js/media/media.js'), /root\.classList\.toggle\('is-empty', !!ctx\.empty\);/);
 });

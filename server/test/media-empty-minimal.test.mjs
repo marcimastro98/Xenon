@@ -1,8 +1,7 @@
 // The music tile with nothing playing shows only the picture and the keys: no
-// "Music" source label, no "Nothing playing" title and no "Spotify, YouTube and
-// other players will show up here" hint on screen. The title stays in the page
-// for screen readers, clipped out of sight, and the keys sit level with the
-// picture's centre.
+// "Music" source label, no "Nothing playing" title and no hint on screen. The
+// words keep their room, invisible, so the keys stay where a song puts them; the
+// title stays readable to screen readers.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
@@ -29,37 +28,30 @@ test('the empty state clears the source name and the artist line', () => {
   assert.match(branch, /artist\.textContent = ''/);
 });
 
-test('the title leaves the screen but stays readable to screen readers', () => {
-  const rule = css.match(/\.media-panel\.is-empty \.media-textblock \{([^}]*)\}/);
-  assert.ok(rule, 'the empty textblock rule exists');
-  assert.match(rule[1], /position: absolute/);
-  assert.match(rule[1], /clip-path: inset\(50%\)/);
-  assert.doesNotMatch(rule[1], /display: none/, 'display:none would hide it from screen readers too');
+
+test('the words go invisible but keep their room, and stay readable to screen readers', () => {
+  const rule = css.match(/\.media-panel\.is-empty :is\(\.media-textblock, \.app-pill\) \{([^}]*)\}/);
+  assert.ok(rule, 'the empty words rule exists');
+  assert.match(rule[1], /opacity: 0/);
+  // display:none or visibility:hidden would hide the title from screen readers too,
+  // and position:absolute would give its room back and move the keys.
+  assert.doesNotMatch(css, /\.media-panel\.is-empty[^{]*\.media-textblock[^{]*\{[^}]*(display: none|visibility: hidden|position: absolute)/);
   assert.match(css, /\.media-panel\.is-empty \.ph-label \{ display: none; \}/);
-  assert.match(css, /\.media-panel\.is-empty \.app-pill \{ display: none; \}/);
+  // An empty artist line would fold to nothing; one blank line keeps its height.
+  assert.match(css, /\.media-panel\.is-empty \.media-artist:empty::before \{ content: '\\a0'; \}/);
 });
 
-test('the keys centre on the picture in every layout', () => {
-  assert.match(css, /\.media-panel\.is-empty \.media-content \{[^}]*align-content: center[^}]*grid-template-rows: auto/);
-  assert.match(css, /\.media-panel\.is-empty \.media-actions \{[^}]*grid-area: auto \/ 1 \/ auto \/ -1[^}]*margin-top: 0/);
-  // Liquid Glass's wide grid keeps a row for the words; with none, it must not.
-  assert.match(liquid, /\.media-panel\.is-empty:not\(\.lyrics-open\) \.media-content \{ grid-template-rows: auto; \}/);
-  assert.match(liquid, /\.media-panel\.is-empty:not\(\.lyrics-open\) \.media-textblock \{ grid-row: auto; \}/);
-});
-
-test('the keys keep their sideways place when a track starts or stops (#154)', () => {
-  // The short wide tile puts the keys at the start or the end of the row while
-  // music plays; the empty tile must not centre them, or they jump.
-  const rule = css.match(/\.media-panel\.is-empty \.media-actions \{([^}]*)\}/);
-  assert.ok(rule, 'the empty keys rule exists');
-  assert.doesNotMatch(rule[1], /justify-self/);
-  // In the Classic look the column is a flex stack, where align-self is the
-  // sideways axis: centre there moved the keys on every tall tile (5.1.1).
-  assert.doesNotMatch(rule[1], /align-self/);
+test('the keys keep their place when a track starts or stops, in both directions (#154)', () => {
+  // Nothing playing lays the tile out exactly as a song does: no empty-state rule
+  // may move the keys or reshape the column, in any look.
+  for (const sheet of [css, liquid]) {
+    assert.doesNotMatch(sheet, /\.is-empty[^{]*\.media-(actions|content)\b[^{]*\{/);
+  }
+  assert.doesNotMatch(liquid, /\.is-empty/);
   assert.match(css, /\.media-panel \.media-actions\s+\{ grid-column: 2; grid-row: 1 \/ -1; justify-self: end; \}/);
   assert.match(css, /\.media-panel \.media-actions \{ grid-column: 1; grid-row: 4; justify-self: start;/);
 });
 
 test('a source picker, when there is one, stays visible', () => {
-  assert.match(css, /\.media-panel\.is-empty \.media-app-row:not\(:has\(\.media-source-picker:not\(\[hidden\]\)\)\) \{ display: none; \}/);
+  assert.match(css, /\.media-panel\.is-empty \.media-app-row:not\(:has\(\.media-source-picker:not\(\[hidden\]\)\)\) \{ visibility: hidden; \}/);
 });
