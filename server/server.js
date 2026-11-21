@@ -5728,15 +5728,15 @@ const handleRequest = async (req, res) => {
       if (_features.genesis === true) {
         const ds = (aiBody.dashboardState && typeof aiBody.dashboardState === 'object') ? aiBody.dashboardState : null;
         const _avail = (ds && Array.isArray(ds.availableWidgets) ? ds.availableWidgets : [])
-          // 64, not 32: the list has grown past 40, and the cut fell on the
-          // newest widgets (search, disk, transfer, phone…), which the model was
-          // then never told exist.
+          // 64, not 32: past 40 widgets the cut fell on the newest ones (search, disk,
+          // transfer, phone…), which the model was then never told exist.
           .filter(w => typeof w === 'string').slice(0, 64).map(w => w.slice(0, 24));
         const _pages = (ds && Array.isArray(ds.pages) ? ds.pages : [])
           .filter(p => p && typeof p === 'object').slice(0, 8)
           .map(p => ({
             name: String(p.name || '').slice(0, 40),
-            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 64).map(w => String(w).slice(0, 24)),
+            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 64).map(w => String(w).slice(0, 24))
+              .concat((Array.isArray(p.mine) ? p.mine : []).slice(0, 16).map(n => `your widget "${String(n).replace(/["\r\n]/g, '').slice(0, 40)}"`)),
           }));
         const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
         AI_FUNCTIONS.push(
@@ -5773,7 +5773,7 @@ const handleRequest = async (req, res) => {
           }, required: ['profile', 'keys'] } },
         );
         _genesisText = ` GENESIS (dashboard composer) is ENABLED. Available widget ids: ${_avail.join(', ') || 'unknown'}.` +
-          ` Current pages: ${_pages.map(p => `"${p.name}" [${p.widgets.join(', ') || 'empty'}]`).join('; ') || 'none'} (max ${_maxPages} pages).` +
+          ` Current pages: ${_pages.map(p => `"${p.name}" [${p.widgets.join(', ') || 'empty'}]`).join('; ') || 'none'} (max ${_maxPages} pages). A "your widget" is one the user installed or made: to change it use my_widgets then create_widget with its id (tool group create), not genesis.` +
           ' When the request names a clear activity or theme (e.g. "build me a streaming page"), pick the most relevant widgets (3-6) and call genesis_compose_page with a short fitting name: no need to ask which widgets.' +
           ' When the request is GENERIC ("create a new dashboard/page" with no purpose), do NOT compose yet: first ask, in the user\'s language, one short question about what the page is for, suggesting 2-3 concrete examples (e.g. gaming, work/focus, music, streaming). If useful, follow up with at most ONE more question about what they want to see on it, then compose. Never ask more than two questions before composing.' +
           ' RICH LAYOUT: compose thoughtfully, not just a flat row of tiles:' +

@@ -110,17 +110,17 @@
   // never the user's already-configured base deck on another page.
   let lastDeckPageId = null;
 
-  // Compact snapshot sent with every AI turn (mirrors the deckProfiles
-  // pattern): the model needs to know what exists before composing.
+  // Compact snapshot sent with every AI turn: what exists before composing. Store and Bit-made
+  // widgets go by name in `mine`: Bit changes them, and a page holding only them read as empty.
   function describeState() {
     try {
       const layout = getDashboardLayout();
-      const pages = layout.pages.map(p => ({
-        id: p.id,
-        name: (p.name || '').trim() || p.id,
-        widgets: DASHBOARD_WIDGET_IDS.filter(w =>
-          layout.widgets[w] && layout.widgets[w].visible && layout.widgets[w].page === p.id),
-      }));
+      const on = (w, pageId) => !!w && w.visible && w.page === pageId;
+      const mine = (pageId) => [...new Set([on(layout.widgets.custom, pageId) ? 'custom' : '']
+        .concat((layout.copies || []).filter(c => c?.widget === 'custom' && c.page === pageId).map(c => c.id))
+        .map(id => (id && window.CustomWidget?.assignedName?.(id)) || '').filter(Boolean))];
+      const pages = layout.pages.map(p => ({ id: p.id, name: (p.name || '').trim() || p.id, mine: mine(p.id),
+        widgets: DASHBOARD_WIDGET_IDS.filter(w => on(layout.widgets[w], p.id)) }));
       return { pages, availableWidgets: genesisWidgetIds(), maxPages: DASHBOARD_PAGES_MAX };
     } catch {
       return null;
