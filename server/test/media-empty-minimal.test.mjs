@@ -55,3 +55,17 @@ test('the keys keep their place when a track starts or stops, in both directions
 test('a source picker, when there is one, stays visible', () => {
   assert.match(css, /\.media-panel\.is-empty \.media-app-row:not\(:has\(\.media-source-picker:not\(\[hidden\]\)\)\) \{ visibility: hidden; \}/);
 });
+
+test('on a wide Liquid tile, the rows a song brings sit above the keys (#154)', () => {
+  // The per-app volume and Spotify's row appear only while something plays; under
+  // the transport they pushed it up as soon as a song started. Placed before it,
+  // the keys stay on the cover's bottom edge in every state.
+  const spotify = read('../components/MediaPanel/LiquidPlayerSpotify.css');
+  const at = spotify.indexOf('@container mediatile (orientation: landscape) and (min-width: 560px) and (min-height: 400px)');
+  assert.ok(at > 0, 'the wide tile step exists');
+  const wide = spotify.slice(at, spotify.indexOf('\n}\n', at));
+  assert.match(wide, /\.media-content \{ align-self: stretch; grid-template-rows: auto 1fr; \}/, 'the title row takes the room, the keys sit at the bottom');
+  assert.match(wide, /:is\(\.msp > \.msp-row, \.media-content > \.media-volume\) \{ order: 0; \}/);
+  // Same weight as the rule that sends them after the transport, and later, so it wins.
+  assert.ok(spotify.indexOf(':is(.media-actions > .control-btn, .msp-row, .media-volume) { order: 1; }') < at);
+});

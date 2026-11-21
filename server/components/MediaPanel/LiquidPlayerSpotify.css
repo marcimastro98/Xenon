@@ -187,4 +187,7 @@
   :root[data-style="liquid"] .media-panel:not(.lyrics-open):has(> .media-viz) .media-art { width: min(100cqh - 60px, 100cqw - 300px, 560px); }
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content { align-self: stretch; grid-template-rows: auto 1fr; }
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) :is(.media-textblock, .media-actions > .media-lyrics-btn) { align-self: start; }
+  /* Spotify's row and the volume arrive with the song: above the transport, so the
+     keys stay on the cover's bottom edge whether something plays or not (#154). */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) :is(.msp > .msp-row, .media-content > .media-volume) { order: 0; }
 }
