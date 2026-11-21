@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### 🐛 Fixed
+- **The arrow keys move a widget by 1 pixel on the map in Xenon too.** On the map of your screens in Xenon → Screens an arrow moved a picked widget by 1% of the screen, about 20 pixels, Shift changed its size and every press was saved at once, so some presses were lost. Clicking a widget on the map also left the keys on the Back button, so the arrows often did nothing at all. Now a click on a widget gives it the arrows, and they work as when you edit the widgets on screen: 1 pixel a press, 10 with Shift, Shift+Alt changes its size by 1 pixel, and it is saved once the keys rest. On a screen scaled above 100% in Windows, an arrow now moves the widget by one real pixel there too, instead of one and a half at 150%.
 - **You can rate a paid Store item you unlocked before 5.0.** If you unlocked a paid or limited item with its own code before Store ratings arrived, Xenon could not get you a vote for it: it tried your supporter pass, which never opens a paid item, and gave up. Now it shows the Store that this PC already unlocked the item and the vote opens as usual. Xenon also stops trying the supporter pass on items it cannot open.
 
 ## [v5.2.0] - 20-11-2026

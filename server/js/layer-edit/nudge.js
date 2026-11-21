@@ -6,10 +6,7 @@
 (() => {
   'use strict';
 
-  const STEP_PX = 1;
-  const BIG_STEP_PX = 10;
   const SAVE_MS = 400;         // one save after the last press, never one per press
-  const ARROWS = Object.freeze({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] });
   const NO_GUIDES = Object.freeze({ xs: Object.freeze([]), ys: Object.freeze([]) });
 
   let pending = null;          // { key, mode, d, dx, dy, box, ctx, timer }
@@ -21,15 +18,8 @@
     return /^(INPUT|TEXTAREA|SELECT)$/.test(String(target.tagName || ''));
   }
 
-  // What a key asks: a step and whether it moves or sizes; null when it is not ours.
-  // Ctrl and Cmd stay free (undo is Ctrl+Z), and so does Alt without Shift.
-  function stepOf(e) {
-    const dir = ARROWS[e?.key];
-    if (!dir || e.ctrlKey || e.metaKey || (e.altKey && !e.shiftKey)) return null;
-    const resize = e.altKey && e.shiftKey;
-    const px = e.shiftKey && !resize ? BIG_STEP_PX : STEP_PX;
-    return { dx: dir[0] * px, dy: dir[1] * px, mode: resize ? 'resize' : 'move' };
-  }
+  // What a key asks: one rule with the map in Xenon (js/layers/layer-drag.js `keyStep`).
+  const stepOf = (e) => window.LayerDrag.keyStep(e);
 
   // The same start a drag takes (js/layer-edit/layer-edit.js `begin`), with no guides.
   function startOf(entry, origin, G) {
@@ -79,8 +69,10 @@
       // A drag or a tap saves the steps first: a save after it would undo it.
       document.addEventListener('pointerdown', flush, true);
     }
-    pending.dx += step.dx;
-    pending.dy += step.dy;
+    // A step is a pixel of the screen, as on the map: at 150% scale a page pixel is 1.5 of them.
+    const scale = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+    pending.dx += step.dx / scale;
+    pending.dy += step.dy / scale;
     pending.box = boxAfter(pending);
     ctx.show(entry.slot, pending.box, pending.d.origin);
     clearTimeout(pending.timer);

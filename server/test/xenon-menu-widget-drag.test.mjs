@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
@@ -97,4 +98,44 @@ test('"Put it back" returns everything as it was when editing began, and only th
 test('a drag never makes tabs: they come from their button alone', () => {
   const src = readFileSync(new URL('../js/layer-edit/layer-edit.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /layerGroup[^\n]*join/);
+});
+
+const Drag = require('../js/layers/layer-drag.js');
+
+test('an arrow moves a widget 1 px of its real screen, Shift 10, on the map as on the screen', () => {
+  const px = { w: 2560, h: 720 };
+  const at = { x: 0.5, y: 0.5, w: 0.2, h: 0.3 };
+  const one = Drag.nudge(at, { key: 'ArrowRight' }, px);
+  assert.ok(Math.abs((one.x - at.x) * 2560 - 1) < 1e-9, 'one pixel to the right');
+  assert.equal(one.w, at.w);
+  const ten = Drag.nudge(at, { key: 'ArrowUp', shiftKey: true }, px);
+  assert.ok(Math.abs((at.y - ten.y) * 720 - 10) < 1e-9, 'ten pixels up');
+  assert.equal(Drag.nudge({ ...at, x: 0 }, { key: 'ArrowLeft' }, px).x, 0, 'it stops at the edge of its screen');
+});
+
+test('Shift+Alt with an arrow changes the size by 1 px; Ctrl, Cmd and Alt alone are left alone', () => {
+  const px = { w: 1920, h: 1080 };
+  const at = { x: 0.1, y: 0.1, w: 0.2, h: 0.3 };
+  const min = { w: 0.04, h: 0.05 };
+  const wider = Drag.nudge(at, { key: 'ArrowRight', shiftKey: true, altKey: true }, px, { min });
+  assert.ok(Math.abs((wider.w - at.w) * 1920 - 1) < 1e-9, 'one pixel wider');
+  assert.equal(wider.x, at.x);
+  const shorter = Drag.nudge(at, { key: 'ArrowUp', shiftKey: true, altKey: true }, px, { min });
+  assert.ok(Math.abs((at.h - shorter.h) * 1080 - 1) < 1e-9, 'one pixel shorter');
+  for (const mod of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {
+    assert.equal(Drag.nudge(at, { key: 'ArrowRight', ...mod }, px), null);
+  }
+  assert.equal(Drag.nudge(at, { key: 'a' }, px), null);
+});
+
+test('the screen reads the arrows with the same rule as the map', () => {
+  const win = {};
+  for (const file of ['../js/layers/layer-drag.js', '../js/layer-edit/nudge.js']) {
+    vm.runInNewContext(readFileSync(new URL(file, import.meta.url), 'utf8'), { window: win, globalThis: win });
+  }
+  for (const e of [{ key: 'ArrowLeft' }, { key: 'ArrowDown', shiftKey: true }, { key: 'ArrowUp', shiftKey: true, altKey: true }, { key: 'ArrowRight', ctrlKey: true }]) {
+    assert.equal(JSON.stringify(win.LayerEditNudge.stepOf(e)), JSON.stringify(Drag.keyStep(e)), JSON.stringify(e));
+  }
+  assert.deepEqual(Drag.keyStep({ key: 'ArrowRight' }), { dx: 1, dy: 0, mode: 'move' });
+  assert.deepEqual(Drag.keyStep({ key: 'ArrowLeft', shiftKey: true }), { dx: -10, dy: 0, mode: 'move' });
 });

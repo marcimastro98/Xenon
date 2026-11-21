@@ -47,10 +47,10 @@
       focusNext = focus;
     }
 
-    function open(next) {
+    function open(next, focus) {
       clearFind();
       show(HOST);
-      go(next);
+      go(next, focus);
       redraw();
     }
 
@@ -85,7 +85,7 @@
 
     const map = window.XenonMenuMap.create({
       el, say, perform, thumb: addThumb,
-      open: (r) => open({ name: 'widget', id: r.id }),
+      open: (r) => open({ name: 'widget', id: r.id }, 'map:' + r.id),   // keeps the keys: the arrows move it at once
     });
 
     const widgetView = window.XenonMenuWidgetView.create({

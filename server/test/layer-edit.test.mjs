@@ -17,7 +17,7 @@ const LayersModel = require('../js/layers/layers-model.js');
 
 const rectOf = (left, top, width, height) => () => ({ left, top, width, height, right: left + width, bottom: top + height });
 
-function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answer, layerKey, fetch, clock, fine = false } = {}) {
+function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answer, layerKey, fetch, clock, fine = false, scale } = {}) {
   const { document } = makeDom();
   // The page's own nodes need contains() for the cross check; mini-dom has none.
   const make = document.createElement;
@@ -65,7 +65,7 @@ function boot({ surface = 'desktop', reply = { ok: true }, grouped = false, answ
     run: async (action) => { runs.push({ ...action }); return answer ? answer(action) : reply; },
   };
   const ctx = {
-    window: { LayerKey: layerKey, LayerDrag, LayerSee, LayersModel }, document, Math, Array, WeakMap, Map, Object, String,
+    window: { LayerKey: layerKey, LayerDrag, LayerSee, LayersModel, devicePixelRatio: scale }, document, Math, Array, WeakMap, Map, Object, String,
     setTimeout: clock ? clock.set : setTimeout, clearTimeout: clock ? clock.clear : clearTimeout,
     getComputedStyle: () => ({ getPropertyValue: () => '' }),
     SERVER: '', fetch, console: { warn() {} }, JSON, matchMedia: () => ({ matches: fine }),
@@ -632,6 +632,19 @@ test('the arrows move the picked widget 1 px, 10 with Shift, and save once when 
   clock.run();
   await settle();
   assert.deepEqual(runs, [{ type: 'layerMove', target: 'lw_a1', position: 'keep', size: 'keep', rect: '0.002,0.02,0.2,0.2' }]);
+});
+
+test('on a screen scaled to 150% an arrow still moves the widget by one pixel of the screen', async () => {
+  const clock = handClock();
+  const { a, document, frameOf, runs } = boot({ clock, scale: 1.5 });
+  tap(frameOf(a));
+  press(document, 'ArrowRight');
+  press(document, 'ArrowRight');
+  press(document, 'ArrowRight');
+  press(document, 'ArrowDown', { shiftKey: true });
+  clock.run();
+  await settle();
+  assert.equal(runs.at(-1).rect, '0.002,0.0133,0.2,0.2', '3 and 10 screen pixels are 2 and 6.67 page pixels (page 1000 x 500)');
 });
 
 test('the arrows stop at the screen edge, like a drag', async () => {

@@ -12,7 +12,7 @@
 })(typeof window !== 'undefined' ? window : globalThis, function (LayerDrag) {
   const CLICK_PX = 4;          // less than this is a tap, not a drag
   const SNAP = 0.012;          // of the screen: the pull of an edge, a middle, another widget
-  const NUDGE = 0.01;          // an arrow key
+  const KEYS_SAVE_MS = 400;    // arrows step by real pixels (LayerDrag.keyStep), saved once they rest
   const MIN_BOX = Object.freeze({ w: 0.04, h: 0.05 });
   // Of the screen: past these the letters of the performance words stop changing.
   const WORDS_WIDTH = Object.freeze({ min: 0.05, max: 0.25 });
@@ -25,7 +25,6 @@
     { x: 0.66, y: 0.5 }, { x: 0.35, y: 0.5 }, { x: 0.04, y: 0.5 },
     { x: 0.66, y: 0.06 }, { x: 0.35, y: 0.06 }, { x: 0.04, y: 0.06 },
   ]);
-  const ARROWS = Object.freeze({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] });
 
   const hasPlace = (m) => Number.isInteger(m.x) && Number.isInteger(m.y);
   const sizeOf = (m) => ({ w: m.width || 16, h: m.height || 9 });
@@ -85,6 +84,7 @@
     const { el, say, perform, thumb, open } = ctx;
     let held = false;
     let saving = Promise.resolve();
+    let keyed = null;            // { r, box, screen, timer }: arrow steps not saved yet
 
     // From the drop on, the map is what is true: the server answers later, and a drag
     // started from the old box put the old size back. Saves wait their turn, because
@@ -94,6 +94,14 @@
       r.at.rect = box;
       r.at.monitor = screen;
       saving = saving.then(() => perform(r, act));
+    }
+
+    function flushKeys() {
+      if (!keyed) return;
+      const { r, box, screen, timer } = keyed;
+      clearTimeout(timer);
+      keyed = null;
+      save(r, box, screen);
     }
 
     function place(node, r) {
@@ -138,6 +146,7 @@
       node.addEventListener('pointerdown', (down) => {
         if (down.button) return;
         down.preventDefault();
+        node.focus({ preventScroll: true });   // the arrows need it, and preventDefault keeps it away
         const start = view.screenOf(r);
         const first = start.node.getBoundingClientRect();
         let from = start;
@@ -209,18 +218,20 @@
       node.appendChild(grip);
     }
 
+    // Drawn at each press, saved once the keys rest: a save a press lost presses to the redraw.
     function keys(node, r, view) {
       node.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(r); return; }
-        const way = ARROWS[e.key];
-        if (!way) return;
+        const screen = view.screenOf(r);
+        const box = LayerDrag.nudge(r.at.rect, e, screen, { words: r.at.words, wide: WORDS_WIDTH, min: MIN_BOX });
+        if (!box) return;
         e.preventDefault();
-        const { x, y, w, h } = r.at.rect;
-        const box = e.shiftKey
-          ? LayerDrag.stretch(r.at.rect, way[0] * NUDGE, way[1] * NUDGE, AREA, { xs: [], ys: [] }, 0, MIN_BOX).box
-          : { x: Math.min(Math.max(x + way[0] * NUDGE, 0), 1 - w), y: Math.min(Math.max(y + way[1] * NUDGE, 0), 1 - h), w, h };
-        save(r, box, view.screenOf(r).key);
+        if (keyed?.r !== r) flushKeys(); else clearTimeout(keyed.timer);
+        r.at.rect = box;
+        place(node, box);
+        keyed = { r, box, screen: screen.key, timer: setTimeout(flushKeys, KEYS_SAVE_MS) };
       });
+      node.addEventListener('blur', flushKeys);
     }
 
     // A widget on an app has no place on a screen: it goes where the window goes. So the
@@ -282,7 +293,7 @@
       return map;
     }
 
-    return { draw, holds: () => held };
+    return { draw, holds: () => held || !!keyed };
   }
 
   return { create, layout, moveFor, boxesOf, windowSpots };

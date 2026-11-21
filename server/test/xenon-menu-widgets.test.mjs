@@ -26,6 +26,8 @@ function node(tag, cls = '', txt = '') {
     setAttribute(k, v) { n.attrs[k] = v; },
     addEventListener(k, f) { n.on[k] = f; },
     focus() { n.focused += 1; },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+    querySelectorAll: () => [],
     animate(frames) { n.frames = frames; },
   };
   return n;
@@ -493,17 +495,43 @@ test('the key a refused combination suggests is one Xenon takes', async () => {
   assert.equal(S.reservedBy('ctrl+alt+p'), 'altgr', 'a letter with Ctrl+Alt is refused, the reason for the suggestion');
 });
 
-test('on the map the next move starts from the last one, before the server has answered', async () => {
+test('on the map the arrows step by pixels of the real screen and save once, when they rest', async () => {
   const { widgets, log, paint, main } = rig();
   const s = withMap();
   named(widgets.drawRow(widget('w1', 'p1')), 'w1').on.click();
   paint(s);
   const picked = all(main).find((n) => n.cls.includes('is-picked'));
   const press = (ev) => picked.on.keydown({ preventDefault() {}, ...ev });
+  const before = log.acts.length;
   press({ key: 'ArrowRight' });
   press({ key: 'ArrowRight' });
   press({ key: 'ArrowRight', shiftKey: true });
+  assert.equal(widgets.holds(), true, 'no redraw under the keys');
+  assert.equal(log.acts.length, before, 'nothing saved while the keys go on');
+  picked.on.blur();
   await new Promise((done) => setImmediate(done));
-  const rects = log.acts.slice(-3).map((a) => a.run.rect);
-  assert.deepEqual(rects, ['0.71,0.05,0.25,0.2', '0.72,0.05,0.25,0.2', '0.72,0.05,0.26,0.2']);
+  assert.equal(log.acts.length, before + 1, 'one save');
+  assert.equal(log.acts.at(-1).run.rect, '0.7075,0.05,0.25,0.2', '1 + 1 + 10 px of a 1600 px screen');
+  assert.equal(widgets.holds(), false);
+});
+
+test('a click on a widget of the map gives it the arrows, and its page opens with the keys still on it', () => {
+  const rigged = rig();
+  const { log, paint, main } = rigged;
+  const s = withMap();
+  openW1(rigged, s);
+  const doc = {};
+  globalThis.document = { addEventListener: (k, f) => { doc[k] = f; }, removeEventListener: () => {} };
+  try {
+    const picked = all(main).find((n) => n.dataset.keep === 'map:w1');
+    picked.on.pointerdown({ button: 0, clientX: 80, clientY: 10, preventDefault() {} });
+    assert.equal(picked.focused, 1, 'a press on it gives it the keys, though the press is held back');
+    const redraws = log.redraws;
+    doc.pointerup({ type: 'pointerup', clientX: 80, clientY: 10 });
+    assert.equal(log.redraws, redraws + 1, 'a tap opens its page');
+    paint(s);
+    assert.equal(all(main).find((n) => n.dataset.keep === 'map:w1').focused, 1, 'its page puts the keys on it, not on Back');
+  } finally {
+    delete globalThis.document;
+  }
 });

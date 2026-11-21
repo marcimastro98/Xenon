@@ -100,5 +100,28 @@
     return SPOTS.find((spot) => !boxes.some((b) => overlap(spotBox(spot, area, size, edge), b))) || SPOTS[0];
   }
 
-  return Object.freeze({ linesFor, pull, move, stretch, holdWords, scaleWords, carry, freeSpot });
+  // What an arrow key asks, in pixels: 1 a press, 10 with Shift, and Shift+Alt sizes instead;
+  // null when it is not one. Ctrl and Cmd stay free (undo is Ctrl+Z), so does Alt without Shift.
+  const ARROWS = Object.freeze({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] });
+  function keyStep(e) {
+    const dir = ARROWS[e?.key];
+    if (!dir || e.ctrlKey || e.metaKey || (e.altKey && !e.shiftKey)) return null;
+    const resize = e.altKey && e.shiftKey;
+    const px = e.shiftKey && !resize ? 10 : 1;
+    return { dx: dir[0] * px, dy: dir[1] * px, mode: resize ? 'resize' : 'move' };
+  }
+
+  // Where an arrow key puts a box, in fractions of a screen of `px` pixels (the map in Xenon);
+  // null when the key is not one. `words` grow as a whole, by their width, within `wide`.
+  function nudge(box, e, px, { words, wide, min } = {}) {
+    const step = keyStep(e);
+    if (!step) return null;
+    const dx = step.dx / (px.w >= 200 ? px.w : 1920);
+    const dy = step.dy / (px.h >= 100 ? px.h : 1080);
+    const area = { w: 1, h: 1 };
+    if (step.mode === 'resize') return words ? scaleWords(box, box, dx, area, wide) : stretch(box, dx, dy, area, { xs: [], ys: [] }, 0, min).box;
+    return { ...box, x: Math.min(Math.max(box.x + dx, 0), 1 - box.w), y: Math.min(Math.max(box.y + dy, 0), 1 - box.h) };
+  }
+
+  return Object.freeze({ linesFor, pull, move, stretch, holdWords, scaleWords, carry, freeSpot, keyStep, nudge });
 });
