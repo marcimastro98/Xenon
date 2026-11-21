@@ -203,6 +203,8 @@ test('an owner from before tickets gets one with its device id, and no pass is t
   assert.deepEqual(tried, []);
   assert.equal(r.hubCalls.filter((c) => c.body.deviceId).length, 1, 'the device id is sent only for the locked entry, once');
   assert.equal(r.hubCalls[0].body.deviceId, undefined, 'the first, public ask carries no device id');
+  const owner = r.hubCalls.find((c) => c.body.deviceId);
+  assert.equal(owner.body.scopedId, undefined, 'the owner ask never carries the voter id next to the device id');
   r.clock.now += WAIT_MS;
   assert.equal((await r.votes.stateOf('neon')).state, 'open');
 });

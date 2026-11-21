@@ -23,9 +23,10 @@ function makeTickets({ scopedId, deviceId, hub, redeemSaved, now, rvState, load,
 
   // ── Tickets for what is installed ────────────────────────────
   // `device` only for a locked entry: the hub then checks this PC already owns it.
+  // That ask never carries the voter id: the hub keeps both ids (ratings,
+  // activations) and must never see them side by side (hub src/scoped-ids.js).
   async function askTicket(id, e, wire, voter, device = '') {
-    const body = { entryId: id, ratingId: wire, scopedId: voter };
-    if (device) body.deviceId = device;
+    const body = device ? { entryId: id, ratingId: wire, deviceId: device } : { entryId: id, ratingId: wire, scopedId: voter };
     const out = await hub('/ratings/ticket', body);
     if (out && out.ok === true && typeof out.ticket === 'string') {
       e.ticket = out.ticket.slice(0, TICKET_MAX);
