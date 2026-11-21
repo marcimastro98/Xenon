@@ -5736,7 +5736,7 @@ const handleRequest = async (req, res) => {
           .map(p => ({
             name: String(p.name || '').slice(0, 40),
             widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 64).map(w => String(w).slice(0, 24))
-              .concat((Array.isArray(p.mine) ? p.mine : []).slice(0, 16).map(n => `your widget "${String(n).replace(/["\r\n]/g, '').slice(0, 40)}"`)),
+              .concat((Array.isArray(p.mine) ? p.mine : []).slice(0, 16).map(n => `your widget "${String(n).replace(/[^\p{L}\p{N} '&.-]/gu, '').slice(0, 40)}"`)),
           }));
         const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
         AI_FUNCTIONS.push(
