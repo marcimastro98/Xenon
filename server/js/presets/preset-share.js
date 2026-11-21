@@ -4167,7 +4167,7 @@
       const CW = window.CustomWidget;
       if (!CW || typeof CW.cachedPackages !== 'function' || !window.XenonToast) return false;
       const ids = (pkgIds || []).filter(Boolean).map(String);
-      const pkgs = (CW.cachedPackages() || []).filter((p) => p && ids.includes(p.id) && p.surface !== 'ambient');
+      const pkgs = (CW.cachedPackages() || []).filter((p) => p && ids.includes(p.id) && p.surface !== 'ambient' && p.tile !== false);
       if (!pkgs.length) return false;
       // The Maker's link went straight on screen (js/store-catalog/place-installed.js).
       if (importSource.place !== true) showInstalledToast(CW, pkgs);

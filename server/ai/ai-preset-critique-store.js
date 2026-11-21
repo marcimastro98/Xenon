@@ -5,7 +5,7 @@
 // checklist the human review follows (permissions against use, hidden or
 // dynamic code, loops that run while hidden); taste stays with the review.
 
-const { SDK_ACTION_CATEGORIES } = require('../sdk-widgets.js');
+const { SDK_ACTION_CATEGORIES, normalizeManifest } = require('../sdk-widgets.js');
 const { finding } = require('./ai-preset-critique-core.js');
 
 const quoted = (word) => new RegExp('[\'"`]' + word + '[\'"`]');
@@ -54,8 +54,18 @@ function unusedGrants(entry, manifest, text) {
   return out;
 }
 
+// `"tile": false` keeps a widget to the top bar; with no part that runs there the app ignores it.
+function ignoredTile(entry, manifest) {
+  if (manifest.tile !== false) return [];
+  const r = normalizeManifest(manifest, typeof manifest.id === 'string' ? manifest.id : entry.id);
+  return r?.ok && r.manifest.tile !== false
+    ? [finding('fix', 'manifest.tile', '"tile": false is ignored: no part of the widget runs without a tile, so it is still offered for pages', 'add the bar part it is for ("badge", "mini", "topbarButton", "island": {"dynamic": true}), or drop "tile": false')]
+    : [];
+}
+
 function critiqueStoreRules(entry, text) {
-  const out = unusedGrants(entry, manifestOf(entry), text);
+  const manifest = manifestOf(entry);
+  const out = unusedGrants(entry, manifest, text).concat(ignoredTile(entry, manifest));
   for (const [pattern, what] of HIDDEN_CODE) {
     if (pattern.test(text)) out.push(finding('fix', 'files', 'uses ' + what + ', which the Store review refuses as hidden or dynamic code', 'write the code out plainly in the package files'));
   }

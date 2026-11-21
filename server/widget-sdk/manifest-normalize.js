@@ -17,6 +17,7 @@ const SDK_SOUND_FILE_RE = require('../store-catalog/sound-packs.js').PACK_FILE_R
 const { WIDGET_ID_RE, SDK_SUB_ID_RE, ENTRY_RE } = require('./package-names.js');
 const {
   MAX_MACROS, MAX_MACRO_STEPS, MAX_STATES, MAX_HANDLERS, MAX_MACRO_STEP_DELAY_MS, TILE_SIZES,
+  PUMP_SHAPES, PUMP_TRUE,
 } = require('./manifest-limits.js');
 const {
   cleanStr, cleanList, normalizeHosts, normalizeUserHosts, normalizeHooks, normalizeHandlerParams,
@@ -164,6 +165,11 @@ function normalizeManifest(raw, folderId) {
   // rejecting the package. An ambient scene already owns the screen, so a shape
   // there would clip nothing meaningful.
   const shape = raw.surface === 'ambient' ? null : normalizeTileShape(raw.shape);
+  // Where it can run besides a tile: the capabilities a hidden service frame keeps alive.
+  const runsHeadless = deck.deck.handlers.length > 0 || badge || mini || topbarButton || islandDynamic || islandFull;
+  // `tile: false`: the widget lives only in the bar or on Deck keys, never on a page. Honoured
+  // only where it has somewhere else to run, so a widget can never end up with no place at all.
+  const barOnly = raw.tile === false && raw.surface !== 'ambient' && runsHeadless;
   return {
     ok: true,
     manifest: {
@@ -183,7 +189,11 @@ function normalizeManifest(raw, folderId) {
       surface: raw.surface === 'ambient' ? 'ambient' : 'tile',
       // A package may ask to run headless: handlers, badges and structured Live
       // Activities are the capabilities that can meaningfully outlive a tile.
-      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || mini || topbarButton || islandDynamic || islandFull),
+      // A bar-only widget runs nowhere else, so `tile: false` asks for this too.
+      background: (raw.background === true || barOnly) && runsHeadless,
+      // May it be placed on a page (a tile, a widget on the screen)? False only for `tile: false`
+      // above; an Ambient scene is never placed either, but that is its `surface`.
+      tile: !barOnly,
       // Legacy text projection + the separately-consented structured surfaces.
       // All remain host-rendered and never weaken the widget iframe sandbox.
       island,
@@ -253,6 +263,9 @@ function normalizeManifest(raw, folderId) {
       // On the screen its box takes the size the widget asks for (`layer` message `fit`),
       // so the menu offers no size of its own. Cosmetic, no grant.
       fit: raw.fit === true && raw.surface !== 'ambient',
+      // The pump screens it was drawn for (the LCD on an AIO pump): the menu and Bit offer it
+      // as a face there. Cosmetic like `size`, no grant; [] = not made for one.
+      pump: raw.pump === true ? [...PUMP_TRUE] : cleanList(raw.pump, PUMP_SHAPES, PUMP_SHAPES.length),
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,

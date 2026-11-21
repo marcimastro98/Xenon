@@ -95,6 +95,17 @@
 .ai-ask-own { align-items: center; }
 .ai-ask-leave { align-self: flex-start; margin: 2px 0 0 2px; font-weight: 600; }
 .ai-ask-leave::before { content: none; }
+/* A file only the person can pick (AiAskCard.pumpPicture): one row and its answer under it. */
+.ai-ask-file { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 0 0 8px 17px; }
+.ai-ask-pick {
+  min-height: 44px; max-width: 100%; padding: 0 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13.5px; font-weight: 600; line-height: 1.35; text-align: left; color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ai-ask-pick:hover { background: var(--hover-bg, rgba(255,255,255,.06)); }
+.ai-ask-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ai-ask-pick:disabled { cursor: progress; opacity: .6; }
 
 /* ── The way to more Scintille, under a reply that ran them low or out (BitChat.buyRow) ── */
 .ai-buy { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 8px; }

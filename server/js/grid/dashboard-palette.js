@@ -237,7 +237,7 @@
     const C = CW();
     if (!C || typeof C.cachedPackages !== 'function') return [];
     if (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.safeMode) return [];
-    return C.cachedPackages().filter(p => p && p.id && p.name && p.surface !== 'ambient'
+    return C.cachedPackages().filter(p => p && p.id && p.name && p.surface !== 'ambient' && p.tile !== false
       && !(typeof C.isSuspended === 'function' && C.isSuspended(p.id)));
   }
 
@@ -607,12 +607,12 @@
       if (!pop.childElementCount) {
         // The text sits in its own span: applyTranslations rewrites the text of
         // a data-i18n element, and would take the Store button with it.
-        const empty = document.createElement('div');
-        empty.className = 'widget-palette-empty';
-        const msg = document.createElement('span');
-        empty.appendChild(msg);
+        const empty = Object.assign(document.createElement('div'), { className: 'widget-palette-empty' });
+        const msg = empty.appendChild(document.createElement('span'));
         const safe = typeof hubSettings !== 'undefined' && hubSettings && hubSettings.safeMode;
-        const key = filter === 'installed' ? (safe ? 'palette_store_safe' : 'palette_store_empty') : 'palette_empty';
+        // Installed widgets made for the top bar only are never offered here: "none yet" would be untrue.
+        const barOnly = !safe && (CW()?.cachedPackages?.() || []).some((p) => p && p.tile === false);
+        const key = filter === 'installed' ? (safe ? 'palette_store_safe' : barOnly ? 'palette_store_bar_only' : 'palette_store_empty') : 'palette_empty';
         msg.setAttribute('data-i18n', key);
         msg.textContent = tr(key, key === 'palette_empty' ? 'Tutti i widget sono già in uso' : '');
         if (filter === 'installed' && !safe && window.CommunityGallery && typeof window.CommunityGallery.open === 'function') {

@@ -30,6 +30,8 @@ async function place(d, action) {
   const catalog = await d.layers.catalog();
   const ref = resolveRef(action.widget, catalog);
   if (!ref) return { ok: false, error: 'unknown_widget', choices: choices(catalog) };
+  // Its creator kept it to the top bar (manifest `tile: false`): it runs there, never on a page.
+  if (ref.kind === 'sdk' && catalog.packages.some(p => p.id === ref.pkg && p.tile === false)) return { ok: false, error: 'bar_only' };
   const where = monitorFor(d, action);
   if (where.error) return { ok: false, error: where.error };
   const when = action.when ? LayerWhen.parse(action.when) : undefined;

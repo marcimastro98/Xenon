@@ -19,7 +19,7 @@
       {
         "statement": "const capabilityRunner = capabilities.createCapabilities({",
         "callees": {
-          "server/capabilities/index.js": "a9a5aa4f1d4103b968f942855f52b2ee939423ecd0279111cef1603931e38258",
+          "server/capabilities/index.js": "3fe28138bfee9330619c26b801fd55f859da25fdb6b275878b1b1410941ead03",
           "server/notification-open/index.js": "b7fd7d2575f0cd056a560a5732150fe311ec649240a939fdc8893e0d611e7f07",
           "server/notification-open/start-apps.js": "93223b3724c28d1ce51644925a4257ae1285b02f9b6ddc0440998203f03466de",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
@@ -81,10 +81,10 @@
       {
         "statement": "const _situations = createSituations({",
         "callees": {
-          "server/capabilities/situations.js": "9639eef94b6997271fd78e1850ae7dc8028ac63d2b37f03326ff3794b0cabfb6",
+          "server/capabilities/situations.js": "53fd18e41e404d202c2417ea9d43097de672b0c9c67a1f5313a783e36552433b",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
         },
-        "reason": "createSituations makes empty sets and returns tick, hidden and needs; layers, every reader, isOwnApp, onChange, onPlan, onFacts and warn are first called from tick() or needs(); power/index.js is named inside the battery reader and loaded when that reader first runs, as it is today."
+        "reason": "createSituations makes empty sets and returns tick, hidden and needs; layers, every reader, isOwnApp, onChange, onPlan, onFacts and warn, and the other rule sources of situation-sources.js, are first called from tick() or needs(); power/index.js is named inside the battery reader and loaded when that reader first runs, as it is today."
       },
       {
         "statement": "const deckRegistry = createRegistry(deckRegistryDeps);",

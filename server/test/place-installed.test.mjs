@@ -9,7 +9,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('js/store-catalog/place-installed.js');
 
-function load({ layers = true, remote = false, layerPage = false, placed = { ok: true }, mode = 'dashboard' } = {}) {
+function load({ layers = true, remote = false, layerPage = false, placed = { ok: true }, mode = 'dashboard', packages = [] } = {}) {
   const listeners = {};
   const toasts = [];
   const posts = [];
@@ -19,6 +19,7 @@ function load({ layers = true, remote = false, layerPage = false, placed = { ok:
     XenonToast: { show: (o) => { toasts.push(o); return toasts.length; } },
     DeckErrorText: { describe: (code) => 'why: ' + code },
     UsageMode: { widgetsOnly: (v) => v === 'widgets' },
+    CustomWidget: { cachedPackages: () => packages },
   };
   const ctx = {
     window,
@@ -152,4 +153,18 @@ test('every string is there in the 11 languages', () => {
     'place_done_msg', 'place_move_btn', 'place_failed_title', 'place_needs_app']) {
     assert.equal((i18n.match(new RegExp('\\b' + key + ':', 'g')) || []).length, 11, key);
   }
+});
+
+test('a widget kept to the top bar is never offered for the screen', async () => {
+  const packages = [{ id: 'bat', tile: false }, { id: 'keyring', tile: true }];
+  assert.equal(await load({ packages }).option(['bat']), null);
+  const d = load({ packages });
+  const one = await d.option(['bat', 'keyring']);
+  assert.equal(one.action.label, 'Put on screen', 'only the other one is left, so it is placed by itself');
+  one.action.onClick();
+  await settle();
+  assert.equal(d.posts[0][1].widget, 'keyring');
+  const auto = load({ packages });
+  await auto.installed({ place: true, widgetIds: ['bat'] });
+  assert.deepEqual(auto.posts, [], 'the Maker link does not place it either');
 });

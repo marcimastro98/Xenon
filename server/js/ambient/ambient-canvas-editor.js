@@ -318,7 +318,7 @@
   // ── add menu ────────────────────────────────────────────────────────────
   function installedWidgets() {
     const list = window.CustomWidget && CustomWidget.cachedPackages ? CustomWidget.cachedPackages() : [];
-    return list.filter(p => p && p.id && p.surface !== 'ambient');
+    return list.filter(p => p && p.id && p.surface !== 'ambient' && p.tile !== false);
   }
   function toggleAdd(open) {
     s.addOpen = open == null ? !s.addOpen : open;

@@ -110,7 +110,7 @@
       out.push({ kind: 'builtin', id: b.id, base, category: builtinCategory(base, table), installed: false });
     }
     const pkgs = (Array.isArray(packages) ? packages : [])
-      .filter((p) => p && p.id && p.name && p.surface !== 'ambient')
+      .filter((p) => p && p.id && p.name && p.surface !== 'ambient' && p.tile !== false)
       .slice()
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
     for (const pkg of pkgs) {

@@ -31,6 +31,7 @@ const TOOLS = [
         id: idProp,
         name: { type: 'string', description: 'The name people see. Defaults to the id.' },
         size: { type: 'string', enum: SIZES, description: 'Tile size. Defaults to medium.' },
+        pump: { type: 'boolean', description: 'Also made for the round screen on an AIO pump cooler (Xenon 5.3): manifest "pump": true and a layout that stays inside the circle.' },
         overwrite: { type: 'boolean', description: 'Replace files with the same names in a folder that is not empty.' },
       },
     },
@@ -47,7 +48,7 @@ const TOOLS = [
   },
   {
     name: 'widget_issues',
-    description: 'What went wrong in an installed widget while it ran: errors and console.error lines, requests the sandbox blocked, whether its permissions are approved, and how heavy it is. Errors thrown in widget code show as "Script error." because of the sandbox: wrap code in try/catch and console.error the message to see it.',
+    description: 'What went wrong in an installed widget while it ran: errors and console.error lines, requests the sandbox blocked, whether its permissions are approved, how heavy it is, and what its tile cuts off (fit: a part past the edge of the tile, text its box cuts or that runs out of it, by class name and pixels, measured a few seconds after it drew; an empty list means it all fits). Errors thrown in widget code show as "Script error." because of the sandbox: wrap code in try/catch and console.error the message to see it.',
     inputSchema: { type: 'object', required: ['id'], properties: { id: idProp } },
   },
   {
@@ -99,7 +100,7 @@ async function withFolder(op, args, client) {
 async function newWidget(args, client) {
   const id = widgetId(args.folder, args.id);
   if (!id) return failed({ ok: false, error: 'bad_id', hint: 'Name the folder like a widget id (a-z, 0-9, dashes), or pass `id`.' });
-  const r = await client.call('widget_template', { id, name: args.name, size: args.size });
+  const r = await client.call('widget_template', { id, name: args.name, size: args.size, pump: args.pump === true });
   if (!r || !r.ok) return answer(r);
   const w = await writeWidgetFolder(args.folder, r.files, { overwrite: args.overwrite === true });
   return w.ok ? text({ ok: true, id, folder: w.folder, files: w.written, next: 'Edit the files, then call install_widget with this folder.' }) : failed(w);

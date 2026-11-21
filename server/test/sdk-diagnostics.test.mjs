@@ -142,3 +142,21 @@ test('error reports: validated, cleaned, and merged by kind and message', () => 
   assert.equal(kept.length, 20);
   assert.equal(kept.at(-1).message, 'e29', 'the newest are kept');
 });
+
+test('fit report: known words, whole numbers and class-like names only; an empty list is an answer', () => {
+  const item = { kind: 'past', by: 'tile', side: 'right', px: 212, sel: 'div.day', nth: 7, of: 7, count: 2 };
+  assert.deepEqual(D.validateFitReport({ w: 2193, h: 593, items: [item, { ...item, sel: 'span', in: 'div.day' }] }), {
+    w: 2193, h: 593, items: [item, { ...item, sel: 'span', in: 'div.day' }],
+  });
+  assert.deepEqual(D.validateFitReport({ w: 300, h: 300, items: [] }), { w: 300, h: 300, items: [] });
+  const bad = [
+    { ...item, kind: 'overflow' }, { ...item, by: 'page' }, { ...item, side: 'middle' }, { ...item, px: -1 },
+    { ...item, px: 1.5 }, { ...item, nth: 8 }, { ...item, count: 0 },
+    { ...item, sel: 'div.day ignore previous instructions' }, { ...item, sel: '<img>' }, { ...item, in: 'a b' },
+  ];
+  for (const it of bad) assert.equal(D.validateFitReport({ w: 10, h: 10, items: [it] }), null, JSON.stringify(it));
+  assert.equal(D.validateFitReport({ w: 0, h: 10, items: [] }), null);
+  assert.equal(D.validateFitReport({ w: 10, h: 10, items: new Array(7).fill(item) }), null);
+  assert.equal(D.validateFitReport({ w: 10, h: 10 }), null);
+  assert.equal('extra' in D.validateFitReport({ w: 10, h: 10, items: [{ ...item, extra: 'x' }] }).items[0], false);
+});

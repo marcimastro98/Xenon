@@ -7,6 +7,7 @@ const external = require('./lighting-external.js');
 const ledColors = require('./lighting-led-colors.js');
 const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
+const pumpRing = require('./pump-ring.js');
 const { isAvailable } = require('./sdk-dll.js');
 const { albumActive, refreshAnimationLayer } = require('./paint-rules.js');
 const {
@@ -177,7 +178,18 @@ function clearAlbum() {
   apply(); // apply() releases to iCUE when nothing else wants the LEDs
 }
 
+// The pump screen's ring (pump-screen/ring.js): what the pump's settings ask its lights to
+// follow, with the colours its page last said. Transient, like the album colour. New colours
+// change each frame's key, so only the devices holding the ring are written again.
+function setPumpRing(state) {
+  if (!pumpRing.set(state)) return;
+  reconcileConnection();
+  apply();
+  // A ring that pulses reads the sound; one that stopped lets the reader go (read late: audio loads lights).
+  require('../audio/levels-wanted.js').refreshAudioLevelsWatch();
+}
+
 module.exports = {
-  setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode,
+  setPumpRing, setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode,
   setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, setAlbumColor, clearAlbum,
 };

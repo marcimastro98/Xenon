@@ -121,6 +121,17 @@ test('cleanReport: keeps the fields and sizes the tools hand on', () => {
   assert.ok(!issues.errors[0].message.includes('\u0007'));
   assert.equal(issues.errors[0].count, 3);
   assert.deepEqual(issues.perf, { level: 'heavy', longTaskMsPerMin: 900, layoutShifts: 2 });
+  // What the tile cuts off: known fields only, names cut short, the list kept to its size.
+  const fit = cleanReport('issues', { found: true, fit: { w: 2193, h: 593, items: [
+    { kind: 'past', by: 'tile', side: 'right', px: 212, sel: 'div.day' + 'x'.repeat(80), nth: 7, of: 7, count: 2, junk: 1 },
+    { kind: 'cut', by: 'box', side: 'right', px: 40, sel: 'p.title', in: 'li.row', nth: 2, of: 5, count: 1 },
+  ] } }).fit;
+  assert.deepEqual(fit.items[1], { kind: 'cut', by: 'box', side: 'right', px: 40, sel: 'p.title', in: 'li.row', nth: 2, of: 5, count: 1 });
+  assert.equal(fit.items[0].sel.length, 50);
+  assert.equal('junk' in fit.items[0] || 'in' in fit.items[0], false);
+  assert.deepEqual([fit.width, fit.height], [2193, 593]);
+  assert.equal(cleanReport('issues', { found: true }).fit, null, 'no look yet');
+  assert.equal(cleanReport('issues', { fit: { w: 1, h: 1, items: new Array(50).fill({ kind: 'past' }) } }).fit.items.length, 20);
   assert.equal(cleanReport('issues', { errors: new Array(50).fill({ kind: 'error', message: 'm' }) }).errors.length, 20);
   // Known to this dashboard is not the same as in view: only a true onScreen passes.
   assert.equal(issues.onScreen, false);

@@ -25,7 +25,7 @@ function slice(src, from, to) {
 function packagesRig() {
   const code = [
     'const fetched = { pkgCache: null, pkgFetchPromise: null }; let assetVersion = 1;',
-    'const leftPage = new Set(); const blockedByPkg = new Map(); const errorsByPkg = new Map();',
+    'const leftPage = new Set(); function forgetRuns() {}',
     'function hostLimits() { return null; } function paint() {} function syncServiceFrames() {}',
     'async function api() { return { ok: true, packages: [{ id: "a" }] }; }',
     slice(BRIDGE, '  function bumpAssets() {', '\n  }\n'),

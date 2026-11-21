@@ -174,6 +174,8 @@
     nothing_running: ['deck_err_nothing_running', 'nothing is running to stop'],
     running: ['deck_err_already_recording', 'a recording is already going: stop it first'],
     no_second_screen: ['deck_err_no_second_screen', 'this needs a second screen connected'],
+    // A Store widget its creator kept to the top bar (manifest `tile: false`, capabilities/layers.js).
+    bar_only: ['deck_err_bar_only', 'this widget lives in the top bar: it is not placed on a screen'],
     nothing_to_undo: ['deck_err_nothing_to_undo', 'there is nothing to undo'],
   });
 

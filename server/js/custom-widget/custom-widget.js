@@ -23,7 +23,7 @@
   const el = makeEl;   // shared DOM factory from utils.js
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
-  const { ensure, showState } = window.CustomWidgetTileBody({ ICONS, el });
+  const { ensure, showState, showBarOnly } = window.CustomWidgetTileBody({ ICONS, el });
 
   // Client copy of the category → deck-action-type map (server/sdk-widgets.js
   // is the authority; keep in sync). Used to gate bridge action dispatch.
@@ -661,8 +661,7 @@
   function bumpAssets() {
     assetVersion++;
     leftPage.clear();
-    blockedByPkg.clear();
-    errorsByPkg.clear();
+    forgetRuns();
   }
   async function fetchPackages(force, listOnly) {
     // A forced fetch is a Rescan / (re)install — the files on disk may have
@@ -704,9 +703,9 @@
   // when the user runs widgets only. Not a permission: it says where the widget
   // is, nothing about the user, and the user alone decides where it goes.
   const LAYER_SURFACES = Object.freeze(['desktop', 'overlay', 'anchor']);
-  // The desktop scene page (scene.html) shows an Ambient scene as the animated
-  // wallpaper or the PC's screensaver (js/ambient/screen-scene.js sets data-scene).
-  const SCENE_PLACES = Object.freeze({ wallpaper: 'wallpaper', saver: 'screensaver' });
+  // data-scene: the desktop scene (scene.html, an Ambient scene as wallpaper or screensaver)
+  // and a pump's screen (pump-widget.html, where `shape` is that screen's: round, square, wide).
+  const SCENE_PLACES = Object.freeze({ wallpaper: 'wallpaper', saver: 'screensaver', pump: 'pump' });
   function placementOf(entry) {
     let where = 'dashboard';
     if (entry.service) where = 'background';
@@ -720,7 +719,7 @@
       if (LAYER_SURFACES.includes(kind)) where = kind;
     }
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
-    return { where, dashboard: hs.usageMode !== 'widgets' };
+    return { where, dashboard: hs.usageMode !== 'widgets', ...(where === 'pump' ? { shape: document.documentElement.dataset.shape || 'round' } : {}) };
   }
   const placementKey = (p) => p.where + '|' + p.dashboard;
   // Change-detected against what init said, like postSize: a settings pass that
@@ -1934,8 +1933,8 @@
 
   // ── Widget performance accounting (probe reports → per-package aggregate) ──
   const {
-    perfByPkg, blockedByPkg, onBridgeBlocked, getSandboxIssues, errorsByPkg, onBridgeError,
-    getRuntimeErrors, getPerfStats,
+    perfByPkg, onBridgeBlocked, getSandboxIssues, onBridgeError, getRuntimeErrors, getPerfStats,
+    onFitReport, getFit, whenFit, forgetRuns,
   } = window.CustomWidgetReports;
   function onBridgePerf(entry, msg) {
     if (!window.SdkPerf) return;
@@ -2151,11 +2150,9 @@
     } else if (d.type === 'accent') {
       if (entry.ready) onBridgeAccent(entry, grant, d);
     } else if (d.type === 'perf') {
-      // Host-injected probe report (see sdk-widgets.js PERF_PROBE_SOURCE). Not
-      // part of the public widget API and grants nothing — pure diagnostics.
-      // Deliberately NOT gated on entry.ready: a pure HTML/CSS widget never
-      // posts 'hello', and those decorative packages are exactly the ones the
-      // resource accounting exists to expose.
+      // Host-injected probe report (widget-sdk/frame-scripts.js), pure diagnostics that grant
+      // nothing. NOT gated on entry.ready: a pure HTML/CSS widget never says 'hello', and those
+      // decorative packages are exactly the ones the resource accounting exists to expose.
       onBridgePerf(entry, d);
     } else if (d.type === 'scheme') {
       // Same probe. The element has to match the page's scheme or the page gets
@@ -2169,6 +2166,8 @@
     } else if (d.type === 'error') {
       // Same probe again: an error before 'hello' is the one worth knowing.
       onBridgeError(entry, d);
+    } else if (d.type === 'fit') {
+      onFitReport(entry, d);   // same probe: what the tile cuts off
     } else if (d.type === 'handler_ack') {
       // The widget answered a dispatched deck-handler call. The sandboxed frame
       // has no network, so the HOST page relays the ack to the parked
@@ -2536,14 +2535,11 @@
   // Ids of background packages past the cap, for the Installed list to explain.
   let serviceLeftOut = [];
 
-  // Which background packages get a hidden frame. Pure (every input is passed in),
-  // so it is tested on its own. Ranked by need, not by install order: until
-  // v5.1 the first four packages in the list won and the rest were dropped
-  // without a word, so a badge the user wanted could lose its place to an island
-  // pop-up nobody was looking at. Deck keys first (a key must answer), then what
-  // stays on screen (badge, mini slot, bar button), island activities last. A
-  // package whose bar contribution the user switched off keeps a frame only for
-  // its Deck keys, since nothing else of it would show.
+  // Which background packages get a hidden frame (pure, tested on its own), ranked by need, not
+  // install order (until v5.1 a wanted badge could lose to an island pop-up): Deck keys first (a
+  // key must answer), then what stays on screen (badge, mini slot, bar button), island activities
+  // last; within each, a widget kept to the bar (`tile: false`) first: it has no tile to fall back
+  // on. A package whose bar part the user switched off keeps a frame only for its Deck keys.
   function planServiceFrames(pkgs, grantOf, opts) {
     const tiers = [[], [], []];
     for (const pkg of pkgs) {
@@ -2559,7 +2555,7 @@
         || (pkg.topbarButton === true && grant.topbarButton))) tiers[1].push(pkg);
       else if (shown && pkg.islandDynamic === true && grant.island && grant.islandDynamic) tiers[2].push(pkg);
     }
-    const ranked = tiers.flat();
+    const ranked = tiers.flatMap(t => t.filter(p => p.tile === false).concat(t.filter(p => p.tile !== false)));
     return { run: ranked.slice(0, opts.max), left: ranked.slice(opts.max).map(p => p.id) };
   }
 
@@ -2571,9 +2567,9 @@
   }
 
   function syncServiceFrames() {
-    // A layer window shows its own tiles only: the main dashboard already runs
-    // the background frames, and a second copy would answer every Deck key twice.
-    const layerSurface = !!(window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
+    // A layer window, a sheet or a scene page (data-scene: the desktop scene, a pump) shows its own frames only: the
+    // main dashboard already runs the background frames, and a second copy would answer every Deck key twice.
+    const layerSurface = !!(window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage()) || !!document.documentElement.dataset.scene;
     // The hidden widget host of "widgets only" (sdk-service.html) has no bar,
     // badge or island to feed: there, only granted Deck actions justify a frame.
     const handlersOnly = document.documentElement.hasAttribute('data-sdk-service');
@@ -3237,6 +3233,12 @@
     observeSize(entry);   // report tile size to the widget on mount + on every resize
   }
 
+  // A tile that shows a card instead of its widget lets its frame go.
+  function dropFrame(instId) {
+    const entry = frames.get(instId);
+    if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+  }
+
   function paint() {
     // Before anything else: an expanded widget whose frame has gone away (swap,
     // uninstall, safe mode, SDK off) would otherwise leave a full-screen empty
@@ -3274,8 +3276,7 @@
           const assign = { ...(cur.assign || {}) };
           delete assign[assignKeyOf(instId)];
           persist({ assign });
-          const entry = frames.get(instId);
-          if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+          dropFrame(instId);
           paint();
         };
       }
@@ -3287,8 +3288,7 @@
         reloadBtn.title = t('cw_reload', 'Reload widget (pick up file changes)');
         reloadBtn.onclick = () => {
           bumpAssets();
-          const entry = frames.get(instId);
-          if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+          dropFrame(instId);
           paint();
         };
       }
@@ -3297,8 +3297,7 @@
       // flips the STORED flag while safe mode still keeps everything off (a
       // control that lies). Offer the only action that actually works instead.
       if (safeModeOn()) {
-        const entry = frames.get(instId);
-        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        dropFrame(instId);
         showState(body, 'cw_safemode', 'Safe mode is on', {
           hint: ['cw_safemode_hint', 'Third-party widgets are paused while safe mode is on. Nothing was removed: turn safe mode off and everything comes back as it was.'],
           buttons: [{ key: 'cw_safemode_off', fb: 'Turn safe mode off', primary: true, onClick: () => { if (typeof setSafeMode === 'function') setSafeMode(false); } }],
@@ -3306,8 +3305,7 @@
         return;
       }
       if (!cfg.enabled) {
-        const entry = frames.get(instId);
-        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        dropFrame(instId);
         showState(body, 'cw_off', 'Third-party widgets are off', {
           hint: ['cw_off_hint', 'Sandboxed mini-widgets made by the community. They run isolated, with no network access, and only see what you allow.'],
           buttons: [{ key: 'cw_enable', fb: 'Turn on', primary: true, onClick: () => { persist({ enabled: true }); fetchPackages(true); paint(); } }],
@@ -3372,14 +3370,15 @@
         return;
       }
       if (isSuspended(pkg.id)) {
-        const entry = frames.get(instId);
-        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        dropFrame(instId);
         showState(body, 'cw_suspended', 'Widget paused', {
           hint: ['cw_suspended_hint', 'You paused it from the Store (Installed tab). Its Deck keys are paused too. Resume whenever you want: settings and permissions stay saved.'],
           buttons: [{ key: 'cw_resume', fb: 'Resume', primary: true, onClick: () => setSuspended(pkg.id, false) }],
         });
         return;
       }
+      // Its creator keeps it to the top bar now (`tile: false`, after an update): no frame here.
+      if (pkg.tile === false) { dropFrame(instId); showBarOnly(body, layerAssign.has(instId) ? null : () => swapBtn?.onclick()); return; }
       // The package's manifest now declares a capability the stored grant doesn't
       // cover — an old grant from before hosts/hooks existed, or a widget update
       // that added a host/hook. Rather than silently dead-ending the new feature
@@ -3388,8 +3387,7 @@
       // the approve button would be a button that does nothing.
       const unknown = unknownCapabilities(pkg);
       if (unknown.length) {
-        const entry = frames.get(instId);
-        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        dropFrame(instId);
         showState(body, 'cw_too_new', 'This widget needs a newer Xenon', {
           hint: ['cw_too_new_hint', 'It asks for something this version does not have yet (' + unknown.join(', ') + '). Update Xenon, and if you just did, reload the dashboard.'],
           buttons: [
@@ -3400,8 +3398,7 @@
         return;
       }
       if (grantNeedsReview(pkg) || addressNeedsFilling(pkg)) {
-        const entry = frames.get(instId);
-        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        dropFrame(instId);
         // A widget whose ONLY gap is an unfilled address isn't asking for new
         // powers — it's asking where its server lives. "Asks for new
         // permissions" would alarm the user over a blank field.
@@ -3424,8 +3421,7 @@
       // It tried to load another page in its frame and was stopped (guardFrame).
       // Mounting it again would only repeat that, so it waits for the user.
       if (leftPage.get(instId) === pkg.id) {
-        const entry = frames.get(instId);
-        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        dropFrame(instId);
         showState(body, 'cw_left_page', 'This widget tried to open another page, so Xenon stopped it', {
           hint: ['cw_left_page_hint', 'Widgets have to stay on their own page. The permissions you gave it were not passed on to the other page.'],
           buttons: [
@@ -3667,7 +3663,7 @@
   // cancelling it leaves the tile showing its chooser, as a fresh tile would.
   function assignToTile(instId, pkgId) {
     const pkg = packageById(pkgId);
-    if (!instId || !pkg || pkg.surface === 'ambient') return false;
+    if (!instId || !pkg || pkg.surface === 'ambient' || pkg.tile === false) return false;
     openPermDialog(pkg, instId);
     return true;
   }
@@ -3684,7 +3680,7 @@
   // masks it: that flag is never touched).
   function placePackage(pkgId, makeTile, dropTile) {
     const pkg = packageById(pkgId);
-    if (!pkg || pkg.surface === 'ambient' || typeof makeTile !== 'function') return null;
+    if (!pkg || pkg.surface === 'ambient' || pkg.tile === false || typeof makeTile !== 'function') return null;
     const instId = makeTile();
     if (!instId) return null;
     const cur = sdk();
@@ -3717,7 +3713,7 @@
     const bound = [];
     for (const p of list) {
       const pkg = p && packageById(p.pkg);
-      if (!pkg || pkg.surface === 'ambient' || !p.instance) continue;
+      if (!pkg || pkg.surface === 'ambient' || pkg.tile === false || !p.instance) continue;
       assign[p.instance] = pkg.id;
       bound.push(pkg.id);
     }
@@ -3754,6 +3750,8 @@
       const assign = sdk().assign || {};
       if (Object.keys(assign).some((inst) => assign[inst] === pkgId)) return null;
       const pkg = packageById(pkgId);
+      // Kept to the bar (`tile: false`): it runs there, so no page is made for it, only its permissions asked.
+      if (!pkg || pkg.tile === false) { if (pkg && !packageGranted(pkg)) requestGrants([pkg]); return null; }
       const page = currentPageId();
       const DG = window.DashboardGrid;
       const span = spanOnPage(pkg, page) || { w: 8, h: 6 };
@@ -3807,7 +3805,7 @@
     // Effective on/off (safe mode masks it): the palette offers Store widgets
     // only while a tile could actually run one.
     enabled: () => !!sdk().enabled,
-    getPerfStats, setSuspended, isSuspended, forgetGrant, getSandboxIssues, getRuntimeErrors, devLookup, devShow, setLayerAssign,
+    getPerfStats, setSuspended, isSuspended, forgetGrant, getSandboxIssues, getRuntimeErrors, devLookup, devShow, setLayerAssign, getFit, whenFit,
     // Display name of the package assigned to a custom-widget instance (the tile's
     // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —
     // e.g. the tab-group bar — label a custom tile with the real widget name

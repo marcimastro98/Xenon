@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+  Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+  Custom non-commercial license. Personal use only; no commercial use or
+  redistribution as your own. Attribution required. See LICENSE for terms.
+-->
+<!-- One Store widget on a pump's screen (js/pump/pump-widget-host.js), served at
+     /pump-widget by pump-screen/routes.js and framed by the face page's Widget face
+     (js/pump/face-widget.js). The dashboard's own widget bridge runs it, so its
+     sandbox, grants and streams are the dashboard's. data-scene keeps it a viewer. -->
+<html lang="en" data-scene="pump">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon pump widget</title>
+<link rel="stylesheet" href="components/PumpFace/PumpWidget.css">
+</head>
+<body>
+<div id="pump-widget-host" class="pump-widget-host"></div>
+<script src="shared/src/constants.js"></script>
+<script src="js/streaming/live-stream.js"></script>
+<script src="js/utils/page-and-text.js"></script>
+<script src="js/utils/time-and-format.js"></script>
+<script src="js/utils/stat-spark.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="layer-i18n.js"></script>
+<script src="js/look/theme-palette.js"></script>
+<script src="js/look/theme-tokens.js"></script>
+<script src="js/native-bridge/home-button.js"></script>
+<script src="js/native-bridge.js"></script>
+<script src="js/dialog-focus.js"></script>
+<script src="js/deck/approval-keys.js"></script>
+<script src="js/custom-widget/theme-payload.js"></script>
+<script src="js/custom-widget/frame-messages.js"></script>
+<script src="js/custom-widget/instances.js"></script>
+<script src="js/custom-widget/host-says.js"></script>
+<script src="js/custom-widget/stream-data.js"></script>
+<script src="js/custom-widget/picker-words.js"></script>
+<script src="js/custom-widget/reports.js"></script>
+<script src="js/custom-widget/places.js"></script>
+<script src="js/custom-widget/tile-body.js"></script>
+<script src="js/custom-widget/pick-list.js"></script>
+<script src="js/custom-widget/permission-words.js"></script>
+<script src="js/custom-widget/custom-widget.js"></script>
+<script src="js/layers/widget-feed.js"></script>
+<script src="js/pump/pump-widget-host.js"></script>
+</body>
+</html>

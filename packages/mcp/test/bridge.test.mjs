@@ -141,6 +141,7 @@ test('tools: new_widget writes the starter, install_widget sends the folder', as
   assert.equal(made.result.isError, undefined);
   assert.ok(fs.existsSync(path.join(folder, 'manifest.json')));
   assert.equal(x.state.calls[0].args.id, 'gpu-temp');
+  assert.equal(x.state.calls[0].args.pump, false, 'a tile unless a pump screen is asked for');
   fs.writeFileSync(path.join(folder, 'notes.psd'), 'x');
   const inst = await rpc(2, 'tools/call', { name: 'install_widget', arguments: { folder } });
   const body = JSON.parse(inst.result.content[0].text);
@@ -148,6 +149,9 @@ test('tools: new_widget writes the starter, install_widget sends the folder', as
   assert.deepEqual(body.skippedFiles, [{ path: 'notes.psd', why: 'type' }]);
   const again = await rpc(3, 'tools/call', { name: 'new_widget', arguments: { folder } });
   assert.equal(again.result.isError, true, 'never over someone\'s files');
+  const pumpFolder = path.join(path.dirname(folder), 'pump-cpu');
+  await rpc(4, 'tools/call', { name: 'new_widget', arguments: { folder: pumpFolder, pump: true } });
+  assert.equal(x.state.calls.at(-1).args.pump, true, 'a starter for a pump screen');
 });
 
 test('tools: screenshot is an image, errors are marked, unknown tools refused', async (t) => {

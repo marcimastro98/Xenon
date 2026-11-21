@@ -1,4 +1,5 @@
 'use strict';
+const { FIT_PROBE_SOURCE } = require('./fit-scan.js');
 // The two scripts Xenon puts into every widget's page under reserved names: the performance
 // probe and the guard that turns WebRTC off.
 
@@ -180,7 +181,8 @@ const PERF_PROBE_SOURCE = [
   '    }, 12000);',
   '  } catch (e) { /* never disturb the widget */ }',
   '})();',
-].join('\n');
+  // And what the tile cuts off of it (fit-scan.js), for Bit and for widget_issues.
+].join('\n') + '\n' + FIT_PROBE_SOURCE;
 
 // Insert the probe <script> tag into a served widget HTML document. Early in
 // <head> with `defer`: registered before any widget script runs (defer executes

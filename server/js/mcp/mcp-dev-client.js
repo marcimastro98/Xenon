@@ -84,20 +84,34 @@
   }
 
   function issues(id, CW) {
-    const at = CW.devLookup(id);
+    const at = lookup(CW, id);
     const blocked = CW.getSandboxIssues(id);
     const errors = CW.getRuntimeErrors(id);
     const perf = (CW.getPerfStats() || {})[id] || null;
+    const fit = typeof CW.getFit === 'function' ? CW.getFit(id) : null;
     // found picks the dashboard that knows this widget; onScreen is whether its
     // tile is in view right now (a tile on another page still reports perf).
-    return { found: at.found || blocked.length > 0 || errors.length > 0 || !!perf, onScreen: at.found === true, approved: at.approved, blocked, errors, perf };
+    return { found: at.found || blocked.length > 0 || errors.length > 0 || !!perf || !!fit, onScreen: at.found === true, approved: at.approved, blocked, errors, perf, fit };
+  }
+
+  // A widget its creator kept to the top bar (manifest `tile: false`) has no tile: the picture is
+  // of the bar, where its badge, mini slot, button or island shows (`.clock` in the minimal one).
+  function lookup(CW, id) {
+    const at = CW.devLookup(id);
+    const pkgs = typeof CW.cachedPackages === 'function' ? CW.cachedPackages() || [] : [];
+    if (at.found || !pkgs.some((p) => p && p.id === id && p.tile === false) || document.visibilityState !== 'visible') return at;
+    const r = ['.topbar', '.clock'].map((sel) => document.querySelector(sel)).filter(Boolean)
+      .map((node) => node.getBoundingClientRect()).find((box) => box.width > 0 && box.height > 0);
+    if (!r) return at;
+    const rect = { left: r.left, top: r.top, width: r.width, height: r.height, screenX: window.screenX, screenY: window.screenY };
+    return { found: true, bar: true, approved: at.approved, rect, dpr: window.devicePixelRatio || 1 };
   }
 
   function answer(q) {
     const CW = window.CustomWidget;
     if (!q || typeof q.reqId !== 'string' || typeof q.id !== 'string' || !CW) return;
     if (q.kind === 'place') { place(q, CW); return; }
-    if (q.kind === 'where' && typeof CW.devLookup === 'function') { post('report', { reqId: q.reqId, data: CW.devLookup(q.id) }); return; }
+    if (q.kind === 'where' && typeof CW.devLookup === 'function') { post('report', { reqId: q.reqId, data: lookup(CW, q.id) }); return; }
     if (q.kind === 'issues' && typeof CW.devLookup === 'function') post('report', { reqId: q.reqId, data: issues(q.id, CW) });
   }
 

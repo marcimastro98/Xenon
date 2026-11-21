@@ -784,7 +784,7 @@ const CAPABILITIES = [
       domain: 'layers', risk: 'safe', requires: 'layers',
       ai: {
         name: 'place_widget',
-        description: 'Put a widget on the screen of the user, outside the dashboard: on the desktop (under the windows, always clickable) or in the overlay (above everything, including games, clicks pass through). Use it for "put the weather on my desktop top right", "show my CPU over the game". For "show my FPS over the game" use the tile "perf" (frame rate of the game, 1% and 0.1% lows and a frame-time graph) in the overlay. The widget is a built-in tile id (weather, media, system, perf, agenda, notes, tasks, timer, claude, spotify…) or the name of an installed Store widget; call list_layer_widgets first when unsure what exists. Returns error "unknown_widget" with the choices when the name matches nothing.',
+        description: 'Put a widget on the screen of the user, outside the dashboard: on the desktop (under the windows, always clickable) or in the overlay (above everything, including games, clicks pass through). Use it for "put the weather on my desktop top right", "show my CPU over the game". For "show my FPS over the game" use the tile "perf" (frame rate of the game, 1% and 0.1% lows and a frame-time graph) in the overlay. The widget is a built-in tile id (weather, media, system, perf, agenda, notes, tasks, timer, claude, spotify…) or the name of an installed Store widget; call list_layer_widgets first when unsure what exists. Returns error "unknown_widget" with the choices when the name matches nothing, and "bar_only" for a widget its creator kept to the top bar (badge, bar button or Dynamic Island): it already runs there by itself and is never placed on a screen or a page.',
         params: {
           widget: 'Built-in tile id or installed widget name, e.g. "weather" or "Wall Plate"',
           surface: 'desktop (default) or overlay',
@@ -1348,9 +1348,7 @@ const CAPABILITIES = [
   },
 ];
 
-if (typeof window !== 'undefined') {
-  window.CapabilityCatalog = { CAPABILITIES };
-}
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CAPABILITIES };
-}
+// Entries kept in their own files by subject (catalog-pump.js): the page loads them first.
+CAPABILITIES.push(...((typeof module !== 'undefined' && module.exports ? require('./catalog-pump.js') : typeof window !== 'undefined' && /** @type {any} */ (window).CapabilityCatalogPump) || { CAPABILITIES: [] }).CAPABILITIES);
+if (typeof window !== 'undefined') window.CapabilityCatalog = { CAPABILITIES };
+if (typeof module !== 'undefined' && module.exports) module.exports = { CAPABILITIES };

@@ -198,7 +198,7 @@ test('the page loads only what a Store widget needs, in order', () => {
 test('a layer window never runs background frames: the dashboard already does', () => {
   const cw = read('../js/custom-widget/custom-widget.js');
   const fn = cw.slice(cw.indexOf('function syncServiceFrames() {'));
-  assert.match(fn.slice(0, 900), /const layerSurface = !!\(window\.LayerHost && window\.LayerHost\.active\) \|\| \(typeof isSheetPage === 'function' && isSheetPage\(\)\);\n[\s\S]{0,300}\n    if \(sdk\(\)\.enabled === true && !layerSurface\) \{/);
+  assert.match(fn.slice(0, 900), /const layerSurface = !!\(window\.LayerHost && window\.LayerHost\.active\) \|\| \(typeof isSheetPage === 'function' && isSheetPage\(\)\) \|\| !!document\.documentElement\.dataset\.scene;\n[\s\S]{0,300}\n    if \(sdk\(\)\.enabled === true && !layerSurface\) \{/);
 });
 
 test('served with the weather tile, it builds that tile and runs its fetch; without it, neither', async () => {

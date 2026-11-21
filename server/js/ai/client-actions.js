@@ -136,7 +136,12 @@ function _aiExecuteClientAction(action, args) {
       if (window.Deck && window.Deck.applyAiDeck) window.Deck.applyAiDeck(args || {});
       break;
     case 'place_created_widget':
+      // Bit hears what the tile cuts off of it once it has drawn (bit-told.js).
+      if (window.BitTold && args?.id) window.BitTold.watchFit(String(args.id));
       if (window.CustomWidget && window.CustomWidget.placeCreated && args && args.id) window.CustomWidget.placeCreated(String(args.id));
+      break;
+    case 'choose_pump_picture':
+      if (window.AiAskCard && AiAskCard.pumpPicture) AiAskCard.pumpPicture(args || {});
       break;
     case 'marketplace_open_import':
       // A catalog entry the AI resolved — the NORMAL import review dialog opens;

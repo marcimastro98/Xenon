@@ -234,6 +234,35 @@
     return out.slice(-ERRORS_MAX);
   }
 
+  // What the probe measured the tile cutting off (server/widget-sdk/fit-scan.js → {type:'fit'}).
+  // Each field is held to a known word, a whole number or a class-like name: the report reaches
+  // Bit's prompt and xenon-mcp, and the frame could forge it. An empty list is an answer too.
+  const FIT_KINDS = Object.freeze(['past', 'cut', 'spill']);
+  const FIT_BY = Object.freeze(['tile', 'box']);
+  const FIT_SIDES = Object.freeze(['right', 'left', 'bottom', 'top']);
+  const FIT_ITEMS_MAX = 6;
+  const FIT_NAME = /^[a-z][a-z0-9-]{0,15}(\.[A-Za-z0-9_-]{1,32})?$/;
+  const whole = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : null);
+  function validateFitItem(it) {
+    if (!it || typeof it !== 'object') return null;
+    if (!FIT_KINDS.includes(it.kind) || !FIT_BY.includes(it.by) || !FIT_SIDES.includes(it.side)) return null;
+    const px = whole(it.px, 100000);
+    const nth = whole(it.nth, 9999);
+    const of = whole(it.of, 9999);
+    const count = whole(it.count, 9999);
+    if (px === null || !nth || !of || nth > of || !count || !FIT_NAME.test(String(it.sel))) return null;
+    if (it.in !== undefined && !FIT_NAME.test(String(it.in))) return null;
+    return { kind: it.kind, by: it.by, side: it.side, px, sel: it.sel, ...(it.in ? { in: it.in } : {}), nth, of, count };
+  }
+  function validateFitReport(raw) {
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.items) || raw.items.length > FIT_ITEMS_MAX) return null;
+    const w = whole(raw.w, 20000);
+    const h = whole(raw.h, 20000);
+    const items = raw.items.map(validateFitItem);
+    if (!w || !h || items.includes(null)) return null;
+    return { w, h, items };
+  }
+
   return {
     ISSUE_KINDS,
     ISSUES_MAX,
@@ -242,6 +271,7 @@
     scanWidgetSource,
     validateBlockedReport,
     validateErrorReport,
+    validateFitReport,
     mergeIssues,
     mergeErrors,
   };

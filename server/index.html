@@ -35,10 +35,9 @@
 <link rel="stylesheet" href="styles/fonts.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Display faces for the alternate skins (Press Start 2P / VT323 for Retro,
-     Bangers / Comic Neue for Comic), added from a script because a stylesheet
-     linked here holds the first paint until Google answers. Both skins fall back
-     to Comic Sans MS / system fonts if offline. -->
+<!-- Display faces for the alternate skins (Press Start 2P / VT323 for Retro, Bangers / Comic Neue
+     for Comic), added from a script because a stylesheet linked here holds the first paint until
+     Google answers. Both fall back to Comic Sans MS / system fonts if offline. -->
 <script src="js/look/skin-fonts.js" async></script>
 
 <!-- Bit's pictures on the splash, ahead of the stylesheets: fetched in turn, Bit is missing until they arrive. -->
@@ -5246,6 +5245,7 @@
 <script src="js/deck/deck-model.js"></script>
 <script src="js/store-catalog/deck-store.js"></script>
 <script src="js/deck/deck-icons.js"></script>
+<script src="js/capabilities/catalog-pump.js"></script>
 <script src="js/capabilities/capability-catalog.js"></script>
 <script src="js/deck/deck-actions.js"></script>
 <script src="js/deck/deck-error-text.js"></script>
@@ -5574,6 +5574,7 @@
 <script src="js/menu/xenon-menu-widget-view.js"></script>
 <script src="js/menu/xenon-menu-peek.js"></script>
 <script src="js/menu/xenon-menu-widgets.js"></script>
+<script src="js/menu/xenon-menu-pumps.js"></script>
 <script src="js/menu/xenon-menu-screens.js"></script>
 <script src="js/menu/xenon-menu.js"></script>
 <script src="js/menu/menu-gamepad.js"></script>
@@ -5582,9 +5583,8 @@
 <script src="js/windows-tiles/tile-play.js"></script>
 <script src="js/main.js"></script>
 <script src="js/grid/data-stream.js"></script>
-<!-- Installable app: registers the service worker, and only where that means
-     something (secure context, not the native shell, not inside an iframe).
-     Last, and on `load` + a delay, because nothing on screen waits for it. -->
+<!-- Installable app: registers the service worker where that means something (secure
+     context, not the native shell, not in an iframe). Last, and late: nothing waits for it. -->
 <script src="js/paired/pwa.js"></script>
 
 <!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.

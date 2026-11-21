@@ -46,6 +46,8 @@ const bridge = {
   // room-light providers (Home Assistant, Yeelight, Hue) would keep switching off
   // lights the user just turned back on from their app or wall switch.
   idleReleased: false,
+  // Only the pump ring is painting (paint.js paintRingAlone): every other light was handed back.
+  ringAlone: false,
 };
 
 module.exports = { bridge };

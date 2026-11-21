@@ -5,6 +5,7 @@ const { sseClients } = require('../http/sse-clients.js');
 const audioLevels = require('./audio-levels.js');
 const { hub } = require('../settings/current.js');
 const { sdkGrantsFor } = require('../widget-sdk/grants.js');
+const pumpRing = require('../lights/pump-ring.js');
 
 // ── Per-app audio peak meters ───────────────────────────────────────────────
 // Demand-driven, with NO setting of its own. This is a ~12/s broadcast, so it
@@ -24,6 +25,9 @@ function audioLevelsWanted() {
   // it. A built-in has no grant to ride, so this is that one place.
   const viz = hub.settings && hub.settings.mediaVisualizer;
   if (viz && viz !== 'off') return true;
+  // The ring of lights around a pump screen set to pulse with the sound: the same kind of
+  // first-party switch, in the pump's Look (pump-screen/ring.js).
+  if (pumpRing.pulsing()) return true;
   const sw = hub.settings && hub.settings.sdkWidgets;
   const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
   if (!grants) return false;

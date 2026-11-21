@@ -1,5 +1,5 @@
-// What the probe inside a widget reported about it: how heavy it runs, what the sandbox refused and
-// what went wrong, kept per package for its author to read.
+// What the probe inside a widget reported about it: how heavy it runs, what the sandbox refused,
+// what went wrong and what its tile cuts off, kept per package for its author to read.
 'use strict';
 
 (() => {
@@ -48,6 +48,42 @@
     return (errorsByPkg.get(pkgId) || []).map((e) => ({ ...e }));
   }
 
+  // What the tile cuts off of a widget, as its probe measured it last (any frame of the package:
+  // the newest look wins). Same trust and floor as above. whenFit is one wait for the NEXT look,
+  // the one after a change: Bit asks it about a widget it just made or edited.
+  const fitByPkg = new Map();      // pkgId → { w, h, items }
+  const fitWaits = new Map();      // pkgId → { fn, until }
+
+  function onFitReport(entry, msg) {
+    if (!window.SdkDiagnostics || typeof SdkDiagnostics.validateFitReport !== 'function') return;
+    const now = Date.now();
+    if (now - (entry.fitAt || 0) < BLOCKED_MIN_INTERVAL_MS) return;
+    const fit = SdkDiagnostics.validateFitReport(msg);
+    if (!fit) return;
+    entry.fitAt = now;
+    fitByPkg.set(entry.pkgId, fit);
+    const wait = fitWaits.get(entry.pkgId);
+    fitWaits.delete(entry.pkgId);
+    if (wait && now <= wait.until) wait.fn(getFit(entry.pkgId));
+  }
+
+  function getFit(pkgId) {
+    const fit = fitByPkg.get(pkgId);
+    return fit ? { w: fit.w, h: fit.h, items: fit.items.map((i) => ({ ...i })) } : null;
+  }
+
+  function whenFit(pkgId, fn, withinMs) {
+    fitWaits.set(pkgId, { fn, until: Date.now() + withinMs });
+  }
+
+  // New files on disk (install, Rescan, the tile's Reload): what the old code reported or how it
+  // was laid out is no longer true. A wait Bit armed stays, it is for the new code's first look.
+  function forgetRuns() {
+    blockedByPkg.clear();
+    errorsByPkg.clear();
+    fitByPkg.clear();
+  }
+
   // Plain serializable snapshot for the Installed tab's activity chips.
   function getPerfStats() {
     const out = {};
@@ -64,7 +100,7 @@
   }
 
   window.CustomWidgetReports = {
-    perfByPkg, blockedByPkg, onBridgeBlocked, getSandboxIssues, errorsByPkg, onBridgeError,
-    getRuntimeErrors, getPerfStats,
+    perfByPkg, onBridgeBlocked, getSandboxIssues, onBridgeError, getRuntimeErrors, getPerfStats,
+    onFitReport, getFit, whenFit, forgetRuns,
   };
 })();

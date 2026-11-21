@@ -28,7 +28,7 @@ window.CustomWidgetPickList = (wrapper) => {
     // Ambient scenes render fullscreen, not in a tile — they're picked in
     // Settings → Ambient, so keep them out of the tile picker.
     const items = (fetched.pkgCache.packages || [])
-      .filter(pkg => pkg && pkg.surface !== 'ambient')
+      .filter(pkg => pkg && pkg.surface !== 'ambient' && pkg.tile !== false)
       .filter(pkg => !forWeather || (Array.isArray(pkg.streams) && pkg.streams.includes('weather')))
       .map(pkg => ({
         kind: 'pkg',

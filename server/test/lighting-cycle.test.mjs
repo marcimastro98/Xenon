@@ -13,70 +13,24 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { pretendSdk } from './pretend-icue-sdk.mjs';
 
 const require = createRequire(import.meta.url);
 const { bridge } = require('../lights/bridge-state.js');
 
 const KEYBOARD = 0x1;
 const MEMORY = 0x40;
-const SESSION_CONNECTED = 6;
 const SESSION_LOST = 2;
 const NOT_CONNECTED = 1;   // CE_NotConnected
 
-// The SDK as the bridge sees it: functions with koffi's `.async` form, answered on a later turn of
-// the event loop as a worker thread would, and a session-state callback.
-function pretendSdk() {
-  const sdk = {
-    log: [],                // [{ fn, id?, colors? }] every call, in order
-    devices: [
-      { type: KEYBOARD, id: 'pretend-keys', serial: '', model: 'Pretend Keys', ledCount: 4, channelCount: 0 },
-      { type: MEMORY, id: 'pretend-ram', serial: '', model: 'Pretend RAM', ledCount: 3, channelCount: 0 },
-    ],
-    withoutLights: new Map(),   // device id -> how many more times it answers with no LED positions
-    writeAnswers: [],           // return codes for the next writes (0 when empty)
-    registered: 0,
-    unregistered: 0,
-    stateCb: null,
-  };
-  const later = (fn) => setImmediate(fn);
-  const asyncFn = (name, run) => ({ async: (...args) => { const done = args.pop(); later(() => done(null, run(...args))); } });
-  sdk.koffi = {
-    register: (fn) => { sdk.registered += 1; return fn; },
-    unregister: () => { sdk.unregistered += 1; },
-    pointer: (name) => name,
-    decode: (evt) => evt,
-  };
-  sdk.say = (state) => sdk.stateCb(null, { state });
-  sdk.fns = {
-    connect: (cb) => { sdk.log.push({ fn: 'connect' }); sdk.stateCb = cb; later(() => sdk.say(SESSION_CONNECTED)); return 0; },
-    disconnect: asyncFn('disconnect', () => { sdk.log.push({ fn: 'disconnect' }); return 0; }),
-    getDevices: asyncFn('getDevices', (_filter, _max, buf, count) => {
-      sdk.log.push({ fn: 'getDevices' });
-      sdk.devices.forEach((d, i) => { buf[i] = { ...d }; });
-      count[0] = sdk.devices.length;
-      return 0;
-    }),
-    getLedPositions: asyncFn('getLedPositions', (id, ledCount, pos, pc) => {
-      sdk.log.push({ fn: 'getLedPositions', id });
-      const left = sdk.withoutLights.get(id) || 0;
-      if (left > 0) { sdk.withoutLights.set(id, left - 1); pc[0] = 0; return 0; }
-      for (let i = 0; i < ledCount; i += 1) pos[i] = { id: ledBase(id) + i, cx: i * 10, cy: 0 };
-      pc[0] = ledCount;
-      return 0;
-    }),
-    setLedColors: asyncFn('setLedColors', (id, n, arr) => {
-      sdk.log.push({ fn: 'setLedColors', id, colors: arr.slice(0, n).map((c) => ({ ...c })) });
-      return sdk.writeAnswers.length ? sdk.writeAnswers.shift() : 0;
-    }),
-    readProperty: asyncFn('readProperty', () => NOT_CONNECTED),
-    freeProperty: asyncFn('freeProperty', () => 0),
-  };
-  return sdk;
-}
 const ledBase = (id) => (id === 'pretend-keys' ? 100 : 200);
+const DEVICES = [
+  { type: KEYBOARD, id: 'pretend-keys', serial: '', model: 'Pretend Keys', ledCount: 4, channelCount: 0 },
+  { type: MEMORY, id: 'pretend-ram', serial: '', model: 'Pretend RAM', ledCount: 3, channelCount: 0 },
+];
 
 assert.equal(bridge.lib, null, 'nothing loaded the real SDK before the pretend one is in place');
-const sdk = pretendSdk();
+const sdk = pretendSdk({ devices: DEVICES, ledBase });
 bridge.lib = { pretend: true };
 bridge.koffi = sdk.koffi;
 bridge.fns = sdk.fns;

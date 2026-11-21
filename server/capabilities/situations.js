@@ -6,6 +6,7 @@
 // app's name never leaves the server.
 const LayersModel = require('../js/layers/layers-model.js');
 const LayerWhen = require('../js/layers/layer-when.js');
+const Sources = require('./situation-sources.js');
 
 const IDLE_AFTER_S = 300;
 // Busy needs two readings in a row, and a clear fall to end, so a spike moves nothing.
@@ -31,18 +32,23 @@ function createSituations({ layers, read, isOwnApp = () => false, onChange = () 
   const flying = new Set();
   const known = new Set();
   let seen;
+  let seenMore = '';
   let cur = null;
   let need = new Set();
   let off = [];
   let busyRun = 0;
 
+  // The rules of the placed widgets and pages, plus those of the other sources.
   function plan() {
     const raw = layers();
-    if (raw === seen) return;
+    const more = Sources.rules();
+    const moreKey = more.map(LayerWhen.format).join('|');
+    if (raw === seen && moreKey === seenMore) return;
     seen = raw;
+    seenMore = moreKey;
     cur = raw ? LayersModel.normalize(raw) : null;
     const rules = cur ? [...cur.widgets.map((w) => w.when), ...cur.pages.map((p) => p.when)] : [];
-    const next = LayerWhen.factsNeeded(rules);
+    const next = LayerWhen.factsNeeded([...rules, ...more]);
     const moved = [...next].sort().join() !== [...need].sort().join();
     need = next;
     if (moved) onPlan();
@@ -104,12 +110,13 @@ function createSituations({ layers, read, isOwnApp = () => false, onChange = () 
     const moved = next.join() !== off.join();
     off = next;
     if (need.size) onFacts(facts);
+    Sources.tell(facts);
     if (moved && notify) onChange();
   }
 
   function tick() {
     plan();
-    if (!need.size) { off = []; return; }
+    if (!need.size) { off = []; Sources.tell(facts); return; }
     readCheap();
     readSlow();
     settle(false);

@@ -1,7 +1,12 @@
 // What the Xenon menu is shown with in tools/menu-shots: a monitor and an Edge, widgets on
-// the monitor, two phones paired. Every value is invented; nothing is read from this PC.
+// the monitor, two phones paired, a round pump screen. Every value is invented; nothing is
+// read from this PC.
 // The shape is the one server/menu/xenon-menu.js compose() takes (see _xenonMenuState in
 // server.js); server/test/menu-shots.test.mjs checks that it still draws the Screens page.
+
+import { createRequire } from 'node:module';
+
+const PumpModel = createRequire(import.meta.url)('../../server/js/pump/pump-model.js');
 
 export const MONITORS = [
   { key: 'M1', name: 'DELL U2723QE', primary: true, width: 2560, height: 1440, x: 0, y: 0 },
@@ -40,6 +45,18 @@ export const LOOK = {
   glassSaturate: 160, panelBorderStrength: 1, tileShadowStrength: 0, uiFont: null,
 };
 
+// A round pump screen that already showed Xenon through iCUE, on the first ready-made setup,
+// showing its usual face. shoot.mjs gives the same setup to the pump page it serves.
+export const PUMP_SCREEN = 'pump';
+const pumpScreen = PumpModel.screenFor({ screens: {}, seen: {} }, PUMP_SCREEN);
+export const PUMP = {
+  icue: true, detected: [], url: 'http://127.0.0.1:3030/pump-face',
+  screens: [{
+    screen: PUMP_SCREEN, ...pumpScreen, set: true,
+    seen: { shape: 'round', w: 480, h: 480, via: 'icue' }, now: { show: pumpScreen.base, why: 'base' },
+  }],
+};
+
 /** The state compose() draws the menu from. `over` replaces top-level keys. */
 export function menuState(over = {}) {
   return {
@@ -58,6 +75,7 @@ export function menuState(over = {}) {
     now: NOW,
     usageMode: 'both',
     alertsOn: true,
+    pump: PUMP,
     ...over,
   };
 }

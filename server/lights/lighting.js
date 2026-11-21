@@ -88,7 +88,7 @@ paint.apply = apply;   // what the session's own steps (lights/paint-hook.js) re
 
 const {
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode,
-  setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, setAlbumColor, clearAlbum,
+  setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, setAlbumColor, clearAlbum, setPumpRing,
 } = require('./looks.js');
 
 // Set the ambient animation (style/color/speed/palette). 'none' clears it.
@@ -105,7 +105,7 @@ module.exports = {
   connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, refreshAvailability, getLastError,
   getBatteryLevels,
   onSystem, onAudio, onStatus, onEvent,
-  setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
+  setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, setPumpRing, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,
   setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, isLightsOut, powerDown, powerUp, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setNativeChangeHook: native.setChangeHook, closeNative: native.stop,
   _fx: fx,

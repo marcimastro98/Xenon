@@ -5,8 +5,18 @@
 (() => {
   // Kind display order for the grouped ("browse all") view.
   const KIND_ORDER = ['widget', 'bundle', 'theme', 'bg', 'ambient', 'deck', 'page', 'icons', 'sounds', 'topbar'];
-  // Set at review on what is handy on the screen by itself, not only in a dashboard.
-  const ON_SCREEN_TAG = 'on-screen';
+  // Rows of the rail that a tag set at review fills: what is handy on the screen by itself, not
+  // only in a dashboard, and widgets made for the screen on an AIO pump (manifest `pump`).
+  const TAG_VIEWS = [
+    { id: '__screen', tag: 'on-screen', key: 'gallery_for_screen', fallback: 'For the screen', icon: 'topbar' },
+    { id: '__pump', tag: 'pump-screen', key: 'gallery_for_pump', fallback: 'For pump screens', icon: 'pump' },
+  ];
+  const hasTag = (tag) => (e) => Array.isArray(e?.tags) && e.tags.includes(tag);
+  // The tag row the Store is on, with its entries; null on any other view.
+  function taggedView(all, activeKind) {
+    const view = TAG_VIEWS.find((v) => v.id === activeKind);
+    return view ? { view, list: all.filter(hasTag(view.tag)) } : null;
+  }
   const PAGE = 24;             // load-more page size for lists
   const SHELF_MAX = 12;        // cards on a shelf before "See all"
   const SEE_ALL_FROM = 5;      // fewer than this fit on the shelf itself
@@ -41,7 +51,8 @@
   function isFeatured(entry) { return !!entry && (entry.featured === 'main' || entry.featured === 'on'); }
 
   window.CommunityGalleryLayout = {
-    KIND_ORDER, ON_SCREEN_TAG, PAGE, SHELF_MAX, SEE_ALL_FROM, WIDE_SHOT, CENTRED_KINDS,
-    JUST_ADDED_MAX, KIND_SHELF_MIN, INSTALLS_WAIT_MS, MIN_INSTALLS_SHOWN, SPOT_SIDE_MAX, isFeatured,
+    KIND_ORDER, TAG_VIEWS, hasTag, taggedView, PAGE, SHELF_MAX, SEE_ALL_FROM, WIDE_SHOT,
+    CENTRED_KINDS, JUST_ADDED_MAX, KIND_SHELF_MIN, INSTALLS_WAIT_MS, MIN_INSTALLS_SHOWN,
+    SPOT_SIDE_MAX, isFeatured,
   };
 })();

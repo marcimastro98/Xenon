@@ -37,6 +37,10 @@ const GROUPS = Object.freeze({
     about: 'RGB effects and animations, lights that react to events, the lighting bridge (a plain colour or lights off need no group)',
     tools: ['set_effect', 'set_event_effect', 'set_animation', 'set_lighting_bridge'],
   },
+  pump_screen: {
+    about: 'the screen on an AIO cooler pump (the pump LCD): what it shows normally and by itself while gaming or listening, a face now, ready-made setups, alerts over it, rotation and dimming, adding Xenon to iCUE for it',
+    tools: ['get_pump_screen', 'show_on_pump', 'set_pump_setup', 'set_pump_screen', 'add_pump_to_icue', 'choose_pump_picture'],
+  },
   // deck_action_catalog stays in the core: run_deck_action looks action types up in it.
   create: {
     about: 'making something new: a widget (or changing one of the user\'s), a readout in the top bar or the island, a theme or style, an animated background, a Deck profile, any other creation as a share code, the model creations use',

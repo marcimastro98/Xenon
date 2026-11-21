@@ -73,6 +73,8 @@
       bits.push('v' + (row.pkg.version || '0.0.0'));
       if (row.pkg.author) bits.push(row.pkg.author);
     }
+    // Its creator kept it to the top bar (manifest `tile: false`): no "Add to page" below.
+    if (row.pkg && row.pkg.tile === false) bits.push(t('settings_sdk_bar_only', 'Vive nella barra in alto'));
     if (row.pkg) {
       const chips = grantChips(row.pkg);
       if (chips) bits.push(chips);

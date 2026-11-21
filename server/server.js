@@ -172,7 +172,7 @@ const MenuStore = require('./store-catalog/menu-store.js');
 const { LAYER_TILE_EXCLUDED } = require('./widget-options/layer-tile-excluded.js');
 async function _layerCatalog() {
   const all = ((await sdkPackagesCached().catch(() => null)) || { packages: [] }).packages
-    .map(p => ({ id: p.id, name: p.name, description: p.description, surface: p.surface, category: p.category, fit: p.fit, options: p.options, optionValues: widgetOptionsStore.valuesFor(p) }));
+    .map(p => ({ id: p.id, name: p.name, description: p.description, surface: p.surface, tile: p.tile !== false, category: p.category, fit: p.fit, options: p.options, optionValues: widgetOptionsStore.valuesFor(p) }));
   return {
     tiles: DASHBOARD_WIDGET_IDS.filter(id => !LAYER_TILE_EXCLUDED.has(id)),
     // A scene fills a whole screen: it is chosen as the wallpaper, never placed as a widget.
@@ -1195,7 +1195,7 @@ async function installWidgetPayload(payload, origin, catalogVersion) {
     const prev = existed ? widgetOriginOf(v.id) : (trialVault.has(v.id) ? 'import' : null);
     await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(prev, origin), catalogVersion);
     await refreshSdkScan();
-    return { ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts };
+    return { ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts, tile: v.manifest.tile };
   } catch {
     return { ok: false, error: 'install_failed' };
   }
@@ -2426,7 +2426,7 @@ async function runAiTool(fnName, fnArgs, deps) {
 
   // show_lock_screen is the pre-v4.4 name for start_ambient_mode — kept as an
   // alias so old AI memories/prompts keep working.
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'open_support_sheet', 'open_store_entry', 'open_whats_new', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'style_tile', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'open_support_sheet', 'open_store_entry', 'open_whats_new', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'style_tile', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck', 'choose_pump_picture']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     const widgetsOnly = UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode);
@@ -2857,8 +2857,7 @@ const { _comboHeldBy, _deckShortcutStatus } = require('./deck/shortcut-questions
 
 const { _appAudioAvailable } = require('./audio/app-audio-available.js');
 
-// What the Xenon menu shows (xenon-menu.js): read from the settings and the
-// runtime state, never a path, a window title or a file name.
+// What the Xenon menu shows (xenon-menu.js): settings and runtime state, never a path, a title or a file name.
 // The Store's pictures and its count of updates (menu-store.js).
 const _menuStore = () => MenuStore.read({
   catalog: () => communityCatalog.fetchVisibleCatalog(false),
@@ -2929,6 +2928,7 @@ async function _xenonMenuState() {
     quiet: hs.notifications && hs.notifications.quiet,
     companionOn: !!(hs.aiFeatures && hs.aiFeatures.enabled === true && hs.aiFeatures.gameCompanion === true),
     power: await require('./power').read().catch(() => null),
+    pump: await require('./pump-screen/index.js').menuState().catch(() => null),
   });
 }
 
@@ -3016,8 +3016,7 @@ async function buildBackup() {
   // must carry them: there is no "re-enter it" prompt for a calendar after a
   // restore, and the feed would simply vanish (see the section comment above).
   if (Array.isArray(settings.calendarFeeds)) safeSettings.calendarFeeds = settings.calendarFeeds;
-  // Scene pictures live in files (scene-images.js); a backup carries them
-  // inside the scenes, as it always did, so it restores on any PC.
+  // Scene pictures live in files (scene-images.js); a backup carries them inside the scenes.
   safeSettings.ambientScenes = await sceneImages.inlineForBackup(settings.ambientScenes, UPLOADS_DIR);
   const notesState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
   return {
@@ -3041,6 +3040,7 @@ async function buildBackup() {
       gameSessions: _gameSessions.exportData(),
       background: await _buildBackupBackground(settings),
       font: await _buildBackupFont(settings),
+      pump: await require('./pump-screen/index.js').backup.save().catch(() => null),
     },
   };
 }
@@ -3233,9 +3233,9 @@ async function applyBackup(bundle, { remote = false, keepDeckActions = false } =
   if (Array.isArray(d.aiMemory)) await apply('aiMemory', () => aiMemory.importFacts(d.aiMemory));
   if (d.guardian && typeof d.guardian === 'object') await apply('guardian', () => guardian.importStore(d.guardian));
   if (Array.isArray(d.gameSessions)) await apply('gameSessions', () => _gameSessions.importData(d.gameSessions));
+  if (d.pump && typeof d.pump === 'object') await apply('pump', () => require('./pump-screen/index.js').backup.restore(d.pump));
 
-  // hub.settings is the maintained in-memory mirror (just updated when the
-  // settings section applied) — no need to re-read the file from disk.
+  // hub.settings is the in-memory mirror the settings section just updated: no re-read.
   const deckNow = await readDeckStore().catch(() => null);
   const needsSetup = _backupNeedsSetup(bundle.secretsConfigured, hub.settings || {}, await _readStreamTokensSnapshot(), d.settings, d.deck, deckNow);
   // SDK widget / Ambient-scene packages live in DATA_DIR/widgets and don't travel
@@ -4310,8 +4310,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // back for the user either.
   '/update/auto/postpone',
   // Marks What's New and the fixes of a release as read. A page on another site
-  // could otherwise make sure the user never hears about an update. The hints and screens-off the same.
-  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off',
+  // could otherwise make sure the user never hears about an update. The hints, screens-off and pump screens the same.
+  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off', '/pump', '/pump/hello', '/pump/colors', '/pump/picture',
   // Bit's messages: filing one, or spending the day's on a page nobody sees, is
   // not something another site may do for the user.
   '/bit/messages/file',

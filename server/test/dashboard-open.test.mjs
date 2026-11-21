@@ -107,6 +107,7 @@ test('the Xenon menu opens the Store and the Sparks on the dashboard, through th
   assert.deepEqual(parse('?open=store&id=x'), { open: 'store' });
   assert.deepEqual(parse('?open=store&kind=ambient'), { open: 'store', kind: 'ambient' });
   assert.deepEqual(parse('?open=store&kind=__screen'), { open: 'store', kind: '__screen' });
+  assert.deepEqual(parse('?open=store&kind=__pump'), { open: 'store', kind: '__pump' });
   assert.deepEqual(parse('?open=store&kind=__installed'), { open: 'store', kind: '__installed' });
   assert.deepEqual(parse('?open=store&kind=theme'), { open: 'store' }, 'only the kinds the menu opens on');
   assert.deepEqual(parse('?open=sparks'), { open: 'sparks' });

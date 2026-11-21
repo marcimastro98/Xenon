@@ -8,6 +8,7 @@ const native = require('../lighting-native/index.js');
 const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const gameDetect = require('../performance/gamedetect.js');
+const pumpRing = require('./pump-ring.js');
 
 // Single source for the animation-style lists (keep the client mirrors in
 // lighting-page.js / settings.js aligned). Every style except none/solid loops →
@@ -36,11 +37,23 @@ function gamingPaused() {
   try { return gameDetect.isGaming(); } catch { return false; }
 }
 
-// Intent: does anything want the LEDs painted right now? Each effect is INDEPENDENT
+// Does anything want the LEDs painted right now? The pump ring alone is enough: it then
+// paints just its own LEDs (paint.js) and leaves every other light to its software.
+function wantsPaint() {
+  return lightsWanted() || ringWanted();
+}
+
+// The pump screen's ring has colours of its own to show (lights/pump-ring.js).
+function ringWanted() {
+  if (bridge.poweredDown || gamingPaused()) return false;
+  return pumpRing.colours(bridge.accent) != null;
+}
+
+// Intent: does anything want every light painted? Each effect is INDEPENDENT
 // of the master toggle — the master only adds the steady "fixed" illumination
 // (manual colour / animation / accent). Temperature, album, volume flash and the
 // event flashes each light up on their own when enabled, even with the master OFF.
-function wantsPaint() {
+function lightsWanted() {
   if (bridge.poweredDown) return false;
   if (keyLook.isOut()) return true;                                   // a key switched every light off
   if (gamingPaused()) return false;
@@ -48,6 +61,7 @@ function wantsPaint() {
   if (keyLook.isHeld()) return true;                                  // a Deck key set the lights
   if (bridge.config.effects.temperature && bridge.layers.base) return true;         // steady CPU-temp colour
   if (albumActive()) return true;                                     // steady album colour
+  if (pumpRing.leadColour()) return true;                             // the pump screen leads every light
   if (bridge.config.effects.volume && bridge.layers.overlay && (!bridge.overlayUntil || Date.now() <= bridge.overlayUntil)) return true; // volume flash window
   if (bridge.eventAnim) return true;                                         // a timer/notification/reminder flash is playing
   if (bridge.deckReaction) return true;                                      // a Deck key LED reaction is active
@@ -67,6 +81,7 @@ function active() {
 function shouldConnect() {
   const e = bridge.config.effects;
   return bridge.config.enabled || !!bridge.deckReaction || keyLook.isHeld() || keyLook.isOut() || !!e.temperature || !!e.musicAlbum
+    || pumpRing.colours(bridge.accent) != null
     || (e.timer && e.timer.enabled !== false)
     || (e.notification && e.notification.enabled !== false)
     || (e.reminder && e.reminder.enabled !== false);
@@ -126,6 +141,6 @@ function deckReactionColor() {
 }
 
 module.exports = {
-  DYNAMIC_ANIM_STYLES, effectiveAlbum, albumActive, gamingPaused, wantsPaint, active, shouldConnect,
+  DYNAMIC_ANIM_STYLES, effectiveAlbum, albumActive, gamingPaused, wantsPaint, lightsWanted, active, shouldConnect,
   refreshAnimationLayer, anyDeviceAnimationDynamic, colorForDevice, deckReactionColor,
 };

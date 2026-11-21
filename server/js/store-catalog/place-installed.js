@@ -64,9 +64,17 @@
     });
   }
 
+  // A widget its creator kept to the top bar (manifest `tile: false`) is never put on a screen.
+  function placeable(ids) {
+    const CW = window.CustomWidget;
+    const pkgs = CW && typeof CW.cachedPackages === 'function' ? CW.cachedPackages() : [];
+    return ids.filter((id) => !pkgs.some((p) => p && p.id === id && p.tile === false));
+  }
+
   // With Solo widget the screen is the only place there is, so `only` tells the
   // toast to drop its page button and say this instead.
-  async function onScreenOption(ids) {
+  async function onScreenOption(all) {
+    const ids = placeable(all);
     if (!ids.length || !(await drawsOnScreen())) return null;
     const many = ids.length > 1;
     const settings = typeof hubSettings === 'undefined' ? null : hubSettings;
@@ -86,7 +94,7 @@
     const d = (event && event.detail) || {};
     if (d.place !== true) return;
     const scenes = Array.isArray(d.sceneIds) ? d.sceneIds : [];
-    const ids = (Array.isArray(d.widgetIds) ? d.widgetIds : []).filter((id) => !scenes.includes(id));
+    const ids = placeable((Array.isArray(d.widgetIds) ? d.widgetIds : []).filter((id) => !scenes.includes(id)));
     if (ids.length !== 1) return;
     if (await drawsOnScreen()) await place(ids[0]);
     else toast({ type: 'info', title: d.name, message: tr('place_needs_app', 'Installed. Open the Xenon app to put it on your screen.') });

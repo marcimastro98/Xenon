@@ -189,6 +189,8 @@
     });
   }
 
+  // .pick: the same choice on pixels already read (a pump's face, js/pump/face-colors.js).
+  extractAlbumAccent.pick = pickAccent;
   if (typeof window !== 'undefined') window.extractAlbumAccent = extractAlbumAccent;
   // Node (unit tests): expose the DOM-free extraction logic.
   if (typeof module !== 'undefined' && module.exports) {

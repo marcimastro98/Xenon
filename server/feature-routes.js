@@ -16,6 +16,7 @@ const FEATURES = Object.freeze([
   require('./hints/routes.js'),
   require('./screens-off/routes.js'),
   require('./trial-link/routes.js'),
+  require('./pump-screen/routes.js'),
 ]);
 
 const ROUTES = new Map(FEATURES.flatMap((f) => Object.entries(f.routes)));

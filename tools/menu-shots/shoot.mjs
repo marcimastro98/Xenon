@@ -6,6 +6,7 @@
 // Run: node tools/menu-shots/shoot.mjs [outDir]   (default <temp>/xenon-menu-shots)
 //   MENU_LANGS=it,de  MENU_SIZES=phone,edge  narrow the sweep.
 //   MENU_FIND=posizione  adds a picture of the search for that text (menu rows and Settings rows).
+// The pump card's picture is the real pump page, served by tools/pump-face-shots next to the menu.
 
 import { createServer } from 'node:http';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -14,7 +15,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPlaywright } from '../toast-gallery/shoot.mjs';
-import { DESKS, LOOK, menuState } from './fixture.mjs';
+import { DESKS, LOOK, PUMP_SCREEN, menuState } from './fixture.mjs';
+import { createPumpFaceHandler } from '../pump-face-shots/server.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SERVER_DIR = path.join(ROOT, 'server');
@@ -43,7 +45,7 @@ export function inside(base, rel) {
 }
 
 /** The menu page and its fake answers; `lang()` is the language the next page asks for. */
-export function startMenuServer(lang, desk = DESKS[process.env.MENU_DESK] || DESKS.two) {
+export function startMenuServer(lang, desk = DESKS[process.env.MENU_DESK] || DESKS.two, pump = null) {
   const Menu = require(path.join(SERVER_DIR, 'menu', 'xenon-menu.js'));
   const LayerI18n = require(path.join(SERVER_DIR, 'layers', 'layer-strings.js'));
   const json = (res, body) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
@@ -51,6 +53,7 @@ export function startMenuServer(lang, desk = DESKS[process.env.MENU_DESK] || DES
     const url = new URL(req.url, 'http://127.0.0.1');
     const p = url.pathname;
     try {
+      if (pump && (p === '/pump-face' || p.startsWith('/pump') || p === '/sse' || p === '/weather' || p.startsWith('/uploads/')) && await pump.handle(req, res)) return;
       if (p === '/') p2(res, await readFile(path.join(SERVER_DIR, 'index.html')), '.html');
       else if (p === '/menu') p2(res, await readFile(path.join(SERVER_DIR, 'menu.html')), '.html');
       else if (p === '/layer-i18n.js') p2(res, await LayerI18n.scriptFor(LayerI18n.wantedLanguages(lang(), ''), lang()), '.js');
@@ -97,8 +100,10 @@ async function main() {
   const sizes = pick('MENU_SIZES', SIZES);
   const langs = pick('MENU_LANGS', LANGS);
   let lang = 'en';
-  const server = await startMenuServer(() => lang);
+  const pump = createPumpFaceHandler();
+  const server = await startMenuServer(() => lang, undefined, pump);
   const base = `http://127.0.0.1:${server.address().port}`;
+  await fetch(base + '/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: PUMP_SCREEN, setup: 'game' }) });
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch();
   const report = [];
@@ -115,7 +120,9 @@ async function main() {
           await page.goto(base + '/menu', { waitUntil: 'load' });
           await page.waitForSelector('.xm-scrmap', { timeout: 8000 });
           await page.waitForTimeout(400);
-          const shots = [['main', null], ['edge', () => page.locator('.xm-scrpick').nth(1).click()], ['widgets', () => page.locator('.xm-wtab').nth(1).click()]];
+          const shots = [['main', null], ['edge', () => page.locator('.xm-scrpick').nth(1).click()], ['widgets', () => page.locator('.xm-wtab').nth(1).click()],
+            ['pump', async () => { await page.locator('.xm-scrpump').first().click(); await page.waitForSelector('.xm-pumpframe.is-ready', { timeout: 8000 }); await page.waitForTimeout(600); }],
+            ['pump-moments', () => page.locator('.xm-wtab').nth(1).click()], ['pump-look', () => page.locator('.xm-wtab').nth(3).click()]];
           if (process.env.MENU_FIND) shots.push(['find', async () => { await page.locator('.xm-find').fill(process.env.MENU_FIND); await page.waitForTimeout(600); }]);
           for (const [name, step] of shots) {
             if (step) { await step(); await page.waitForTimeout(250); }
@@ -133,6 +140,7 @@ async function main() {
   } finally {
     await browser.close();
     server.close();
+    pump.close();
   }
   console.log(`pictures in ${outDir}`);
   console.log(report.length ? report.join('\n') : 'no sideways scroll, nothing cut, no page errors');

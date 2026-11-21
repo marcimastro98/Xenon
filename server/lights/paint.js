@@ -6,7 +6,8 @@ const fx = require('./lighting-effects.js');
 const external = require('./lighting-external.js');
 const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
-const { effectiveAlbum, active, colorForDevice, deckReactionColor } = require('./paint-rules.js');
+const { effectiveAlbum, active, lightsWanted, colorForDevice, deckReactionColor } = require('./paint-rules.js');
+const pumpRing = require('./pump-ring.js');
 const { OFF_COLOR, deviceLeds } = require('./look-values.js');
 const {
   writeDevice, writeDeviceGradient, writeDeviceAnimGradient, writeDeviceCustom, paintDevices,
@@ -37,6 +38,8 @@ async function apply() {
       return;
     }
     bridge.idleReleased = false; // painting again — the next idle transition releases once
+    if (!lightsWanted()) { await paintRingAlone(); return; }
+    if (bridge.ringAlone) { bridge.ringAlone = false; bridge.lastWrite.clear(); }
 
     // "Lights off" from a key: every light dark, the Lighting page map included.
     if (keyLook.isOut()) {
@@ -70,6 +73,7 @@ async function apply() {
     const albumCol = keyHeld ? null : effectiveAlbum();
     const picked = eventColor
       || deckColor
+      || (keyHeld ? null : pumpRing.leadColour())
       || albumCol
       || (bridge.config.effects.temperature && !keyHeld ? bridge.layers.base : null)
       || ambient
@@ -110,13 +114,24 @@ async function apply() {
     };
     const animOpts = { style: animCfg.style, color: animCfg.color, speed: animCfg.speed, palette: animCfg.palette, nowMs: animNow };
 
+    // The pump ring's LEDs show the pump screen, under a flash, a Deck reaction or a key's look.
+    const ringOn = !eventColor && !deckColor && !keyHeld && pumpRing.colours(bridge.accent) != null;
+    // What the rest of a device holding the ring or a key's parts shows: the album gradient
+    // or the wave it shows without them, so the fans beside a pump keep moving.
+    const underOf = (dev) => {
+      if (wantsGradient(dev.id)) return fx.paletteGradient(gradientPal, dev.ledIds.length);
+      const stops = wantsAnimGradient(dev.id) ? fx.animationGradientAt(animOpts, dev.ledIds.length) : null;
+      return stops ? dev.ledIds.map((_, i) => fx.applyBrightness(stops[Math.min(i, stops.length - 1)], bridge.config.brightness)) : null;
+    };
+
     // Per-LED devices: iCUE (while a session is up) and the native controllers.
     for (const dev of paintDevices()) {
       if (bridge.config.devices[dev.id] === false) continue; // opt-out
       const dm = bridge.config.deviceModes[dev.id];
       // An event flash or a Deck reaction takes the whole device, map or not.
       const keyParts = !eventColor && !deckColor ? keyLook.partsOf(dev.id) : null;
-      if (keyParts) { await writeDeviceCustom(dev, { leds: { ...deviceLeds(dev, dm), ...keyParts } }, color); continue; }
+      const ringLeds = ringOn ? pumpRing.ledsOf(dev) : null;
+      if (keyParts || ringLeds) { await writeDeviceCustom(dev, { leds: { ...deviceLeds(dev, dm), ...ringLeds, ...keyParts } }, color, underOf(dev)); continue; }
       if (dm && dm.mode === 'custom' && !eventColor && !deckColor) { await writeDeviceCustom(dev, dm, color); continue; }
       if (wantsGradient(dev.id)) { await writeDeviceGradient(dev, gradientPal); continue; }
       if (wantsAnimGradient(dev.id)) {
@@ -140,6 +155,22 @@ async function apply() {
   } finally {
     bridge.applyInFlight = false;
     if (bridge.applyAgain) { bridge.applyAgain = false; apply(); }
+  }
+}
+
+// Only the pump ring wants the lights: every other light goes back to its own software
+// (released once on the way in), and the iCUE devices holding a pump paint just its LEDs,
+// the rest of each left to iCUE (pump-ring.js ledsOf).
+async function paintRingAlone() {
+  if (!bridge.ringAlone) {
+    await releaseAll();
+    bridge.ringAlone = true;
+    bridge.idleReleased = false;
+  }
+  for (const dev of paintDevices()) {
+    if (bridge.config.devices[dev.id] === false) continue;
+    const leds = pumpRing.ledsOf(dev);
+    if (leds) await writeDeviceCustom(dev, { leds }, null);
   }
 }
 

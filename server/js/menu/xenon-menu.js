@@ -23,8 +23,8 @@
   const BALANCE_TTL_MS = 30000;
   // What can change a row while the menu is open: settings (widgets, keys,
   // look, mode), captures, the replay and recording state, the Deck's keys.
-  // The last four are what a function answers with, for the place to say.
-  const LIVE_EVENTS = ['settings', 'captures', 'replay', 'recording', 'deck', 'screen_menu', 'capture', 'capture_marker', 'xenon_menu_failed', 'stutter_why'];
+  // `capture` to `stutter_why` are what a function answers with, for the place to say; `pump`: a pump said hello or changed.
+  const LIVE_EVENTS = ['settings', 'captures', 'replay', 'recording', 'deck', 'screen_menu', 'capture', 'capture_marker', 'xenon_menu_failed', 'stutter_why', 'pump'];
 
   // ── Pure helpers (tested in node) ──────────────────────────────
   function fill(str, vars) {
@@ -404,11 +404,11 @@
     }) : null;
     if (widgets) DRAW.widget = widgets.drawRow;
     const Screens = (typeof window !== 'undefined' && window.XenonMenuScreens) || null;
-    if (Screens) {
-      const live = sceneView ? { slot: sceneView.slot, hold: sceneView.hold, settle: sceneView.settle } : {};
-      const widgetTab = (view, home) => (widgets ? widgets.listFor(home.parts.widgets, view) : []);
-      DRAW.home = Screens.create({ el, button, say, tt, DRAW, rowShell, perform, icon, widgetTab, server, ...live }).draw;
-    }
+    const live = sceneView ? { slot: sceneView.slot, hold: sceneView.hold, settle: sceneView.settle } : {};
+    const widgetTab = (view, row) => (widgets ? widgets.listFor(row.parts.widgets, view) : []);
+    // The Screens home keeps its moving previews (the scene, a pump's page) through a rebuild.
+    const home = Screens ? Screens.create({ el, button, say, tt, DRAW, rowShell, perform, icon, widgetTab, server, doc, move: typeof moveNode === 'function' ? moveNode : null, ...live }) : sceneView;
+    if (Screens) DRAW.home = home.draw;
 
     // ── Key recording ──
     const clearable = (r) => !!r.combo && !r.noClear;
@@ -665,9 +665,9 @@
     function draw() {
       const active = doc.activeElement;
       const keep = active && main.contains(active) ? active.dataset.keep : '';
-      if (sceneView) sceneView.hold();
+      if (home) home.hold();
       paint();
-      if (sceneView) sceneView.settle();
+      if (home) home.settle();
       if (keep) {
         const same = [...main.querySelectorAll('[data-keep]')].find((n) => n.dataset.keep === keep);
         if (same) same.focus();

@@ -49,8 +49,11 @@ const branches = {
           r = await installWidgetPayload({ id, files: all }, 'creator');
         }
         if (r.ok) clientActions.push({ action: 'place_created_widget', args: { id: r.id } });
+        // A widget its manifest keeps to the top bar (`"tile": false`) is put on no page.
+        const placedNote = (editing ? 'Updated: the files you sent replaced theirs, the rest stayed. ' : r.tile === false ? 'Installed. ' : 'Installed and put on the page the user is looking at, in the shape its manifest "size" names. ')
+          + (r.tile === false ? 'Its manifest keeps it to the top bar ("tile": false), so it is on no page: it runs there by itself, and a tile that showed it now says where it went. ' : 'A widget already on a tile only refreshes that tile. ');
         fnResult = r.ok
-          ? { ok: true, id: r.id, name: r.name, note: (editing ? 'Updated: the files you sent replaced theirs, the rest stayed. ' : 'Installed and put on the page the user is looking at, in the shape its manifest "size" names. ') + 'A widget already on a tile only refreshes that tile. If it needs permissions, the user approves them in the window that opens, never automatically. If critique lists fix items, correct them and call create_widget again with the same id (only the files you fix) before telling the user.' }
+          ? { ok: true, id: r.id, name: r.name, note: placedNote + 'If it needs permissions, the user approves them in the window that opens, never automatically. If critique lists fix items, correct them and call create_widget again with the same id (only the files you fix) before telling the user.' }
           : r.error === 'not_yours'
             ? { ok: false, error: 'not_yours', hint: 'This id is a widget from the Store or a share code, which belongs to someone else. Make a new widget with a different id.' }
             : problem || { ok: false, error: r.error };

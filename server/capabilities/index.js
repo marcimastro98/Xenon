@@ -93,7 +93,11 @@ function aiAction(fnName, fnArgs) {
   const args = fnArgs && typeof fnArgs === 'object' ? fnArgs : {};
   const action = { type: cap.type };
   const described = (cap.capability.ai.params) || {};
-  for (const p of cap.params) if (described[p.name] && args[p.name] != null) action[p.name] = args[p.name];
+  // A model may send a JSON text field as the object itself: it arrives as that JSON.
+  for (const p of cap.params) {
+    const v = args[p.name];
+    if (described[p.name] && v != null) action[p.name] = p.kind === 'text' && typeof v === 'object' ? JSON.stringify(v) : v;
+  }
   return action;
 }
 
@@ -165,6 +169,9 @@ function createCapabilities(deps) {
       // A Store widget's own options (widget-options/).
       widgetOptions: !!d.widgetOptions,
       shortcuts: typeof d.shortcutsAvailable === 'function' ? !!d.shortcutsAvailable() : false,
+      // A pump screen is a page any OS serves; only the iCUE import is Windows-only.
+      pumpScreen: true,
+      pumpIcue: require('../pump-screen/icue.js').icueImportAvailable(),
     };
   }
 
@@ -272,6 +279,9 @@ function createCapabilities(deps) {
       case 'functionKey': return functionKey.setKey({ deck: d.deck }, action);
       case 'widgetHandlerKey': return widgetKey.setHandlerKey({ deck: d.deck, heldBy: d.deck && d.deck.heldBy, sdkHandlers: d.sdkHandlers }, action);
       case 'deckShortcutList': return deckShortcut.listShortcuts({ deck: d.deck });
+      // d.pump in tests; the one store and live state otherwise (pump-screen/index.js).
+      case 'pumpFace': case 'pumpSetup': case 'pumpSet': case 'pumpGet': case 'pumpIcue':
+        return (d.pump || require('../pump-screen/index.js').actions).run(action);
       default: return { ok: false, error: 'unsupported' };
     }
   }

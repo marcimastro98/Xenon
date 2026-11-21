@@ -15,16 +15,15 @@
 // `deps` is the slice of server.js these ops need; tests pass fakes.
 
 const MCP_API = 1;
-const WIDGET_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+const { WIDGET_ID_RE } = require('../widget-sdk/package-names.js');
+const { TILE_SIZES: SIZES } = require('../widget-sdk/manifest-limits.js');
+const { ROUND_ROOT_CSS, pumpOf } = require('./mcp-dev-pump.js');
 const TEXT_RE = /\.(html?|m?js|css)$/i;
-const SIZES = ['small', 'medium', 'wide', 'tall', 'large'];
 
 const b64 = (s) => Buffer.from(String(s), 'utf8').toString('base64');
 const fromB64 = (s) => { try { return Buffer.from(String(s || ''), 'base64').toString('utf8'); } catch { return ''; } };
 
-function payloadOf(args) {
-  return { id: String((args && args.id) || '').trim(), files: Array.isArray(args && args.files) ? args.files : [] };
-}
+const payloadOf = (args) => ({ id: String((args && args.id) || '').trim(), files: Array.isArray(args && args.files) ? args.files : [] });
 
 // The sandbox diagnostics read text files only, decoded from the payload.
 function sourceIssues(files, deps) {
@@ -37,8 +36,8 @@ function sourceIssues(files, deps) {
 // A first widget that already does the things every widget needs: says hello,
 // reads a stream, fills its tile, follows the theme (a color-scheme: up to 4.11.13
 // a page with none is a white block on the dashboard) and uses addEventListener
-// (inline code never runs in the sandbox).
-function templateFiles({ name, size }) {
+// (inline code never runs in the sandbox). `pump`: drawn for a round pump screen too.
+function templateFiles({ name, size, pump = false }) {
   const manifest = {
     api: 1,
     name,
@@ -68,7 +67,7 @@ function templateFiles({ name, size }) {
   const css = [
     ':root { color-scheme: dark; --text: #f0f3f1; --muted: #a6b1ad; }',
     'html, body { margin: 0; height: 100%; background: transparent; color: var(--text); font-family: system-ui, sans-serif; }',
-    '#root { height: 100%; container-type: size; display: flex; align-items: center; justify-content: space-around; gap: 4cqmin; padding: 4cqmin; box-sizing: border-box; }',
+    pump ? ROUND_ROOT_CSS : '#root { height: 100%; container-type: size; display: flex; align-items: center; justify-content: space-around; gap: 4cqmin; padding: 4cqmin; box-sizing: border-box; }',
     '.row { display: flex; flex-direction: column; align-items: center; }',
     '.label { font-size: 9cqmin; color: var(--muted); }',
     '.value { font-size: 24cqmin; font-variant-numeric: tabular-nums; }',
@@ -101,7 +100,7 @@ function templateFiles({ name, size }) {
     '',
   ].join('\n');
   return [
-    { path: 'manifest.json', data: b64(JSON.stringify(manifest, null, 2) + '\n') },
+    { path: 'manifest.json', data: b64(JSON.stringify(pump ? { ...manifest, pump: true } : manifest, null, 2) + '\n') },
     { path: 'index.html', data: b64(html) },
     { path: 'style.css', data: b64(css) },
     { path: 'main.js', data: b64(js) },
@@ -129,7 +128,7 @@ async function opTemplate(args) {
   if (!WIDGET_ID_RE.test(id)) return { ok: false, error: 'bad_id', hint: 'An id is 2 to 41 characters: a-z, 0-9 and dashes, starting with a letter or digit.' };
   const name = String((args && args.name) || id).trim().slice(0, 60) || id;
   const size = SIZES.includes(args && args.size) ? args.size : 'medium';
-  return { ok: true, id, files: templateFiles({ name, size }) };
+  return { ok: true, id, files: templateFiles({ name, size, pump: args.pump === true }) };
 }
 
 // The checks an install would run, without installing: the package boundary,
@@ -144,10 +143,25 @@ async function opCheck(args, deps) {
     id: v.id,
     name: v.manifest.name,
     permissions: permissionsOf(v.manifest),
+    ...placeOf(payload.files, v.manifest),
     sandbox: sourceIssues(payload.files, deps),
     critique: checked ? checked.critique : null,
     ...menuOf(payload.files, v.manifest),
+    ...pumpOf(v.manifest),
   };
+}
+
+// The manifest as the author wrote it, before the app normalized it.
+function rawManifest(files) {
+  const file = files.find((f) => f && f.path === 'manifest.json');
+  try { return JSON.parse(fromB64(file && file.data)) || {}; } catch { return {}; }
+}
+
+// Where it lives: a page, only the top bar (`"tile": false`) or both (`background`, kept by the app only
+// with a part that runs without a tile). A `tile: false` without such a part is ignored: say why.
+function placeOf(files, m) {
+  const ignored = m.tile !== false && rawManifest(files).tile === false;
+  return { livesIn: m.tile === false ? 'bar' : (m.background ? 'page and bar' : 'page'), ...(ignored ? { placeHint: '"tile": false is ignored: it needs a part that runs without a tile (badge, mini, topbarButton, island dynamic or full, deck.handlers). See sdk_reference section "manifest".' } : {}) };
 }
 
 // The widget's card in the Xenon menu: the options the app keeps, the ones it
@@ -155,9 +169,7 @@ async function opCheck(args, deps) {
 // box takes the widget's own size.
 function menuOf(files, manifest) {
   const kept = (manifest.options || []).map((o) => o.id);
-  const file = files.find((f) => f && f.path === 'manifest.json');
-  let raw = [];
-  try { raw = JSON.parse(fromB64(file && file.data)).options; } catch { raw = []; }
+  const raw = rawManifest(files).options;
   const declared = Array.isArray(raw) ? raw.map((o, i) => (o && typeof o.id === 'string' ? o.id : '#' + i)) : [];
   const dropped = declared.filter((id) => !kept.includes(id));
   const menu = { options: kept, dropped, fit: manifest.fit === true };
@@ -188,7 +200,9 @@ async function opInstall(args, deps) {
     name: r.name,
     onDashboard: placed,
     permissions: { streams: r.streams || [], actions: r.actions || [], hosts: r.hosts || [] },
-    note: placed
+    note: placed && r.tile === false
+      ? 'Installed. It lives in the top bar ("tile": false), so it is on no page: it runs there once the person approves its permissions, which Xenon asks for now. widget_screenshot shows the bar.'
+      : placed
       ? 'Installed and on the dashboard, which now shows its page (a new page when the one in view was full). A widget already on a tile only refreshes. New permissions wait for the person to approve them on the dashboard.'
       : 'Installed. No dashboard is open to show it: ask the person to open Xenon, then call widget_issues.',
     sandbox: sourceIssues(payload.files, deps),
@@ -209,7 +223,7 @@ async function opIssues(args, deps) {
     approved: seen.approved === true,
     blocked: Array.isArray(seen.blocked) ? seen.blocked : [],
     errors: Array.isArray(seen.errors) ? seen.errors : [],
-    perf: seen.perf || null,
+    perf: seen.perf || null, fit: seen.fit || null,
   };
 }
 
@@ -222,7 +236,7 @@ async function opShot(args, deps) {
   if (where.found !== true || !where.rect) return { ok: false, error: 'not_on_screen', hint: 'The widget is not on the page the dashboard shows. Install it again to place it, or ask the person to open its page.' };
   const shot = await deps.captureRect(where.rect);
   if (!shot || !shot.ok) return { ok: false, error: (shot && shot.error) || 'capture_failed' };
-  return { ok: true, id, image: { mimeType: 'image/jpeg', data: shot.data }, size: { width: shot.width, height: shot.height } };
+  return { ok: true, id, ...(where.bar === true ? { note: 'It lives in the top bar ("tile": false): this is the bar.' } : {}), image: { mimeType: 'image/jpeg', data: shot.data }, size: { width: shot.width, height: shot.height } };
 }
 
 async function opMine(args, deps) {

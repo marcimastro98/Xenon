@@ -7,7 +7,7 @@ const native = require('../lighting-native/index.js');
 const { bridge } = require('./bridge-state.js');
 const { paint } = require('./paint-hook.js');
 const { wokenBoards, sdkCall, noteSdkFailure } = require('./sdk-call.js');
-const { wantsPaint } = require('./paint-rules.js');
+const { lightsWanted } = require('./paint-rules.js');
 const { CDT_MOTHERBOARD } = require('./sdk-write.js');
 const { loadLib } = require('./sdk-load.js');
 const { channelLayout } = require('./sdk-properties.js');
@@ -141,7 +141,8 @@ function boardsToWake(list, optOuts, woken) {
 
 function wakeVendorBoard() {
   const fresh = boardsToWake(bridge.devices, bridge.config.devices, wokenBoards);
-  if (!fresh.length || !wantsPaint()) return;
+  // The pump ring alone never paints a board: no reason to wake one for it.
+  if (!fresh.length || !lightsWanted()) return;
   for (const d of fresh) wokenBoards.add(d.id);
   native.wakeForVendor()
     .then((woken) => { if (woken) { bridge.lastWrite.clear(); paint.apply(); } })

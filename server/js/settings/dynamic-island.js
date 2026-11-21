@@ -34,6 +34,17 @@ async function renderDynamicIslandSources() {
     return;
   }
   const hidden = new Set(dynamicIslandHiddenSources());
+  // The bar draws a few badges at most; one past them waits for a place and says so
+  // here, or a widget that is switched on and shows nothing reads as broken.
+  const showWaits = () => {
+    const list = $('settings-island-sources');
+    if (!list?.isConnected) return;
+    const waiting = new Set(window.SdkBadges?.waiting?.() || []);
+    list.querySelectorAll('.island-source-wait').forEach((note) => { note.hidden = !waiting.has(note.dataset.pkg); });
+  };
+  // It follows the bar while the page is open: one listener for the page's one list.
+  if (host.dataset.badgeWatch !== '1') { host.dataset.badgeWatch = '1'; window.addEventListener('xenon:sdk-badges', showWaits); }
+  const waitText = t('island_source_badge_wait').replace('{n}', String(window.SdkBadges?.MAX_BADGES || 4));
   packages.forEach((pkg) => {
     const row = document.createElement('label');
     row.className = 'island-source-row';
@@ -52,6 +63,13 @@ async function renderDynamicIslandSources() {
     if (pkg.mini === true) keys.push('island_source_mini');
     capabilities.textContent = keys.map((key) => t(key)).join(' · ');
     copy.append(title, capabilities);
+    if (pkg.badge === true) {
+      const wait = document.createElement('span');
+      wait.className = 'island-source-capabilities island-source-wait';
+      wait.dataset.pkg = pkg.id;
+      wait.textContent = waitText;
+      copy.appendChild(wait);
+    }
 
     const toggle = document.createElement('input');
     toggle.type = 'checkbox';
@@ -62,6 +80,7 @@ async function renderDynamicIslandSources() {
     row.append(copy, toggle);
     host.appendChild(row);
   });
+  showWaits();
 }
 
 function toggleDynamicIslandSource(pkgId, enabled) {

@@ -205,8 +205,8 @@
   // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   const {
-    KIND_ORDER, ON_SCREEN_TAG, PAGE, SHELF_MAX, WIDE_SHOT, CENTRED_KINDS, JUST_ADDED_MAX,
-    KIND_SHELF_MIN, INSTALLS_WAIT_MS, SPOT_SIDE_MAX, isFeatured,
+    KIND_ORDER, TAG_VIEWS, hasTag, taggedView, PAGE, SHELF_MAX, WIDE_SHOT, CENTRED_KINDS,
+    JUST_ADDED_MAX, KIND_SHELF_MIN, INSTALLS_WAIT_MS, SPOT_SIDE_MAX, isFeatured,
   } = window.CommunityGalleryLayout;
   const { hexRgb, readablePair } = window.CommunityGalleryPaper;
 
@@ -285,6 +285,7 @@
     ambient: solid('M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7v2h3v2H8v-2h3v-2H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'),
     bundle: solid('m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 2.3L6 7.6l6 3.3 6-3.3-6-3.3ZM5 9.3v6.5l6 3.3v-6.5L5 9.3Zm14 0-6 3.3v6.5l6-3.3V9.3Z'),
     topbar: solid('M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 6v8h14v-8H5Z'),
+    pump: solid('M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z'),
     new: solid('m12 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Z'),
     limited: solid('M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z'),
     supporters: solid('M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z'),
@@ -1229,7 +1230,7 @@
       '': t('gallery_tab_browse', 'Discover'),
       __new: t('gallery_new_filter', 'New'),
       __added: t('gallery_justadded', 'Just added'),
-      __screen: t('gallery_for_screen', 'For the screen'),
+      ...Object.fromEntries(TAG_VIEWS.map((v) => [v.id, t(v.key, v.fallback)])),
       __supporters: t('gallery_supporters_section', 'Supporters'),
       __limited: t('gallery_limited_section', 'Limited edition'),
     };
@@ -1284,8 +1285,7 @@
     const limited = all.filter((e) => e.limited);
     const supporters = all.filter((e) => !e.limited && (e.locked || e.supportersOnly));
     const browse = all.filter((e) => !e.limited && !(e.locked || e.supportersOnly));
-    const forScreen = all.filter((e) => Array.isArray(e.tags) && e.tags.includes(ON_SCREEN_TAG));
-    if (activeKind === '__screen' && !forScreen.length) activeKind = '';
+    if (taggedView(all, activeKind)?.list.length === 0) activeKind = '';   // a tag row emptied since: back to Discover
 
     // Not drawn in Browse any more (see paintGrid): run for the install index the
     // card lines read, so an owned entry says Installed or Update.
@@ -1346,7 +1346,7 @@
         const sparks = sparksBand(); if (sparks) frag.appendChild(sparks);
         return undefined;
       }
-      if (activeKind === '__screen') return flatInto(frag, sortList(forScreen));
+      const tagged = taggedView(all, activeKind); if (tagged) return flatInto(frag, sortList(tagged.list));
       if (activeKind === '__new') return flatInto(frag, newestFirst(all.filter(isNewEntry)));
       if (activeKind === '__added') return flatInto(frag, newestFirst(browse));
       return flatInto(frag, sortList(all.filter((e) => e.kind === activeKind)));
@@ -1535,7 +1535,7 @@
     const rows = [railRow('', t('gallery_tab_browse', 'Discover'), icon('home'))];
     if (fresh) rows.push(railRow('__new', t('gallery_new_filter', 'New'), icon('new'), shortCount(fresh)));
     KIND_ORDER.filter((k) => has((e) => e.kind === k)).forEach((k) => rows.push(railRow(k, railLabel(k), kindIcon(k))));
-    if (has((e) => Array.isArray(e.tags) && e.tags.includes(ON_SCREEN_TAG))) rows.push(railRow('__screen', t('gallery_for_screen', 'For the screen'), icon('topbar')));
+    TAG_VIEWS.filter((v) => has(hasTag(v.tag))).forEach((v) => { rows.push(railRow(v.id, t(v.key, v.fallback), icon(v.icon))); });
     if (has((e) => !e.limited && (e.locked || e.supportersOnly))) rows.push(railRow('__supporters', t('gallery_supporters_section', 'Supporters'), icon('supporters')));
     if (has((e) => e.limited)) rows.push(railRow('__limited', t('gallery_limited_section', 'Limited edition'), icon('limited')));
     rail.list.replaceChildren(...rows);

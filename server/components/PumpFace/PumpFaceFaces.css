@@ -1,0 +1,248 @@
+/* The faces of the pump screen page (face-*.js). Every face keeps what it says
+   inside the circle a round pump shows: the square that fits it is 70% wide,
+   so lines stay within about 64% of the shorter side. Frame: PumpFace.css. */
+
+/* ── Sensors ──────────────────────────────────────────────────────────── */
+.pf-rings-mid, .pf-game-mid { position: relative; display: grid; justify-items: center; }
+.pf-rest, .pf-game-sides {
+  display: flex;
+  justify-content: center;
+  gap: calc(var(--u) * 7);
+  margin-top: calc(var(--u) * 4.5);
+}
+.pf-rest-row, .pf-game-side { display: grid; justify-items: center; gap: calc(var(--u) * 0.8); }
+.pf-rest-row::before, .pf-game-side::before {
+  content: "";
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 0.9);
+  border-radius: calc(var(--u) * 0.45);
+  background: var(--slot);
+  margin-bottom: calc(var(--u) * 0.6);
+}
+.pf-rest-row:has(> [data-tone="hot"])::before, .pf-game-side:has(> [data-tone="hot"])::before {
+  width: calc(var(--u) * 2.6);
+  height: calc(var(--u) * 2.2);
+  border-radius: 0;
+  background: var(--pf-hot);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.pf-rest-label { font-size: max(calc(var(--u) * 3.4), 9.5px); font-weight: 600; color: var(--pf-ink-3); }
+
+/* Three or four rings: a thinner band, so the middle is smaller. The sizes here and in the
+   grid are for numbers: a reading this PC lacks keeps the small words of PumpFace.css. */
+.pf-rings-thin .pf-main:not(.pf-none) .pf-num { font-size: calc(var(--u) * 19); }
+.pf-rings-thin .pf-main .pf-unit { font-size: calc(var(--u) * 5); margin-top: calc(var(--u) * 1.6); }
+.pf-rings-thin .pf-label { font-size: calc(var(--u) * 4); margin-top: calc(var(--u) * 0.8); }
+.pf-rings-thin .pf-rest { gap: calc(var(--u) * 4); margin-top: calc(var(--u) * 3); }
+.pf-rings-thin .pf-rest-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * 6.6); }
+.pf-rings-thin .pf-rest-value .pf-unit { font-size: calc(var(--u) * 3); }
+.pf-rings-thin .pf-rest-label { font-size: calc(var(--u) * 3); }
+/* Small screen: one reading at a time in the middle, its ring at full strength. */
+.pf-rings-turns .pf-fill:not([data-on]) { opacity: 0.3; }
+.pf-rings-turns .pf-main:not(.pf-none) .pf-num { font-size: calc(var(--u) * 24); }
+.pf-rings-turns .pf-label { font-size: max(calc(var(--u) * 4.6), 11px); }
+
+.pf-bars, .pf-grid { width: calc(var(--u) * 64); }
+.pf-bars { display: grid; gap: calc(var(--u) * 4.2); }
+.pf-bars .pf-cell {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  row-gap: calc(var(--u) * 1.4);
+}
+.pf-bars .pf-label { margin: 0; text-align: left; font-size: calc(var(--u) * 4.2); }
+.pf-bars .pf-cell-value { justify-content: flex-end; }
+.pf-bar {
+  grid-column: 1 / -1;
+  height: calc(var(--u) * 2);
+  border-radius: calc(var(--u) * 1);
+  background: var(--pf-track);
+  overflow: hidden;
+}
+.pf-bar-fill {
+  height: 100%;
+  background: var(--slot);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 600ms ease-out;
+}
+.pf-bar-fill[data-tone="warm"] { background: var(--pf-warm); }
+.pf-bar-fill[data-tone="hot"] { background: var(--pf-hot); }
+
+.pf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 6) calc(var(--u) * 3); }
+.pf-grid[data-count="1"] { grid-template-columns: 1fr; }
+.pf-grid[data-count="2"] { grid-template-columns: 1fr; gap: calc(var(--u) * 4); }
+.pf-grid .pf-cell { display: grid; justify-items: center; }
+.pf-grid .pf-cell-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * 17); font-weight: 300; }
+.pf-grid .pf-cell-value .pf-unit { font-size: calc(var(--u) * 4.4); }
+.pf-grid[data-count="1"] .pf-cell-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * 27); }
+.pf-grid .pf-label { order: 2; margin-top: calc(var(--u) * 0.8); font-size: calc(var(--u) * 4.2); color: var(--slot); }
+
+/* Edge-anchored parts are placed from the centre (50% plus or minus --u, one vmin): on a
+   round, square or wide panel that is the same spot as from the edge, and on a panel standing
+   up the layout stays together around the middle instead of sliding to the top. */
+
+/* ── Game ─────────────────────────────────────────────────────────────── */
+.pf-game-sides { gap: calc(var(--u) * 16); }
+.pf-game-track {
+  position: absolute;
+  left: 50%;
+  bottom: calc(50% - var(--u) * 34);
+  width: calc(var(--u) * 46);
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: max(calc(var(--u) * 3.6), 9.5px);
+  font-weight: 500;
+  color: var(--pf-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Music ────────────────────────────────────────────────────────────── */
+.pf-face-music { display: block; }
+.pf-music-backdrop { position: absolute; inset: 0; overflow: hidden; }
+.pf-music-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.25);
+  /* Still: it changes with the song, never while drawn. */
+  filter: blur(calc(var(--u) * 6)) brightness(0.32) saturate(1.2);
+}
+.pf-music-backdrop.pf-cover-empty img { display: none; }
+.pf-music-disc {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--u) * 37);
+  width: calc(var(--u) * 52);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+}
+.pf-music-cover {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--pf-raise);
+  box-shadow: 0 0 0 calc(var(--u) * 0.5) rgba(255, 255, 255, 0.08);
+}
+.pf-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pf-cover-empty .pf-cover-img { display: none; }
+.pf-cover-empty::after {
+  content: "";
+  position: absolute;
+  inset: 41%;
+  border-radius: 50%;
+  background: var(--pf-track);
+}
+.pf-music-text {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--u) * 19);
+  width: calc(var(--u) * 62);
+  transform: translateX(-50%);
+  text-align: center;
+}
+.pf-music-title, .pf-music-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-music-title { font-size: calc(var(--u) * 5.6); font-weight: 650; }
+.pf-music-artist { font-size: calc(var(--u) * 4.2); color: var(--pf-ink-2); margin-top: calc(var(--u) * 0.8); }
+.pf-idle .pf-music-title { color: var(--pf-ink-3); font-weight: 500; }
+
+.pf-style-vinyl .pf-music-disc { top: calc(50% - var(--u) * 43); width: calc(var(--u) * 60); }
+.pf-style-vinyl .pf-music-disc::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, #101010 0 calc(var(--u) * 0.45), #181818 calc(var(--u) * 0.45) calc(var(--u) * 0.9));
+}
+.pf-style-vinyl .pf-music-cover { inset: 31%; animation: pf-spin 1.8s linear infinite paused; }
+.pf-style-vinyl.pf-playing .pf-music-cover { animation-play-state: running; }
+.pf-style-vinyl .pf-music-text { top: calc(50% + var(--u) * 22); }
+@keyframes pf-spin { to { transform: rotate(1turn); } }
+
+.pf-style-pulse .pf-music-disc { top: calc(50% - var(--u) * 33); width: calc(var(--u) * 44); }
+.pf-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: calc(var(--u) * 0.5) solid var(--pf-c1);
+  opacity: 0;
+  animation: pf-pulse 2.4s ease-out infinite paused;
+}
+.pf-pulse-2 { animation-delay: 0.8s; }
+.pf-pulse-3 { animation-delay: 1.6s; }
+.pf-playing .pf-pulse { animation-play-state: running; }
+@keyframes pf-pulse { from { opacity: 0.55; transform: scale(1); } to { opacity: 0; transform: scale(1.6); } }
+
+/* ── Clock ────────────────────────────────────────────────────────────── */
+.pf-face-clock { align-content: center; justify-items: center; }
+.pf-time { display: flex; align-items: baseline; line-height: 0.9; }
+.pf-time-hm { font-size: calc(var(--u) * 30); font-weight: 250; letter-spacing: -0.02em; }
+.pf-time[data-fit="1"] .pf-time-hm { font-size: calc(var(--u) * 28); }
+.pf-time[data-fit="2"] .pf-time-hm { font-size: calc(var(--u) * 24); }
+.pf-time[data-fit="3"] .pf-time-hm { font-size: calc(var(--u) * 21); }
+.pf-time-s { font-size: calc(var(--u) * 7); color: var(--pf-ink-3); margin-left: calc(var(--u) * 1.2); }
+.pf-time-ampm { font-size: calc(var(--u) * 6); font-weight: 500; color: var(--pf-ink-2); margin-left: calc(var(--u) * 1); }
+.pf-time-s:empty, .pf-time-ampm:empty { display: none; }
+.pf-date { font-size: calc(var(--u) * 4.8); font-weight: 500; color: var(--pf-ink-2); margin-top: calc(var(--u) * 2.5); }
+.pf-date:empty { display: none; }
+.pf-weather {
+  position: absolute;
+  top: calc(50% - var(--u) * 34);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.4);
+  font-size: calc(var(--u) * 5);
+  font-weight: 500;
+  color: var(--pf-ink-2);
+}
+.pf-sky {
+  width: calc(var(--u) * 6.5);
+  height: calc(var(--u) * 6.5);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pf-dial { position: absolute; inset: 4%; width: 92%; height: 92%; }
+.pf-tick { stroke: var(--pf-ink-3); stroke-width: 0.6; stroke-linecap: round; }
+.pf-tick-major { stroke: var(--pf-ink); stroke-width: 1.3; }
+.pf-hand { stroke-linecap: round; }
+.pf-hand-h { stroke: var(--pf-ink); stroke-width: 2.6; }
+.pf-hand-m { stroke: var(--pf-ink); stroke-width: 1.6; }
+.pf-hand-s { stroke: var(--pf-c1); stroke-width: 0.7; }
+.pf-hub { fill: var(--pf-c1); }
+.pf-date-dial { position: absolute; bottom: calc(50% - var(--u) * 25); margin: 0; font-size: calc(var(--u) * 4.2); }
+.pf-style-analog .pf-weather { top: calc(50% - var(--u) * 26); }
+
+/* ── Picture ──────────────────────────────────────────────────────────── */
+.pf-face-picture { display: block; }
+.pf-layer { position: absolute; inset: 0; width: 100%; height: 100%; animation: pf-in 700ms ease-out; }
+.pf-layer-out { opacity: 0; transition: opacity 700ms ease-in; }
+.pf-pic { display: block; }
+.pf-fit-cover { object-fit: cover; }
+.pf-fit-contain { object-fit: contain; }
+.pf-art { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-style-vinyl .pf-music-cover, .pf-pulse { animation: none; }
+  .pf-layer { animation: none; }
+  .pf-layer-out, .pf-bar-fill { transition: none; }
+}
+
+/* ── Widget face (face-widget.js): a Store widget's page, framed; the clock stands in ── */
+.pf-widget {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+.pf-widget[hidden] { display: none; }
+.pf-face-in { position: absolute; inset: 0; display: grid; place-items: center; }

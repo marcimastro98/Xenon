@@ -156,7 +156,12 @@
       const p = new URLSearchParams(window.location.search);
       if (p.has('edge')) return p.get('edge') !== '0' && p.get('edge') !== 'false';
     } catch (e) { /* ignore */ }
-    if ((window.location.hash || '').toLowerCase().indexOf('edge') >= 0) return true;
+    // "#edge" only as a key of its own: a share link (#preset=CODE) holds the letters
+    // "edge" by chance, and opening one switched the preview on and saved it.
+    try {
+      const h = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+      if (h.has('edge')) return h.get('edge') !== '0' && h.get('edge') !== 'false';
+    } catch (e) { /* ignore */ }
     try { return localStorage.getItem(STORE_KEY) === '1'; } catch (e) { return false; }
   }
 

@@ -71,31 +71,39 @@ function hasDynamicLeds(leds) {
 }
 
 // The colours of one device for this instant, one per entry of `ledIds`.
-// ctx: { follow, temperature, album, brightness, nowMs } — `follow` is the
-// colour Xenon is showing (brightness already applied), `temperature`/`album`
-// the raw reactive colours or null. LEDs sharing the same effect move together,
-// and a wave runs across them as one strip, in luid order.
+// ctx: { follow, under, temperature, album, pump, brightness, nowMs } — `follow` is the
+// colour Xenon is showing (brightness already applied; null leaves the LED to its
+// own software), `under` what the device would show without its map, one colour per
+// LED (the album gradient or a wave), taken instead of `follow` where it has one, `temperature`/`album` the raw reactive colours or null, `pump`
+// the colours of the pump screen's ring (lights/pump-ring.js) or null. LEDs sharing
+// the same effect move together, and a wave or the ring's colours run across them
+// as one strip, in luid order.
 function ledFrame(ledIds, leds, ctx) {
   const map = leds || {};
   const bright = (c) => fx.applyBrightness(c, ctx.brightness);
   const groups = new Map();   // effect key → indexes into ledIds
+  const ring = [];            // indexes of the pump ring's LEDs
+  const base = (i) => ctx.under?.[i] || ctx.follow;
   const out = ledIds.map((id, i) => {
     const v = map[id];
-    if (!v) return ctx.follow;
-    if (typeof v === 'string') { const c = fx.parseColorName(v); return c ? bright(c) : ctx.follow; }
-    if (v.style === 'temperature') return ctx.temperature ? bright(ctx.temperature) : ctx.follow;
-    if (v.style === 'album') return ctx.album ? bright(ctx.album) : ctx.follow;
+    if (!v) return base(i);
+    if (v.style === 'pump') { ring.push(i); return base(i); }
+    if (typeof v === 'string') { const c = fx.parseColorName(v); return c ? bright(c) : base(i); }
+    if (v.style === 'temperature') return ctx.temperature ? bright(ctx.temperature) : base(i);
+    if (v.style === 'album') return ctx.album ? bright(ctx.album) : base(i);
     const key = `${v.style}|${v.color}|${v.speed}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(i);
     return null;
   });
+  const stops = ring.length && ctx.pump ? fx.paletteGradient(ctx.pump, ring.length) : null;
+  if (stops) ring.forEach((at, j) => { out[at] = bright(stops[j]); });
   for (const [key, idx] of groups) {
     const [style, color, speed] = key.split('|');
     const opts = { style, color, speed: Number(speed), nowMs: ctx.nowMs };
     const spread = fx.isSpatialAnimation(style) ? fx.animationGradientAt(opts, idx.length) : null;
     const one = spread ? null : fx.animationColorAt(opts);
-    idx.forEach((at, j) => { out[at] = spread ? bright(spread[j]) : (one ? bright(one) : ctx.follow); });
+    idx.forEach((at, j) => { out[at] = spread ? bright(spread[j]) : (one ? bright(one) : base(at)); });
   }
   return out;
 }

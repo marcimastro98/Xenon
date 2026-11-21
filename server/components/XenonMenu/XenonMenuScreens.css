@@ -82,3 +82,32 @@
 .xm-scrrows .xm-modes { grid-template-columns: minmax(0, 1fr); }
 .xm-scrwidgets { gap: var(--space-3); }
 .xm-scrtheme { margin-top: var(--space-5); }
+/* Pump screens sit with the phones, each drawn in its shape and proportions as mounted
+   (--xm-pump-w/h from xenon-menu-pumps.js); the one picked is lit. The face page has a
+   black ground on the pump too, so its picture keeps it here. */
+.xm-scrpump[aria-pressed="true"] { background: var(--cst-on); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.xm-scrpump-shape {
+  flex: none; display: grid; place-items: center; width: var(--xm-pump-w, 28px); height: var(--xm-pump-h, 28px); color: var(--cst-muted);
+  background: black; border: 1.5px solid var(--line); border-radius: 7px;
+}
+.xm-scrpump-shape.is-round { border-radius: 50%; }
+.xm-scrpump-shape .xm-ic, .xm-scrpump-shape > svg { width: 14px; height: 14px; }
+.xm-scrpump.is-add .xm-scrpump-shape { background: none; border-style: dashed; border-color: var(--cst-sep); }
+/* The picked pump's own page, about the size of the real one: the page at the panel's size,
+   turned back by the mounting so its face reads upright as on the pump. */
+.xm-pumppreview {
+  position: relative; width: var(--xm-pump-w, 176px); height: var(--xm-pump-h, 176px); margin: 0 0 var(--space-3); overflow: hidden;
+  background: black; border-radius: 16px; box-shadow: 0 0 0 1.5px var(--line);
+}
+.xm-pumppreview.is-round { border-radius: 50%; }
+.xm-pumpframe {
+  position: absolute; left: 50%; top: 50%; display: block; width: var(--xm-pump-fw, 100%); height: var(--xm-pump-fh, 100%);
+  border: 0; pointer-events: none; visibility: hidden; transform: translate(-50%, -50%) rotate(var(--xm-pump-turn, 0deg));
+}
+.xm-pumpframe.is-ready { visibility: visible; }
+/* The pump picked: its picture, then the button for a picture of the person's own. */
+.xm-pumphead { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.xm-pumphead .xm-pumppreview { margin: 0; }
+.xm-pumpown { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.xm-pumpown-note { font-size: 13px; color: var(--cst-muted); }
+.xm-pumpown-note:empty { display: none; }

@@ -26,7 +26,7 @@ const askedWrong = (error) => ASKED_WRONG_RE.test(String(error || ''));
 const KIND_RULES = [
   [/unavailable$|^unsupported$/, 'unavailable'],
   [/failed$|^http_/, 'failed'],
-  [/^(over_exclusive|screen_alerts_off|history_off|companion_off|blocked_ext|args_not_supported|sized_by_itself)$/, 'refused'],
+  [/^(over_exclusive|screen_alerts_off|history_off|companion_off|blocked_ext|args_not_supported|sized_by_itself|bar_only)$/, 'refused'],
   [/^running$/, 'busy'],
   [/^(no_|not_|nothing_|first_session$)/, 'nothing'],
 ];

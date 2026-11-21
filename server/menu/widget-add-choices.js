@@ -45,7 +45,8 @@ function recommended(id) {
 // Every tile and installed widget, the same list as edit mode's "Add".
 function addChoices(st) {
   const tiles = (st.tiles || []).map(tileChoice);
-  const pkgs = (st.packages || []).map((p) => packageChoice(p, st.shots));
+  // A widget its creator kept to the top bar (manifest `tile: false`) is never placed.
+  const pkgs = (st.packages || []).filter((p) => p.tile !== false).map((p) => packageChoice(p, st.shots));
   const widgets = tiles.concat(pkgs).map((c) => ({ ...c, rec: recommended(c.value), act: run(placeTile(c.value)) }));
   return widgets.concat((st.deckKeys || []).map(keyChoice));
 }

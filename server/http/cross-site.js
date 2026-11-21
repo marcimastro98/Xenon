@@ -82,7 +82,7 @@ function isWidgetFile(pathname) {
 
 // Pages a link from elsewhere may open.
 const PAGES = new Set([
-  '/', '/pair', '/deck-popup', '/draw', '/menu', '/scene', '/screen-alerts',
+  '/', '/pair', '/deck-popup', '/draw', '/menu', '/scene', '/screen-alerts', '/pump-face', '/pump-widget',
   '/sdk-service', '/shell-driver', '/spotlight',
   // Spotify sends the browser back here after sign-in; the OAuth `state`
   // check in stream-spotify.js decides whether it counts.

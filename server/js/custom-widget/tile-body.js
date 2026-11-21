@@ -53,5 +53,15 @@ window.CustomWidgetTileBody = (wrapper) => {
     body.replaceChildren(box);
   }
 
-  return { ensure, showState };
+  // A tile of a widget its creator keeps to the top bar (manifest `tile: false`): it runs there by
+  // itself, so this box only says so and offers to hold another widget. An on-screen widget has no
+  // chooser (its editor changes it), so it gets no button.
+  function showBarOnly(body, chooseOther) {
+    showState(body, 'cw_bar_only', 'This widget lives in the top bar', {
+      hint: ['cw_bar_only_hint', 'Its creator made it for the bar, where it runs by itself. You can remove this box.'],
+      ...(chooseOther ? { buttons: [{ key: 'cw_unassign', fb: 'Choose another', primary: true, onClick: chooseOther }] } : {}),
+    });
+  }
+
+  return { ensure, showState, showBarOnly };
 };

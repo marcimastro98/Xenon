@@ -31,6 +31,15 @@ const CLASSIFIED = Object.freeze({
   'POST /hints/reset': { remote: false },
   // The PC's screens went off or came back: only the PC knows.
   'POST /screens-off': { remote: false },
+  // Pump screens: a phone may read and change them like the dashboard; the face page
+  // and its hello belong to the pump on this PC.
+  'GET /pump': { remote: false },
+  'POST /pump': { remote: true },
+  'POST /pump/hello': { remote: false },
+  'POST /pump/colors': { remote: false },
+  'GET /pump-widget': { remote: false },
+  'POST /pump/picture': { remote: true },
+  'GET /pump-face': { remote: false },
   // The trial asked from the app: the request names this PC to the hub and the poll
   // hands back a trial code, so the PC only; a paired phone opens the hub's page.
   'GET /api/community/trial/pending': { remote: false },

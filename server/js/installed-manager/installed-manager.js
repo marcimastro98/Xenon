@@ -341,7 +341,7 @@
     const need = needsYou(row, cat);
     if (need) info.appendChild(el('span', 'inst-row-state is-' + need.kind, need.text));
     else if (leftOutOfBackground(row)) {
-      info.appendChild(el('span', 'inst-row-state is-left-out', t('installed_state_background_full',
+      info.appendChild(el('span', 'inst-row-state is-left-out', t(row.pkg.tile === false ? 'installed_state_background_full_bar' : 'installed_state_background_full',
         'Funziona solo con il widget a schermo: {n} widget girano già in background').replace('{n}', String(CustomWidget.serviceFramesMax))));
     }
     // What the new version changes, straight from the publisher. Before this the
@@ -367,10 +367,10 @@
       });
       btns.appendChild(b);
     }
-    // A tile widget can be put on the dashboard from here too: the page on
-    // screen behind this list, through the same path as the "+" panel. Not for
-    // an Ambient scene (no tile) or a paused package (its tile would only say so).
-    if (row.pkg && row.pkg.surface !== 'ambient' && window.CustomWidget && typeof CustomWidget.addToPage === 'function'
+    // A tile widget can be put on the dashboard from here too: the page on screen behind this
+    // list, through the same path as the "+" panel. Not for an Ambient scene or a widget its
+    // creator kept to the top bar (no tile), nor a paused package (its tile would only say so).
+    if (row.pkg && row.pkg.surface !== 'ambient' && row.pkg.tile !== false && window.CustomWidget && typeof CustomWidget.addToPage === 'function'
         && !(typeof CustomWidget.isSuspended === 'function' && CustomWidget.isSuspended(row.pkg.id))) {
       const add = el('button', 'settings-btn', t('settings_sdk_add_page', 'Aggiungi alla pagina'));
       add.type = 'button';

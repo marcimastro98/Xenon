@@ -62,6 +62,15 @@ function parseStore(raw) {
 // hostnames were written by the widget.
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 const text = (v, max = TEXT_MAX) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').slice(0, max);
+// What the tile cuts off (fit-scan.js), already held to known words by the dashboard; cut again here.
+function cleanFit(f) {
+  if (!f || typeof f !== 'object' || !Array.isArray(f.items)) return null;
+  const items = f.items.slice(0, LIST_MAX).map((i) => ({
+    kind: text(i?.kind, 8), by: text(i?.by, 8), side: text(i?.side, 8), px: num(i?.px),
+    sel: text(i?.sel, 50), ...(i?.in ? { in: text(i.in, 50) } : {}), nth: num(i?.nth), of: num(i?.of), count: num(i?.count),
+  }));
+  return { width: num(f.w), height: num(f.h), items };
+}
 function cleanReport(kind, data) {
   const found = data.found === true;
   if (kind === 'where') {
@@ -76,9 +85,10 @@ function cleanReport(kind, data) {
     found,
     onScreen: data.onScreen === true,
     approved: data.approved === true,
-    blocked: list(data.blocked).map((b) => ({ kind: text(b && b.kind, 40), ...(b && b.host ? { host: text(b.host, 255) } : {}) })),
-    errors: list(data.errors).map((e) => ({ kind: text(e && e.kind, 20), message: text(e && e.message), ...(e && e.count > 1 ? { count: Math.min(9999, Math.trunc(num(e.count) || 1)) } : {}) })),
+    blocked: list(data.blocked).map((b) => ({ kind: text(b?.kind, 40), ...(b?.host ? { host: text(b.host, 255) } : {}) })),
+    errors: list(data.errors).map((e) => ({ kind: text(e?.kind, 20), message: text(e?.message), ...(e?.count > 1 ? { count: Math.min(9999, Math.trunc(num(e.count) || 1)) } : {}) })),
     perf: p ? { level: text(p.level, 20), longTaskMsPerMin: num(p.longTaskMsPerMin), layoutShifts: num(p.layoutShifts) } : null,
+    fit: cleanFit(data.fit),
   };
 }
 
@@ -178,7 +188,7 @@ function createMcpDev({ file, broadcast = () => {}, now = Date.now, randomBytes 
   async function answerPair(pairId, allow) {
     sweepPairs();
     const p = pairs.get(String(pairId || ''));
-    if (!p || p.status !== 'pending') return { ok: false, error: 'not_found' };
+    if (p?.status !== 'pending') return { ok: false, error: 'not_found' };
     if (!allow) {
       p.status = 'denied';
       p.at = now();

@@ -41,10 +41,10 @@ The connection is remembered in `~/.xenon/mcp.json` and listed in that same Sett
 |---|---|
 | `xenon_status` | Is Xenon running, which SDK version, are community widgets on, is a dashboard open |
 | `sdk_reference` | The Widget SDK reference, by section |
-| `new_widget` | A working starter (manifest, HTML, CSS, JS) in a new or empty folder |
+| `new_widget` | A working starter (manifest, HTML, CSS, JS) in a new or empty folder; `pump: true` also makes it for the round screen on an AIO pump |
 | `check_widget` | The checks an install runs, without installing: package rules, sandbox, Store review notes |
 | `install_widget` | Install or update from the folder, put the widget on your dashboard and show its page |
-| `widget_issues` | Errors, blocked requests, whether its permissions are approved, how heavy it is |
+| `widget_issues` | Errors, blocked requests, whether its permissions are approved, how heavy it is, what its tile cuts off |
 | `widget_screenshot` | A picture of the tile as it is on screen now |
 | `my_widgets` | Your own widgets; with an id and a folder, writes one out to keep working on it |
 | `share_widget` | A share code anyone can paste into Xenon, plus the Store review notes |

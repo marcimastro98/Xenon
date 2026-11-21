@@ -59,6 +59,8 @@
     "server/perf-priority.ps1",
     "server/performance.ps1",
     "server/processes.ps1",
+    "server/pump-face.html",
+    "server/pump-widget.html",
     "server/pwsh-worker.ps1",
     "server/release-asset-cli.js",
     "server/scene.html",

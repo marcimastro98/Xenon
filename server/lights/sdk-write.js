@@ -8,6 +8,7 @@ const native = require('../lighting-native/index.js');
 const { bridge } = require('./bridge-state.js');
 const { sdkCall, noteSdkFailure } = require('./sdk-call.js');
 const { effectiveAlbum } = require('./paint-rules.js');
+const pumpRing = require('./pump-ring.js');
 
 const CDT_MOTHERBOARD = 0x200; // CorsairDeviceType::CDT_Motherboard
 
@@ -51,15 +52,16 @@ async function writeDeviceAnimGradient(dev, stops, key) {
 
 // Paint the lighting map of a 'custom' device: each LED its own colour or effect,
 // the LEDs nobody touched follow Xenon (`follow`, the colour every other device
-// gets now). The on-change key is the frame itself, so a static map costs one
-// write and a looping effect writes only when a LED actually changed.
-async function writeDeviceCustom(dev, mode, follow) {
+// gets now; `under`, one colour per LED, when the rest shows a gradient or a wave). The
+// on-change key is the frame itself, so a static map costs one write and a looping effect
+// writes only when a LED actually changed.
+async function writeDeviceCustom(dev, mode, follow, under = null) {
   if (!dev || !sinkReady(dev) || !dev.ledIds.length) return;
   const frame = ledColors.ledFrame(dev.ledIds, mode.leds, {
-    follow, temperature: bridge.config.effects.temperature ? bridge.layers.base : null, album: effectiveAlbum(),
-    brightness: bridge.config.brightness, nowMs: Date.now(),
+    follow, under, temperature: bridge.config.effects.temperature ? bridge.layers.base : null, album: effectiveAlbum(),
+    pump: pumpRing.colours(bridge.accent), brightness: bridge.config.brightness, nowMs: Date.now(),
   });
-  const key = 'custom:' + frame.map(c => `${c.r},${c.g},${c.b}`).join('|');
+  const key = 'custom:' + frame.map(c => (c ? `${c.r},${c.g},${c.b}` : '-')).join('|');
   if (bridge.lastWrite.get(dev.id) === key) return;
   if (await pushLeds(dev, frame)) bridge.lastWrite.set(dev.id, key);
 }
@@ -74,7 +76,8 @@ async function pushLeds(dev, colors) {
     if (dev.source === 'native') {
       native.write(dev, colors);   // handed over, never awaited (see lighting-native)
     } else {
-      const arr = dev.ledIds.map((id, i) => ({ id, r: colors[i].r, g: colors[i].g, b: colors[i].b, a: 255 }));
+      // A LED with no colour (null) is left to iCUE: alpha 0, as releaseAll() hands lights back.
+      const arr = dev.ledIds.map((id, i) => (colors[i] ? { id, r: colors[i].r, g: colors[i].g, b: colors[i].b, a: 255 } : { id, r: 0, g: 0, b: 0, a: 0 }));
       await sdkCall(bridge.fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
     }
     return true;

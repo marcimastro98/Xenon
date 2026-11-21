@@ -351,8 +351,8 @@ function ensureTileHandles() {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'gs-size-cycle';
-      btn.title = 'Ridimensiona';
-      btn.setAttribute('aria-label', 'Ridimensiona');
+      btn.title = /** @type {any} */ (window).t?.('layout_resize') || 'Change size';
+      btn.setAttribute('aria-label', btn.title);
       btn.innerHTML = _SIZE_SVG;
       btn.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();

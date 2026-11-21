@@ -81,6 +81,24 @@ test('widget_template: refuses a bad id, defaults the size', async () => {
   assert.equal(m.name, 'gpu-temp');
 });
 
+// A widget for an AIO pump's screen: the starter says so and stays inside the circle,
+// and check_widget gives back the shapes the app kept with the rules for them.
+test('widget_template and check_widget: a widget made for a pump screen', async () => {
+  const { d } = deps();
+  const r = await T.runOp('widget_template', { id: 'pump-cpu', pump: true }, d);
+  const file = (p) => Buffer.from(r.files.find((f) => f.path === p).data, 'base64').toString('utf8');
+  assert.equal(JSON.parse(file('manifest.json')).pump, true);
+  assert.match(file('style.css'), /flex-direction: column;[^}]*padding: 15cqmin;/, 'stacked, inside the circle');
+  const plain = await T.runOp('widget_template', { id: 'tile-cpu' }, d);
+  assert.equal(JSON.parse(Buffer.from(plain.files[0].data, 'base64').toString('utf8')).pump, undefined);
+  const checked = await T.runOp('check_widget', { id: 'pump-cpu', files: r.files }, d);
+  assert.deepEqual(checked.pump, ['round', 'square']);
+  assert.match(checked.pumpHint, /inside the circle/);
+  const tile = await T.runOp('check_widget', { id: 'tile-cpu', files: plain.files }, d);
+  assert.deepEqual(tile.pump, []);
+  assert.equal(tile.pumpHint, undefined);
+});
+
 test('check_widget: package errors come back with a hint, good ones with permissions', async () => {
   const { d } = deps();
   const bad = await T.runOp('check_widget', { id: 'clock', files: [] }, d);
@@ -147,6 +165,10 @@ test('widget_issues: what the dashboard saw', async () => {
   assert.equal((await T.runOp('widget_issues', { id: 'clock' }, elsewhere.d)).onScreen, false);
   assert.equal(r.approved, false);
   assert.deepEqual(r.blocked, [{ kind: 'inline-script' }]);
+  assert.equal(r.fit, null, 'no look yet');
+  const cut = { width: 300, height: 300, items: [{ kind: 'past', by: 'tile', side: 'right', px: 12, sel: 'div.day', nth: 7, of: 7, count: 1 }] };
+  const cutSeen = deps({ isInstalled: async () => true, ask: async () => ({ found: true, onScreen: true, approved: true, blocked: [], errors: [], perf: null, fit: cut }) });
+  assert.deepEqual((await T.runOp('widget_issues', { id: 'clock' }, cutSeen.d)).fit, cut, 'what the tile cuts off reaches the assistant');
 });
 
 test('widget_shot: needs the tile on screen, returns a jpeg', async () => {

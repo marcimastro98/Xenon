@@ -218,3 +218,25 @@ test('the words the Store added are in all 11 languages', () => {
     assert.match(i18n[lang].gallery_ask_bit_draft, /\{q\}/, lang);
   }
 });
+
+// Xenon 5.3: widgets made for the screen on an AIO pump get a row of the rail, filled by a tag at review,
+// as For the screen is. The row is read again at every repaint, since a tap on the rail repaints in place.
+test('the rail rows a tag fills: For the screen and For pump screens', () => {
+  const window = {};
+  vm.runInNewContext(read('js/community-gallery/layout.js'), { window });
+  const { TAG_VIEWS, taggedView, hasTag } = window.CommunityGalleryLayout;
+  const plain = (x) => JSON.parse(JSON.stringify(x));   // arrays made in the page's realm
+  assert.deepEqual(plain(TAG_VIEWS.map((v) => [v.id, v.tag])), [['__screen', 'on-screen'], ['__pump', 'pump-screen']]);
+  const all = [{ id: 'a', tags: ['pump-screen'] }, { id: 'b', tags: ['on-screen'] }, { id: 'c' }, null];
+  assert.deepEqual(plain(taggedView(all.filter(Boolean), '__pump').list.map((e) => e.id)), ['a']);
+  assert.deepEqual(plain(taggedView(all.filter(Boolean), '__screen').list.map((e) => e.id)), ['b']);
+  assert.equal(taggedView(all, 'widget'), null);
+  assert.equal(hasTag('pump-screen')(null), false);
+  assert.match(js, /const tagged = taggedView\(all, activeKind\); if \(tagged\) return flatInto/);
+  assert.match(js, /TAG_VIEWS\.filter\(\(v\) => has\(hasTag\(v\.tag\)\)\)\.forEach/);
+  assert.match(js, /\n {4}pump: solid\(/, 'the row has its own icon');
+  const i18n = vm.runInNewContext(appStringsSource() + '\ni18n;', { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} } });
+  for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
+    for (const v of TAG_VIEWS) assert.equal(typeof i18n[lang][v.key], 'string', lang + ' ' + v.key);
+  }
+});

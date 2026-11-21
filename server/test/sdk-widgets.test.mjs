@@ -18,9 +18,9 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.equal(r.ok, true);
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
-    description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
+    description: '', surface: 'tile', background: false, tile: true, island: false, islandDynamic: false, islandFull: false, badge: false,
     badgeAction: false, mini: false, topbarButton: false,
-    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, key: null, category: null, size: null, options: [], fit: false, storage: false, storageGroup: '', secrets: false,
+    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, key: null, category: null, size: null, options: [], fit: false, pump: [], storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
@@ -33,6 +33,17 @@ test('manifest: options are checked, and fit opts in only on true and never for 
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', fit: 'true' }, 'o2').manifest.fit, false);
   const scene = sdk.normalizeManifest({ api: 1, name: 'X', surface: 'ambient', fit: true, options: [{ id: 'a', kind: 'toggle', label: 'A' }] }, 'o3').manifest;
   assert.deepEqual([scene.fit, scene.options], [false, []]);
+});
+
+test('manifest: pump says which pump screens it was drawn for, true meaning round and square', () => {
+  const pump = (v, surface) => sdk.normalizeManifest({ api: 1, name: 'X', pump: v, ...(surface ? { surface } : {}) }, 'p1').manifest.pump;
+  assert.deepEqual(pump(true), ['round', 'square']);
+  assert.deepEqual(pump(['square', 'round', 'square', 'oval', 3]), ['square', 'round']);
+  assert.deepEqual(pump(['wide']), ['wide']);
+  for (const v of [undefined, false, 'true', 'round', {}]) assert.deepEqual(pump(v), [], String(v));
+  assert.deepEqual(pump(true, 'ambient'), ['round', 'square'], 'a scene fits a pump too');
+  const { PUMP_SHAPES } = require('../widget-sdk/manifest-limits.js');
+  assert.deepEqual([...PUMP_SHAPES], [...require('../js/pump/pump-model.js').SHAPES], "the shapes a pump's page says");
 });
 
 test('manifest: accent defaults off, opts in only on the exact true literal', () => {
@@ -744,9 +755,10 @@ test('probe: PERF_PROBE_SOURCE parses and cannot break out of a script tag', () 
 
 // Runs the served probe against a stand-in page and returns what it told the host.
 function runProbe({ css = 'normal', meta = null } = {}) {
-  const page = { css, meta, watch: null, onload: null, said: [] };
+  const loads = [];   // the scheme and the fit watch both wait for load, as on a real page
+  const page = { css, meta, watch: null, onload: () => loads.forEach((fn) => fn()), said: [] };
   const window = {
-    addEventListener: (name, fn) => { if (name === 'load') page.onload = fn; },
+    addEventListener: (name, fn) => { if (name === 'load') loads.push(fn); },
   };
   const document = {
     documentElement: {},

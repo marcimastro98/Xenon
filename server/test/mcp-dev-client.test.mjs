@@ -56,8 +56,15 @@ test('reloading widget files clears what the old code reported', () => {
   const cw = read('../js/custom-widget/custom-widget.js');
   const bump = cw.slice(cw.indexOf('function bumpAssets()'), cw.indexOf('async function fetchPackages('));
   assert.match(bump, /assetVersion\+\+;/);
-  assert.match(bump, /blockedByPkg\.clear\(\);/);
-  assert.match(bump, /errorsByPkg\.clear\(\);/);
+  assert.match(bump, /forgetRuns\(\);/, 'blocked requests, errors and the last fit look all start over');
   assert.match(cw, /if \(force && !listOnly\) bumpAssets\(\);/);
   assert.equal((cw.match(/assetVersion\+\+/g) || []).length, 1, 'every bump goes through bumpAssets');
+});
+
+test('widget_issues hands on what the tile cut off, and a widget only measured is still found', () => {
+  const client = read('../js/mcp/mcp-dev-client.js');
+  const fn = client.slice(client.indexOf('function issues('), client.indexOf('function issues(') + 900);
+  assert.match(fn, /const fit = typeof CW\.getFit === 'function' \? CW\.getFit\(id\) : null;/);
+  assert.match(fn, /\|\| !!fit,/);
+  assert.match(fn, /perf, fit \};/);
 });

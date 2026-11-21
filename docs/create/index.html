@@ -780,7 +780,7 @@ codex mcp add xenon-widgets -- npx -y xenon-mcp</code></pre>
           <tr><td><code>new_widget</code></td><td>A working starter in a new or empty folder</td></tr>
           <tr><td><code>check_widget</code></td><td>The install checks without installing: package rules, sandbox, review notes</td></tr>
           <tr><td><code>install_widget</code></td><td>Install or update from the folder, put it on your dashboard and show its page</td></tr>
-          <tr><td><code>widget_issues</code></td><td>Errors, blocked requests, approved permissions, how heavy it is</td></tr>
+          <tr><td><code>widget_issues</code></td><td>Errors, blocked requests, approved permissions, how heavy it is, what its tile cuts off</td></tr>
           <tr><td><code>widget_screenshot</code></td><td>A picture of the tile on screen now</td></tr>
           <tr><td><code>my_widgets</code></td><td>Your own widgets, and writing one out to a folder to keep working on it</td></tr>
           <tr><td><code>share_widget</code></td><td>A share code, plus the review notes</td></tr>
@@ -1024,8 +1024,9 @@ parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
             <tr><td><code>userHosts</code></td><td>No</td><td>Up to 4 addresses <b>the user types in</b>, for servers you can't know in advance: a NAS, Docker, a printer (<a href="#sdk-network">§7</a>).</td></tr>
             <tr><td><code>hooks</code></td><td>No</td><td>Up to 8 hook ids a local app may push events to (<a href="#sdk-network">§7</a>).</td></tr>
             <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§10</a>).</td></tr>
+            <tr><td><code>tile</code></td><td>No</td><td><code>false</code> keeps your widget <b>in the top bar only</b>: it is never offered or placed on a page or on the screen, and runs by itself. Use it when a tile would only be an empty box, like a badge with device batteries. It needs a part that runs without a tile (a badge, mini slot, bar button, advanced island or Deck handlers), otherwise Xenon ignores it. Leave it out for a page only, or add <code>background</code> for both. Xenon 5.3 and later.</td></tr>
             <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§9</a>).</td></tr>
-            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets Deck handlers, persistent badges, mini slots, bar buttons or advanced Dynamic Island activities run headless, with no tile on screen.</td></tr>
+            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets Deck handlers, persistent badges, mini slots, bar buttons or advanced Dynamic Island activities run headless, with no tile on screen. With a tile too, this is the "both" choice; <code>"tile": false</code> implies it.</td></tr>
             <tr><td><code>storage</code></td><td>No</td><td><code>true</code> gives your widget a small key/value store that <b>survives updates</b> (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>storageGroup</code></td><td>No</td><td>A shared-store id so a set of sibling widgets share one store. Implies <code>storage</code> (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>secrets</code></td><td>No</td><td><code>true</code> gives you a write-only vault for API keys, used via <code>{{secret:NAME}}</code> in requests (<a href="#sdk-data">§8</a>).</td></tr>

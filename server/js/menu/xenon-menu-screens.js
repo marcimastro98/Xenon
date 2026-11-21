@@ -6,15 +6,15 @@
 // what it shows, its widgets (js/menu/xenon-menu-widgets.js draws that list) and its
 // background. A scene list is one answer per line, and passing over a line plays that scene
 // in the screen's picture. Which screen and tab are open is this page's own; a tap redraws
-// only this block. Under the desk, the phones and tablets paired with this PC, and a card
-// to pair one.
+// only this block. Under the desk, the pump screens (js/menu/xenon-menu-pumps.js), the phones
+// and tablets paired with this PC, and a card to pair one.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const api = factory(node ? require('./xenon-menu-map.js') : root.XenonMenuMap);
+  const api = factory(node ? require('./xenon-menu-map.js') : root.XenonMenuMap, node ? require('./xenon-menu-pumps.js') : root.XenonMenuPumps);
   if (node) module.exports = api;
   if (root) root.XenonMenuScreens = api;
-})(typeof window !== 'undefined' ? window : globalThis, function (MenuMap) {
-  // The one shown: the screen tapped before if it is still there, else the first.
+})(typeof window !== 'undefined' ? window : globalThis, function (MenuMap, Pumps) {
+  // The one shown: the screen (or pump) tapped before if it is still there, else the first.
   const pickedOf = (screens, key) => screens.find((m) => m.key === key) || screens[0] || null;
   const tabOf = (view, id) => (view.tabs || []).find((t) => t.id === id) || (view.tabs || [])[0] || null;
   // Pairing and the list of paired devices are on Settings → Phone.
@@ -33,7 +33,7 @@
   function inPlace(row, keep) {
     const tabs = (v) => ({ ...v, tabs: (v.tabs || []).map((t) => (t.rows ? { ...t, rows: keep(t.rows) } : t)).filter((t) => t.widgets || !t.rows || t.rows.length) });
     const parts = Object.fromEntries(Object.entries(row.parts || {}).map(([id, rows]) => [id, keep(rows)]));
-    return { ...row, screens: (row.screens || []).map(tabs), parts, tune: keep(row.tune) };
+    return { ...row, screens: (row.screens || []).map(tabs), pumps: (row.pumps || []).map(tabs), parts, tune: keep(row.tune) };
   }
 
   // The phones and tablets paired with this PC, or null. The list is the PC's own: a
@@ -52,11 +52,16 @@
     }
   }
 
-  // ctx: { el, button, say, tt, DRAW, perform, icon, rowShell, widgetTab, server, slot, hold, settle }
+  // ctx: { el, button, say, tt, DRAW, perform, icon, rowShell, widgetTab, server, doc, move, slot, hold, settle }
   //   widgetTab(view, row) → the nodes of that screen's Widgets tab
   //   server: the engine's origin ('' on the dashboard's own page); without it, no phones
+  // → { draw, hold, settle }: the moving previews (scene, pump) wait out a rebuild of the menu.
   function create(ctx) {
     const { el, button, say, DRAW, perform, icon } = ctx;
+    const host = typeof location !== 'undefined' ? location.hostname : '';
+    const pumps = Pumps ? Pumps.create({ el, button, say, icon, server: ctx.server, doc: ctx.doc, move: ctx.move, host, perform: ctx.perform }) : null;
+    const hold = () => { if (ctx.hold) ctx.hold(); if (pumps) pumps.hold(); };
+    const settle = () => { if (ctx.settle) ctx.settle(); if (pumps) pumps.settle(); };
     let picked = '';
     const chosenTab = new Map();   // screen key -> the tab left open
     let moreOpen = false;
@@ -195,11 +200,11 @@
     }
 
     function paint(box, r) {
-      const view = pickedOf(r.screens, picked);
+      const view = pickedOf([...(r.screens || []), ...(r.pumps || [])], picked);
       const redraw = (focus) => {
-        if (ctx.hold) ctx.hold();
+        hold();
         paint(box, r);
-        if (ctx.settle) ctx.settle();
+        settle();
         const again = focus && box.querySelector(`[data-keep="${CSS.escape(focus)}"]`);
         if (again) again.focus();
       };
@@ -218,11 +223,11 @@
       const desk = el('div', 'xm-scrdesk');
       desk.appendChild(map);
       const pic = el('div', 'xm-detail-pic');
-      pic.append(...[el('p', 'xm-cap xm-scrcap', say(r.sub)), desk, phonesNode()].filter(Boolean));
+      pic.append(...[el('p', 'xm-cap xm-scrcap', say(r.sub)), desk, pumps?.cards(r.pumps, view?.key, pick), phonesNode()].filter(Boolean));
       const choices = el('div', 'xm-detail-choices');
       if (view) {
         const choose = (id) => { chosenTab.set(view.key, id); moreOpen = false; redraw(`screen:${view.key}:${id}`); };
-        choices.append(el('h3', 'xm-scrtitle', say(view.label)), tabBar(view, tab, choose), panel);
+        choices.append(...[el('h3', 'xm-scrtitle', say(view.label)), pumps?.slot(view), tabBar(view, tab, choose), panel].filter(Boolean));
       }
       const grid = el('div', 'xm-detail');
       grid.append(pic, choices);
@@ -246,7 +251,7 @@
       return li;
     }
 
-    return { draw };
+    return { draw, hold, settle };
   }
 
   return { create, pickedOf, tabOf, inPlace };

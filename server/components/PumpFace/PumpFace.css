@@ -1,0 +1,192 @@
+/* The pump screen page (pump-face.html): the frame every face sits in, the
+   rings they share, what arrives over them, and the dimming. Black because the
+   glass and bezel around a pump's screen are black: any grey shows the panel's
+   edge. Sizes in vmin so one face fits 240 px and 640 px alike; --u is 1% of
+   the screen's shorter side. Faces: PumpFaceFaces.css. */
+
+:root {
+  --u: 1vmin;
+  --pf-ink: #ededed;
+  --pf-ink-2: #bdbdbd;
+  --pf-ink-3: #8a8a8a;
+  --pf-track: #242424;
+  --pf-raise: #1c1c1c;
+  /* The four reading colours are Bit's moods (packages/core brand tokens). */
+  --pf-c1: #6ee787;
+  --pf-c2: #8ab4f8;
+  --pf-c3: #ffd75e;
+  --pf-c4: #b4a0ff;
+  --pf-warm: #ffa657;
+  --pf-hot: #ff5a5f;
+  --pf-swap: 450ms;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+.pf-root {
+  position: fixed;
+  inset: 0;
+  color: var(--pf-ink);
+  font-family: "Sofia Sans", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: none;
+}
+
+.pf-stage { position: absolute; inset: 0; }
+/* Turned a quarter, the stage swaps the panel's sides before it turns, so a face on an
+   oblong panel fills it instead of being cut at the long edges. */
+.pf-stage[data-rotate="90"], .pf-stage[data-rotate="270"] { inset: auto; left: 50%; top: 50%; width: 100vh; height: 100vw; }
+.pf-stage[data-rotate="90"] { transform: translate(-50%, -50%) rotate(90deg); }
+.pf-stage[data-rotate="180"] { transform: rotate(180deg); }
+.pf-stage[data-rotate="270"] { transform: translate(-50%, -50%) rotate(270deg); }
+
+.pf-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  animation: pf-in var(--pf-swap) ease-out;
+}
+.pf-face-out { opacity: 0; transition: opacity var(--pf-swap) ease-in; }
+
+@keyframes pf-in { from { opacity: 0; } }
+
+/* ── Rings (Kit.gauge): a dim track and the value over it ─────────────── */
+.pf-rings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.pf-track, .pf-fill { fill: none; stroke-linecap: round; }
+.pf-track { stroke: var(--pf-track); }
+.pf-fill { stroke: var(--slot, var(--pf-c1)); transition: stroke-dasharray 600ms ease-out; }
+.pf-fill[data-tone="warm"] { stroke: var(--pf-warm); }
+.pf-fill[data-tone="hot"] { stroke: var(--pf-hot); }
+.pf-fill[data-empty] { visibility: hidden; }
+
+.pf-slot-1 { --slot: var(--pf-c1); }
+.pf-slot-2 { --slot: var(--pf-c2); }
+.pf-slot-3 { --slot: var(--pf-c3); }
+.pf-slot-4 { --slot: var(--pf-c4); }
+
+/* ── Numbers: the value large, its unit small beside it ───────────────── */
+.pf-main, .pf-rest-value, .pf-cell-value {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 0.9;
+  white-space: nowrap;
+}
+.pf-main .pf-num { font-size: calc(var(--u) * 27); font-weight: 300; letter-spacing: -0.02em; }
+.pf-main .pf-unit { font-size: calc(var(--u) * 7); font-weight: 500; color: var(--pf-ink-2); margin: calc(var(--u) * 2.4) 0 0 calc(var(--u) * 0.8); }
+.pf-main-xl .pf-num { font-size: calc(var(--u) * 34); }
+[data-tone="warm"] > .pf-num { color: var(--pf-warm); }
+[data-tone="hot"] > .pf-num { color: var(--pf-hot); }
+.pf-none > .pf-num { color: var(--pf-ink-3); }
+.pf-main.pf-none .pf-num { font-size: calc(var(--u) * 7); font-weight: 500; letter-spacing: 0; padding: calc(var(--u) * 8) 0; }
+.pf-rest-value .pf-num, .pf-cell-value .pf-num { font-size: calc(var(--u) * 9); font-weight: 400; }
+.pf-rest-value .pf-unit, .pf-cell-value .pf-unit { font-size: calc(var(--u) * 3.8); color: var(--pf-ink-2); margin: calc(var(--u) * 0.8) 0 0 calc(var(--u) * 0.5); }
+.pf-rest-value.pf-none .pf-num, .pf-cell-value.pf-none .pf-num { font-size: calc(var(--u) * 4); font-weight: 500; }
+
+.pf-label {
+  font-size: calc(var(--u) * 4.6);
+  font-weight: 600;
+  color: var(--pf-ink-2);
+  margin-top: calc(var(--u) * 1.2);
+  text-align: center;
+}
+
+/* Too hot is said by a shape too, never by the colour alone. */
+.pf-rings-mid:has(> .pf-main[data-tone="hot"]) > .pf-label::before,
+.pf-game-mid:has(> .pf-main[data-tone="hot"]) > .pf-label::before,
+.pf-cell:has(> [data-tone="hot"]) > .pf-label::before {
+  content: "";
+  display: inline-block;
+  width: 0.8em;
+  height: 0.7em;
+  margin-right: 0.3em;
+  background: var(--pf-hot);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* ── What arrives over the face (face-alerts.js) ──────────────────────── */
+.pf-alerts { position: absolute; inset: 0; pointer-events: none; }
+.pf-alert {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: calc(var(--u) * 2.6);
+  padding: 0 calc(var(--u) * 17);
+  text-align: center;
+  background: #000;
+  animation: pf-alert-in 220ms ease-out;
+}
+.pf-alert-out { opacity: 0; transition: opacity 240ms ease-in; }
+@keyframes pf-alert-in { from { opacity: 0; transform: scale(0.96); } }
+
+.pf-alert-icon {
+  width: calc(var(--u) * 16);
+  height: calc(var(--u) * 16);
+  border-radius: 50%;
+  background: var(--pf-raise);
+  display: grid;
+  place-items: center;
+}
+.pf-alert-icon svg {
+  width: calc(var(--u) * 8);
+  height: calc(var(--u) * 8);
+  fill: none;
+  stroke: var(--pf-c1);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pf-alert-hot .pf-alert-icon svg { stroke: var(--pf-hot); }
+.pf-alert-icon img { width: calc(var(--u) * 9); height: calc(var(--u) * 9); object-fit: contain; }
+.pf-alert-text { display: grid; gap: calc(var(--u) * 1.2); max-width: calc(var(--u) * 64); }
+.pf-alert-kicker { font-size: calc(var(--u) * 4); font-weight: 600; color: var(--pf-ink-2); }
+.pf-alert-title, .pf-alert-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.pf-alert-title { font-size: calc(var(--u) * 6.4); font-weight: 650; line-height: 1.12; -webkit-line-clamp: 2; }
+.pf-alert-body { font-size: calc(var(--u) * 4.4); color: var(--pf-ink-2); line-height: 1.25; -webkit-line-clamp: 3; }
+.pf-alert-ring .pf-fill { transition: none; }
+
+/* ── Waiting for Xenon, and the brightness ────────────────────────────── */
+.pf-status {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(50% - var(--u) * 36);
+  text-align: center;
+  font-size: calc(var(--u) * 3.8);
+  font-weight: 500;
+  color: var(--pf-ink-3);
+}
+.pf-dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-face, .pf-alert { animation: none; }
+  .pf-face-out, .pf-alert-out, .pf-fill, .pf-dim { transition: none; }
+}

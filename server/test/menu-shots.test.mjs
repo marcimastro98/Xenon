@@ -12,12 +12,13 @@ const require = createRequire(import.meta.url);
 const Menu = require('../menu/xenon-menu.js');
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-test('the invented desk draws two screens, the Edge with the dashboard, and two phones', () => {
+test('the invented desk draws two screens, the Edge with the dashboard, two phones and a pump', () => {
   const home = Menu.compose(menuState()).sections.find((s) => s.id === 'screens').rows.find((r) => r.kind === 'home');
   assert.deepEqual(home.screens.map((v) => [v.key, v.dashboard]), [['M1', false], ['M2', true]]);
   assert.deepEqual(home.screens[0].widgets, ['lw_wthr01', 'lw_clck01']);
   assert.equal(MONITORS.filter((m) => m.primary).length, 1);
   assert.ok(PHONES.every((p) => /^dev_/.test(p.id) && p.name));
+  assert.deepEqual(home.pumps.map((v) => [v.pump, v.shape, v.tabs.length]), [['pump', 'round', 4]], 'and a round pump screen');
 });
 
 test('the shot server serves the page files only', () => {

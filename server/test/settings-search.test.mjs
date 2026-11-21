@@ -67,7 +67,7 @@ test('the search strings are translated in every language block', () => {
   const src = appStringsSource();
   for (const key of ['settings_search_placeholder', 'settings_search_empty', 'settings_search_recent',
     'palette_search_placeholder', 'palette_search_empty', 'palette_group_builtin', 'palette_group_store',
-    'palette_filter_all', 'palette_filter_installed', 'palette_store_empty', 'palette_store_safe', 'palette_open_store', 'palette_examples']) {
+    'palette_filter_all', 'palette_filter_installed', 'palette_store_empty', 'palette_store_bar_only', 'palette_store_safe', 'palette_open_store', 'palette_examples']) {
     const n = (src.match(new RegExp('\\b' + key + ':', 'g')) || []).length;
     assert.equal(n, LANGS.length, `${key} is defined ${n} times, expected once per language`);
   }

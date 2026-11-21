@@ -28,8 +28,8 @@
   const SETTINGS_PANES = { ambient: 'lock' };
   const CAPTURE_ID = /^[a-f0-9]{16}$/;
   const SIMPLE = ['update', 'mixer', 'chat', 'dashboard', 'sparks', 'supporters', 'import', 'whatsnew'];
-  // What the Store may open on: the scenes, what is meant for the screen, or what you have.
-  const STORE_KINDS = ['ambient', '__screen', '__installed'];
+  // What the Store may open on: the scenes, what is meant for the screen or for a pump's, or what you have.
+  const STORE_KINDS = ['ambient', '__screen', '__pump', '__installed'];
   // One creation of the Store, the button of a message from Bit (js/ai/bit-messages.js).
   const ENTRY_ID = /^[a-z0-9][a-z0-9_-]{0,60}$/;
   // Settings categories the shell may ask for: the ones the Xenon menu's rows open

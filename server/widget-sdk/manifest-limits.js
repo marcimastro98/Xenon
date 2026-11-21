@@ -46,9 +46,13 @@ const MAX_MACRO_STEP_DELAY_MS = 5000;
 
 // The shapes a package may say it was drawn for (manifest "size").
 const TILE_SIZES = Object.freeze(['small', 'medium', 'wide', 'tall', 'large']);
+// The pump screens a package may say it was drawn for (manifest "pump"): the shapes of
+// js/pump/pump-model.js SHAPES. `true` means the two an AIO pump's LCD comes in.
+const PUMP_SHAPES = Object.freeze(['round', 'square', 'wide']);
+const PUMP_TRUE = Object.freeze(['round', 'square']);
 
 module.exports = {
   MANIFEST_MAX_BYTES, MAX_PACKAGES, MAX_HOSTS, MAX_USER_HOSTS, USER_HOST_SCOPES, MAX_HOOKS,
   MAX_MACROS, MAX_MACRO_STEPS, MAX_STATES, MAX_HANDLERS, MAX_HANDLER_PARAMS, HANDLER_PARAM_KINDS,
-  HANDLER_ARG_TEXT_MAX, MAX_MACRO_STEP_DELAY_MS, TILE_SIZES,
+  HANDLER_ARG_TEXT_MAX, MAX_MACRO_STEP_DELAY_MS, TILE_SIZES, PUMP_SHAPES, PUMP_TRUE,
 };

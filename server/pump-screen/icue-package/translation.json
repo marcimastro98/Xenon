@@ -1,0 +1,170 @@
+{
+  "en": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Name of this screen",
+      "Shape": "Shape",
+      "Automatic": "Automatic",
+      "Round": "Round",
+      "Square": "Square",
+      "When Xenon is closed": "When Xenon is closed",
+      "Show the time": "Show the time",
+      "Stay dark": "Stay dark",
+      "Xenon is not running": "Xenon is not running"
+    }
+  },
+  "it": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Nome di questo schermo",
+      "Shape": "Forma",
+      "Automatic": "Automatica",
+      "Round": "Tonda",
+      "Square": "Quadrata",
+      "When Xenon is closed": "Quando Xenon è chiuso",
+      "Show the time": "Mostra l'ora",
+      "Stay dark": "Resta spento",
+      "Xenon is not running": "Xenon non è in esecuzione"
+    }
+  },
+  "de": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Name dieses Bildschirms",
+      "Shape": "Form",
+      "Automatic": "Automatisch",
+      "Round": "Rund",
+      "Square": "Quadratisch",
+      "When Xenon is closed": "Wenn Xenon geschlossen ist",
+      "Show the time": "Uhrzeit zeigen",
+      "Stay dark": "Dunkel bleiben",
+      "Xenon is not running": "Xenon läuft nicht"
+    }
+  },
+  "es": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Nombre de esta pantalla",
+      "Shape": "Forma",
+      "Automatic": "Automática",
+      "Round": "Redonda",
+      "Square": "Cuadrada",
+      "When Xenon is closed": "Cuando Xenon está cerrado",
+      "Show the time": "Mostrar la hora",
+      "Stay dark": "Quedarse a oscuras",
+      "Xenon is not running": "Xenon no se está ejecutando"
+    }
+  },
+  "fr": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Nom de cet écran",
+      "Shape": "Forme",
+      "Automatic": "Automatique",
+      "Round": "Ronde",
+      "Square": "Carrée",
+      "When Xenon is closed": "Quand Xenon est fermé",
+      "Show the time": "Afficher l'heure",
+      "Stay dark": "Rester éteint",
+      "Xenon is not running": "Xenon n'est pas lancé"
+    }
+  },
+  "ja": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "この画面の名前",
+      "Shape": "形",
+      "Automatic": "自動",
+      "Round": "円形",
+      "Square": "正方形",
+      "When Xenon is closed": "Xenon を閉じているとき",
+      "Show the time": "時刻を表示",
+      "Stay dark": "消灯したまま",
+      "Xenon is not running": "Xenon が起動していません"
+    }
+  },
+  "ko": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "이 화면의 이름",
+      "Shape": "모양",
+      "Automatic": "자동",
+      "Round": "원형",
+      "Square": "정사각형",
+      "When Xenon is closed": "Xenon이 닫혀 있을 때",
+      "Show the time": "시간 표시",
+      "Stay dark": "꺼진 상태 유지",
+      "Xenon is not running": "Xenon이 실행되고 있지 않습니다"
+    }
+  },
+  "pt": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Nome desta tela",
+      "Shape": "Formato",
+      "Automatic": "Automático",
+      "Round": "Redondo",
+      "Square": "Quadrado",
+      "When Xenon is closed": "Quando o Xenon está fechado",
+      "Show the time": "Mostrar a hora",
+      "Stay dark": "Ficar apagado",
+      "Xenon is not running": "O Xenon não está em execução"
+    }
+  },
+  "ru": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Название этого экрана",
+      "Shape": "Форма",
+      "Automatic": "Автоматически",
+      "Round": "Круглый",
+      "Square": "Квадратный",
+      "When Xenon is closed": "Когда Xenon закрыт",
+      "Show the time": "Показывать время",
+      "Stay dark": "Оставаться тёмным",
+      "Xenon is not running": "Xenon не запущен"
+    }
+  },
+  "zh_CN": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "此屏幕的名称",
+      "Shape": "形状",
+      "Automatic": "自动",
+      "Round": "圆形",
+      "Square": "方形",
+      "When Xenon is closed": "Xenon 关闭时",
+      "Show the time": "显示时间",
+      "Stay dark": "保持黑屏",
+      "Xenon is not running": "Xenon 未运行"
+    }
+  },
+  "zh_TW": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "此螢幕的名稱",
+      "Shape": "形狀",
+      "Automatic": "自動",
+      "Round": "圓形",
+      "Square": "方形",
+      "When Xenon is closed": "Xenon 關閉時",
+      "Show the time": "顯示時間",
+      "Stay dark": "保持黑屏",
+      "Xenon is not running": "Xenon 未執行"
+    }
+  },
+  "uk": {
+    "translation": {
+      "Xenon Pump": "Xenon Pump",
+      "Name of this screen": "Назва цього екрана",
+      "Shape": "Форма",
+      "Automatic": "Автоматично",
+      "Round": "Круглий",
+      "Square": "Квадратний",
+      "When Xenon is closed": "Коли Xenon закритий",
+      "Show the time": "Показувати час",
+      "Stay dark": "Залишатися темним",
+      "Xenon is not running": "Xenon не запущено"
+    }
+  }
+}

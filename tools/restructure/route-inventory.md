@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-543 routes.
-- Asked by: 1 before the chain, 56 chain, 16 feature, 4 socket, 466 table.
-- Paired device: 29 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 12 no: a GET that changes something, 4 no: sockets take the loopback door only, 408 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 356 (none), 178 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+550 routes.
+- Asked by: 1 before the chain, 56 chain, 23 feature, 4 socket, 466 table.
+- Paired device: 33 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 410 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 358 (none), 183 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -397,6 +397,13 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | GET | `/perf/sessions` | table | server/performance/routes.js | yes |  |  |  |
 | GET | `/ping` | chain | server/engine/routes.js | yes |  |  |  |
 | GET | `/public/*` | chain | server/server.js | yes |  |  | static files; /public itself too |
+| GET | `/pump` | feature | server/pump-screen/routes.js | no: a GET that changes something | CSRF_MUTATION_PATHS |  |  |
+| POST | `/pump` | feature | server/pump-screen/routes.js | yes | CSRF_MUTATION_PATHS |  |  |
+| GET | `/pump-face` | feature | server/pump-screen/routes.js | no: REMOTE_ADMIN |  |  |  |
+| GET | `/pump-widget` | feature | server/pump-screen/routes.js | no: REMOTE_ADMIN |  |  |  |
+| POST | `/pump/colors` | feature | server/pump-screen/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
+| POST | `/pump/hello` | feature | server/pump-screen/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
+| POST | `/pump/picture` | feature | server/pump-screen/routes.js | yes | CSRF_MUTATION_PATHS |  |  |
 | POST | `/remote/block` | table | server/remote-control/routes.js | yes |  |  |  |
 | POST | `/remote/disable` | table | server/remote-control/routes.js | yes |  |  |  |
 | POST | `/remote/enable` | table | server/remote-control/routes.js | no: REMOTE_DENY |  |  |  |

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tr('Xenon Pump')</title>
+  <meta
+    name="x-icue-property"
+    content="screenName"
+    data-label="tr('Name of this screen')"
+    data-type="textfield"
+    data-default="'pump'"
+  />
+  <meta
+    name="x-icue-property"
+    content="shape"
+    data-label="tr('Shape')"
+    data-type="combobox"
+    data-values="[{'key':'auto','value':tr('Automatic')},{'key':'round','value':tr('Round')},{'key':'square','value':tr('Square')}]"
+    data-default="'auto'"
+  />
+  <meta
+    name="x-icue-property"
+    content="whenClosed"
+    data-label="tr('When Xenon is closed')"
+    data-type="combobox"
+    data-values="[{'key':'clock','value':tr('Show the time')},{'key':'dark','value':tr('Stay dark')}]"
+    data-default="'clock'"
+  />
+  <link rel="icon" href="resources/icon.png" type="image/png" />
+  <link rel="stylesheet" href="styles/pump.css" />
+</head>
+<body>
+  <iframe id="face" title="Xenon" hidden></iframe>
+  <main id="closed" class="closed" hidden>
+    <div id="closed-time" class="closed-time"></div>
+    <div id="closed-line" class="closed-line"></div>
+  </main>
+  <script src="scripts/pump.js"></script>
+  <script>
+    // Bare assignment on purpose: the iCUE bridge reads it as a global.
+    icueEvents = { onICUEInitialized: XenonPump.start, onDataUpdated: XenonPump.settingsChanged };
+  </script>
+</body>
+</html>

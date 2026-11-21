@@ -87,6 +87,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 |---|---|---|
 | **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/spotlight-ask/**` `server/spotlight-hotkey/**` `server/search.ps1` `server/spotlight.html` `server/js/spotlight/**` and 3 more |
 | **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/ffmpeg-install/**` `server/js/capture-toast/**` `server/js/capture-gallery/**` `server/components/CaptureGallery/**` `server/js/capture/**` |
+| **Pump screens** | The LCD on an AIO pump (iCUE LINK, NZXT Kraken): faces picked by moments and alerts, Store widget faces, its ring. | `server/pump-screen/**` `server/pump-face.html` `server/pump-widget.html` `server/js/pump/**` `server/components/PumpFace/**` `server/menu/menu-pump.js` and 4 more |
 | **Xenon menu** | The menu over the desktop and Xenon's first pages: screens, capture, keys, Store. Its page list is Settings' rail too. | `server/menu/**` `server/menu.html` `server/components/XenonMenu/**` `server/js/menu/**` |
 | **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layers/**` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layers-shell/**` `server/components/LayerHost/**` and 1 more |
 | **Alerts and drawing** | Notifications at the top centre of the screen, and drawing over the screen. | `server/alerts/**` `server/screen-alerts.html` `server/draw.html` `server/components/ScreenAlerts/**` `server/components/ScreenDraw/**` `server/components/Toast/**` and 1 more |
@@ -111,7 +112,7 @@ What lets other people build widgets safely.
 |---|---|---|
 | **xenon-mcp** | Lets Claude Code or Codex build and test a widget on a running Xenon. | `packages/mcp/**` `server/mcp/**` `server/ai-mcp-bridge.js` `server/js/mcp/**` |
 | **Shared core and brand** | Constants and formatters used by engine and screen alike, and the brand reference. | `packages/core/**` `packages/design-system/**` |
-| **Widget SDK** | Runs other people's widgets in a sandbox, with only the permissions they were given. | `server/widget-sdk/**` `server/sdk-*.js` `server/sdk-limits/**` `server/sdk-example/**` `server/sdk-service.html` `server/shell-driver.html` and 4 more |
+| **Widget SDK** | Runs other people's widgets in a sandbox with only their permissions, and tells their maker what breaks or does not fit. | `server/widget-sdk/**` `server/sdk-*.js` `server/sdk-limits/**` `server/sdk-example/**` `server/sdk-service.html` `server/shell-driver.html` and 4 more |
 
 ## App and helpers
 

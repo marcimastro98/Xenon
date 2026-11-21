@@ -1,0 +1,20 @@
+/* One Store widget on a pump's screen (pump-widget.html): the widget's frame fills the
+   page the face page frames, on nothing, so a round widget sits on the pump's black. */
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.pump-widget-host,
+.pump-widget-frame {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: transparent;
+}

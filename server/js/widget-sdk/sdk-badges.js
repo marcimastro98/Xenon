@@ -8,8 +8,13 @@
 //
 // Unlike Island's single shared slot, several distinct granted packages may
 // each hold a chip at once, up to MAX_BADGES — bounded so the clock row can't
-// overflow; a package trying to claim a chip past the cap is a silent no-op
-// (cosmetic layout limit, not a correctness issue).
+// overflow. A badge past the cap WAITS: its latest view is kept and drawn the
+// moment a chip leaves (one switched off in the bar, a widget gone), in claim
+// order. A package switched off in the bar neither shows nor holds a place.
+// Until 5.3 a fifth badge was dropped without a word and stayed gone even after
+// a place freed up, and a switched-off package with a tile kept its place, so a
+// newly installed badge widget looked broken (21 Nov 2026, five badge widgets).
+// Settings → Top bar says which ones wait (waiting(), event 'xenon:sdk-badges').
 //
 // A chip is `icon` + `value` + optional `parts`. The leading icon (a glyph, a
 // named icon from the app's library or the widget's own path) carries the
@@ -27,13 +32,15 @@
   'use strict';
 
   const SWEEP_MS = 5000;
-  const MAX_BADGES = 4;
+  const MAX_BADGES = 4;     // chips drawn at once
+  const MAX_CLAIMS = 16;    // badges kept, drawn or waiting for a place
   const TEXT_MAX = 32;
   const TOOLTIP_MAX = 48;
   const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
 
   const owners = new Map();   // pkgId -> { view, onAction, chip, chipAction }
   let sweepTimer = null;
+  let lastWaiting = '';     // what Settings was last told is waiting
 
   function clean(value, max) {
     const source = String(value == null ? '' : value);
@@ -89,7 +96,29 @@
   }
 
   function syncHostVisibility(h) {
-    if (h) h.hidden = !Array.from(owners.keys()).some(sourceEnabled);
+    if (h) h.hidden = !Array.from(owners.values()).some((owner) => owner.chip);
+  }
+
+  // Who gets a chip: the first MAX_BADGES claims, in claim order, among the
+  // packages the bar shows.
+  function drawnIds() {
+    const out = [];
+    for (const pkgId of owners.keys()) {
+      if (out.length >= MAX_BADGES) break;
+      if (sourceEnabled(pkgId)) out.push(pkgId);
+    }
+    return out;
+  }
+
+  // Badges the bar would show but has no room for. A package switched off in the
+  // bar is not waiting: that was the person's choice.
+  function waiting() {
+    const drawn = new Set(drawnIds());
+    return Array.from(owners.keys()).filter((pkgId) => sourceEnabled(pkgId) && !drawn.has(pkgId));
+  }
+
+  function notify() {
+    try { root.dispatchEvent(new CustomEvent('xenon:sdk-badges')); } catch { /* no CustomEvent */ }
   }
 
   // A meter part that opens a card or answers a tap is its own button, so the
@@ -152,42 +181,56 @@
     owner.chip.title = view.tooltip || '';
   }
 
-  function render(pkgId) {
-    const h = host();
-    const owner = owners.get(pkgId);
-    if (!h || !owner) return;
-    if (!sourceEnabled(pkgId)) {
-      if (owner.chip?.parentNode) owner.chip.parentNode.removeChild(owner.chip);
-      owner.chip = null;
-      syncHostVisibility(h);
-      syncIslandLayout();
-      return;
-    }
-    // A chip appearing changes the pill's structure; its VALUE changing does not
-    // (see syncIslandLayout). A chip that gains or loses its tap is structural
-    // too: it changes element type, so the old node is swapped in place (the
-    // chips are in claim order and the user reads them by position).
+  // One chip that has room: made when missing, refilled when its view changed.
+  // True when the bar's structure changed. A chip that gains or loses its tap
+  // changes element type, so the old node goes and layout() puts the new one
+  // back in its place (the chips are in claim order; people read them by position).
+  function draw(owner, h) {
     const parts = partsOf(owner);
     const asButton = chipIsButton(owner, parts);
     let structural = false;
     if (!owner.chip?.isConnected || owner.chipAction !== asButton) {
-      const old = owner.chip?.isConnected ? owner.chip : null;
-      owner.chip = newChip(pkgId, asButton);
+      if (owner.chip) owner.chip.remove();
+      owner.chip = newChip(owner.pkgId, asButton);
       owner.chipAction = asButton;
-      if (old) old.replaceWith(owner.chip); else h.appendChild(owner.chip);
+      h.appendChild(owner.chip);
+      owner.dirty = true;
       structural = true;
     }
-    fill(owner, parts);
-    syncHostVisibility(h);
-    if (structural) syncIslandLayout();
+    if (owner.dirty) fill(owner, parts);
+    owner.dirty = false;
+    return structural;
+  }
+
+  // Draws every chip that has room, takes away the ones that lost it, keeps them
+  // in claim order. A chip appearing or leaving changes the pill's structure; a
+  // value changing does not (see syncIslandLayout).
+  function layout() {
+    const h = host();
+    if (!h) return;
+    const drawn = new Set(drawnIds());
+    let structural = false;
+    for (const [pkgId, owner] of owners) {
+      if (drawn.has(pkgId)) structural = draw(owner, h) || structural;
+      else if (owner.chip) { owner.chip.remove(); owner.chip = null; structural = true; }
+    }
+    if (structural) {
+      const chips = Array.from(owners.values()).map((owner) => owner.chip).filter(Boolean);
+      if (chips.some((chip, i) => h.children[i] !== chip)) h.append(...chips);
+      syncHostVisibility(h);
+      syncIslandLayout();
+    }
+    const now = waiting().join(',');
+    if (structural || now !== lastWaiting) notify();
+    lastWaiting = now;
   }
 
   function removeChip(pkgId) {
     const owner = owners.get(pkgId);
-    if (owner?.chip?.parentNode) owner.chip.parentNode.removeChild(owner.chip);
+    if (owner?.chip) owner.chip.remove();
     owners.delete(pkgId);
+    layout();
     syncHostVisibility(host());
-    syncIslandLayout();
   }
 
   function syncSweep() {
@@ -212,7 +255,7 @@
   // grant — absent, the chip is read-only and its meters only open their cards.
   function set(pkgId, view, onAction) {
     if (typeof pkgId !== 'string' || !pkgId || !view || (!view.text && !view.blocks?.length)) return;
-    if (!owners.has(pkgId) && owners.size >= MAX_BADGES) return;   // cap reached: silent no-op
+    if (!owners.has(pkgId) && owners.size >= MAX_CLAIMS) return;
     const cur = owners.get(pkgId) || {};
     owners.set(pkgId, {
       pkgId,
@@ -220,8 +263,9 @@
       onAction: typeof onAction === 'function' ? onAction : null,
       chip: cur.chip,
       chipAction: cur.chipAction,
+      dirty: true,
     });
-    render(pkgId);
+    layout();
     syncSweep();
   }
 
@@ -231,15 +275,15 @@
     syncSweep();
   }
 
-  // A per-package Dynamic Island switch changed. Keep the latest value in
-  // memory so re-enabling restores it immediately, but reconcile its host chip.
+  // A per-package bar switch changed. The latest value stays in memory so
+  // switching back on restores it at once; the chips are reconciled.
   function apply() {
-    for (const pkgId of owners.keys()) render(pkgId);
+    layout();
     syncHostVisibility(host());
     syncIslandLayout();
   }
 
-  const api = { set, clear, apply, normalize, MAX_BADGES, TEXT_MAX };
+  const api = { set, clear, apply, normalize, waiting, MAX_BADGES, TEXT_MAX };
   if (typeof window !== 'undefined') window.SdkBadges = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

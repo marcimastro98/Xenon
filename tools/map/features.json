@@ -144,7 +144,7 @@
       "id": "widget-sdk",
       "area": "makers",
       "name": "Widget SDK",
-      "what": "Runs other people's widgets in a sandbox, with only the permissions they were given.",
+      "what": "Runs other people's widgets in a sandbox with only their permissions, and tells their maker what breaks or does not fit.",
       "files": [
         "server/widget-sdk/**",
         "server/sdk-*.js",
@@ -262,6 +262,24 @@
         "server/js/capture-gallery/**",
         "server/components/CaptureGallery/**",
         "server/js/capture/**"
+      ]
+    },
+    {
+      "id": "pump-screens",
+      "area": "desktop",
+      "name": "Pump screens",
+      "what": "The LCD on an AIO pump (iCUE LINK, NZXT Kraken): faces picked by moments and alerts, Store widget faces, its ring.",
+      "files": [
+        "server/pump-screen/**",
+        "server/pump-face.html",
+        "server/pump-widget.html",
+        "server/js/pump/**",
+        "server/components/PumpFace/**",
+        "server/menu/menu-pump.js",
+        "server/js/menu/xenon-menu-pumps.js",
+        "server/js/capabilities/catalog-pump.js",
+        "tools/pump-face-shots/**",
+        "tools/pump-screen-tour/**"
       ]
     },
     {

@@ -1,6 +1,6 @@
 'use strict';
 // The Screens section of the Xenon menu, its home: the screens as they stand on the desk,
-// each saying what it shows, and for the one tapped three tabs: what it shows (the
+// each saying what it shows (pump screens under them, menu-pump.js), and for the one tapped three tabs: what it shows (the
 // dashboard or the widgets), its widgets, and its background. The widget screens and the
 // scenes keep the Widgets and Look builders' own rows, carried in `parts`; `tune` is what
 // search finds inside. Pure.
@@ -9,6 +9,7 @@ const { k, run, open } = require('./menu-rows.js');
 const { screenLabel, screensOf } = require('./menu-tune.js');
 const { widgetsSection } = require('./menu-widgets.js');
 const { lookSection } = require('./menu-look.js');
+const { pumpViews } = require('./menu-pump.js');
 
 // How this PC uses Xenon, said once for every screen: what a PC with no screen known
 // gets, and what search finds under the home.
@@ -110,6 +111,7 @@ function screensSection(st) {
   const mode = modeSection(st);
   const map = look.find((r) => r.kind === 'screens');
   const screens = screensOf(st);
+  const pumps = pumpViews(st);
   const ctx = {
     st, dash: String(st.scene?.dashboard || ''), looks: map ? map.screens : [],
     widgetRows: widgets.filter((r) => r.kind === 'widget'),
@@ -121,8 +123,9 @@ function screensSection(st) {
     kind: 'home', id: 'home', label: k('xmenu_scr_map'), sub: k('xmenu_scr_map_sub'),
     screens: screens.length ? screens.map((m, i) => screenView(m, i, screens, ctx)) : [loneView(ctx, mode)],
     more: map ? map.more : null,
+    pumps,
     parts: { widgets, look, mode },
-    tune: [...mode, ...widgets, ...look.flatMap((r) => (r.kind === 'screens' ? r.tune : [r]))],
+    tune: [...mode, ...widgets, ...look.flatMap((r) => (r.kind === 'screens' ? r.tune : [r])), ...pumps.flatMap((p) => p.tabs.flatMap((t) => t.rows))],
   }];
 }
 

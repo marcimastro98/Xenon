@@ -59,7 +59,7 @@
       version: VERSION_RE.test(m.version) ? m.version : '0.0.0',
       author: str(m.author, 60), description: str(m.description, 200),
       storage: m.storage === true, storageGroup: '', secrets: false,
-      surface, background: false,
+      surface, background: false, tile: true,   // no bar capability, so always a tile here
       island: false, islandDynamic: false, islandFull: false,
       badge: false, badgeAction: false, mini: false, topbarButton: false, clipboard: false,
       ai: m.ai === true, accent: false, expand: false,
@@ -68,8 +68,8 @@
       key: surface === 'tile' ? keySuggestion(m.key) : null,
       category: CATEGORIES.includes(m.category) ? m.category : null,
       size: surface === 'tile' && TILE_SIZES.includes(m.size) ? m.size : null,
-      // No Xenon menu in the preview to set them: the widget runs on its own defaults.
-      options: [], fit: false,
+      // No Xenon menu in the preview to set them: the widget runs on its own defaults. Pump screens as the app lists them.
+      options: [], fit: false, pump: m.pump === true ? ['round', 'square'] : list(m.pump, /^(round|square|wide)$/),
       entry: 'index.html',
       streams: list(m.streams, LIST_ITEM_RE), actions: list(m.actions, LIST_ITEM_RE),
       hosts: list(m.hosts, HOST_RE).slice(0, 8),

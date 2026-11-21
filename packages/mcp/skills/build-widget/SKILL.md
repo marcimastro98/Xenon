@@ -14,11 +14,12 @@ person's own dashboard, so you can see it run and fix it.
 1. `xenon_status`. If Xenon is not running, or community widgets are off, say what to do and stop.
 2. `sdk_reference` with no section for the contents, then the sections the widget needs (the manifest, the bridge
    protocol, the streams it reads, sizing). Read them: do not guess field names.
-3. Ask the person only what changes the result: what it shows, roughly how it should look, which tile size.
+3. Ask the person only what changes the result: what it shows, roughly how it should look, which tile size, and
+   where it lives: on a page, only in the top bar, or both.
 4. `new_widget` into a new folder named like the id (a-z, 0-9, dashes), then edit those files.
 5. `check_widget`, fix what it reports, then `install_widget`.
-6. `widget_issues`, then `widget_screenshot`. Look at the picture. Fix, install again, look again, until it works
-   and reads well at a glance.
+6. `widget_issues`, then `widget_screenshot`. Look at the picture, and at `fit` in the issues: what the tile cuts off,
+   by class name and pixels. Fix, install again, look again, until it works and reads well at a glance.
 7. Say what it does and what permissions it asks for. To share it, `share_widget` gives a code anyone can paste
    into Xenon; the Store takes it from xenon-app.com/submit.
 
@@ -29,7 +30,14 @@ person's own dashboard, so you can see it run and fix it.
   hosts listed in the manifest. Size requests from `init.limits` (fetch, store and secret caps, Xenon 5.0+),
   never by probing or by a Xenon version.
 - Say `hello` first, then wait for `init` before reading data.
+- Where it lives is the author's choice. A page is the default. Only the top bar: a `badge`, `mini`,
+  `topbarButton` or island part plus `"tile": false`, for a readout that would be an empty box on a tile (a battery
+  badge). Both: that part plus `"background": true`. `check_widget` says which in `livesIn`; read sdk_reference
+  section "manifest".
 - Fill the tile at every size: `container-type: size` on the root and `cqmin` units, no fixed pixel layout.
+- For an AIO pump's screen add `"pump": true` (round and square) or a list (`["round"]`). It is then offered as a
+  pump face, and `placement` says `{ where: 'pump', shape }`. A round 480 x 480 is the common one: one big readout,
+  everything inside the circle, no taps. Read sdk_reference section "manifest".
 - Put text on the page with `textContent`, never `innerHTML`.
 - Read `theme` and follow its colours, and declare a `color-scheme`: up to Xenon 4.11.13 a page with none turns the tile white.
 - Follow the look too: on `theme.look === 'liquid'` (Liquid Glass, the default) cards inside the tile have no outline,

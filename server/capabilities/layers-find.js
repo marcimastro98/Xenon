@@ -55,7 +55,7 @@ function pageIdFor(now, ref) {
 function choices(catalog) {
   return {
     tiles: Array.isArray(catalog && catalog.tiles) ? catalog.tiles : [],
-    widgets: (Array.isArray(catalog && catalog.packages) ? catalog.packages : []).map(p => p.name || p.id),
+    widgets: (Array.isArray(catalog && catalog.packages) ? catalog.packages : []).filter(p => p.tile !== false).map(p => p.name || p.id),
   };
 }
 

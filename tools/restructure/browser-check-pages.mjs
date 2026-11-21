@@ -80,6 +80,8 @@ export const PAGES = [
   { name: 'widgets-only driver', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, ...DESK },
   { name: 'widgets-only driver with Performance Mode', file: 'server/shell-driver.html', path: '/shell-driver', stay: true, first: loadPerformanceMode, holds: 'server/js/performance/driver-perf.js', ...DESK },
   { name: 'widget service', file: 'server/sdk-service.html', path: '/sdk-service', ...DESK },
+  { name: 'pump screen', file: 'server/pump-face.html', path: '/pump-face?screen=pump-test&shape=round', width: 480, height: 480 },
+  { name: 'widget on a pump screen', file: 'server/pump-widget.html', path: '/pump-widget?id=clock&shape=round', width: 480, height: 480 },
 ];
 
 /** @param {string[]} pages repo-relative pages that load a file @returns {string[]} the ones the page check never opens */
