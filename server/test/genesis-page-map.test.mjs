@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from './browser-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -58,7 +59,7 @@ test('without the widget script loaded the map still comes back', () => {
 });
 
 test('the server tells the model those widgets are there and how to change them', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /\.concat\(\(Array\.isArray\(p\.mine\) \? p\.mine : \[\]\)\.slice\(0, 16\)\.map\(n => `your widget/);
   assert.match(server, /A "your widget" is one the user installed or made: to change it use my_widgets then create_widget/);
 });
@@ -67,7 +68,7 @@ test('the server tells the model those widgets are there and how to change them'
 // only letters, digits, spaces and ' & . - get through, so it cannot close the
 // quotes or start a line of its own.
 test('a widget name reaches the model as a plain name', () => {
-  const src = read('../server.js').match(/\.map\((n => `your widget "\$\{[^`]*\}"`)\)/);
+  const src = engineSource().match(/\.map\((n => `your widget "\$\{[^`]*\}"`)\)/);
   assert.ok(src, 'the name formatter is found');
   const say = vm.runInNewContext(src[1]);
   assert.equal(say("Ruled Week"), 'your widget "Ruled Week"');

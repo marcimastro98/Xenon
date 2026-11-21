@@ -115,10 +115,11 @@ test('the page check opens every page of the app that loads a file of its own', 
   const pages = listPages(ROOT);
   assert.deepEqual(PAGES.map((page) => page.file).filter((file) => !pages.includes(file)), [], 'a page on the list is a page of the repo');
   // A page with no file of ours to load cannot be touched by a split; the widget examples run in a frame
-  // of their own and load only the two files next to them, which are never split.
+  // of their own and load only the two files next to them, which are never split. The pump screen's
+  // iCUE package is the same: it runs inside iCUE and loads only its own scripts/ and styles/.
   const loadsOurs = (page) => tagsOf(fs.readFileSync(path.join(ROOT, page), 'utf8')).some((tag) => tag.file !== null);
   const unopened = uncheckedPages(pages).filter(loadsOurs);
-  assert.deepEqual(unopened.filter((page) => !/^server\/sdk-example\/[a-z0-9-]+\/index\.html$/.test(page)), []);
+  assert.deepEqual(unopened.filter((page) => !/^server\/(sdk-example\/[a-z0-9-]+|pump-screen\/icue-package)\/index\.html$/.test(page)), []);
   assert.deepEqual(uncheckedPages(['server/index.html', 'server/sdk-example/hello-xenon/index.html']), ['server/sdk-example/hello-xenon/index.html']);
   assert.deepEqual(PAGES.map((page) => page.name).filter((name, at, all) => all.indexOf(name) !== at), [], 'a page has one name in a recording');
 });
