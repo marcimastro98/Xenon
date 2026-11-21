@@ -32,13 +32,11 @@
     const source = { ...s };
     if (s.appearance === 'auto' && s.autoPalette === true) {
       const stock = ThemePalette.STOCK[resolve('auto')];
-      Object.assign(source, stock, {
-        mutedText: null, lineColor: null, accentText: null,
-        successColor: null, warningColor: null, dangerColor: null, infoColor: null,
-      });
-      // Accent remains a user preference even while the neutral palette follows
-      // Windows; album-art accent may still replace it below.
-      source.accent = s.accent;
+      Object.assign(source, stock, { mutedText: null, lineColor: null, accentText: null });
+      // Accent and the state colours stay the user's while the neutral palette
+      // follows Windows (derive keeps them readable on either tone); album-art
+      // accent may still replace the accent below.
+      for (const key of ThemePalette.AUTO_KEEPS) source[key] = s[key];
     }
     // Dual-palette theme: overlay the half matching the resolved tone (on 'auto'
     // that's the live OS tone, so Windows flips repaint through the existing

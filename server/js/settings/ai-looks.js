@@ -39,7 +39,7 @@ function applyAiAppearance(opts) {
   let colorEdited = false;
   for (const [arg, key] of Object.entries(colorMap)) {
     const hex = normalizeHex(o[arg], null);
-    if (hex) { patch[key] = hex; patch.autoPalette = false; colorEdited = true; }
+    if (hex) { patch[key] = hex; if (!ThemePalette.AUTO_KEEPS.includes(key)) patch.autoPalette = false; colorEdited = true; }
   }
   if (typeof o.contrast_guard === 'boolean') patch.contrastGuard = o.contrast_guard;
   if (Object.keys(patch).length) {
@@ -80,7 +80,7 @@ function applyAiCreateStyle(opts) {
   let colorEdited = false;
   for (const [arg, key] of Object.entries(colorMap)) {
     const hex = normalizeHex(o[arg], null);
-    if (hex) { patch[key] = hex; patch.autoPalette = false; colorEdited = true; }
+    if (hex) { patch[key] = hex; if (!ThemePalette.AUTO_KEEPS.includes(key)) patch.autoPalette = false; colorEdited = true; }
   }
   const num = (v, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : null; };
   const nums = {

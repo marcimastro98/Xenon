@@ -13,12 +13,14 @@ function setThemePreset(id) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// Accent and state colours ride on top of Auto (ThemePalette.AUTO_KEEPS), so editing
+// one leaves Auto following Windows; any other role freezes the palette.
 function updateSettingsColor(key, value) {
   if (!['accent', 'background', 'surface', 'surfaceAlt', 'controlColor', 'text', 'mutedText',
     'lineColor', 'accentText', 'successColor', 'warningColor', 'dangerColor', 'infoColor'].includes(key)) return;
   const hex = normalizeHex(value, null);
   if (!hex) return;
-  hubSettings = normalizeSettings({ ...freezePaletteVariants(hubSettings), [key]: hex, autoPalette: false });
+  hubSettings = normalizeSettings({ ...freezePaletteVariants(hubSettings), [key]: hex, autoPalette: hubSettings.autoPalette === true && ThemePalette.AUTO_KEEPS.includes(key) });
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
@@ -29,7 +31,7 @@ function updateSettingsColor(key, value) {
 function clearSettingsColor(key) {
   if (!['surface', 'surfaceAlt', 'controlColor', 'mutedText', 'lineColor', 'accentText',
     'successColor', 'warningColor', 'dangerColor', 'infoColor'].includes(key)) return;
-  hubSettings = normalizeSettings({ ...freezePaletteVariants(hubSettings), [key]: null, autoPalette: false });
+  hubSettings = normalizeSettings({ ...freezePaletteVariants(hubSettings), [key]: null, autoPalette: hubSettings.autoPalette === true && ThemePalette.AUTO_KEEPS.includes(key) });
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();

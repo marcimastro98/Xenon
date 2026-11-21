@@ -80,7 +80,8 @@ function setAppearance(mode) {
   // Light really becomes light and Dark really becomes dark. Subsequent colour
   // edits remain exact and are never replaced inside applyHubSettings().
   if (stock) {
-    for (const key of APPEARANCE_COLOR_KEYS) patch[key] = null;
+    // State colours are the user's on either tone (derive keeps them readable), like the accent.
+    for (const key of APPEARANCE_COLOR_KEYS) if (!ThemePalette.AUTO_KEEPS.includes(key)) patch[key] = null;
     for (const key of ['background', 'surface', 'surfaceAlt', 'controlColor', 'text']) patch[key] = stock[key];
     patch.contrastGuard = true;
   }

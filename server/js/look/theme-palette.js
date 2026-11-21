@@ -268,8 +268,12 @@
     return out;
   }
 
+  // The colours that stay the user's while Auto follows Windows: the neutral
+  // roles swap with the OS tone, these do not, so editing one keeps Auto on.
+  const AUTO_KEEPS = Object.freeze(['accent', 'successColor', 'warningColor', 'dangerColor', 'infoColor']);
+
   return {
-    STOCK, STATE, IMMERSIVE_SURFACE, normalizeHex, rgb, mix, luminance, contrast, bestText,
+    STOCK, STATE, AUTO_KEEPS, IMMERSIVE_SURFACE, normalizeHex, rgb, mix, luminance, contrast, bestText,
     ensureContrast, ensureBackgroundContrast, toneFor, derive, cssTokens,
     VARIANT_KEYS, VARIANT_REQUIRED_KEYS, VARIANT_OPTIONAL_KEYS,
     normalizeVariants, variantFor, applyVariant,
