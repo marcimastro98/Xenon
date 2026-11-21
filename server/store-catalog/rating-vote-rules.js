@@ -35,7 +35,7 @@ function cleanEntry(raw) {
     asked: Math.min(ASKS_PER_ENTRY, cleanTime(raw.asked)),
   };
   if (typeof raw.ticket === 'string' && raw.ticket && raw.ticket.length <= TICKET_MAX) e.ticket = raw.ticket;
-  for (const flag of ['closed', 'locked', 'used', 'gone', 'unlockTried']) {
+  for (const flag of ['closed', 'locked', 'used', 'gone', 'unlockTried', 'ownerTried', 'noPass']) {
     if (raw[flag] === true) e[flag] = true;
   }
   return e;

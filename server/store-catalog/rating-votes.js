@@ -7,7 +7,8 @@
 //     on: it tells the hub this PC has that entry. The hub keeps no list of that,
 //     but the switch is what the person agreed to.
 //   - A locked entry has no public ticket. It rides on the unlock (redeem, buy);
-//     owners from before tickets get it through their saved pass, once.
+//     owners from before tickets show the hub the unlock it already holds for this
+//     PC, then try their saved pass once where a pass can open the entry.
 //   - A vote spends the ticket. The stars stay here so the Store can say what was
 //     given; the hub refuses a second vote whatever this file says.
 //   - Bit asks about something in real use: the ticket open (three days), hours on
@@ -33,7 +34,7 @@ const { makeAsks } = require('./rating-vote-asks.js');
 const { makeTickets } = require('./rating-vote-tickets.js');
 
 function createRatingVotes({
-  file, pcId, scopedId, hub, redeemSaved = async () => null, fileAsk = async () => {},
+  file, pcId, scopedId, deviceId = async () => '', hub, redeemSaved = async () => null, fileAsk = async () => {},
   settings = () => ({}), watching = () => true, onVoted = () => {}, now = Date.now, log = console,
 }) {
   const rvState = {
@@ -93,7 +94,7 @@ function createRatingVotes({
 
   const {
     addTicket, syncTickets,
-  } = makeTickets({ scopedId, hub, redeemSaved, now, rvState, load, save, entry, ratingId });
+  } = makeTickets({ scopedId, deviceId, hub, redeemSaved, now, rvState, load, save, entry, ratingId });
 
   const { countUse, ask } = makeAsks({ fileAsk, settings, now, rvState });
 
@@ -127,7 +128,7 @@ function createRatingVotes({
     if (!ownedEntries(settings() || {}).has(id)) return { ok: true, state: 'none' };
     if (e.used) return { ok: true, state: 'used' };
     if (!statsOn()) return { ok: true, state: 'off' };
-    if (e.locked && !e.ticket) return { ok: true, state: e.unlockTried ? 'locked' : 'wait', ripeAt: now() + WAIT_MS };
+    if (e.locked && !e.ticket) return { ok: true, state: e.ownerTried && e.unlockTried ? 'locked' : 'wait', ripeAt: now() + WAIT_MS };
     if (!e.ticket) return { ok: true, state: 'wait', ripeAt: now() + WAIT_MS };
     const ripeAt = e.at + WAIT_MS;
     return now() < ripeAt ? { ok: true, state: 'wait', ripeAt } : { ok: true, state: 'open' };

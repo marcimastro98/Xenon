@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### 🐛 Fixed
+- **You can rate a paid Store item you unlocked before 5.0.** If you unlocked a paid or limited item with its own code before Store ratings arrived, Xenon could not get you a vote for it: it tried your supporter pass, which never opens a paid item, and gave up. Now it shows the Store that this PC already unlocked the item and the vote opens as usual. Xenon also stops trying the supporter pass on items it cannot open.
+
 ## [v5.2.0] - 20-11-2026
 
 ### ✨ Added

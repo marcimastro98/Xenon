@@ -188,6 +188,77 @@ test('a paid entry needs its unlock: one try with the saved pass, then it says s
   assert.equal((await r.votes.stateOf('neon')).state, 'open');
 });
 
+// The hub's answer for a locked entry: a ticket for an owner's device, else
+// needs_unlock with whether a supporter pass could open it.
+const lockedHub = ({ owner = 'device-hash', passOpens }) => (pathname, body) => (body.deviceId === owner
+  ? { ok: true, ticket: 'owner-ticket', at: Math.floor(NOON / 1000) }
+  : { ok: false, error: 'needs_unlock', passOpens });
+
+test('an owner from before tickets gets one with its device id, and no pass is tried', async () => {
+  const tried = [];
+  const r = rig({ deviceId: async () => 'device-hash', redeemSaved: async (id) => { tried.push(id); } });
+  r.world.answer = lockedHub({ passOpens: false });
+  await r.votes.tick();
+  await r.votes.tick();
+  assert.deepEqual(tried, []);
+  assert.equal(r.hubCalls.filter((c) => c.body.deviceId).length, 1, 'the device id is sent only for the locked entry, once');
+  assert.equal(r.hubCalls[0].body.deviceId, undefined, 'the first, public ask carries no device id');
+  r.clock.now += WAIT_MS;
+  assert.equal((await r.votes.stateOf('neon')).state, 'open');
+});
+
+test('a paid entry this PC does not own: the saved pass is never tried on it', async () => {
+  const tried = [];
+  const r = rig({ deviceId: async () => 'other-device', redeemSaved: async (id) => { tried.push(id); } });
+  r.world.answer = lockedHub({ passOpens: false });
+  for (let n = 0; n < 4; n++) await r.votes.tick();
+  assert.deepEqual(tried, []);
+  assert.equal((await r.votes.stateOf('neon')).state, 'locked');
+});
+
+test('a supporter entry this PC does not own yet: the saved pass is tried once', async () => {
+  const tried = [];
+  const r = rig({ deviceId: async () => 'other-device', redeemSaved: async (id) => { tried.push(id); } });
+  r.world.answer = lockedHub({ passOpens: true });
+  for (let n = 0; n < 4; n++) await r.votes.tick();
+  assert.deepEqual(tried, ['neon']);
+  assert.equal((await r.votes.stateOf('neon')).state, 'locked');
+});
+
+test('a 5.0 record that already tried the pass still gets the owner ask, once', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rating-votes-old-'));
+  const file = path.join(dir, 'rating-votes.json');
+  // What 5.0 to 5.2 wrote for an owner's paid entry: locked, pass tried, no ticket.
+  const old = { at: 0, seenMs: 0, stars: 0, votedAt: 0, asked: 0, locked: true, unlockTried: true };
+  fs.writeFileSync(file, JSON.stringify({ lastAskAt: 0, entries: { neon: old } }));
+  const tried = [];
+  const r = rig({ file, deviceId: async () => 'device-hash', redeemSaved: async (id) => { tried.push(id); } });
+  r.world.answer = lockedHub({ passOpens: false });
+  await r.votes.tick();
+  await r.votes.tick();
+  assert.deepEqual(tried, []);
+  assert.equal(r.hubCalls.length, 1);
+  assert.equal(r.hubCalls[0].body.deviceId, 'device-hash');
+  r.clock.now += WAIT_MS;
+  assert.equal((await r.votes.stateOf('neon')).state, 'open');
+});
+
+test('an owner ask that does not reach the hub is tried again on the next tick', async () => {
+  const r = rig({ deviceId: async () => 'device-hash' });
+  let online = false;
+  r.world.answer = (pathname, body) => {
+    if (!body.deviceId) return { ok: false, error: 'needs_unlock', passOpens: false };
+    return online ? lockedHub({ passOpens: false })(pathname, body) : null;
+  };
+  await r.votes.tick();
+  await r.votes.tick();
+  assert.equal((await r.votes.stateOf('neon')).state, 'wait');
+  online = true;
+  await r.votes.tick();
+  r.clock.now += WAIT_MS;
+  assert.equal((await r.votes.stateOf('neon')).state, 'open');
+});
+
 test('Bit asks only after three days and real hours on screen', async () => {
   const r = rig();
   await r.votes.tick();

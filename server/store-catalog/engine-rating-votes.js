@@ -19,6 +19,7 @@ const ratingVotes = createRatingVotes({
     fallback: () => supporterRedeem.getInstallId(DATA_DIR),
   }),
   scopedId: () => supporterRedeem.getScopedId(DATA_DIR, supporterRedeem.SCOPE_RATINGS),
+  deviceId: () => supporterRedeem.getScopedId(DATA_DIR, supporterRedeem.SCOPE_DEVICES),
   hub: (pathname, body) => supporterRedeem.hubPost(pathname, body),
   redeemSaved: (entryId) => supporterRedeem.redeem({ entryId, code: '', dataDir: DATA_DIR, allowTrial: false }),
   fileAsk: (msg) => bitMessages.post({ messages: [msg] }),
