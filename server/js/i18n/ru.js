@@ -7506,6 +7506,8 @@ module.exports = {
   xmenu_pump_art_tide: 'Прилив',
   xmenu_pump_art_orbit: 'Орбита',
   xmenu_pump_now_is: 'Сейчас на помпе',
+  xmenu_pump_try_cap: 'Предпросмотр',
+  xmenu_pump_try_now: 'Сейчас на помпе: {what}',
   xmenu_pump_why_pinned: 'потому что вы выбрали это сами',
   xmenu_pump_why_off: 'потому что экраны выключены',
   xmenu_pump_add: 'Добавить: когда вы в эфире, когда записываете, ночью…',

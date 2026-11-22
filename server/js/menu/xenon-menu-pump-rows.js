@@ -18,8 +18,9 @@
     return { run: { ...run, patch: run.patch.split(JSON.stringify(FILE_MARK)).join(JSON.stringify(url)) } };
   }
 
-  // ctx: { el, button, say, perform, icon, DRAW, upload, types }
+  // ctx: { el, button, say, perform, icon, DRAW, upload, types, tryFace }
   //   upload(file) → { ok, url } or { ok: false, bad } (xenon-menu-pumps.js upload)
+  //   tryFace(show, label): the pump's picture shows the open line; (null) its own face again
   function create(ctx) {
     const { el, button, say, perform, icon } = ctx;
     let open = '';
@@ -49,6 +50,7 @@
         const line = key ? lines.get(key) : null;
         if (line?.node.isConnected) line.node.replaceWith(drawMoment(line.r));
       }
+      if (!open && ctx.tryFace) ctx.tryFace(null);
       const head = lines.get(id)?.node.querySelector('.xm-pumpline-head');
       if (head) head.focus();
     }
@@ -153,6 +155,7 @@
       head.addEventListener('click', () => toggle(r.id));
       box.appendChild(head);
       if (on) box.append(...openPart(r));
+      if (on && ctx.tryFace && r.show) ctx.tryFace(r.show, r.label);
       lines.set(r.id, { node: box, r });
       return box;
     }

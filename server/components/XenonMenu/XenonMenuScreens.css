@@ -77,7 +77,10 @@
 .xm-scrphone.is-add .xm-scrphone-shape { background: none; border-style: dashed; border-color: var(--cst-sep); }
 .xm-scrphone.is-add .xm-scrname { font-weight: 500; }
 .xm-scrtitle { margin: 0; font-size: 17px; font-weight: 600; }
-.xm-scrrows { width: 100%; }
+/* A screen's tab holds cards (ways to use it, a pump's lines, examples): on a well of its own
+   they ran into its edges, so here every line is its own card on the page instead. */
+.xm-scrrows { width: 100%; background: none; border-radius: 0; }
+.xm-scrrows > .xm-row:not(.xm-row--modes) { background: var(--cst-well); border-radius: 10px; }
 /* What a screen shows: one answer per line, so each says what it does in full. */
 .xm-scrrows .xm-modes { grid-template-columns: minmax(0, 1fr); }
 .xm-scrwidgets { gap: var(--space-3); }
@@ -113,6 +116,9 @@
 .xm-pumpnow-what { font-size: 20px; font-weight: 600; }
 .xm-pumpnow-why { font-size: 15px; color: var(--cst-muted); }
 .xm-pumpnow .xm-act { margin-top: var(--space-2); }
+.xm-pumpnow-live, .xm-pumpnow-tried { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.xm-pumpnow-tried, .xm-pumpnow.is-trying .xm-pumpnow-live { display: none; }
+.xm-pumpnow.is-trying .xm-pumpnow-tried { display: flex; }
 .xm-pumpnote { margin: 0; font-size: 14.5px; color: var(--cst-muted); }
 
 /* A line of "What it shows": its name and what it shows, the face drawn small; open, the

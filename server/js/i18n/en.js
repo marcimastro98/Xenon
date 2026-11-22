@@ -7569,6 +7569,8 @@ module.exports = {
   xmenu_pump_art_tide: 'Tide',
   xmenu_pump_art_orbit: 'Orbit',
   xmenu_pump_now_is: 'Now on the pump',
+  xmenu_pump_try_cap: 'Preview',
+  xmenu_pump_try_now: 'Now on the pump: {what}',
   xmenu_pump_why_pinned: 'because you picked it',
   xmenu_pump_why_off: 'because the screens are off',
   xmenu_pump_add: 'Add: when you are live, when you record, at night…',

@@ -7561,6 +7561,8 @@ module.exports = {
   xmenu_pump_art_tide: '潮汐',
   xmenu_pump_art_orbit: '轨道',
   xmenu_pump_now_is: '水泵当前显示',
+  xmenu_pump_try_cap: '预览',
+  xmenu_pump_try_now: '水泵当前显示：{what}',
   xmenu_pump_why_pinned: '因为是你选的',
   xmenu_pump_why_off: '因为屏幕已关闭',
   xmenu_pump_add: '添加：直播时、录制时、夜间…',

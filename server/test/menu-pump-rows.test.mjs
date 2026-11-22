@@ -29,7 +29,7 @@ function say(x) {
   return x.key || x.text || '';
 }
 
-function rig(upload) {
+function rig(upload, tryFace) {
   const { document } = makeDom();
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -42,7 +42,7 @@ function rig(upload) {
   const ran = [];
   const perform = async (row, act) => { ran.push([row, act]); return true; };
   const DRAW = { choice: (r) => { const n = el('div', 'xm-row'); n.dataset.row = r.id; return n; } };
-  const { draw } = PumpRows.create({ el, button, say, perform, icon, DRAW, upload, types: Pumps.PICTURE_TYPES });
+  const { draw } = PumpRows.create({ el, button, say, perform, icon, DRAW, upload, types: Pumps.PICTURE_TYPES, tryFace });
   Object.assign(DRAW, draw);
   const put = (rows) => { document.body.replaceChildren(...rows.filter((r) => draw[r.kind]).map((r) => draw[r.kind](r))); return document.body.children; };
   return { document, el, button, icon, draw, ran, put, acts: () => ran.map(([, act]) => act) };
@@ -105,6 +105,21 @@ test('the open line stays open when the menu draws everything again after a chan
   assert.deepEqual(JSON.parse(r.acts()[0].run.patch), { removeMoment: 0 });
   lines = r.put(rowsOf(viewOf({ moments: [screen().moments[1]] }), 'shows'));
   assert.equal(lines.filter((n) => n.classList.contains('is-open')).length, 0);
+});
+
+test('the pump\'s picture shows the line open, and its own face again once none is', () => {
+  const tried = [];
+  const r = rig(undefined, (show, label) => tried.push(show && [show.face, say(label)]));
+  let lines = r.put(rowsOf(viewOf(), 'shows'));
+  assert.deepEqual(tried, [], 'all closed: nothing asked');
+  lines[1].querySelector('.xm-pumpline-head').click();
+  assert.deepEqual(tried, [['game', 'xmenu_pump_when_game']]);
+  lines[3].querySelector('.xm-pumpline-head').click();
+  assert.deepEqual(tried.at(-1), ['sensors', 'xmenu_pump_rest'], 'another line: that one');
+  lines = r.put(rowsOf(viewOf(), 'shows'));
+  assert.deepEqual(tried.at(-1), ['sensors', 'xmenu_pump_rest'], 'drawn again after a change: the line again, as it is now');
+  lines[3].querySelector('.xm-pumpline-head').click();
+  assert.equal(tried.at(-1), null, 'closed');
 });
 
 test('a face card runs its line\'s save; the face on and the ways to one of your own', () => {
@@ -237,4 +252,15 @@ test('every class the pump rows draw has its rule in the menu\'s sheet', () => {
   for (const n of ['xm-pumpmini--sensors', 'xm-pumpmini--music', 'xm-pumpmini--picture', 'xm-pumpmini--clock', 'xm-pumpmini--widget', 'xm-pumpring--screen', 'xm-pumpring--theme', 'xm-pumpring--lights']) {
     assert.ok(css.includes('.' + n), n);
   }
+});
+
+// "These boxes have no padding against the background under them": a screen's tab is no grey
+// well holding cards that touch its edges; every line is a card of its own on the page.
+test('a screen\'s tab holds its lines as cards on the page, and a reading on says its place', () => {
+  const css = readFileSync(new URL('../components/XenonMenu/XenonMenuScreens.css', import.meta.url), 'utf8');
+  const choices = readFileSync(new URL('../components/XenonMenu/XenonMenuChoices.css', import.meta.url), 'utf8');
+  assert.match(css, /\.xm-scrrows \{ width: 100%; background: none; border-radius: 0; \}/);
+  assert.match(css, /\.xm-scrrows > \.xm-row:not\(\.xm-row--modes\) \{ background: var\(--cst-well\); border-radius: 10px; \}/);
+  assert.match(choices, /\.xm-choices--multi > \.xm-choice\[data-rank\]\[aria-pressed="true"\]::before \{\n\s+content: attr\(data-rank\);/);
+  assert.match(css, /\.xm-pumpnow\.is-trying \.xm-pumpnow-tried \{ display: flex; \}/);
 });

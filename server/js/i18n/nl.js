@@ -7557,6 +7557,8 @@ module.exports = {
   xmenu_pump_art_tide: 'Getij',
   xmenu_pump_art_orbit: 'Baan',
   xmenu_pump_now_is: 'Nu op de pomp',
+  xmenu_pump_try_cap: 'Voorbeeld',
+  xmenu_pump_try_now: 'Nu op de pomp: {what}',
   xmenu_pump_why_pinned: 'omdat je het zelf koos',
   xmenu_pump_why_off: 'omdat de schermen uit staan',
   xmenu_pump_add: 'Toevoegen: als je live bent, als je opneemt, \'s nachts…',

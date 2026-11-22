@@ -46,6 +46,9 @@
   let helloTries = 0;
   let helloTimer = 0;
   let held = null;
+  // The menu's picture only: the face of the line open in the menu, shown instead of the
+  // pump's own until the line closes (tryFace).
+  let tried = null;
   let refreshTimer = 0;
   let cover = { key: '', url: '' };
 
@@ -85,7 +88,7 @@
   }
 
   function showNow() {
-    const mine = now?.show ? Faces.normalizeFace(now.show) : null;
+    const mine = (tried && Faces.normalizeFace(tried)) || (now?.show ? Faces.normalizeFace(now.show) : null);
     mount(mine || Faces.defaultFace('clock'));
     root.dataset.why = now?.why || 'offline';
   }
@@ -271,5 +274,12 @@
 
   window.PumpFace = {
     snapshot: () => ({ screen: id, shape, via, face: face ? JSON.parse(faceKey) : null, why: root.dataset.why, alert: alerts.busy() }),
+    // The menu (same page origin) shows the line being changed; null goes back to the pump's own.
+    tryFace(show) {
+      if (!preview) return false;
+      tried = show && typeof show === 'object' ? show : null;
+      showNow();
+      return true;
+    },
   };
 })();

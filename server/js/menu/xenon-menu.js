@@ -143,16 +143,16 @@
       clearTimeout(errorTimer);
       errorTimer = setTimeout(() => {
         errorText = '';
-        const box = main.querySelector('.xm-error');
-        if (box) box.hidden = true;
+        main.querySelector('.xm-error')?.replaceWith(errorLine());
       }, ERROR_FOR_MS);
-      paintError(main.querySelector('.xm-error'));
+      main.querySelector('.xm-error')?.replaceWith(errorLine());
     }
 
-    function paintError(box) {
-      if (!box) return;
-      box.textContent = errorText;
+    function errorLine() {
+      const box = el('p', 'xm-error', errorText);
+      box.setAttribute('role', 'status');
       box.hidden = !errorText;
+      return box;
     }
 
     // True when it went through, so a row can keep what was typed when it did not.
@@ -195,11 +195,11 @@
         if (ok && typeof onDone === 'function') onDone(r);
       } catch (e) {
         showError('unavailable');
-      } finally {
-        busy = false;
-        rootEl.classList.remove('is-busy');
       }
-      if (!(row && row.closes)) load();
+      // Free once the rows are drawn again: a tap on the old ones would send what they knew.
+      if (!(row && row.closes)) await load();
+      busy = false;
+      rootEl.classList.remove('is-busy');
       return ok;
     }
 
@@ -308,8 +308,16 @@
         const on = r.multi ? o.on === true : String(o.value) === String(r.value);
         b.setAttribute('aria-pressed', String(on));
         b.dataset.keep = `${r.id}:${o.value}`;
+        if (o.rank) b.dataset.rank = String(o.rank);
         const act = r.multi || !on ? o.act : null;
-        b.addEventListener('click', () => { if (act) perform(r, act); });
+        // Lit at once; the rows drawn after the change say what was kept.
+        b.addEventListener('click', () => {
+          if (!act || busy) return;
+          if (!r.multi) for (const x of group.children) x.setAttribute('aria-pressed', 'false');
+          b.setAttribute('aria-pressed', String(!r.multi || b.getAttribute('aria-pressed') !== 'true'));
+          delete b.dataset.rank;
+          perform(r, act);
+        });
         if (view) view.follow(b, o.value);
         group.appendChild(b);
       }
@@ -368,14 +376,10 @@
         li.appendChild(edit);
       }
       const b = button('xm-combo', r.combo || tt('xmenu_key_set'));
-      if (r.record) {
-        b.setAttribute('aria-label', fill(tt('xmenu_key_change'), { name: text(r.label, tt) }));
-        b.addEventListener('click', () => startRecording(r, b));
-      } else if (r.goes) {
-        // Recorded in Settings, not here: the key takes you there.
-        b.setAttribute('aria-label', fill(tt('xmenu_key_change'), { name: text(r.label, tt) }));
-        b.addEventListener('click', () => perform({ closes: true }, r.goes));
-      }
+      if (r.record || r.goes) b.setAttribute('aria-label', fill(tt('xmenu_key_change'), { name: text(r.label, tt) }));
+      // Recorded here, or in Settings, where the key takes you (`goes`).
+      if (r.record) b.addEventListener('click', () => startRecording(r, b));
+      else if (r.goes) b.addEventListener('click', () => perform({ closes: true }, r.goes));
       li.appendChild(b);
       return li;
     }
@@ -598,9 +602,7 @@
       words.append(el('p', 'xm-sub', text(view.sub, tt)));
       head.append(words);
       if (own && own.action) head.append(own.action);
-      const err = el('p', 'xm-error');
-      err.setAttribute('role', 'status');
-      paintError(err);
+      const err = errorLine();
       const body = el('div', 'xm-body');
       if (own) body.append(...own.body);
       else drawRows(body, s.rows);
@@ -634,9 +636,7 @@
     }
 
     function drawFound(sections, hidden) {
-      const err = el('p', 'xm-error');
-      err.setAttribute('role', 'status');
-      paintError(err);
+      const err = errorLine();
       const body = el('div', 'xm-body');
       const found = window.XenonMenuFind.find(sections, query, (x) => text(x, tt));
       for (const s of found) {

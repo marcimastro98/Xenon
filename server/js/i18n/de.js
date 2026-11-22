@@ -7415,6 +7415,8 @@ module.exports = {
   xmenu_pump_art_tide: 'Gezeiten',
   xmenu_pump_art_orbit: 'Umlaufbahn',
   xmenu_pump_now_is: 'Jetzt auf der Pumpe',
+  xmenu_pump_try_cap: 'Vorschau',
+  xmenu_pump_try_now: 'Jetzt auf der Pumpe: {what}',
   xmenu_pump_why_pinned: 'weil du es gewählt hast',
   xmenu_pump_why_off: 'weil die Bildschirme aus sind',
   xmenu_pump_add: 'Hinzufügen: wenn du live bist, wenn du aufnimmst, nachts…',

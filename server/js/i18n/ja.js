@@ -7561,6 +7561,8 @@ module.exports = {
   xmenu_pump_art_tide: '潮',
   xmenu_pump_art_orbit: '軌道',
   xmenu_pump_now_is: 'いまポンプに表示中',
+  xmenu_pump_try_cap: 'プレビュー',
+  xmenu_pump_try_now: 'いまポンプに表示中: {what}',
   xmenu_pump_why_pinned: '自分で選んだため',
   xmenu_pump_why_off: '画面がオフのため',
   xmenu_pump_add: '追加: 配信中、録画中、夜間…',

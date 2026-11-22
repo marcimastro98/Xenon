@@ -71,8 +71,9 @@ function detailOf(show, st) {
   return null;
 }
 
-// The readings a sensors or game face shows, in the order it shows them. A fifth takes the
-// last one's place, and the last one left stays: a face with no number is not a choice.
+// The readings a sensors or game face shows. The keys stay where they are and each one on says
+// its place on the face (`rank`), so a tap never moves the key under the finger. A fifth takes
+// the last one's place, and the last one left stays: a face with no number is not a choice.
 function readingsRow(key, show, apply) {
   const on = show.readings;
   const max = show.face === 'game' ? GAME_READINGS : Faces.MAX_READINGS;
@@ -80,8 +81,8 @@ function readingsRow(key, show, apply) {
   return {
     kind: 'choice', id: key + '-readings', multi: true, label: k('xmenu_pump_readings'),
     sub: k(show.face === 'game' ? 'xmenu_pump_readings_game_sub' : 'xmenu_pump_readings_sub'),
-    options: [...on, ...Faces.READINGS.filter((r) => !on.includes(r))].map((r) => ({
-      value: r, label: readingLabel(r), on: on.includes(r),
+    options: [...Faces.READINGS, ...on.filter((r) => !Faces.READINGS.includes(r))].map((r) => ({
+      value: r, label: readingLabel(r), on: on.includes(r), rank: on.indexOf(r) + 1,
       act: on.length === 1 && on[0] === r ? null : run(apply({ readings: flip(r) })),
     })),
   };
@@ -127,7 +128,7 @@ function whenLabel(when) {
  */
 function momentRow({ id, label, show, v, st, save, remove }) {
   return {
-    kind: 'pumpmoment', id, label, sub: detailOf(show, st), value: showLabel(show, st), art: show.face,
+    kind: 'pumpmoment', id, label, sub: detailOf(show, st), value: showLabel(show, st), art: show.face, show,
     faces: faceCards(st, pickOf(show), (f) => save(showOf(v, f))),
     facesLabel: k('xmenu_pump_faces'), yours: k('xmenu_pump_yours'), own: OWN_FACE,
     rows: faceRows(id, show, (p) => save({ ...show, ...p })),

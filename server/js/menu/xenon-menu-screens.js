@@ -65,7 +65,7 @@
     const settle = () => { if (ctx.settle) ctx.settle(); if (pumps) pumps.settle(); };
     if (Pumps && PumpRows) {
       const upload = (file) => Pumps.upload(ctx.server || '', file);
-      Object.assign(DRAW, PumpRows.create({ el, button, say, perform, icon, DRAW, upload, types: Pumps.PICTURE_TYPES }).draw);
+      Object.assign(DRAW, PumpRows.create({ el, button, say, perform, icon, DRAW, upload, types: Pumps.PICTURE_TYPES, tryFace: pumps.tryFace }).draw);
     }
     let picked = '';
     const chosenTab = new Map();   // screen key -> the tab left open

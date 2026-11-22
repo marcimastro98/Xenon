@@ -7561,6 +7561,8 @@ module.exports = {
   xmenu_pump_art_tide: '물결',
   xmenu_pump_art_orbit: '궤도',
   xmenu_pump_now_is: '지금 펌프 화면',
+  xmenu_pump_try_cap: '미리 보기',
+  xmenu_pump_try_now: '지금 펌프 화면: {what}',
   xmenu_pump_why_pinned: '직접 골랐기 때문에',
   xmenu_pump_why_off: '화면이 꺼져 있어서',
   xmenu_pump_add: '추가: 방송 중, 녹화 중, 밤에…',

@@ -7445,6 +7445,8 @@ module.exports = {
   xmenu_pump_art_tide: 'Maré',
   xmenu_pump_art_orbit: 'Órbita',
   xmenu_pump_now_is: 'Agora na bomba',
+  xmenu_pump_try_cap: 'Pré-visualização',
+  xmenu_pump_try_now: 'Agora na bomba: {what}',
   xmenu_pump_why_pinned: 'porque o escolheste tu',
   xmenu_pump_why_off: 'porque os ecrãs estão desligados',
   xmenu_pump_add: 'Adicionar: quando estás em direto, quando gravas, à noite…',

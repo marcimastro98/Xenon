@@ -190,6 +190,7 @@ export function makeDom() {
       width: node._rect.width, height: node._rect.height,
       top: 0, left: 0, right: node._rect.width, bottom: node._rect.height, x: 0, y: 0,
     });
+    Object.defineProperty(node, 'ownerDocument', { get: () => document });
     node.focus = () => { document.activeElement = node; };
     node.blur = () => { if (document.activeElement === node) document.activeElement = document.body; };
     node.querySelector = (sel) => find(node, sel)[0] || null;

@@ -75,6 +75,10 @@
     let holder = null;
     let box = null;
     let want = '';
+    let trying = null;     // { show, label }: the line open in the pump's tabs, shown in the picture
+    let nowBox = null;
+    let triedWhat = null;  // in it, the name of the line the picture shows
+    let painting = false;
 
     function card(view, on, pick) {
       const b = button('xm-scrphone xm-scrpump' + (view.add ? ' is-add' : ''));
@@ -109,8 +113,16 @@
       const n = view.now;
       if (!n) return null;
       const box = el('div', 'xm-pumpnow');
-      box.append(el('span', 'xm-pumpnow-cap', say(n.caption)), el('span', 'xm-pumpnow-what', say(n.what)));
-      if (n.why) box.appendChild(el('span', 'xm-pumpnow-why', say(n.why)));
+      const live = el('span', 'xm-pumpnow-live');
+      live.append(el('span', 'xm-pumpnow-cap', say(n.caption)), el('span', 'xm-pumpnow-what', say(n.what)));
+      if (n.why) live.appendChild(el('span', 'xm-pumpnow-why', say(n.why)));
+      // While a line is open the picture shows that line; the words say so, and what the pump has.
+      const tried = el('span', 'xm-pumpnow-tried');
+      triedWhat = el('span', 'xm-pumpnow-what');
+      tried.append(el('span', 'xm-pumpnow-cap', say({ key: 'xmenu_pump_try_cap' })), triedWhat,
+        el('span', 'xm-pumpnow-why', say({ key: 'xmenu_pump_try_now', vars: { what: say(n.what) } })));
+      box.append(live, tried);
+      nowBox = box;
       if (n.back && typeof ctx.perform === 'function') {
         const b = button('ui-btn ui-btn--secondary xm-act', say(n.back.label));
         b.dataset.keep = 'pump:auto';
@@ -137,7 +149,23 @@
       return box || now ? head : null;
     }
 
+    // The picture shows the line open below it until it closes (pump-face.js tryFace). Asked while
+    // the menu rebuilds, it waits for settle(): the open line is drawn again in the rebuild.
+    function apply() {
+      try { frame?.contentWindow?.PumpFace?.tryFace(trying ? trying.show : null); } catch { /* another origin: its own face stays */ }
+      if (!nowBox?.isConnected) return;
+      nowBox.classList.toggle('is-trying', !!trying);
+      triedWhat.textContent = trying ? say(trying.label) : '';
+    }
+
+    function tryFace(show, label) {
+      trying = show ? { show, label } : null;
+      if (!painting) apply();
+    }
+
     function hold() {
+      painting = true;
+      trying = null;
       if (!frame?.isConnected) return;
       if (!holder) {
         holder = el('div', 'xm-scene-holder');
@@ -156,12 +184,13 @@
 
     // After a rebuild: into the new slot, loading only when the pump picked changed.
     function settle() {
-      if (!box?.isConnected) { drop(); return; }
+      painting = false;
+      if (!box?.isConnected) { drop(); apply(); return; }
       if (!frame) {
         frame = el('iframe', 'xm-pumpframe');
         frame.setAttribute('aria-hidden', 'true');
         frame.tabIndex = -1;
-        frame.addEventListener('load', () => frame?.classList.add('is-ready'));
+        frame.addEventListener('load', () => { frame?.classList.add('is-ready'); apply(); });
       }
       put(box, frame);
       if (frame.dataset.src !== want) {
@@ -169,9 +198,10 @@
         frame.classList.remove('is-ready');
         frame.src = want;
       }
+      apply();
     }
 
-    return { cards, slot, hold, settle };
+    return { cards, slot, hold, settle, tryFace };
   }
 
   const api = { create, previewUrl, upload, drawSize, shapeProps, PICTURE_TYPES };

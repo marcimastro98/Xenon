@@ -7568,6 +7568,8 @@ module.exports = {
   xmenu_pump_art_tide: 'Marea',
   xmenu_pump_art_orbit: 'Orbita',
   xmenu_pump_now_is: 'Ora sulla pompa',
+  xmenu_pump_try_cap: 'Anteprima',
+  xmenu_pump_try_now: 'Ora sulla pompa: {what}',
   xmenu_pump_why_pinned: 'perché l’hai scelto tu',
   xmenu_pump_why_off: 'perché gli schermi sono spenti',
   xmenu_pump_add: 'Aggiungi: quando sei in diretta, quando registri, di notte…',

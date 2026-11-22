@@ -9,6 +9,7 @@ const { screensSection } = require('../menu/menu-screens.js');
 const { pumpsIn, createPumpDetect, CACHE_MS } = require('../pump-screen/detect.js');
 const Pumps = require('../js/menu/xenon-menu-pumps.js');
 const Model = require('../js/pump/pump-model.js');
+const Faces = require('../js/pump/pump-faces.js');
 const { LANGS } = require('../app-strings/tables.js');
 
 // A screen as GET /pump and the pumpGet action give it.
@@ -114,8 +115,13 @@ test('every face, on any line, offers its own choices: style, numbers, what a cl
   // The Game face shows three: the first large. A fourth takes the third's place.
   const game = row(row(shows(screen()), 'pump-m-0'), 'pump-m-0-readings');
   assert.deepEqual(game.sub, { key: 'xmenu_pump_readings_game_sub' });
-  assert.deepEqual(game.options.slice(0, 4).map((o) => [o.value, o.on]), [['fps', true], ['gpuTemp', true], ['cpuTemp', true], ['cpu', false]],
-    'the chosen ones first, in the order the face shows them');
+  // The keys keep their places, so a tap never moves the one under the finger; each one on says
+  // its place on the face.
+  assert.deepEqual(game.options.map((o) => o.value), Faces.READINGS, 'always the same order');
+  assert.deepEqual(readings.options.map((o) => o.value), Faces.READINGS);
+  assert.deepEqual(game.options.filter((o) => o.on).map((o) => [o.value, o.rank]), [['cpuTemp', 3], ['gpuTemp', 2], ['fps', 1]],
+    'the place each has on the face');
+  assert.ok(game.options.filter((o) => !o.on).every((o) => o.rank === 0));
   const moments = patchOf(game.options.find((o) => o.value === 'cpu').act).moments;
   assert.deepEqual(moments[0].show.readings, ['fps', 'gpuTemp', 'cpu']);
   assert.deepEqual(moments[1], screen().moments[1], 'only its own line changes');
@@ -309,7 +315,7 @@ function node(tag) {
   const listeners = {};
   const n = {
     tag, dataset: {}, parent: null, kids: [], src: '', hidden: false, className: '', listeners,
-    classList: { add() {}, remove() {} },
+    classList: { on: new Set(), add(c) { n.classList.on.add(c); }, remove(c) { n.classList.on.delete(c); }, toggle(c, on) { if (on) n.classList.add(c); else n.classList.remove(c); }, contains: (c) => n.classList.on.has(c) },
     style: { props: {}, setProperty(k, v) { n.style.props[k] = v; } },
     setAttribute() {},
     addEventListener(type, fn) { listeners[type] = fn; },
@@ -345,6 +351,53 @@ test('the picked pump shows its own page in preview, kept through a rebuild', ()
   assert.equal(frames().length, 1, 'the same frame');
   assert.equal(frame.src, 'loaded', 'not loaded again');
   assert.ok(frame.parent.isConnected);
+});
+
+// "I have three on, but I see two": while a line is open the picture shows that line, and says
+// so; closed, or after the menu's rebuild without it, the pump's own face again.
+test('the picture shows the line open below it, and says what the pump has meanwhile', () => {
+  const { body, view, made, frames } = rig();
+  const [card] = pumpViews(state({ screens: [screen('desk')] }));
+  body.appendChild(view.slot(card));
+  view.settle();
+  const tried = [];
+  const [frame] = frames();
+  frame.contentWindow = { PumpFace: { tryFace: (show) => tried.push(show) } };
+  frame.listeners.load();
+  assert.deepEqual(tried, [null], 'loaded: its own face');
+  const game = { face: 'game', readings: ['fps', 'gpuTemp', 'cpu'] };
+  view.tryFace(game, 'When you play');
+  assert.deepEqual(tried.at(-1), game);
+  const box = made.find((n) => n.className === 'xm-pumpnow');
+  assert.ok(box.classList.contains('is-trying'));
+  const what = made.filter((n) => n.className === 'xm-pumpnow-what');
+  assert.equal(what.at(-1).textContent, 'When you play');
+  assert.deepEqual(made.find((n) => n.className === 'xm-pumpnow-tried').kids.at(-1).textContent, { key: 'xmenu_pump_try_now', vars: { what: card.now.what } });
+  // A rebuild: the open line is drawn again inside it, and only then shown.
+  view.hold();
+  view.tryFace({ face: 'clock' }, 'Rest');
+  assert.deepEqual(tried.at(-1), game, 'nothing sent halfway through a rebuild');
+  body.appendChild(view.slot(card));
+  view.settle();
+  assert.deepEqual(tried.at(-1), { face: 'clock' });
+  view.hold();
+  body.appendChild(view.slot(card));
+  view.settle();
+  assert.equal(tried.at(-1), null, 'rebuilt with no line open: its own face');
+  assert.equal(made.filter((n) => n.className === 'xm-pumpnow').at(-1).classList.contains('is-trying'), false);
+  view.tryFace(game, 'x');
+  view.tryFace(null);
+  assert.equal(tried.at(-1), null, 'the line closed');
+  frame.contentWindow = null;
+  view.tryFace(game, 'x');
+});
+
+test('the face page shows a line it is handed only as the menu\'s picture, never on the pump', () => {
+  const src = readFileSync(new URL('../js/pump/pump-face.js', import.meta.url), 'utf8');
+  const at = src.indexOf('tryFace(show) {');
+  assert.ok(at > 0);
+  assert.match(src.slice(at, at + 200), /^tryFace\(show\) \{\n\s+if \(!preview\) return false;/);
+  assert.match(src, /const mine = \(tried && Faces\.normalizeFace\(tried\)\) \|\| /, 'the line handed over wins over the pump\'s own');
 });
 
 test('each pump is drawn as it is: round, square, or a panel in its proportions as mounted', () => {
