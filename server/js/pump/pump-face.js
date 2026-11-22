@@ -46,6 +46,7 @@
   let helloTries = 0;
   let helloTimer = 0;
   let refreshTimer = 0;
+  let cover = { key: '', url: '' };
 
   function guessShape() {
     const w = window.innerWidth;
@@ -207,12 +208,21 @@
     fn(d || {});
   });
 
+  // The server sends a song's cover once and leaves it out of the updates that follow for the
+  // same song (media/cover-memory.js); without keeping it, the cover went grey 2 s after it came.
+  function withCover(d) {
+    const key = `${d.title || ''}|${d.artist || d.album || ''}`;
+    if (d.thumbnail) cover = { key, url: d.thumbnail };
+    else if (key !== cover.key || !d.active) cover = { key: '', url: '' };
+    return cover.url && !d.thumbnail ? { ...d, thumbnail: cover.url } : d;
+  }
+
   function listen() {
     const es = new EventSource('/sse');
     es.addEventListener('open', () => { online(true); if (preview) refresh(); else hello(); });
     es.addEventListener('error', () => online(false));
     on(es, 'system', (d) => { data.system = d; feed(); });
-    on(es, 'media', (d) => { data.media = d; feed(); });
+    on(es, 'media', (d) => { data.media = withCover(d); feed(); });
     on(es, 'pump', (d) => {
       if (d.changed) { refresh(); return; }
       if (d.now?.[id]) { now = d.now[id]; showNow(); }
