@@ -33,8 +33,8 @@ function faceNow(screen, facts, { pinned = null, quiet = false, now = Date.now()
 const screenIds = (model) => [...new Set([...Object.keys(model.screens), ...Object.keys(model.seen)])];
 
 // The rules every moment of every screen uses, so the situations engine reads their facts.
-function rulesOf(model) {
-  return screenIds(model).flatMap((id) => Model.screenFor(model, id).moments.map((m) => m.when));
+function rulesOf(model, ids = screenIds(model)) {
+  return ids.flatMap((id) => Model.screenFor(model, id).moments.map((m) => m.when));
 }
 
 module.exports = { faceNow, rulesOf, screenIds, QUIET_FACES };

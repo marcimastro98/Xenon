@@ -14,6 +14,9 @@
   const WEATHER_EVERY_MS = 15 * 60000;
   const OFFLINE_AFTER_MS = 8000;
   const HELLO_RETRY_MS = [1000, 2000, 5000, 10000];
+  // How often the page says it is still on the pump: a screen silent for 75 s is away
+  // (pump-screen/presence.js), its widget taken off in iCUE or iCUE closed.
+  const BEAT_MS = 30000;
 
   const query = new URLSearchParams(location.search);
   const screen = (query.get('screen') || 'pump').slice(0, 64);
@@ -110,13 +113,16 @@
   }
 
   // ── Talking to Xenon ────────────────────────────────────────────────────
-  async function hello() {
+  // beat: the half-minute "still here", which changes nothing on the face.
+  async function hello(beat = false) {
     clearTimeout(helloTimer);
     const body = { screen, shape, via, w: Math.round(window.innerWidth), h: Math.round(window.innerHeight) };
     try {
       const r = await fetch('/pump/hello', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!d?.ok) throw new Error(d?.error || 'HTTP ' + r.status);
+      helloTimer = setTimeout(() => hello(true), BEAT_MS);
+      if (beat) return;
       id = d.screen;
       settings = d.settings;
       now = d.now;

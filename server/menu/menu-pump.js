@@ -219,7 +219,9 @@ function addView(pump, st) {
 function pumpViews(st) {
   const p = st.pump;
   if (!p) return [];
-  const screens = Array.isArray(p.screens) ? p.screens : [];
+  // Only the screens showing Xenon now: one whose widget was taken off in iCUE keeps its
+  // settings for when it comes back, but is not drawn (presence.js).
+  const screens = (Array.isArray(p.screens) ? p.screens : []).filter((v) => v.here !== false);
   if (screens.length) return screens.map((v, i) => pumpView(v, st, screens.length > 1, i === 0));
   const found = Array.isArray(p.detected) ? p.detected[0] : null;
   return found ? [addView(found, st)] : [];

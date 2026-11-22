@@ -42,13 +42,14 @@ function parsePatch(text) {
 }
 
 // `openIcue` builds the iCUE widget and opens it with iCUE (icue.js); `widgets` lists the
-// Store widgets a pump can show (widgets.js), read with the screens so Bit can pick one.
-function createPumpActions({ store, live, change, openIcue = async () => ({ ok: false, error: 'unavailable' }), widgets = async () => [] }) {
+// Store widgets a pump can show (widgets.js), read with the screens so Bit can pick one;
+// `here` whether a screen shows Xenon now (presence.js).
+function createPumpActions({ store, live, change, openIcue = async () => ({ ok: false, error: 'unavailable' }), widgets = async () => [], here = (_id) => true }) {
   async function view() {
     const model = await store.ready();
     const now = live.decide();
     return screenIds(model).map((id) => ({
-      screen: id, ...Model.screenFor(model, id), set: !!model.screens[id], seen: model.seen[id] || null, now: now[id] || null,
+      screen: id, ...Model.screenFor(model, id), set: !!model.screens[id], seen: model.seen[id] || null, here: here(id), now: now[id] || null,
     }));
   }
 

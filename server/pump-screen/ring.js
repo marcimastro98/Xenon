@@ -2,7 +2,8 @@
 // The ring of lights around a pump screen: what the screen's settings say its lights follow
 // (leds.follow, leds.all) and the colours its page last said (POST /pump/colors), handed to
 // the lighting bridge (lights/pump-ring.js), which paints the LEDs iCUE reports as a pump.
-// The colours live in memory only. With several pump screens, the first one leads the ring.
+// The colours live in memory only. With several pump screens, the first one showing Xenon
+// leads the ring; with none showing it (its widget taken off in iCUE), the ring is iCUE's again.
 // A page says its colours again every half minute (js/pump/face-colors.js); colours not said
 // for STALE_MS are dropped, so a page that is gone (iCUE closed, its widget removed) never
 // leaves the ring in its last colours, nor holds the iCUE session for them.
@@ -22,10 +23,10 @@ function cleanColours(raw) {
 }
 
 /**
- * @param {{ store: { peek: () => any }, setRing: (state: any) => void, clock?: () => number,
+ * @param {{ store: { peek: () => any }, setRing: (state: any) => void, here?: (id: string) => boolean, clock?: () => number,
  *   later?: (fn: () => void, ms: number) => any, cancel?: (timer: any) => void }} opts
  */
-function createPumpRing({ store, setRing, clock = Date.now, later = setTimeout, cancel = clearTimeout }) {
+function createPumpRing({ store, setRing, here = (_id) => true, clock = Date.now, later = setTimeout, cancel = clearTimeout }) {
   const colours = new Map();   // screen id -> { list, at }
   let sent;
   let timer = null;
@@ -33,7 +34,7 @@ function createPumpRing({ store, setRing, clock = Date.now, later = setTimeout, 
   // What the lights get now; said again only when it changed.
   function refresh() {
     const model = store.peek();
-    const id = model ? screenIds(model)[0] : '';
+    const id = model ? screenIds(model).find(here) || '' : '';
     const leds = id ? Model.screenFor(model, id).leds : null;
     const state = !leds || leds.follow === 'lights' ? null : { follow: leds.follow, all: leds.all, pulse: leds.pulse, colours: colours.get(id)?.list || [] };
     const json = JSON.stringify(state);

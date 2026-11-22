@@ -30,7 +30,7 @@ const { UPLOADS_DIR } = require('../engine/uploads-dir.js');
 const pump = require('./index.js');
 const { hub } = require('../settings/current.js');
 
-const made = createRoutes({ store: pump.store, live: pump.live, ring: pump.ring, settings: () => hub.settings });
+const made = createRoutes({ store: pump.store, live: pump.live, ring: pump.ring, presence: pump.presence, settings: () => hub.settings });
 
 // Written out key by key: tools/restructure reads this list from the text.
 module.exports = {

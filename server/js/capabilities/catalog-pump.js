@@ -68,7 +68,7 @@
         domain: 'layers', risk: 'safe', requires: 'pumpScreen',
         ai: {
           name: 'get_pump_screen',
-          description: 'List the pump screens Xenon knows (the LCD on an AIO cooler pump, shown through iCUE, NZXT CAM or as a small monitor) with each one\'s settings (base face, moments in order, alerts, lights, look), what it shows right now and why, its shape and size; widgets lists the installed Store widgets made for a pump that can be its face (id, name, the shapes it was drawn for). An empty list means no pump screen has shown Xenon yet: tell the user to add the Xenon Pump widget in iCUE (Xenon menu, Screens) or to point NZXT CAM\'s web view at http://127.0.0.1:3030/pump-face. Use it before changing a pump, or for "what is on my pump?".',
+          description: 'List the pump screens Xenon knows (the LCD on an AIO cooler pump, shown through iCUE, NZXT CAM or as a small monitor) with each one\'s settings (base face, moments in order, alerts, lights, look), what it shows right now and why, its shape and size; widgets lists the installed Store widgets made for a pump that can be its face (id, name, the shapes it was drawn for). here false means its page is not on the pump now (the Xenon Pump widget was taken off in iCUE, or iCUE/CAM is closed): its settings are kept, but it shows nothing of Xenon until the widget is back. An empty list means no pump screen has shown Xenon yet: tell the user to add the Xenon Pump widget in iCUE (Xenon menu, Screens) or to point NZXT CAM\'s web view at http://127.0.0.1:3030/pump-face. Use it before changing a pump, or for "what is on my pump?".',
           params: {},
         },
       },

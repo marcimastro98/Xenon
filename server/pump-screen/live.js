@@ -16,11 +16,13 @@ const FOREVER = Number.MAX_SAFE_INTEGER;
 const ON_AIR = Object.freeze([LayerWhen.parse('live'), LayerWhen.parse('recording')]);
 
 // changed(): told after every change of the settings (the ring of lights reads them again).
-function createPumpLive({ store, broadcast, quiet = () => false, clock = () => Date.now(), changed = () => {} }) {
+// here(id): whether that screen shows Xenon now (presence.js): only those ask for readings.
+function createPumpLive({ store, broadcast, here = (_id) => true, quiet = () => false, clock = () => Date.now(), changed = () => {} }) {
   const pins = new Map();
   let facts = {};
   let sent = '';
   let rulesFor = null;
+  let rulesKey = '';
   let rules = [];
 
   function decide() {
@@ -74,10 +76,13 @@ function createPumpLive({ store, broadcast, quiet = () => false, clock = () => D
     source: {
       rules() {
         const model = store.peek();
-        if (model !== rulesFor) {
+        const ids = model ? screenIds(model).filter(here) : [];
+        const key = ids.join(',');
+        if (model !== rulesFor || key !== rulesKey) {
           rulesFor = model;
-          const shown = model ? screenIds(model).some((id) => !Model.screenFor(model, id).alerts.hideText) : false;
-          rules = model ? [...rulesOf(model), ...(shown ? ON_AIR : [])] : [];
+          rulesKey = key;
+          const shown = ids.some((id) => !Model.screenFor(model, id).alerts.hideText);
+          rules = model ? [...rulesOf(model, ids), ...(shown ? ON_AIR : [])] : [];
         }
         return rules;
       },

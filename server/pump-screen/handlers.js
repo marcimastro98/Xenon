@@ -29,13 +29,14 @@ function prefsOf(s) {
 }
 
 // ring: pump-screen/ring.js, where the colours a page says go (the shots tool has none).
-function createRoutes({ store, live, ring = null, settings = () => ({}) }) {
+// presence: pump-screen/presence.js, told each time a pump's page speaks.
+function createRoutes({ store, live, ring = null, presence = null, settings = () => ({}) }) {
   const change = createChange({ store, live });
   async function view() {
     const model = await store.ready();
     const screens = {};
     for (const id of screenIds(model)) {
-      screens[id] = { ...Model.screenFor(model, id), set: !!model.screens[id], seen: model.seen[id] || null };
+      screens[id] = { ...Model.screenFor(model, id), set: !!model.screens[id], seen: model.seen[id] || null, here: presence ? presence.here(id) : true };
     }
     return { ok: true, screens, now: live.decide(), prefs: prefsOf(settings() || {}) };
   }
@@ -62,6 +63,7 @@ function createRoutes({ store, live, ring = null, settings = () => ({}) }) {
     if (out?.model) live.push(true);
     const model = await store.ready();
     if (!model.seen[id]) { json({ ok: false, error: 'too_many_screens' }); return; }
+    presence?.note(id);
     json({ ok: true, screen: id, settings: Model.screenFor(model, id), now: live.decide()[id] || null });
   }
 
@@ -71,6 +73,7 @@ function createRoutes({ store, live, ring = null, settings = () => ({}) }) {
     const id = Model.screenId(b?.screen);
     const model = await store.ready();
     if (!id || !model.seen[id]) { json({ ok: false, error: 'bad_screen' }); return; }
+    presence?.note(id);
     if (!ring?.report(id, b.colors)) { json({ ok: false, error: 'bad_colors' }); return; }
     json({ ok: true });
   }

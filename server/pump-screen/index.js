@@ -18,16 +18,21 @@ const { UPLOADS_DIR } = require('../engine/uploads-dir.js');
 const { createPumpBackup } = require('./backup.js');
 const { createPumpRing } = require('./ring.js');
 const { installedPumpWidgets } = require('./widgets.js');
+const { createPumpPresence } = require('./presence.js');
 
 const store = createPumpStore({ dataDir: DATA_DIR, warn: (msg) => console.warn(msg) });
+// Which screens show Xenon now: one that comes or goes redraws the menu and the ring.
+const presence = createPumpPresence({ changed: () => live.push(true) });
+const here = (id) => presence.here(id);
 // The ring of lights around the pump: read lazily, the lighting bridge loads its SDK on demand.
-const ring = createPumpRing({ store, setRing: (state) => require('../lights/lighting.js').setPumpRing(state) });
-const live = createPumpLive({ store, broadcast: broadcastSSE, quiet: () => screensOff.quiet(), changed: () => ring.refresh() });
+const ring = createPumpRing({ store, here, setRing: (state) => require('../lights/lighting.js').setPumpRing(state) });
+const live = createPumpLive({ store, here, broadcast: broadcastSSE, quiet: () => screensOff.quiet(), changed: () => ring.refresh() });
 const leave = Sources.addSource(live.source);
 const actions = createPumpActions({
   store, live, change: createChange({ store, live }),
   openIcue: () => openInIcue({ warn: (msg) => console.warn(msg) }),
   widgets: installedPumpWidgets,
+  here,
 });
 
 const detect = createPumpDetect({ warn: (msg) => console.warn(msg) });
@@ -51,6 +56,7 @@ store.ready().then(() => ring.refresh()).catch(() => {});
 function stop() {
   leave();
   ring.stop();
+  presence.stop();
 }
 
-module.exports = { store, live, ring, actions, menuState, backup, stop };
+module.exports = { store, live, ring, presence, actions, menuState, backup, stop };
