@@ -275,8 +275,8 @@
         "server/pump-widget.html",
         "server/js/pump/**",
         "server/components/PumpFace/**",
-        "server/menu/menu-pump.js",
-        "server/js/menu/xenon-menu-pumps.js",
+        "server/menu/menu-pump*.js",
+        "server/js/menu/xenon-menu-pump*.js",
         "server/js/capabilities/catalog-pump.js",
         "tools/pump-face-shots/**",
         "tools/pump-screen-tour/**"

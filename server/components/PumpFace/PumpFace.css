@@ -79,7 +79,7 @@ html, body {
 .pf-slot-4 { --slot: var(--pf-c4); }
 
 /* ── Numbers: the value large, its unit small beside it ───────────────── */
-.pf-main, .pf-rest-value, .pf-cell-value {
+.pf-main, .pf-rest-value, .pf-cell-value, .pf-ring-value {
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -106,7 +106,8 @@ html, body {
 }
 
 /* Too hot is said by a shape too, never by the colour alone. */
-.pf-rings-mid:has(> .pf-main[data-tone="hot"]) > .pf-label::before,
+.pf-ring-cell:has(> [data-tone="hot"]) > .pf-ring-label::before,
+.pf-game-side:has(> [data-tone="hot"]) > .pf-ring-label::before,
 .pf-game-mid:has(> .pf-main[data-tone="hot"]) > .pf-label::before,
 .pf-cell:has(> [data-tone="hot"]) > .pf-label::before {
   content: "";

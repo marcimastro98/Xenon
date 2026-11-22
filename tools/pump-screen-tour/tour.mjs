@@ -1,7 +1,8 @@
 // A person's first afternoon with a pump screen, on a throwaway engine (tools/ci/engine-rig.mjs):
-// the pump says hello while the menu is open, the person opens it, changes the numbers, picks
-// a ready-made setup, puts a GIF of their own on it, shows a face by hand and goes back to
-// automatic, looks at the moments, turns the pump, Xenon restarts, and the menu on a phone.
+// the pump says hello while the menu is open, the person opens it, opens a line and changes the
+// numbers, picks an example, puts a GIF of their own on it, adds a line for the night, a face
+// shown by hand and the way back to automatic, the alerts, turns the pump, Xenon restarts, and
+// the menu on a phone.
 // After every step a picture of the pump and of the menu, to look at with your own eyes.
 // Checks on the way, exit 1 on any: the pump card shows up by itself, no page error, the pump's
 // words stay in the language after its first refresh, no sideways scroll on the phone.
@@ -23,7 +24,6 @@ const SETTLE_MS = 1500;
 const PHONE = { width: 390, height: 844 };
 // The pump face's English word for a reading, never on screen in another language.
 const ENGLISH_WORD = 'CPU temp';
-const SETUP_NAMES = ['game', 'music', 'picture', 'clock', 'monitor'];
 
 // Same host only; reads, the pump page's and the menu's own routes, a picture of the person's
 // own, and actions that are pump actions. Anything else is stopped and listed.
@@ -40,17 +40,28 @@ export function allowRequest({ method, url, body }, origin) {
 const keep = (id) => `[data-keep="${id}"]`;
 const tabs = '.xm-wtab';
 
+// A face shown by hand, as Bit or a Deck key does it (the menu offers only the way back).
+const pin = (face) => (m) => m.evaluate(async (f) => {
+  const post = (body) => fetch('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+  const got = await post({ type: 'pumpGet' });
+  return post({ type: 'pumpFace', screen: got.screens[0].screen, face: f });
+}, face);
+
 // Each step: what the person does in the menu, and whether a picture of the menu is worth it.
 export const STEPS = [
   { name: 'open-pump', menu: true, act: async (m) => { await m.locator('.xm-scrpump').first().click(); await m.waitForSelector('.xm-pumpframe.is-ready', { timeout: 8000 }).catch(() => {}); } },
-  { name: 'add-fps', act: (m) => m.click(keep('pump-readings:fps')) },
-  { name: 'setup-music', menu: true, act: (m) => m.locator('[data-row="pump-setup"] .xm-mode').nth(SETUP_NAMES.indexOf('music')).click() },
+  { name: 'open-rest', menu: true, act: (m) => m.click(keep('pump-base:head')) },
+  { name: 'add-fps', act: (m) => m.click(keep('pump-base-readings:fps')) },
+  { name: 'setup-music', menu: true, act: (m) => m.click(keep('pump-setup:music')) },
+  { name: 'picture-face', act: (m) => m.click(keep('pump-base:face:picture')) },
   { name: 'own-gif', menu: true, act: (m) => m.setInputFiles('.xm-pumpown input[type=file]', GIF) },
-  { name: 'now-game', act: (m) => m.click(keep('pump-now:game')) },
-  { name: 'now-music', act: (m) => m.click(keep('pump-now:music')) },
-  { name: 'now-auto', act: (m) => m.click(keep('pump-now:auto')) },
-  { name: 'moments', menu: true, act: (m) => m.locator(tabs).nth(1).click() },
-  { name: 'turned-90', menu: true, act: async (m) => { await m.locator(tabs).nth(3).click(); await m.click(keep('pump-rotate:90')); } },
+  { name: 'open-game', menu: true, act: (m) => m.click(keep('pump-m-0:head')) },
+  { name: 'add-night', menu: true, act: async (m) => { await m.click(keep('pump-add:head')); await m.click(keep('pump-add:night')); } },
+  { name: 'now-game', menu: true, act: pin('game') },
+  { name: 'now-music', act: pin('music') },
+  { name: 'now-auto', menu: true, act: (m) => m.click(keep('pump:auto')) },
+  { name: 'alerts', menu: true, act: (m) => m.locator(tabs).nth(1).click() },
+  { name: 'turned-90', menu: true, act: async (m) => { await m.locator(tabs).nth(2).click(); await m.click(keep('pump-rotate:90')); } },
   { name: 'upright', act: (m) => m.click(keep('pump-rotate:0')) },
 ];
 
@@ -74,6 +85,20 @@ async function guard(context, origin, blocked) {
   });
 }
 
+// The menu scrolls inside its own pane, so a whole picture of it grows the window to the
+// pane's length for the shot, then puts it back.
+const TALLEST = 6000;
+async function menuShot(page, file) {
+  const size = page.viewportSize();
+  const tall = await page.evaluate(() => {
+    const main = document.querySelector('.xm-main');
+    return Math.max(document.documentElement.scrollHeight, main ? main.scrollHeight + main.getBoundingClientRect().top : 0);
+  });
+  const grow = tall > size.height;
+  if (grow) await page.setViewportSize({ width: size.width, height: Math.min(Math.ceil(tall), TALLEST) });
+  try { await page.screenshot({ path: file }); } finally { if (grow) await page.setViewportSize(size); }
+}
+
 async function tour({ dir, lang, port }) {
   await mkdir(dir, { recursive: true });
   const rig = await startRig({ port, seed: { language: lang } });
@@ -82,7 +107,10 @@ async function tour({ dir, lang, port }) {
   const problems = [];
   const blocked = [];
   let n = 0;
-  const shot = (page, name, full = false) => page.screenshot({ path: path.join(dir, `${String(++n).padStart(2, '0')}-${name}.png`), fullPage: full });
+  const shot = (page, name, whole = false) => {
+    const file = path.join(dir, `${String(++n).padStart(2, '0')}-${name}.png`);
+    return whole ? menuShot(page, file) : page.screenshot({ path: file });
+  };
   const browser = await loadPlaywright().chromium.launch();
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });

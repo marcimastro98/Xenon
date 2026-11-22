@@ -7,9 +7,10 @@
 // frame put back into the page loads again, so the one frame waits in a hidden holder during
 // a rebuild (`hold`, then `settle`), as the scene preview does (xenon-menu-scene-view.js).
 // The page is the PC's own: a paired phone is refused it (paired/refused-paths.js), so on
-// a phone the cards come without the picture. Under it, a button puts a picture or GIF of the
-// person's own on the pump: POST /pump/picture (pump-screen/picture.js), then the same pumpSet
-// action a row runs.
+// a phone the cards come without the picture. Beside it, what the pump shows now and why, and
+// a way back to automatic after a face was chosen by hand. `upload` sends a picture or GIF of
+// the person's own (POST /pump/picture, pump-screen/picture.js) for a line of the pump's tabs
+// (xenon-menu-pump-rows.js) and for Bit's file choice.
 (() => {
   const LOOPBACK = Object.freeze(['127.0.0.1', 'localhost', '[::1]', '::1']);
   // What POST /pump/picture keeps (picture.js): the slideshow's images, and WebM.
@@ -64,7 +65,7 @@
     return `${server}/pump-face?${new URLSearchParams({ screen: view.pump, shape: view.shape, preview: '1' })}`;
   }
 
-  // ctx: { el, button, say, icon, server, doc, move, host, perform, fetch }
+  // ctx: { el, button, say, icon, server, doc, move, host, perform }
   //   host: the page's host name; the picture only where it is this PC's own page
   function create(ctx) {
     const { el, button, say, icon } = ctx;
@@ -102,47 +103,25 @@
       return list;
     }
 
-    async function send(view, file, b, note) {
-      if (file.size > PICTURE_MAX_BYTES) { note.textContent = say({ key: 'xmenu_pump_own_bad' }); return; }
-      b.disabled = true;
-      note.textContent = say({ key: 'xmenu_pump_own_busy' });
-      try {
-        const d = await upload(ctx.server, file, ctx.fetch || fetch);
-        if (!d.ok) {
-          note.textContent = say({ key: d.bad ? 'xmenu_pump_own_bad' : 'xmenu_pump_own_failed' });
-          return;
-        }
-        note.textContent = '';
-        await ctx.perform(null, { run: { type: 'pumpSet', screen: view.pump, patch: JSON.stringify({ base: { face: 'picture', items: [d.url] } }) } });
-      } catch {
-        note.textContent = say({ key: 'xmenu_pump_own_failed' });
-      } finally {
-        b.disabled = false;
+    // What the pump shows now and why ("Now on the pump: Song, because you are listening to
+    // music"); after a face chosen by hand, the way back to automatic.
+    function nowBlock(view) {
+      const n = view.now;
+      if (!n) return null;
+      const box = el('div', 'xm-pumpnow');
+      box.append(el('span', 'xm-pumpnow-cap', say(n.caption)), el('span', 'xm-pumpnow-what', say(n.what)));
+      if (n.why) box.appendChild(el('span', 'xm-pumpnow-why', say(n.why)));
+      if (n.back && typeof ctx.perform === 'function') {
+        const b = button('ui-btn ui-btn--secondary xm-act', say(n.back.label));
+        b.dataset.keep = 'pump:auto';
+        b.addEventListener('click', () => ctx.perform(null, n.back.act));
+        box.appendChild(b);
       }
+      return box;
     }
 
-    // "Use your own picture or GIF": a file input behind a button, its answer said beside it.
-    function picker(view) {
-      const wrap = el('div', 'xm-pumpown');
-      const b = button('ui-btn ui-btn--secondary xm-act', say({ key: 'xmenu_pump_own' }));
-      const note = el('span', 'xm-pumpown-note');
-      note.setAttribute('role', 'status');
-      const input = el('input');
-      input.type = 'file';
-      input.accept = PICTURE_TYPES;
-      input.hidden = true;
-      b.addEventListener('click', () => input.click());
-      input.addEventListener('change', () => {
-        const file = input.files?.[0];
-        input.value = '';
-        if (file) send(view, file, b, note);
-      });
-      wrap.append(b, note, input);
-      return wrap;
-    }
-
-    // Above the tabs of the pump picked: its picture (on this PC's own page) and the button
-    // for a picture of the person's own; null for a pump not set up yet.
+    // Above the tabs of the pump picked: its picture (on this PC's own page) and what it shows
+    // now; null for a pump not set up yet.
     function slot(view) {
       box = null;
       if (!view?.pump) return null;
@@ -153,8 +132,9 @@
         drawShape(box, view, PREVIEW_SIDE, PREVIEW_LONG);
         head.appendChild(box);
       }
-      if (typeof ctx.perform === 'function') head.appendChild(picker(view));
-      return head;
+      const now = nowBlock(view);
+      if (now) head.appendChild(now);
+      return box || now ? head : null;
     }
 
     function hold() {

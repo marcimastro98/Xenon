@@ -6,14 +6,15 @@
 // what it shows, its widgets (js/menu/xenon-menu-widgets.js draws that list) and its
 // background. A scene list is one answer per line, and passing over a line plays that scene
 // in the screen's picture. Which screen and tab are open is this page's own; a tap redraws
-// only this block. Under the desk, the pump screens (js/menu/xenon-menu-pumps.js), the phones
-// and tablets paired with this PC, and a card to pair one.
+// only this block. Under the desk, the pump screens (js/menu/xenon-menu-pumps.js, their rows
+// js/menu/xenon-menu-pump-rows.js), the phones and tablets paired with this PC, and a card to pair one.
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const api = factory(node ? require('./xenon-menu-map.js') : root.XenonMenuMap, node ? require('./xenon-menu-pumps.js') : root.XenonMenuPumps);
+  const api = factory(node ? require('./xenon-menu-map.js') : root.XenonMenuMap, node ? require('./xenon-menu-pumps.js') : root.XenonMenuPumps,
+    node ? require('./xenon-menu-pump-rows.js') : root.XenonMenuPumpRows);
   if (node) module.exports = api;
   if (root) root.XenonMenuScreens = api;
-})(typeof window !== 'undefined' ? window : globalThis, function (MenuMap, Pumps) {
+})(typeof window !== 'undefined' ? window : globalThis, function (MenuMap, Pumps, PumpRows) {
   // The one shown: the screen (or pump) tapped before if it is still there, else the first.
   const pickedOf = (screens, key) => screens.find((m) => m.key === key) || screens[0] || null;
   const tabOf = (view, id) => (view.tabs || []).find((t) => t.id === id) || (view.tabs || [])[0] || null;
@@ -62,6 +63,10 @@
     const pumps = Pumps ? Pumps.create({ el, button, say, icon, server: ctx.server, doc: ctx.doc, move: ctx.move, host, perform: ctx.perform }) : null;
     const hold = () => { if (ctx.hold) ctx.hold(); if (pumps) pumps.hold(); };
     const settle = () => { if (ctx.settle) ctx.settle(); if (pumps) pumps.settle(); };
+    if (Pumps && PumpRows) {
+      const upload = (file) => Pumps.upload(ctx.server || '', file);
+      Object.assign(DRAW, PumpRows.create({ el, button, say, perform, icon, DRAW, upload, types: Pumps.PICTURE_TYPES }).draw);
+    }
     let picked = '';
     const chosenTab = new Map();   // screen key -> the tab left open
     let moreOpen = false;

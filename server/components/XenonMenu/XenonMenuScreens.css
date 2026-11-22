@@ -105,9 +105,92 @@
   border: 0; pointer-events: none; visibility: hidden; transform: translate(-50%, -50%) rotate(var(--xm-pump-turn, 0deg));
 }
 .xm-pumpframe.is-ready { visibility: visible; }
-/* The pump picked: its picture, then the button for a picture of the person's own. */
-.xm-pumphead { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); margin: 0 0 var(--space-3); }
+/* The pump picked: its picture, and beside it what it shows now and why. */
+.xm-pumphead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); margin: 0 0 var(--space-3); }
 .xm-pumphead .xm-pumppreview { margin: 0; }
+.xm-pumpnow { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.xm-pumpnow-cap { font-size: 13px; color: var(--cst-muted); }
+.xm-pumpnow-what { font-size: 20px; font-weight: 600; }
+.xm-pumpnow-why { font-size: 15px; color: var(--cst-muted); }
+.xm-pumpnow .xm-act { margin-top: var(--space-2); }
+.xm-pumpnote { margin: 0; font-size: 14.5px; color: var(--cst-muted); }
+
+/* A line of "What it shows": its name and what it shows, the face drawn small; open, the
+   faces to pick as cards, then that face's choices. */
+.xm-pumpline { container-type: inline-size; display: flex; flex-direction: column; background: var(--cst-well); border-radius: 14px; }
+.xm-pumpline.is-open { gap: var(--space-3); padding: 0 18px 14px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent); }
+.xm-pumpline-head, .xm-pumpadd-head {
+  appearance: none; display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 72px; padding: 12px 18px;
+  font: inherit; color: var(--cst-text); text-align: start; cursor: pointer; background: none; border: 0; border-radius: 14px;
+}
+.xm-pumpline.is-open > .xm-pumpline-head { padding-inline: 0; }
+.xm-pumpline-words { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.xm-pumpline-words .xm-label { font-size: 16px; font-weight: 600; }
+.xm-pumpline-face { flex: 0 1 auto; max-width: 112px; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-pumpline-chev { flex: none; width: 16px; height: 16px; color: var(--cst-muted); }
+.xm-pumpline.is-open .xm-pumpline-chev { transform: rotate(-90deg); }
+@container (max-width: 420px) { .xm-pumpline-face { display: none; } }
+.xm-pumpline-cap { font-size: 14px; color: var(--cst-muted); }
+.xm-pumpline-remove {
+  appearance: none; align-self: flex-start; min-height: 44px; padding: 0; font: inherit; font-size: 15px; font-weight: 500;
+  color: var(--cst-danger); background: none; border: 0; cursor: pointer;
+}
+.xm-pumpline .xm-row { padding-inline: 0; background-image: none; }
+/* A face drawn small, round as most pumps are: a ring of readings, a number, a cover, an hour. */
+.xm-pumpmini {
+  flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: black;
+  font-size: 14px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.xm-pumpmini-in { width: 28px; height: 28px; border-radius: 50%; }
+.xm-pumpmini--sensors .xm-pumpmini-in { border: 4px solid var(--accent); border-right-color: var(--cst-sep); }
+.xm-pumpmini--music .xm-pumpmini-in { border-radius: 6px; background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 30%, black), color-mix(in srgb, var(--accent) 55%, white)); }
+.xm-pumpmini--picture { background: radial-gradient(circle at 35% 30%, var(--accent), color-mix(in srgb, var(--accent) 35%, black) 60%, black); }
+.xm-pumpmini--picture .xm-pumpmini-in { display: none; }
+.xm-pumpmini--clock { font-size: 13px; font-weight: 600; color: var(--cst-text); }
+.xm-pumpmini--widget { font-size: 18px; color: var(--cst-muted); }
+.xm-pumpfaces { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+.xm-pumpface {
+  appearance: none; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; padding: 10px 4px 12px;
+  font: inherit; font-size: 13px; font-weight: 500; color: var(--cst-muted); text-align: center; cursor: pointer; background: var(--cst-well); border: 0; border-radius: 12px;
+}
+.xm-pumpface .xm-pumpmini { width: 56px; height: 56px; }
+.xm-pumpface:hover { color: var(--cst-text); background: var(--cst-on); }
+.xm-pumpface[aria-pressed="true"] { font-weight: 600; color: var(--cst-text); background: var(--cst-on); box-shadow: inset 0 0 0 1.5px var(--cst-text); cursor: default; }
+.xm-pumpface-name { max-width: 100%; overflow-wrap: anywhere; }
+.xm-pumpface-tag { position: absolute; top: 6px; right: 6px; padding: 1px 5px; font-size: 10.5px; font-weight: 600; color: black; background: var(--cst-muted); border-radius: 6px; }
+/* A face of the person's own: the four ways to one. */
+.xm-pumpownface { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: color-mix(in srgb, black 20%, transparent); border-radius: 12px; }
+.xm-pumpownface .xm-sub { margin: 0; }
+.xm-pumpownface-acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: var(--space-2); }
 .xm-pumpown { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .xm-pumpown-note { font-size: 13px; color: var(--cst-muted); }
 .xm-pumpown-note:empty { display: none; }
+
+/* Cards that say what they do: the ring's colours, drawn; the examples, words only. */
+.xm-pumpcards { display: flex; flex-direction: column; gap: var(--space-3); }
+.xm-pumpcards.is-plain { margin-top: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--cst-sep); }
+.xm-pumpcards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.xm-pumpcards.is-plain .xm-pumpcards-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); }
+.xm-pumpcard {
+  appearance: none; display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 72px; padding: 14px 16px;
+  font: inherit; color: var(--cst-text); text-align: start; cursor: pointer; background: var(--cst-well); border: 0; border-radius: 14px;
+}
+.xm-pumpcard:hover { background: var(--cst-on); }
+.xm-pumpcard[aria-pressed="true"] { background: var(--cst-on); box-shadow: inset 0 0 0 1.5px var(--cst-text); cursor: default; }
+.xm-pumpcards.is-plain .xm-pumpcard { align-items: flex-start; }
+.xm-pumpcard-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.xm-pumpcard-name { font-size: 15.5px; font-weight: 600; }
+/* The ring around the screen in the colours it takes. */
+.xm-pumpring { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--cst-sep); }
+.xm-pumpring::before, .xm-pumpring::after { content: ""; grid-area: 1 / 1; border-radius: 50%; }
+.xm-pumpring::before { width: 40px; height: 40px; background: black; }
+.xm-pumpring--screen { background: conic-gradient(oklch(72% 0.17 35), oklch(85% 0.13 85), oklch(75% 0.12 235), oklch(68% 0.16 300), oklch(72% 0.17 35)); }
+.xm-pumpring--screen::after { width: 22px; height: 22px; background: linear-gradient(140deg, oklch(72% 0.17 35), oklch(75% 0.12 235)); }
+.xm-pumpring--theme { background: var(--accent); }
+.xm-pumpring--lights { background: conic-gradient(oklch(78% 0.09 255) 0 25%, var(--cst-sep) 0 50%, oklch(78% 0.09 255) 0 75%, var(--cst-sep) 0); }
+/* "Add a moment": a dashed line that opens on the moments still free. */
+.xm-pumpadd { border: 1.5px dashed var(--cst-sep); border-radius: 14px; }
+.xm-pumpadd-head { min-height: 64px; }
+.xm-pumpadd-head .xm-label { font-weight: 500; }
+.xm-pumpadd-head > svg, .xm-pumpadd-head > .xm-ic { flex: none; width: 18px; height: 18px; color: var(--cst-muted); }
+.xm-pumpadd-list { padding: 0 18px 16px; }

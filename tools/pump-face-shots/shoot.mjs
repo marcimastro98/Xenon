@@ -29,7 +29,11 @@ const face = (show, extra = {}) => ({ show, ...extra });
 export const SHOTS = {
   'sensors-rings-1': face({ face: 'sensors', style: 'rings', readings: ['gpuTemp'] }),
   'sensors-rings-2': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'] }),
+  'sensors-rings-3': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp', 'fps'] }),
   'sensors-rings-4': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp', 'cpu', 'gpu'] }),
+  // Long values: a clock in GHz and a percentage at 100 must stay inside their cells.
+  'sensors-rings-long': face({ face: 'sensors', style: 'rings', readings: ['cpuClock', 'gpu'] }, { system: { ...SYSTEM, gpu: 100 } }),
+  'sensors-rings-long-4': face({ face: 'sensors', style: 'rings', readings: ['cpuClock', 'gpu', 'power', 'gpuClock'] }, { system: { ...SYSTEM, gpu: 100 } }),
   'sensors-hot': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'] }, { system: HOT_SYSTEM }),
   'sensors-no-reading': face({ face: 'sensors', style: 'rings', readings: ['gpuTemp', 'cpuTemp'] }, { system: MAC_SYSTEM }),
   'sensors-bars': face({ face: 'sensors', style: 'bars', readings: ['cpuTemp', 'gpuTemp', 'ram', 'power'] }),
@@ -63,6 +67,57 @@ function checkPage(shape) {
   const h = innerHeight;
   const r = Math.min(w, h) / 2;
   const problems = [];
+  // Runs in the page (page.evaluate sends this function's source only), so its helpers live here.
+  // Text drawn inside rings keeps clear of the innermost one (radius from the arc's path,
+  // less half its stroke, less 1.5% of the short side), and a reading stays inside its cell.
+  function roomInside() {
+    const problems = [];
+    const u = Math.min(innerWidth, innerHeight) / 100;
+    for (const svg of document.querySelectorAll('#pf-root svg.pf-rings')) {
+      const host = svg.parentElement;
+      if (host.closest('.pf-face-out, .pf-alert-out')) continue;
+      const box = svg.getBoundingClientRect();
+      const scale = box.width / 100;
+      const edges = [...svg.querySelectorAll('.pf-track')].map((t) => {
+        const r = Number.parseFloat((t.getAttribute('d').match(/As*([d.]+)/) || [])[1]);
+        return (r - Number(t.getAttribute('stroke-width')) / 2) * scale;
+      }).filter(Number.isFinite);
+      if (!edges.length) continue;
+      const room = Math.min(...edges) - 1.5 * u;
+      const cx = box.left + box.width / 2;
+      const cy = box.top + box.height / 2;
+      for (const el of host.querySelectorAll('*')) {
+        const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+        const r = el.getBoundingClientRect();
+        if (!own || !r.width || el.closest('.pf-game-track')) continue;
+        const far = Math.max(...[[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]].map(([x, y]) => Math.hypot(x - cx, y - cy)));
+        if (far > room) problems.push(`too near the rings: "${el.textContent.trim().slice(0, 30)}" (${Math.round(far)}px of ${Math.round(room)})`);
+      }
+    }
+    for (const cell of document.querySelectorAll('.pf-ring-cell, .pf-game-side')) {
+      const cs = getComputedStyle(cell);
+      const c = cell.getBoundingClientRect();
+      const left = c.left + Number.parseFloat(cs.paddingLeft) - 1;
+      const right = c.right - Number.parseFloat(cs.paddingRight) + 1;
+      for (const el of cell.querySelectorAll('*')) {
+        const r = el.getBoundingClientRect();
+        if (r.width && (r.left < left || r.right > right)) problems.push(`wider than its cell: "${el.textContent.trim().slice(0, 30)}"`);
+      }
+    }
+    return problems;
+  }
+
+  // What arrives over the face, and the middle of the rings, sit on the screen's centre line.
+  function centred() {
+    const problems = [];
+    const mid = innerWidth / 2;
+    for (const el of document.querySelectorAll('.pf-alert:not(.pf-alert-out) .pf-alert-text > *, .pf-alert:not(.pf-alert-out) .pf-alert-icon, .pf-rings-mid')) {
+      const r = el.getBoundingClientRect();
+      if (r.width && Math.abs(r.left + r.width / 2 - mid) > 1.5) problems.push(`off centre: "${el.textContent.trim().slice(0, 30)}"`);
+    }
+    return problems;
+  }
+
   for (const el of document.querySelectorAll('#pf-root *')) {
     const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
     if (!own || el.closest('.pf-face-out, .pf-alert-out')) continue;
@@ -77,6 +132,7 @@ function checkPage(shape) {
     if (out) problems.push(`outside the screen: "${el.textContent.trim().slice(0, 40)}"`);
     if (cut) problems.push(`cut: "${el.textContent.trim().slice(0, 40)}"`);
   }
+  problems.push(...roomInside(), ...centred());
   for (const fill of document.querySelectorAll('.pf-fill')) {
     const empty = Number.parseFloat(fill.getAttribute('stroke-dasharray')) === 0;
     if (empty && getComputedStyle(fill).visibility !== 'hidden') problems.push('an empty ring draws the dots of its ends');

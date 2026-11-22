@@ -28,7 +28,13 @@ test('a reading this PC lacks says so in small words on every face, never at a n
   const css = readFileSync(new URL('../components/PumpFace/PumpFaceFaces.css', import.meta.url), 'utf8');
   const sized = css.split('\n').filter((line) => /\.pf-num\s*\{[^}]*font-size/.test(line));
   assert.ok(sized.length >= 4, 'the faces size their numbers here');
-  assert.deepEqual(sized.filter((line) => !line.includes(':not(.pf-none) .pf-num')), []);
+  const words = sized.filter((line) => /\.pf-none \.pf-num/.test(line));
+  assert.deepEqual(sized.filter((line) => !line.includes(':not(.pf-none) .pf-num') && !words.includes(line)), []);
+  // The words' own sizes stay small: at most 7 units, as on the other faces (PumpFace.css).
+  for (const line of words) {
+    const units = [...line.matchAll(/var\(--u\) \* ([\d.]+)/g)].map((m) => Number(m[1]));
+    assert.ok(units.length && units.every((n) => n <= 7), line);
+  }
 });
 
 test('a panel standing up is shot too, and the faces place their parts from the centre', () => {

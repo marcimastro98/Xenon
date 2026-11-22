@@ -13,6 +13,11 @@
     thin: { radii: [47, 42.6, 38.2, 33.8], width: 3.2 },
   };
 
+  // The longest name of a face, which its CSS shrinks every name by alike ("Relógio da CPU").
+  function fitNames(parent, names) {
+    parent.style.setProperty('--llen', String(Math.max(8, ...names.map((n) => n.length))));
+  }
+
   function valueLine(r, cls) {
     const line = Kit.el('div', cls);
     const num = Kit.el('span', 'pf-num', r ? r.text : '');
@@ -25,17 +30,38 @@
         unit.textContent = next.unit;
         line.dataset.tone = next.tone;
         line.classList.toggle('pf-none', next.value == null);
+        // The value's length, which the rings' CSS shrinks a long one ("4.8", "100") by.
+        line.style.setProperty('--len', String(Math.max(2, next.text.length)));
       },
     };
   }
 
-  // On a screen under this size, three or four readings do not fit under the
-  // big one: the middle shows them one at a time and the ring it reads stands out.
+  // On a screen under this size, three or four readings do not fit side by side: the
+  // middle shows them one at a time and the ring it reads stands out.
   const SMALL_SCREEN = 360;
   const TURN_SECONDS = 4;
 
-  // Rings: one arc per reading from the bezel inwards; the first reading large
-  // in the middle, the others under it with the colour of their arc.
+  // One reading in the middle of the rings: its name in its ring's colour over its value.
+  function ringCell(cls) {
+    const node = Kit.el('div', 'pf-ring-cell');
+    const label = Kit.el('div', 'pf-ring-label');
+    const v = valueLine(null, cls);
+    node.append(label, v.node);
+    let shown = 0;
+    return {
+      node,
+      set(r, at) {
+        if (at !== shown) { node.classList.remove('pf-slot-' + shown); node.classList.add('pf-slot-' + at); shown = at; }
+        label.textContent = r.label;
+        v.set(r);
+      },
+    };
+  }
+
+  // Rings: one arc per reading from the bezel inwards, and in the middle every reading the
+  // same size with its name in its arc's colour, so the name, never the size, says which is
+  // which. One alone is large, two stand side by side, three or four share a grid that keeps
+  // clear of the innermost ring.
   function rings(root, readings) {
     const set = readings.length > 2 ? RING_SETS.thin : RING_SETS.wide;
     const turns = readings.length > 2 && Math.min(innerWidth, innerHeight) < SMALL_SCREEN;
@@ -43,32 +69,23 @@
     root.classList.toggle('pf-rings-turns', turns);
     const box = Kit.svg('svg', { viewBox: '0 0 100 100', class: 'pf-rings', 'aria-hidden': 'true' });
     const arcs = readings.map((_, i) => Kit.gauge(box, { r: set.radii[i], width: set.width, slot: i + 1 }));
-    const mid = Kit.el('div', 'pf-rings-mid');
-    const main = valueLine(null, 'pf-main');
-    const mainLabel = Kit.el('div', 'pf-label');
-    const rest = Kit.el('div', 'pf-rest');
-    const others = readings.slice(1).map((_, i) => {
-      const row = Kit.el('div', `pf-rest-row pf-slot-${i + 2}`);
-      const label = Kit.el('span', 'pf-rest-label');
-      const v = valueLine(null, 'pf-rest-value');
-      row.append(label, v.node);
-      rest.append(row);
-      return { label, v };
-    });
-    mid.append(main.node, mainLabel);
-    if (!turns) mid.append(rest);
+    const shown = turns ? 1 : readings.length;
+    const mid = Kit.el('div', `pf-rings-mid pf-rings-n${shown}`);
+    const cells = Array.from({ length: shown }, () => ringCell(shown === 1 ? 'pf-main pf-ring-value' : 'pf-ring-value'));
+    mid.append(...cells.map((c) => c.node));
     root.append(box, mid);
     let turn = 0;
     let seconds = 0;
     let last = null;
     const paint = (system) => {
       last = system;
-      readings.forEach((name, i) => {
-        const r = Kit.reading(name, system);
+      const all = readings.map((name) => Kit.reading(name, system));
+      fitNames(mid, all.map((r) => r.label));
+      all.forEach((r, i) => {
         arcs[i].set(r.fraction, r.tone);
         arcs[i].mark(turns && i === turn);
-        if (i === (turns ? turn : 0)) { main.set(r); mainLabel.textContent = r.label; }
-        if (i > 0 && !turns) { others[i - 1].label.textContent = r.label; others[i - 1].v.set(r); }
+        if (!turns) cells[i].set(r, i + 1);
+        else if (i === turn) cells[0].set(r, i + 1);
       });
     };
     const tick = () => {
@@ -137,9 +154,9 @@
     const sides = Kit.el('div', 'pf-game-sides');
     const sideCells = side.slice(0, 2).map((_, i) => {
       const cell = Kit.el('div', `pf-game-side pf-slot-${i + 2}`);
+      const l = Kit.el('div', 'pf-ring-label');
       const v = valueLine(null, 'pf-rest-value');
-      const l = Kit.el('div', 'pf-rest-label');
-      cell.append(v.node, l);
+      cell.append(l, v.node);
       sides.append(cell);
       return { v, l };
     });
@@ -151,8 +168,9 @@
         const r = Kit.reading(first, data.system);
         main.set(r);
         label.textContent = r.label;
-        side.slice(0, 2).forEach((name, i) => {
-          const s = Kit.reading(name, data.system);
+        const shown = side.slice(0, 2).map((name) => Kit.reading(name, data.system));
+        fitNames(sides, shown.map((s) => s.label));
+        shown.forEach((s, i) => {
           arcs[i].set(s.fraction, s.tone);
           sideCells[i].v.set(s);
           sideCells[i].l.textContent = s.label;

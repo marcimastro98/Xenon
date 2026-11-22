@@ -153,8 +153,8 @@ test('the Look tab: the pump lights where iCUE runs, on the screen that leads th
   const [view] = pumpViews(state([screen('pump', { follow: 'screen' })]));
   const rows = view.tabs.find((tab) => tab.id === 'look').rows;
   const leds = rows.find((r) => r.id === 'pump-leds');
-  assert.deepEqual(leds.options.map((o) => o.value), [...Model.LED_FOLLOW]);
-  assert.deepEqual(JSON.parse(leds.options.find((o) => o.value === 'off').act.run.patch), { leds: { follow: 'off' } });
+  assert.deepEqual(leds.cards.map((c) => c.value), [...Model.LED_FOLLOW]);
+  assert.deepEqual(JSON.parse(leds.cards.find((c) => c.value === 'off').act.run.patch), { leds: { follow: 'off' } });
   const all = rows.find((r) => r.id === 'pump-leds-all');
   assert.deepEqual(JSON.parse(all.acts.on.run.patch), { leds: { all: true } });
   assert.deepEqual(JSON.parse(all.acts.off.run.patch), { leds: { all: false } });

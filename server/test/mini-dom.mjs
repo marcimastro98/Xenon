@@ -144,6 +144,15 @@ export function makeDom() {
       node._text = '';
       kids.forEach(node.appendChild);
     };
+    // In place, as in the DOM: a module draws one row again where the old one stood.
+    node.replaceWith = (other) => {
+      const parent = node.parentNode;
+      if (!parent) return;
+      if (other.parentNode) other.remove();
+      parent.children.splice(parent.children.indexOf(node), 1, other);
+      other.parentNode = parent;
+      node.parentNode = null;
+    };
     node.remove = () => {
       if (!node.parentNode) return;
       const at = node.parentNode.children.indexOf(node);

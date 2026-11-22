@@ -21,6 +21,8 @@
   const FOOT_LINKS = ['store', 'sparks'];   // always in reach, whatever page is open
   const BLOCK_OF = Object.freeze({ tile: 'xm-tiles', mode: 'xm-modeblock' });
   const BALANCE_TTL_MS = 30000;
+  // A sibling menu file's part, or null where that file is not loaded (a test, a page without it).
+  const made = (name, deps) => { const M = typeof window !== 'undefined' && /** @type {any} */ (window)[name]; return M ? M.create(deps) : null; };
   // The Sparks row's number. The Store row before it has a number too (its updates), so a
   // bare '.xm-nav-value' wrote the balance over the Store's count.
   const SPARKS_VALUE = '[data-row="nav-sparks"] .xm-nav-value';
@@ -381,37 +383,32 @@
     const drawTuneHead = (r) => el('h3', 'xm-tunehead', text(r.label, tt));
 
     const say = (x) => text(x, tt);
-    const PageEdit = (typeof window !== 'undefined' && window.XenonMenuPageEdit) || null;
-    const pageEdit = PageEdit ? PageEdit.create({ el, button, say, tt, fill, icon, rowShell, perform, redraw: () => draw(), root: rootEl }) : null;
+    const pageEdit = made('XenonMenuPageEdit', { el, button, say, tt, fill, icon, rowShell, perform, redraw: () => draw(), root: rootEl });
     const Place = (typeof window !== 'undefined' && window.XenonMenuPlace) || null;
     const placeDraw = Place ? Place.create({ el, button, say, tt, rowShell, perform, post, showError, redraw: () => draw() }) : null;
-    const When = (typeof window !== 'undefined' && window.XenonMenuWhen) || null;
-    const whenDraw = When ? When.create({ el, button, say, tt, fill, rowShell, perform, post, showError, redraw: () => draw() }) : null;
-    const Guide = (typeof window !== 'undefined' && window.XenonMenuGuide) || null;
-    const guide = Guide ? Guide.create({ el, button, say, tt, rowShell, redraw: () => draw() }) : null;
+    const whenDraw = made('XenonMenuWhen', { el, button, say, tt, fill, rowShell, perform, post, showError, redraw: () => draw() });
+    const guide = made('XenonMenuGuide', { el, button, say, tt, rowShell, redraw: () => draw() });
 
     const DRAW = {
       status: drawStatus, toggle: drawToggle, checks: drawChecks, choice: drawChoice, pages: drawChoice,
       mode: drawMode, button: drawButton, key: drawKey, pageEdit: pageEdit && pageEdit.draw,
       place: placeDraw ? placeDraw.draw : drawChoice, guide: guide && guide.draw, tunehead: drawTuneHead, when: whenDraw && whenDraw.draw,
     };
-    const Peek = (typeof window !== 'undefined' && window.XenonMenuPeek) || null;
-    const peek = Peek ? Peek.create({ post, onRefused: () => draw(), doc }) : null;
+    const peek = made('XenonMenuPeek', { post, onRefused: () => draw(), doc });
     // Only in the menu window: the scene page is this PC's, never a paired device's.
     const SceneView = (typeof window !== 'undefined' && window.XenonMenuSceneView) || null;
     const sceneView = SceneView && place === 'screen'
       ? SceneView.create({ el, doc, server, move: typeof moveNode === 'function' ? moveNode : null }) : null;
-    const Widgets = (typeof window !== 'undefined' && window.XenonMenuWidgets) || null;
-    const widgets = Widgets ? Widgets.create({
+    const widgets = made('XenonMenuWidgets', {
       el, button, say, tt, fill, factLine, icon, switchFor, perform, redraw: () => draw(), server, DRAW, Place, Palette, pageEdit, peek, main, clearFind, show,
-    }) : null;
+    });
     if (widgets) DRAW.widget = widgets.drawRow;
-    const Screens = (typeof window !== 'undefined' && window.XenonMenuScreens) || null;
     const live = sceneView ? { slot: sceneView.slot, hold: sceneView.hold, settle: sceneView.settle } : {};
     const widgetTab = (view, row) => (widgets ? widgets.listFor(row.parts.widgets, view) : []);
     // The Screens home keeps its moving previews (the scene, a pump's page) through a rebuild.
-    const home = Screens ? Screens.create({ el, button, say, tt, DRAW, rowShell, perform, icon, widgetTab, server, doc, move: typeof moveNode === 'function' ? moveNode : null, ...live }) : sceneView;
-    if (Screens) DRAW.home = home.draw;
+    const screens = made('XenonMenuScreens', { el, button, say, tt, DRAW, rowShell, perform, icon, widgetTab, server, doc, move: typeof moveNode === 'function' ? moveNode : null, ...live });
+    const home = screens || sceneView;
+    if (screens) DRAW.home = screens.draw;
 
     // ── Key recording ──
     const clearable = (r) => !!r.combo && !r.noClear;

@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const { pumpViews, setupOf, whyText } = require('../menu/menu-pump.js');
+const { pumpViews } = require('../menu/menu-pump.js');
 const { screensSection } = require('../menu/menu-screens.js');
 const { pumpsIn, createPumpDetect, CACHE_MS } = require('../pump-screen/detect.js');
 const Pumps = require('../js/menu/xenon-menu-pumps.js');
@@ -48,119 +48,191 @@ test('a pump found but never seen offers its one step: iCUE for CORSAIR, the add
   assert.equal(seen[0].add, undefined);
 });
 
-test('each pump screen is a card in its shape with four tabs, and its name when there are two', () => {
+test('each pump screen is a card in its shape with three tabs, and its name when there are two', () => {
   const one = pumpViews(state({ screens: [screen()] }));
   assert.equal(one[0].key, 'pump:pump');
   assert.deepEqual(one[0].label, { key: 'xmenu_pump' });
-  assert.deepEqual(one[0].tabs.map((t) => t.id), ['shows', 'moments', 'alerts', 'look']);
+  assert.deepEqual(one[0].tabs.map((t) => t.id), ['shows', 'alerts', 'look']);
   assert.deepEqual(one[0].chip, { key: 'pump_face_sensors' });
   const two = pumpViews(state({ screens: [screen('top', { seen: { shape: 'square' } }), screen('side', { name: 'Side AIO' })] }));
   assert.deepEqual(two.map((v) => [v.label, v.shape]), [[{ text: 'top' }, 'square'], [{ text: 'Side AIO' }, 'round']]);
 });
 
-test('the setup row lights the setup the screen still matches, and none once changed', () => {
-  assert.equal(setupOf(screen()), 'game');
-  const own = { ...screen(), base: { face: 'clock', style: 'digital', seconds: false, date: true, weather: true } };
-  assert.equal(setupOf(own), '');
-  const setup = row(tab(pumpViews(state({ screens: [screen()] }))[0], 'shows'), 'pump-setup');
-  assert.equal(setup.value, 'game');
-  assert.deepEqual(setup.options.find((o) => o.value === 'monitor').act, { run: { type: 'pumpSetup', screen: 'pump', setup: 'monitor' } });
+test('"What it shows" is a line per moment in the order that wins, then the rest of the time', () => {
+  const shows = tab(pumpViews(state({ screens: [screen()] }))[0], 'shows');
+  assert.equal(shows.value, null, 'what it shows now is said over the tabs, once');
+  assert.deepEqual(shows.rows.map((r) => [r.kind, r.id]), [
+    ['pumpnote', 'pump-intro'], ['pumpmoment', 'pump-m-0'], ['pumpmoment', 'pump-m-1'], ['pumpmoment', 'pump-base'],
+    ['pumpadd', 'pump-add'], ['pumpcards', 'pump-setup'],
+  ]);
+  assert.deepEqual(row(shows, 'pump-intro').label, { key: 'xmenu_pump_auto_intro' });
+  assert.deepEqual(shows.rows.slice(1, 4).map((r) => r.label), [{ key: 'xmenu_pump_when_game' }, { key: 'xmenu_pump_when_music' }, { key: 'xmenu_pump_rest' }]);
+  // Closed, a line says what it shows: the face drawn small, its name, its readings or style.
+  const game = row(shows, 'pump-m-0');
+  assert.deepEqual([game.value, game.art], [{ key: 'pump_face_game' }, 'game']);
+  assert.deepEqual(game.sub, [{ key: 'pump_reading_fps' }, { key: 'pump_reading_gpu_temp' }, { key: 'pump_reading_cpu_temp' }]);
+  assert.deepEqual(row(shows, 'pump-m-1').sub, { key: 'xmenu_pump_style_cover' });
+  // A moment comes off by its place; the rest of the time always stays.
+  assert.deepEqual(patchOf(row(shows, 'pump-m-1').remove.act), { removeMoment: 1 });
+  assert.deepEqual(row(shows, 'pump-m-1').remove.label, { key: 'xmenu_pump_m_remove' });
+  assert.equal(row(shows, 'pump-base').remove, null);
 });
 
-test('the usual face keeps the way this screen shows it, and its styles follow the face', () => {
-  const v = pumpViews(state({ screens: [screen()] }))[0];
-  const base = row(tab(v, 'shows'), 'pump-base');
-  // The setup shows music as a cover in a moment: picked as the usual face, it stays a cover.
-  assert.deepEqual(patchOf(base.options.find((o) => o.value === 'music').act), { base: { face: 'music', style: 'cover' } });
-  assert.deepEqual(row(tab(v, 'shows'), 'pump-style').options.map((o) => o.value), ['rings', 'bars', 'numbers']);
-  const pic = pumpViews(state({ screens: [screen('pump', { base: { face: 'picture', items: ['art:tide'], every: 10, fit: 'cover' } })] }))[0];
-  assert.equal(row(tab(pic, 'shows'), 'pump-style'), undefined);
-  assert.equal(row(tab(pic, 'shows'), 'pump-art').value, 'art:tide');
-});
-
-test('"show now" runs the face action and says why the pump shows what it shows', () => {
-  const v = pumpViews(state({ screens: [screen('pump', { now: { show: { face: 'clock' }, why: 'pinned' } })] }))[0];
-  const now = row(tab(v, 'shows'), 'pump-now');
-  assert.equal(now.value, 'clock');
-  assert.deepEqual(now.options[0].act, { run: { type: 'pumpFace', screen: 'pump', face: 'auto' } });
-  assert.deepEqual(now.sub[1], { key: 'xmenu_pump_why_pinned' });
-  assert.equal(row(tab(pumpViews(state({ screens: [screen()] }))[0], 'shows'), 'pump-now').value, 'auto', 'a moment or the usual face is automatic');
-  const s = screen();
-  assert.deepEqual(whyText({ show: { face: 'music' }, why: 'music' }, s), [{ pair: [{ key: 'xmenu_pump_now_is' }, { key: 'pump_face_music' }] }, { key: 'xmenu_sit_music' }]);
-  assert.deepEqual(whyText({ show: s.base, why: 'base' }, s)[1], { key: 'xmenu_pump_why_base' });
-  assert.equal(whyText(null, s), null);
-});
-
-test('a moment changes its own face, comes off by its place, and a new one takes a free situation', () => {
-  const v = pumpViews(state({ screens: [screen()] }))[0];
-  const moments = tab(v, 'moments');
-  const music = row(moments, 'pump-m-1');
-  assert.deepEqual(music.label, { key: 'xmenu_sit_music' });
-  const swapped = patchOf(music.options.find((o) => o.value === 'clock').act).moments;
+test('a line opens on every face as a card, and picking one changes only that line', () => {
+  const shows = tab(pumpViews(state({ screens: [screen()] }))[0], 'shows');
+  const music = row(shows, 'pump-m-1');
+  assert.deepEqual(music.faces.map((f) => [f.value, f.on]), [['sensors', false], ['game', false], ['music', true], ['clock', false], ['picture', false]]);
+  assert.equal(music.faces.find((f) => f.on).act, null, 'the face on is not a button again');
+  const swapped = patchOf(music.faces.find((f) => f.value === 'clock').act).moments;
   assert.deepEqual(swapped.map((m) => m.show.face), ['game', 'clock']);
-  assert.deepEqual(patchOf(music.options.find((o) => o.value === 'off').act), { removeMoment: 1 });
-  const add = row(moments, 'pump-add');
-  const free = add.options.map((o) => o.value);
-  assert.ok(!free.includes('game') && !free.includes('music'), 'situations in use are not offered again');
-  assert.ok(!free.includes('call'), 'a call is offered only where this PC can tell one');
-  assert.ok(row(tab(pumpViews(state({ screens: [screen()] }, { situationCall: true }))[0], 'moments'), 'pump-add').options.some((o) => o.value === 'call'));
-  assert.deepEqual(patchOf(add.options.find((o) => o.value === 'busy').act).addMoment, { when: { any: [{ c: 'busy' }] }, show: { face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'] } });
+  assert.deepEqual(swapped[0], screen().moments[0]);
+  // The rest of the time takes a face the way this screen already shows it: music as a cover.
+  assert.deepEqual(patchOf(row(shows, 'pump-base').faces.find((f) => f.value === 'music').act), { base: { face: 'music', style: 'cover' } });
+  // A face of the person's own, four ways: Bit and the Store leave the menu, the other two open a page.
+  assert.deepEqual(music.own.actions.map((a) => [a.label.key, a.closes === true]),
+    [['xmenu_bit', true], ['xmenu_pump_in_maker', false], ['xmenu_pump_in_code', false], ['xmenu_pump_from_store', true]]);
+  assert.deepEqual([music.own.actions[0].act, music.own.actions[3].act], [{ open: 'chat' }, { open: 'store:__pump' }]);
+  assert.ok(music.own.actions.slice(1, 3).every((a) => a.act.run.type === 'openUrl' && a.act.run.url.startsWith('https://xenon-app.com/')));
 });
 
-test('every face, usual or in a moment, offers its own choices: style, numbers, what a clock adds', () => {
-  const v = pumpViews(state({ screens: [screen()] }))[0];
-  const readings = row(tab(v, 'shows'), 'pump-readings');
+test('every face, on any line, offers its own choices: style, numbers, what a clock adds', () => {
+  const shows = (s) => tab(pumpViews(state({ screens: [s] }))[0], 'shows');
+  const base = row(shows(screen()), 'pump-base');
+  assert.deepEqual(row(base, 'pump-base-style').options.map((o) => o.value), ['rings', 'bars', 'numbers']);
+  const readings = row(base, 'pump-base-readings');
   assert.equal(readings.multi, true);
+  assert.deepEqual(readings.sub, { key: 'xmenu_pump_readings_sub' });
   assert.deepEqual(readings.options.filter((o) => o.on).map((o) => o.value), ['cpuTemp', 'gpuTemp']);
-  assert.deepEqual(readings.options.find((o) => o.value === 'fps').label, { key: 'pump_reading_fps' });
   assert.deepEqual(readings.options.find((o) => o.value === 'cpuClock').label, { key: 'pump_reading_cpu_clock' });
-  assert.deepEqual(patchOf(readings.options.find((o) => o.value === 'fps').act), { base: { readings: ['cpuTemp', 'gpuTemp', 'fps'] } });
-  assert.deepEqual(patchOf(readings.options.find((o) => o.value === 'gpuTemp').act), { base: { readings: ['cpuTemp'] } });
+  assert.deepEqual(patchOf(readings.options.find((o) => o.value === 'fps').act).base.readings, ['cpuTemp', 'gpuTemp', 'fps']);
+  assert.deepEqual(patchOf(readings.options.find((o) => o.value === 'gpuTemp').act), { base: { face: 'sensors', style: 'rings', readings: ['cpuTemp'] } });
   // Four on: a fifth takes the fourth's place. One on: it stays, a face with no number is not a choice.
-  const four = screen('pump', { base: { face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp', 'cpu', 'gpu'] } });
-  const full = row(tab(pumpViews(state({ screens: [four] }))[0], 'shows'), 'pump-readings');
-  assert.deepEqual(patchOf(full.options.find((o) => o.value === 'ram').act).base.readings, ['cpuTemp', 'gpuTemp', 'cpu', 'ram']);
-  const lone = screen('pump', { base: { face: 'sensors', style: 'rings', readings: ['cpu'] } });
-  assert.equal(row(tab(pumpViews(state({ screens: [lone] }))[0], 'shows'), 'pump-readings').options.find((o) => o.value === 'cpu').act, null);
-  const clock = screen('pump', { base: { face: 'clock', style: 'digital', seconds: false, date: true, weather: true } });
-  const parts = row(tab(pumpViews(state({ screens: [clock] }))[0], 'shows'), 'pump-clock');
+  const four = row(row(shows(screen('pump', { base: { face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp', 'cpu', 'gpu'] } })), 'pump-base'), 'pump-base-readings');
+  assert.deepEqual(patchOf(four.options.find((o) => o.value === 'ram').act).base.readings, ['cpuTemp', 'gpuTemp', 'cpu', 'ram']);
+  const lone = row(row(shows(screen('pump', { base: { face: 'sensors', style: 'rings', readings: ['cpu'] } })), 'pump-base'), 'pump-base-readings');
+  assert.equal(lone.options.find((o) => o.value === 'cpu').act, null);
+  // The Game face shows three: the first large. A fourth takes the third's place.
+  const game = row(row(shows(screen()), 'pump-m-0'), 'pump-m-0-readings');
+  assert.deepEqual(game.sub, { key: 'xmenu_pump_readings_game_sub' });
+  assert.deepEqual(game.options.slice(0, 4).map((o) => [o.value, o.on]), [['fps', true], ['gpuTemp', true], ['cpuTemp', true], ['cpu', false]],
+    'the chosen ones first, in the order the face shows them');
+  const moments = patchOf(game.options.find((o) => o.value === 'cpu').act).moments;
+  assert.deepEqual(moments[0].show.readings, ['fps', 'gpuTemp', 'cpu']);
+  assert.deepEqual(moments[1], screen().moments[1], 'only its own line changes');
+  const vinyl = patchOf(row(row(shows(screen()), 'pump-m-1'), 'pump-m-1-style').options.find((o) => o.value === 'vinyl').act).moments;
+  assert.deepEqual(vinyl[1].show, { face: 'music', style: 'vinyl' });
+  assert.equal(row(row(shows(screen()), 'pump-m-1'), 'pump-m-1-readings'), undefined, 'a music face reads no numbers');
+  const clock = row(shows(screen('pump', { base: { face: 'clock', style: 'digital', seconds: false, date: true, weather: true } })), 'pump-base');
+  const parts = row(clock, 'pump-base-clock');
   assert.deepEqual(parts.options.map((o) => [o.value, o.on]), [['seconds', false], ['date', true], ['weather', true]]);
-  assert.deepEqual(patchOf(parts.options[0].act), { base: { seconds: true } });
-  assert.deepEqual(patchOf(parts.options[2].act), { base: { weather: false } });
-  // A moment's face: the game moment picks its numbers, the music moment its style, and only its own moment changes.
-  const moments = tab(v, 'moments');
-  assert.deepEqual(row(moments, 'pump-m-0').sub, { key: 'xmenu_pump_m_sub' }, 'the line under "Game" says it is what the pump shows then');
-  const gameReadings = row(moments, 'pump-m-0-readings').options;
-  assert.deepEqual(gameReadings.slice(0, 4).map((o) => [o.value, o.on]), [['fps', true], ['gpuTemp', true], ['cpuTemp', true], ['cpu', false]],
-    'the chosen ones first, in the order the face shows them: the first is the big one');
-  const gameFps = patchOf(gameReadings.find((o) => o.value === 'fps').act).moments;
-  assert.deepEqual(gameFps[0].show.readings, ['gpuTemp', 'cpuTemp']);
-  assert.equal(gameFps[0].show.face, 'game');
-  assert.deepEqual(gameFps[1], screen().moments[1]);
-  const vinyl = patchOf(row(moments, 'pump-m-1-style').options.find((o) => o.value === 'vinyl').act).moments;
-  assert.deepEqual([vinyl[1].show.face, vinyl[1].show.style], ['music', 'vinyl']);
-  assert.equal(row(moments, 'pump-m-1-readings'), undefined, 'a music face reads no numbers');
+  assert.equal(patchOf(parts.options[0].act).base.seconds, true);
+  assert.equal(patchOf(parts.options[2].act).base.weather, false);
+  assert.deepEqual(clock.sub, [{ key: 'xmenu_pump_style_digital' }, { key: 'xmenu_pump_clock_date' }, { key: 'xmenu_pump_clock_weather' }]);
 });
 
-test('a full list of moments offers no new one, and an hours moment says its hours', () => {
+test('a picture line picks one of Xenon\'s or takes the person\'s own file', () => {
+  const pic = (items) => row(tab(pumpViews(state({ screens: [screen('pump', { base: { face: 'picture', items, every: 10, fit: 'cover' } })] }))[0], 'shows'), 'pump-base');
+  const ready = pic(['art:tide']);
+  assert.equal(row(ready, 'pump-base-style'), undefined);
+  assert.equal(row(ready, 'pump-base-art').value, 'art:tide');
+  assert.deepEqual(ready.sub, { key: 'xmenu_pump_art_tide' });
+  // The file's address goes where the mark is once it is up (xenon-menu-pump-rows.js).
+  assert.deepEqual(ready.upload.label, { key: 'xmenu_pump_own' });
+  assert.deepEqual(patchOf(ready.upload.act), { base: { face: 'picture', items: ['xenon:file'], every: 10, fit: 'cover' } });
+  const own = pic(['/uploads/pump-1-ab.gif']);
+  assert.equal(row(own, 'pump-base-art').value, '', 'a picture of your own lights none of the ready ones');
+  assert.deepEqual([own.sub, row(own, 'pump-base-art').sub], [{ key: 'xmenu_pump_art_own' }, { key: 'xmenu_pump_art_own' }]);
+  assert.equal(row(tab(pumpViews(state({ screens: [screen()] }))[0], 'shows'), 'pump-base').upload, null, 'only a picture face takes a file');
+});
+
+test('over the tabs: what the pump shows now and why, and the way back when picked by hand', () => {
+  const now = (n, over = {}) => pumpViews(state({ screens: [screen('pump', { now: n, ...over })] }))[0].now;
+  assert.deepEqual(now({ show: { face: 'music', style: 'cover' }, why: 'music' }),
+    { caption: { key: 'xmenu_pump_now_is' }, what: { key: 'pump_face_music' }, why: { key: 'xmenu_pump_why_music' }, back: null });
+  assert.deepEqual(now({ show: { face: 'sensors' }, why: 'base' }).why, { key: 'xmenu_pump_why_rest' });
+  assert.deepEqual(now({ show: { face: 'clock' }, why: 'screensOff' }).why, { key: 'xmenu_pump_why_off' });
+  const pinned = now({ show: { face: 'clock' }, why: 'pinned' });
+  assert.deepEqual(pinned.why, { key: 'xmenu_pump_why_pinned' });
+  assert.deepEqual(pinned.back, { label: { key: 'xmenu_pump_back_auto' }, act: { run: { type: 'pumpFace', screen: 'pump', face: 'auto' } } });
+  // A line about an hour or an app: "because of the line" and the line's own name.
+  const hours = { when: { any: [{ c: 'time', from: '22:00', to: '07:00' }] }, show: { face: 'clock' } };
+  assert.deepEqual(now({ show: { face: 'clock' }, why: 'time:22:00-07:00' }, { moments: [hours] }).why,
+    { pair: [{ key: 'xmenu_pump_why_row' }, { key: 'xmenu_pump_when_time', vars: { from: '22:00', to: '07:00' } }] });
+  assert.equal(pumpViews(state({ screens: [screen('pump', { now: null })] }))[0].now, null);
+});
+
+test('a new line takes a situation still free, with the face that moment is for', () => {
+  const add = (probes) => row(tab(pumpViews(state({ screens: [screen()] }, probes))[0], 'shows'), 'pump-add');
+  const free = add().options.map((o) => o.value);
+  assert.ok(!free.includes('game') && !free.includes('music'), 'situations in use are not offered again');
+  assert.ok(!free.includes('call'), 'a call only where this PC can tell one');
+  assert.ok(add({ situationCall: true }).options.some((o) => o.value === 'call'));
+  assert.equal(free.at(-1), 'night');
+  assert.deepEqual(add().options.find((o) => o.value === 'live').label, { key: 'xmenu_pump_when_live' });
+  assert.deepEqual(patchOf(add().options.find((o) => o.value === 'busy').act).addMoment,
+    { when: { any: [{ c: 'busy' }] }, show: { face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'] } });
+  const night = patchOf(add().options.find((o) => o.value === 'night').act).addMoment;
+  assert.deepEqual([night.when, night.show.face], [{ any: [{ c: 'time', from: '23:00', to: '07:00' }] }, 'clock']);
+  // Full, or the night already a line: nothing more of it.
   const when = (c) => ({ when: { any: [{ c }] }, show: { face: 'clock' } });
   const full = screen('pump', { moments: ['game', 'music', 'live', 'recording', 'timer', 'dnd'].map(when) });
-  assert.equal(row(tab(pumpViews(state({ screens: [full] }))[0], 'moments'), 'pump-add'), undefined);
-  const night = screen('pump', { moments: [{ when: { any: [{ c: 'time', from: '22:00', to: '07:00' }] }, show: { face: 'clock' } }] });
-  assert.deepEqual(row(tab(pumpViews(state({ screens: [night] }))[0], 'moments'), 'pump-m-0').sub, { text: '22:00 - 07:00' });
+  assert.equal(row(tab(pumpViews(state({ screens: [full] }))[0], 'shows'), 'pump-add'), undefined);
+  const hours = screen('pump', { moments: [{ when: { any: [{ c: 'time', from: '22:00', to: '07:00' }] }, show: { face: 'clock' } }] });
+  const shows = tab(pumpViews(state({ screens: [hours] }))[0], 'shows');
+  assert.ok(!row(shows, 'pump-add').options.some((o) => o.value === 'night'));
+  assert.deepEqual(row(shows, 'pump-m-0').label, { key: 'xmenu_pump_when_time', vars: { from: '22:00', to: '07:00' } });
 });
 
-test('alerts and look write only their own field', () => {
-  const v = pumpViews(state({ screens: [screen()] }))[0];
-  const alerts = tab(v, 'alerts');
-  assert.equal(row(alerts, 'pump-a-call'), undefined, 'no calls where this PC cannot tell one');
-  assert.deepEqual(patchOf(row(alerts, 'pump-a-discord').acts.off), { alerts: { discord: false } });
-  assert.deepEqual(patchOf(row(alerts, 'pump-secs').options[2].act), { alerts: { seconds: 15 } });
-  assert.equal(row(alerts, 'pump-hide').on, true);
-  const look = tab(v, 'look');
-  assert.deepEqual(patchOf(row(look, 'pump-rotate').options[1].act), { look: { rotate: 90 } });
-  assert.deepEqual(patchOf(row(look, 'pump-night').acts.on), { look: { night: { from: '23:00', to: '07:00', dim: 30 } } });
-  assert.deepEqual(patchOf(row(look, 'pump-night').acts.off), { look: { night: null } });
+test('the examples fill every line in one tap, and none of them is ticked', () => {
+  const ex = row(tab(pumpViews(state({ screens: [screen()] }))[0], 'shows'), 'pump-setup');
+  assert.equal(ex.plain, true);
+  assert.deepEqual(ex.cards.map((c) => c.value), Model.SETUP_NAMES);
+  assert.ok(ex.cards.every((c) => c.on === undefined));
+  const monitor = ex.cards.find((c) => c.value === 'monitor');
+  assert.deepEqual([monitor.label, monitor.sub], [{ key: 'pump_setup_monitor' }, { key: 'xmenu_pump_setup_monitor_sub' }]);
+  assert.deepEqual(monitor.act, { run: { type: 'pumpSetup', screen: 'pump', setup: 'monitor' } });
+});
+
+test('alerts: the ones that arrive most first, each with what it says, then how long', () => {
+  const alerts = (probes) => tab(pumpViews(state({ screens: [screen()] }, probes))[0], 'alerts');
+  const a = alerts();
+  assert.deepEqual(a.rows.map((r) => r.id), ['pump-a-intro', 'pump-a-which', 'pump-a-notify', 'pump-a-discord', 'pump-a-timer', 'pump-a-hot', 'pump-secs', 'pump-hide']);
+  assert.deepEqual(alerts({ situationCall: true }).rows.slice(2, 6).map((r) => r.id), ['pump-a-notify', 'pump-a-discord', 'pump-a-call', 'pump-a-timer']);
+  assert.deepEqual(row(a, 'pump-a-discord').sub, { key: 'xmenu_pump_alert_discord_sub' });
+  assert.deepEqual(patchOf(row(a, 'pump-a-discord').acts.off), { alerts: { discord: false } });
+  assert.deepEqual(patchOf(row(a, 'pump-secs').options[2].act), { alerts: { seconds: 15 } });
+  assert.equal(row(a, 'pump-hide').on, true);
+  assert.equal(a.value, null, 'the tab says its name only, as the other two');
+});
+
+test('look: the ring\'s colours as cards where iCUE paints it, then the screen', () => {
+  const look = (pump, over) => tab(pumpViews(state({ screens: [screen('pump', over)], ...pump }))[0], 'look');
+  const lit = look({ sound: true });
+  const leds = row(lit, 'pump-leds');
+  assert.equal(leds.kind, 'pumpcards');
+  assert.deepEqual(leds.cards.map((c) => [c.value, c.art]), Model.LED_FOLLOW.map((f) => [f, 'leds-' + f]));
+  const follow = screen().leds.follow;
+  assert.equal(leds.cards.find((c) => c.on).value, follow);
+  assert.equal(leds.cards.find((c) => c.on).act, null);
+  const other = leds.cards.find((c) => !c.on);
+  assert.deepEqual(patchOf(other.act), { leds: { follow: other.value } });
+  assert.deepEqual(row(lit, 'pump-screen').kind, 'tunehead');
+  // The two switches only where they do something: the pulse needs sound, "everything" the screen's colours.
+  const leds2 = (f, sound) => look({ sound }, { leds: { ...screen().leds, follow: f } }).rows.map((r) => r.id);
+  assert.ok(leds2('screen', true).includes('pump-leds-pulse') && leds2('screen', true).includes('pump-leds-all'));
+  assert.ok(!leds2('screen', false).includes('pump-leds-pulse'));
+  assert.ok(!leds2('theme', true).includes('pump-leds-all'));
+  assert.ok(!leds2('off', true).includes('pump-leds-pulse'));
+  // No iCUE: no ring to paint, the screen's rows only.
+  const plain = look({ icue: false });
+  assert.deepEqual(plain.rows.map((r) => r.id), ['pump-rotate', 'pump-dim', 'pump-night', 'pump-fade']);
+  assert.deepEqual(patchOf(row(plain, 'pump-rotate').options[1].act), { look: { rotate: 90 } });
+  assert.deepEqual(row(plain, 'pump-night').sub, { key: 'xmenu_pump_night_at', vars: { from: '23:00', to: '07:00', dim: 30 } });
+  assert.deepEqual(patchOf(row(plain, 'pump-night').acts.on), { look: { night: { from: '23:00', to: '07:00', dim: 30 } } });
+  assert.deepEqual(patchOf(row(plain, 'pump-night').acts.off), { look: { night: null } });
+  const own = look({ icue: false }, { look: { ...screen().look, night: { from: '22:30', to: '06:00', dim: 50 } } });
+  assert.deepEqual(row(own, 'pump-night').sub.vars, { from: '22:30', to: '06:00', dim: 50 }, 'its own hours said');
+  assert.deepEqual(row(plain, 'pump-fade').sub, { key: 'xmenu_pump_fade_sub' });
 });
 
 test('the Screens home carries the pumps, and search finds their rows', () => {
@@ -177,13 +249,18 @@ test('every word of the pump cards exists in all 11 languages', () => {
     if (typeof x.key === 'string' && Object.keys(x).every((f) => f === 'key' || f === 'vars')) keys.add(x.key);
     Object.values(x).forEach(walk);
   };
-  walk(pumpViews(state({ screens: [screen('a', { base: Model.normalizeScreen({ base: 'picture' }).base }), screen('b')] }, { situationCall: true })));
+  const picture = screen('a', { base: Model.normalizeScreen({ base: 'picture' }).base, now: { show: { face: 'clock' }, why: 'pinned' } });
+  const clock = screen('c', { base: { face: 'clock', style: 'digital', seconds: true, date: true, weather: true }, now: { show: { face: 'clock' }, why: 'screensOff' } });
+  walk(pumpViews(state({ screens: [picture, screen('b'), clock], sound: true }, { situationCall: true })));
+  walk(pumpViews(state({ screens: [screen('pump', { moments: [{ when: { any: [{ c: 'time', from: '22:00', to: '07:00' }] }, show: { face: 'clock' } }], now: { show: { face: 'clock' }, why: 'time:22:00-07:00' } })] })));
   walk(pumpViews(state({ screens: [], detected: [{ route: 'icue' }] })));
   walk(pumpViews(state({ screens: [], detected: [{ route: 'cam' }] })));
+  // Every line a person can add, with the face it starts with, and why the pump shows it.
+  for (const c of [...require('../js/layers/layer-when.js').PLAIN]) keys.add('xmenu_pump_when_' + c).add('xmenu_pump_why_' + c);
   for (const s of ['rings', 'bars', 'numbers', 'cover', 'vinyl', 'pulse', 'digital', 'analog']) keys.add('xmenu_pump_style_' + s);
   keys.add('deck_act_pumpIcue');
   for (const x of ['own', 'own_busy', 'own_bad', 'own_failed', 'art_own']) keys.add('xmenu_pump_' + x);
-  assert.ok(keys.size > 40);
+  assert.ok(keys.size > 120, String(keys.size));
   for (const code of LANGS) {
     const words = require(`../js/i18n/${code}.js`);
     const missing = [...keys].filter((key) => typeof words[key] !== 'string' || !words[key]);
@@ -330,77 +407,24 @@ test('no picture on a paired phone, for a pump not set up yet, or once no pump i
   assert.equal(frames()[0].parent, null, 'the frame goes with the pump');
 });
 
-// The button under the preview: the file goes to POST /pump/picture, then the pump's usual
-// face becomes that picture through the same action a row runs.
-function pickerRig(answer) {
-  const sent = [];
-  const ran = [];
-  const r = rig('192.168.1.20', {
-    fetch: async (url, init) => { sent.push([url, init.method, init.body.get('asset').name]); return { json: async () => answer }; },
-    perform: async (_row, act) => { ran.push(act.run); return true; },
-  });
-  const [card] = pumpViews(state({ screens: [screen('desk')] }));
-  r.body.appendChild(r.view.slot(card));
-  const input = r.made.find((n) => n.tag === 'input');
-  const note = r.made.find((n) => n.className === 'xm-pumpown-note');
-  const pick = async (file) => { input.files = [file]; input.listeners.change(); await new Promise((d) => setTimeout(d, 10)); };
-  return { ...r, sent, ran, input, note, pick };
-}
-
-test('a picture of your own goes to the pump as its usual face, from a phone too', async () => {
-  const r = pickerRig({ ok: true, url: '/uploads/pump-1-ab.gif' });
-  assert.equal(r.input.accept, 'image/png,image/jpeg,image/webp,image/gif,video/webm');
-  assert.deepEqual(r.made.find((n) => n.tag === 'button').textContent, { key: 'xmenu_pump_own' });
-  await r.pick(new File(['GIF89a'], 'cat.gif', { type: 'image/gif' }));
-  assert.deepEqual(r.sent, [['http://127.0.0.1:3030/pump/picture', 'POST', 'cat.gif']]);
-  assert.deepEqual(r.ran, [{ type: 'pumpSet', screen: 'desk', patch: JSON.stringify({ base: { face: 'picture', items: ['/uploads/pump-1-ab.gif'] } }) }]);
-  assert.equal(r.note.textContent, '');
-});
-
-test('a file the pump cannot show is said beside the button, and nothing changes', async () => {
-  const refused = pickerRig({ ok: false, error: 'bad_type' });
-  await refused.pick(new File(['x'], 'tool.exe'));
-  assert.deepEqual(refused.note.textContent, { key: 'xmenu_pump_own_bad' });
-  assert.deepEqual(refused.ran, []);
-  const big = pickerRig({ ok: true, url: '/uploads/x.gif' });
-  await big.pick({ name: 'huge.gif', size: 21 * 1024 * 1024 });
-  assert.deepEqual(big.sent, [], 'too big for the PC to keep: not even sent');
-  assert.deepEqual(big.note.textContent, { key: 'xmenu_pump_own_bad' });
-  const down = pickerRig(null);
-  await down.pick(new File(['GIF89a'], 'cat.gif'));
-  assert.deepEqual(down.note.textContent, { key: 'xmenu_pump_own_failed' });
-  assert.deepEqual(down.ran, []);
-});
-
-test('a picture of your own lights none of the ready ones and says so', () => {
-  const own = pumpViews(state({ screens: [screen('pump', { base: { face: 'picture', items: ['/uploads/pump-1-ab.gif'], every: 10, fit: 'cover' } })] }))[0];
-  const art = row(tab(own, 'shows'), 'pump-art');
-  assert.equal(art.value, '');
-  assert.deepEqual(art.sub, { key: 'xmenu_pump_art_own' });
-});
-
-test('a Store widget made for a pump is one more face for the usual face and the moments, never for "now"', () => {
+test('a widget made for a pump is one more face card on every line, marked as the person\'s', () => {
   const widgets = [{ id: 'neon-clock', name: 'Neon Clock', shapes: ['round'] }];
   const v = pumpViews(state({ screens: [screen()], widgets }))[0];
-  const base = row(tab(v, 'shows'), 'pump-base');
-  const pick = base.options.find((o) => o.value === 'widget:neon-clock');
-  assert.deepEqual(pick.label, { text: 'Neon Clock' });
-  assert.deepEqual(patchOf(pick.act), { base: { face: 'widget', id: 'neon-clock' } });
-  assert.ok(!row(tab(v, 'shows'), 'pump-now').options.some((o) => o.value.startsWith('widget:')), 'a face now is a built-in one');
-  const swapped = patchOf(row(tab(v, 'moments'), 'pump-m-0').options.find((o) => o.value === 'widget:neon-clock').act).moments;
+  const card = row(tab(v, 'shows'), 'pump-base').faces.find((f) => f.value === 'widget:neon-clock');
+  assert.deepEqual([card.label, card.art, card.own], [{ text: 'Neon Clock' }, 'widget', true]);
+  assert.deepEqual(patchOf(card.act), { base: { face: 'widget', id: 'neon-clock' } });
+  const swapped = patchOf(row(tab(v, 'shows'), 'pump-m-0').faces.find((f) => f.value === 'widget:neon-clock').act).moments;
   assert.deepEqual(swapped[0].show, { face: 'widget', id: 'neon-clock' });
-  // On it: the row lights it, and the card and "why" say its name.
+  // On it: the card is lit, and the card under the desk and "now" say its name.
   const on = pumpViews(state({ screens: [screen('pump', { base: { face: 'widget', id: 'neon-clock' }, now: { show: { face: 'widget', id: 'neon-clock' }, why: 'base' } })], widgets }))[0];
-  assert.equal(row(tab(on, 'shows'), 'pump-base').value, 'widget:neon-clock');
-  assert.deepEqual(on.chip, { text: 'Neon Clock' });
-  // Removed since: still listed under a plain name, so the row shows what the pump has.
-  const gone = pumpViews(state({ screens: [screen('pump', { base: { face: 'widget', id: 'neon-clock' } })] }))[0];
-  assert.deepEqual(row(tab(gone, 'shows'), 'pump-base').options.find((o) => o.value === 'widget:neon-clock').label, { key: 'pump_face_widget' });
-  assert.deepEqual(row(tab(gone, 'shows'), 'pump-base').sub, { key: 'xmenu_pump_widget_off' }, 'the row says why the pump shows a clock');
-  assert.deepEqual(row(tab(on, 'shows'), 'pump-base').sub, { key: 'xmenu_pump_base_sub' });
-  // More of them: the Store opens on its widgets made for pump screens.
-  const store = row(tab(v, 'shows'), 'pump-store');
-  assert.deepEqual([store.kind, store.act, store.closes], ['button', { open: 'store:__pump' }, true]);
+  const base = row(tab(on, 'shows'), 'pump-base');
+  assert.equal(base.faces.find((f) => f.on).value, 'widget:neon-clock');
+  assert.deepEqual([on.chip, on.now.what, base.value], [{ text: 'Neon Clock' }, { text: 'Neon Clock' }, { text: 'Neon Clock' }]);
+  assert.equal(base.sub, null);
+  // Removed since: still a card under a plain name, and the line says why the pump shows a clock.
+  const gone = row(tab(pumpViews(state({ screens: [screen('pump', { base: { face: 'widget', id: 'neon-clock' } })] }))[0], 'shows'), 'pump-base');
+  assert.deepEqual(gone.faces.find((f) => f.value === 'widget:neon-clock').label, { key: 'pump_face_widget' });
+  assert.deepEqual(gone.sub, { key: 'xmenu_pump_widget_off' });
 });
 
 test('an open menu reads the pump again when a pump says hello or changes', () => {
@@ -420,7 +444,7 @@ test('tapping the card of a pump just found runs its step on this PC, never from
   for (const [host, expected] of [['127.0.0.1', 1], ['192.168.1.20', 0]]) {
     const ran = [];
     const picked = [];
-    const { view } = rig(host, { perform: (row, act) => ran.push(act) });
+    const { view } = rig(host, { perform: (_row, act) => ran.push(act) });
     const list = view.cards([add], null, (key) => picked.push(key));
     list.kids[0].listeners.click();
     assert.deepEqual(picked, ['pump-add'], 'the card is picked too');
@@ -428,7 +452,7 @@ test('tapping the card of a pump just found runs its step on this PC, never from
     if (expected) assert.deepEqual(ran[0], { run: { type: 'pumpIcue' } });
   }
   const ran = [];
-  const { view } = rig('127.0.0.1', { perform: (row, act) => ran.push(act) });
+  const { view } = rig('127.0.0.1', { perform: (_row, act) => ran.push(act) });
   view.cards(pumpViews(state({ screens: [screen()] })), null, () => {}).kids[0].listeners.click();
   assert.deepEqual(ran, [], 'a pump already on Xenon only opens its page');
 });
