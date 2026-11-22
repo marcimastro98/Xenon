@@ -86,7 +86,12 @@
       words.appendChild(el('span', 'xm-scrname', say(view.label)));
       if (view.chip) words.appendChild(el('span', 'xm-scrchip', say(view.chip)));
       b.append(shape, words);
-      b.addEventListener('click', () => pick(view.key));
+      b.addEventListener('click', () => {
+        pick(view.key);
+        // A pump just found: the tap is the step itself (iCUE opens), not a page to find it on.
+        // Only on this PC's own page: a paired phone cannot start a program here.
+        if (view.act && shows && typeof ctx.perform === 'function') ctx.perform(null, view.act);
+      });
       return b;
     }
 

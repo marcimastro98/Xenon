@@ -201,12 +201,18 @@ function pumpView(v, st, many, first) {
   };
 }
 
-// A pump plugged in that never showed Xenon: the one step that puts Xenon on it.
+// A pump plugged in that never showed Xenon: the one step that puts Xenon on it. Through
+// iCUE, tapping the card already takes that step (`act`), and the button stays for a second go.
 function addView(pump, st) {
-  const rows = pump.route === 'icue'
+  const icue = pump.route === 'icue';
+  const open = icue && st.pump.icue ? run({ type: 'pumpIcue' }) : null;
+  const rows = icue
     ? [{ kind: 'button', id: 'pump-icue', label: k('xmenu_pump_icue'), sub: k('xmenu_pump_icue_sub'), action: k('xmenu_pump_icue_go'), act: run({ type: 'pumpIcue' }), primary: true, off: !st.pump.icue }]
     : [{ kind: 'status', id: 'pump-cam', label: k('xmenu_pump_cam'), sub: k('xmenu_pump_cam_sub'), value: { text: st.pump.url } }];
-  return { key: 'pump-add', add: true, label: k('xmenu_pump_add_screen'), shape: 'round', ratio: 1, turn: 0, chip: null, tabs: [{ id: 'setup', label: k('xmenu_pump_add_screen'), value: null, rows }] };
+  return {
+    key: 'pump-add', add: true, act: open, label: k('xmenu_pump_found'), shape: 'round', ratio: 1, turn: 0,
+    chip: k(icue ? 'xmenu_pump_found_icue' : 'xmenu_pump_found_cam'), tabs: [{ id: 'setup', label: k('xmenu_pump_found'), value: null, rows }],
+  };
 }
 
 // → the cards under the desk: one per pump screen, or the step for a pump just found.

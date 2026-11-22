@@ -33,9 +33,15 @@ test('a pump found but never seen offers its one step: iCUE for CORSAIR, the add
   assert.equal(corsair.add, true);
   assert.deepEqual(corsair.tabs[0].rows[0].act, { run: { type: 'pumpIcue' } });
   assert.equal(corsair.tabs[0].rows[0].off, false);
+  // The card says what was found and the step left, and a tap on it takes that step.
+  assert.deepEqual([corsair.label, corsair.chip], [{ key: 'xmenu_pump_found' }, { key: 'xmenu_pump_found_icue' }]);
+  assert.deepEqual(corsair.act, { run: { type: 'pumpIcue' } });
+  const [noIcue] = pumpViews(state({ icue: false, screens: [], detected: [{ brand: 'corsair', route: 'icue' }] }));
+  assert.equal(noIcue.act, null, 'nothing to open where iCUE cannot import');
   const [nzxt] = pumpViews(state({ screens: [], detected: [{ brand: 'nzxt', route: 'cam' }] }));
   assert.equal(nzxt.tabs[0].rows[0].kind, 'status');
   assert.deepEqual(nzxt.tabs[0].rows[0].value, { text: 'http://127.0.0.1:3030/pump-face' });
+  assert.deepEqual([nzxt.chip, nzxt.act], [{ key: 'xmenu_pump_found_cam' }, null], 'CAM takes an address, nothing to open');
   // A screen that already showed Xenon is the pump itself: no more first step.
   const seen = pumpViews(state({ screens: [screen()], detected: [{ brand: 'corsair', route: 'icue' }] }));
   assert.equal(seen.length, 1);
@@ -406,4 +412,23 @@ test('an open menu reads the pump again when a pump says hello or changes', () =
   assert.ok(list[1].split(',').map((x) => x.trim().replace(/'/g, '')).includes('pump'));
   const live = readFileSync(new URL('../pump-screen/live.js', import.meta.url), 'utf8');
   assert.ok(live.includes("broadcast('pump'"), 'the event the menu listens to is the one the pump sends');
+});
+
+// "It does nothing when I tap it": the card of a pump just found opens iCUE itself, on this PC.
+test('tapping the card of a pump just found runs its step on this PC, never from a paired phone', () => {
+  const [add] = pumpViews(state({ screens: [], detected: [{ brand: 'corsair', route: 'icue' }] }));
+  for (const [host, expected] of [['127.0.0.1', 1], ['192.168.1.20', 0]]) {
+    const ran = [];
+    const picked = [];
+    const { view } = rig(host, { perform: (row, act) => ran.push(act) });
+    const list = view.cards([add], null, (key) => picked.push(key));
+    list.kids[0].listeners.click();
+    assert.deepEqual(picked, ['pump-add'], 'the card is picked too');
+    assert.equal(ran.length, expected, host);
+    if (expected) assert.deepEqual(ran[0], { run: { type: 'pumpIcue' } });
+  }
+  const ran = [];
+  const { view } = rig('127.0.0.1', { perform: (row, act) => ran.push(act) });
+  view.cards(pumpViews(state({ screens: [screen()] })), null, () => {}).kids[0].listeners.click();
+  assert.deepEqual(ran, [], 'a pump already on Xenon only opens its page');
 });

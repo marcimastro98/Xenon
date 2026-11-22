@@ -163,7 +163,9 @@
       return li;
     }
 
+    // A lone tab is not drawn: it would read as a button that does nothing.
     function tabBar(view, current, choose) {
+      if (view.tabs.length < 2) return null;
       const bar = el('div', 'xm-wtabs xm-scrtabs');
       bar.setAttribute('role', 'tablist');
       bar.append(...view.tabs.map((t) => {

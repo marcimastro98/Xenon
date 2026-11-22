@@ -257,3 +257,16 @@ test('the screens where they stand on the desk, each its own shape; a phone pair
     globalThis.fetch = had;
   }
 });
+
+test('a screen with one tab shows its rows with no tab bar: a lone tab reads as a button that does nothing', () => {
+  const { document } = makeDom();
+  globalThis.CSS = globalThis.CSS || { escape: (s) => s };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
+  const drawn = [];
+  const DRAW = { button: (r) => { drawn.push(r.id); return el('li', 'row', r.id); } };
+  const { draw } = Screens.create({ el, button: (cls) => el('button', cls), say: (v) => (v && v.text) || (v && v.key) || '', DRAW, rowShell: () => el('li'), perform: () => {}, icon: () => null, hold: () => {}, settle: () => {} });
+  const one = { key: 'pg', label: { text: 'pg' }, width: 1920, height: 1080, x: 0, y: 0, says: [], tabs: [{ id: 'setup', label: { key: 'setup' }, value: null, rows: [{ kind: 'button', id: 'go' }] }] };
+  const li = draw({ kind: 'screens', sub: { key: 'hint' }, screens: [one] });
+  assert.equal(li.querySelectorAll('.xm-wtab').length, 0);
+  assert.deepEqual(drawn, ['go'], 'the one tab is open');
+});
