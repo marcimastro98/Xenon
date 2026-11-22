@@ -15,7 +15,7 @@
   const OFFLINE_AFTER_MS = 8000;
   const HELLO_RETRY_MS = [1000, 2000, 5000, 10000];
   // How often the page says it is still on the pump: a screen silent for 75 s is away
-  // (pump-screen/presence.js), its widget taken off in iCUE or iCUE closed.
+  // (pump-screen/presence.js). The faster sign is the connection the page holds (holdOn).
   const BEAT_MS = 30000;
 
   const query = new URLSearchParams(location.search);
@@ -45,6 +45,7 @@
   let offlineTimer = 0;
   let helloTries = 0;
   let helloTimer = 0;
+  let held = null;
   let refreshTimer = 0;
   let cover = { key: '', url: '' };
 
@@ -114,6 +115,14 @@
   }
 
   // ── Talking to Xenon ────────────────────────────────────────────────────
+  // Held open while the page shows (GET /pump/here): iCUE closes the page the moment its widget
+  // is taken off, and the pump leaves Xenon seconds later. Opened again after a hello once it
+  // failed for good (Xenon restarted and did not know the screen yet).
+  function holdOn() {
+    if (preview || !id || (held && held.readyState !== EventSource.CLOSED)) return;
+    held = new EventSource('/pump/here?screen=' + encodeURIComponent(id));
+  }
+
   // beat: the half-minute "still here", which changes nothing on the face.
   async function hello(beat = false) {
     clearTimeout(helloTimer);
@@ -125,6 +134,7 @@
       helloTimer = setTimeout(() => hello(true), BEAT_MS);
       if (beat) return;
       id = d.screen;
+      holdOn();
       settings = d.settings;
       now = d.now;
       helloTries = 0;

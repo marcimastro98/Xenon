@@ -36,6 +36,7 @@ const CLASSIFIED = Object.freeze({
   'GET /pump': { remote: false },
   'POST /pump': { remote: true },
   'POST /pump/hello': { remote: false },
+  'GET /pump/here': { remote: false },
   'POST /pump/colors': { remote: false },
   'GET /pump-widget': { remote: false },
   'POST /pump/picture': { remote: true },

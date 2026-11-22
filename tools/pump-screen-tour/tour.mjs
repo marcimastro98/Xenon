@@ -1,11 +1,12 @@
 // A person's first afternoon with a pump screen, on a throwaway engine (tools/ci/engine-rig.mjs):
 // the pump says hello while the menu is open, the person opens it, opens a line and changes the
 // numbers, picks an example, puts a GIF of their own on it, adds a line for the night, a face
-// shown by hand and the way back to automatic, the alerts, turns the pump, Xenon restarts, and
-// the menu on a phone.
+// shown by hand and the way back to automatic, the alerts, turns the pump, Xenon restarts, the
+// menu on a phone, and the widget taken off in iCUE (the pump's page closes).
 // After every step a picture of the pump and of the menu, to look at with your own eyes.
 // Checks on the way, exit 1 on any: the pump card shows up by itself, no page error, the pump's
-// words stay in the language after its first refresh, no sideways scroll on the phone.
+// words stay in the language after its first refresh, no sideways scroll on the phone, the pump
+// leaves the menu within GONE_WITHIN_MS of its page closing.
 // Requests go only to the copy, and only reads, the pump's own routes and pump actions.
 // Run: node tools/pump-screen-tour/tour.mjs [outDir] [--lang it] [--port 3071]
 // (default <temp>/xenon-pump-tour); about a minute and a half. Test: pump-screen-tour.test.mjs.
@@ -24,6 +25,8 @@ const SETTLE_MS = 1500;
 const PHONE = { width: 390, height: 844 };
 // The pump face's English word for a reading, never on screen in another language.
 const ENGLISH_WORD = 'CPU temp';
+// The page holds a connection (pump-screen/presence.js GONE_MS), and the menu redraws on the news.
+const GONE_WITHIN_MS = 8000;
 
 // Same host only; reads, the pump page's and the menu's own routes, a picture of the person's
 // own, and actions that are pump actions. Anything else is stopped and listed.
@@ -141,6 +144,12 @@ async function tour({ dir, lang, port }) {
       await menu.waitForTimeout(SETTLE_MS);
       await shot(menu, 'phone-menu', true);
       if (await menu.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) problems.push('the menu scrolls sideways on a phone');
+      const closed = Date.now();
+      await pump.close();
+      const gone = await menu.waitForSelector('.xm-scrpump:not(.is-add)', { state: 'detached', timeout: GONE_WITHIN_MS }).then(() => true, () => false);
+      if (!gone) problems.push(`the pump stayed in the menu ${GONE_WITHIN_MS / 1000} s after its page closed`);
+      else console.log(`the pump left the menu ${((Date.now() - closed) / 1000).toFixed(1)} s after its page closed`);
+      await shot(menu, 'widget-off-menu', true);
     } finally {
       await context.close();
     }

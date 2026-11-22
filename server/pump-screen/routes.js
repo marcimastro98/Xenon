@@ -11,6 +11,9 @@
 //   POST /pump/hello  the face page on a pump says which screen it is and its size.
 //                     Kept in memory, never written (store.js). The PC only; in
 //                     CSRF_MUTATION_PATHS.
+//   GET  /pump/here   held open by the face page while it shows (presence.js): closed, the
+//                     screen is away in seconds. Sends only its first lines. The PC only
+//                     (refused-paths.js); in CSRF_MUTATION_PATHS, as it can make a pump away.
 //   POST /pump/colors  the face page says the colours of what it shows, for the ring of
 //                     lights around the pump (ring.js). Kept in memory. The PC only; in
 //                     CSRF_MUTATION_PATHS.
@@ -38,6 +41,7 @@ module.exports = {
     'GET /pump': made['GET /pump'],
     'POST /pump': made['POST /pump'],
     'POST /pump/hello': made['POST /pump/hello'],
+    'GET /pump/here': made['GET /pump/here'],
     'POST /pump/colors': made['POST /pump/colors'],
     'GET /pump-face': made['GET /pump-face'],
     'GET /pump-widget': made['GET /pump-widget'],

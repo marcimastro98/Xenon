@@ -67,6 +67,21 @@ function createRoutes({ store, live, ring = null, presence = null, settings = ()
     json({ ok: true, screen: id, settings: Model.screenFor(model, id), now: live.decide()[id] || null });
   }
 
+  // A pump's page holds this open while it shows (presence.js): closed, the screen is away
+  // in seconds. Nothing is sent but the first lines; the page reconnects itself after a second.
+  async function holdOpen(req, res, { urlObj }) {
+    const id = Model.screenId(urlObj?.searchParams.get('screen'));
+    const model = await store.ready();
+    if (!presence || !id || !model.seen[id]) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('unknown screen');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' });
+    res.write('retry: 1000\n:here\n\n');
+    req.on('close', presence.hold(id));
+  }
+
   // The colours of what a pump's page shows, for the ring of lights around it.
   async function colours(req, _res, { json, readBody }) {
     const b = await readJson(req, readBody);
@@ -95,6 +110,7 @@ function createRoutes({ store, live, ring = null, presence = null, settings = ()
     'GET /pump': async (_req, _res, { json }) => json(await view()),
     'POST /pump': write,
     'POST /pump/hello': hello,
+    'GET /pump/here': holdOpen,
     'POST /pump/colors': colours,
     'GET /pump-face': page,
     'GET /pump-widget': widgetPage,

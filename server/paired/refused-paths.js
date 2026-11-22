@@ -207,7 +207,7 @@ const REMOTE_ADMIN = new Set([
   // The PC's screens went off or came back (screens-off/routes.js): only the PC knows.
   '/screens-off',
   // A pump's own pages, its hello and its colours (pump-screen/routes.js): the pump is on this PC.
-  '/pump-face', '/pump-widget', '/pump/hello', '/pump/colors',
+  '/pump-face', '/pump-widget', '/pump/hello', '/pump/here', '/pump/colors',
   '/api/features/devclean/unlock',
   '/api/features/lyrics/unlock',
   // Throws away the PC's remembered supporter pass: only the person at the PC

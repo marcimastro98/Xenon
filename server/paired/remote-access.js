@@ -202,7 +202,7 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/phone/dial', '/api/phone/send',
   // The gallery's new copies, the hardware scan for local models and the pump screens: a paired device makes them by POST
   // only (each writes a file, runs a program on the PC or saves the settings; its menu reads the pumps in the menu state).
-  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe', '/api/ai-local/scan', '/pump', '/pump/hello', '/pump/colors', '/pump/picture',
+  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe', '/api/ai-local/scan', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture',
 ]);
 let _getMutators = DEFAULT_GET_MUTATORS;
 

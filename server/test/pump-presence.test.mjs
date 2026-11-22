@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createPumpPresence, AWAY_MS } = require('../pump-screen/presence.js');
+const { createPumpPresence, AWAY_MS, GONE_MS } = require('../pump-screen/presence.js');
 const { createPumpStore } = require('../pump-screen/store.js');
 const { createPumpLive } = require('../pump-screen/live.js');
 const { createPumpRing } = require('../pump-screen/ring.js');
@@ -56,11 +56,47 @@ test('a screen is here while its page speaks, away after a silence, and only com
   assert.equal(t.pending(), 0);
 });
 
+test('a held connection that closes makes the screen away in seconds, unless one opens again', () => {
+  const t = time();
+  let told = 0;
+  const p = createPumpPresence({ ...t, changed: () => { told++; } });
+  const letGo = p.hold('pump');
+  assert.deepEqual([p.here('pump'), told], [true, 1], 'opening it is the page speaking');
+  letGo();
+  t.pass(GONE_MS - 100);
+  assert.equal(p.here('pump'), true, 'a page reloading has a moment to come back');
+  t.pass(200);
+  assert.deepEqual([p.here('pump'), told], [false, 2], 'closed and not back: away long before the silence would say so');
+  assert.ok(GONE_MS * 10 < AWAY_MS);
+  letGo();
+  t.pass(GONE_MS * 2);
+  assert.equal(told, 2, 'letting go twice is once');
+
+  const reload = p.hold('pump');
+  reload();
+  t.pass(GONE_MS / 2);
+  const again = p.hold('pump');
+  t.pass(GONE_MS * 2);
+  assert.deepEqual([p.here('pump'), told], [true, 3], 'the page reloading stays here');
+
+  const second = p.hold('pump');
+  again();
+  t.pass(GONE_MS * 2);
+  assert.equal(p.here('pump'), true, 'another page of the same screen still holds it');
+  second();
+  p.stop();
+  assert.equal(t.pending(), 0, 'stop leaves nothing ticking');
+});
+
 test('the face page beats well inside the silence that makes it away', () => {
   const src = readFileSync(new URL('../js/pump/pump-face.js', import.meta.url), 'utf8');
   const beat = Number(/const BEAT_MS = (\d+);/.exec(src)?.[1]);
   assert.ok(beat > 0 && beat * 2 < AWAY_MS, `BEAT_MS ${beat} vs AWAY_MS ${AWAY_MS}`);
   assert.match(src, /helloTimer = setTimeout\(\(\) => hello\(true\), BEAT_MS\);/);
+  // It holds its connection once its hello named the screen, and never as the menu's picture.
+  assert.match(src, /id = d\.screen;\n\s+holdOn\(\);/);
+  assert.match(src, /new EventSource\('\/pump\/here\?screen=' \+ encodeURIComponent\(id\)\)/);
+  assert.match(src, /if \(preview \|\| !id \|\|/);
 });
 
 function rig(tt) {
@@ -75,6 +111,7 @@ function rig(tt) {
   const live = createPumpLive({ store, here, broadcast: () => {}, changed: () => ring.refresh() });
   const actions = createPumpActions({ store, live, change: createChange({ store, live }), here });
   const routes = createRoutes({ store, live, ring, presence });
+  rig.last = routes;
   const call = async (key, body) => {
     let answer;
     await routes[key]({}, {}, { json: (v) => { answer = v; }, readBody: async () => JSON.stringify(body), sendPage: async () => {} });
@@ -107,4 +144,34 @@ test('a pump whose widget was taken off: kept, not drawn, the first step offered
   await hello();
   assert.equal(rings.at(-1)?.follow, 'theme', 'back: painted again');
   assert.equal((await menu())[0].key, 'pump:pump');
+});
+
+// A request and an answer, enough for the held connection.
+function stream() {
+  const closers = [];
+  const res = { status: 0, head: null, body: '', writeHead(code, head) { this.status = code; this.head = head; }, write(x) { this.body += x; }, end(x = '') { this.body += x; } };
+  const req = { on: (ev, fn) => { if (ev === 'close') closers.push(fn); } };
+  return { req, res, close: () => closers.forEach((fn) => fn()) };
+}
+
+test('GET /pump/here: held by a known screen, closed it makes the pump away in seconds', async (tt) => {
+  const { t, rings, call, hello } = rig(tt);
+  const routes = rig.last;
+  const open = async (screen) => {
+    const s = stream();
+    await routes['GET /pump/here'](s.req, s.res, { urlObj: new URL('http://127.0.0.1/pump/here?screen=' + screen) });
+    return s;
+  };
+  assert.equal((await open('pump')).res.status, 404, 'a screen that never said hello');
+  await hello();
+  await call('POST /pump', { screen: 'pump', patch: { leds: { follow: 'theme' } } });
+  const held = await open('pump');
+  assert.equal(held.res.status, 200);
+  assert.match(held.res.head['Content-Type'], /^text\/event-stream/);
+  assert.match(held.res.body, /^retry: 1000\n/, 'the page comes back fast after a drop');
+  assert.equal((await open('../x')).res.status, 404);
+  held.close();
+  t.pass(GONE_MS + 100);
+  assert.equal((await call('GET /pump')).screens.pump.here, false, 'iCUE closed the page: away');
+  assert.equal(rings.at(-1), null, 'and its ring given back');
 });
