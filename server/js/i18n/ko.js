@@ -7606,7 +7606,7 @@ module.exports = {
   xmenu_pump_found_icue: 'iCUE에서 한 단계',
   xmenu_pump_found_cam: 'NZXT CAM에서 한 단계',
   xmenu_pump_icue: 'iCUE로',
-  xmenu_pump_icue_sub: 'Xenon 위젯이 준비된 채로 iCUE가 열립니다. 가져온 뒤 펌프 화면에 선택하세요. 그러면 펌프가 여기에 자동으로 나타납니다',
+  xmenu_pump_icue_sub: 'Xenon 위젯이 준비된 채로 iCUE가 열립니다. 가져온 뒤 펌프의 화면 설정에서 화면 유형 중 Xenon Pump를 누르세요(iCUE가 자동으로 고르지 않습니다). 그러면 펌프가 여기에 자동으로 나타납니다',
   xmenu_pump_icue_go: 'iCUE 열기',
   xmenu_pump_cam: 'NZXT CAM으로',
   xmenu_pump_cam_sub: 'CAM에서 펌프 화면을 Web Integration으로 설정하고 이 주소를 붙여 넣으세요. 그러면 펌프가 여기에 자동으로 나타납니다',

@@ -7606,7 +7606,7 @@ module.exports = {
   xmenu_pump_found_icue: '在 iCUE 中一步完成',
   xmenu_pump_found_cam: '在 NZXT CAM 中一步完成',
   xmenu_pump_icue: '通过 iCUE',
-  xmenu_pump_icue_sub: 'iCUE 会打开并备好 Xenon 小组件：导入后，在水泵屏幕上选择它。之后水泵会自动出现在这里',
+  xmenu_pump_icue_sub: 'iCUE 会打开并备好 Xenon 小组件：导入后，在水泵的屏幕设置里从屏幕类型中点选 Xenon Pump（iCUE 不会自动选中）。之后水泵会自动出现在这里',
   xmenu_pump_icue_go: '打开 iCUE',
   xmenu_pump_cam: '通过 NZXT CAM',
   xmenu_pump_cam_sub: '在 CAM 中将水泵屏幕设为 Web Integration，并粘贴此地址。之后水泵会自动出现在这里',

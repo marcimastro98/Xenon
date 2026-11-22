@@ -197,6 +197,17 @@ test('the fixed-path logo files in the repo are the ones the tool draws', async 
   assert.ok(Object.keys(FIXED_PATHS).every((p) => !p.startsWith('/') && !p.includes('..')), 'paths stay inside the repo');
 });
 
+test('the Xenon Pump icon reads at the 24 px iCUE draws it: Bit full height, his face cut out', () => {
+  // iCUE shows a screen type's icon small on a grey tile, white once picked: a padded Bit with
+  // a dark face read as a green blob there.
+  const pic = FIXED_PATHS['server/pump-screen/icue-package/resources/icon.png']();
+  const unit = Math.floor(pic.height / MARK_H);
+  const ox = (pic.width - MARK_W * unit) / 2 | 0, oy = (pic.height - MARK_H * unit) / 2 | 0;
+  assert.ok(MARK_H * unit >= pic.height - 8, 'Bit fills the height');
+  assert.notEqual(hex(pic, ox + Math.round(3.5 * unit), oy + 3 * unit), null, 'the body is drawn');
+  assert.equal(hex(pic, ox + Math.round(2.5 * unit), oy + Math.round(4.5 * unit)), null, 'the eye is a hole');
+});
+
 // The site names the Scintille that come with a plan: it shows the app's own
 // spark, still, from the shared engine, so the two never drift apart.
 test('the Scintilla ships as spark.svg, the shared engine\'s still frame', () => {

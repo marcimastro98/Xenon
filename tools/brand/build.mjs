@@ -87,6 +87,9 @@ export const FIXED_PATHS = Object.freeze({
   'server/public/images/logo/badge.png': () => iconRgba(96, { body: '#ffffff', face: null }),
   // The iCUE widget's listing icon, panel logo and favicon.
   'icue-widget/resources/icon.png': () => iconRgba(256),
+  // The Xenon Pump widget's icon in iCUE's "Screen types": drawn at about 24 px on a grey tile,
+  // white once picked. Bit at full height with his face cut out reads on both.
+  'server/pump-screen/icue-package/resources/icon.png': () => markOnCanvas(256, 256, { face: null }),
   // The old X logo's paths, no longer linked from any page, but emails sent
   // before the new brand still load them (logo-x.png at 26x20): Bit, in the
   // same canvas, so they show the new mark instead of a broken image.
@@ -95,8 +98,8 @@ export const FIXED_PATHS = Object.freeze({
 });
 
 // Bit as large as fits, centred on a transparent canvas of another shape.
-function markOnCanvas(width, height) {
-  const mark = markRgba(Math.floor(Math.min(width / MARK_W, height / MARK_H)));
+function markOnCanvas(width, height, look = {}) {
+  const mark = markRgba(Math.floor(Math.min(width / MARK_W, height / MARK_H)), look);
   const data = new Uint8Array(width * height * 4);
   const ox = Math.floor((width - mark.width) / 2), oy = Math.floor((height - mark.height) / 2);
   const row = mark.width * 4;

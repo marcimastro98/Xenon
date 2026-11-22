@@ -7551,7 +7551,7 @@ module.exports = {
   xmenu_pump_found_icue: 'Один шаг в iCUE',
   xmenu_pump_found_cam: 'Один шаг в NZXT CAM',
   xmenu_pump_icue: 'Через iCUE',
-  xmenu_pump_icue_sub: 'iCUE откроется с готовым виджетом Xenon: импортируйте его и выберите для экрана помпы. Затем помпа появится здесь сама',
+  xmenu_pump_icue_sub: 'iCUE откроется с готовым виджетом Xenon: импортируйте его, затем в настройке экрана помпы выберите Xenon Pump среди типов экрана (сам iCUE его не выбирает). Затем помпа появится здесь сама',
   xmenu_pump_icue_go: 'Открыть iCUE',
   xmenu_pump_cam: 'Через NZXT CAM',
   xmenu_pump_cam_sub: 'В CAM выберите для экрана помпы Web Integration и вставьте этот адрес. Затем помпа появится здесь сама',

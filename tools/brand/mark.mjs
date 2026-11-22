@@ -116,13 +116,14 @@ export function markRgba(unit, o = {}) {
   const width = MARK_W * unit;
   const height = MARK_H * unit;
   const data = new Uint8Array(width * height * 4);
-  const colors = { body: o.body || PALETTE.bit, face: o.face || PALETTE.face };
+  // face: null cuts the face out (transparent), so it shows whatever ground it lands on.
+  const colors = { body: o.body || PALETTE.bit, face: o.face === null ? null : o.face || PALETTE.face };
   if (o.ground) {
     const fill = [...hexRgb(o.ground), 255];
     for (let i = 0; i < width * height; i++) data.set(fill, i * 4);
   }
   for (const c of markCells()) {
-    const px = [...hexRgb(colors[c.part]), 255];
+    const px = colors[c.part] === null ? [0, 0, 0, 0] : [...hexRgb(colors[c.part]), 255];
     for (let y = c.y * unit; y < (c.y + c.h) * unit; y++) for (let x = c.x * unit; x < (c.x + c.w) * unit; x++) data.set(px, (y * width + x) * 4);
   }
   return { width, height, data };

@@ -3,7 +3,7 @@
   "id": "com.marcimastro98.xenonpump",
   "name": "Xenon Pump",
   "description": "Your pump screen, run by Xenon: it changes by itself when you play, listen to music or get a message. Needs the free Xenon app running on this PC.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "preview_icon": "resources/icon.png",
   "min_app_version": "5.47",
   "min_framework_version": "1.4.0",
