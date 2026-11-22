@@ -21,6 +21,9 @@
   const FOOT_LINKS = ['store', 'sparks'];   // always in reach, whatever page is open
   const BLOCK_OF = Object.freeze({ tile: 'xm-tiles', mode: 'xm-modeblock' });
   const BALANCE_TTL_MS = 30000;
+  // The Sparks row's number. The Store row before it has a number too (its updates), so a
+  // bare '.xm-nav-value' wrote the balance over the Store's count.
+  const SPARKS_VALUE = '[data-row="nav-sparks"] .xm-nav-value';
   // What can change a row while the menu is open: settings (widgets, keys,
   // look, mode), captures, the replay and recording state, the Deck's keys.
   // `capture` to `stutter_why` are what a function answers with, for the place to say; `pump`: a pump said hello or changed.
@@ -550,7 +553,7 @@
       } catch (e) {
         balance = null;
       }
-      const value = nav.querySelector('.xm-nav-value');
+      const value = nav.querySelector(SPARKS_VALUE);
       if (value) value.textContent = balanceText();
     }
 
@@ -687,7 +690,7 @@
         // This PC's AltGr keys: the recorder then takes a Ctrl+Alt letter they never type.
         if (typeof window !== 'undefined' && window.DeckShortcuts) window.DeckShortcuts.useAltGrKeys(next.altGrKeys);
         if (!recording && !(pageEdit && pageEdit.holds()) && !(widgets && widgets.holds())) draw();
-        if (nav.querySelector('.xm-nav-value')) refreshBalance();
+        if (nav.querySelector(SPARKS_VALUE)) refreshBalance();
       } catch (e) {
         if (seq !== loadSeq) return;
         if (!data) main.replaceChildren(el('p', 'xm-empty', tt('xmenu_offline')));

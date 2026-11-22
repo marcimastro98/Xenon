@@ -75,6 +75,17 @@ test('the menu shows the count by the Store link and reads it out with the words
   assert.match(engineSource(), /storeUpdates: store\.updates,/);
 });
 
+test('the Sparks balance is written on the Sparks row, never over the Store count', () => {
+  // Seen 22 Nov 2026: the menu window's Store row read 598, the balance, while the Store had 1
+  // update: the balance went into the first number in the rail, which is the Store's.
+  const src = read('../js/menu/xenon-menu.js');
+  assert.match(src, /const SPARKS_VALUE = '\[data-row="nav-sparks"\] \.xm-nav-value';/);
+  assert.match(src, /b\.dataset\.row = 'nav-' \+ r\.id;/, 'the rows carry the id the selector names');
+  assert.doesNotMatch(src, /querySelector\('\.xm-nav-value'\)/, 'no bare lookup that finds the Store number first');
+  const fn = src.slice(src.indexOf('async function refreshBalance'), src.indexOf('function drawNav'));
+  assert.match(fn, /nav\.querySelector\(SPARKS_VALUE\)/);
+});
+
 // phone-view.js mirrorCount, lifted verbatim, on a small DOM.
 function phone() {
   const src = read('../js/phone/phone-view.js');
