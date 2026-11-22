@@ -2,7 +2,7 @@
 // How the face on one of a pump's lines looks (js/pump/pump-faces.js LOOK), under its own
 // choices: its colours, what is behind it, how big its numbers are, the unit of its
 // temperatures, whether a warm reading changes colour, and a line of the person's own. Only
-// the rows that change something on that face. Pure.
+// the rows that change something on that face, and how the ring of lights moves with it. Pure.
 
 const Faces = require('../js/pump/pump-faces.js');
 const { k, run, choiceRow } = require('./menu-rows.js');
@@ -52,6 +52,16 @@ function bgRows(key, show, apply) {
   ];
 }
 
+// How the ring of lights moves while this line shows, in the line's colours. 'auto' is what the
+// Look tab says for the whole screen; with the beat only where this PC can hear the sound.
+function ringRow(key, show, ring, apply) {
+  const effects = Faces.LED_EFFECTS.filter((e) => e !== 'beat' || ring.sound);
+  return {
+    kind: 'pumpkeys', id: key + '-leds', label: k('xmenu_pump_ring'), sub: k('xmenu_pump_ring_sub'),
+    options: effects.map((leds) => ({ value: leds, label: k('xmenu_pump_ring_' + leds), on: show.leds === leds, act: show.leds === leds ? null : run(apply({ leds })) })),
+  };
+}
+
 // Keys of their own, as the long "as in Settings" leaves no room for a segmented line on a phone;
 // it comes last so the two short ones share the first line.
 function unitsRow(key, show, apply) {
@@ -63,13 +73,15 @@ function unitsRow(key, show, apply) {
 }
 
 /**
- * The look rows of a line. `apply(patch)` → the action that saves it; `accent`: the theme's.
- * @param {string} key @param {any} saved @param {string} accent @param {(p: any) => any} apply
+ * The look rows of a line. `apply(patch)` → the action that saves it; `accent`: the theme's;
+ * `ring`: { sound } when this screen's ring of lights has colours of its own, else null.
+ * @param {string} key @param {any} saved @param {string} accent @param {(p: any) => any} apply @param {{ sound: boolean } | null} [ring]
  */
-function lookRows(key, saved, accent, apply) {
+function lookRows(key, saved, accent, apply, ring = null) {
   const show = { ...saved, ...Faces.LOOK, ...Faces.lookOf(saved) };
   /** @type {any[]} */
   const rows = [{ kind: 'pumpcap', id: key + '-look', label: k('xmenu_pump_face_look') }, colorsRow(key, show, accent, apply)];
+  if (ring) rows.push(ringRow(key, show, ring, apply));
   const drawn = DRAWN.includes(show.face);
   if (drawn) rows.push(...bgRows(key, show, apply));
   if (drawn || isWidget(show)) {

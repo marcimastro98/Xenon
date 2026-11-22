@@ -246,14 +246,24 @@ test('createHeardPlayer: an app the OS lists is the OS\'s to describe', () => {
 test('createMusicFact: a pause keeps the widget, so its Play button stays reachable', () => {
   let at = 0;
   const music = createMusicFact({ clock: () => at });
-  assert.equal(music('Paused'), false, 'a song nobody played here is no music');
-  assert.equal(music('Playing'), true);
+  assert.equal(music({ playbackStatus: 'Paused' }), false, 'a song nobody played here is no music');
+  assert.equal(music({ playbackStatus: 'Playing' }), true);
   at = PAUSE_KEEPS_MS - 1;
-  assert.equal(music('Paused'), true);
+  assert.equal(music({ playbackStatus: 'Paused' }), true);
   at = PAUSE_KEEPS_MS + 1;
-  assert.equal(music('Paused'), false);
-  assert.equal(music('Playing'), true);
-  assert.equal(music('Unavailable'), false, 'a player that closed takes it down at once');
+  assert.equal(music({ playbackStatus: 'Paused' }), false);
+  assert.equal(music({ playbackStatus: 'Playing' }), true);
+  assert.equal(music({ playbackStatus: 'Unavailable' }), false, 'a player that closed takes it down at once');
+});
+
+test('createMusicFact: an app heard with only its name is a sound, not music', () => {
+  const music = createMusicFact({ clock: () => 0 });
+  const chrome = { fallback: true, app: 'Google Chrome', title: 'Google Chrome', playbackStatus: 'Playing' };
+  assert.equal(music(chrome), false, 'a browser tab making noise is not a song');
+  assert.equal(music({ ...chrome, title: '' }), false);
+  assert.equal(music({ ...chrome, app: 'Spotify', title: 'Song' }), true, 'a heard player with a song still counts');
+  assert.equal(music({ app: 'Google Chrome', title: 'Google Chrome', playbackStatus: 'Playing' }), true, 'a player that listed itself counts');
+  assert.equal(music(null), false);
 });
 
 test('afterPress: only a read from the sound is turned over, and it keeps the song', () => {

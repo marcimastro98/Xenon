@@ -59,7 +59,7 @@ async function writeDeviceCustom(dev, mode, follow, under = null) {
   if (!dev || !sinkReady(dev) || !dev.ledIds.length) return;
   const frame = ledColors.ledFrame(dev.ledIds, mode.leds, {
     follow, under, temperature: bridge.config.effects.temperature ? bridge.layers.base : null, album: effectiveAlbum(),
-    pump: pumpRing.colours(bridge.accent), brightness: bridge.config.brightness, nowMs: Date.now(),
+    pump: pumpRing.colours(bridge.accent), pumpSpin: pumpRing.spinPhase(), brightness: bridge.config.brightness, nowMs: Date.now(),
   });
   const key = 'custom:' + frame.map(c => (c ? `${c.r},${c.g},${c.b}` : '-')).join('|');
   if (bridge.lastWrite.get(dev.id) === key) return;

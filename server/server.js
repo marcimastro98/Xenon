@@ -1838,7 +1838,7 @@ const _situations = createSituations({
     cpu: () => getCpuUsage(),
     idleSec: () => ((_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null),
     front: () => gameDetect.getForegroundProcess(),
-    music: async () => musicNow((await getMediaInfo()).playbackStatus),
+    music: async () => musicNow(await getMediaInfo()),
     call: async () => calls.current().length > 0 || (await micUse.read({ ownMic: wakeWordWanted() })) === true,
     open: async () => ((await runWindowsTool(['list'], 8000)).windows || []).map((w) => w.app),
     battery: async () => (await require('./power').read()).battery,

@@ -37,7 +37,7 @@ function reconcileConnection() {
 function syncAnimationTicker() {
   const style = bridge.config.animation && bridge.config.animation.style;
   const deckDynamic = !!bridge.deckReaction && bridge.deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
-  const dynamic = DYNAMIC_ANIM_STYLES.includes(style) || anyDeviceAnimationDynamic() || deckDynamic || pumpRing.pulsing();
+  const dynamic = DYNAMIC_ANIM_STYLES.includes(style) || anyDeviceAnimationDynamic() || deckDynamic || pumpRing.moving();
   const shouldRun = dynamic && active() && !keyLook.isOut();
   if (shouldRun && !bridge.animTimer) bridge.animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
   else if (!shouldRun && bridge.animTimer) { clearInterval(bridge.animTimer); bridge.animTimer = null; }

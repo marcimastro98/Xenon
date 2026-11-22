@@ -50,7 +50,7 @@ export const LOOK = {
 export const PUMP_SCREEN = 'pump';
 const pumpScreen = PumpModel.screenFor({ screens: {}, seen: {} }, PUMP_SCREEN);
 export const PUMP = {
-  icue: true, detected: [], url: 'http://127.0.0.1:3030/pump-face',
+  icue: true, sound: true, detected: [], url: 'http://127.0.0.1:3030/pump-face',
   screens: [{
     screen: PUMP_SCREEN, ...pumpScreen, set: true,
     seen: { shape: 'round', w: 480, h: 480, via: 'icue' }, now: { show: pumpScreen.base, why: 'base' },

@@ -179,12 +179,12 @@ const red = () => Number(ring()[0].split(',')[0]);
 test('a ring that pulses keeps the lights moving and breathes with the sound', async (t) => {
   const hear = pretendSound(t);
   hear({ player: 1 });
-  lighting.setPumpRing({ follow: 'screen', all: false, pulse: true, colours: [RED] });
+  lighting.setPumpRing({ follow: 'screen', all: false, effect: 'beat', colours: [RED] });
   await until(() => bridge.animTimer, 'the lights tick for the pulse');
   await until(() => red() === 255, 'loud: full colour');
   hear({ player: 0.01 });
   await until(() => red() < 140 && red() > 100, 'quiet: down toward the floor, never dark');
-  lighting.setPumpRing({ follow: 'screen', all: false, pulse: false, colours: [RED] });
+  lighting.setPumpRing({ follow: 'screen', all: false, effect: 'still', colours: [RED] });
   await until(() => !bridge.animTimer, 'no pulse: no ticking');
   await until(() => red() === 255, 'steady again');
 });
@@ -194,12 +194,12 @@ test('where this PC cannot read the sound, a pulse asked for keeps the ring stea
   const real = audio.available;
   audio.available = () => false;
   t.after(() => { audio.available = real; });
-  lighting.setPumpRing({ follow: 'screen', all: false, pulse: true, colours: [RED] });
+  lighting.setPumpRing({ follow: 'screen', all: false, effect: 'beat', colours: [RED] });
   await quiet();
   assert.equal(pumpRing.pulsing(), false, 'no pulse here');
   assert.equal(bridge.animTimer, null, 'no ticking for it');
   assert.equal(red(), 255, 'the ring in its colour');
-  lighting.setPumpRing({ follow: 'screen', all: false, pulse: false, colours: [RED] });
+  lighting.setPumpRing({ follow: 'screen', all: false, effect: 'still', colours: [RED] });
   await quiet();
 });
 
@@ -211,9 +211,9 @@ test('turning the pulse on starts the sound reader while a page is open, and off
   Object.assign(audio, { available: () => true, start: () => calls.push('start'), stop: () => calls.push('stop') });
   sseClients.add(page);
   t.after(() => { Object.assign(audio, real); sseClients.delete(page); });
-  lighting.setPumpRing({ follow: 'screen', all: false, pulse: true, colours: [BLUE] });
+  lighting.setPumpRing({ follow: 'screen', all: false, effect: 'beat', colours: [BLUE] });
   assert.equal(calls.at(-1), 'start');
-  lighting.setPumpRing({ follow: 'screen', all: false, pulse: false, colours: [BLUE] });
+  lighting.setPumpRing({ follow: 'screen', all: false, effect: 'still', colours: [BLUE] });
   assert.equal(calls.at(-1), 'stop');
   await quiet();
 });
@@ -250,7 +250,7 @@ test('a pulsing ring dims its colours with the sound, never under its floor; onl
   audio.available = () => true;
   try {
     const red = { r: 255, g: 0, b: 0 };
-    pumpRing.set({ follow: 'screen', pulse: true, colours: [RED] });
+    pumpRing.set({ follow: 'screen', effect: 'beat', colours: [RED] });
     assert.equal(pumpRing.pulsing(), true);
     Date.now = () => 2e9;
     peaks = { player: 1 };
@@ -262,9 +262,9 @@ test('a pulsing ring dims its colours with the sound, never under its floor; onl
     Date.now = () => 2e9 + 2e5;
     peaks = {};
     assert.deepEqual(pumpRing.colours(null), [red], 'a long silence: steady');
-    pumpRing.set({ follow: 'theme', pulse: true });
+    pumpRing.set({ follow: 'theme', effect: 'beat' });
     assert.equal(pumpRing.pulsing(), true, 'the theme colour pulses too');
-    pumpRing.set({ follow: 'off', pulse: true });
+    pumpRing.set({ follow: 'off', effect: 'beat' });
     assert.equal(pumpRing.pulsing(), false, 'a dark ring has nothing to pulse');
     pumpRing.set({ follow: 'screen', colours: [RED] });
     peaks = { player: 0.04 };
@@ -285,12 +285,12 @@ test('the pulse is consent to read the sound, where this PC can', () => {
     audio.available = () => true;
     pumpRing.set({ follow: 'screen', colours: [RED] });
     const before = audioLevelsWanted();
-    pumpRing.set({ follow: 'screen', pulse: true, colours: [RED] });
+    pumpRing.set({ follow: 'screen', effect: 'beat', colours: [RED] });
     assert.equal(audioLevelsWanted(), true, 'a pulsing ring wants the sound');
     pumpRing.set({ follow: 'screen', colours: [RED] });
     assert.equal(audioLevelsWanted(), before, 'and lets it go');
     audio.available = () => false;
-    pumpRing.set({ follow: 'screen', pulse: true, colours: [RED] });
+    pumpRing.set({ follow: 'screen', effect: 'beat', colours: [RED] });
     assert.equal(audioLevelsWanted(), false, 'no reader on this PC: nothing to start');
   } finally {
     audio.available = realAvailable;
@@ -309,4 +309,40 @@ test('a ring LED with no colour of its own follows Xenon, and the ring spreads i
   const blue = { r: 0, g: 0, b: 255 };
   assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, pump: [red, blue] }), [follow, red, blue]);
   assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, follow: null, pump: [red, blue] }), [null, red, blue], 'no colour for the rest: left to iCUE');
+});
+
+test('a breathing ring rises and falls on its own, never dark; a running light lights a head and its tail', () => {
+  const pumpRing = require('../lights/pump-ring.js');
+  const { ledFrame, spun } = require('../lights/lighting-led-colors.js');
+  const red = { r: 255, g: 0, b: 0 };
+  try {
+    pumpRing.set({ follow: 'screen', effect: 'breathe', colours: [RED] });
+    assert.equal(pumpRing.moving(), true, 'the lights tick for it');
+    assert.equal(pumpRing.pulsing(), false, 'no sound is read for a breath');
+    const low = pumpRing.colours(null, 0)[0];
+    const high = pumpRing.colours(null, pumpRing.BREATHE_MS / 2)[0];
+    assert.deepEqual(high, red, 'the top of the breath: full colour');
+    assert.ok(low.r > 0 && low.r < 80, `the bottom: dim, never dark (${low.r})`);
+    assert.equal(pumpRing.spinPhase(0), null, 'a breath does not run round');
+
+    pumpRing.set({ follow: 'screen', effect: 'spin', colours: [RED] });
+    assert.equal(pumpRing.moving(), true);
+    assert.deepEqual(pumpRing.colours(null, 123), [red], 'running round: the colours stay whole, lit LED by LED');
+    assert.equal(pumpRing.spinPhase(pumpRing.SPIN_MS / 4), 0.25);
+    const ids = Array.from({ length: 8 }, (_, i) => 'l' + i);
+    const leds = Object.fromEntries(ids.map((id) => [id, pumpRing.RING_LED]));
+    const frame = ledFrame(ids, leds, { follow: null, pump: [red], pumpSpin: 0.25, brightness: 1, nowMs: 0 });
+    assert.deepEqual(frame[2], red, 'the head, a quarter of the way round, is full');
+    assert.ok(frame[1].r < 255 && frame[1].r > frame[0].r, 'its tail fades behind it');
+    assert.ok(frame[4].r < 60, 'the LEDs ahead of it are dim');
+    assert.deepEqual(spun([red, red], null), [red, red], 'no phase: as it is');
+
+    pumpRing.set({ follow: 'off', effect: 'spin' });
+    assert.equal(pumpRing.moving(), false, 'a dark ring never moves');
+    assert.equal(pumpRing.spinPhase(0), null);
+    pumpRing.set({ follow: 'screen', effect: 'sparkle', colours: [RED] });
+    assert.equal(pumpRing.moving(), false, 'an effect it does not know: still');
+  } finally {
+    pumpRing.set(null);
+  }
 });

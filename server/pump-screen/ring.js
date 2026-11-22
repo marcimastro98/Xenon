@@ -2,18 +2,26 @@
 // The ring of lights around a pump screen: what the screen's settings say its lights follow
 // (leds.follow, leds.all) and the colours its page last said (POST /pump/colors), handed to
 // the lighting bridge (lights/pump-ring.js), which paints the LEDs iCUE reports as a pump.
-// The colours live in memory only. With several pump screens, the first one showing Xenon
+// Each line moves the ring its own way (its look's `leds`; 'auto' = the screen's pulse or
+// still), so the face on show now is told here too (live.js). The colours live in memory only. With several pump screens, the first one showing Xenon
 // leads the ring; with none showing it (its widget taken off in iCUE), the ring is iCUE's again.
 // A page says its colours again every half minute (js/pump/face-colors.js); colours not said
 // for STALE_MS are dropped, so a page that is gone (iCUE closed, its widget removed) never
 // leaves the ring in its last colours, nor holds the iCUE session for them.
 
 const Model = require('../js/pump/pump-model.js');
+const Faces = require('../js/pump/pump-faces.js');
 const { screenIds } = require('./moments.js');
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const MAX_COLOURS = 3;
 const STALE_MS = 90_000;
+
+// How the ring moves while `show` is on: the line's own choice, else what the screen's lights say.
+function effectOf(leds, show) {
+  const own = show && Faces.LED_EFFECTS.includes(show.leds) ? show.leds : 'auto';
+  return own !== 'auto' ? own : (leds.pulse ? 'beat' : 'still');
+}
 
 // The colours a page sent, or null when they are not a short list of #rrggbb.
 function cleanColours(raw) {
@@ -30,13 +38,16 @@ function createPumpRing({ store, setRing, here = (_id) => true, clock = Date.now
   const colours = new Map();   // screen id -> { list, at }
   let sent;
   let timer = null;
+  let faces = {};   // screen id -> { show, why }, as live.js last decided
 
-  // What the lights get now; said again only when it changed.
-  function refresh() {
+  // What the lights get now; said again only when it changed. `now`: the faces just decided.
+  function refresh(now) {
+    if (now && typeof now === 'object') faces = now;
     const model = store.peek();
     const id = model ? screenIds(model).find(here) || '' : '';
     const leds = id ? Model.screenFor(model, id).leds : null;
-    const state = !leds || leds.follow === 'lights' ? null : { follow: leds.follow, all: leds.all, pulse: leds.pulse, colours: colours.get(id)?.list || [] };
+    const state = !leds || leds.follow === 'lights' ? null
+      : { follow: leds.follow, all: leds.all, effect: effectOf(leds, faces[id]?.show), colours: colours.get(id)?.list || [] };
     const json = JSON.stringify(state);
     if (json === sent) return;
     sent = json;
@@ -77,4 +88,4 @@ function createPumpRing({ store, setRing, here = (_id) => true, clock = Date.now
   return { refresh, report, stop };
 }
 
-module.exports = { createPumpRing, cleanColours, STALE_MS };
+module.exports = { createPumpRing, cleanColours, effectOf, STALE_MS };

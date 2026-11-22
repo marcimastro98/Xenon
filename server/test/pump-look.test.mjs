@@ -242,5 +242,25 @@ test('Bit is told every look field, with the values the model accepts', () => {
   for (const field of Object.keys(Faces.LOOK)) assert.match(said, new RegExp(`"${field}"`), field);
   for (const set of Faces.COLOR_SETS) assert.ok(said.includes(set), set);
   for (const art of Faces.OWN_ART) assert.ok(said.includes(art), art);
+  for (const effect of Faces.LED_EFFECTS) assert.ok(said.includes(effect), effect);
   assert.ok(said.includes(String(Faces.TEXT_MAX)));
+});
+
+test('each line moves the ring of lights its own way, where the ring has colours of its own', () => {
+  const apply = (p) => ({ type: 'pumpSet', patch: JSON.stringify(p) });
+  assert.equal(ids(lookRows('k', sensors(), '', apply)).includes('leds'), false, 'no ring of its own: no row');
+  const withRing = lookRows('k', sensors({ leds: 'spin' }), '', apply, { sound: true });
+  assert.deepEqual(ids(withRing).slice(0, 3), ['look', 'colors', 'leds'], 'right under the colours it uses');
+  const row = withRing.find((r) => r.id === 'k-leds');
+  assert.deepEqual(row.options.map((o) => o.value), [...Faces.LED_EFFECTS]);
+  assert.equal(row.options.find((o) => o.on).value, 'spin');
+  assert.equal(row.options.find((o) => o.value === 'spin').act, null, 'the one in use does nothing');
+  assert.deepEqual(JSON.parse(row.options.find((o) => o.value === 'still').act.run.patch), { leds: 'still' });
+  const deaf = lookRows('k', sensors(), '', apply, { sound: false }).find((r) => r.id === 'k-leds');
+  assert.equal(deaf.options.some((o) => o.value === 'beat'), false, 'no sound reader here: no beat');
+  assert.equal(deaf.options.find((o) => o.on).value, 'auto');
+  assert.ok(ids(lookRows('k', Faces.normalizeFace({ face: 'widget', id: 'neon-clock' }), '', apply, { sound: true })).includes('leds'), 'a widget line moves it too');
+  assert.equal(Faces.normalizeFace({ face: 'widget', id: 'neon-clock', leds: 'beat' }).leds, 'beat', 'and keeps it');
+  assert.equal(Faces.normalizeFace({ face: 'clock', leds: 'sparkle' }).leds, undefined, 'an effect it does not know: as usual');
+  assert.equal(Faces.mergeFace(sensors({ leds: 'breathe' }), { face: 'clock' }).leds, 'breathe', 'another face keeps it');
 });

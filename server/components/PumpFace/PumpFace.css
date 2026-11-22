@@ -137,33 +137,36 @@ html, body {
 @keyframes pf-alert-in { from { opacity: 0; transform: scale(0.96); } }
 
 .pf-alert-icon {
-  width: calc(var(--u) * 16);
-  height: calc(var(--u) * 16);
+  width: calc(var(--u) * 21);
+  height: calc(var(--u) * 21);
   border-radius: 50%;
-  background: var(--pf-raise);
+  background: color-mix(in srgb, var(--pf-c1) 16%, var(--pf-raise));
+  box-shadow: 0 0 0 calc(var(--u) * 0.5) color-mix(in srgb, var(--pf-c1) 35%, transparent);
   display: grid;
   place-items: center;
 }
 .pf-alert-icon svg {
-  width: calc(var(--u) * 8);
-  height: calc(var(--u) * 8);
+  width: calc(var(--u) * 11);
+  height: calc(var(--u) * 11);
   fill: none;
   stroke: var(--pf-c1);
-  stroke-width: 1.7;
+  stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.pf-alert-hot .pf-alert-icon { background: color-mix(in srgb, var(--pf-hot) 16%, var(--pf-raise)); box-shadow: 0 0 0 calc(var(--u) * 0.5) color-mix(in srgb, var(--pf-hot) 40%, transparent); }
 .pf-alert-hot .pf-alert-icon svg { stroke: var(--pf-hot); }
-.pf-alert-icon img { width: calc(var(--u) * 9); height: calc(var(--u) * 9); object-fit: contain; }
+/* An app's own icon fills its circle: Windows hands small ones, drawn up smooth. */
+.pf-alert-icon img { width: 72%; height: 72%; object-fit: contain; image-rendering: auto; }
 .pf-alert-text { display: grid; gap: calc(var(--u) * 1.2); max-width: calc(var(--u) * 64); }
-.pf-alert-kicker { font-size: calc(var(--u) * 4); font-weight: 600; color: var(--pf-ink-2); }
+.pf-alert-kicker { font-size: calc(var(--u) * 4.4); font-weight: 600; color: var(--pf-c1); }
 .pf-alert-title, .pf-alert-body {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
 }
-.pf-alert-title { font-size: calc(var(--u) * 6.4); font-weight: 650; line-height: 1.12; -webkit-line-clamp: 2; }
+.pf-alert-title { font-size: calc(var(--u) * 7); font-weight: 650; line-height: 1.12; -webkit-line-clamp: 2; }
 .pf-alert-body { font-size: calc(var(--u) * 4.4); color: var(--pf-ink-2); line-height: 1.25; -webkit-line-clamp: 3; }
 .pf-alert-ring .pf-fill { transition: none; }
 

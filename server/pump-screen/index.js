@@ -26,7 +26,7 @@ const presence = createPumpPresence({ changed: () => live.push(true) });
 const here = (id) => presence.here(id);
 // The ring of lights around the pump: read lazily, the lighting bridge loads its SDK on demand.
 const ring = createPumpRing({ store, here, setRing: (state) => require('../lights/lighting.js').setPumpRing(state) });
-const live = createPumpLive({ store, here, broadcast: broadcastSSE, quiet: () => screensOff.quiet(), changed: () => ring.refresh() });
+const live = createPumpLive({ store, here, broadcast: broadcastSSE, quiet: () => screensOff.quiet(), changed: (now) => ring.refresh(now) });
 const leave = Sources.addSource(live.source);
 const actions = createPumpActions({
   store, live, change: createChange({ store, live }),
@@ -53,7 +53,7 @@ async function menuState() {
 const backup = createPumpBackup({ store, dir: UPLOADS_DIR, changed: () => live.push(true) });
 
 // The ring starts from the saved settings once they are read (theme/off need no page).
-store.ready().then(() => ring.refresh()).catch(() => {});
+store.ready().then(() => ring.refresh(live.decide())).catch(() => {});
 
 function stop() {
   leave();

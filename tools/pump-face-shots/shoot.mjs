@@ -12,7 +12,7 @@ import { mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { loadPlaywright } from '../toast-gallery/shoot.mjs';
-import { CALL, HOT_SYSTEM, MAC_SYSTEM, MEDIA, MEDIA_LONG, NOTIFICATION, SYSTEM } from './fixture.mjs';
+import { CALL, HOT_SYSTEM, MAC_SYSTEM, MEDIA, MEDIA_LONG, MEDIA_NO_COVER, MEDIA_TAB_SOUND, NOTIFICATION, NOTIFICATION_ICON, SYSTEM } from './fixture.mjs';
 import { startPumpFaceServer } from './server.mjs';
 
 export const SIZES = [
@@ -45,6 +45,10 @@ export const SHOTS = {
   'music-pulse': face({ face: 'music', style: 'pulse' }),
   'music-long': face({ face: 'music', style: 'cover' }, { media: MEDIA_LONG }),
   'music-nothing': face({ face: 'music', style: 'cover' }, { media: {} }),
+  'music-no-cover': face({ face: 'music', style: 'cover' }, { media: MEDIA_NO_COVER }),
+  'music-vinyl-no-cover': face({ face: 'music', style: 'vinyl' }, { media: MEDIA_NO_COVER }),
+  'music-pulse-nothing': face({ face: 'music', style: 'pulse', colors: 'fire' }, { media: {} }),
+  'music-tab-sound': face({ face: 'music', style: 'cover' }, { media: MEDIA_TAB_SOUND }),
   'clock-digital': face({ face: 'clock', style: 'digital', seconds: false, date: true, weather: true }),
   'clock-seconds': face({ face: 'clock', style: 'digital', seconds: true, date: true, weather: false }),
   'clock-analog': face({ face: 'clock', style: 'analog', seconds: true, date: true, weather: true }),
@@ -63,6 +67,7 @@ export const SHOTS = {
   'look-clock-theme': face({ face: 'clock', style: 'analog', seconds: true, date: true, weather: true, colors: 'theme', units: 'f', text: 'Buongiorno' }),
   'look-numbers-big': face({ face: 'sensors', style: 'numbers', readings: ['cpuTemp', 'gpuTemp', 'cpuClock', 'vram'], size: 'big', colors: 'picture', bg: 'art:tide' }),
   'alert-open': face({ face: 'clock' }, { textShown: true, push: ['windows_notification', NOTIFICATION] }),
+  'alert-app-icon': face({ face: 'clock' }, { push: ['windows_notification', NOTIFICATION_ICON] }),
   'alert-hidden': face({ face: 'clock' }, { push: ['windows_notification', NOTIFICATION] }),
   'alert-call': face({ face: 'clock' }, { textShown: true, push: ['calls', CALL] }),
   'alert-timer': face({ face: 'clock' }, { push: ['timer_done', { id: 1, label: 'Tea' }] }),

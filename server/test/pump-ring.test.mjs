@@ -25,14 +25,14 @@ function rig(t, { withRing = true } = {}) {
   const store = createPumpStore({ dataDir: dir });
   const told = [];
   const ring = createPumpRing({ store, setRing: (state) => told.push(state) });
-  const live = createPumpLive({ store, broadcast: () => {}, changed: () => ring.refresh() });
+  const live = createPumpLive({ store, broadcast: () => {}, changed: (now) => ring.refresh(now) });
   const routes = createRoutes({ store, live, ring: withRing ? ring : null });
   const call = async (key, body) => {
     let answer;
     await routes[key]({}, {}, { json: (v) => { answer = v; }, readBody: async () => JSON.stringify(body), sendPage: async () => {} });
     return answer;
   };
-  return { store, ring, told, call };
+  return { store, ring, live, told, call };
 }
 const hello = (call, screen) => call('POST /pump/hello', { screen, shape: 'round', w: 480, h: 480, via: 'icue' });
 
@@ -50,9 +50,9 @@ test('the ring hears the first screen\'s settings and colours, each once', async
   assert.deepEqual(told, [null], 'no pump screen: the ring follows Xenon');
   await hello(call, 'pump');
   ring.refresh();
-  assert.deepEqual(told.at(-1), { follow: 'screen', all: false, pulse: false, colours: [] }, 'a screen follows itself by default');
+  assert.deepEqual(told.at(-1), { follow: 'screen', all: false, effect: 'still', colours: [] }, 'a screen follows itself by default');
   assert.equal(ring.report('pump', ['#112233']), true);
-  assert.deepEqual(told.at(-1), { follow: 'screen', all: false, pulse: false, colours: ['#112233'] });
+  assert.deepEqual(told.at(-1), { follow: 'screen', all: false, effect: 'still', colours: ['#112233'] });
   const count = told.length;
   ring.report('pump', ['#112233']);
   ring.refresh();
@@ -91,7 +91,7 @@ test('colours a page stopped saying are dropped, so a closed page never keeps th
   assert.equal(live().length, 1, 'checked again later');
   now += STALE_MS;
   fire();
-  assert.deepEqual(told.at(-1), { follow: 'screen', all: false, pulse: false, colours: [] }, 'the page is gone: no colours of its own');
+  assert.deepEqual(told.at(-1), { follow: 'screen', all: false, effect: 'still', colours: [] }, 'the page is gone: no colours of its own');
   assert.equal(live().length, 0, 'nothing left to check');
   ring.report('pump', ['#445566']);
   ring.stop();
@@ -116,11 +116,11 @@ test('a settings change tells the ring: lights, theme, dark, every light too', a
   await call('POST /pump', { screen: 'pump', patch: { leds: { follow: 'lights' } } });
   assert.equal(told.at(-1), null, 'like the other lights: nothing of its own');
   await call('POST /pump', { screen: 'pump', patch: { leds: { follow: 'theme' } } });
-  assert.deepEqual(told.at(-1), { follow: 'theme', all: false, pulse: false, colours: ['#abcdef'] });
+  assert.deepEqual(told.at(-1), { follow: 'theme', all: false, effect: 'still', colours: ['#abcdef'] });
   await call('POST /pump', { screen: 'pump', patch: { leds: { follow: 'screen', all: true } } });
-  assert.deepEqual(told.at(-1), { follow: 'screen', all: true, pulse: false, colours: ['#abcdef'] });
+  assert.deepEqual(told.at(-1), { follow: 'screen', all: true, effect: 'still', colours: ['#abcdef'] });
   await call('POST /pump', { screen: 'pump', patch: { leds: { pulse: true } } });
-  assert.deepEqual(told.at(-1), { follow: 'screen', all: true, pulse: true, colours: ['#abcdef'] }, 'the pulse reaches the ring');
+  assert.deepEqual(told.at(-1), { follow: 'screen', all: true, effect: 'beat', colours: ['#abcdef'] }, 'the pulse reaches the ring as the beat of every line left as usual');
   await call('POST /pump', { screen: 'pump', forget: true });
   assert.equal(told.at(-1), null, 'the screen gone: the ring is given back');
 });
@@ -182,4 +182,27 @@ test('a model edit keeps the other LED choice when one changes', () => {
   model = Edit.patchScreen(model, 'pump', { leds: { pulse: true } }).model;
   assert.deepEqual(Model.screenFor(model, 'pump').leds, { follow: 'theme', all: true, pulse: true });
   assert.equal(Model.normalizeScreen({ leds: { pulse: 'yes' } }).leds.pulse, false, 'only true turns it on');
+});
+
+test('each line moves the ring its own way; a line left as usual follows the screen', async (t) => {
+  const { effectOf } = require('../pump-screen/ring.js');
+  assert.equal(effectOf({ pulse: false }, { leds: 'spin' }), 'spin', 'the line chose');
+  assert.equal(effectOf({ pulse: true }, { leds: 'still' }), 'still', 'still on this line, even with the sound on for the screen');
+  assert.equal(effectOf({ pulse: true }, { leds: 'auto' }), 'beat');
+  assert.equal(effectOf({ pulse: false }, {}), 'still');
+  assert.equal(effectOf({ pulse: false }, null), 'still');
+
+  const { store, live, told, call } = rig(t);
+  await store.ready();
+  await hello(call, 'pump');
+  await call('POST /pump', { screen: 'pump', patch: {
+    base: { face: 'clock', leds: 'breathe' },
+    addMoment: { when: { any: [{ c: 'game' }] }, show: { face: 'game', leds: 'spin' } },
+  } });
+  live.source.onFacts({});
+  assert.equal(told.at(-1).effect, 'breathe', 'the normal face breathes');
+  live.source.onFacts({ game: true });
+  assert.equal(told.at(-1).effect, 'spin', 'a game starts: its line runs round');
+  live.source.onFacts({});
+  assert.equal(told.at(-1).effect, 'breathe', 'and back');
 });

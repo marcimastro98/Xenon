@@ -137,10 +137,15 @@ function createHeardPlayer(F, { clock = Date.now } = {}) {
   };
 }
 
-/** "Is there music?" from a read's status, with a pause counting for a while. */
+/** A sound with no song: an app heard (no player listed it) and only its own name to show,
+ *  like a browser tab's game, call or notification. Nobody calls that listening to music. */
+const soundWithoutSong = (read) => read.fallback === true && (!read.title || read.title === read.app);
+
+/** "Is there music?" from a read, with a pause counting for a while. */
 function createMusicFact({ clock = Date.now } = {}) {
   let playedAt = -Infinity;
-  return (status) => {
+  return (read) => {
+    const status = read && !soundWithoutSong(read) ? read.playbackStatus : 'Unavailable';
     if (status === 'Playing') { playedAt = clock(); return true; }
     return status === 'Paused' && clock() - playedAt < PAUSE_KEEPS_MS;
   };
@@ -165,5 +170,5 @@ function cachedReadUsable(cache, now) {
 
 module.exports = {
   readFailed, heardApp, heardMedia, reportedApps, nothingHeard, createEarshot, createHeardPlayer, createMusicFact,
-  afterPress, cacheLife, cachedReadUsable, PAUSE_KEEPS_MS, PRESS_HOLDS_MS,
+  soundWithoutSong, afterPress, cacheLife, cachedReadUsable, PAUSE_KEEPS_MS, PRESS_HOLDS_MS,
 };

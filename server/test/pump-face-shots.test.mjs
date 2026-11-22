@@ -41,7 +41,7 @@ test('a panel standing up is shot too, and the faces place their parts from the 
   assert.ok(SIZES.some((s) => s.height > s.width), 'a tall panel, or a wide one mounted turned');
   // A part pinned at so many vmin from the top or bottom slides off the dial on a tall panel:
   // the analog clock's weather sat on the 12 tick, the music disc over its ring.
-  for (const file of ['PumpFace.css', 'PumpFaceFaces.css']) {
+  for (const file of ['PumpFace.css', 'PumpFaceFaces.css', 'PumpFaceMusic.css']) {
     const css = readFileSync(new URL(`../components/PumpFace/${file}`, import.meta.url), 'utf8');
     const fromEdge = css.split('\n').filter((line) => /(?:^|[{;])\s*(?:top|bottom):\s*calc\(var\(--u\)/.test(line));
     assert.deepEqual(fromEdge, [], file);
@@ -66,7 +66,7 @@ test('the shot server serves the face page and its files, never data or a climb'
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: 'pump', colors: ['#123456'] }),
     });
     assert.equal((await colours.json()).ok, true);
-    assert.deepEqual(server.state.ring, { follow: 'screen', all: false, pulse: false, colours: ['#123456'] }, "the face's colours reach the ring");
+    assert.deepEqual(server.state.ring, { follow: 'screen', all: false, effect: 'still', colours: ['#123456'] }, "the face's colours reach the ring");
     for (const bad of ['/data/hub-settings.json', '/js/../data/x', '/%2e%2e/package.json', '/.git/config', '/server.js']) {
       assert.equal((await fetch(server.url + bad)).status, 404, bad);
     }

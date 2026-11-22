@@ -51,11 +51,15 @@
   const SIZES = Object.freeze(['normal', 'big']);
   const UNITS = Object.freeze(['auto', 'c', 'f']);
   const TEXT_MAX = 24;
-  const LOOK = Object.freeze({ colors: 'xenon', bg: 'black', size: 'normal', units: 'auto', warn: true, text: '' });
-  // The look a Store widget is told (placement.look): the rest is the widget's own to draw.
-  // A widget face draws itself: it takes these from its line (placement.look); colours read off
-  // a picture are the face page's own, so a widget gets Xenon's set instead.
-  const WIDGET_LOOK = Object.freeze(['colors', 'size', 'units']);
+  // How the ring of lights around the pump moves while this line shows (lights/pump-ring.js):
+  // 'auto' as the screen's lights say (still, or with the sound), or still, breathing, a light
+  // running round, or with the beat of the sound the PC plays. Its colours are the line's.
+  const LED_EFFECTS = Object.freeze(['auto', 'still', 'breathe', 'spin', 'beat']);
+  const LOOK = Object.freeze({ colors: 'xenon', bg: 'black', size: 'normal', units: 'auto', warn: true, text: '', leds: 'auto' });
+  // A widget face draws itself: its line keeps only these. colors, size and units are what the
+  // widget is told (placement.look, face-widget.js); colours read off a picture are the face
+  // page's own, so a widget gets Xenon's set instead. leds moves the ring, never the widget.
+  const WIDGET_LOOK = Object.freeze(['colors', 'size', 'units', 'leds']);
   const widgetLook = (r) => cleanLook(r.colors === 'picture' ? { ...r, colors: LOOK.colors } : r, WIDGET_LOOK);
 
   // The four colours of each set, one per reading (the first one leads: rings, hands, glow).
@@ -108,6 +112,7 @@
       units: pick(r.units, UNITS, LOOK.units),
       warn: r.warn !== false,
       text: cleanText(r.text),
+      leds: pick(r.leds, LED_EFFECTS, LOOK.leds),
     };
     return Object.fromEntries(keys.filter((k) => all[k] !== LOOK[k]).map((k) => [k, all[k]]));
   }
@@ -152,7 +157,7 @@
   const defaultFace = (face) => normalizeFace({ face });
 
   // Changes `patch` makes to a face: the same face keeps the choices it had, another one
-  // keeps the line's look (its colours, background, size, units, text).
+  // keeps the line's look (its colours, background, size, units, text, lights).
   function mergeFace(current, patch) {
     const p = patch && typeof patch === 'object' ? patch : { face: patch };
     const base = current && (!p.face || p.face === current.face) ? current : lookOf(current);
@@ -162,6 +167,6 @@
   return Object.freeze({
     FACES, READINGS, MAX_READINGS, SENSOR_STYLES, MUSIC_STYLES, CLOCK_STYLES, FITS, PICTURE_EVERY,
     MAX_PICTURES, OWN_ART, WIDGET, WIDGET_ID_RE, isPicture, normalizeFace, defaultFace, mergeFace,
-    COLOR_SETS, COLOR_HEX, BACKGROUNDS, SIZES, UNITS, TEXT_MAX, LOOK, WIDGET_LOOK, lookOf, colorsOf,
+    COLOR_SETS, COLOR_HEX, BACKGROUNDS, SIZES, UNITS, TEXT_MAX, LED_EFFECTS, LOOK, WIDGET_LOOK, lookOf, colorsOf,
   });
 });

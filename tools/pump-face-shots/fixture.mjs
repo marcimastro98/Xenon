@@ -34,17 +34,19 @@ function chunk(type, data) {
 }
 
 /** A size x size PNG whose pixel colour is `paint(x, y)` -> [r, g, b]. */
-export function png(size, paint) {
+// `alpha`: paint gives [r, g, b, a], as an app's icon with see-through corners.
+export function png(size, paint, alpha = false) {
+  const px = alpha ? 4 : 3;
   const rows = [];
   for (let y = 0; y < size; y += 1) {
-    const row = Buffer.alloc(1 + size * 3);
-    for (let x = 0; x < size; x += 1) row.set(paint(x / size, y / size), 1 + x * 3);
+    const row = Buffer.alloc(1 + size * px);
+    for (let x = 0; x < size; x += 1) row.set(paint(x / size, y / size), 1 + x * px);
     rows.push(row);
   }
   const head = Buffer.alloc(13);
   head.writeUInt32BE(size, 0);
   head.writeUInt32BE(size, 4);
-  head.set([8, 2, 0, 0, 0], 8);
+  head.set([8, alpha ? 6 : 2, 0, 0, 0], 8);
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', head), chunk('IDAT', deflateSync(Buffer.concat(rows))), chunk('IEND', Buffer.alloc(0)),
@@ -76,5 +78,13 @@ export const MEDIA_LONG = {
 
 export const UPLOADS = { 'pump-cover.png': COVER_PNG, 'pump-photo.png': PHOTO_PNG };
 
+// A song a player lists with no cover, and a browser tab heard making sound with no song.
+export const MEDIA_NO_COVER = { ...MEDIA, thumbnail: null };
+export const MEDIA_TAB_SOUND = { fallback: true, app: 'Google Chrome', title: 'Google Chrome', artist: '', playbackStatus: 'Playing', thumbnail: null };
+
 export const NOTIFICATION = { app: 'Messages', title: 'Sam', body: 'Running ten minutes late, save me a seat by the window.' };
+// The small icon Windows hands with a notification: 24 px, a rounded tile drawn here.
+// A round app logo with soft edges, at the 48 px Windows hands over.
+const ICON_PNG = png(48, (x, y) => [mix(80, 40, y), mix(160, 120, x), mix(250, 210, y), Math.round(255 * Math.max(0, Math.min(1, (0.44 - Math.hypot(x - 0.5, y - 0.5)) * 48)))], true);
+export const NOTIFICATION_ICON = { ...NOTIFICATION, app: 'Snipping Tool', title: '', body: '', icon: 'data:image/png;base64,' + ICON_PNG.toString('base64') };
 export const CALL = { calls: [{ caller: 'Alex', app: 'Phone' }] };

@@ -124,15 +124,16 @@ function whenLabel(when) {
 /**
  * One line: its name, what it shows, and under it the faces, the face's choices, and a way to
  * take the line off (`remove`, none for the rest of the time).
- * @param {{ id: string, label: any, show: any, v: any, st: any, save: (show: any) => any, remove?: any }} o
+ * `ring`: { sound } when the screen's ring of lights has colours of its own (each line moves it).
+ * @param {{ id: string, label: any, show: any, v: any, st: any, save: (show: any) => any, remove?: any, ring?: { sound: boolean } | null }} o
  */
-function momentRow({ id, label, show, v, st, save, remove }) {
+function momentRow({ id, label, show, v, st, save, remove, ring = null }) {
   return {
     kind: 'pumpmoment', id, label, sub: detailOf(show, st), value: showLabel(show, st), art: show.face, show,
     // Another face keeps the line's look: its colours, background and the rest.
     faces: faceCards(st, pickOf(show), (f) => save({ ...showOf(v, f), ...Faces.lookOf(show) })),
     facesLabel: k('xmenu_pump_faces'), yours: k('xmenu_pump_yours'), own: OWN_FACE,
-    rows: [...faceRows(id, show, (p) => save({ ...show, ...p })), ...lookRows(id, show, st.pump?.accent, (p) => save({ ...show, ...p }))],
+    rows: [...faceRows(id, show, (p) => save({ ...show, ...p })), ...lookRows(id, show, st.pump?.accent, (p) => save({ ...show, ...p }), ring)],
     remove: remove ? { label: k('xmenu_pump_m_remove'), act: run(remove) } : null,
   };
 }

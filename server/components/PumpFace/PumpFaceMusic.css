@@ -1,0 +1,121 @@
+/* The Music face of the pump screen page (face-music.js): the cover, a disc or a pulse,
+   and a round of the line's colours with bars when there is no cover. Loads after
+   PumpFaceFaces.css, so its own reduced-motion rule sits here, after the animations. */
+
+/* ── Music ────────────────────────────────────────────────────────────── */
+.pf-face-music { display: block; }
+.pf-music-backdrop { position: absolute; inset: 0; overflow: hidden; }
+.pf-music-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.25);
+  /* Still: it changes with the song, never while drawn. */
+  filter: blur(calc(var(--u) * 6)) brightness(0.32) saturate(1.2);
+}
+.pf-music-backdrop.pf-cover-empty img { display: none; }
+.pf-music-disc {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--u) * 37);
+  width: calc(var(--u) * 52);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+}
+.pf-music-cover {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--pf-raise);
+  box-shadow: 0 0 0 calc(var(--u) * 0.5) rgba(255, 255, 255, 0.08);
+}
+.pf-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pf-cover-empty .pf-cover-img { display: none; }
+/* No cover, or no song: the line's colours, and bars that dance only while something plays.
+   Each bar rests at a height of its own, so a still frame (reduced motion) still reads as sound. */
+.pf-cover-art {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6%;
+  background:
+    radial-gradient(circle at 30% 24%, color-mix(in srgb, var(--pf-c2) 80%, transparent), transparent 55%),
+    radial-gradient(circle at 74% 80%, color-mix(in srgb, var(--pf-c4) 75%, transparent), transparent 60%),
+    var(--pf-c1);
+}
+.pf-cover-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.35));
+}
+.pf-cover-empty .pf-cover-art { display: flex; }
+.pf-eq {
+  --rest: 0.6;
+  position: relative;
+  width: 9%;
+  height: calc(40% * var(--rest));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 calc(var(--u) * 2) rgba(0, 0, 0, 0.25);
+  animation: pf-eq 1.1s ease-in-out infinite alternate paused;
+}
+.pf-eq-1 { --rest: 0.55; }
+.pf-eq-2 { --rest: 0.95; animation-duration: 0.8s; animation-delay: -0.3s; }
+.pf-eq-3 { --rest: 0.7; animation-duration: 1.3s; animation-delay: -0.6s; }
+.pf-eq-4 { --rest: 0.4; animation-duration: 0.95s; animation-delay: -0.15s; }
+.pf-playing .pf-eq { animation-play-state: running; }
+/* Nothing plays: the colours stay, quieter, and the bars lie low. */
+.pf-idle .pf-cover-art { filter: brightness(0.62); }
+.pf-idle .pf-eq { height: max(9%, calc(16% * var(--rest))); }
+/* From a low beat up to the full 40%, whatever the bar's resting height. */
+@keyframes pf-eq { from { transform: scaleY(0.4); } to { transform: scaleY(calc(1 / var(--rest))); } }
+.pf-style-cover .pf-music-backdrop.pf-cover-empty {
+  background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--pf-c1) 20%, transparent), transparent 62%);
+}
+.pf-music-text {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--u) * 19);
+  width: calc(var(--u) * 62);
+  transform: translateX(-50%);
+  text-align: center;
+}
+.pf-music-title, .pf-music-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-music-title { font-size: calc(var(--u) * 5.6); font-weight: 650; }
+.pf-music-artist { font-size: calc(var(--u) * 4.2); color: var(--pf-ink-2); margin-top: calc(var(--u) * 0.8); }
+.pf-idle .pf-music-title { color: var(--pf-ink-3); font-weight: 500; }
+
+.pf-style-vinyl .pf-music-disc { top: calc(50% - var(--u) * 43); width: calc(var(--u) * 60); }
+.pf-style-vinyl .pf-music-disc::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, #101010 0 calc(var(--u) * 0.45), #181818 calc(var(--u) * 0.45) calc(var(--u) * 0.9));
+}
+.pf-style-vinyl .pf-music-cover { inset: 31%; animation: pf-spin 1.8s linear infinite paused; }
+.pf-style-vinyl.pf-playing .pf-music-cover { animation-play-state: running; }
+.pf-style-vinyl .pf-music-text { top: calc(50% + var(--u) * 22); }
+@keyframes pf-spin { to { transform: rotate(1turn); } }
+
+.pf-style-pulse .pf-music-disc { top: calc(50% - var(--u) * 33); width: calc(var(--u) * 44); }
+.pf-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: calc(var(--u) * 0.5) solid var(--pf-c1);
+  opacity: 0;
+  animation: pf-pulse 2.4s ease-out infinite paused;
+}
+.pf-pulse-2 { animation-delay: 0.8s; }
+.pf-pulse-3 { animation-delay: 1.6s; }
+.pf-playing .pf-pulse { animation-play-state: running; }
+@keyframes pf-pulse { from { opacity: 0.55; transform: scale(1); } to { opacity: 0; transform: scale(1.6); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-style-vinyl .pf-music-cover, .pf-pulse, .pf-eq { animation: none; }
+}

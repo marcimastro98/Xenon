@@ -71,15 +71,19 @@ function examplesRow(v) {
   };
 }
 
-function showsTab(v, st) {
+// The ring of lights has colours of its own on the screen that leads it, where iCUE runs, and
+// unless it follows the other lights or is dark: then each line can move it its own way.
+const ringOf = (v, st, first) => (first && st.pump?.icue === true && ['screen', 'theme'].includes(v.leds?.follow) ? { sound: st.pump.sound === true } : null);
+
+function showsTab(v, st, ring) {
   const id = v.screen;
   const withShow = (i, show) => pumpSet(id, { moments: v.moments.map((x, j) => (j === i ? { ...x, show } : x)) });
   /** @type {any[]} rows of several kinds */
   const rows = [{ kind: 'pumpnote', id: 'pump-intro', label: k('xmenu_pump_auto_intro') }];
   rows.push(...v.moments.map((m, i) => momentRow({
-    id: 'pump-m-' + i, label: whenLabel(m.when), show: m.show, v, st, save: (show) => withShow(i, show), remove: pumpSet(id, { removeMoment: i }),
+    id: 'pump-m-' + i, label: whenLabel(m.when), show: m.show, v, st, save: (show) => withShow(i, show), remove: pumpSet(id, { removeMoment: i }), ring,
   })));
-  rows.push(momentRow({ id: 'pump-base', label: k('xmenu_pump_rest'), show: v.base, v, st, save: (show) => pumpSet(id, { base: show }) }));
+  rows.push(momentRow({ id: 'pump-base', label: k('xmenu_pump_rest'), show: v.base, v, st, save: (show) => pumpSet(id, { base: show }), ring }));
   rows.push(...[addRow(v, st), examplesRow(v)].filter(Boolean));
   return { id: 'shows', label: k('xmenu_scr_shows'), value: null, rows };
 }
@@ -105,7 +109,7 @@ function pumpView(v, st, many, first) {
   return {
     key: 'pump:' + v.screen, pump: v.screen, label, ...drawnShape(v),
     chip: v.now ? showLabel(v.now.show, st) : null, now: nowOf(v, st),
-    tabs: [showsTab(v, st), alertsTab(v, st), lookTab(v, first && st.pump.icue === true, st.pump.sound === true)],
+    tabs: [showsTab(v, st, ringOf(v, st, first)), alertsTab(v, st), lookTab(v, first && st.pump.icue === true, st.pump.sound === true)],
   };
 }
 

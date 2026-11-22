@@ -15,9 +15,10 @@ const FOREVER = Number.MAX_SAFE_INTEGER;
 // Read only while a screen shows the text of its alerts: on air, the text hides anyway.
 const ON_AIR = Object.freeze([LayerWhen.parse('live'), LayerWhen.parse('recording')]);
 
-// changed(): told after every change of the settings (the ring of lights reads them again).
+// changed(now): told after every change of the settings, and when a screen's face moves (the
+// ring of lights reads them again: each line moves it its own way).
 // here(id): whether that screen shows Xenon now (presence.js): only those ask for readings.
-function createPumpLive({ store, broadcast, here = (_id) => true, quiet = () => false, clock = () => Date.now(), changed = () => {} }) {
+function createPumpLive({ store, broadcast, here = (_id) => true, quiet = () => false, clock = () => Date.now(), changed = (_now) => {} }) {
   const pins = new Map();
   let facts = {};
   let sent = '';
@@ -43,11 +44,11 @@ function createPumpLive({ store, broadcast, here = (_id) => true, quiet = () => 
   // Sends the faces when one moved; `force` after a change of the settings themselves,
   // which the pages then read again (`changed`).
   function push(force = false) {
-    if (force) changed();
     const now = decide();
     const json = JSON.stringify(now);
     if (json === sent && !force) return;
     sent = json;
+    changed(now);
     broadcast('pump', force ? { now, changed: true } : { now });
   }
 

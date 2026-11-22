@@ -70,12 +70,29 @@ function hasDynamicLeds(leds) {
   return Object.values(leds).some(v => v && typeof v === 'object' && LED_DYNAMIC_STYLES.includes(v.style));
 }
 
+// A running light: the ring's colours turned round to `phase`, bright at the head and fading
+// along its tail, the LEDs ahead of it dim. null phase: the colours as they are.
+const TAIL = 0.45;   // of the ring
+const SPIN_FLOOR = 0.12;
+function spun(stops, phase) {
+  if (phase == null || !Number.isFinite(phase)) return stops;
+  const n = stops.length;
+  const head = phase * n;
+  return stops.map((_, i) => {
+    const c = stops[(i - Math.floor(head) + n * 2) % n];
+    const behind = (((head - i) % n) + n) % n / n;   // 0 at the head, toward 1 all the way round
+    const lit = behind <= TAIL ? (1 - behind / TAIL) ** 2 : 0;
+    return fx.applyBrightness(c, SPIN_FLOOR + (1 - SPIN_FLOOR) * lit);
+  });
+}
+
 // The colours of one device for this instant, one per entry of `ledIds`.
 // ctx: { follow, under, temperature, album, pump, brightness, nowMs } — `follow` is the
 // colour Xenon is showing (brightness already applied; null leaves the LED to its
 // own software), `under` what the device would show without its map, one colour per
 // LED (the album gradient or a wave), taken instead of `follow` where it has one, `temperature`/`album` the raw reactive colours or null, `pump`
-// the colours of the pump screen's ring (lights/pump-ring.js) or null. LEDs sharing
+// the colours of the pump screen's ring (lights/pump-ring.js) or null, `pumpSpin` where its
+// running light is (0..1 of a turn) or null. LEDs sharing
 // the same effect move together, and a wave or the ring's colours run across them
 // as one strip, in luid order.
 function ledFrame(ledIds, leds, ctx) {
@@ -96,7 +113,7 @@ function ledFrame(ledIds, leds, ctx) {
     groups.get(key).push(i);
     return null;
   });
-  const stops = ring.length && ctx.pump ? fx.paletteGradient(ctx.pump, ring.length) : null;
+  const stops = ring.length && ctx.pump ? spun(fx.paletteGradient(ctx.pump, ring.length), ctx.pumpSpin) : null;
   if (stops) ring.forEach((at, j) => { out[at] = bright(stops[j]); });
   for (const [key, idx] of groups) {
     const [style, color, speed] = key.split('|');
@@ -109,6 +126,6 @@ function ledFrame(ledIds, leds, ctx) {
 }
 
 module.exports = {
-  normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame,
+  normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame, spun,
   MAX_LED_COLORS, LED_EFFECT_STYLES,
 };
