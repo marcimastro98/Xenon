@@ -45,11 +45,22 @@ function openInIcue(opts) {
   return opening;
 }
 
+// Each opening builds in a folder of its own: iCUE keeps the file it was handed open, so
+// writing over it a second time failed (EPERM). The folders of earlier openings go when
+// they can; one iCUE still holds stays until the next time.
+const BUILD_PREFIX = 'w-';
+async function freshFolder(dir) {
+  await fsp.mkdir(dir, { recursive: true });
+  const old = (await fsp.readdir(dir).catch(() => [])).filter((n) => n.startsWith(BUILD_PREFIX) || n === FILE_NAME);
+  await Promise.all(old.map((n) => fsp.rm(path.join(dir, n), { recursive: true, force: true }).catch(() => {})));
+  return fsp.mkdtemp(path.join(dir, BUILD_PREFIX));
+}
+
 /** @param {{ platform?: string, dir?: string, open?: (p: string) => Promise<any>, warn?: (msg: string) => void }} [opts] */
 async function openOnce({ platform = process.platform, dir = path.join(os.tmpdir(), 'xenon-pump'), open = openExternalPath, warn = (_msg) => {} } = {}) {
   if (!icueImportAvailable(platform)) return { ok: false, error: 'unavailable' };
   let file;
-  try { file = await buildPackage(dir); }
+  try { file = await buildPackage(await freshFolder(dir)); }
   catch (e) {
     warn(`pump screens: the iCUE widget could not be built (${e.code || e.message})`);
     return { ok: false, error: 'build_failed' };

@@ -76,6 +76,8 @@ module.exports = {
   deck_err_needs_settings: 'この機能には設定が必要です。Deck のキーに置いて、そこで選んでください',
   deck_err_no_function: 'そのウィジェットにはこの機能がありません',
   deck_err_no_widget: 'その機能を持つウィジェットはインストールされていません',
+  deck_err_no_icue: 'この PC には iCUE がインストールされていません。corsair.com からインストールしてから、もう一度お試しください',
+  deck_err_build_failed: 'iCUE ウィジェットを準備できませんでした。少し待ってからもう一度お試しください',
   deck_err_not_placed: 'そのウィジェットは画面にありません。先に Xenon メニューのウィジェットから追加してください',
   see_off_hold: '非表示: {key} を押し続ける',
   see_off_key: '非表示: {key} を押す',

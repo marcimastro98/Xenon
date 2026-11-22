@@ -21,6 +21,8 @@ const I18N = appStringsSource();
 const REGISTRY = engineSource('server/actions/registry.js');
 // The page rules answer the menu and the Deck with their own codes.
 const LAYER_PAGES = readFileSync(new URL('../layers/layer-pages.js', import.meta.url), 'utf8');
+// Opening iCUE with the pump widget answers the menu with its own codes.
+const PUMP_ICUE = readFileSync(new URL('../pump-screen/icue.js', import.meta.url), 'utf8');
 // The registry dispatches to provider modules, and a provider names its own
 // failures — the registry only passes them through (`r.error || '…_failed'`).
 // Voicemeeter was the first entry in the table whose codes live entirely in a
@@ -107,7 +109,7 @@ test('every explained code is one the registry emits', () => {
     // deck.js may raise one itself before posting (a key still to set up).
     const quoted = new RegExp("'" + code + "'");
     const raisedHere = DECK.includes("reportActionError('" + code + "')");
-    assert.ok(quoted.test(REGISTRY) || quoted.test(PROVIDERS) || quoted.test(SERVER) || quoted.test(LAYER_PAGES) || raisedHere,
+    assert.ok(quoted.test(REGISTRY) || quoted.test(PROVIDERS) || quoted.test(SERVER) || quoted.test(LAYER_PAGES) || quoted.test(PUMP_ICUE) || raisedHere,
       `${code} is explained on screen but no dispatcher or provider emits it`);
   }
 });

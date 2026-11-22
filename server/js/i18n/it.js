@@ -76,6 +76,8 @@ module.exports = {
   deck_err_needs_settings: 'questa funzione chiede delle impostazioni: mettila su un tasto del Deck, dove le scegli',
   deck_err_no_function: 'quel widget non ha questa funzione',
   deck_err_no_widget: 'nessun widget installato ha quella funzione',
+  deck_err_no_icue: 'iCUE non è installato su questo PC: installalo da corsair.com, poi riprova',
+  deck_err_build_failed: 'non è stato possibile preparare il widget per iCUE, riprova tra poco',
   deck_err_not_placed: 'quel widget non è sullo schermo: aggiungilo prima dal menu Xenon, Widget',
   see_off_hold: 'Nascosto: tieni premuto {key}',
   see_off_key: 'Nascosto: premi {key}',

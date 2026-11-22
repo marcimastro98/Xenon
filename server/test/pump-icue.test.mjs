@@ -4,9 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, readdirSync, statSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
+import { join, relative, basename, dirname } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 import vm from 'node:vm';
 
@@ -107,11 +107,29 @@ test('opening with iCUE: Windows only, a missing iCUE said, one build at a time'
   release();
   assert.deepEqual(await first, { ok: true });
   assert.deepEqual(await second, { ok: true });
-  assert.deepEqual(opened, [join(dir, Icue.FILE_NAME)]);
+  assert.equal(opened.length, 1);
+  assert.equal(basename(opened[0]), Icue.FILE_NAME);
+  assert.equal(dirname(dirname(opened[0])), dir, 'in a folder of its own under the Xenon pump folder');
 
   assert.deepEqual(await Icue.openInIcue({ platform: 'win32', dir, open: async () => ({ ok: false, error: 'x' }), warn }), { ok: false, error: 'no_icue' });
   assert.deepEqual(await Icue.openInIcue({ platform: 'win32', dir, open: async () => { throw new Error('spawn'); }, warn }), { ok: false, error: 'no_icue' });
   assert.equal(warned.length, 1);
+});
+
+// "Non è andata: build_failed": iCUE still held the file of the first tap, and the second
+// tap wrote over it. Each opening now writes a new file, and the earlier ones go when they can.
+test('opening iCUE again works while the file it was handed is still held', async (t) => {
+  const dir = tempDir(t);
+  // A path that cannot be written over, as a file iCUE holds open on Windows.
+  mkdirSync(join(dir, Icue.FILE_NAME, 'held'), { recursive: true });
+  const opened = [];
+  const open = async (p) => { opened.push(p); return { ok: true }; };
+  assert.deepEqual(await Icue.openInIcue({ platform: 'win32', dir, open }), { ok: true });
+  assert.deepEqual(await Icue.openInIcue({ platform: 'win32', dir, open }), { ok: true });
+  assert.equal(opened.length, 2);
+  assert.notEqual(dirname(opened[0]), dirname(opened[1]), 'a new file each time');
+  assert.deepEqual(readdirSync(dir), [basename(dirname(opened[1]))], 'the earlier ones are cleared');
+  assert.ok(statSync(opened[1]).size > 0);
 });
 
 test('the iCUE action answers what opening did, and a paired phone can never run it', async () => {
@@ -256,4 +274,11 @@ test('"stay dark" shows nothing while Xenon is closed, and iCUE\'s preview copy 
   assert.equal(preview.xenon.pings, 0);
   assert.equal(preview.els.face.src, '');
   assert.equal(preview.els.closed.hidden, false);
+});
+
+test('what went wrong opening iCUE reads as a sentence in the menu, never as a code', () => {
+  const Text = require('../js/deck/deck-error-text.js');
+  const tt = (key) => 'said:' + key;
+  assert.equal(Text.describe('no_icue', tt), 'Said:deck_err_no_icue');
+  assert.equal(Text.describe('build_failed', tt), 'Said:deck_err_build_failed');
 });

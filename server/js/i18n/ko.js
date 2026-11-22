@@ -76,6 +76,8 @@ module.exports = {
   deck_err_needs_settings: '이 기능은 설정이 필요합니다: Deck 키에 넣고 거기서 설정하세요',
   deck_err_no_function: '그 위젯에는 이 기능이 없습니다',
   deck_err_no_widget: '그 기능이 있는 설치된 위젯이 없습니다',
+  deck_err_no_icue: '이 PC에 iCUE가 설치되어 있지 않습니다. corsair.com에서 설치한 뒤 다시 시도하세요',
+  deck_err_build_failed: 'iCUE 위젯을 준비하지 못했습니다. 잠시 후 다시 시도하세요',
   deck_err_not_placed: '그 위젯은 화면에 없습니다: 먼저 Xenon 메뉴의 위젯에서 추가하세요',
   see_off_hold: '숨김: {key} 길게 누르기',
   see_off_key: '숨김: {key} 누르기',

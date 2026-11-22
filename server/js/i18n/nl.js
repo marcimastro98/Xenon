@@ -76,6 +76,8 @@ module.exports = {
   deck_err_needs_settings: 'deze functie vraagt om instellingen: zet hem op een Deck-toets, waar je ze kiest',
   deck_err_no_function: 'die widget heeft deze functie niet',
   deck_err_no_widget: 'geen geïnstalleerde widget heeft die functie',
+  deck_err_no_icue: 'iCUE is niet geïnstalleerd op deze pc: installeer het via corsair.com en probeer het opnieuw',
+  deck_err_build_failed: 'de iCUE-widget kon niet worden klaargezet, probeer het zo opnieuw',
   deck_err_not_placed: 'die widget staat niet op het scherm: voeg hem eerst toe in het Xenon-menu, Widgets',
   see_off_hold: 'Verborgen: houd {key} ingedrukt',
   see_off_key: 'Verborgen: druk op {key}',

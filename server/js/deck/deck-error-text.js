@@ -58,6 +58,9 @@
     // Keys for widgets (capabilities/widget-key.js).
     not_placed: ['deck_err_not_placed', 'that widget is not on the screen: add it first in the Xenon menu, Widgets'],
     no_widget: ['deck_err_no_widget', 'no installed widget has that function'],
+    // Opening iCUE with the Xenon Pump widget (pump-screen/icue.js).
+    no_icue: ['deck_err_no_icue', 'iCUE is not installed on this PC: install it from corsair.com, then try again'],
+    build_failed: ['deck_err_build_failed', 'the iCUE widget could not be prepared, try again in a moment'],
     no_function: ['deck_err_no_function', 'that widget has no such function'],
     needs_settings: ['deck_err_needs_settings', 'this function asks for settings: put it on a Deck key, where you choose them'],
     not_granted: ['deck_err_not_granted', 'you did not allow this function when you installed the widget'],

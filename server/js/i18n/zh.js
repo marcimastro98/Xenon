@@ -76,6 +76,8 @@ module.exports = {
   deck_err_needs_settings: '此功能需要设置: 请放到 Deck 按键上, 在那里选择',
   deck_err_no_function: '该小组件没有这个功能',
   deck_err_no_widget: '没有已安装的小组件提供该功能',
+  deck_err_no_icue: '此电脑未安装 iCUE：请从 corsair.com 安装后重试',
+  deck_err_build_failed: '无法准备 iCUE 小组件，请稍后重试',
   deck_err_not_placed: '该小组件不在屏幕上: 先在 Xenon 菜单的小组件中添加',
   see_off_hold: '已隐藏: 按住 {key}',
   see_off_key: '已隐藏: 按 {key}',
