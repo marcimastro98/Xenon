@@ -226,12 +226,12 @@ test('look: the ring\'s colours as cards where iCUE paints it, then the screen',
   const other = leds.cards.find((c) => !c.on);
   assert.deepEqual(patchOf(other.act), { leds: { follow: other.value } });
   assert.deepEqual(row(lit, 'pump-screen').kind, 'tunehead');
-  // The two switches only where they do something: the pulse needs sound, "everything" the screen's colours.
+  // Only where they do something: how it moves needs colours of its own, "everything" the screen's.
   const leds2 = (f, sound) => look({ sound }, { leds: { ...screen().leds, follow: f } }).rows.map((r) => r.id);
-  assert.ok(leds2('screen', true).includes('pump-leds-pulse') && leds2('screen', true).includes('pump-leds-all'));
-  assert.ok(!leds2('screen', false).includes('pump-leds-pulse'));
+  assert.ok(leds2('screen', true).includes('pump-leds-move') && leds2('screen', true).includes('pump-leds-all'));
+  assert.ok(leds2('screen', false).includes('pump-leds-move'), 'still, breathing and running round need no sound');
   assert.ok(!leds2('theme', true).includes('pump-leds-all'));
-  assert.ok(!leds2('off', true).includes('pump-leds-pulse'));
+  assert.ok(!leds2('off', true).includes('pump-leds-move'));
   // No iCUE: no ring to paint, the screen's rows only.
   const plain = look({ icue: false });
   assert.deepEqual(plain.rows.map((r) => r.id), ['pump-rotate', 'pump-dim', 'pump-night', 'pump-fade']);

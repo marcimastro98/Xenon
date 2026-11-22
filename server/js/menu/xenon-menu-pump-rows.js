@@ -290,7 +290,8 @@
       pumpupload: (r) => (typeof ctx.upload === 'function' ? picker(r.id, r) : null),
     };
 
-    return { draw: { pumpmoment: drawMoment, pumpnote: drawNote, pumpcards: drawCards, pumpadd: drawAdd } };
+    // pumpkeys also stand alone in the Look tab (how the ring moves), not only inside a line.
+    return { draw: { pumpmoment: drawMoment, pumpnote: drawNote, pumpcards: drawCards, pumpadd: drawAdd, pumpkeys: drawKeys } };
   }
 
   const api = { create, withFile, withMark, FILE_MARK };

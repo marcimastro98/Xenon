@@ -27,14 +27,14 @@ test('the tour talks only to its copy: reads, the pump routes, and pump actions'
 
 test('the tour walks what a person does first, and finds the rows it taps', () => {
   const names = STEPS.map((s) => s.name);
-  for (const step of ['open-pump', 'open-rest', 'add-fps', 'setup-music', 'own-gif', 'add-night', 'now-game', 'now-auto', 'alerts', 'turned-90']) {
+  for (const step of ['open-pump', 'open-rest', 'add-fps', 'setup-music', 'own-gif', 'add-night', 'now-game', 'now-auto', 'alerts', 'turned-90', 'ring-spin']) {
     assert.ok(names.includes(step), step);
   }
   assert.equal(new Set(names).size, names.length, 'one picture name per step');
   // The rows it taps by id: a renamed row in the menu must rename it here too.
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-  const menu = ['../menu/menu-pump.js', '../menu/menu-pump-faces.js', '../menu/menu-pump-look.js'].map(read).join('\n');
-  for (const id of ["'-readings'", "id: 'pump-base'", "id: 'pump-add'", "'pump-rotate'", "id: 'pump-setup'", "value: n,"]) assert.ok(menu.includes(id), id);
+  const menu = ['../menu/menu-pump.js', '../menu/menu-pump-faces.js', '../menu/menu-pump-look.js', '../menu/menu-pump-face-look.js'].map(read).join('\n');
+  for (const id of ["key + '-leds'", "id: 'pump-leds'", "'-readings'", "id: 'pump-base'", "id: 'pump-add'", "'pump-rotate'", "id: 'pump-setup'", "value: n,"]) assert.ok(menu.includes(id), id);
   const draw = read('../js/menu/xenon-menu-pump-rows.js') + read('../js/menu/xenon-menu-pumps.js');
   for (const k of ["r.id + ':head'", '`${r.id}:face:${f.value}`', '`${r.id}:${o.value}`', '`${r.id}:${c.value}`', "'pump:auto'", "'xm-pumpown'"]) assert.ok(draw.includes(k), k);
 });

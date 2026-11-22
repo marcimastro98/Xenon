@@ -50,6 +50,21 @@ const pin = (face) => (m) => m.evaluate(async (f) => {
   return post({ type: 'pumpFace', screen: got.screens[0].screen, face: f });
 }, face);
 
+// Back on the first tab, the line for the rest of the time opened if it is not, its ring set to
+// run round; the saved line must say so.
+async function ringSpin(m) {
+  await m.locator(tabs).nth(0).click();
+  if (!(await m.locator('[data-row="pump-base-leds"]').count())) await m.click(keep('pump-base:head'));
+  await m.click(keep('pump-base-leds:spin'));
+  await m.waitForTimeout(SETTLE_MS);
+  const leds = await m.evaluate(async () => {
+    const r = await fetch('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'pumpGet' }) });
+    return (await r.json()).screens?.[0]?.base?.leds;
+  });
+  if (leds !== 'spin') throw new Error(`the line's ring says ${leds}, not spin`);
+  await m.locator('[data-row="pump-base-leds"]').scrollIntoViewIfNeeded();
+}
+
 // Each step: what the person does in the menu, and whether a picture of the menu is worth it.
 export const STEPS = [
   { name: 'open-pump', menu: true, act: async (m) => { await m.locator('.xm-scrpump').first().click(); await m.waitForSelector('.xm-pumpframe.is-ready', { timeout: 8000 }).catch(() => {}); } },
@@ -66,6 +81,9 @@ export const STEPS = [
   { name: 'alerts', menu: true, act: (m) => m.locator(tabs).nth(1).click() },
   { name: 'turned-90', menu: true, act: async (m) => { await m.locator(tabs).nth(2).click(); await m.click(keep('pump-rotate:90')); } },
   { name: 'upright', act: (m) => m.click(keep('pump-rotate:0')) },
+  // The ring takes the screen's colours, then the line for the rest of the time runs it round.
+  { name: 'ring-screen', menu: true, act: (m) => m.click(keep('pump-leds:screen')) },
+  { name: 'ring-spin', menu: true, act: ringSpin },
 ];
 
 function parseArgs(argv) {

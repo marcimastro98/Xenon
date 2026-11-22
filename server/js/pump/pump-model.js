@@ -90,8 +90,14 @@
     };
   }
 
-  // pulse: the ring breathes with the sound the PC plays (lights/pump-ring.js); turning it on is the consent to read it.
-  const normalizeLeds = (raw) => ({ follow: pick(obj(raw).follow, LED_FOLLOW, 'screen'), all: obj(raw).all === true, pulse: obj(raw).pulse === true });
+  // move: how the ring moves on every line that leaves it to the screen (lights/pump-ring.js):
+  // still, breathing, a light running round, or with the beat of the sound the PC plays (picking
+  // it is the consent to read the sound). Saves from before kept only `pulse`: true was the beat.
+  const LED_MOVES = Object.freeze(['still', 'breathe', 'spin', 'beat']);
+  const normalizeLeds = (raw) => {
+    const r = obj(raw);
+    return { follow: pick(r.follow, LED_FOLLOW, 'screen'), all: r.all === true, move: pick(r.move, LED_MOVES, r.pulse === true ? 'beat' : 'still') };
+  };
 
   function normalizeMoments(raw) {
     const out = [];
@@ -174,7 +180,7 @@
   }
 
   return Object.freeze({
-    VERSION, SHAPES, VIAS, MAX_SCREENS, MAX_MOMENTS, ALERTS, ALERT_SECONDS, LED_FOLLOW, ROTATIONS, SETUP_NAMES,
+    VERSION, SHAPES, VIAS, MAX_SCREENS, MAX_MOMENTS, ALERTS, ALERT_SECONDS, LED_FOLLOW, LED_MOVES, ROTATIONS, SETUP_NAMES,
     DEFAULT_SETUP, screenId, normalize, normalizeScreen, normalizeMoment, normalizeSeen, insertMoment, withSetup, screenFor,
   });
 });

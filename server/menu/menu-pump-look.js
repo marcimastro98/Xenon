@@ -28,9 +28,20 @@ function alertsTab(v, st) {
   return { id: 'alerts', label: k('xmenu_pump_alerts'), value: null, rows };
 }
 
+// How the ring moves on every line left as in Look; the same words as a line's own choice
+// (menu-pump-face-look.js), which the row's sub points to.
+function moveRow(id, move, sound) {
+  return {
+    kind: 'pumpkeys', id: 'pump-leds-move', label: k('xmenu_pump_leds_move'), sub: k('xmenu_pump_leds_move_sub'),
+    options: Model.LED_MOVES.filter((m) => m !== 'beat' || sound).map((m) => ({
+      value: m, label: k('xmenu_pump_ring_' + m), on: m === move, act: m === move ? null : run(pumpSet(id, { leds: { move: m } })),
+    })),
+  };
+}
+
 // The ring of lights around the pump (pump-screen/ring.js): painted through iCUE, so only where
 // iCUE runs, and led by the first pump screen when there are several. Each choice is a card with
-// the ring drawn in it; the two switches show only where they do something.
+// the ring drawn in it; how it moves and the switch show only where they do something.
 function ledRows(v, sound) {
   const id = v.screen;
   const leds = v.leds;
@@ -42,8 +53,8 @@ function ledRows(v, sound) {
       on: f === leds.follow, act: f === leds.follow ? null : run(pumpSet(id, { leds: { follow: f } })),
     })),
   }];
-  // The pulse needs colours of the ring's own, and a PC that can tell how loud it is (Windows).
-  if (sound && (leds.follow === 'screen' || leds.follow === 'theme')) rows.push(flag('pump-leds-pulse', 'xmenu_pump_leds_pulse', leds.pulse, id, 'leds', 'pulse', 'xmenu_pump_leds_pulse_sub'));
+  // How it moves needs colours of the ring's own; the beat a PC that can tell how loud it is (Windows).
+  if (leds.follow === 'screen' || leds.follow === 'theme') rows.push(moveRow(id, leds.move, sound));
   // Every other light too only when the ring follows the screen: there is no screen colour otherwise.
   if (leds.follow === 'screen') rows.push(flag('pump-leds-all', 'xmenu_pump_leds_all', leds.all, id, 'leds', 'all', 'xmenu_pump_leds_all_sub'));
   return rows;

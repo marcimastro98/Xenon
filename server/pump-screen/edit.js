@@ -14,6 +14,13 @@ function ownScreen(model, id) {
   return model.screens[id] || Model.screenFor(model, id);
 }
 
+// "pulse" is how a Deck key or Bit made before the moves said the beat: on is the beat, off
+// leaves any other move as it was.
+function ledsPatch(cur, p) {
+  if (!('pulse' in p) || 'move' in p) return p;
+  return { ...p, move: p.pulse === true ? 'beat' : (cur.move === 'beat' ? 'still' : cur.move) };
+}
+
 function knows(model, id) {
   return !!(model.screens[id] || model.seen[id]);
 }
@@ -59,7 +66,7 @@ function patchScreen(model, id, patch) {
   const moved = nextMoments(cur.moments, p);
   if (moved.error) return moved;
   const next = { ...cur, base, moments: moved.moments };
-  for (const part of PARTS) if (p[part] && typeof p[part] === 'object') next[part] = { ...cur[part], ...p[part] };
+  for (const part of PARTS) if (p[part] && typeof p[part] === 'object') next[part] = { ...cur[part], ...(part === 'leds' ? ledsPatch(cur.leds, p.leds) : p[part]) };
   if (typeof p.name === 'string') next.name = p.name;
   return { model: Model.normalize({ ...m, screens: { ...m.screens, [key]: next } }) };
 }

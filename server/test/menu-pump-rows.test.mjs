@@ -265,3 +265,22 @@ test('a screen\'s tab holds its lines as cards on the page, and a reading on say
   assert.match(choices, /\.xm-choices--multi > \.xm-choice\[data-rank\]\[aria-pressed="true"\]::before \{\n\s+content: attr\(data-rank\);/);
   assert.match(css, /\.xm-pumpnow\.is-trying \.xm-pumpnow-tried \{ display: flex; \}/);
 });
+
+test('every row of a pump\'s three tabs has a drawer, so none is dropped in silence', () => {
+  const { draw, put, ran } = rig();
+  const menu = readFileSync(new URL('../js/menu/xenon-menu.js', import.meta.url), 'utf8');
+  const core = menu.slice(menu.indexOf('const DRAW = {'), menu.indexOf('};', menu.indexOf('const DRAW = {')));
+  const known = (kind) => !!draw[kind] || new RegExp(`\\b${kind}:`).test(core);
+  for (const follow of Model.LED_FOLLOW) {
+    const view = viewOf({ leds: { follow, all: false, move: 'breathe' } });
+    for (const tab of view.tabs) for (const r of tab.rows) assert.ok(known(r.kind), `${tab.id}: ${r.id} (${r.kind})`);
+  }
+  // How the ring moves, on its own in the Look tab: drawn, the move in use pressed, a tap saves.
+  const move = rowsOf(viewOf({ leds: { follow: 'screen', all: false, move: 'breathe' } }), 'look').find((r) => r.id === 'pump-leds-move');
+  const [node] = put([move]);
+  const keys = [...node.querySelectorAll('button')];
+  assert.deepEqual(keys.map((b) => b.dataset.keep), ['still', 'breathe', 'spin', 'beat'].map((m) => 'pump-leds-move:' + m));
+  assert.equal(keys.find((b) => b.getAttribute('aria-pressed') === 'true').dataset.keep, 'pump-leds-move:breathe');
+  keys[2].click();
+  assert.deepEqual(JSON.parse(ran.at(-1)[1].run.patch), { leds: { move: 'spin' } });
+});

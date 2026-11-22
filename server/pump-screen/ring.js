@@ -20,7 +20,7 @@ const STALE_MS = 90_000;
 // How the ring moves while `show` is on: the line's own choice, else what the screen's lights say.
 function effectOf(leds, show) {
   const own = show && Faces.LED_EFFECTS.includes(show.leds) ? show.leds : 'auto';
-  return own !== 'auto' ? own : (leds.pulse ? 'beat' : 'still');
+  return own !== 'auto' ? own : leds.move || 'still';
 }
 
 // The colours a page sent, or null when they are not a short list of #rrggbb.

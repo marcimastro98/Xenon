@@ -4,7 +4,7 @@
 // read from or written to this PC. Each picture is checked for a page wider than the window.
 // Playwright is borrowed as in tools/toast-gallery (../xenon-maker or XENON_PLAYWRIGHT).
 // Run: node tools/menu-shots/shoot.mjs [outDir]   (default <temp>/xenon-menu-shots)
-//   MENU_LANGS=it,de  MENU_SIZES=phone,edge  narrow the sweep.
+//   MENU_LANGS=it,de  MENU_SIZES=phone,edge  narrow the sweep (MENU_LANGS takes any of the app's languages).
 //   MENU_FIND=posizione  adds a picture of the search for that text (menu rows and Settings rows).
 // The pump card's picture is the real pump page, served by tools/pump-face-shots next to the menu.
 
@@ -98,7 +98,7 @@ async function main() {
   await mkdir(outDir, { recursive: true });
   const pick = (env, all) => (process.env[env] ? all.filter((x) => process.env[env].split(',').includes(x.name || x)) : all);
   const sizes = pick('MENU_SIZES', SIZES);
-  const langs = pick('MENU_LANGS', LANGS);
+  const langs = process.env.MENU_LANGS ? process.env.MENU_LANGS.split(',') : LANGS;
   let lang = 'en';
   const pump = createPumpFaceHandler();
   const server = await startMenuServer(() => lang, undefined, pump);

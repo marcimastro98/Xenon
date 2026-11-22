@@ -119,7 +119,7 @@ test('a settings change tells the ring: lights, theme, dark, every light too', a
   assert.deepEqual(told.at(-1), { follow: 'theme', all: false, effect: 'still', colours: ['#abcdef'] });
   await call('POST /pump', { screen: 'pump', patch: { leds: { follow: 'screen', all: true } } });
   assert.deepEqual(told.at(-1), { follow: 'screen', all: true, effect: 'still', colours: ['#abcdef'] });
-  await call('POST /pump', { screen: 'pump', patch: { leds: { pulse: true } } });
+  await call('POST /pump', { screen: 'pump', patch: { leds: { move: 'beat' } } });
   assert.deepEqual(told.at(-1), { follow: 'screen', all: true, effect: 'beat', colours: ['#abcdef'] }, 'the pulse reaches the ring as the beat of every line left as usual');
   await call('POST /pump', { screen: 'pump', forget: true });
   assert.equal(told.at(-1), null, 'the screen gone: the ring is given back');
@@ -145,7 +145,7 @@ const state = (screens, icue = true, sound = false) => ({ probes: {}, pump: { ic
 
 test('the Look tab: the pump lights where iCUE runs, on the screen that leads them', () => {
   const both = lookRows(state([screen('pump', { follow: 'screen' }), screen('two', { follow: 'screen' })]));
-  assert.deepEqual(both[0].slice(0, 2), ['pump-leds', 'pump-leds-all']);
+  assert.deepEqual(both[0].slice(0, 2), ['pump-leds', 'pump-leds-move']);
   assert.equal(both[1].includes('pump-leds'), false, 'the second screen does not lead the ring');
   assert.equal(lookRows(state([screen('pump', {})], false))[0].includes('pump-leds'), false, 'no iCUE here: no row');
   assert.equal(lookRows(state([screen('pump', { follow: 'theme' })]))[0].includes('pump-leds-all'), false, 'every light too only follows the screen');
@@ -160,37 +160,51 @@ test('the Look tab: the pump lights where iCUE runs, on the screen that leads th
   assert.deepEqual(JSON.parse(all.acts.off.run.patch), { leds: { all: false } });
 });
 
-test('the Look tab: the pulse with the sound only where this PC can read it, and only on colours of the ring', () => {
+test('the Look tab: how the ring moves, only on colours of its own; the beat only where this PC hears the sound', () => {
   const rows = (leds, sound = true) => lookRows(state([screen('pump', leds)], true, sound))[0];
-  assert.deepEqual(rows({ follow: 'screen' }).slice(0, 3), ['pump-leds', 'pump-leds-pulse', 'pump-leds-all']);
-  assert.equal(rows({ follow: 'theme' }).includes('pump-leds-pulse'), true);
-  assert.equal(rows({ follow: 'screen' }, false).includes('pump-leds-pulse'), false, 'no sound reader here: no row');
-  assert.equal(rows({ follow: 'off' }).includes('pump-leds-pulse'), false, 'a dark ring has nothing to pulse');
-  assert.equal(rows({ follow: 'lights' }).includes('pump-leds-pulse'), false, 'like the other lights: nothing of its own');
-  const [view] = pumpViews(state([screen('pump', { follow: 'screen', pulse: true })], true, true));
-  const pulse = view.tabs.find((tab) => tab.id === 'look').rows.find((r) => r.id === 'pump-leds-pulse');
-  assert.equal(pulse.on, true);
-  assert.deepEqual(JSON.parse(pulse.acts.on.run.patch), { leds: { pulse: true } });
-  assert.deepEqual(JSON.parse(pulse.acts.off.run.patch), { leds: { pulse: false } });
+  assert.deepEqual(rows({ follow: 'screen' }).slice(0, 3), ['pump-leds', 'pump-leds-move', 'pump-leds-all']);
+  assert.equal(rows({ follow: 'theme' }).includes('pump-leds-move'), true);
+  assert.equal(rows({ follow: 'off' }).includes('pump-leds-move'), false, 'a dark ring has nothing to move');
+  assert.equal(rows({ follow: 'lights' }).includes('pump-leds-move'), false, 'like the other lights: nothing of its own');
+  const moveOf = (leds, sound) => pumpViews(state([screen('pump', leds)], true, sound))[0].tabs.find((tab) => tab.id === 'look').rows.find((r) => r.id === 'pump-leds-move');
+  const move = moveOf({ follow: 'screen', move: 'breathe' }, true);
+  assert.deepEqual(move.options.map((o) => o.value), ['still', 'breathe', 'spin', 'beat']);
+  assert.equal(move.options.find((o) => o.on).value, 'breathe');
+  assert.equal(move.options.find((o) => o.on).act, null, 'the one in use does nothing');
+  assert.deepEqual(JSON.parse(move.options.find((o) => o.value === 'spin').act.run.patch), { leds: { move: 'spin' } });
+  assert.deepEqual(moveOf({ follow: 'screen' }, false).options.map((o) => o.value), ['still', 'breathe', 'spin'], 'no sound reader here: no beat');
 });
 
 test('a model edit keeps the other LED choice when one changes', () => {
   let model = Model.normalize({ screens: { pump: {} } });
   model = Edit.patchScreen(model, 'pump', { leds: { follow: 'theme' } }).model;
   model = Edit.patchScreen(model, 'pump', { leds: { all: true } }).model;
-  assert.deepEqual(Model.screenFor(model, 'pump').leds, { follow: 'theme', all: true, pulse: false });
+  assert.deepEqual(Model.screenFor(model, 'pump').leds, { follow: 'theme', all: true, move: 'still' });
+  model = Edit.patchScreen(model, 'pump', { leds: { move: 'spin' } }).model;
+  assert.deepEqual(Model.screenFor(model, 'pump').leds, { follow: 'theme', all: true, move: 'spin' });
+  assert.equal(Model.normalizeScreen({ leds: { move: 'sparkle' } }).leds.move, 'still', 'a move it does not know: still');
+});
+
+test('the pulse saved or asked for before the moves is the beat', () => {
+  assert.equal(Model.normalizeScreen({ leds: { pulse: true } }).leds.move, 'beat', 'a save from before');
+  assert.equal(Model.normalizeScreen({ leds: { pulse: 'yes' } }).leds.move, 'still', 'only true was on');
+  assert.equal(Model.normalizeScreen({ leds: { pulse: true, move: 'spin' } }).leds.move, 'spin', 'a move named wins');
+  let model = Model.normalize({ screens: { pump: { leds: { move: 'breathe' } } } });
+  model = Edit.patchScreen(model, 'pump', { leds: { pulse: false } }).model;
+  assert.equal(Model.screenFor(model, 'pump').leds.move, 'breathe', 'pulse off leaves another move as it was');
   model = Edit.patchScreen(model, 'pump', { leds: { pulse: true } }).model;
-  assert.deepEqual(Model.screenFor(model, 'pump').leds, { follow: 'theme', all: true, pulse: true });
-  assert.equal(Model.normalizeScreen({ leds: { pulse: 'yes' } }).leds.pulse, false, 'only true turns it on');
+  assert.equal(Model.screenFor(model, 'pump').leds.move, 'beat', 'pulse on: the beat');
+  model = Edit.patchScreen(model, 'pump', { leds: { pulse: false } }).model;
+  assert.equal(Model.screenFor(model, 'pump').leds.move, 'still', 'pulse off: the beat stops');
 });
 
 test('each line moves the ring its own way; a line left as usual follows the screen', async (t) => {
   const { effectOf } = require('../pump-screen/ring.js');
-  assert.equal(effectOf({ pulse: false }, { leds: 'spin' }), 'spin', 'the line chose');
-  assert.equal(effectOf({ pulse: true }, { leds: 'still' }), 'still', 'still on this line, even with the sound on for the screen');
-  assert.equal(effectOf({ pulse: true }, { leds: 'auto' }), 'beat');
-  assert.equal(effectOf({ pulse: false }, {}), 'still');
-  assert.equal(effectOf({ pulse: false }, null), 'still');
+  assert.equal(effectOf({ move: 'still' }, { leds: 'spin' }), 'spin', 'the line chose');
+  assert.equal(effectOf({ move: 'beat' }, { leds: 'still' }), 'still', 'still on this line, even with the beat for the screen');
+  assert.equal(effectOf({ move: 'beat' }, { leds: 'auto' }), 'beat');
+  assert.equal(effectOf({ move: 'breathe' }, {}), 'breathe', 'a line left as usual: the screen moves it');
+  assert.equal(effectOf({ move: 'still' }, null), 'still');
 
   const { store, live, told, call } = rig(t);
   await store.ready();
