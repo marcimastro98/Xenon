@@ -25,7 +25,8 @@ test('the menu, Settings and the Store read the same colours, in both pages', ()
 
 test('colour is left to state: what is chosen is neutral, under every skin', () => {
   assert.match(MENU, /\.xm-choice\[aria-pressed="true"\] \{ color: var\(--cst-text\); background: var\(--cst-on\); \}/);
-  assert.match(MENU, /\.xm-mode:hover, \.xm-mode\[aria-pressed="true"\] \{ background: var\(--cst-on\); \}/);
+  // A mode in use has a neutral edge of its own: a lighter fill alone ran into the dark card around it.
+  assert.match(MENU, /\.xm-mode\[aria-pressed="true"\] \{ background: var\(--cst-on\); box-shadow: inset 0 0 0 1\.5px var\(--cst-text\);/);
   assert.doesNotMatch(MENU.slice(0, MENU.indexOf('The "Main screen" tile')), /border(-color)?: [^;]*var\(--accent\)/);
 });
 

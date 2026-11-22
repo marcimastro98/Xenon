@@ -63,9 +63,11 @@
 .xm-mode {
   appearance: none; cursor: pointer; text-align: left;
   display: flex; flex-direction: column; gap: 4px; min-height: 88px; padding: var(--space-4);
-  background: var(--cst-well); border: 0; border-radius: 10px;
+  background: var(--cst-well); border: 0; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--cst-sep);
 }
-.xm-mode:hover, .xm-mode[aria-pressed="true"] { background: var(--cst-on); }
+/* The one in use has an edge of its own: a lighter fill alone ran into the dark card around it. */
+.xm-mode:hover { background: var(--cst-on); }
+.xm-mode[aria-pressed="true"] { background: var(--cst-on); box-shadow: inset 0 0 0 1.5px var(--cst-text); cursor: default; }
 .xm-mode-name { font-size: 15px; font-weight: 600; }
 .xm-mode[aria-pressed="true"] .xm-mode-name::after { content: "\2713"; margin-inline-start: 6px; }
 
