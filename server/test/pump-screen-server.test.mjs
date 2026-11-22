@@ -152,7 +152,7 @@ test('a source that throws asks for nothing and never stops another', () => {
 
 test('routes: a hello makes the screen known, a setup saves it, a change answers the whole view', async (t) => {
   const { call } = rig(t);
-  assert.deepEqual(await call('GET /pump'), { ok: true, screens: {}, now: {}, prefs: { lang: 'en', tempUnit: 'c', hwTempUnit: 'c', clockFormat: 'auto' } });
+  assert.deepEqual(await call('GET /pump'), { ok: true, screens: {}, now: {}, prefs: { accent: '#6ee787', lang: 'en', tempUnit: 'c', hwTempUnit: 'c', clockFormat: 'auto' } });
   const hi = await call('POST /pump/hello', { screen: 'My Pump', shape: 'round', w: 480, h: 480, via: 'icue' });
   assert.equal(hi.ok, true);
   assert.equal(hi.screen, 'my-pump');

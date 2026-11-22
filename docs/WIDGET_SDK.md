@@ -2243,6 +2243,15 @@ another app's window. `init` says which, and a change is pushed:
   `'pump'`, with `shape`: `'round'`, `'square'` or `'wide'` (a 480 x 480 round
   screen is the common one). Nobody touches it: draw one big readout, keep a
   round one inside the circle, and ask for no taps. (v5.3)
+  It also brings `look`, what the user chose for that line of the pump in
+  Xenon → Screens: `{ colors: ['#6ee787', '#8ab4f8', '#ffd75e', '#b4a0ff'],
+  size: 'normal', units: 'f' }`. `colors` is four `#rrggbb`, the first one
+  leading (rings, hands, glow); `size` is `'normal'` or `'big'` (bigger
+  numbers); `units`, `'c'` or `'f'`, is there only when the user picked a
+  unit for that line: show every temperature in it then, else follow
+  `init.tempUnit` / `hwTempUnit` as anywhere. Use
+  them when they fit your design; they change when the user changes them, and
+  the frame reloads. Missing on an older Xenon: keep your own colours. (v5.3)
 - `dashboard`: `false` when the user runs Xenon as widgets only, with no
   dashboard. Leave out anything that says "open it on the dashboard" then.
 

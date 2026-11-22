@@ -86,14 +86,14 @@ html, body {
   line-height: 0.9;
   white-space: nowrap;
 }
-.pf-main .pf-num { font-size: calc(var(--u) * 27); font-weight: 300; letter-spacing: -0.02em; }
+.pf-main .pf-num { font-size: calc(var(--u) * var(--nk, 1) * 27); font-weight: 300; letter-spacing: -0.02em; }
 .pf-main .pf-unit { font-size: calc(var(--u) * 7); font-weight: 500; color: var(--pf-ink-2); margin: calc(var(--u) * 2.4) 0 0 calc(var(--u) * 0.8); }
 .pf-main-xl .pf-num { font-size: calc(var(--u) * 34); }
 [data-tone="warm"] > .pf-num { color: var(--pf-warm); }
 [data-tone="hot"] > .pf-num { color: var(--pf-hot); }
 .pf-none > .pf-num { color: var(--pf-ink-3); }
 .pf-main.pf-none .pf-num { font-size: calc(var(--u) * 7); font-weight: 500; letter-spacing: 0; padding: calc(var(--u) * 8) 0; }
-.pf-rest-value .pf-num, .pf-cell-value .pf-num { font-size: calc(var(--u) * 9); font-weight: 400; }
+.pf-rest-value .pf-num, .pf-cell-value .pf-num { font-size: calc(var(--u) * var(--nk, 1) * 9); font-weight: 400; }
 .pf-rest-value .pf-unit, .pf-cell-value .pf-unit { font-size: calc(var(--u) * 3.8); color: var(--pf-ink-2); margin: calc(var(--u) * 0.8) 0 0 calc(var(--u) * 0.5); }
 .pf-rest-value.pf-none .pf-num, .pf-cell-value.pf-none .pf-num { font-size: calc(var(--u) * 4); font-weight: 500; }
 
@@ -191,3 +191,46 @@ html, body {
   .pf-face, .pf-alert { animation: none; }
   .pf-face-out, .pf-alert-out, .pf-fill, .pf-dim { transition: none; }
 }
+
+/* ── A line's look (face-look.js): colours on the layer, what is behind, size, warm ── */
+.pf-face { isolation: isolate; }
+.pf-big { --nk: 1.2; }
+.pf-bg-glow {
+  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--pf-c1) 24%, transparent),
+    color-mix(in srgb, var(--pf-c2) 7%, transparent) 52%, transparent 74%);
+}
+/* Behind the face, dark enough that its numbers read over any picture. */
+.pf-bg-pic {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.4);
+}
+.pf-has-bg .pf-track { stroke: rgb(255 255 255 / 0.16); }
+/* Warm and hot keep the reading's own colour; the mark for too hot stays. */
+.pf-nowarn .pf-fill[data-tone] { stroke: var(--slot, var(--pf-c1)); }
+.pf-nowarn [data-tone] > .pf-num { color: inherit; }
+.pf-nowarn :is(.pf-ring-cell, .pf-game-side):has(> [data-tone]) > .pf-ring-label { color: var(--slot); }
+.pf-nowarn .pf-bar-fill[data-tone] { background: var(--slot); }
+.pf-big .pf-rings-n2 { grid-template-columns: repeat(2, calc(var(--u) * 35)); }
+/* Four numbers in a grid only have room to grow a little. */
+.pf-big .pf-grid:is([data-count="3"], [data-count="4"]) { --nk: 1.08; }
+/* A line of one's own: above the face, below it where a ring gauge leaves its opening. */
+.pf-own-text {
+  position: absolute;
+  top: calc(50% - var(--u) * 43);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 54%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: max(calc(var(--u) * 4.2), 10px);
+  font-weight: 650;
+  color: var(--pf-ink-2);
+}
+.pf-style-rings > .pf-own-text { top: auto; bottom: calc(50% - var(--u) * 44); }
+.pf-face-clock.pf-style-analog > .pf-own-text { top: calc(50% - var(--u) * 33); }

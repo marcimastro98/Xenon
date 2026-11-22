@@ -29,6 +29,19 @@
   window.hubSettings = {};
   window.getEffectiveThemePalette = () => palette;
   doc.dataset.shape = SHAPES.includes(query.get('shape')) ? query.get('shape') : 'round';
+  // Where the widget is, for its placement (custom-widget.js): the screen's shape and the look
+  // of its line (face-widget.js), checked here as any query is.
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const colors = String(query.get('colors') || '').split(',').filter((c) => HEX.test(c)).map((c) => c.toLowerCase());
+  window.pumpPlacement = Object.freeze({
+    shape: doc.dataset.shape,
+    look: Object.freeze({
+      colors: Object.freeze(colors.length === 4 ? colors : ['#6ee787', '#8ab4f8', '#ffd75e', '#b4a0ff']),
+      size: query.get('size') === 'big' ? 'big' : 'normal',
+      // Only a unit chosen for this line: "as in Settings" leaves init's tempUnit/hwTempUnit.
+      ...(['c', 'f'].includes(query.get('units')) ? { units: query.get('units') } : {}),
+    }),
+  });
 
   function say(state) {
     doc.dataset.state = state;

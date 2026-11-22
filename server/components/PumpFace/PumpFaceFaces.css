@@ -40,14 +40,14 @@
 .pf-ring-value.pf-none:not(.pf-main) { white-space: normal; text-align: center; line-height: 1.15; }
 
 .pf-rings-n1 .pf-ring-label { font-size: max(calc(var(--u) * 5.6), 11px); }
-.pf-rings-n1 .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * 27), calc(var(--u) * 80 / var(--len, 2))); }
+.pf-rings-n1 .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 27), calc(var(--u) * var(--nk, 1) * 80 / var(--len, 2))); }
 .pf-rings-n1 .pf-ring-value.pf-none .pf-num { font-size: calc(var(--u) * 6); }
-.pf-rings-turns .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * 22), calc(var(--u) * 64 / var(--len, 2))); }
+.pf-rings-turns .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 22), calc(var(--u) * var(--nk, 1) * 64 / var(--len, 2))); }
 
 .pf-rings-n2 { grid-template-columns: repeat(2, calc(var(--u) * 31)); }
 .pf-rings-n2 > .pf-ring-cell { box-sizing: border-box; padding: 0 calc(var(--u) * 2); }
 .pf-rings-n2 > .pf-ring-cell + .pf-ring-cell { border-left: max(1px, calc(var(--u) * 0.25)) solid var(--pf-track); }
-.pf-rings-n2 .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * 15), calc(var(--u) * 30 / var(--len, 2))); font-weight: 400; }
+.pf-rings-n2 .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 15), calc(var(--u) * var(--nk, 1) * 30 / var(--len, 2))); font-weight: 400; }
 .pf-rings-n2 .pf-ring-value .pf-unit { font-size: calc(var(--u) * 4.2); }
 
 .pf-rings-n3, .pf-rings-n4 { grid-template-columns: repeat(2, calc(var(--u) * 22)); column-gap: calc(var(--u) * 2.5); }
@@ -56,7 +56,7 @@
 .pf-rings-n4 > .pf-ring-cell:nth-child(n+3) > .pf-ring-label { padding-top: calc(var(--u) * 3.4); }
 .pf-rings-n3 .pf-ring-label, .pf-rings-n4 .pf-ring-label { font-size: max(min(calc(var(--u) * 3.6), calc(var(--u) * 36 / (var(--llen, 8) + var(--mark, 0)))), 9.5px); }
 .pf-rings-n3 .pf-ring-value:not(.pf-none) .pf-num, .pf-rings-n4 .pf-ring-value:not(.pf-none) .pf-num {
-  font-size: min(calc(var(--u) * 10), calc(var(--u) * 25 / var(--len, 2)));
+  font-size: min(calc(var(--u) * var(--nk, 1) * 10), calc(var(--u) * var(--nk, 1) * 25 / var(--len, 2)));
   font-weight: 400;
 }
 .pf-rings-n3 .pf-ring-value .pf-unit, .pf-rings-n4 .pf-ring-value .pf-unit { font-size: calc(var(--u) * 3.6); }
@@ -104,9 +104,9 @@
 .pf-grid[data-count="1"] { grid-template-columns: 1fr; }
 .pf-grid[data-count="2"] { grid-template-columns: 1fr; gap: calc(var(--u) * 4); }
 .pf-grid .pf-cell { display: grid; justify-items: center; }
-.pf-grid .pf-cell-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * 17); font-weight: 300; }
+.pf-grid .pf-cell-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * var(--nk, 1) * 17); font-weight: 300; }
 .pf-grid .pf-cell-value .pf-unit { font-size: calc(var(--u) * 4.4); }
-.pf-grid[data-count="1"] .pf-cell-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * 27); }
+.pf-grid[data-count="1"] .pf-cell-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * var(--nk, 1) * 27); }
 .pf-grid .pf-label { order: 2; margin-top: calc(var(--u) * 0.8); font-size: calc(var(--u) * 4.2); color: var(--slot); }
 
 /* Edge-anchored parts are placed from the centre (50% plus or minus --u, one vmin): on a
@@ -210,10 +210,10 @@
 /* ── Clock ────────────────────────────────────────────────────────────── */
 .pf-face-clock { align-content: center; justify-items: center; }
 .pf-time { display: flex; align-items: baseline; line-height: 0.9; }
-.pf-time-hm { font-size: calc(var(--u) * 30); font-weight: 250; letter-spacing: -0.02em; }
-.pf-time[data-fit="1"] .pf-time-hm { font-size: calc(var(--u) * 28); }
-.pf-time[data-fit="2"] .pf-time-hm { font-size: calc(var(--u) * 24); }
-.pf-time[data-fit="3"] .pf-time-hm { font-size: calc(var(--u) * 21); }
+.pf-time-hm { font-size: calc(var(--u) * var(--nk, 1) * 30); font-weight: 250; letter-spacing: -0.02em; }
+.pf-time[data-fit="1"] .pf-time-hm { font-size: calc(var(--u) * var(--nk, 1) * 28); }
+.pf-time[data-fit="2"] .pf-time-hm { font-size: calc(var(--u) * var(--nk, 1) * 24); }
+.pf-time[data-fit="3"] .pf-time-hm { font-size: calc(var(--u) * var(--nk, 1) * 21); }
 .pf-time-s { font-size: calc(var(--u) * 7); color: var(--pf-ink-3); margin-left: calc(var(--u) * 1.2); }
 .pf-time-ampm { font-size: calc(var(--u) * 6); font-weight: 500; color: var(--pf-ink-2); margin-left: calc(var(--u) * 1); }
 .pf-time-s:empty, .pf-time-ampm:empty { display: none; }

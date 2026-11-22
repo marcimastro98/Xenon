@@ -39,6 +39,82 @@
 
   const pick = (value, list, fallback) => (list.includes(value) ? value : fallback);
 
+  // How a face looks, chosen line by line (a red Game face while playing, a calm one the rest
+  // of the time). Defaults are the look every face had before these choices existed.
+  // colors: a set of the face page's (PumpFace.css), 'theme' (the accent of Settings),
+  // 'picture' (the colours of the cover, GIF or background on show, read live) or one colour
+  // of the person's own. bg: black, a soft glow of the first colour, or a picture behind,
+  // dimmed. warn: a reading turns amber, then red, when warm or hot.
+  const COLOR_SETS = Object.freeze(['xenon', 'theme', 'picture', 'fire', 'ice', 'violet', 'mono']);
+  const HEX_RE = /^#[0-9a-f]{6}$/;
+  const BACKGROUNDS = Object.freeze(['black', 'glow']);
+  const SIZES = Object.freeze(['normal', 'big']);
+  const UNITS = Object.freeze(['auto', 'c', 'f']);
+  const TEXT_MAX = 24;
+  const LOOK = Object.freeze({ colors: 'xenon', bg: 'black', size: 'normal', units: 'auto', warn: true, text: '' });
+  // The look a Store widget is told (placement.look): the rest is the widget's own to draw.
+  // A widget face draws itself: it takes these from its line (placement.look); colours read off
+  // a picture are the face page's own, so a widget gets Xenon's set instead.
+  const WIDGET_LOOK = Object.freeze(['colors', 'size', 'units']);
+  const widgetLook = (r) => cleanLook(r.colors === 'picture' ? { ...r, colors: LOOK.colors } : r, WIDGET_LOOK);
+
+  // The four colours of each set, one per reading (the first one leads: rings, hands, glow).
+  // 'xenon' is Bit's moods (PumpFace.css); 'theme' and a colour of one's own are shaded here.
+  const COLOR_HEX = Object.freeze({
+    xenon: Object.freeze(['#6ee787', '#8ab4f8', '#ffd75e', '#b4a0ff']),
+    fire: Object.freeze(['#ff7a45', '#ffc145', '#ff4d6d', '#ffa3a3']),
+    ice: Object.freeze(['#7dd3fc', '#e0f2fe', '#60a5fa', '#a5f3fc']),
+    violet: Object.freeze(['#c084fc', '#f0abfc', '#818cf8', '#f9a8d4']),
+    mono: Object.freeze(['#ffffff', '#c8c8c8', '#9a9a9a', '#e4e4e4']),
+  });
+
+  // `hex` mixed toward white (w > 0) or black (w < 0) by |w|.
+  function mix(hex, w) {
+    const to = w > 0 ? 255 : 0;
+    const at = (i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - Math.abs(w)) + to * Math.abs(w));
+    return '#' + [1, 3, 5].map((i) => at(i).toString(16).padStart(2, '0')).join('');
+  }
+  const shades = (hex) => [hex, mix(hex, 0.45), mix(hex, -0.3), mix(hex, 0.7)];
+
+  // The four colours a look shows, or null for 'picture' (read from what the face shows).
+  function colorsOf(colors, accent) {
+    if (COLOR_HEX[colors]) return [...COLOR_HEX[colors]];
+    if (colors === 'theme') return shades(HEX_RE.test(String(accent).toLowerCase()) ? String(accent).toLowerCase() : COLOR_HEX.xenon[0]);
+    if (HEX_RE.test(colors)) return shades(colors);
+    return colors === 'picture' ? null : [...COLOR_HEX.xenon];
+  }
+
+  function cleanColors(raw) {
+    const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+    return COLOR_SETS.includes(v) || HEX_RE.test(v) ? v : LOOK.colors;
+  }
+
+  // Letters, numbers, spaces and plain marks on one line: the pump is often on camera, and
+  // nothing here is ever read as markup.
+  function cleanText(raw) {
+    if (typeof raw !== 'string') return '';
+    const flat = raw.replace(/[\p{Cc}\u2028\u2029]/gu, ' ').replace(/\s+/g, ' ').trim();
+    return [...flat].slice(0, TEXT_MAX).join('').trim();
+  }
+
+  // Only what differs from the default look is kept, so a face saved before looks had choices,
+  // and one that never changed them, stays as short as it was.
+  /** @param {any} r @param {readonly string[]} [keys] */
+  function cleanLook(r, keys = Object.keys(LOOK)) {
+    const all = {
+      colors: cleanColors(r.colors),
+      bg: BACKGROUNDS.includes(r.bg) || isPicture(r.bg) ? r.bg : LOOK.bg,
+      size: pick(r.size, SIZES, LOOK.size),
+      units: pick(r.units, UNITS, LOOK.units),
+      warn: r.warn !== false,
+      text: cleanText(r.text),
+    };
+    return Object.fromEntries(keys.filter((k) => all[k] !== LOOK[k]).map((k) => [k, all[k]]));
+  }
+
+  // Only the look, of a face or a patch: what a line keeps when its face changes.
+  const lookOf = (show) => (show && typeof show === 'object' ? Object.fromEntries(Object.keys(LOOK).filter((k) => k in show).map((k) => [k, show[k]])) : {});
+
   function cleanReadings(raw, fallback) {
     const list = [...new Set(Array.isArray(raw) ? raw : [])].filter((r) => READINGS.includes(r)).slice(0, MAX_READINGS);
     return list.length ? list : [...fallback];
@@ -68,22 +144,24 @@
   // A face with its choices, or null when `raw` names no face at all (or no widget).
   function normalizeFace(raw) {
     const r = raw && typeof raw === 'object' ? raw : { face: raw };
-    if (r.face === WIDGET) return typeof r.id === 'string' && WIDGET_ID_RE.test(r.id) ? { face: WIDGET, id: r.id } : null;
+    if (r.face === WIDGET) return typeof r.id === 'string' && WIDGET_ID_RE.test(r.id) ? { face: WIDGET, id: r.id, ...widgetLook(r) } : null;
     if (!FACES.includes(r.face)) return null;
-    return { face: r.face, ...SHAPERS[r.face](r) };
+    return { face: r.face, ...SHAPERS[r.face](r), ...cleanLook(r) };
   }
 
   const defaultFace = (face) => normalizeFace({ face });
 
-  // Changes `patch` makes to a face: the same face keeps the choices it had.
+  // Changes `patch` makes to a face: the same face keeps the choices it had, another one
+  // keeps the line's look (its colours, background, size, units, text).
   function mergeFace(current, patch) {
     const p = patch && typeof patch === 'object' ? patch : { face: patch };
-    const base = current && (!p.face || p.face === current.face) ? current : {};
+    const base = current && (!p.face || p.face === current.face) ? current : lookOf(current);
     return normalizeFace({ ...base, ...p, face: p.face || current?.face });
   }
 
   return Object.freeze({
     FACES, READINGS, MAX_READINGS, SENSOR_STYLES, MUSIC_STYLES, CLOCK_STYLES, FITS, PICTURE_EVERY,
     MAX_PICTURES, OWN_ART, WIDGET, WIDGET_ID_RE, isPicture, normalizeFace, defaultFace, mergeFace,
+    COLOR_SETS, COLOR_HEX, BACKGROUNDS, SIZES, UNITS, TEXT_MAX, LOOK, WIDGET_LOOK, lookOf, colorsOf,
   });
 });

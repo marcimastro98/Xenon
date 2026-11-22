@@ -16,11 +16,13 @@ const PAGE = path.join(__dirname, '..', 'pump-face.html');
 const WIDGET_PAGE = path.join(__dirname, '..', 'pump-widget.html');
 const STRINGS_MARK = '<!-- pump strings -->';
 
-// What a face needs from the settings: the language its words came in, and how
-// temperatures and the time are written.
+// What a face needs from the settings: the language its words came in, how temperatures
+// and the time are written, and the theme's colour (a line's look can follow it).
+const HEX = /^#[0-9a-f]{6}$/i;
 function prefsOf(s) {
   const tempUnit = s.tempUnit === 'f' ? 'f' : 'c';
   return {
+    accent: typeof s.accent === 'string' && HEX.test(s.accent) ? s.accent.toLowerCase() : '#6ee787',
     lang: typeof s.language === 'string' && s.language ? s.language : 'en',
     tempUnit,
     hwTempUnit: s.hwTempUnit === 'c' || s.hwTempUnit === 'f' ? s.hwTempUnit : tempUnit,

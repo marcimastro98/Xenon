@@ -143,12 +143,15 @@ test('a picture line picks one of Xenon\'s or takes the person\'s own file', () 
   assert.equal(row(ready, 'pump-base-art').value, 'art:tide');
   assert.deepEqual(ready.sub, { key: 'xmenu_pump_art_tide' });
   // The file's address goes where the mark is once it is up (xenon-menu-pump-rows.js).
-  assert.deepEqual(ready.upload.label, { key: 'xmenu_pump_own' });
-  assert.deepEqual(patchOf(ready.upload.act), { base: { face: 'picture', items: ['xenon:file'], every: 10, fit: 'cover' } });
+  const upload = ready.rows.find((x) => x.kind === 'pumpupload');
+  assert.equal(ready.rows[ready.rows.indexOf(row(ready, 'pump-base-art')) + 1], upload, 'right under the ready pictures');
+  assert.deepEqual(upload.label, { key: 'xmenu_pump_own' });
+  assert.deepEqual(patchOf(upload.act), { base: { face: 'picture', items: ['xenon:file'], every: 10, fit: 'cover' } });
   const own = pic(['/uploads/pump-1-ab.gif']);
   assert.equal(row(own, 'pump-base-art').value, '', 'a picture of your own lights none of the ready ones');
   assert.deepEqual([own.sub, row(own, 'pump-base-art').sub], [{ key: 'xmenu_pump_art_own' }, { key: 'xmenu_pump_art_own' }]);
-  assert.equal(row(tab(pumpViews(state({ screens: [screen()] }))[0], 'shows'), 'pump-base').upload, null, 'only a picture face takes a file');
+  const sensors = row(tab(pumpViews(state({ screens: [screen()] }))[0], 'shows'), 'pump-base');
+  assert.equal(sensors.rows.find((x) => x.kind === 'pumpupload' && x.id === 'pump-base'), undefined, 'only a picture face takes a file as its picture');
 });
 
 test('over the tabs: what the pump shows now and why, and the way back when picked by hand', () => {

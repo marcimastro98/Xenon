@@ -171,6 +171,24 @@
 .xm-pumpown { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .xm-pumpown-note { font-size: 13px; color: var(--cst-muted); }
 .xm-pumpown-note:empty { display: none; }
+/* A face's look (menu-pump-face-look.js): each colour set drawn as its four colours, then a
+   colour of one's own in the system's picker; a line of the person's own words. */
+.xm-pumpswatches > .xm-choice { display: inline-flex; align-items: center; gap: var(--space-2); }
+.xm-pumpswatches > .xm-choice:has(.xm-pumpswatch), .xm-pumpswatch-own { padding-inline: 10px 14px; }
+.xm-pumpswatch {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: conic-gradient(var(--sw1) 0 25%, var(--sw2) 0 50%, var(--sw3) 0 75%, var(--sw4) 0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 14%, transparent);
+}
+/* The colours of the picture on show: a hint of a picture's many, none of them its own. */
+.xm-pumpswatch.is-picture { background: conic-gradient(from 30deg, #f6b34a, #e5484d, #8e4ec6, #3e63dd, #30a46c, #f6b34a); }
+.xm-pumpswatch-own { cursor: pointer; }
+.xm-pumpswatch-own.is-on { color: var(--cst-text); background: var(--cst-on); }
+.xm-pumpswatch-own:focus-within { outline: 2px solid var(--cst-text); outline-offset: 2px; }
+.xm-pumpswatch-own > input { flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.xm-pumpswatch-own > input::-webkit-color-swatch-wrapper { padding: 0; }
+.xm-pumpswatch-own > input::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.xm-row--stack > .xm-pumptext { width: min(320px, 100%); }
 
 /* Cards that say what they do: the ring's colours, drawn; the examples, words only. */
 .xm-pumpcards { display: flex; flex-direction: column; gap: var(--space-3); }

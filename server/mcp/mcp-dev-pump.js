@@ -9,7 +9,8 @@ const ROUND_ROOT_CSS = '#root { height: 100%; container-type: size; display: fle
 
 const RULES = 'Made for a pump screen: seen from across the room and never tapped, so one big reading and no buttons. '
   + 'Most are round 480 x 480: keep everything inside the circle (about 15% padding on every side, in cqmin). '
-  + 'placement says { where: "pump", shape }. See sdk_reference sections "manifest" and "placement".';
+  + 'placement says { where: "pump", shape, look: { colors: [four #rrggbb, the first leading], size: "normal"|"big", units?: "c"|"f" } }: '
+  + 'look is what the user chose for that line of the pump, so draw with its colours, size and unit. See sdk_reference sections "manifest" and "placement".';
 
 // The shapes the app kept (normalizeManifest), with the rules when there are any.
 function pumpOf(manifest) {

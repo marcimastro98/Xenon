@@ -25,9 +25,10 @@ function nextMoments(current, patch) {
     const m = Model.normalizeMoment(patch.addMoment);
     if (!m) return { error: 'bad_moment' };
     // The same rule again ("when I play" on a setup that has it) means its new face:
-    // two moments with one rule would leave the second never shown.
+    // two moments with one rule would leave the second never shown. Like the base line,
+    // it keeps the look chosen for it unless the patch names another.
     const same = moments.findIndex((x) => When.format(x.when) === When.format(m.when));
-    if (same >= 0) moments = moments.map((x, i) => (i === same ? m : x));
+    if (same >= 0) moments = moments.map((x, i) => (i === same ? { ...m, show: Faces.mergeFace(x.show, patch.addMoment.show) || m.show } : x));
     else if (moments.length >= Model.MAX_MOMENTS) return { error: 'too_many_moments' };
     else moments = Model.insertMoment(moments, m);
   }

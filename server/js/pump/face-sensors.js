@@ -36,8 +36,8 @@
     };
   }
 
-  // On a screen under this size, three or four readings do not fit side by side: the
-  // middle shows them one at a time and the ring it reads stands out.
+  // On a screen under this size, or with big numbers (the line's look), three or four readings
+  // do not fit side by side: the middle shows them one at a time and the ring it reads stands out.
   const SMALL_SCREEN = 360;
   const TURN_SECONDS = 4;
 
@@ -64,7 +64,7 @@
   // clear of the innermost ring.
   function rings(root, readings) {
     const set = readings.length > 2 ? RING_SETS.thin : RING_SETS.wide;
-    const turns = readings.length > 2 && Math.min(innerWidth, innerHeight) < SMALL_SCREEN;
+    const turns = readings.length > 2 && (Math.min(innerWidth, innerHeight) < SMALL_SCREEN || root.classList.contains('pf-big'));
     root.classList.toggle('pf-rings-thin', set === RING_SETS.thin);
     root.classList.toggle('pf-rings-turns', turns);
     const box = Kit.svg('svg', { viewBox: '0 0 100 100', class: 'pf-rings', 'aria-hidden': 'true' });

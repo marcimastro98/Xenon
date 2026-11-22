@@ -7,7 +7,9 @@
   const NS = 'http://www.w3.org/2000/svg';
   const parts = { face: new Map(), art: new Map(), part: new Map() };
   let words = {};
-  let prefs = { lang: 'en', tempUnit: 'c', hwTempUnit: 'c', clockFormat: 'auto' };
+  let prefs = { lang: 'en', tempUnit: 'c', hwTempUnit: 'c', clockFormat: 'auto', accent: '#6ee787' };
+  // The unit the face on show asked for ('c', 'f'), over the one of Settings; '' = Settings'.
+  let faceUnit = '';
 
   // Each reading: its word, how it is read off the `system` event, and the
   // range its ring fills. Temperatures arrive in °C and are written in the
@@ -33,6 +35,10 @@
     if (next && typeof next === 'object') words = next;
     if (nextPrefs && typeof nextPrefs === 'object') prefs = { ...prefs, ...nextPrefs };
   }
+
+  // The face's look may write temperatures in a unit of its own (pump-faces.js `units`).
+  function useUnits(units) { faceUnit = units === 'c' || units === 'f' ? units : ''; }
+  const shownPrefs = () => (faceUnit ? { ...prefs, tempUnit: faceUnit, hwTempUnit: faceUnit } : prefs);
 
   function t(key, fallback) {
     const v = words[key];
@@ -67,7 +73,7 @@
     if (!system) return { name, label, value: null, text: '', unit: '', fraction: 0, tone: 'none' };
     if (!known) return { name, label, value: null, text: t('pump_face_no_reading', 'No reading'), unit: '', fraction: 0, tone: 'none' };
     if (def.temp) {
-      const f = prefs.hwTempUnit === 'f';
+      const f = shownPrefs().hwTempUnit === 'f';
       const shown = Math.round(f ? raw * 9 / 5 + 32 : raw);
       const tone = raw >= HOT_C ? 'hot' : raw >= WARM_C ? 'warm' : 'ok';
       return { name, label, value: raw, text: String(shown), unit: f ? '°F' : '°C', fraction: clamp01(raw / 100), tone };
@@ -131,6 +137,6 @@
   }
 
   window.PumpFaceKit = {
-    READINGS, setWords, t, locale, prefs: () => prefs, el, svg, reading, arcPath, gauge, add, get, hour12, safeImage, clamp01,
+    READINGS, setWords, useUnits, t, locale, prefs: shownPrefs, el, svg, reading, arcPath, gauge, add, get, hour12, safeImage, clamp01,
   };
 })();

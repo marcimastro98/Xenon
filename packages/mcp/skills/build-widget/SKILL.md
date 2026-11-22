@@ -37,7 +37,9 @@ person's own dashboard, so you can see it run and fix it.
 - Fill the tile at every size: `container-type: size` on the root and `cqmin` units, no fixed pixel layout.
 - For an AIO pump's screen add `"pump": true` (round and square) or a list (`["round"]`). It is then offered as a
   pump face, and `placement` says `{ where: 'pump', shape }`. A round 480 x 480 is the common one: one big readout,
-  everything inside the circle, no taps. Read sdk_reference section "manifest".
+  everything inside the circle, no taps. `placement.look` brings the user's choice for that pump line (`colors`: four
+  `#rrggbb`, the first leading; `size`: `normal` or `big`; `units`: `c` or `f`, only when picked for that line): draw with it. Read sdk_reference
+  sections "manifest" and "placement".
 - Put text on the page with `textContent`, never `innerHTML`.
 - Read `theme` and follow its colours, and declare a `color-scheme`: up to Xenon 4.11.13 a page with none turns the tile white.
 - Follow the look too: on `theme.look === 'liquid'` (Liquid Glass, the default) cards inside the tile have no outline,

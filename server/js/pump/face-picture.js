@@ -55,6 +55,9 @@
     return item.startsWith('art:') ? artLayer(item.slice(4)) : fileLayer(item, fit);
   }
 
+  // A picture behind another face (face-look.js): the same layers, nothing of the slideshow.
+  Kit.add('part', 'layer', layerFor);
+
   Kit.add('face', 'picture', (root, opts) => {
     root.classList.add('pf-face-picture');
     const items = opts.items.length ? opts.items : ['art:aurora'];

@@ -1,12 +1,13 @@
 'use strict';
 // One line of a pump's "What it shows" tab (menu-pump.js): a moment, or the rest of the time,
 // and what opens under it: the faces to pick from as cards, then the face's own choices (its
-// style, the readings it shows, what a clock adds). Pure.
+// style, the readings it shows, what a clock adds), then its look (menu-pump-face-look.js). Pure.
 
 const Faces = require('../js/pump/pump-faces.js');
 const LayerWhen = require('../js/layers/layer-when.js');
 const { faceFor } = require('../pump-screen/actions.js');
 const { k, run, open, choiceRow } = require('./menu-rows.js');
+const { lookRows, FILE_MARK } = require('./menu-pump-face-look.js');
 
 const STYLES = Object.freeze({ sensors: Faces.SENSOR_STYLES, music: Faces.MUSIC_STYLES, clock: Faces.CLOCK_STYLES });
 const CLOCK_PARTS = Object.freeze(['seconds', 'date', 'weather']);
@@ -26,8 +27,6 @@ const OWN_FACE = Object.freeze({
     { label: k('xmenu_pump_from_store'), act: open('store:__pump'), closes: true },
   ],
 });
-// Where the address of a picture the person sends goes in a line's save (js/menu/xenon-menu-pump-rows.js).
-const FILE_MARK = 'xenon:file';
 
 const faceLabel = (f) => k('pump_face_' + f);
 const readingLabel = (r) => k('pump_reading_' + r.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase()));
@@ -108,7 +107,8 @@ function faceRows(key, show, apply) {
   if (STYLES[show.face]) rows.push(choiceRow(key + '-style', k('xmenu_pump_style'), show.style, STYLES[show.face].map((s) => [s, k('xmenu_pump_style_' + s)]), (s) => apply({ style: s })));
   if (Array.isArray(show.readings)) rows.push(readingsRow(key, show, apply));
   if (show.face === 'clock') rows.push(clockRow(key, show, apply));
-  if (show.face === 'picture') rows.push(artRow(key, show, apply));
+  // Under Xenon's own pictures: or one of the person's (the file goes up first, in its place the mark).
+  if (show.face === 'picture') rows.push(artRow(key, show, apply), { kind: 'pumpupload', id: key, label: k('xmenu_pump_own'), act: run(apply({ items: [FILE_MARK] })) });
   return rows;
 }
 
@@ -129,10 +129,10 @@ function whenLabel(when) {
 function momentRow({ id, label, show, v, st, save, remove }) {
   return {
     kind: 'pumpmoment', id, label, sub: detailOf(show, st), value: showLabel(show, st), art: show.face, show,
-    faces: faceCards(st, pickOf(show), (f) => save(showOf(v, f))),
+    // Another face keeps the line's look: its colours, background and the rest.
+    faces: faceCards(st, pickOf(show), (f) => save({ ...showOf(v, f), ...Faces.lookOf(show) })),
     facesLabel: k('xmenu_pump_faces'), yours: k('xmenu_pump_yours'), own: OWN_FACE,
-    rows: faceRows(id, show, (p) => save({ ...show, ...p })),
-    upload: show.face === 'picture' ? { label: k('xmenu_pump_own'), act: run(save({ ...show, items: [FILE_MARK] })) } : null,
+    rows: [...faceRows(id, show, (p) => save({ ...show, ...p })), ...lookRows(id, show, st.pump?.accent, (p) => save({ ...show, ...p }))],
     remove: remove ? { label: k('xmenu_pump_m_remove'), act: run(remove) } : null,
   };
 }

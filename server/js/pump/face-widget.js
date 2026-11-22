@@ -16,10 +16,17 @@
     return SHAPES.find((s) => root?.classList.contains('pf-shape-' + s)) || 'round';
   }
 
+  // The line's look as the widget gets it (placement.look): four colours, size, and a unit
+  // only when one was chosen for this line.
+  function lookQuery(show) {
+    const colors = window.PumpFaces.colorsOf(show.colors, Kit.prefs().accent) || window.PumpFaces.colorsOf('xenon');
+    return { colors: colors.join(','), size: show.size || 'normal', ...(show.units === 'c' || show.units === 'f' ? { units: show.units } : {}) };
+  }
+
   function create(layer, show) {
     const frame = Kit.el('iframe', 'pf-widget');
     frame.title = show.id;
-    frame.src = '/pump-widget?' + new URLSearchParams({ id: show.id, shape: shapeOf(layer) });
+    frame.src = '/pump-widget?' + new URLSearchParams({ id: show.id, shape: shapeOf(layer), ...lookQuery(show) });
     layer.append(frame);
     let stand = null;
     let silent = 0;

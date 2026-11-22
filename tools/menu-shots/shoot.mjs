@@ -124,6 +124,8 @@ async function main() {
           const shots = [['main', null], ['edge', () => page.locator('.xm-scrpick').nth(1).click()], ['widgets', () => page.locator('.xm-wtab').nth(1).click()],
             ['pump', async () => { await page.locator('.xm-scrpump').first().click(); await page.waitForSelector('.xm-pumpframe.is-ready', { timeout: 8000 }); await page.waitForTimeout(600); }],
             ['pump-line', () => page.locator('[data-keep="pump-base:head"]').click()],
+            // The open line's look: its colours, then the last of its rows.
+            ...['colors', 'text'].map((part) => ['pump-line-' + part, () => page.locator(`[data-row="pump-base-${part}"]`).scrollIntoViewIfNeeded()]),
             ['pump-alerts', () => page.locator('.xm-wtab').nth(1).click()], ['pump-look', () => page.locator('.xm-wtab').nth(2).click()]];
           if (process.env.MENU_FIND) shots.push(['find', async () => { await page.locator('.xm-find').fill(process.env.MENU_FIND); await page.waitForTimeout(600); }]);
           for (const [name, step] of shots) {

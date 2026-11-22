@@ -34,6 +34,7 @@
   const pageLang = readWords();
   const alerts = Kit.get('part', 'alerts')(document.getElementById('pf-alerts'));
   const colors = Kit.get('part', 'colors')(sayColours);
+  const lookOf = Kit.get('part', 'look');
 
   const data = { system: null, media: null, weather: null };
   let id = preview ? screen : '';
@@ -75,14 +76,17 @@
     const make = Kit.get('face', show.face);
     const layer = Kit.el('div', 'pf-face');
     stage.append(layer);
+    // The look first: the face reads its unit, and its colours come from the layer.
+    const look = lookOf(layer, show);
     const next = make ? make(layer, show) : null;
     const old = face;
-    face = { layer, impl: next || { update() {} } };
+    face = { layer, look, show, impl: next || { update() {} } };
+    colors.reset();
     face.impl.update(data);
     if (old) {
       const fade = !settings || settings.look.fade;
       old.layer.classList.add('pf-face-out');
-      setTimeout(() => { if (old.impl.stop) old.impl.stop(); old.layer.remove(); }, fade ? SWAP_MS : 0);
+      setTimeout(() => { if (old.impl.stop) old.impl.stop(); old.look.stop(); old.layer.remove(); }, fade ? SWAP_MS : 0);
     }
     if (face.impl.wantsWeather) readWeather(false);
   }
@@ -151,8 +155,12 @@
     }
   }
 
-  // The colours of the face, for the ring of lights around the pump (face-colors.js).
+  // The colours of the face (face-colors.js): its own, when its look takes them from the
+  // picture, and the ring of lights around the pump's, when they follow the screen.
+  const ringFollows = () => !preview && settings?.leds?.follow === 'screen';
   async function sayColours(list) {
+    face?.look.fromPicture(list);
+    if (!ringFollows()) return true;
     try {
       const r = await fetch('/pump/colors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: id, colors: list }) });
       return (await r.json())?.ok === true;
@@ -256,7 +264,7 @@
   // colours; each minute the night hours; every quarter of an hour the weather, if shown.
   function everySecond() {
     if (face?.impl.tick) face.impl.tick();
-    if (!preview && face && settings?.leds?.follow === 'screen') colors.tick(face.layer);
+    if (face && (ringFollows() || face.show.colors === 'picture')) colors.tick(face.layer);
     else colors.reset();
     const t = new Date();
     if (t.getSeconds() === 0) {

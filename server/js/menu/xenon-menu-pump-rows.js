@@ -3,7 +3,8 @@
 // The rows of a pump's tabs on the Screens page of the Xenon menu (server/menu/menu-pump.js
 // and its two parts): a line per moment that opens on the faces to pick, drawn small as
 // cards, then that face's choices; cards for the ring of lights and the ready-made examples;
-// a short note over a tab; and the line that adds a moment. One line is open at a time, and
+// a short note over a tab; and the line that adds a moment. A face's look adds swatches, a
+// colour, a picture and a line of text of the person's own (menu-pump-face-look.js). One line is open at a time, and
 // it stays open through the menu's rebuild after a change, so the person sees what changed.
 (() => {
   // Where the address of a picture the person sends goes in a line's save (menu-pump-faces.js).
@@ -11,14 +12,16 @@
   // A face drawn small: its shape and a hint of what it shows. Decoration only.
   const MINI_TEXT = Object.freeze({ game: '144', clock: '10:42' });
 
-  // The line's save with the picture's address in place of the mark: the patch is JSON text.
-  function withFile(act, url) {
+  // The line's save with what the person sent (a picture's address, a colour, words) in place
+  // of its mark: the patch is JSON text, the value goes in as a JSON string.
+  function withMark(act, mark, value) {
     const run = act?.run;
     if (!run || typeof run.patch !== 'string') return null;
-    return { run: { ...run, patch: run.patch.split(JSON.stringify(FILE_MARK)).join(JSON.stringify(url)) } };
+    return { run: { ...run, patch: run.patch.split(JSON.stringify(mark)).join(JSON.stringify(String(value))) } };
   }
+  const withFile = (act, url) => withMark(act, FILE_MARK, url);
 
-  // ctx: { el, button, say, perform, icon, DRAW, upload, types, tryFace }
+  // ctx: { el, button, say, perform, icon, DRAW, rowShell, upload, types, tryFace }
   //   upload(file) → { ok, url } or { ok: false, bad } (xenon-menu-pumps.js upload)
   //   tryFace(show, label): the pump's picture shows the open line; (null) its own face again
   function create(ctx) {
@@ -90,11 +93,12 @@
       return box;
     }
 
-    // "Use your own picture or GIF" on a picture line: the file goes up, then the line's save.
-    function picker(r) {
+    // "Use your own picture or GIF" (a picture line, a background): the file goes up, then the
+    // line's save. up: { label, act }.
+    function picker(id, up) {
       const wrap = el('div', 'xm-pumpown');
-      const b = button('ui-btn ui-btn--secondary xm-act', say(r.upload.label));
-      b.dataset.keep = r.id + ':upload';
+      const b = button('ui-btn ui-btn--secondary xm-act', say(up.label));
+      b.dataset.keep = id + ':upload';
       const note = el('span', 'xm-pumpown-note');
       note.setAttribute('role', 'status');
       const input = el('input');
@@ -110,9 +114,9 @@
         note.textContent = say({ key: 'xmenu_pump_own_busy' });
         try {
           const d = await ctx.upload(file);
-          const act = d.ok ? withFile(r.upload.act, d.url) : null;
+          const act = d.ok ? withFile(up.act, d.url) : null;
           note.textContent = act ? '' : say({ key: d.bad ? 'xmenu_pump_own_bad' : 'xmenu_pump_own_failed' });
-          if (act) await perform(r, act);
+          if (act) await perform(up, act);
         } catch {
           note.textContent = say({ key: 'xmenu_pump_own_failed' });
         } finally {
@@ -126,9 +130,11 @@
     function openPart(r) {
       const parts = [el('span', 'xm-pumpline-cap', say(r.facesLabel)), faceGrid(r)];
       if (r.own) parts.push(ownBox(r));
-      for (const x of r.rows || []) if (ctx.DRAW[x.kind]) parts.push(ctx.DRAW[x.kind](x));
-      // Under Xenon's own pictures: or one of the person's.
-      if (r.upload && typeof ctx.upload === 'function') parts.push(picker(r));
+      for (const x of r.rows || []) {
+        const draw = LOOK[x.kind] || ctx.DRAW[x.kind];
+        const node = draw ? draw(x) : null;
+        if (node) parts.push(node);
+      }
       if (r.remove) {
         const b = button('xm-pumpline-remove', say(r.remove.label));
         b.addEventListener('click', () => { open = ''; perform(r, r.remove.act); });
@@ -216,10 +222,78 @@
       return box;
     }
 
+    // A colour set drawn as its four colours; 'picture' has none until the face shows one.
+    function swatch(colors) {
+      if (colors === undefined) return null;
+      const dot = el('span', 'xm-pumpswatch' + (colors ? '' : ' is-picture'));
+      dot.setAttribute('aria-hidden', 'true');
+      // The set's colours are data: custom properties are the one way in.
+      (colors || []).forEach((c, i) => { dot.style.setProperty('--sw' + (i + 1), c); });
+      return dot;
+    }
+
+    // Keys of their own, a colour set's drawn beside its name; then, for colours, one of one's
+    // own: the system's colour picker, saved when it closes.
+    function drawKeys(r) {
+      const li = ctx.rowShell(r, 'xm-row--stack');
+      const group = el('div', 'xm-choices xm-choices--multi xm-pumpswatches');
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', say(r.label));
+      for (const o of r.options || []) {
+        const b = button('xm-choice');
+        b.dataset.keep = `${r.id}:${o.value}`;
+        b.setAttribute('aria-pressed', String(o.on === true));
+        const dot = swatch(o.swatch);
+        if (dot) b.appendChild(dot);
+        b.appendChild(el('span', '', say(o.label)));
+        b.addEventListener('click', () => { if (o.act) perform(r, o.act); });
+        group.appendChild(b);
+      }
+      if (r.own) group.appendChild(ownColor(r));
+      li.appendChild(group);
+      return li;
+    }
+
+    function ownColor(r) {
+      const own = el('label', 'xm-choice xm-pumpswatch-own');
+      own.classList.toggle('is-on', r.own.on === true);
+      const input = el('input');
+      input.type = 'color';
+      input.value = r.own.value;
+      input.addEventListener('change', () => { const act = withMark(r.own.act, r.mark, input.value); if (act) perform(r, act); });
+      own.append(input, el('span', '', say(r.own.label)));
+      return own;
+    }
+
+    // A line of the person's own on the face: saved on leaving the field or on Enter.
+    function drawText(r) {
+      const li = ctx.rowShell(r, 'xm-row--stack');
+      const field = el('input', 'xm-search xm-pumptext');
+      field.type = 'text';
+      field.maxLength = r.max;
+      field.value = r.value;
+      field.placeholder = say(r.hint);
+      field.setAttribute('aria-label', say(r.label));
+      field.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); } });
+      field.addEventListener('change', () => {
+        const act = field.value.trim() === r.value ? null : withMark(r.act, r.mark, field.value.trim());
+        if (act) perform(r, act);
+      });
+      li.appendChild(field);
+      return li;
+    }
+
+    const LOOK = {
+      pumpcap: (r) => el('span', 'xm-pumpline-cap', say(r.label)),
+      pumpkeys: drawKeys,
+      pumptext: drawText,
+      pumpupload: (r) => (typeof ctx.upload === 'function' ? picker(r.id, r) : null),
+    };
+
     return { draw: { pumpmoment: drawMoment, pumpnote: drawNote, pumpcards: drawCards, pumpadd: drawAdd } };
   }
 
-  const api = { create, withFile, FILE_MARK };
+  const api = { create, withFile, withMark, FILE_MARK };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window.XenonMenuPumpRows = api;
 })();

@@ -41,8 +41,9 @@ function rig(upload, tryFace) {
   const icon = (name) => { const i = el('svg', 'xm-ic'); i.dataset.icon = name; return i; };
   const ran = [];
   const perform = async (row, act) => { ran.push([row, act]); return true; };
-  const DRAW = { choice: (r) => { const n = el('div', 'xm-row'); n.dataset.row = r.id; return n; } };
-  const { draw } = PumpRows.create({ el, button, say, perform, icon, DRAW, upload, types: Pumps.PICTURE_TYPES, tryFace });
+  const rowShell = (r, cls) => { const n = el('div', 'xm-row' + (cls ? ' ' + cls : '')); n.dataset.row = r.id; n.appendChild(el('span', 'xm-label', say(r.label))); return n; };
+  const DRAW = { choice: (r) => rowShell(r) };
+  const { draw } = PumpRows.create({ el, button, say, perform, icon, DRAW, rowShell, upload, types: Pumps.PICTURE_TYPES, tryFace });
   Object.assign(DRAW, draw);
   const put = (rows) => { document.body.replaceChildren(...rows.filter((r) => draw[r.kind]).map((r) => draw[r.kind](r))); return document.body.children; };
   return { document, el, button, icon, draw, ran, put, acts: () => ran.map(([, act]) => act) };
@@ -155,7 +156,7 @@ test('a picture of your own goes up, then becomes that line\'s picture; a refusa
   const lines = r.put(rowsOf(viewOf({ base: pictureBase }), 'shows'));
   lines[3].querySelector('.xm-pumpline-head').click();
   const line = lines[3];
-  const input = line.querySelector('input');
+  const input = line.querySelector('.xm-pumpown input');
   const note = line.querySelector('.xm-pumpown-note');
   assert.equal(input.accept, Pumps.PICTURE_TYPES);
   assert.equal(line.querySelector('[data-keep="pump-base:upload"]').textContent, 'xmenu_pump_own');
@@ -181,7 +182,7 @@ test('a picture of your own goes up, then becomes that line\'s picture; a refusa
   const none = rig(undefined);
   const plain = none.put(rowsOf(viewOf({ base: pictureBase }), 'shows'));
   plain[3].querySelector('.xm-pumpline-head').click();
-  assert.equal(plain[3].querySelector('input'), null);
+  assert.equal(plain[3].querySelector('.xm-pumpown'), null);
 });
 
 test('"add" opens on the moments still free, and one tap adds that line', () => {

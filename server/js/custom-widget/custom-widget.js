@@ -704,7 +704,7 @@
   // is, nothing about the user, and the user alone decides where it goes.
   const LAYER_SURFACES = Object.freeze(['desktop', 'overlay', 'anchor']);
   // data-scene: the desktop scene (scene.html, an Ambient scene as wallpaper or screensaver)
-  // and a pump's screen (pump-widget.html, where `shape` is that screen's: round, square, wide).
+  // and a pump's screen (pump-widget.html: window.pumpPlacement, its shape and its line's look).
   const SCENE_PLACES = Object.freeze({ wallpaper: 'wallpaper', saver: 'screensaver', pump: 'pump' });
   function placementOf(entry) {
     let where = 'dashboard';
@@ -719,7 +719,7 @@
       if (LAYER_SURFACES.includes(kind)) where = kind;
     }
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
-    return { where, dashboard: hs.usageMode !== 'widgets', ...(where === 'pump' ? { shape: document.documentElement.dataset.shape || 'round' } : {}) };
+    return { where, dashboard: hs.usageMode !== 'widgets', ...(where === 'pump' ? (window.pumpPlacement || { shape: 'round' }) : {}) };
   }
   const placementKey = (p) => p.where + '|' + p.dashboard;
   // Change-detected against what init said, like postSize: a settings pass that

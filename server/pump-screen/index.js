@@ -44,7 +44,9 @@ async function menuState() {
   const { screens, widgets } = await actions.run({ type: 'pumpGet' });
   // sound: whether this PC can read how loud it is, for the ring's pulse (audio/audio-levels.js).
   const sound = require('../audio/audio-levels.js').available();
-  return { screens, widgets, icue: icueImportAvailable(), sound, detected: await detect(), url: `http://127.0.0.1:${PORT}/pump-face` };
+  // accent: the theme's colour, for the swatch of a line whose colours follow the theme.
+  const accent = require('../settings/current.js').hub.settings?.accent;
+  return { screens, widgets, icue: icueImportAvailable(), sound, accent, detected: await detect(), url: `http://127.0.0.1:${PORT}/pump-face` };
 }
 
 // The pump screens' part of a settings backup (server.js buildBackup / applyBackup).
