@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
@@ -22,27 +23,36 @@ test('the size: a valid one from the environment is kept, anything else is the d
   for (const bad of ['', '0', '-3', '2.5', 'many', '5000']) assert.equal(poolSize({ UV_THREADPOOL_SIZE: bad }), POOL_SIZE, bad);
 });
 
-// Sixteen equal jobs on the pool: on four threads they finish in four waves (the first done
-// at about a quarter of the time the last took); on enough threads, together. The cores the
-// PC has do not change this: the system shares them fairly among the threads running.
-function firstToLast(prelude) {
-  const script = `${prelude}
-    const { pbkdf2 } = require('node:crypto');
-    const start = Date.now();
-    const done = [];
-    let left = 16;
-    for (let i = 0; i < 16; i += 1) pbkdf2('x', 'y', 400000, 32, 'sha256', () => {
-      done.push(Date.now() - start);
-      if (--left === 0) process.stdout.write(String(Math.min(...done) / Math.max(...done)));
-    });`;
-  const env = { ...process.env };
-  delete env.UV_THREADPOOL_SIZE;
-  return Number(execFileSync(process.execPath, ['-e', script], { env, encoding: 'utf8', timeout: 60000 }));
+// Eight opens of a FIFO wait for a writer: each holds a pool thread without using any CPU, the
+// way an antivirus-held open does. Then one stat. On the default four threads the stat waits
+// behind them for good; on the engine's pool it runs at once. Nothing here depends on the cores
+// the machine has (16 timed CPU jobs did, and failed on every 3-4 core CI runner). The child
+// opens the writer before it exits, so no pool thread is left waiting at shutdown.
+function statPastHeldOpens(prelude) {
+  const dir = mkdtempSync(join(tmpdir(), 'xenon-pool-'));
+  const fifo = join(dir, 'held');
+  try {
+    execFileSync('mkfifo', [fifo]);
+    const script = `${prelude}
+      const fs = require('node:fs');
+      const fifo = ${JSON.stringify(fifo)};
+      const finish = (word) => { process.stdout.write(word); fs.openSync(fifo, 'w'); process.exit(0); };
+      for (let i = 0; i < 8; i += 1) fs.open(fifo, 'r', () => {});
+      const held = setTimeout(() => finish('held'), 3000);
+      fs.stat(${JSON.stringify(HERE)}, () => { clearTimeout(held); finish('ran'); });`;
+    const env = { ...process.env };
+    delete env.UV_THREADPOOL_SIZE;
+    return execFileSync(process.execPath, ['-e', script], { env, encoding: 'utf8', timeout: 30000 });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
-test('required first, the engine gets the bigger pool', () => {
-  assert.ok(firstToLast(`require(${JSON.stringify(MODULE)});`) > 0.45, 'all sixteen ran together');
-  assert.ok(firstToLast('') < 0.4, 'the default pool runs them in waves (the measure tells them apart)');
+const NO_FIFO = process.platform === 'win32' && 'Windows has no FIFO that holds a pool thread this way';
+
+test('required first, the engine gets the bigger pool', { skip: NO_FIFO }, () => {
+  assert.equal(statPastHeldOpens(`require(${JSON.stringify(MODULE)});`), 'ran', 'the stat ran past eight held opens');
+  assert.equal(statPastHeldOpens(''), 'held', 'on the default pool it waits behind them (the measure tells them apart)');
 });
 
 test('server.js requires it before any module that could use the pool', () => {
