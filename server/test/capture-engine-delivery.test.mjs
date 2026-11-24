@@ -87,16 +87,22 @@ test('release: the Linux engine is built locked on the AppImage image and option
   assert.match(INTEGRITY, /printf '%s\\n' [^\n]*\bxenon-capture-linux-x64\b[^\n]* > names\.txt/);
 });
 
-test('release: the engine is built locked and signed on the signing machine', () => {
+test('release: the engine is built locked, then signed in the native job\'s session', () => {
   const cap = job(RELEASE, 'capture');
-  assert.match(cap, /runs-on: \[self-hosted, windows, xenon-signing\]/);
+  assert.match(cap, /runs-on: windows-latest/);
   assert.match(cap, /needs: gate\n/);
   assert.match(cap, /if: needs\.gate\.outputs\.proceed == 'true'/);
   assert.match(cap, /cargo build --release --locked --manifest-path apps\/capture\/Cargo\.toml/);
-  assert.match(cap, /tools\/sign-windows\.ps1" -Path \$exe/);
-  assert.match(cap, /Get-AuthenticodeSignature/);
   assert.match(cap, /name: xenon-capture\n\s+path: apps\/capture\/target\/release\/xenon-capture\.exe/);
-  assert.match(cap, /\$git = 'C:\\Program Files\\Git\\bin'/);
+  // One SimplySign session signs the whole Windows half: the engine waits for it.
+  const native = job(RELEASE, 'native');
+  assert.match(native, /needs: \[gate, helper, capture\]/);
+  const sign = native.indexOf('Sign the helper and the capture engine');
+  const upload = native.indexOf('Upload the signed capture engine');
+  assert.ok(sign > 0 && upload > sign, 'signed before it is uploaded again');
+  assert.match(native.slice(sign, upload), /XENON_SIGN_SCRIPT[\s\S]*Get-AuthenticodeSignature[\s\S]*throw/);
+  // Same name, overwrite: publish downloads every artifact, so the unsigned copy must not survive.
+  assert.match(native.slice(upload), /name: xenon-capture\n\s+path: win-tools\/capture\/xenon-capture\.exe\n\s+overwrite: true/);
 });
 
 test('release: publish waits for the engine and lists it as required in the signed sums', () => {

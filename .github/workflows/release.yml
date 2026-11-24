@@ -49,6 +49,16 @@ name: Release (atomic)
 #                              server/updates/self-update.js and the setup bootstrap)
 # A missing secret fails the run LOUDLY on purpose — an unsigned release would
 # strand every self-updating install on integrity_missing.
+#
+# Windows Authenticode signing (optional, WINDOWS_SIGN_THUMBPRINT): the `native`
+# job signs every Windows binary inside ONE SimplySign cloud session, on one of
+# two signers chosen by the gate:
+#   hosted  (default) a GitHub-hosted runner in the `windows-signing`
+#           environment, which holds CERTUM_OTPAUTH_URI and waits for the
+#           maintainer's Approve: releases need no machine of ours switched on.
+#   home    the self-hosted signing PC, SimplySign Desktop logged in by hand.
+# Pick per run with the `signer` input, or for every tag with the repo variable
+# WINDOWS_SIGNER=home. tools/simplysign/ opens and closes the hosted session.
 
 on:
   push:
@@ -66,6 +76,15 @@ on:
       tag:
         description: 'Existing tag to (re)build and stage, e.g. v4.5.1'
         required: true
+      signer:
+        description: 'Who signs the Windows build: hosted (GitHub runner), home (the signing PC), or default (repo variable WINDOWS_SIGNER, else hosted)'
+        type: choice
+        options: [default, hosted, home]
+        default: default
+      dry_run:
+        description: 'Rehearsal: build and sign the Windows half from THIS branch, publish nothing (tag = the version in tauri.conf.json)'
+        type: boolean
+        default: false
 
 # Read-only by default; only the publish job, which creates and uploads the
 # release, gets write access (job-level permissions below).
@@ -81,12 +100,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
+      signer: ${{ steps.check.outputs.signer }}
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
+      SIGNER_INPUT: ${{ inputs.signer }}
+      SIGNER_VAR: ${{ vars.WINDOWS_SIGNER }}
     steps:
       - id: check
         run: |
+          # Who signs the Windows half (see the header): the run's input, else
+          # the repo variable, else a hosted runner. Anything else is a typo
+          # that would otherwise pick a runner nobody meant.
+          signer="$SIGNER_INPUT"
+          if [ -z "$signer" ] || [ "$signer" = "default" ]; then signer="${SIGNER_VAR:-hosted}"; fi
+          case "$signer" in
+            hosted|home) echo "Windows signer: $signer" ;;
+            *) echo "::error::signer must be hosted or home, got '$signer' (input signer / repo variable WINDOWS_SIGNER)"; exit 1 ;;
+          esac
+          echo "signer=$signer" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" != "release" ]; then
             echo "proceed=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -101,15 +133,11 @@ jobs:
           fi
 
   helper:
-    # The signing machine, not a hosted runner. The certificate lives behind
-    # the SimplySign virtual card, in the interactive session of the user who
-    # logged in, and cannot be handed to GitHub as a secret - so the Windows
-    # half of a release is built where the card is. The runner is started by
-    # hand (run.cmd) in that session, never installed as a service: a service
-    # runs in session 0 and sees no card. To release unsigned from a hosted
-    # runner instead, put windows-latest back here AND unset
-    # WINDOWS_SIGN_THUMBPRINT, or the certificate check below fails on purpose.
-    runs-on: [self-hosted, windows, xenon-signing]
+    # Built unsigned on a hosted runner. The native job signs it inside its
+    # SimplySign session and uploads it again under the same artifact name, so
+    # one session signs the whole Windows half: parallel logins would race for
+    # the same one-time code, and the signing PC runs one job at a time anyway.
+    runs-on: windows-latest
     needs: gate
     if: needs.gate.outputs.proceed == 'true'
     steps:
@@ -117,46 +145,15 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
-          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+          ref: ${{ inputs.dry_run && github.sha || inputs.tag || github.event.release.tag_name || github.ref }}
 
-      # DOTNET_INSTALL_DIR: on the self-hosted signing machine the default
-      # (C:\Program Files\dotnet) is not writable without elevation and the
-      # step fails; the runner's tool cache is, and persists between jobs so
-      # the SDK is fetched once. Hosted runners ignore the difference.
       - name: Set up .NET 10
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
         with:
           dotnet-version: '10.0.x'
 
       - name: Publish helper
         run: dotnet publish helper -c Release -o out
-
-      - name: Sign the helper when a certificate is configured
-        shell: pwsh
-        env:
-          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
-        run: |
-          # Opt-in on one secret: unset means the step says so and exits 0,
-          # leaving the exe exactly as it shipped before. Set, the certificate
-          # must actually be in this runner's store - see the native job for
-          # why that is asserted rather than assumed.
-          #
-          # The test lives in the shell because the `secrets` context is not
-          # available to step `if:` conditionals - the same constraint the
-          # macOS job works around.
-          if ([string]::IsNullOrWhiteSpace($env:IN_THUMBPRINT)) {
-            Write-Host 'no code-signing certificate configured - shipping xenon-helper.exe unsigned'
-            exit 0
-          }
-          $thumb = ($env:IN_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
-          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumb" -ErrorAction SilentlyContinue
-          if (-not $cert -or -not $cert.HasPrivateKey) {
-            throw "WINDOWS_SIGN_THUMBPRINT is set but certificate $thumb is not usable in Cert:\CurrentUser\My on this runner. This job has to run on the signing machine, with SimplySign Desktop logged in."
-          }
-          $env:XENON_SIGN_THUMBPRINT = $thumb
-          & "$env:GITHUB_WORKSPACE/tools/sign-windows.ps1" -Path 'out/xenon-helper.exe'
 
       - name: Upload helper artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -171,8 +168,8 @@ jobs:
     # source zip the self-update applies. The server fetches it by itself
     # (server/screens/capture-engine-install.js ensureCaptureEngine, through helper-update.js) and installs it
     # only when it hashes to its line in the signed SHA256SUMS below.
-    # Signing machine for the same reason as the helper (see that job).
-    runs-on: [self-hosted, windows, xenon-signing]
+    # Built unsigned here and signed by the native job, like the helper.
+    runs-on: windows-latest
     needs: gate
     if: needs.gate.outputs.proceed == 'true'
     steps:
@@ -180,15 +177,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
-          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
-
-      # Same PATH trap as the native job: System32's bash.exe is WSL's launcher.
-      - name: Prefer Git Bash over WSL's bash.exe
-        shell: pwsh
-        run: |
-          $git = 'C:\Program Files\Git\bin'
-          if (-not (Test-Path (Join-Path $git 'bash.exe'))) { throw "Git for Windows not found at $git" }
-          Add-Content -Path $env:GITHUB_PATH -Value $git
+          ref: ${{ inputs.dry_run && github.sha || inputs.tag || github.event.release.tag_name || github.ref }}
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -200,33 +189,6 @@ jobs:
       - name: Build the capture engine
         run: cargo build --release --locked --manifest-path apps/capture/Cargo.toml
 
-      - name: Sign the engine when a certificate is configured
-        shell: pwsh
-        env:
-          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
-        run: |
-          # Same opt-in as the helper: no secret = unsigned, said out loud;
-          # a secret without its certificate on this runner = fail.
-          $exe = 'apps/capture/target/release/xenon-capture.exe'
-          if (-not (Test-Path -LiteralPath $exe)) { throw "the build left no $exe" }
-          if ([string]::IsNullOrWhiteSpace($env:IN_THUMBPRINT)) {
-            Write-Host 'no code-signing certificate configured - shipping xenon-capture.exe unsigned'
-            exit 0
-          }
-          $thumb = ($env:IN_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
-          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumb" -ErrorAction SilentlyContinue
-          if (-not $cert -or -not $cert.HasPrivateKey) {
-            throw "WINDOWS_SIGN_THUMBPRINT is set but certificate $thumb is not usable in Cert:\CurrentUser\My on this runner. This job has to run on the signing machine, with SimplySign Desktop logged in."
-          }
-          $env:XENON_SIGN_THUMBPRINT = $thumb
-          & "$env:GITHUB_WORKSPACE/tools/sign-windows.ps1" -Path $exe
-          # The engine is spawned by the server and captures the screen: an
-          # unsigned copy is exactly what antivirus flags, so a lost signature
-          # fails the release instead of shipping.
-          $sig = Get-AuthenticodeSignature -LiteralPath $exe
-          if ($sig.Status -ne 'Valid') { throw "xenon-capture.exe is not validly signed: $($sig.Status) - $($sig.StatusMessage)" }
-          Write-Host "engine signed by: $($sig.SignerCertificate.Subject)"
-
       - name: Upload capture engine artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
@@ -234,27 +196,31 @@ jobs:
           path: apps/capture/target/release/xenon-capture.exe
 
   native:
-    # The signing machine, not a hosted runner. The certificate lives behind
-    # the SimplySign virtual card, in the interactive session of the user who
-    # logged in, and cannot be handed to GitHub as a secret - so the Windows
-    # half of a release is built where the card is. The runner is started by
-    # hand (run.cmd) in that session, never installed as a service: a service
-    # runs in session 0 and sees no card. To release unsigned from a hosted
-    # runner instead, put windows-latest back here AND unset
-    # WINDOWS_SIGN_THUMBPRINT, or the certificate check below fails on purpose.
-    runs-on: [self-hosted, windows, xenon-signing]
-    # The signing keys live in this Environment (Settings, Environments):
-    # it can require the maintainer's approval and allow only release tags,
-    # so no other branch, workflow or token can use them.
-    environment: release-signing
-    needs: gate
+    # Where the certificate is. The key never leaves Certum: SimplySign Desktop
+    # opens a cloud session that puts the certificate in Cert:\CurrentUser\My of
+    # the logged-in user, and only that session can sign.
+    #   hosted: a GitHub-hosted runner opens the session itself
+    #           (tools/simplysign/session.ps1) from CERTUM_OTPAUTH_URI, which
+    #           lives in the windows-signing environment: it allows only
+    #           release tags and waits for the maintainer's Approve.
+    #   home:   the signing PC, its runner started by hand (run.cmd) in the
+    #           session where SimplySign Desktop is logged in - never as a
+    #           service, which runs in session 0 and sees no card. This job never
+    #           opens or closes that session.
+    # Either way the helper and the capture engine come in unsigned and are
+    # signed here, in the same session as the installer.
+    runs-on: ${{ needs.gate.outputs.signer == 'home' && fromJSON('["self-hosted", "windows", "xenon-signing"]') || 'windows-latest' }}
+    environment: ${{ needs.gate.outputs.signer == 'home' && 'release-signing' || 'windows-signing' }}
+    needs: [gate, helper, capture]
     if: needs.gate.outputs.proceed == 'true'
+    env:
+      XENON_SIGNER: ${{ needs.gate.outputs.signer }}
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
-          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+          ref: ${{ inputs.dry_run && github.sha || inputs.tag || github.event.release.tag_name || github.ref }}
 
       # `shell: bash` (ours, and inside dtolnay/rust-toolchain) resolves bash
       # through PATH, and on the signing PC the machine PATH puts System32 first,
@@ -293,6 +259,50 @@ jobs:
           npm run tauri -- icon ../../docs/images/brand/icon-1024.png
           node ../../tools/brand/build.mjs --tauri src-tauri/icons
 
+      # 5.1.0: the setup carries the engine and a pinned Node, so a new install
+      # needs no console, no download and no UAC. tools/engine-bundle writes
+      # apps/native/src-tauri/engine/ and the tauri.engine.conf.json overlay
+      # that bundles it. Built from the checked-out tag, on this OS (koffi is
+      # native).
+      - name: Build the engine the installer carries
+        shell: pwsh
+        run: |
+          node tools/engine-bundle/cli.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # The long Rust compile happens here, BEFORE any signing session opens,
+      # so the session only spans the minutes that actually sign. The signed
+      # build below runs the same command with the sign overlay added: the
+      # dependencies come from this compile and only the app crate rebuilds.
+      - name: Compile the native app ahead of signing
+        working-directory: apps/native
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $engineConf = Join-Path $env:GITHUB_WORKSPACE 'apps/native/src-tauri/tauri.engine.conf.json'
+          npm run build -- --no-bundle --config $engineConf
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # hosted only: the cloud session that puts the certificate in this
+      # runner's store for the rest of the job. Masks every secret it handles;
+      # closed by the step after the last signature, even on failure. No
+      # thumbprint configured = an unsigned build, so no session either.
+      - name: Open a SimplySign session (hosted signer)
+        if: env.XENON_SIGNER == 'hosted'
+        shell: pwsh
+        env:
+          CERTUM_OTPAUTH_URI: ${{ secrets.CERTUM_OTPAUTH_URI }}
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:IN_THUMBPRINT)) {
+            Write-Host 'no code-signing certificate configured - no session to open'
+            exit 0
+          }
+          & "$env:GITHUB_WORKSPACE/tools/simplysign/session.ps1" -Action Connect
+
       # -- Authenticode signing ---------------------------------------------
       # Entirely opt-in on ONE secret, WINDOWS_SIGN_THUMBPRINT, and unset is
       # this repo's state until the certificate lands. Unset means: no
@@ -316,15 +326,14 @@ jobs:
             exit 0
           }
           $thumb = ($env:IN_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
-          # The certificate lives in the SIGNING MACHINE's store, behind the
-          # SimplySign virtual card, in the session that logged in. A secret
-          # naming it on a machine that does not have it - a hosted runner, or
-          # this one with SimplySign logged out - has to fail HERE, before three
-          # minutes of compile, and never become an unsigned build that looks
-          # like the real thing.
+          # The certificate is in this runner's store only while a SimplySign
+          # session is open: the one the step above opened (hosted), or the one
+          # logged in by hand on the signing PC (home). A secret naming it on a
+          # runner without that session has to fail HERE, and never become an
+          # unsigned build that looks like the real thing.
           $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumb" -ErrorAction SilentlyContinue
           if (-not $cert) {
-            throw "WINDOWS_SIGN_THUMBPRINT is set but no certificate $thumb is in Cert:\CurrentUser\My on this runner. This job has to run on the signing machine, with SimplySign Desktop logged in."
+            throw "WINDOWS_SIGN_THUMBPRINT is set but no certificate $thumb is in Cert:\CurrentUser\My on this runner ($env:XENON_SIGNER signer). Hosted: the SimplySign session step did not open it. Home: log SimplySign Desktop in on the signing PC."
           }
           if (-not $cert.HasPrivateKey) {
             throw "certificate $thumb is in the store but has no private key - is the SimplySign session open?"
@@ -366,16 +375,54 @@ jobs:
         run: |
           & "$env:XENON_SIGN_SCRIPT" -Path 'apps/native/src-tauri/windows/xenon-bootstrap.ps1'
 
-      # 5.1.0: the setup carries the engine and a pinned Node, so a new install
-      # needs no console, no download and no UAC. tools/engine-bundle writes
-      # apps/native/src-tauri/engine/ and the tauri.engine.conf.json overlay
-      # that bundles it. Built from the checked-out tag, on this OS (koffi is
-      # native).
-      - name: Build the engine the installer carries
+      # The helper and the capture engine, built unsigned by their own jobs,
+      # signed in this session and uploaded again under the SAME artifact
+      # names (overwrite), so publish can only ever pick up the signed copy.
+      - name: Download the unsigned helper
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: xenon-helper
+          path: win-tools/helper
+
+      - name: Download the unsigned capture engine
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: xenon-capture
+          path: win-tools/capture
+
+      - name: Sign the helper and the capture engine
+        if: env.XENON_SIGN_THUMBPRINT != ''
         shell: pwsh
         run: |
-          node tools/engine-bundle/cli.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Both are spawned by the server, and the engine captures the screen:
+          # an unsigned copy is exactly what antivirus flags, so a lost
+          # signature fails the release instead of shipping.
+          foreach ($exe in @('win-tools/helper/xenon-helper.exe', 'win-tools/capture/xenon-capture.exe')) {
+            if (-not (Test-Path -LiteralPath $exe)) { throw "the artifact has no $exe" }
+            & "$env:XENON_SIGN_SCRIPT" -Path $exe
+            $sig = Get-AuthenticodeSignature -LiteralPath $exe
+            if ($sig.Status -ne 'Valid') { throw "$exe is not validly signed: $($sig.Status) - $($sig.StatusMessage)" }
+            if ($sig.SignerCertificate.Thumbprint -ne $env:XENON_SIGN_THUMBPRINT) { throw "$exe is signed by another certificate" }
+            Write-Host "$([IO.Path]::GetFileName($exe)) signed by: $($sig.SignerCertificate.Subject)"
+          }
+
+      - name: Upload the signed helper
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: xenon-helper
+          path: win-tools/helper/xenon-helper.exe
+          overwrite: true
+
+      - name: Upload the signed capture engine
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: xenon-capture
+          path: win-tools/capture/xenon-capture.exe
+          overwrite: true
 
       # Tauri signs only the binaries it builds, never resources. node.exe is
       # already signed by the OpenJS Foundation; the native modules npm brings
@@ -462,6 +509,14 @@ jobs:
             Where-Object { (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -ne 'Valid' }
           if ($unsigned) { throw "engine files inside the installer are not validly signed: $($unsigned.Name -join ', ')" }
           Remove-Item $dir -Recurse -Force
+
+      # Right after the last signature, and even when a step above failed: a
+      # hosted session must not outlive the work. Never on the signing PC,
+      # where the session is the maintainer's own.
+      - name: Close the SimplySign session (hosted signer)
+        if: always() && env.XENON_SIGNER == 'hosted'
+        shell: pwsh
+        run: '& "$env:GITHUB_WORKSPACE/tools/simplysign/session.ps1" -Action Disconnect'
 
       - name: Stage artifacts and the windows updater fragment
         shell: pwsh
@@ -555,7 +610,7 @@ jobs:
     # so no other branch, workflow or token can use them.
     environment: release-signing
     needs: gate
-    if: needs.gate.outputs.proceed == 'true'
+    if: needs.gate.outputs.proceed == 'true' && !inputs.dry_run   # a dry run is the Windows half only
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -1037,7 +1092,7 @@ jobs:
     # so no other branch, workflow or token can use them.
     environment: release-signing
     needs: gate
-    if: needs.gate.outputs.proceed == 'true'
+    if: needs.gate.outputs.proceed == 'true' && !inputs.dry_run   # a dry run is the Windows half only
     # Linux is the newest and smallest of the three targets, and its collectors
     # are still labelled experimental. A break here must not hold back a release
     # for Windows and macOS users: the job reports its failure, `publish` still
@@ -1241,7 +1296,7 @@ jobs:
     permissions:
       contents: write
     needs: [gate, helper, capture, native, native-selftest, native-macos, native-linux]
-    if: needs.gate.outputs.proceed == 'true'
+    if: needs.gate.outputs.proceed == 'true' && !inputs.dry_run   # a dry run is the Windows half only
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
