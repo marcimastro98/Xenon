@@ -18,9 +18,13 @@ const { reconcileConnection } = require('./upkeep.js');
 const { apply } = require('./paint.js');
 const { createBoardApps } = require('../lighting-native/board-apps.js');
 
-// A program that paints the motherboard quit and left it on its own effect: the board is set
-// up again and repainted (board-apps.js). Watched only while Xenon holds a board.
+// A program that paints the motherboard starts: the board is its own until it quits, then it is
+// set up again and repainted (board-apps.js). Watched only while Xenon holds a board.
 const boardApps = createBoardApps({
+  onCome: (apps) => {
+    console.log(`lights: ${apps.join(', ')} paints the motherboard, Xenon leaves those lights to it until it closes`);
+    native.yieldTo(apps);
+  },
   onGone: (apps) => {
     if (bridge.poweredDown) return;
     console.log(`lights: ${apps.join(', ')} closed, the motherboard lights are Xenon's again`);

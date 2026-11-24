@@ -6908,6 +6908,7 @@ module.exports = {
   lighting_native_enable_hint: 'Xenon praat rechtstreeks met de RGB-controller van het moederbord, zonder software van de fabrikant. Werkt met GIGABYTE- en AORUS-borden met RGB Fusion 2.',
   lighting_native_conflict: 'Sluit RGB Fusion of GIGABYTE Control Center en haal het moederbord uit iCUE: als twee programma\'s dezelfde verlichting aansturen, wisselen de kleuren steeds.',
   lighting_board_idle: 'Niets stuurt nu de lampjes van het moederbord aan: ze lopen via iCUE, dat niet verbonden is. Xenon kan ze zelf aansturen, zodat meldingen en effecten ook de ventilatoren daar bereiken.',
+  lighting_board_other: 'Dit programma stuurt deze lampjes nu aan, dus laat Xenon ze eraan over en flikkert er niets. Sluit het en Xenon neemt ze vanzelf terug.',
   lighting_board_take: 'Met Xenon aansturen',
   lighting_who_title: 'Wie de lampen aanstuurt',
   lighting_who_xenon: 'Xenon',

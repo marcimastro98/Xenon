@@ -6748,6 +6748,7 @@ module.exports = {
   lighting_native_enable_hint: 'Xenon parle directement au contrôleur RGB de la carte mère, sans logiciel du fabricant. Fonctionne avec les cartes GIGABYTE et AORUS équipées de RGB Fusion 2.',
   lighting_native_conflict: 'Fermez RGB Fusion ou GIGABYTE Control Center et retirez la carte mère d\'iCUE : quand deux logiciels pilotent les mêmes lumières, les couleurs alternent sans cesse.',
   lighting_board_idle: 'Rien ne pilote les lumières de la carte mère en ce moment : elles passent par iCUE, qui n\'est pas connecté. Xenon peut les piloter lui-même, et les alertes et effets atteignent aussi les ventilateurs branchés dessus.',
+  lighting_board_other: 'Ce programme colore ces lumières en ce moment, alors Xenon les lui laisse et rien ne scintille. Ferme-le et Xenon les reprend tout seul.',
   lighting_board_take: 'Les piloter avec Xenon',
   lighting_who_title: 'Qui pilote les lumières',
   lighting_who_xenon: 'Xenon',

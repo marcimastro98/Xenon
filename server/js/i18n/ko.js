@@ -6912,6 +6912,7 @@ module.exports = {
   lighting_native_enable_hint: 'Xenon이 제조사 프로그램 없이 메인보드의 RGB 컨트롤러와 직접 통신합니다. RGB Fusion 2를 지원하는 GIGABYTE 및 AORUS 보드에서 작동합니다.',
   lighting_native_conflict: 'RGB Fusion 또는 GIGABYTE Control Center를 닫고 iCUE에서 메인보드를 제거하세요. 두 프로그램이 같은 조명을 제어하면 색상이 계속 바뀝니다.',
   lighting_board_idle: '지금 메인보드 조명을 제어하는 곳이 없습니다. iCUE를 거치는데 iCUE가 연결되어 있지 않습니다. Xenon이 직접 제어하면 알림과 효과가 거기에 연결된 팬에도 전달됩니다.',
+  lighting_board_other: '지금은 이 프로그램이 이 조명을 제어하므로, 깜빡이지 않도록 Xenon은 손대지 않습니다. 프로그램을 닫으면 Xenon이 알아서 다시 제어합니다.',
   lighting_board_take: 'Xenon으로 제어',
   lighting_who_title: '조명을 제어하는 곳',
   lighting_who_xenon: 'Xenon',

@@ -6912,6 +6912,7 @@ module.exports = {
   lighting_native_enable_hint: 'Xenon 无需厂商软件，直接与主板的 RGB 控制器通信。适用于支持 RGB Fusion 2 的 GIGABYTE 和 AORUS 主板。',
   lighting_native_conflict: '请关闭 RGB Fusion 或 GIGABYTE Control Center，并在 iCUE 中移除主板：两个程序控制同一组灯光时，颜色会来回切换。',
   lighting_board_idle: '现在没有程序控制主板灯光：它们经由 iCUE，而 iCUE 未连接。让 Xenon 直接控制后，提醒和效果也会传到接在主板上的风扇。',
+  lighting_board_other: '现在由这个程序控制这些灯，所以 Xenon 不去碰它们，灯不会闪烁。关闭它后，Xenon 会自动接管。',
   lighting_board_take: '由 Xenon 控制',
   lighting_who_title: '谁在控制灯光',
   lighting_who_xenon: 'Xenon',

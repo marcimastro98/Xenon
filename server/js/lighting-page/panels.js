@@ -43,6 +43,7 @@
   const isOff = (row) => row.who === 'nobody' || row.who === 'error';
 
   function whoText(row) {
+    if (row.who === 'other') return String(row.through || '');   // a program that paints the board (lights/drivers.js)
     if (row.who === 'via') return UI().tr('lighting_who_via', 'Xenon, tramite {name}').replace('{name}', String(row.through || ''));
     const [key, fallback] = WHO[row.who] || WHO.nobody;
     return UI().tr(key, fallback);
@@ -66,7 +67,7 @@
     if (brand) label.append(UI().el('span', 'lighting-device-brand', '', String(brand)));
     const head = UI().el('div', 'settings-row lighting-row lighting-who');
     head.append(label, UI().el('span', 'lighting-who-state' + (isOff(row) ? ' is-off' : ''), '', whoText(row)));
-    if (!isOff(row)) return [head];
+    if (!isOff(row) && row.who !== 'other') return [head];
     const why = [];
     if (row.reasonKey) why.push(UI().hintP('', row.reasonKey));
     if (row.reason) why.push(UI().hintP(String(row.reason)));

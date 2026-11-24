@@ -6768,6 +6768,7 @@ module.exports = {
   lighting_native_enable_hint: 'Xenon spricht direkt mit dem RGB-Controller des Mainboards, ohne Herstellersoftware. Funktioniert mit GIGABYTE- und AORUS-Boards mit RGB Fusion 2.',
   lighting_native_conflict: 'Schließ RGB Fusion oder GIGABYTE Control Center und entferne das Mainboard aus iCUE: Steuern zwei Programme dieselben Lichter, wechseln die Farben ständig.',
   lighting_board_idle: 'Die Lichter des Mainboards steuert gerade nichts: Sie laufen über iCUE, das nicht verbunden ist. Xenon kann sie selbst steuern, dann erreichen Hinweise und Effekte auch die Lüfter dort.',
+  lighting_board_other: 'Dieses Programm steuert diese Lichter gerade, darum lässt Xenon sie ihm und nichts flackert. Schließe es, und Xenon übernimmt sie von selbst wieder.',
   lighting_board_take: 'Mit Xenon steuern',
   lighting_who_title: 'Wer die Lichter steuert',
   lighting_who_xenon: 'Xenon',

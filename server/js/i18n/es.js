@@ -6800,6 +6800,7 @@ module.exports = {
   lighting_native_enable_hint: 'Xenon habla directamente con el controlador RGB de la placa base, sin programas del fabricante. Funciona con placas GIGABYTE y AORUS con RGB Fusion 2.',
   lighting_native_conflict: 'Cierra RGB Fusion o GIGABYTE Control Center y quita la placa base de iCUE: si dos programas controlan las mismas luces, los colores se van alternando.',
   lighting_board_idle: 'Ahora nada controla las luces de la placa base: pasan por iCUE, que no está conectado. Xenon puede controlarlas, así los avisos y efectos también llegan a los ventiladores conectados ahí.',
+  lighting_board_other: 'Ahora este programa pinta estas luces, así que Xenon se las deja y nada parpadea. Ciérralo y Xenon las recupera solo.',
   lighting_board_take: 'Controlarlas con Xenon',
   lighting_who_title: 'Quién controla las luces',
   lighting_who_xenon: 'Xenon',

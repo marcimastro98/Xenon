@@ -6912,6 +6912,7 @@ module.exports = {
   lighting_native_enable_hint: 'XenonがメーカーのソフトなしでマザーボードのRGBコントローラーと直接やり取りします。RGB Fusion 2対応のGIGABYTE・AORUSボードで動作します。',
   lighting_native_conflict: 'RGB FusionまたはGIGABYTE Control Centerを閉じ、iCUEからマザーボードを外してください。2つのソフトが同じライトを制御すると色が切り替わり続けます。',
   lighting_board_idle: 'マザーボードのライトは今どこからも制御されていません。iCUE 経由ですが、iCUE が接続されていません。Xenon が直接制御すれば、通知やエフェクトもそこにつないだファンに届きます。',
+  lighting_board_other: '今はこのプログラムがこのライトを制御しているため、ちらつかないよう Xenon は手を出しません。閉じると Xenon が自動で制御を戻します。',
   lighting_board_take: 'Xenon で制御',
   lighting_who_title: 'ライトを制御しているもの',
   lighting_who_xenon: 'Xenon',

@@ -10,11 +10,10 @@ const fusion2 = require('./fusion2');
 const held = require('./held.js');
 const layoutsLib = require('../lights/lighting-layouts');
 const { accessCommand } = require('./linux-access');
+const { previewFrame } = require('./preview-frame.js');
 
 const UNCONFIGURED_FILL = 120;     // LEDs painted on an output nobody has set up yet
 const PREVIEW_TTL_MS = 15000;      // a setup preview ends by itself if the page goes away
-const PREVIEW_CURRENT = { r: 255, g: 255, b: 255 };
-const PREVIEW_DONE = [{ r: 30, g: 90, b: 255 }, { r: 255, g: 110, b: 20 }];
 const OFF = { r: 0, g: 0, b: 0 };
 const NO_PERMISSION = 'no-permission';   // hid-linux.js: the OS keeps the device node from this user
 
@@ -30,6 +29,7 @@ const state = {
   onWriteError: null, // (deviceId, error): a frame painted in the background failed
   cache: null,       // devices() result; apply() asks for it on every frame
   halted: false,     // the PC is going off or to sleep: the headers hold black until resume()
+  yielded: [],       // programs painting the boards now (board-apps.js): Xenon sends them nothing
 };
 
 function setChangeHook(fn) { state.onChange = typeof fn === 'function' ? fn : null; }
@@ -115,6 +115,7 @@ async function stop() {
   const list = state.controllers;
   state.controllers = [];
   state.cache = null;
+  state.yielded = [];   // the watch stops with the boards; a new start looks again
   // After powerDown() the headers stay black: on Linux SIGTERM follows it, and
   // handing them back here would light them on standby power after all.
   const handBack = !state.halted;
@@ -187,28 +188,15 @@ function zoneColorsFor(entry, ledIds, colors) {
 // Never waits for the USB link (see Fusion2Controller.paint): a slow controller
 // must not hold up the other devices painted in the same frame.
 function write(dev, colors) {
-  if (state.halted || held.write(dev, colors)) return;
+  if (state.halted || held.write(dev, colors) || state.yielded.length) return;
   const entry = state.controllers.find(c => c.id === dev.id);
   if (!entry) return;
   entry.ctl.paint(framesFor(entry, dev.ledIds, colors), zoneColorsFor(entry, dev.ledIds, colors),
     (e) => { if (state.onWriteError) state.onWriteError(dev.id, e); });
 }
 
-// Guided setup: light part of one output so the user can see where a fan ends.
-// done = LED counts of the parts already marked, lit = LEDs of the part being
-// measured; whole = light the entire output (is anything plugged in?).
-function previewFrame({ done = [], lit = 0, whole = false }) {
-  const max = 256;
-  if (whole) return new Array(max).fill(PREVIEW_CURRENT);
-  const frame = [];
-  done.forEach((count, k) => { for (let i = 0; i < count && frame.length < max; i++) frame.push(PREVIEW_DONE[k % 2]); });
-  for (let i = 0; i < lit && frame.length < max; i++) frame.push(PREVIEW_CURRENT);
-  while (frame.length < max) frame.push(OFF);
-  return frame;
-}
-
 async function setPreview(id, output, opts) {
-  if (state.halted) return false;
+  if (state.halted || state.yielded.length) return false;
   const entry = state.controllers.find(c => c.id === id);
   if (!entry || !Number.isInteger(output) || output < 0 || output >= entry.ctl.headers) return false;
   if (state.preview) clearTimeout(state.preview.timer);
@@ -231,10 +219,13 @@ function clearPreview() {
   return true;
 }
 
+// The boards Xenon may write to now: none while another program paints them (yieldTo).
+const boardsOwned = () => (state.yielded.length ? [] : state.controllers);
+
 async function release() {
   clearPreview();
   if (state.halted) return;   // same reason as stop()
-  await Promise.all([...state.controllers.map(c => c.ctl.release().catch(() => {})), held.off()]);
+  await Promise.all([...boardsOwned().map(c => c.ctl.release().catch(() => {})), held.off()]);
 }
 
 // LEDs to darken on each output: what the layout says, or the unconfigured fill
@@ -253,7 +244,7 @@ function blackoutLengths(entry) {
 async function powerDown() {
   state.halted = true;
   clearPreview();
-  await Promise.all([...state.controllers.map(c => c.ctl.blackout(blackoutLengths(c)).catch(() => {})), held.off()]);
+  await Promise.all([...boardsOwned().map(c => c.ctl.blackout(blackoutLengths(c)).catch(() => {})), held.off()]);
 }
 
 // Awake again (or the shutdown was cancelled). The controller may have lost what
@@ -265,7 +256,13 @@ function resume() {
 }
 
 // A program that paints the board quit (board-apps.js): every board is set up again.
-function retake() { return state.halted ? Promise.resolve() : Promise.all(state.controllers.map(c => c.ctl.retake().catch(() => {}))); }
+function retake() {
+  state.yielded = [];
+  return state.halted ? Promise.resolve() : Promise.all(state.controllers.map(c => c.ctl.retake().catch(() => {})));
+}
+// A program that paints the board runs (board-apps.js): two writers on one controller make the
+// lights flicker and its calls time out, so the board is that program's until it quits.
+function yieldTo(apps) { state.yielded = apps.slice(); clearPreview(); }
 
 function setLayout(id, zone, layout) {
   const dev = { ...(state.layouts[id] || {}) };
@@ -290,11 +287,12 @@ function status() {
     accessCommand: state.error === NO_PERMISSION ? accessCommand() : '',
     controllers: state.controllers.map(c => ({ id: c.id, name: c.info.name, firmware: c.info.firmware, outputs: c.ctl.headers, frameMs: c.ctl.frameMs })),
     layouts: getLayouts(),
+    yieldedTo: state.yielded.slice(),
   };
 }
 
 module.exports = {
-  configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, retake, setPreview, clearPreview, wakeForVendor,
+  configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, retake, yieldTo, setPreview, clearPreview, wakeForVendor,
   setLayout, getLayouts, getScanned, status, setChangeHook, setWriteErrorHook, _previewFrame: previewFrame, _framesFor: framesFor, _zoneColorsFor: zoneColorsFor,
   _prefillFromGen2: prefillFromGen2,
 };

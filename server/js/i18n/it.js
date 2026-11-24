@@ -6919,6 +6919,7 @@ module.exports = {
   lighting_native_enable_hint: 'Xenon parla direttamente con il controller RGB della scheda madre, senza programmi del produttore. Funziona con le schede GIGABYTE e AORUS con RGB Fusion 2.',
   lighting_native_conflict: 'Chiudi RGB Fusion o GIGABYTE Control Center e togli la scheda madre da iCUE: se due programmi comandano le stesse luci, i colori si alternano.',
   lighting_board_idle: 'Le luci della scheda madre ora non le comanda nessuno: passano da iCUE, che non è collegato. Xenon può comandarle da solo, così anche avvisi ed effetti arrivano alle ventole collegate lì.',
+  lighting_board_other: 'Ora queste luci le colora questo programma, quindi Xenon le lascia a lui e niente sfarfalla. Chiudilo e Xenon se le riprende da solo.',
   lighting_board_take: 'Comandale con Xenon',
   lighting_who_title: 'Chi comanda le luci',
   lighting_who_xenon: 'Xenon',

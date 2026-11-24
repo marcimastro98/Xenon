@@ -25,6 +25,7 @@ function watch(tables, opts = {}) {
   let i = 0;
   const w = createBoardApps({
     platform: 'win32', every: NEVER, onGone: (apps) => gone.push(apps),
+    icuePaints: async () => true,   // iCUE with its GIGABYTE plugin, as on the PC this was seen on
     read: async () => tables[Math.min(i++, tables.length - 1)], ...opts,
   });
   return { w, gone };
