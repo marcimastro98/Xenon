@@ -4,13 +4,32 @@
 // (lighting-map.js). Touching a part of a device that shows one look for all of
 // it switches the device to "per part" and keeps every other LED looking the same.
 // A board Xenon drives itself shows its outputs as groups of that same map, each
-// with its own setup (lighting-setup.js).
+// with its own setup (lighting-setup.js). While a pump screen holds its ring of lights, the
+// card and the ring's part on the map say so, with the way to the pump's Lights tab.
 (function () {
   'use strict';
   const UI = () => window.LightingUI;
 
   // Open or closed per device: a redraw after a paint must not shut it under the finger.
   const partsOpen = new Map();
+
+  // The pump's ring is the pump screen's while it shows a look of its own (status.pumpRing:
+  // server/lights/pump-ring.js state, and the devices that carry the ring): what is set here
+  // does not reach it.
+  const holdsPump = (status, dev) => status.pumpRing?.owns === true
+    && Array.isArray(status.pumpRing.devices) && status.pumpRing.devices.includes(dev.id);
+
+  // The pump card in the Xenon menu, on its Lights tab (js/menu/xenon-menu-screens.js want).
+  function openPumpLights() {
+    if (window.XenonMenuScreens && typeof window.XenonMenuScreens.want === 'function') window.XenonMenuScreens.want('leds');
+    window.XenonMenuPanel.open('screens');
+  }
+
+  // A line saying the pump screen decides, and the button to its Lights tab where the menu is here.
+  function pumpNote(textKey, fallback, buttonKey, buttonFallback) {
+    const opens = !!(window.XenonMenuPanel && typeof window.XenonMenuPanel.open === 'function');
+    return UI().noteRow(UI().hintP(fallback, textKey), opens ? UI().button('settings-btn', buttonKey, buttonFallback, openPumpLights) : null);
+  }
 
   // The server modes, folded into the four choices a person makes.
   function kindOf(dev) {
@@ -30,7 +49,8 @@
     if (mode === 'temperature' || mode === 'album') return { style: mode };
     if (mode === 'animation') {
       if (a.style === 'solid') return a.color || null;
-      return { style: a.style || 'cycle', color: a.color || '#1ed760', speed: a.speed || 50 };
+      // A LED keeps one colour: the old 'palette' is the effect it became.
+      return { style: a.style === 'palette' ? 'turn' : a.style || 'shift', color: a.color || '#1ed760', speed: a.speed || 50 };
     }
     return null;
   }
@@ -50,6 +70,9 @@
     // "Per part" is a state the map puts the device in, shown so the choice above
     // never looks blank; picking one of the four gives the device one look again.
     if (kind === 'parts') kinds.push(['parts', 'lighting_show_parts', 'Per parte']);
+    if (holdsPump(status, dev)) {
+      box.body.appendChild(pumpNote('lighting_pump_holds', 'L’anello della pompa lo decide lo schermo della pompa', 'lighting_pump_open', 'Apri le luci della pompa'));
+    }
     box.body.appendChild(UI().segmentedRow('lighting_shows', kinds, kind, async (val) => {
       if (val === kind) return;
       if (val === 'color') await setMode({ mode: 'color', color: dev.modeColor || '#1ed760' });
@@ -65,7 +88,7 @@
         return setMode({ mode: 'color', color: v });
       })));
     } else if (kind === 'effect') {
-      effectControls(rerender, dev, setMode).forEach(n => box.body.appendChild(n));
+      box.body.appendChild(effectControls(rerender, status, dev, setMode));
     }
     if (hasMap) box.body.appendChild(partsSection(rerender, status, dev, setMode, native));
     return box;
@@ -75,25 +98,24 @@
   function effectStyle(dev) {
     if (dev.mode === 'temperature' || dev.mode === 'album') return dev.mode;
     const s = dev.modeAnim && dev.modeAnim.style;
-    return s && s !== 'solid' ? s : 'breathing';
+    return s || 'breathe';
   }
 
-  function effectControls(rerender, dev, setMode) {
-    const a = { style: effectStyle(dev), color: '#1ed760', speed: 50, ...(dev.modeAnim || {}) };
-    a.style = effectStyle(dev);
-    // No 'wave' for a whole device: one device-wide sample would look like the
-    // rainbow. A selection of LEDs gets it (lighting-map.js).
-    const styles = UI().EFFECTS.filter(([s]) => s !== 'wave');
-    const out = [UI().segmentedRow('lighting_show_effect', styles, a.style, async (style) => {
-      if (style === 'temperature' || style === 'album') await setMode({ mode: style });
-      else await setMode({ mode: 'animation', anim: { ...a, style } });
-      rerender();
-    }, 3)];
-    if (dev.mode === 'animation') {
-      UI().effectExtras(a, (patch) => setMode({ mode: 'animation', anim: { ...a, ...patch } }))
-        .forEach(n => out.push(n));
-    }
-    return out;
+  // The effect cards (lighting-page/effect-cards.js), the CPU temperature and the album first.
+  function effectControls(rerender, status, dev, setMode) {
+    const a = { color: '#1ed760', speed: 50, ...(dev.modeAnim || {}), style: effectStyle(dev) };
+    const lead = (style) => UI().EFFECT_LEADS.some(([s]) => s === style);
+    return UI().effectCards({
+      look: a, cannot: status.cannot, lead: UI().EFFECT_LEADS,
+      onPick: async (style) => {
+        await setMode(lead(style) ? { mode: style } : { mode: 'animation', anim: { ...a, style } });
+        rerender();
+      },
+      onChange: async (patch, redraw) => {
+        await setMode({ mode: 'animation', anim: { ...a, ...patch } });
+        if (redraw) rerender();
+      },
+    });
   }
 
   function partsSection(rerender, status, dev, setMode, native) {
@@ -133,11 +155,13 @@
       // Album and temperature colours keep changing, so "follow" is drawn neutral then.
       liveColor: fx.musicAlbum || fx.temperature ? null : (status.manualColor || 'var(--accent)'),
       groups: native ? window.LightingSetup.groups(dev, status, rerender) : null,
+      held: holdsPump(status, dev) ? ['pump'] : [],
+      cannot: status.cannot,
     });
     if (map) body.appendChild(map);
     box.append(name, body);
     return box;
   }
 
-  window.LightingDevice = { card, kindOf, wholeDeviceLook };
+  window.LightingDevice = { card, kindOf, wholeDeviceLook, pumpNote };
 })();

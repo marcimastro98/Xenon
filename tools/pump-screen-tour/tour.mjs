@@ -1,7 +1,8 @@
 // A person's first afternoon with a pump screen, on a throwaway engine (tools/ci/engine-rig.mjs):
 // the pump says hello while the menu is open, the person opens it, opens a line and changes the
 // numbers, picks an example, puts a GIF of their own on it, adds a line for the night, a face
-// shown by hand and the way back to automatic, the alerts, turns the pump, Xenon restarts, the
+// shown by hand and the way back to automatic, the alerts, turns the pump, the ring, the screen
+// drawn as Strumento with its ring filled up to the reading and back to Xenon, Xenon restarts, the
 // menu on a phone, and the widget taken off in iCUE (the pump's page closes).
 // After every step a picture of the pump and of the menu, to look at with your own eyes.
 // Checks on the way, exit 1 on any: the pump card shows up by itself, no page error, the pump's
@@ -41,7 +42,10 @@ export function allowRequest({ method, url, body }, origin) {
 }
 
 const keep = (id) => `[data-keep="${id}"]`;
-const tabs = '.xm-wtab';
+// A pump tab by its id (shows, alerts, leds, look), wherever it stands in the bar.
+const tab = (id) => `.xm-wtab[data-keep$=":${id}"]`;
+// A card of the ring's effects by value, in whichever of its groups (calm, moving, reacting) it sits.
+const fxCard = (row, value) => `[data-row^="${row}"] [data-keep$=":${value}"]`;
 
 // A face shown by hand, as Bit or a Deck key does it (the menu offers only the way back).
 const pin = (face) => (m) => m.evaluate(async (f) => {
@@ -50,19 +54,58 @@ const pin = (face) => (m) => m.evaluate(async (f) => {
   return post({ type: 'pumpFace', screen: got.screens[0].screen, face: f });
 }, face);
 
-// Back on the first tab, the line for the rest of the time opened if it is not, its ring set to
-// run round; the saved line must say so.
+// In Lights, the line for the rest of the time opened if it is not, its ring set to run round;
+// the saved line must say so.
 async function ringSpin(m) {
-  await m.locator(tabs).nth(0).click();
-  if (!(await m.locator('[data-row="pump-base-leds"]').count())) await m.click(keep('pump-base:head'));
-  await m.click(keep('pump-base-leds:spin'));
+  await m.click(tab('leds'));
+  if (!(await m.locator('[data-row="pump-ring-base-fx"]').count())) await m.click(keep('pump-ring-base:head'));
+  await m.click(fxCard('pump-ring-base-fx', 'spin'));
   await m.waitForTimeout(SETTLE_MS);
   const leds = await m.evaluate(async () => {
     const r = await fetch('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'pumpGet' }) });
     return (await r.json()).screens?.[0]?.base?.leds;
   });
   if (leds !== 'spin') throw new Error(`the line's ring says ${leds}, not spin`);
-  await m.locator('[data-row="pump-base-leds"]').scrollIntoViewIfNeeded();
+  await m.locator('[data-row="pump-ring-base"]').scrollIntoViewIfNeeded();
+}
+
+// The screen's saved setup, as the pump page and Bit read it.
+const saved = (m) => m.evaluate(async () => {
+  const r = await fetch('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'pumpGet' }) });
+  return (await r.json()).screens?.[0] || {};
+});
+
+// In Look, the screen drawn as Strumento: saved, and the pump draws a dial. The line for the
+// rest of the time is the person's GIF by now, which Strumento leaves as it is, so the game is
+// shown by hand to see a dial.
+async function styleGauge(m, pump) {
+  await m.click(tab('look'));
+  await m.click(keep('pump-style:gauge'));
+  await pin('game')(m);
+  await m.waitForTimeout(SETTLE_MS);
+  if ((await saved(m)).style !== 'gauge') throw new Error('the style is not saved as Strumento');
+  if (!(await pump.locator('.pf-g-dial').count())) throw new Error('the pump draws no dial');
+  await m.locator('[data-row="pump-style"]').scrollIntoViewIfNeeded();
+}
+
+// In Lights, the ring lit up to the reading; then back to Xenon's own faces, as a new screen has it.
+async function ringLevel(m) {
+  await m.click(tab('leds'));
+  await m.click(fxCard('pump-leds-move', 'level'));
+  await m.waitForTimeout(SETTLE_MS);
+  const leds = (await saved(m)).leds || {};
+  if (leds.move !== 'level') throw new Error(`the ring moves ${leds.move}, not level`);
+  await m.locator('[data-row="pump-leds-move"]').scrollIntoViewIfNeeded();
+}
+
+async function styleXenon(m, pump) {
+  await m.click(tab('look'));
+  await m.click(keep('pump-style:xenon'));
+  await m.click(keep('pump:auto'));
+  await m.waitForTimeout(SETTLE_MS);
+  if ((await saved(m)).style !== 'xenon') throw new Error('the style is not back to Xenon');
+  if (await pump.locator('.pf-g-dial').count()) throw new Error('the pump still draws a dial');
+  if (!(await m.locator('[data-keep="pump-style-store"], [data-row="pump-style-store"]').count())) throw new Error('no row for more styles in the Store');
 }
 
 // Each step: what the person does in the menu, and whether a picture of the menu is worth it.
@@ -78,12 +121,16 @@ export const STEPS = [
   { name: 'now-game', menu: true, act: pin('game') },
   { name: 'now-music', act: pin('music') },
   { name: 'now-auto', menu: true, act: (m) => m.click(keep('pump:auto')) },
-  { name: 'alerts', menu: true, act: (m) => m.locator(tabs).nth(1).click() },
-  { name: 'turned-90', menu: true, act: async (m) => { await m.locator(tabs).nth(2).click(); await m.click(keep('pump-rotate:90')); } },
+  { name: 'alerts', menu: true, act: (m) => m.click(tab('alerts')) },
+  { name: 'turned-90', menu: true, act: async (m) => { await m.click(tab('look')); await m.click(keep('pump-rotate:90')); } },
   { name: 'upright', act: (m) => m.click(keep('pump-rotate:0')) },
-  // The ring takes the screen's colours, then the line for the rest of the time runs it round.
-  { name: 'ring-screen', menu: true, act: (m) => m.click(keep('pump-leds:screen')) },
+  // In Lights the ring takes the screen's colours, then the line for the rest of the time runs it round.
+  { name: 'ring-screen', menu: true, act: async (m) => { await m.click(tab('leds')); await m.click(keep('pump-leds:screen')); } },
   { name: 'ring-spin', menu: true, act: ringSpin },
+  // The screen's style: Strumento, its ring filled up to the reading, then Xenon again.
+  { name: 'style-gauge', menu: true, act: styleGauge },
+  { name: 'ring-level', menu: true, act: ringLevel },
+  { name: 'style-xenon', menu: true, act: styleXenon },
 ];
 
 function parseArgs(argv) {
@@ -150,7 +197,7 @@ async function tour({ dir, lang, port }) {
       if (lang !== 'en' && (await pump.locator('body').allInnerTexts()).join(' ').includes(ENGLISH_WORD)) problems.push(`the pump writes English after its refresh (${lang})`);
       await shot(pump, 'pump-hello');
       for (const step of STEPS) {
-        try { await step.act(menu); } catch (e) { problems.push(`${step.name}: ${e.message.split('\n')[0]}`); }
+        try { await step.act(menu, pump); } catch (e) { problems.push(`${step.name}: ${e.message.split('\n')[0]}`); }
         await pump.waitForTimeout(SETTLE_MS);
         await shot(pump, step.name + '-pump');
         if (step.menu) await shot(menu, step.name + '-menu', true);

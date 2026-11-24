@@ -47,6 +47,8 @@ const CLASSIFIED = Object.freeze({
   'POST /api/community/trial/request': { remote: false },
   'POST /api/community/trial/poll': { remote: false },
   'POST /api/community/trial/forget': { remote: false },
+  // Import from iCUE: a lighting change like the others a paired phone makes.
+  'POST /api/lighting/icue-import': { remote: true },
 });
 
 const SERVER = engineSource();

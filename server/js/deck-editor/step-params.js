@@ -210,8 +210,10 @@ window.DeckEditorStepParams = (wrapper) => {
         if (p.kind === 'select') {
           ctrl = document.createElement('select'); ctrl.className = 'deck-ed-input';
           // A param may name its own option words (optionKeys); otherwise the shared deck_opt_*.
-          p.options.forEach((o) => { const key = (p.optionKeys && p.optionKeys[o]) || ('deck_opt_' + o); const opt = document.createElement('option'); opt.value = o; opt.setAttribute('data-i18n', key); opt.textContent = t(key); ctrl.appendChild(opt); });
-          ctrl.value = (step.params[p.name] != null && p.options.includes(step.params[p.name])) ? step.params[p.name] : p.options[0];
+          // A kept value the step already holds stays on show when it has words of its own, so opening a key never changes it.
+          const shown = [...p.options, ...(p.keeps || []).filter((o) => o === step.params[p.name] && p.optionKeys && p.optionKeys[o])];
+          shown.forEach((o) => { const key = (p.optionKeys && p.optionKeys[o]) || ('deck_opt_' + o); const opt = document.createElement('option'); opt.value = o; opt.setAttribute('data-i18n', key); opt.textContent = t(key); ctrl.appendChild(opt); });
+          ctrl.value = shown.includes(step.params[p.name]) ? step.params[p.name] : p.options[0];
         } else {
           ctrl = input('text', step.params[p.name] || '');
           // Helpful example placeholders so it's obvious what to enter per param.

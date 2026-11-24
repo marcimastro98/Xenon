@@ -72,6 +72,13 @@ fn bring_front(win: &WebviewWindow) {
     super::force_focus(win.app_handle(), win);
 }
 
+/// A game that starts while the window sits behind other apps or in the taskbar
+/// leaves it there: going on top then would pop the menu over the game the user just
+/// opened. It goes on top when the user comes back to it (`raise`).
+fn stays_behind(over_game: bool, focused: bool) -> bool {
+    over_game && !focused
+}
+
 /// What a sync says about the menu. `win` is the window staying open: one that
 /// opens now reads the game from here and takes the focus by itself.
 pub fn follow(win: Option<&WebviewWindow>, over_game: bool, front: u32) {
@@ -79,8 +86,10 @@ pub fn follow(win: Option<&WebviewWindow>, over_game: bool, front: u32) {
     let asked = FRONT.swap(front, Ordering::Relaxed) != front;
     let Some(win) = win else { return };
     if game_changed {
+        let focused = win.is_focused().unwrap_or(false);
+        LOWERED.store(stays_behind(over_game, focused), Ordering::Relaxed);
         let _ = win.set_always_on_top(stays_on_top());
-        report_behind(win, win.is_focused().unwrap_or(false));
+        report_behind(win, focused);
     }
     if asked {
         bring_front(win);
@@ -222,6 +231,13 @@ pub fn watch_close(win: &WebviewWindow) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_game_that_starts_leaves_a_window_behind_where_it_is() {
+        assert!(stays_behind(true, false), "behind or minimized: it does not pop over the game");
+        assert!(!stays_behind(true, true), "the one in use goes on top");
+        assert!(!stays_behind(false, false), "a game that ends changes nothing");
+    }
 
     const MAIN: Rect = [0, 0, 3840, 2088];
     const EDGE: Rect = [573, 2160, 2560, 720];

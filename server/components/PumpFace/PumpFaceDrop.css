@@ -1,0 +1,170 @@
+/* Goccia, Xenon's own style of the pump screen (face-drop.js): a soft drop in the middle in the
+   line's first colour, turning warm or hot with the hottest reading on it (the layer's
+   data-drop), and a deeper one behind it that turns slowly and peeks out on one side. The front
+   drop changes shape by its corners only, so a cover inside it never turns. The words on it take
+   dark or light ink by its colour. Sizes in --u like every face (PumpFace.css). */
+
+/* The drop's numbers: the narrower cut of the app's own font, so a big value still fits. */
+@font-face {
+  font-family: "Sofia Sans Semi Condensed";
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: block;
+  src: url("../../assets/fonts/sofiasans-sc-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+2000-206F, U+2212;
+}
+
+.pf-face { --drop-c: var(--pf-c1); }
+.pf-face[data-drop="warm"] { --drop-c: var(--pf-warm); }
+.pf-face[data-drop="hot"] { --drop-c: var(--pf-hot); }
+/* Warm and hot keep the reading's own colour; the mark for too hot stays. */
+.pf-nowarn.pf-face[data-drop] { --drop-c: var(--pf-c1); }
+
+.pf-drop {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: calc(var(--u) * 84);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.pf-drop-back, .pf-drop-front { position: absolute; transition: background-color 1.2s ease; }
+.pf-drop-back {
+  inset: -5%;
+  translate: calc(var(--u) * 3) calc(var(--u) * -2.5);
+  border-radius: 38% 62% 57% 43% / 55% 40% 60% 45%;
+  background-color: color-mix(in oklab, var(--drop-c) 45%, #000);
+}
+.pf-drop-front {
+  inset: 0;
+  overflow: hidden;
+  border-radius: 60% 40% 47% 53% / 46% 57% 43% 54%;
+  background-color: var(--drop-c);
+}
+
+/* The ink: dark on a light drop, light on a dark one (a colour of one's own can be either). */
+.pf-drop-ink {
+  color: #101214;
+  --pf-ink: currentColor;
+  --pf-ink-2: color-mix(in srgb, currentColor 78%, transparent);
+  --pf-ink-3: color-mix(in srgb, currentColor 60%, transparent);
+}
+@supports (color: oklch(from red clamp(0, (0.6 - l) * 1000, 1) 0 0)) {
+  .pf-drop-ink { color: oklch(from var(--drop-c) clamp(0.17, (0.64 - l) * 1000, 0.98) 0 0); }
+}
+/* On the drop its colour says warm and hot: numbers and the too-hot mark take the ink. */
+.pf-drop-ink [data-tone] > .pf-num, .pf-drop-ink .pf-none > .pf-num { color: inherit; }
+/* As specific as the mark itself (PumpFace.css), and later, so it wins. */
+.pf-face .pf-drop-ink.pf-drop-mid :is(.pf-drop-name, .pf-drop-label, .pf-label)::before { background: currentColor; }
+
+/* ── Readings on the drop (face-sensors.js) ─────────────────────────────── */
+.pf-drop-mid {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  max-width: calc(var(--u) * 58);
+  text-align: center;
+}
+.pf-drop-label, .pf-game-mid > .pf-label {
+  font-size: max(calc(var(--u) * 5.2), 11px);
+  font-weight: 700;
+  color: var(--pf-ink-2);
+  margin: 0;
+}
+.pf-drop-value { line-height: 0.86; }
+/* A number's size carries :not(.pf-none): "No reading" keeps its small words (PumpFace.css). */
+.pf-drop-value .pf-num { font-family: "Sofia Sans Semi Condensed", "Sofia Sans", system-ui, sans-serif; font-weight: 800; letter-spacing: -0.02em; }
+.pf-drop-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 33), calc(var(--u) * var(--nk, 1) * 86 / var(--len, 2))); }
+.pf-drop-value .pf-unit { font-size: calc(var(--u) * 6); font-weight: 750; margin: calc(var(--u) * 1.4) 0 0 calc(var(--u) * 0.6); }
+.pf-drop-n3 .pf-drop-value:not(.pf-none) .pf-num, .pf-drop-n4 .pf-drop-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 25), calc(var(--u) * var(--nk, 1) * 66 / var(--len, 2))); }
+.pf-drop-value.pf-none .pf-num { font-family: inherit; font-size: calc(var(--u) * 6.4); font-weight: 650; letter-spacing: 0; padding: calc(var(--u) * 4) 0; }
+.pf-drop-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: calc(var(--u) * 1.6);
+  margin-top: calc(var(--u) * 1);
+  white-space: nowrap;
+}
+.pf-drop-mid > .pf-main + .pf-drop-cell { margin-top: calc(var(--u) * 3); }
+.pf-drop-name { font-size: max(calc(var(--u) * 4.4), 9.5px); font-weight: 700; color: var(--pf-ink-2); }
+.pf-drop-cell .pf-rest-value { align-items: baseline; }
+.pf-drop-cell .pf-rest-value .pf-num { font-family: "Sofia Sans Semi Condensed", "Sofia Sans", system-ui, sans-serif; font-weight: 800; }
+.pf-drop-cell .pf-rest-value:not(.pf-none) .pf-num { font-size: calc(var(--u) * var(--nk, 1) * 7.4); }
+.pf-drop-cell .pf-rest-value .pf-unit { font-size: calc(var(--u) * 3.8); font-weight: 700; margin: 0 0 0 calc(var(--u) * 0.4); }
+.pf-drop-cell .pf-rest-value.pf-none .pf-num { font-family: inherit; font-size: max(calc(var(--u) * 4.2), 9.5px); font-weight: 650; }
+.pf-drop-n4 .pf-drop-cell { margin-top: calc(var(--u) * 0.4); }
+
+/* Game: the frame rate large, its name under it, the two readings, then the song. */
+.pf-game-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 30), calc(var(--u) * var(--nk, 1) * 78 / var(--len, 2))); }
+/* Big numbers: the game holds five lines, so its own number grows less. */
+.pf-big .pf-game-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * 32), calc(var(--u) * 84 / var(--len, 2))); }
+.pf-game-mid > .pf-label { margin-top: calc(var(--u) * 1.2); }
+.pf-game-mid > .pf-label + .pf-drop-cell { margin-top: calc(var(--u) * 2); }
+.pf-game-mid > .pf-game-track { max-width: calc(var(--u) * 34); margin-top: calc(var(--u) * 1.6); }
+
+/* ── Clock on the drop (face-clock.js) ──────────────────────────────────── */
+.pf-clock-mid { position: relative; display: grid; justify-items: center; }
+.pf-clock-mid .pf-weather { position: static; transform: none; margin-bottom: calc(var(--u) * 1.6); color: var(--pf-ink-2); font-weight: 700; }
+.pf-clock-mid .pf-weather:empty { display: none; }
+.pf-clock-mid .pf-sky { stroke: currentColor; }
+.pf-clock-mid .pf-time { line-height: 0.86; }
+.pf-clock-mid .pf-time-hm {
+  font-family: "Sofia Sans Semi Condensed", "Sofia Sans", system-ui, sans-serif;
+  font-size: calc(var(--u) * var(--nk, 1) * 27);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.pf-clock-mid .pf-time[data-fit="1"] .pf-time-hm { font-size: calc(var(--u) * var(--nk, 1) * 24); }
+.pf-clock-mid .pf-time[data-fit="2"] .pf-time-hm { font-size: calc(var(--u) * var(--nk, 1) * 21); }
+.pf-clock-mid .pf-time[data-fit="3"] .pf-time-hm { font-size: calc(var(--u) * var(--nk, 1) * 18); }
+.pf-clock-mid :is(.pf-time-s, .pf-time-ampm) { color: var(--pf-ink-2); font-weight: 750; }
+.pf-clock-mid .pf-date { font-weight: 700; color: var(--pf-ink-2); margin-top: calc(var(--u) * 2); }
+
+/* ── Music: the cover inside a smaller drop, the song under it (face-music.js) ── */
+.pf-drop-music { top: calc(50% - var(--u) * 11); width: calc(var(--u) * 56); }
+.pf-drop-music .pf-drop-back { background-color: color-mix(in oklab, var(--pf-c2) 55%, #000); }
+.pf-drop-music .pf-music-cover { border-radius: 0; box-shadow: none; }
+.pf-style-cover .pf-music-text { top: calc(50% + var(--u) * 21); }
+
+/* ── What is behind the drop (face-look.js) ──────────────────────────────
+   A glow in the middle would sit all under the drop: here it is the drop's own colour spilling
+   around it, warm and hot with it. A picture stays bright, around the drop and through it: the
+   drop turns to coloured glass and the deeper one steps aside, or the picture would show through
+   two layers and be lost. */
+.pf-bg-glow.pf-face[data-drop] { background-image: none; }
+.pf-bg-glow .pf-drop::before {
+  content: "";
+  position: absolute;
+  inset: -24%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--drop-c) 55%, transparent) 64%, transparent);
+}
+.pf-face[data-drop] > .pf-bg-pic { filter: brightness(0.9); }
+.pf-has-bg .pf-drop-back { display: none; }
+.pf-has-bg .pf-drop-front { background-color: color-mix(in oklab, var(--drop-c) 76%, transparent); }
+/* Words that sit on the picture itself, not on the drop. */
+.pf-has-bg[data-drop] :is(.pf-music-text, .pf-own-text) { text-shadow: 0 0 calc(var(--u) * 1.6) rgb(0 0 0 / 0.9); }
+
+/* ── Motion: off with reduced motion, the drop then rests in its own shape ── */
+@media (prefers-reduced-motion: no-preference) {
+  .pf-drop-front { animation: pf-drop-front 8s ease-in-out infinite alternate; }
+  .pf-drop-back { animation: pf-drop-back 11s ease-in-out infinite alternate, pf-drop-turn 36s linear infinite; }
+  .pf-playing .pf-drop-music { animation: pf-drop-beat 0.6s ease-in-out infinite alternate; }
+}
+@keyframes pf-drop-front {
+  0% { border-radius: 60% 40% 47% 53% / 46% 57% 43% 54%; }
+  25% { border-radius: 42% 58% 62% 38% / 58% 42% 58% 42%; }
+  50% { border-radius: 55% 45% 38% 62% / 40% 60% 40% 60%; }
+  75% { border-radius: 38% 62% 55% 45% / 62% 45% 55% 38%; }
+  100% { border-radius: 63% 37% 42% 58% / 50% 38% 62% 50%; }
+}
+@keyframes pf-drop-back {
+  0% { border-radius: 38% 62% 57% 43% / 55% 40% 60% 45%; }
+  50% { border-radius: 60% 40% 40% 60% / 42% 62% 38% 58%; }
+  100% { border-radius: 45% 55% 64% 36% / 60% 45% 55% 40%; }
+}
+@keyframes pf-drop-turn { to { rotate: 1turn; } }
+@keyframes pf-drop-beat { to { scale: 1.035; } }

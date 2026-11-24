@@ -19,6 +19,7 @@ const { createPumpBackup } = require('./backup.js');
 const { createPumpRing } = require('./ring.js');
 const { installedPumpWidgets } = require('./widgets.js');
 const { createPumpPresence } = require('./presence.js');
+const { startPumpDirect } = require('./direct-start.js');
 
 const store = createPumpStore({ dataDir: DATA_DIR, warn: (msg) => console.warn(msg) });
 // Which screens show Xenon now: one that comes or goes redraws the menu and the ring.
@@ -28,25 +29,42 @@ const here = (id) => presence.here(id);
 const ring = createPumpRing({ store, here, setRing: (state) => require('../lights/lighting.js').setPumpRing(state) });
 const live = createPumpLive({ store, here, broadcast: broadcastSSE, quiet: () => screensOff.quiet(), changed: (now) => ring.refresh(now) });
 const leave = Sources.addSource(live.source);
+
+const detect = createPumpDetect({ warn: (msg) => console.warn(msg) });
+// Xenon on a pump screen with no other program in between (direct.js); null where it cannot.
+const direct = startPumpDirect({ store, detect, port: PORT, dataDir: DATA_DIR, changed: () => live.push(true) });
+// What the menu and Bit say about it: on, and what it does now (off, none, busy, drawing, failed).
+const directState = () => (direct ? { on: store.peek()?.direct === true, ...direct.state() } : null);
+
 const actions = createPumpActions({
   store, live, change: createChange({ store, live }),
   openIcue: () => openInIcue({ warn: (msg) => console.warn(msg) }),
   widgets: installedPumpWidgets,
   here,
+  direct: direct ? { state: directState, refresh: () => direct.refresh() } : null,
 });
 
-const detect = createPumpDetect({ warn: (msg) => console.warn(msg) });
-
 // What the Xenon menu's Screens page draws: every pump screen, the Store widgets it can
-// show, whether iCUE's import can open here, the pumps plugged in (to offer the first step while none has shown up) and
-// the address NZXT CAM is given.
+// show, whether iCUE's import can open here, the pumps plugged in (to offer the first step while none has shown up),
+// the address NZXT CAM is given, what the ring shows now and whether Xenon holds a ring of its own to paint
+// (the iCUE LINK hub Airflow holds: lighting-native/held.js), so its Lights need no iCUE.
+function heldRing() {
+  const { ledsOf } = require('../lights/pump-ring.js');
+  return require('../lighting-native/held.js').devices().some((d) => ledsOf(d));
+}
+
 async function menuState() {
   const { screens, widgets } = await actions.run({ type: 'pumpGet' });
   // sound: whether this PC can read how loud it is, for the ring's pulse (audio/audio-levels.js).
   const sound = require('../audio/audio-levels.js').available();
+  // cannot: the needs of the ring's effects this PC cannot follow now (lights/pc-inputs.js: the fans).
+  const cannot = require('../lights/pc-inputs.js').cannot();
   // accent: the theme's colour, for the swatch of a line whose colours follow the theme.
   const accent = require('../settings/current.js').hub.settings?.accent;
-  return { screens, widgets, icue: icueImportAvailable(), sound, accent, detected: await detect(), url: `http://127.0.0.1:${PORT}/pump-face` };
+  return {
+    screens, widgets, icue: icueImportAvailable(), sound, cannot, accent, detected: await detect(), url: `http://127.0.0.1:${PORT}/pump-face`,
+    direct: directState(), ring: ring.now(), ringHeld: heldRing(),
+  };
 }
 
 // The pump screens' part of a settings backup (server.js buildBackup / applyBackup).
@@ -57,8 +75,9 @@ store.ready().then(() => ring.refresh(live.decide())).catch(() => {});
 
 function stop() {
   leave();
+  direct?.stop().catch(() => {});
   ring.stop();
   presence.stop();
 }
 
-module.exports = { store, live, ring, presence, actions, menuState, backup, stop };
+module.exports = { store, live, ring, presence, actions, menuState, backup, stop, direct };

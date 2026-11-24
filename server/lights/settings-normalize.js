@@ -2,17 +2,19 @@
 // the reaction to an event.
 
 const { clampNumber, normalizeHex } = require('../settings/values.js');
+const { STYLES, extrasOf } = require('./look-fields.js');
 
 // RGB lighting bridge config. Mirrors the client default (master OFF). Accepts
 // the legacy effect-booleans and the new {enabled,color,style} event objects.
 const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
-const LIGHTING_ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
-// User palette for the 'palette' ambient style: 2–5 hex colours.
+// Every effect of the Lighting list and the names saved before it (lights/look-fields.js).
+const LIGHTING_ANIM_STYLES = STYLES;
+// The colours of an effect: 1–5 hex colours.
 function normalizeLightingPalette(value, fallback) {
   const hexes = (Array.isArray(value) ? value : []).slice(0, 5)
     .map(h => (/^#?[0-9a-f]{6}$/i.test(String(h)) ? normalizeHex(h, null) : null))
     .filter(Boolean);
-  return hexes.length >= 2 ? hexes : fallback.slice();
+  return hexes.length ? hexes : fallback.slice();
 }
 const LIGHTING_PROVIDER_IDS = ['govee', 'lifx', 'wled', 'hue', 'nanoleaf', 'openrgb', 'homeassistant', 'yeelight'];
 function normalizeLightingAnimation(value, fallback) {
@@ -23,6 +25,7 @@ function normalizeLightingAnimation(value, fallback) {
     color: normalizeHex(v.color, f.color),
     speed: clampNumber(v.speed, 1, 100, f.speed),
     palette: normalizeLightingPalette(v.palette, f.palette || ['#1ed760', '#0066ff']),
+    ...extrasOf(v, true),
   };
 }
 function normalizeLightingProviders(value) {
@@ -51,9 +54,8 @@ function normalizeLightingProviders(value) {
   return out;
 }
 const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];
-// Per-device styles: no 'palette' (its colour list lives on the global animation)
-// and no 'wave' (per-device renders uniform = identical to 'cycle').
-const LIGHTING_ANIM_SUB = ['solid', 'breathing', 'cycle', 'aurora', 'candle'];
+// A device's own effect: any of the list (it is drawn LED by LED like the whole set).
+const LIGHTING_ANIM_SUB = STYLES.filter((s) => s !== 'none');
 
 function normalizeLightingEvent(value, fallback) {
   const f = fallback || { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };

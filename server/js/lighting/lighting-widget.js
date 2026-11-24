@@ -13,10 +13,13 @@
   const el = makeEl;          // shared DOM factory from utils.js
   const api = apiJson;        // shared fetch-JSON helper from utils.js
 
-  // Ambient effect styles (mirrors lighting.js ANIM_STYLES) and the per-device
-  // modes (DEVICE_MODES). Labels reuse the shared deck_opt_* strings.
-  const STYLES = ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
-  const DYNAMIC = new Set(['breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette']);
+  // A few effects of Settings -> Lighting as one tap (js/light-fx/light-fx.js has the whole list,
+  // the page shows it), with the list's own names, and the per-device modes (DEVICE_MODES).
+  const STYLES = ['none', 'still', 'breathe', 'shift', 'rainbow', 'comet', 'bands', 'aurora', 'candle'];
+  // Names saved before the list, as the effect each became (LightFx.OLD_LIGHTING).
+  const OLD = { breathing: 'breathe', cycle: 'shift', wave: 'rainbow', palette: 'turn' };
+  const nameOf = (style) => (style === 'none' || style === 'solid' ? t('deck_opt_' + style, style) : t('light_fx_' + (OLD[style] || style), style));
+  const moving = (style) => !['none', 'solid', 'still'].includes(style);
   const MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
   // A small curated swatch row for one-tap colours; the picker covers the rest.
   const SWATCHES = ['#ff2b3b', '#ff7a1a', '#ffd23f', '#1ed760', '#19d3da', '#2b6cff', '#7c5cff', '#ffffff'];
@@ -131,7 +134,7 @@
     // Effect chips.
     const fx = el('div', 'lgt-fx'); fx.dataset.role = 'fx';
     STYLES.forEach(style => {
-      const chip = el('button', 'lgt-chip', t('deck_opt_' + style, style)); chip.type = 'button';
+      const chip = el('button', 'lgt-chip', nameOf(style)); chip.type = 'button';
       chip.dataset.style = style;
       chip.addEventListener('click', () => setStyle(style));
       fx.appendChild(chip);
@@ -195,14 +198,14 @@
     else hero.style.removeProperty('--lgt-rgb');         // → CSS falls back to --accent-rgb
     const style = (st.animation && st.animation.style) || 'none';
     hero.classList.toggle('is-off', !st.enabled);
-    hero.classList.toggle('is-dynamic', st.enabled && DYNAMIC.has(style));
+    hero.classList.toggle('is-dynamic', st.enabled && moving(style));
     const fx = hero.querySelector('.lgt-hero-fx');
-    if (fx) fx.textContent = t('deck_opt_' + style, style);
+    if (fx) fx.textContent = nameOf(style);
   }
 
   function paintChips(wrap) {
     const cur = (st.animation && st.animation.style) || 'none';
-    wrap.querySelectorAll('.lgt-chip').forEach(chip => chip.classList.toggle('is-active', chip.dataset.style === cur));
+    wrap.querySelectorAll('.lgt-chip').forEach(chip => chip.classList.toggle('is-active', chip.dataset.style === (OLD[cur] || cur)));
     // Selected swatch highlight.
     wrap.querySelectorAll('.lgt-sw').forEach(sw => sw.classList.toggle('is-active', st.manualColor && sw.dataset.color.toLowerCase() === st.manualColor.toLowerCase()));
   }

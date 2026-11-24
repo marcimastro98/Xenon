@@ -51,7 +51,7 @@ test('a setup is saved; the hellos are not, so a reload starts with no screen se
   assert.equal(existsSync(join(dir, FILE)), false, 'a hello never writes the disk');
   await store.update((m) => Edit.patchScreen(m, 'pump', { setup: 'music' }));
   const saved = JSON.parse(readFileSync(join(dir, FILE), 'utf8'));
-  assert.deepEqual(Object.keys(saved).sort(), ['screens', 'v']);
+  assert.deepEqual(Object.keys(saved).sort(), ['direct', 'screens', 'v']);
   const again = await createPumpStore({ dataDir: dir }).ready();
   assert.equal(again.screens.pump.base.face, 'clock');
   assert.deepEqual(again.seen, {});
@@ -152,7 +152,8 @@ test('a source that throws asks for nothing and never stops another', () => {
 
 test('routes: a hello makes the screen known, a setup saves it, a change answers the whole view', async (t) => {
   const { call } = rig(t);
-  assert.deepEqual(await call('GET /pump'), { ok: true, screens: {}, now: {}, prefs: { accent: '#6ee787', lang: 'en', tempUnit: 'c', hwTempUnit: 'c', clockFormat: 'auto' } });
+  const { run, ...first } = await call('GET /pump');
+  assert.deepEqual(first, { ok: true, screens: {}, now: {}, prefs: { accent: '#6ee787', lang: 'en', tempUnit: 'c', hwTempUnit: 'c', clockFormat: 'auto' } });
   const hi = await call('POST /pump/hello', { screen: 'My Pump', shape: 'round', w: 480, h: 480, via: 'icue' });
   assert.equal(hi.ok, true);
   assert.equal(hi.screen, 'my-pump');
@@ -199,4 +200,16 @@ test('the face page carries its words as data that can never close the script', 
   const { words, prefs } = JSON.parse(m[1]);
   assert.ok(Object.values(words).every((v) => typeof v === 'string' && v.length > 0), 'every word has English at least');
   assert.equal(prefs.lang, 'en');
+});
+
+// iCUE keeps its widget's page open for days: after an update the old code would go on drawing
+// (a style picked in the menu showed in its picture, never on the pump). The engine names its
+// run in the page and in every answer the page reads, so the page can tell (face-kit.js).
+test('the page, the hello and the settings all name the same run of the engine', async (t) => {
+  const { call } = rig(t);
+  const html = await call('GET /pump-face');
+  const { run } = JSON.parse(html.match(/id="pump-strings">([^<]*)<\/script>/)[1]);
+  assert.match(run, /^[0-9a-z]+$/);
+  assert.equal((await call('POST /pump/hello', { screen: 'pump', via: 'icue' })).run, run);
+  assert.equal((await call('GET /pump')).run, run);
 });

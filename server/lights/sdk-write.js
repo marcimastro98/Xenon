@@ -39,14 +39,13 @@ async function writeDeviceGradient(dev, palette) {
   if (await pushLeds(dev, fx.paletteGradient(palette, dev.ledIds.length))) bridge.lastWrite.set(dev.id, key);
 }
 
-// Paint the current spatial-animation frame (wave/palette) across the device's
-// LEDs. Same write path as the album gradient. The caller pre-computes the
-// frame key (fx.animationFrameKey — the quantized phase/shift that DEFINES the
-// frame) and checks it against bridge.lastWrite BEFORE building the per-LED array, so
-// unchanged frames cost zero allocations.
-async function writeDeviceAnimGradient(dev, stops, key) {
-  if (!dev || !sinkReady(dev) || !stops || !stops.length) return;
-  const colors = dev.ledIds.map((_, i) => stops[Math.min(i, stops.length - 1)]);
+// Paint one frame of an effect across the device's LEDs (fx-look.js pass: one colour per
+// LED, brightness applied). The frame itself is the on-change key, so a still or slow effect
+// writes only when a LED actually changed.
+async function writeDeviceFrame(dev, colors) {
+  if (!dev || !sinkReady(dev) || !colors || colors.length !== dev.ledIds.length) return;
+  const key = 'fx:' + colors.map(c => (c ? `${c.r},${c.g},${c.b}` : '-')).join('|');
+  if (bridge.lastWrite.get(dev.id) === key) return;
   if (await pushLeds(dev, colors)) bridge.lastWrite.set(dev.id, key);
 }
 
@@ -58,8 +57,8 @@ async function writeDeviceAnimGradient(dev, stops, key) {
 async function writeDeviceCustom(dev, mode, follow, under = null) {
   if (!dev || !sinkReady(dev) || !dev.ledIds.length) return;
   const frame = ledColors.ledFrame(dev.ledIds, mode.leds, {
-    follow, under, temperature: bridge.config.effects.temperature ? bridge.layers.base : null, album: effectiveAlbum(),
-    pump: pumpRing.colours(bridge.accent), pumpSpin: pumpRing.spinPhase(), brightness: bridge.config.brightness, nowMs: Date.now(),
+    dev, follow, under, temperature: bridge.config.effects.temperature ? bridge.layers.base : null, album: effectiveAlbum(),
+    pump: (count) => pumpRing.frame(bridge.accent, count), brightness: bridge.config.brightness, nowMs: Date.now(),
   });
   const key = 'custom:' + frame.map(c => (c ? `${c.r},${c.g},${c.b}` : '-')).join('|');
   if (bridge.lastWrite.get(dev.id) === key) return;
@@ -132,6 +131,6 @@ function getDevices() {
 }
 
 module.exports = {
-  CDT_MOTHERBOARD, writeDevice, writeDeviceGradient, writeDeviceAnimGradient, writeDeviceCustom,
+  CDT_MOTHERBOARD, writeDevice, writeDeviceGradient, writeDeviceFrame, writeDeviceCustom,
   pushLeds, sinkReady, paintDevices, releaseAll, getDevices,
 };

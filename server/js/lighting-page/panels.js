@@ -6,19 +6,6 @@
 
   const UI = () => window.LightingUI;
 
-  // Does anything want an iCUE session right now? Mirrors shouldConnect() in
-  // server/lights/paint-rules.js: every effect drives the LEDs on its own, independent of
-  // the master toggle, so gating the "not connected" hint on `enabled` alone hid
-  // the failure from exactly the users relying on Album → LED or an event flash
-  // with the master off. Keep the two lists in step.
-  function wantsSession(status) {
-    const e = status.effects || {};
-    return !!status.enabled || !!e.temperature || !!e.musicAlbum
-      || !!(e.timer && e.timer.enabled !== false)
-      || !!(e.notification && e.notification.enabled !== false)
-      || !!(e.reminder && e.reminder.enabled !== false);
-  }
-
   // Master switch + brightness: they apply to every tab, so they stay on top.
   function masterCard(rerender, status) {
     const card = UI().card();
@@ -36,6 +23,75 @@
 
   function panel() { return UI().el('div', 'lighting-panel-body'); }
 
+  // While the pump screen leads every light ("same colours across the PC", in the pump's Lights
+  // tab), the lights that follow Xenon show it instead of what this tab sets (an event flash still
+  // comes first, lights/paint.js): said on top, with the way to change it there.
+  function pumpLeads(box, status, key, fallback) {
+    if (!(status.pumpRing && status.pumpRing.all === true) || !window.LightingDevice) return;
+    const card = UI().card();
+    card.body.appendChild(window.LightingDevice.pumpNote(key, fallback, 'lighting_pump_change', 'Cambia'));
+    box.appendChild(card);
+  }
+
+  // Who drives each light now (lights/drivers.js), on top of Devices: a light nobody drives says
+  // why and offers the one thing to do, so a flash that reaches only some lights is never a mystery.
+  const WHO = {
+    xenon: ['lighting_who_xenon', 'Xenon'], network: ['lighting_who_network', 'Xenon, in rete'],
+    pump: ['lighting_who_pump', 'Lo schermo della pompa'], nobody: ['lighting_who_nobody', 'Nessuno'],
+    error: ['lighting_who_error', 'Non risponde'],
+  };
+  const isOff = (row) => row.who === 'nobody' || row.who === 'error';
+
+  function whoText(row) {
+    if (row.who === 'via') return UI().tr('lighting_who_via', 'Xenon, tramite {name}').replace('{name}', String(row.through || ''));
+    const [key, fallback] = WHO[row.who] || WHO.nobody;
+    return UI().tr(key, fallback);
+  }
+
+  function fixButton(rerender, row, goConnections) {
+    if (row.fix === 'board') {
+      return UI().button('settings-btn primary', 'lighting_board_take', 'Comandale con Xenon', async () => {
+        await UI().post('/api/lighting/native', { enabled: true });
+        rerender();
+      });
+    }
+    return row.fix === 'connections' ? UI().button('settings-btn', 'lighting_go_connections', 'Apri Connessioni', goConnections) : null;
+  }
+
+  function whoRow(rerender, row, goConnections) {
+    const name = UI().el('span', 'lighting-who-name', row.nameKey || '', row.nameKey ? '' : String(row.name || ''));
+    const brand = row.count > 1 ? UI().tr('lighting_who_count', '{n} dispositivi').replace('{n}', String(row.count)) : row.brand;
+    const label = UI().el('span', 'settings-label-line');
+    label.append(name);
+    if (brand) label.append(UI().el('span', 'lighting-device-brand', '', String(brand)));
+    const head = UI().el('div', 'settings-row lighting-row lighting-who');
+    head.append(label, UI().el('span', 'lighting-who-state' + (isOff(row) ? ' is-off' : ''), '', whoText(row)));
+    if (!isOff(row)) return [head];
+    const why = [];
+    if (row.reasonKey) why.push(UI().hintP('', row.reasonKey));
+    if (row.reason) why.push(UI().hintP(String(row.reason)));
+    return [head, UI().noteRow(why, fixButton(rerender, row, goConnections))];
+  }
+
+  // Lights Xenon drives that still follow it and had a look in iCUE (lights/icue-import.js): one
+  // tap brings that look over, for whoever leaves iCUE closed.
+  function icueImportRow(rerender, lights) {
+    const names = lights.map((l) => String(l.name || l.id)).join(', ');
+    const hint = UI().hintP(UI().tr('lighting_icue_import_hint', '{names}: puoi riprendere l\'effetto e il colore che avevi in iCUE.').replace('{names}', names));
+    return UI().noteRow([hint], UI().button('settings-btn', 'lighting_icue_import', 'Importa da iCUE', async () => {
+      await UI().post('/api/lighting/icue-import', {});
+      rerender();
+    }));
+  }
+
+  function whoCard(rerender, rows, goConnections, imports) {
+    const card = UI().card('lighting_who_title', 'Chi comanda le luci');
+    for (const row of rows) card.body.append(...whoRow(rerender, row, goConnections));
+    if (imports.length) card.body.appendChild(icueImportRow(rerender, imports));
+    card.body.appendChild(UI().noteRow([], UI().button('settings-btn', 'lighting_who_add', 'Aggiungi altre luci', goConnections)));
+    return card;
+  }
+
   function devicesPanel(rerender, status, goConnections) {
     const box = panel();
     const perLed = Array.isArray(status.devices) ? status.devices : [];
@@ -44,37 +100,23 @@
       (p.devices || []).filter(d => !(d.needsPairing && !d.paired) && d.optedIn !== false)
         .forEach(d => box.appendChild(window.LightingDevice.card(rerender, status, { ...d, model: d.name || d.host }, p.name)));
     });
-    const none = !box.querySelector('.lighting-device');
-    const lines = icueProblem(status);
-    if (none) lines.unshift(UI().hintP('', 'lighting_devices_empty'));
-    if (lines.length) {
-      const notice = UI().card();
-      notice.body.appendChild(UI().noteRow(lines,
-        UI().button(none ? 'settings-btn primary' : 'settings-btn', 'lighting_go_connections', 'Apri Connessioni', goConnections)));
-      box.prepend(notice);
-    }
+    const rows = Array.isArray(status.drivers) ? status.drivers : [];
+    const imports = Array.isArray(status.icueImport) ? status.icueImport : [];
+    if (rows.length) box.prepend(whoCard(rerender, rows, goConnections, imports));
+    else if (!box.querySelector('.lighting-device')) box.prepend(emptyCard(goConnections));
     return box;
   }
 
-  // Why Corsair lights are missing, when they are: no SDK component (the ordinary
-  // case since iCUE 5.48), or a session that something wants but iCUE refused.
-  function icueProblem(status) {
-    if (!status.available) {
-      return [UI().hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing')];
-    }
-    if (wantsSession(status) && !status.connected) {
-      const off = UI().hintP('', 'lighting_icue_off_hint');
-      off.classList.add('lighting-warn');
-      // The bridge's own reason stays visible: it is what tells a real failure apart.
-      return status.reason ? [off, UI().hintP(String(status.reason))] : [off];
-    }
-    return [];
+  function emptyCard(goConnections) {
+    const notice = UI().card();
+    notice.body.appendChild(UI().noteRow([UI().hintP('', 'lighting_devices_empty')],
+      UI().button('settings-btn primary', 'lighting_go_connections', 'Apri Connessioni', goConnections)));
+    return notice;
   }
-
-  const DYNAMIC_ANIM_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
 
   function effectsPanel(rerender, status) {
     const box = panel();
+    pumpLeads(box, status, 'lighting_pump_all', 'Ora le luci che seguono Xenon prendono i colori dello schermo della pompa');
     const manual = UI().card('lighting_manual', 'Colore manuale');
     const color = UI().el('div', 'lighting-inline');
     color.append(
@@ -90,61 +132,20 @@
     return box;
   }
 
+  // The effect for every light that follows Xenon, as cards (lighting-page/effect-cards.js). A
+  // colour typed in a swatch only posts: a redraw would take the focus from it mid-edit.
   function animationSection(rerender, status) {
-    const anim = status.animation || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
-    const out = [UI().segmented([
-      ['none', 'lighting_anim_none', 'Nessuna'], ['solid', 'lighting_anim_solid', 'Fissa'],
-      ['breathing', 'lighting_anim_breathing', 'Respiro'], ['cycle', 'lighting_anim_cycle', 'Arcobaleno'],
-      ['wave', 'lighting_anim_wave', 'Onda'], ['aurora', 'lighting_anim_aurora', 'Aurora'],
-      ['candle', 'lighting_anim_candle', 'Candela'], ['palette', 'lighting_anim_palette', 'Palette'],
-    ], anim.style, async (val) => {
-      // The server swaps in the warm candle default colour when appropriate.
-      await UI().post('/api/lighting/animation', { style: val });
-      rerender();
-    }, 4)];
-    // "Fissa" reuses the manual colour above; cycle/wave paint the full spectrum;
-    // aurora owns its band.
-    if (anim.style === 'breathing' || anim.style === 'candle') {
-      out.push(UI().labeledRow('lighting_anim_color',
-        UI().hexColorControl(anim.color, (v) => UI().post('/api/lighting/animation', { color: v }))));
-    }
-    if (anim.style === 'palette') out.push(paletteEditor(rerender, anim));
-    if (DYNAMIC_ANIM_STYLES.includes(anim.style)) {
-      out.push(UI().labeledRow('lighting_anim_speed',
-        UI().speedSlider(anim.speed, (v) => UI().post('/api/lighting/animation', { speed: v }))));
-    }
-    return out;
-  }
-
-  // Palette editor: one swatch per colour, ✕ to drop (min 2), "+" to append (max 5).
-  function paletteEditor(rerender, anim) {
-    const pal = (Array.isArray(anim.palette) && anim.palette.length >= 2) ? anim.palette.slice(0, 5) : ['#1ed760', '#0066ff'];
-    // Structural changes re-render; a colour edit only posts — a re-render would
-    // steal the focus from the input mid-edit.
-    const push = async (next) => { await UI().post('/api/lighting/animation', { palette: next }); rerender(); };
-    const row = UI().el('div', 'lighting-palette-row');
-    pal.forEach((hex, i) => {
-      const cell = UI().el('span', 'lighting-palette-cell');
-      cell.appendChild(UI().hexColorControl(hex, (v) => {
-        pal[i] = v;
-        UI().post('/api/lighting/animation', { palette: pal.slice() });
-      }));
-      if (pal.length > 2) {
-        const rm = UI().button('settings-btn lighting-remove', '', '✕', () => push(pal.filter((_, j) => j !== i)));
-        rm.setAttribute('data-i18n-title', 'lighting_palette_remove');
-        cell.appendChild(rm);
-      }
-      row.appendChild(cell);
-    });
-    if (pal.length < 5) {
-      row.appendChild(UI().button('settings-btn', 'lighting_palette_add', 'Aggiungi colore',
-        () => push(pal.concat(pal[pal.length - 1]))));
-    }
-    return UI().labeledRow('lighting_palette_colors', row);
+    const look = status.animation || { style: 'none' };
+    return [UI().effectCards({
+      look, cannot: status.cannot, chain: true, lead: [['none', 'lighting_anim_none', 'Nessuna']],
+      onPick: async (style) => { await UI().post('/api/lighting/animation', { style }); rerender(); },
+      onChange: async (patch, redraw) => { await UI().post('/api/lighting/animation', patch); if (redraw) rerender(); },
+    })];
   }
 
   function reactionsPanel(rerender, status) {
     const box = panel();
+    pumpLeads(box, status, 'lighting_pump_all_reactions', 'Ora le luci che seguono Xenon prendono i colori dello schermo della pompa, al posto di copertina e temperatura. Gli avvisi lampeggiano lo stesso.');
     const eff = status.effects || {};
     const auto = UI().card();
     auto.body.append(

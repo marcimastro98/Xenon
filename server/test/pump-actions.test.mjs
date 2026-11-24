@@ -18,35 +18,54 @@ const { createPumpActions } = require('../pump-screen/actions.js');
 const Edit = require('../pump-screen/edit.js');
 const Groups = require('../ai/ai-tool-groups.js');
 
-function rig(t) {
+function rig(t, direct = null) {
   const dir = mkdtempSync(join(tmpdir(), 'xenon-pump-actions-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const store = createPumpStore({ dataDir: dir });
   let now = 1_000_000;
   const live = createPumpLive({ store, broadcast: () => {}, clock: () => now });
-  const pump = createPumpActions({ store, live, change: createChange({ store, live }) });
-  const caps = createCapabilities({ pump });
+  const pump = createPumpActions({ store, live, change: createChange({ store, live }), direct });
+  const caps = createCapabilities({ pump, pumpDirect: !!direct });
   const run = (action) => caps.run(validateAction(action));
   const hello = (id) => store.remember((m) => Edit.noteSeen(m, id, { via: 'icue', shape: 'round', w: 480, h: 480 }));
   const showing = (id) => live.decide()[id];
   return { store, live, run, hello, showing, tick: (ms) => { now += ms; } };
 }
 
-test('Bit is offered the pump tools in their own group: four on every OS, the iCUE one on Windows', () => {
-  const names = aiFunctions({ pumpScreen: true, pumpIcue: false }).map((f) => f.name);
-  const pump = ['get_pump_screen', 'show_on_pump', 'set_pump_setup', 'set_pump_screen'];
+test('Bit is offered the pump tools in their own group: five on every OS, the iCUE one on Windows', () => {
+  const names = aiFunctions({ pumpScreen: true, pumpIcue: false, pumpDirect: false }).map((f) => f.name);
+  const pump = ['get_pump_screen', 'show_on_pump', 'set_pump_setup', 'set_pump_style', 'set_pump_screen'];
   for (const n of pump) assert.ok(names.includes(n), n);
   assert.equal(names.includes('add_pump_to_icue'), false, 'no iCUE off Windows');
   assert.ok(aiFunctions({ pumpScreen: true, pumpIcue: true }).some((f) => f.name === 'add_pump_to_icue'));
   // In the group too, so the core stays under the cap (ai-tool-groups.test.mjs).
   // The file choice is a chat action (core-tools-dashboard.js), in the same group.
-  assert.deepEqual([...Groups.GROUPS.pump_screen.tools].sort(), [...pump, 'add_pump_to_icue', 'choose_pump_picture'].sort());
+  assert.equal(names.includes('set_pump_direct'), false, 'not where Xenon cannot draw on the pump itself');
+  assert.ok(aiFunctions({ pumpScreen: true, pumpDirect: true }).some((f) => f.name === 'set_pump_direct'));
+  assert.deepEqual([...Groups.GROUPS.pump_screen.tools].sort(), [...pump, 'set_pump_direct', 'add_pump_to_icue', 'choose_pump_picture'].sort());
   assert.equal(createCapabilities({}).probes().pumpScreen, true);
+});
+
+test('Xenon drawing on the pump itself turns on and off from a Deck key or Bit, and "on" tries again at once', async (t) => {
+  const tries = [];
+  const r = rig(t, { state: () => ({ state: 'busy', app: 'iCUE' }), refresh: () => tries.push('refresh') });
+  assert.deepEqual(await r.run({ type: 'pumpDirect', on: 'off' }), { ok: true, direct: { state: 'busy', app: 'iCUE' } });
+  assert.equal(r.store.peek().direct, false);
+  assert.deepEqual(await r.run({ type: 'pumpGet' }), { ok: true, screens: [], widgets: [], direct: { state: 'busy', app: 'iCUE' } });
+  await r.run({ type: 'pumpDirect', on: 'on' });
+  assert.equal(r.store.peek().direct, true);
+  await r.run({ type: 'pumpDirect', on: 'on' });
+  assert.deepEqual(tries, ['refresh', 'refresh', 'refresh'], 'every ask looks again, even with nothing to change');
+  // A value it does not know becomes the first choice, which is also the default.
+  assert.deepEqual(validateAction({ type: 'pumpDirect', on: 'maybe' }), { type: 'pumpDirect', on: 'on' });
+  const none = rig(t);
+  assert.deepEqual(await none.run({ type: 'pumpDirect', on: 'on' }), { ok: false, error: 'unavailable' });
+  assert.equal(aiAction('set_pump_direct', { on: 'off' }).type, 'pumpDirect');
 });
 
 test('no pump yet: the list is empty and a face has no screen to go to', async (t) => {
   const r = rig(t);
-  assert.deepEqual(await r.run({ type: 'pumpGet' }), { ok: true, screens: [], widgets: [] });
+  assert.deepEqual(await r.run({ type: 'pumpGet' }), { ok: true, screens: [], widgets: [], direct: null });
   assert.deepEqual(await r.run({ type: 'pumpFace', face: 'clock' }), { ok: false, error: 'unknown_screen', choices: [] });
 });
 
@@ -136,13 +155,13 @@ test('what Bit reads: each screen with its settings, how it was seen, and what i
 
 test('a pump can show the installed Store widgets made for one, approved, with Store widgets on', () => {
   const { pumpWidgets } = require('../pump-screen/widgets.js');
-  const pkg = (id, pump, name = id) => ({ id, name, pump });
-  const packages = [pkg('neon-clock', ['round'], 'Neon Clock'), pkg('cpu-ring', ['round', 'square']), pkg('desk-notes', []), pkg('paused-one', ['round']), pkg('new-one', ['wide'])];
+  const pkg = (id, pump, name = id, pumpStyle = false) => ({ id, name, pump, pumpStyle });
+  const packages = [pkg('neon-clock', ['round'], 'Neon Clock'), pkg('cpu-ring', ['round', 'square'], 'cpu-ring', true), pkg('desk-notes', []), pkg('paused-one', ['round']), pkg('new-one', ['wide'])];
   const settings = { sdkWidgets: { enabled: true, grants: { 'neon-clock': {}, 'cpu-ring': {}, 'desk-notes': {}, 'paused-one': {} }, suspended: ['paused-one'] } };
   assert.deepEqual(pumpWidgets(packages, settings), [
-    { id: 'neon-clock', name: 'Neon Clock', shapes: ['round'] },
-    { id: 'cpu-ring', name: 'cpu-ring', shapes: ['round', 'square'] },
-  ], 'made for a pump, approved and not paused');
+    { id: 'neon-clock', name: 'Neon Clock', shapes: ['round'], style: false },
+    { id: 'cpu-ring', name: 'cpu-ring', shapes: ['round', 'square'], style: true },
+  ], 'made for a pump, approved and not paused; the second draws every line as a style');
   assert.deepEqual(pumpWidgets(packages, { ...settings, sdkWidgets: { ...settings.sdkWidgets, enabled: false } }), [], 'Store widgets off');
   assert.deepEqual(pumpWidgets(packages, { ...settings, safeMode: true }), [], 'safe mode');
   assert.deepEqual(pumpWidgets(packages, null), []);

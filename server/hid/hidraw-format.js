@@ -10,6 +10,10 @@ const ITEM_PUSH = 0xA4;
 const ITEM_POP = 0xB4;
 const ITEM_COLLECTION = 0xA0;
 const ITEM_END_COLLECTION = 0xC0;
+const ITEM_INPUT = 0x80;
+const ITEM_OUTPUT = 0x90;
+// The global items that size a report: Report Size (bits per field), Report ID, Report Count.
+const GLOBAL_FIELDS = new Map([[0x74, 'size'], [0x84, 'id'], [0x94, 'count']]);
 const LONG_ITEM = 0xFE;
 const ITEM_DATA_BYTES = [0, 1, 2, 4];
 
@@ -37,15 +41,18 @@ function itemValue(bytes, start, size) {
   return value;
 }
 
-// (usage page, usage) of each top-level collection of a report descriptor: what
-// Windows reports per HID interface. A malformed tail ends the walk, it never throws.
+// (usage page, usage) of each top-level collection of a report descriptor, with its longest
+// input and output report in bytes, the report id byte included even where the device uses
+// none: what Windows reports per HID interface (InputReportByteLength, OutputReportByteLength),
+// 0 when the collection has no report of that kind. A malformed tail ends the walk, never throws.
 function topCollections(descriptor) {
   const out = [];
   const saved = [];
-  let page = 0;
+  let g = { page: 0, size: 0, count: 0, id: 0 };
   let usage = null;
   let usagePage = null;      // a 4-byte usage names its own page
   let depth = 0;
+  let top = null;            // the open top-level collection's bits per report id
   for (let i = 0; i < descriptor.length;) {
     const prefix = descriptor[i];
     if (prefix === LONG_ITEM) { i += 3 + (descriptor[i + 1] || 0); continue; }
@@ -53,21 +60,31 @@ function topCollections(descriptor) {
     if (i + 1 + size > descriptor.length) break;
     const value = itemValue(descriptor, i + 1, size);
     const item = prefix & ITEM_MASK;
-    if (item === ITEM_USAGE_PAGE) page = value;
-    else if (item === ITEM_PUSH) saved.push(page);
-    else if (item === ITEM_POP && saved.length) page = saved.pop();
+    if (item === ITEM_USAGE_PAGE) g.page = value;
+    else if (GLOBAL_FIELDS.has(item)) g[GLOBAL_FIELDS.get(item)] = value;
+    else if (item === ITEM_PUSH) saved.push({ ...g });
+    else if (item === ITEM_POP && saved.length) g = saved.pop();
     else if (item === ITEM_USAGE) {
       usage = value & 0xFFFF;
       usagePage = size === 4 ? Math.floor(value / 0x10000) : null;
+    } else if (item === ITEM_INPUT || item === ITEM_OUTPUT) {
+      if (top) addBits(item === ITEM_INPUT ? top.input : top.output, g);
     } else if (item === ITEM_COLLECTION) {
-      if (depth === 0 && usage !== null) out.push({ usagePage: usagePage === null ? page : usagePage, usage });
+      if (depth === 0) top = usage === null ? null : { usagePage: usagePage === null ? g.page : usagePage, usage, input: new Map(), output: new Map() };
+      if (depth === 0 && top) out.push(top);
       depth++;
     } else if (item === ITEM_END_COLLECTION) depth = Math.max(0, depth - 1);
     if ((prefix & ITEM_TYPE_BITS) === 0) { usage = null; usagePage = null; }
     i += 1 + size;
   }
-  return out;
+  return out.map((c) => ({ usagePage: c.usagePage, usage: c.usage, inputLength: reportBytes(c.input), outputLength: reportBytes(c.output) }));
 }
+
+function addBits(byId, g) {
+  byId.set(g.id, (byId.get(g.id) || 0) + g.size * g.count);
+}
+
+const reportBytes = (byId) => (byId.size ? Math.ceil(Math.max(...byId.values()) / 8) + 1 : 0);
 
 // _IOC(_IOC_READ|_IOC_WRITE, 'H', nr, len) in the layout of x86 and ARM, the only
 // ones Xenon ships on. Arithmetic, not shifts: the top bits overflow a signed 32-bit.

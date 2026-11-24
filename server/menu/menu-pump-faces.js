@@ -57,10 +57,12 @@ function faceCards(st, picked, apply) {
 }
 
 // What the face on a line shows, said under its name: its readings, its style, its picture.
-function detailOf(show, st) {
+// `gauged`: the screen draws it as Strumento, which shows two readings and is its style; `by`:
+// the name of the Store widget that draws it as the screen's style.
+function detailOf(show, st, gauged, by = null) {
   if (widgetOff(show, st)) return k('xmenu_pump_widget_off');
-  if (Array.isArray(show.readings)) return show.readings.slice(0, show.face === 'game' ? GAME_READINGS : Faces.MAX_READINGS).map(readingLabel);
-  const style = STYLES[show.face]?.includes(show.style) ? k('xmenu_pump_style_' + show.style) : null;
+  if (Array.isArray(show.readings)) return show.readings.slice(0, gauged ? 2 : show.face === 'game' ? GAME_READINGS : Faces.MAX_READINGS).map(readingLabel);
+  const style = gauged ? k('xmenu_pump_drawn_gauge') : by || (STYLES[show.face]?.includes(show.style) ? k('xmenu_pump_style_' + show.style) : null);
   if (show.face === 'clock') return [style, ...CLOCK_PARTS.filter((p) => show[p] === true).map((p) => k('xmenu_pump_clock_' + p))].filter(Boolean);
   if (style) return style;
   if (show.face === 'picture') {
@@ -102,9 +104,13 @@ function artRow(key, show, apply) {
 }
 
 // What a face lets the person choose beyond its name. `apply(patch)` → the action that saves it.
-function faceRows(key, show, apply) {
+// Drawn as Strumento (`gauged`) or by the screen's widget style (`by`), the face's own style shows
+// nowhere: a line says where it is chosen.
+function faceRows(key, show, apply, gauged, by = null) {
   const rows = [];
-  if (STYLES[show.face]) rows.push(choiceRow(key + '-style', k('xmenu_pump_style'), show.style, STYLES[show.face].map((s) => [s, k('xmenu_pump_style_' + s)]), (s) => apply({ style: s })));
+  if (gauged) rows.push({ kind: 'pumpnote', id: key + '-drawn', label: k(Array.isArray(show.readings) ? 'xmenu_pump_drawn_note_readings' : 'xmenu_pump_drawn_note') });
+  else if (by) rows.push({ kind: 'pumpnote', id: key + '-drawn', label: k('xmenu_pump_drawn_note_widget') });
+  else if (STYLES[show.face]) rows.push(choiceRow(key + '-style', k('xmenu_pump_style'), show.style, STYLES[show.face].map((s) => [s, k('xmenu_pump_style_' + s)]), (s) => apply({ style: s })));
   if (Array.isArray(show.readings)) rows.push(readingsRow(key, show, apply));
   if (show.face === 'clock') rows.push(clockRow(key, show, apply));
   // Under Xenon's own pictures: or one of the person's (the file goes up first, in its place the mark).
@@ -121,19 +127,28 @@ function whenLabel(when) {
   return LayerWhen.PLAIN.includes(r.c) ? k('xmenu_pump_when_' + r.c) : k('xmenu_sit_' + r.c);
 }
 
+// The Store widget drawing this line as the screen's style, by name; or that it is gone.
+function drawnBy(v, show, st) {
+  const id = show.face !== Faces.WIDGET && Faces.drawnAs(v.style, show.face) === Faces.WIDGET ? Faces.styleWidget(v.style) : null;
+  if (!id) return null;
+  const w = widgetsOf(st).find((x) => x.id === id);
+  return w ? { text: w.name } : k('xmenu_pump_drawn_widget_gone');
+}
+
 /**
  * One line: its name, what it shows, and under it the faces, the face's choices, and a way to
  * take the line off (`remove`, none for the rest of the time).
- * `ring`: { sound } when the screen's ring of lights has colours of its own (each line moves it).
- * @param {{ id: string, label: any, show: any, v: any, st: any, save: (show: any) => any, remove?: any, ring?: { sound: boolean } | null }} o
+ * @param {{ id: string, label: any, show: any, v: any, st: any, save: (show: any) => any, remove?: any }} o
  */
-function momentRow({ id, label, show, v, st, save, remove, ring = null }) {
+function momentRow({ id, label, show, v, st, save, remove }) {
+  const gauged = Faces.drawnAs(v.style, show.face) === 'gauge';
+  const by = drawnBy(v, show, st);
   return {
-    kind: 'pumpmoment', id, label, sub: detailOf(show, st), value: showLabel(show, st), art: show.face, show,
+    kind: 'pumpmoment', id, label, sub: detailOf(show, st, gauged, by), value: showLabel(show, st), art: gauged ? 'gauge' : show.face, show,
     // Another face keeps the line's look: its colours, background and the rest.
     faces: faceCards(st, pickOf(show), (f) => save({ ...showOf(v, f), ...Faces.lookOf(show) })),
     facesLabel: k('xmenu_pump_faces'), yours: k('xmenu_pump_yours'), own: OWN_FACE,
-    rows: [...faceRows(id, show, (p) => save({ ...show, ...p })), ...lookRows(id, show, st.pump?.accent, (p) => save({ ...show, ...p }), ring)],
+    rows: [...faceRows(id, show, (p) => save({ ...show, ...p }), gauged, by), ...lookRows(id, show, st.pump?.accent, (p) => save({ ...show, ...p }))],
     remove: remove ? { label: k('xmenu_pump_m_remove'), act: run(remove) } : null,
   };
 }

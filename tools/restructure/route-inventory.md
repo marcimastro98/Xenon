@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-551 routes.
-- Asked by: 1 before the chain, 56 chain, 24 feature, 4 socket, 466 table.
-- Paired device: 34 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 410 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 358 (none), 184 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+552 routes.
+- Asked by: 1 before the chain, 56 chain, 25 feature, 4 socket, 466 table.
+- Paired device: 34 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 411 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 358 (none), 185 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -171,6 +171,7 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | GET | `/api/lighting/devices` | table | server/lights/routes.js | yes |  |  |  |
 | POST | `/api/lighting/effects` | table | server/lights/routes-control.js | yes |  |  |  |
 | POST | `/api/lighting/event` | table | server/lights/routes.js | yes |  |  |  |
+| POST | `/api/lighting/icue-import` | feature | server/lights/routes-icue-import.js | yes | CSRF_MUTATION_PATHS |  |  |
 | POST | `/api/lighting/manual` | table | server/lights/routes-control.js | yes |  |  |  |
 | POST | `/api/lighting/native` | table | server/lights/routes-control.js | yes |  |  |  |
 | POST | `/api/lighting/native/layout` | table | server/lights/routes-control.js | yes |  |  |  |

@@ -1,7 +1,8 @@
 'use strict';
 // The Store widgets a pump screen can show as its face: installed, made for a pump
 // (manifest `pump`, widget-sdk/manifest-normalize.js) and approved, with Store widgets on.
-// The menu offers them as faces and Bit reads them in get_pump_screen. The face page
+// The menu offers them as faces, and as the screen's style those that draw every line
+// (manifest pumpStyle, `style`); Bit reads them in get_pump_screen. The face page
 // checks the same again before it runs one (js/pump/pump-widget-host.js).
 
 const MAX_WIDGETS = 24;
@@ -16,7 +17,7 @@ function pumpWidgets(packages, settings) {
   return (Array.isArray(packages) ? packages : [])
     .filter((p) => p && Array.isArray(p.pump) && p.pump.length && grants[p.id] && !paused.has(p.id))
     .slice(0, MAX_WIDGETS)
-    .map((p) => ({ id: p.id, name: String(p.name || p.id).slice(0, NAME_MAX), shapes: [...p.pump] }));
+    .map((p) => ({ id: p.id, name: String(p.name || p.id).slice(0, NAME_MAX), shapes: [...p.pump], style: p.pumpStyle === true }));
 }
 
 // The list on this PC: the engine's last scan (refreshed on every install, update and

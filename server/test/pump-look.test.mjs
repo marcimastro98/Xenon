@@ -5,13 +5,14 @@
 // draws it (js/pump/face-look.js) and a Store widget on the pump gets it (placement.look).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const require = createRequire(import.meta.url);
 const Faces = require('../js/pump/pump-faces.js');
+const Fx = require('../js/light-fx/light-fx.js');
 const { lookRows, COLOR_MARK, TEXT_MARK, FILE_MARK } = require('../menu/menu-pump-face-look.js');
 const { momentRow } = require('../menu/menu-pump-faces.js');
 const PumpRows = require('../js/menu/xenon-menu-pump-rows.js');
@@ -21,7 +22,9 @@ const sensors = (over = {}) => Faces.normalizeFace({ face: 'sensors', style: 'ri
 
 test('a face keeps only the look that differs from the default, so old faces stay as they were', () => {
   assert.deepEqual(sensors(), { face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpu'] });
-  assert.deepEqual(sensors({ colors: 'xenon', bg: 'black', size: 'normal', units: 'auto', warn: true, text: '' }), sensors());
+  assert.deepEqual(sensors({ colors: 'live', bg: 'black', size: 'normal', units: 'auto', warn: true, text: '' }), sensors());
+  assert.equal(Faces.colorSetOf(sensors()), 'live', 'with nothing said, the colours follow the line');
+  assert.equal(sensors({ colors: 'xenon' }).colors, 'xenon', "Xenon's fixed colours stay a choice of their own");
   const own = sensors({ colors: '#FF0044', bg: 'art:tide', size: 'big', units: 'f', warn: false, text: 'Studio' });
   assert.deepEqual(Faces.lookOf(own), { colors: '#ff0044', bg: 'art:tide', size: 'big', units: 'f', warn: false, text: 'Studio' });
 });
@@ -45,7 +48,7 @@ test('the words are one plain line of at most 24 characters', () => {
 test('another face on a line keeps its look; a widget takes the colours, size and unit only', () => {
   const look = sensors({ colors: 'fire', bg: 'glow', size: 'big', units: 'f', text: 'Hi' });
   assert.deepEqual(Faces.mergeFace(look, { face: 'clock' }), { ...Faces.normalizeFace({ face: 'clock' }), colors: 'fire', bg: 'glow', size: 'big', units: 'f', text: 'Hi' });
-  assert.deepEqual(Faces.mergeFace(look, { colors: 'xenon' }).colors, undefined, 'back to the default is no field at all');
+  assert.deepEqual(Faces.mergeFace(look, { colors: 'live' }).colors, undefined, 'back to the default is no field at all');
   assert.deepEqual(Faces.normalizeFace({ face: 'widget', id: 'neon-clock', colors: 'ice', bg: 'glow', size: 'big', units: 'c', text: 'x' }),
     { face: 'widget', id: 'neon-clock', colors: 'ice', size: 'big', units: 'c' });
   assert.equal(Faces.normalizeFace({ face: 'widget', id: 'neon-clock', colors: 'picture' }).colors, undefined, 'a widget is never read for colours');
@@ -62,6 +65,31 @@ test('a colour set is four colours; the theme and a colour of one\'s own are sha
   assert.equal(Faces.colorsOf('picture'), null, 'read off the face while it shows');
 });
 
+test('four colours of one\'s own: main, second, too hot and behind, each where it belongs', () => {
+  const own = sensors({ colors: ['#FF0044', '#ffd166', '#ff3b30', '#0a0a12'] });
+  assert.deepEqual(own.colors, ['#ff0044', '#ffd166', '#ff3b30', '#0a0a12'], 'kept, in small letters');
+  const shown = Faces.colorsOf(own.colors);
+  assert.deepEqual(shown.slice(0, 2), ['#ff0044', '#ffd166'], 'the first two lead the readings');
+  assert.ok(shown.every((c) => /^#[0-9a-f]{6}$/.test(c)) && new Set(shown).size === 4);
+  const edges = Faces.edgesOf(own.colors);
+  assert.equal(edges.warn, '#ff3b30');
+  assert.equal(edges.background, '#0a0a12');
+  assert.match(edges.warm, /^#[0-9a-f]{6}$/);
+  assert.notEqual(edges.warm, '#ff3b30', 'warm is a lighter one of too hot');
+  assert.deepEqual(Faces.edgesOf('fire'), { warn: '#ff5a5f', warm: '#ffa657', background: '#000000' }, 'a set of Xenon\'s keeps the page\'s');
+  for (const bad of [['#ff0044', '#ffd166', '#ff3b30'], ['#ff0044', '#ffd166', '#ff3b30', 'red'], ['#ff0044', '#ffd166', '#ff3b30', '#000000', '#ffffff'], [1, 2, 3, 4]]) {
+    assert.equal(sensors({ colors: bad }).colors, undefined, JSON.stringify(bad));
+  }
+  assert.deepEqual(Faces.ownOf('xenon'), ['#6ee787', '#8ab4f8', '#ff5a5f', '#000000'], 'made one\'s own, the line starts from what it shows');
+  assert.deepEqual(Faces.ownOf('#ff0044').slice(2), ['#ff5a5f', '#000000'], 'and so does the one colour saved before');
+  assert.deepEqual(Faces.ownOf('picture'), ['#6ee787', '#8ab4f8', '#ff5a5f', '#000000']);
+  assert.equal(Faces.isLight('#f5f5f5'), true);
+  assert.equal(Faces.isLight('#0a0a12'), false);
+  assert.equal(Faces.isLight('#ffd166'), true, 'a bright yellow takes dark words');
+  assert.equal(Faces.isLight('#3366ff'), false);
+  assert.equal(Faces.isLight('nope'), false);
+});
+
 const ids = (rows) => rows.map((r) => r.id.replace(/^k-/, ''));
 
 test('the menu offers only what changes something on that face', () => {
@@ -76,6 +104,14 @@ test('the menu offers only what changes something on that face', () => {
   assert.ok(colours(sensors({ bg: 'art:ember' })).includes('picture'));
   assert.ok(colours(Faces.normalizeFace({ face: 'music' })).includes('picture'));
   assert.ok(!colours(Faces.normalizeFace({ face: 'widget', id: 'neon-clock' })).includes('picture'));
+  assert.equal(colours(sensors()).at(-1), 'own', 'yours comes last');
+  const own = sensors({ colors: ['#ff0044', '#ffd166', '#ff3b30', '#0a0a12'] });
+  assert.deepEqual(ids(lookRows('k', own, '', apply)).slice(0, 3), ['look', 'colors', 'own'], 'with colours of one\'s own, their pickers come right under');
+  assert.deepEqual(ids(lookRows('k', Faces.normalizeFace({ face: 'widget', id: 'neon-clock', colors: own.colors }), '', apply)), ['look', 'colors', 'own', 'size', 'units'], 'a widget gets them too');
+  assert.ok(ids(lookRows('k', sensors({ colors: '#ff0044' }), '', apply)).includes('own'), 'the one colour saved before counts as one\'s own');
+  const black = (show) => lookRows('k', show, '', apply).find((r) => r.id === 'k-bg').options.find((o) => o.value === 'black').label.key;
+  assert.equal(black(own), 'xmenu_pump_bg_plain', 'with a colour of one\'s own behind, black is that colour, plain');
+  assert.equal(black(sensors()), 'xmenu_pump_bg_black');
 });
 
 test('each choice saves the line with that one field changed; what the person types goes where its mark is', () => {
@@ -87,8 +123,16 @@ test('each choice saves the line with that one field changed; what the person ty
   assert.equal(colours.options.find((o) => o.value === 'ice').act, null, 'the set in use does nothing');
   assert.equal(patch(colours.options.find((o) => o.value === 'fire').act).colors, 'fire');
   assert.equal(colours.options.find((o) => o.value === 'theme').swatch[0], '#3366ff', 'the theme swatch wears the theme\'s colour');
-  assert.equal(patch(colours.own.act).colors, COLOR_MARK);
-  assert.equal(patch(PumpRows.withMark(colours.own.act, colours.mark, '#00aaff')).colors, '#00aaff');
+  const yours = colours.options.find((o) => o.value === 'own');
+  assert.deepEqual(patch(yours.act).colors, [...Faces.COLOR_HEX.ice.slice(0, 2), '#ff5a5f', '#000000'], 'yours starts from what shows now');
+  assert.equal(rows.some((r) => r.id === 'k-own'), false, 'no pickers until the colours are one\'s own');
+  const mine = sensors({ colors: ['#ff0044', '#ffd166', '#ff3b30', '#0a0a12'] });
+  const mineRows = lookRows('k', mine, '', (p) => save({ ...mine, ...p }));
+  assert.equal(mineRows.find((r) => r.id === 'k-colors').options.find((o) => o.value === 'own').act, null, 'yours in use does nothing');
+  const slots = mineRows.find((r) => r.id === 'k-own');
+  assert.deepEqual(slots.slots.map((x) => x.value), mine.colors);
+  assert.deepEqual(patch(slots.slots[2].act).colors, ['#ff0044', '#ffd166', COLOR_MARK, '#0a0a12'], 'each picker changes its own colour only');
+  assert.deepEqual(patch(PumpRows.withMark(slots.slots[3].act, slots.mark, '#f5f5f5')).colors, ['#ff0044', '#ffd166', '#ff3b30', '#f5f5f5']);
   const text = rows.find((r) => r.id === 'k-text');
   assert.equal(patch(PumpRows.withMark(text.act, TEXT_MARK, 'Say "hi"')).text, 'Say "hi"', 'quotes stay words, never JSON');
   assert.equal(patch(rows.find((r) => r.id === 'k-bgown').act).bg, FILE_MARK);
@@ -124,22 +168,22 @@ function openLine(r, show, accent = '') {
   return r.document.body.children[0];
 }
 
-test('in the menu the colours are keys with their swatch, the own colour a picker, the words a field', () => {
+test('in the menu the colours are keys with their swatch, one\'s own four pickers, the words a field', () => {
   const r = rig();
-  const line = openLine(r, sensors({ colors: '#ff0044' }), '#3366ff');
+  const line = openLine(r, sensors({ colors: ['#ff0044', '#ffd166', '#ff3b30', '#0a0a12'] }), '#3366ff');
   const keys = line.querySelectorAll('[data-row="line-colors"] .xm-choice');
   assert.ok(keys.length >= 7);
   const xenon = line.querySelector('[data-keep="line-colors:xenon"]');
   assert.equal(xenon.getAttribute('aria-pressed'), 'false');
   assert.equal(xenon.querySelector('.xm-pumpswatch').style._props['--sw1'], '#6ee787');
-  const own = line.querySelector('.xm-pumpswatch-own');
-  assert.ok(own.classList.contains('is-on'), 'a colour of one\'s own lights its key');
-  const picker = own.querySelector('input');
-  assert.equal(picker.type, 'color');
-  assert.equal(picker.value, '#ff0044');
-  picker.value = '#00aaff';
-  picker._handlers.change[0]();
-  assert.equal(JSON.parse(r.ran.at(-1).run.patch).base.colors, '#00aaff');
+  assert.equal(line.querySelector('[data-keep="line-colors:own"]').getAttribute('aria-pressed'), 'true', 'yours lights its key');
+  const pickers = line.querySelectorAll('[data-row="line-own"] .xm-pumpswatch-own input');
+  assert.equal(pickers.length, 4);
+  assert.ok([...pickers].every((p) => p.type === 'color'));
+  assert.deepEqual([...pickers].map((p) => p.value), ['#ff0044', '#ffd166', '#ff3b30', '#0a0a12']);
+  pickers[1].value = '#00aaff';
+  pickers[1]._handlers.change[0]();
+  assert.deepEqual(JSON.parse(r.ran.at(-1).run.patch).base.colors, ['#ff0044', '#00aaff', '#ff3b30', '#0a0a12']);
   xenon.click();
   assert.equal(JSON.parse(r.ran.at(-1).run.patch).base.colors, 'xenon');
 
@@ -193,13 +237,24 @@ test('the face page draws the look: colours on the layer, classes for size, warm
   p.apply(fromPic, Faces.normalizeFace({ face: 'music', colors: 'picture' })).fromPicture(['#112233', '#445566']);
   assert.equal(fromPic.style._props['--pf-c1'], '#112233');
   assert.equal(fromPic.style._props['--pf-c2'], '#445566');
+
+  const mine = p.document.createElement('div');
+  p.apply(mine, sensors({ colors: ['#ff0044', '#ffd166', '#ff3b30', '#f5f5f5'] }));
+  assert.equal(mine.style._props['--pf-c2'], '#ffd166');
+  assert.equal(mine.style._props['--pf-hot'], '#ff3b30', 'too hot is the person\'s');
+  assert.equal(mine.style._props['--pf-bg'], '#f5f5f5');
+  assert.ok(mine.classList.contains('pf-light'), 'a light colour behind takes dark words');
+  assert.equal(plain.style._props['--pf-bg'], '#000000');
+  assert.equal(plain.classList.contains('pf-light'), false);
 });
 
 test('the page loads the part before the face, and the sheet has a rule for every class it sets', () => {
   const html = read('../pump-face.html');
   assert.ok(html.indexOf('js/pump/face-look.js') > 0 && html.indexOf('js/pump/face-look.js') < html.indexOf('js/pump/pump-face.js'));
   const css = read('../components/PumpFace/PumpFace.css');
-  for (const cls of ['pf-big', 'pf-nowarn', 'pf-bg-glow', 'pf-bg-pic', 'pf-has-bg', 'pf-own-text']) assert.match(css, new RegExp('\\.' + cls + '\\b'), cls);
+  for (const cls of ['pf-big', 'pf-nowarn', 'pf-bg-glow', 'pf-bg-pic', 'pf-has-bg', 'pf-own-text', 'pf-light']) assert.match(css, new RegExp('\\.' + cls + '\\b'), cls);
+  assert.match(css, /\.pf-face \{[^}]*background-color: var\(--pf-bg/, 'the colour behind is drawn');
+  assert.doesNotMatch(css, /\.pf-bg-glow \{\s*background:/, 'the glow sits over that colour, not in place of it');
 });
 
 test('a Store widget on the pump gets its line\'s look in its placement, checked as any query', () => {
@@ -212,13 +267,18 @@ test('a Store widget on the pump gets its line\'s look in its placement, checked
   const end = host.indexOf('  });\n', host.indexOf('window.pumpPlacement')) + 6;
   const lines = `const SHAPES = ['round', 'square', 'wide'];\n${host.slice(at, end).replace(/^ {2}const (host|widgets|id) = .*$/gm, '')}`;
   const placed = (search) => {
-    const window = {};
+    const window = { PumpFaces: Faces };
     vm.runInNewContext(lines, { window, document: makeDom().document, location: { search }, URLSearchParams });
     return JSON.parse(JSON.stringify(window.pumpPlacement));
   };
-  assert.deepEqual(placed('?id=neon-clock&shape=square&colors=%23FF0044,%23aabbcc,%23000000,%23ffffff&size=big&units=f'),
-    { shape: 'square', look: { colors: ['#ff0044', '#aabbcc', '#000000', '#ffffff'], size: 'big', units: 'f' } });
-  assert.deepEqual(placed('?id=x&colors=red,blue&size=huge&units=k').look, { colors: Faces.colorsOf('xenon'), size: 'normal' }, 'no unit chosen: the widget keeps the one from init');
+  assert.deepEqual(placed('?id=neon-clock&shape=square&colors=%23FF0044,%23aabbcc,%23000000,%23ffffff&warn=%23FF3B30&background=%230a0a12&size=big&units=f'),
+    { shape: 'square', look: { colors: ['#ff0044', '#aabbcc', '#000000', '#ffffff'], warn: '#ff3b30', background: '#0a0a12', size: 'big', units: 'f' } });
+  assert.deepEqual(placed('?id=x&colors=red,blue&warn=red&background=url(x)&size=huge&units=k').look,
+    { colors: Faces.colorsOf('xenon'), warn: '#ff5a5f', background: '#000000', size: 'normal' }, 'no unit chosen: the widget keeps the one from init');
+  // Live colours: the widget is told the way they go, from a calm reading to a hot one.
+  assert.match(read('../js/pump/face-widget.js'), /\.\.\.\(Faces\.colorSetOf\(show\) === 'live' \? \{ live: '1' \} : \{\}\)/);
+  assert.deepEqual(placed('?id=x&live=1').look.live, [...Faces.LIVE_RAMP]);
+  assert.equal(placed('?id=x&live=yes').look.live, undefined, 'anything else: no live colours');
 });
 
 test('Bit\'s patch: a line takes a look, and the same moment asked again keeps the one it had', () => {
@@ -232,7 +292,7 @@ test('Bit\'s patch: a line takes a look, and the same moment asked again keeps t
   assert.deepEqual([moment().colors, moment().size], ['fire', 'big']);
   m = Edit.patchScreen(m, 'pump', { addMoment: { ...game, show: { face: 'game', readings: ['fps'] } } }).model;
   assert.deepEqual([moment().colors, moment().size, moment().readings], ['fire', 'big', ['fps']]);
-  m = Edit.patchScreen(m, 'pump', { addMoment: { ...game, show: { face: 'game', colors: 'xenon' } } }).model;
+  m = Edit.patchScreen(m, 'pump', { addMoment: { ...game, show: { face: 'game', colors: 'live' } } }).model;
   assert.equal(moment().colors, undefined, 'named back to the default, it goes');
 });
 
@@ -246,21 +306,32 @@ test('Bit is told every look field, with the values the model accepts', () => {
   assert.ok(said.includes(String(Faces.TEXT_MAX)));
 });
 
-test('each line moves the ring of lights its own way, where the ring has colours of its own', () => {
+test('each line moves the ring of lights its own way, in Lights, never under its look', () => {
   const apply = (p) => ({ type: 'pumpSet', patch: JSON.stringify(p) });
-  assert.equal(ids(lookRows('k', sensors(), '', apply)).includes('leds'), false, 'no ring of its own: no row');
-  const withRing = lookRows('k', sensors({ leds: 'spin' }), '', apply, { sound: true });
-  assert.deepEqual(ids(withRing).slice(0, 3), ['look', 'colors', 'leds'], 'right under the colours it uses');
-  const row = withRing.find((r) => r.id === 'k-leds');
-  assert.deepEqual(row.options.map((o) => o.value), [...Faces.LED_EFFECTS]);
-  assert.equal(row.options.find((o) => o.on).value, 'spin');
-  assert.equal(row.options.find((o) => o.value === 'spin').act, null, 'the one in use does nothing');
-  assert.deepEqual(JSON.parse(row.options.find((o) => o.value === 'still').act.run.patch), { leds: 'still' });
-  const deaf = lookRows('k', sensors(), '', apply, { sound: false }).find((r) => r.id === 'k-leds');
-  assert.equal(deaf.options.some((o) => o.value === 'beat'), false, 'no sound reader here: no beat');
-  assert.equal(deaf.options.find((o) => o.on).value, 'auto');
-  assert.ok(ids(lookRows('k', Faces.normalizeFace({ face: 'widget', id: 'neon-clock' }), '', apply, { sound: true })).includes('leds'), 'a widget line moves it too');
+  assert.equal(ids(lookRows('k', sensors({ leds: 'spin' }), '', apply)).some((id) => id.startsWith('leds')), false, 'a line\'s look has no ring');
+  // The line's fold in the pump's Lights tab: every effect as a card, in its group.
+  const { pumpViews } = require('../menu/menu-pump.js');
+  const Model = require('../js/pump/pump-model.js');
+  const foldOf = (base, sound) => {
+    const screen = { screen: 'k', ...Model.screenFor({ screens: { k: { base } }, seen: {} }, 'k'), set: true, seen: null, now: null };
+    const leds = pumpViews({ probes: {}, pump: { icue: true, sound, detected: [], url: '', screens: [screen] } })[0].tabs.find((t) => t.id === 'leds');
+    return leds.rows.find((r) => r.id === 'pump-ring-base');
+  };
+  const cardsOf = (fold) => fold.rows.flatMap((r) => r.cards);
+  const withRing = foldOf(sensors({ leds: 'spin' }), true);
+  assert.deepEqual(withRing.rows.map((r) => r.id), ['pump-ring-base-fx', ...Fx.GROUPS.slice(1).map((g) => 'pump-ring-base-fx-' + g)]);
+  const cards = cardsOf(withRing);
+  assert.deepEqual(cards.map((c) => c.value), [...Faces.LED_EFFECTS], 'a line of readings can take them all');
+  assert.ok(cards.every((c) => c.art === 'fx-' + c.value), 'each card draws its own ring');
+  assert.equal(cards.find((c) => c.on).value, 'spin');
+  assert.equal(cards.find((c) => c.value === 'spin').act, null, 'the one in use does nothing');
+  assert.equal(JSON.parse(cards.find((c) => c.value === 'comet').act.run.patch).base.leds, 'comet');
+  const deaf = cardsOf(foldOf(sensors(), false));
+  assert.equal(deaf.some((c) => c.value === 'beat' || c.value === 'meter'), false, 'no sound reader here: nothing that follows it');
+  assert.equal(deaf.find((c) => c.on).value, 'auto');
+  assert.ok(foldOf(Faces.normalizeFace({ face: 'widget', id: 'neon-clock' }), true), 'a widget line moves it too');
   assert.equal(Faces.normalizeFace({ face: 'widget', id: 'neon-clock', leds: 'beat' }).leds, 'beat', 'and keeps it');
-  assert.equal(Faces.normalizeFace({ face: 'clock', leds: 'sparkle' }).leds, undefined, 'an effect it does not know: as usual');
+  assert.equal(Faces.normalizeFace({ face: 'clock', leds: 'confetti' }).leds, undefined, 'an effect it does not know: as usual');
+  assert.equal(Faces.normalizeFace({ face: 'clock', leds: 'aurora' }).leds, 'aurora');
   assert.equal(Faces.mergeFace(sensors({ leds: 'breathe' }), { face: 'clock' }).leds, 'breathe', 'another face keeps it');
 });

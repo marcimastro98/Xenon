@@ -11,7 +11,7 @@ const { bridge } = require('./bridge-state.js');
 const { isAvailable } = require('./sdk-dll.js');
 const { paint } = require('./paint-hook.js');
 const {
-  DYNAMIC_ANIM_STYLES, wantsPaint, active, shouldConnect, refreshAnimationLayer,
+  animationMoves, wantsPaint, active, shouldConnect, refreshAnimationLayer,
   anyDeviceAnimationDynamic,
 } = require('./paint-rules.js');
 const { releaseAll } = require('./sdk-write.js');
@@ -35,9 +35,8 @@ function reconcileConnection() {
 // animation (breathing/cycle) is actively painting somewhere — global OR a
 // per-device override. Idle cost is therefore zero. Idempotent.
 function syncAnimationTicker() {
-  const style = bridge.config.animation && bridge.config.animation.style;
   const deckDynamic = !!bridge.deckReaction && bridge.deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
-  const dynamic = DYNAMIC_ANIM_STYLES.includes(style) || anyDeviceAnimationDynamic() || deckDynamic || pumpRing.moving();
+  const dynamic = animationMoves() || anyDeviceAnimationDynamic() || deckDynamic || pumpRing.moving();
   const shouldRun = dynamic && active() && !keyLook.isOut();
   if (shouldRun && !bridge.animTimer) bridge.animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
   else if (!shouldRun && bridge.animTimer) { clearInterval(bridge.animTimer); bridge.animTimer = null; }

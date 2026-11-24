@@ -14,6 +14,8 @@ const {
   DEVICE_MODES, ANIM_STYLES, PER_DEVICE_ANIM_STYLES, sanitizePalette, GENERIC_DEFAULT_COLOR,
   CANDLE_DEFAULT_COLOR,
 } = require('./look-values.js');
+const { mergeExtras } = require('./look-fields.js');
+const LightFx = require('../js/light-fx/light-fx.js');
 const { paintDevices } = require('./sdk-write.js');
 const { connect } = require('./session.js');
 const { reconcileConnection } = require('./upkeep.js');
@@ -70,12 +72,29 @@ function setAnimation(patch) {
   if (typeof patch.color === 'string') { const c = fx.parseColorName(patch.color); if (c) cur.color = patch.color; }
   if (becameCandle && cur.color === GENERIC_DEFAULT_COLOR) cur.color = CANDLE_DEFAULT_COLOR;
   if (patch.speed != null && Number.isFinite(Number(patch.speed))) cur.speed = Math.max(1, Math.min(100, Number(patch.speed)));
-  if (patch.palette !== undefined) { const pal = sanitizePalette(patch.palette); if (pal) cur.palette = pal; }
+  colours(cur, patch);
+  mergeExtras(cur, patch, true);
   bridge.lastWrite.clear();
   refreshAnimationLayer();
   apply();
+  hearing();
   return true;
 }
+
+// An effect of the list takes the palette as its colours, a name saved before it the one colour:
+// a patch with a palette leads with its first colour too, and one colour alone, for an effect of
+// the list, is its whole palette (Bit's "make it red").
+function colours(cur, patch) {
+  const pal = patch.palette !== undefined ? sanitizePalette(patch.palette) : null;
+  if (pal) { cur.palette = pal; cur.color = pal[0]; return; }
+  if (typeof patch.color === 'string' && !Object.hasOwn(LightFx.OLD_LIGHTING, cur.style)) {
+    const c = fx.parseColorName(patch.color);
+    if (c) cur.palette = [fx.rgbToHex(c)];
+  }
+}
+
+// An effect that follows the sound reads it; one that stopped lets the reader go (read late: audio loads lights).
+const hearing = () => require('../audio/levels-wanted.js').refreshAudioLevelsWatch();
 
 // Set a per-device override (mode + optional colour/animation). 'follow' restores
 // the dashboard colour for that device. Validated; repaints immediately.
@@ -91,6 +110,8 @@ function setDeviceMode(id, patch) {
     if (typeof patch.anim.color === 'string') { const c = fx.parseColorName(patch.anim.color); if (c) cur.anim.color = patch.anim.color; }
     if (becameCandle && cur.anim.color === GENERIC_DEFAULT_COLOR) cur.anim.color = CANDLE_DEFAULT_COLOR;
     if (patch.anim.speed != null && Number.isFinite(Number(patch.anim.speed))) cur.anim.speed = Math.max(1, Math.min(100, Number(patch.anim.speed)));
+    colours(cur.anim, patch.anim);
+    mergeExtras(cur.anim, patch.anim);
   }
   if (patch.clearLeds === true) cur.leds = {};
   if (patch.leds !== undefined) {
@@ -102,6 +123,7 @@ function setDeviceMode(id, patch) {
   bridge.config.deviceModes[String(id).slice(0, 160)] = cur;
   bridge.lastWrite.clear();
   apply();
+  hearing();
   return true;
 }
 

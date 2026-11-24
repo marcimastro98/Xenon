@@ -172,6 +172,8 @@ function createCapabilities(deps) {
       // A pump screen is a page any OS serves; only the iCUE import is Windows-only.
       pumpScreen: true,
       pumpIcue: require('../pump-screen/icue.js').icueImportAvailable(),
+      // Xenon drawing on a pump screen itself (pump-screen/direct.js): Windows and Linux, the real Xenon only.
+      pumpDirect: d.pumpDirect ?? require('../pump-screen/direct-start.js').directAvailable(),
     };
   }
 
@@ -280,7 +282,7 @@ function createCapabilities(deps) {
       case 'widgetHandlerKey': return widgetKey.setHandlerKey({ deck: d.deck, heldBy: d.deck && d.deck.heldBy, sdkHandlers: d.sdkHandlers }, action);
       case 'deckShortcutList': return deckShortcut.listShortcuts({ deck: d.deck });
       // d.pump in tests; the one store and live state otherwise (pump-screen/index.js).
-      case 'pumpFace': case 'pumpSetup': case 'pumpSet': case 'pumpGet': case 'pumpIcue':
+      case 'pumpFace': case 'pumpSetup': case 'pumpStyle': case 'pumpSet': case 'pumpGet': case 'pumpIcue': case 'pumpDirect':
         return (d.pump || require('../pump-screen/index.js').actions).run(action);
       default: return { ok: false, error: 'unsupported' };
     }

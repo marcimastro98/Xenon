@@ -1,13 +1,13 @@
 'use strict';
-// Lighting controllers Xenon drives itself over USB, with no vendor app in
-// between (today: GIGABYTE RGB Fusion 2 on the motherboard). Opt-in: the user
-// switches it on in Connessioni, because it takes the controller away from the
-// vendor's software. Each controller becomes a device in the same list as the
-// iCUE ones, with the same modes and the same per-LED map, so the Lighting page,
-// the Deck, the tile and widgets need nothing new to use it.
+// Lighting controllers Xenon drives itself over USB, with no vendor app in between (today:
+// GIGABYTE RGB Fusion 2 on the motherboard). Opt-in in Connessioni, because it takes the
+// controller from the vendor's software. Each one joins the iCUE devices' list with the same
+// modes and per-LED map, so the Lighting page, Deck, tile and widgets need nothing new. Lights
+// another part of Xenon holds (held.js: the LINK hub Airflow drives) join the same list.
 
 const hid = require('../hid');
 const fusion2 = require('./fusion2');
+const held = require('./held.js');
 const layoutsLib = require('../lights/lighting-layouts');
 const { accessCommand } = require('./linux-access');
 
@@ -145,10 +145,10 @@ function deviceOf(entry) {
 
 function devices() {
   if (!state.cache) state.cache = state.controllers.map(deviceOf);
-  return state.cache;
+  return [...state.cache, ...held.devices()];
 }
-function hasDevices() { return state.controllers.length > 0; }
-function owns(id) { return state.controllers.some(c => c.id === id); }
+function hasDevices() { return state.controllers.length > 0 || held.devices().length > 0; }
+function owns(id) { return state.controllers.some(c => c.id === id) || held.owns(id); }
 
 // colors[i] is the colour of dev.ledIds[i]. Becomes one frame per output.
 function framesFor(entry, ledIds, colors) {
@@ -187,7 +187,7 @@ function zoneColorsFor(entry, ledIds, colors) {
 // Never waits for the USB link (see Fusion2Controller.paint): a slow controller
 // must not hold up the other devices painted in the same frame.
 function write(dev, colors) {
-  if (state.halted) return;
+  if (state.halted || held.write(dev, colors)) return;
   const entry = state.controllers.find(c => c.id === dev.id);
   if (!entry) return;
   entry.ctl.paint(framesFor(entry, dev.ledIds, colors), zoneColorsFor(entry, dev.ledIds, colors),
@@ -234,7 +234,7 @@ function clearPreview() {
 async function release() {
   clearPreview();
   if (state.halted) return;   // same reason as stop()
-  await Promise.all(state.controllers.map(c => c.ctl.release().catch(() => {})));
+  await Promise.all([...state.controllers.map(c => c.ctl.release().catch(() => {})), held.off()]);
 }
 
 // LEDs to darken on each output: what the layout says, or the unconfigured fill
@@ -253,7 +253,7 @@ function blackoutLengths(entry) {
 async function powerDown() {
   state.halted = true;
   clearPreview();
-  await Promise.all(state.controllers.map(c => c.ctl.blackout(blackoutLengths(c)).catch(() => {})));
+  await Promise.all([...state.controllers.map(c => c.ctl.blackout(blackoutLengths(c)).catch(() => {})), held.off()]);
 }
 
 // Awake again (or the shutdown was cancelled). The controller may have lost what
@@ -263,6 +263,9 @@ function resume() {
   state.halted = false;
   state.controllers.forEach(c => c.ctl.forget());
 }
+
+// A program that paints the board quit (board-apps.js): every board is set up again.
+function retake() { return state.halted ? Promise.resolve() : Promise.all(state.controllers.map(c => c.ctl.retake().catch(() => {}))); }
 
 function setLayout(id, zone, layout) {
   const dev = { ...(state.layouts[id] || {}) };
@@ -291,7 +294,7 @@ function status() {
 }
 
 module.exports = {
-  configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, setPreview, clearPreview, wakeForVendor,
+  configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, retake, setPreview, clearPreview, wakeForVendor,
   setLayout, getLayouts, getScanned, status, setChangeHook, setWriteErrorHook, _previewFrame: previewFrame, _framesFor: framesFor, _zoneColorsFor: zoneColorsFor,
   _prefillFromGen2: prefillFromGen2,
 };

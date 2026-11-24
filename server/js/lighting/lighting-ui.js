@@ -210,29 +210,46 @@
     return pick;
   }
 
-  // The effects a whole device or a group of LEDs can run. 'wave' runs across
-  // LEDs, so only a LED selection offers it (a device-wide wave would look like
-  // the rainbow). Styles that use a colour and that loop, for the sub-controls.
-  const EFFECTS = [
-    ['breathing', 'lighting_anim_breathing', 'Respiro'], ['cycle', 'lighting_anim_cycle', 'Arcobaleno'],
-    ['wave', 'lighting_anim_wave', 'Onda'], ['aurora', 'lighting_anim_aurora', 'Aurora'],
-    ['candle', 'lighting_anim_candle', 'Candela'], ['temperature', 'lighting_fx_temperature', 'Temperatura CPU'],
-    ['album', 'lighting_fx_album', 'Copertina album'],
-  ];
-  const COLOR_EFFECTS = ['breathing', 'candle'];
-  const LOOPING_EFFECTS = ['breathing', 'cycle', 'wave', 'aurora', 'candle'];
+  // What a device or a group of its LEDs can show besides the effects: colours that follow the
+  // CPU's temperature or the album playing.
+  const EFFECT_LEADS = Object.freeze([
+    ['temperature', 'lighting_fx_temperature', 'Temperatura CPU'], ['album', 'lighting_fx_album', 'Copertina album'],
+  ]);
 
-  // Colour + speed for an effect, only the ones that style uses.
-  // value: { style, color, speed }; onChange(patch).
-  function effectExtras(value, onChange) {
-    const out = [];
-    if (COLOR_EFFECTS.includes(value.style)) {
-      out.push(labeledRow('lighting_anim_color', hexColorControl(value.color || '#1ed760', (v) => onChange({ color: v }))));
-    }
-    if (LOOPING_EFFECTS.includes(value.style)) {
-      out.push(labeledRow('lighting_anim_speed', speedSlider(value.speed, (v) => onChange({ speed: v }))));
-    }
-    return out;
+  // The effect cards (js/lighting-page/effect-cards.js), the lighting map's moving LEDs
+  // (js/lighting-map/map-motion.js) and the one effect engine they draw with, loaded the first time
+  // a page shows them; the engine stays when the Xenon menu loaded it first.
+  const FX_ENGINE = Object.freeze([
+    'js/light-fx/light-fx-colour.js', 'js/light-fx/light-fx-calm.js', 'js/light-fx/light-fx-moving.js', 'js/light-fx/light-fx-pc.js',
+    'js/light-fx/light-fx.js', 'js/light-fx/light-fx-preview.js',
+  ]);
+  const FX_PAGE = Object.freeze(['js/light-fx/light-fx-device.js', 'js/lighting-page/effect-cards.js', 'js/lighting-map/map-motion.js']);
+  let fxLoading = null;
+  function loadEffects() {
+    if (window.LightingEffects) return Promise.resolve(window.LightingEffects);
+    const load = (src) => new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = ok;
+      s.onerror = () => { s.remove(); fail(new Error(src)); };
+      document.head.appendChild(s);
+    });
+    const todo = window.LightFxPreview ? FX_PAGE : [...FX_ENGINE, ...FX_PAGE];
+    fxLoading = fxLoading || todo.reduce((p, src) => p.then(() => load(src)), Promise.resolve())
+      .then(() => window.LightingEffects)
+      .catch((e) => { fxLoading = null; throw e; });
+    return fxLoading;
+  }
+
+  // A box the effect cards fill (effect-cards.js section(opts)); a line saying so when they cannot load.
+  function effectCards(opts) {
+    const box = el('div', 'lighting-fx');
+    loadEffects().then((fx) => box.replaceChildren(...fx.section(opts))).catch((e) => {
+      console.warn('[lighting] the effect cards did not load:', e.message);
+      box.replaceChildren(hintP('', 'lighting_fx_unavailable'));
+      localizeSubtree(box);
+    });
+    return box;
   }
 
   function hintP(text, i18nKey) {
@@ -244,6 +261,6 @@
   window.LightingUI = {
     lightingFromStatus, fetchStatus, post, tr, localizeSubtree,
     el, button, card, toggleRow, segmented, segmentedRow, speedSlider, labeledRow, noteRow, keysRow, hexColorControl, colorChoice, hintP,
-    EFFECTS, effectExtras,
+    EFFECT_LEADS, effectCards, loadEffects,
   };
 })();

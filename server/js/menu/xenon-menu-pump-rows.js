@@ -1,10 +1,10 @@
 'use strict';
 
 // The rows of a pump's tabs on the Screens page of the Xenon menu (server/menu/menu-pump.js
-// and its two parts): a line per moment that opens on the faces to pick, drawn small as
-// cards, then that face's choices; cards for the ring of lights and the ready-made examples;
-// a short note over a tab; and the line that adds a moment. A face's look adds swatches, a
-// colour, a picture and a line of text of the person's own (menu-pump-face-look.js). One line is open at a time, and
+// and its parts): a line per moment that opens on the faces to pick, drawn small as cards, then
+// that face's choices (in Lights, a line opens on how the ring moves, with no faces); cards for
+// the ring of lights and the ready-made examples; a short note over a tab; the line that adds a
+// moment. A face's look adds swatches, a colour, a picture, words of the person's own. One line is open at a time, and
 // it stays open through the menu's rebuild after a change, so the person sees what changed.
 (() => {
   // Where the address of a picture the person sends goes in a line's save (menu-pump-faces.js).
@@ -128,7 +128,7 @@
     }
 
     function openPart(r) {
-      const parts = [el('span', 'xm-pumpline-cap', say(r.facesLabel)), faceGrid(r)];
+      const parts = r.faces ? [el('span', 'xm-pumpline-cap', say(r.facesLabel)), faceGrid(r)] : [];
       if (r.own) parts.push(ownBox(r));
       for (const x of r.rows || []) {
         const draw = LOOK[x.kind] || ctx.DRAW[x.kind];
@@ -156,7 +156,7 @@
       if (sub) words.appendChild(el('span', 'xm-sub', sub));
       head.appendChild(words);
       const face = say(r.value);
-      if (!on) head.append(mini(r.art, face), el('span', 'xm-pumpline-face', face));
+      if (!on) head.append(mini(r.art, say(r.name) || face), el('span', 'xm-pumpline-face', face));
       head.appendChild(chevron());
       head.addEventListener('click', () => toggle(r.id));
       box.appendChild(head);
@@ -170,7 +170,7 @@
 
     // Cards to choose from: each says what it does; the ring's are drawn with their colours.
     function drawCards(r) {
-      const box = el('div', 'xm-pumpcards' + (r.plain ? ' is-plain' : ''));
+      const box = el('div', 'xm-pumpcards' + (r.plain ? ' is-plain' : r.fx ? ' is-fx' : ''));
       box.dataset.row = r.id;
       const words = el('div', 'xm-words');
       words.appendChild(el('span', 'xm-label', say(r.label)));
@@ -183,7 +183,8 @@
         const b = button('xm-pumpcard');
         b.dataset.keep = `${r.id}:${c.value}`;
         if (!r.plain) b.setAttribute('aria-pressed', String(c.on === true));
-        if (c.art && !r.plain) b.appendChild(el('span', 'xm-pumpring xm-pumpring--' + String(c.art).replace(/^leds-/, '')));
+        const art = c.art && !r.plain ? b.appendChild(el('span', 'xm-pumpring xm-pumpring--' + String(c.art).replace(/^leds-/, ''))) : null;
+        if (art && c.look) art.dataset.ringLook = JSON.stringify(c.look);   // drawn as the ring is set (xenon-menu-pump-fx.js)
         const text = el('span', 'xm-pumpcard-words');
         text.append(el('span', 'xm-pumpcard-name', say(c.label)), el('span', 'xm-sub', say(c.sub)));
         b.appendChild(text);
@@ -232,8 +233,8 @@
       return dot;
     }
 
-    // Keys of their own, a colour set's drawn beside its name; then, for colours, one of one's
-    // own: the system's colour picker, saved when it closes.
+    // Keys of their own, a colour set's drawn beside its name; then, for colours of one's own,
+    // one picker each (the system's), saved when it closes.
     function drawKeys(r) {
       const li = ctx.rowShell(r, 'xm-row--stack');
       const group = el('div', 'xm-choices xm-choices--multi xm-pumpswatches');
@@ -249,20 +250,19 @@
         b.addEventListener('click', () => { if (o.act) perform(r, o.act); });
         group.appendChild(b);
       }
-      if (r.own) group.appendChild(ownColor(r));
+      for (const s of r.slots || []) group.appendChild(colorKey(r, s));
       li.appendChild(group);
       return li;
     }
 
-    function ownColor(r) {
-      const own = el('label', 'xm-choice xm-pumpswatch-own');
-      own.classList.toggle('is-on', r.own.on === true);
+    function colorKey(r, s) {
+      const key = el('label', 'xm-choice xm-pumpswatch-own');
       const input = el('input');
       input.type = 'color';
-      input.value = r.own.value;
-      input.addEventListener('change', () => { const act = withMark(r.own.act, r.mark, input.value); if (act) perform(r, act); });
-      own.append(input, el('span', '', say(r.own.label)));
-      return own;
+      input.value = s.value;
+      input.addEventListener('change', () => { const act = withMark(s.act, r.mark, input.value); if (act) perform(r, act); });
+      key.append(input, el('span', '', say(s.label)));
+      return key;
     }
 
     // A line of the person's own on the face: saved on leaving the field or on Enter.

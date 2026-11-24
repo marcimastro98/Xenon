@@ -4,16 +4,6 @@
 
 /* ── Music ────────────────────────────────────────────────────────────── */
 .pf-face-music { display: block; }
-.pf-music-backdrop { position: absolute; inset: 0; overflow: hidden; }
-.pf-music-backdrop img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scale(1.25);
-  /* Still: it changes with the song, never while drawn. */
-  filter: blur(calc(var(--u) * 6)) brightness(0.32) saturate(1.2);
-}
-.pf-music-backdrop.pf-cover-empty img { display: none; }
 .pf-music-disc {
   position: absolute;
   left: 50%;
@@ -73,9 +63,6 @@
 .pf-idle .pf-eq { height: max(9%, calc(16% * var(--rest))); }
 /* From a low beat up to the full 40%, whatever the bar's resting height. */
 @keyframes pf-eq { from { transform: scaleY(0.4); } to { transform: scaleY(calc(1 / var(--rest))); } }
-.pf-style-cover .pf-music-backdrop.pf-cover-empty {
-  background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--pf-c1) 20%, transparent), transparent 62%);
-}
 .pf-music-text {
   position: absolute;
   left: 50%;

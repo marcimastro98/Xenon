@@ -268,7 +268,7 @@
       "id": "pump-screens",
       "area": "desktop",
       "name": "Pump screens",
-      "what": "The LCD on an AIO pump (iCUE LINK, NZXT Kraken): faces picked by moments and alerts, Store widget faces, its ring.",
+      "what": "The LCD on an AIO pump: faces by moment and alert, Store faces, its ring; shown by iCUE, NZXT CAM or Xenon over USB.",
       "files": [
         "server/pump-screen/**",
         "server/pump-face.html",
@@ -279,7 +279,9 @@
         "server/js/menu/xenon-menu-pump*.js",
         "server/js/capabilities/catalog-pump.js",
         "tools/pump-face-shots/**",
-        "tools/pump-screen-tour/**"
+        "tools/pump-screen-tour/**",
+        "tools/pump-direct/**",
+        "server/airflow/link-busy.js"
       ]
     },
     {
@@ -512,9 +514,10 @@
       "id": "lighting",
       "area": "widgets",
       "name": "Lighting",
-      "what": "RGB devices, effects and the per-LED map.",
+      "what": "RGB devices, the one list of light effects (pump rings too) and the per-LED map.",
       "files": [
         "server/lights/**",
+        "server/js/light-fx/**",
         "server/lighting-native/**",
         "server/lighting-providers/**",
         "server/hid/**",

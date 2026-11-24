@@ -2,7 +2,8 @@
 // the layouts of directly driven controllers.
 
 const { clampNumber, normalizeHex } = require('../settings/values.js');
-const { LIGHTING_DEVICE_MODES, LIGHTING_ANIM_SUB } = require('./settings-normalize.js');
+const { LIGHTING_DEVICE_MODES, LIGHTING_ANIM_SUB, normalizeLightingPalette } = require('./settings-normalize.js');
+const { extrasOf } = require('./look-fields.js');
 const { normalizeLedColors } = require('./lighting-led-colors.js');
 const {
   normalizeLayouts: normalizeLightingLayouts, normalizeScanned: normalizeLightingScanned,
@@ -21,7 +22,10 @@ function normalizeLightingDeviceModes(value) {
         style: LIGHTING_ANIM_SUB.includes(v.anim.style) ? v.anim.style : 'cycle',
         color: normalizeHex(v.anim.color, '#1ed760'),
         speed: clampNumber(v.anim.speed, 1, 100, 50),
+        ...(Array.isArray(v.anim.palette) && v.anim.palette.length ? { palette: normalizeLightingPalette(v.anim.palette, []) } : {}),
+        ...extrasOf(v.anim),
       };
+      if (e.anim.palette && !e.anim.palette.length) delete e.anim.palette;
     }
     if (v.leds !== undefined) e.leds = normalizeLedColors(v.leds);
     out[key] = e;

@@ -38,8 +38,20 @@ person's own dashboard, so you can see it run and fix it.
 - For an AIO pump's screen add `"pump": true` (round and square) or a list (`["round"]`). It is then offered as a
   pump face, and `placement` says `{ where: 'pump', shape }`. A round 480 x 480 is the common one: one big readout,
   everything inside the circle, no taps. `placement.look` brings the user's choice for that pump line (`colors`: four
-  `#rrggbb`, the first leading; `size`: `normal` or `big`; `units`: `c` or `f`, only when picked for that line): draw with it. Read sdk_reference
+  `#rrggbb`, the first leading; `warn`: the `#rrggbb` for a hot reading; `background`: the screen's `#rrggbb`;
+  `size`: `normal` or `big`; `units`: `c` or `f`, only when picked for that line): draw with it. Read sdk_reference
   sections "manifest" and "placement".
+- With `"pumpStyle": true` as well it can be a pump screen's whole style (beside Xenon and Gauge): it then draws every
+  readings, game, music and clock line, and `placement.line` (`{ face, moment, readings }`) says which, each line a new
+  frame. It may move the ring of lights with `{ type: 'pumpRing', effect, level, colors }` (any of the ring's effects
+  but the two that read the sound; `heat` with `level` warms it as a reading rises), said when what it shows
+  changes. `placement.look.live`, when there, is the line's colours following it, from calm to hot. Read
+  sdk_reference sections "pumpRing" and "placement". `new_widget` with `pumpStyle: true` writes a starter that does all this.
+- A style can take the pump's alerts its own way with `"pumpAlerts": "dots"` (the title as a lit sign) or `"plain"`:
+  Xenon then draws no card over it, posts `{ type: 'pumpAlert', kind, band, seconds }` (`kind` is `notify`, `call`,
+  `timer`, `discord` or `hot`, `null` when it is over; never the words) and writes the words itself in the bottom
+  `band`. Keep what you draw above it. Kept only for a widget with no actions, hosts, userHosts, hooks, ai, storage,
+  storageGroup, secrets or clipboard; `check_widget` says when it was dropped. Read sdk_reference section "pumpAlert".
 - Put text on the page with `textContent`, never `innerHTML`.
 - Read `theme` and follow its colours, and declare a `color-scheme`: up to Xenon 4.11.13 a page with none turns the tile white.
 - Follow the look too: on `theme.look === 'liquid'` (Liquid Glass, the default) cards inside the tile have no outline,

@@ -33,7 +33,7 @@ function createPumpBackup({ store, dir, clock = Date.now, changed = () => {} }) 
         total += st.size;
       } catch { /* gone from the disk: the restore shows the face's own art */ }
     }
-    return { v: model.v, screens: model.screens, pictures };
+    return { v: model.v, screens: model.screens, direct: model.direct, pictures };
   }
 
   // Each picture the bundle carries, written under a new name: old name → new name.
@@ -70,7 +70,8 @@ function createPumpBackup({ store, dir, clock = Date.now, changed = () => {} }) 
       const moments = Array.isArray(s.moments) ? s.moments.map((m) => (m && typeof m === 'object' ? { ...m, show: point(m.show) } : m)) : s.moments;
       screens[id] = { ...s, base: point(s.base), moments };
     }
-    await store.update((cur) => ({ model: Model.normalize({ v: section.v, screens, seen: cur.seen }) }));
+    const direct = typeof section.direct === 'boolean' ? section.direct : undefined;
+    await store.update((cur) => ({ model: Model.normalize({ v: section.v, screens, seen: cur.seen, direct: direct ?? cur.direct }) }));
     changed();
   }
 

@@ -8,7 +8,7 @@ const Model = require('../js/pump/pump-model.js');
 const Faces = require('../js/pump/pump-faces.js');
 const When = require('../js/layers/layer-when.js');
 
-const PARTS = Object.freeze(['alerts', 'leds', 'look']);
+const PARTS = Object.freeze(['alerts', 'leds', 'look', 'gauge']);
 
 function ownScreen(model, id) {
   return model.screens[id] || Model.screenFor(model, id);
@@ -19,6 +19,26 @@ function ownScreen(model, id) {
 function ledsPatch(cur, p) {
   if (!('pulse' in p) || 'move' in p) return p;
   return { ...p, move: p.pulse === true ? 'beat' : (cur.move === 'beat' ? 'still' : cur.move) };
+}
+
+// A ring's choices said back when wrong, so Bit or a key never lights it in a way nobody chose:
+// what it follows, how it moves (how fast: a name or 1..100; which way round; its amount and the
+// light of its dark part, 0..1 or null as made), and its own colours (two #rrggbb, from where it
+// starts round, or a palette by name, null for those two).
+const HEX = /^#[0-9a-f]{6}$/i;
+const SPEED_RANGE = '1..100';
+const okSpeed = (v) => Model.LED_SPEEDS.includes(v) || (Number.isInteger(v) && v >= 1 && v <= 100);
+const okShare = (v) => v === null || (typeof v === 'number' && v >= 0 && v <= 1);
+function ledsError(leds) {
+  if (!leds || typeof leds !== 'object') return null;
+  if (leds.follow != null && !Model.LED_FOLLOW.includes(leds.follow)) return { error: 'bad_follow', choices: Model.LED_FOLLOW };
+  if (leds.move != null && !Model.LED_MOVES.includes(leds.move)) return { error: 'bad_move', choices: Model.LED_MOVES };
+  if (leds.speed != null && !okSpeed(leds.speed)) return { error: 'bad_speed', choices: [...Model.LED_SPEEDS, SPEED_RANGE] };
+  if (leds.reverse != null && typeof leds.reverse !== 'boolean') return { error: 'bad_reverse' };
+  for (const key of ['size', 'glow']) if (key in leds && !okShare(leds[key])) return { error: 'bad_' + key, choices: ['0..1', null] };
+  if ('palette' in leds && leds.palette !== null && !Model.LED_PALETTES.includes(leds.palette)) return { error: 'bad_palette', choices: Model.LED_PALETTES };
+  const two = Array.isArray(leds.colors) && leds.colors.length === Model.LED_COLORS.length && leds.colors.every((c) => typeof c === 'string' && HEX.test(c));
+  return leds.colors == null || two ? null : { error: 'bad_led_colors' };
 }
 
 function knows(model, id) {
@@ -60,6 +80,9 @@ function patchScreen(model, id, patch) {
     return { model: Model.normalize({ ...m, screens: { ...m.screens, [key]: set } }) };
   }
   if (!knows(m, key)) return { error: 'unknown_screen', choices: Object.keys({ ...m.seen, ...m.screens }) };
+  if (p.style != null && !Faces.isStyle(p.style)) return { error: 'bad_style', choices: [...Faces.SCREEN_STYLES, Faces.STYLE_WIDGET + '<id>'] };
+  const ringBad = ledsError(p.leds);
+  if (ringBad) return ringBad;
   const cur = ownScreen(m, key);
   const base = p.base == null ? cur.base : Faces.mergeFace(cur.base, p.base);
   if (!base) return { error: 'bad_face', choices: Faces.FACES };
@@ -68,6 +91,7 @@ function patchScreen(model, id, patch) {
   const next = { ...cur, base, moments: moved.moments };
   for (const part of PARTS) if (p[part] && typeof p[part] === 'object') next[part] = { ...cur[part], ...(part === 'leds' ? ledsPatch(cur.leds, p.leds) : p[part]) };
   if (typeof p.name === 'string') next.name = p.name;
+  if (p.style != null) next.style = p.style;
   return { model: Model.normalize({ ...m, screens: { ...m.screens, [key]: next } }) };
 }
 
@@ -94,4 +118,11 @@ function noteSeen(model, id, raw) {
   return { model: Model.normalize({ ...m, seen: { ...m.seen, [key]: seen } }) };
 }
 
-module.exports = { patchScreen, forgetScreen, noteSeen };
+// Whether Xenon draws by itself on the pump screens it has a driver for (direct.js).
+function setDirect(model, on) {
+  const m = Model.normalize(model);
+  if (typeof on !== 'boolean') return { error: 'bad_direct', choices: ['on', 'off'] };
+  return m.direct === on ? null : { model: Model.normalize({ ...m, direct: on }) };
+}
+
+module.exports = { patchScreen, forgetScreen, noteSeen, setDirect };

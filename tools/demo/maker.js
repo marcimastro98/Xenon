@@ -69,10 +69,10 @@
       category: CATEGORIES.includes(m.category) ? m.category : null,
       size: surface === 'tile' && TILE_SIZES.includes(m.size) ? m.size : null,
       // No Xenon menu in the preview to set them: the widget runs on its own defaults. Pump screens as the app lists them.
-      options: [], fit: false, pump: m.pump === true ? ['round', 'square'] : list(m.pump, /^(round|square|wide)$/),
-      entry: 'index.html',
-      streams: list(m.streams, LIST_ITEM_RE), actions: list(m.actions, LIST_ITEM_RE),
-      hosts: list(m.hosts, HOST_RE).slice(0, 8),
+      options: [], fit: false, pumpStyle: m.pumpStyle === true, pump: m.pump === true ? ['round', 'square'] : list(m.pump, /^(round|square|wide)$/),
+      pumpAlerts: m.pumpStyle === true && !list(m.actions, LIST_ITEM_RE).length && !list(m.hosts, HOST_RE).length
+        && m.storage !== true && m.ai !== true && (m.pumpAlerts === 'dots' || m.pumpAlerts === 'plain') ? m.pumpAlerts : null,
+      entry: 'index.html', streams: list(m.streams, LIST_ITEM_RE), actions: list(m.actions, LIST_ITEM_RE), hosts: list(m.hosts, HOST_RE).slice(0, 8),
       userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
     };
   }

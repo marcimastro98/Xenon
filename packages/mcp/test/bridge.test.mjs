@@ -152,6 +152,8 @@ test('tools: new_widget writes the starter, install_widget sends the folder', as
   const pumpFolder = path.join(path.dirname(folder), 'pump-cpu');
   await rpc(4, 'tools/call', { name: 'new_widget', arguments: { folder: pumpFolder, pump: true } });
   assert.equal(x.state.calls.at(-1).args.pump, true, 'a starter for a pump screen');
+  await rpc(5, 'tools/call', { name: 'new_widget', arguments: { folder: path.join(path.dirname(folder), 'neon-dial'), pumpStyle: true } });
+  assert.equal(x.state.calls.at(-1).args.pumpStyle, true, 'a starter that is a pump screen style');
 });
 
 test('tools: screenshot is an image, errors are marked, unknown tools refused', async (t) => {

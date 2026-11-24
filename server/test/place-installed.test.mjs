@@ -9,7 +9,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('js/store-catalog/place-installed.js');
 
-function load({ layers = true, remote = false, layerPage = false, placed = { ok: true }, mode = 'dashboard', packages = [] } = {}) {
+function load({ layers = true, remote = false, layerPage = false, placed = { ok: true }, mode = 'dashboard', packages = [], cw = {}, answer = null } = {}) {
   const listeners = {};
   const toasts = [];
   const posts = [];
@@ -19,7 +19,7 @@ function load({ layers = true, remote = false, layerPage = false, placed = { ok:
     XenonToast: { show: (o) => { toasts.push(o); return toasts.length; } },
     DeckErrorText: { describe: (code) => 'why: ' + code },
     UsageMode: { widgetsOnly: (v) => v === 'widgets' },
-    CustomWidget: { cachedPackages: () => packages },
+    CustomWidget: { cachedPackages: () => packages, ...cw },
   };
   const ctx = {
     window,
@@ -32,7 +32,8 @@ function load({ layers = true, remote = false, layerPage = false, placed = { ok:
     fetch: async (url, init) => {
       if (!init || init.method !== 'POST') return { ok: true, json: async () => ({ capabilities: { layers } }) };
       posts.push([url.replace('http://x', ''), JSON.parse(init.body)]);
-      return { ok: true, json: async () => placed };
+      const body = JSON.parse(init.body);
+      return { ok: true, json: async () => (answer && answer(body)) || placed };
     },
   };
   vm.createContext(ctx);
@@ -42,7 +43,8 @@ function load({ layers = true, remote = false, layerPage = false, placed = { ok:
     await new Promise((r) => setImmediate(r));
   };
   const option = (ids) => window.PlaceInstalled.onScreenOption(ids);
-  return { installed, option, toasts, posts };
+  const use = (pkgs, how, fallback) => window.PlaceInstalled.useInstalled(pkgs, how, fallback);
+  return { installed, option, use, toasts, posts };
 }
 
 const settle = () => new Promise((r) => setImmediate(r));
@@ -167,4 +169,100 @@ test('a widget kept to the top bar is never offered for the screen', async () =>
   const auto = load({ packages });
   await auto.installed({ place: true, widgetIds: ['bat'] });
   assert.deepEqual(auto.posts, [], 'the Maker link does not place it either');
+});
+
+
+test('a pump screen style goes on every pump screen it fits once approved, with Undo', async () => {
+  const style = { id: 'pump-bit', name: 'Bit', pumpStyle: true, pump: ['round'] };
+  const asked = [];
+  let granted = false;
+  const cw = { packageGranted: () => granted, requestGrant: (pkg, onAllow) => asked.push([pkg.id, onAllow]) };
+  const answer = (b) => (b.type === 'pumpGet' ? { ok: true, widgets: [],
+    screens: [{ screen: 'pump', style: 'gauge', seen: { shape: 'round' }, leds: { move: 'candle' } }, { screen: 'wide', style: 'xenon', seen: { shape: 'wide' } }] } : null);
+  const d = load({ packages: [style], cw, answer });
+  const left = [];
+  d.use([style], { single: true }, (l) => left.push(l));
+  assert.deepEqual(d.posts, [], 'nothing is set before it is approved');
+  assert.equal(asked[0][0], 'pump-bit', 'its approval is asked at once');
+  granted = true;
+  await asked[0][1]();
+  await settle();
+  const sets = d.posts.filter(([, b]) => b.type === 'pumpSet');
+  assert.deepEqual(sets.map(([, b]) => [b.screen, JSON.parse(b.patch)]), [['pump', { style: 'widget:pump-bit', leds: { move: 'style' } }]], 'only the screen whose shape it fits, its ring moved by the style');
+  assert.equal(d.toasts[0].title, "{name} draws your pump's screen".replace('{name}', 'Bit'));
+  d.toasts[0].actions[0].onClick();
+  await settle();
+  assert.deepEqual(JSON.parse(d.posts.at(-1)[1].patch), { style: 'gauge', leds: { move: 'candle' } }, 'Undo puts back the style and the ring it had');
+  assert.deepEqual(left, [], 'nothing left to offer');
+});
+
+test('a pump style that fits no pump here says where it is chosen', async () => {
+  const style = { id: 'pump-bit', name: 'Bit', pumpStyle: true, pump: ['round'] };
+  const d = load({ packages: [style], cw: { packageGranted: () => true }, answer: (b) => (b.type === 'pumpGet' ? { ok: true, widgets: [], screens: [{ screen: 'wide', style: 'xenon', seen: { shape: 'wide' } }] } : null) });
+  d.use([style], { single: true });
+  await settle(); await settle();
+  assert.equal(d.posts.filter(([, b]) => b.type === 'pumpSet').length, 0);
+  assert.match(d.toasts[0].message, /pump's screen/);
+  d.toasts[0].actions[0].onClick();
+  await settle();
+  assert.deepEqual(d.posts.at(-1), ['/screen-menu', { open: true, section: 'screens' }]);
+});
+
+test('one widget imported by itself goes on the page in view, as one Bit made', async () => {
+  const placed = [];
+  const d = load({ packages: [{ id: 'keyring', name: 'Keyring' }], cw: { placeCreated: async (id) => { placed.push(id); return 'custom-1'; } } });
+  const left = [];
+  d.use([{ id: 'keyring', name: 'Keyring' }], { single: true }, (l) => left.push(l));
+  await settle(); await settle();
+  assert.deepEqual(placed, ['keyring']);
+  assert.equal(d.toasts[0].title, '{name} is on this page'.replace('{name}', 'Keyring'));
+  assert.deepEqual(left, []);
+});
+
+test('with Solo widget it goes on the screen; where nothing can be placed the old offer stays', async () => {
+  const solo = load({ mode: 'widgets', packages: [{ id: 'keyring', name: 'Keyring' }], cw: { placeCreated: async () => 'x' } });
+  solo.use([{ id: 'keyring', name: 'Keyring' }], { single: true });
+  await settle(); await settle(); await settle();
+  assert.equal(solo.posts[0][1].type, 'layerPlace');
+  const none = load({ cw: { placeCreated: async () => null } });
+  const left = [];
+  none.use([{ id: 'keyring', name: 'Keyring' }], { single: true }, (l) => left.push(l.map((p) => p.id).join()));
+  await settle(); await settle();
+  assert.deepEqual(left, ['keyring'], 'no page here: offered as before');
+});
+
+test("a package's other widgets and the Maker link are not placed again", async () => {
+  const placed = [];
+  const cw = { placeCreated: async (id) => { placed.push(id); return 'x'; } };
+  const bundle = load({ cw });
+  const left = [];
+  bundle.use([{ id: 'keyring', name: 'Keyring' }], {}, (l) => left.push(l.length));
+  bundle.use([{ id: 'a' }, { id: 'b' }], { single: true }, (l) => left.push(l.length));
+  load({ cw }).use([{ id: 'mine' }], { link: true, single: true }, () => left.push('link'));
+  await settle();
+  assert.deepEqual(placed, []);
+  assert.deepEqual(left, [1, 2]);
+});
+
+test("the import uses it, asks a pump style's approval only once, and the strings are in 11 languages", () => {
+  const share = read('js/presets/preset-share.js');
+  for (const piece of ['PI.useInstalled(pkgs, { link: importSource.place === true, single }', 'offerAddToPage([pkgId], true)',
+    'requestGrants(res.widgets.ids.filter((id) => !/** @type {any} */ (window).CustomWidget.cachedPackages().some((p) => p && p.id === id && p.pumpStyle === true)))',
+    'const offTile = !!pkg && pkg.tile === false']) {
+    assert.ok(share.includes(piece), piece);
+  }
+  for (const key of ['place_pump_style_msg', 'place_pump_style_btn', 'place_pump_style_on', 'place_pump_style_on_msg', 'place_page_done', 'place_page_done_msg']) {
+    assert.equal((appStringsSource().match(new RegExp('\\b' + key + ':', 'g')) || []).length, 11, key);
+  }
+});
+
+test('updating the style already on the pump changes nothing there', async () => {
+  const style = { id: 'pump-bit', name: 'Bit', pumpStyle: true, pump: ['round'] };
+  const d = load({ packages: [style], cw: { packageGranted: () => true },
+    answer: (b) => (b.type === 'pumpGet' ? { ok: true, screens: [{ screen: 'pump', style: 'widget:pump-bit', seen: { shape: 'round' } }] } : null) });
+  d.use([style], { single: true });
+  await settle(); await settle();
+  assert.equal(d.posts.filter(([, b]) => b.type === 'pumpSet').length, 0);
+  assert.equal(d.toasts.length, 1);
+  assert.equal(d.toasts[0].actions, undefined, 'no Undo for what did not change');
 });

@@ -50,7 +50,7 @@ const FREE = new Set([
   'taskAdd', 'taskToggle', 'taskDelete', 'dashboardPage', 'deckState', 'lockWorkstation',
   'xenonMenu', 'dnd', 'notifications', 'screenAlerts', 'layerList', 'layersToggle', 'layerPage',
   // What a pump screen shows. Opening iCUE's import (pumpIcue) starts a program: not here.
-  'pumpFace', 'pumpSetup', 'pumpSet', 'pumpGet',
+  'pumpFace', 'pumpSetup', 'pumpStyle', 'pumpSet', 'pumpGet', 'pumpDirect',
   // A widget's own options: only what it declared, checked by the server.
   'widgetOption', 'widgetOptionList',
   'claudeStop',

@@ -11,6 +11,8 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.PumpFaces = api;
 })(typeof window !== 'undefined' ? window : globalThis, () => {
+  // How the ring of lights can move (pump-face.html and pump-widget.html load it first).
+  const Fx = typeof module !== 'undefined' && module.exports && typeof require === 'function' ? require('./ring-effects.js') : globalThis.PumpRingEffects;
   const FACES = Object.freeze(['sensors', 'game', 'music', 'clock', 'picture']);
 
   // What a sensor or game face can show. Each one is read from the `system` stream
@@ -39,23 +41,91 @@
 
   const pick = (value, list, fallback) => (list.includes(value) ? value : fallback);
 
+  // How a screen draws its faces (pump-model.js `style`): Xenon's own, Strumento, a dial with
+  // a needle for the faces that read a number or a time (face-gauge.js), or 'widget:<id>', a Store
+  // widget made to draw them (manifest pumpStyle), told which line it draws (face-widget.js). A
+  // picture or a widget on its own line stays itself in every style.
+  const SCREEN_STYLES = Object.freeze(['xenon', 'gauge']);
+  const GAUGED = Object.freeze(['sensors', 'game', 'music', 'clock']);
+  const STYLE_WIDGET = 'widget:';
+  const styleWidget = (style) => (typeof style === 'string' && style.startsWith(STYLE_WIDGET) && WIDGET_ID_RE.test(style.slice(STYLE_WIDGET.length))
+    ? style.slice(STYLE_WIDGET.length) : null);
+  const isStyle = (style) => SCREEN_STYLES.includes(style) || styleWidget(style) != null;
+  // The Store widgets (pump-screen/widgets.js) a screen of `shape` can take as its style, and
+  // the style after `now` in the order the menu shows them (a gone one starts again at Xenon).
+  const fitStyles = (widgets, shape) => (Array.isArray(widgets) ? widgets : [])
+    .filter((w) => w && w.style === true && Array.isArray(w.shapes) && w.shapes.includes(shape));
+  const nextStyle = (now, widgets, shape) => {
+    const list = [...SCREEN_STYLES, ...fitStyles(widgets, shape).map((w) => STYLE_WIDGET + w.id)];
+    return list[(list.indexOf(now) + 1) % list.length];
+  };
+  const drawnAs = (style, face) => {
+    if (!GAUGED.includes(face)) return face;
+    if (style === 'gauge') return 'gauge';
+    return styleWidget(style) ? WIDGET : face;
+  };
+  // The kind of moment showing a line, as a widget is told it: 'game', 'music', 'time', 'app', a
+  // situation, 'base' the rest of the time and for an "all but" moment. Never which app or
+  // which hours (placement says nothing about the person).
+  const MOMENT_RE = /^[a-zA-Z]{1,24}$/;
+  const momentOf = (why) => {
+    const kind = typeof why === 'string' && !why.startsWith('hide:') ? why.split(/[,:]/)[0] : '';
+    return MOMENT_RE.test(kind) ? kind : 'base';
+  };
+  // The line as the screen's style draws it (pump-face.js): Strumento's dial with its switches,
+  // or the style's widget with the line it stands for (`why`: the moment showing it).
+  const drawnShow = (show, screen, why) => {
+    const as = drawnAs(screen?.style, show.face);
+    if (as === 'gauge') return { ...show, drawn: 'gauge', gauge: screen.gauge };
+    if (as !== WIDGET || show.face === WIDGET) return show;
+    return { ...show, drawn: WIDGET, id: styleWidget(screen.style), line: { face: show.face, moment: momentOf(why) } };
+  };
+  // What a widget drawing a line may ask of the ring (the pumpRing message): never what follows the
+  // sound, which is read only when the person turned it on.
+  const WIDGET_RING = Object.freeze(Fx.EFFECTS.filter((e) => Fx.about(e).needs !== 'sound'));
+  // The alerts a style that takes them (manifest pumpAlerts) is told of, by kind only (pump-model.js
+  // ALERTS), and the share of the screen, from the bottom, Xenon writes their words in meanwhile.
+  const STYLE_ALERTS = Object.freeze(['notify', 'call', 'timer', 'discord', 'hot']);
+  const ALERT_BAND = 0.38;
+  // How each style moves the ring line by line: Xenon warms it with the reading and lets a song's
+  // colours drift, Strumento lights it up to the needle; on a clock both show the hands round it.
+  const STYLE_MOVES = Object.freeze({
+    xenon: Object.freeze({ sensors: 'heat', game: 'heat', music: 'aurora', clock: 'clock' }),
+    gauge: Object.freeze({ sensors: 'level', game: 'level', music: 'level', clock: 'clock' }),
+  });
+  // How the ring of lights moves while a line shows (lights/pump-ring.js): the line's own choice,
+  // else what the screen's lights say. 'style' moves it as the screen draws the line (STYLE_MOVES).
+  // `asked`: what the widget drawing the line asked for, if one does.
+  const ringEffect = (leds, show, style, asked) => {
+    const own = show && LED_EFFECTS.includes(show.leds) ? show.leds : 'auto';
+    const move = own !== 'auto' ? own : leds?.move || 'still';
+    if (move !== 'style') return move;
+    const as = show ? drawnAs(style, show.face) : null;
+    if (as === WIDGET) return WIDGET_RING.includes(asked) ? asked : 'still';
+    return (show && STYLE_MOVES[as === 'gauge' ? 'gauge' : 'xenon'][show.face]) || 'still';
+  };
+
   // How a face looks, chosen line by line (a red Game face while playing, a calm one the rest
   // of the time). Defaults are the look every face had before these choices existed.
-  // colors: a set of the face page's (PumpFace.css), 'theme' (the accent of Settings),
-  // 'picture' (the colours of the cover, GIF or background on show, read live) or one colour
-  // of the person's own. bg: black, a soft glow of the first colour, or a picture behind,
-  // dimmed. warn: a reading turns amber, then red, when warm or hot.
-  const COLOR_SETS = Object.freeze(['xenon', 'theme', 'picture', 'fire', 'ice', 'violet', 'mono']);
+  // colors: 'live' (each colour follows what its part shows: a reading from cool to hot, a song's
+  // cover, the hour on a clock; face-live.js), a set of the face page's (PumpFace.css), 'theme' (the accent of Settings),
+  // 'picture' (the colours of the cover, GIF or background on show, read live), or the person's
+  // own: four colours by what each does (OWN_SLOTS), or one colour, shaded (saved before there
+  // were four). bg: black, a soft glow of the first colour, or a picture behind, dimmed.
+  // warn: a reading turns amber, then red, when warm or hot.
+  const COLOR_SETS = Object.freeze(['live', 'xenon', 'theme', 'picture', 'fire', 'ice', 'violet', 'mono']);
+  // The way 'live' colours go, from a calm reading to a hot one (face-live.js; the menu's swatch).
+  const LIVE_RAMP = Object.freeze(['#5ec8ff', '#6ee787', '#ffd75e', '#ff5c6c']);
   const HEX_RE = /^#[0-9a-f]{6}$/;
   const BACKGROUNDS = Object.freeze(['black', 'glow']);
   const SIZES = Object.freeze(['normal', 'big']);
   const UNITS = Object.freeze(['auto', 'c', 'f']);
   const TEXT_MAX = 24;
   // How the ring of lights around the pump moves while this line shows (lights/pump-ring.js):
-  // 'auto' as the screen's lights say (still, or with the sound), or still, breathing, a light
-  // running round, or with the beat of the sound the PC plays. Its colours are the line's.
-  const LED_EFFECTS = Object.freeze(['auto', 'still', 'breathe', 'spin', 'beat']);
-  const LOOK = Object.freeze({ colors: 'xenon', bg: 'black', size: 'normal', units: 'auto', warn: true, text: '', leds: 'auto' });
+  // 'auto' as the screen's lights say, or one of the ring's effects (js/pump/ring-effects.js).
+  // Its colours are the line's.
+  const LED_EFFECTS = Object.freeze(['auto', ...Fx.EFFECTS]);
+  const LOOK = Object.freeze({ colors: 'live', bg: 'black', size: 'normal', units: 'auto', warn: true, text: '', leds: 'auto' });
   // A widget face draws itself: its line keeps only these. colors, size and units are what the
   // widget is told (placement.look, face-widget.js); colours read off a picture are the face
   // page's own, so a widget gets Xenon's set instead. leds moves the ring, never the widget.
@@ -80,15 +150,52 @@
   }
   const shades = (hex) => [hex, mix(hex, 0.45), mix(hex, -0.3), mix(hex, 0.7)];
 
+  // The person's own colours, by what each one does: the main one (rings, hands, glow), the
+  // second reading's, the one a reading turns when too hot, and the one behind the face.
+  // Readings three and four are lighter ones of the first two (darker over a light colour behind,
+  // so they still stand out). A set of Xenon's keeps the face
+  // page's hot colour and black behind (PumpFace.css).
+  const OWN_SLOTS = Object.freeze(['main', 'second', 'warn', 'bg']);
+  const HOT = '#ff5a5f';
+  const WARM = '#ffa657';
+  const BLACK = '#000000';
+  // How far, and which way, a colour of one's own is shaded for the colours made from it.
+  const tint = (own) => (isLight(own[3]) ? -0.35 : 0.42);
+  const isOwnSet = (v) => Array.isArray(v) && v.length === OWN_SLOTS.length && v.every((c) => typeof c === 'string' && HEX_RE.test(c));
+
   // The four colours a look shows, or null for 'picture' (read from what the face shows).
   function colorsOf(colors, accent) {
+    if (isOwnSet(colors)) return [colors[0], colors[1], mix(colors[0], tint(colors)), mix(colors[1], tint(colors))];
     if (COLOR_HEX[colors]) return [...COLOR_HEX[colors]];
     if (colors === 'theme') return shades(HEX_RE.test(String(accent).toLowerCase()) ? String(accent).toLowerCase() : COLOR_HEX.xenon[0]);
     if (HEX_RE.test(colors)) return shades(colors);
     return colors === 'picture' ? null : [...COLOR_HEX.xenon];
   }
 
+  // What a look shows besides its four: the colour of too hot, of warm (a lighter one of it) and
+  // the one behind the face.
+  function edgesOf(colors) {
+    if (!isOwnSet(colors)) return { warn: HOT, warm: WARM, background: BLACK };
+    return { warn: colors[2], warm: mix(colors[2], tint(colors)), background: colors[3] };
+  }
+
+  // The four a line starts from when the person makes the colours their own: what it shows now.
+  function ownOf(colors, accent) {
+    if (isOwnSet(colors)) return [...colors];
+    const now = colorsOf(colors, accent) || [...COLOR_HEX.xenon];
+    return [now[0], now[1], HOT, BLACK];
+  }
+
+  // A light background takes dark words (PumpFace.css .pf-light): relative luminance.
+  function isLight(hex) {
+    if (!HEX_RE.test(hex)) return false;
+    const lin = (i) => { const c = parseInt(hex.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    return 0.2126 * lin(1) + 0.7152 * lin(3) + 0.0722 * lin(5) > 0.4;
+  }
+
   function cleanColors(raw) {
+    const own = Array.isArray(raw) ? raw.map((c) => (typeof c === 'string' ? c.trim().toLowerCase() : '')) : null;
+    if (own) return isOwnSet(own) ? own : LOOK.colors;
     const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
     return COLOR_SETS.includes(v) || HEX_RE.test(v) ? v : LOOK.colors;
   }
@@ -119,6 +226,8 @@
 
   // Only the look, of a face or a patch: what a line keeps when its face changes.
   const lookOf = (show) => (show && typeof show === 'object' ? Object.fromEntries(Object.keys(LOOK).filter((k) => k in show).map((k) => [k, show[k]])) : {});
+  // The colours a line asks for, its default included.
+  const colorSetOf = (show) => lookOf(show).colors ?? LOOK.colors;
 
   function cleanReadings(raw, fallback) {
     const list = [...new Set(Array.isArray(raw) ? raw : [])].filter((r) => READINGS.includes(r)).slice(0, MAX_READINGS);
@@ -167,6 +276,8 @@
   return Object.freeze({
     FACES, READINGS, MAX_READINGS, SENSOR_STYLES, MUSIC_STYLES, CLOCK_STYLES, FITS, PICTURE_EVERY,
     MAX_PICTURES, OWN_ART, WIDGET, WIDGET_ID_RE, isPicture, normalizeFace, defaultFace, mergeFace,
-    COLOR_SETS, COLOR_HEX, BACKGROUNDS, SIZES, UNITS, TEXT_MAX, LED_EFFECTS, LOOK, WIDGET_LOOK, lookOf, colorsOf,
+    COLOR_SETS, LIVE_RAMP, COLOR_HEX, BACKGROUNDS, SIZES, UNITS, TEXT_MAX, LED_EFFECTS, LOOK, WIDGET_LOOK, lookOf, colorSetOf, colorsOf,
+    OWN_SLOTS, isOwnSet, edgesOf, ownOf, isLight, SCREEN_STYLES, GAUGED, drawnAs, ringEffect,
+    STYLE_WIDGET, styleWidget, isStyle, fitStyles, nextStyle, drawnShow, WIDGET_RING, STYLE_ALERTS, ALERT_BAND, STYLE_MOVES, MOMENT_RE, momentOf,
   });
 });

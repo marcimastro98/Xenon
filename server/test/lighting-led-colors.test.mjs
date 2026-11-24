@@ -142,11 +142,12 @@ test('the settings.js LED mirror agrees with the server normalizer', () => {
     return m[0];
   };
   const ctx = {};
-  vm.runInNewContext(pick('clampNumber') + pick('normalizeLightingLedValue') + pick('normalizeLightingLedColors')
+  vm.runInNewContext(pick('clampNumber') + pick('normalizeLightingAnimation') + pick('normalizeLightingLedValue') + pick('normalizeLightingLedColors')
     + '\nthis.fn = normalizeLightingLedColors;', ctx);
   const input = {
     1: '#ABCDEF', 2: { style: 'wave', speed: 300 }, 3: { style: 'candle' }, 4: { style: 'palette' },
     5: { style: 'album', color: 'red' }, 6: 'nope', x: '#ffffff', 7: { style: 'breathing', color: '#00FF00', speed: 12.6 },
+    8: { style: 42 }, 9: { style: 'Big Bang' },
   };
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.fn(input))), normalizeLedColors(input));
 });

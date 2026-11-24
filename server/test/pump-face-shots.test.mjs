@@ -23,17 +23,23 @@ test('every shot names a face, and every size a shape the page knows', () => {
 });
 
 test('a reading this PC lacks says so in small words on every face, never at a number\'s size', () => {
-  // PumpFaceFaces.css loads after PumpFace.css: a number size there with no :not(.pf-none) wrote
-  // "No reading" at 19 or 27 units, out of its place (FPS added to Sensors, outside a game).
-  const css = readFileSync(new URL('../components/PumpFace/PumpFaceFaces.css', import.meta.url), 'utf8');
-  const sized = css.split('\n').filter((line) => /\.pf-num\s*\{[^}]*font-size/.test(line));
-  assert.ok(sized.length >= 4, 'the faces size their numbers here');
-  const words = sized.filter((line) => /\.pf-none \.pf-num/.test(line));
-  assert.deepEqual(sized.filter((line) => !line.includes(':not(.pf-none) .pf-num') && !words.includes(line)), []);
+  // PumpFaceFaces.css and PumpFaceDrop.css load after PumpFace.css: a number size there with no
+  // :not(.pf-none) wrote "No reading" at 19 or 27 units, out of its place (FPS added to Sensors,
+  // outside a game). Read rule by rule, so a size on its own line inside a block is seen too.
+  const sized = ['PumpFaceFaces.css', 'PumpFaceDrop.css'].flatMap((file) => {
+    const css = readFileSync(new URL(`../components/PumpFace/${file}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, sel, body]) => sel.includes('.pf-num') && /font-size/.test(body))
+      .map(([, sel, body]) => ({ sel: sel.trim(), body }));
+  });
+  assert.ok(sized.length >= 6, 'the faces size their numbers here');
+  const words = sized.filter((r) => /\.pf-none \.pf-num/.test(r.sel));
+  const bare = sized.filter((r) => !words.includes(r) && r.sel.split(',').some((part) => !part.includes(':not(.pf-none) .pf-num')));
+  assert.deepEqual(bare.map((r) => r.sel), []);
   // The words' own sizes stay small: at most 7 units, as on the other faces (PumpFace.css).
-  for (const line of words) {
-    const units = [...line.matchAll(/var\(--u\) \* ([\d.]+)/g)].map((m) => Number(m[1]));
-    assert.ok(units.length && units.every((n) => n <= 7), line);
+  for (const r of words) {
+    const units = [...r.body.matchAll(/var\(--u\) \* ([\d.]+)/g)].map((m) => Number(m[1]));
+    assert.ok(units.length && units.every((n) => n <= 7), r.sel);
   }
 });
 
@@ -41,11 +47,14 @@ test('a panel standing up is shot too, and the faces place their parts from the 
   assert.ok(SIZES.some((s) => s.height > s.width), 'a tall panel, or a wide one mounted turned');
   // A part pinned at so many vmin from the top or bottom slides off the dial on a tall panel:
   // the analog clock's weather sat on the 12 tick, the music disc over its ring.
-  for (const file of ['PumpFace.css', 'PumpFaceFaces.css', 'PumpFaceMusic.css']) {
+  for (const file of ['PumpFace.css', 'PumpFaceFaces.css', 'PumpFaceMusic.css', 'PumpFaceDrop.css']) {
     const css = readFileSync(new URL(`../components/PumpFace/${file}`, import.meta.url), 'utf8');
     const fromEdge = css.split('\n').filter((line) => /(?:^|[{;])\s*(?:top|bottom):\s*calc\(var\(--u\)/.test(line));
     assert.deepEqual(fromEdge, [], file);
   }
+  // A moving picture is drawn square: on an oblong panel it fills by its middle, never stretched.
+  const faces = readFileSync(new URL('../components/PumpFace/PumpFaceFaces.css', import.meta.url), 'utf8');
+  assert.match(faces, /\.pf-art \{[^}]*object-fit: cover/);
 });
 
 test('the shot server serves the face page and its files, never data or a climb', async () => {
@@ -66,7 +75,7 @@ test('the shot server serves the face page and its files, never data or a climb'
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: 'pump', colors: ['#123456'] }),
     });
     assert.equal((await colours.json()).ok, true);
-    assert.deepEqual(server.state.ring, { follow: 'screen', all: false, effect: 'still', colours: ['#123456'] }, "the face's colours reach the ring");
+    assert.deepEqual(server.state.ring, { follow: 'screen', all: false, effect: 'still', speed: 'normal', reverse: false, colours: ['#123456'] }, "the face's colours reach the ring");
     for (const bad of ['/data/hub-settings.json', '/js/../data/x', '/%2e%2e/package.json', '/.git/config', '/server.js']) {
       assert.equal((await fetch(server.url + bad)).status, 404, bad);
     }

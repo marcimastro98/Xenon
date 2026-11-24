@@ -2,7 +2,7 @@
 // Pure colour + layer math for the lighting bridge. No SDK, no DOM — unit-tested.
 
 const {
-  clamp8, hexToRgb, rgbToHex, applyBrightness, hsvToRgb,
+  clamp8, hexToRgb, rgbToHex, applyBrightness, hsvToRgb, paletteGradient,
 } = require('./colour-basics.js');
 
 const NAMED = {
@@ -108,10 +108,5 @@ function eventColorAt(opts) {
   return on ? { r: c.r, g: c.g, b: c.b } : { r: 0, g: 0, b: 0 };
 }
 
-const {
-  paletteGradient, speedToPeriod, candleLevel, isSpatialAnimation, animationColorAt,
-  animationFrameKey, animationGradientAt,
-} = require('./animation-colours.js');
 
-
-module.exports = { clamp8, hexToRgb, rgbToHex, splitVivid, hsvToRgb, tempToColor, applyBrightness, resolveColor, parseColorName, volumeToColor, eventColorAt, animationColorAt, animationGradientAt, animationFrameKey, candleLevel, isSpatialAnimation, speedToPeriod, paletteGradient };
+module.exports = { clamp8, hexToRgb, rgbToHex, splitVivid, hsvToRgb, tempToColor, applyBrightness, resolveColor, parseColorName, volumeToColor, eventColorAt, paletteGradient };

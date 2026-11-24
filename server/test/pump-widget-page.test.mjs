@@ -51,6 +51,7 @@ test('the page is a viewer: it never saves the settings and never asks for a per
 test('the face reads only the page state, and the clock stands in while the widget cannot show', () => {
   assert.match(FACE, /frame\.contentDocument\?\.documentElement\?\.dataset\.state/);
   assert.match(FACE, /const off = s !== 'on';/);
-  assert.match(FACE, /Kit\.get\('face', 'clock'\)/);
+  assert.match(FACE, /normalizeFace\(\{ face: 'clock', weather: false \}\)/);
+  assert.match(FACE, /stand = \{ node, impl: Kit\.get\('face', own\.face\)\(node, own\) \}/);
   assert.match(read('../pump-face.html'), /<script src="js\/pump\/face-widget\.js"><\/script>/);
 });

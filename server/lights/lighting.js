@@ -42,10 +42,10 @@ bridge.config = {
     // page, so it stays enabled here and the client only fires it when opted in.
     vitals:       { enabled: true,  color: '#ff2b2b', style: 'blink', durationMs: 4000 },
   },
-  // Ambient animation. 'none' = reactive-only (no render loop runs). 'solid' is
-  // static (no loop). The dynamic styles (breathing/cycle/wave/aurora/candle/
-  // palette) run a light self-stopping ticker only while actively painting.
-  // `palette` holds the user's 2–5 colours for the 'palette' style.
+  // Ambient animation. 'none' = reactive-only (no render loop runs). style is any effect of
+  // LightFx.LIGHTING or a name saved before it (solid, breathing, cycle, wave, palette: OLD_LIGHTING).
+  // One that stands still paints once; one that moves runs a self-stopping ticker only while painting.
+  // `palette` holds the user's 1–5 colours; reverse/size/glow/chain only when set (look-fields.js).
   animation: { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] },
   // Manual fixed colour (the "Colore manuale" picker). PERSISTED — restored on
   // restart. '' = none. Also feeds the "Fissa" animation.
@@ -86,6 +86,10 @@ const { onSystem, onAudio, onStatus, onEvent } = require('./feeds.js');
 
 paint.apply = apply;   // what the session's own steps (lights/paint-hook.js) repaint through
 
+// A held controller (lighting-native/held.js: the LINK hub Airflow drives) came or went:
+// paint everything at once, a still look included, as nothing else would ask for a frame.
+require('../lighting-native/held.js').setChangeHook(() => { bridge.lastWrite.clear(); apply(); });
+
 const {
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode,
   setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, setAlbumColor, clearAlbum, setPumpRing,
@@ -98,7 +102,7 @@ const {
 const {
   applyConfig, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setEffectEnabled,
   setEnabled, scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice,
-  setExternalDeviceOptIn, setExternalRuntime,
+  setExternalDeviceOptIn, setExternalRuntime, closeNative,
 } = require('./configure.js');
 
 module.exports = {
@@ -107,7 +111,7 @@ module.exports = {
   onSystem, onAudio, onStatus, onEvent,
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, setPumpRing, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,
-  setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, isLightsOut, powerDown, powerUp, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setNativeChangeHook: native.setChangeHook, closeNative: native.stop,
+  setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, isLightsOut, powerDown, powerUp, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setNativeChangeHook: native.setChangeHook, closeNative,
   _fx: fx,
   _boardsToWake: boardsToWake,
   _enumerationComplete: enumerationComplete, // pure predicate — unit-tested in lighting-enumeration.test.mjs

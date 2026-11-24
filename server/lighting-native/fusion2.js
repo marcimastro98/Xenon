@@ -208,6 +208,16 @@ class Fusion2Controller {
     });
   }
 
+  // Another program painted the board and quit (board-apps.js): its own start-up
+  // packets may have changed the modes open() set, so they go again, then the next
+  // write takes the headers back from scratch.
+  retake() {
+    return this.run(async () => {
+      for (const pkt of P.initPackets(this.info)) await this.send(pkt);
+      this.forget();
+    });
+  }
+
   // Forget what the controller was told (LED counts, frames, who owns the
   // headers): the next write sets it all up again.
   forget() {

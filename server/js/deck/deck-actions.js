@@ -241,14 +241,13 @@ const ACTION_CATALOG = [
   // it) and every press would then fail validateHandlerArgs with bad_args.
   { type: 'sdkHandler', group: 'sdk', labelKey: 'deck_act_sdkHandler', params: [{ name: 'handler', kind: 'sdkHandler' }, { name: 'args', kind: 'text', maxLen: 4096 }] },
   { type: 'lighting', group: 'lighting', hidden: true, labelKey: 'deck_act_lighting', params: [{ name: 'mode', kind: 'select', options: ['set', 'restore'] }, { name: 'color', kind: 'text' }, { name: 'style', kind: 'select', options: ['solid', 'breathing', 'cycle'] }] },
-  // Whole-system RGB lighting — drive the same hub the Illuminazione settings do
-  // (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Chroma…). Unlike the transient `lighting`
-  // deck-reaction above, these PERSIST like a settings change. Provider-gated in
-  // the editor: shown only when the user has lighting configured.
+  // Whole-system RGB lighting: the hub Settings -> Lighting drives, persisted like a settings change (unlike the transient
+  // `lighting` deck reaction above). Shown in the editor only when lighting is set up. Names saved before the list are kept.
+  // The effects are LightFx.LIGHTING, copied (the page loads that engine only with a preview); a test holds the two together.
   { type: 'lightPower',  group: 'lighting', labelKey: 'deck_act_lightPower',  params: [{ name: 'state', kind: 'select', options: ['toggle', 'on', 'off'] }] },
   { type: 'lightColor',  group: 'lighting', labelKey: 'deck_act_lightColor',  params: [{ name: 'color', kind: 'color' }] },
   { type: 'lightAuto',   group: 'lighting', labelKey: 'deck_act_lightAuto',   params: [] },
-  { type: 'lightEffect', group: 'lighting', labelKey: 'deck_act_lightEffect', params: [{ name: 'style', kind: 'select', options: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'] }, { name: 'color', kind: 'color' }] },
+  { type: 'lightEffect', group: 'lighting', labelKey: 'deck_act_lightEffect', params: [((options) => ({ name: 'style', kind: 'select', strict: true, options, keeps: ['solid', 'breathing', 'cycle', 'wave', 'palette'], optionKeys: { ...Object.fromEntries(options.map((id) => [id, 'light_fx_' + id])), none: 'deck_opt_none', solid: 'deck_lightfx_solid', breathing: 'deck_lightfx_breathing', cycle: 'deck_lightfx_cycle', wave: 'light_fx_rainbow', palette: 'light_fx_turn' } }))(['none', 'still', 'breathe', 'alternate', 'aurora', 'candle', 'starry', 'lava', 'shift', 'spin', 'turn', 'comet', 'orbit', 'scanner', 'chase', 'bands', 'fill', 'ripple', 'sparkle', 'rainbow', 'heartbeat', 'fire', 'rain', 'lighthouse', 'beat', 'meter', 'clock', 'load', 'fans', 'sky', 'weather', 'timer']), { name: 'color', kind: 'color' }] },
   { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'] }, { name: 'color', kind: 'color' }] },
   { type: 'lightPart',   group: 'lighting', labelKey: 'deck_act_lightPart',   params: [{ name: 'device', kind: 'hidden', maxLen: 160 }, { name: 'part', kind: 'lightPart' }, { name: 'color', kind: 'color' }] },
   // SignalRGB scene switcher — separate from the colour-lighting actions above

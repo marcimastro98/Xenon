@@ -7,6 +7,9 @@ const { execFile } = require('node:child_process');
 const icueSdkInstall = require('../updates/icue-sdk-install.js');
 const { hub } = require('../settings/current.js');
 const signalrgb = require('./signalrgb.js');
+const native = require('../lighting-native/index.js');
+const { probe: boardProbe } = require('../lighting-native/board-probe.js');
+const { icueImport } = require('./icue-import.js');
 const { withHubSettingsLock } = require('../settings/write-lock.js');
 const { icueSharpen } = require('./sharpen-state.js');
 const { runPowerShellScript } = require('../powershell/run-command.js');
@@ -24,6 +27,10 @@ const branches = {
       if (lighting.isConnected()) {
         Promise.resolve(lighting.boundedReenumerate()).catch(() => {});
       }
+      // The iCUE profile, looked at again at most once a minute (Windows only, else nothing).
+      await icueImport.refresh();
+      // A board Xenon could drive, looked for at most once a minute and only while it does not.
+      if (!native.status().enabled) await boardProbe.refresh();
       json(lighting.getStatus());
     }
     catch (e) { json({ available: false, reason: e.message }); }

@@ -85,14 +85,19 @@
 .xm-scrrows .xm-modes { grid-template-columns: minmax(0, 1fr); }
 .xm-scrwidgets { gap: var(--space-3); }
 .xm-scrtheme { margin-top: var(--space-5); }
-/* Pump screens sit with the phones, each drawn in its shape and proportions as mounted
-   (--xm-pump-w/h from xenon-menu-pumps.js); the one picked is lit. The face page has a
-   black ground on the pump too, so its picture keeps it here. */
+/* Pump screens sit in the phones' row, each its own page small, in its shape and proportions as
+   mounted (--xm-pump-w/h from xenon-menu-pumps.js), inside its ring of lights moving as it does
+   now; the one picked is lit. The face page has a black ground on the pump too, so its picture
+   keeps it here. */
 .xm-scrpump[aria-pressed="true"] { background: var(--cst-on); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .xm-scrpump-shape {
-  flex: none; display: grid; place-items: center; width: var(--xm-pump-w, 28px); height: var(--xm-pump-h, 28px); color: var(--cst-muted);
-  background: black; border: 1.5px solid var(--line); border-radius: 7px;
+  position: relative; flex: none; display: grid; place-items: center; width: var(--xm-pump-w, 36px); height: var(--xm-pump-h, 36px); overflow: hidden;
+  color: var(--cst-muted); background: black; border: 1.5px solid var(--line); border-radius: 7px;
 }
+.xm-scrpump-look { position: relative; flex: none; display: grid; place-items: center; width: 58px; height: 58px; }
+.xm-scrpump-look > .xm-scrpump-shape { grid-area: 1 / 1; border-color: transparent; }
+.xm-scrpump-ring { grid-area: 1 / 1; width: 58px; height: 58px; }
+.xm-scrpump-ring > canvas { display: block; width: 58px; height: 58px; }
 .xm-scrpump-shape.is-round { border-radius: 50%; }
 .xm-scrpump-shape .xm-ic, .xm-scrpump-shape > svg { width: 14px; height: 14px; }
 .xm-scrpump.is-add .xm-scrpump-shape { background: none; border-style: dashed; border-color: var(--cst-sep); }
@@ -103,11 +108,17 @@
   background: black; border-radius: 16px; box-shadow: 0 0 0 1.5px var(--line);
 }
 .xm-pumppreview.is-round { border-radius: 50%; }
-.xm-pumpframe {
+.xm-pumpframe, .xm-pumpthumb {
   position: absolute; left: 50%; top: 50%; display: block; width: var(--xm-pump-fw, 100%); height: var(--xm-pump-fh, 100%);
   border: 0; pointer-events: none; visibility: hidden; transform: translate(-50%, -50%) rotate(var(--xm-pump-turn, 0deg));
 }
-.xm-pumpframe.is-ready { visibility: visible; }
+.xm-pumpframe.is-ready, .xm-pumpthumb.is-ready { visibility: visible; }
+/* On a card the page is drawn at four times the card's size and scaled down, so its words keep
+   the room they have on the pump instead of crowding a few pixels. */
+.xm-pumpthumb {
+  width: calc(var(--xm-pump-fw, 36px) * 4); height: calc(var(--xm-pump-fh, 36px) * 4);
+  transform: translate(-50%, -50%) rotate(var(--xm-pump-turn, 0deg)) scale(.25);
+}
 /* The pump picked: its picture, and beside it what it shows now and why. */
 .xm-pumphead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); margin: 0 0 var(--space-3); }
 .xm-pumphead .xm-pumppreview { margin: 0; }
@@ -154,6 +165,9 @@
 .xm-pumpmini--picture .xm-pumpmini-in { display: none; }
 .xm-pumpmini--clock { font-size: 13px; font-weight: 600; color: var(--cst-text); }
 .xm-pumpmini--widget { font-size: 18px; color: var(--cst-muted); }
+/* A line Strumento draws: marks on the arc, open at the bottom, and the needle. */
+.xm-pumpmini--gauge { background: radial-gradient(circle closest-side, black 70%, transparent 72% 88%, black 90%), conic-gradient(from 138deg, black 0 84deg, transparent 0), repeating-conic-gradient(from 222deg, var(--accent) 0 6deg, black 0 45deg); }
+.xm-pumpmini--gauge .xm-pumpmini-in { width: 3px; height: 60%; border-radius: 2px; background: linear-gradient(oklch(68% 0.2 25) 0 50%, transparent 0); transform: rotate(35deg); }
 .xm-pumpfaces { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
 .xm-pumpface {
   appearance: none; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; padding: 10px 4px 12px;
@@ -171,8 +185,8 @@
 .xm-pumpown { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .xm-pumpown-note { font-size: 13px; color: var(--cst-muted); }
 .xm-pumpown-note:empty { display: none; }
-/* A face's look (menu-pump-face-look.js): each colour set drawn as its four colours, then a
-   colour of one's own in the system's picker; a line of the person's own words. */
+/* A face's look (menu-pump-face-look.js): each colour set drawn as its four colours, then, for
+   colours of one's own, the system's picker for each; a line of the person's own words. */
 .xm-pumpswatches > .xm-choice { display: inline-flex; align-items: center; gap: var(--space-2); }
 .xm-pumpswatches > .xm-choice:has(.xm-pumpswatch), .xm-pumpswatch-own { padding-inline: 10px 14px; }
 .xm-pumpswatch {
@@ -183,7 +197,6 @@
 /* The colours of the picture on show: a hint of a picture's many, none of them its own. */
 .xm-pumpswatch.is-picture { background: conic-gradient(from 30deg, #f6b34a, #e5484d, #8e4ec6, #3e63dd, #30a46c, #f6b34a); }
 .xm-pumpswatch-own { cursor: pointer; }
-.xm-pumpswatch-own.is-on { color: var(--cst-text); background: var(--cst-on); }
 .xm-pumpswatch-own:focus-within { outline: 2px solid var(--cst-text); outline-offset: 2px; }
 .xm-pumpswatch-own > input { flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .xm-pumpswatch-own > input::-webkit-color-swatch-wrapper { padding: 0; }
@@ -211,7 +224,24 @@
 .xm-pumpring--screen { background: conic-gradient(oklch(72% 0.17 35), oklch(85% 0.13 85), oklch(75% 0.12 235), oklch(68% 0.16 300), oklch(72% 0.17 35)); }
 .xm-pumpring--screen::after { width: 22px; height: 22px; background: linear-gradient(140deg, oklch(72% 0.17 35), oklch(75% 0.12 235)); }
 .xm-pumpring--theme { background: var(--accent); }
+.xm-pumpring--own { background: conic-gradient(from 200deg, oklch(84% 0.14 205), oklch(66% 0.24 355)); }
 .xm-pumpring--lights { background: conic-gradient(oklch(78% 0.09 255) 0 25%, var(--cst-sep) 0 50%, oklch(78% 0.09 255) 0 75%, var(--cst-sep) 0); }
+/* A screen's style (Look): Xenon's rings, Strumento's dial with its needle, or a Store widget's tile. */
+.xm-pumpring--style-xenon, .xm-pumpring--style-gauge, .xm-pumpring--style-widget { background: black; }
+.xm-pumpring--style-xenon::before { width: 46px; height: 46px; background: radial-gradient(circle, black 62%, transparent 64%), conic-gradient(from 225deg, oklch(84% 0.17 150) 0 46%, #303030 0 75%, transparent 0); }
+.xm-pumpring--style-xenon::after { width: 26px; height: 26px; background: radial-gradient(circle, black 52%, transparent 55%), conic-gradient(from 225deg, oklch(78% 0.11 255) 0 34%, #303030 0 75%, transparent 0); }
+.xm-pumpring--style-gauge::before { width: 46px; height: 46px; background: radial-gradient(circle closest-side, black 76%, transparent 78%), conic-gradient(from 138deg, black 0 84deg, transparent 0), repeating-conic-gradient(from 222deg, oklch(84% 0.17 150) 0 6deg, transparent 0 45deg); }
+.xm-pumpring--style-widget::before { width: 24px; height: 24px; border-radius: 7px; background: conic-gradient(oklch(84% 0.17 150) 0 25%, oklch(78% 0.11 255) 0 50%, oklch(74% 0.14 300) 0 75%, oklch(82% 0.15 85) 0); }
+.xm-pumpring--style-gauge::after { width: 3px; height: 34px; border-radius: 2px; background: linear-gradient(oklch(68% 0.2 25) 0 50%, transparent 0); transform: rotate(35deg); }
+/* How the ring moves: small cards, each with the ring drawn moving (js/menu/xenon-menu-pump-fx.js). */
+.xm-pumpcards.is-fx .xm-pumpcards-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.xm-pumpcards.is-fx .xm-pumpcard { flex-direction: column; justify-content: center; gap: 8px; min-height: 104px; padding: 12px 8px; text-align: center; }
+.xm-pumpcards.is-fx .xm-pumpcard-words { align-items: center; }
+.xm-pumpcards.is-fx .xm-pumpcard-name { font-size: 13.5px; }
+.xm-pumpcards.is-fx .xm-sub:empty { display: none; }
+.xm-pumpring[class*="xm-pumpring--fx-"] { background: black; }
+.xm-pumpring[class*="xm-pumpring--fx-"] > canvas { grid-area: 1 / 1; width: 52px; height: 52px; }
+.xm-pumpring.xm-pumpring--fx-auto, .xm-pumpring.xm-pumpring--fx-style { background: conic-gradient(oklch(84% 0.17 150), oklch(78% 0.11 255), oklch(88% 0.14 90), oklch(84% 0.17 150)); }
 /* "Add a moment": a dashed line that opens on the moments still free. */
 .xm-pumpadd { border: 1.5px dashed var(--cst-sep); border-radius: 14px; }
 .xm-pumpadd-head { min-height: 64px; }

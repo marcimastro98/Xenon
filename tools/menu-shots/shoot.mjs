@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPlaywright } from '../toast-gallery/shoot.mjs';
-import { DESKS, LOOK, PUMP_SCREEN, menuState } from './fixture.mjs';
+import { DESKS, LOOK, PUMP_COLORS, PUMP_LEDS, PUMP_SCREEN, PUMP_STYLE, menuState } from './fixture.mjs';
 import { createPumpFaceHandler } from '../pump-face-shots/server.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -104,6 +104,7 @@ async function main() {
   const server = await startMenuServer(() => lang, undefined, pump);
   const base = `http://127.0.0.1:${server.address().port}`;
   await fetch(base + '/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: PUMP_SCREEN, setup: 'game' }) });
+  await fetch(base + '/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: PUMP_SCREEN, patch: { style: PUMP_STYLE, base: { colors: PUMP_COLORS }, ...(PUMP_LEDS ? { leds: PUMP_LEDS } : {}) } }) });
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch();
   const report = [];
@@ -124,9 +125,19 @@ async function main() {
           const shots = [['main', null], ['edge', () => page.locator('.xm-scrpick').nth(1).click()], ['widgets', () => page.locator('.xm-wtab').nth(1).click()],
             ['pump', async () => { await page.locator('.xm-scrpump').first().click(); await page.waitForSelector('.xm-pumpframe.is-ready', { timeout: 8000 }); await page.waitForTimeout(600); }],
             ['pump-line', () => page.locator('[data-keep="pump-base:head"]').click()],
-            // The open line's look: its colours, then the last of its rows.
-            ...['colors', 'text'].map((part) => ['pump-line-' + part, () => page.locator(`[data-row="pump-base-${part}"]`).scrollIntoViewIfNeeded()]),
-            ['pump-alerts', () => page.locator('.xm-wtab').nth(1).click()], ['pump-look', () => page.locator('.xm-wtab').nth(2).click()]];
+            // The open line's look: its colours, the pickers of its own four, then the last of its rows.
+            ...['colors', 'own', 'text'].map((part) => ['pump-line-' + part, () => page.locator(`[data-row="pump-base-${part}"]`).scrollIntoViewIfNeeded()]),
+            ['pump-alerts', () => page.locator('.xm-wtab[data-keep$=":alerts"]').click()],
+            // The ring's own tab: whose colours (with MENU_PUMP_LEDS=own its two pickers), how it moves, a line opened.
+            ['pump-lights', () => page.locator('.xm-wtab[data-keep$=":leds"]').click()],
+            ['pump-lights-move', () => page.locator('[data-row="pump-leds-move"]').scrollIntoViewIfNeeded()],
+            // What the effects on show let one tune, and the palettes (MENU_PUMP_LEDS=palette); skipped where absent.
+            ...['tune:pump-leds-speed', 'palette:pump-leds-palette'].map((pair) => {
+              const [name, row] = pair.split(':');
+              return ['pump-lights-' + name, async () => { const r = page.locator(`[data-row="${row}"]`); if (await r.count()) await r.scrollIntoViewIfNeeded(); }];
+            }),
+            ['pump-lights-line', async () => { await page.locator('[data-keep="pump-ring-base:head"]').click(); await page.locator('[data-row="pump-ring-base"]').scrollIntoViewIfNeeded(); }],
+            ['pump-look', () => page.locator('.xm-wtab[data-keep$=":look"]').click()]];
           if (process.env.MENU_FIND) shots.push(['find', async () => { await page.locator('.xm-find').fill(process.env.MENU_FIND); await page.waitForTimeout(600); }]);
           for (const [name, step] of shots) {
             if (step) { await step(); await page.waitForTimeout(250); }

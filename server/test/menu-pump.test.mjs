@@ -10,6 +10,7 @@ const { pumpsIn, createPumpDetect, CACHE_MS } = require('../pump-screen/detect.j
 const Pumps = require('../js/menu/xenon-menu-pumps.js');
 const Model = require('../js/pump/pump-model.js');
 const Faces = require('../js/pump/pump-faces.js');
+const RingFx = require('../js/pump/ring-effects.js');
 const { LANGS } = require('../app-strings/tables.js');
 
 // A screen as GET /pump and the pumpGet action give it.
@@ -49,14 +50,18 @@ test('a pump found but never seen offers its one step: iCUE for CORSAIR, the add
   assert.equal(seen[0].add, undefined);
 });
 
-test('each pump screen is a card in its shape with three tabs, and its name when there are two', () => {
+test('each pump screen is a card in its shape with its tabs, and its name when there are two', () => {
   const one = pumpViews(state({ screens: [screen()] }));
   assert.equal(one[0].key, 'pump:pump');
   assert.deepEqual(one[0].label, { key: 'xmenu_pump' });
-  assert.deepEqual(one[0].tabs.map((t) => t.id), ['shows', 'alerts', 'look']);
+  assert.deepEqual(one[0].tabs.map((t) => t.id), ['shows', 'alerts', 'leds', 'look']);
+  assert.deepEqual(one[0].tabs[2].label, { key: 'xmenu_pump_leds_tab' });
   assert.deepEqual(one[0].chip, { key: 'pump_face_sensors' });
   const two = pumpViews(state({ screens: [screen('top', { seen: { shape: 'square' } }), screen('side', { name: 'Side AIO' })] }));
   assert.deepEqual(two.map((v) => [v.label, v.shape]), [[{ text: 'top' }, 'square'], [{ text: 'Side AIO' }, 'round']]);
+  // The ring is painted through iCUE and led by the first screen: Lights only there.
+  assert.deepEqual(two.map((v) => v.tabs.map((t) => t.id)), [['shows', 'alerts', 'leds', 'look'], ['shows', 'alerts', 'look']]);
+  assert.deepEqual(pumpViews(state({ icue: false, screens: [screen()] }))[0].tabs.map((t) => t.id), ['shows', 'alerts', 'look']);
 });
 
 test('"What it shows" is a line per moment in the order that wins, then the rest of the time', () => {
@@ -214,27 +219,73 @@ test('alerts: the ones that arrive most first, each with what it says, then how 
   assert.equal(a.value, null, 'the tab says its name only, as the other two');
 });
 
-test('look: the ring\'s colours as cards where iCUE paints it, then the screen', () => {
+test('lights: whose colours the ring shows as cards, then only what that choice leads to', () => {
+  const leds = (over, pump) => tab(pumpViews(state({ screens: [screen('pump', over)], ...pump }))[0], 'leds');
+  const lit = leds({}, { sound: true });
+  const cards = row(lit, 'pump-leds');
+  assert.equal(lit.rows[0], cards, 'the first thing in the tab');
+  assert.equal(cards.kind, 'pumpcards');
+  assert.deepEqual(cards.cards.map((c) => [c.value, c.art]), Model.LED_FOLLOW.map((f) => [f, 'leds-' + f]));
+  const follow = screen().leds.follow;
+  assert.equal(cards.cards.find((c) => c.on).value, follow);
+  assert.equal(cards.cards.find((c) => c.on).act, null);
+  const other = cards.cards.find((c) => !c.on);
+  assert.deepEqual(patchOf(other.act), { leds: { follow: other.value } });
+  // Only where they do something: how it moves needs colours of its own, "everything" the screen's or the person's.
+  const ids = (f, sound) => leds({ leds: { ...screen().leds, follow: f } }, { sound }).rows.map((r) => r.id);
+  assert.ok(ids('screen', true).includes('pump-leds-move') && ids('screen', true).includes('pump-leds-all'));
+  assert.ok(ids('screen', false).includes('pump-leds-move'), 'still, breathing and running round need no sound');
+  assert.ok(ids('own', true).includes('pump-leds-colors') && ids('own', true).includes('pump-leds-all'));
+  assert.ok(!ids('theme', true).includes('pump-leds-all') && !ids('theme', true).includes('pump-leds-colors'));
+  assert.deepEqual(ids('off', true), ['pump-leds'], 'dark: nothing moves, nothing to light');
+  // Following the other lights: the way to the page where those are chosen, and nothing else.
+  assert.deepEqual(ids('lights', true), ['pump-leds', 'pump-leds-lighting']);
+  const go = row(leds({ leds: { ...screen().leds, follow: 'lights' } }), 'pump-leds-lighting');
+  assert.deepEqual([go.kind, go.act, go.action], ['button', { open: 'settings:lighting' }, { key: 'xmenu_pump_leds_lighting_open' }]);
+  assert.ok(!ids('screen', true).includes('pump-leds-lighting'));
+});
+
+test('lights: one fold per line of What it shows, how the ring moves while that line is on', () => {
+  const two = screen('pump', { moments: [{ when: { any: [{ c: 'game' }] }, show: { face: 'game', leds: 'aurora' } }, { when: { any: [{ c: 'idle' }] }, show: { face: 'clock' } }] });
+  const lit = tab(pumpViews(state({ screens: [two], sound: true }))[0], 'leds');
+  const folds = lit.rows.filter((r) => r.kind === 'pumpmoment');
+  assert.deepEqual(folds.map((r) => r.id), ['pump-ring-m-0', 'pump-ring-m-1', 'pump-ring-base']);
+  assert.deepEqual(row(lit, 'pump-leds-lines').kind, 'tunehead');
+  assert.ok(lit.rows.indexOf(row(lit, 'pump-leds-move')) < lit.rows.indexOf(folds[0]), 'the whole screen first, then each line');
+  // Closed: the line, what it shows, and how the ring moves on it ("as above" when it is left so).
+  assert.deepEqual([folds[0].label, folds[0].sub, folds[0].value, folds[0].art], [{ key: 'xmenu_pump_when_game' }, { key: 'pump_face_game' }, { key: 'light_fx_aurora' }, 'game']);
+  assert.deepEqual(folds[1].value, { key: 'xmenu_pump_ring_auto' });
+  assert.equal(folds[0].faces, undefined, 'no faces to pick here: that is What it shows');
+  // Opened: the effect cards, "as above" first, each a save of that line alone.
+  const first = folds[0].rows[0];
+  assert.deepEqual([first.id, first.cards[0].value], ['pump-ring-m-0-fx', 'auto']);
+  const still = first.cards.find((c) => c.value === 'still');
+  assert.deepEqual(patchOf(still.act).moments[0].show, { face: 'game', leds: 'still' });
+  assert.deepEqual(patchOf(still.act).moments[1], two.moments[1], 'the other line kept as it was');
+  const base = folds[2].rows[0].cards.find((c) => c.value === 'breathe');
+  assert.deepEqual(Object.keys(patchOf(base.act)), ['base']);
+  // What follows a level only on a line with a number; the sound only where this PC hears it.
+  const all = (fold) => fold.rows.flatMap((x) => x.cards.map((c) => c.value));
+  const level = RingFx.LIST.filter((e) => e.needs === 'level').map((e) => e.id);
+  const sound = RingFx.LIST.filter((e) => e.needs === 'sound').map((e) => e.id);
+  assert.ok(level.length && level.every((e) => all(folds[0]).includes(e)), 'the game line has its frame rate');
+  assert.ok(level.every((e) => !all(folds[1]).includes(e)), 'a clock has no number to follow');
+  const quiet = tab(pumpViews(state({ screens: [two], sound: false }))[0], 'leds').rows.filter((x) => x.kind === 'pumpmoment');
+  assert.ok(sound.length && sound.every((e) => all(folds[0]).includes(e) && !all(quiet[0]).includes(e)));
+  // The lines of What it shows no longer carry the ring.
+  const shows = tab(pumpViews(state({ screens: [two], sound: true }))[0], 'shows');
+  for (const line of shows.rows.filter((x) => x.kind === 'pumpmoment')) assert.ok(!line.rows.some((x) => /-leds/.test(x.id)), line.id);
+});
+
+test('look: how the faces are drawn and how the screen sits, never the ring', () => {
   const look = (pump, over) => tab(pumpViews(state({ screens: [screen('pump', over)], ...pump }))[0], 'look');
   const lit = look({ sound: true });
-  const leds = row(lit, 'pump-leds');
-  assert.equal(leds.kind, 'pumpcards');
-  assert.deepEqual(leds.cards.map((c) => [c.value, c.art]), Model.LED_FOLLOW.map((f) => [f, 'leds-' + f]));
-  const follow = screen().leds.follow;
-  assert.equal(leds.cards.find((c) => c.on).value, follow);
-  assert.equal(leds.cards.find((c) => c.on).act, null);
-  const other = leds.cards.find((c) => !c.on);
-  assert.deepEqual(patchOf(other.act), { leds: { follow: other.value } });
   assert.deepEqual(row(lit, 'pump-screen').kind, 'tunehead');
-  // Only where they do something: how it moves needs colours of its own, "everything" the screen's.
-  const leds2 = (f, sound) => look({ sound }, { leds: { ...screen().leds, follow: f } }).rows.map((r) => r.id);
-  assert.ok(leds2('screen', true).includes('pump-leds-move') && leds2('screen', true).includes('pump-leds-all'));
-  assert.ok(leds2('screen', false).includes('pump-leds-move'), 'still, breathing and running round need no sound');
-  assert.ok(!leds2('theme', true).includes('pump-leds-all'));
-  assert.ok(!leds2('off', true).includes('pump-leds-move'));
-  // No iCUE: no ring to paint, the screen's rows only.
+  // The ring lives in Lights: the same rows here with iCUE or without.
+  assert.deepEqual(lit.rows.map((r) => r.id), ['pump-style', 'pump-style-store', 'pump-screen', 'pump-rotate', 'pump-dim', 'pump-night', 'pump-fade']);
+  // No iCUE: no ring to paint, the style and the screen's rows only.
   const plain = look({ icue: false });
-  assert.deepEqual(plain.rows.map((r) => r.id), ['pump-rotate', 'pump-dim', 'pump-night', 'pump-fade']);
+  assert.deepEqual(plain.rows.map((r) => r.id), ['pump-style', 'pump-style-store', 'pump-screen', 'pump-rotate', 'pump-dim', 'pump-night', 'pump-fade']);
   assert.deepEqual(patchOf(row(plain, 'pump-rotate').options[1].act), { look: { rotate: 90 } });
   assert.deepEqual(row(plain, 'pump-night').sub, { key: 'xmenu_pump_night_at', vars: { from: '23:00', to: '07:00', dim: 30 } });
   assert.deepEqual(patchOf(row(plain, 'pump-night').acts.on), { look: { night: { from: '23:00', to: '07:00', dim: 30 } } });
@@ -286,10 +337,16 @@ test('pumps are found by their USB ids, once per device, a CORSAIR LCD by its na
     { vendorId: 0x1b1c, productId: 0x1b2d, product: 'CORSAIR K95 RGB' },
     { vendorId: 0x1e71, productId: 0x2006, product: 'NZXT Smart Device' },
   ]);
-  assert.deepEqual(found, [{ brand: 'corsair', route: 'icue' }, { brand: 'nzxt', route: 'cam' }, { brand: 'corsair', route: 'icue' }]);
+  assert.deepEqual(found, [
+    { brand: 'corsair', route: 'icue', vendorId: 0x1b1c, productId: 0x0c4e, direct: true },
+    { brand: 'nzxt', route: 'cam', vendorId: 0x1e71, productId: 0x300c, direct: false },
+    { brand: 'corsair', route: 'icue', vendorId: 0x1b1c, productId: 0x0c39, direct: false },
+  ]);
+  // Off Windows no vendor program is a way on: only the screens Xenon drives itself.
+  assert.deepEqual(pumpsIn([{ vendorId: 0x1e71, productId: 0x300c }, { vendorId: 0x1b1c, productId: 0x0c4e }], true).map((p) => p.productId), [0x0c4e]);
 });
 
-test('the USB list is read once per ten minutes, never off Windows, and a failure keeps the last list', async () => {
+test('the USB list is read once per ten minutes, never on macOS, on Linux only for screens Xenon drives, and a failure keeps the last list', async () => {
   let reads = 0;
   let fail = false;
   let now = 0;
@@ -304,12 +361,15 @@ test('the USB list is read once per ten minutes, never off Windows, and a failur
   assert.equal(reads, 1);
   fail = true;
   now = CACHE_MS * 2;
-  assert.deepEqual(await detect(), [{ brand: 'nzxt', route: 'cam' }]);
+  assert.deepEqual(await detect(), [{ brand: 'nzxt', route: 'cam', vendorId: 0x1e71, productId: 0x3008, direct: false }]);
   now = CACHE_MS * 4;
   await detect();
   assert.equal(warned.length, 1, 'said once');
   fail = false;
   assert.deepEqual(await createPumpDetect({ hid, platform: 'darwin' })(), []);
+  assert.deepEqual(await createPumpDetect({ hid, platform: 'linux' })(), [], 'an NZXT pump has no way on there yet');
+  const corsair = { available: true, list: async () => [{ vendorId: 0x1b1c, productId: 0x0c4e }] };
+  assert.equal((await createPumpDetect({ hid: corsair, platform: 'linux' })())[0].direct, true);
   assert.deepEqual(await createPumpDetect({ hid: { available: false }, platform: 'win32' })(), []);
 });
 
@@ -434,12 +494,12 @@ test('the card and the picture take those proportions, the picture turned back t
   const [card] = pumpViews(state({ screens: [wide] }));
   view.cards([card], card.key, () => {});
   const mark = made.find((n) => n.className === 'xm-scrpump-shape');
-  assert.deepEqual([mark.style.props['--xm-pump-w'], mark.style.props['--xm-pump-h']], ['37px', '28px']);
+  assert.deepEqual([mark.style.props['--xm-pump-w'], mark.style.props['--xm-pump-h']], ['48px', '36px']);
   body.appendChild(view.slot(card));
   const box = made.find((n) => n.className === 'xm-pumppreview');
   assert.deepEqual([box.style.props['--xm-pump-w'], box.style.props['--xm-pump-h'], box.style.props['--xm-pump-turn']], ['235px', '176px', '0deg']);
   const css = readFileSync(new URL('../components/XenonMenu/XenonMenuScreens.css', import.meta.url), 'utf8');
-  const frameRule = css.slice(css.indexOf('.xm-pumpframe {'), css.indexOf('}', css.indexOf('.xm-pumpframe {')));
+  const frameRule = css.slice(css.indexOf('.xm-pumpframe, .xm-pumpthumb {'), css.indexOf('}', css.indexOf('.xm-pumpframe, .xm-pumpthumb {')));
   assert.ok(frameRule.includes('width: var(--xm-pump-fw, 100%); height: var(--xm-pump-fh, 100%)'), 'the page at the panel size');
   assert.ok(frameRule.includes('rotate(var(--xm-pump-turn, 0deg))'), 'turned back');
   const face = readFileSync(new URL('../components/PumpFace/PumpFace.css', import.meta.url), 'utf8');
@@ -502,13 +562,74 @@ test('tapping the card of a pump just found runs its step on this PC, never from
     const picked = [];
     const { view } = rig(host, { perform: (_row, act) => ran.push(act) });
     const list = view.cards([add], null, (key) => picked.push(key));
-    list.kids[0].listeners.click();
+    list[0].listeners.click();
     assert.deepEqual(picked, ['pump-add'], 'the card is picked too');
     assert.equal(ran.length, expected, host);
     if (expected) assert.deepEqual(ran[0], { run: { type: 'pumpIcue' } });
   }
   const ran = [];
   const { view } = rig('127.0.0.1', { perform: (_row, act) => ran.push(act) });
-  view.cards(pumpViews(state({ screens: [screen()] })), null, () => {}).kids[0].listeners.click();
+  view.cards(pumpViews(state({ screens: [screen()] })), null, () => {})[0].listeners.click();
   assert.deepEqual(ran, [], 'a pump already on Xenon only opens its page');
+});
+
+// "Why is the pump a black dot?": its card shows the ring as it is now, and its page small.
+test('the pump card\'s ring is the ring as it is now; the Lights tab also where Xenon holds the hub without iCUE', () => {
+  const ring = { follow: 'own', effect: 'comet', speed: 'fast', reverse: true, colours: ['#ff0000', '#00ff00', 'red', '#0000ff', '#ffffff'] };
+  const one = (pump) => pumpViews(state({ screens: [screen()], accent: '#6ee787', ...pump }))[0];
+  assert.deepEqual(one({ ring }).ring, { effect: 'comet', speed: 'fast', reverse: true, colours: ['#ff0000', '#00ff00', '#0000ff'] }, 'three colours at most, only real ones');
+  assert.deepEqual(one({ ring: { ...ring, follow: 'theme' } }).ring.colours, ['#6ee787'], 'the theme\'s colour where it follows the theme');
+  assert.deepEqual(one({ ring: { follow: 'screen', effect: 'still', colours: [] } }).ring, { effect: 'still', speed: 'normal', reverse: false, colours: ['#6ee787'] }, 'the screen said none yet');
+  assert.equal(one({ ring: { ...ring, follow: 'off' } }).ring, null, 'dark');
+  assert.equal(one({ ring: null }).ring, null, 'following the other lights');
+  const two = pumpViews(state({ screens: [screen('a'), screen('b')], ring }));
+  assert.deepEqual([!!two[0].ring, two[1].ring], [true, null], 'the ring is led by the first screen');
+  const bare = one({ icue: false, ring });
+  assert.deepEqual([bare.ring, bare.tabs.map((t) => t.id)], [null, ['shows', 'alerts', 'look']], 'no iCUE and no hub held: no ring to paint');
+  const held = one({ icue: false, ringHeld: true, ring });
+  assert.deepEqual([held.ring.effect, held.tabs.map((t) => t.id)], ['comet', ['shows', 'alerts', 'leds', 'look']], 'Xenon paints the hub it holds');
+});
+
+test('each pump card shows its own page small, in its ring, beside the picked one\'s bigger, kept through a rebuild', () => {
+  const ring = { follow: 'own', effect: 'comet', speed: 'slow', reverse: true, colours: ['#ff0000'] };
+  const [card] = pumpViews(state({ screens: [screen('desk')], ring }));
+  const { body, view, made, frames } = rig();
+  body.append(...view.cards([card], card.key, () => {}));
+  body.appendChild(view.slot(card));
+  view.settle();
+  const thumb = frames().find((f) => f.className === 'xm-pumpthumb');
+  const big = frames().find((f) => f.className === 'xm-pumpframe');
+  assert.ok(thumb && big, 'two pictures: the card\'s and the one above the tabs');
+  assert.equal(thumb.src, 'http://127.0.0.1:3030/pump-face?screen=desk&shape=round&preview=1');
+  assert.equal(thumb.parent.className, 'xm-scrpump-shape is-round', 'in the card\'s shape');
+  const lights = made.find((n) => n.className === 'xm-scrpump-ring');
+  assert.deepEqual({ ...lights.dataset }, { ringFx: 'comet', ringColours: '#ff0000', ringSpeed: 'slow', ringSize: '58', ringReverse: '1' });
+  const tuned = pumpViews(state({ screens: [screen('desk')], ring: { ...ring, speed: 40, size: 0.8, glow: 0 } }))[0];
+  assert.deepEqual([tuned.ring.speed, tuned.ring.size, tuned.ring.glow], [40, 0.8, 0], 'a ring tuned says its speed, amount and dark part');
+  const { made: madeTuned } = (() => { const r = rig(); r.view.cards([tuned], tuned.key, () => {}); return r; })();
+  const tunedLights = madeTuned.find((n) => n.className === 'xm-scrpump-ring');
+  assert.deepEqual([tunedLights.dataset.ringSpeed, tunedLights.dataset.ringAmount, tunedLights.dataset.ringGlow], ['40', '0.8', '0']);
+  assert.equal(lights.parent, thumb.parent.parent, 'the ring round the picture');
+  thumb.src = 'loaded';
+  view.hold();
+  const again = view.cards([card], null, () => {});
+  body.append(...again);
+  body.appendChild(view.slot(card));
+  view.settle();
+  assert.equal(frames().length, 2, 'the same two');
+  assert.equal(thumb.src, 'loaded', 'not loaded again');
+  assert.ok(again[0].kids.some((k) => k === thumb.parent.parent), 'moved into the new card');
+  view.hold();
+  view.cards([], null, () => {});
+  view.slot(null);
+  view.settle();
+  assert.deepEqual([thumb.parent, big.parent], [null, null], 'the pump gone: its pictures go');
+  const phone = rig('192.168.1.20');
+  phone.body.append(...phone.view.cards([card], null, () => {}));
+  phone.view.settle();
+  assert.equal(phone.frames().length, 0, 'a paired phone is refused the page: the ring alone');
+  assert.ok(phone.made.some((n) => n.className === 'xm-scrpump-ring'));
+  const plain = rig();
+  plain.view.cards(pumpViews(state({ screens: [screen()] })), null, () => {});
+  assert.equal(plain.made.some((n) => n.className === 'xm-scrpump-ring'), false, 'no ring of its own: the picture alone');
 });

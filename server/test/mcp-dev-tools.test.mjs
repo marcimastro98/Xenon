@@ -205,3 +205,78 @@ test('screenRect: device pixels on Windows and Linux, points on macOS', () => {
   assert.equal(T.screenRect('win32', null), null);
   assert.equal(T.screenRect('win32', { ...where, dpr: 99 }).width, 1200, 'dpr clamped to 4');
 });
+
+// A starter that is a whole pump screen's style: the manifest says so, and main.js draws
+// the line placement.line names and moves the ring, once per change, never past 1 a second.
+test('widget_template pumpStyle: a style that draws each line and moves the ring', async () => {
+  const vm = await import('node:vm');
+  const { d } = deps();
+  const r = await T.runOp('widget_template', { id: 'neon-dial', pumpStyle: true }, d);
+  const file = (p) => Buffer.from(r.files.find((f) => f.path === p).data, 'base64').toString('utf8');
+  const m = JSON.parse(file('manifest.json'));
+  assert.equal(m.pump, true);
+  assert.equal(m.pumpStyle, true);
+  assert.deepEqual(m.streams, ['system', 'media']);
+  assert.match(file('style.css'), /padding: 15cqmin;/, 'inside the circle');
+  const checked = await T.runOp('check_widget', { id: 'neon-dial', files: r.files }, d);
+  assert.equal(checked.pumpStyle, true);
+  assert.match(checked.pumpHint, /placement\.line/);
+  assert.match(checked.pumpHint, /"comet"/, "every effect a widget may ask for, from the ring's own list");
+  assert.doesNotMatch(checked.pumpHint, /"beat"|"meter"/, 'never one that reads the sound');
+  assert.match(checked.pumpHint, /live\?/, 'the live colours of a line');
+  const plain = await T.runOp('widget_template', { id: 'pump-cpu', pump: true }, d);
+  assert.doesNotMatch(Buffer.from(plain.files.find((f) => f.path === 'main.js').data, 'base64').toString('utf8'), /pumpRing/);
+
+  // main.js in a stand-in page: one frame per line.
+  const frame = (placement) => {
+    const el = () => ({ textContent: '' });
+    const nodes = { cpu: el(), mem: el() };
+    const labels = [el(), el()];
+    const posted = [];
+    let onMessage = null;
+    let now = Date.UTC(2026, 0, 1);
+    const timers = [];
+    const ctx = {
+      Date: { now: () => now },
+      document: { getElementById: (id) => nodes[id], querySelectorAll: () => labels, documentElement: { style: { setProperty: (k, v) => { ctx.css = [k, v]; } } } },
+      window: { addEventListener: (_t, f) => { onMessage = f; }, parent: { postMessage: (msg) => posted.push(msg) } },
+      setInterval: (f, ms) => timers.push(ms),
+      Math, JSON, Array,
+    };
+    ctx.Date = Object.assign(function () { return new Date(Date.UTC(2026, 0, 1, 9, 5)); }, { now: () => now });
+    vm.runInNewContext(file('main.js'), ctx);
+    const say = (msg) => onMessage({ data: { xenonSdk: 1, ...msg } });
+    say({ type: 'init', placement });
+    return { nodes, labels, posted, say, timers, ctx, tick: (ms) => { now += ms; } };
+  };
+  const rings = (f) => f.posted.filter((p) => p.type === 'pumpRing').map(({ xenonSdk, type, ...w }) => w);
+
+  const sensors = frame({ where: 'pump', shape: 'round', look: { colors: ['#00e5ff', '#111111', '#222222', '#333333'] }, line: { face: 'sensors', moment: 'base', readings: ['cpu'] } });
+  assert.equal(sensors.posted[0].type, 'hello');
+  assert.deepEqual(sensors.ctx.css, ['--text', '#00e5ff'], 'the colours the user chose for the line');
+  sensors.tick(5000);
+  sensors.say({ type: 'data', stream: 'system', data: { cpu: 71.6, memory: { percent: 40 } } });
+  assert.equal(sensors.nodes.cpu.textContent, '72%');
+  assert.equal(sensors.nodes.mem.textContent, '40%');
+  sensors.say({ type: 'data', stream: 'system', data: { cpu: 90, memory: { percent: 40 } } });
+  sensors.tick(1500);
+  sensors.say({ type: 'data', stream: 'system', data: { cpu: 71, memory: { percent: 40 } } });
+  sensors.tick(1500);
+  sensors.say({ type: 'data', stream: 'system', data: { cpu: 300, memory: { percent: 40 } } });
+  assert.deepEqual(rings(sensors), [{ effect: 'heat', level: 0.7 }, { effect: 'heat', level: 1 }], 'not twice in a second, not twice the same, never past full');
+  sensors.say({ type: 'data', stream: 'media', data: { title: 'Song' } });
+  assert.equal(sensors.nodes.cpu.textContent, '300%', 'a readings line leaves the song alone');
+
+  const music = frame({ where: 'pump', shape: 'round', line: { face: 'music', moment: 'music', readings: [] } });
+  music.say({ type: 'data', stream: 'media', data: { title: 'Song', artist: 'Band' } });
+  music.say({ type: 'data', stream: 'system', data: { cpu: 50 } });
+  assert.deepEqual([music.nodes.cpu.textContent, music.nodes.mem.textContent, music.labels[0].textContent], ['Song', 'Band', '']);
+  assert.deepEqual(rings(music), [{ effect: 'aurora' }]);
+
+  const clock = frame({ where: 'pump', shape: 'round', line: { face: 'clock', moment: 'base', readings: [] } });
+  assert.match(clock.nodes.cpu.textContent, /\d/);
+  assert.deepEqual(clock.timers, [10000]);
+  clock.say({ type: 'data', stream: 'system', data: { cpu: 50 } });
+  assert.notEqual(clock.nodes.cpu.textContent, '50%');
+  assert.deepEqual(rings(clock), [{ effect: 'clock' }]);
+});

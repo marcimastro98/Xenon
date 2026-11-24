@@ -9,8 +9,15 @@
   const FPS = 30;
   // The canvas never holds more pixels than the biggest pump screen shows.
   const MAX_SIDE = 720;
+  // A screen Xenon films itself (?fps=, pump-screen/direct-start.js) takes that many pictures a
+  // second: drawing much more is wasted, and a timer lets the page rest between drawings where a
+  // frame-by-frame loop wakes it on every frame. A little faster than filmed, so each picture
+  // finds a new drawing (timer and camera are not in step). 0: the page is shown, not filmed.
+  const asked = Number(new URLSearchParams(location.search).get('fps'));
+  const FILMED_FPS = Number.isFinite(asked) && asked >= 1 && asked <= FPS ? asked : 0;
+  const FILMED_AHEAD = 1.2;
 
-  // A drawn picture: its own canvas and loop, at most FPS frames a second,
+  // A drawn picture: its own canvas and loop, at most FPS frames a second (or the filmed pace),
   // stopped while the page is hidden and for good on stop().
   function artLayer(name) {
     const make = Kit.get('art', name);
@@ -21,6 +28,7 @@
     canvas.height = side;
     const art = make ? make(ctx, side, side) : null;
     let raf = 0;
+    let timer = 0;
     let last = 0;
     const loop = (ms) => {
       raf = requestAnimationFrame(loop);
@@ -28,8 +36,13 @@
       last = ms;
       art.frame(ms / 1000);
     };
-    if (art) raf = requestAnimationFrame(loop);
-    return { node: canvas, stop() { cancelAnimationFrame(raf); raf = 0; } };
+    const filmed = () => {
+      timer = setTimeout(filmed, 1000 / (FILMED_FPS * FILMED_AHEAD));
+      if (!document.hidden) art.frame(performance.now() / 1000);
+    };
+    if (art && FILMED_FPS) filmed();
+    else if (art) raf = requestAnimationFrame(loop);
+    return { node: canvas, stop() { cancelAnimationFrame(raf); clearTimeout(timer); raf = 0; timer = 0; } };
   }
 
   function fileLayer(url, fit) {

@@ -12,6 +12,7 @@ const PumpRows = require('../js/menu/xenon-menu-pump-rows.js');
 const Pumps = require('../js/menu/xenon-menu-pumps.js');
 const { pumpViews } = require('../menu/menu-pump.js');
 const { FILE_MARK } = require('../menu/menu-pump-faces.js');
+const RingFx = require('../js/pump/ring-effects.js');
 const Model = require('../js/pump/pump-model.js');
 
 function screen(over = {}) {
@@ -206,7 +207,9 @@ test('"add" opens on the moments still free, and one tap adds that line', () => 
 test('the ring\'s cards are drawn in their colours and say which is on; the examples are words only', () => {
   const r = rig();
   const look = r.put(rowsOf(viewOf(), 'look'));
-  const leds = look[0];
+  // The screen's style, each card with its look drawn; the ring is first in Lights.
+  assert.deepEqual(look[0].querySelectorAll('.xm-pumpring').map((c) => c.className), ['xm-pumpring xm-pumpring--style-xenon', 'xm-pumpring xm-pumpring--style-gauge']);
+  const leds = r.put(rowsOf(viewOf(), 'leds'))[0];
   const cards = leds.querySelectorAll('.xm-pumpcard');
   assert.deepEqual(cards.map((c) => c.querySelector('.xm-pumpring').className), Model.LED_FOLLOW.map((f) => 'xm-pumpring xm-pumpring--' + f));
   assert.equal(cards.filter((c) => c.getAttribute('aria-pressed') === 'true').length, 1);
@@ -266,7 +269,7 @@ test('a screen\'s tab holds its lines as cards on the page, and a reading on say
   assert.match(css, /\.xm-pumpnow\.is-trying \.xm-pumpnow-tried \{ display: flex; \}/);
 });
 
-test('every row of a pump\'s three tabs has a drawer, so none is dropped in silence', () => {
+test('every row of a pump\'s tabs has a drawer, so none is dropped in silence', () => {
   const { draw, put, ran } = rig();
   const menu = readFileSync(new URL('../js/menu/xenon-menu.js', import.meta.url), 'utf8');
   const core = menu.slice(menu.indexOf('const DRAW = {'), menu.indexOf('};', menu.indexOf('const DRAW = {')));
@@ -275,12 +278,72 @@ test('every row of a pump\'s three tabs has a drawer, so none is dropped in sile
     const view = viewOf({ leds: { follow, all: false, move: 'breathe' } });
     for (const tab of view.tabs) for (const r of tab.rows) assert.ok(known(r.kind), `${tab.id}: ${r.id} (${r.kind})`);
   }
-  // How the ring moves, on its own in the Look tab: drawn, the move in use pressed, a tap saves.
-  const move = rowsOf(viewOf({ leds: { follow: 'screen', all: false, move: 'breathe' } }), 'look').find((r) => r.id === 'pump-leds-move');
+  // How the ring moves, in the Lights tab: cards in three groups, each with its ring to draw
+  // moving (art fx-<effect>), the move in use pressed, a tap saves; then how fast and which way.
+  const look = rowsOf(viewOf({ leds: { follow: 'screen', all: false, move: 'breathe' } }), 'leds');
+  const move = look.find((r) => r.id === 'pump-leds-move');
   const [node] = put([move]);
+  assert.ok(node.className.includes('is-fx'), 'drawn as the small cards with a moving ring');
   const keys = [...node.querySelectorAll('button')];
-  assert.deepEqual(keys.map((b) => b.dataset.keep), ['still', 'breathe', 'spin', 'beat'].map((m) => 'pump-leds-move:' + m));
+  const calm = RingFx.LIST.filter((e) => e.group === 'calm').map((e) => e.id);
+  assert.deepEqual(keys.map((b) => b.dataset.keep), ['style', ...calm].map((m) => 'pump-leds-move:' + m));
+  assert.ok(node.querySelector('.xm-pumpring--fx-aurora'), 'each card has its ring');
   assert.equal(keys.find((b) => b.getAttribute('aria-pressed') === 'true').dataset.keep, 'pump-leds-move:breathe');
-  keys[2].click();
-  assert.deepEqual(JSON.parse(ran.at(-1)[1].run.patch), { leds: { move: 'spin' } });
+  keys[calm.indexOf('aurora') + 1].click();
+  assert.deepEqual(JSON.parse(ran.at(-1)[1].run.patch), { leds: { move: 'aurora' } });
+  assert.deepEqual(look.filter((r) => r.id.startsWith('pump-leds-move-')).map((r) => r.id), RingFx.GROUPS.slice(1).map((g) => 'pump-leds-move-' + g));
+  assert.ok(look.find((r) => r.id === 'pump-leds-speed') && look.find((r) => r.id === 'pump-leds-reverse'), 'how fast and which way round');
+});
+
+test('a line in Lights opens on how the ring moves on it, with no faces to pick', () => {
+  const tried = [];
+  const r = rig(null, (show, label) => tried.push([show, label]));
+  const view = viewOf({ leds: { follow: 'screen', all: false, move: 'breathe' }, moments: [{ when: { any: [{ c: 'game' }] }, show: { face: 'game', leds: 'aurora' } }] });
+  const rows = rowsOf(view, 'leds');
+  const fold = rows.find((x) => x.id === 'pump-ring-m-0');
+  let [line] = r.put([fold]);
+  // Closed: the line's name, what it shows drawn small, and how the ring moves there.
+  assert.equal(line.querySelector('.xm-pumpline-face').textContent, 'light_fx_aurora');
+  assert.ok(line.querySelector('.xm-pumpmini--game'));
+  line.querySelector('.xm-pumpline-head').click();
+  [line] = r.put([fold]);
+  assert.equal(line.querySelector('.xm-pumpline-cap'), null, 'no faces here');
+  assert.equal(line.querySelector('.xm-pumpface'), null);
+  const cards = line.querySelectorAll('.xm-pumpcards.is-fx');
+  assert.ok(cards.length >= 2, 'the effect cards, in their groups');
+  const keys = line.querySelectorAll('.xm-pumpcard');
+  assert.equal(keys[0].dataset.keep, 'pump-ring-m-0-fx:auto');
+  assert.equal(keys.find((b) => b.getAttribute('aria-pressed') === 'true').dataset.keep, 'pump-ring-m-0-fx:aurora');
+  keys[0].click();
+  assert.deepEqual(JSON.parse(r.acts().at(-1).run.patch).moments[0].show, { face: 'game', leds: 'auto' });
+  // The pump's picture shows the open line, so its ring is seen as it moves.
+  assert.deepEqual(tried.at(-1)[0], fold.show);
+  // A widget line draws its own letter, not the effect's.
+  const widget = viewOf({ base: { face: 'widget', id: 'neon-clock' } }, { widgets: [{ id: 'neon-clock', name: 'Neon Clock', shapes: ['round'] }] });
+  const wfold = rowsOf(widget, 'leds').find((x) => x.id === 'pump-ring-base');
+  assert.equal(wfold.art, 'widget');
+  assert.equal(r.put([wfold])[0].querySelector('.xm-pumpmini--widget').textContent, 'N');
+});
+
+test('Settings → Lighting opens the menu on the pump card at Lights, once', () => {
+  const Screens = require('../js/menu/xenon-menu-screens.js');
+  const { document } = makeDom();
+  globalThis.CSS = globalThis.CSS || { escape: (s) => s };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const drawn = [];
+  const DRAW = { choice: (x) => { drawn.push(x.id); return el('li', 'row', x.id); } };
+  const { draw } = Screens.create({ el, button: (cls, label) => el('button', cls, label), say, DRAW, rowShell: (x) => el('li', 'row', x.id), perform: () => {}, icon: () => null, hold: () => {}, settle: () => {}, tt: (k) => k, doc: document });
+  const desk = { key: 'pg', label: { text: 'pg' }, width: 1920, height: 1080, x: 0, y: 0, says: [], tabs: ['wall', 'saver'].map((id) => ({ id, label: { key: id }, value: null, rows: [{ kind: 'choice', id: id + '-1' }] })) };
+  const block = () => ({ kind: 'screens', sub: { key: 'hint' }, screens: [desk], pumps: [viewOf()] });
+  const shown = (li) => li.querySelectorAll('.xm-wtab').find((b) => b.getAttribute('aria-selected') === 'true')?.dataset.keep;
+  assert.equal(shown(draw(block())), 'screen:pg:wall', 'by itself the desk comes first');
+  Screens.want('leds');
+  const li = draw(block());
+  assert.equal(shown(li), 'screen:pump:pump:leds', 'the pump card, on its Lights tab');
+  assert.ok(li.querySelector('[data-row="pump-leds"]'), 'its rows drawn');
+  // Asked once: the next draw keeps what the person has open, not the request again.
+  li.querySelector('[data-keep="screen:pump:pump:look"]').click();
+  assert.equal(shown(draw(block())), 'screen:pump:pump:look');
+  Screens.want('nowhere');
+  assert.equal(shown(draw(block())), 'screen:pump:pump:look', 'a tab no screen has changes nothing');
 });

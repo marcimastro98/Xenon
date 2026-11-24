@@ -1,11 +1,12 @@
 'use strict';
 // The pump screens' actions (js/capabilities/catalog-pump.js), run by the capability
-// runner after validateAction: a face now (a Deck key, Bit, the menu), a setup, a
+// runner after validateAction: a face now (a Deck key, Bit, the menu), a setup, a style, a
 // patch of the settings, and the list Bit reads before it changes anything.
 
 const Faces = require('../js/pump/pump-faces.js');
 const Model = require('../js/pump/pump-model.js');
 const { screenIds } = require('./moments.js');
+const Edit = require('./edit.js');
 
 // The screen an action means: the one named (change.js refuses a name no screen has,
 // with the choices), else the first one known. A setup may go to a screen nobody saw
@@ -43,8 +44,9 @@ function parsePatch(text) {
 
 // `openIcue` builds the iCUE widget and opens it with iCUE (icue.js); `widgets` lists the
 // Store widgets a pump can show (widgets.js), read with the screens so Bit can pick one;
-// `here` whether a screen shows Xenon now (presence.js).
-function createPumpActions({ store, live, change, openIcue = async () => ({ ok: false, error: 'unavailable' }), widgets = async () => [], here = (_id) => true }) {
+// `here` whether a screen shows Xenon now (presence.js); `direct` Xenon drawing on a screen
+// by itself (direct.js), null where it cannot run.
+function createPumpActions({ store, live, change, openIcue = async () => ({ ok: false, error: 'unavailable' }), widgets = async () => [], here = (_id) => true, direct = null }) {
   async function view() {
     const model = await store.ready();
     const now = live.decide();
@@ -70,6 +72,16 @@ function createPumpActions({ store, live, change, openIcue = async () => ({ ok: 
     return answer(await change({ screen: id, setup: a.setup }), { screen: id, setup: a.setup });
   }
 
+  // A Deck key or Bit: Xenon, Gauge, or the next one, the Store styles for its shape included.
+  async function style(a) {
+    const model = await store.ready();
+    const id = screenOf(model, a.screen);
+    if (!id) return { ok: false, error: 'unknown_screen', choices: screenIds(model) };
+    const name = a.style !== 'next' ? a.style
+      : Faces.nextStyle(Model.screenFor(model, id).style, await widgets().catch(() => []), model.seen[id]?.shape || 'round');
+    return answer(await change({ screen: id, patch: { style: name } }), { screen: id, style: name });
+  }
+
   async function patch(a) {
     const p = parsePatch(a.patch);
     if (!p) return { ok: false, error: 'bad_patch' };
@@ -80,13 +92,25 @@ function createPumpActions({ store, live, change, openIcue = async () => ({ ok: 
     return answer(out, { screen: id, settings: out.model ? Model.screenFor(out.model, id) : undefined });
   }
 
+  // On or off for every pump screen Xenon has a driver for; "on" again also tries again now.
+  async function setDirect(a) {
+    if (!direct) return { ok: false, error: 'unavailable' };
+    const on = a.on === 'on' ? true : a.on === 'off' ? false : null;
+    const out = await store.update((m) => Edit.setDirect(m, on));
+    if (out?.error) return { ok: false, error: out.error, choices: out.choices };
+    direct.refresh();
+    return { ok: true, direct: direct.state() };
+  }
+
   return {
     async run(action) {
       switch (action.type) {
         case 'pumpFace': return showFace(action);
         case 'pumpSetup': return setup(action);
+        case 'pumpStyle': return style(action);
         case 'pumpSet': return patch(action);
-        case 'pumpGet': return { ok: true, screens: await view(), widgets: await widgets().catch(() => []) };
+        case 'pumpGet': return { ok: true, screens: await view(), widgets: await widgets().catch(() => []), direct: direct ? direct.state() : null };
+        case 'pumpDirect': return setDirect(action);
         case 'pumpIcue': return openIcue();
         default: return { ok: false, error: 'unsupported' };
       }

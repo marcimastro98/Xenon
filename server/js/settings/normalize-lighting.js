@@ -77,13 +77,7 @@ function normalizeLightingDeviceModes(value) {
     if (!v || typeof v !== 'object') continue;
     const e = { mode: LIGHTING_DEVICE_MODES.includes(v.mode) ? v.mode : 'follow' };
     if (typeof v.color === 'string' && /^#[0-9a-f]{6}$/i.test(v.color)) e.color = v.color;
-    if (v.anim && typeof v.anim === 'object') {
-      e.anim = {
-        style: ['solid', 'breathing', 'cycle', 'aurora', 'candle'].includes(v.anim.style) ? v.anim.style : 'cycle',
-        color: /^#[0-9a-f]{6}$/i.test(String(v.anim.color)) ? v.anim.color : '#1ed760',
-        speed: clampNumber(v.anim.speed, 1, 100, 50),
-      };
-    }
+    if (v.anim && typeof v.anim === 'object') e.anim = normalizeLightingAnimation(v.anim, null, true);
     if (v.leds !== undefined) e.leds = normalizeLightingLedColors(v.leds);
     out[String(id)] = e;
   }
@@ -96,7 +90,9 @@ function normalizeLightingDeviceModes(value) {
 function normalizeLightingLedValue(v) {
   if (typeof v === 'string') return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null;
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
-  if (!['breathing', 'cycle', 'wave', 'aurora', 'candle', 'temperature', 'album'].includes(v.style)) return null;
+  // The name checked as a look's (the browser keeps no list of them, see normalizeLightingAnimation).
+  const { style } = normalizeLightingAnimation({ style: v.style }, { style: null });
+  if (!style || ['none', 'solid', 'palette'].includes(style)) return null;
   const color = /^#[0-9a-f]{6}$/i.test(String(v.color)) ? String(v.color).toLowerCase()
     : (v.style === 'candle' ? '#ff9329' : '#1ed760');
   return { style: v.style, color, speed: Math.round(clampNumber(v.speed, 1, 100, 50)) };
@@ -119,19 +115,28 @@ function normalizeLightingLedColors(value) {
 
 // Note: arrays inlined (not module-level consts) because normalizeLighting runs
 // during the top-level hubSettings init, before a later const would initialise (TDZ).
-function normalizeLightingAnimation(value, fallback) {
+// The name of a Lighting effect, as the server's list says them (lights/look-fields.js: the
+// effects of js/light-fx/light-fx.js and the names saved before it, 'temperature' and 'album'
+// per LED). The page does not load that list before the settings, so here only the shape of a
+// name is checked; the server keeps the exact list and a test holds the two together.
+// The look of all the lights, or with `device` a device's own: 'none' is 'cycle' there, its 1–5
+// colours only when set and no chain. reverse, size and glow only when set, as the server.
+function normalizeLightingAnimation(value, fallback, device) {
   const f = fallback || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
   const v = value && typeof value === 'object' ? value : {};
-  const hex = /^#[0-9a-f]{6}$/i.test(String(v.color)) ? v.color : f.color;
-  const fPal = Array.isArray(f.palette) && f.palette.length >= 2 ? f.palette : ['#1ed760', '#0066ff'];
-  const palette = (Array.isArray(v.palette) ? v.palette : []).slice(0, 5)
-    .filter(h => /^#[0-9a-f]{6}$/i.test(String(h)));
-  return {
-    style: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'].includes(v.style) ? v.style : f.style,
-    color: hex,
+  const named = typeof v.style === 'string' && /^[a-z]{3,16}$/.test(v.style) && !(device && v.style === 'none');
+  const fPal = Array.isArray(f.palette) && f.palette.length ? f.palette : ['#1ed760', '#0066ff'];
+  const palette = (Array.isArray(v.palette) ? v.palette : []).slice(0, 5).filter(h => /^#[0-9a-f]{6}$/i.test(String(h)));
+  const out = {
+    style: named ? v.style : (device ? 'cycle' : f.style),
+    color: /^#[0-9a-f]{6}$/i.test(String(v.color)) ? v.color : f.color,
     speed: clampNumber(v.speed, 1, 100, f.speed),
-    palette: palette.length >= 2 ? palette : fPal.slice(),
   };
+  if (palette.length || !device) out.palette = palette.length ? palette : fPal.slice();
+  if (typeof v.reverse === 'boolean') out.reverse = v.reverse;
+  for (const k of ['size', 'glow']) if (typeof v[k] === 'number' && Number.isFinite(v[k])) out[k] = Math.round(Math.min(1, Math.max(0, v[k])) * 100) / 100;
+  if (!device && typeof v.chain === 'boolean') out.chain = v.chain;
+  return out;
 }
 // Mirror the server provider shape so a full-settings save round-trips the
 // discovered devices instead of wiping them. Keep this id list aligned with the

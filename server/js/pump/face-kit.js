@@ -82,6 +82,21 @@
     return { name, label, value: raw, text, unit: def.unit, fraction: clamp01(raw / def.max), tone: 'ok' };
   }
 
+  // How hard a reading works, 0..1, or null with no reading: a temperature from 30 °C to 95 °C, the
+  // frame rate the other way round (a low one is the strain, 120 and over none), the rest its scale.
+  const STRAIN_FPS = 120;
+  function strain(r) {
+    if (!r || r.value == null) return null;
+    if (r.name === 'fps') return clamp01(1 - r.value / STRAIN_FPS);
+    return READINGS[r.name]?.temp ? clamp01((r.value - 30) / 65) : r.fraction;
+  }
+
+  // Where the song is now, in seconds: the event's position plus the time since it came.
+  function songAt(m, at) {
+    const base = Number.isFinite(m.positionMs) ? m.positionMs / 1000 : Number(m.position) || 0;
+    return m.playbackStatus === 'Playing' ? base + (Date.now() - at) / 1000 : base;
+  }
+
   function clamp01(v) { return Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0)); }
 
   // An arc on a 100x100 box: from `start` degrees (0 = top, clockwise) for `sweep`.
@@ -136,7 +151,20 @@
     return '';
   }
 
+  // The page loads again when the engine names another run than the one that served it (an
+  // update while iCUE kept the page open would leave the old code drawing). Once per run: the
+  // address keeps the run it went for, so a page a cache serves old never loads round and round.
+  function reloadForRun(served, run, place = location) {
+    if (!served || typeof run !== 'string' || !run || run === served) return false;
+    const url = new URL(place.href);
+    if (url.searchParams.get('run') === run) return false;
+    url.searchParams.set('run', run);
+    place.replace(url.href);
+    return true;
+  }
+
   window.PumpFaceKit = {
-    READINGS, setWords, useUnits, t, locale, prefs: shownPrefs, el, svg, reading, arcPath, gauge, add, get, hour12, safeImage, clamp01,
+    READINGS, setWords, useUnits, t, locale, prefs: shownPrefs, el, svg, reading, strain, arcPath, gauge, add, get, hour12, safeImage, clamp01, songAt,
+    reloadForRun,
   };
 })();

@@ -4129,7 +4129,7 @@
         if (res && res.widgets && res.widgets.ids.length && window.CustomWidget
             && typeof CustomWidget.requestGrants === 'function') {
           try { await CustomWidget.getPackages(true); } catch { /* refresh best-effort */ }
-          CustomWidget.requestGrants(res.widgets.ids);
+          CustomWidget.requestGrants(res.widgets.ids.filter((id) => !/** @type {any} */ (window).CustomWidget.cachedPackages().some((p) => p && p.id === id && p.pumpStyle === true)));
         }
         if (!res || (!res.theme && !res.wallpaper && !res.pages && !res.decks && !res.bg && !res.topbar && !res.widgets.installed && !res.widgets.failed)) {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
@@ -4163,14 +4163,14 @@
     // the same path as the "+" panel (permissions asked there if needed). Several:
     // where to find them, "+" then "Installed". Ambient scenes and headless
     // widgets have no tile, so they are not offered a page.
-    function offerAddToPage(pkgIds) {
+    function offerAddToPage(pkgIds, single = false) {
       const CW = window.CustomWidget;
       if (!CW || typeof CW.cachedPackages !== 'function' || !window.XenonToast) return false;
       const ids = (pkgIds || []).filter(Boolean).map(String);
       const pkgs = (CW.cachedPackages() || []).filter((p) => p && ids.includes(p.id) && p.surface !== 'ambient' && p.tile !== false);
       if (!pkgs.length) return false;
-      // The Maker's link went straight on screen (js/store-catalog/place-installed.js).
-      if (importSource.place !== true) showInstalledToast(CW, pkgs);
+      // One widget by itself goes into use, a pump style onto the pump; the rest is offered (js/store-catalog/place-installed.js).
+      const PI = /** @type {any} */ (window).PlaceInstalled; if (PI) PI.useInstalled(pkgs, { link: importSource.place === true, single }, (left) => showInstalledToast(CW, left)); else if (importSource.place !== true) showInstalledToast(CW, pkgs);
       return true;
     }
 
@@ -4178,9 +4178,9 @@
       const CW = window.CustomWidget;
       if (!CW || typeof CW.cachedPackages !== 'function' || typeof CW.requestGrants !== 'function') return;
       const pkg = CW.cachedPackages().find((p) => p && p.id === pkgId);
-      const offTile = !!pkg && pkg.background === true && (pkg.badge === true || pkg.mini === true
+      const offTile = !!pkg && pkg.tile === false && (pkg.background === true && (pkg.badge === true || pkg.mini === true
         || pkg.topbarButton === true || pkg.islandDynamic === true
-        || !!(pkg.deck && Array.isArray(pkg.deck.handlers) && pkg.deck.handlers.length));
+        || !!(pkg.deck && Array.isArray(pkg.deck.handlers) && pkg.deck.handlers.length)));
       if (offTile) CW.requestGrants([pkg]);
     }
 
@@ -4309,13 +4309,13 @@
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
         const pkgId = review.id || w.id || (w.payload && w.payload.id);
         // A widget that works with no tile (a badge, a mini slot, an island
-        // activity, Deck keys, all with `background`) asks for its permissions
+        // activity, Deck keys, all with `background`, kept off the page) asks for its permissions
         // now, as a bundle import does. Otherwise the only way to approve it was
         // placing a tile its owner never wanted, and it stayed dead in silence.
         askIfRunsWithoutTile(pkgId);
         // The installed widget says where it goes; a scene or a headless widget,
         // which has no tile, just gets the plain confirmation.
-        if (!offerAddToPage([pkgId])) {
+        if (!offerAddToPage([pkgId], true)) {
           toast(importDoneLabel(), String(name || w.name || ''), 'success');
         }
       });

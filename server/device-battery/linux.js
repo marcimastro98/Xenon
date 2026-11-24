@@ -83,6 +83,11 @@ async function listUndriven(filter) {
   return infos.filter((_, i) => !driven[i]).map(({ featureLength, ...info }) => info);
 }
 
+// One hidraw node carries every report of its interface, so the collections that share a node
+// are the ones a reply can come back on (Windows: windows.js peers). The asked one comes first:
+// it is the one opened.
+const peers = (info, infos = []) => [info, ...infos.filter((other) => other !== info && other.path === info.path)];
+
 // What the kernel and BlueZ already know costs a device nothing, so both stay on when asking
 // is switched off. A device can be in both, under the same name.
 async function read({ ask = true, guard = createGuard() } = {}) {
@@ -91,10 +96,10 @@ async function read({ ask = true, guard = createGuard() } = {}) {
   const bluetooth = (await readBluez({ ask, guard })).filter((device) => !known.has(device.name));
   if (!ask) return [...bluetooth, ...supplies];
   const guarded = guard.wrapHid(hid);
-  const transport = { list: listUndriven, open: guarded.open, openReports: guard.wrapReports(openReports), peers: (info) => [info], leadingZero: false };
+  const transport = { list: listUndriven, open: guarded.open, openReports: guard.wrapReports(openReports), peers, leadingZero: false };
   const direct = await readDirect(transport).catch(() => []);
   const razerDevices = await readRazer(guarded).catch(() => []);
   return [...direct, ...razerDevices, ...bluetooth, ...supplies];
 }
 
-module.exports = { read, readPowerSupplies, sourceOf, kernelDrives, kindOf };
+module.exports = { read, readPowerSupplies, sourceOf, kernelDrives, kindOf, peers };

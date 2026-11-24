@@ -1,5 +1,5 @@
-// The Clock face (pump-face.html): digital or with hands, the date and the
-// weather outside if asked. Also the face a pump shows while the PC's screens
+// The Clock face (pump-face.html): digital on the drop (face-drop.js) or with hands, the date and
+// the weather outside if asked. Also the face a pump shows while the PC's screens
 // are off. Joins window.PumpFaceKit; no global.
 (() => {
   'use strict';
@@ -36,6 +36,9 @@
     return line;
   }
 
+  // Strumento's clock (face-gauge.js) writes the weather the same way.
+  Kit.add('part', 'weather', weatherLine);
+
   function dateText(now) {
     return new Intl.DateTimeFormat(Kit.locale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
   }
@@ -47,15 +50,19 @@
     return digits < 4 ? 0 : 1 + extras;
   }
 
+  // Each style returns { paint(now), place }: place holds the weather line.
   function digital(root, opts) {
+    Kit.get('part', 'drop')(root);
+    const mid = Kit.el('div', 'pf-clock-mid pf-drop-ink');
     const time = Kit.el('div', 'pf-time');
     const hm = Kit.el('span', 'pf-time-hm');
     const sec = Kit.el('span', 'pf-time-s');
     const ampm = Kit.el('span', 'pf-time-ampm');
     time.append(hm, sec, ampm);
     const date = Kit.el('div', 'pf-date');
-    root.append(time, date);
-    return (now) => {
+    mid.append(time, date);
+    root.append(mid);
+    const paint = (now) => {
       const parts = new Intl.DateTimeFormat(Kit.locale(), { hour: 'numeric', minute: '2-digit', hour12: Kit.hour12() }).formatToParts(now);
       hm.textContent = parts.filter((p) => p.type !== 'dayPeriod').map((p) => p.value).join('').trim();
       ampm.textContent = parts.find((p) => p.type === 'dayPeriod')?.value || '';
@@ -63,6 +70,7 @@
       date.textContent = opts.date ? dateText(now) : '';
       time.dataset.fit = String(fitStep(hm.textContent, [sec, ampm].filter((n) => n.textContent).length));
     };
+    return { paint, place: mid };
   }
 
   function analog(root, opts) {
@@ -83,7 +91,7 @@
     dial.append(Kit.svg('circle', { cx: 50, cy: 50, r: 1.8, class: 'pf-hub' }));
     const date = Kit.el('div', 'pf-date pf-date-dial');
     root.append(dial, date);
-    return (now) => {
+    const paint = (now) => {
       const sec = now.getSeconds();
       const min = now.getMinutes() + sec / 60;
       h.setAttribute('transform', `rotate(${((now.getHours() % 12) + min / 60) * 30} 50 50)`);
@@ -91,13 +99,14 @@
       if (s) s.setAttribute('transform', `rotate(${sec * 6} 50 50)`);
       date.textContent = opts.date ? new Intl.DateTimeFormat(Kit.locale(), { weekday: 'short', day: 'numeric' }).format(now) : '';
     };
+    return { paint, place: root };
   }
 
   Kit.add('face', 'clock', (root, opts) => {
     root.classList.add('pf-face-clock', `pf-style-${opts.style}`);
-    const paint = opts.style === 'analog' ? analog(root, opts) : digital(root, opts);
+    const { paint, place } = opts.style === 'analog' ? analog(root, opts) : digital(root, opts);
     let sky = Kit.el('div', 'pf-weather');
-    root.append(sky);
+    place.prepend(sky);
     let seen = '';
     return {
       wantsWeather: !!opts.weather,

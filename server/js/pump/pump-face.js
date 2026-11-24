@@ -1,6 +1,6 @@
 // The page a pump's screen shows (pump-face.html, served at /pump-face): it says
-// which screen it is (?screen=, ?shape=, ?via= from iCUE's widget, NZXT CAM or a
-// browser), then draws the face the server picks for it (pump-screen/live.js) and
+// which screen it is (?screen=, ?shape=, ?via= from iCUE's widget, NZXT CAM, Xenon's own
+// hidden browser for a screen it draws on over USB (pump-screen/direct.js), or a browser), then draws the face the server picks for it (pump-screen/live.js) and
 // what arrives over it. Asks for no web permission: iCUE reloads a widget at each
 // one. Faces: face-*.js through window.PumpFaceKit. One window.PumpFace.
 (() => {
@@ -9,7 +9,7 @@
   const Kit = window.PumpFaceKit;
   const Faces = window.PumpFaces;
   const SHAPES = ['round', 'square', 'wide'];
-  const VIAS = ['icue', 'cam', 'monitor', 'browser'];
+  const VIAS = ['icue', 'cam', 'monitor', 'direct', 'browser'];
   const SWAP_MS = 450;
   const WEATHER_EVERY_MS = 15 * 60000;
   const OFFLINE_AFTER_MS = 8000;
@@ -31,8 +31,8 @@
   const stage = document.getElementById('pf-stage');
   const dim = document.getElementById('pf-dim');
   const status = document.getElementById('pf-status');
-  const pageLang = readWords();
-  const alerts = Kit.get('part', 'alerts')(document.getElementById('pf-alerts'));
+  const { lang: pageLang, run: served } = readWords();
+  const alerts = Kit.get('part', 'alerts')(document.getElementById('pf-alerts'), { style: () => face?.impl });
   const colors = Kit.get('part', 'colors')(sayColours);
   const lookOf = Kit.get('part', 'look');
 
@@ -57,23 +57,25 @@
     const w = window.innerWidth;
     const h = window.innerHeight;
     if (w > h * 1.15 || h > w * 1.15) return 'wide';
-    return via === 'icue' || via === 'cam' ? 'round' : 'square';
+    return via === 'icue' || via === 'cam' || via === 'direct' ? 'round' : 'square';
   }
 
   function readWords() {
     try {
       const raw = JSON.parse(document.getElementById('pump-strings').textContent || '{}');
       Kit.setWords(raw.words, raw.prefs);
-      return raw.prefs?.lang || 'en';
-    } catch { return 'en'; }
+      return { lang: raw.prefs?.lang || 'en', run: String(raw.run || '') };
+    } catch { return { lang: 'en', run: '' }; }
   }
 
   // ── The face ────────────────────────────────────────────────────────────
-  function mount(show) {
+  function mount(face0) {
+    // As the screen's style draws it: Strumento's dial (face-gauge.js), or the style's widget.
+    const show = Faces.drawnShow(face0, settings, tried ? 'base' : now?.why);
     const key = JSON.stringify(show);
     if (key === faceKey) return;
     faceKey = key;
-    const make = Kit.get('face', show.face);
+    const make = Kit.get('face', show.drawn || show.face);
     const layer = Kit.el('div', 'pf-face');
     stage.append(layer);
     // The look first: the face reads its unit, and its colours come from the layer.
@@ -81,7 +83,7 @@
     const next = make ? make(layer, show) : null;
     const old = face;
     face = { layer, look, show, impl: next || { update() {} } };
-    colors.reset();
+    colors.reset(); colors.ask(null);
     face.impl.update(data);
     if (old) {
       const fade = !settings || settings.look.fade;
@@ -138,6 +140,7 @@
       const r = await fetch('/pump/hello', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!d?.ok) throw new Error(d?.error || 'HTTP ' + r.status);
+      if (Kit.reloadForRun(served, d.run)) return;
       helloTimer = setTimeout(() => hello(true), BEAT_MS);
       if (beat) return;
       id = d.screen;
@@ -155,14 +158,13 @@
     }
   }
 
-  // The colours of the face (face-colors.js): its own, when its look takes them from the
-  // picture, and the ring of lights around the pump's, when they follow the screen.
-  const ringFollows = () => !preview && settings?.leds?.follow === 'screen';
-  async function sayColours(list) {
-    face?.look.fromPicture(list);
-    if (!ringFollows()) return true;
+  // What face-colors.js read and measured: the colours to the face's look, when it takes them
+  // from the picture, and to the ring of lights around the pump what it wants (`ring`).
+  async function sayColours(list, ring) {
+    if (list) face?.look.fromPicture(list);
+    if (!ring) return true;
     try {
-      const r = await fetch('/pump/colors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: id, colors: list }) });
+      const r = await fetch('/pump/colors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screen: id, ...ring }) });
       return (await r.json())?.ok === true;
     } catch { return false; }
   }
@@ -172,6 +174,7 @@
       const d = await (await fetch('/pump', { cache: 'no-store' })).json();
       if (!d?.ok) return;
       if (d.prefs && d.prefs.lang !== pageLang) { location.reload(); return; }
+      if (Kit.reloadForRun(served, d.run)) return;
       Kit.setWords(null, d.prefs);
       if (!d.screens[id]) { if (!preview) hello(); return; }
       settings = d.screens[id];
@@ -264,7 +267,7 @@
   // colours; each minute the night hours; every quarter of an hour the weather, if shown.
   function everySecond() {
     if (face?.impl.tick) face.impl.tick();
-    if (face && (ringFollows() || face.show.colors === 'picture')) colors.tick(face.layer);
+    if (face) colors.tick(face, preview ? null : settings, data);
     else colors.reset();
     const t = new Date();
     if (t.getSeconds() === 0) {
@@ -282,6 +285,8 @@
 
   window.PumpFace = {
     snapshot: () => ({ screen: id, shape, via, face: face ? JSON.parse(faceKey) : null, why: root.dataset.why, alert: alerts.busy() }),
+    // The widget drawing a line asks the ring of lights (pump-widget-host.js, checked there).
+    widgetRing(ask) { colors.ask(ask); },
     // The menu (same page origin) shows the line being changed; null goes back to the pump's own.
     tryFace(show) {
       if (!preview) return false;

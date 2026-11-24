@@ -33,7 +33,7 @@ test('a uevent without a usable HID_ID is no device', () => {
 });
 
 test('a Fusion descriptor gives its usage page and usage, not the ones nested inside', () => {
-  assert.deepEqual(topCollections(FUSION_DESCRIPTOR), [{ usagePage: 0xFF89, usage: 0xCC }]);
+  assert.deepEqual(topCollections(FUSION_DESCRIPTOR), [{ usagePage: 0xFF89, usage: 0xCC, inputLength: 0, outputLength: 0 }]);
 });
 
 test('every top-level collection is reported, nested ones are not', () => {
@@ -43,17 +43,17 @@ test('every top-level collection is reported, nested ones are not', () => {
     0xC0,
     0x06, 0x89, 0xFF, 0x09, 0xCC, 0xA1, 0x01, 0xC0,
   ];
-  assert.deepEqual(topCollections(Buffer.from(bytes)), [{ usagePage: 1, usage: 2 }, { usagePage: 0xFF89, usage: 0xCC }]);
+  assert.deepEqual(topCollections(Buffer.from(bytes)), [{ usagePage: 1, usage: 2, inputLength: 0, outputLength: 0 }, { usagePage: 0xFF89, usage: 0xCC, inputLength: 0, outputLength: 0 }]);
 });
 
 test('a 4-byte usage names its own page, for that collection only', () => {
   const bytes = [0x05, 0x01, 0x0B, 0xCC, 0x00, 0x89, 0xFF, 0xA1, 0x01, 0xC0, 0x09, 0x06, 0xA1, 0x01, 0xC0];
-  assert.deepEqual(topCollections(Buffer.from(bytes)), [{ usagePage: 0xFF89, usage: 0xCC }, { usagePage: 1, usage: 6 }]);
+  assert.deepEqual(topCollections(Buffer.from(bytes)), [{ usagePage: 0xFF89, usage: 0xCC, inputLength: 0, outputLength: 0 }, { usagePage: 1, usage: 6, inputLength: 0, outputLength: 0 }]);
 });
 
 test('push and pop bring the usage page back', () => {
   const bytes = [0x05, 0x01, 0xA4, 0x05, 0x0C, 0xB4, 0x09, 0x06, 0xA1, 0x01, 0xC0];
-  assert.deepEqual(topCollections(Buffer.from(bytes)), [{ usagePage: 1, usage: 6 }]);
+  assert.deepEqual(topCollections(Buffer.from(bytes)), [{ usagePage: 1, usage: 6, inputLength: 0, outputLength: 0 }]);
 });
 
 test('a usage ended by another main item does not name the next collection', () => {
@@ -63,11 +63,24 @@ test('a usage ended by another main item does not name the next collection', () 
 
 test('long items are stepped over, and a malformed descriptor never throws', () => {
   const long = [0xFE, 0x02, 0x10, 0xAA, 0xBB];
-  assert.deepEqual(topCollections(Buffer.from([...long, ...FUSION_DESCRIPTOR])), [{ usagePage: 0xFF89, usage: 0xCC }]);
+  assert.deepEqual(topCollections(Buffer.from([...long, ...FUSION_DESCRIPTOR])), [{ usagePage: 0xFF89, usage: 0xCC, inputLength: 0, outputLength: 0 }]);
   assert.deepEqual(topCollections(Buffer.alloc(0)), []);
   assert.deepEqual(topCollections(Buffer.from([0x06, 0x89])), []);
   assert.deepEqual(topCollections(Buffer.from([0xFE])), []);
   assert.deepEqual(topCollections(Buffer.from([0xC0, 0xC0, 0xC0])), []);
+});
+
+// A pump screen's shape (CORSAIR 0C4E): report 1 in, 63 bytes; report 2 out, 1023 bytes; a feature beside.
+const PUMP_DESCRIPTOR = Buffer.from([0x06, 0x42, 0xFF, 0x09, 0x01, 0xA1, 0x01, 0x85, 0x01, 0x75, 0x08, 0x95, 0x3F, 0x09, 0x02, 0x81, 0x02, 0x85, 0x02, 0x96, 0xFF, 0x03, 0x09, 0x03, 0x91, 0x02, 0x85, 0x03, 0x95, 0x10, 0x09, 0x04, 0xB1, 0x02, 0xC0]);
+
+test('each collection says its longest input and output report, report id byte included, as Windows does', () => {
+  assert.deepEqual(topCollections(PUMP_DESCRIPTOR), [{ usagePage: 0xFF42, usage: 1, inputLength: 64, outputLength: 1024 }]);
+  // Two output reports: the longer one counts; push and pop bring the report size back.
+  const two = [0x06, 0x00, 0xFF, 0x09, 0x01, 0xA1, 0x01, 0x85, 0x05, 0x75, 0x08, 0x95, 0x07, 0x91, 0x02, 0xA4, 0x75, 0x01, 0x95, 0x08, 0x91, 0x02, 0xB4, 0x85, 0x06, 0x95, 0x20, 0x91, 0x02, 0xC0];
+  assert.deepEqual(topCollections(Buffer.from(two)), [{ usagePage: 0xFF00, usage: 1, inputLength: 0, outputLength: 33 }]);
+  // No report ids: still one byte for it; a second collection keeps its own lengths.
+  const plain = [0x05, 0x01, 0x09, 0x06, 0xA1, 0x01, 0x75, 0x08, 0x95, 0x08, 0x81, 0x02, 0xC0, 0x06, 0x00, 0xFF, 0x09, 0x01, 0xA1, 0x01, 0x95, 0x40, 0x91, 0x02, 0xC0];
+  assert.deepEqual(topCollections(Buffer.from(plain)), [{ usagePage: 1, usage: 6, inputLength: 9, outputLength: 0 }, { usagePage: 0xFF00, usage: 1, inputLength: 0, outputLength: 65 }]);
 });
 
 test('the ioctl numbers are the kernel\'s, top bits included', () => {
@@ -100,7 +113,14 @@ test('listing finds the chips over sysfs and leaves everything else out', async 
     notanode: { uevent: uevent(0x048D, 0x5711), descriptor: FUSION_DESCRIPTOR },
   });
   const found = await createHidLinux({ sysDir }).list(FILTER);
-  assert.deepEqual(found, [{ path: '/dev/hidraw3', vendorId: 0x048D, productId: 0x5711, usagePage: 0xFF89, usage: 0xCC, featureLength: 64, product: '' }]);
+  assert.deepEqual(found, [{ path: '/dev/hidraw3', vendorId: 0x048D, productId: 0x5711, usagePage: 0xFF89, usage: 0xCC, inputLength: 0, outputLength: 0, featureLength: 64, product: '' }]);
+});
+
+test('a pump screen is listed with the output length its link looks for (pump-screen/lcd-link.js)', async (t) => {
+  const panel = require('../pump-screen/lcd-corsair.js').panelOf(0x1B1C, 0x0C4E);
+  const sysDir = fakeSysfs(t, { hidraw2: { uevent: uevent(0x1B1C, 0x0C4E) + 'HID_NAME=Pump screen\n', descriptor: PUMP_DESCRIPTOR } });
+  const found = await createHidLinux({ sysDir }).list({ vendorId: 0x1B1C, productIds: [0x0C4E] });
+  assert.deepEqual(found.map((d) => [d.path, d.outputLength]), [['/dev/hidraw2', panel.reportBytes]]);
 });
 
 test('every chip the driver knows is listed, the same way', async (t) => {

@@ -165,6 +165,8 @@ window) does not report errors or pictures yet.
 | `category` | no | Where the "+" panel files your widget (v4.11.11): `"productivity"`, `"media"`, `"system"` or `"streaming"`, the same groups as Xenon's own widgets. Without it the panel uses the category of your widget's Store entry, and failing that it goes under *Other*. Every installed widget is also listed under the panel's **Installed** filter. Not a permission; any other value is dropped. |
 | `size` | no | The shape your widget is drawn for, so a new tile of it starts in that shape instead of the default span: `"small"` (one value at a glance), `"medium"`, `"wide"` (a short strip), `"tall"` (a full-height column) or `"large"` (the main instrument of a page). Xenon turns it into columns and rows from the screen it lands on: on the 2560x720 Xeneon Edge a `wide` tile is about 750x220 px, on a 1920x1080 monitor it takes more columns. The user can still resize it, so the widget must still recompose at every size. Not a permission; any other value is dropped, and Ambient packages ignore it. (v5.0) |
 | `pump` | no | **The pump screens your widget is drawn for** (the small LCD on an AIO cooler's pump): `true` means round and square, or list them, `["round"]`, `["round", "square", "wide"]`. Your widget then appears among the faces the user can give a pump in Xenon → Screens, and Bit can put it there. It runs as on the dashboard, with the permissions the user approved, and `placement` says `{ where: 'pump', shape }`. Draw for a small, often round screen seen from a metre away: one big thing, nothing near the edge of a round one (keep inside the circle), no taps (nobody touches a pump). Not a permission; any other value is dropped. (v5.3) |
+| `pumpStyle` | no | **Your widget can be a pump screen's style.** With [`pump`](#manifestjson) as well, it is offered beside Xenon and Gauge in Xenon → Screens → the pump → Look, and then draws every line of that screen that shows the readings, the game, the song or the clock (a picture stays the user's own, and a line with a widget of its own keeps it). [`placement.line`](#4c-quater-where-your-widget-is--placement-host--widget-v500) says which line you are drawing, and [`pumpRing`](#4e-quinquies-the-ring-of-lights-around-a-pump--pumpring-widget--host-v53) moves the lights around the screen. Not a permission; any value but `true` is dropped. (v5.3) |
+| `pumpAlerts` | no | **As a pump style, take the pump's alerts your own way.** `"dots"` or `"plain"`: while a notification, a call, a finished timer, a Discord message or a hot PC is on the screen, Xenon draws no card over your widget. It tells you only the kind ([`pumpAlert`](#4e-sexies-the-pumps-alerts-your-way--pumpalert-host--widget-v53)), you show it your way above the band it leaves free at the bottom, and Xenon writes the words there in your line's colours: the title in dots like a lit sign, or in plain type. Kept only with `pumpStyle` and only for a widget that asks for nothing that could take what it learns out of its frame: no `actions`, `hosts`, `userHosts`, `hooks`, `ai`, `storage`/`storageGroup`, `secrets` or `clipboard` (when a message or a call came is news of its own). Otherwise dropped, and Xenon's own card shows. Not a permission. (v5.3) |
 | `icon` | no | **Your widget's own glyph** (v4.11.11), shown on its tab in a tab group and on its result in the "+" panel's search, instead of the generic puzzle. SVG path data in a **24×24 box**, drawn the way every built-in widget icon is drawn: a 2 px round stroke in the text colour. A string, or up to 4 paths as an array; `{ "path": …, "fill": true }` draws a solid glyph instead. Not a permission. A malformed icon is dropped and your package still installs, with the puzzle. See *Widget icon*. |
 | `options` | no | **Your widget's own choices, set from the Store (Installed, Options) and the Xenon menu** (v5.0): what to show, which shape, when. Up to 32 entries; each is `{ id, kind, label }` with `kind` `"toggle"` (`default: true\|false`), `"select"` (2 to 8 `choices` of `{ value, label }`, `default` one of their values) or `"group"` (a heading; a toggle names it with `group`). `id` and `value` match `^[a-z][a-zA-Z0-9_-]{0,31}$`; `label` is a string or a map by two-letter language (`{ "en": "Memory", "it": "Memoria" }`), cut at 60 characters. The values arrive in `init.options` and again in an `options` message when they change. Not a permission. A wrong entry is left out and the rest are kept. See *Your own options*. |
 | `fit` | no | `true` → on the desktop and over everything your **box takes the size you ask for** with a `layer` message, instead of the size the user drew, so a counter is as big as its numbers. The menu then hides the size and the merge-into-tabs rows for your widget. Not a permission; ignored on an `ambient` package. See *Sizing your box*. (v5.0) |
@@ -2245,13 +2247,31 @@ another app's window. `init` says which, and a change is pushed:
   round one inside the circle, and ask for no taps. (v5.3)
   It also brings `look`, what the user chose for that line of the pump in
   Xenon → Screens: `{ colors: ['#6ee787', '#8ab4f8', '#ffd75e', '#b4a0ff'],
-  size: 'normal', units: 'f' }`. `colors` is four `#rrggbb`, the first one
-  leading (rings, hands, glow); `size` is `'normal'` or `'big'` (bigger
+  warn: '#ff5a5f', background: '#000000', size: 'normal', units: 'f' }`.
+  `colors` is four `#rrggbb`, the first one leading (rings, hands, glow);
+  `warn` is the `#rrggbb` for a reading that runs hot; `background` is the
+  `#rrggbb` behind everything; `size` is `'normal'` or `'big'` (bigger
   numbers); `units`, `'c'` or `'f'`, is there only when the user picked a
   unit for that line: show every temperature in it then, else follow
-  `init.tempUnit` / `hwTempUnit` as anywhere. Use
+  `init.tempUnit` / `hwTempUnit` as anywhere. `live` is there when the user
+  left the line's colours to follow what it shows (Colours → Live, the default):
+  four `#rrggbb` from a calm reading to a hot one (cool blue, green, amber,
+  red). `colors` are then Xenon's own; to match the screens Xenon draws, tint
+  each reading along `live` as it works harder. Use
   them when they fit your design; they change when the user changes them, and
   the frame reloads. Missing on an older Xenon: keep your own colours. (v5.3)
+  As the screen's style ([`pumpStyle`](#manifestjson)) it also brings `line`,
+  the line you are drawing: `{ face: 'sensors', moment: 'base', readings: ['cpuTemp', 'gpu'] }`.
+  `face` is `'sensors'` (the readings, from the `system` stream), `'game'` (the
+  FPS, `fps` in `system`, and the readings picked for it), `'music'` (the song,
+  `media`) or `'clock'` (the time): draw your own take on it. `readings` are the
+  ones the user picked for that line, the first one leading (`[]` for music and
+  the clock): ids from `cpuTemp`, `cpu`, `gpuTemp`, `gpu`, `ram`, `vram`, `power`,
+  `fps`, `cpuClock`, `gpuClock`. `moment` says why the line is on show, only its
+  kind: `'game'`, `'music'`, `'time'`, `'app'`, a situation, or `'base'` for
+  the rest of the time; never which app or which hours. Each line is a new
+  frame. While your widget cannot show (removed, Store widgets off, not
+  approved) Xenon draws those lines itself. Ask for the streams you draw. (v5.3)
 - `dashboard`: `false` when the user runs Xenon as widgets only, with no
   dashboard. Leave out anything that says "open it on the dashboard" then.
 
@@ -2491,6 +2511,77 @@ before 5.0.0: draw nothing then, never a made-up number. It needs no permission
 and nothing in the manifest. Say "numbered" in your Store text only when every
 copy is sold with Sparks; how many copies exist is the Store entry's copy cap,
 not something the widget knows.
+
+### 4e-quinquies. The ring of lights around a pump — `pumpRing` (widget → host) (v5.3)
+
+Many pump screens sit inside a ring of LEDs. While your widget draws a line of
+a pump screen (as its [`pumpStyle`](#manifestjson), or as the face of one line)
+and the user left that ring moving as the style draws (the pump's Lights → How
+they move → Like the style), you can say how it moves:
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'pumpRing', effect: 'level', level: 0.72 }, '*');
+window.parent.postMessage({ xenonSdk: 1, type: 'pumpRing', effect: 'spin', colors: ['#00e5ff', '#ff2e88'] }, '*');
+```
+
+- `effect`: one of the light effects listed below, the same the user picks from
+  in Lights. Never `'beat'` or `'meter'`: they read the sound, and only the user
+  turns that on. Anything else keeps it still. How fast the moving ones go, how much
+  of each (its tail, stars, drops), how lit its dark part stays and which way
+  round stay the user's (Lights → Speed, Amount, Background light, The other way
+  round). The effects that follow the PC (its load, its fans, today's sky,
+  the weather, a timer) read it on their own: a widget only names them. `'fans'`
+  stands still on a PC where Xenon reads no fan.
+- `level`: 0 to 1, how far the line is, for `'level'` and `'heat'`. Without it
+  Xenon uses the line's first reading, or the song's time.
+- `colors`: up to three `#rrggbb`, the colours of what you show, used when the
+  ring follows the screen. Without them the ring takes the line's own colours.
+
+The effects, generated from Xenon's own list of light effects:
+
+<!-- LIGHT-FX:START (auto-generated by tools/gen-sdk-reference.mjs — do not edit by hand) -->
+- Calm: `'still'` (Your colours, standing still), `'breathe'` (All the lights fade in and out slowly), `'alternate'` (Two colours swap places slowly, like a tide), `'aurora'` (Soft curtains of colour drift, like northern lights), `'candle'` (Each light flickers on its own, like a flame), `'starry'` (A few lights at a time glow softly and fade, like stars), `'lava'` (Slow blobs of your colours drift and melt into each other), `'shift'` (Every light together, from one colour to the next).
+- Moving: `'spin'` (A light with a long tail goes round), `'turn'` (Your colours turn round, every light on), `'comet'` (A bright head with a fading tail runs round), `'orbit'` (Two lights chase each other on opposite sides), `'scanner'` (A beam sweeps from one end to the other and back), `'chase'` (Small groups of lights step forward, like a theatre sign), `'bands'` (Bright and dim bands roll round), `'fill'` (The lights fill one by one, then empty, a new colour each time), `'ripple'` (Rings of light spread out from the top), `'sparkle'` (Quick white glints over your colours), `'rainbow'` (Every colour of the rainbow, turning; its own colours), `'heartbeat'` (Two beats and a rest, like a heart), `'fire'` (Flames rise from the bottom, hottest at the root), `'rain'` (Drops slide down and fade), `'lighthouse'` (One wide beam turns slowly, like a lighthouse).
+- Following the line or the PC: `'level'` (Fills up to a reading, from your first colour to your last; follows `level`), `'heat'` (Warms from your colour to red as a reading rises; follows `level`), `'clock'` (An arc for the hours, a dot for the minutes, a spark for the seconds; follows the time), `'load'` (Turns faster and warmer the harder the PC works; follows how hard the PC works), `'fans'` (Blades of light that turn with your fans; follows the fans' speed), `'sky'` (Today's sky: dawn, day, sunset and night at your times; follows today's sunrise and sunset; its own colours), `'weather'` (The weather outside: sun, clouds, rain, snow, storms; follows the weather outside; its own colours), `'timer'` (Empties as a Xenon timer runs down; follows a Xenon timer running).
+<!-- LIGHT-FX:END -->
+
+Xenon takes it at most once a second and only from a widget on a pump screen;
+anywhere else, or when the user picked how the ring moves, nothing happens and
+nothing answers. Your last word holds until the line changes. Say it again when
+what you show changes, not on every frame. Not a permission. On an older Xenon
+nothing happens.
+
+### 4e-sexies. The pump's alerts, your way — `pumpAlert` (host → widget) (v5.3)
+
+A pump style that sets [`pumpAlerts`](#manifestjson) is told when an alert
+comes and when it goes, and shows it its own way. Xenon then draws no card over
+it: it writes the words in the band at the bottom, and your widget keeps the rest.
+
+```js
+window.addEventListener('message', (e) => {
+  const d = e.data;
+  if (!d || d.xenonSdk !== 1 || d.type !== 'pumpAlert') return;
+  // d.kind: 'notify' | 'call' | 'timer' | 'discord' | 'hot', or null when it is over
+  // d.band: how much of the screen's height, from the bottom, Xenon writes in (0.38; 0 when over)
+  // d.seconds: how long it stays; 0 for a call, which stays while it rings
+});
+```
+
+- You get the kind only: never the app, the title, the words, who calls or a
+  timer's name. Xenon writes those itself, and leaves a message's words off
+  whenever the pump may not show them (as it does for every pump).
+- Keep what you draw above `band` while an alert is up (the words sit there),
+  and go back to the line when `kind` is `null`. A new alert can follow at once.
+- It comes only while your widget draws a line of a pump screen as its style. If
+  the screen changes while an alert shows (a game starts, your page loads late),
+  Xenon follows: you are told again with the seconds left, or told `null` when
+  another face takes over.
+- With [`pumpRing`](#4e-quinquies-the-ring-of-lights-around-a-pump--pumpring-widget--host-v53)
+  you can give the ring one calm effect for the alert (a `'ripple'` for a message,
+  a `'chase'` for a call). Keep it calm: no flashing.
+
+On an older Xenon, or without `pumpAlerts`, nothing comes and Xenon's own card
+covers the screen as before.
 
 ### 5. `action` — widget → host, and `action_result` — host → widget
 

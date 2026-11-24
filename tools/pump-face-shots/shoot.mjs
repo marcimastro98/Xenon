@@ -65,7 +65,35 @@ export const SHOTS = {
   'look-big-4': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp', 'cpu', 'gpu'], size: 'big', colors: 'violet' }),
   'look-game-mono': face({ face: 'game', readings: ['fps', 'gpuTemp', 'cpuTemp'], track: true, colors: 'mono', bg: 'art:ember', size: 'big' }),
   'look-clock-theme': face({ face: 'clock', style: 'analog', seconds: true, date: true, weather: true, colors: 'theme', units: 'f', text: 'Buongiorno' }),
+  // Four colours of one's own: dark behind with a hot reading, then a light one (dark words).
+  'look-own-four-hot': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'], colors: ['#ff2e88', '#ffd166', '#ff3b30', '#120a1f'] }, { system: HOT_SYSTEM }),
+  'look-own-light-bars': face({ face: 'sensors', style: 'bars', readings: ['cpuTemp', 'gpuTemp', 'ram', 'power'], colors: ['#0a7cff', '#ff6b00', '#d7263d', '#f4efe6'] }, { system: HOT_SYSTEM }),
+  'look-own-light-clock': face({ face: 'clock', style: 'analog', seconds: true, date: true, weather: true, colors: ['#0a7cff', '#ff6b00', '#d7263d', '#f4efe6'], text: 'Studio' }),
+  'look-own-light-game': face({ face: 'game', readings: ['fps', 'gpuTemp', 'cpuTemp'], track: true, colors: ['#1b998b', '#2d3047', '#e84855', '#fffd82'] }),
+  // What is behind the drop (Xenon's own style): it must show around it and through it.
+  'bg-drop-glow': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'], bg: 'glow' }),
+  'bg-drop-glow-hot': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'], bg: 'glow' }, { system: HOT_SYSTEM }),
+  'bg-drop-photo': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp', 'cpu'], bg: '/uploads/pump-photo.png' }),
+  'bg-drop-tide-clock': face({ face: 'clock', style: 'digital', seconds: false, date: true, weather: true, colors: 'ice', bg: 'art:tide' }),
+  'bg-drop-orbit-music': face({ face: 'music', style: 'cover', bg: 'art:orbit' }),
+  'bg-bars-aurora': face({ face: 'sensors', style: 'bars', readings: ['cpuTemp', 'gpuTemp', 'ram', 'power'], bg: 'art:aurora' }),
   'look-numbers-big': face({ face: 'sensors', style: 'numbers', readings: ['cpuTemp', 'gpuTemp', 'cpuClock', 'vram'], size: 'big', colors: 'picture', bg: 'art:tide' }),
+  // Strumento (face-gauge.js): the screen's style draws these faces as a dial with a needle.
+  'gauge-sensors': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'] }, { style: 'gauge' }),
+  'gauge-sensors-f-big': face({ face: 'sensors', style: 'bars', readings: ['cpuTemp', 'fps'], units: 'f', size: 'big', text: 'Studio PC' }, { style: 'gauge' }),
+  'gauge-hot': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'] }, { style: 'gauge', system: HOT_SYSTEM }),
+  'gauge-hot-nowarn': face({ face: 'sensors', style: 'rings', readings: ['cpuTemp', 'gpuTemp'], warn: false }, { style: 'gauge', system: HOT_SYSTEM }),
+  'gauge-clocks': face({ face: 'sensors', style: 'rings', readings: ['gpuClock', 'power'] }, { style: 'gauge' }),
+  'gauge-game': face({ face: 'game', readings: ['fps', 'gpuTemp', 'cpuTemp'], track: true, colors: 'fire' }, { style: 'gauge' }),
+  'gauge-no-reading': face({ face: 'game', readings: ['fps', 'gpuTemp'], track: false }, { style: 'gauge', system: MAC_SYSTEM }),
+  'gauge-music': face({ face: 'music', style: 'cover', colors: 'ice' }, { style: 'gauge' }),
+  'gauge-music-long': face({ face: 'music', style: 'cover' }, { style: 'gauge', media: MEDIA_LONG }),
+  'gauge-music-nothing': face({ face: 'music', style: 'cover' }, { style: 'gauge', media: {} }),
+  'gauge-clock': face({ face: 'clock', style: 'digital', seconds: true, date: true, weather: true, text: 'Studio' }, { style: 'gauge' }),
+  'gauge-own-light': face({ face: 'sensors', style: 'rings', readings: ['cpu', 'ram'], colors: ['#0a7cff', '#ff6b00', '#d7263d', '#f4efe6'] }, { style: 'gauge' }),
+  'gauge-no-needle': face({ face: 'sensors', style: 'rings', readings: ['gpu', 'vram'], colors: 'violet' }, { style: 'gauge', gauge: { needle: false, arc: true } }),
+  'gauge-no-arc': face({ face: 'game', readings: ['fps', 'cpuTemp'], colors: ['#ff2e88', '#ffd166', '#ff3b30', '#120a1f'] }, { style: 'gauge', gauge: { needle: true, arc: false } }),
+  'gauge-picture-stays': face({ face: 'picture', items: ['art:tide'] }, { style: 'gauge' }),
   'alert-open': face({ face: 'clock' }, { textShown: true, push: ['windows_notification', NOTIFICATION] }),
   'alert-app-icon': face({ face: 'clock' }, { push: ['windows_notification', NOTIFICATION_ICON] }),
   'alert-hidden': face({ face: 'clock' }, { push: ['windows_notification', NOTIFICATION] }),
@@ -82,52 +110,53 @@ function checkPage(shape) {
   const r = Math.min(w, h) / 2;
   const problems = [];
   // Runs in the page (page.evaluate sends this function's source only), so its helpers live here.
-  // Text drawn inside rings keeps clear of the innermost one (radius from the arc's path,
-  // less half its stroke, less 1.5% of the short side), and a reading stays inside its cell.
+  // Words on the drop (Xenon's own style) keep inside its round middle, its half width less 4%
+  // of the short side, so its edge never cuts them while it changes shape.
   function roomInside() {
     const problems = [];
     const u = Math.min(innerWidth, innerHeight) / 100;
-    for (const svg of document.querySelectorAll('#pf-root svg.pf-rings')) {
-      const host = svg.parentElement;
-      if (host.closest('.pf-face-out, .pf-alert-out')) continue;
-      const box = svg.getBoundingClientRect();
-      const scale = box.width / 100;
-      const edges = [...svg.querySelectorAll('.pf-track')].map((t) => {
-        const r = Number.parseFloat((t.getAttribute('d').match(/As*([d.]+)/) || [])[1]);
-        return (r - Number(t.getAttribute('stroke-width')) / 2) * scale;
-      }).filter(Number.isFinite);
-      if (!edges.length) continue;
-      const room = Math.min(...edges) - 1.5 * u;
+    for (const drop of document.querySelectorAll('#pf-root .pf-drop:not(.pf-drop-music)')) {
+      const layer = drop.parentElement;
+      if (layer.closest('.pf-face-out, .pf-alert-out')) continue;
+      const box = drop.getBoundingClientRect();
+      const room = box.width / 2 - 4 * u;
       const cx = box.left + box.width / 2;
       const cy = box.top + box.height / 2;
-      for (const el of host.querySelectorAll('*')) {
+      for (const el of layer.querySelectorAll(':is(.pf-drop-mid, .pf-clock-mid) *')) {
         const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
         const r = el.getBoundingClientRect();
-        if (!own || !r.width || el.closest('.pf-game-track')) continue;
+        if (!own || !r.width) continue;
         const far = Math.max(...[[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]].map(([x, y]) => Math.hypot(x - cx, y - cy)));
-        if (far > room) problems.push(`too near the rings: "${el.textContent.trim().slice(0, 30)}" (${Math.round(far)}px of ${Math.round(room)})`);
-      }
-    }
-    for (const cell of document.querySelectorAll('.pf-ring-cell, .pf-game-side')) {
-      const cs = getComputedStyle(cell);
-      const c = cell.getBoundingClientRect();
-      const left = c.left + Number.parseFloat(cs.paddingLeft) - 1;
-      const right = c.right - Number.parseFloat(cs.paddingRight) + 1;
-      for (const el of cell.querySelectorAll('*')) {
-        const r = el.getBoundingClientRect();
-        if (r.width && (r.left < left || r.right > right)) problems.push(`wider than its cell: "${el.textContent.trim().slice(0, 30)}"`);
+        if (far > room) problems.push(`too near the drop's edge: "${el.textContent.trim().slice(0, 30)}" (${Math.round(far)}px of ${Math.round(room)})`);
       }
     }
     return problems;
   }
 
-  // What arrives over the face, and the middle of the rings, sit on the screen's centre line.
+  // What arrives over the face, and the words on the drop, sit on the screen's centre line.
   function centred() {
     const problems = [];
     const mid = innerWidth / 2;
-    for (const el of document.querySelectorAll('.pf-alert:not(.pf-alert-out) .pf-alert-text > *, .pf-alert:not(.pf-alert-out) .pf-alert-icon, .pf-rings-mid')) {
+    for (const el of document.querySelectorAll('.pf-alert:not(.pf-alert-out) .pf-alert-text > *, .pf-alert:not(.pf-alert-out) .pf-alert-icon, .pf-drop-mid, .pf-clock-mid')) {
       const r = el.getBoundingClientRect();
       if (r.width && Math.abs(r.left + r.width / 2 - mid) > 1.5) problems.push(`off centre: "${el.textContent.trim().slice(0, 30)}"`);
+    }
+    return problems;
+  }
+
+  // What is behind the drop shows: a glow around it (a glow in the middle sits all under it), a
+  // picture bright, through the drop turned to glass, with no second drop in the way.
+  function behindShows() {
+    const problems = [];
+    for (const layer of document.querySelectorAll('#pf-root .pf-face[data-drop]:not(.pf-face-out)')) {
+      const drop = layer.querySelector('.pf-drop');
+      if (layer.classList.contains('pf-bg-glow') && !/radial-gradient/.test(getComputedStyle(drop, '::before').backgroundImage)) problems.push('the glow sits all under the drop');
+      if (!layer.classList.contains('pf-has-bg')) continue;
+      const front = getComputedStyle(drop.querySelector('.pf-drop-front')).backgroundColor;
+      if (!/\/\s*0?\.\d+\)$|,\s*0?\.\d+\)$/.test(front)) problems.push('the picture is hidden under a solid drop');
+      if (getComputedStyle(drop.querySelector('.pf-drop-back')).display !== 'none') problems.push('the deeper drop hides the picture');
+      const bright = Number((getComputedStyle(layer.querySelector('.pf-bg-pic')).filter.match(/brightness\(([\d.]+)\)/) || [])[1]);
+      if (!(bright >= 0.8)) problems.push(`the picture behind the drop is dimmed to ${bright}`);
     }
     return problems;
   }
@@ -142,11 +171,12 @@ function checkPage(shape) {
       ? corners.some(([x, y]) => Math.hypot(x - w / 2, y - h / 2) > r + 2)
       : corners.some(([x, y]) => x < -1 || y < -1 || x > w + 1 || y > h + 1);
     const cs = getComputedStyle(el);
-    const cut = el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== 'ellipsis' && cs.webkitLineClamp === 'none';
+    // An SVG text has no box of its own to be cut in (clientWidth is always 0): only its place counts.
+    const cut = !(el instanceof SVGElement) && el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== 'ellipsis' && cs.webkitLineClamp === 'none';
     if (out) problems.push(`outside the screen: "${el.textContent.trim().slice(0, 40)}"`);
     if (cut) problems.push(`cut: "${el.textContent.trim().slice(0, 40)}"`);
   }
-  problems.push(...roomInside(), ...centred());
+  problems.push(...roomInside(), ...centred(), ...behindShows());
   for (const fill of document.querySelectorAll('.pf-fill')) {
     const empty = Number.parseFloat(fill.getAttribute('stroke-dasharray')) === 0;
     if (empty && getComputedStyle(fill).visibility !== 'hidden') problems.push('an empty ring draws the dots of its ends');
@@ -166,7 +196,8 @@ async function shootOne(page, base, size, name, shot, outDir, lang) {
   try {
     await post(base, '/__push', { event: 'system', data: shot.system || SYSTEM });
     await post(base, '/__push', { event: 'media', data: shot.media || MEDIA });
-    await post(base, '/pump', { screen: 'pump', patch: { alerts: { hideText: !shot.textShown } } });
+    const look = { style: shot.style || 'xenon', gauge: shot.gauge || { needle: true, arc: true } };
+    await post(base, '/pump', { screen: 'pump', patch: { alerts: { hideText: !shot.textShown }, ...look } });
     await page.goto(`${base}/pump-face?screen=pump&shape=${size.shape}&via=icue`);
     await page.waitForFunction(() => window.PumpFace && window.PumpFace.snapshot().screen === 'pump');
     await post(base, '/pump', { screen: 'pump', show: shot.show, minutes: 0 });

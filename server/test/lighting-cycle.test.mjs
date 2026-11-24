@@ -154,6 +154,32 @@ test('an event flash takes the lights, ends by itself and gives them back', asyn
   await quiet();
 });
 
+test('a flash reaches a device with its own colour or effect, never one switched off', async () => {
+  lighting.applyConfig({ effects: { timer: { enabled: true, color: '#ff00ff', style: 'solid', durationMs: 500 } } });
+  lighting.setDeviceMode('pretend-keys', { mode: 'animation', anim: { style: 'aurora', color: '#00ff00', speed: 50 } });
+  lighting.setDeviceMode('pretend-ram', { mode: 'color', color: '#0000ff' });
+  await quiet();
+  let from = mark();
+  lighting.onEvent('timer');
+  await until(() => writes(from, 'pretend-keys').some((call) => allAre(call, [255, 0, 255])), 'the flash on the device with its own effect');
+  await until(() => writes(from, 'pretend-ram').some((call) => allAre(call, [255, 0, 255])), 'the flash on the device with its own colour');
+  await until(() => allAre(lastWrite('pretend-ram', from), [0, 0, 255]), 'its own colour back after the flash');
+  await quiet();
+
+  lighting.setDeviceMode('pretend-ram', { mode: 'off' });
+  await quiet();
+  from = mark();
+  lighting.onEvent('timer');
+  await until(() => writes(from, 'pretend-keys').some((call) => allAre(call, [255, 0, 255])), 'the flash again');
+  await sleep(600);
+  await quiet();
+  assert.ok(writes(from, 'pretend-ram').every((call) => allAre(call, [0, 0, 0])), 'a device switched off stays dark');
+  lighting.setDeviceMode('pretend-keys', { mode: 'follow' });
+  lighting.setDeviceMode('pretend-ram', { mode: 'follow' });
+  lighting.applyConfig({ effects: { timer: false } });
+  await quiet();
+});
+
 test('a write the SDK refuses as not connected drops the session; the next tick rebuilds it and asks a device without lights again', async () => {
   const from = mark();
   sdk.writeAnswers.push(NOT_CONNECTED);

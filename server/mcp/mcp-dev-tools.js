@@ -17,7 +17,7 @@
 const MCP_API = 1;
 const { WIDGET_ID_RE } = require('../widget-sdk/package-names.js');
 const { TILE_SIZES: SIZES } = require('../widget-sdk/manifest-limits.js');
-const { ROUND_ROOT_CSS, pumpOf } = require('./mcp-dev-pump.js');
+const { ROUND_ROOT_CSS, STYLE_JS, pumpManifest, pumpOf } = require('./mcp-dev-pump.js');
 const TEXT_RE = /\.(html?|m?js|css)$/i;
 
 const b64 = (s) => Buffer.from(String(s), 'utf8').toString('base64');
@@ -36,8 +36,8 @@ function sourceIssues(files, deps) {
 // A first widget that already does the things every widget needs: says hello,
 // reads a stream, fills its tile, follows the theme (a color-scheme: up to 4.11.13
 // a page with none is a white block on the dashboard) and uses addEventListener
-// (inline code never runs in the sandbox). `pump`: drawn for a round pump screen too.
-function templateFiles({ name, size, pump = false }) {
+// (inline code never runs in the sandbox). `pump`: drawn for a round pump screen too; 'style': its whole style.
+function templateFiles(/** @type {{ name: string, size: string, pump?: boolean | 'style' }} */ { name, size, pump = false }) {
   const manifest = {
     api: 1,
     name,
@@ -100,10 +100,10 @@ function templateFiles({ name, size, pump = false }) {
     '',
   ].join('\n');
   return [
-    { path: 'manifest.json', data: b64(JSON.stringify(pump ? { ...manifest, pump: true } : manifest, null, 2) + '\n') },
+    { path: 'manifest.json', data: b64(JSON.stringify(pumpManifest(manifest, pump), null, 2) + '\n') },
     { path: 'index.html', data: b64(html) },
     { path: 'style.css', data: b64(css) },
-    { path: 'main.js', data: b64(js) },
+    { path: 'main.js', data: b64(pump === 'style' ? STYLE_JS : js) },
   ];
 }
 
@@ -128,7 +128,7 @@ async function opTemplate(args) {
   if (!WIDGET_ID_RE.test(id)) return { ok: false, error: 'bad_id', hint: 'An id is 2 to 41 characters: a-z, 0-9 and dashes, starting with a letter or digit.' };
   const name = String((args && args.name) || id).trim().slice(0, 60) || id;
   const size = SIZES.includes(args && args.size) ? args.size : 'medium';
-  return { ok: true, id, files: templateFiles({ name, size, pump: args.pump === true }) };
+  return { ok: true, id, files: templateFiles({ name, size, pump: args.pumpStyle === true ? 'style' : args.pump === true }) };
 }
 
 // The checks an install would run, without installing: the package boundary,
@@ -147,7 +147,7 @@ async function opCheck(args, deps) {
     sandbox: sourceIssues(payload.files, deps),
     critique: checked ? checked.critique : null,
     ...menuOf(payload.files, v.manifest),
-    ...pumpOf(v.manifest),
+    ...pumpOf(v.manifest, rawManifest(payload.files)),
   };
 }
 

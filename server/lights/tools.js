@@ -72,6 +72,8 @@ const branches = {
         if (c) patch.color = lighting._fx.rgbToHex(c);
       }
       if (fnArgs.speed != null) patch.speed = Number(fnArgs.speed);
+      for (const k of ['reverse', 'chain']) if (typeof fnArgs[k] === 'boolean') patch[k] = fnArgs[k];
+      for (const k of ['size', 'glow']) if (fnArgs[k] != null && Number.isFinite(Number(fnArgs[k]))) patch[k] = Number(fnArgs[k]);
       if (typeof fnArgs.palette === 'string' && fnArgs.palette.trim()) {
         patch.palette = fnArgs.palette.split(',').map(s => s.trim()).filter(Boolean);
       }

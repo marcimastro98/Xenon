@@ -77,7 +77,7 @@ test('with Xenon\'s lights off, only the pump\'s LEDs take the screen\'s colours
   lighting.setPumpRing({ follow: 'screen', all: false, colours: [RED, BLUE] });
   await until(() => writes(0, 'pretend-pump').some((call) => call.colors[0].a === 255), 'the ring painted');
   await quiet();
-  assert.deepEqual(ring(), ['255,0,0,255', '128,0,128,255', '0,0,255,255'], 'red to blue around the ring');
+  assert.deepEqual(ring(), ['255,0,0,255', '127,0,255,255', '127,0,255,255'], 'red round to blue and back, a full purple between: no seam where the ring closes');
   assert.deepEqual(fan(), [BACK, BACK], 'the fan on the same channel is left to iCUE');
   assert.ok(writes(0, 'pretend-keys').length, 'the keyboard was handed back on the way in');
   assert.ok(frame('pretend-keys').every((c) => c.endsWith(',0')), 'and left to iCUE: alpha 0 only');
@@ -130,7 +130,7 @@ test('"every other light too" paints the whole PC in the screen\'s colour', asyn
   lighting.setPumpRing({ follow: 'screen', all: true, colours: [BLUE, RED] });
   await until(() => frame('pretend-keys')[0] === '0,0,255,255', 'the keyboard in the screen\'s first colour');
   await quiet();
-  assert.deepEqual(ring(), ['0,0,255,255', '128,0,128,255', '255,0,0,255']);
+  assert.deepEqual(ring(), ['0,0,255,255', '255,0,127,255', '255,0,127,255']);
   assert.deepEqual(fan(), Array(2).fill('0,0,255,255'), 'the fan too');
   lighting.setPumpRing({ follow: 'screen', all: false, colours: [BLUE, RED] });
   await until(() => frame('pretend-keys')[0].endsWith(',0'), 'the keyboard back to iCUE');
@@ -145,7 +145,7 @@ test('the fan beside the ring keeps the cover gradient Xenon shows, not one flat
   await quiet();
   const gradient = fx.paletteGradient([fx.parseColorName(RED), fx.parseColorName(BLUE)], 5).map((c) => `${c.r},${c.g},${c.b},255`);
   assert.deepEqual(fan(), gradient.slice(3), 'the fan takes its part of the gradient');
-  assert.deepEqual(ring(), ['0,0,255,255', '128,0,128,255', '255,0,0,255'], 'the ring still shows the screen');
+  assert.deepEqual(ring(), ['0,0,255,255', '255,0,127,255', '255,0,127,255'], 'the ring still shows the screen');
   lighting.clearAlbum();
   lighting.applyConfig({ effects: { musicAlbum: false } });
   await until(() => frame('pretend-keys')[0].endsWith(',0'), 'the keyboard back to iCUE');
@@ -218,6 +218,20 @@ test('turning the pulse on starts the sound reader while a page is open, and off
   await quiet();
 });
 
+test('a ring in colours of its own, lit up to the reading: the LEDs past it dim, the fan as before', async () => {
+  const rgb = (c) => c.split(',').map(Number);
+  lighting.setPumpRing({ follow: 'own', all: false, effect: 'level', level: 0.5, colours: [RED, BLUE] });
+  await until(() => ring()[0] === '255,0,0,255' && rgb(ring()[2])[2] < 60, 'the ring lit half way');
+  await quiet();
+  const [, middle, last] = ring().map(rgb);
+  assert.ok(middle[0] > 110 && middle[0] < 160 && middle[0] === middle[2], `the LED the level ends in is lit as far as it reaches, half of a full purple (${middle})`);
+  assert.ok(last[2] > 0 && last[2] < 60, `past the level: dim, so the scale still shows (${last})`);
+  const before = fan();
+  lighting.setPumpRing({ follow: 'own', all: false, effect: 'level', level: 1, colours: [RED, BLUE] });
+  await until(() => ring()[2] === '0,0,255,255', 'the ring lit all the way');
+  assert.deepEqual(fan(), before, 'the fan on the same channel is left as it was');
+});
+
 test('giving the ring back hands every light to iCUE', async () => {
   lighting.setPumpRing(null);
   await until(() => frame('pretend-pump').every((c) => c.endsWith(',0')), 'the pump handed back');
@@ -239,39 +253,32 @@ test('the sound level: up at once, down by half every 180 ms, steady with no rea
   assert.equal(pumpRing.soundLevel(T + 3e6, { a: 7 }, true), 1, 'never above 1');
 });
 
-test('a pulsing ring dims its colours with the sound, never under its floor; only screen and theme pulse', () => {
+test('a ring on the beat dims its colours with the sound, never under its floor; a dark ring has nothing to pulse', () => {
   const pumpRing = require('../lights/pump-ring.js');
-  const fx = require('../lights/lighting-effects.js');
-  const realNow = Date.now;
   const real = { latest: audio.latest, isRunning: audio.isRunning, available: audio.available };
   let peaks = {};
   audio.latest = () => peaks;
   audio.isRunning = () => true;
   audio.available = () => true;
+  const red = { r: 255, g: 0, b: 0 };
+  const one = (now) => pumpRing.frame(null, 1, now)[0];
   try {
-    const red = { r: 255, g: 0, b: 0 };
     pumpRing.set({ follow: 'screen', effect: 'beat', colours: [RED] });
     assert.equal(pumpRing.pulsing(), true);
-    Date.now = () => 2e9;
     peaks = { player: 1 };
-    assert.deepEqual(pumpRing.colours(null), [red], 'loud: full colour');
-    Date.now = () => 2e9 + 1e5;
+    assert.deepEqual(one(2e9), red, 'loud: full colour');
     peaks = { player: 0.04 };
-    const scale = pumpRing.PULSE_FLOOR + (1 - pumpRing.PULSE_FLOOR) * 0.2;
-    assert.deepEqual(pumpRing.colours(null), [fx.applyBrightness(red, scale)], 'quiet: dimmed, over the floor');
-    Date.now = () => 2e9 + 2e5;
+    assert.deepEqual(one(2e9 + 1e5), { r: Math.round(255 * (0.4 + 0.6 * 0.2)), g: 0, b: 0 }, 'quiet: dimmed, over the floor');
     peaks = {};
-    assert.deepEqual(pumpRing.colours(null), [red], 'a long silence: steady');
-    pumpRing.set({ follow: 'theme', effect: 'beat' });
-    assert.equal(pumpRing.pulsing(), true, 'the theme colour pulses too');
+    assert.deepEqual(one(2e9 + 2e5), red, 'a long silence: steady');
+    pumpRing.set({ follow: 'theme', effect: 'meter' });
+    assert.equal(pumpRing.pulsing(), true, 'the sound meter on the theme colour reads the sound too');
     pumpRing.set({ follow: 'off', effect: 'beat' });
     assert.equal(pumpRing.pulsing(), false, 'a dark ring has nothing to pulse');
     pumpRing.set({ follow: 'screen', colours: [RED] });
     peaks = { player: 0.04 };
-    Date.now = () => 2e9 + 3e5;
-    assert.deepEqual(pumpRing.colours(null), [red], 'no pulse: the sound changes nothing');
+    assert.deepEqual(one(2e9 + 3e5), red, 'no pulse: the sound changes nothing');
   } finally {
-    Date.now = realNow;
     Object.assign(audio, real);
     pumpRing.set(null);
   }
@@ -307,40 +314,40 @@ test('a ring LED with no colour of its own follows Xenon, and the ring spreads i
   assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, pump: null }), [follow, follow, follow]);
   const red = { r: 255, g: 0, b: 0 };
   const blue = { r: 0, g: 0, b: 255 };
-  assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, pump: [red, blue] }), [follow, red, blue]);
-  assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, follow: null, pump: [red, blue] }), [null, red, blue], 'no colour for the rest: left to iCUE');
+  const pump = (count) => [red, blue].slice(0, count);
+  assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, pump }), [follow, red, blue]);
+  assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, follow: null, pump }), [null, red, blue], 'no colour for the rest: left to iCUE');
+  assert.deepEqual(ledFrame([10, 11, 12], leds, { ...ctx, pump: () => null }), [follow, follow, follow], "nothing of its own now: Xenon's colour");
 });
 
 test('a breathing ring rises and falls on its own, never dark; a running light lights a head and its tail', () => {
   const pumpRing = require('../lights/pump-ring.js');
-  const { ledFrame, spun } = require('../lights/lighting-led-colors.js');
+  const { ledFrame } = require('../lights/lighting-led-colors.js');
   const red = { r: 255, g: 0, b: 0 };
   try {
     pumpRing.set({ follow: 'screen', effect: 'breathe', colours: [RED] });
     assert.equal(pumpRing.moving(), true, 'the lights tick for it');
     assert.equal(pumpRing.pulsing(), false, 'no sound is read for a breath');
-    const low = pumpRing.colours(null, 0)[0];
-    const high = pumpRing.colours(null, pumpRing.BREATHE_MS / 2)[0];
-    assert.deepEqual(high, red, 'the top of the breath: full colour');
+    const low = pumpRing.frame(null, 1, 0)[0];
+    assert.deepEqual(pumpRing.frame(null, 1, 2000)[0], red, 'the top of the breath: full colour');
     assert.ok(low.r > 0 && low.r < 80, `the bottom: dim, never dark (${low.r})`);
-    assert.equal(pumpRing.spinPhase(0), null, 'a breath does not run round');
 
     pumpRing.set({ follow: 'screen', effect: 'spin', colours: [RED] });
     assert.equal(pumpRing.moving(), true);
-    assert.deepEqual(pumpRing.colours(null, 123), [red], 'running round: the colours stay whole, lit LED by LED');
-    assert.equal(pumpRing.spinPhase(pumpRing.SPIN_MS / 4), 0.25);
     const ids = Array.from({ length: 8 }, (_, i) => 'l' + i);
     const leds = Object.fromEntries(ids.map((id) => [id, pumpRing.RING_LED]));
-    const frame = ledFrame(ids, leds, { follow: null, pump: [red], pumpSpin: 0.25, brightness: 1, nowMs: 0 });
-    assert.deepEqual(frame[2], red, 'the head, a quarter of the way round, is full');
-    assert.ok(frame[1].r < 255 && frame[1].r > frame[0].r, 'its tail fades behind it');
-    assert.ok(frame[4].r < 60, 'the LEDs ahead of it are dim');
-    assert.deepEqual(spun([red, red], null), [red, red], 'no phase: as it is');
+    const quarter = ledFrame(ids, leds, { follow: null, pump: (count) => pumpRing.frame(null, count, 600), brightness: 1, nowMs: 0 });
+    assert.deepEqual(quarter[2], red, 'the head, a quarter of the way round, is full');
+    assert.ok(quarter[1].r < 255 && quarter[1].r > quarter[0].r, 'its tail fades behind it');
+    assert.ok(quarter[4].r < 60, 'the LEDs ahead of it are dim');
+
+    pumpRing.set({ follow: 'screen', effect: 'spin', speed: 'slow', reverse: true, colours: [RED] });
+    const back = pumpRing.frame(null, 8, 600 * 1.7);
+    assert.deepEqual(back[6], red, 'slow and the other way round: the same quarter, from the other side');
 
     pumpRing.set({ follow: 'off', effect: 'spin' });
     assert.equal(pumpRing.moving(), false, 'a dark ring never moves');
-    assert.equal(pumpRing.spinPhase(0), null);
-    pumpRing.set({ follow: 'screen', effect: 'sparkle', colours: [RED] });
+    pumpRing.set({ follow: 'screen', effect: 'confetti', colours: [RED] });
     assert.equal(pumpRing.moving(), false, 'an effect it does not know: still');
   } finally {
     pumpRing.set(null);

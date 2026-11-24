@@ -220,6 +220,29 @@ test('under the screens: the phones paired with this PC and a card to pair one; 
   }
 });
 
+test('under the desk the pump screens and the phones share one row, the pumps first', async () => {
+  const { document } = makeDom();
+  globalThis.CSS = globalThis.CSS || { escape: (s) => s };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
+  const button = (cls) => el('button', cls);
+  const pump = { key: 'pump:pump', pump: 'pump', label: { text: 'Pump' }, shape: 'round', ratio: 1, turn: 0, tabs: [], ring: { effect: 'comet', speed: 'normal', reverse: false, colours: ['#ff0000'] } };
+  const home = { kind: 'home', screens: [{ key: 'pg', label: { text: 'pg' }, width: 1920, height: 1080, x: 0, y: 0, tabs: [] }], pumps: [pump] };
+  const had = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ devices: [{ id: 'dev1', name: 'Tablet' }] }) });
+    const view = Screens.create({ el, button, say: (v) => (v && v.text) || '', tt: (k) => k, DRAW: {}, rowShell: () => el('li'), perform: () => {}, icon: () => null, server: 'http://127.0.0.1:3030' });
+    const li = view.draw(home);
+    assert.equal(li.querySelectorAll('.xm-scrphones').length, 1, 'before the phones are read, the pump already has its row');
+    await new Promise((done) => setImmediate(done));
+    const rows = li.querySelectorAll('.xm-scrphones');
+    assert.equal(rows.length, 1, 'one row');
+    assert.deepEqual(rows[0].querySelectorAll('.xm-scrphone').map((b) => b.dataset.keep), ['screen:pump:pump', 'phone:dev1', 'phone:add']);
+    assert.equal(rows[0].querySelectorAll('.xm-scrpump-ring').length, 1, 'the pump in its ring');
+  } finally {
+    globalThis.fetch = had;
+  }
+});
+
 test('the screens where they stand on the desk, each its own shape; a phone paired again counts once', async () => {
   const { document } = makeDom();
   globalThis.CSS = globalThis.CSS || { escape: (s) => s };

@@ -1,18 +1,19 @@
 'use strict';
 // Per-LED looks for the lighting map's "custom" device mode:
 // { "<luid>": "#rrggbb" | { style, color, speed } }. A hex is a fixed colour; an
-// object is an effect of that LED's own (breathing, rainbow, wave, aurora,
-// candle, CPU temperature, album colour). A LED with no entry follows Xenon.
+// object is an effect (any of the Lighting list, lights/look-fields.js), the CPU
+// temperature or the album colour. A LED with no entry follows Xenon.
 // Pure; validates everything that reaches the stored config, from the API or
 // from settings.json, and renders one frame of a device (ledFrame).
 const fx = require('./lighting-effects');
+const fxLook = require('./fx-look.js');
+const { STYLES } = require('./look-fields.js');
 
 // CORSAIR_DEVICE_LEDCOUNT_MAX in the iCUE SDK header: no device has more.
 const MAX_LED_COLORS = 512;
 // Keep in step with the client mirror in server/js/settings/normalize-lighting.js (normalizeLightingLedValue).
-const LED_EFFECT_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'temperature', 'album'];
-// Styles that loop: a device using one needs the animation ticker.
-const LED_DYNAMIC_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle'];
+// 'solid' is a hex of its own, and the old 'palette' needs a list of colours a LED does not keep.
+const LED_EFFECT_STYLES = Object.freeze([...STYLES.filter((s) => !['none', 'solid', 'palette'].includes(s)), 'temperature', 'album']);
 const DEFAULT_EFFECT_COLOR = '#1ed760';
 const CANDLE_COLOR = '#ff9329';
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -67,44 +68,28 @@ function mergeLedColors(prev, patch) {
 
 function hasDynamicLeds(leds) {
   if (!leds || typeof leds !== 'object') return false;
-  return Object.values(leds).some(v => v && typeof v === 'object' && LED_DYNAMIC_STYLES.includes(v.style));
-}
-
-// A running light: the ring's colours turned round to `phase`, bright at the head and fading
-// along its tail, the LEDs ahead of it dim. null phase: the colours as they are.
-const TAIL = 0.45;   // of the ring
-const SPIN_FLOOR = 0.12;
-function spun(stops, phase) {
-  if (phase == null || !Number.isFinite(phase)) return stops;
-  const n = stops.length;
-  const head = phase * n;
-  return stops.map((_, i) => {
-    const c = stops[(i - Math.floor(head) + n * 2) % n];
-    const behind = (((head - i) % n) + n) % n / n;   // 0 at the head, toward 1 all the way round
-    const lit = behind <= TAIL ? (1 - behind / TAIL) ** 2 : 0;
-    return fx.applyBrightness(c, SPIN_FLOOR + (1 - SPIN_FLOOR) * lit);
-  });
+  return Object.values(leds).some(v => v && typeof v === 'object' && v.style !== 'temperature' && v.style !== 'album' && fxLook.moves(v));
 }
 
 // The colours of one device for this instant, one per entry of `ledIds`.
 // ctx: { follow, under, temperature, album, pump, brightness, nowMs } — `follow` is the
 // colour Xenon is showing (brightness already applied; null leaves the LED to its
 // own software), `under` what the device would show without its map, one colour per
-// LED (the album gradient or a wave), taken instead of `follow` where it has one, `temperature`/`album` the raw reactive colours or null, `pump`
-// the colours of the pump screen's ring (lights/pump-ring.js) or null, `pumpSpin` where its
-// running light is (0..1 of a turn) or null. LEDs sharing
-// the same effect move together, and a wave or the ring's colours run across them
-// as one strip, in luid order.
+// LED (the album gradient or an effect), taken instead of `follow` where it has one, `temperature`/`album` the raw reactive colours or null, `pump`
+// (count) => the pump screen's ring LED by LED now (lights/pump-ring.js frame), or null, asked once
+// per ring (a pump and the screen on its cap are two), `dev` the device. LEDs sharing
+// the same effect move together: a fan or a ring they fill whole in its own shape, the
+// rest as one strip in luid order (fx-look.js drawSome); the ring's colours run round it.
 function ledFrame(ledIds, leds, ctx) {
   const map = leds || {};
   const bright = (c) => fx.applyBrightness(c, ctx.brightness);
   const groups = new Map();   // effect key → indexes into ledIds
-  const ring = [];            // indexes of the pump ring's LEDs
+  const rings = new Map();    // pump ring → indexes of its LEDs
   const base = (i) => ctx.under?.[i] || ctx.follow;
   const out = ledIds.map((id, i) => {
     const v = map[id];
     if (!v) return base(i);
-    if (v.style === 'pump') { ring.push(i); return base(i); }
+    if (v.style === 'pump') { const k = v.ring || 0; if (!rings.has(k)) rings.set(k, []); rings.get(k).push(i); return base(i); }
     if (typeof v === 'string') { const c = fx.parseColorName(v); return c ? bright(c) : base(i); }
     if (v.style === 'temperature') return ctx.temperature ? bright(ctx.temperature) : base(i);
     if (v.style === 'album') return ctx.album ? bright(ctx.album) : base(i);
@@ -113,19 +98,19 @@ function ledFrame(ledIds, leds, ctx) {
     groups.get(key).push(i);
     return null;
   });
-  const stops = ring.length && ctx.pump ? spun(fx.paletteGradient(ctx.pump, ring.length), ctx.pumpSpin) : null;
-  if (stops) ring.forEach((at, j) => { out[at] = bright(stops[j]); });
+  for (const ring of rings.values()) {
+    const stops = typeof ctx.pump === 'function' ? ctx.pump(ring.length) : null;
+    if (stops) ring.forEach((at, j) => { out[at] = bright(stops[j]); });
+  }
   for (const [key, idx] of groups) {
     const [style, color, speed] = key.split('|');
-    const opts = { style, color, speed: Number(speed), nowMs: ctx.nowMs };
-    const spread = fx.isSpatialAnimation(style) ? fx.animationGradientAt(opts, idx.length) : null;
-    const one = spread ? null : fx.animationColorAt(opts);
-    idx.forEach((at, j) => { out[at] = spread ? bright(spread[j]) : (one ? bright(one) : base(at)); });
+    const drawn = fxLook.drawSome({ style, color, speed: Number(speed) }, ctx.dev, idx, ctx.nowMs);
+    idx.forEach((at, j) => { out[at] = drawn?.[j] ? bright(drawn[j]) : base(at); });
   }
   return out;
 }
 
 module.exports = {
-  normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame, spun,
+  normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame,
   MAX_LED_COLORS, LED_EFFECT_STYLES,
 };

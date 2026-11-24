@@ -19,7 +19,7 @@
       {
         "statement": "const capabilityRunner = capabilities.createCapabilities({",
         "callees": {
-          "server/capabilities/index.js": "3fe28138bfee9330619c26b801fd55f859da25fdb6b275878b1b1410941ead03",
+          "server/capabilities/index.js": "c9ed22f13e30fbb56ddcdcb152c48e861f2790655f3ebda23db87cb5365b6d47",
           "server/notification-open/index.js": "b7fd7d2575f0cd056a560a5732150fe311ec649240a939fdc8893e0d611e7f07",
           "server/notification-open/start-apps.js": "93223b3724c28d1ce51644925a4257ae1285b02f9b6ddc0440998203f03466de",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
@@ -103,7 +103,7 @@
         "callees": {
           "server/deck/deck-shortcut-runner.js": "34be4164a952461a182b5a058199cb33f32fa611b1c144766aaf38d3c7988dc5",
           "server/deck/deck-sound-player.js": "168467083e542fe41c58dd3ee5245a6ebcce08b26f29adaca6b3b10e3ff83499",
-          "server/js/deck/deck-actions.js": "caa37431e849750a6a67269e043ab3e72a655386cc4410fbeba421d10b2059ab"
+          "server/js/deck/deck-actions.js": "670001e1c01d2f502465afbd97f2c2f8e04e9f2df6a145aa6361c551cc23fd04"
         },
         "reason": "createDeckShortcutRunner and createDeckSoundPlayer make empty sets and maps and return their functions; readConfigs, steps, run, broadcast, serverFirst, resolveFile, ffplay and spawn are first called by press, pressKey, handOff or play; deck-actions.js is only asked for its triggerSteps function and is handed nothing."
       },

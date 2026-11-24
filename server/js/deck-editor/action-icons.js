@@ -163,6 +163,8 @@ window.DeckEditorActionIcons = () => {
       // The round screen on an AIO pump: a gauge on it now, or its settings beside it.
       pumpFace: _ai('<circle cx="12" cy="12" r="9"/><path d="M8 15a5 5 0 1 1 8 0"/><path d="m12 12 2.5-2.5"/>'),
       pumpSetup: _ai('<circle cx="9.5" cy="12" r="7"/><circle cx="9.5" cy="12" r="2.5"/><path d="M20 5v14M18 9h4M18 15h4"/>'),
+      // Its style: half of the round screen drawn another way.
+      pumpStyle: _ai('<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 8h4.5M12 12h6M12 16h4.5"/>'),
       desktopWallpaper: _ai('<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M6 13l3.5-4 3 3 2-2 3.5 3"/>'),
     };
     // One icon per category header, from an action that stands for the group.

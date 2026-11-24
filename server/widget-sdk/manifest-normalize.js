@@ -17,7 +17,7 @@ const SDK_SOUND_FILE_RE = require('../store-catalog/sound-packs.js').PACK_FILE_R
 const { WIDGET_ID_RE, SDK_SUB_ID_RE, ENTRY_RE } = require('./package-names.js');
 const {
   MAX_MACROS, MAX_MACRO_STEPS, MAX_STATES, MAX_HANDLERS, MAX_MACRO_STEP_DELAY_MS, TILE_SIZES,
-  PUMP_SHAPES, PUMP_TRUE,
+  PUMP_SHAPES, PUMP_TRUE, PUMP_ALERT_LOOKS,
 } = require('./manifest-limits.js');
 const {
   cleanStr, cleanList, normalizeHosts, normalizeUserHosts, normalizeHooks, normalizeHandlerParams,
@@ -170,6 +170,9 @@ function normalizeManifest(raw, folderId) {
   // `tile: false`: the widget lives only in the bar or on Deck keys, never on a page. Honoured
   // only where it has somewhere else to run, so a widget can never end up with no place at all.
   const barOnly = raw.tile === false && raw.surface !== 'ambient' && runsHeadless;
+  // Nothing it learns can leave its frame: no network, no AI, no actions or hooks, nothing kept.
+  const keepsToItself = !actions.length && !hosts.hosts.length && !userHosts.userHosts.length && !hooks.hooks.length
+    && !ai && !storage && !secrets && !clipboard;
   return {
     ok: true,
     manifest: {
@@ -266,6 +269,13 @@ function normalizeManifest(raw, folderId) {
       // The pump screens it was drawn for (the LCD on an AIO pump): the menu and Bit offer it
       // as a face there. Cosmetic like `size`, no grant; [] = not made for one.
       pump: raw.pump === true ? [...PUMP_TRUE] : cleanList(raw.pump, PUMP_SHAPES, PUMP_SHAPES.length),
+      // It can draw every line of a pump screen as the screen's style (placement.line says which
+      // line): offered beside Xenon and Strumento where it fits (`pump`). Cosmetic, no grant.
+      pumpStyle: raw.pumpStyle === true,
+      // As that style it takes the pump's alerts in its own way: told the kind (pumpAlert, never a
+      // word), it leaves the band below free and Xenon writes there, in dots or plain type. Only
+      // for a style that keeps to itself: when a message or a call came is news of its own.
+      pumpAlerts: raw.pumpStyle === true && keepsToItself && PUMP_ALERT_LOOKS.includes(raw.pumpAlerts) ? raw.pumpAlerts : null,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,

@@ -17,6 +17,7 @@ const FEATURES = Object.freeze([
   require('./screens-off/routes.js'),
   require('./trial-link/routes.js'),
   require('./pump-screen/routes.js'),
+  require('./lights/routes-icue-import.js'),
 ]);
 
 const ROUTES = new Map(FEATURES.flatMap((f) => Object.entries(f.routes)));

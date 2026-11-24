@@ -15,7 +15,7 @@ const headsets = require('../device-battery/brands/logitech-headsets.js');
 const compx = require('../device-battery/brands/compx.js');
 const { scaleUsage } = require('../device-battery/standard-windows.js');
 const { decode: decodeGamepad } = require('../device-battery/gamepads-windows.js');
-const { kernelDrives } = require('../device-battery/linux.js');
+const { kernelDrives, peers: linuxPeers } = require('../device-battery/linux.js');
 const { createOpenReports } = require('../hid/hid-reports-linux.js');
 const { ASLEEP_MS, createBatteryMonitor, mergeSources } = require('../battery.js');
 
@@ -272,6 +272,19 @@ test('readDirect: a device with nowhere to hear a reply is not asked', async () 
   const transport = { list: async () => [silent], peers: (i) => [i], openReports: async () => { opened += 1; return reportLink(); } };
   await readDirect(transport);
   assert.equal(opened, 0);
+});
+
+test('readDirect on Linux: a reply can come back on another collection of the same node', async () => {
+  const asked = { path: '/dev/hidraw3', vendorId: 0x046D, productId: 0x0AAA, usagePage: 0xFF43, usage: 0x0202, inputLength: 0, outputLength: 20 };
+  const mate = { ...asked, usage: 0x0204, inputLength: 20, outputLength: 0 };
+  const elsewhere = { ...mate, path: '/dev/hidraw4' };
+  assert.deepEqual(linuxPeers(asked, [elsewhere, mate, asked]), [asked, mate], 'the asked one first, then its node mates only');
+  let opened = null;
+  const transport = { list: async () => [asked, mate, elsewhere], peers: linuxPeers, openReports: async (c) => { opened = c; return reportLink(); } };
+  await readDirect(transport);
+  assert.deepEqual(opened?.[0], asked, 'asked, and opened at its own node');
+  const reader = fs.readFileSync(new URL('../device-battery/linux.js', import.meta.url), 'utf8');
+  assert.match(reader, /openReports: guard\.wrapReports\(openReports\), peers, leadingZero: false/, 'the Linux reader uses it');
 });
 
 test('standard usage: scaled to the device\'s own limits', () => {

@@ -1,6 +1,7 @@
 // Guards docs/WIDGET_SDK.md against drift from the code. The "Capability
 // reference" block is generated from server/sdk-widgets.js (SDK_STREAMS +
-// SDK_ACTION_CATEGORIES) by tools/gen-sdk-reference.mjs. If someone adds or
+// SDK_ACTION_CATEGORIES) by tools/gen-sdk-reference.mjs, and so is the list of light effects a pump
+// widget may ask for (pumpRing), from server/js/light-fx/light-fx.js. If someone adds or
 // removes a stream/action category/type without regenerating the doc, this test
 // fails — so a widget developer can never read a stale capability list (the exact
 // bug where new `lighting` actions were added but the doc wasn't updated).
@@ -13,7 +14,7 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const GEN = join(ROOT, 'tools', 'gen-sdk-reference.mjs');
 
-test('WIDGET_SDK.md capability reference is in sync with the SDK allowlists', () => {
+test('WIDGET_SDK.md capability reference and light effects are in sync with the SDK allowlists and LightFx', () => {
   try {
     execFileSync(process.execPath, [GEN, '--check'], { stdio: 'pipe' });
   } catch (e) {

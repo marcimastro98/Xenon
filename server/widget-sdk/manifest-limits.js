@@ -50,9 +50,13 @@ const TILE_SIZES = Object.freeze(['small', 'medium', 'wide', 'tall', 'large']);
 // js/pump/pump-model.js SHAPES. `true` means the two an AIO pump's LCD comes in.
 const PUMP_SHAPES = Object.freeze(['round', 'square', 'wide']);
 const PUMP_TRUE = Object.freeze(['round', 'square']);
+// How Xenon writes the words of a pump alert over a style that takes alerts (manifest
+// "pumpAlerts"): in dots, like a lit sign, or in plain type; both in the line's colours.
+const PUMP_ALERT_LOOKS = Object.freeze(['dots', 'plain']);
 
 module.exports = {
   MANIFEST_MAX_BYTES, MAX_PACKAGES, MAX_HOSTS, MAX_USER_HOSTS, USER_HOST_SCOPES, MAX_HOOKS,
   MAX_MACROS, MAX_MACRO_STEPS, MAX_STATES, MAX_HANDLERS, MAX_HANDLER_PARAMS, HANDLER_PARAM_KINDS,
   HANDLER_ARG_TEXT_MAX, MAX_MACRO_STEP_DELAY_MS, TILE_SIZES, PUMP_SHAPES, PUMP_TRUE,
+  PUMP_ALERT_LOOKS,
 };

@@ -37,6 +37,11 @@
     return { ...row, screens: (row.screens || []).map(tabs), pumps: (row.pumps || []).map(tabs), parts, tune: keep(row.tune) };
   }
 
+  // A tab asked for from another page (Settings → Lighting asks for a pump's Lights): the next
+  // time this page draws, the first pump with that tab is the one open, on it. Once only.
+  let wanted = '';
+  const want = (tab) => { wanted = typeof tab === 'string' ? tab : ''; };
+
   // The phones and tablets paired with this PC, or null. The list is the PC's own: a
   // paired device is refused it (remote-access.js), and then the page shows none.
   async function pairedOn(server) {
@@ -113,12 +118,19 @@
       return b;
     }
 
-    function phonesNode() {
-      if (!phoneList) return null;
-      const box = el('div', 'xm-scrphones');
+    // Under the desk, one row: the pump screens first (xenon-menu-pumps.js), then the phones.
+    function phoneCards() {
+      if (!phoneList) return [];
       const chip = ctx.tt('xmenu_scr_dashboard');
-      box.append(...phoneList.map((p) => phoneCard(p.name || ctx.tt('settings_cat_phone'), chip, 'phone:' + p.id, false)),
-        phoneCard(ctx.tt('xmenu_scr_add_phone'), '', 'phone:add', true));
+      return [...phoneList.map((p) => phoneCard(p.name || ctx.tt('settings_cat_phone'), chip, 'phone:' + p.id, false)),
+        phoneCard(ctx.tt('xmenu_scr_add_phone'), '', 'phone:add', true)];
+    }
+
+    function belowDesk(pumpCards) {
+      const list = [...(pumpCards || []), ...phoneCards()];
+      if (!list.length) return null;
+      const box = el('div', 'xm-scrphones');
+      box.append(...list);
       return box;
     }
 
@@ -207,6 +219,11 @@
     }
 
     function paint(box, r) {
+      if (wanted) {
+        const pump = (r.pumps || []).find((p) => (p.tabs || []).some((t) => t.id === wanted));
+        if (pump) { picked = pump.key; chosenTab.set(pump.key, wanted); }
+        wanted = '';
+      }
       const view = pickedOf([...(r.screens || []), ...(r.pumps || [])], picked);
       const redraw = (focus) => {
         hold();
@@ -230,7 +247,7 @@
       const desk = el('div', 'xm-scrdesk');
       desk.appendChild(map);
       const pic = el('div', 'xm-detail-pic');
-      pic.append(...[el('p', 'xm-cap xm-scrcap', say(r.sub)), desk, pumps?.cards(r.pumps, view?.key, pick), phonesNode()].filter(Boolean));
+      pic.append(...[el('p', 'xm-cap xm-scrcap', say(r.sub)), desk, belowDesk(pumps?.cards(r.pumps, view?.key, pick))].filter(Boolean));
       const choices = el('div', 'xm-detail-choices');
       if (view) {
         const choose = (id) => { chosenTab.set(view.key, id); moreOpen = false; redraw(`screen:${view.key}:${id}`); };
@@ -261,5 +278,5 @@
     return { draw, hold, settle };
   }
 
-  return { create, pickedOf, tabOf, inPlace };
+  return { create, pickedOf, tabOf, inPlace, want };
 });

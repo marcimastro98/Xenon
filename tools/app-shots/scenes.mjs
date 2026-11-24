@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { menuState, PHONES } from '../menu-shots/fixture.mjs';
 import { firstRunScenes } from './first-run-scenes.mjs';
 import { notesScenes } from './notes-scenes.mjs';
+import { lightingScenes } from './lighting-scenes.mjs';
 import { hintsScenes } from './hints-scenes.mjs';
 import { railScenes } from './rail-scenes.mjs';
 import { bitWelcomeScenes } from './bit-welcome-scenes.mjs';
@@ -120,6 +121,7 @@ export const SCENES = {
   ...xenonScenes,
   ...firstRunScenes,
   ...notesScenes,
+  ...lightingScenes,
   ...hintsScenes,
   ...railScenes,
   ...bitWelcomeScenes,

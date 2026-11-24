@@ -13,8 +13,28 @@ const {
   DEVICE_MODES, ANIM_STYLES, PER_DEVICE_ANIM_STYLES, EVENT_DURATION_MS, clampEventDuration,
   sanitizePalette,
 } = require('./look-values.js');
+const { extrasOf } = require('./look-fields.js');
 const { reconcileConnection } = require('./upkeep.js');
 const { apply } = require('./paint.js');
+const { createBoardApps } = require('../lighting-native/board-apps.js');
+
+// A program that paints the motherboard quit and left it on its own effect: the board is set
+// up again and repainted (board-apps.js). Watched only while Xenon holds a board.
+const boardApps = createBoardApps({
+  onGone: (apps) => {
+    if (bridge.poweredDown) return;
+    console.log(`lights: ${apps.join(', ')} closed, the motherboard lights are Xenon's again`);
+    native.retake().then(() => { bridge.lastWrite.clear(); apply(); });
+  },
+});
+function syncBoardApps() {
+  if (native.status().controllers.length) boardApps.start();
+  else boardApps.stop();
+}
+async function closeNative() {
+  boardApps.stop();
+  await native.stop();
+}
 
 // Apply persisted/posted config; (dis)connect to match `enabled`.
 function applyConfig(next) {
@@ -56,6 +76,9 @@ function applyConfig(next) {
     if (typeof a.color === 'string') { const c = fx.parseColorName(a.color); if (c) bridge.config.animation.color = a.color; }
     if (a.speed != null && Number.isFinite(Number(a.speed))) bridge.config.animation.speed = Math.max(1, Math.min(100, Number(a.speed)));
     if (a.palette !== undefined) { const pal = sanitizePalette(a.palette); if (pal) bridge.config.animation.palette = pal; }
+    // The knobs come whole with the settings: one left out is back to the effect as made.
+    for (const k of ['reverse', 'size', 'glow', 'chain']) delete bridge.config.animation[k];
+    Object.assign(bridge.config.animation, extrasOf(a, true));
   }
   refreshAnimationLayer(); // sync the animation layer (incl. "Fissa" → manual colour)
   if (next.deviceModes && typeof next.deviceModes === 'object') {
@@ -69,6 +92,8 @@ function applyConfig(next) {
           style: PER_DEVICE_ANIM_STYLES.includes(v.anim.style) ? v.anim.style : 'cycle',
           color: (typeof v.anim.color === 'string' && fx.parseColorName(v.anim.color)) ? v.anim.color : '#1ed760',
           speed: Number.isFinite(Number(v.anim.speed)) ? Math.max(1, Math.min(100, Number(v.anim.speed))) : 50,
+          ...(sanitizePalette(v.anim.palette) ? { palette: sanitizePalette(v.anim.palette) } : {}),
+          ...extrasOf(v.anim),
         };
       }
       if (v.leds !== undefined) e.leds = ledColors.normalizeLedColors(v.leds);
@@ -90,7 +115,7 @@ function configureNative(next) {
   bridge.lastWrite.clear();
   native.configure({ enabled, layouts: next.layouts, scanned: next.scanned })
     .catch((e) => { bridge.lastError = e.message; })
-    .then(() => { bridge.lastWrite.clear(); apply(); });
+    .then(() => { syncBoardApps(); bridge.lastWrite.clear(); apply(); });
 }
 
 function setNativeEnabled(on) { configureNative({ enabled: !!on }); }
@@ -112,6 +137,7 @@ async function setNativePreview(id, output, opts) {
 async function scanNative() {
   await native.stop();
   await native.start({ rescan: true });
+  syncBoardApps();
   bridge.lastWrite.clear();
   apply();
   return native.status();
@@ -142,5 +168,5 @@ function setExternalRuntime(providerId, hooks) { external.setRuntime(providerId,
 module.exports = {
   applyConfig, configureNative, setNativeEnabled, setNativeLayout, setNativePreview, scanNative,
   setEffectEnabled, setEnabled, scanExternal, addExternalDevice, pairExternalDevice,
-  removeExternalDevice, setExternalDeviceOptIn, setExternalRuntime,
+  removeExternalDevice, setExternalDeviceOptIn, setExternalRuntime, closeNative, _boardApps: boardApps,
 };

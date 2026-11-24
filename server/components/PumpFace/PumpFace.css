@@ -21,6 +21,15 @@
   --pf-swap: 450ms;
 }
 
+/* Registered so a line's 'live' colours (face-live.js) glide from one to the next. */
+@property --pf-c1 { syntax: '<color>'; inherits: true; initial-value: #6ee787; }
+@property --pf-c2 { syntax: '<color>'; inherits: true; initial-value: #8ab4f8; }
+@property --pf-c3 { syntax: '<color>'; inherits: true; initial-value: #ffd75e; }
+@property --pf-c4 { syntax: '<color>'; inherits: true; initial-value: #b4a0ff; }
+@media (prefers-reduced-motion: no-preference) {
+  .pf-live { transition: --pf-c1 1.2s ease, --pf-c2 1.2s ease, --pf-c3 1.2s ease, --pf-c4 1.2s ease; }
+}
+
 html, body {
   margin: 0;
   height: 100%;
@@ -79,7 +88,7 @@ html, body {
 .pf-slot-4 { --slot: var(--pf-c4); }
 
 /* ── Numbers: the value large, its unit small beside it ───────────────── */
-.pf-main, .pf-rest-value, .pf-cell-value, .pf-ring-value {
+.pf-main, .pf-rest-value, .pf-cell-value {
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -88,7 +97,6 @@ html, body {
 }
 .pf-main .pf-num { font-size: calc(var(--u) * var(--nk, 1) * 27); font-weight: 300; letter-spacing: -0.02em; }
 .pf-main .pf-unit { font-size: calc(var(--u) * 7); font-weight: 500; color: var(--pf-ink-2); margin: calc(var(--u) * 2.4) 0 0 calc(var(--u) * 0.8); }
-.pf-main-xl .pf-num { font-size: calc(var(--u) * 34); }
 [data-tone="warm"] > .pf-num { color: var(--pf-warm); }
 [data-tone="hot"] > .pf-num { color: var(--pf-hot); }
 .pf-none > .pf-num { color: var(--pf-ink-3); }
@@ -106,9 +114,8 @@ html, body {
 }
 
 /* Too hot is said by a shape too, never by the colour alone. */
-.pf-ring-cell:has(> [data-tone="hot"]) > .pf-ring-label::before,
-.pf-game-side:has(> [data-tone="hot"]) > .pf-ring-label::before,
-.pf-game-mid:has(> .pf-main[data-tone="hot"]) > .pf-label::before,
+.pf-drop-cell:has(> [data-tone="hot"]) > .pf-drop-name::before,
+.pf-drop-mid:has(> .pf-main[data-tone="hot"]) > :is(.pf-label, .pf-drop-label)::before,
 .pf-cell:has(> [data-tone="hot"]) > .pf-label::before {
   content: "";
   display: inline-block;
@@ -169,6 +176,28 @@ html, body {
 .pf-alert-title { font-size: calc(var(--u) * 7); font-weight: 650; line-height: 1.12; -webkit-line-clamp: 2; }
 .pf-alert-body { font-size: calc(var(--u) * 4.4); color: var(--pf-ink-2); line-height: 1.25; -webkit-line-clamp: 3; }
 .pf-alert-ring .pf-fill { transition: none; }
+/* Over a style that takes alerts: the words alone, in its colours, in the band it leaves free below;
+   they come on in steps, as a lit sign does. */
+.pf-alert-band {
+  inset: auto 0 0 0;
+  height: var(--pf-band, 38%);
+  place-content: start center;
+  gap: calc(var(--u) * 1.4);
+  padding: calc(var(--u) * 3) calc(var(--u) * 12) 0;
+  background: none;
+  animation: pf-band-in 240ms steps(3, end);
+}
+/* Round: the title may take the wide chord near the middle; the line under it stays one, where the
+   circle narrows. */
+.pf-shape-round .pf-alert-band { padding-inline: calc(var(--u) * 11); }
+.pf-shape-round .pf-alert-band .pf-alert-body { max-width: calc(var(--u) * 60); -webkit-line-clamp: 1; }
+.pf-alert-band .pf-alert-title { color: var(--pf-c1); -webkit-line-clamp: 2; }
+.pf-alert-band.pf-alert-hot .pf-alert-title { color: var(--pf-hot); }
+.pf-alert-band .pf-alert-kicker { color: var(--pf-c2); }
+.pf-alert-band .pf-alert-body { -webkit-line-clamp: 2; }
+.pf-alert-dots { display: block; justify-self: center; image-rendering: pixelated; }
+.pf-alert-still { animation: none; }
+@keyframes pf-band-in { from { opacity: 0; } }
 
 /* ── Waiting for Xenon, and the brightness ────────────────────────────── */
 .pf-status {
@@ -196,13 +225,17 @@ html, body {
 }
 
 /* ── A line's look (face-look.js): colours on the layer, what is behind, size, warm ── */
-.pf-face { isolation: isolate; }
+.pf-face { isolation: isolate; background-color: var(--pf-bg, transparent); }
+/* A light colour of one's own behind: dark words and tracks, so the numbers still read. */
+.pf-light { color: var(--pf-ink); --pf-ink: #111111; --pf-ink-2: #333333; --pf-ink-3: #5a5a5a; --pf-track: rgb(0 0 0 / 0.14); --pf-raise: rgb(0 0 0 / 0.08); }
 .pf-big { --nk: 1.2; }
 .pf-bg-glow {
-  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--pf-c1) 24%, transparent),
-    color-mix(in srgb, var(--pf-c2) 7%, transparent) 52%, transparent 74%);
+  background-image: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--pf-c1) 34%, transparent),
+    color-mix(in srgb, var(--pf-c2) 12%, transparent) 55%, transparent 78%);
 }
-/* Behind the face, dark enough that its numbers read over any picture. */
+/* Behind the face: bright at the edges where no word sits, darker under the words in the middle,
+   so the picture is seen and the numbers still read over any picture. The drop (PumpFaceDrop.css)
+   carries its words on itself and needs no shade. */
 .pf-bg-pic {
   position: absolute;
   inset: 0;
@@ -210,15 +243,21 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.4);
+  filter: brightness(0.75);
+}
+.pf-has-bg:not([data-drop])::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.62) 45%, rgb(0 0 0 / 0.2));
 }
 .pf-has-bg .pf-track { stroke: rgb(255 255 255 / 0.16); }
 /* Warm and hot keep the reading's own colour; the mark for too hot stays. */
 .pf-nowarn .pf-fill[data-tone] { stroke: var(--slot, var(--pf-c1)); }
 .pf-nowarn [data-tone] > .pf-num { color: inherit; }
-.pf-nowarn :is(.pf-ring-cell, .pf-game-side):has(> [data-tone]) > .pf-ring-label { color: var(--slot); }
 .pf-nowarn .pf-bar-fill[data-tone] { background: var(--slot); }
-.pf-big .pf-rings-n2 { grid-template-columns: repeat(2, calc(var(--u) * 35)); }
 /* Four numbers in a grid only have room to grow a little. */
 .pf-big .pf-grid:is([data-count="3"], [data-count="4"]) { --nk: 1.08; }
 /* A line of one's own: above the face, below it where a ring gauge leaves its opening. */
@@ -235,5 +274,4 @@ html, body {
   font-weight: 650;
   color: var(--pf-ink-2);
 }
-.pf-style-rings > .pf-own-text { top: auto; bottom: calc(50% - var(--u) * 44); }
 .pf-face-clock.pf-style-analog > .pf-own-text { top: calc(50% - var(--u) * 33); }

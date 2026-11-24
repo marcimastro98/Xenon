@@ -2,8 +2,11 @@
 // Pump screens plugged into this PC, found by their USB ids, so the Screens page can
 // offer the one step that puts Xenon on them. Read only when the menu asks, at most
 // once every few minutes; hid/ reads what each device declares and never opens one for
-// writing. Windows only for now: both ways onto a pump (iCUE, NZXT CAM) are Windows
-// programs.
+// writing. A pump Xenon can draw on itself (`direct`: a driver in lcd-*.js, see direct.js)
+// is found on Windows and Linux; the others only on Windows, where their own programs
+// (iCUE, NZXT CAM) are the way onto them. Not on macOS yet: hid/ writes no reports there.
+
+const { panelOf } = require('./lcd-corsair.js');
 
 const CACHE_MS = 10 * 60000;
 const CORSAIR = 0x1b1c;
@@ -19,19 +22,23 @@ const KNOWN = Object.freeze([
 
 function pumpOf(d) {
   const known = KNOWN.find((k) => k.vendorId === d.vendorId && k.productIds.includes(d.productId));
-  if (known) return { brand: known.brand, route: known.route };
-  if (d.vendorId === CORSAIR && /\bLCD\b/i.test(d.product || '')) return { brand: 'corsair', route: 'icue' };
+  const ids = { vendorId: d.vendorId, productId: d.productId, direct: !!panelOf(d.vendorId, d.productId) };
+  if (known) return { brand: known.brand, route: known.route, ...ids };
+  if (d.vendorId === CORSAIR && /\bLCD\b/i.test(d.product || '')) return { brand: 'corsair', route: 'icue', ...ids };
   return null;
 }
 
-/** [{ brand, route }], one per pump: a device lists one entry per USB interface. */
-function pumpsIn(devices) {
+/**
+ * [{ brand, route, vendorId, productId, direct }], one per pump: a device lists one entry per
+ * USB interface. onlyDirect: off Windows, where no vendor program is a way onto the others.
+ */
+function pumpsIn(devices, onlyDirect = false) {
   const seen = new Set();
   const out = [];
   for (const d of devices || []) {
     const pump = pumpOf(d);
     const key = d.vendorId + ':' + d.productId;
-    if (!pump || seen.has(key)) continue;
+    if (!pump || seen.has(key) || (onlyDirect && !pump.direct)) continue;
     seen.add(key);
     out.push(pump);
   }
@@ -46,7 +53,7 @@ function createPumpDetect({ hid = require('../hid/index.js'), platform = process
 
   async function scan() {
     try {
-      return pumpsIn(await hid.list({ vendorIds: [CORSAIR, NZXT] }));
+      return pumpsIn(await hid.list({ vendorIds: [CORSAIR, NZXT] }), platform !== 'win32');
     } catch (e) {
       if (!warned) warn(`pump screens: the USB list could not be read (${e.message})`);
       warned = true;
@@ -55,7 +62,7 @@ function createPumpDetect({ hid = require('../hid/index.js'), platform = process
   }
 
   return function detect() {
-    if (platform !== 'win32' || !hid.available) return Promise.resolve([]);
+    if (!['win32', 'linux'].includes(platform) || !hid.available) return Promise.resolve([]);
     if (clock() - at < CACHE_MS) return Promise.resolve(found);
     if (!pending) {
       pending = scan().then((list) => {

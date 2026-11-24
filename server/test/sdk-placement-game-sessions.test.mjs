@@ -26,14 +26,14 @@ const { widgetSnapshot, normalizeSession, compareSessions } = require('../perfor
 const { remotePathAllowed } = require('../paired/remote-access.js');
 
 // The placement code, run as written: from its constant to the end of postPlacement.
-function placementKit(search, hubSettings, scene, shape) {
+function placementKit(search, hubSettings, scene, pumpPlacement) {
   const at = BRIDGE.indexOf('  const LAYER_SURFACES');
   const fnAt = BRIDGE.indexOf('function postPlacement(', at);
   assert.ok(at > 0 && fnAt > at, 'js/custom-widget/custom-widget.js must still define the placement code');
   const end = BRIDGE.indexOf('\n  }', fnAt) + 4;
   const posted = [];
-  const window = { location: { search } };
-  const document = { documentElement: { dataset: { ...(scene ? { scene } : {}), ...(shape ? { shape } : {}) } } };
+  const window = { location: { search }, ...(pumpPlacement ? { pumpPlacement } : {}) };
+  const document = { documentElement: { dataset: { ...(scene ? { scene } : {}) } } };
   const post = (_entry, msg) => posted.push(msg);
   // eslint-disable-next-line no-new-func
   const kit = new Function('window', 'document', 'hubSettings', 'post',
@@ -61,9 +61,11 @@ test('an Ambient scene on the desktop scene page says wallpaper or screensaver',
   assert.equal(where('wallpaper', {}), 'dashboard', 'only the Ambient frame takes the scene name');
 });
 
+// The pump's page builds its placement (pump-widget-host.js window.pumpPlacement: shape, line, look).
 test("a widget on a pump screen (pump-widget.html) says pump and the screen's shape", () => {
-  const placed = (shape) => placementKit('', {}, 'pump', shape).placementOf({ ambient: true });
-  assert.deepEqual(placed('square'), { where: 'pump', dashboard: true, shape: 'square' });
+  const placed = (pump) => placementKit('', {}, 'pump', pump).placementOf({ ambient: true });
+  const look = { colors: ['#112233', '#445566', '#778899', '#aabbcc'], live: ['#5ec8ff', '#6ee787', '#ffd75e', '#ff5c6c'] };
+  assert.deepEqual(placed({ shape: 'square', look }), { where: 'pump', dashboard: true, shape: 'square', look });
   assert.equal(placed().shape, 'round', 'a page that never said its shape is round, as most pumps are');
   assert.equal(placementKit('', {}, 'wallpaper').placementOf({ ambient: true }).shape, undefined, 'only a pump has a shape');
 });

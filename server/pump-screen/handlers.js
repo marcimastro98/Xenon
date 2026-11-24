@@ -15,6 +15,9 @@ const MAX_BODY_BYTES = 16 * 1024;
 const PAGE = path.join(__dirname, '..', 'pump-face.html');
 const WIDGET_PAGE = path.join(__dirname, '..', 'pump-widget.html');
 const STRINGS_MARK = '<!-- pump strings -->';
+// This run of the engine. A pump's page left open across an update (iCUE keeps its widget's page
+// for days) loads again when an answer names another run than the one that served it (face-kit.js).
+const RUN = Date.now().toString(36);
 
 // What a face needs from the settings: the language its words came in, how temperatures
 // and the time are written, and the theme's colour (a line's look can follow it).
@@ -40,7 +43,7 @@ function createRoutes({ store, live, ring = null, presence = null, settings = ()
     for (const id of screenIds(model)) {
       screens[id] = { ...Model.screenFor(model, id), set: !!model.screens[id], seen: model.seen[id] || null, here: presence ? presence.here(id) : true };
     }
-    return { ok: true, screens, now: live.decide(), prefs: prefsOf(settings() || {}) };
+    return { ok: true, screens, now: live.decide(), prefs: prefsOf(settings() || {}), run: RUN };
   }
 
   async function readJson(req, readBody) {
@@ -66,7 +69,7 @@ function createRoutes({ store, live, ring = null, presence = null, settings = ()
     const model = await store.ready();
     if (!model.seen[id]) { json({ ok: false, error: 'too_many_screens' }); return; }
     presence?.note(id);
-    json({ ok: true, screen: id, settings: Model.screenFor(model, id), now: live.decide()[id] || null });
+    json({ ok: true, screen: id, settings: Model.screenFor(model, id), now: live.decide()[id] || null, run: RUN });
   }
 
   // A pump's page holds this open while it shows (presence.js): closed, the screen is away
@@ -91,7 +94,7 @@ function createRoutes({ store, live, ring = null, presence = null, settings = ()
     const model = await store.ready();
     if (!id || !model.seen[id]) { json({ ok: false, error: 'bad_screen' }); return; }
     presence?.note(id);
-    if (!ring?.report(id, b.colors)) { json({ ok: false, error: 'bad_colors' }); return; }
+    if (!ring?.report(id, b.colors, b.level, b.effect)) { json({ ok: false, error: 'bad_colors' }); return; }
     json({ ok: true });
   }
 
@@ -99,7 +102,7 @@ function createRoutes({ store, live, ring = null, presence = null, settings = ()
     const html = await fs.promises.readFile(PAGE, 'utf8');
     // JSON inside <script type="application/json">: a "<" in a translation can never close the tag.
     const prefs = prefsOf(settings() || {});
-    const strings = JSON.stringify({ words: await pumpStrings(prefs.lang), prefs }).replace(/</g, '\\u003c');
+    const strings = JSON.stringify({ words: await pumpStrings(prefs.lang), prefs, run: RUN }).replace(/</g, '\\u003c');
     await sendPage(html.replace(STRINGS_MARK, `<script type="application/json" id="pump-strings">${strings}</script>`));
   }
 

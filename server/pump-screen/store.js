@@ -47,7 +47,7 @@ function createPumpStore({ dataDir, warn = (_msg) => {} }) {
     const out = step(cur);
     if (!out || out.error) return out || { model: cur, unchanged: true };
     model = out.model;
-    const saved = { v: model.v, screens: model.screens };
+    const saved = { v: model.v, screens: model.screens, direct: model.direct };
     try { await writeFileAtomic(file, JSON.stringify(saved, null, 2) + '\n'); }
     catch (e) { if (model === out.model) model = cur; throw e; }
     return out;

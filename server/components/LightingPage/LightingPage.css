@@ -18,11 +18,16 @@
 #settings-overlay .settings-note:empty { display: none; }
 .lighting-device-brand, .lighting-provider-ok, .lighting-provider-off { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
 .lighting-provider-ok { color: var(--color-success); }
+/* Who drives each light (Devices, on top): the name and maker on the left, who on the right. */
+#settings-overlay .lighting-who > .settings-label-line { flex: 1 1 140px; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: 0 8px; }
+#settings-overlay .lighting-who > .lighting-who-state { flex: 0 1 auto; width: auto; color: var(--color-success); font-size: 13.5px; font-weight: 600; text-align: end; }
+#settings-overlay .lighting-who > .lighting-who-state.is-off { color: var(--color-warn); }
 .lighting-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lighting-inline .settings-note { margin: 0; }
 
 /* ── Segmented choices: the settings control with a column count per use ── */
 #settings-overlay .settings-segmented.lighting-seg { display: grid; grid-auto-flow: row; }
+#settings-overlay .settings-segmented.lighting-seg[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #settings-overlay .settings-segmented.lighting-seg[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 #settings-overlay .settings-segmented.lighting-seg[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 #settings-overlay .settings-segmented.lighting-seg[data-cols="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -90,6 +95,12 @@
 }
 .lighting-part-name:hover { background: var(--cst-on); }
 .lighting-part-model { margin-left: 6px; color: var(--cst-muted); font-weight: 500; }
+/* The pump ring while its screen decides it: drawn, not picked, its words under the name. */
+.lighting-part.is-held .lighting-part-leds { cursor: default; }
+.lighting-led-held { fill: var(--text); fill-opacity: 0.22; }
+.lighting-part.is-held .lighting-part-name { display: flex; flex-direction: column; align-items: center; cursor: default; text-align: center; }
+.lighting-part.is-held .lighting-part-name:hover { background: none; }
+.lighting-part.is-held .lighting-part-model { margin-left: 0; max-width: 18ch; }
 
 /* The editor of the chosen LEDs: more rows under the map, only while something is chosen. */
 .lighting-sel-slot:empty { display: none; }
@@ -139,3 +150,49 @@
 }
 /* The native option popup must stay readable (light text on its own dark bg). */
 .settings-select option { background-color: #15191a; color: #f0f3f1; }
+
+/* ── Effects as cards (js/lighting-page/effect-cards.js): each moving on a ring of LEDs ── */
+.lighting-fx, .lighting-fxgroup, .lighting-fxtune { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+.lighting-fx { gap: 18px; padding: 12px 16px 16px; }
+.lighting-fx > .settings-hint { padding: 0; }
+.lighting-fxgroup-name { margin: 0; color: var(--cst-muted); font-size: 13.5px; font-weight: 600; }
+.lighting-fxgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+#settings-overlay .lighting-fxcard {
+  appearance: none; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; min-height: 44px;
+  padding: 12px 8px; font: inherit; color: var(--cst-text); text-align: center; cursor: pointer;
+  background: var(--cst-well); border: 0; border-radius: 14px;
+}
+#settings-overlay .lighting-fxcard:hover { background: var(--cst-on); }
+#settings-overlay .lighting-fxcard[aria-pressed="true"] { background: var(--cst-on); box-shadow: inset 0 0 0 1.5px var(--cst-text); cursor: default; }
+#settings-overlay .lighting-fxcard:focus-visible, #settings-overlay .lighting-fxset:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 2px; }
+.lighting-fxgrid.is-plain .lighting-fxcard { flex-direction: row; justify-content: flex-start; text-align: start; }
+.lighting-fxcard-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lighting-fxcard-name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+#settings-overlay .lighting-fxcard .settings-hint { margin: 0; padding: 0; font-size: 12.5px; line-height: 1.35; }
+/* The ring: the LEDs drawn on black, as they sit round a fan. */
+.lighting-fxring { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: black; }
+.lighting-fxring > canvas { grid-area: 1 / 1; width: 52px; height: 52px; }
+.lighting-fxring.is-none { background: radial-gradient(circle, black 62%, var(--cst-sep) 64%); }
+.lighting-fxring.is-temperature { background: radial-gradient(circle, black 62%, transparent 64%), conic-gradient(oklch(70% 0.14 240), oklch(82% 0.15 90), oklch(64% 0.21 28), oklch(70% 0.14 240)); }
+.lighting-fxring.is-album { background: radial-gradient(circle, black 62%, transparent 64%), conic-gradient(oklch(72% 0.17 35), oklch(85% 0.13 85), oklch(75% 0.12 235), oklch(68% 0.16 300), oklch(72% 0.17 35)); }
+/* Choices under the chosen effect. */
+.lighting-fxtune { padding-top: 14px; border-top: 1px solid var(--cst-sep); }
+.lighting-fxsets { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; width: 100%; }
+#settings-overlay .lighting-fxset {
+  appearance: none; display: grid; gap: 6px; min-height: 44px; padding: 8px; font: inherit; color: var(--cst-text); text-align: start;
+  cursor: pointer; background: var(--cst-well); border: 0; border-radius: 10px;
+}
+#settings-overlay .lighting-fxset:hover { background: var(--cst-on); }
+#settings-overlay .lighting-fxset[aria-pressed="true"] { background: var(--cst-on); box-shadow: inset 0 0 0 1.5px var(--cst-text); }
+.lighting-fxset-bar { height: 10px; border-radius: 5px; background: var(--fx-set, var(--cst-sep)); }
+.lighting-fxset-name { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+/* Two fans and a strip, together or one after another. */
+.lighting-fxchain { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 4px 0; }
+.lighting-fxchain-ring { display: grid; width: 44px; height: 44px; border-radius: 50%; background: black; }
+.lighting-fxchain-ring > canvas { width: 44px; height: 44px; }
+.lighting-fxchain-line { display: grid; align-items: center; height: 22px; padding: 0 4px; border-radius: 11px; background: black; }
+.lighting-fxchain-line > canvas { width: 120px; height: 14px; }
+@media (max-width: 480px) {
+  .lighting-fxgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lighting-fx { padding: 12px; }
+}

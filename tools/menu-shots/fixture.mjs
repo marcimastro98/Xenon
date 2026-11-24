@@ -7,6 +7,7 @@
 import { createRequire } from 'node:module';
 
 const PumpModel = createRequire(import.meta.url)('../../server/js/pump/pump-model.js');
+const PumpFaces = createRequire(import.meta.url)('../../server/js/pump/pump-faces.js');
 
 export const MONITORS = [
   { key: 'M1', name: 'DELL U2723QE', primary: true, width: 2560, height: 1440, x: 0, y: 0 },
@@ -48,9 +49,33 @@ export const LOOK = {
 // A round pump screen that already showed Xenon through iCUE, on the first ready-made setup,
 // showing its usual face. shoot.mjs gives the same setup to the pump page it serves.
 export const PUMP_SCREEN = 'pump';
-const pumpScreen = PumpModel.screenFor({ screens: {}, seen: {} }, PUMP_SCREEN);
+// Its usual face wears four colours of the person's own, so the shots show their pickers too.
+export const PUMP_COLORS = Object.freeze(['#ff2e88', '#ffd166', '#ff3b30', '#120a1f']);
+const setupScreen = PumpModel.screenFor({ screens: {}, seen: {} }, PUMP_SCREEN);
+// MENU_PUMP_STYLE=gauge draws it as Strumento, the menu and the pump page alike; =widget with a
+// Store widget made to be the style (an invented one, not installed: the pump page draws the lines).
+const STYLE_WIDGET = Object.freeze({ id: 'neon-dial', name: 'Neon Dial', shapes: ['round', 'square'], style: true });
+export const PUMP_STYLE = { gauge: 'gauge', widget: 'widget:' + STYLE_WIDGET.id }[process.env.MENU_PUMP_STYLE] || 'xenon';
+// MENU_PUMP_LEDS=own lights its ring in two colours of the person's, up to the reading;
+// MENU_PUMP_LEDS=palette runs a comet in the Ocean palette, faster and with a longer tail.
+const LEDS_BY_NAME = {
+  own: { follow: 'own', move: 'level', colors: ['#00e5ff', '#ff2e88'] },
+  palette: { follow: 'own', move: 'comet', colors: ['#00e5ff', '#ff2e88'], palette: 'ocean', speed: 72, size: 0.8 },
+};
+export const PUMP_LEDS = LEDS_BY_NAME[process.env.MENU_PUMP_LEDS] ? Object.freeze(LEDS_BY_NAME[process.env.MENU_PUMP_LEDS]) : null;
+const pumpScreen = {
+  ...setupScreen, style: PUMP_STYLE, base: { ...setupScreen.base, colors: [...PUMP_COLORS] }, ...(PUMP_LEDS ? { leds: { ...setupScreen.leds, ...PUMP_LEDS } } : {}),
+};
+// The ring as the pump's settings tell it now (pump-screen/ring.js), drawn round the pump's card:
+// in the person's colours, or the face's own as its page says them.
+const leds = pumpScreen.leds;
+const RING = leds.follow === 'lights' ? null : {
+  follow: leds.follow, all: leds.all, effect: PumpFaces.ringEffect(leds, pumpScreen.base, pumpScreen.style, null), speed: leds.speed, reverse: leds.reverse,
+  colours: leds.follow === 'own' ? leds.colors : PUMP_COLORS.slice(0, 3),
+};
 export const PUMP = {
-  icue: true, sound: true, detected: [], url: 'http://127.0.0.1:3030/pump-face',
+  ring: RING, icue: true, sound: true, detected: [], url: 'http://127.0.0.1:3030/pump-face',
+  ...(PUMP_STYLE.startsWith('widget:') ? { widgets: [STYLE_WIDGET] } : {}),
   screens: [{
     screen: PUMP_SCREEN, ...pumpScreen, set: true,
     seen: { shape: 'round', w: 480, h: 480, via: 'icue' }, now: { show: pumpScreen.base, why: 'base' },

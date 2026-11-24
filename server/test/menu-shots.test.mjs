@@ -18,7 +18,7 @@ test('the invented desk draws two screens, the Edge with the dashboard, two phon
   assert.deepEqual(home.screens[0].widgets, ['lw_wthr01', 'lw_clck01']);
   assert.equal(MONITORS.filter((m) => m.primary).length, 1);
   assert.ok(PHONES.every((p) => /^dev_/.test(p.id) && p.name));
-  assert.deepEqual(home.pumps.map((v) => [v.pump, v.shape, v.tabs.length]), [['pump', 'round', 3]], 'and a round pump screen: what it shows, alerts, look');
+  assert.deepEqual(home.pumps.map((v) => [v.pump, v.shape, v.tabs.length]), [['pump', 'round', 4]], 'and a round pump screen: what it shows, alerts, lights, look');
 });
 
 test('the shot server serves the page files only', () => {

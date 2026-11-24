@@ -62,7 +62,7 @@ test('the model drops what it does not know and caps the screens', () => {
 test('a screen keeps sound defaults: alerts on, text hidden, lights follow the screen', () => {
   const s = Model.normalizeScreen({});
   assert.deepEqual(s.alerts, { notify: true, call: true, timer: true, discord: true, hot: true, seconds: 8, hideText: true });
-  assert.deepEqual(s.leds, { follow: 'screen', all: false, move: 'still' });
+  assert.deepEqual(s.leds, { follow: 'screen', all: false, move: 'style', colors: ['#00e5ff', '#ff2e88'], speed: 'normal', reverse: false, size: null, glow: null, palette: null });
   assert.deepEqual(s.look, { rotate: 0, dim: 100, night: null, fade: true });
   assert.equal(s.base.face, 'sensors');
   const night = Model.normalizeScreen({ look: { night: { from: '23:00', to: '07:00', dim: 2 }, rotate: 45, dim: 500 } }).look;

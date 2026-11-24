@@ -28,6 +28,8 @@ function audioLevelsWanted() {
   // The ring of lights around a pump screen set to pulse with the sound: the same kind of
   // first-party switch, in the pump's Look (pump-screen/ring.js).
   if (pumpRing.pulsing()) return true;
+  // The same for an effect of the lights in Settings -> Lighting (read late: lights load audio).
+  if (require('../lights/paint-rules.js').lightsHear()) return true;
   const sw = hub.settings && hub.settings.sdkWidgets;
   const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
   if (!grants) return false;

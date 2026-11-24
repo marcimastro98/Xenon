@@ -1,5 +1,14 @@
 // The tools the assistant always has for the RGB lights.
 
+const LightFx = require('../js/light-fx/light-fx.js');
+
+// The effects of Settings -> Lighting by group, from the one list of light effects
+// (js/light-fx/light-fx.js), with what the ones that follow the PC read.
+const FOLLOWS = { sound: 'the sound the PC plays', load: 'how hard the PC works', fans: 'the fan speeds', sky: 'sunrise and sunset', weather: 'the weather outside', timer: 'a running Xenon timer' };
+const EFFECTS = LightFx.GROUPS.map((group) => group + ': ' + LightFx.LIST.filter((e) => LightFx.LIGHTING.includes(e.id) && e.group === group)
+  .map((e) => (FOLLOWS[e.needs] ? `${e.id} (${FOLLOWS[e.needs]})` : e.id)).join(', ')).join('; ');
+const OLD = Object.keys(LightFx.OLD_LIGHTING).filter((s) => !LightFx.LIGHTING.includes(s)).join(', ');
+
 function lightingAiFunctions() {
   return [
         // ── RGB Lighting (Corsair / iCUE bridge) ──
@@ -17,11 +26,15 @@ function lightingAiFunctions() {
           style: { type: 'STRING', description: 'Animation style: blink, pulse, or solid' },
           enabled: { type: 'BOOLEAN', description: 'Optional: enable/disable the effect' },
         }, required: ['effect'] } },
-        { name: 'set_animation', description: 'Set the ambient RGB lighting animation. Styles: none, solid (fixed colour), breathing, cycle (rainbow), wave (scrolling rainbow), aurora (northern-lights drift), candle (warm flicker), palette (cycles the user\'s own 2-5 colours). Optionally set the colour (breathing/candle), the speed, and the palette colours. The lighting master must be on for the animation to show (use set_lighting_bridge).', parameters: { type: 'OBJECT', properties: {
-          style: { type: 'STRING', description: 'One of: none, solid, breathing, cycle, wave, aurora, candle, palette' },
-          color: { type: 'STRING', description: 'Optional colour name or #RRGGBB (used by breathing and candle)' },
-          speed: { type: 'NUMBER', description: 'Optional speed 1-100 (higher = faster)' },
-          palette: { type: 'STRING', description: 'Optional comma-separated 2-5 colours for the palette style, e.g. "#ff0000,#0000ff" or "rosso,blu,verde"' },
+        { name: 'set_animation', description: `Set the effect of every light Xenon drives (Settings -> Lighting), drawn LED by LED on each fan, pump ring, strip and keyboard. Effects, ${EFFECTS}. none = no effect. The names ${OLD} still work as saved before. The lighting master must be on for it to show (use set_lighting_bridge).`, parameters: { type: 'OBJECT', properties: {
+          style: { type: 'STRING', description: 'One effect id from the list, or none' },
+          color: { type: 'STRING', description: 'Optional: one colour name or #RRGGBB, the effect\'s only colour' },
+          palette: { type: 'STRING', description: 'Optional: 1-5 comma-separated colours the effect uses, e.g. "#ff0000,#0000ff" or "rosso,blu,verde"; rainbow keeps its own' },
+          speed: { type: 'NUMBER', description: 'Optional speed 1-100 (50 as made, higher = faster)' },
+          reverse: { type: 'BOOLEAN', description: 'Optional: run it the other way' },
+          size: { type: 'NUMBER', description: 'Optional 0-1: the effect\'s own amount (a comet\'s tail, the drops, the stars, the beam)' },
+          glow: { type: 'NUMBER', description: 'Optional 0-1: how lit the dark part stays' },
+          chain: { type: 'BOOLEAN', description: 'Optional: true runs the fans and strips one after another instead of together' },
         } } },
         { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE and the board, which show their own lighting; pass dark:true when the user wants the lights switched OFF.', parameters: { type: 'OBJECT', properties: {
           enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },

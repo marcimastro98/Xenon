@@ -20,7 +20,7 @@ test('manifest: valid minimal manifest normalizes', () => {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, tile: true, island: false, islandDynamic: false, islandFull: false, badge: false,
     badgeAction: false, mini: false, topbarButton: false,
-    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, key: null, category: null, size: null, options: [], fit: false, pump: [], storage: false, storageGroup: '', secrets: false,
+    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, key: null, category: null, size: null, options: [], fit: false, pump: [], pumpStyle: false, pumpAlerts: null, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });

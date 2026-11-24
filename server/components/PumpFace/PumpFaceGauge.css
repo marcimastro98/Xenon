@@ -1,0 +1,117 @@
+/* Strumento (face-gauge.js): a screen's faces as an instrument. The dial is a 100x100 box
+   like the rings; the words around it sit on the screen's centre in --u (1vmin). Main
+   colour = the number and the arc, second = the marks, too hot = the needle. A reading too
+   hot turns the whole face that colour, with the words in the colour behind, unless the
+   line keeps its colours (.pf-nowarn); the triangle before its name stays either way. */
+
+.pf-face-gauge {
+  --pf-g-ink: var(--pf-c1);
+  --pf-g-tick: color-mix(in srgb, var(--pf-c2) 55%, transparent);
+  --pf-g-hand: var(--pf-hot);
+  --pf-g-plate: var(--pf-bg, #000000);
+  transition: background-color 400ms ease;
+}
+/* The words sit over the needle, ringed in the colour behind them: a passing needle never cuts a digit. */
+.pf-face-gauge .pf-g-line, .pf-face-gauge .pf-g-big, .pf-face-gauge > .pf-own-text {
+  z-index: 1;
+  text-shadow: 0 0 0.12em var(--pf-g-plate), 0 0 0.12em var(--pf-g-plate), 0 0 0.2em var(--pf-g-plate);
+}
+.pf-g-dial { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pf-face-gauge .pf-fill { stroke-linecap: butt; }
+.pf-face-gauge .pf-track { stroke-linecap: butt; }
+.pf-g-tick { stroke: var(--pf-g-tick); stroke-width: 0.45; }
+.pf-g-major { stroke: var(--pf-g-ink); stroke-width: 0.9; }
+.pf-g-redline { stroke: var(--pf-hot); }
+.pf-g-num {
+  fill: var(--pf-ink-2);
+  font-size: 5px;
+  font-weight: 650;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.pf-g-needle {
+  fill: var(--pf-g-hand);
+  transform: rotate(var(--pf-g-turn, 225deg));
+  transform-origin: 50px 50px;
+  transform-box: view-box;
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pf-g-pin { fill: var(--pf-bg, #000000); }
+
+.pf-g-line {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(var(--u) * 40);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 600;
+  color: var(--pf-ink-2);
+}
+.pf-g-line:empty { display: none; }
+.pf-g-top { top: calc(50% - var(--u) * 17); font-size: calc(var(--u) * 4.6); }
+.pf-g-label { top: calc(50% + var(--u) * 30); font-size: calc(var(--u) * 4.4); }
+.pf-g-big {
+  position: absolute;
+  top: calc(50% + var(--u) * 17);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: flex-start;
+  line-height: 0.9;
+  white-space: nowrap;
+  color: var(--pf-g-ink);
+}
+.pf-g-big .pf-num { font-size: calc(var(--u) * 16 * var(--nk, 1)); font-weight: 700; letter-spacing: -0.01em; }
+.pf-g-big .pf-unit { font-size: calc(var(--u) * 5); font-weight: 600; color: var(--pf-ink-2); margin: calc(var(--u) * 1.2) 0 0 calc(var(--u) * 0.5); }
+.pf-g-big[data-digits="3"] .pf-num { font-size: calc(var(--u) * min(16 * var(--nk, 1), 16)); }
+.pf-g-big[data-digits="4"] .pf-num { font-size: calc(var(--u) * min(16 * var(--nk, 1), 13)); }
+/* No reading, nothing playing: the words on two lines if they must, and no needle, only its hub:
+   resting on 0 it would say 0 (and cross the words below the hub in a long language). */
+.pf-g-big.pf-none { max-width: calc(var(--u) * 30); white-space: normal; text-align: center; line-height: 1.1; word-break: auto-phrase; text-wrap: balance; }
+.pf-g-big.pf-none .pf-num { font-size: calc(var(--u) * 5.2); font-weight: 600; letter-spacing: 0; color: var(--pf-ink-3); }
+.pf-g-rest .pf-g-needle polygon { opacity: 0; }
+.pf-g-rest .pf-g-needle { opacity: 0.35; }
+.pf-face-gauge > .pf-own-text { top: calc(50% - var(--u) * 9); }
+
+/* Too hot: a shape before the name, then the face in the colour of too hot. */
+.pf-g-hot .pf-g-label::before {
+  content: "";
+  display: inline-block;
+  width: 0.8em;
+  height: 0.7em;
+  margin-right: 0.3em;
+  background: var(--pf-hot);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.pf-face-gauge.pf-g-hot:not(.pf-nowarn) {
+  background-color: var(--pf-hot);
+  background-image: none;
+  --pf-g-ink: var(--pf-bg, #000000);
+  --pf-g-hand: var(--pf-bg, #000000);
+  --pf-g-tick: color-mix(in srgb, var(--pf-bg, #000000) 45%, transparent);
+  --pf-ink-2: color-mix(in srgb, var(--pf-bg, #000000) 80%, transparent);
+  --pf-track: color-mix(in srgb, var(--pf-bg, #000000) 18%, transparent);
+  --pf-g-plate: var(--pf-hot);
+}
+.pf-g-hot:not(.pf-nowarn) > .pf-bg-pic { display: none; }
+.pf-g-hot:not(.pf-nowarn) .pf-g-label::before { background: currentColor; }
+.pf-g-hot:not(.pf-nowarn) .pf-g-pin { fill: var(--pf-hot); }
+.pf-face-gauge.pf-g-hot:not(.pf-nowarn) .pf-fill,
+.pf-face-gauge.pf-g-hot:not(.pf-nowarn) .pf-g-redline { stroke: var(--pf-g-ink); }
+.pf-face-gauge.pf-g-hot:not(.pf-nowarn) .pf-g-big > .pf-num { color: var(--pf-g-ink); }
+
+/* The clock as an instrument: hour in the main colour, minutes in the second, seconds too hot. */
+.pf-g-hour { fill: var(--pf-g-ink); }
+.pf-g-min { fill: var(--pf-c2); }
+.pf-g-sec { fill: var(--pf-g-hand); }
+.pf-g-hub { fill: var(--pf-g-hand); }
+.pf-g-date { top: calc(50% + var(--u) * 20); font-size: calc(var(--u) * 5); }
+.pf-g-clock .pf-weather { top: calc(50% - var(--u) * 20); transform: translate(-50%, -50%); }
+.pf-g-clock > .pf-own-text { top: calc(50% - var(--u) * 11); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-face-gauge, .pf-g-needle { transition: none; }
+}

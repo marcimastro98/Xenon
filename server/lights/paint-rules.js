@@ -9,14 +9,7 @@ const keyLook = require('./lighting-key-look.js');
 const { bridge } = require('./bridge-state.js');
 const gameDetect = require('../performance/gamedetect.js');
 const pumpRing = require('./pump-ring.js');
-
-// Single source for the animation-style lists (keep the client mirrors in
-// lighting-page.js / settings.js aligned). Every style except none/solid loops →
-// drives the shared self-stopping ticker. Per-device excludes 'palette' (its
-// colour list lives on the global animation only) and 'wave' (per-device renders
-// uniform, which would be indistinguishable from 'cycle' — offering it there
-// would just be a confusing duplicate).
-const DYNAMIC_ANIM_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
+const fxLook = require('./fx-look.js');
 
 // The album colour, gated by its effect toggle. `layers.album` always holds the
 // last pushed cover colour (so toggling the effect on shows it without waiting
@@ -88,28 +81,35 @@ function shouldConnect() {
 }
 
 // --- ambient animation ticker -------------------------------------------------
-// Recompute the animation layer for the current style. Static for 'solid', live
-// sample for the dynamic styles, null for 'none'. Cheap (pure math).
+// The animation layer as one colour now (what a light of a single colour shows; per-LED
+// devices draw the whole effect in paint.js), null for 'none'. Cheap (pure maths).
 function refreshAnimationLayer() {
   const a = bridge.config.animation || {};
   if (!a.style || a.style === 'none') { bridge.layers.animation = null; return; }
-  // "Fissa" (solid) has no colour of its own — it reuses the manual colour set
-  // above (or the accent when none is set), so the user picks the colour once.
+  // "Fissa" (solid, as saved before the effect list) has no colour of its own: it reuses the
+  // manual colour set above (or the accent when none is set), so the user picks the colour once.
   if (a.style === 'solid') { bridge.layers.animation = bridge.layers.override || bridge.accent; return; }
-  bridge.layers.animation = fx.animationColorAt({ style: a.style, color: a.color, speed: a.speed, palette: a.palette, nowMs: Date.now() });
+  bridge.layers.animation = fxLook.colourAt(a);
 }
+
+// The global look moves by itself (the ticker runs for it).
+const animationMoves = () => { const a = bridge.config.animation; return !!a && a.style !== 'solid' && fxLook.moves(a); };
 
 // Does any per-device override run a dynamic (looping) animation?
 function anyDeviceAnimationDynamic() {
   for (const id of Object.keys(bridge.config.deviceModes)) {
     const m = bridge.config.deviceModes[id];
-    if (m && m.mode === 'animation') {
-      const s = (m.anim && m.anim.style) || 'cycle';
-      if (DYNAMIC_ANIM_STYLES.includes(s)) return true;
-    }
+    if (m && m.mode === 'animation' && fxLook.moves(m.anim || { style: 'cycle' })) return true;
     if (m && m.mode === 'custom' && ledColors.hasDynamicLeds(m.leds)) return true;
   }
   return false;
+}
+
+// An effect of the lights follows the sound: the sound is read for it (audio/levels-wanted.js).
+function lightsHear() {
+  if (bridge.config.enabled && fxLook.hears(bridge.config.animation || {})) return true;
+  return Object.values(bridge.config.deviceModes).some((m) => m && ((m.mode === 'animation' && fxLook.hears(m.anim || {}))
+    || (m.mode === 'custom' && Object.values(m.leds || {}).some((v) => v && typeof v === 'object' && fxLook.hears(v)))));
 }
 
 // Resolve the colour for a single device given the global colour. 'follow' (and
@@ -126,8 +126,7 @@ function colorForDevice(id, globalColor) {
   if (m.mode === 'temperature') return bridge.layers.base ? fx.applyBrightness(bridge.layers.base, bridge.config.brightness) : globalColor;
   if (m.mode === 'album') return bridge.layers.album ? fx.applyBrightness(bridge.layers.album, bridge.config.brightness) : globalColor;
   if (m.mode === 'animation') {
-    const a = m.anim || {};
-    const c = fx.animationColorAt({ style: a.style || 'cycle', color: a.color || '#1ed760', speed: a.speed || 50, nowMs: Date.now() });
+    const c = fxLook.colourAt(m.anim || { style: 'cycle' });
     return c ? fx.applyBrightness(c, bridge.config.brightness) : globalColor;
   }
   return globalColor;
@@ -137,10 +136,10 @@ function colorForDevice(id, globalColor) {
 function deckReactionColor() {
   if (!bridge.deckReaction) return null;
   if (bridge.deckReaction.style === 'solid') return fx.parseColorName(bridge.deckReaction.colorHex);
-  return fx.animationColorAt({ style: bridge.deckReaction.style, color: bridge.deckReaction.colorHex, speed: 50, nowMs: Date.now() });
+  return fxLook.colourAt({ style: bridge.deckReaction.style, color: bridge.deckReaction.colorHex, speed: 50 });
 }
 
 module.exports = {
-  DYNAMIC_ANIM_STYLES, effectiveAlbum, albumActive, gamingPaused, wantsPaint, lightsWanted, active, shouldConnect,
-  refreshAnimationLayer, anyDeviceAnimationDynamic, colorForDevice, deckReactionColor,
+  animationMoves, effectiveAlbum, albumActive, gamingPaused, wantsPaint, lightsWanted, active, shouldConnect,
+  refreshAnimationLayer, anyDeviceAnimationDynamic, lightsHear, colorForDevice, deckReactionColor,
 };

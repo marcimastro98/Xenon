@@ -9,6 +9,8 @@
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   const PATHS = Object.freeze({
     bolt: 'M13 2 4 14h7l-1 8 9-12h-7l1-8z',
+    drop: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
+    fan: 'M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM12 10.5C12 6 13 3 16 3s4 3 0 6l-2.6 2M13.5 12c4.5 0 7.5 1 7.5 4s-3 4-6 0l-2-2.6M12 13.5c0 4.5-1 7.5-4 7.5s-4-3 0-6l2.6-2M10.5 12C6 12 3 11 3 8s3-4 6 0l2 2.6',
     widgets: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
     pages: 'M9 3h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM4 7v11a2 2 0 0 0 2 2h11',
     gauge: 'M12 14l4-4M4 18a8 8 0 1 1 16 0',

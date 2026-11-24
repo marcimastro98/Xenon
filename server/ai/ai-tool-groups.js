@@ -38,8 +38,8 @@ const GROUPS = Object.freeze({
     tools: ['set_effect', 'set_event_effect', 'set_animation', 'set_lighting_bridge'],
   },
   pump_screen: {
-    about: 'the screen on an AIO cooler pump (the pump LCD): what it shows normally and by itself while gaming or listening, a face now, ready-made setups, alerts over it, rotation and dimming, adding Xenon to iCUE for it',
-    tools: ['get_pump_screen', 'show_on_pump', 'set_pump_setup', 'set_pump_screen', 'add_pump_to_icue', 'choose_pump_picture'],
+    about: 'the screen on an AIO cooler pump (the pump LCD): what it shows normally and by itself while gaming or listening, a face now, ready-made setups, alerts over it, rotation and dimming, Xenon drawing on it by itself over USB with no iCUE, adding Xenon to iCUE for it',
+    tools: ['get_pump_screen', 'show_on_pump', 'set_pump_setup', 'set_pump_style', 'set_pump_screen', 'set_pump_direct', 'add_pump_to_icue', 'choose_pump_picture'],
   },
   // deck_action_catalog stays in the core: run_deck_action looks action types up in it.
   create: {

@@ -3,12 +3,13 @@
 // device or one LED shows.
 
 const fx = require('./lighting-effects.js');
-const { DYNAMIC_ANIM_STYLES } = require('./paint-rules.js');
+const { STYLES } = require('./look-fields.js');
 
 const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];
 
-const ANIM_STYLES = ['none', 'solid', ...DYNAMIC_ANIM_STYLES];
-const PER_DEVICE_ANIM_STYLES = ['solid', ...DYNAMIC_ANIM_STYLES.filter(s => s !== 'palette' && s !== 'wave')];
+// Every effect of the Lighting list, for all the lights and for one device alike.
+const ANIM_STYLES = STYLES;
+const PER_DEVICE_ANIM_STYLES = STYLES.filter((s) => s !== 'none');
 
 const EVENT_DURATION_MS = 1800;
 // One source for the user-configurable flash-duration bounds (mirrored by the
@@ -18,14 +19,14 @@ const clampEventDuration = (ms, fallback) =>
 
 const OFF_COLOR = { r: 0, g: 0, b: 0 };
 
-// Validate a user palette: 2–5 parseable colours, stored as normalized hex.
+// Validate a user palette: 1–5 parseable colours (an effect takes one or more), stored as normalized hex.
 function sanitizePalette(input) {
   if (!Array.isArray(input)) return null;
   const hexes = input.slice(0, 5)
     .map(h => fx.parseColorName(h))
     .filter(Boolean)
     .map(c => fx.rgbToHex(c));
-  return hexes.length >= 2 ? hexes : null;
+  return hexes.length ? hexes : null;
 }
 
 // Switching to the candle while the colour is still the generic green default

@@ -1,7 +1,7 @@
 'use strict';
 // The small colour sums the lighting effects are built from: a channel kept between 0 and 255,
-// a hex colour read and written, hue, saturation and value turned into red, green and blue, and
-// a brightness applied.
+// a hex colour read and written, hue, saturation and value turned into red, green and blue, a
+// brightness applied, and a few colours spread along a strip.
 
 const clamp8 = n => Math.max(0, Math.min(255, Math.round(n)));
 
@@ -39,4 +39,29 @@ function hsvToRgb(h, s, v) {
   return { r: clamp8((r + m) * 255), g: clamp8((g + m) * 255), b: clamp8((b + m) * 255) };
 }
 
-module.exports = { clamp8, hexToRgb, rgbToHex, applyBrightness, hsvToRgb };
+// Spread a 2-3 colour palette across `count` LEDs as a smooth multi-stop
+// gradient (palette[0] at LED 0 → last colour at the last LED). Pure + cheap:
+// called only when the palette changes, never per tick. Returns an array of
+// `count` {r,g,b}; a single-colour palette (or count 1) degrades to uniform.
+function paletteGradient(palette, count) {
+  const stops = (Array.isArray(palette) ? palette : []).filter(c => c && typeof c === 'object');
+  const n = Math.max(0, Math.round(Number(count) || 0));
+  if (!n || !stops.length) return [];
+  if (stops.length === 1 || n === 1) return Array(n).fill(null).map(() => ({ ...stops[0] }));
+  const out = new Array(n);
+  const segs = stops.length - 1;
+  for (let i = 0; i < n; i++) {
+    const pos = (i / (n - 1)) * segs;        // 0..segs across the strip
+    const si = Math.min(segs - 1, Math.floor(pos));
+    const f = pos - si;
+    const a = stops[si], b = stops[si + 1];
+    out[i] = {
+      r: clamp8(a.r + (b.r - a.r) * f),
+      g: clamp8(a.g + (b.g - a.g) * f),
+      b: clamp8(a.b + (b.b - a.b) * f),
+    };
+  }
+  return out;
+}
+
+module.exports = { clamp8, hexToRgb, rgbToHex, applyBrightness, hsvToRgb, paletteGradient };

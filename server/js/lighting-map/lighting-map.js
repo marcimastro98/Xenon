@@ -4,7 +4,8 @@
 // it — and gives them a colour, an effect, or back to Xenon. The editor for the
 // chosen LEDs appears only while something is chosen. The layout comes from the
 // server (`segments`, see server/lights/lighting-topology.js); looks go out as a
-// { luid: '#hex' | { style, color, speed } | null } patch.
+// { luid: '#hex' | { style, color, speed } | null } patch. A part another place decides
+// (`held`: the pump ring while the pump screen holds it) is drawn, says so, and is not picked.
 (function () {
   'use strict';
   const {
@@ -22,8 +23,9 @@
 
   // The colour a LED shows on the map, so the map looks like the PC. `live` is
   // what 'follow' shows (the manual colour or the dashboard accent). Colours that
-  // keep changing (album, temperature, rainbow) are drawn neutral.
-  const STEADY_ANIMS = ['solid', 'breathing', 'candle'];
+  // keep changing (album, temperature) are drawn neutral; effects are drawn moving
+  // once the engine is loaded (map-motion.js), their colour until then.
+  const STEADY_ANIMS = ['solid', 'still'];
   // Every dot under root shows what its LED shows now; the device card calls it
   // too when the whole device changes colour, without rebuilding the map.
   function paintColors(root, dev, live) {
@@ -49,8 +51,8 @@
     return null;
   }
 
-  function partFigure(seg, label, sel, refresh) {
-    const fig = UI().el('figure', 'lighting-part lighting-part-' + seg.kind);
+  function partFigure(seg, label, sel, refresh, held) {
+    const fig = UI().el('figure', 'lighting-part lighting-part-' + seg.kind + (held ? ' is-held' : ''));
     if (seg.ledIds.length === 1) fig.classList.add('is-single');
     const points = ledPoints(seg);
     const svg = document.createElementNS(SVG_NS, 'svg');
@@ -74,10 +76,16 @@
       c.setAttribute('cx', points[i][0].toFixed(2));
       c.setAttribute('cy', points[i][1].toFixed(2));
       c.setAttribute('r', r.toFixed(2));
-      c.setAttribute('class', 'lighting-led');
+      c.setAttribute('class', held ? 'lighting-led-held' : 'lighting-led');
       c.dataset.luid = String(luid);
       svg.appendChild(c);
     });
+    if (held) {
+      const words = UI().el('figcaption', 'lighting-part-name');
+      words.append(UI().el('span', '', '', label), UI().el('span', 'lighting-part-model', 'lighting_pump_part_held', 'Lo decide lo schermo della pompa'));
+      fig.append(svg, words);
+      return fig;
+    }
     // The part's name is the keyboard-reachable way to take the whole part.
     const name = UI().button('lighting-part-name', '', label, () => {
       const all = seg.ledIds.every(id => sel.has(id));
@@ -91,7 +99,7 @@
 
   // The editor of the chosen LEDs: what they show (colour, effect, Xenon), then
   // the controls of that choice. `paint(value)` sends it to every chosen LED.
-  function selectionEditor(dev, sel, paint, clearSel) {
+  function selectionEditor(dev, sel, paint, clearSel, cannot) {
     const box = UI().el('div', 'lighting-sel');
     const look = selectionLook(dev, sel);
     const head = UI().el('div', 'settings-label-line lighting-sel-head');
@@ -101,11 +109,11 @@
     );
     const body = UI().el('div', 'lighting-sel-body');
     const lastColor = look.kind === 'color' ? look.value : '#ff0000';
-    const lastEffect = look.kind === 'effect' ? look.value : { style: 'breathing', color: lastColor, speed: 50 };
+    const lastEffect = look.kind === 'effect' ? look.value : { style: 'breathe', color: lastColor, speed: 50 };
     const showKind = (kind) => {
       body.textContent = '';
       if (kind === 'color') body.appendChild(UI().colorChoice(lastColor, paint));
-      if (kind === 'effect') effectPicker(lastEffect, paint).forEach(n => body.appendChild(n));
+      if (kind === 'effect') body.appendChild(effectPicker(lastEffect, paint, cannot));
       UI().localizeSubtree(body);
     };
     const kinds = UI().segmented([
@@ -122,26 +130,22 @@
     return box;
   }
 
-  function effectPicker(initial, paint) {
+  // The effect cards for the chosen LEDs (lighting-page/effect-cards.js): a LED keeps one colour and a speed.
+  function effectPicker(initial, paint, cannot) {
     const value = { ...initial };
-    const extras = UI().el('div', 'lighting-sel-extras');
-    const fill = () => {
-      extras.textContent = '';
-      UI().effectExtras(value, (patch) => { Object.assign(value, patch); paint({ ...value }); })
-        .forEach(n => extras.appendChild(n));
-      UI().localizeSubtree(extras);
-    };
-    const styles = UI().segmented(UI().EFFECTS, value.style, (style) => {
-      value.style = style;
-      paint({ ...value });
-      fill();
-    }, 4);
+    const box = UI().el('div', 'lighting-sel-extras');
+    const fill = () => box.replaceChildren(UI().effectCards({
+      look: value, one: true, cannot, lead: UI().EFFECT_LEADS,
+      onPick: (style) => { value.style = style; paint({ ...value }); fill(); },
+      onChange: (patch, redraw) => { Object.assign(value, patch); paint({ ...value }); if (redraw) fill(); },
+    }));
     fill();
-    return [styles, extras];
+    return box;
   }
 
   // opts.onPaint(patch): { luid: value | null } for the chosen LEDs.
   // opts.liveColor: what the device shows in 'follow' (a CSS colour).
+  // opts.cannot: the needs this PC cannot follow now (status.cannot), for the effect cards.
   // opts.groups (optional): [{ head, intro?, segments, labels, body }] draws the parts in
   // titled groups (a board's outputs); one selection and editor span them all.
   function build(dev, opts) {
@@ -171,12 +175,14 @@
       editorSlot.textContent = '';
       placeEditor();
       if (sel.size) {
-        editorSlot.appendChild(selectionEditor(dev, sel, paint, clearSel));
+        editorSlot.appendChild(selectionEditor(dev, sel, paint, clearSel, opts.cannot));
         UI().localizeSubtree(editorSlot);
       }
     };
     function paintDots() {
       paintColors(parts, dev, opts.liveColor);
+      UI().loadEffects().then(() => window.LightingMapMotion.start(parts, dev))
+        .catch((e) => console.warn('[lighting] the map stays still, the effects did not load:', e.message));
       parts.querySelectorAll('.lighting-led').forEach((c) => {
         c.classList.toggle('is-selected', sel.has(Number(c.dataset.luid)));
       });
@@ -209,7 +215,10 @@
         parts.appendChild(group);
       });
     } else {
-      segments.forEach((seg, i) => parts.appendChild(partFigure(seg, labels[i], sel, refresh)));
+      const held = (seg) => (opts.held || []).includes(seg.kind);
+      // A choice kept from before the pump screen took its ring never paints those LEDs.
+      for (const seg of segments.filter(held)) for (const id of seg.ledIds) sel.delete(id);
+      segments.forEach((seg, i) => parts.appendChild(partFigure(seg, labels[i], sel, refresh, held(seg))));
     }
     bindDragSelect(parts, sel, refresh);
     box.append(parts, editorSlot);

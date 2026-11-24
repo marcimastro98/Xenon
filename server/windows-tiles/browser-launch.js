@@ -123,9 +123,10 @@ function edgeArgs(profileDir, extensionDirs) {
 // Edge, and — critically — tree-kills its own process if the port never appears,
 // so a failed attempt (e.g. it lost a race for a locked profile) can't itself
 // become the next orphan.
-async function spawnEdge(exe, profileDir, extensionDirs) {
+// args: the whole command line, for a browser of its own (the pump screen's: direct-start.js).
+async function spawnEdge(exe, profileDir, extensionDirs, args = edgeArgs(profileDir, extensionDirs)) {
   const portFile = path.join(profileDir, 'DevToolsActivePort');
-  const proc = spawn(exe, edgeArgs(profileDir, extensionDirs), { windowsHide: true });
+  const proc = spawn(exe, args, { windowsHide: true });
   proc.on('error', () => {});      // surfaced via the 'exit'/connect path
   if (proc.stderr) proc.stderr.on('data', () => {});
   if (proc.unref) proc.unref();
@@ -143,7 +144,7 @@ async function spawnEdge(exe, profileDir, extensionDirs) {
 // first a precise reap of the Edge we recorded, then a spawn; if that still times
 // out (something we didn't record is holding the lock) sweep any Edge bound to
 // this profile and try once more.
-async function defaultLaunch(profileDir, getExtensionDirs) {
+async function defaultLaunch(profileDir, getExtensionDirs, argsOf) {
   const exe = findEdge();
   if (!exe) throw new Error('edge_not_found');
   try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
@@ -153,13 +154,14 @@ async function defaultLaunch(profileDir, getExtensionDirs) {
   let extensionDirs = [];
   try { extensionDirs = (typeof getExtensionDirs === 'function' ? getExtensionDirs() : []) || []; }
   catch (e) { extensionDirs = []; }   // an extension resolver fault must never block the browser
+  const args = typeof argsOf === 'function' ? argsOf(profileDir) : undefined;
   try {
-    return await spawnEdge(exe, profileDir, extensionDirs);
+    return await spawnEdge(exe, profileDir, extensionDirs, args);
   } catch (e) {
     if (!/devtools_port_timeout/.test(String(e && e.message))) throw e;
     await sweepProfileEdge(profileDir);
     clearProfileLocks(profileDir);
-    return await spawnEdge(exe, profileDir, extensionDirs);
+    return await spawnEdge(exe, profileDir, extensionDirs, args);
   }
 }
 

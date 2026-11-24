@@ -3,76 +3,7 @@
    so lines stay within about 64% of the shorter side. Frame: PumpFace.css. */
 
 /* ── Sensors ──────────────────────────────────────────────────────────── */
-/* Rings: every reading in the middle is its name in its ring's colour over its value, all
-   the same size, so the name says which ring is which. One alone is large, two stand side
-   by side, three or four share a grid well inside the innermost ring (radius 32u). --len,
-   a value's characters, shrinks a long value ("4.8", "100"); --llen, the longest name of
-   the face (set on the parent), shrinks every name alike; --mark is the hot sign's room. */
-.pf-rings-mid, .pf-game-mid { position: relative; display: grid; justify-items: center; }
-.pf-rings-mid { row-gap: calc(var(--u) * 1.6); }
-.pf-rings-mid:has([data-tone="hot"]), .pf-game-sides:has([data-tone="hot"]) { --mark: 3; }
-/* A cell is two rows of its parent's grid, so the names of a row line up and so do the
-   values, whichever name wraps. */
-.pf-ring-cell, .pf-game-side {
-  display: grid;
-  grid-row: span 2;
-  grid-template-rows: subgrid;
-  justify-items: center;
-  min-width: 0;
-}
-.pf-ring-label {
-  align-self: end;
-  font-size: max(min(calc(var(--u) * 4.4), calc(var(--u) * 48 / (var(--llen, 8) + var(--mark, 0)))), 9.5px);
-  font-weight: 650;
-  color: var(--slot);
-  /* At the smallest size the floor wins over the shrink: a long name takes two lines. */
-  text-align: center;
-  text-wrap: balance;
-  line-height: 1.1;
-}
-/* A warm or hot ring changes colour: its name follows it, so the two still match. */
-:is(.pf-ring-cell, .pf-game-side):has(> [data-tone="warm"]) > .pf-ring-label { color: var(--pf-warm); }
-:is(.pf-ring-cell, .pf-game-side):has(> [data-tone="hot"]) > .pf-ring-label { color: var(--pf-hot); }
-.pf-ring-value { align-self: start; }
-.pf-ring-value:not(.pf-main) .pf-unit { color: var(--pf-ink-2); margin: calc(var(--u) * 0.8) 0 0 calc(var(--u) * 0.5); }
-.pf-ring-value.pf-none .pf-num { font-size: max(calc(var(--u) * 4), 9.5px); font-weight: 500; }
-/* "No reading" in a shared cell goes to two lines rather than past its cell. */
-.pf-ring-value.pf-none:not(.pf-main) { white-space: normal; text-align: center; line-height: 1.15; }
-
-.pf-rings-n1 .pf-ring-label { font-size: max(calc(var(--u) * 5.6), 11px); }
-.pf-rings-n1 .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 27), calc(var(--u) * var(--nk, 1) * 80 / var(--len, 2))); }
-.pf-rings-n1 .pf-ring-value.pf-none .pf-num { font-size: calc(var(--u) * 6); }
-.pf-rings-turns .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 22), calc(var(--u) * var(--nk, 1) * 64 / var(--len, 2))); }
-
-.pf-rings-n2 { grid-template-columns: repeat(2, calc(var(--u) * 31)); }
-.pf-rings-n2 > .pf-ring-cell { box-sizing: border-box; padding: 0 calc(var(--u) * 2); }
-.pf-rings-n2 > .pf-ring-cell + .pf-ring-cell { border-left: max(1px, calc(var(--u) * 0.25)) solid var(--pf-track); }
-.pf-rings-n2 .pf-ring-value:not(.pf-none) .pf-num { font-size: min(calc(var(--u) * var(--nk, 1) * 15), calc(var(--u) * var(--nk, 1) * 30 / var(--len, 2))); font-weight: 400; }
-.pf-rings-n2 .pf-ring-value .pf-unit { font-size: calc(var(--u) * 4.2); }
-
-.pf-rings-n3, .pf-rings-n4 { grid-template-columns: repeat(2, calc(var(--u) * 22)); column-gap: calc(var(--u) * 2.5); }
-.pf-rings-n3 > .pf-ring-cell:last-child { grid-column: 1 / -1; }
-.pf-rings-n3 > .pf-ring-cell:nth-child(n+3) > .pf-ring-label,
-.pf-rings-n4 > .pf-ring-cell:nth-child(n+3) > .pf-ring-label { padding-top: calc(var(--u) * 3.4); }
-.pf-rings-n3 .pf-ring-label, .pf-rings-n4 .pf-ring-label { font-size: max(min(calc(var(--u) * 3.6), calc(var(--u) * 36 / (var(--llen, 8) + var(--mark, 0)))), 9.5px); }
-.pf-rings-n3 .pf-ring-value:not(.pf-none) .pf-num, .pf-rings-n4 .pf-ring-value:not(.pf-none) .pf-num {
-  font-size: min(calc(var(--u) * var(--nk, 1) * 10), calc(var(--u) * var(--nk, 1) * 25 / var(--len, 2)));
-  font-weight: 400;
-}
-.pf-rings-n3 .pf-ring-value .pf-unit, .pf-rings-n4 .pf-ring-value .pf-unit { font-size: calc(var(--u) * 3.6); }
-/* Small screen: one reading at a time in the middle, its ring at full strength. */
-.pf-rings-turns .pf-fill:not([data-on]) { opacity: 0.3; }
-
-/* Game: the two side readings, each its name in its arc's colour over its value. */
-.pf-game-sides {
-  display: grid;
-  grid-template-rows: auto auto;
-  grid-auto-flow: column;
-  justify-content: center;
-  row-gap: calc(var(--u) * 1.2);
-  margin-top: calc(var(--u) * 4.5);
-}
-
+/* On the drop: PumpFaceDrop.css. Bars and numbers: the readings in rows or a grid. */
 .pf-bars, .pf-grid { width: calc(var(--u) * 64); }
 .pf-bars { display: grid; gap: calc(var(--u) * 4.2); }
 .pf-bars .pf-cell {
@@ -114,16 +45,13 @@
    up the layout stays together around the middle instead of sliding to the top. */
 
 /* ── Game ─────────────────────────────────────────────────────────────── */
-.pf-game-sides { column-gap: calc(var(--u) * 16); }
+/* The song is the last line on the drop (PumpFaceDrop.css), narrower where the drop narrows. */
 .pf-game-track {
-  position: absolute;
-  left: 50%;
-  bottom: calc(50% - var(--u) * 34);
-  width: calc(var(--u) * 46);
-  transform: translateX(-50%);
+  max-width: calc(var(--u) * 44);
+  margin-top: calc(var(--u) * 2.2);
   text-align: center;
   font-size: max(calc(var(--u) * 3.6), 9.5px);
-  font-weight: 500;
+  font-weight: 650;
   color: var(--pf-ink-2);
   white-space: nowrap;
   overflow: hidden;
@@ -181,7 +109,8 @@
 .pf-pic { display: block; }
 .pf-fit-cover { object-fit: cover; }
 .pf-fit-contain { object-fit: contain; }
-.pf-art { display: block; }
+/* Drawn square: on an oblong panel it fills by its middle, never stretched (an oval moon). */
+.pf-art { display: block; object-fit: cover; }
 
 @media (prefers-reduced-motion: reduce) {
   .pf-layer { animation: none; }

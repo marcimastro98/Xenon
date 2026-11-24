@@ -2147,8 +2147,8 @@
       if (entry.ready) onBridgeClipboard(entry, grant, d);
     } else if (d.type === 'ai') {
       if (entry.ready) onBridgeAi(entry, grant, d);
-    } else if (d.type === 'accent') {
-      if (entry.ready) onBridgeAccent(entry, grant, d);
+    } else if (d.type === 'accent' || d.type === 'pumpRing') {   // pumpRing: only a pump's page has window.pumpRingAsk
+      if (entry.ready) (d.type === 'accent' ? onBridgeAccent(entry, grant, d) : window.pumpRingAsk?.(d));
     } else if (d.type === 'perf') {
       // Host-injected probe report (widget-sdk/frame-scripts.js), pure diagnostics that grant
       // nothing. NOT gated on entry.ready: a pure HTML/CSS widget never says 'hello', and those

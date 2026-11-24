@@ -1,9 +1,9 @@
 'use strict';
 // The pump screens in the Screens home of the Xenon menu: one card under the desk for each,
-// and for the one tapped three tabs. What it shows: one line per moment, in the order that
+// and for the one tapped its tabs. What it shows: one line per moment, in the order that
 // wins when two hold at once, then the rest of the time; each opens on the faces to pick and
 // that face's choices. Then a face of the person's own, and the ready-made setups as examples.
-// Alerts and Look: menu-pump-look.js. Every change is a pump action
+// Alerts and Look: menu-pump-look.js; the ring of lights: menu-pump-leds.js. Every change is a pump action
 // (js/capabilities/catalog-pump.js), the same Bit and a Deck key run. Pure.
 
 const Model = require('../js/pump/pump-model.js');
@@ -12,6 +12,8 @@ const { faceFor } = require('../pump-screen/actions.js');
 const { k, run } = require('./menu-rows.js');
 const { momentRow, whenLabel, showLabel } = require('./menu-pump-faces.js');
 const { alertsTab, lookTab, pumpSet } = require('./menu-pump-look.js');
+const { ledsTab } = require('./menu-pump-leds.js');
+const { directRows } = require('./menu-pump-direct.js');
 
 // The face a new moment starts with: what that moment is usually for.
 const MOMENT_FACE = Object.freeze({ game: 'game', music: 'music', busy: 'sensors', idle: 'picture' });
@@ -71,19 +73,15 @@ function examplesRow(v) {
   };
 }
 
-// The ring of lights has colours of its own on the screen that leads it, where iCUE runs, and
-// unless it follows the other lights or is dark: then each line can move it its own way.
-const ringOf = (v, st, first) => (first && st.pump?.icue === true && ['screen', 'theme'].includes(v.leds?.follow) ? { sound: st.pump.sound === true } : null);
-
-function showsTab(v, st, ring) {
+function showsTab(v, st) {
   const id = v.screen;
   const withShow = (i, show) => pumpSet(id, { moments: v.moments.map((x, j) => (j === i ? { ...x, show } : x)) });
   /** @type {any[]} rows of several kinds */
   const rows = [{ kind: 'pumpnote', id: 'pump-intro', label: k('xmenu_pump_auto_intro') }];
   rows.push(...v.moments.map((m, i) => momentRow({
-    id: 'pump-m-' + i, label: whenLabel(m.when), show: m.show, v, st, save: (show) => withShow(i, show), remove: pumpSet(id, { removeMoment: i }), ring,
+    id: 'pump-m-' + i, label: whenLabel(m.when), show: m.show, v, st, save: (show) => withShow(i, show), remove: pumpSet(id, { removeMoment: i }),
   })));
-  rows.push(momentRow({ id: 'pump-base', label: k('xmenu_pump_rest'), show: v.base, v, st, save: (show) => pumpSet(id, { base: show }), ring }));
+  rows.push(momentRow({ id: 'pump-base', label: k('xmenu_pump_rest'), show: v.base, v, st, save: (show) => pumpSet(id, { base: show }) }));
   rows.push(...[addRow(v, st), examplesRow(v)].filter(Boolean));
   return { id: 'shows', label: k('xmenu_scr_shows'), value: null, rows };
 }
@@ -104,26 +102,48 @@ function drawnShape(v) {
   return { shape, ratio: Math.round(ratio * 1000) / 1000, turn };
 }
 
+const HEX = /^#[0-9a-f]{6}$/i;
+const CARD_COLOURS = 3;
+
+// The ring drawn round the pump's card, as the ring shows it now (pump-screen/ring.js now): its
+// effect, speed, way round and colours; the theme's colour where it follows the theme or the
+// screen has said none yet. null with no ring to show: dark, or following the other lights.
+function cardRing(st) {
+  const r = st.pump.ring;
+  if (!r || typeof r !== 'object' || r.follow === 'off' || typeof r.effect !== 'string') return null;
+  const own = (Array.isArray(r.colours) ? r.colours : []).filter((c) => typeof c === 'string' && HEX.test(c)).slice(0, CARD_COLOURS);
+  const accent = typeof st.pump.accent === 'string' && HEX.test(st.pump.accent) ? [st.pump.accent] : [];
+  const amounts = Object.fromEntries(['size', 'glow'].filter((key) => Number.isFinite(r[key])).map((key) => [key, r[key]]));
+  return { effect: r.effect, speed: r.speed || 'normal', reverse: r.reverse === true, ...amounts, colours: own.length && r.follow !== 'theme' ? own : accent };
+}
+
 function pumpView(v, st, many, first) {
   const label = v.name ? { text: v.name } : many ? { text: v.screen } : k('xmenu_pump');
+  // The ring of lights is painted through iCUE, or by Xenon itself when it holds the hub
+  // (ringHeld), led by the first pump screen when there are several.
+  const ring = first && (st.pump.icue === true || st.pump.ringHeld === true);
   return {
     key: 'pump:' + v.screen, pump: v.screen, label, ...drawnShape(v),
-    chip: v.now ? showLabel(v.now.show, st) : null, now: nowOf(v, st),
-    tabs: [showsTab(v, st, ringOf(v, st, first)), alertsTab(v, st), lookTab(v, first && st.pump.icue === true, st.pump.sound === true)],
+    chip: v.now ? showLabel(v.now.show, st) : null, now: nowOf(v, st), ring: ring ? cardRing(st) : null,
+    tabs: [showsTab(v, st), alertsTab(v, st), ...(ring ? [ledsTab(v, st)] : []), lookTab(v, st, first)],
   };
 }
 
 // A pump plugged in that never showed Xenon: the one step that puts Xenon on it. Through
 // iCUE, tapping the card already takes that step (`act`), and the button stays for a second go.
+// One Xenon can draw on by itself (direct.js) leads with that switch, and iCUE stays a second
+// way only where it is installed, so a pump on Linux never asks for iCUE.
 function addView(pump, st) {
+  const direct = pump.direct ? directRows(st) : [];
   const icue = pump.route === 'icue';
-  const open = icue && st.pump.icue ? run({ type: 'pumpIcue' }) : null;
-  const rows = icue
-    ? [{ kind: 'button', id: 'pump-icue', label: k('xmenu_pump_icue'), sub: k('xmenu_pump_icue_sub'), action: k('xmenu_pump_icue_go'), act: run({ type: 'pumpIcue' }), primary: true, off: !st.pump.icue }]
-    : [{ kind: 'status', id: 'pump-cam', label: k('xmenu_pump_cam'), sub: k('xmenu_pump_cam_sub'), value: { text: st.pump.url } }];
+  const icueRow = { kind: 'button', id: 'pump-icue', label: k('xmenu_pump_icue'), sub: k('xmenu_pump_icue_sub'), action: k('xmenu_pump_icue_go'), act: run({ type: 'pumpIcue' }), primary: !direct.length, off: !st.pump.icue };
+  const camRow = { kind: 'status', id: 'pump-cam', label: k('xmenu_pump_cam'), sub: k('xmenu_pump_cam_sub'), value: { text: st.pump.url } };
+  const other = icue ? (direct.length && !st.pump.icue ? [] : [icueRow]) : [camRow];
+  const open = !direct.length && icue && st.pump.icue ? run({ type: 'pumpIcue' }) : null;
+  const chip = direct.length ? 'xmenu_pump_found_direct' : icue ? 'xmenu_pump_found_icue' : 'xmenu_pump_found_cam';
   return {
     key: 'pump-add', add: true, act: open, label: k('xmenu_pump_found'), shape: 'round', ratio: 1, turn: 0,
-    chip: k(icue ? 'xmenu_pump_found_icue' : 'xmenu_pump_found_cam'), tabs: [{ id: 'setup', label: k('xmenu_pump_found'), value: null, rows }],
+    chip: k(chip), tabs: [{ id: 'setup', label: k('xmenu_pump_found'), value: null, rows: [...direct, ...other] }],
   };
 }
 

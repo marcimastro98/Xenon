@@ -394,9 +394,8 @@
     const guide = made('XenonMenuGuide', { el, button, say, tt, rowShell, redraw: () => draw() });
 
     const DRAW = {
-      status: drawStatus, toggle: drawToggle, checks: drawChecks, choice: drawChoice, pages: drawChoice,
-      mode: drawMode, button: drawButton, key: drawKey, pageEdit: pageEdit && pageEdit.draw,
-      place: placeDraw ? placeDraw.draw : drawChoice, guide: guide && guide.draw, tunehead: drawTuneHead, when: whenDraw && whenDraw.draw,
+      status: drawStatus, toggle: drawToggle, checks: drawChecks, choice: drawChoice, pages: drawChoice, mode: drawMode, button: drawButton, key: drawKey,
+      pageEdit: pageEdit && pageEdit.draw, place: placeDraw ? placeDraw.draw : drawChoice, guide: guide && guide.draw, tunehead: drawTuneHead, when: whenDraw && whenDraw.draw,
     };
     const peek = made('XenonMenuPeek', { post, onRefused: () => draw(), doc });
     // Only in the menu window: the scene page is this PC's, never a paired device's.
