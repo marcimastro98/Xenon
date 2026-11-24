@@ -885,6 +885,17 @@
       ]
     },
     {
+      "id": "windows-signing",
+      "area": "native",
+      "name": "Windows code signing",
+      "what": "Signs the Windows binaries with the Certum cloud certificate, also from a GitHub-hosted runner.",
+      "files": [
+        "tools/sign-windows.ps1",
+        "tools/simplysign/**",
+        ".github/workflows/sign-check.yml"
+      ]
+    },
+    {
       "id": "capture-app",
       "area": "native",
       "name": "The capture program",

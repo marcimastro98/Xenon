@@ -124,6 +124,7 @@ The native programs around the engine, and the code that differs per operating s
 | **Per-system readers** | What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact. | `server/platform/**` `server/session-watch.ps1` |
 | **The app** | The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop. | `apps/native/**` |
 | **Nix package** | The flake that installs the Linux app on Nix and NixOS from the release .deb, its NixOS test and its bump tool. | `flake.nix` `flake.lock` `nix/**` `tools/nix/**` |
+| **Windows code signing** | Signs the Windows binaries with the Certum cloud certificate, also from a GitHub-hosted runner. | `tools/sign-windows.ps1` `tools/simplysign/**` `.github/workflows/sign-check.yml` |
 | **The capture program** | A Rust program for screenshots and recordings with the system's own capture; the engine starts it when needed. | `apps/capture/**` `tools/build-capture.mjs` |
 | **Helper for Windows** | A small C# program for media, windows, audio levels and the file index. | `helper/**` |
 | **Helper for macOS** | The same helper in Swift, speaking the same protocol. | `helper-mac/**` |

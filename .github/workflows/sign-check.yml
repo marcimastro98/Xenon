@@ -1,0 +1,79 @@
+name: Windows signing check (hosted runner)
+
+# A rehearsal of the Windows signing on a GitHub-hosted runner, and nothing
+# else: it opens a SimplySign cloud session from the activation secret, signs a
+# throwaway DLL and a throwaway script with tools/sign-windows.ps1 (the same
+# script release.yml uses), checks both signatures name our certificate, and
+# closes the session. It publishes nothing and keeps nothing.
+#
+# Needs the windows-signing environment (Settings > Environments): secret
+# CERTUM_OTPAUTH_URI, required reviewer = the maintainer. Each run waits for
+# that approval before the job can read the secret.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci/hosted-signing]
+    paths:
+      - '.github/workflows/sign-check.yml'
+      - 'tools/simplysign/**'
+      - 'tools/sign-windows.ps1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-signing-check
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: windows-latest
+    environment: windows-signing
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Open a SimplySign session
+        shell: pwsh
+        env:
+          CERTUM_OTPAUTH_URI: ${{ secrets.CERTUM_OTPAUTH_URI }}
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
+        run: ./tools/simplysign/session.ps1 -Action Connect
+
+      - name: Sign and verify throwaway files
+        shell: pwsh
+        env:
+          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
+        run: |
+          $thumb = ($env:IN_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+          $env:XENON_SIGN_THUMBPRINT = $thumb
+          $dir = Join-Path $env:RUNNER_TEMP 'sign-check'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $dll = Join-Path $dir 'xenon-sign-check.dll'
+          Add-Type -TypeDefinition 'public static class XenonSignCheck { public static int Answer() { return 42; } }' -OutputAssembly $dll
+          $ps1 = Join-Path $dir 'xenon-sign-check.ps1'
+          Set-Content -LiteralPath $ps1 -Value "Write-Host 'sign check'" -Encoding utf8
+          foreach ($file in @($dll, $ps1)) {
+            & ./tools/sign-windows.ps1 -Path $file
+            $sig = Get-AuthenticodeSignature -LiteralPath $file
+            if ($sig.Status -ne 'Valid') { throw "$file is not validly signed: $($sig.Status) - $($sig.StatusMessage)" }
+            if ($sig.SignerCertificate.Thumbprint -ne $thumb) { throw "$file is signed by another certificate" }
+            if (-not $sig.TimeStamperCertificate) { throw "$file has no timestamp" }
+            Write-Host "OK $([IO.Path]::GetFileName($file)): $($sig.SignerCertificate.Subject)"
+          }
+          Remove-Item -LiteralPath $dir -Recurse -Force
+
+      - name: Close the SimplySign session
+        if: always()
+        shell: pwsh
+        run: ./tools/simplysign/session.ps1 -Action Disconnect
