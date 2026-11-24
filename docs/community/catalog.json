@@ -2,6 +2,36 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "pump-bit",
+      "kind": "widget",
+      "name": "Bit",
+      "author": "xenon",
+      "supportersOnly": true,
+      "locked": true,
+      "trial": "now",
+      "description": "A style for your AIO pump's screen, with Bit, Xenon's robot, living on it. Each line becomes a scene: Bit idling under your readings and overheating when one reaches 90 °C, gaming under the frame rate, dancing to the song, and living his day on the clock.\n\nNow and then he has a moment of his own, taken from what is true: an umbrella when it rains where you are, a wish at dusk, a breather after your PC worked hard.\n\n- Xenon's alerts (notifications, calls, timers, Discord, a hot PC) in big dots under him, and he reacts.\n- On pumps whose ring of lights Xenon can drive, the ring follows each scene, moment and alert.\n- Your colours for each line; stars, a city or nothing behind him.\n- He moves a lot, a little, or with No surprises (no moments of his own).\n- Round, square and wide screens.",
+      "category": "system",
+      "tags": [
+        "pump-screen",
+        "bit",
+        "pixel",
+        "aio",
+        "supporter"
+      ],
+      "version": "1.1.0",
+      "pkgId": "pump-bit",
+      "appVersionMin": "5.3.0",
+      "preview": {
+        "accent": "#6ee787",
+        "bg": "#000000",
+        "text": "#8ab4f8"
+      },
+      "shots": 5,
+      "active": false,
+      "addedAt": "2026-11-24",
+      "codeFile": true
+    },
+    {
       "id": "tiny-lights",
       "kind": "widget",
       "name": "Lights Button",
