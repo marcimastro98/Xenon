@@ -109,13 +109,20 @@ function Connect-SimplySign {
   throw "SimplySign login failed: certificate $thumb never reached Cert:\CurrentUser\My"
 }
 
-# Only on failure, and only the tail: the log is the one clue a refused login
-# leaves. Masks registered above still apply to it.
+# Only on failure. The workflow log is public and SimplySign's own log can carry
+# the login in forms a mask does not catch (encoded, other case), so only its
+# error lines are shown, with addresses and long numbers or hex blanked out.
 function Write-SimplySignLog {
   $dir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'SimplySignLog'
   foreach ($log in @(Get-ChildItem -LiteralPath $dir -Filter '*log.txt' -File -ErrorAction SilentlyContinue)) {
-    Write-Host "--- $($log.Name) (last 40 lines)"
-    Get-Content -LiteralPath $log.FullName -Tail 40 | Write-Host
+    $lines = @(Get-Content -LiteralPath $log.FullName -Tail 200 |
+      Where-Object { $_ -match '(?i)error|fail|refus|denied|invalid|expired|timeout' } |
+      Select-Object -Last 15 |
+      ForEach-Object {
+        $_ -replace '[^\s"''<>()]+(@|%40)[^\s"''<>()]+', '<login>' -replace '(?i)\b[0-9a-f]{12,}\b', '<hex>' -replace '\b\d{5,}\b', '<n>'
+      })
+    Write-Host "--- $($log.Name): $($lines.Count) error lines"
+    $lines | Write-Host
   }
 }
 
