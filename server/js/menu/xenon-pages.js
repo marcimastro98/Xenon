@@ -10,10 +10,10 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.XenonPages = api;
 })(typeof window !== 'undefined' ? window : globalThis, () => {
-  const SECTIONS = Object.freeze(['screens', 'now', 'capture', 'keys']);
+  const SECTIONS = Object.freeze(['screens', 'now', 'airflow', 'capture', 'keys']);
   // [page, label key, icon of js/menu/xenon-menu-icons.js], group by group.
   const GROUPS = Object.freeze([
-    { pages: [['screens', 'xmenu_sec_screens', 'screens'], ['now', 'xmenu_sec_now', 'bolt'],
+    { pages: [['screens', 'xmenu_sec_screens', 'screens'], ['now', 'xmenu_sec_now', 'bolt'], ['airflow', 'xmenu_sec_airflow', 'fan'],
       ['capture', 'xmenu_sec_capture', 'camera'], ['keys', 'xmenu_sec_keys', 'keyboard']] },
     { label: 'settings_title', pages: [['general', 'settings_cat_general', 'sliders'],
       ['appearance', 'settings_cat_appearance', 'paint'], ['island', 'settings_cat_island', 'island'],
@@ -98,7 +98,26 @@
     list.replaceChildren(...draw(rows(SECTIONS, []), o));
   }
 
-  if (typeof document !== 'undefined' && typeof page?.t === 'function') fillSettings(document, page.t);
+  // A section only some PCs have leaves Settings' rail when the server says it is absent
+  // (Fans: a Mac, a laptop). Until the answer comes, or without one, the row stays.
+  const ONLY_WITH = Object.freeze({ airflow: 'fanControl' });
+  async function hideAbsent(doc) {
+    try {
+      // Relative: both pages that draw the rail come from the server itself (SERVER is this origin).
+      const res = await fetch('/actions/catalog', { cache: 'no-store' });
+      const caps = res.ok ? (await res.json())?.capabilities : null;
+      if (!caps) return;
+      for (const [id, cap] of Object.entries(ONLY_WITH)) {
+        if (caps[cap] !== false) continue;
+        doc.querySelectorAll('.settings-nav-btn').forEach((b) => { if (b.dataset.settingsCat === id) b.hidden = true; });
+      }
+    } catch { /* the server is away: the rail stays as drawn */ }
+  }
+
+  if (typeof document !== 'undefined' && typeof page?.t === 'function') {
+    fillSettings(document, page.t);
+    hideAbsent(document);
+  }
 
   return Object.freeze({ SECTIONS, PAGES, pageOf, isSection, isCat, rows, foot, draw });
 });

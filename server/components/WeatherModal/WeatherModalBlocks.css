@@ -74,12 +74,12 @@
 .weather-win-hours .weather-hour-rain { font-size: 13px; }
 
 .weather-win-days .weather-fc-row {
-  grid-template-columns: minmax(max(3.4em, min(var(--wx-name, 0px), 34%)), 0.9fr) 26px 2.4em minmax(44px, 3fr) 2.4em;
+  grid-template-columns: minmax(max(3.4em, min(var(--wx-name, 0px), 34%)), 0.9fr) 26px minmax(8em, 3fr);
   gap: 10px;
 }
 .weather-win-days .weather-fc-row + .weather-fc-row { border-top: 1px solid var(--wx-line); }
 .weather-win-days .weather-fc-art { width: 26px; height: 26px; }
-.weather-win-days :is(.weather-fc-day, .weather-fc-min, .weather-fc-max) { font-size: 15px; }
+.weather-win-days :is(.weather-fc-day, .weather-fc-nums) { font-size: 15px; }
 
 .weather-win-facts .weather-facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));

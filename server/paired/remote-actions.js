@@ -51,6 +51,8 @@ const FREE = new Set([
   'xenonMenu', 'dnd', 'notifications', 'screenAlerts', 'layerList', 'layersToggle', 'layerPage',
   // What a pump screen shows. Opening iCUE's import (pumpIcue) starts a program: not here.
   'pumpFace', 'pumpSetup', 'pumpStyle', 'pumpSet', 'pumpGet', 'pumpDirect',
+  // Airflow's mode and choices. The fan check (airflowCheck) is PC_ONLY, below.
+  'airflowMode', 'airflowSet', 'airflowGet',
   // A widget's own options: only what it declared, checked by the server.
   'widgetOption', 'widgetOptionList',
   'claudeStop',
@@ -60,8 +62,9 @@ const FREE = new Set([
   'captureMarker', 'markClips', 'replay', 'gallery', 'galleryList',
 ]);
 
-// Never from a paired device, even when a Deck key holds them.
-const PC_ONLY = new Set(['phoneCall', 'phoneMessage']);
+// Never from a paired device, even when a Deck key holds them. The fan check runs every
+// fan loud for minutes: it starts where someone hears it and can stop it.
+const PC_ONLY = new Set(['phoneCall', 'phoneMessage', 'airflowCheck']);
 
 // Bit's tools that act without a Deck action to compare. Asked from a paired
 // device they stop here: the routes for them are PC-only (/api/phone/dial,

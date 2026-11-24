@@ -68,7 +68,7 @@ async function boot({ settings = {}, shell = true, dpr = 2, sounds = true, updat
     document,
     lang: 'en',
     i18n: { en: {} },
-    t: (k) => (k === 'guardian_alert_mem' ? 'RAM {v}%' : k),
+    t: (k) => ({ guardian_alert_mem: 'RAM {v}%', airflow_rise_title: 'The fans are speeding up', airflow_why_heat_gpu: 'The graphics card is working: the fans follow it.' })[k] || k,
     normalizeLangCode: (v) => v || '',
     notifSoundsOn: () => sounds,
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
@@ -102,6 +102,23 @@ async function boot({ settings = {}, shell = true, dpr = 2, sounds = true, updat
   const addCard = (r, rolling = false) => cards.push({ getBoundingClientRect: () => r, closest: () => (rolling ? {} : null) });
   return { release: () => release, releaseChecks: () => releaseChecks, messages: () => messages, messageChecks: () => messageChecks, shown, dismissed, store, posts, signals, sheets, captures, classes, emit, load, settle, addCard, cards, listeners, window, callLists, intervals, seeds: () => seeds };
 }
+
+test('the fans climbing: why, as a pop-up, unless pop-ups are off', async () => {
+  const on = await boot();
+  on.emit('airflow_rise', { reason: 'heat-gpu', from: 25, to: 45, at: 1 });
+  assert.equal(on.shown.length, 1);
+  assert.equal(on.shown[0].title, 'The fans are speeding up');
+  assert.equal(on.shown[0].message, 'The graphics card is working: the fans follow it.');
+  on.shown[0].actions[0].onClick();
+  await tick();
+  assert.ok(on.posts.at(-1).url.endsWith('/screen-menu'));
+  assert.deepEqual(on.posts.at(-1).body, { open: true, section: 'airflow' }, 'a tap opens Fans in the menu');
+  on.emit('airflow_rise', { reason: 'idle' });
+  assert.equal(on.shown.length, 1, 'a reason that does not raise the fans says nothing');
+  const off = await boot({ settings: { notifications: { popups: false } } });
+  off.emit('airflow_rise', { reason: 'heat-gpu', from: 25, to: 45, at: 1 });
+  assert.equal(off.shown.length, 0);
+});
 
 test('routine alerts follow the Notifiche switches, the alerts switch covers everything', async () => {
   const on = await boot();

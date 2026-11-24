@@ -21,11 +21,12 @@ function workingTree(paths) {
 }
 
 // Pipes the working tree (or only `paths`) into `script`, which unpacks it from its stdin.
-export function runInContainer(script, paths = []) {
+// dockerArgs: extra `docker run` options before the image (the Airflow rig mounts a tmpfs).
+export function runInContainer(script, paths = [], dockerArgs = []) {
   const files = workingTree(paths);
   console.log(`${files.length} files into ${IMAGE}`);
   const tar = spawn('tar', ['-cf', '-', '--null', '-T', '-'], { cwd: ROOT, stdio: ['pipe', 'pipe', 'inherit'] });
-  const docker = spawn('docker', ['run', '--rm', '-i', IMAGE, 'bash', '-c', script], { stdio: ['pipe', 'inherit', 'inherit'] });
+  const docker = spawn('docker', ['run', '--rm', '-i', ...dockerArgs, IMAGE, 'bash', '-c', script], { stdio: ['pipe', 'inherit', 'inherit'] });
   tar.stdin.end(`${files.join('\0')}\0`);
   tar.stdout.pipe(docker.stdin);
   docker.on('error', (error) => { console.error(`docker: ${error.message}`); process.exitCode = 1; });

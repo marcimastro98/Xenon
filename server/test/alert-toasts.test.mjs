@@ -10,7 +10,7 @@ const A = createRequire(import.meta.url)('../js/alerts/alert-toasts.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // t() returns the key itself when a string is missing (i18n.js).
-const dict = { stocks_alert_up: 'Su forte oggi', guardian_alert_cpu: 'CPU a {v}°{u}', guardian_alert_mem: 'RAM al {v}%', timer_chime_alert: 'ogni {n}' };
+const dict = { airflow_why_heat_cpu: 'Il processore sta lavorando: le ventole lo seguono.', airflow_why_hot: 'Qualcosa scalda troppo.', airflow_rise_title: 'Le ventole stanno salendo', xmenu_sec_airflow: 'Ventole', stocks_alert_up: 'Su forte oggi', guardian_alert_cpu: 'CPU a {v}°{u}', guardian_alert_mem: 'RAM al {v}%', timer_chime_alert: 'ogni {n}' };
 const ctx = (over = {}) => ({ t: (k) => dict[k] || k, hwF: false, ...over });
 
 test('the master switch: off, or pop-ups off, means no toast', () => {
@@ -85,7 +85,12 @@ test('the camera kinds are the ones the UniFi tile offers, with the same keys', 
 
 test('wiring: the dashboard builds its pop-ups here, not inline', () => {
   const main = read('../js/main.js');
-  for (const fn of ['stocks', 'football', 'unifi', 'guardian']) assert.match(main, new RegExp(`AlertToasts\\.${fn}\\(`));
+  for (const fn of ['unifi', 'guardian']) assert.match(main, new RegExp(`AlertToasts\\.${fn}\\(`));
+  // The pop-up-only alerts go through one table: each event to its builder, every builder real.
+  for (const [event, fn] of [['stocks_alert', 'stocks'], ['football_alert', 'football'], ['airflow_rise', 'airflowRise']]) {
+    assert.ok(main.includes(`['${event}', '${fn}'`), event);
+    assert.equal(typeof A[fn], 'function', fn);
+  }
   const timer = read('../js/timer/timer.js');
   assert.match(timer, /AlertToasts\.timerDone\(/);
   assert.match(timer, /AlertToasts\.timerChime\(/);
@@ -156,4 +161,50 @@ test('a press in a game is answered there: Do not disturb lets both cards throug
   assert.equal(A.benchmark({ running: true, game: 'Game.exe' }, ctx()).important, true);
   assert.equal(A.exclusiveHint({ process: 'game.exe' }, ctx()).type, 'warning', 'an info card is silenced during a game');
   assert.equal(A.stutterWhy({ ok: true, reason: 'smooth', fps: 240 }, ctx()).important, true);
+});
+
+test('the fans climbing: a short title, the reason in the Fans menu words, a warning only when something is too hot', () => {
+  const cpu = A.airflowRise({ reason: 'heat-cpu', from: 25, to: 45, at: 1 }, ctx());
+  assert.deepEqual(cpu, { type: 'info', kicker: 'Ventole', title: 'Le ventole stanno salendo', message: 'Il processore sta lavorando: le ventole lo seguono.', actions: [] });
+  assert.equal(A.airflowRise({ reason: 'hot', from: null, to: 100 }, ctx()).type, 'warning');
+  const open = () => {};
+  assert.deepEqual(A.airflowRise({ reason: 'hot' }, ctx(), open).actions, [{ label: 'Open Fans', primary: true, onClick: open }], 'a button opens Fans');
+  assert.equal(A.airflowRise({ reason: 'hot' }, { t: (k) => (k === 'airflow_why_hot' ? 'x' : k) }).title, 'The fans are speeding up', 'an older language file still has a title');
+  for (const bad of [null, {}, { reason: 'idle' }, { reason: 'learning' }, { reason: '__proto__' }, { reason: 'heat-gpu' }]) {
+    assert.equal(A.airflowRise(bad, ctx()), null, JSON.stringify(bad));
+  }
+});
+
+test('the fans climbing: one sentence names the program behind it, when the server found one that fits', () => {
+  const words = {
+    ...dict, airflow_why_heat_gpu: 'La scheda video sta lavorando: le ventole la seguono.',
+    airflow_rise_why_heat_cpu: '{app} sta usando il {cpu}% del processore: le ventole lo seguono.',
+    airflow_rise_why_heat_gpu: '{app} fa lavorare la scheda video: le ventole la seguono.',
+  };
+  const it = { t: (k) => words[k] || k, lang: 'it' };
+  const why = 'Il processore sta lavorando: le ventole lo seguono.';
+  const msg = (reason, app, c = it) => A.airflowRise({ reason, app }, c).message;
+  assert.equal(msg('heat-cpu', { name: 'Blender', cpu: 38.6 }), 'Blender sta usando il 39% del processore: le ventole lo seguono.');
+  assert.equal(msg('heat-gpu', { name: 'Cyberpunk2077', game: true }), 'Cyberpunk2077 fa lavorare la scheda video: le ventole la seguono.');
+  assert.equal(msg('heat-cpu', { name: '$& $1', cpu: 7 }), '$& $1 sta usando il 7% del processore: le ventole lo seguono.', 'a name is text, never a pattern');
+  assert.equal(msg('heat-gpu', { name: 'Blender', cpu: 40 }), 'La scheda video sta lavorando: le ventole la seguono.', 'a processor figure never names the card heat');
+  assert.equal(msg('heat-cpu', { name: 'Cyberpunk2077', game: true }), why, 'nor a game the processor heat, without its share');
+  assert.equal(msg('hot', { name: 'Blender', cpu: 40 }), 'Qualcosa scalda troppo.', 'too hot: the sentence stays as it is');
+  assert.equal(msg('heat-cpu', { name: 'Blender', cpu: 40 }, ctx()), why, 'an older language file keeps the plain why');
+  for (const app of [null, 'Blender', {}, { name: '' }, { name: '  ', cpu: 40 }, { name: '  ', game: true }, { name: 5, cpu: 9 }, { name: 'Blender' }, { name: 'Blender', cpu: 'many' }, { name: 'Blender', ramMB: 4096 }]) {
+    assert.equal(msg('heat-cpu', app), why, JSON.stringify(app));
+  }
+  assert.equal(A.airflowRise({ reason: 'idle', app: { name: 'Blender', cpu: 40 } }, it), null, 'no reason, no notice');
+  assert.equal(A.stutterAppShort({ app: { name: 'Cyberpunk2077', game: true } }, it), '', 'the perf tile never shows a game as a culprit');
+});
+
+test('the fans climbing: every reason the server tells has its words in every app language', () => {
+  const { RAISING } = createRequire(import.meta.url)('../airflow/rise.js');
+  const strings = appStringsSource();
+  for (const reason of RAISING) {
+    const key = 'airflow_why_' + reason.split('-').join('_');
+    assert.equal((strings.match(new RegExp('^    ' + key + ': ', 'gm')) || []).length, 11, key);
+    assert.ok(A.airflowRise({ reason }, { t: (k) => (k === key ? 'x' : k) }), reason);
+  }
+  for (const key of ['airflow_rise_title', 'airflow_rise_open', 'airflow_rise_why_heat_cpu', 'airflow_rise_why_heat_gpu', 'airflow_rise_why_game_prepare']) assert.equal((strings.match(new RegExp('^    ' + key + ': ', 'gm')) || []).length, 11, key);
 });

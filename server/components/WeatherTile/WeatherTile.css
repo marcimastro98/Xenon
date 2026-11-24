@@ -203,7 +203,7 @@
   box-sizing: border-box;
   display: grid;
   /* The name asks for its width and stops at a third, so a narrow tile keeps its temperatures. */
-  grid-template-columns: minmax(max(3em, min(var(--wx-name, 0px), 34%)), 0.9fr) 24px 2.3em minmax(44px, 3fr) 2.3em;
+  grid-template-columns: minmax(max(3em, min(var(--wx-name, 0px), 34%)), 0.9fr) 24px minmax(7.5em, 3fr);
   align-items: center;
   gap: clamp(6px, 2cqmin, 10px);
   width: 100%;
@@ -217,12 +217,28 @@
   white-space: nowrap;
 }
 .weather-fc-art { width: 24px; height: 24px; }
-.weather-fc-min,
-.weather-fc-max {
+/* The day's low and high ride over the ends of its stretch of the bar. The box is the
+   stretch itself, at least wide enough for both numbers, and never past the track. */
+.weather-fc-range {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+.weather-fc-nums {
+  --w: max(calc(var(--e, 100%) - var(--s, 0%)), 9ch);
+  display: flex;
+  justify-content: space-between;
+  gap: 1ch;
+  width: var(--w);
+  margin-left: clamp(0px, calc((var(--s, 0%) + var(--e, 100%)) / 2 - var(--w) / 2), calc(100% - var(--w)));
   font-size: clamp(12px, 3cqmin, 14px);
   font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  white-space: nowrap;
 }
-.weather-fc-min { color: var(--muted-text); text-align: right; }
+.weather-fc-min { color: var(--muted-text); }
 .weather-fc-max { color: var(--text); font-weight: 600; }
 .weather-fc-bar {
   position: relative;
@@ -235,6 +251,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
+  left: var(--s, 0%);
+  right: calc(100% - var(--e, 100%));
   min-width: 8px;
   border-radius: 3px;
   background: linear-gradient(90deg, var(--cold), var(--warm));

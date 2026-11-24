@@ -579,9 +579,19 @@ test('parseHwmonFans: a driver label wins, otherwise the chip names the fan', ()
   ]);
   assert.deepEqual(fans.map((f) => f.name), ['CPU Fan', 'thinkpad fan 1', 'Fan 2']);
   assert.deepEqual(fans.map((f) => f.rpm), [1200, 3877, 900]);
-  // Windows distinguishes PSU and controller fans; hwmon says nothing about
-  // where a header physically is, so everything is a motherboard fan.
+  // A board chip's headers are motherboard fans: hwmon says nothing about
+  // where a header physically is.
   assert.ok(fans.every((f) => f.kind === 'mb'));
+});
+
+test('parseHwmonFans: a card, PSU or cooler chip says where its fans are, as on Windows', () => {
+  const fans = lc.parseHwmonFans([
+    { chip: 'amdgpu', index: 1, rpm: '0', label: '' },
+    { chip: 'corsairpsu', index: 1, rpm: '800', label: 'psu fan' },
+    { chip: 'nzxt-kraken3', index: 1, rpm: '2100', label: 'Pump speed' },
+    { chip: 'nct6798', index: 2, rpm: '700', label: '' },
+  ]);
+  assert.deepEqual(fans.map((f) => f.kind), ['gpu', 'psu', 'ctrl', 'mb']);
 });
 
 test('parseHwmonFans: a stopped fan is 0 RPM, not a missing reading', () => {

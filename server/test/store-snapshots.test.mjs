@@ -8,10 +8,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
-import { declarationSource, engineSource } from './engine-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const snaps = require('../store-catalog/store-snapshots.js');
+const { createSettingsReader } = require('../settings/read.js');
 // LF on a CRLF (Windows) checkout too, so the patterns below match everywhere.
 const readLf = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SERVER = engineSource();
@@ -112,17 +113,15 @@ test('no settings write starts from the factory settings because a read failed',
 });
 
 test('a settings update really fails when the file cannot be read', async () => {
-  // The helper as the server has it, against a file that does not parse.
+  // The reader the server uses, against a file that does not parse: it fails, and only a
+  // missing file gives null, which readHubSettingsForUpdate (pinned above) turns into the defaults.
   const d = tmpData();
-  const SETTINGS_FILE = d.file('settings.json');
-  fs.writeFileSync(SETTINGS_FILE, '{"dashboardLayout": {"pages": [');
-  const src = declarationSource('_SETTINGS_READ_BUSY') + '\n' + declarationSource('readHubSettings') + '\n';
-  const make = new Function('fs', 'SETTINGS_FILE', 'normalizeHubSettings', 'DEFAULT_HUB_SETTINGS',
-    'let _settingsStoreId = "";' + src + SERVER.slice(SERVER.indexOf('async function readHubSettingsForUpdate()'), SERVER.indexOf('async function readHubSettingsForUpdate()') + 120).split('\n}\n')[0] + '\n}\nreturn readHubSettingsForUpdate;');
-  const forUpdate = make(fs, SETTINGS_FILE, (x) => x, { factory: true });
-  await assert.rejects(forUpdate(), SyntaxError);
-  fs.rmSync(SETTINGS_FILE);
-  assert.deepEqual(await forUpdate(), { factory: true }, 'a new install still starts from the defaults');
+  const file = d.file('settings.json');
+  fs.writeFileSync(file, '{"dashboardLayout": {"pages": [');
+  const reader = createSettingsReader(file);
+  await assert.rejects(reader.read(), SyntaxError);
+  fs.rmSync(file);
+  assert.equal(await reader.read(), null, 'a new install still starts from the defaults');
 });
 
 test('a damaged list with no copy is kept aside and starts again; settings are left alone', () => {

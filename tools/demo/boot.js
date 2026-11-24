@@ -391,7 +391,7 @@
       // Empty on purpose: a "what's new in this version" modal makes no sense
       // over an install the visitor does not have.
       case '/whatsnew': return ok({ id: '', items: [] });
-      case '/actions/catalog': return ok({ actions: [] });
+      case '/actions/catalog': return ok({ actions: [], capabilities: { fanControl: false } });   // no fans in a browser: Fans leaves the rail
       case '/index/status': return ok({ ready: false, building: false, count: 0 });
       case '/update/check': case '/update/self-status':
         return ok({ current: VERSION, latest: VERSION, updateAvailable: false });

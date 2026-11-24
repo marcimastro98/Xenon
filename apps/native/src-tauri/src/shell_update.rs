@@ -261,10 +261,12 @@ pub(crate) static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sy
 /// whoever installed it, and the updater would fall back to the AppImage path
 /// and try to overwrite /usr/bin/xenon-native in place. The dashboard reads this
 /// as `shellSelfUpdate` and skips the app phase; the backend still updates.
+/// A package manager's install (the Nix package repackages the stamped .deb) is
+/// the manager's to update, whatever the stamp says.
 pub(crate) fn shell_self_update() -> bool {
     #[cfg(target_os = "linux")]
     {
-        tauri::utils::platform::bundle_type().is_some()
+        tauri::utils::platform::bundle_type().is_some() && !crate::managed::is_managed()
     }
     #[cfg(not(target_os = "linux"))]
     {

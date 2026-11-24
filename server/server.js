@@ -3,12 +3,12 @@
  * Custom non-commercial license. Personal use only; no commercial use or
  * redistribution as your own. Attribution required. See LICENSE for terms.
  */
-// FIRST, before every other require: this arms the handlers that write down why
-// the engine did not start. The failure it most needs to catch is one of the
-// requires below throwing — a dependency that never finished installing — and a
-// handler armed after the throw would never see it. See startup-log.js for why
-// this process was the last of the three that could still die without a word.
+// FIRST, before every other require: this arms the handlers that write down why the
+// engine did not start; the requires below throwing (a dependency that never finished
+// installing) is what it most needs to see. Then the thread pool, before its first use.
+// See startup-log.js and thread-pool.js for why.
 const startupLog = require('./engine/startup-log');
+require('./engine/thread-pool.js');
 const osTheme = require('./look/os-theme');
 startupLog.install();
 const http = require('http');
@@ -1636,7 +1636,6 @@ const { setMediaPreferredSource } = require('./media/preferred-source-set.js');
 // inside it would reach nobody until they update.
 
 
-
 const { hydrateArtwork } = require('./media/artwork-lookup.js');
 
 const { getWeather } = require('./weather/get-weather.js');
@@ -2929,6 +2928,7 @@ async function _xenonMenuState() {
     companionOn: !!(hs.aiFeatures && hs.aiFeatures.enabled === true && hs.aiFeatures.gameCompanion === true),
     power: await require('./power').read().catch(() => null),
     pump: await require('./pump-screen/index.js').menuState().catch(() => null),
+    airflow: await require('./airflow/index.js').menuState().catch(() => null),
   });
 }
 
@@ -7526,13 +7526,13 @@ function _gracefulShutdown() {
   _calendarReminders.stop();
   deckShortcutRunner.stop();
   mcpDev.close();
-  featureRoutes.stop();
+  const featureStops = featureRoutes.stop();
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename. A game session
   // in progress is closed and saved the same way.
-  let shutdownFlush = Promise.resolve();
-  try { shutdownFlush = _flushLightingPersist().catch(() => {}); } catch {}
+  let shutdownFlush = featureStops.then(() => {});
+  try { shutdownFlush = shutdownFlush.then(() => _flushLightingPersist()).catch(() => {}); } catch {}
   // The apps Core Shield moved go back while this process can still reach them.
   try { shutdownFlush = Promise.all([shutdownFlush, perfSession.shield.stop()]).catch(() => {}); } catch {}
   try { const sessions = _gameSessions.flush(); shutdownFlush = Promise.all([shutdownFlush, sessions]).catch(() => {}); } catch {}

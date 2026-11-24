@@ -31,9 +31,12 @@ pub(super) fn place_files(bundle: &Bundle, root: &Path) -> Result<(), Step> {
     let app_placed = has_engine(root)
         && (newer_installed || placed_version(root).as_deref() == Some(bundle.version.as_str()));
     let runtime_dst = root.join(RUNTIME_DIR);
-    let runtime_placed = std::fs::read_to_string(runtime_dst.join(RUNTIME_STAMP))
-        .map(|v| v.trim() == bundle.version)
-        .unwrap_or(false);
+    // A package manager's runtime is linked below, never copied.
+    let linked = cfg!(target_os = "linux") && crate::managed::is_managed();
+    let runtime_placed = linked
+        || std::fs::read_to_string(runtime_dst.join(RUNTIME_STAMP))
+            .map(|v| v.trim() == bundle.version)
+            .unwrap_or(false);
     let runtime_src = bundle.dir.join(RUNTIME_DIR);
     let app_src = bundle.dir.join("app");
     let total = if runtime_placed { 0 } else { copy::count_files(&runtime_src) }
@@ -51,6 +54,11 @@ pub(super) fn place_files(bundle: &Bundle, root: &Path) -> Result<(), Step> {
         progress::set(Step::Runtime, counter.percent());
         copy::replace_tree(&runtime_src, &runtime_dst, &mut counter).map_err(fail("runtime"))?;
         std::fs::write(runtime_dst.join(RUNTIME_STAMP), &bundle.version).map_err(fail("runtime"))?;
+    }
+    #[cfg(target_os = "linux")]
+    if linked {
+        // The package's files are read-only and already executable: nothing to set after a link.
+        return platform::link_runtime(&runtime_src, root).map(|_| ()).map_err(fail("runtime"));
     }
     platform::after_copy(root).map_err(fail("runtime"))?;
     Ok(())

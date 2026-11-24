@@ -85,7 +85,9 @@ fn task_user() -> String {
 
 /// The task install.ps1 registers unelevated: at logon, in the user's own
 /// interactive session, limited rights, never stopped on battery, restarted
-/// three times a minute apart, no time limit.
+/// three times a minute apart, no time limit. Priority 7 (below normal) on
+/// purpose: the engine gives way to the person's own work, and moves itself
+/// above normal only while Airflow holds the fans (server/airflow/priority.js).
 pub fn task_xml(root: &Path, user: &str) -> String {
     let server = root.join("server");
     let script = server.join("start-hidden.vbs");

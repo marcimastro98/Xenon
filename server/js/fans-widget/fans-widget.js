@@ -169,6 +169,10 @@
     const countSlot = el('span', 'fanw-count');
     head.appendChild(countSlot);
     wrap.appendChild(head);
+    // Who drives these fans and why (Airflow), filled and kept current by airflow-line.js.
+    const airSlot = el('div', 'fanw-air-slot');
+    if (window.FansAirflowLine) window.FansAirflowLine.fill(airSlot);
+    wrap.appendChild(airSlot);
 
     if (fans === null) {
       countSlot.remove();
@@ -261,6 +265,7 @@
   async function seed() {
     if (!tiles().length || seedInflight) return;
     seedInflight = true;
+    if (window.FansAirflowLine) window.FansAirflowLine.seed();
     try {
       const d = await api('/system');
       if (d) { access = d.sensorAccess || null; platform = d.platform || null; }

@@ -30,8 +30,9 @@ function priceForModel(model) {
   for (const [re, rates] of PRICE_TABLE) if (re.test(m)) return rates;
   return DEFAULT_PRICE;
 }
-function recordCost(r) {
-  const [inRate, outRate, w5Rate, w1hRate, readRate] = priceForModel(r.model);
+// `rates` lets a caller that prices many records look the model up once.
+function recordCost(r, rates = priceForModel(r.model)) {
+  const [inRate, outRate, w5Rate, w1hRate, readRate] = rates;
   // A record written before the 5m/1h split existed carries only the total.
   const w1h = r.cc1h || 0;
   const w5 = Math.max(0, r.cc - w1h);

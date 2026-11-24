@@ -38,7 +38,7 @@ const SDK_API_VERSION = 1;
 // never an address. Pulled; its echoes stop 10 s after the last read (net-path/).
 // `energy` is what this PC drew, in Wh per hour (72 h) and per day (90 days),
 // from the sensor history (sensor-history/energy.js). Pulled, numbers only.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals', 'netPath', 'energy']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals', 'netPath', 'energy', 'airflow']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -221,6 +221,11 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // a name the widget picks, so a widget cannot switch detection off for a game.
   // Sensor history is local only: on, off and how often it samples.
   performance: Object.freeze(['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory']),
+  // Airflow's mode (v5.3.0): auto, quiet, balanced, cool or back to the PC, as a Deck
+  // key sets it. Never a fan speed, never the fan check: every speed still goes through
+  // server/airflow/safety.js. Its own grant, so a widget allowed the switches of
+  // `performance` before does not gain the fans unasked.
+  fans: Object.freeze(['airflowMode']),
 });
 
 // Per-type limits inside a category: a field the widget sends must be one of

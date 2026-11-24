@@ -75,7 +75,17 @@ test('every landscape screen fills the page exactly, as before', () => {
     const fit = fitPageRows(box);
     assert.equal(fit.portrait, false, JSON.stringify(box));
     assert.equal(fit.rows, box.rows, 'row count untouched');
-    assert.equal(fit.cellHeight, Math.max(18, Math.floor(box.avail / box.rows)), 'height untouched');
+    assert.equal(fit.cellHeight, Math.max(18, Math.floor((box.avail / box.rows) * 100) / 100), 'height untouched');
+  }
+});
+
+// The rows reach the bottom of the page: on the Edge the gap under the last tile stays under a
+// pixel whatever the row count, where whole-pixel rows left up to 31px there (#162).
+test('on the Edge the rows reach the bottom of the page for every row count', () => {
+  for (let rows = 8; rows <= 38; rows++) {
+    const fit = fitPageRows({ avail: 696, width: 2536, rows, tiles: 3 });
+    const left = 696 - fit.rows * fit.cellHeight;
+    assert.ok(left >= 0 && left < 1, `${rows} rows leave ${left}px under the last tile`);
   }
 });
 

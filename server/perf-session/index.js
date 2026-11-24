@@ -34,11 +34,13 @@ const asSample = (rows) => new Map(rows.map((r) => [r.pid, { name: r.name, cpuMs
 
 // The sheet's numbers, the shape performance.ps1 `stats` answers with: memory, and the
 // top apps by RAM with their CPU over a short window. Null when the table cannot be read.
-async function readStats(table) {
+// `by: 'cpu'` keeps the top apps by CPU instead (a small program can keep the processor
+// busy), `windowMs` a longer window for a steadier CPU figure.
+async function readStats(table, { by = 'ram', windowMs = STATS_WINDOW_MS } = {}) {
   const first = await table.read();
   if (!first) return null;
   const startedAt = Date.now();
-  await new Promise((resolve) => setTimeout(resolve, STATS_WINDOW_MS));
+  await new Promise((resolve) => setTimeout(resolve, windowMs));
   const second = await table.read();
   if (!second) return null;
   const all = aggregate(asSample(first), asSample(second), { windowMs: Date.now() - startedAt, cores: os.availableParallelism() });
@@ -46,7 +48,7 @@ async function readStats(table) {
     ok: true,
     totalMB: Math.round(os.totalmem() / BYTES_PER_MB),
     freeMB: Math.round(os.freemem() / BYTES_PER_MB),
-    apps: all.sort((a, b) => b.m - a.m).slice(0, STATS_TOP_APPS).map((a) => ({ proc: a.n, memMB: a.m, cpuPct: a.c })),
+    apps: all.sort(by === 'cpu' ? (a, b) => b.c - a.c : (a, b) => b.m - a.m).slice(0, STATS_TOP_APPS).map((a) => ({ proc: a.n, memMB: a.m, cpuPct: a.c })),
   };
 }
 
@@ -64,7 +66,8 @@ function createPerfSession({ collectors, dataDir, platform = process.platform })
     plan: platform === 'win32' ? createPowerPlan() : null,
     priority: createPriority({ table }),
     shield,
-    stats: () => readStats(table),
+    /** @param {{ by?: 'ram'|'cpu', windowMs?: number }} [o] */
+    stats: (o) => readStats(table, o),
     // The program that weighs on the PC while the stutter watch blames it (culprit.js).
     culprit: createCulpritWatch({ read: () => readStats(table), available: () => table.available() }),
   };

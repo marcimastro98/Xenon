@@ -19,6 +19,8 @@ test('the invented desk draws two screens, the Edge with the dashboard, two phon
   assert.equal(MONITORS.filter((m) => m.primary).length, 1);
   assert.ok(PHONES.every((p) => /^dev_/.test(p.id) && p.name));
   assert.deepEqual(home.pumps.map((v) => [v.pump, v.shape, v.tabs.length]), [['pump', 'round', 4]], 'and a round pump screen: what it shows, alerts, lights, look');
+  const fans = Menu.compose(menuState()).sections.find((s) => s.id === 'airflow');
+  assert.deepEqual(fans.rows.map((r) => [r.kind, r.tabs.map((t) => t.id)]), [['airflow', ['now', 'fans', 'health', 'options']]], 'and the Fans section with its four tabs');
 });
 
 test('the shot server serves the page files only', () => {

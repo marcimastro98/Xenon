@@ -183,6 +183,24 @@ pub fn engine_on_disk() -> bool {
     target_root().map(|r| has_engine(&r)).unwrap_or(false)
 }
 
+/// After a package manager's upgrade the runtime moves, and the old one goes at
+/// the next garbage collection: point the engine at the new one at every start,
+/// before anything asks it to run.
+#[cfg(target_os = "linux")]
+pub fn keep_runtime_linked(app: &tauri::AppHandle) {
+    let Some(manager) = crate::managed::manager() else { return };
+    let Some(bundle) = packaged(app) else { return };
+    let Ok(root) = target_root() else { return };
+    if !has_engine(&root) {
+        return;
+    }
+    match linux::link_runtime(&bundle.dir.join(RUNTIME_DIR), &root) {
+        Ok(true) => log(&format!("runtime linked to the {manager} package's")),
+        Ok(false) => {}
+        Err(e) => log(&format!("runtime link to the {manager} package failed: {e}")),
+    }
+}
+
 /// The whole install. `port` is where the engine is expected to answer.
 pub fn install(bundle: &Bundle, port: u16) -> Result<PathBuf, Step> {
     progress::set(Step::Preparing, 2);

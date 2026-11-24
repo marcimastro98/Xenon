@@ -9,6 +9,7 @@
     network: ['cw_stream_network', 'Network adapters and how much each one is moving'],
     netPath: ['cw_stream_netpath', 'How your connection is doing, from the router to the internet'],
     energy: ['cw_stream_energy', 'How much energy this PC used, hour by hour and day by day'],
+    airflow: ['cw_stream_airflow', 'How your fans are: their speed, who drives them and why'],
     diskIo: ['cw_stream_diskio', 'Which disks are busy, and how busy'],
     devStorage: ['cw_stream_devstorage', 'How much space developer tools take up'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
@@ -78,6 +79,7 @@
     gallery: ['cw_act_gallery', 'Open the gallery of your screenshots and clips (it never sees them)'],
     layers: ['cw_act_layers', 'Show or hide your widgets on the screen and switch their pages'],
     performance: ['cw_act_performance', 'Switch game mode, Performance Mode and the sensor history, and tell Xenon the app in front is not a game'],
+    fans: ['cw_act_fans', 'Change how Xenon drives your fans: quieter, cooler or back to the PC'],
   };
 
   window.CustomWidgetPermissionWords = { STREAM_LABELS, ACTION_LABELS };

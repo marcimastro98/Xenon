@@ -308,8 +308,8 @@ let hubSettings = {};
   // message opens the Store (js/ai/bit-messages.js), never a browser window here.
   window.CommunityGallery = { openSparks: () => window.BitMessages.openSheet({ open: 'sparks' }) };
   // "Widgets only" means no dashboard: what needs one is a choice, made in the menu.
-  const openMode = () => fetch(SERVER + '/screen-menu', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section: 'screens' }),
+  const openMenu = (section) => fetch(SERVER + '/screen-menu', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section }),
   }).catch(() => { /* the server is restarting */ });
 
   function revealBenchmark() {
@@ -435,10 +435,10 @@ let hubSettings = {};
   // "widgets only".
   const ALWAYS = Object.freeze({ vitals_nag: vitalsPopup, screen_menu: onMenu });
 
+  // The alerts that are only a pop-up under the Notifiche switches: the event, its builder, what a tap opens.
+  const POPUPS = Object.freeze({ stocks_alert: ['stocks'], football_alert: ['football'], unifi_event: ['unifi'], airflow_rise: ['airflowRise', () => openMenu('airflow')] });
   const HANDLERS = Object.freeze({
-    stocks_alert: (d) => { if (popups()) show(AlertToasts.stocks(d, ctx())); },
-    football_alert: (d) => { if (popups()) show(AlertToasts.football(d, ctx())); },
-    unifi_event: (d) => { if (popups()) show(AlertToasts.unifi(d, ctx())); },
+    ...Object.fromEntries(Object.entries(POPUPS).map(([event, [build, open]]) => [event, (d) => { if (popups()) show(AlertToasts[build](d, ctx(), open)); }])),
     guardian_alert: (d) => { if (guardianOn()) show(AlertToasts.guardian(d, ctx())); },
     timer_done: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerDone(d && d.label, ctx())); },
     timer_chime: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerChime(d && d.label, d && d.every, ctx())); },
@@ -471,7 +471,7 @@ let hubSettings = {};
     deck_shortcut: claimDeckStep,
     // A Deck key, its shortcut or the voice opened the Game Companion card.
     game_companion: (d) => { if (window.ScreenCompanion) window.ScreenCompanion.open(d); },
-    needs_dashboard: () => show(AlertToasts.needsDashboard(ctx(), openMode)),
+    needs_dashboard: () => show(AlertToasts.needsDashboard(ctx(), () => openMenu('screens'))),
     perf_screen: perfScreen,
   });
 

@@ -8,11 +8,8 @@
 // looking at (the exact lesson of #99). Note it does NOT freeze on inactivity:
 // see globalFreeze() for why that signal is wrong for a widget you watch.
 //
-// Images are stored INLINE as data: URIs inside hubSettings.slideshow — the same
-// model as the custom-background image assets — so they persist across reloads and
-// travel inside the settings backup with zero extra plumbing (no server upload
-// store, no asset GC). The deliberate trade is a bounded library size: the
-// sanitizer below caps per-image size, the total set and the count.
+// Where the images come from (uploaded files, old inline data: URIs, a folder on
+// this PC) is set out next to each one's rules below.
 //
 // Dual-mode file, exactly like js/custom-bg.js: the PURE sanitizer + caps at the
 // top carry no DOM and are require()d by the server, so the client, the server and
@@ -165,34 +162,47 @@
     // library or from a folder, or whether the user asked for shuffle.
 
     // Folder source: the server owns the enumeration and we only learn the COUNT,
-    // asking for images by index. Re-checked on a slow cadence (a folder is a
-    // human-speed thing) and immediately whenever the configured path changes.
+    // asking for images by index. Re-read on its own clock, never the rotation's:
+    // every 5 minutes, and soon (backing off to once a minute) while the folder
+    // cannot be read. A network share is often reached only some time after
+    // login, and waiting for the next picture left the tile empty for a whole
+    // "time per image", 15 minutes in the report, after the share was long up.
     const FOLDER_RECHECK_MS = 300000;   // 5 min
+    const FOLDER_RETRY_MS = [5000, 10000, 20000, 30000, 60000];
+    const FOLDER_RETRY_ERRORS = ['not_found', 'denied', 'read_failed'];
     let folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0, network: false };
+    let folderTimer = null;
+    let folderFails = 0;   // unreadable answers in a row, picks the next wait
+
+    function planFolderCheck() {
+      clearTimeout(folderTimer);
+      const wait = folderFails ? FOLDER_RETRY_MS[Math.min(folderFails, FOLDER_RETRY_MS.length) - 1] : FOLDER_RECHECK_MS;
+      folderTimer = setTimeout(() => { folderTimer = null; if (cfg().source === 'folder' && tiles().length) refreshFolder(false, true); }, wait);
+    }
 
     let folderReqSeq = 0;   // orphans an in-flight response a forced refetch supersedes
-    function refreshFolder(force) {
+    function refreshFolder(force, due) {
       const want = String(cfg().folder || '');
       if (!want) { folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0, network: false }; return; }
-      const stale = folder.path !== want || force || (Date.now() - folder.at) > FOLDER_RECHECK_MS;
+      if (folder.path !== want) folderFails = 0;
+      const stale = folder.path !== want || force || due || (Date.now() - folder.at) > FOLDER_RECHECK_MS;
       // A forced refetch supersedes an in-flight one (the pre-save fetch that
       // raced the settings flush may still be pending with the WRONG answer).
       if (!stale || (folder.loading && !force)) return;
       const seq = ++folderReqSeq;
       folder.loading = true;
+      const settle = (d) => {
+        if (seq !== folderReqSeq) return;   // superseded — never cache a stale answer
+        const next = { path: want, count: d.ok ? (d.count | 0) : 0, at: Date.now(), loading: false, error: d.ok ? null : (d.error || 'read_failed'), skipped: d.ok ? (d.skipped | 0) : 0, network: d.network === true };
+        const changed = folder.path !== want || folder.count !== next.count || folder.error !== next.error;
+        folder = next;
+        folderFails = FOLDER_RETRY_ERRORS.includes(next.error) ? folderFails + 1 : 0;
+        planFolderCheck();
+        if (changed) { invalidatePlaylist(); paintAll(); }
+      };
       fetch('/slideshow/folder' + (force ? '?refresh=1' : ''))
         .then(r => (r.ok ? r.json() : Promise.reject(new Error('http ' + r.status))))
-        .then(d => {
-          if (seq !== folderReqSeq) return;   // superseded — never cache a stale answer
-          const changed = folder.path !== want || folder.count !== (d.count | 0);
-          folder = { path: want, count: d.ok ? (d.count | 0) : 0, at: Date.now(), loading: false, error: d.ok ? null : (d.error || 'read_failed'), skipped: d.ok ? (d.skipped | 0) : 0, network: d.network === true };
-          if (changed) { invalidatePlaylist(); paintAll(); }
-        })
-        .catch(() => {
-          if (seq !== folderReqSeq) return;
-          folder = { path: want, count: 0, at: Date.now(), loading: false, error: 'read_failed', skipped: 0, network: false };
-          invalidatePlaylist();
-        });
+        .then(settle, () => settle({ ok: false, error: 'read_failed' }));
     }
 
     // The shuffled ORDER is computed once per (source, length) and kept, so a
@@ -396,6 +406,8 @@
         const list = playlist();
         if (!list.length || ui.misses >= list.length) return;
         ui.misses++;
+        // Every picture failed: the folder's share may have dropped, so ask now (it then retries).
+        if (ui.misses >= list.length && cfg().source === 'folder') refreshFolder(true);
         step(ui.key, 1, { keepPlaying: true });
       });
       // A tile painted for the first time while already idle has nothing decoded to
@@ -422,16 +434,9 @@
       paintAll();
     }
 
-    // Why this tile has nothing to show. Until now it always said "No images yet"
-    // with an "Add images" button — the LIBRARY's empty state, shown verbatim to
-    // someone whose source is a folder and who has therefore added nothing and
-    // never will. Reported from a folder on a NAS: no pictures, no error, and a
-    // prompt to do the one thing that was not the problem.
-    //
-    // Everything needed to say the real thing was already here: /slideshow/folder
-    // answers with a reason code, `ensureFolder` stores it, and the settings pane
-    // has shown those same strings, in every language, since the folder source
-    // shipped. Only the tile was throwing them away.
+    // Why this tile has nothing to show. A folder source never gets the library's
+    // "Add images": a NAS user was told to add pictures, the one thing that was not
+    // the problem. The reason code comes from /slideshow/folder (refreshFolder).
     function applyEmptyReason(ui, c) {
       if (c.source !== 'folder') {
         ui.emptyText.textContent = t('slideshow_empty', 'No images yet');
@@ -446,11 +451,10 @@
       } else if (folder.error) {
         const known = ['no_folder', 'not_found', 'not_a_dir', 'denied', 'read_failed'];
         const code = known.indexOf(folder.error) >= 0 ? folder.error : 'read_failed';
-        // "Not found" about a share that is plainly there sends people looking in
-        // the wrong place — the reporter re-mapped the drive and got the same
-        // answer. Where the location is a network one, say what is actually
-        // between Xenon and it.
+        // An answer Xenon retries says so. "Not found" about a share that is plainly
+        // there sent people the wrong way: on a network location, say what is between.
         ui.emptyText.textContent = t('slideshow_folder_err_' + code)
+          + (FOLDER_RETRY_ERRORS.includes(code) ? ' ' + t('slideshow_folder_retrying') : '')
           + (folder.network ? ' ' + t('slideshow_folder_err_network') : '');
       } else if (folder.skipped > 0) {
         // The folder reads, and everything in it was passed over. That is a
@@ -479,7 +483,7 @@
       const multi = imgs.length > 1;
       ui.prev.hidden = !multi;
       ui.next.hidden = !multi;
-      if (!imgs.length) { ui.img.removeAttribute('src'); ui.src = ''; ui.dots.replaceChildren(); ui.pausePip.hidden = true; return; }
+      if (!imgs.length) { ui.img.removeAttribute('src'); ui.src = ''; ui.misses = 0; ui.dots.replaceChildren(); ui.pausePip.hidden = true; return; }
       if (s.idx >= imgs.length) s.idx = 0;
       const uri = imgs[s.idx].uri;
       // Freezing clears the src, so a repaint must not treat the tile as if it
@@ -527,10 +531,6 @@
       timer = setTimeout(onTick, Math.max(INTERVAL_MIN, cfg().intervalMs || INTERVAL_DEFAULT));
     }
     function onTick() {
-      // A folder can gain or lose images while the slideshow runs; re-check on a
-      // slow cadence so it follows the disk without the user reopening Settings.
-      // refreshFolder() rebuilds the playlist only when the count actually moved.
-      if (cfg().source === 'folder') refreshFolder(false);
       // Nobody can see the tile, so don't advance: rotating would fetch and decode
       // a new image every interval for nothing. A game only stills the picture;
       // the rotation carries on (see unseen()). Per-tile visibility is still
@@ -551,11 +551,11 @@
     // ── public API ──
     function renderWidgets() {
       const list = tiles();
-      if (!list.length) { if (timer) { clearTimeout(timer); timer = null; } return; }
+      if (!list.length) { clearTimeout(timer); clearTimeout(folderTimer); timer = folderTimer = null; return; }
       // Called on every settings apply, so this is the point where the config may
       // have changed underneath the cached playlist — drop it and rebuild.
       invalidatePlaylist();
-      if (cfg().source === 'folder') refreshFolder(false);
+      if (cfg().source === 'folder') { refreshFolder(false); if (!folderTimer && !folder.loading) planFolderCheck(); }
       paintAll();
       if (!timer) schedule();
     }

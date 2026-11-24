@@ -46,6 +46,8 @@ pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
         if manager.enable().is_ok() {
             #[cfg(windows)]
             quote_login_entry(app);
+            #[cfg(target_os = "linux")]
+            start_by_name(app);
         }
     } else if manager.is_enabled().unwrap_or(false) {
         // Gated on is_enabled: the underlying crate's Windows `disable()` deletes
@@ -56,6 +58,25 @@ pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
 
 #[cfg(not(desktop))]
 pub(crate) fn sync_autostart(_app: &tauri::AppHandle) {}
+
+/// Under a package manager the autostart crate's entry names the bare program
+/// in the store: a path the next upgrade retires, and without the wrapper that
+/// sets up its libraries. The entry starts it by name instead, through PATH.
+/// Same file, so the crate's `is_enabled` and `disable` still find it.
+#[cfg(target_os = "linux")]
+fn start_by_name(app: &tauri::AppHandle) {
+    use crate::managed;
+    if !managed::is_managed() {
+        return;
+    }
+    let Some(home) = std::env::var_os("HOME") else { return };
+    let file = std::path::Path::new(&home)
+        .join(".config/autostart")
+        .join(format!("{}.desktop", app.package_info().name));
+    if let Err(e) = managed::name_login_entry(&file) {
+        crate::crash_log::note("autostart", &format!("could not point the login entry at {}: {e}", managed::PROGRAM));
+    }
+}
 
 /// Rewrite the Windows login entry with the program path in quotes.
 ///

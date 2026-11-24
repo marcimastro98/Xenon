@@ -13,6 +13,7 @@
     "lx.req.appimage": "Tout bureau x86_64. <code>chmod +x</code> et exécutez-le.",
     "lx.req.deb": "Installe l'application ; le dashboard est configuré au premier lancement, pour chaque utilisateur.",
     "lx.req.rpm": "Identique au .deb, pour les distributions RPM.",
+    "lx.req.nix": "Un flake dans le dépôt. Nix met à jour l'application ; le dashboard se met à jour tout seul.",
     "lx.beta": "La prise en charge de Linux est en <strong>beta</strong>. Le dashboard, les widgets, le catalogue et les intégrations sont identiques à ceux de Windows. Ce qui diffère encore, c'est la partie qui lit et pilote la machine, répertoriée dans le tableau ci-dessous. Elle n'a pas encore été essayée sur un vrai PC Linux, seulement sur des machines de test, alors dites-nous ce qui ne fonctionne pas.",
     "lx.h.setup": "Premier lancement",
     "lx.setup.p1": "Ouvrez l'application. Le premier lancement configure le dashboard dans la fenêtre de Xenon, avec une barre de progression : il copie le moteur que l'application contient, avec son propre Node.js, sans rien télécharger, et enregistre un service <code>systemd --user</code> pour que Xenon démarre à votre connexion. Sans gestionnaire utilisateur, il utilise à la place une entrée de démarrage automatique XDG, qui ne relance pas Xenon après un plantage.",

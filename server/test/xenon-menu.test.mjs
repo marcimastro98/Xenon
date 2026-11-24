@@ -7,6 +7,7 @@ import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
+import { airflowView } from './airflow-view-fixture.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
@@ -53,6 +54,7 @@ const full = (over = {}) => ({
   scene: { wallpaper: true, saverMinutes: 10 },
   last: { seconds: 12, createdAt: NOW - 5 * 60000 },
   now: NOW, usageMode: 'widgets', alertsOn: true,
+  airflow: airflowView(),
   ...over,
 });
 const LAPTOP = { battery: { percent: 18, plugged: false, charging: false, minutesLeft: 75 }, saver: false, mode: 'balanced', modes: ['saver', 'balanced', 'performance'], canSet: true };
@@ -74,9 +76,9 @@ function walk(node, visit) {
   if (node && typeof node === 'object') { visit(node); Object.values(node).forEach((v) => walk(v, visit)); }
 }
 
-test('four sections in the approved order, each with a title and a line under it', () => {
+test('five sections in the approved order, each with a title and a line under it', () => {
   const out = Menu.compose(full());
-  assert.deepEqual(out.sections.map((s) => s.id), ['screens', 'now', 'capture', 'keys']);
+  assert.deepEqual(out.sections.map((s) => s.id), ['screens', 'now', 'airflow', 'capture', 'keys']);
   assert.deepEqual(SECTIONS, out.sections.map((s) => s.id));
   for (const s of out.sections) {
     assert.equal(s.title.key, 'xmenu_sec_' + s.id);
@@ -84,6 +86,12 @@ test('four sections in the approved order, each with a title and a line under it
     assert.ok(s.icon);
   }
   assert.equal(out.menuKey, 'Alt + Shift + X');
+});
+
+test('Fans shows only on a PC whose fans Xenon can reach', () => {
+  // menuState() gives null on a Mac, a laptop or with Airflow unavailable for good.
+  assert.deepEqual(Menu.compose(full({ airflow: null })).sections.map((s) => s.id), ['screens', 'now', 'capture', 'keys']);
+  assert.equal(Menu.compose(full()).sections.find((s) => s.id === 'airflow').icon, 'fan');
 });
 
 test('every change a row makes is a Deck action the registry accepts', () => {

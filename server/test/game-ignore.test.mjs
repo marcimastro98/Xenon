@@ -131,7 +131,7 @@ test('SDK: a widget may switch the modes and rule out the app in front, never na
   assert.match(cw, /performance: \['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory'\]/);
   assert.match(cw, /gameIgnore: \{ mode: \['current'\], name: \[\] \}/);
   const st = readFileSync(new URL('../js/settings/settings.js', import.meta.url), 'utf8');
-  assert.match(st, /SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'performance'\]\)/);
+  assert.match(st, /SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'performance'[^\]]*\]\)/);
 });
 
 test('the shortcut runner and the dashboards hand Performance Mode on, never the phone', () => {

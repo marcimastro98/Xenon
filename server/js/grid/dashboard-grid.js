@@ -1069,8 +1069,8 @@ function pageTileCount(pageId) {
 //     one level up: the layout comes from a landscape screen, so a tall screen
 //     stretches its few rows over three times the height.
 //
-// Asking for MORE rows only ever lowers the row height, so neither can overflow
-// the page and force a scroll.
+// More rows only lower the row height, so neither can overflow the page. A row keeps
+// hundredths of a pixel: whole pixels left up to 31px empty under the last tile (#162).
 function fitPageRows({ avail, width, rows, tiles, fixedRows }) {
   const h = Number(avail) || 0;
   const w = Number(width) || 0;
@@ -1085,7 +1085,7 @@ function fitPageRows({ avail, width, rows, tiles, fixedRows }) {
   // resized browser window as well as for a rotated monitor.
   const portrait = w > 0 && h > w;
   if (portrait) effRows = Math.max(effRows, Math.ceil(h / MAX_PORTRAIT_CELL));
-  return { rows: effRows, cellHeight: Math.max(18, Math.floor(h / effRows)), portrait };
+  return { rows: effRows, cellHeight: Math.max(18, Math.floor((h / effRows) * 100) / 100), portrait };
 }
 
 function fitGridHeights() {

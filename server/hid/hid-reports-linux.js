@@ -7,7 +7,8 @@
 const fsp = require('fs/promises');
 const { constants } = require('fs');
 
-const READ_BYTES = 256;
+// The largest report hidraw hands over (HID_MAX_BUFFER_SIZE): a shorter buffer cuts long ones.
+const READ_BYTES = 4096;
 const POLL_MS = 10;
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -20,12 +21,13 @@ function createOpenReports({ openNode = (p) => fsp.open(p, constants.O_RDWR | co
       throw new Error(e.code === 'EACCES' || e.code === 'EPERM' ? 'no-permission' : 'could not open the device');
     }
     let closed = false;
+    // One buffer for every poll of this link; a report is copied out of it.
+    const buffer = Buffer.alloc(READ_BYTES);
 
     async function next() {
-      const buffer = Buffer.alloc(READ_BYTES);
       try {
         const { bytesRead } = await file.read(buffer, 0, READ_BYTES, null);
-        return bytesRead ? buffer.subarray(0, bytesRead) : null;
+        return bytesRead ? Buffer.from(buffer.subarray(0, bytesRead)) : null;
       } catch (e) {
         if (e.code === 'EAGAIN') return null;
         throw e;

@@ -239,26 +239,38 @@ function buildWeatherDays(data) {
   const share = (value) => Math.max(0, Math.min(100, ((Number(value) - low) / span) * 100));
   // Every row is its own grid, so the longest name sets the column for all of them: "Aujourd'hui" is not "Lun".
   list.style.setProperty('--wx-name', `${Math.max(0, ...days.map((day, i) => weatherDayName(day, i).length))}ch`);
+  // A day's low and high sit over the two ends of its own stretch of the bar, so they read as
+  // that day's range and not as the ends of the whole track (asked on Discord). --s and --e
+  // place both; the CSS widens the numbers' box when the stretch is short. The classic look
+  // (js/weather/weather-classic.js) draws the same pieces with the same classes.
+  const rangeOf = (day) => {
+    const range = weatherEl('span', 'weather-fc-range');
+    const nums = weatherEl('span', 'weather-fc-nums');
+    nums.append(
+      weatherEl('span', 'weather-fc-min', weatherDisplayValue(toDisplayTemp(day.minC), '°')),
+      weatherEl('span', 'weather-fc-max', weatherDisplayValue(toDisplayTemp(day.maxC), '°')),
+    );
+    const bar = weatherEl('span', 'weather-fc-bar');
+    const fill = weatherEl('span', 'weather-fc-fill');
+    bar.appendChild(fill);
+    if (Number.isFinite(Number(day.minC)) && Number.isFinite(Number(day.maxC))) {
+      range.style.setProperty('--s', `${share(day.minC)}%`);
+      range.style.setProperty('--e', `${share(day.maxC)}%`);
+      fill.style.setProperty('--cold', WeatherOutlook.tempColor(day.minC));
+      fill.style.setProperty('--warm', WeatherOutlook.tempColor(day.maxC));
+    }
+    range.append(nums, bar);
+    return range;
+  };
   days.forEach((day, i) => {
     const state = classifyWeatherState(day, WEATHER_DAY_NOON_MIN);   // a day is its daytime, never a moon
     const row = weatherEl('div', 'weather-fc-row');
     row.dataset.weather = weatherStateIcon(state);
     row.title = day.condition || '';
-    const bar = weatherEl('span', 'weather-fc-bar');
-    const fill = weatherEl('span', 'weather-fc-fill');
-    if (Number.isFinite(Number(day.minC)) && Number.isFinite(Number(day.maxC))) {
-      fill.style.left = `${share(day.minC)}%`;
-      fill.style.right = `${100 - share(day.maxC)}%`;
-      fill.style.setProperty('--cold', WeatherOutlook.tempColor(day.minC));
-      fill.style.setProperty('--warm', WeatherOutlook.tempColor(day.maxC));
-    }
-    bar.appendChild(fill);
     row.append(
       weatherEl('span', 'weather-fc-day', weatherDayName(day, i)),
       weatherArtEl('weather-fc-art', state, false),
-      weatherEl('span', 'weather-fc-min', weatherDisplayValue(toDisplayTemp(day.minC), '°')),
-      bar,
-      weatherEl('span', 'weather-fc-max', weatherDisplayValue(toDisplayTemp(day.maxC), '°')),
+      rangeOf(day),
     );
     list.appendChild(row);
   });

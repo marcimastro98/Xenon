@@ -12,14 +12,14 @@
       {
         "statement": "const screenMenu = require('./menu/screen-menu').createScreenMenu({",
         "callees": {
-          "server/menu/screen-menu.js": "a9a5ddc0e5906ca36ead1d9ba4eeccaf5b64400c48cf650de5ff536fc90dfc4a"
+          "server/menu/screen-menu.js": "4335ddc53ae422f59cadd3c64f69ad4d12f164f97d2209ed5bad31941a63cf5f"
         },
         "reason": "createScreenMenu declares its own state and functions and returns them; host, broadcast, panel, run, failed, capturing and holding are first called by open(), close() and the other functions it returns."
       },
       {
         "statement": "const capabilityRunner = capabilities.createCapabilities({",
         "callees": {
-          "server/capabilities/index.js": "c9ed22f13e30fbb56ddcdcb152c48e861f2790655f3ebda23db87cb5365b6d47",
+          "server/capabilities/index.js": "82f7e3d270f74e4dc8a2774c8d402cf5e74453d29e7b6ff9ef3129e05e86f873",
           "server/notification-open/index.js": "b7fd7d2575f0cd056a560a5732150fe311ec649240a939fdc8893e0d611e7f07",
           "server/notification-open/start-apps.js": "93223b3724c28d1ce51644925a4257ae1285b02f9b6ddc0440998203f03466de",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"

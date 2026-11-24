@@ -70,6 +70,12 @@ helper-mac/                     export-ignore
 widget/                         export-ignore
 icue-widget/                    export-ignore
 
+# The Nix package: read by Nix from the repository, never by an install.
+nix/                            export-ignore
+flake.nix                       export-ignore
+flake.lock                      export-ignore
+tools/nix/                      export-ignore
+
 # CI workflows
 .github/                        export-ignore
 site-host/                      export-ignore

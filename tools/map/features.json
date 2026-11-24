@@ -285,6 +285,26 @@
       ]
     },
     {
+      "id": "airflow",
+      "area": "desktop",
+      "name": "Airflow (fan control)",
+      "what": "Xenon drives the PC's fans: fan check, brain, safety rules, the hands, a held LINK hub's lights, Xenon → Fans.",
+      "files": [
+        "server/airflow/**",
+        "server/fan-hands.ps1",
+        "server/fan-hands-lhm.ps1",
+        "server/js/airflow/**",
+        "server/menu/menu-airflow*.js",
+        "server/js/menu/xenon-menu-airflow*.js",
+        "server/components/XenonMenu/XenonMenuAirflow.css",
+        "server/js/capabilities/catalog-airflow.js",
+        "tools/airflow-sim/**",
+        "tools/airflow-spike/**",
+        "tools/airflow-live/**",
+        "tools/link-capture/**"
+      ]
+    },
+    {
       "id": "menu",
       "area": "desktop",
       "name": "Xenon menu",
@@ -849,6 +869,18 @@
       "what": "The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop.",
       "files": [
         "apps/native/**"
+      ]
+    },
+    {
+      "id": "nix-package",
+      "area": "native",
+      "name": "Nix package",
+      "what": "The flake that installs the Linux app on Nix and NixOS from the release .deb, its NixOS test and its bump tool.",
+      "files": [
+        "flake.nix",
+        "flake.lock",
+        "nix/**",
+        "tools/nix/**"
       ]
     },
     {

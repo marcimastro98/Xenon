@@ -503,7 +503,7 @@
 .weather-tile-root.weather-tile-root--classic .weather-fc-row {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(52px, 0.9fr) 26px 2.6em minmax(60px, 3fr) 2.6em;
+  grid-template-columns: minmax(52px, 0.9fr) 26px minmax(8em, 3fr);
   align-items: center;
   gap: clamp(6px, 2cqmin, 12px);
   width: 100%;
@@ -522,11 +522,8 @@
   white-space: nowrap;
 }
 .weather-tile-root.weather-tile-root--classic .weather-fc-row .weather-mini-icon { width: 26px; height: 22px; }
-.weather-tile-root.weather-tile-root--classic :is(.weather-fc-min, .weather-fc-max) {
-  font-size: clamp(11px, 2.9cqmin, 14px);
-  font-variant-numeric: tabular-nums;
-}
-.weather-tile-root.weather-tile-root--classic .weather-fc-min { color: color-mix(in srgb, var(--text) 55%, transparent); text-align: right; }
+.weather-tile-root.weather-tile-root--classic .weather-fc-nums { font-size: clamp(11px, 2.9cqmin, 14px); }
+.weather-tile-root.weather-tile-root--classic .weather-fc-min { color: color-mix(in srgb, var(--text) 55%, transparent); }
 .weather-tile-root.weather-tile-root--classic .weather-fc-max { color: var(--text); font-weight: 600; }
 .weather-tile-root.weather-tile-root--classic .weather-fc-bar {
   position: relative;
@@ -539,6 +536,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
+  left: var(--s, 0%);
+  right: calc(100% - var(--e, 100%));
   min-width: 8px;
   border-radius: 999px;
   /* Cold to warm: a bar further right reads as a warmer day. */

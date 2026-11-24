@@ -224,10 +224,10 @@
     es.addEventListener('vitals_nag', e => {
       try { if (window.LayersShell && typeof window.LayersShell.onVitalsPopup === 'function') window.LayersShell.onVitalsPopup(JSON.parse(e.data)); } catch {}
     });
-    // What the Xenon menu shows changed: its panel and the "Main screen" tile
-    // read it again (js/menu/xenon-menu-panel.js, js/alerts/screen-tile.js).
-    ['settings', 'captures', 'replay', 'recording', 'deck'].forEach((name) => {
-      es.addEventListener(name, () => window.dispatchEvent(new Event('xenon-menu-changed')));
+    // What the Xenon menu shows changed: its panel, the "Main screen" tile and the Fans tile's line
+    // read it again (js/menu/xenon-menu-panel.js, js/alerts/screen-tile.js, js/fans-widget/airflow-line.js).
+    ['settings', 'captures', 'replay', 'recording', 'deck', 'airflow'].forEach((name) => {
+      es.addEventListener(name, (e) => window.dispatchEvent(new CustomEvent('xenon-menu-changed', { detail: { name, data: e.data } })));
     });
     // The Xenon menu asked for with no shell to draw it over the screen (a
     // browser, a phone's dashboard): the same section, a page of Settings here. Never on a
@@ -455,12 +455,14 @@
         if (window.CustomWidget) window.CustomWidget.onData('stocks', d);
       } catch {}
     });
-    es.addEventListener('stocks_alert', e => {
-      // A watched symbol crossed ±alertPercent → a toast (gated by the master
-      // Notifiche switch, like every other pop-up). The server handles the LED.
-      try {
-        showAlertToast(window.AlertToasts && window.AlertToasts.stocks(JSON.parse(e.data), alertToastCtx()));
-      } catch {}
+    // Alerts that are only a pop-up, gated by the master Notifiche switch like every other
+    // (the server handles any LED): a watched symbol past ±alertPercent, a followed team's
+    // goal or full time, Airflow raising the fans enough to be heard (sent only while kept on; a tap opens Fans).
+    const openFans = () => window.XenonMenuPanel && window.XenonMenuPanel.open('airflow');
+    [['stocks_alert', 'stocks'], ['football_alert', 'football'], ['airflow_rise', 'airflowRise', openFans]].forEach(([name, build, open]) => {
+      es.addEventListener(name, e => {
+        try { showAlertToast(window.AlertToasts && window.AlertToasts[build](JSON.parse(e.data), alertToastCtx(), open)); } catch {}
+      });
     });
     es.addEventListener('unifi_event', e => {
       // A UniFi Protect camera detected something (person/vehicle/motion/ring). The
@@ -496,13 +498,6 @@
         if (window.CodexWidget) window.CodexWidget.onSSE(d);
         if (window.ChatGPTWidget) window.ChatGPTWidget.onCodex(d);
         if (window.CustomWidget && d && d.sdk) window.CustomWidget.onData('codex', d.sdk);
-      } catch {}
-    });
-    es.addEventListener('football_alert', e => {
-      // A followed team scored or the match ended → a toast (gated by the master
-      // Notifiche switch). The server handles the LED reaction.
-      try {
-        showAlertToast(window.AlertToasts && window.AlertToasts.football(JSON.parse(e.data), alertToastCtx()));
       } catch {}
     });
     es.addEventListener('news', e => {

@@ -1,6 +1,15 @@
 // Keeps thin lines sharp on a screen whose scale is not a whole number: zooms the page up to the
 // next whole scale, and says how much in window.__pageZoom for code that places things by screen
 // position.
+//
+// Why: the iCUE built-in browser renders at a fractional devicePixelRatio (~1.8), so 1px borders
+// and thin lines resample to soft or dashed edges. Zooming UP to the next whole DPR realigns them
+// to device pixels (never DOWN: that only downscales and blurs, see recompute()). The page is
+// counter-scaled (body in vw/vh, which ignore zoom) so it still fills one screen. Gated to the
+// Edge, a fractional DPR AND a wide bar aspect (~3.6:1), so a desktop or laptop is never touched.
+// Reactive, not one-shot: inside iCUE the scale can read whole at boot and turn fractional later
+// (or after sleep, a re-layout, a resize), and a boot-only check left a stale, blurred page; every
+// DPR and viewport change applies or removes the zoom to match.
 
 (function () {
   // GridStack's resize auto-scroll compares the pointer (screen px) with the scroller's

@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-552 routes.
-- Asked by: 1 before the chain, 56 chain, 25 feature, 4 socket, 466 table.
-- Paired device: 34 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 411 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 358 (none), 185 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+553 routes.
+- Asked by: 1 before the chain, 56 chain, 26 feature, 4 socket, 466 table.
+- Paired device: 34 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 412 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 359 (none), 185 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -28,6 +28,7 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | POST | `/ai/deck-run` | table | server/ai/routes-memory.js | yes |  |  |  |
 | POST | `/ai/pc-cancel` | table | server/ai/routes.js | yes |  |  |  |
 | POST | `/ai/pc-run` | table | server/ai/routes.js | no: REMOTE_DENY |  |  |  |
+| GET | `/airflow` | feature | server/airflow/routes.js | yes |  |  |  |
 | POST | `/api/ai` | chain | server/server.js | yes |  |  |  |
 | GET | `/api/ai-local/capabilities` | table | server/ai/routes.js | yes |  |  |  |
 | GET | `/api/ai-local/models` | table | server/ai/routes.js | yes |  |  |  |

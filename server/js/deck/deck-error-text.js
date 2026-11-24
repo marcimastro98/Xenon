@@ -61,6 +61,9 @@
     // Opening iCUE with the Xenon Pump widget (pump-screen/icue.js).
     no_icue: ['deck_err_no_icue', 'iCUE is not installed on this PC: install it from corsair.com, then try again'],
     build_failed: ['deck_err_build_failed', 'the iCUE widget could not be prepared, try again in a moment'],
+    // Airflow (airflow/actions.js).
+    airflow_off: ['deck_err_airflow_off', 'Airflow is off: turn it on in the Xenon menu, Fans'],
+    needs_check: ['deck_err_needs_check', 'run the fan check first, in the Xenon menu, Fans'],
     no_function: ['deck_err_no_function', 'that widget has no such function'],
     needs_settings: ['deck_err_needs_settings', 'this function asks for settings: put it on a Deck key, where you choose them'],
     not_granted: ['deck_err_not_granted', 'you did not allow this function when you installed the widget'],
@@ -187,7 +190,7 @@
     'no_game', 'no_app', 'no_frames', 'too_soon', 'too_short', 'no_file', 'no_steps', 'no_pages', 'no_widgets', 'over_exclusive', 'not_recording',
     'no_marks', 'whole_video', 'already_small', 'no_webcam', 'no_phone', 'transfer_off', 'send_busy',
     'off', 'not_running', 'saving', 'busy', 'vitals_off', 'vital_off', 'companion_off', 'screen_alerts_off', 'wl_disabled',
-    'nothing_running', 'running', 'no_second_screen', 'nothing_to_undo', 'app_not_open',
+    'nothing_running', 'running', 'no_second_screen', 'nothing_to_undo', 'app_not_open', 'airflow_off', 'needs_check',
   ]);
 
   // The sentence, or the bare code when there is none: an unexplained code is

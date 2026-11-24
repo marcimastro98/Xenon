@@ -488,6 +488,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `devStorage` — `{ ok, docker, ollama, vscode, vhdx, reclaimable }`: how much space developer tools hold and how much could be freed, **numbers only**. See *Developer storage* below. A **pull** stream
 - `netPath` (v5.0.0) — `{ ok, link, linkMbps, signal, dbm, router, provider, internet, traffic }`: **how the way to the internet is doing, stretch by stretch**: delay, jitter and loss to the router, to the provider's first hop and to the internet, with the Wi-Fi signal and this PC's traffic. Numbers only, never an address. See *The way to the internet* below. A **pull** stream
 - `energy` (v5.0.0) — `{ ok, enabled, sampleMinutes, now, hours:[…], days:[…] }`: **how much energy this PC used**, in Wh per hour (72 h) and per day (90 days), from the sensor history, with the source of each figure. Numbers only. See *Energy, hour by hour and day by day* below. A **pull** stream
+- `airflow` (v5.3) — `{ ok, state, drive, mode, why, fans:[…], check, quieterDb }`: **how the PC's fans are** with Airflow, Xenon's fan control: each fan's speed and who drives it, and the reason behind what Xenon does. Read only. See *The fans* below. A **pull** stream
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, loss, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline. `position` is a whole number of seconds and can trail the real position by up to a second or two; when you need to time something to the song (lyrics, a beat-synced effect), read `positionMs` instead, the unrounded position in milliseconds as of the moment the event was sent (absent from an older Xenon Helper: fall back to `position * 1000`). Between events, add the time since you received the event to it while `playbackStatus` is `Playing`. `thumbnail` is the cover picture, or `null`/empty when there is none: a `data:image/...` URL you can put straight into an `<img>`, or an `https://` URL (some players give one, and Xenon looks the cover up online when the player gives none), which the sandbox cannot load directly: show it through `/sdk/tile/` (see "Map & radar tiles") with its host in `hosts`. The same track keeps the same cover, so redraw it only when `title` or `artist` change
 - `audio` — volume, mute, output device (`speaker` is the current default output; `speakers[]` lists every connected one, each with an `id` and `isDefault`), and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
@@ -1116,6 +1117,53 @@ total is right even if the widget was closed for hours.
   A tile that is not on screen is still refused (`not_visible`), so send the
   chip from the service frame only (`init.service`), or the two frames fight
   over it.
+
+### 3b-septies. The fans: `airflow` (v5.3)
+
+`streams: ["airflow"]` gives how the PC's fans are with Airflow, the fan control
+in the Xenon menu, Fans: whether Xenon drives them, in which mode, why, and
+every fan with its speed. It is the data for a fan tile, a "why is it loud?"
+badge or a pump card.
+
+```js
+{
+  ok: true,
+  state: 'driving',   // 'off' | 'checking' (the fan check runs) | 'watching' (Xenon only shows what it would do)
+                      // | 'driving' | 'pc' (handed back to the PC) | 'unavailable' (Xenon cannot reach the fans)
+  drive: 'on',        // the person's switch: 'off' | 'shadow' (watching) | 'on'
+  mode: 'auto',       // 'auto' | 'quiet' | 'balanced' | 'cool' | 'pc'
+  why: 'heat-gpu',    // the headline reason, a code (below), or null
+  fans: [
+    { id: 'lhm:chip0:1', name: 'Front', kind: 'fan', place: 'front', rpm: 812, duty: 31,
+      xenon: true, leave: false, why: null },
+    { id: 'lhm:gpu0:0', name: 'GPU', kind: 'fan', place: 'gpu', rpm: 0, duty: 0,
+      xenon: false, leave: false, why: 'readonly' },
+  ],
+  check: null,        // while the fan check runs: { progress: 0.4 }
+  quieterDb: 4.5,     // while watching: how much quieter Xenon would be, in dB (estimated), or null
+}
+```
+
+- **`why` is a code**, translate it yourself: `idle` (nothing to do),
+  `learning`, `spike-ignored` (a short spike left alone), `heat-cpu`,
+  `heat-gpu`, `game-prepare` (a known game starting), `call-quiet`,
+  `night-quiet`, and the warnings `hot` (every fan at full), `stall` (a fan
+  stopped), `sensor` (a reading went wrong), `brain` (Xenon went silent and
+  the PC took over), `impossible` (the targets cannot hold). Unknown codes may
+  come later: show nothing rather than the raw code.
+- **A fan's `why`** says why Xenon does not drive it: `readonly` (it can only be
+  read), `leave` (the person left it to the PC), `unchecked` (the fan check
+  has not measured it), `three-pin`, `blind` (no speed reading), `unproven`
+  (a model Xenon never tried, until the fan check sees it go back to the PC), `stall`,
+  `sensor`, `brain`.
+- **`rpm` and `duty`** are whole numbers or `null` (a fan with no speed reading).
+  `duty` is the percent the fan is asked for, whoever asks.
+- **Nothing here changes a fan.** The mode is the `fans` action (§5c-sexies);
+  speeds are never a widget's to set.
+- **When it is empty.** `{ ok: false, error: 'unavailable' }` on a Mac, a laptop
+  or a PC whose fans Xenon cannot reach: hide the tile or say so.
+- **Pull it about every 2 s** (the reading is cached that long), only while
+  the widget is on screen.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
@@ -2937,7 +2985,7 @@ action: { type: 'layerPage', page: 'next' }            // a page name or number;
 action: { type: 'screenDraw', mode: 'toggle' }         // drawing on the screen; mode: 'toggle' | 'start' | 'stop'
 // { ok: true, drawing: true } = open now; { ok: false, error: 'unsupported' | 'unavailable' }
 action: { type: 'xenonMenu', mode: 'open', section: 'keys' } // mode: 'toggle' | 'open' | 'close'
-// section: 'screens' | 'now' | 'capture' | 'keys' (the old 'widgets', 'look', 'mode' and 'overlay' open 'screens')
+// section: 'screens' | 'now' | 'airflow' | 'capture' | 'keys' ('airflow', the fans, only on a PC whose fans Xenon can reach; the old 'widgets', 'look', 'mode' and 'overlay' open 'screens')
 // { ok: true, where: 'screen' | 'dashboard' | 'closed', section } ; { ok: false, error: 'unavailable' }
 action: { type: 'gameCompanion' }                     // Bit's card for the game being played
 // { ok: true } ; { ok: false, error: 'companion_off' | 'screen_alerts_off' | 'unavailable' }
@@ -3034,6 +3082,31 @@ action: { type: 'sensorHistory', mode: 'on', every: '1' }  // mode: 'toggle' | '
 
 Listed to the user as "Switch game mode, Performance Mode and the sensor
 history, and tell Xenon the app in front is not a game".
+
+### 5c-sexies. The fans' mode: `fans` (v5.3)
+
+How Xenon drives the fans while Airflow is on, as a Deck key sets it. One line
+in the permission dialog. A mode only: a widget never sets a speed and never
+starts the fan check, and every speed still goes through Airflow's safety
+layer (too hot always means full speed).
+
+```js
+action: { type: 'airflowMode', mode: 'quiet' }   // 'auto' | 'quiet' | 'balanced' | 'cool' | 'pc'
+// { ok: true, mode: 'quiet' } ; { ok: false, error: 'airflow_off' }
+```
+
+```json
+{ "actions": ["fans"], "streams": ["airflow"] }
+```
+
+- **`airflow_off`**: Airflow is switched off; the person turns it on in the
+  Xenon menu, Fans. Say so on your button rather than retrying.
+- **`pc`** hands every fan back to the PC's own settings with Airflow still on.
+- Pair it with the `airflow` **stream** to show the mode in use.
+- Allowed in manifest Deck macros, with the same limit.
+
+Listed to the user as "Change how Xenon drives your fans: quieter, cooler or
+back to the PC".
 
 ### 5d. Turning one person up or down: `discordUserVol` (v4.11)
 
@@ -3241,7 +3314,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `energy`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `netPath`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `airflow`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `energy`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `netPath`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -3253,6 +3326,7 @@ the user granted, and every action is re-validated server-side.
 | `capture` | `screenshot`, `record`, `replay`, `screenText`, `screenPin`, `screenColor`, `screenMeasure`, `captureMarker` |
 | `chroma` | `chromaColor`, `chromaOff` |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordOpenChat`, `discordAudioToggle`, `discordSoundboard` |
+| `fans` | `airflowMode` |
 | `gallery` | `gallery` |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` |
 | `layers` | `layersToggle`, `layerPage`, `screenDraw`, `xenonMenu`, `gameCompanion` |

@@ -3,8 +3,10 @@
 // read from this PC.
 // The shape is the one server/menu/xenon-menu.js compose() takes (see _xenonMenuState in
 // server.js); server/test/menu-shots.test.mjs checks that it still draws the Screens page.
+// The Fans section borrows the invented PC of the Airflow tests (airflow-view-fixture.mjs).
 
 import { createRequire } from 'node:module';
+import { airflowView, newView } from '../../server/test/airflow-view-fixture.mjs';
 
 const PumpModel = createRequire(import.meta.url)('../../server/js/pump/pump-model.js');
 const PumpFaces = createRequire(import.meta.url)('../../server/js/pump/pump-faces.js');
@@ -82,6 +84,18 @@ export const PUMP = {
   }],
 };
 
+// The Fans section (Airflow): a PC Xenon drives, or with MENU_AIRFLOW=new the same PC before
+// its fan check (the first steps), MENU_AIRFLOW=hub the same with an iCUE LINK hub not yet
+// allowed. GET /airflow answers the same while the section is open.
+const AIRFLOWS = { new: () => newView(), hub: () => newView({ unavailable: { link: 'link-off' } }) };
+// A PC Xenon drives, with two headers that have nothing plugged in (the closed group under the fans).
+function drivenView() {
+  const v = airflowView();
+  const empty = (n) => ({ ...v.fans[0], id: 'lhm:chip0:' + n, name: 'Fan #' + n, place: 'case', why: 'blind', rpm: 0, duty: null, xenon: false, planned: null });
+  return { ...v, fans: [...v.fans, empty(5), empty(6)] };
+}
+export const AIRFLOW = (AIRFLOWS[process.env.MENU_AIRFLOW] || drivenView)();
+
 /** The state compose() draws the menu from. `over` replaces top-level keys. */
 export function menuState(over = {}) {
   return {
@@ -101,6 +115,7 @@ export function menuState(over = {}) {
     usageMode: 'both',
     alertsOn: true,
     pump: PUMP,
+    airflow: AIRFLOW,
     ...over,
   };
 }

@@ -56,6 +56,9 @@ test('heardApp: calls, stream mixers and our own pages are left out by process',
     'C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe',
     'C:\\Program Files\\Elgato\\WaveLink\\WaveLink.exe',
     'C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\130\\msedgewebview2.exe',
+    // Xenon's own: the capture engine holds the game's sound while it records, the app is ours.
+    'C:\\Apps\\Xenon\\server\\capture\\xenon-capture.exe',
+    'C:\\Apps\\Xenon\\Xenon.exe',
   ]) assert.equal(heardApp([row({ path })], F), null, path);
 });
 

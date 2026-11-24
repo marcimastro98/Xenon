@@ -29,7 +29,7 @@
 
 const DashboardOpen = require('../js/grid/dashboard-open.js');
 
-const SECTIONS = ['screens', 'now', 'capture', 'keys'];
+const SECTIONS = ['screens', 'now', 'airflow', 'capture', 'keys'];
 // A key or a saved link from before: the widgets, the look and how Xenon is used are
 // all on the Screens page now, and the two widget sections were one before that.
 const RENAMED = Object.freeze({ overlay: 'screens', widgets: 'screens', look: 'screens', mode: 'screens' });

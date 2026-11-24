@@ -573,6 +573,20 @@ test('the numbers for the sheet have the shape the PowerShell ones had', async (
   assert.ok(stats.apps[0].cpuPct > 0);
 });
 
+test('the busiest programs by processor, over the window asked for (the notice of the fans)', async () => {
+  const row = (pid, name, cpuMs, mb) => ({ pid, ppid: 0, name, cpuMs, memBytes: mb * 1024 * 1024, startedAt: 1, owner: 1 });
+  const first = [row(1, 'big', 0, 900), row(2, 'busy', 0, 20)];
+  const second = [row(1, 'big', 1, 900), row(2, 'busy', 400, 20)];
+  let reads = 0;
+  const collectors = { processTable: async () => { reads += 1; return reads % 2 ? first : second; } };
+  const session = createPerfSession({ collectors, dataDir: tmpdir(), platform: 'linux' });
+  assert.equal((await session.stats()).apps[0].proc, 'big', 'the sheet still lists by memory');
+  const startedAt = Date.now();
+  const stats = await session.stats({ by: 'cpu', windowMs: 500 });
+  assert.ok(Date.now() - startedAt >= 450, 'the window asked for, longer than the sheet one');
+  assert.deepEqual(stats.apps.map((a) => a.proc), ['busy', 'big']);
+});
+
 test('starting the server loads no native library', () => {
   let loaded = 0;
   const windowsOnly = createPerfSession({ collectors: { processTable: async () => [] }, dataDir: tmpdir(), platform: 'linux' });

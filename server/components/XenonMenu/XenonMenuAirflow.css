@@ -1,0 +1,93 @@
+/* The Fans section of the Xenon menu (js/menu/xenon-menu-airflow.js): a card that says what
+   the fans do now and why, the first steps under it, then the tabs and the fans as cards
+   with their speed and who drives them. Wells and type of the menu's own rows; colour only
+   for state (a warning, Xenon driving). */
+
+.xm-airblock { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.xm-air { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+
+.xm-air-head {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: 14px 16px; background: var(--cst-well); border-radius: 10px;
+}
+.xm-air-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--cst-text); overflow-wrap: anywhere; }
+.xm-air-line { margin: 0; color: var(--cst-muted); font-size: 14px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.xm-air-head.xm-tone-warn .xm-air-title, .xm-air-line.xm-tone-warn { color: var(--color-warn); }
+.xm-air-line.xm-tone-on { color: var(--accent-ink, var(--accent)); }
+.xm-air-progress {
+  width: 100%; height: 8px; appearance: none; border: 0; border-radius: 4px; overflow: hidden;
+  background: var(--cst-on); accent-color: var(--accent);
+}
+.xm-air-progress::-webkit-progress-bar { background: var(--cst-on); }
+.xm-air-progress::-webkit-progress-value { background: var(--accent); }
+.xm-air-progress::-moz-progress-bar { background: var(--accent); }
+.xm-air-score { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 14px; font-weight: 600; color: var(--cst-text); }
+.xm-air-acts { justify-content: flex-start; margin-top: var(--space-1); }
+
+.xm-air-cmd { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2); }
+.xm-air-code {
+  flex: 1 1 240px; min-width: 0; padding: 10px 12px; border-radius: 8px; background: var(--cst-on);
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 12.5px; line-height: 1.45;
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: all;
+}
+
+/* Find, check, watch, drive: one line, the step now in the text colour. */
+.xm-air-steps { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 2px; }
+.xm-air-steplist {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none;
+  font-size: 13px; font-weight: 600; color: var(--cst-muted); text-align: center;
+}
+.xm-air-steplist li { padding-top: 8px; border-top: 3px solid var(--cst-on); overflow-wrap: anywhere; }
+.xm-air-steplist li.is-done { border-top-color: var(--cst-muted); }
+.xm-air-steplist li.is-now { color: var(--cst-text); border-top-color: var(--accent); }
+
+/* How Airflow thinks: a well that opens; each point a name over its sentence. */
+.xm-air-how, .xm-air-fold { padding: 0 16px; background: var(--cst-well); border-radius: 10px; }
+.xm-air-howtitle {
+  display: flex; align-items: center; gap: var(--space-2); min-height: 48px; cursor: pointer; list-style: none;
+  font-size: 15px; font-weight: 700; color: var(--cst-text);
+}
+.xm-air-howtitle::-webkit-details-marker { display: none; }
+/* A chevron at the end: down when closed, up when open. */
+.xm-air-howtitle::after {
+  content: ''; flex: none; width: 8px; height: 8px; margin-inline-start: auto; margin-bottom: 4px;
+  border-right: 2px solid var(--cst-muted); border-bottom: 2px solid var(--cst-muted); transform: rotate(45deg);
+}
+.xm-air-how[open] > .xm-air-howtitle::after, .xm-air-fold[open] > .xm-air-howtitle::after { margin-bottom: -4px; transform: rotate(-135deg); }
+.xm-air-howlist { display: grid; gap: 4px; margin: 0 0 var(--space-2); }
+.xm-air-howlist dt { margin-top: var(--space-2); font-size: 14px; font-weight: 700; color: var(--cst-text); }
+.xm-air-howlist dd { margin: 0; color: var(--cst-muted); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.xm-air-how > .xm-air-line { padding-bottom: 14px; font-size: 13px; }
+
+.xm-air-tabs { --xm-tabs-top: 0px; }
+.xm-air-tabs .xm-wtab { min-height: 44px; }
+
+.xm-air-fans { display: flex; flex-direction: column; gap: var(--space-2); }
+.xm-air-fan { background: var(--cst-well); border-radius: 10px; overflow: hidden; }
+.xm-air-fantop {
+  appearance: none; display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 10px 16px;
+  font: inherit; color: inherit; text-align: start; background: none; border: 0; cursor: pointer;
+}
+.xm-air-fantop:hover { background: var(--cst-on); }
+.xm-air-fantop .xm-ic { flex: none; width: 22px; height: 22px; color: var(--cst-muted); }
+.xm-air-fantop .xm-sub.xm-tone-warn { color: var(--color-warn); }
+.xm-air-speed { flex: none; color: var(--cst-muted); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: end; }
+.xm-air-by {
+  flex: none; min-width: 52px; padding: 3px 8px; border-radius: 6px; text-align: center;
+  font-size: 12.5px; font-weight: 700; color: var(--cst-muted); background: var(--cst-on);
+}
+.xm-air-by.is-xenon { color: var(--cst-key-ink); background: var(--cst-key); }
+.xm-air-fan.is-open .xm-air-fantop { background: var(--cst-on); }
+.xm-air-fanrows { border-radius: 0; background: none; }
+/* Empty headers: one closed well under the fans; their cards sit on the well itself. */
+.xm-air-emptyfans > .xm-air-fan { margin-top: var(--space-2); }
+.xm-air-emptyfans[open] { padding-bottom: 12px; }
+.xm-air-emptyfans .xm-air-fan { background: var(--cst-sheet); }
+
+/* A phone: the speed goes under the name, the badge stays in reach. */
+@media (max-width: 480px) {
+  .xm-air-fantop { flex-wrap: wrap; row-gap: 4px; }
+  .xm-air-fantop .xm-words { flex-basis: calc(100% - 100px); }
+  .xm-air-speed { order: 3; flex-basis: 100%; padding-inline-start: 36px; text-align: start; }
+  .xm-air-steplist { font-size: 12px; }
+}

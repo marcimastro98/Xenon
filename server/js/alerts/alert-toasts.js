@@ -88,6 +88,19 @@
     return text ? { type: 'warning', kicker: 'Guardian', title: text, message: '' } : null;
   }
 
+  // Airflow raised the fans enough to be heard (rise.js, SSE `airflow_rise`): a short title, why in the Fans menu's words, in
+  // one sentence naming the program when the server found one that fits (rise-cause.js); `onOpen`'s button lets it take 4 lines.
+  const AIRFLOW_RISE_REASONS = Object.freeze(['hot', 'impossible', 'game-prepare', 'heat-gpu', 'heat-cpu']);
+  const AIRFLOW_NAMED = Object.freeze({ 'heat-cpu': 'cpu', 'heat-gpu': 'game', 'game-prepare': 'game' });
+  function airflowRise(d, ctx, onOpen) {
+    const key = d && AIRFLOW_RISE_REASONS.includes(d.reason) ? d.reason.split('-').join('_') : '';
+    const a = key && AIRFLOW_NAMED[d.reason] ? appOf(d, ctx) : null;
+    const named = a && a.kind === AIRFLOW_NAMED[d.reason] ? tr(ctx, 'airflow_rise_why_' + key, '') : '';
+    const message = named ? appText(a, named) : key && tr(ctx, 'airflow_why_' + key, '');
+    const actions = typeof onOpen === 'function' ? [{ label: tr(ctx, 'airflow_rise_open', 'Open Fans'), primary: true, onClick: onOpen }] : [];
+    return message ? { type: d.reason === 'hot' ? 'warning' : 'info', kicker: tr(ctx, 'xmenu_sec_airflow', 'Fans'), title: tr(ctx, 'airflow_rise_title', 'The fans are speeding up'), message, actions } : null;
+  }
+
   // Bit's vitals popup where no PowerShell window can draw it (macOS, Linux:
   // server/vitals/vitals-nag.js). It stays as long as the server says, never past it.
   const VITALS_MAX_MS = 15000;
@@ -103,21 +116,12 @@
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
     return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0') : m + ':' + String(sec).padStart(2, '0');
   }
+  const timerCard = (title, message, ctx) => ({ type: 'timer', kicker: tr(ctx, 'timer_title', 'Timer'), title, message });
   function timerDone(label, ctx) {
-    return {
-      type: 'timer',
-      kicker: tr(ctx, 'timer_title', 'Timer'),
-      title: label || 'Timer',
-      message: tr(ctx, 'timer_done_alert', "Time's up!"),
-    };
+    return timerCard(label || 'Timer', tr(ctx, 'timer_done_alert', "Time's up!"), ctx);
   }
   function timerChime(label, every, ctx) {
-    return {
-      type: 'timer',
-      kicker: tr(ctx, 'timer_title', 'Timer'),
-      title: label || 'Stopwatch',
-      message: tr(ctx, 'timer_chime_alert', 'every {n}').replace('{n}', clock(every)),
-    };
+    return timerCard(label || 'Stopwatch', tr(ctx, 'timer_chime_alert', 'every {n}').replace('{n}', clock(every)), ctx);
   }
 
   // A calendar reminder (SSE calendar_reminder). `when` formats the start in
@@ -230,17 +234,17 @@
     return fill(tr(ctx, 'why_' + reason, STUTTER_FALLBACK[reason][0]), d || {});
   }
 
-  // The program that weighs on the PC (server/perf-session/culprit.js, `app` on the
-  // answer and on the perf reading's `why`): its name, and how much of the processor
-  // (%) or of the memory (GB) it uses. Null when there is none.
+  // The program behind an answer (`app`; perf-session/culprit.js on a stutter answer and the perf reading's `why`,
+  // airflow/rise-cause.js on a climb of the fans): its name and its share of the processor (%) or memory (GB), or the game.
   const STUTTER_APP_FALLBACK = Object.freeze({
     cpu: '{app} is using {cpu}% of the processor. Close it if you do not need it while you play.',
     ram: '{app} is holding {ram} GB of memory. Close it if you do not need it while you play.',
   });
-  function stutterAppOf(d, ctx) {
+  function appOf(d, ctx) {
     const a = d && d.app;
-    if (!a || typeof a.name !== 'string' || !a.name) return null;
-    const name = a.name.slice(0, 40);
+    const name = a && typeof a.name === 'string' ? a.name.trim().slice(0, 40) : '';
+    if (!name) return null;
+    if (a.game === true) return { name, kind: 'game', amount: '' };
     let amount = '';
     try {
       const page = typeof document !== 'undefined' && document.documentElement ? document.documentElement.lang : '';
@@ -250,16 +254,15 @@
     } catch { amount = ''; }
     return amount ? { name, kind: 'ram', amount } : null;
   }
+  const appText = (a, text) => text.replace(/\{(app|cpu|ram)\}/g, (_, k) => (k === 'app' ? a.name : a.amount));
   // The tile's short form, after the reason: "videoencoder 15%", "browser 3.3 GB".
   function stutterAppShort(d, ctx) {
-    const a = stutterAppOf(d, ctx);
-    return a ? a.name + ' ' + a.amount + (a.kind === 'cpu' ? '%' : ' GB') : '';
+    const a = appOf(d, ctx);
+    return a && a.kind !== 'game' ? a.name + ' ' + a.amount + (a.kind === 'cpu' ? '%' : ' GB') : '';
   }
   function stutterAppTip(d, ctx) {
-    const a = stutterAppOf(d, ctx);
-    if (!a) return '';
-    return tr(ctx, 'why_app_' + a.kind + '_tip', STUTTER_APP_FALLBACK[a.kind])
-      .replace(/\{(app|cpu|ram)\}/g, (_, k) => (k === 'app' ? a.name : a.amount));
+    const a = appOf(d, ctx);
+    return a && STUTTER_APP_FALLBACK[a.kind] ? appText(a, tr(ctx, 'why_app_' + a.kind + '_tip', STUTTER_APP_FALLBACK[a.kind])) : '';
   }
   function stutterWhy(d, ctx) {
     if (!d || typeof d !== 'object' || d.ok !== true || !STUTTER_REASONS.includes(d.reason)) return null;
@@ -325,12 +328,9 @@
   function perfNoteText(note, ctx) {
     const n = note && typeof note === 'object' ? note : {};
     const key = Object.prototype.hasOwnProperty.call(PERF_NOTE_KEYS, n.key) ? n.key : 'perf_status_optimized';
-    let text = tr(ctx, key, PERF_NOTE_KEYS[key]);
-    if (key === 'perf_auto_on') {
-      const a = String(n.activity || '');
-      text = text.replace('{a}', tr(ctx, 'settings_perf_act_' + a, a));
-    }
-    return text;
+    const text = tr(ctx, key, PERF_NOTE_KEYS[key]);
+    const a = String(n.activity || '');
+    return key === 'perf_auto_on' ? text.replace('{a}', tr(ctx, 'settings_perf_act_' + a, a)) : text;
   }
 
   function perfNote(note, kind, ctx) {
@@ -388,5 +388,5 @@
     };
   }
 
-  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, stutterAppShort, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS, fpsAccess, gameGuess, gameGuessDone };
+  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, airflowRise, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, stutterAppShort, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS, fpsAccess, gameGuess, gameGuessDone };
 });

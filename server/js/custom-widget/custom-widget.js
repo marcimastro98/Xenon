@@ -22,6 +22,7 @@
   const { t, langCode, tempUnit, hwTempUnit } = window.CustomWidgetHostSays;
   const el = makeEl;   // shared DOM factory from utils.js
   const api = apiJson; // shared fetch-JSON helper from utils.js
+  const Readers = window.CustomWidgetStreamReaders;  // what a widget sees of a pulled reply
 
   const { ensure, showState, showBarOnly } = window.CustomWidgetTileBody({ ICONS, el });
 
@@ -59,6 +60,7 @@
     gallery: ['gallery'],
     layers: ['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion'],
     performance: ['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory'],
+    fans: ['airflowMode'],
   };
   // Fields a widget may set on those types (server/sdk-widgets.js
   // SDK_ACTION_LIMITS): a capture START only, never 'reveal', replay on/off or
@@ -83,10 +85,11 @@
     screenColor: { cancelled: 'boolean', picking: 'boolean' },
     screenMeasure: { cancelled: 'boolean', picking: 'boolean' },
     screenDraw: { drawing: 'boolean' },
-    xenonMenu: { where: ['screen', 'dashboard', 'closed'], section: ['screens', 'now', 'capture', 'keys'] },
+    xenonMenu: { where: ['screen', 'dashboard', 'closed'], section: ['screens', 'now', 'airflow', 'capture', 'keys'] },
     gameMode: { gameMode: 'boolean' },
     sensorHistory: { enabled: 'boolean', everyMin: 'number' },
     gameIgnore: { added: 'flag' },
+    airflowMode: { mode: ['auto', 'quiet', 'balanced', 'cool', 'pc'] },
   };
   function actionResultExtras(type, res) {
     const fields = Object.hasOwn(ACTION_RESULT_FIELDS, type) ? ACTION_RESULT_FIELDS[type] : null;
@@ -227,30 +230,10 @@
         reclaimable: Number(d.reclaimable) || 0,
       };
     } }),
-    // How the way to the internet is doing, stretch by stretch (server/net-path/):
-    // the link, the router, the provider's first hop, the internet. The first read
-    // starts one echo a second per stretch and they stop 10 s after the last, so
-    // only a granted widget on screen keeps them going. Rebuilt field by field:
-    // whatever else the server may add never reaches a widget.
-    netPath: Object.freeze({ ttl: 1000, load: async () => {
-      const d = await api('/api/net-path');
-      if (!d || typeof d !== 'object' || d.ok !== true) {
-        return { ok: false, error: d && (d.error === 'not_granted' || d.error === 'unavailable') ? d.error : 'failed' };
-      }
-      const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-      const stretch = (s) => (s && typeof s === 'object' ? {
-        now: num(s.now), ms: num(s.ms), min: num(s.min), jitter: num(s.jitter),
-        loss: num(s.loss), lossNow: num(s.lossNow), n: num(s.n) || 0,
-      } : null);
-      const t = d.traffic && typeof d.traffic === 'object' ? d.traffic : null;
-      return {
-        ok: true,
-        link: ['wifi', 'wired', 'mobile', 'vpn'].includes(d.link) ? d.link : null,
-        linkMbps: num(d.linkMbps), signal: num(d.signal), dbm: num(d.dbm),
-        router: stretch(d.router), provider: stretch(d.provider), internet: stretch(d.internet),
-        traffic: t ? { downBps: num(t.downBps), upBps: num(t.upBps) } : null,
-      };
-    } }),
+    // How the way to the internet is doing, stretch by stretch (server/net-path/). The first
+    // read starts one echo a second per stretch and they stop 10 s after the last, so only a
+    // granted widget on screen keeps them going. Rebuilt field by field (stream-readers.js).
+    netPath: Object.freeze({ ttl: 1000, load: async () => Readers.netPath(await api('/api/net-path')) }),
     // What this PC drew, from the sensor history (server/sensor-history/):
     // Wh per hour for 72 h and per day for 90 days, by source (cpu, gpu and
     // psu, the power supply's own figure for the whole PC) with the seconds
@@ -279,6 +262,9 @@
         days: points(d.days),
       };
     } }),
+    // How the fans are (server/airflow/), while a granted widget is on screen, as often as the
+    // Fans section reads it. Rebuilt field by field (stream-readers.js).
+    airflow: Object.freeze({ ttl: 2000, load: async () => Readers.airflow(await api('/airflow')) }),
     network: Object.freeze({ ttl: 1500, load: async () => {
       const d = await api('/network');
       if (!d || typeof d !== 'object') return { ok: false, interfaces: [] };

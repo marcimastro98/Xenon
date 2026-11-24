@@ -31,7 +31,7 @@ const KIND_OF_CODE = new Map(Object.entries({
 
 // Where the readings come from; tests put their own in.
 const sources = {
-  airflow: () => null,
+  airflow: () => require('../airflow/index.js').loop.status(),
   getWeather: (lang) => require('../weather/get-weather.js').getWeather(lang),
 };
 let weatherAsked = -Infinity;

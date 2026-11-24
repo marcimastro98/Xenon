@@ -1,0 +1,42 @@
+name: Nix package
+
+# The flake on a real Linux runner: builds the package from the release .deb in
+# nix/source.json and boots a NixOS virtual machine where an ordinary user places
+# the engine and gets an answer from it (nix/engine-test.nix). Runs when the
+# package changes, which includes tools/nix/bump.mjs pointing it at a new release.
+# No secrets, nothing published.
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'nix/**'
+      - '.github/workflows/nix.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false   # no token left in .git/config for later steps
+      - name: Let the NixOS test use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: cachix/install-nix-action@bb0495a1086c46893eee56f32fd192dfe4a15bb9 # v32.0.0
+        with:
+          extra_nix_config: |
+            system-features = nixos-test benchmark big-parallel kvm
+      - name: Build the package and run the NixOS test
+        run: nix flake check -L

@@ -269,9 +269,10 @@ Prefer no app? Download the **Source code (zip)** from [Releases](https://github
 
 > **Beta.** Same as macOS above: the dashboard and everything on it is identical, and what differs is the part that reads the machine. The [table below](#platform-support) is the exact list.
 
-Two ways, same result.
+Three ways, same result.
 
-- **The app:** download **[Xenon-Linux-x86_64.AppImage](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage)** (`chmod +x` it and run it) or **[Xenon-Linux-x86_64.deb](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb)**. Like macOS, the first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. The package deliberately does **not** install it for you: everything it would create belongs to one user account, and a package installs as root for the whole machine.
+- **The app:** download **[Xenon-Linux-x86_64.AppImage](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage)** (`chmod +x` it and run it) or **[Xenon-Linux-x86_64.deb](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb)**. The first launch sets the dashboard up in your home folder by itself, with its progress on the splash screen. The package deliberately does **not** install it for you: everything it would create belongs to one user account, and a package installs as root for the whole machine.
+- **Nix or NixOS:** `nix run github:marcimastro98/Xenon` tries it; to keep it, add `inputs.xenon.url = "github:marcimastro98/Xenon";` to your flake and `xenon.packages.x86_64-linux.default` to your packages. Its license is not a free one, and the flake allows it for this one package only. Nix owns the app: it updates when you update the flake input, while the dashboard inside keeps updating itself as everywhere else. On NixOS, the screen capture helper Xenon downloads when you first use capture needs `programs.nix-ld.enable = true;`.
 - **Browser only:** download the **Source code (zip)** from [Releases](https://github.com/marcimastro98/Xenon/releases/latest), extract it, and run `./INSTALL.sh` in the folder.
 
 The installer registers a `systemd --user` service so Xenon starts when you log in, and falls back to an XDG autostart entry where there is no user manager (saying so, including that the fallback has no crash-restart). It also lists the optional tools you do not have:

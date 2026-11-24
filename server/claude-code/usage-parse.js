@@ -11,6 +11,18 @@ const MAX_PROMPT_LINE_CHARS = 200 * 1024;
 
 const MAX_TASK_CHARS = 160;              // truncate the "what it's working on" prompt
 
+// Every record of a session repeats the same model and branch: kept as one string each rather
+// than a copy per record. Capped, so a run of odd values cannot grow it without end.
+const ONE_COPY_MAX = 512;
+const oneCopies = new Map();
+function oneCopy(v) {
+  const s = String(v || '');
+  const kept = oneCopies.get(s);
+  if (kept !== undefined) return kept;
+  if (oneCopies.size < ONE_COPY_MAX) oneCopies.set(s, s);
+  return s;
+}
+
 function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
 // A user line is the human prompt when its content is plain text — tool results
@@ -60,13 +72,13 @@ function parseChunk(text, byKey, state) {
     byKey.set(key, {
       k: key,
       t,
-      model: String((msg && msg.model) || ''),
+      model: oneCopy(msg && msg.model),
       // The project is the SESSION's: where it started (the first cwd in the
       // file), filled in after parsing. A session that cd's into a subfolder
       // used to be split into two "projects" named after folders.
       proj: '',
       projPath: '',
-      branch: String(d.gitBranch || ''),
+      branch: oneCopy(d.gitBranch),
       in: num(usage.input_tokens),
       out: num(usage.output_tokens),
       cc: num(usage.cache_creation_input_tokens),

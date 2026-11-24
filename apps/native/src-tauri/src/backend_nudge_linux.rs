@@ -25,6 +25,7 @@ pub(crate) fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
     let config = app.path().config_dir().ok();
     let handle = app.clone();
     std::thread::spawn(move || {
+        engine_install::keep_runtime_linked(&handle);
         if backend_answers(port) {
             return;
         }

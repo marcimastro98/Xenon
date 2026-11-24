@@ -20,7 +20,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const SERVICE_NAME = 'Xenon Sensors';
-const SCRIPTS = ['sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1'];
+const SCRIPTS = ['sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1', 'fan-hands.ps1', 'fan-hands-lhm.ps1'];
 const ALIVE_MS = 60000;      // the service writes its heartbeat every 15 s
 const FRESH_MS = 15000;      // a reading older than this is not shown as current
 const STALE_OK_MS = 60000;   // ...but bridges the seconds the service takes to wake
@@ -31,6 +31,26 @@ const MAX_FILE_BYTES = 2 * 1024 * 1024;
 // no reason to offer the "Enable sensors" button.
 const WAKING = Object.freeze({ cpuTemp: null, cpuTempSource: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: 'ok' });
 
+/** A reading the service wrote ({ at, data }), as long as it is recent: its data, or null. */
+function freshData(o, maxAgeMs, nowMs) {
+  if (!o || !Number.isFinite(o.at) || nowMs - o.at > maxAgeMs || !o.data || typeof o.data !== 'object') return null;
+  return o.data;
+}
+
+/**
+ * A JSON object from a file the service wrote; null when it is missing, not a file, over
+ * MAX_FILE_BYTES, broken or not an object.
+ * @param {string} file @param {typeof fs.promises} [fsp] @returns {Promise<Record<string, any>|null>}
+ */
+async function readJsonFile(file, fsp = fs.promises) {
+  try {
+    const st = await fsp.stat(file);
+    if (!st.isFile() || st.size > MAX_FILE_BYTES) return null;
+    const o = JSON.parse(await fsp.readFile(file, 'utf8'));
+    return o && typeof o === 'object' ? o : null;
+  } catch { return null; }
+}
+
 function createSensorService({ env = process.env, serverDir = path.join(__dirname, '..'), platform = process.platform, now = Date.now, fsp = fs.promises } = {}) {
   const enabled = platform === 'win32' && !!env.ProgramData;
   const readingsDir = path.join(env.ProgramData || 'C:\\ProgramData', SERVICE_NAME);
@@ -40,15 +60,7 @@ function createSensorService({ env = process.env, serverDir = path.join(__dirnam
   let localHash;
   let lastCpu = null;
 
-  async function readJson(leaf) {
-    try {
-      const file = path.join(readingsDir, leaf);
-      const st = await fsp.stat(file);
-      if (!st.isFile() || st.size > MAX_FILE_BYTES) return null;
-      const o = JSON.parse(await fsp.readFile(file, 'utf8'));
-      return o && typeof o === 'object' ? o : null;
-    } catch { return null; }
-  }
+  const readJson = (/** @type {string} */ leaf) => readJsonFile(path.join(readingsDir, leaf), fsp);
 
   async function heartbeat() {
     if (!enabled) return null;
@@ -82,9 +94,7 @@ function createSensorService({ env = process.env, serverDir = path.join(__dirnam
 
   // A reading the service wrote, as long as it is recent: { data } or null.
   async function reading(leaf, maxAgeMs) {
-    const o = await readJson(leaf);
-    if (!o || !Number.isFinite(o.at) || now() - o.at > maxAgeMs || !o.data || typeof o.data !== 'object') return null;
-    return o.data;
+    return freshData(await readJson(leaf), maxAgeMs, now());
   }
 
   // cpu-temp.ps1's answer from the service, or null when the service is not there.
@@ -122,11 +132,11 @@ function createSensorService({ env = process.env, serverDir = path.join(__dirnam
     return { running: true, outdated: !!mine && typeof beat.hash === 'string' && beat.hash !== mine };
   }
 
-  return { cpu, mergeSensors, state, readingsDir, wantDir, wantFile };
+  return { cpu, mergeSensors, state, reading, readingsDir, wantDir, wantFile };
 }
 
 // The one the engine uses: server.js reads through it, routes.js reports its state.
 let shared = null;
 const instance = () => (shared = shared || createSensorService());
 
-module.exports = { createSensorService, instance, SERVICE_NAME, SCRIPTS };
+module.exports = { createSensorService, instance, freshData, readJsonFile, SERVICE_NAME, SCRIPTS, MAX_FILE_BYTES };

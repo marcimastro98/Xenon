@@ -7,6 +7,8 @@
 //   MENU_LANGS=it,de  MENU_SIZES=phone,edge  narrow the sweep (MENU_LANGS takes any of the app's languages).
 //   MENU_FIND=posizione  adds a picture of the search for that text (menu rows and Settings rows).
 // The pump card's picture is the real pump page, served by tools/pump-face-shots next to the menu.
+//   MENU_AIRFLOW=new  shows the Fans section before the fan check instead of a PC Xenon drives;
+//   MENU_AIRFLOW=hub  the same with an iCUE LINK hub Xenon may not use yet.
 
 import { createServer } from 'node:http';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -15,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPlaywright } from '../toast-gallery/shoot.mjs';
-import { DESKS, LOOK, PUMP_COLORS, PUMP_LEDS, PUMP_SCREEN, PUMP_STYLE, menuState } from './fixture.mjs';
+import { AIRFLOW, DESKS, LOOK, PUMP_COLORS, PUMP_LEDS, PUMP_SCREEN, PUMP_STYLE, menuState } from './fixture.mjs';
 import { createPumpFaceHandler } from '../pump-face-shots/server.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -61,6 +63,7 @@ export function startMenuServer(lang, desk = DESKS[process.env.MENU_DESK] || DES
       else if (p === '/screen-menu') json(res, { open: true, section: 'screens' });
       else if (p === '/xenon-menu') json(res, { ...Menu.compose(menuState({ monitors: desk.monitors })), altGrKeys: [] });
       else if (p === '/api/remote-access/status') json(res, { devices: desk.phones });
+      else if (p === '/airflow') json(res, { ok: true, ...AIRFLOW });
       else {
         const file = p.startsWith('/shared/') ? inside(CORE_DIR, p.slice('/shared'.length)) : inside(SERVER_DIR, p);
         if (!file) { res.writeHead(404); res.end(); return; }
@@ -84,7 +87,7 @@ async function problems(page) {
     const out = [];
     const doc = document.scrollingElement;
     if (doc.scrollWidth > doc.clientWidth + 1) out.push(`page scrolls sideways (${doc.scrollWidth} > ${doc.clientWidth})`);
-    for (const el of document.querySelectorAll('.xm-scrname, .xm-wtab-name, .xm-wtab-value, .xm-sceneopt-name, .xm-scrchip, .xm-scrphone')) {
+    for (const el of document.querySelectorAll('.xm-scrname, .xm-wtab-name, .xm-wtab-value, .xm-sceneopt-name, .xm-scrchip, .xm-scrphone, .xm-air-title, .xm-air-fan')) {
       const r = el.getBoundingClientRect();
       if (!r.width || getComputedStyle(el).textOverflow === 'ellipsis') continue;
       if (el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0) out.push(`cut: ${el.className || el.tagName} "${el.textContent.trim().slice(0, 30)}"`);
@@ -137,7 +140,14 @@ async function main() {
               return ['pump-lights-' + name, async () => { const r = page.locator(`[data-row="${row}"]`); if (await r.count()) await r.scrollIntoViewIfNeeded(); }];
             }),
             ['pump-lights-line', async () => { await page.locator('[data-keep="pump-ring-base:head"]').click(); await page.locator('[data-row="pump-ring-base"]').scrollIntoViewIfNeeded(); }],
-            ['pump-look', () => page.locator('.xm-wtab[data-keep$=":look"]').click()]];
+            ['pump-look', () => page.locator('.xm-wtab[data-keep$=":look"]').click()],
+            ['fans', async () => { await page.locator('.xm-nav-btn[data-section="airflow"]').first().click(); await page.waitForSelector('.xm-air-tabs', { timeout: 8000 }); }],
+            // The top of Fans: what it found, the first steps, how Airflow thinks.
+            ['fans-top', () => page.locator('.xm-air-head').evaluate((n) => n.scrollIntoView({ block: 'start' }))],
+            ['fans-list', () => page.locator('.xm-air-tabs .xm-wtab').nth(1).click()],
+            // The headers with nothing plugged in, opened (when the fixture has any).
+            ['fans-empty', async () => { const s = page.locator('.xm-air-emptyfans summary'); if (await s.count()) { await s.click(); await s.evaluate((n) => n.scrollIntoView({ block: 'start' })); } }],
+            ...['fans-health', 'fans-options'].map((name, i) => [name, () => page.locator('.xm-air-tabs .xm-wtab').nth(i + 2).click()])];
           if (process.env.MENU_FIND) shots.push(['find', async () => { await page.locator('.xm-find').fill(process.env.MENU_FIND); await page.waitForTimeout(600); }]);
           for (const [name, step] of shots) {
             if (step) { await step(); await page.waitForTimeout(250); }

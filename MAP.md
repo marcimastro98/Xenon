@@ -88,6 +88,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 | **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/spotlight-ask/**` `server/spotlight-hotkey/**` `server/search.ps1` `server/spotlight.html` `server/js/spotlight/**` and 3 more |
 | **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/ffmpeg-install/**` `server/js/capture-toast/**` `server/js/capture-gallery/**` `server/components/CaptureGallery/**` `server/js/capture/**` |
 | **Pump screens** | The LCD on an AIO pump: faces by moment and alert, Store faces, its ring; shown by iCUE, NZXT CAM or Xenon over USB. | `server/pump-screen/**` `server/pump-face.html` `server/pump-widget.html` `server/js/pump/**` `server/components/PumpFace/**` `server/menu/menu-pump*.js` and 6 more |
+| **Airflow (fan control)** | Xenon drives the PC's fans: fan check, brain, safety rules, the hands, a held LINK hub's lights, Xenon → Fans. | `server/airflow/**` `server/fan-hands.ps1` `server/fan-hands-lhm.ps1` `server/js/airflow/**` `server/menu/menu-airflow*.js` `server/js/menu/xenon-menu-airflow*.js` and 6 more |
 | **Xenon menu** | The menu over the desktop and Xenon's first pages: screens, capture, keys, Store. Its page list is Settings' rail too. | `server/menu/**` `server/menu.html` `server/components/XenonMenu/**` `server/js/menu/**` |
 | **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layers/**` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layers-shell/**` `server/components/LayerHost/**` and 1 more |
 | **Alerts and drawing** | Notifications at the top centre of the screen, and drawing over the screen. | `server/alerts/**` `server/screen-alerts.html` `server/draw.html` `server/components/ScreenAlerts/**` `server/components/ScreenDraw/**` `server/components/Toast/**` and 1 more |
@@ -122,6 +123,7 @@ The native programs around the engine, and the code that differs per operating s
 |---|---|---|
 | **Per-system readers** | What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact. | `server/platform/**` `server/session-watch.ps1` |
 | **The app** | The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop. | `apps/native/**` |
+| **Nix package** | The flake that installs the Linux app on Nix and NixOS from the release .deb, its NixOS test and its bump tool. | `flake.nix` `flake.lock` `nix/**` `tools/nix/**` |
 | **The capture program** | A Rust program for screenshots and recordings with the system's own capture; the engine starts it when needed. | `apps/capture/**` `tools/build-capture.mjs` |
 | **Helper for Windows** | A small C# program for media, windows, audio levels and the file index. | `helper/**` |
 | **Helper for macOS** | The same helper in Swift, speaking the same protocol. | `helper-mac/**` |

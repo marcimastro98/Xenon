@@ -17,6 +17,7 @@ const FEATURES = Object.freeze([
   require('./screens-off/routes.js'),
   require('./trial-link/routes.js'),
   require('./pump-screen/routes.js'),
+  require('./airflow/routes.js'),
   require('./lights/routes-icue-import.js'),
 ]);
 
@@ -151,11 +152,14 @@ async function run(method, path, req, res, ctx, engine) {
 const STARTED_AT_START_UP = () => [require('./install/sign-in-open.js')];
 
 // At shutdown each feature stops what it started; one that throws does not
-// keep the others running.
+// keep the others running. Answers once the slow ones are done (Airflow hands the
+// fans back to the PC): the exit path waits for it with the other flushes.
 function stop() {
+  const slow = [];
   for (const f of [...FEATURES, ...STARTED_AT_START_UP()]) {
-    try { if (typeof f.stop === 'function') f.stop(); } catch { /* best effort at shutdown */ }
+    try { if (typeof f.stop === 'function') slow.push(Promise.resolve(f.stop()).catch(() => {})); } catch { /* best effort at shutdown */ }
   }
+  return Promise.all(slow);
 }
 
 module.exports = { has, run, stop, loadTables, tableRoutes, keys: () => [...ROUTES.keys()], tableKeys: () => [...TABLES.keys()] };

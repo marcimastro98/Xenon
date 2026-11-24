@@ -48,6 +48,27 @@ pub fn after_copy(root: &Path) -> io::Result<()> {
     super::posix::make_runtime_executable(root)
 }
 
+/// Points the engine's runtime folder at the package's own (managed.rs), and
+/// says whether it had to change anything. A link already there is swapped in
+/// one rename, so the login entry never finds the folder missing; a copied
+/// folder (an install from before the package) is removed first, which a
+/// running engine survives: Linux keeps its open files until it exits.
+pub fn link_runtime(src: &Path, root: &Path) -> io::Result<bool> {
+    let target = src.canonicalize()?;
+    let dst = root.join(super::RUNTIME_DIR);
+    if std::fs::read_link(&dst).is_ok_and(|now| now == target) {
+        return Ok(false);
+    }
+    if std::fs::symlink_metadata(&dst).is_ok_and(|meta| meta.is_dir()) {
+        std::fs::remove_dir_all(&dst)?;
+    }
+    let fresh = root.join(format!("{}.link", super::RUNTIME_DIR));
+    let _ = std::fs::remove_file(&fresh);
+    std::os::unix::fs::symlink(&target, &fresh)?;
+    std::fs::rename(&fresh, &dst)?;
+    Ok(true)
+}
+
 fn node(root: &Path) -> PathBuf {
     root.join(super::RUNTIME_DIR).join("bin/node")
 }

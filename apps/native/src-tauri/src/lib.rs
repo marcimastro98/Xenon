@@ -84,6 +84,7 @@ pub fn uninstall() -> i32 {
 }
 #[cfg(windows)]
 mod login_task;
+mod managed;
 mod memory_level;
 mod monitor;
 mod monitor_names;

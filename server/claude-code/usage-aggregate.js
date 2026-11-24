@@ -4,7 +4,7 @@
 
 const os = require('node:os');
 const path = require('node:path');
-const { recordCost } = require('./usage-pricing.js');
+const { recordCost, priceForModel } = require('./usage-pricing.js');
 
 const LIVE_WINDOW_MS = 4 * 60 * 1000;    // a session counts as "running now" if it wrote this recently
 const HISTORY_DAYS = 30;                 // days exposed in the daily-usage series
@@ -33,6 +33,32 @@ function startOfLocalDay(now) {
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
+}
+
+// The local midnights that open each of the last `days` days, oldest first, and the one that
+// ends today: counted on the calendar, so a day of 23 or 25 hours (a clock change) keeps its date.
+function dayStartsBack(dayStart, days) {
+  const at = (i) => { const d = new Date(dayStart); d.setDate(d.getDate() + i); return d.getTime(); };
+  const starts = [];
+  for (let i = -(days - 1); i <= 0; i++) starts.push(at(i));
+  return { starts, end: at(1) };
+}
+
+// Which of those days holds `t`: a guess by whole days, put right across a clock change, so the
+// tens of thousands of records of a pass make no date or string each (24 Nov 2026: a third of
+// the 35 MB a pass made on a heavy user's PC).
+function dayIndex(starts, t) {
+  let i = Math.min(starts.length - 1, Math.max(0, Math.floor((t - starts[0]) / 86400000)));
+  while (i < starts.length - 1 && t >= starts[i + 1]) i++;
+  while (i > 0 && t < starts[i]) i--;
+  return i;
+}
+
+// A lookup done once per distinct input in a pass: the records of a pass name a few projects and
+// models tens of thousands of times.
+function once(fn) {
+  const known = new Map();
+  return (x) => { let v = known.get(x); if (v === undefined) { v = fn(x); known.set(x, v); } return v; };
 }
 
 function newBucket() { return { tokens: 0, cost: 0, in: 0, out: 0, cc: 0, cr: 0, reqs: 0, ws: 0, wf: 0 }; }
@@ -84,7 +110,10 @@ function addTo(b, r, tokens, cost) {
 function aggregate(fileCache, now) {
   const weekStart = weekStartMs(now);
   const dayStart = startOfLocalDay(now);
-  const historyCutoff = dayStart - (HISTORY_DAYS - 1) * 86400000;
+  const days = dayStartsBack(dayStart, HISTORY_DAYS);
+  const historyCutoff = days.starts[0];
+  const keyOfProject = once(projectKey);
+  const ratesOf = once(priceForModel);
 
   const total = newBucket();    // everything retained on disk (only for the change signature)
   const win = newBucket();      // the last HISTORY_DAYS days: what the analytics describe
@@ -92,8 +121,8 @@ function aggregate(fileCache, now) {
   const weekB = newBucket();
   const byProject = new Map();  // project key → { path, bucket } (window)
   const byModel = new Map();    // model → bucket (window)
-  const byDay = new Map();      // 'YYYY-MM-DD' → tokens (window)
-  const byDayCr = new Map();    // 'YYYY-MM-DD' → cache-read tokens (window)
+  const byDay = new Array(HISTORY_DAYS).fill(0);    // tokens per day of the window, oldest first
+  const byDayCr = new Array(HISTORY_DAYS).fill(0);  // cache-read tokens per day
   let latest = null;            // most recent record (drives "live now")
   let firstInWindow = 0;        // oldest record inside the window: "since" on screen
   // A resumed or forked session repeats requests the original transcript already
@@ -104,7 +133,7 @@ function aggregate(fileCache, now) {
     for (const r of entry.records) {
       if (r.k) { if (seen.has(r.k)) continue; seen.add(r.k); }
       const tokens = r.in + r.out + r.cc + r.cr;
-      const cost = recordCost(r);
+      const cost = recordCost(r, ratesOf(r.model));
       addTo(total, r, tokens, cost);
       if (r.t >= weekStart) addTo(weekB, r, tokens, cost);
       if (r.t >= dayStart) addTo(todayB, r, tokens, cost);
@@ -113,7 +142,7 @@ function aggregate(fileCache, now) {
 
       addTo(win, r, tokens, cost);
       if (!firstInWindow || r.t < firstInWindow) firstInWindow = r.t;
-      const pk = projectKey(r.projPath || r.proj);
+      const pk = keyOfProject(r.projPath || r.proj);
       const pe = byProject.get(pk) || { path: r.projPath || r.proj, bucket: newBucket() };
       addTo(pe.bucket, r, tokens, cost); byProject.set(pk, pe);
 
@@ -123,20 +152,17 @@ function aggregate(fileCache, now) {
       const mdl = byModel.get(modelKey) || newBucket();
       addTo(mdl, r, tokens, cost); byModel.set(modelKey, mdl);
 
-      const k = localDayKey(r.t);
-      byDay.set(k, (byDay.get(k) || 0) + tokens);
-      byDayCr.set(k, (byDayCr.get(k) || 0) + r.cr);
+      // A record stamped after today (a clock set wrong) is in no day of the chart.
+      if (r.t >= days.end) continue;
+      const d = dayIndex(days.starts, r.t);
+      byDay[d] += tokens;
+      byDayCr[d] += r.cr;
     }
   }
 
   // Daily series over the last HISTORY_DAYS local days (oldest → newest), so the
   // widget can draw a fixed-length bar chart with gaps as zero.
-  const daily = [];
-  for (let i = HISTORY_DAYS - 1; i >= 0; i--) {
-    const key = localDayKey(dayStart - i * 86400000);
-    const tokens = byDay.get(key) || 0;
-    daily.push({ day: key, tokens, cacheRead: byDayCr.get(key) || 0 });
-  }
+  const daily = days.starts.map((start, i) => ({ day: localDayKey(start), tokens: byDay[i], cacheRead: byDayCr[i] }));
 
   const labels = projectLabels(Array.from(byProject.values()).map((e) => e.path));
   const topProjects = Array.from(byProject.values())
@@ -225,6 +251,6 @@ function aggregate(fileCache, now) {
 }
 
 module.exports = {
-  LIVE_WINDOW_MS, HISTORY_DAYS, localDayKey, weekStartMs, startOfLocalDay, newBucket, projectKey,
-  projectLabels, addTo, aggregate,
+  LIVE_WINDOW_MS, HISTORY_DAYS, localDayKey, weekStartMs, startOfLocalDay, dayStartsBack, dayIndex, newBucket,
+  projectKey, projectLabels, addTo, aggregate,
 };

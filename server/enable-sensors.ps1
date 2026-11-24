@@ -7,10 +7,10 @@
 # hand administrator rights to any program that changed a file there. Instead the
 # elevated step installs a small sensor service that only administrators can
 # change:
-#   - "%ProgramFiles%\Xenon Sensors": sensor-service.ps1, cpu-temp.ps1, sensors.ps1
+#   - "%ProgramFiles%\Xenon Sensors": the service's scripts ($ServiceFiles)
 #   - "%ProgramData%\Xenon Sensors": where the service writes its readings,
 #     created with SYSTEM and Administrators full control, Users read only; in
-#     its "want" folder this user may add files (the engine's "please read")
+#     its "want" and "fan" folders this user may add files (names the service reads)
 #   - the "Xenon Sensors" scheduled task: at this user's sign-in, as SYSTEM, so
 #     no console ever shows and nothing of the user's environment comes along
 #   - this user in Performance Log Users, so PresentMon reads FPS without
@@ -21,7 +21,7 @@
 # elevated (enabled before 5.1.0) is restarted through that task.
 #
 # The elevated PowerShell never runs a file it reads after the prompt. The
-# unelevated copy hashes the four scripts; the elevated one gets a short command
+# unelevated copy hashes the six scripts; the elevated one gets a short command
 # (-EncodedCommand) holding those hashes, reads each file ONCE into memory,
 # refuses any that changed, runs this script from those bytes and copies the
 # service files from the same bytes. Values travel as checked, quoted literals.
@@ -46,7 +46,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $utf8NoBom
 
 $ServiceTask = 'Xenon Sensors'
-$ServiceFiles = @('sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1')
+$ServiceFiles = @('sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1', 'fan-hands.ps1', 'fan-hands-lhm.ps1')
 # A local or domain account (S-1-5-21-...) or a Microsoft Entra one (S-1-12-1-...).
 $SidPattern = '^S-1-(5-21|12-1)(-\d{1,10}){4}$'
 # BUILTIN\Performance Log Users, by SID: its name changes with the language.
@@ -225,8 +225,8 @@ function Test-AdminOwned([string]$Path) {
 }
 
 # SYSTEM and Administrators full, Users read, nothing inherited; $Writer (the
-# user's SID) may also add files and write them, never folders or links.
-function New-FolderAcl([string]$Writer) {
+# user's SID) may also add files and use them as $FileRights says, never folders or links.
+function New-FolderAcl([string]$Writer, [string]$FileRights = 'Write') {
   $acl = New-Object Security.AccessControl.DirectorySecurity
   $acl.SetAccessRuleProtection($true, $false)
   $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier 'S-1-5-32-544'))
@@ -239,19 +239,18 @@ function New-FolderAcl([string]$Writer) {
   if ($Writer) {
     $sid = New-Object Security.Principal.SecurityIdentifier $Writer
     $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, 'CreateFiles', 'None', $none, 'Allow')))
-    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, 'Write', 'ObjectInherit', 'InheritOnly', 'Allow')))
+    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, $FileRights, 'ObjectInherit', 'InheritOnly', 'Allow')))
   }
   return $acl
 }
 
-# %ProgramData% lets every user create folders, and a folder made there by the
-# user would let them plant links inside. So the folder is made under a random
-# name with its rules from the first instant and renamed into place (a rename
-# never lands on something already there); one someone else made first is
-# removed, never trusted. One that is already ours is emptied: the service
-# writes everything again.
-function New-AdminFolder([string]$Path, [string]$Writer) {
-  $acl = New-FolderAcl $Writer
+# %ProgramData% lets every user create folders, and a folder made there by the user
+# would let them plant links inside. So the folder is made under a random name with
+# its rules from the first instant and renamed into place (a rename never lands on
+# something already there); one someone else made first is removed, never trusted.
+# One that is already ours is emptied: the service writes everything again.
+function New-AdminFolder([string]$Path, [string]$Writer, [string]$FileRights = 'Write') {
+  $acl = New-FolderAcl $Writer $FileRights
   for ($i = 0; $i -lt 3; $i++) {
     if (Test-Path -LiteralPath $Path) {
       $item = Get-Item -LiteralPath $Path -Force
@@ -324,6 +323,7 @@ function Install-SensorService([string]$Sid) {
   $readings = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)) $ServiceTask
   New-AdminFolder $readings $null
   New-AdminFolder (Join-Path $readings 'want') $Sid
+  New-AdminFolder (Join-Path $readings 'fan') $Sid 'Write, Delete'   # the engine deletes its old fan commands
   Register-SensorTask $pfDir $account
   Write-FpsAccess $readings $Sid (Add-FpsReader $Sid $account)
   & $schtasks /Run /TN $ServiceTask 2>&1 | Out-Null

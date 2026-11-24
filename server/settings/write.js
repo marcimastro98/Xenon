@@ -12,6 +12,7 @@ const { UPLOADS_DIR } = require('../engine/uploads-dir.js');
 const storeSnapshots = require('../store-catalog/store-snapshots.js');
 const { writeFileAtomic } = require('../files/atomic-write.js');
 const { settingsStore } = require('./store-state.js');
+const { forgetReadSettings } = require('./read.js');
 const {
   cleanupUnreferencedTileAssets, cleanupUnreferencedSlideshowAssets,
 } = require('../grid/asset-sweep.js');
@@ -40,6 +41,8 @@ async function writeHubSettings(settings) {
   // Compact: indentation made the file a fifth bigger and every save slower,
   // and nobody reads this file by hand.
   await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe));
+  // The next read takes the file again, even where the disk keeps coarse times.
+  forgetReadSettings();
   sceneImages.sweepUnused(UPLOADS_DIR, safe.ambientScenes, { snapshotsDir: storeSnapshots.snapshotsDir(DATA_DIR) }).catch(() => {});
   // Reclaim any per-tile decoration images no surviving tile references (grace-
   // windowed so a just-uploaded asset isn't swept before its layout save lands).

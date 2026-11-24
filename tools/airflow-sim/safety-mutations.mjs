@@ -1,0 +1,60 @@
+// Breaks each rule of Airflow's safety layer once and checks the tests notice:
+//   node tools/mutate/mutate.mjs tools/airflow-sim/safety-mutations.mjs
+// Rerun after any change to server/airflow/safety.js or limits.js; every mutation
+// must be caught.
+const file = 'server/airflow/safety.js';
+const m = (name, from, to) => ({ name, file, from, to });
+
+export default {
+  tests: ['server/test/airflow-safety.test.mjs'],
+  mutations: [
+    m('overheat: needs more than full', 'if (r.value >= limit) hot = true;', 'if (r.value > limit + 1) hot = true;'),
+    m('overheat: trusts a broken reading', 'if (limit == null || bad.has(name)) continue;', 'if (limit == null) continue;'),
+    m('overheat: resumes without cooling', 'if (r.value > limit - L.RESUME_BELOW) allCool = false;', 'if (r.value > limit) allCool = false;'),
+    m('overheat: resumes at once', 'if (now - coolSince >= L.RESUME_AFTER_MS)', 'if (now - coolSince >= 0)'),
+    m('overheat: a warm spell keeps the old count', 'if (!allCool) { coolSince = 0; return true; }', 'if (!allCool) return true;'),
+    m('overheat: below the silent brain', 'if (hot) { out[ch.id] = writeVerdict(ch, 100, now); continue; }', 'if (hot && !silent) { out[ch.id] = writeVerdict(ch, 100, now); continue; }'),
+    m('lease: ten times longer', 'now - plan.at > L.LEASE_MS', 'now - plan.at > L.LEASE_MS * 10'),
+    m('lease: one tick early', 'now - plan.at > L.LEASE_MS', 'now - plan.at >= L.LEASE_MS'),
+    m('lease: firmware keeps the last write', "out[ch.id] = { action: 'firmware', why }; written.delete(ch.id);", "out[ch.id] = { action: 'firmware', why };"),
+    m('sensor: a vanished one is forgotten', 'for (const name of known) if (!temps || !(name in temps)) bad.add(name);', ''),
+    m('sensor: stale accepted', 'now - r.at > L.STALE_MS', 'now - r.at > L.STALE_MS * 100'),
+    // A late reading the hands guard keeps the last speed (rule 3), never ends full (rule 1).
+    m('late: held forever', 'r.guarded === true && now - r.at <= L.LATE_OK_MS', 'r.guarded === true'),
+    m('late: any stale reading held', 'r.guarded === true && ', ''),
+    m('late: the new plan taken on an old reading', "if (last) out[ch.id] = { action: 'set', duty: last.duty, write: false };", 'if (last) out[ch.id] = writeVerdict(ch, clampDuty(ch, plan.targets?.[ch.id], false), now);'),
+    m('late: a channel never written driven', "if (last) out[ch.id] = { action: 'set', duty: last.duty, write: false };\n        else firmware('sensor');", "out[ch.id] = { action: 'set', duty: last?.duty ?? 100, write: false };"),
+    m('late: ends full', 'if (late.has(name)) allCool = false;\n      else ', ''),
+    m('late: never starts full', 'if (limit == null || bad.has(name)) continue;', 'if (limit == null || bad.has(name) || late.has(name)) continue;'),
+    m('late: the brain decides on it', 'untrusted: [...bad, ...late]', 'untrusted: [...bad]'),
+    m('sensor: absurd accepted', '!L.saneTemp(r.value) ||', ''),
+    m('sensor: frozen never', 'else if (frozen(name, r, power?.[name], now)) bad.add(name);', ''),
+    m('sensor: frozen after ten times longer', 'now - s.since >= FROZEN_MS', 'now - s.since >= FROZEN_MS * 10'),
+    m('sensor: frozen on steady power', 's.pMax - s.pMin >= swing', 's.pMax - s.pMin >= 0'),
+    m('sensor: one GPU swing for all', 'const swing = FROZEN_POWER_SWING_W[name];', 'const swing = FROZEN_POWER_SWING_W.cpu;'),
+    m('sensor: a channel needs all of its sensors broken', 'if (deps.some((d) => bad.has(d)))', 'if (deps.every((d) => bad.has(d)))'),
+    m('sensor: channel on unseen sensors driven', "if (!deps.length && seen.length) { firmware('sensor'); continue; }", ''),
+    m('stall: only above half speed', 'const asked = duty > 0;', 'const asked = duty > 50;'),
+    m('stall: ten times slower', 'if (now - zeroSince.get(ch.id) >= L.STALL_MS)', 'if (now - zeroSince.get(ch.id) >= L.STALL_MS * 10)'),
+    m('stall: count not restarted', 'if (!asked || ch.rpm == null || ch.rpm > 0) { zeroSince.delete(ch.id); return false; }', 'if (!asked || ch.rpm == null || ch.rpm > 0) return false;'),
+    m('stall: forgotten when it spins', 'if (stalled.has(ch.id) || stallCheck(ch, duty, now))', 'if (stallCheck(ch, duty, now))'),
+    m('stall: blind fans stall', 'if (!ch.hasTach) return false;', ''),
+    m('stall: no alert', "alerts.push({ code: 'stall', id: ch.id });", ''),
+    m('stall: clear() does nothing', 'clear: (id) => { stalled.delete(id); zeroSince.delete(id); },', 'clear: (id) => { zeroSince.delete(id); },'),
+    m('clamp: above 100', 'Math.min(100, Math.max(0, Number.isFinite(duty) ? duty : 100))', 'Math.max(0, Number.isFinite(duty) ? duty : 100)'),
+    m('clamp: missing target is 0', 'Number.isFinite(duty) ? duty : 100', 'Number.isFinite(duty) ? duty : 0'),
+    m('clamp: pump floor gone', 'return Math.max(want, L.PUMP_FLOOR, ch.minDuty || 0);', 'return Math.max(want, ch.minDuty || 0);'),
+    m('clamp: pump minimum gone', 'return Math.max(want, L.PUMP_FLOOR, ch.minDuty || 0);', 'return Math.max(want, L.PUMP_FLOOR);'),
+    m('clamp: zero without zeroOk', 'if (want === 0 && ch.zeroOk && (allowZero || ch.zeroByDefault)) return 0;', 'if (want === 0 && (allowZero || ch.zeroByDefault)) return 0;'),
+    m('clamp: zero without permission', 'if (want === 0 && ch.zeroOk && (allowZero || ch.zeroByDefault)) return 0;', 'if (want === 0 && ch.zeroOk) return 0;'),
+    m('clamp: card zero-RPM ignored', 'if (want === 0 && ch.zeroOk && (allowZero || ch.zeroByDefault)) return 0;', 'if (want === 0 && ch.zeroOk && allowZero) return 0;'),
+    m('clamp: channel minimum gone', 'return Math.max(want, ch.minDuty || 0, 1);', 'return Math.max(want, 1);'),
+    m('clamp: bare fan may reach 0', 'return Math.max(want, ch.minDuty || 0, 1);', 'return Math.max(want, ch.minDuty || 0);'),
+    m('write: no rate limit', 'last.duty !== duty && now - last.at >= L.WRITE_EVERY_MS', 'last.duty !== duty'),
+    m('write: same value rewritten', 'last.duty !== duty && now - last.at >= L.WRITE_EVERY_MS', 'now - last.at >= L.WRITE_EVERY_MS'),
+    m('write: held value not reported', 'duty: write || !last ? duty : last.duty', 'duty'),
+    m('reset: keeps stalls', 'zeroSince.clear(); stalled.clear(); written.clear();', 'zeroSince.clear(); written.clear();'),
+    m('reset: keeps known sensors', 'still.clear(); known.clear(); }', 'still.clear(); }'),
+    m('reset: keeps full', 'reset() { full = false;', 'reset() {'),
+  ],
+};

@@ -200,7 +200,7 @@
     return card;
   }
 
-  // [day] [icon] [low] [range bar] [high]; the bar is scaled to the span of all shown days.
+  // [day] [icon] [range: low and high over a bar]; the bar is scaled to the span of all shown days.
   function buildForecast(data) {
     const days = data.forecast.slice(0, weatherForecastDays());
     const wrap = el('div', 'weather-forecast weather-forecast--rows');
@@ -209,23 +209,32 @@
     const lo = mins.length ? Math.min(...mins) : 0;
     const span = Math.max(1, (maxs.length ? Math.max(...maxs) : 1) - lo);
     const pct = (v) => Math.max(0, Math.min(100, ((Number(v) - lo) / span) * 100));
+    // The day's low and high over the ends of its own stretch of the bar, as on the current tile
+    // (js/weather-tile/parts.js buildWeatherDays): --s and --e place both.
+    const rangeOf = (day) => {
+      const range = el('span', 'weather-fc-range');
+      const nums = el('span', 'weather-fc-nums');
+      nums.append(
+        el('span', 'weather-fc-min', weatherDisplayValue(toDisplayTemp(day.minC), '°')),
+        el('span', 'weather-fc-max', weatherDisplayValue(toDisplayTemp(day.maxC), '°')),
+      );
+      const bar = el('span', 'weather-fc-bar');
+      bar.appendChild(el('span', 'weather-fc-fill'));
+      if (Number.isFinite(Number(day.minC)) && Number.isFinite(Number(day.maxC))) {
+        range.style.setProperty('--s', `${pct(day.minC)}%`);
+        range.style.setProperty('--e', `${pct(day.maxC)}%`);
+      }
+      range.append(nums, bar);
+      return range;
+    };
     days.forEach((day, i) => {
       const state = classifyWeatherState(day);
       const row = el('div', 'weather-fc-row');
       row.dataset.weather = weatherStateIcon(state);
-      const bar = el('span', 'weather-fc-bar');
-      const fill = el('span', 'weather-fc-fill');
-      if (Number.isFinite(Number(day.minC)) && Number.isFinite(Number(day.maxC))) {
-        fill.style.left = `${pct(day.minC)}%`;
-        fill.style.right = `${100 - pct(day.maxC)}%`;
-      }
-      bar.appendChild(fill);
       row.append(
         el('span', 'weather-fc-day', i === 0 ? t('weather_today') : formatDate(day.date)),
         el('span', `weather-mini-icon ${state}`),
-        el('span', 'weather-fc-min', weatherDisplayValue(toDisplayTemp(day.minC), '°')),
-        bar,
-        el('span', 'weather-fc-max', weatherDisplayValue(toDisplayTemp(day.maxC), '°')),
+        rangeOf(day),
       );
       wrap.appendChild(row);
     });

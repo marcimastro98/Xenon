@@ -2,7 +2,7 @@
 // only when the text is there once, and the failing tests are read from the TAP report.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePlan, applyOnce, eolLike, failedTests } from '../../tools/mutate/mutate.mjs';
+import { parsePlan, applyOnce, eolLike, failedTests, testArgs } from '../../tools/mutate/mutate.mjs';
 
 test('a plan written with \\n finds its text in a file with \\r\\n line ends', () => {
   const crlf = 'a {\r\n  b: 1;\r\n}\r\n';
@@ -45,4 +45,23 @@ test('the failing tests come from the TAP report, each once, todo and skip aside
   ].join('\r\n');
   assert.deepEqual(failedTests(tap), ['inner part', 'second test', 'a test with # in its name and a \\']);
   assert.deepEqual(failedTests('ok 1 - fine\n# pass 1'), []);
+});
+
+test('a run whose broken code leaves a timer alive still ends and names the failed test', async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const { spawnSync } = await import('node:child_process');
+  const root = mkdtempSync(join(tmpdir(), 'xenon-mutate-'));
+  try {
+    const file = join(root, 'leak.test.mjs');
+    writeFileSync(file, "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\n"
+      + "test('stops what it starts', () => { setInterval(() => {}, 1000); assert.equal(1, 2); });\n");
+    // Run as from a shell: inside this test run the child would report to it instead of on stdout.
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const run = spawnSync(process.execPath, testArgs([file]), { encoding: 'utf8', timeout: 30000, windowsHide: true, env });
+    assert.equal(run.error, undefined, 'the run ended by itself');
+    assert.deepEqual(failedTests(run.stdout), ['stops what it starts']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

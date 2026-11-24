@@ -11,8 +11,8 @@
 //             'sensitive' saves or records what is on screen; an SDK widget may
 //                         only TRIGGER it, with its own consent line, and never
 //                         gets pixels, paths or files back
-//             There is no 'dangerous' tier: overclocking, voltages, fans and
-//             driver overrides are not features of Xenon.
+//             There is no 'dangerous' tier: overclocking, voltages and driver
+//             overrides are not features of Xenon; fans are only modes and choices.
 //   requires  a capability name the server answers in /actions/catalog
 //             (`capabilities`), never an OS standing in for one
 //   ai        { name, description, params: { <param>: description } } — the
@@ -1150,16 +1150,16 @@ const CAPABILITIES = [
     type: 'xenonMenu', group: 'xenon', labelKey: 'deck_act_xenonMenu',
     params: [
       { name: 'mode', kind: 'select', options: ['toggle', 'open', 'close'], optionKeys: { open: 'deck_opt_xmenu_open' } },
-      { name: 'section', kind: 'select', labelKey: 'deck_param_xmenu_section', options: ['screens', 'now', 'capture', 'keys'], optionKeys: {
-        screens: 'xmenu_sec_screens', now: 'xmenu_sec_now', capture: 'xmenu_sec_capture', keys: 'xmenu_sec_keys',
+      { name: 'section', kind: 'select', labelKey: 'deck_param_xmenu_section', options: ['screens', 'now', 'airflow', 'capture', 'keys'], optionKeys: {
+        screens: 'xmenu_sec_screens', now: 'xmenu_sec_now', airflow: 'xmenu_sec_airflow', capture: 'xmenu_sec_capture', keys: 'xmenu_sec_keys',
       } },
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'xenonMenu',
       ai: {
         name: 'open_xenon_menu',
-        description: 'Open or close the Xenon menu: one place for everything Xenon does on the main screen. Sections: screens (the home: every screen of this PC as it stands on the desk; for each one what it shows, the dashboard or the widgets, its widgets on the desktop, above apps and games or attached to an app, when they show, the widget pages, and its animated wallpaper, screensaver or Ambient scene), now (screenshot, area, record, save the replay, gallery, performance over the game), capture (recording and replay options) and keys (every shortcut and macro, with conflicts). The old section names widgets, look and mode open screens. With the app it opens over the screen (Alt+Shift+X by default); otherwise it opens as a panel on the dashboard. mode: toggle (default), open or close; section: which one to show first (screens by default). Returns "where": screen, dashboard or closed. Use it for "open the Xenon menu", "show me the shortcuts", "where are my widget settings". To change a setting directly, call its own function instead.',
-        params: { mode: 'toggle (default), open or close', section: 'screens (default), now, capture or keys' },
+        description: 'Open or close the Xenon menu: one place for everything Xenon does on the main screen. Sections: screens (the home: every screen of this PC as it stands on the desk; for each one what it shows, the dashboard or the widgets, its widgets on the desktop, above apps and games or attached to an app, when they show, the widget pages, and its animated wallpaper, screensaver or Ambient scene), now (screenshot, area, record, save the replay, gallery, performance over the game), airflow (the fans Xenon drives: how they are and why, the fan check, the Airflow choices; only on a PC whose fans Xenon can reach), capture (recording and replay options) and keys (every shortcut and macro, with conflicts). The old section names widgets, look and mode open screens. With the app it opens over the screen (Alt+Shift+X by default); otherwise it opens as a panel on the dashboard. mode: toggle (default), open or close; section: which one to show first (screens by default). Returns "where": screen, dashboard or closed. Use it for "open the Xenon menu", "show me the shortcuts", "where are my widget settings". To change a setting directly, call its own function instead.',
+        params: { mode: 'toggle (default), open or close', section: 'screens (default), now, airflow, capture or keys' },
       },
     },
   },
@@ -1348,7 +1348,7 @@ const CAPABILITIES = [
   },
 ];
 
-// Entries kept in their own files by subject (catalog-pump.js): the page loads them first.
-CAPABILITIES.push(...((typeof module !== 'undefined' && module.exports ? require('./catalog-pump.js') : typeof window !== 'undefined' && /** @type {any} */ (window).CapabilityCatalogPump) || { CAPABILITIES: [] }).CAPABILITIES);
+// Entries kept in their own files by subject (catalog-pump.js, catalog-airflow.js): the page loads them first.
+for (const sub of (typeof module !== 'undefined' && module.exports ? [require('./catalog-pump.js'), require('./catalog-airflow.js')] : typeof window !== 'undefined' ? [/** @type {any} */ (window).CapabilityCatalogPump, /** @type {any} */ (window).CapabilityCatalogAirflow] : [])) CAPABILITIES.push(...(sub?.CAPABILITIES || []));
 if (typeof window !== 'undefined') window.CapabilityCatalog = { CAPABILITIES };
 if (typeof module !== 'undefined' && module.exports) module.exports = { CAPABILITIES };

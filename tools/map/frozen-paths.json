@@ -37,6 +37,8 @@
     "server/disk-io.ps1",
     "server/draw.html",
     "server/enable-sensors.ps1",
+    "server/fan-hands-lhm.ps1",
+    "server/fan-hands.ps1",
     "server/foreground.ps1",
     "server/gpu.ps1",
     "server/grant-install-access.ps1",

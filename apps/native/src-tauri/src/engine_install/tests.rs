@@ -109,6 +109,24 @@ fn the_unit_quotes_paths_with_spaces() {
     assert!(unit.contains("WorkingDirectory=/home/example/My Apps/Xenon\n"));
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn a_package_runtime_replaces_the_copy_and_follows_each_upgrade() {
+    let s = Scratch::new("link");
+    let (old_pkg, new_pkg, root) = (s.0.join("pkg-1/node-runtime"), s.0.join("pkg-2/node-runtime"), s.0.join("root"));
+    write(&old_pkg.join("bin/node"), "1");
+    write(&new_pkg.join("bin/node"), "2");
+    write(&root.join(RUNTIME_DIR).join("bin/node"), "copied");
+    let node = root.join(RUNTIME_DIR).join("bin/node");
+
+    assert!(linux::link_runtime(&old_pkg, &root).unwrap(), "the copied folder gives way to the link");
+    assert_eq!(std::fs::read_to_string(&node).unwrap(), "1");
+    assert!(!linux::link_runtime(&old_pkg, &root).unwrap(), "the same package changes nothing");
+    assert!(linux::link_runtime(&new_pkg, &root).unwrap());
+    assert_eq!(std::fs::read_to_string(&node).unwrap(), "2");
+    assert!(!root.join(format!("{RUNTIME_DIR}.link")).exists(), "no half-made link is left");
+}
+
 #[cfg(windows)]
 mod uninstall_tests {
     use super::super::uninstall::{leftovers, remove_all_but, remove_tree};

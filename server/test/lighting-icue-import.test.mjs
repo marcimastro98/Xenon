@@ -135,6 +135,11 @@ test('only a light Xenon drives itself and that still follows Xenon is offered, 
   assert.deepEqual(imp.offer([{ id: 'pretend-kb', model: 'Keyboard', mode: 'follow' }]), [], 'iCUE keeps the lights it drives');
 });
 
+test('the id the import gives the LINK hub is the one Airflow names it with', () => {
+  const linkLights = readFileSync(new URL('../airflow/link-lights.js', import.meta.url), 'utf8');
+  assert.match(linkLights, new RegExp(`const DEVICE_ID = '${XENON_IDS.get('1b1c:0c3f')}';`));
+});
+
 test('the status names the lights on offer, the status route looks again, and the import route sets and saves them', () => {
   const status = readFileSync(new URL('../lights/status.js', import.meta.url), 'utf8');
   assert.match(status, /status\.icueImport = icueImport\.offer\(status\.devices\)\.map\(\(\{ id, name \}\) => \(\{ id, name \}\)\);/);

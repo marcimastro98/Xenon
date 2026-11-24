@@ -121,3 +121,22 @@ body.overlay-frozen .fanw-blades { animation-play-state: paused; }
 .fanw-val b { font-weight: 700; font-size: 15px; color: rgb(var(--fanw-c)); }
 .fanw-row.is-off .fanw-val b { color: var(--text, #f0f3f1); }
 .fanw-unit { font-size: 9px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.55; }
+
+/* Airflow's line under the title: who drives these fans and why (js/fans-widget/airflow-line.js).
+   The whole line is the button to the Fans section, so it keeps a full touch height; the reason
+   gets two lines at most and never pushes the readings out of the tile. */
+.fanw-air-slot { flex: 0 0 auto; }
+.fanw-air-slot:empty { display: none; }
+.fanw-air { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 44px; box-sizing: border-box;
+  padding: 6px 10px; border-radius: 12px; margin: 0; font: inherit; text-align: left; color: var(--text, #f0f3f1);
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+button.fanw-air { cursor: pointer; }
+button.fanw-air:hover, button.fanw-air:focus-visible { background: rgba(255,255,255,0.06); }
+.fanw-air-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.28); }
+.fanw-air.is-on .fanw-air-dot { background: rgb(74, 222, 128); }
+.fanw-air.is-warn .fanw-air-dot { background: rgb(251, 146, 60); }
+.fanw-air-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.fanw-air-title { font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fanw-air-sub { font-size: 11px; line-height: 1.3; opacity: 0.6; text-wrap: pretty;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.fanw-air-go { flex: 0 0 auto; font-size: 16px; opacity: 0.4; }

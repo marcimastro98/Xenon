@@ -19,16 +19,19 @@ const { addChoices } = require('./menu-widgets.js');
 const { screensSection } = require('./menu-screens.js');
 const { captureSection } = require('./menu-capture.js');
 const { keysSection } = require('./menu-keys.js');
+const { airflowSection } = require('./menu-airflow.js');
 
-const BUILDERS = Object.freeze({ screens: screensSection, now: nowSection, capture: captureSection, keys: keysSection });
-const ICONS = Object.freeze({ screens: 'screens', now: 'bolt', capture: 'camera', keys: 'keyboard' });
+const BUILDERS = Object.freeze({ screens: screensSection, now: nowSection, airflow: airflowSection, capture: captureSection, keys: keysSection });
+const ICONS = Object.freeze({ screens: 'screens', now: 'bolt', airflow: 'fan', capture: 'camera', keys: 'keyboard' });
+// A section only some PCs have: Fans needs fans Xenon can reach (not a Mac, not a laptop).
+const PRESENT = Object.freeze({ airflow: (st) => st.airflow != null });
 
 // → { menuKey, sections: [{ id, icon, title, sub, rows }] }
 function compose(state) {
   const st = { ...state, layers: LayersModel.normalize(state && state.layers), keys: (state && state.keys) || {} };
   return {
     menuKey: comboText(st.keys.menu),
-    sections: SECTIONS.map((id) => ({
+    sections: SECTIONS.filter((id) => !PRESENT[id] || PRESENT[id](st)).map((id) => ({
       id, icon: ICONS[id], title: k('xmenu_sec_' + id), sub: k('xmenu_sec_' + id + '_sub'), rows: BUILDERS[id](st),
     })),
   };

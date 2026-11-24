@@ -47,6 +47,8 @@ const CLASSIFIED = Object.freeze({
   'POST /api/community/trial/request': { remote: false },
   'POST /api/community/trial/poll': { remote: false },
   'POST /api/community/trial/forget': { remote: false },
+  // How the fans are now: read-only; a paired phone shows the same Fans section.
+  'GET /airflow': { remote: true },
   // Import from iCUE: a lighting change like the others a paired phone makes.
   'POST /api/lighting/icue-import': { remote: true },
 });

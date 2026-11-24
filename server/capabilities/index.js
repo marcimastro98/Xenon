@@ -174,6 +174,8 @@ function createCapabilities(deps) {
       pumpIcue: require('../pump-screen/icue.js').icueImportAvailable(),
       // Xenon drawing on a pump screen itself (pump-screen/direct.js): Windows and Linux, the real Xenon only.
       pumpDirect: d.pumpDirect ?? require('../pump-screen/direct-start.js').directAvailable(),
+      // Fans Xenon may drive: a desktop on Windows or Linux (Airflow, server/airflow/).
+      fanControl: (d.airflow || require('../airflow/index.js')).available(),
     };
   }
 
@@ -284,6 +286,8 @@ function createCapabilities(deps) {
       // d.pump in tests; the one store and live state otherwise (pump-screen/index.js).
       case 'pumpFace': case 'pumpSetup': case 'pumpStyle': case 'pumpSet': case 'pumpGet': case 'pumpIcue': case 'pumpDirect':
         return (d.pump || require('../pump-screen/index.js').actions).run(action);
+      case 'airflowGet': case 'airflowMode': case 'airflowSet': case 'airflowCheck':
+        return (d.airflow || require('../airflow/index.js')).actions.run(action);
       default: return { ok: false, error: 'unsupported' };
     }
   }

@@ -47,6 +47,9 @@ const {
   SLIDE_FOLDER_MAX_BYTES: MAX_BYTES,
 } = require('../js/windows-tiles/slideshow-widget');
 const CACHE_TTL_MS = 30000;      // a folder is re-read at most twice a minute
+// A folder that could not be read is kept only briefly: a network share comes up
+// some time after login, and the tile asks again within seconds (slideshow-widget.js).
+const ERROR_TTL_MS = 4000;
 const NAME_MAX = 200;            // skip absurd names rather than carry them around
 
 // ONE collator, reused for every comparison. `a.localeCompare(b, undefined, opts)`
@@ -135,12 +138,28 @@ async function readFolder(dir) {
   return { files, error: null, truncated, skipped };
 }
 
+// One read at a time per folder. A share that is not there yet can hold a read for
+// many seconds, and every window with the tile asks meanwhile: each ask starting its
+// own read would tie up more of Node's few file threads on the same dead path.
+let reading = null;   // { dir, promise }
+
 async function ensureCache(dir, { refresh = false } = {}) {
-  const now = Date.now();
-  if (!refresh && cache && cache.dir === dir && (now - cache.at) < CACHE_TTL_MS) return cache;
-  const res = await readFolder(dir);
-  cache = { dir, at: now, files: res.files, error: res.error, truncated: res.truncated, skipped: res.skipped || 0, network: res.network === true };
-  return cache;
+  const ttl = cache?.error ? ERROR_TTL_MS : CACHE_TTL_MS;
+  if (!refresh && cache?.dir === dir && (Date.now() - cache.at) < ttl) return cache;
+  if (reading?.dir === dir) return reading.promise;
+  const promise = (async () => {
+    try {
+      const res = await readFolder(dir);
+      const entry = { dir, at: Date.now(), files: res.files, error: res.error, truncated: res.truncated, skipped: res.skipped || 0, network: res.network === true };
+      // A read that invalidate() orphaned still answers its callers, but is not kept.
+      if (reading?.promise === promise) cache = entry;
+      return entry;
+    } finally {
+      if (reading?.promise === promise) reading = null;
+    }
+  })();
+  reading = { dir, promise };
+  return promise;
 }
 
 // What the settings pane and the widget both call. Returns a plain summary — the
@@ -179,6 +198,6 @@ async function resolveFile(dir, index) {
 
 // Drop the cache when the configured folder changes, so switching folders in
 // Settings shows the new count immediately instead of up to CACHE_TTL_MS later.
-function invalidate() { cache = null; }
+function invalidate() { cache = null; reading = null; }
 
 module.exports = { listFolder, resolveFile, invalidate, looksLikeNetwork, MAX_FILES, MAX_BYTES, MIME_BY_EXT };

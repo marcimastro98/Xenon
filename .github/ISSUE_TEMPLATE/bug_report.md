@@ -22,10 +22,11 @@ What you expected to happen.
 If applicable, add screenshots.
 
 **Environment**
-- Windows version: (e.g. Windows 11 23H2)
-- Node.js version: (run `node --version` in cmd)
+- Xenon version: (Settings → About)
+- System: (e.g. Windows 11 24H2, macOS 15, Ubuntu 24.04, NixOS 26.05)
+- Installed from: (Windows setup, Microsoft Store, winget, .dmg, AppImage, .deb, .rpm, Nix flake, source zip)
+- Screen it runs on: (second monitor, Xeneon Edge, tablet or phone, browser)
 - iCUE version (if relevant):
-- Browser used to view the widget (if relevant):
 
 **Additional context**
-Any other info (logs from the terminal running `start.bat`, etc.)
+Anything else, for example the crash log (tray menu → Open crash log).

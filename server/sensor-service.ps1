@@ -21,9 +21,14 @@
 # Administrators with Users read-only (in its want folder this user may add files):
 #   cpu.json      {"at": <ms>, "data": <cpu-temp.ps1 output>}
 #   sensors.json  {"at": <ms>, "data": <sensors.ps1 list output>}
-#   service.json  {"v": 1, "hash": <sha256 of the three scripts>, "pid", "at", "wanted"}
+#   service.json  {"v": 1, "hash": <sha256 of the four scripts>, "pid", "at", "wanted", "fan"}
 # The engine reads them (server/sensor-service/reader.js) and compares the hash
 # with its own copies of the scripts to tell an out-of-date service.
+#
+# Airflow (fan control) rides the same loop: fan-hands.ps1 takes the engine's
+# commands as file NAMES in the "fan" folder (same rules as "want"), answers in
+# fan.json and keeps fan-held.json; while it is asked, or holds a fan, the loop
+# ticks every second. Its own rules hand every fan back if the engine goes quiet.
 #
 # -OutDir and -Once exist for the tests, which run unelevated. An elevated run
 # is accepted only from the Program Files folder, with its fixed folder.
@@ -77,7 +82,7 @@ function Get-ScriptsHash {
   $sha = [Security.Cryptography.SHA256]::Create()
   try {
     $all = New-Object System.Collections.Generic.List[byte]
-    foreach ($f in @('sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1')) {
+    foreach ($f in @('sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1', 'fan-hands.ps1', 'fan-hands-lhm.ps1')) {
       $all.AddRange([IO.File]::ReadAllBytes((Join-Path $here $f)))
     }
     return ([BitConverter]::ToString($sha.ComputeHash($all.ToArray())) -replace '-', '').ToLowerInvariant()
@@ -117,6 +122,25 @@ function Test-OutDir {
   } catch { return $false }
 }
 
+# File.Replace stalls as SYSTEM while every core is busy: on a real PC up to 13 s a
+# write under a full-core load, while a rename over the old file stayed under 10 ms
+# (23 Nov 2026). A stalled write stalls the loop, fan.json goes stale and the fans fall
+# back to the BIOS. MoveFileEx with MOVEFILE_REPLACE_EXISTING is the same atomic swap.
+# It is declared in memory: Add-Type would compile through a temp folder, and this
+# process loads no code from a folder someone else can write. $null = File.Replace.
+function New-SnapshotMove {
+  try {
+    $asm = [AppDomain]::CurrentDomain.DefineDynamicAssembly((New-Object Reflection.AssemblyName 'XenonSnapshotMove'), [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    $type = $asm.DefineDynamicModule('XenonSnapshotMove').DefineType('XenonSnapshotMove', 'Public, Abstract, Sealed')
+    $m = $type.DefinePInvokeMethod('MoveFileExW', 'kernel32.dll', 'Public, Static, PinvokeImpl', [Reflection.CallingConventions]::Standard,
+      [bool], [Type[]]@([string], [string], [int]), [Runtime.InteropServices.CallingConvention]::Winapi, [Runtime.InteropServices.CharSet]::Unicode)
+    $m.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+    return $type.CreateType()
+  } catch { return $null }
+}
+$SnapshotMove = New-SnapshotMove
+$MoveReplaceExisting = 1
+
 function Write-Snapshot([string]$Leaf, [string]$Json) {
   if (-not (Test-OutDir)) { return }
   $dest = Join-Path $OutDir $Leaf
@@ -125,8 +149,10 @@ function Write-Snapshot([string]$Leaf, [string]$Json) {
   # the link itself.
   if ([IO.File]::Exists($tmp)) { [IO.File]::Delete($tmp) }
   [IO.File]::WriteAllText($tmp, $Json, $utf8NoBom)
+  # A swap that fails throws: fan-held.json must never be taken as written when it is not.
   # NullString: Windows PowerShell passes a plain $null to a [string] as "", which Replace rejects.
-  if ([IO.File]::Exists($dest)) { [IO.File]::Replace($tmp, $dest, [Management.Automation.Language.NullString]::Value) } else { [IO.File]::Move($tmp, $dest) }
+  if ($SnapshotMove) { if (-not $SnapshotMove::MoveFileExW($tmp, $dest, $MoveReplaceExisting)) { throw "$Leaf could not be moved into place" } }
+  elseif ([IO.File]::Exists($dest)) { [IO.File]::Replace($tmp, $dest, [Management.Automation.Language.NullString]::Value) } else { [IO.File]::Move($tmp, $dest) }
 }
 
 function Write-Reading([string]$Leaf, [string]$Script, [object[]]$ScriptArgs) {
@@ -149,6 +175,10 @@ function Close-Sessions {
 $mutex = New-Object Threading.Mutex($false, 'Global\XenonSensorService')
 try { if (-not $mutex.WaitOne(0)) { exit 0 } } catch [Threading.AbandonedMutexException] { }
 
+. (Join-Path $here 'fan-hands.ps1')
+. (Join-Path $here 'fan-hands-lhm.ps1')
+Initialize-FanHands
+
 $hash = Get-ScriptsHash
 $lastBeat = 0
 $lastWanted = Get-NowMs
@@ -156,22 +186,28 @@ try {
   while ($true) {
     $interval = Get-WantedInterval
     $now = Get-NowMs
-    if ($interval) {
+    $fanName = Get-FanCommandName $FanDir
+    $fanActive = Test-FanHandsActive $fanName $now
+    Set-FanHandsPriority $fanActive
+    if ($interval -or $fanActive) {
       $lastWanted = $now
+      # Also opens the LHM session the fan hands use, and refreshes its CPU tree.
       Write-Reading 'cpu.json' $CpuScript @()
-      Write-Reading 'sensors.json' $SensorsScript @('list')
+      if ($interval) { Write-Reading 'sensors.json' $SensorsScript @('list') }
+      if ($fanActive) { try { Invoke-FanHands $fanName $now } catch { } }
     } elseif ($global:XenonCpuLhm -and ($now - $lastWanted) -gt $ReleaseAfterIdleMs) {
       Close-Sessions
     }
     if ($Once -or ($now - $lastBeat) -ge $HeartbeatMs) {
-      $beat = [ordered]@{ v = 1; hash = $hash; pid = $PID; at = $now; wanted = [bool]$interval }
+      $beat = [ordered]@{ v = 1; hash = $hash; pid = $PID; at = $now; wanted = [bool]$interval; fan = [bool]$fanActive }
       try { Write-Snapshot 'service.json' ($beat | ConvertTo-Json -Compress) } catch { }
       $lastBeat = $now
     }
     if ($Once) { break }
-    Start-Sleep -Milliseconds $(if ($interval) { $interval } else { $IdleCheckMs })
+    Start-Sleep -Milliseconds $(if ($fanActive) { 1000 } elseif ($interval) { $interval } else { $IdleCheckMs })
   }
 } finally {
+  try { Stop-FanHands } catch { }
   Close-Sessions
   try { $mutex.ReleaseMutex() } catch { }
 }

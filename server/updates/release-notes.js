@@ -7,7 +7,7 @@
 const SHEET_COLORS = Object.freeze(['green', 'lavender', 'yellow', 'blue', 'orange']);
 const SHEET_SCENES = Object.freeze(['menu', 'capture', 'fps', 'bit']);
 // The old ids too: a sheet written before the Screens page still opens it (screen-menu.js).
-const MENU_SECTIONS = Object.freeze(['screens', 'now', 'capture', 'keys', 'widgets', 'look', 'mode']);
+const MENU_SECTIONS = Object.freeze(['screens', 'now', 'airflow', 'capture', 'keys', 'widgets', 'look', 'mode']);
 // Where a sheet's button leads: never an address from the file.
 const SHEET_GO = Object.freeze(['sparks', 'supporters', 'maker', 'look']);
 const CLIP_ID = /^[a-zA-Z]{1,32}$/;

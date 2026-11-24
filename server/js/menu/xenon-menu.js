@@ -19,7 +19,7 @@
   const KEY_TO_TRY = 'ctrl+alt+f9';   // Ctrl+Alt with a letter is AltGr: it is refused
   const REFRESH_DELAY_MS = 250;
   const FOOT_LINKS = ['store', 'sparks'];   // always in reach, whatever page is open
-  const BLOCK_OF = Object.freeze({ tile: 'xm-tiles', mode: 'xm-modeblock' });
+  const BLOCK_OF = Object.freeze({ tile: 'xm-tiles', mode: 'xm-modeblock', airflow: 'xm-airblock' });
   const BALANCE_TTL_MS = 30000;
   // A sibling menu file's part, or null where that file is not loaded (a test, a page without it).
   const made = (name, deps) => { const M = typeof window !== 'undefined' && /** @type {any} */ (window)[name]; return M ? M.create(deps) : null; };
@@ -28,8 +28,8 @@
   const SPARKS_VALUE = '[data-row="nav-sparks"] .xm-nav-value';
   // What can change a row while the menu is open: settings (widgets, keys,
   // look, mode), captures, the replay and recording state, the Deck's keys.
-  // `capture` to `stutter_why` are what a function answers with, for the place to say; `pump`: a pump said hello or changed.
-  const LIVE_EVENTS = ['settings', 'captures', 'replay', 'recording', 'deck', 'screen_menu', 'capture', 'capture_marker', 'xenon_menu_failed', 'stutter_why', 'pump'];
+  // `capture` to `stutter_why` are what a function answers with, for the place to say; `pump`: a pump said hello or changed; `airflow`: the fans changed hands, mode or reason.
+  const LIVE_EVENTS = ['settings', 'captures', 'replay', 'recording', 'deck', 'screen_menu', 'capture', 'capture_marker', 'xenon_menu_failed', 'stutter_why', 'pump', 'airflow'];
 
   // ── Pure helpers (tested in node) ──────────────────────────────
   function fill(str, vars) {
@@ -396,6 +396,7 @@
     const DRAW = {
       status: drawStatus, toggle: drawToggle, checks: drawChecks, choice: drawChoice, pages: drawChoice, mode: drawMode, button: drawButton, key: drawKey,
       pageEdit: pageEdit && pageEdit.draw, place: placeDraw ? placeDraw.draw : drawChoice, guide: guide && guide.draw, tunehead: drawTuneHead, when: whenDraw && whenDraw.draw,
+      airflow: made('XenonMenuAirflow', { el, button, say, tt, fill, icon, perform, server, row: (x) => (DRAW[x.kind] ? DRAW[x.kind](x) : null) })?.draw,
     };
     const peek = made('XenonMenuPeek', { post, onRefused: () => draw(), doc });
     // Only in the menu window: the scene page is this PC's, never a paired device's.

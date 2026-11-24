@@ -5,6 +5,11 @@
 const fsp = require('node:fs').promises;
 const { isNum, readText } = require('./linux-read.js');
 
+// Where a fan is, from the chip that reads it, in the kinds Windows uses: a
+// graphics card's own fans, a PSU's, a cooler or hub's ('ctrl'), else a board header.
+const FAN_KINDS = { gpu: 'gpu', psu: 'psu', cooler: 'ctrl' };
+const fanKind = (chip) => FAN_KINDS[hwmonKind(String(chip || '').trim())] || 'mb';
+
 // Pure: given [{chip, index, rpm, label}] decide what the tile shows. Kept
 // separate so the naming and filtering rules are testable without hwmon.
 function parseHwmonFans(rows) {
@@ -24,7 +29,7 @@ function parseHwmonFans(rows) {
     // The label when the driver gives one ("CPU Fan"), otherwise the chip plus
     // its index, which is what lm_sensors shows and what the user can rename.
     const name = label || (chip ? `${chip} fan ${r.index}` : `Fan ${r.index}`);
-    out.push({ name: name.slice(0, 48), rpm: Math.round(rpm), kind: 'mb' });
+    out.push({ name: name.slice(0, 48), rpm: Math.round(rpm), kind: fanKind(chip) });
   }
   return out;
 }
@@ -139,7 +144,8 @@ function hwmonKind(chip) {
 // The part of the device path that names it (a PCI address, nct6775.656,
 // nvme0), cut to the characters an id may carry.
 function hwmonDevKey(realDevicePath) {
-  const base = String(realDevicePath || '').split('/').filter(Boolean).pop() || 'virtual';
+  // Either slash: the tests build fake sysfs trees on Windows too.
+  const base = String(realDevicePath || '').split(/[\\/]/).filter(Boolean).pop() || 'virtual';
   return base.replace(/[^A-Za-z0-9_.:+-]/g, '_').slice(0, 48);
 }
 
@@ -187,7 +193,7 @@ async function readChipFiles(dir, chip, devKey, index, out) {
 }
 
 module.exports = {
-  parseHwmonFans, readHwmonFans, pickCpuClockMHz, readCpuClockMHz, cpuTemp, HWMON_FILE_RE,
+  parseHwmonFans, fanKind, readHwmonFans, pickCpuClockMHz, readCpuClockMHz, cpuTemp, HWMON_FILE_RE,
   HWMON_TYPES, HWMON_KINDS, HWMON_CHIPS_MAX, hwmonKind, hwmonDevKey, parseHwmonReading,
   HWMON_INDEX_TTL_MS, HWMON_REWALK_MIN_MS, readChipFiles,
 };

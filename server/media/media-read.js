@@ -14,8 +14,9 @@ const LEFT_OUT = new Set([
   // Mixers and capture tools: they hold a stream open whether or not anything sounds.
   'obs', 'obs64', 'streamlabs obs', 'wavelink', 'voicemeeter', 'voicemeeterpro', 'voicemeeter8', 'voicemeeter8x64',
   'steelseriessonar', 'nvidia broadcast', 'parsecd',
-  // Ours and the system's: a page inside Xenon reports to the media list by itself.
-  'msedgewebview2', 'audiodg', 'explorer',
+  // Ours and the system's: a page inside Xenon reports to the media list by itself, and the
+  // capture engine holds the game's sound open while it records (a game read as a song).
+  'msedgewebview2', 'audiodg', 'explorer', 'xenon', 'xenon-capture',
 ]);
 
 // A wedged service answers after its full timeout, so a stand-in is kept for a few seconds

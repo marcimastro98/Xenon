@@ -20,6 +20,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const RUN_TIMEOUT_MS = 180000;
 
+// How the plan's tests run. A mutant that leaves a thread or a timer alive fails its test
+// and then kept the run open until the timeout, read as a run that failed rather than a
+// catch (fan-files' close, 24 Nov 2026): the run ends once the tests are done.
+export function testArgs(tests) {
+  return ['--test', '--test-reporter=tap', '--test-timeout=60000', '--test-force-exit', ...tests];
+}
+
 export function parsePlan(plan) {
   const ok = plan && Array.isArray(plan.tests) && plan.tests.length > 0 && Array.isArray(plan.mutations)
     && plan.tests.every((t) => typeof t === 'string' && t)
@@ -79,7 +86,7 @@ async function main() {
       const broken = applyOnce(original, eolLike(original, m.from), eolLike(original, m.to));
       if (broken === null) { console.log(`${m.name}: SKIPPED, the text is not in ${m.file} exactly once`); missed++; continue; }
       writeFileSync(target, broken);
-      const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap', '--test-timeout=60000', ...plan.tests],
+      const run = spawnSync(process.execPath, testArgs(plan.tests),
         { encoding: 'utf8', timeout: RUN_TIMEOUT_MS, windowsHide: true });
       writeFileSync(target, originals.get(target));
       if (run.error) { console.log(`${m.name}: RUN FAILED (${run.error.code || run.error.message})`); missed++; continue; }

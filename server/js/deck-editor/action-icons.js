@@ -165,6 +165,8 @@ window.DeckEditorActionIcons = () => {
       pumpSetup: _ai('<circle cx="9.5" cy="12" r="7"/><circle cx="9.5" cy="12" r="2.5"/><path d="M20 5v14M18 9h4M18 15h4"/>'),
       // Its style: half of the round screen drawn another way.
       pumpStyle: _ai('<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 8h4.5M12 12h6M12 16h4.5"/>'),
+      // Airflow's mode: a fan's blades.
+      airflowMode: _ai('<circle cx="12" cy="12" r="1.5"/><path d="M12 10.5C12 6 13 3 16 3s4 3 0 6l-2.6 2M13.5 12c4.5 0 7.5 1 7.5 4s-3 4-6 0l-2-2.6M12 13.5c0 4.5-1 7.5-4 7.5s-4-3 0-6l2.6-2M10.5 12C6 12 3 11 3 8s3-4 6 0l2 2.6"/>'),
       desktopWallpaper: _ai('<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M6 13l3.5-4 3 3 2-2 3.5 3"/>'),
     };
     // One icon per category header, from an action that stands for the group.
