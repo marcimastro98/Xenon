@@ -8078,4 +8078,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: 'Feller',
   xmenu_pump_leds_palette: 'Kleuren',
   xmenu_pump_leds_palette_mine: 'Je eigen twee',
+  xmenu_rtss: 'Tonen over exclusief volledig scherm',
+  xmenu_rtss_sub: 'Over een game in exclusief volledig scherm kan geen venster verschijnen. RivaTuner, een gratis programma, kan deze waarden in de game tonen.',
+  xmenu_rtss_showing: 'RivaTuner toont ze nu over de game.',
+  xmenu_rtss_ready: 'RivaTuner is open: ze verschijnen bij de volgende game in exclusief volledig scherm.',
+  xmenu_rtss_closed: 'Open RivaTuner en laat het draaien om ze over de game te zien.',
+  xmenu_rtss_get: 'RivaTuner Statistics Server is gratis bij Guru3D.',
+  xmenu_rtss_get_do: 'Downloaden',
 };

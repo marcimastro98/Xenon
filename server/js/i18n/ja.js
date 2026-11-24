@@ -8082,4 +8082,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: '明るめ',
   xmenu_pump_leds_palette: '色',
   xmenu_pump_leds_palette_mine: 'あなたの2色',
+  xmenu_rtss: '排他的フルスクリーンの上に表示',
+  xmenu_rtss_sub: '排他的フルスクリーンのゲームの上にはウィンドウを表示できません。無料のRivaTunerなら、これらの数値をゲーム内に表示できます。',
+  xmenu_rtss_showing: 'RivaTunerがゲームの上に表示しています。',
+  xmenu_rtss_ready: 'RivaTunerは起動中です。次の排他的フルスクリーンのゲームで表示されます。',
+  xmenu_rtss_closed: 'ゲームの上に表示するには、RivaTunerを起動したままにしてください。',
+  xmenu_rtss_get: 'RivaTuner Statistics ServerはGuru3Dで無料で入手できます。',
+  xmenu_rtss_get_do: 'ダウンロード',
 };

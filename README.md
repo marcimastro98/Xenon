@@ -17,7 +17,7 @@ Temperatures, FPS, music, calendar and touch keys on your desktop, over your gam
 
 <p align="center"><a href="https://xenon-app.com/demo/">Try it in your browser</a> with nothing to install, look through the <a href="https://xenon-app.com/catalog/">catalog</a>, or come and say hello on <a href="https://discord.gg/MBVrw9kZyg">Discord</a>.</p>
 
-<p align="center">Xenon is also on <a href="https://www.youtube.com/@xenon-app">YouTube</a>, <a href="https://www.instagram.com/xenon.app/">Instagram</a>, <a href="https://www.tiktok.com/@xenon.app">TikTok</a> and <a href="https://www.facebook.com/profile.php?id=61596514267824">Facebook</a>.</p>
+<p align="center">Xenon is also on <a href="https://www.youtube.com/@xenon-app">YouTube</a>, <a href="https://www.instagram.com/xenon.app/">Instagram</a>, <a href="https://www.tiktok.com/@xenon.app">TikTok</a>, <a href="https://www.facebook.com/profile.php?id=61596514267824">Facebook</a> and <a href="https://x.com/XenonDashboard">X</a>.</p>
 
 <p align="center">New in 5.0: <a href="https://xenon-app.com/5.html">a new look, widgets on your main screen, and Bit</a>.</p>
 

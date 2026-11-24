@@ -19,6 +19,7 @@ const FEATURES = Object.freeze([
   require('./pump-screen/routes.js'),
   require('./airflow/routes.js'),
   require('./lights/routes-icue-import.js'),
+  require('./rtss/routes.js'),
 ]);
 
 const ROUTES = new Map(FEATURES.flatMap((f) => Object.entries(f.routes)));

@@ -16,6 +16,7 @@ const { createLinkSession } = require('./corsair-link-session.js');
 const { linkDevice } = require('./corsair-link-devices.js');
 const { fanId } = require('./inventory.js');
 const { PUMP_FLOOR, COMPONENTS } = require('./limits.js');
+const { within } = require('./within.js');
 
 const CHAIN_EVERY_MS = 30000;
 // The hub goes back to hardware mode by itself only after 20-30 s of silence. Found there
@@ -27,6 +28,13 @@ const YIELD_MS = 5 * 60 * 1000;
 // for that kept the fans and lights from Xenon five minutes after iCUE closed (24 Nov 2026).
 // A program that really takes the hub takes it again, and the second time Xenon steps aside.
 const FORGIVE_MS = 2 * YIELD_MS;
+// While Xenon holds the hub, how often it looks for a program that started meanwhile, and
+// how long a poll waits for that look. Two programs at once send the fans to full: iCUE
+// starting at sign-in a minute after the engine took the hub ran them at full until the
+// next availability check, a minute later (24 Nov 2026). The look answers from the process
+// table in milliseconds; a slower one is acted on at a later poll.
+const HELD_CHECK_MS = 3000;
+const HELD_CHECK_WAIT_MS = 250;
 // The prudent curve: fans from STAND_IN.fanLow at or under coolC to full at fullC
 // (where the safety layer calls the liquid too hot); the pump high, full when hot.
 // The hub ramps a new duty slowly: measured 22 Nov 2026, 50 to 100 % took about 24 s
@@ -105,6 +113,11 @@ function createLinkDriver({ hid, openReports, leadingZero, busy, wanted = () => 
   let seenRetakes = 0;
   let lastAt = -Infinity;
   let passedAt = -Infinity;
+  let checkedAt = -Infinity;
+  /** @type {Promise<void>|null} */
+  let checking = null;
+  /** @type {string[]} */
+  let others = [];
 
   async function find() {
     const all = await hid.list({ vendorId: P.VENDOR_ID, productIds: [P.HUB_PRODUCT_ID] });
@@ -167,7 +180,7 @@ function createLinkDriver({ hid, openReports, leadingZero, busy, wanted = () => 
       if (at - chainAt >= CHAIN_EVERY_MS) { chain = await link.devices(listInTwo); chainAt = at; }
       const rpm = await link.speeds();
       const temps = await link.temps();
-      if (await tookBack(link, at)) return null;
+      if (await tookBack(link, at) || await othersStarted(at)) return null;
       lights?.attach(link, chain);
       channels = channelsOf(chain, rpm, held, sent);
       const liquid = liquidOf(chain, temps);
@@ -203,6 +216,24 @@ function createLinkDriver({ hid, openReports, leadingZero, busy, wanted = () => 
     }
     yieldUntil = at + YIELD_MS;
     yieldTo = seen.filter((app) => app !== 'unknown');
+    await release();
+    channels = [];
+    return true;
+  }
+
+  // A program that talks to the hub started while Xenon held it: give the hub back at once and
+  // keep off while it runs. Only a named program: a look that fails is no reason to let go.
+  async function othersStarted(at) {
+    if (!checking && at - checkedAt >= HELD_CHECK_MS) {
+      checkedAt = at;
+      checking = Promise.resolve().then(busy).then((seen) => { others = seen.filter((app) => app !== 'unknown'); }, () => {})
+        .finally(() => { checking = null; });
+    }
+    if (checking) await within(checking, HELD_CHECK_WAIT_MS);
+    if (!others.length) return false;
+    yieldUntil = now() + YIELD_MS;
+    yieldTo = others;
+    others = [];
     await release();
     channels = [];
     return true;
@@ -252,4 +283,4 @@ function createLinkDriver({ hid, openReports, leadingZero, busy, wanted = () => 
   };
 }
 
-module.exports = { createLinkDriver, standIn, STAND_IN, CHAIN_EVERY_MS, YIELD_MS, OWN_SILENCE_MS, FORGIVE_MS };
+module.exports = { createLinkDriver, standIn, STAND_IN, CHAIN_EVERY_MS, YIELD_MS, OWN_SILENCE_MS, FORGIVE_MS, HELD_CHECK_MS };

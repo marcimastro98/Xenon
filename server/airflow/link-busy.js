@@ -3,11 +3,14 @@
 // hub's fans to full speed and fight over its mode, so Airflow keeps its hands off the
 // hub while one runs. Windows: iCUE (with iCUE quit, its CORSAIR services left a real
 // hub alone, measured 22 Nov 2026; driver-link.js still steps aside if anything takes the
-// hub back). Linux: OpenLinkHub. Spawned with an argv array, never a shell; a check that
+// hub back). Linux: OpenLinkHub. On Windows the native process table answers in a few
+// milliseconds and starts no process, so the held hub can be checked every few seconds;
+// tasklist (argv array, never a shell) stands in when the table cannot be read. A check that
 // cannot run counts as busy, so a doubt never takes the hub.
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const { processKey } = require('../perf-session/process-names');
 
 const WINDOWS_APPS = ['iCUE.exe'];
 const LINUX_APPS = ['OpenLinkHub'];
@@ -22,7 +25,12 @@ function runFile(file, args) {
   });
 }
 
-async function windowsBusy(run) {
+async function windowsBusy(run, table) {
+  const rows = table ? await table.read().catch(() => null) : null;
+  if (Array.isArray(rows) && rows.length) {
+    const names = new Set(rows.map((r) => r.name));
+    return WINDOWS_APPS.filter((app) => names.has(processKey(app)));
+  }
   const tasks = await run('tasklist', ['/FO', 'CSV', '/NH']);
   if (!tasks.ok || !tasks.out) return ['unknown'];
   const lower = tasks.out.toLowerCase();
@@ -39,11 +47,12 @@ async function linuxBusy(fsp, root) {
 
 /**
  * @param {{ platform?: string, run?: (file: string, args: string[]) => Promise<{ ok: boolean, out: string }>,
- *   fsp?: typeof fs.promises, procRoot?: string }} [opts]
+ *   fsp?: typeof fs.promises, procRoot?: string, table?: { read: () => Promise<Array<{ name: string }>|null> } }} [opts]
+ *   table: the Windows process table (perf-session/process-table-windows.js)
  * @returns {() => Promise<string[]>} the programs in the way, [] when none
  */
-function createLinkBusy({ platform = process.platform, run = runFile, fsp = fs.promises, procRoot = '/proc' } = {}) {
-  if (platform === 'win32') return () => windowsBusy(run);
+function createLinkBusy({ platform = process.platform, run = runFile, fsp = fs.promises, procRoot = '/proc', table } = {}) {
+  if (platform === 'win32') return () => windowsBusy(run, table);
   if (platform === 'linux') return () => linuxBusy(fsp, procRoot);
   return async () => [];
 }

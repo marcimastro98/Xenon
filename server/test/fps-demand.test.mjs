@@ -104,6 +104,21 @@ test('a recording that marks stutters reads like a dashboard', () => {
   assert.deepEqual(calls, ['resume', 'pause']);
 });
 
+test('RivaTuner open with the option on reads before a game, and lets go like a dashboard', () => {
+  const { demand, calls, fire } = rig();
+  demand.overlay(true);
+  assert.deepEqual(calls, ['resume'], 'a game may refuse a trace that starts after it');
+  demand.overlay(true);
+  assert.deepEqual(calls, ['resume'], 'only a change reaches the reader');
+  demand.game(true);
+  demand.overlay(false);
+  fire();
+  assert.equal(calls.includes('pause'), false, 'a game still holds the running reader');
+  demand.game(false);
+  fire();
+  assert.equal(calls.at(-1), 'pause');
+});
+
 test('the status tick asks again and again, and the reader hears only changes', () => {
   const { demand, calls } = rig();
   demand.clients(1);

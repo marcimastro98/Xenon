@@ -16,6 +16,7 @@ const { firstSystemReading } = require('./engine-first-reading.js');
 const { readChosenSensors } = require('./sensors-read.js');
 const { getCpuTemp } = require('./cpu-temp.js');
 const { getGpuInfo } = require('./gpu-read.js');
+const { rememberSystemInfo } = require('./latest-reading.js');
 
 // What getSystemInfo can say without waiting for a source that has not answered yet.
 function knownSystemSources() {
@@ -136,7 +137,9 @@ async function getSystemInfo({ partialOk = false } = {}) {
   if (partial) info.partial = true;
   const unread = partial ? null : [];
   const readings = !partial && Object.keys(sources).length ? await readChosenSensors(sources) : unread;
-  return SensorSources.applySensorSources(info, sources, readings, { cpuTemp: sensorCache.reading.cpuTempSource });
+  const out = SensorSources.applySensorSources(info, sources, readings, { cpuTemp: sensorCache.reading.cpuTempSource });
+  if (!partial) rememberSystemInfo(out);
+  return out;
 }
 
 module.exports = { knownSystemSources, getSystemInfo };

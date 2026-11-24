@@ -13,6 +13,7 @@ import { lightingScenes } from './lighting-scenes.mjs';
 import { hintsScenes } from './hints-scenes.mjs';
 import { railScenes } from './rail-scenes.mjs';
 import { bitWelcomeScenes } from './bit-welcome-scenes.mjs';
+import { rtssScenes } from './rtss-scenes.mjs';
 
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
 const BALANCE_FULL = { ...BALANCE_LOW, balance: 260, included: 260 };
@@ -123,7 +124,7 @@ export const SCENES = {
   ...notesScenes,
   ...lightingScenes,
   ...hintsScenes,
-  ...railScenes,
+  ...railScenes, ...rtssScenes,
   ...bitWelcomeScenes,
   ...chipScenes,
   // Settings → Bit with a low balance: the three packs.

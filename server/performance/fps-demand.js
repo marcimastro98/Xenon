@@ -7,13 +7,16 @@
 // A game in progress keeps a reader that is already running, and never starts one.
 // Some games refuse every new trace session while they run (FC 27 answered "access
 // denied", 7 Nov 2026), so a reader paused mid-game stayed dead until the game
-// closed. With nobody watching when a game starts, nothing reads.
+// closed. With nobody watching when a game starts, nothing reads, unless RivaTuner
+// is open to draw the readings over exclusive full screen (server/rtss/): then the
+// reader runs before the game does, for the same reason.
 
 const PAUSE_GRACE_MS = 45000;
 
 function createFpsDemand({ resume, pause, graceMs = PAUSE_GRACE_MS, timers = { setTimeout, clearTimeout } }) {
   let clients = 0;
   let capture = false;
+  let overlay = false;
   let game = false;
   let timer = null;
 
@@ -24,7 +27,7 @@ function createFpsDemand({ resume, pause, graceMs = PAUSE_GRACE_MS, timers = { s
   }
 
   function sync() {
-    if (clients > 0 || capture) {
+    if (clients > 0 || capture || overlay) {
       cancel();
       resume();
       return;
@@ -46,6 +49,7 @@ function createFpsDemand({ resume, pause, graceMs = PAUSE_GRACE_MS, timers = { s
     // Both are asked on every status tick: only a change reaches the reader, or each
     // tick would cut a failing reader's back-off short.
     capture(on) { if (on === capture) return; capture = on; sync(); },
+    overlay(on) { if (on === overlay) return; overlay = on; sync(); },
     game(on) { if (on === game) return; game = on; sync(); },
     stop: cancel,
   };

@@ -8082,4 +8082,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: '더 밝게',
   xmenu_pump_leds_palette: '색상',
   xmenu_pump_leds_palette_mine: '내 두 가지 색',
+  xmenu_rtss: '전용 전체 화면 위에 표시',
+  xmenu_rtss_sub: '전용 전체 화면 게임 위에는 어떤 창도 표시할 수 없습니다. 무료 프로그램인 RivaTuner가 이 정보를 게임 안에 표시할 수 있습니다.',
+  xmenu_rtss_showing: 'RivaTuner가 지금 게임 위에 표시하고 있습니다.',
+  xmenu_rtss_ready: 'RivaTuner가 실행 중입니다. 다음 전용 전체 화면 게임에서 표시됩니다.',
+  xmenu_rtss_closed: '게임 위에서 보려면 RivaTuner를 실행한 채로 두세요.',
+  xmenu_rtss_get: 'RivaTuner Statistics Server는 Guru3D에서 무료로 받을 수 있습니다.',
+  xmenu_rtss_get_do: '다운로드',
 };

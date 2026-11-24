@@ -8027,4 +8027,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: 'Ярче',
   xmenu_pump_leds_palette: 'Цвета',
   xmenu_pump_leds_palette_mine: 'Ваши два',
+  xmenu_rtss: 'Показывать поверх эксклюзивного полного экрана',
+  xmenu_rtss_sub: 'Поверх игры в эксклюзивном полноэкранном режиме не может появиться ни одно окно. RivaTuner, бесплатная программа, может выводить эти данные прямо в игре.',
+  xmenu_rtss_showing: 'RivaTuner сейчас показывает их поверх игры.',
+  xmenu_rtss_ready: 'RivaTuner открыт: они появятся в следующей игре в эксклюзивном полноэкранном режиме.',
+  xmenu_rtss_closed: 'Откройте RivaTuner и не закрывайте его, чтобы видеть их поверх игры.',
+  xmenu_rtss_get: 'RivaTuner Statistics Server бесплатно доступен на Guru3D.',
+  xmenu_rtss_get_do: 'Скачать',
 };

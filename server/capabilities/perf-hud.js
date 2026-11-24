@@ -15,6 +15,9 @@ function changeFrom(action) {
     else if (action[k] === 'hide') change[k] = false;
   }
   if (PERF_HUD_LAYOUTS.includes(action.layout)) change.layout = action.layout;
+  // RivaTuner draws the same readings over exclusive full screen (server/rtss/).
+  if (action.rtss === 'on') change.rtss = true;
+  else if (action.rtss === 'off') change.rtss = false;
   return change;
 }
 

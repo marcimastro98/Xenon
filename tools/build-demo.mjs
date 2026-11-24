@@ -186,7 +186,7 @@ log('materialized shared/src from packages/core');
   // 4d. Remove the Xeneon Edge fractional-DPR block. It applies CSS zoom to
   //     <html>, is iCUE-iframe-specific, cannot help a browser tab, and would
   //     scale the demo badge with it.
-  html = cutOnce(html, '<!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.',
+  html = cutOnce(html, '<!-- EXPERIMENTAL: Xeneon Edge fractional-DPR zoom compensation,',
     '</script>', 'Edge fractional-DPR block');
 
   // 4d'. The app loads its strings from the server (/layer-i18n.js, one

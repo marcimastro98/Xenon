@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -45,7 +46,7 @@ test('required first, the engine gets the bigger pool', () => {
 });
 
 test('server.js requires it before any module that could use the pool', () => {
-  const src = readFileSync(join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   const requires = [...src.matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]);
   assert.deepEqual(requires.slice(0, 2), ['./engine/startup-log', './engine/thread-pool.js']);
   const log = readFileSync(join(HERE, '..', 'engine', 'startup-log.js'), 'utf8');

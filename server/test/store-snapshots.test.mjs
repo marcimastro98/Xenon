@@ -12,7 +12,7 @@ import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const snaps = require('../store-catalog/store-snapshots.js');
-const { createSettingsReader } = require('../settings/read.js');
+const { createSettingsReader } = require('../settings/read-cache.js');
 // LF on a CRLF (Windows) checkout too, so the patterns below match everywhere.
 const readLf = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SERVER = engineSource();

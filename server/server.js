@@ -2894,7 +2894,7 @@ async function _xenonMenuState() {
     monitors: layersHost.monitors(),
     layerNow: { whenOff: _situations.hidden(), keyOff: _widgetKeys.hidden(), keyPeek: !_widgetKeys.holdsRelease(), gaming: gameDetect.isGameRunning() },
     layerSteps: layersEdit.steps(),
-    perfHud: hs.perfHud,
+    perfHud: hs.perfHud, rtss: require('./rtss/index.js').state(),
     tiles: catalog.tiles,
     packages: catalog.packages,
     shots: store.shots,
@@ -7418,7 +7418,7 @@ setInterval(() => { broadcastMediaNow().catch(() => {}); }, 2000).unref();
 // the interval (a cold LHM call, a busy machine) would otherwise queue ticks on
 // top of each other, and at 1s that stops being theoretical.
 async function _systemTick() {
-  if (sseClients.size > 0 && !screensOff.readsWait(sseClients)) {
+  if ((sseClients.size > 0 && !screensOff.readsWait(sseClients)) || require('./rtss/index.js').drawing()) {
     try {
       const sys = await getSystemInfo();
       broadcastSSE('system', sys);

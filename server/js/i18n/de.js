@@ -7938,4 +7938,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: 'Heller',
   xmenu_pump_leds_palette: 'Farben',
   xmenu_pump_leds_palette_mine: 'Deine zwei',
+  xmenu_rtss: 'Über exklusivem Vollbild zeigen',
+  xmenu_rtss_sub: 'Über einem Spiel im exklusiven Vollbild kann kein Fenster erscheinen. RivaTuner, ein kostenloses Programm, kann diese Werte im Spiel anzeigen.',
+  xmenu_rtss_showing: 'RivaTuner zeigt sie gerade über dem Spiel.',
+  xmenu_rtss_ready: 'RivaTuner ist offen: Sie erscheinen beim nächsten Spiel im exklusiven Vollbild.',
+  xmenu_rtss_closed: 'Öffne RivaTuner und lass es laufen, um sie über dem Spiel zu sehen.',
+  xmenu_rtss_get: 'RivaTuner Statistics Server gibt es kostenlos bei Guru3D.',
+  xmenu_rtss_get_do: 'Herunterladen',
 };

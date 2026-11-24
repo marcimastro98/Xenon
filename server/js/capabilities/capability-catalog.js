@@ -105,14 +105,14 @@ const CAPABILITIES = [
     type: 'perfHud', group: 'perf', hidden: true, labelKey: 'deck_act_perfHud',
     params: [
       ...PERF_TILE_PARTS.map(name => ({ name, kind: 'select', options: ['keep', 'show', 'hide'] })),
-      { name: 'layout', kind: 'select', options: ['keep', 'column', 'row'] },
+      { name: 'layout', kind: 'select', options: ['keep', 'column', 'row'] }, { name: 'rtss', kind: 'select', options: ['keep', 'on', 'off'] },
     ],
     capability: {
       domain: 'perf', risk: 'safe', requires: 'perfTile',
       ai: {
         name: 'set_perf_tile',
-        description: 'Read or change what the Game performance tile (the FPS widget, also over the game) shows, chosen reading by reading as in the statistics of the NVIDIA overlay. Each part is "show" or "hide"; leave out what the user did not mention, and with none the call only returns what is shown now. fps: the frame rate. low1, low01: the 1% and 0.1% lows. frame: the frame time (between games, how long the last game lasted). graph: the graph of the latest frame times. cpu, gpu: load. cpuTemp, gpuTemp: temperature. cpuClock, gpuClock: clock speed. cpuPower, gpuPower: power draw. vram, ram: memory used. ping: time to reach the internet. loss: packets lost on the way there; neither is measured against the game server. layout: over a game the readings sit one under the other (column) or on one line (row). Use it for "show only the FPS", "hide the graph", "add the CPU temperature to the overlay", "show the ping and the lost packets", "put the overlay on one line".',
-        params: { ...Object.fromEntries(PERF_TILE_PARTS.map(name => [name, 'show or hide'])), layout: 'column or row' },
+        description: 'Read or change what the Game performance tile (the FPS widget, also over the game) shows, chosen reading by reading as in the statistics of the NVIDIA overlay. Each part is "show" or "hide"; leave out what the user did not mention, and with none the call only returns what is shown now. fps: the frame rate. low1, low01: the 1% and 0.1% lows. frame: the frame time (between games, how long the last game lasted). graph: the graph of the latest frame times. cpu, gpu: load. cpuTemp, gpuTemp: temperature. cpuClock, gpuClock: clock speed. cpuPower, gpuPower: power draw. vram, ram: memory used. ping: time to reach the internet. loss: packets lost on the way there; neither is measured against the game server. layout: over a game the readings sit one under the other (column) or on one line (row). Use it for "show only the FPS", "hide the graph", "add the CPU temperature to the overlay", "show the ping and the lost packets", "put the overlay on one line". rtss (Windows): "on" also draws these readings over a game in exclusive full screen, where no window can show, through RivaTuner Statistics Server (a free program the user installs and keeps open); a borderless or windowed game keeps the Xenon overlay. Use it for "show the FPS in exclusive full screen", "use RivaTuner".',
+        params: { ...Object.fromEntries(PERF_TILE_PARTS.map(name => [name, 'show or hide'])), layout: 'column or row', rtss: 'on or off' },
       },
     },
   },

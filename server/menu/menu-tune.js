@@ -70,12 +70,24 @@ function leadOf(w, widgets) {
   return box ? box.lead : w;
 }
 
+// Over a game in exclusive full screen no window shows: RivaTuner can draw the same
+// readings (server/rtss/). Only where it can exist; the line says what is true now.
+function rtssRows(id, rtss) {
+  if (!rtss) return [];
+  let sub = 'xmenu_rtss_sub';
+  if (rtss.on) sub = rtss.showing ? 'xmenu_rtss_showing' : rtss.running ? 'xmenu_rtss_ready' : 'xmenu_rtss_closed';
+  const toggle = toggleRow(id('rtss'), k('xmenu_rtss'), rtss.on, { type: 'perfHud', rtss: 'on' }, { type: 'perfHud', rtss: 'off' }, k(sub));
+  const get = { kind: 'button', id: id('rtss-get'), label: k('xmenu_rtss_get'), action: k('xmenu_rtss_get_do'), act: run({ type: 'openUrl', url: rtss.url }) };
+  return rtss.on && !rtss.running ? [toggle, get] : [toggle];
+}
+
 function hudRows(id, st) {
   const shown = PerfHud.normalizePerfHud(st.perfHud);
   const layouts = PerfHud.PERF_HUD_LAYOUTS.map((v) => [v, k('xmenu_hud_' + v)]);
   return [
     partsRow(id('parts'), shown),
     choiceRow(id('layout'), k('xmenu_hud_layout'), shown.layout, layouts, (v) => ({ type: 'perfHud', layout: v })),
+    ...rtssRows(id, st.rtss),
   ];
 }
 

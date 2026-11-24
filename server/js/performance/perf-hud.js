@@ -46,6 +46,8 @@
       out[k] = SHOWN_UNLESS_OFF.includes(k) ? v[k] !== false && !hiddenOldWay : v[k] === true;
     }
     out.layout = PERF_HUD_LAYOUTS.includes(v.layout) ? v.layout : PERF_HUD_LAYOUTS[0];
+    // Over a game in exclusive full screen, the same readings drawn by RivaTuner (server/rtss/).
+    out.rtss = v.rtss === true;
     return out;
   }
 
@@ -55,6 +57,7 @@
     const c = change && typeof change === 'object' ? change : {};
     for (const k of PERF_HUD_PARTS) if (typeof c[k] === 'boolean') next[k] = c[k];
     if (PERF_HUD_LAYOUTS.includes(c.layout)) next.layout = c.layout;
+    if (typeof c.rtss === 'boolean') next.rtss = c.rtss;
     return next;
   }
 

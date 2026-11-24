@@ -445,9 +445,10 @@
       "id": "performance",
       "area": "widgets",
       "name": "Performance and FPS",
-      "what": "Game detection, the frame counter, Performance Mode and Core Shield.",
+      "what": "Game detection, the frame counter, Performance Mode, Core Shield, readings drawn by RivaTuner over exclusive games.",
       "files": [
         "server/performance/**",
+        "server/rtss/**",
         "server/game-guess/**",
         "server/perf-session/**",
         "server/performance.ps1",

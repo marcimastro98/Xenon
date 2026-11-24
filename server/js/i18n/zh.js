@@ -8082,4 +8082,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: '更亮',
   xmenu_pump_leds_palette: '颜色',
   xmenu_pump_leds_palette_mine: '你的两种颜色',
+  xmenu_rtss: '在独占全屏上方显示',
+  xmenu_rtss_sub: '独占全屏的游戏上方无法显示任何窗口。免费程序 RivaTuner 可以把这些数据显示在游戏中。',
+  xmenu_rtss_showing: 'RivaTuner 正在游戏上方显示这些数据。',
+  xmenu_rtss_ready: 'RivaTuner 已打开：下一个独占全屏游戏中就会显示。',
+  xmenu_rtss_closed: '打开 RivaTuner 并保持运行，即可在游戏上方看到这些数据。',
+  xmenu_rtss_get: 'RivaTuner Statistics Server 可在 Guru3D 免费获取。',
+  xmenu_rtss_get_do: '下载',
 };

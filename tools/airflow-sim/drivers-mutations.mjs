@@ -6,6 +6,7 @@ const LHM = 'server/airflow/driver-lhm.js';
 const HW = 'server/airflow/driver-hwmon.js';
 const WD = 'server/airflow/watchdog.js';
 const LINK = 'server/airflow/driver-link.js';
+const BUSY = 'server/airflow/link-busy.js';
 const FILES = 'server/airflow/fan-files.js';
 const FILES_WORKER = 'server/airflow/fan-files-worker.js';
 const POOL = 'server/engine/thread-pool.js';
@@ -94,5 +95,14 @@ export default {
     m(LINK, 'link: radiator without a pump', 'pumps === 1 && fans <= RADIATOR_MAX_FANS', 'pumps <= 1 && fans <= RADIATOR_MAX_FANS'),
     m(LINK, 'link: an unknown device driven', "    if (info.kind === 'other') continue;\n", ''),
     m(LINK, "link: the hub's own air read as the liquid", "linkDevice(d.type, d.model).kind === 'pump' && temps.has(d.channel)", 'temps.has(d.channel)'),
+    m(LINK, 'link: iCUE starting while held not looked for', '      if (await tookBack(link, at) || await othersStarted(at)) return null;', '      if (await tookBack(link, at)) return null;'),
+    m(LINK, 'link: looked for at every poll', 'if (!checking && at - checkedAt >= HELD_CHECK_MS) {', 'if (!checking) {'),
+    m(LINK, 'link: a failed look lets go', "others = seen.filter((app) => app !== 'unknown');", 'others = seen;'),
+    m(LINK, 'link: a slow look holds the poll', 'if (checking) await within(checking, HELD_CHECK_WAIT_MS);', 'if (checking) await checking;'),
+    m(LINK, 'link: iCUE started, hub not given back', '    others = [];\n    await release();', '    others = [];'),
+    m(LINK, 'link: iCUE started, no step aside', '    yieldUntil = now() + YIELD_MS;\n    yieldTo = others;', '    yieldTo = others;'),
+    m(BUSY, 'busy: the table ignored', 'if (Array.isArray(rows) && rows.length) {', 'if (false) {'),
+    m(BUSY, 'busy: an empty table read as nobody', 'if (Array.isArray(rows) && rows.length) {', 'if (Array.isArray(rows)) {'),
+    m(BUSY, 'busy: the table names compared raw', 'names.has(processKey(app))', 'names.has(app)'),
   ],
 };

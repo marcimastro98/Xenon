@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { fakeLinkHub, deviceEntry, EMPTY } from './airflow-link-fake.mjs';
 
 const require = createRequire(import.meta.url);
-const { createLinkDriver, standIn, STAND_IN, YIELD_MS, OWN_SILENCE_MS, FORGIVE_MS } = require('../airflow/driver-link.js');
+const { createLinkDriver, standIn, STAND_IN, YIELD_MS, OWN_SILENCE_MS, FORGIVE_MS, HELD_CHECK_MS } = require('../airflow/driver-link.js');
 const { createLinkBusy } = require('../airflow/link-busy.js');
 const { mergePolls } = require('../airflow/sense.js');
 
@@ -18,12 +18,12 @@ const IFACES = [
 /** A driver on a stand-in hub: pump on 1, fan on 2, an empty slot, a screen on 4. */
 function rig({ busy = [], wanted = true, hub = fakeLinkHub({ channels: [deviceEntry(0x11, 5, 'PUMPID'), deviceEntry(0x0f, 0, 'FANID'), EMPTY, deviceEntry(0x06, 0, 'LCDID')], rpm: [null, 2400, 1200, null, null], temps: [368, 404, null, null, null] }) } = {}) {
   const opened = [];
-  const state = { wanted, busy, hub, opened, list: IFACES, t: 1000 };
+  const state = { wanted, busy, hub, opened, list: IFACES, t: 1000, looks: 0, slow: null };
   const driver = createLinkDriver({
     hid: { list: async () => state.list },
     openReports: async (ifaces) => { opened.push(ifaces.map((i) => i.path)); return hub.link; },
     leadingZero: true,
-    busy: async () => state.busy,
+    busy: () => { state.looks += 1; return state.slow ?? Promise.resolve(state.busy); },
     wanted: () => state.wanted,
     now: () => (state.t += 10),
   });
@@ -277,4 +277,81 @@ test("the liquid is the pump's reading, never a fan's or the hub's own, wherever
   const p = await driver.poll();
   assert.equal(p.liquid, 40.4);
   assert.equal(p.temps.liquid.value, 40.4);
+});
+
+test('iCUE starting while Xenon holds the hub: the hub is given back within seconds, not at the next minute check', async () => {
+  const { driver, state } = rig();
+  assert.ok(await driver.poll());
+  await driver.apply({ 'link:hub:ch-2': { action: 'set', duty: 35 } });
+  // iCUE starts at sign-in, a minute after the engine took the hub: both talking sends the fans to full.
+  state.busy = ['iCUE.exe'];
+  state.t += HELD_CHECK_MS;
+  assert.equal(await driver.poll(), null);
+  assert.equal(state.hub.mode, 'hardware');
+  assert.equal(state.hub.closed, true);
+  assert.deepEqual(driver.channels(), []);
+  assert.deepEqual(await driver.available(), { ok: false, why: 'vendor-app' });
+  assert.equal(await driver.poll(), null);
+  assert.equal(state.opened.length, 1);
+  // iCUE quits: the hub is taken again at the first check after.
+  state.busy = [];
+  state.t += 60000;
+  assert.deepEqual(await driver.available(), { ok: true, why: null });
+  assert.ok(await driver.poll());
+  assert.equal(state.hub.mode, 'software');
+});
+
+test('while held the look for other programs runs once every few seconds, and a look that fails lets nothing go', async () => {
+  const { driver, state } = rig();
+  await driver.poll();
+  const first = state.looks;
+  assert.equal(first, 1);
+  const start = state.t;
+  while (state.t - start < HELD_CHECK_MS / 2) assert.ok(await driver.poll());
+  assert.equal(state.looks, first);
+  state.busy = ['unknown'];
+  state.t += HELD_CHECK_MS;
+  assert.ok(await driver.poll());
+  assert.equal(state.looks, first + 1);
+  assert.equal(state.hub.mode, 'software');
+  state.busy = Promise.reject(new Error('no table'));
+  state.busy.catch(() => {});
+  state.t += HELD_CHECK_MS;
+  assert.ok(await driver.poll());
+  assert.equal(state.hub.mode, 'software');
+});
+
+test('a slow look never holds the poll: its answer is acted on at a later poll', async () => {
+  const { driver, state } = rig();
+  await driver.poll();
+  let answer;
+  state.slow = new Promise((resolve) => { answer = resolve; });
+  state.t += HELD_CHECK_MS;
+  const started = Date.now();
+  assert.ok(await driver.poll());
+  assert.ok(Date.now() - started < 2000);
+  assert.equal(state.hub.mode, 'software');
+  state.slow = null;
+  answer(['iCUE.exe']);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(await driver.poll(), null);
+  assert.equal(state.hub.mode, 'hardware');
+});
+
+test('busy on Windows from the process table: no process started; an unreadable table falls back to tasklist', async () => {
+  const calls = [];
+  const run = async (file) => { calls.push(file); return { ok: true, out: '"iCUE.exe","37"\n' }; };
+  const icue = createLinkBusy({ platform: 'win32', run, table: { read: async () => [{ name: 'explorer' }, { name: 'icue' }] } });
+  assert.deepEqual(await icue(), ['iCUE.exe']);
+  const none = createLinkBusy({ platform: 'win32', run, table: { read: async () => [{ name: 'explorer' }, { name: 'corsair.service' }] } });
+  assert.deepEqual(await none(), []);
+  assert.deepEqual(calls, []);
+  const blind = createLinkBusy({ platform: 'win32', run, table: { read: async () => null } });
+  assert.deepEqual(await blind(), ['iCUE.exe']);
+  const broken = createLinkBusy({ platform: 'win32', run, table: { read: async () => { throw new Error('x'); } } });
+  assert.deepEqual(await broken(), ['iCUE.exe']);
+  // A table with no processes at all is a read that went wrong, not a PC with nothing running.
+  const empty = createLinkBusy({ platform: 'win32', run, table: { read: async () => [] } });
+  assert.deepEqual(await empty(), ['iCUE.exe']);
+  assert.deepEqual(calls, ['tasklist', 'tasklist', 'tasklist']);
 });

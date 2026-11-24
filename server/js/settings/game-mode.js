@@ -106,6 +106,8 @@ function syncPerfHudControls() {
     const el = $(`settings-perfhud-${k}`);
     if (el) el.checked = parts[k];
   }
+  const rtss = $('settings-perfhud-rtss');
+  if (rtss) rtss.checked = parts.rtss;
   syncExpanderSummaries();
 }
 
@@ -182,6 +184,7 @@ async function refreshGameModeStatus() {
     const res = await fetch(SERVER + '/api/gamemode/status');
     if (!res.ok) throw new Error('status unavailable');
     const data = await res.json();
+    window.PerfHudRtss?.sync(data.rtss || null);
     if (data.fpsBackend === 'mangohud') {
       const key = data.fpsAvailable ? 'settings_gamemode_mangohud_ready' : 'settings_gamemode_mangohud_missing';
       if (note) { note.setAttribute('data-i18n', key); note.textContent = t(key); }

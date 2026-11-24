@@ -229,12 +229,17 @@ export function makeDom() {
     // `:scope > x` is a direct child of the node asked.
     const direct = sel.trim().match(/^:scope\s*>\s*(.+)$/);
     if (direct) return root.children.filter((c) => matches(c, direct[1]));
-    const parts = sel.trim().split(/\s+/);
+    // `a > b` is a direct child too (perf-hud-rtss.js finds its group's own grid).
+    const parts = sel.trim().replace(/\s*>\s*/g, ' > ').split(/\s+/);
     let scope = [root];
+    let child = false;
     for (const part of parts) {
+      if (part === '>') { child = true; continue; }
       const next = [];
-      scope.forEach((n) => descendants(n).forEach((d) => { if (matches(d, part) && !next.includes(d)) next.push(d); }));
+      const pool = (n) => (child ? n.children : descendants(n));
+      scope.forEach((n) => pool(n).forEach((d) => { if (matches(d, part) && !next.includes(d)) next.push(d); }));
       scope = next;
+      child = false;
     }
     return scope;
   }

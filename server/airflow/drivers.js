@@ -94,7 +94,7 @@ function linkDriver(platform, wanted, lights) {
     hid: require(win ? '../hid/hid-windows.js' : '../hid/hid-linux.js'),
     openReports: require(win ? '../hid/hid-reports-windows.js' : '../hid/hid-reports-linux.js').openReports,
     leadingZero: win,
-    busy: createLinkBusy({ platform }),
+    busy: createLinkBusy({ platform, table: win ? require('../perf-session/process-table-windows.js').createWindowsProcessTable() : undefined }),
     wanted,
     lights,
   });

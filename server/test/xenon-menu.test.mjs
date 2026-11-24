@@ -355,6 +355,24 @@ test('the readings sit in a column or a row, and FPS says what it is', () => {
   assert.equal(hudItems(out).find((i) => i.id === 'part-fps').sub.key, 'xmenu_sub_fps');
 });
 
+test('over exclusive full screen RivaTuner draws them: a switch on Windows, the download only when it is missing', () => {
+  const url = 'https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download';
+  assert.equal(hudTune(Menu.compose(full()), 'rtss'), undefined, 'not on a PC that cannot have it');
+  const off = Menu.compose(full({ rtss: { on: false, running: false, showing: false, url } }));
+  assert.equal(hudTune(off, 'rtss').sub.key, 'xmenu_rtss_sub');
+  assert.deepEqual(hudTune(off, 'rtss').acts.on.run, { type: 'perfHud', rtss: 'on' });
+  assert.equal(hudTune(off, 'rtss-get'), undefined, 'no download for a person who does not want it');
+  const closed = Menu.compose(full({ rtss: { on: true, running: false, showing: false, url } }));
+  assert.equal(hudTune(closed, 'rtss').on, true);
+  assert.equal(hudTune(closed, 'rtss').sub.key, 'xmenu_rtss_closed');
+  assert.deepEqual(hudTune(closed, 'rtss-get').act.run, { type: 'openUrl', url });
+  const ready = Menu.compose(full({ rtss: { on: true, running: true, showing: false, url } }));
+  assert.equal(hudTune(ready, 'rtss').sub.key, 'xmenu_rtss_ready');
+  assert.equal(hudTune(ready, 'rtss-get'), undefined);
+  const showing = Menu.compose(full({ rtss: { on: true, running: true, showing: true, url } }));
+  assert.equal(hudTune(showing, 'rtss').sub.key, 'xmenu_rtss_showing');
+});
+
 test('the person ticks the readings, group by group, each one its capability', () => {
   const out = Menu.compose(full({ perfHud: { ping: true, graph: false } }));
   const parts = hudTune(out, 'parts');

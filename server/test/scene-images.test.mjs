@@ -107,7 +107,7 @@ test('a backup carries the pictures up to the size scenes could always hold, nev
 });
 
 test('pictures leave before the scene limits are checked, so a restored backup is not cut down', () => {
-  const w = SERVER.slice(SERVER.indexOf('async function writeHubSettings('), SERVER.indexOf('async function writeHubSettings(') + 1600);
+  const w = SERVER.slice(SERVER.indexOf('async function writeHubSettings('), SERVER.indexOf('async function writeHubSettings(') + 2000);
   assert.ok(w.indexOf('sceneImages.externalize(') < w.indexOf('normalizeHubSettings(settings)'));
   assert.match(w, /snapshotsDir: storeSnapshots\.snapshotsDir\(DATA_DIR\)/);
 });

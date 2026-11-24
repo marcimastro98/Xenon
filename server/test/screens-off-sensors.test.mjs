@@ -58,7 +58,8 @@ test('POST /screens-off takes a boolean and nothing else', async () => {
 test('the engine wires it: the three sensor loops skip, the path is guarded', () => {
   const server = engineSource();
   assert.match(server, /const screensOff = require\('\.\/screens-off\/state\.js'\);/);
-  assert.match(server, /async function _systemTick\(\) \{\n {2}if \(sseClients\.size > 0 && !screensOff\.readsWait\(sseClients\)\) \{/);
+  // RivaTuner drawing over a game (server/rtss/) reads too: the screen showing the game is on.
+  assert.match(server, /async function _systemTick\(\) \{\n {2}if \(\(sseClients\.size > 0 && !screensOff\.readsWait\(sseClients\)\) \|\| require\('\.\/rtss\/index\.js'\)\.drawing\(\)\) \{/);
   assert.match(server, /if \(!processesWanted\(\) \|\| screensOff\.readsWait\(sseClients\)\) return;/);
   assert.match(server, /!sdkStreamGranted\('sensors'\) \|\| screensOff\.readsWait\(sseClients\)\) return;/);
   assert.match(server, /'\/hints\/reset', '\/screens-off',/, 'in CSRF_MUTATION_PATHS');

@@ -7970,4 +7970,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: 'Más encendida',
   xmenu_pump_leds_palette: 'Colores',
   xmenu_pump_leds_palette_mine: 'Tus dos',
+  xmenu_rtss: 'Mostrar sobre pantalla completa exclusiva',
+  xmenu_rtss_sub: 'Ninguna ventana puede mostrarse sobre un juego en pantalla completa exclusiva. RivaTuner, un programa gratuito, puede dibujar estos datos dentro del juego.',
+  xmenu_rtss_showing: 'RivaTuner los está mostrando sobre el juego.',
+  xmenu_rtss_ready: 'RivaTuner está abierto: aparecerán en el próximo juego en pantalla completa exclusiva.',
+  xmenu_rtss_closed: 'Abre RivaTuner y déjalo abierto para verlos sobre el juego.',
+  xmenu_rtss_get: 'RivaTuner Statistics Server es gratuito en Guru3D.',
+  xmenu_rtss_get_do: 'Descargar',
 };

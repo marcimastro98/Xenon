@@ -71,3 +71,14 @@ test('the server ticks it from the system tick, the tile listens on every page',
   assert.match(read('js/main.js'), /addEventListener\('perf_net'/);
   assert.equal(require('../js/layers/layer-tiles.js').TILES.perf.streams.perf_net, 'onNet');
 });
+
+test('the newest reading is kept for RivaTuner, and dropped once it is old', async () => {
+  const { net, state } = rig();
+  assert.equal(net.last(), null, 'nothing read yet');
+  await net.tick();
+  assert.deepEqual(net.last(), { ping: 12, loss: 0 });
+  state.t = 15000;
+  assert.deepEqual(net.last(), { ping: 12, loss: 0 });
+  state.t = 15001;
+  assert.equal(net.last(), null, 'older than three gaps is not the network now');
+});

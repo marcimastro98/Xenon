@@ -15,14 +15,16 @@ const ALL_ON = {
   fps: true, low1: true, low01: true, frame: true, graph: true,
   cpu: true, cpuTemp: false, cpuClock: false, cpuPower: false,
   gpu: true, gpuTemp: true, gpuClock: false, gpuPower: false, vram: false,
-  ram: false, ping: false, loss: false, layout: 'column',
+  ram: false, ping: false, loss: false, layout: 'column', rtss: false,
 };
 
 test('a missing or broken setting shows the tile as it always was', () => {
   assert.deepEqual(normalizePerfHud(undefined), ALL_ON);
   assert.deepEqual(normalizePerfHud('junk'), ALL_ON);
   assert.deepEqual(normalizePerfHud({ graph: false, ping: 1, extra: false }), { ...ALL_ON, graph: false });
-  assert.deepEqual(Object.keys(normalizePerfHud({})), [...PERF_HUD_PARTS, 'layout']);
+  assert.deepEqual(Object.keys(normalizePerfHud({})), [...PERF_HUD_PARTS, 'layout', 'rtss']);
+  assert.equal(normalizePerfHud({ rtss: 'yes' }).rtss, false, 'RivaTuner is used only when chosen');
+  assert.equal(normalizePerfHud({ rtss: true }).rtss, true);
 });
 
 test('the old single CPU and GPU switch still hides those three, until each is chosen', () => {
@@ -100,15 +102,23 @@ test('Bit reads with no parameters and changes only what it names', async () => 
   await cap.run(d, { layout: 'row' });
   await cap.run(d, { layout: 'keep' });
   assert.deepEqual(writes, [{ layout: 'row' }], 'keep and anything else leave it alone');
+  writes.length = 0;
+  await cap.run(d, { rtss: 'on' });
+  await cap.run(d, { rtss: 'off' });
+  await cap.run(d, { rtss: true });
+  assert.deepEqual(writes, [{ rtss: true }, { rtss: false }], 'RivaTuner only on an "on" or an "off"');
 });
 
 test('the voice tool is declared, hidden from the Deck and offers show/hide for every part', () => {
   const c = CAPABILITIES.find(x => x.type === 'perfHud');
   assert.ok(c && c.hidden === true);
   assert.equal(c.capability.ai.name, 'set_perf_tile');
-  assert.deepEqual(c.params.map(p => p.name), [...PERF_HUD_PARTS, 'layout']);
-  for (const p of c.params.slice(0, -1)) assert.deepEqual(p.options, ['keep', 'show', 'hide']);
-  assert.deepEqual(c.params.at(-1).options, ['keep', 'column', 'row']);
+  assert.deepEqual(c.params.map(p => p.name), [...PERF_HUD_PARTS, 'layout', 'rtss']);
+  for (const p of c.params.slice(0, -2)) assert.deepEqual(p.options, ['keep', 'show', 'hide']);
+  assert.deepEqual(c.params.at(-2).options, ['keep', 'column', 'row']);
+  assert.deepEqual(c.params.at(-1).options, ['keep', 'on', 'off']);
+  assert.equal(c.capability.ai.params.rtss, 'on or off');
+  assert.match(c.capability.ai.description, /exclusive full screen/);
   assert.match(read('capabilities/index.js'), /case 'perfHud': return perfHud\.run\(d, action\);/);
 });
 

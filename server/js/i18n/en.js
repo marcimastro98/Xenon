@@ -8090,4 +8090,11 @@ module.exports = {
   xmenu_pump_leds_glow_more: 'Brighter',
   xmenu_pump_leds_palette: 'Colours',
   xmenu_pump_leds_palette_mine: 'Your two',
+  xmenu_rtss: 'Show over exclusive full screen',
+  xmenu_rtss_sub: 'No window can show over a game in exclusive full screen. RivaTuner, a free program, can draw these readings inside it.',
+  xmenu_rtss_showing: 'RivaTuner is drawing them over the game now.',
+  xmenu_rtss_ready: 'RivaTuner is open: they show over the next game in exclusive full screen.',
+  xmenu_rtss_closed: 'Open RivaTuner and leave it running to see them over the game.',
+  xmenu_rtss_get: 'RivaTuner Statistics Server is free on Guru3D.',
+  xmenu_rtss_get_do: 'Download',
 };

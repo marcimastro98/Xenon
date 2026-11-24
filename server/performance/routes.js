@@ -37,6 +37,8 @@ const branches = {
         foreground: gameDetect.getGamingWindow(),
         diag: (typeof gameDetect.getGameDiag === 'function') ? gameDetect.getGameDiag() : null,
         fps: fpsMonitor.getGamingProcess(),
+        // RivaTuner over exclusive full screen (server/rtss/): null off Windows.
+        rtss: require('../rtss/index.js').state(),
       });
     } catch (e) { err500(e.message); }
   },

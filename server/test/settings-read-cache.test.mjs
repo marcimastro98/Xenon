@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { createSettingsReader } = require('../settings/read.js');
+const { createSettingsReader } = require('../settings/read-cache.js');
 
 function folder() {
   const root = mkdtempSync(join(tmpdir(), 'xenon-settings-read-'));
