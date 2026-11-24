@@ -16,6 +16,28 @@
 // the deploy catches up the built file wins again. A copy marked deleted answers 404.
 
 const ALLOWED = new Set(['GET', 'HEAD']);
+
+// Security headers on every answer (24 Nov 2026). The CSP only holds rules that cannot break a
+// page of the site (no plugins, no foreign <base>). No upgrade-insecure-requests: the Maker talks
+// to the local app at http://127.0.0.1:3030. A full script/style allowlist would need every inline
+// script and embed audited first.
+export const SECURITY_HEADERS = {
+  'strict-transport-security': 'max-age=31536000',
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'content-security-policy': "object-src 'none'; base-uri 'self'",
+};
+
+// RFC 9116: where to report a security problem. Served by the Worker because the asset upload is
+// not guaranteed to keep a dot folder. Renew Expires before it passes.
+export const SECURITY_TXT = [
+  'Contact: mailto:support@xenon-app.com',
+  'Expires: 2027-11-24T00:00:00.000Z',
+  'Preferred-Languages: en, it',
+  'Canonical: https://xenon-app.com/.well-known/security.txt',
+  '',
+].join('\n');
+
 const LIVE_DIR = '/community/';
 
 /** The asset paths to try for a request path, in order. Pure, tested in server/test/site-host.test.mjs. */
@@ -52,6 +74,7 @@ async function exists(env, request, path) {
 function dress(res, status) {
   const out = new Response(res.body, { status: status || res.status, statusText: status ? '' : res.statusText, headers: res.headers });
   out.headers.set('access-control-allow-origin', '*');
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) out.headers.set(k, v);
   return out;
 }
 
@@ -101,6 +124,10 @@ export default {
     }
     if (!ALLOWED.has(request.method)) {
       return new Response('Method not allowed', { status: 405, headers: { allow: 'GET, HEAD' } });
+    }
+    if (url.pathname === '/.well-known/security.txt' || url.pathname === '/security.txt') {
+      const txt = new Response(request.method === 'HEAD' ? null : SECURITY_TXT, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=86400' } });
+      return dress(txt);
     }
     const fromLive = await live(env, request, url);
     if (fromLive) return fromLive;

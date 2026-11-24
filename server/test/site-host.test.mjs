@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import worker, { candidates, liveIsNewer, sharedPath } from '../../site-host/worker.js';
+import worker, { candidates, liveIsNewer, sharedPath, SECURITY_HEADERS } from '../../site-host/worker.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FILES = new Set(['/index.html', '/faq.html', '/it/index.html', '/catalog/index.html', '/community/catalog.json', '/404.html', '/demo/js/app.js']);
@@ -150,4 +150,25 @@ test('a failing bucket leaves the site on its build', async () => {
     const e = { ...env, LIVE: { get: async () => { throw new Error('r2 down'); } }, SITE_COMMIT_TIME: '1' };
     assert.equal(await (await getLive('/community/catalog.json', e)).text(), 'file /community/catalog.json');
   } finally { console.log = log; }
+});
+
+test('every answer carries the security headers, a 404 and a redirect target included', async () => {
+  for (const p of ['/faq.html', '/community/catalog.json', '/nope']) {
+    const res = await get(p);
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) assert.equal(res.headers.get(k), v, p + ' ' + k);
+  }
+  assert.match(SECURITY_HEADERS['content-security-policy'], /object-src 'none'/);
+  assert.doesNotMatch(SECURITY_HEADERS['content-security-policy'], /script-src|default-src/, 'a script allowlist would break inline scripts');
+  assert.doesNotMatch(SECURITY_HEADERS['content-security-policy'], /upgrade-insecure/, 'the Maker calls http://127.0.0.1:3030');
+});
+
+test('security.txt (RFC 9116) names a contact and an Expires date still in the future', async () => {
+  const res = await get('/.well-known/security.txt');
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /^text\/plain/);
+  const body = await res.text();
+  assert.match(body, /^Contact: mailto:support@xenon-app\.com$/m);
+  const exp = /^Expires: (.+)$/m.exec(body);
+  assert.ok(exp && Date.parse(exp[1]) > Date.now(), 'Expires must be renewed');
+  assert.equal((await get('/security.txt')).status, 200);
 });
