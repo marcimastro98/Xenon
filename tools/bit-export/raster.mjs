@@ -40,7 +40,8 @@ function span(a, b, origin, scale, max) {
 /**
  * @param {string|object} clip   clip id or clip
  * @param {number} index         frame index
- * @param {{ scale?: number, background?: string|null, tint?: string }} [opts]
+ * @param {{ scale?: number, background?: string|null, tint?: string, look?: object }} [opts]
+ *   look: a personal Bit from packages/core bit-look.js
  * @returns {{ width: number, height: number, data: Uint8Array }}
  */
 export function rasterFrame(clip, index, opts = {}) {
@@ -54,7 +55,7 @@ export function rasterFrame(clip, index, opts = {}) {
     for (let i = 0; i < data.length; i += 4) data.set([r, g, b, 255], i);
   }
   const floorPx = Math.round((FLOOR_Y - STAGE.y) * scale);
-  for (const layer of bit.renderFrame(clip, index, { tint: opts.tint }).layers) {
+  for (const layer of bit.renderFrame(clip, index, { tint: opts.tint, look: opts.look }).layers) {
     const t = layer.transform;
     const sx = t ? t.sx : 1;
     const sy = t ? t.sy : 1;

@@ -27,6 +27,7 @@
     "map:open": "node tools/map/map-html.mjs --open",
     "capture:build": "node tools/build-capture.mjs",
     "bit:export": "node tools/bit-export/cli.mjs",
+    "bit:lab": "node tools/bit-lab/cli.mjs",
     "doctor": "node tools/doctor.mjs",
     "version:set": "node tools/set-version.mjs",
     "postinstall": "node tools/link-shared.mjs",

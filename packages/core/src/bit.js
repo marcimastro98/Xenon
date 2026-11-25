@@ -1,11 +1,16 @@
-;(function (root, factory) {
+;((root, factory) => {
   'use strict';
-  const clips = typeof module === 'object' && module.exports ? require('./bit-clips.js') : root.Xenon.bitClips;
-  const mod = factory(clips);
-  if (typeof module === 'object' && module.exports) module.exports = mod;
+  const node = typeof module === 'object' && module.exports;
+  const clips = node ? require('./bit-clips.js') : root.Xenon.bitClips;
+  // Extra clip packs (the hatch, life moments). In a page a pack loaded before this file
+  // waits in Xenon.bitPacks, one loaded after calls addPack(); a page that skips one just
+  // lacks those clips.
+  const packs = node ? [require('./bit-clips-life.js')] : (root.Xenon?.bitPacks) || [];
+  const mod = factory(clips, packs);
+  if (node) module.exports = mod;
   root.Xenon = root.Xenon || {};
   root.Xenon.bit = mod;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (data) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, (data, packs) => {
   'use strict';
 
   /* Bit's renderer: a clip frame in, plain rectangles out. Pure, so the same
@@ -13,7 +18,9 @@
    * are drawn in order: shadow, back extras, glitch ghosts, body (with its
    * face and attached extras, moved by the frame's transform), front extras. */
 
-  const { INK, MOOD_RGB, BODY, EYES, MOUTHS, BROWS, CHEEKS, PARTS, CLIPS, POKES } = data;
+  const { INK, MOOD_RGB, BODY, EYES, MOUTHS, BROWS, CHEEKS, POKES } = data;
+  const PARTS = Object.assign({}, data.PARTS);
+  const CLIPS = [...data.CLIPS];
 
   // The stage around Bit's 12x12 grid; see bit-clips.js for the coordinates.
   const STAGE = Object.freeze({ x: -3, y: -5, w: 18, h: 17 });
@@ -26,6 +33,17 @@
   function clip(id) {
     return BY_ID.get(id) || null;
   }
+
+  /** Adds a clip pack's parts and clips; an id already known keeps its first definition. */
+  function addPack(pack) {
+    for (const [name, part] of Object.entries((pack?.PARTS) || {})) if (!(name in PARTS)) PARTS[name] = part;
+    for (const c of (pack?.CLIPS) || []) {
+      if (BY_ID.has(c.id)) continue;
+      CLIPS.push(c);
+      BY_ID.set(c.id, c);
+    }
+  }
+  packs.forEach(addPack);
 
   function rgb(tint) {
     if (!tint) return MOOD_RGB.idle;
@@ -42,22 +60,35 @@
   }
 
   // An extra is 'name' or ['name', dx, dy, opacity]; unknown names are skipped.
-  function extra(entry, bodyFill) {
+  function extra(entry, bodyFill, accent) {
     const [name, dx = 0, dy = 0, op = 1] = Array.isArray(entry) ? entry : [entry];
     const part = PARTS[name];
     if (!part || op <= 0) return null;
-    const fill = part.fill === 'body' ? bodyFill : part.fill;
+    const fill = part.fill === 'body' ? bodyFill : part.fill === 'accent' ? accent : part.fill;
     const o = op * (part.opacity == null ? 1 : part.opacity);
     return { part, rects: rects(part.cells, fill, dx, dy, o) };
   }
 
-  function face(frame) {
+  // A personal look (bit-look.js) recolours the ink eyes and brings its own cheeks.
+  function face(frame, look) {
     const eyes = shapeCells(EYES[frame.eyes || 'open'] || EYES.open);
     const mouth = shapeCells(MOUTHS[frame.mouth || 'flat'] || MOUTHS.flat);
     const brows = shapeCells(BROWS[frame.brows || 'none'] || BROWS.none);
-    const out = [...rects(eyes.cells, eyes.fill), ...rects(mouth.cells, mouth.fill), ...rects(brows.cells, brows.fill)];
-    if (frame.cheeks) out.unshift(...rects(CHEEKS.cells, CHEEKS.fill, 0, 0, CHEEKS.opacity));
+    const eyeFill = look && eyes.fill === INK ? look.eyes : eyes.fill;
+    const out = [...rects(eyes.cells, eyeFill), ...rects(mouth.cells, mouth.fill), ...rects(brows.cells, brows.fill)];
+    const ch = look ? look.cheeks : CHEEKS;
+    if (frame.cheeks || ch.always) out.unshift(...rects(ch.cells, ch.fill, 0, 0, frame.cheeks ? Math.max(ch.opacity, CHEEKS.opacity) : ch.opacity));
     return out;
+  }
+
+  // The look's markings, antenna tip (its light shows the mood) and worn items.
+  function personal(look, mood, over) {
+    return [...look.marks, ...look.tip.stem, ...rects(look.tip.light, mood), ...over];
+  }
+
+  // A half-cell ring of the body shape, so a pale Bit stays visible on a pale background.
+  function outline(fill) {
+    return [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5]].flatMap(([dx, dy]) => rects(BODY, fill, dx, dy));
   }
 
   // Body transform: move by dx/dy, scale from the middle of the feet.
@@ -70,25 +101,50 @@
     return { dx, dy, sx, sy, px: PIVOT_X, py: FLOOR_Y };
   }
 
+  /* A worn item that would leave the stage in any frame of a clip is set down
+   * for that whole clip (a held mug in the moonwalk) instead of being cut off.
+   * Cached per clip and item: the answer depends only on the item's cells. */
+  const fitCache = new WeakMap();
+  function inStage(frame, box) {
+    const { dx, dy, sx, sy } = transform(frame) || { dx: 0, dy: 0, sx: 1, sy: 1 };
+    const xs = [box.x0, box.x1].map((v) => dx + PIVOT_X + sx * (v - PIVOT_X));
+    const top = dy + FLOOR_Y + sy * (box.y0 - FLOOR_Y);
+    return Math.min(...xs) >= STAGE.x - 0.01 && Math.max(...xs) <= STAGE.x + STAGE.w + 0.01 && top >= STAGE.y - 0.01;
+  }
+  function wornFor(look, c) {
+    if (!fitCache.has(c)) fitCache.set(c, new Map());
+    const fits = fitCache.get(c);
+    const out = { behind: [], over: [], face: [] };
+    for (const w of look.worn) {
+      if (!fits.has(w.id)) fits.set(w.id, c.frames.every((f) => inStage(f, w.box)));
+      if (fits.get(w.id)) for (const k of Object.keys(out)) out[k].push(...w[k]);
+    }
+    return out;
+  }
+
   /**
    * Render one frame of a clip to layers of rectangles.
    * @param {object|string} clipOrId  a clip from bit-clips.js or its id
    * @param {number} index            frame index (wraps)
-   * @param {{tint?: string}} [opts]  tint overrides the clip's color
+   * @param {{tint?: string, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
+   *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip
    * @returns {{ layers: Array<{ transform: object|null, clipFloor: boolean, rects: Array }> }}
    */
   function renderFrame(clipOrId, index = 0, opts = {}) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
-    if (!c || !c.frames.length) throw new Error(`Unknown Bit clip: ${clipOrId}`);
+    if (!c?.frames.length) throw new Error(`Unknown Bit clip: ${clipOrId}`);
     const frame = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
-    const fill = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
+    const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
+    const look = opts.look || null;
+    const fill = look ? look.body : mood;
+    const worn = look ? wornFor(look, c) : null;
     const t = transform(frame);
 
     const back = [];
     const front = [];
     const attached = [];
     for (const entry of frame.ex || []) {
-      const e = extra(entry, fill);
+      const e = extra(entry, fill, look ? look.accent : fill);
       if (!e) continue;
       if (e.part.back) back.push(...e.rects);
       else if (e.part.attach) attached.push(...e.rects);
@@ -109,7 +165,10 @@
         layers.push({ transform: t, clipFloor: true, rects: rects(BODY, `rgb(${g})`, shift, 0, 0.75) });
       });
     }
-    layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...attached, ...face(frame)] });
+    if (look?.outline) layers.push({ transform: t, clipFloor: true, rects: outline(look.outline) });
+    if (worn?.behind.length) layers.push({ transform: t, clipFloor: true, rects: worn.behind });
+    const own = look ? personal(look, mood, worn.over) : [];
+    layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...own, ...attached, ...(worn ? worn.face : []), ...face(frame, look)] });
     if (front.length) layers.push({ transform: null, clipFloor: false, rects: front });
     return { layers };
   }
@@ -176,76 +235,20 @@
     return c ? c.frames.reduce((s, f) => s + f.ms, 0) : 0;
   }
 
-  // ── choosing what Bit does next ───────────────────────────────
-
-  function inHours(range, hour) {
-    const [a, b] = range;
-    return a <= b ? hour >= a && hour <= b : hour >= a || hour <= b;
-  }
-
-  function oneOf(want, have) {
-    return Array.isArray(want) ? want.includes(have) : want === have;
-  }
-
-  /** Does a clip's `when` fit the moment? Clips without `when` always fit. */
-  function fits(c, ctx = {}) {
-    const w = c.when;
-    if (!w) return true;
-    if (w.hours && !(Number.isFinite(ctx.hour) && inHours(w.hours, ctx.hour))) return false;
-    if (w.weather && !oneOf(w.weather, ctx.weather)) return false;
-    if (w.season && !oneOf(w.season, ctx.season)) return false;
-    for (const flag of ['hot', 'cold', 'music', 'gaming', 'cpuHot']) {
-      if (w[flag] && !ctx[flag]) return false;
-    }
-    return true;
-  }
-
-  /**
-   * Pick the next idle fidget: weighted, fitted to the moment, never one of
-   * the last few played, rare ones only now and then.
-   * @param {object} ctx        { hour, weather, season, hot, cold, music, gaming, cpuHot }
-   * @param {string[]} recent   ids played lately, newest last
-   * @param {() => number} rand Math.random or a seeded stand-in
-   */
-  function pickFidget(ctx = {}, recent = [], rand = Math.random) {
-    const memory = new Set(recent.slice(-6));
-    let pool = CLIPS.filter((c) => c.kind === 'fidget' && fits(c, ctx) && !memory.has(c.id));
-    if (!pool.length) pool = CLIPS.filter((c) => c.kind === 'fidget' && fits(c, ctx) && c.id !== recent[recent.length - 1]);
-    if (!pool.length) return null;
-    const total = pool.reduce((s, c) => s + c.weight, 0);
-    let roll = rand() * total;
-    for (const c of pool) {
-      roll -= c.weight;
-      if (roll < 0) return c.id;
-    }
-    return pool[pool.length - 1].id;
-  }
-
-  /** The season a date falls in, for seasonal fidgets; null most days. */
-  function seasonOf(date, birthday) {
-    const m = date.getMonth() + 1;
-    const d = date.getDate();
-    if (birthday && birthday.month === m && birthday.day === d) return 'birthday';
-    if ((m === 12 && d === 31) || (m === 1 && d === 1)) return 'newyear';
-    if (m === 10 && d >= 24) return 'halloween';
-    if (m === 12 && d >= 20 && d <= 26) return 'christmas';
-    return null;
-  }
-
   return {
     STAGE,
+    INK,
     MOOD_RGB,
     POKES,
+    parts: PARTS,
     clips: CLIPS,
     clip,
+    addPack,
     rgb,
     renderFrame,
     paths,
     frameSvg,
     transformAttr,
     duration,
-    fits,
-    pickFidget,
-    seasonOf,
   };
 });

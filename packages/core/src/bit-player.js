@@ -1,11 +1,14 @@
 ;(function (root, factory) {
   'use strict';
-  const bit = typeof module === 'object' && module.exports ? require('./bit.js') : root.Xenon.bit;
-  const mod = factory(bit);
+  const node = typeof module === 'object' && module.exports;
+  const bit = node ? require('./bit.js') : root.Xenon.bit;
+  // Read when Bit idles, not now: a page may load bit-director.js after this file.
+  const director = node ? () => require('./bit-director.js') : () => root.Xenon.bitDirector || null;
+  const mod = factory(bit, director);
   if (typeof module === 'object' && module.exports) module.exports = mod;
   root.Xenon = root.Xenon || {};
   root.Xenon.bitPlayer = mod;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (bit) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (bit, director) {
   'use strict';
 
   /* Bit, alive: mounts an SVG in a host element and plays clips on it.
@@ -16,8 +19,21 @@
    * states); reduced motion shows still poses and no fidgets. */
 
   const NS = 'http://www.w3.org/2000/svg';
-  const IDLE_GAP_MS = [7000, 16000];
   const CALM_FACTOR = 2.5;
+
+  // Without a personal Bit's director: the classic rhythm, any fidget that fits.
+  // A page without bit-director.js gets no idle fidgets, never an error.
+  function classic() {
+    const d = director();
+    if (!d) return null;
+    return {
+      idleGapMs() {
+        const [lo, hi] = d.IDLE_GAP_MS;
+        return lo + Math.random() * (hi - lo);
+      },
+      nextFidget: (ctx, recent) => d.pickFidget(ctx, recent),
+    };
+  }
   let uid = 0;
 
   function el(name, attrs) {
@@ -27,6 +43,16 @@
   }
 
   // The frame a still pose shows: the longest one, usually the clearest face.
+  // The page's own Bit (BitApp.setOwn): every player without a look of its own draws it.
+  let pageLook = null;
+  const live = new Set();
+
+  /** Every Bit in the page wears this look from now on (null: the classic Bit). */
+  function useLook(look) {
+    pageLook = look || null;
+    for (const p of live) p.refresh();
+  }
+
   function stillIndex(c) {
     let best = 0;
     c.frames.forEach((f, i) => {
@@ -43,8 +69,12 @@
    * @param {boolean} [opts.fidgets]      idle surprises (default true)
    * @param {boolean} [opts.calm]         fewer surprises
    * @param {boolean} [opts.reducedMotion] force still poses (default: OS setting)
-   * @param {() => object} [opts.context] the moment, for bit.fits()
+   * @param {() => object} [opts.context] the moment, for bitDirector.fits()
    * @param {(id: string) => void} [opts.onClip] told when a clip starts
+   * @param {() => object|null} [opts.look] a look of its own (bit-look.js), read on every
+   *   frame: a try-on preview. Without it the player draws the page's look (useLook)
+   * @param {object|(() => object|null)} [opts.director] a personal Bit's rhythm
+   *   (bitDirector.createDirector), or a getter for it; default the classic one
    */
   function mount(host, opts = {}) {
     const id = `bit-floor-${++uid}`;
@@ -79,12 +109,15 @@
       inView: true,
       held: false,
       resolveReact: null,
+      drawn: 0,
     };
 
     const reduced = () => (opts.reducedMotion != null ? !!opts.reducedMotion : !!(motionQuery && motionQuery.matches));
+    const rhythm = () => (typeof opts.director === 'function' ? opts.director() : opts.director) || classic();
 
     function draw(c, i) {
-      const { layers } = bit.renderFrame(c, i, { tint: state.tint });
+      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook });
+      state.drawn = i;
       const groups = layers.map((l) => {
         const g = el('g', {});
         const tr = bit.transformAttr(l.transform);
@@ -117,12 +150,13 @@
 
     function scheduleIdle() {
       clearTimeout(state.idleTimer);
-      if (!state.running || reduced() || opts.fidgets === false || state.mood !== 'idle') return;
-      const [lo, hi] = IDLE_GAP_MS;
-      const gap = (lo + Math.random() * (hi - lo)) * (opts.calm ? CALM_FACTOR : 1);
+      const pace = rhythm();
+      if (!pace || !state.running || reduced() || opts.fidgets === false || state.mood !== 'idle') return;
+      const ctx = opts.context ? opts.context() : {};
+      const gap = pace.idleGapMs(ctx) * (opts.calm ? CALM_FACTOR : 1);
       state.idleTimer = setTimeout(() => {
         if (state.current && state.current.kind !== 'mood') return;
-        const next = bit.pickFidget(opts.context ? opts.context() : {}, state.recent);
+        const next = pace.nextFidget(opts.context ? opts.context() : {}, state.recent);
         if (next) play(next);
       }, gap);
     }
@@ -219,7 +253,7 @@
     state.running = state.pageVisible && state.inView;
     start(bit.clip(state.mood));
 
-    return {
+    const api = {
       element: svg,
       setMood,
       play,
@@ -234,6 +268,10 @@
       get clip() {
         return state.current ? state.current.id : null;
       },
+      /** Draws the frame on screen again: after the look changed. */
+      refresh() {
+        if (state.current) draw(state.current, state.drawn || 0);
+      },
       destroy() {
         clearTimers();
         finishReact();
@@ -242,9 +280,12 @@
         if (motionQuery && motionQuery.removeEventListener) motionQuery.removeEventListener('change', onMotion);
         if (io) io.disconnect();
         svg.remove();
+        live.delete(api);
       },
     };
+    live.add(api);
+    return api;
   }
 
-  return { mount, stillIndex };
+  return { mount, stillIndex, useLook, look: () => pageLook };
 });

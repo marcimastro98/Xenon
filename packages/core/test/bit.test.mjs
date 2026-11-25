@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const data = require('../src/bit-clips.js');
 const bit = require('../src/bit.js');
+const director = require('../src/bit-director.js');
 const phrases = require('../src/bit-phrases.js');
 
 const BODY_KEY = JSON.stringify(data.BODY);
@@ -36,7 +37,7 @@ test('every clip id is unique and every frame names known shapes and parts', () 
       if (f.tint) assert.ok(data.MOOD_RGB[f.tint], `${c.id} tint ${f.tint}`);
       for (const e of f.ex || []) {
         const name = Array.isArray(e) ? e[0] : e;
-        assert.ok(data.PARTS[name], `${c.id} part ${name}`);
+        assert.ok(bit.parts[name], `${c.id} part ${name}`);
       }
     }
   }
@@ -76,22 +77,22 @@ test('transforms squash from the feet and leave the floor where it is', () => {
 
 test('fits: hours wrap past midnight, flags and lists must match', () => {
   const night = bit.clip('stargaze');
-  assert.ok(bit.fits(night, { hour: 23 }));
-  assert.ok(bit.fits(night, { hour: 2 }));
-  assert.ok(!bit.fits(night, { hour: 14 }));
-  assert.ok(!bit.fits(night, {}));
-  assert.ok(bit.fits(bit.clip('umbrella'), { weather: 'drizzle' }));
-  assert.ok(!bit.fits(bit.clip('umbrella'), { weather: 'clear' }));
-  assert.ok(!bit.fits(bit.clip('gaming'), { gaming: false }));
-  assert.ok(bit.fits(bit.clip('party'), { season: 'newyear' }));
-  assert.ok(bit.fits(bit.clip('hop'), {}));
+  assert.ok(director.fits(night, { hour: 23 }));
+  assert.ok(director.fits(night, { hour: 2 }));
+  assert.ok(!director.fits(night, { hour: 14 }));
+  assert.ok(!director.fits(night, {}));
+  assert.ok(director.fits(bit.clip('umbrella'), { weather: 'drizzle' }));
+  assert.ok(!director.fits(bit.clip('umbrella'), { weather: 'clear' }));
+  assert.ok(!director.fits(bit.clip('gaming'), { gaming: false }));
+  assert.ok(director.fits(bit.clip('party'), { season: 'newyear' }));
+  assert.ok(director.fits(bit.clip('hop'), {}));
 });
 
 test('pickFidget never repeats recent ones and only picks what fits', () => {
   const rand = seeded(7);
   const recent = [];
   for (let i = 0; i < 400; i++) {
-    const id = bit.pickFidget({ hour: 14 }, recent, rand);
+    const id = director.pickFidget({ hour: 14 }, recent, rand);
     assert.ok(!recent.slice(-6).includes(id), `repeat ${id}`);
     assert.ok(!bit.clip(id).when, `context clip ${id} without its moment`);
     recent.push(id);
@@ -105,16 +106,16 @@ test('pickFidget never repeats recent ones and only picks what fits', () => {
 test('pickFidget favors the moment when the context fits', () => {
   const rand = seeded(3);
   const recent = [];
-  for (let i = 0; i < 200; i++) recent.push(bit.pickFidget({ hour: 9, weather: 'rain', music: true }, recent, rand));
+  for (let i = 0; i < 200; i++) recent.push(director.pickFidget({ hour: 9, weather: 'rain', music: true }, recent, rand));
   for (const id of ['coffee', 'umbrella', 'headbang']) assert.ok(recent.includes(id), id);
 });
 
 test('seasonOf finds the holidays and a birthday', () => {
-  assert.equal(bit.seasonOf(new Date(2026, 9, 31)), 'halloween');
-  assert.equal(bit.seasonOf(new Date(2026, 11, 25)), 'christmas');
-  assert.equal(bit.seasonOf(new Date(2027, 0, 1)), 'newyear');
-  assert.equal(bit.seasonOf(new Date(2026, 4, 3), { month: 5, day: 3 }), 'birthday');
-  assert.equal(bit.seasonOf(new Date(2026, 6, 10)), null);
+  assert.equal(director.seasonOf(new Date(2026, 9, 31)), 'halloween');
+  assert.equal(director.seasonOf(new Date(2026, 11, 25)), 'christmas');
+  assert.equal(director.seasonOf(new Date(2027, 0, 1)), 'newyear');
+  assert.equal(director.seasonOf(new Date(2026, 4, 3), { month: 5, day: 3 }), 'birthday');
+  assert.equal(director.seasonOf(new Date(2026, 6, 10)), null);
 });
 
 test('phrases: every language has every English moment, no em-dashes', () => {
