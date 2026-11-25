@@ -16,7 +16,7 @@ const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const BIT_ENGINE = require('./fixtures/bit-engine.json');
 const src = (p) => readFileSync(join(SERVER, p), 'utf8');
-const ROOM = ['wardrobe-keep', 'wardrobe', 'card-dna', 'card', 'recap', 'clip', 'room-scenery', 'room-panels', 'room'];
+const ROOM = ['wardrobe-keep', 'wardrobe-tabs', 'wardrobe', 'card-dna', 'card', 'recap', 'clip', 'room-scenery', 'room-panels', 'room'];
 const FILES = [...BIT_ENGINE, 'js/ai/bit-app.js', ...ROOM.map((f) => `js/bit-companion/${f}.js`)];
 const SEED = '0123456789abcdef';
 const born = (more = {}) => ({
@@ -192,4 +192,50 @@ test('the Store lists the room on its rail, gives it Esc first, and the Sparks v
   assert.ok(ROOM.every((f, i) => at(f) > 0 && (!i || at(f) > at(ROOM[i - 1]))), 'each part before the room that uses it');
   assert.ok(at('room') < at('sheet'), 'and the room before its sheet');
   assert.equal(at('shelf'), -1, 'the old shelf is gone');
+});
+
+test("the rail's tabs: a picture of this Bit over each word, a place shown by what it wears there", () => {
+  const r = rig();
+  r.tell(born({ owned: ['cap', 'guitar'] }));
+  r.open();
+  const tabs = r.view.querySelectorAll('.broom-tab');
+  assert.deepEqual(tabs.slice(0, 2).map((b) => b.dataset.tab), ['all', 'mine']);
+  for (const b of tabs) {
+    assert.ok(b.querySelector('.broom-tab-art svg rect'), `${b.dataset.tab}: a picture`);
+    assert.match(b.querySelector('.broom-tab-word').textContent, /^mybit_(tab_all|mine|slot_\w+)$/);
+  }
+  const n = tabs.length;
+  assert.equal(r.view.querySelector('.broom-tabs').style.getPropertyValue('--broom-tab-cols'), String(n <= 4 ? n : Math.ceil(n / 2)), 'two even rows on a wide rail');
+  const head = tabs.find((b) => b.dataset.tab === 'head');
+  const cap = r.card('cap').querySelector('.broom-card-art svg');
+  assert.equal(head.querySelector('svg').getAttribute('viewBox'), cap.getAttribute('viewBox'), 'the head: its own cap, the one it wears');
+  head.click();
+  assert.equal(head.getAttribute('aria-pressed'), 'true');
+  assert.equal(tabs[0].getAttribute('aria-pressed'), 'false');
+  const W = r.ctx.Xenon.bitWardrobe;
+  const shown = r.view.querySelectorAll('.broom-card[data-item]');
+  assert.ok(shown.length && shown.every((c) => W.item(c.dataset.item).slot === 'head'), 'only what goes on the head');
+});
+
+test('the share drawer: one choice on top, then only what it makes; its page on the site sits in its settings', () => {
+  const r = rig();
+  const opened = [];
+  r.ctx.ShareCard = { open: (o) => opened.push(o) };
+  r.tell(born());
+  r.open();
+  r.view.querySelectorAll('.broom-dock button').find((b) => b.textContent === 'mybit_share').click();
+  const drawer = r.view.querySelector('.broom-drawer');
+  const choices = drawer.querySelectorAll('.bitc-share-tabs button');
+  assert.deepEqual(choices.map((b) => [b.dataset.share, b.getAttribute('aria-pressed')]), [['card', 'true'], ['setup', 'false']], 'no recorder, no month closed: card and setup');
+  const pane = drawer.querySelector('.bitc-share-pane');
+  assert.equal(pane.children.length, 1, 'one part at a time');
+  assert.ok(pane.querySelector('.bitc-card .bitc-tools .bitc-choice'), 'its card with the ground under it');
+  assert.equal(drawer.querySelector('.bitc-site'), null, 'no site choice among the sharing');
+  choices[1].click();
+  assert.deepEqual(choices.map((b) => b.getAttribute('aria-pressed')), ['false', 'true']);
+  assert.equal(pane.querySelector('.bitc-card'), null, 'the card made way');
+  pane.querySelector('.bitc-setup button').click();
+  assert.deepEqual(opened.map((o) => o.source), ['setup']);
+  r.view.querySelector('.broom-top .broom-tools .broom-icon').click();
+  assert.ok(r.view.querySelector('.broom-drawer .bitc-site input'), 'its page on the site, in its settings');
 });

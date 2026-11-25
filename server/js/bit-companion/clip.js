@@ -191,12 +191,12 @@
     };
     const file = typeof File === 'function' ? new File([clip.blob], clip.file, { type: clip.blob.type }) : null;
     if (file && navigator.canShare?.({ files: [file] })) {
-      add('sharecard_share', 'bitc-seg-btn', () => navigator.share({ files: [file], title: 'Xenon' }).catch(() => {}));
+      add('mybit_act_share', 'bitc-seg-btn', () => navigator.share({ files: [file], title: 'Xenon' }).catch(() => {}));
     }
     const S = window.XenonSaveFile;
     const ext = clip.file.slice(clip.file.lastIndexOf('.'));
     if (S) {
-      add('mybit_clip_save', 'bitc-seg-btn is-main', () => S.save({ name: clip.file, types: [{ description: 'Video', accept: { [clip.blob.type]: [ext] } }], make: async () => clip.blob })
+      add('mybit_act_save', 'bitc-seg-btn is-main', () => S.save({ name: clip.file, types: [{ description: 'Video', accept: { [clip.blob.type]: [ext] } }], make: async () => clip.blob })
         .catch(() => h.note(h.say('save_file_failed'))));
     }
     return row;
@@ -244,8 +244,9 @@
       slot.replaceChildren(video, saveRow(made, h));
       return box;
     }
-    const go = makeEl('button', 'bitc-seg-btn', h.say('mybit_clip_make'));
+    const go = makeEl('button', 'bitc-seg-btn is-main', h.say('mybit_clip_make'));
     go.type = 'button';
+    box.prepend(makeEl('p', 'bitc-line', h.say('mybit_clip_line')));
     go.addEventListener('click', async () => {
       go.disabled = true;
       const said = window.BitCard.words(bit, h.say, h.num, () => '', code());

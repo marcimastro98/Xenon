@@ -134,8 +134,8 @@
   const keyOf = (kind, rec, bit) => JSON.stringify([kind, rec, bit.number, bit.name, bit.worn, bit.genes, bit.prefs?.pose, bit.page]);
 
   /**
-   * The sheet's part: a button per recap there is, and the card it makes with what to do with it.
-   * Nothing when the Bit has no closed month yet.
+   * The share drawer's recap: the card drawn as soon as it shows, with what to do with it. With the
+   * month and the year both there, a choice between them on top. Nothing without a closed month.
    * @param {object} bit the server's view of the Bit (GET /api/bit)
    * @param {{ say: Function, num: Function, note: Function, redraw: Function, signal: AbortSignal }} h the sheet's hands
    */
@@ -151,30 +151,31 @@
       img.src = card.src;
       slot.replaceChildren(img, window.BitCard.paint.actions(card.canvas, h, card.file));
     };
-    for (const { kind, rec } of recaps) {
+    const choose = async ({ kind, rec }) => {
+      open = kind;
+      for (const b of row.children) b.setAttribute('aria-pressed', String(b.dataset.kind === kind));
       const said = { ...words(rec, kind, bit, h.say, h.num, code()), tagline: h.say('mybit_share_tagline') };
       const key = keyOf(kind, rec, bit);
-      const b = makeEl('button', 'bitc-seg-btn', said.button);
+      if (made[kind]?.key === key) { show(made[kind]); return; }
+      slot.replaceChildren(makeEl('div', 'bitc-card-img is-wait'));
+      try {
+        const canvas = await draw(said, bit);
+        if (h.signal.aborted) return;
+        made[kind] = { key, canvas, title: said.title, file: said.file, src: canvas.toDataURL('image/png') };
+        if (box.isConnected && open === kind) show(made[kind]);
+      } catch {
+        if (!h.signal.aborted && open === kind) { slot.replaceChildren(); h.note(h.say('mybit_share_failed')); }
+      }
+    };
+    for (const recap of recaps.length > 1 ? recaps : []) {
+      const b = makeEl('button', 'bitc-seg-btn', words(recap.rec, recap.kind, bit, h.say, h.num, code()).button);
       b.type = 'button';
-      b.addEventListener('click', async () => {
-        if (made[kind]?.key === key) { open = kind; show(made[kind]); return; }
-        b.disabled = true;
-        try {
-          const canvas = await draw(said, bit);
-          if (h.signal.aborted) return;
-          made[kind] = { key, canvas, title: said.title, file: said.file, src: canvas.toDataURL('image/png') };
-          open = kind;
-          if (box.isConnected) show(made[kind]); else h.redraw();
-        } catch {
-          h.note(h.say('mybit_share_failed'));
-        } finally {
-          b.disabled = false;
-        }
-      }, { signal: h.signal });
+      b.dataset.kind = recap.kind;
+      b.addEventListener('click', () => choose(recap), { signal: h.signal });
       row.append(b);
-      if (open === kind && made[kind]?.key === key) show(made[kind]);
     }
-    box.append(row, slot);
+    box.append(...(row.children.length ? [row, slot] : [slot]));
+    choose(recaps.find((r) => r.kind === open) || recaps[0]);
     return box;
   }
 

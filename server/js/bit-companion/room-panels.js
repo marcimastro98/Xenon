@@ -1,16 +1,18 @@
 'use strict';
 // The two drawers of the Bit's room (bit-companion/room.js), opened over its stage:
-//   - share: the card with its ground and pose, the short video, the setup's card with the Bit in it
-//     (presets/share-card.js), the month's card and its page on the site (card.js, clip.js, recap.js);
+//   - share: one choice at the top (its card, a short video, the setup's card with the Bit in it, the
+//     month's card once a month has closed), then only that one, with one row to copy, share or save
+//     it (card.js, clip.js, presets/share-card.js, recap.js);
 //   - about: its name, who it is, what it learns from the person, where it lives, how often it
-//     reacts and the classic Bit elsewhere. An egg has only where it lives.
-// The server keeps it all (POST /api/bit/name|prefs); every answer goes through the room's hands.
+//     reacts, the classic Bit elsewhere and its page on the site. An egg has only where it lives.
+// The server keeps it all (POST /api/bit/name|prefs|publish); every answer goes through the room's hands.
 (() => {
   const TRAIT_KEYS = { gamer: 'gamer', nightOwl: 'night_owl', musicLover: 'music_lover', coder: 'coder', overclocker: 'overclocker', earlyBird: 'early_bird' };
   const PLACES = ['corner', 'topbar', 'both', 'off'];
   const REACTIONS = ['normal', 'few', 'off'];
   const GROUNDS = ['plain', 'stage'];
   const NAME_MAX = 24;
+  let shareTab = 'card'; // what the share drawer shows; the room's buttons choose it before opening
 
   async function setPref(patch, h) {
     const out = await h.post('/api/bit/prefs', patch);
@@ -105,8 +107,7 @@
   function pose(bit, h) {
     const D = window.BitDna;
     if (!D) return null;
-    const line = makeEl('div', 'bitc-pose');
-    line.append(makeEl('p', 'bitc-line', h.say(bit.prefs?.pose ? 'mybit_pose_chosen' : 'mybit_pose_own')));
+    const box = makeEl('div', 'bitc-choice bitc-pose');
     const turn = makeEl('button', 'bitc-seg-btn', h.say('mybit_pose_change'));
     turn.type = 'button';
     turn.addEventListener('click', () => {
@@ -114,8 +115,8 @@
       h.play(next || D.poseOf({ genes: bit.genes }));
       setPref({ pose: next }, h);
     }, { signal: h.signal });
-    line.append(turn);
-    return line;
+    box.append(makeEl('span', 'bitc-choice-title', h.say('mybit_pose')), turn);
+    return box;
   }
 
   // Its page on xenon-app.com, by choice (POST /api/bit/publish): only a Bit with the hub's
@@ -153,24 +154,57 @@
 
   // The setup's card (presets/share-card.js): a picture of the dashboard, the Bit standing beside it.
   function setup(h) {
-    if (!window.ShareCard) return null;
-    const box = makeEl('section', 'bitc-part bitc-setup');
-    const words = makeEl('div', 'bitc-setup-words');
-    words.append(makeEl('h3', 'bitc-part-title', h.say('mybit_setup_title')), makeEl('p', 'bitc-line', h.say('mybit_setup_line')));
-    const go = makeEl('button', 'bitc-seg-btn', h.say('sharecard_setup_btn'));
+    const box = makeEl('div', 'bitc-part bitc-setup');
+    const go = makeEl('button', 'bitc-seg-btn is-main', h.say('mybit_setup_go'));
     go.type = 'button';
     go.addEventListener('click', () => window.ShareCard.open({ source: 'setup' }), { signal: h.signal });
-    box.append(words, go);
+    box.append(makeEl('p', 'bitc-line', h.say('mybit_setup_line')), go);
     return box;
   }
 
+  // What this page can make: its card always, then the video where this browser records one, the
+  // setup's card, and the recap once a month (or the year) has closed.
+  function shareTabs(bit, h) {
+    const tabs = [['card', 'mybit_share_card']];
+    if (window.BitClip?.recorderType()) tabs.push(['clip', 'mybit_share_clip']);
+    if (window.ShareCard) tabs.push(['setup', 'mybit_share_setup']);
+    if (window.BitRecap?.recapsOf(bit).length) tabs.push(['recap', 'mybit_share_recap']);
+    return tabs.map(([id, key]) => [id, h.say(key)]);
+  }
+
+  function sharePane(id, bit, h) {
+    if (id === 'clip') return window.BitClip.section(bit, h);
+    if (id === 'setup') return setup(h);
+    if (id === 'recap') return window.BitRecap.section(bit, h);
+    const tools = makeEl('div', 'bitc-tools');
+    tools.append(...[choice(h.say('mybit_ground'), 'card', GROUNDS, bit.prefs?.card || 'plain', (v) => h.say(`mybit_ground_${v}`), h), pose(bit, h)].filter(Boolean));
+    return window.BitCard?.section(bit, h, [tools]) || null;
+  }
+
+  // One choice at the top, then only what it makes: a tap swaps the part under it.
   function share(bit, h) {
     const box = makeEl('div', 'broom-panel-body');
-    const row = makeEl('div', 'bitc-share-row');
-    const ground = choice(h.say('mybit_ground'), 'card', GROUNDS, bit.prefs?.card || 'plain', (v) => h.say(`mybit_ground_${v}`), h);
-    const card = window.BitCard?.section(bit, h, [ground, pose(bit, h)].filter(Boolean));
-    for (const part of [card, window.BitClip?.section(bit, h)]) if (part) row.append(part);
-    box.append(...[row, setup(h), window.BitRecap?.section(bit, h), site(bit, h)].filter(Boolean));
+    const tabs = shareTabs(bit, h);
+    if (!tabs.some(([id]) => id === shareTab)) shareTab = 'card';
+    const pane = makeEl('div', 'bitc-share-pane');
+    const show = () => pane.replaceChildren(...[sharePane(shareTab, bit, h)].filter(Boolean));
+    const row = makeEl('div', 'bitc-share-tabs');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', h.say('mybit_share_title'));
+    for (const [id, word] of tabs) {
+      const b = makeEl('button', 'bitc-seg-btn', word);
+      b.type = 'button';
+      b.dataset.share = id;
+      b.setAttribute('aria-pressed', String(id === shareTab));
+      b.addEventListener('click', () => {
+        shareTab = id;
+        for (const other of row.children) other.setAttribute('aria-pressed', String(other === b));
+        show();
+      }, { signal: h.signal });
+      row.append(b);
+    }
+    show();
+    box.append(...(tabs.length > 1 ? [row, pane] : [pane]));
     return box;
   }
 
@@ -179,7 +213,7 @@
     if (!bit.hatched) { box.append(prefs(bit, h)); return box; }
     const facts = makeEl('ul', 'bitc-facts');
     for (const line of factsOf(bit, h)) facts.append(makeEl('li', '', line));
-    box.append(nameField(bit, h), facts, traits(bit, h), prefs(bit, h));
+    box.append(...[nameField(bit, h), facts, traits(bit, h), prefs(bit, h), site(bit, h)].filter(Boolean));
     return box;
   }
 
@@ -195,5 +229,9 @@
     return { title, body: kind === 'share' ? share(bit, h) : about(bit, h) };
   }
 
-  window.BitPanels = { build, factsOf };
+  window.BitPanels = {
+    build, factsOf,
+    /** The share drawer opens on this part next: 'card', 'clip', 'setup' or 'recap'. */
+    choose: (id) => { shareTab = id; },
+  };
 })();

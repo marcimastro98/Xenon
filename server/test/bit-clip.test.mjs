@@ -16,7 +16,7 @@ const { QUIRKS } = require('../shared/src/bit-genes.js');
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const SRC = read('js/bit-companion/clip.js');
-const KEYS = ['mybit_clip_make', 'mybit_clip_making', 'mybit_clip_save', 'mybit_clip_failed', 'mybit_clip_alt'];
+const KEYS = ['mybit_clip_make', 'mybit_clip_line', 'mybit_clip_making', 'mybit_clip_failed', 'mybit_clip_alt', 'mybit_act_share', 'mybit_act_save'];
 const lengthOf = (c) => c.frames.reduce((s, f) => s + f.ms, 0);
 
 // A browser that records the types it is told it can, or none.
@@ -92,6 +92,7 @@ test('the sharing drawer\'s part: one button where it can record; the failure no
   const part = C.section(me, h);
   const go = part.querySelector('button');
   assert.equal(go.textContent, 'Make a short video');
+  assert.equal(part.querySelector('.bitc-line').textContent, 'A short vertical video: your Bit waves, dances and ends in its pose.', 'what it makes, over the button');
   go.click();
   await new Promise((r) => setTimeout(r, 0));
   assert.deepEqual(said, [['redraw'], ['note', 'The video could not be made. Try again.']], 'the note comes after the redraw that clears it');
@@ -110,7 +111,9 @@ test('drawn frame by frame from the engine, never a capture; the room offers it 
   for (const bad of ['innerHTML', 'getDisplayMedia', 'html2canvas', 'frameSvg', 'eval(']) assert.ok(!SRC.includes(bad), bad);
   assert.match(SRC, /URL\.revokeObjectURL\(made\.url\)/, 'the video is let go when the room closes');
   assert.match(SRC, /prefers-reduced-motion/);
-  assert.match(read('js/bit-companion/room-panels.js'), /window\.BitClip\?\.section\(bit, h\)/);
+  const panels = read('js/bit-companion/room-panels.js');
+  assert.match(panels, /if \(window\.BitClip\?\.recorderType\(\)\) tabs\.push\(\['clip', 'mybit_share_clip'\]\)/, 'its tab only where it records');
+  assert.match(panels, /if \(id === 'clip'\) return window\.BitClip\.section\(bit, h\);/);
   assert.match(read('js/bit-companion/room.js'), /\[window\.BitWardrobe, window\.BitCard, window\.BitRecap, window\.BitClip\]\) part\?\.reset\(\)/, 'let go when the room closes');
   const page = read('index.html');
   const at = page.indexOf('src="js/bit-companion/clip.js"');

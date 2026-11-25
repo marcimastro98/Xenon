@@ -171,17 +171,18 @@
       }
       const tried = window.BitWardrobe?.tried() || [];
       if (tried.length && window.BitKeep) { dock.replaceChildren(window.BitKeep.bar(bit, tried, hands)); return; }
-      const video = window.BitClip?.recorderType?.() ? button('broom-btn is-main', say('mybit_clip_make'), () => make('.bitc-clip'), signal) : null;
-      const card = button(video ? 'broom-btn' : 'broom-btn is-main', say('mybit_share'), () => make('.bitc-card:not(.bitc-clip):not(.bitc-recap)'), signal);
+      const video = window.BitClip?.recorderType?.() ? button('broom-btn is-main', say('mybit_clip_make'), () => make('clip'), signal) : null;
+      const card = button(video ? 'broom-btn' : 'broom-btn is-main', say('mybit_share'), () => make('card'), signal);
       const acts = makeEl('div', 'broom-acts');
       acts.append(...[card, video].filter(Boolean));
       dock.replaceChildren(makeEl('p', 'broom-line', say('mybit_try_hint')), acts);
     }
 
-    // Opens the sharing drawer and starts the card or the video there, as if its own button was pressed.
+    // Opens the sharing drawer on the card, which draws itself, or on the video, started as if its own button was pressed.
     function make(part) {
+      window.BitPanels?.choose(part);
       openPanel('share');
-      drawer.querySelector(`${part} .bitc-card-slot > button.bitc-seg-btn:not(:disabled)`)?.click();
+      if (part === 'clip') drawer.querySelector('.bitc-clip .bitc-card-slot > button.bitc-seg-btn:not(:disabled)')?.click();
     }
 
     function openPanel(kind) {

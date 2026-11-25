@@ -217,8 +217,8 @@
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('no_image'))), 'image/png');
   });
 
-  // Copy, share and save, where this browser can: the same row, in the same order, as the
-  // setup's card (presets/share-card.js), saving last and filled.
+  // Copy, share and save, where this browser can, in one word each: the same order as the setup's
+  // card (presets/share-card.js), saving last and filled.
   function actions(canvas, h, name = 'my-bit.png') {
     const row = makeEl('div', 'bitc-acts');
     const add = (key, run, main = false) => {
@@ -230,17 +230,17 @@
     const S = window.XenonSaveFile;
     if (navigator.clipboard && typeof window.ClipboardItem === 'function') {
       // The write runs inside the tap that asked for it.
-      add('sharecard_copy_image', () => navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blobOf(canvas) })])
+      add('mybit_act_copy', () => navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blobOf(canvas) })])
         .then(() => h.note(h.say('sharecard_copied_image')), () => h.note(h.say('sharecard_copy_image_fail'))));
     }
     if (navigator.canShare) {
-      add('sharecard_share', async () => {
+      add('mybit_act_share', async () => {
         const file = new File([await blobOf(canvas)], name, { type: 'image/png' });
         if (navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: 'Xenon' }).catch(() => {});
       });
     }
     if (S) {
-      add('sharecard_download', () => S.save({ name, types: [S.PNG_TYPE], make: () => blobOf(canvas) })
+      add('mybit_act_save', () => S.save({ name, types: [S.PNG_TYPE], make: () => blobOf(canvas) })
         .catch(() => h.note(h.say('save_file_failed'))), true);
     }
     return row;

@@ -89,7 +89,7 @@ test('only well-made recaps make a button: the year first, then the month', () =
   assert.deepEqual(both.map((r) => r.kind), ['year', 'month']);
 });
 
-test('the sharing drawer\'s part: a button per recap, nothing without one', () => {
+test('the sharing drawer\'s recap: drawn at once, a choice only with the month and the year, nothing without one', () => {
   const { document } = makeDom();
   const makeEl = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -102,6 +102,9 @@ test('the sharing drawer\'s part: a button per recap, nothing without one', () =
   assert.equal(R.section({ ...bit, recap: { month: null, year: null } }, h), null);
   const part = R.section({ ...bit, recap: { month, year: { ...month, key: '2026' } } }, h);
   assert.deepEqual([...part.querySelectorAll('button')].map((b) => b.textContent), ['Your 2026', 'Your November']);
+  assert.deepEqual([...part.querySelectorAll('button')].map((b) => b.getAttribute('aria-pressed')), ['true', 'false'], 'the year first');
+  assert.ok(part.querySelector('.bitc-card-slot .bitc-card-img.is-wait'), 'drawn without a tap');
+  assert.equal(R.section({ ...bit, recap: { month } }, h).querySelectorAll('button').length, 0, 'one recap: no choice to make');
   assert.equal(load({ makeEl }).section({ ...bit, recap: { month } }, h), null, 'no card painter: no buttons that do nothing');
 });
 
@@ -109,7 +112,7 @@ test('the card is drawn on the birth card\'s ground, never from the page; the ro
   assert.match(SRC, /P\.bitPicture\(bit, BIT, tone\.ink\)/);
   assert.match(SRC, /P\.ground\(said\.tagline, P\.pageOf\(bit\) \|\| P\.SITE, tone\)/);
   for (const bad of ['innerHTML', 'html2canvas', 'getDisplayMedia', 'frameSvg']) assert.ok(!SRC.includes(bad), bad);
-  assert.match(read('js/bit-companion/room-panels.js'), /window\.BitRecap\?\.section\(bit, h\)/);
+  assert.match(read('js/bit-companion/room-panels.js'), /if \(id === 'recap'\) return window\.BitRecap\.section\(bit, h\);/);
   assert.match(read('js/bit-companion/room.js'), /\[window\.BitWardrobe, window\.BitCard, window\.BitRecap, window\.BitClip\]\) part\?\.reset\(\)/, 'let go when the room closes');
   const page = read('index.html');
   const at = page.indexOf('src="js/bit-companion/recap.js"');

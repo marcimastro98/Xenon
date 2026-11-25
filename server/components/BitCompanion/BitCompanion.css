@@ -107,12 +107,18 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 }
 .broom-rail { display: grid; gap: 10px; min-width: 0; padding: 10px 16px max(14px, env(safe-area-inset-bottom)); }
 .broom-rail-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* A tab is a picture of this Bit over its word (wardrobe-tabs.js); the chosen one is a filled tile. */
 .broom-tabs { display: flex; flex: 1; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .broom-tab {
-  flex: none; min-height: 44px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent;
-  color: var(--muted-text); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  flex: none; display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 68px; min-height: 66px; padding: 6px 10px 5px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--muted-text); font-size: 13px; font-weight: 600; cursor: pointer; touch-action: manipulation;
 }
+.broom-tab-art { display: grid; place-items: center; width: 40px; height: 36px; }
+.broom-tab-art svg { width: 100%; height: 100%; }
+.broom-tab-art .broom-edge { fill: color-mix(in srgb, var(--broom-text) 22%, transparent); }
+.broom-tab-word { line-height: 1.2; white-space: nowrap; }
 .broom-tab[aria-pressed='true'] { background: color-mix(in oklab, var(--broom-text) 16%, transparent); color: var(--text); }
+.broom-tab:focus-visible { outline: 2px solid var(--broom-text); outline-offset: -2px; }
 .broom-balance {
   display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px;
   background: transparent; color: var(--text); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
@@ -144,7 +150,11 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 @container broom (min-aspect-ratio: 2 / 1) {
   .broom-in { grid-template-columns: minmax(0, 1fr) clamp(300px, 30%, 420px); grid-template-rows: minmax(0, 1fr); }
   .broom-side { overflow: hidden auto; border-top: 0; border-inline-start: 1px solid var(--line); }
-  .broom-tabs { flex-wrap: wrap; }
+  .broom-rail-head { flex-direction: column-reverse; align-items: stretch; }
+  .broom-balance { align-self: flex-end; }
+  .broom-tabs { display: grid; flex: none; grid-template-columns: repeat(var(--broom-tab-cols, 4), minmax(0, 1fr)); overflow: visible; }
+  .broom-tab { min-width: 0; padding-inline: 4px; }
+  .broom-tab-word { white-space: normal; overflow-wrap: anywhere; text-align: center; }
   .broom-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); overflow: visible; }
   .broom-card { width: auto; }
 }
@@ -165,7 +175,9 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 .broom-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 20px; border-bottom: 1px solid var(--line); }
 .broom-drawer-title { margin: 0; font-size: 18px; font-weight: 700; }
 .broom-drawer .broom-icon { background: transparent; color: var(--muted-text); }
-.broom-panel-body { display: grid; align-content: start; gap: 18px; min-height: 0; padding: 16px 20px max(24px, env(safe-area-inset-bottom)); overflow: hidden auto; }
+.broom-panel-body { display: grid; grid-auto-rows: max-content; align-content: start; gap: 18px; min-height: 0; padding: 16px 20px max(24px, env(safe-area-inset-bottom)); overflow: hidden auto; }
+/* Beside a drawer the stage and its row make room, so the Bit and the buttons under it stay whole. */
+@container broom (width > 600px) and (aspect-ratio < 2 / 1) { .broom.has-drawer .broom-in { padding-inline-end: min(440px, 100%); } }
 @container broom (max-width: 600px) {
   .broom-drawer { inset: auto 0 0; width: 100%; height: 88%; border-inline-start: 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; }
 }
@@ -175,17 +187,24 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 .broom.is-store { min-height: 520px; border-radius: 10px; overflow: hidden; }
 
 /* What the drawers hold (room-panels.js, card.js, clip.js, recap.js). */
-.bitc-share-row { display: grid; gap: 18px; min-width: 0; }
+/* In the drawers a choice of one is a strip with the chosen part lighter, and the one thing to do is
+   the only solid button. Sharing: one choice on top, then only what it makes. */
+.bitc-share-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); overflow-x: auto; scrollbar-width: none; }
+.broom-drawer .bitc-seg, .bitc-share-tabs { gap: 4px; padding: 4px; border-radius: 10px; background: var(--control-bg); }
+.broom-drawer :is(.bitc-seg, .bitc-share-tabs) > .bitc-seg-btn { border-color: transparent; color: var(--muted-text); font-weight: 600; }
+.broom-drawer :is(.bitc-seg, .bitc-share-tabs) > .bitc-seg-btn[aria-pressed='true'] { background: color-mix(in oklab, var(--broom-text) 24%, var(--broom-wall)); color: var(--text); }
+.bitc-share-pane { display: grid; gap: 14px; min-width: 0; }
+.bitc-share-pane :is(.bitc-card-img, .bitc-clip-video) { margin-inline: auto; }
+.bitc-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 12px; min-width: 0; }
+.bitc-tools .bitc-choice { flex: 1 1 200px; }
 .bitc-card { display: grid; gap: 12px; min-width: 0; }
 .bitc-acts { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .bitc-acts .bitc-seg-btn { flex: 1 1 auto; }
 .bitc-seg-btn.is-main { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
 /* The setup's card (presets/share-card.js), set apart from the Bit's own. */
-.bitc-setup { padding-top: 16px; border-top: 1px solid var(--line); }
-.bitc-setup-words { display: grid; gap: 4px; }
-.bitc-setup .bitc-seg-btn { justify-self: start; }
-.bitc-pose { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
-.bitc-pose .bitc-line { flex: 1 1 160px; font-size: 14px; }
+.bitc-setup .bitc-seg-btn, .bitc-clip > .bitc-card-slot > .bitc-seg-btn { justify-self: start; padding-inline: 18px; }
+.bitc-tools .bitc-pose { flex: none; }
+.bitc-pose .bitc-seg-btn { min-height: 52px; padding-inline: 16px; }
 .bitc-line { margin: 0; font-size: 15px; line-height: 1.35; color: var(--muted-text); text-wrap: pretty; }
 .bitc-name { display: grid; gap: 6px; }
 .bitc-name input {

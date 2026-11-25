@@ -82,8 +82,10 @@ test('the site choice: a switch that asks the server, a line on what is shown, t
 
 test('the room\'s sharing drawer offers the card, the page loads it, and the QR helpers it borrows exist', () => {
   const panels = read('js/bit-companion/room-panels.js');
-  assert.match(panels, /window\.BitCard\?\.section\(bit, h, \[ground, pose\(bit, h\)\]\.filter\(Boolean\)\)/, 'its card, its ground and pose under it');
-  assert.match(panels, /\[row, setup\(h\), window\.BitRecap\?\.section\(bit, h\), site\(bit, h\)\]/, 'the setup card and the site choice sit with sharing');
+  assert.match(panels, /tools\.append\(\.\.\.\[choice\(h\.say\('mybit_ground'\), 'card', GROUNDS,[^\n]*pose\(bit, h\)\]\.filter\(Boolean\)\)/, 'its ground and pose in one row');
+  assert.match(panels, /window\.BitCard\?\.section\(bit, h, \[tools\]\)/, 'under its card');
+  assert.match(panels, /if \(window\.ShareCard\) tabs\.push\(\['setup', 'mybit_share_setup'\]\)/, 'the setup card is one of the choices');
+  assert.match(panels, /\[nameField\(bit, h\), facts, traits\(bit, h\), prefs\(bit, h\), site\(bit, h\)\]/, 'the site choice sits with its settings');
   assert.match(panels, /window\.ShareCard\.open\(\{ source: 'setup' \}\)/, 'the setup card opens from the same drawer');
   const page = read('index.html');
   const card = page.indexOf('src="js/bit-companion/card.js"');
@@ -95,7 +97,8 @@ test('the room\'s sharing drawer offers the card, the page loads it, and the QR 
 
 test('every word of the card in all 11 languages', () => {
   const keys = ['mybit_share', 'mybit_share_born', 'mybit_share_tagline', 'mybit_share_failed',
-    'sharecard_download', 'sharecard_copy_image', 'sharecard_copied_image', 'sharecard_copy_image_fail', 'sharecard_share', 'save_file_failed'];
+    'mybit_act_copy', 'mybit_act_share', 'mybit_act_save', 'sharecard_copied_image', 'sharecard_copy_image_fail', 'save_file_failed',
+    'mybit_share_title', 'mybit_share_card', 'mybit_share_clip', 'mybit_share_setup', 'mybit_share_recap', 'mybit_setup_line', 'mybit_setup_go', 'mybit_pose', 'mybit_pose_change'];
   for (const code of ['en', 'it', 'de', 'es', 'fr', 'ja', 'ko', 'nl', 'pt', 'ru', 'zh']) {
     const text = read(`js/i18n/${code}.js`);
     for (const key of keys) assert.match(text, new RegExp(`\\n  ${key}: '`), `${code} ${key}`);

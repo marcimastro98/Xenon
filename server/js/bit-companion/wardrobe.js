@@ -1,6 +1,6 @@
 'use strict';
-// The items of the person's own Bit, as the rail of its room (bit-companion/room.js): tabs for
-// all of them, its own and each place on the body, then one card per item with the Bit itself
+// The items of the person's own Bit, as the rail of its room (bit-companion/room.js): tabs for all
+// of them, its own and each place on the body (wardrobe-tabs.js), then one card per item with the Bit itself
 // wearing it. A tap on an item it owns puts it on or takes it off (POST /api/bit/wear); a tap on
 // any other tries it on the big Bit for free, one per place on the body, until it is kept
 // (bit-companion/wardrobe-keep.js) or taken off. The first card tries on a look at random from
@@ -226,49 +226,29 @@
     queueMicrotask(() => { list.scrollLeft = at?.left || 0; list.scrollTop = at?.top || 0; });
   }
 
-  function tabsOf(entries, W, ctx) {
-    const tabs = [['all', ctx.say('mybit_tab_all')]];
-    if (entries.some((e) => e.owned)) tabs.push(['mine', ctx.say('mybit_mine')]);
-    for (const slot of W.SLOTS) if (entries.some((e) => e.it.slot === slot)) tabs.push([slot, ctx.say(`mybit_slot_${slot}`)]);
-    return tabs;
-  }
-
   /**
-   * The rail of the room: tabs, then the cards of the chosen one.
+   * The rail of the room: tabs (wardrobe-tabs.js), then the cards of the chosen one.
    * @param {object} bit the server's view of the Bit (GET /api/bit)
    * @param {{ say: Function, num: Function, post: Function, told: Function, note: Function, play: (clip: string) => void,
    *   refresh: () => void, changed: () => void, balance?: () => Node|null, signal: AbortSignal }} ctx
    */
   function rail(bit, ctx) {
     const X = engine();
-    if (!bit?.hatched || !X?.bitWardrobe || !X.bitLook || !X.bitGenome) return null;
+    if (!bit?.hatched || !X?.bitWardrobe || !X.bitLook || !X.bitGenome || !window.BitTabs) return null;
     const W = X.bitWardrobe;
     const mine = new Set(Array.isArray(bit.owned) ? bit.owned : []);
     tried = tried.filter((id) => !mine.has(id) && W.item(id));
     look = tried.length ? window.BitApp?.dressed([...bit.worn, ...tried]) || null : null;
     const entries = entriesOf(bit, W);
-    const tabs = tabsOf(entries, W, ctx);
-    if (!tabs.some(([id]) => id === tab)) tab = 'all';
+    const tabs = window.BitTabs.list(entries, bit, W, ctx.say);
+    if (!tabs.some((t) => t.id === tab)) tab = 'all';
     const box = makeEl('section', 'broom-rail');
     box.setAttribute('aria-label', ctx.say('mybit_wardrobe'));
     const head = makeEl('div', 'broom-rail-head');
-    const row = makeEl('div', 'broom-tabs');
-    row.setAttribute('role', 'group');
-    row.setAttribute('aria-label', ctx.say('mybit_wardrobe'));
     const list = makeEl('div', 'broom-items');
     shown = list;
-    for (const [id, word] of tabs) {
-      const b = makeEl('button', 'broom-tab', word);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(id === tab));
-      b.addEventListener('click', () => {
-        tab = id;
-        for (const other of row.children) other.setAttribute('aria-pressed', String(other === b));
-        fillList(list, entries, bit, ctx);
-      }, { signal: ctx.signal });
-      row.append(b);
-    }
-    head.append(row);
+    const pick = (id) => { tab = id; fillList(list, entries, bit, ctx); };
+    head.append(window.BitTabs.row(tabs, bit, { current: tab, label: ctx.say('mybit_wardrobe'), signal: ctx.signal, pick, art: { thumb, figure } }));
     const balance = ctx.balance?.();
     if (balance) head.append(balance);
     list.addEventListener('scroll', () => scrolled.set(tab, { left: list.scrollLeft, top: list.scrollTop }), { passive: true, signal: ctx.signal });
