@@ -243,3 +243,36 @@ test('the setup card measures its blur boxes at the grab and waits out the full 
   assert.ok(wait >= 4000 && wait <= 6000, `banner wait ${wait} ms: Chromium shows it 3.8 s, then fades it`);
   assert.match(src, /if \(!document\.fullscreenElement\) \{ state\.reason = 'fullscreen'; return false; \}/);
 });
+
+// The words band of the card (share-card-draw.js), drawn on a recording context: the mark once,
+// the title, whose Bit, one line by the QR. No colour dots, no second "Made with Xenon".
+test('the card says each thing once: mark, title, Bit, the site by the QR, the byline only when there is one', async () => {
+  const { readFileSync } = await import('node:fs');
+  const vm = await import('node:vm');
+  const sandbox = { window: {} };
+  vm.runInNewContext(readFileSync(new URL('../js/presets/share-card-draw.js', import.meta.url), 'utf8'), sandbox);
+  const draw = (format, extra) => {
+    const calls = [];
+    const ctx = new Proxy({}, {
+      get: (t, k) => (k in t ? t[k] : (...a) => { calls.push([k, ...a]); return k === 'measureText' ? { width: String(a[0]).length * 10 } : undefined; }),
+      set: (t, k, v) => { t[k] = v; return true; },
+    });
+    const canvas = { getContext: () => ctx };
+    const colors = { accent: '#4ade80', background: '#101010', surface: '#1b1d1c', text: '#f0f3f1', onAccent: '#000', muted: '#999', line: '#333' };
+    sandbox.window.ShareCardDraw.render(canvas, {
+      format, size: format === 'story' ? { w: 1080, h: 1920 } : { w: 1600, h: 900 }, name: 'My setup', colors,
+      qr: { getModuleCount: () => 21, isDark: () => false }, qrCaption: 'xenon-app.com', capture: null, captureAspect: 16 / 9,
+      logo: null, fontOk: true, wrap: (_m, n) => [n], bit: { picture: { width: 100, height: 100 }, line: 'With Pixel', tone: null }, ...extra,
+    });
+    return { texts: calls.filter((c) => c[0] === 'fillText').map((c) => c[1]), arcs: calls.filter((c) => c[0] === 'arc').length };
+  };
+  for (const format of ['post', 'story']) {
+    const plain = draw(format);
+    assert.equal(plain.arcs, 0, `${format}: no colour dots`);
+    assert.deepEqual(plain.texts, ['Xenon', 'My setup', 'With Pixel', 'xenon-app.com'], format);
+    assert.deepEqual(draw(format, { byline: 'by Ada' }).texts.slice(-2), ['xenon-app.com', 'by Ada'], `${format}: byline under`);
+  }
+  const src = readFileSync(new URL('../js/presets/share-card.js', import.meta.url), 'utf8');
+  assert.match(src, /\? 'xenon-app\.com'/, 'a site QR says where it leads');
+  assert.match(src, /byline: o\.author \? t\('gallery_by', 'by'\) \+ ' ' \+ o\.author : ''/);
+});

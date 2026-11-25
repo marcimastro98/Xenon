@@ -1768,7 +1768,6 @@ module.exports = {
   sharecard_copy_image_fail: '이미지를 복사하지 못했습니다. 대신 다운로드하세요.',
   sharecard_share: '공유…',
   sharecard_qr_hint: '스캔하면 이 스타일을 받을 수 있습니다',
-  sharecard_qr_site_hint: 'Xenon으로 제작',
   sharecard_code_attached: '이 카드에 가져오기 코드가 함께 첨부되어 있습니다',
   sharecard_shot_fail: '스크린샷을 사용할 수 없음',
   sharecard_capture_unavailable: '화면을 캡처하지 못해 이 카드는 그려진 버전입니다.',

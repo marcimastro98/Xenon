@@ -62,8 +62,8 @@ function pickQrTarget(opts) {
 }
 
 // Which enumerated display holds the dashboard, by SHAPE (the v4.4 card's defect): listScreens() and
-// gdigrab are DPI-unaware, the browser is per-monitor DPI aware and can't see the other displays'
-// scale, so only the aspect ratio holds in both spaces (2560/720 === 1707/480). The single matching
+// gdigrab count real pixels, the browser counts its own scaled ones and can't see the other displays'
+// scale, so only the aspect ratio holds in both spaces (3840/2160 === 2560/1440). The single matching
 // screen, or null for none or several (two 16:9 monitors): the caller then draws the card instead.
 function matchScreen(targetAspect, screens) {
   if (!Number.isFinite(targetAspect) || targetAspect <= 0) return null;
@@ -659,13 +659,13 @@ if (typeof window !== 'undefined') (function () {
         size: cardSize(state.format),
         name,
         kindLabel: kind ? t('preset_kind_' + kind, kind) : '',
-        byline: o.author ? ' · ' + t('gallery_by', 'by') + ' ' + o.author : '',
+        byline: o.author ? t('gallery_by', 'by') + ' ' + o.author : '',
         wrap: wrapName,
         bit: state.withBit ? state.bit : null,
         colors: state.colors,
         qr: state.qr,
         qrCaption: target.type === 'site'
-          ? t('sharecard_qr_site_hint', 'Made with Xenon')
+          ? 'xenon-app.com'
           : t('sharecard_qr_hint', 'Scan to get this look'),
         capture: state.capture,
         captureAspect: state.capture ? state.captureAspect : viewportAspect(),

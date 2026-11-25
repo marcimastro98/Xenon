@@ -1768,7 +1768,6 @@ module.exports = {
   sharecard_copy_image_fail: 'Impossible de copier l’image : téléchargez-la à la place.',
   sharecard_share: 'Partager…',
   sharecard_qr_hint: 'Scannez pour obtenir ce look',
-  sharecard_qr_site_hint: 'Fait avec Xenon',
   sharecard_code_attached: 'Code d’importation joint à cette carte',
   sharecard_shot_fail: 'Capture d’écran indisponible',
   sharecard_capture_unavailable: 'Impossible de capturer l’écran : cette carte est donc dessinée.',

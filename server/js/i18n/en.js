@@ -1768,7 +1768,6 @@ module.exports = {
   sharecard_copy_image_fail: 'Couldn’t copy the image: download it instead.',
   sharecard_share: 'Share…',
   sharecard_qr_hint: 'Scan to get this look',
-  sharecard_qr_site_hint: 'Made with Xenon',
   sharecard_code_attached: 'Import code attached alongside this card',
   sharecard_shot_fail: 'Screenshot not available',
   sharecard_capture_unavailable: 'Couldn’t capture the screen, so this card is drawn instead.',

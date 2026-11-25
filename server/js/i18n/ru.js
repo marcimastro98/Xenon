@@ -1768,7 +1768,6 @@ module.exports = {
   sharecard_copy_image_fail: 'Не удалось скопировать изображение: скачайте его.',
   sharecard_share: 'Поделиться…',
   sharecard_qr_hint: 'Отсканируйте, чтобы получить этот стиль',
-  sharecard_qr_site_hint: 'Сделано в Xenon',
   sharecard_code_attached: 'Код импорта прилагается к этой карточке',
   sharecard_shot_fail: 'Скриншот недоступен',
   sharecard_capture_unavailable: 'Не удалось снять экран, поэтому карточка нарисована.',

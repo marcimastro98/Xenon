@@ -1768,7 +1768,6 @@ module.exports = {
   sharecard_copy_image_fail: 'Kon de afbeelding niet kopiëren: download hem in plaats daarvan.',
   sharecard_share: 'Delen…',
   sharecard_qr_hint: 'Scan om deze look te krijgen',
-  sharecard_qr_site_hint: 'Gemaakt met Xenon',
   sharecard_code_attached: 'Importcode bij deze kaart gevoegd',
   sharecard_shot_fail: 'Schermafbeelding niet beschikbaar',
   sharecard_capture_unavailable: 'Kon het scherm niet vastleggen, dus deze kaart is getekend.',

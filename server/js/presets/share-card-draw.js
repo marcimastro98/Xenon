@@ -1,6 +1,6 @@
 'use strict';
 // How the "Share my setup" card is drawn (presets/share-card.js owns the dialog): the dashboard on
-// a plate, the person's own Bit with it, the Xenon mark, the name, the theme's colours and the QR, on
+// a plate, the person's own Bit with it, the Xenon mark, the name and the QR, on
 // one flat ground (the Bit's ink, else the brand's). Personal tiles are blurred here, on the canvas,
 // so the PNG that leaves the app never holds them sharp.
 (() => {
@@ -19,12 +19,11 @@
       plate: { x: 48, y: 48, w: 1504, h: 556 },
       logo: { x: 64, y: 646, s: 48 },
       brand: { x: 124, midY: 670, size: 30 },
-      name: { x: 64, baseline: 752, lineH: 54, size: 46, maxW: 1180, lines: 1 },
-      sub: { gap: 44, size: 26 },
-      swatch: { x: 80, r: 16, gap: 44 },
-      footer: { x: 64, baseline: 880, size: 22, maxW: 1180 },
+      name: { x: 64, baseline: 772, lineH: 54, size: 46, maxW: 1180, lines: 1 },
+      sub: { gap: 46, size: 26 },
+      footer: { x: 64, baseline: 874, size: 22, maxW: 1180 },
       qr: { x: 1364, y: 646, s: 188 },
-      qrCap: { x: 1458, baseline: 874, size: 20, maxW: 240, align: 'center' },
+      qrCap: { x: 1458, baseline: 874, solo: 874, size: 22, maxW: 240, align: 'center' },
       bit: { w: 360, gap: -24, at: 'side' },
     },
     story: {
@@ -33,13 +32,12 @@
       brand: { x: 168, midY: 154, size: 44 },
       name: { x: 72, baseline: 1340, lineH: 80, size: 66, maxW: 936, lines: 2 },
       sub: { gap: 60, size: 34 },
-      swatch: { x: 96, r: 24, gap: 64 },
-      footer: { x: 344, baseline: 1748, size: 26, maxW: 660 },
+      footer: { x: 344, baseline: 1756, size: 26, maxW: 660 },
       qr: { x: 72, y: 1592, s: 236 },
-      qrCap: { x: 344, baseline: 1690, size: 28, maxW: 660, align: 'left' },
+      qrCap: { x: 344, baseline: 1704, solo: 1722, size: 36, maxW: 660, align: 'left' },
       bit: { w: 300, max: 460, fill: 760, at: 'top' },
       // Between the wordmark and the QR; the words take about this much under the screen.
-      stack: { top: 230, bottom: 1552, words: 280, gap: 130 },
+      stack: { top: 230, bottom: 1552, words: 200, gap: 130 },
     },
   });
   // Where the Bit's stand is in its picture (bit.js STAGE: 17 rows, the stand on the last ones).
@@ -224,20 +222,9 @@
     ctx.textBaseline = 'alphabetic';
   }
 
-  function drawSwatches(ctx, L, colors, tone, after) {
-    const cy = after + L.swatch.r * 2.5;
-    [colors.accent, colors.background, colors.surface, colors.text, colors.onAccent].forEach((c, i) => {
-      ctx.beginPath();
-      ctx.arc(L.swatch.x + i * L.swatch.gap, cy, L.swatch.r, 0, Math.PI * 2);
-      ctx.fillStyle = c;
-      ctx.fill();
-      ctx.strokeStyle = tone.line;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
-  }
-
-  function drawQrBlock(ctx, L, o, tone, font) {
+  // The QR and one line beside it: where it leads. In a story a second line (whose look, or that the
+  // code travels with the card) sits under it, so the first one moves up to keep the pair centred.
+  function drawQrBlock(ctx, L, o, tone, font, footer) {
     if (!o.qr) return;
     const pad = Math.round(L.qr.s * 0.1);
     roundRect(ctx, L.qr.x, L.qr.y, L.qr.s, L.qr.s, 18);
@@ -245,20 +232,19 @@
     ctx.fill();
     drawQr(ctx, o.qr, L.qr.x + pad, L.qr.y + pad, L.qr.s - pad * 2);
     if (!o.qrCaption) return;
-    ctx.fillStyle = tone.muted;
-    text(ctx, o.qrCaption, L.qrCap, font(500, L.qrCap.size));
+    ctx.fillStyle = tone.text;
+    text(ctx, o.qrCaption, footer ? L.qrCap : { ...L.qrCap, baseline: L.qrCap.solo }, font(700, L.qrCap.size));
   }
 
-  // The title, then the line that says whose Bit stands there. Returns where the words end.
+  // The title, then the line that says whose Bit stands there.
   function drawName(ctx, L, o, tone, font, lines, dy) {
     ctx.font = font(800, L.name.size);
     ctx.fillStyle = tone.text;
     lines.forEach((line, i) => { ctx.fillText(line, L.name.x, L.name.baseline + dy + i * L.name.lineH); });
     const end = L.name.baseline + dy + (lines.length - 1) * L.name.lineH;
-    if (!o.bit?.picture || !o.bit.line) return end;
+    if (!o.bit?.picture || !o.bit.line) return;
     ctx.fillStyle = tone.muted;
     text(ctx, o.bit.line, { x: L.name.x, baseline: end + L.sub.gap, maxW: nameWidth(L) }, font(600, L.sub.size));
-    return end + L.sub.gap;
   }
 
   const nameWidth = (L) => Math.max(L.name.maxW, L.qr.x - L.name.x - 48);
@@ -289,11 +275,13 @@
     drawPlate(ctx, at.plate, o, tone);
     if (at.bit) ctx.drawImage(o.bit.picture, at.bit.x, at.bit.y, at.bit.w, at.bit.h);
     drawBrand(ctx, L, o, tone, font);
-    drawSwatches(ctx, L, o.colors, tone, drawName(ctx, L, o, tone, font, lines, at.dy));
-    drawQrBlock(ctx, L, o, tone, font);
-    // The site, or the note that the code travels beside the card when the QR could not hold it.
+    drawName(ctx, L, o, tone, font, lines, at.dy);
+    // Who made the look, or that the code travels beside the card when the QR could not hold it.
+    const footer = o.note || o.byline || '';
+    drawQrBlock(ctx, L, o, tone, font, footer);
+    if (!footer) return;
     ctx.fillStyle = tone.muted;
-    text(ctx, o.note || 'xenon-app.com' + (o.byline || ''), L.footer, font(o.note ? 500 : 600, L.footer.size));
+    text(ctx, footer, L.footer, font(500, L.footer.size));
   }
 
   window.ShareCardDraw = { render, drawQr };

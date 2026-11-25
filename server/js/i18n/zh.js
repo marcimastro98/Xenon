@@ -1768,7 +1768,6 @@ module.exports = {
   sharecard_copy_image_fail: '无法复制图片：请改为下载。',
   sharecard_share: '分享…',
   sharecard_qr_hint: '扫码获取同款外观',
-  sharecard_qr_site_hint: '由 Xenon 制作',
   sharecard_code_attached: '导入代码已随此卡片附上',
   sharecard_shot_fail: '截图不可用',
   sharecard_capture_unavailable: '无法截取屏幕，因此这张卡片是绘制的。',

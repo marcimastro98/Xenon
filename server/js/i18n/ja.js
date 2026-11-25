@@ -1768,7 +1768,6 @@ module.exports = {
   sharecard_copy_image_fail: '画像をコピーできませんでした。代わりにダウンロードしてください。',
   sharecard_share: '共有…',
   sharecard_qr_hint: 'スキャンしてこのルックを入手',
-  sharecard_qr_site_hint: 'Xenonで作成',
   sharecard_code_attached: 'このカードにはインポート用コードが添付されています',
   sharecard_shot_fail: 'スクリーンショットを利用できません',
   sharecard_capture_unavailable: '画面をキャプチャできなかったため、このカードは描画版です。',
