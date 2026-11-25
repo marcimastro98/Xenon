@@ -53,6 +53,8 @@ function mount({ island = true, own = null } = {}) {
   vm.runInContext(src('js/utils/page-and-text.js'), box); // makeEl and $, as the page has them
   for (const f of ['js/settings/topbar-order.js', 'js/vitals-pet/saved.js', 'js/settings/vitals.js', 'js/settings/vitals-controls.js']) {
     vm.runInContext(src(f), box, { filename: f });
+    // vitals-pet.js hands Settings the place its Bit stands, from saved.js.
+    if (f === 'js/vitals-pet/saved.js') box.VitalsPet = { position: box.VitalsPetSaved.position };
   }
   vm.runInContext('syncVitalsControls();', box);
   return { box, document, card, posts, heard, saves, position };

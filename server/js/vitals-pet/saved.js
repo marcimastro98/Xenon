@@ -104,7 +104,7 @@
   }
 
   window.VitalsPetSaved = {
-    t, thresholdsMs, cfg, petCfg, position, activated, lang, vitalName, todayKey, popupsAllowed, petState,
-    memState, saveVitalsState, persistEp, bumpMemPatch, snoozed,
+    t, thresholdsMs, cfg, petCfg, position, activated, lang, vitalName, todayKey, popupsAllowed,
+    petState, memState, saveVitalsState, persistEp, bumpMemPatch, snoozed,
   };
 })();

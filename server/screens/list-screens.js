@@ -35,4 +35,4 @@ async function listScreens() {
   }
 }
 
-module.exports = { listScreens, SCREENS_PS };
+module.exports = { listScreens };

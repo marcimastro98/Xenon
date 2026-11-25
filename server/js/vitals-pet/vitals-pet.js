@@ -31,8 +31,8 @@
 (function () {
   const core = window.VitalsPetCore;
   const {
-    t, thresholdsMs, cfg, petCfg, position, activated, lang, vitalName, todayKey, popupsAllowed, petState,
-    memState, saveVitalsState, persistEp, bumpMemPatch, snoozed,
+    t, thresholdsMs, cfg, petCfg, position, activated, lang, vitalName, todayKey, popupsAllowed,
+    petState, memState, saveVitalsState, persistEp, bumpMemPatch, snoozed,
   } = window.VitalsPetSaved;
 
   const EMPTY = 0.02;              // same "at zero" threshold as vitals.js
@@ -697,5 +697,5 @@
   document.addEventListener('DOMContentLoaded', sync);
   // Its room may move the person's Bit (prefs.place): this one follows.
   if (typeof addEventListener === 'function') addEventListener('xenon-bit', () => { if (activated()) ensureMounts(); });
-  window.VitalsPet = { sync, onStatus, onRefill, onReturn };
+  window.VitalsPet = { sync, onStatus, onRefill, onReturn, position }; // position: for Settings (saved.js)
 })();

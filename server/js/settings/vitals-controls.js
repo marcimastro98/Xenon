@@ -1,29 +1,6 @@
 // syncVitalsControls(): shows the health-nudge settings in their controls.
 'use strict';
 
-// The bars' row, made here so index.html does not grow: under "Abilita Vitals", where people look
-// for the bars (settings/vitals.js updateVitalsBars).
-function vitalsBarsBox() {
-  const found = $('settings-vitals-topbar');
-  const after = $('settings-vitals-enabled')?.closest('label');
-  if (found || !after) return found;
-  const row = makeEl('label', 'settings-toggle-row full');
-  row.id = 'settings-vitals-topbar-row';
-  const box = makeEl('input', 'settings-check');
-  box.type = 'checkbox';
-  box.id = 'settings-vitals-topbar';
-  box.addEventListener('change', () => updateVitalsBars(box.checked));
-  const words = makeEl('span', 'settings-label-line');
-  for (const [key, cls] of [['settings_vitals_topbar', ''], ['settings_vitals_topbar_hint', 'settings-hint']]) {
-    const line = makeEl('span', cls, t(key));
-    line.dataset.i18n = key;
-    words.append(line);
-  }
-  row.append(box, words);
-  after.after(row);
-  return box;
-}
-
 function syncVitalsControls() {
   const v = hubSettings.vitals || {};
   const enabled = v.enabled !== false;
@@ -81,7 +58,7 @@ function syncVitalsControls() {
   const pos = $('settings-vpet-position');
   if (pos) {
     pos.disabled = !petOn;
-    const want = window.VitalsPetSaved ? window.VitalsPetSaved.position() : (pet.position || 'floating');
+    const want = window.VitalsPet?.position ? window.VitalsPet.position() : (pet.position || 'floating');
     if (pos.value !== want) {
       pos.value = want;
       pos.dispatchEvent(new Event('change', { bubbles: true }));
@@ -140,4 +117,42 @@ function syncVitalsControls() {
     const row = $('settings-vital-' + id + '-row');
     if (row) row.classList.toggle('is-disabled', !enabled);
   });
+
+  // The bars' row, made here so index.html does not grow: under "Abilita Vitals", where people look
+  // for the bars (updateVitalsBars below).
+  function vitalsBarsBox() {
+    const found = $('settings-vitals-topbar');
+    const after = $('settings-vitals-enabled')?.closest('label');
+    if (found || !after) return found;
+    const row = makeEl('label', 'settings-toggle-row full');
+    row.id = 'settings-vitals-topbar-row';
+    const box = makeEl('input', 'settings-check');
+    box.type = 'checkbox';
+    box.id = 'settings-vitals-topbar';
+    box.addEventListener('change', () => updateVitalsBars(box.checked));
+    const words = makeEl('span', 'settings-label-line');
+    for (const [key, cls] of [['settings_vitals_topbar', ''], ['settings_vitals_topbar_hint', 'settings-hint']]) {
+      const line = makeEl('span', cls, t(key));
+      line.dataset.i18n = key;
+      words.append(line);
+    }
+    row.append(box, words);
+    after.after(row);
+    return box;
+  }
+
+  // The Vitals' bars in the top bar are the bar's own Vitals segment (Settings → Top bar); this row
+  // in the Vitals card switches the same thing.
+  function vitalsBarsShown() {
+    const items = hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.items) ? hubSettings.topbarClock.items : [];
+    const item = items.find((it) => it && it.id === 'vitals');
+    return item ? item.hidden !== true : hubSettings.vitals?.topbar === true;
+  }
+
+  function updateVitalsBars(on) {
+    if (vitalsBarsShown() === !!on) return;
+    toggleTopbarIslandItem('vitals');
+    syncVitalsControls();
+    if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets();
+  }
 }

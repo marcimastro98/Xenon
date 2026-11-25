@@ -15,8 +15,10 @@ function loadWith(fake) {
   try { return require(MODULE); } finally { mock.restoreAll(); }
 }
 
-test('the listing turns the thread per-monitor DPI aware before reading the screens, and survives without it', () => {
-  const { SCREENS_PS } = require(MODULE);
+test('the listing turns the thread per-monitor DPI aware before reading the screens, and survives without it', async () => {
+  let SCREENS_PS = '';
+  const { listScreens } = loadWith((_file, a, _opts, cb) => { SCREENS_PS = a.at(-1); cb(null, ''); });
+  await listScreens();
   const aware = SCREENS_PS.indexOf('SetThreadDpiAwarenessContext([System.IntPtr]::new(-4))');
   assert.ok(aware > 0, 'PER_MONITOR_AWARE_V2 is set');
   assert.ok(SCREENS_PS.indexOf('try {') < aware && SCREENS_PS.indexOf('} catch {}') > aware, 'an old Windows still lists');

@@ -137,39 +137,38 @@ function wrapName(measure, name, maxWidth, maxLines) {
   return lines;
 }
 
-// Normalize the privacy blur boxes to safe fractions of the captured plate.
-// They are measured from a live getBoundingClientRect() and turned into
-// fractions BEFORE the capture, so a layout that moved in between can only ever
-// produce a box that is clamped away, never one painted outside the plate.
-function clampBlurRects(rects) {
-  if (!Array.isArray(rects)) return [];
-  const out = [];
-  for (const r of rects) {
-    if (!r) continue;
-    const x = Number(r.x);
-    const y = Number(r.y);
-    const w = Number(r.w);
-    const h = Number(r.h);
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h)) continue;
-    if (!(w > 0) || !(h > 0)) continue;
-    const x0 = Math.min(Math.max(x, 0), 1);
-    const y0 = Math.min(Math.max(y, 0), 1);
-    const x1 = Math.min(Math.max(x + w, 0), 1);
-    const y1 = Math.min(Math.max(y + h, 0), 1);
-    if (x1 - x0 <= 0 || y1 - y0 <= 0) continue;
-    // The tile's corner (a fraction of the screen's height), at most half the box's height.
-    const corner = Number(r.r);
-    out.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, r: corner > 0 && Number.isFinite(corner) ? Math.min(corner, (y1 - y0) / 2) : 0 });
-  }
-  return out;
-}
+const blurBoxes = Object.freeze({
+  // The privacy blur boxes as safe fractions of the captured plate. Measured from a live getBoundingClientRect()
+  // BEFORE the capture, so a layout that moved in between gives a box clamped away, never one outside the plate.
+  clamp(rects) {
+    if (!Array.isArray(rects)) return [];
+    const out = [];
+    for (const r of rects) {
+      if (!r) continue;
+      const x = Number(r.x);
+      const y = Number(r.y);
+      const w = Number(r.w);
+      const h = Number(r.h);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h)) continue;
+      if (!(w > 0) || !(h > 0)) continue;
+      const x0 = Math.min(Math.max(x, 0), 1);
+      const y0 = Math.min(Math.max(y, 0), 1);
+      const x1 = Math.min(Math.max(x + w, 0), 1);
+      const y1 = Math.min(Math.max(y + h, 0), 1);
+      if (x1 - x0 <= 0 || y1 - y0 <= 0) continue;
+      // The tile's corner (a fraction of the screen's height), at most half the box's height.
+      const corner = Number(r.r);
+      out.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, r: corner > 0 && Number.isFinite(corner) ? Math.min(corner, (y1 - y0) / 2) : 0 });
+    }
+    return out;
+  },
 
-// Did a personal tile move between two measures (fractions of the screen)? Then a picture taken in
-// between can't say where it was, and its blur box could land beside it.
-function blurRectsMoved(a, b, tol = 0.004) {
-  if (a.length !== b.length) return true;
-  return a.some((r, i) => ['x', 'y', 'w', 'h'].some((k) => Math.abs(r[k] - b[i][k]) > tol));
-}
+  // Did a personal tile move between two measures? A picture taken in between could blur beside it.
+  moved(a, b, tol = 0.004) {
+    if (a.length !== b.length) return true;
+    return a.some((r, i) => ['x', 'y', 'w', 'h'].some((k) => Math.abs(r[k] - b[i][k]) > tol));
+  },
+});
 
 if (typeof window !== 'undefined') (function () {
   const t = (k, fb) => {
@@ -413,7 +412,7 @@ if (typeof window !== 'undefined') (function () {
       const corner = parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0;
       out.push({ x: r.left / vw, y: r.top / vh, w: r.width / vw, h: r.height / vh, r: corner / vh });
     });
-    return clampBlurRects(out);
+    return blurBoxes.clamp(out);
   }
 
   // The tiles once they stop moving: the grid refits 120 ms after a resize, then slides into place.
@@ -424,7 +423,7 @@ if (typeof window !== 'undefined') (function () {
     while (performance.now() - still < 400 && performance.now() - start < 1500) {
       await new Promise((r) => setTimeout(r, 50));
       const now = collectBlurRects();
-      if (blurRectsMoved(last, now)) { last = now; still = performance.now(); }
+      if (blurBoxes.moved(last, now)) { last = now; still = performance.now(); }
     }
     return last;
   }
@@ -445,7 +444,7 @@ if (typeof window !== 'undefined') (function () {
         rects = await settledBlurRects();
         const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
         const out = res.ok ? await res.json() : null;
-        moved = blurRectsMoved(rects, collectBlurRects());
+        moved = blurBoxes.moved(rects, collectBlurRects());
         return out;
       });
       if (moved) return { ok: false, reason: 'changed' };
@@ -868,7 +867,7 @@ if (typeof window !== 'undefined') (function () {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    pickQrTarget, matchScreen, wrapName, clampBlurRects, blurRectsMoved, cardSize,
+    pickQrTarget, matchScreen, wrapName, clampBlurRects: blurBoxes.clamp, blurRectsMoved: blurBoxes.moved, cardSize,
     QR_CODE_MAX_BYTES, SHARE_SITE_BASE, SCREEN_ASPECT_TOLERANCE, CARD_SIZES,
   };
 }

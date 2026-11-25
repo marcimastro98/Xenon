@@ -238,7 +238,7 @@ test('the setup card measures its blur boxes at the grab and waits out the full 
   const src = readFileSync(new URL('../js/presets/share-card.js', import.meta.url), 'utf8');
   assert.match(src, /state\.blurRects = shot\.rects;/);
   assert.doesNotMatch(src, /state\.blurRects = collectBlurRects\(\)/);
-  assert.match(src, /moved = blurRectsMoved\(rects, collectBlurRects\(\)\)/);
+  assert.match(src, /moved = blurBoxes\.moved\(rects, collectBlurRects\(\)\)/);
   const wait = Number(/const FULLSCREEN_BANNER_MS = (\d+);/.exec(src)?.[1]);
   assert.ok(wait >= 4000 && wait <= 6000, `banner wait ${wait} ms: Chromium shows it 3.8 s, then fades it`);
   assert.match(src, /if \(!document\.fullscreenElement\) \{ state\.reason = 'fullscreen'; return false; \}/);
