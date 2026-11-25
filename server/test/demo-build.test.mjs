@@ -117,6 +117,14 @@ test('the demo seeds the settings key the app actually reads', () => {
     `demo/boot.js seeds a different localStorage key than settings.js reads (${m[1]})`);
 });
 
+test("the demo never registers the phone's service worker over the site", () => {
+  // pwa.js registers /sw.js at the root scope: on xenon-app.com that is a 404, and a worker
+  // there would control every page of the site.
+  assert.match(read('server', 'js', 'paired/pwa.js'), /serviceWorker\.register\('\/sw\.js', \{ scope: '\/' \}\)/);
+  assert.match(read('tools', 'build-demo.mjs'), /cutOnce\(html, '<!-- Installable app: registers the service worker',\s+'<script src="js\/paired\/pwa\.js"><\/script>'/);
+  assert.ok(read('server', 'index.html').includes('<!-- Installable app: registers the service worker'), 'the anchor the builder cuts from is still in the page');
+});
+
 test('the catalog only offers "Try in the browser" for client-side kinds', () => {
   // deck/widget/ambient/icons/sounds/bundle all need a server round-trip, so the
   // button would land the visitor on a failed import.

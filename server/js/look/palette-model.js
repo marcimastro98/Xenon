@@ -22,7 +22,7 @@
   // Built-in widgets by category, for this panel and the Xenon menu's Add list. An id
   // in none of them lands in `other`, so nothing is lost.
   const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'phone'] },
+    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'bit', 'phone'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'lyrics', 'chat', 'chatgpt', 'browser', 'slideshow'] },
     { labelKey: 'palette_cat_system', ids: ['system', 'perf', 'screen', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
@@ -40,7 +40,7 @@
   // by the tile's real code (tools/tile-previews/shoot.mjs); a tile off this list keeps
   // its icon.
   const PREVIEW_TILES = Object.freeze([
-    'agenda', 'audio', 'battery', 'browser', 'calendar', 'chat', 'chatgpt', 'claude', 'deck', 'devclean',
+    'agenda', 'audio', 'battery', 'bit', 'browser', 'calendar', 'chat', 'chatgpt', 'claude', 'deck', 'devclean',
     'discord', 'disk', 'fans', 'football', 'lighting', 'lyrics', 'media', 'mic', 'news', 'notes',
     'notifications', 'obs', 'openaicodex', 'perf', 'phone', 'power', 'remote', 'search', 'slideshow',
     'smarthome', 'spotify', 'stocks', 'streamerbot', 'system', 'tasks', 'timer', 'transfer', 'twitch',

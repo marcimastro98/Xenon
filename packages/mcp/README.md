@@ -41,7 +41,7 @@ The connection is remembered in `~/.xenon/mcp.json` and listed in that same Sett
 |---|---|
 | `xenon_status` | Is Xenon running, which SDK version, are community widgets on, is a dashboard open |
 | `sdk_reference` | The Widget SDK reference, by section |
-| `new_widget` | A working starter (manifest, HTML, CSS, JS) in a new or empty folder; `pump: true` also makes it for the round screen on an AIO pump, `pumpStyle: true` makes it a whole pump screen style |
+| `new_widget` | A working starter (manifest, HTML, CSS, JS) in a new or empty folder; `pump: true` also makes it for the round screen on an AIO pump, `pumpStyle: true` makes it a whole pump screen style, `bit: true` draws the person's own Bit with the Bit kit |
 | `check_widget` | The checks an install runs, without installing: package rules, sandbox, Store review notes |
 | `install_widget` | Install or update from the folder, put the widget on your dashboard and show its page |
 | `widget_issues` | Errors, blocked requests, whether its permissions are approved, how heavy it is, what its tile cuts off |

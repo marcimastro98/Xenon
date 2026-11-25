@@ -10,7 +10,7 @@ const { createVitalsNag, cleanText, popupFont, POPUP_MS } = require('../vitals/v
 const lc = require('../platform/linux-collectors.js');
 const dc = require('../platform/darwin-collectors.js');
 
-function rig({ platform = 'linux', host = false, collectors = {}, script = false } = {}) {
+function rig({ platform = 'linux', host = false, collectors = {}, script = false, sprite = null } = {}) {
   const spawned = [];
   const sent = [];
   let clock = 1000;
@@ -20,6 +20,7 @@ function rig({ platform = 'linux', host = false, collectors = {}, script = false
     spawnScript: script ? (args) => spawned.push(args) : null,
     host: { available: () => host },
     broadcast: (p) => sent.push(p),
+    sprite,
     now: () => clock,
   });
   return { nag, spawned, sent, tick: (ms) => { clock += ms; } };
@@ -32,6 +33,16 @@ test('Windows: the popup is the script on one monitor, or on every one, with a f
   await w.nag.popup({ text: 'x', mood: 'nope' });
   assert.deepEqual(w.spawned[1].slice(2, 4), ['-Mood', 'angry']);
   assert.ok(!w.spawned[1].includes('-AllScreens'));
+});
+
+test('Windows: the popup draws their own Bit when there is one, the classic one otherwise', async () => {
+  const moods = [];
+  const w = rig({ platform: 'win32', script: true, sprite: (mood) => { moods.push(mood); return mood === 'worried' ? { palette: 'c7a291,0d1117', rows: '.A.|ABA' } : null; } });
+  await w.nag.popup({ text: 'drink', mood: 'worried' });
+  assert.deepEqual(w.spawned[0].slice(8, 12), ['-Palette', 'c7a291,0d1117', '-Cells', '.A.|ABA']);
+  await w.nag.popup({ text: 'boo', mood: 'ghost' });
+  assert.ok(!w.spawned[1].includes('-Palette'));
+  assert.deepEqual(moods, ['worried', 'ghost']);
 });
 
 test('Windows: hiding is the same script with -Minimize', async () => {

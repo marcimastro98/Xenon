@@ -198,9 +198,10 @@ test('the plan card: price, the monthly Sparks, one join button', async () => {
   assert.equal(byClass(box, 'sparks-plan-name')[0].textContent, 'sparks_plan_name');
   assert.equal(byClass(box, 'sparks-plan-price')[0].textContent, 'sparks_plan_price');
   const facts = byClass(box, 'sparks-plan-facts')[0].children;
-  assert.deepEqual(facts.map((li) => text(li)), ['sparks_plan_sparks', 'sparks_plan_packs', 'sparks_plan_keep']);
+  assert.deepEqual(facts.map((li) => text(li)), ['sparks_plan_sparks', 'sparks_plan_packs', 'sparks_plan_bit', 'sparks_plan_keep']);
   assert.equal(facts[0].children[0].tag, 'svg', 'the spark leads the Sparks line');
-  assert.deepEqual(facts.slice(1).map((li) => li.children[0].dataset.name), ['supporters', 'check']);
+  assert.deepEqual([1, 3].map((i) => facts[i].children[0].dataset.name), ['supporters', 'check']);
+  assert.equal(facts[2].children[0].className, 'sparks-plan-bit', "the person's own Bit leads the line of its monthly item");
   const join = byClass(box, 'sparks-plan-btn')[0];
   assert.equal(join.tag, 'a', 'a real link, not a label');
   assert.equal(join.className, 'cgal-btn sparks-plan-btn primary');
@@ -228,7 +229,7 @@ test('a supporter reads the plan as included, with no button to join again', asy
   const box = byClass((await paint({ supporter: true })).root, 'sparks-plan')[0];
   assert.equal(box.className, 'sparks-plan is-mine');
   assert.equal(byClass(box, 'sparks-plan-price')[0].textContent, 'sparks_plan_mine');
-  assert.equal(byClass(box, 'sparks-plan-facts')[0].children.length, 3, 'the same three facts');
+  assert.equal(byClass(box, 'sparks-plan-facts')[0].children.length, 4, 'the same four facts');
   assert.equal(byClass(box, 'cgal-btn').length, 0, 'someone already in is never asked to join');
 });
 
@@ -270,6 +271,8 @@ test('only the engine\'s own Bit markup reaches innerHTML', () => {
   const js = read('../js/store-supporters/sparks-store.js');
   assert.deepEqual(js.match(/innerHTML\s*=\s*[^;]+/g), ['innerHTML = markup']);
   assert.match(js, /window\.BitApp\.icon\('idle'\)/);
+  assert.match(js, /bitIcon\('sparks-bit'\)/);
+  assert.match(js, /bitIcon\('sparks-plan-bit'\)/);
 });
 
 test('every way to buy Sparks leads to the Sparks tab', () => {

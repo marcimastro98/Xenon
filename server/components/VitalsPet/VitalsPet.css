@@ -47,7 +47,7 @@ body.layout-editing .vpet-chip-bubble,
 body[data-panel] .vpet-menu-anchored,
 body.layout-editing .vpet-menu-anchored { display: none; }
 /* The news/stocks ticker bar (34px, z60) docks to the same bottom edge — sit above it. */
-body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
+html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 
 /* The live Bit (js/ai/bit-app.js) draws on an 18x17 stage around its 12x12 body,
    so the box is larger than the body. It animates itself and stands still

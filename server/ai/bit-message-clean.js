@@ -6,10 +6,10 @@ const { normalizeAction, normalizeMedia, normalizePoll } = require('../store-cat
 
 const ID_RE = /^[a-z0-9][a-z0-9:_.-]{0,95}$/i;
 const ENTRY_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
-const KINDS = new Set(['hub', 'drop', 'sparks', 'updates', 'support', 'share', 'rate']);
+const KINDS = new Set(['hub', 'drop', 'sparks', 'updates', 'bit', 'support', 'share', 'rate']);
 
 // Actions a message made by the app itself may carry, besides the feed's own.
-const APP_ACTIONS = new Set(['sparks', 'share', 'installed']);
+const APP_ACTIONS = new Set(['sparks', 'share', 'installed', 'bit']);
 // What an update message is about: one Store entry at one version.
 const STAMP_RE = /^[a-z0-9][a-z0-9_-]{0,60}@[0-9A-Za-z.+-]{1,40}$/;
 const MAX_STAMPS = 60;

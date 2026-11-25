@@ -1,0 +1,30 @@
+/* The Bit tile (js/bit-companion/tile.js): the person's own Bit as big as the
+   tile lets it be, its name and age under it. A small tile keeps only the Bit.
+   Bit animates itself and stands still with the dashboard: no CSS loops here. */
+
+.bit-tile-mount { height: 100%; min-height: 0; container-type: size; }
+
+/* The words stay right under the Bit; the Bit grows with the tile up to a size
+   where its pixels still read as pixels. 16:15 is the sprite's own box. */
+.bitt {
+  height: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 10px 12px;
+}
+.bitt-sprite {
+  display: block; flex: none; height: min(64cqh, 75cqw, 320px); aspect-ratio: 16 / 15;
+  padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation;
+}
+.bitt-sprite svg { display: block; width: 100%; height: 100%; }
+.bitt-sprite:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; border-radius: 8px; }
+
+.bitt-words { display: grid; justify-items: center; gap: 2px; min-width: 0; max-width: 100%; text-align: center; }
+.bitt-name,
+.bitt-line { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bitt-name { font-size: 15px; font-weight: 650; color: var(--text); }
+.bitt-line { font-size: 12px; color: var(--muted-text); }
+
+@container (max-height: 140px) or (max-width: 110px) {
+  .bitt { padding: 6px; }
+  .bitt-sprite { height: min(86cqh, 80cqw); }
+  .bitt-words { display: none; }
+}

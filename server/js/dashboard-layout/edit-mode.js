@@ -91,6 +91,7 @@ function applyDashboardLayout() {
   step('powerRender', () => { if (window.PowerWidget && typeof window.PowerWidget.renderWidgets === 'function') window.PowerWidget.renderWidgets(); });
   step('perfRender', () => { if (window.PerfWidget) window.PerfWidget.renderWidgets(); });
   step('batteryRender', () => { if (window.BatteryWidget && typeof window.BatteryWidget.renderWidgets === 'function') window.BatteryWidget.renderWidgets(); });
+  step('bitRender', () => { if (window.BitTile) window.BitTile.renderWidgets(); });
   step('vitalsRender', () => { if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets(); });
   step('slideshowRender', () => { if (window.SlideshowWidget && typeof window.SlideshowWidget.renderWidgets === 'function') window.SlideshowWidget.renderWidgets(); });
   step('tickerApply', () => { if (window.Ticker && typeof window.Ticker.apply === 'function') window.Ticker.apply(); });

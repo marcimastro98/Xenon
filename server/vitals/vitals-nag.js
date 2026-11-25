@@ -19,6 +19,8 @@
 //   spawnScript  (args[]) → void, runs vitals-nag.ps1 (Windows only)
 //   host         layers-host.js: available() says a Xenon app window can draw
 //   broadcast    (popup) → void, SSE `vitals_nag` for that window
+//   sprite       (mood) → { palette, rows } | null: the person's own Bit for the Windows popup
+//                (bit/sprite.js); null keeps the popup's classic Bit
 //   now          clock, for tests
 
 // How long the popup stays, as the Windows script's -Duration.
@@ -36,7 +38,7 @@ function popupFont(lang) {
   return NAG_FONTS[code] || 'Consolas';
 }
 
-function createVitalsNag({ platform = process.platform, collectors = null, spawnScript = null, host = null, broadcast = null, now = Date.now } = {}) {
+function createVitalsNag({ platform = process.platform, collectors = null, spawnScript = null, host = null, broadcast = null, sprite = null, now = Date.now } = {}) {
   const windows = platform === 'win32';
   let shown = null;
 
@@ -56,8 +58,9 @@ function createVitalsNag({ platform = process.platform, collectors = null, spawn
     const face = MOODS.includes(mood) ? mood : 'angry';
     const reach = popupReach();
     if (reach === 'screens') {
+      const own = typeof sprite === 'function' ? sprite(face) : null;
       spawnScript(['-Text', line, '-Mood', face, '-Duration', String(POPUP_MS / 1000), '-Font', popupFont(lang),
-        ...(all ? ['-AllScreens'] : []), ...extra]);
+        ...(own ? ['-Palette', own.palette, '-Cells', own.rows] : []), ...(all ? ['-AllScreens'] : []), ...extra]);
       return { ok: true, reach };
     }
     if (!line) return { ok: true, reach };

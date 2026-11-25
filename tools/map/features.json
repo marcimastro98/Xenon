@@ -359,7 +359,21 @@
         "server/components/AskSheet/**",
         "server/components/BitMessage/**",
         "server/components/SheetPage/**",
-        "server/public/images/loader/**"
+        "server/public/images/loader/**",
+        "tools/bit-lab/**"
+      ]
+    },
+    {
+      "id": "my-bit",
+      "area": "bit",
+      "name": "Your own Bit",
+      "what": "Each person's own Bit: egg, growth, wardrobe and daily gift, monthly and yearly recap cards, a short video to post, corner, top bar, tile, widget kit, site page.",
+      "files": [
+        "server/bit/**",
+        "docs/bit.html",
+        "docs/bit-page.js",
+        "server/js/bit-companion/**",
+        "server/components/BitCompanion/**"
       ]
     },
     {

@@ -200,9 +200,9 @@ const DEFAULT_GET_MUTATORS = new Set([
   // navigation to it. /api/phone, /contacts, /calls, /messages and /message are
   // deliberately absent: they are reads a paired device is meant to make.
   '/api/phone/dial', '/api/phone/send',
-  // The gallery's new copies, the hardware scan for local models and the pump screens: a paired device makes them by POST
-  // only (each writes a file, runs a program on the PC or saves the settings; its menu reads the pumps in the menu state).
-  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe', '/api/ai-local/scan', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import',
+  // The gallery's new copies, the hardware scan for local models, the pump screens and the personal Bit: a paired device makes
+  // them by POST only (each writes a file, runs a program on the PC or saves the settings; its menu reads the pumps in the menu state).
+  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe', '/api/ai-local/scan', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/gift', '/api/bit/pick', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy',
 ]);
 let _getMutators = DEFAULT_GET_MUTATORS;
 

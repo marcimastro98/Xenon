@@ -133,6 +133,8 @@ export function makeDom() {
     node.append = (...kids) => kids.forEach((k) => { if (typeof k === 'string') node._text += k; else node.appendChild(k); });
     node.insertBefore = (child, ref) => {
       if (!ref) return node.appendChild(child);
+      // As in the DOM: the reference must already be a child here.
+      if (!node.children.includes(ref)) throw new Error("Failed to execute 'insertBefore' on 'Node': the reference is not a child of this node.");
       if (child.parentNode) child.remove();
       child.parentNode = node;
       node.children.splice(node.children.indexOf(ref), 0, child);

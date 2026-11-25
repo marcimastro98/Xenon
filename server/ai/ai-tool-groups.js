@@ -45,6 +45,10 @@ const GROUPS = Object.freeze({
     about: 'the PC fans and pump driven by Xenon (Airflow): how they are and why, quieter or cooler, handing them back to the PC, turning it on, a fan left alone',
     tools: ['get_fans', 'set_fan_mode', 'set_airflow'],
   },
+  my_bit: {
+    about: 'the user\'s own Bit (the little companion on their dashboard): how it is and how rare, a move now, today\'s gift, what it wears, where it stands, its name',
+    tools: ['get_my_bit', 'bit_move', 'open_bit_gift', 'dress_bit', 'place_bit', 'rename_bit'],
+  },
   // deck_action_catalog stays in the core: run_deck_action looks action types up in it.
   create: {
     about: 'making something new: a widget (or changing one of the user\'s), a readout in the top bar or the island, a theme or style, an animated background, a Deck profile, any other creation as a share code, the model creations use',

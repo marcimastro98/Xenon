@@ -11,6 +11,7 @@ import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const BIT_ENGINE = require('./fixtures/bit-engine.json');
 
 // Just enough DOM for the player: elements that keep children and attributes.
 class FakeEl {
@@ -47,8 +48,9 @@ function bootPlayer() {
   const ctx = { document, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, Math, Promise, Object, Array, String, Number, Set, Map };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['bit-clips.js', 'bit.js', 'bit-player.js']) {
-    vm.runInContext(read(`../../packages/core/src/${f}`), ctx, { filename: f });
+  // Every page loads the whole engine in this order (bit-engine-pages.test.mjs).
+  for (const f of BIT_ENGINE) {
+    vm.runInContext(read(`../${f}`), ctx, { filename: f });
   }
   return { ctx, clock, Xenon: ctx.Xenon };
 }
@@ -392,7 +394,7 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
   // the native Spotlight window loads the engine before spotlight.js
   const page = read('../spotlight.html');
   const at = (f) => page.indexOf(f);
-  for (const f of ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/ai/bit-app.js']) {
+  for (const f of [...BIT_ENGINE, 'js/ai/bit-app.js']) {
     assert.ok(at(f) > 0 && at(f) < at('js/spotlight/spotlight.js'), f);
   }
   // the Deck action picker shows Bit for the AI action

@@ -158,7 +158,7 @@ test('only the hidden host answers: the page, its order, the route and the phone
   assert.deepEqual(scripts, ['shared/src/constants.js', 'js/streaming/live-stream.js',
     'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
     'js/look/theme-palette.js', 'js/look/theme-tokens.js', ...partsOf('server/js/native-bridge.js').map((file) => file.slice('server/'.length)), 'js/deck/deck-actions.js',
-    'js/dialog-focus.js', 'js/deck/approval-keys.js', ...partsOf('server/js/custom-widget/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/widget-sdk/sdk-service.js']);
+    'js/dialog-focus.js', 'js/deck/approval-keys.js', 'js/custom-widget/stream-readers.js', ...partsOf('server/js/custom-widget/custom-widget.js').map((file) => file.slice('server/'.length)), 'js/layers/widget-feed.js', 'js/widget-sdk/sdk-service.js']);
   assert.doesNotMatch(html, /stylesheet/);
   assert.match(engineSource(), /reqPath === '\/sdk-service' && req\.method === 'GET'[\s\S]{0,400}'sdk-service\.html'/);
   assert.equal(remotePathAllowed('/sdk-service', 'GET'), false, 'a phone would run every Deck action twice');

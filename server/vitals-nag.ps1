@@ -9,6 +9,9 @@
 #   -AllScreens  popup on every monitor ("invasion") instead of primary only
 #   -Duration    seconds before auto-close (click always dismisses)
 #   -Minimize    minimize every window first, then show the popup as receipt
+#   -Palette     the person's own Bit (server/bit/sprite.js): up to 16 hex colours, comma
+#   -Cells       separated, and up to 20 rows of '.' or a letter A-P (a colour), '|' between
+#                rows; anything else and the popup draws its classic Bit
 #
 # The window is WS_EX_NOACTIVATE + non-focusable TopMost: it must NEVER steal
 # focus from what the user is doing - it appears, it judges, it leaves.
@@ -19,7 +22,9 @@ param(
   [switch]$AllScreens,
   [int]$Duration = 9,
   [switch]$Minimize,
-  [string]$Font = 'Consolas'   # body font; server picks a CJK-capable one for ko/ja/zh
+  [string]$Font = 'Consolas',  # body font; server picks a CJK-capable one for ko/ja/zh
+  [string]$Palette = '',
+  [string]$Cells = ''   # not $Rows: PowerShell names ignore case, and $rows is the classic drawing
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -101,14 +106,41 @@ $ink  = [System.Drawing.Color]::FromArgb(13, 17, 23)
 $body = $accent
 $white = [System.Drawing.Color]::FromArgb(232, 244, 255)
 
-$bmp = New-Object System.Drawing.Bitmap(12, 12)
-for ($y = 0; $y -lt 12; $y++) {
-  $line = $rows[$y]
-  for ($x = 0; $x -lt 12; $x++) {
-    $ch = $line[$x]
-    if ($ch -eq 'B') { $bmp.SetPixel($x, $y, $body) }
-    elseif ($ch -eq 'K') { $bmp.SetPixel($x, $y, $ink) }
-    elseif ($ch -eq 'W') { $bmp.SetPixel($x, $y, $white) }
+# The person's own Bit, when the server sent one that reads right; the classic one otherwise.
+$own = $null
+if ($Mood -ne 'ghost' -and $Palette -cmatch '^[0-9a-f]{6}(,[0-9a-f]{6}){0,15}$' -and $Cells -cmatch '^[.A-P]{1,20}(\|[.A-P]{1,20}){0,19}$') {
+  $ownRows = $Cells.Split('|')
+  $ownColours = @($Palette.Split(',') | ForEach-Object {
+    [System.Drawing.Color]::FromArgb([Convert]::ToInt32($_.Substring(0, 2), 16), [Convert]::ToInt32($_.Substring(2, 2), 16), [Convert]::ToInt32($_.Substring(4, 2), 16))
+  })
+  $sameWidth = @($ownRows | Where-Object { $_.Length -ne $ownRows[0].Length }).Count -eq 0
+  # Every letter names a colour that was sent.
+  $known = ($ownColours.Count -eq 16) -or ($Cells -cnotmatch ('[' + 'ABCDEFGHIJKLMNOP'.Substring($ownColours.Count) + ']'))
+  if ($sameWidth -and $known) { $own = $ownRows }
+}
+
+if ($own) {
+  # A square of the longer side with the Bit centred in it, so the popup scales it evenly.
+  $side = [math]::Max($own[0].Length, $own.Count)
+  $bmp = New-Object System.Drawing.Bitmap($side, $side)
+  $ox = [int][math]::Floor(($side - $own[0].Length) / 2)
+  $oy = [int][math]::Floor(($side - $own.Count) / 2)
+  for ($y = 0; $y -lt $own.Count; $y++) {
+    for ($x = 0; $x -lt $own[$y].Length; $x++) {
+      $ch = $own[$y][$x]
+      if ($ch -ne '.') { $bmp.SetPixel($x + $ox, $y + $oy, $ownColours[[int][char]$ch - 65]) }
+    }
+  }
+} else {
+  $bmp = New-Object System.Drawing.Bitmap(12, 12)
+  for ($y = 0; $y -lt 12; $y++) {
+    $line = $rows[$y]
+    for ($x = 0; $x -lt 12; $x++) {
+      $ch = $line[$x]
+      if ($ch -eq 'B') { $bmp.SetPixel($x, $y, $body) }
+      elseif ($ch -eq 'K') { $bmp.SetPixel($x, $y, $ink) }
+      elseif ($ch -eq 'W') { $bmp.SetPixel($x, $y, $white) }
+    }
   }
 }
 

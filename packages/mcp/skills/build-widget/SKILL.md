@@ -52,6 +52,10 @@ person's own dashboard, so you can see it run and fix it.
   `timer`, `discord` or `hot`, `null` when it is over; never the words) and writes the words itself in the bottom
   `band`. Keep what you draw above it. Kept only for a widget with no actions, hosts, userHosts, hooks, ai, storage,
   storageGroup, secrets or clipboard; `check_widget` says when it was dropped. Read sdk_reference section "pumpAlert".
+- To draw the person's own Bit (Xenon 5.3), ask for the `bit` stream and copy `bit-kit.js` into the package, loaded
+  before your script: `XenonBit.mount(el).set(data, { light })` draws it from each `bit` update, egg included, and plays
+  the moves it makes on the dashboard. The `bit` action category adds `{ type: 'bitReact', move }`. Never draw Bit by
+  hand. Read sdk_reference section "bit". `new_widget` with `bit: true` writes a starter with the kit.
 - Put text on the page with `textContent`, never `innerHTML`.
 - Read `theme` and follow its colours, and declare a `color-scheme`: up to Xenon 4.11.13 a page with none turns the tile white.
 - Follow the look too: on `theme.look === 'liquid'` (Liquid Glass, the default) cards inside the tile have no outline,

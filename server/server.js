@@ -621,7 +621,7 @@ const vitalsNag = require('./vitals/vitals-nag').createVitalsNag({
     child.on('error', () => {});
     child.unref();
   } : null,
-  host: layersHost,
+  host: layersHost, sprite: (mood) => require('./bit/index.js').popupSprite(mood),
   broadcast: (popup) => broadcastSSE('vitals_nag', popup),
 });
 const { DATA_DIR } = require('./engine/paths.js');
@@ -3040,7 +3040,7 @@ async function buildBackup() {
       gameSessions: _gameSessions.exportData(),
       background: await _buildBackupBackground(settings),
       font: await _buildBackupFont(settings),
-      pump: await require('./pump-screen/index.js').backup.save().catch(() => null),
+      pump: await require('./pump-screen/index.js').backup.save().catch(() => null), bit: await require('./bit/index.js').backup.save().catch(() => null),
     },
   };
 }
@@ -3233,7 +3233,7 @@ async function applyBackup(bundle, { remote = false, keepDeckActions = false } =
   if (Array.isArray(d.aiMemory)) await apply('aiMemory', () => aiMemory.importFacts(d.aiMemory));
   if (d.guardian && typeof d.guardian === 'object') await apply('guardian', () => guardian.importStore(d.guardian));
   if (Array.isArray(d.gameSessions)) await apply('gameSessions', () => _gameSessions.importData(d.gameSessions));
-  if (d.pump && typeof d.pump === 'object') await apply('pump', () => require('./pump-screen/index.js').backup.restore(d.pump));
+  if (d.pump && typeof d.pump === 'object') await apply('pump', () => require('./pump-screen/index.js').backup.restore(d.pump)); if (d.bit && typeof d.bit === 'object') await apply('bit', () => require('./bit/index.js').backup.restore(d.bit));
 
   // hub.settings is the in-memory mirror the settings section just updated: no re-read.
   const deckNow = await readDeckStore().catch(() => null);
@@ -4310,8 +4310,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // back for the user either.
   '/update/auto/postpone',
   // Marks What's New and the fixes of a release as read. A page on another site
-  // could otherwise make sure the user never hears about an update. The hints, screens-off and pump screens the same.
-  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import',
+  // could otherwise make sure the user never hears about an update. The hints, screens-off, pump screens and Bit the same.
+  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/gift', '/api/bit/pick', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy',
   // Bit's messages: filing one, or spending the day's on a page nobody sees, is
   // not something another site may do for the user.
   '/bit/messages/file',

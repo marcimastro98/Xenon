@@ -51,6 +51,18 @@ const CLASSIFIED = Object.freeze({
   'GET /airflow': { remote: true },
   // Import from iCUE: a lighting change like the others a paired phone makes.
   'POST /api/lighting/icue-import': { remote: true },
+  // The personal Bit: the phone is the same dashboard, so it reads, hatches, dresses and names it.
+  'GET /api/bit': { remote: true },
+  'POST /api/bit/hatch': { remote: true },
+  'POST /api/bit/wear': { remote: true },
+  'POST /api/bit/name': { remote: true },
+  'POST /api/bit/prefs': { remote: true },
+  'POST /api/bit/gift': { remote: true },
+  'POST /api/bit/pick': { remote: true },
+  'POST /api/bit/publish': { remote: true },
+  // Keeping a supporter's item uses the PC's pass, a shop item spends Sparks: the PC only.
+  'POST /api/bit/claim': { remote: false },
+  'POST /api/bit/buy': { remote: false },
 });
 
 const SERVER = engineSource();

@@ -1,7 +1,11 @@
 // Invented state for the tiles about this computer: its devices, power, disks, files,
 // notifications, the embedded browser and the local chat. Nothing is read from this PC.
 
+import { createRequire } from 'node:module';
 import { appIcon, dataUri, landscape, webpage } from './art.mjs';
+
+const require = createRequire(import.meta.url);
+const BitModel = require('../../server/bit/model.js');
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -21,6 +25,14 @@ export const battery = () => {
     sources: { corsair: true, bluetooth: true },
   };
   return { answers: { '/api/battery': feed }, events: { battery: feed } };
+};
+
+// A Bit hatched three weeks ago from an invented seed, wearing a scarf: what GET /api/bit answers.
+export const bit = (now) => {
+  const egg = BitModel.normalize({ eggAt: new Date(now - 22 * DAY).toISOString() });
+  const born = BitModel.hatched(egg, { seed: '5eed0b17c0ffee42', number: 1284, born: new Date(now - 21 * DAY).toISOString(), sig: 'made-up' }, new Date(now - 21 * DAY)).model;
+  const view = BitModel.view({ ...born, name: 'Pixel', worn: ['scarf'] }, new Date(now));
+  return { answers: { '/api/bit': { ok: true, bit: view } }, events: { bit: view } };
 };
 
 export const power = (now) => {

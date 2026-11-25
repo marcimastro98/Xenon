@@ -1,0 +1,182 @@
+/* The person's own Bit (js/bit-companion/companion.js) and its sheet (sheet.js).
+   The corner is the Vitals' Bit's place (VitalsPet.css): only one of the two is
+   ever on screen. Bit animates itself and stands still under game mode, low
+   power, idle and a frosted overlay: no CSS loops here. */
+
+.bitc { position: fixed; left: 14px; bottom: 14px; z-index: 50; }
+body[data-panel] .bitc,
+body.layout-editing .bitc { display: none; }
+/* On a phone PhoneViewDock.css lifts it over the dock and the ticker. */
+html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
+
+.bitc-sprite,
+.bitc-chip,
+.bitc-big { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+.bitc-sprite { width: 64px; height: 60px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45)); }
+.bitc-sprite svg,
+.bitc-chip svg,
+.bitc-big svg { display: block; width: 100%; height: 100%; }
+.bitc-sprite:focus-visible,
+.bitc-chip:focus-visible,
+.bitc-big:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; border-radius: 8px; }
+
+/* In the clock it is one more mark of the bar; a folded message goes in front. */
+.bitc-chip { width: 34px; height: 32px; }
+.clock-bit:has(.bm-card) .bitc-chip { display: none; }
+
+/* The sheet: from the bottom on a phone, a card in the middle on a wider screen. */
+.bitc-overlay {
+  position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 18px;
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+}
+.bitc-sheet {
+  position: relative; width: min(420px, 100%); max-height: calc(100% - 12px); overflow: hidden auto; scrollbar-width: none;
+  display: grid; gap: 4px; padding: 0 0 18px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-modal, 14px);
+  animation: bitc-in 200ms steps(5, end) both;
+}
+.bitc-sheet::-webkit-scrollbar { display: none; }
+.bitc-sheet:focus { outline: none; }
+.bitc-sheet button, .bitc-sheet input { font: inherit; }
+.bitc-sheet :focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+@keyframes bitc-in { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bitc-sheet { animation: none; } }
+
+.bitc-close {
+  position: absolute; z-index: 1; top: 8px; right: 8px; width: 44px; height: 44px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-control, 8px); background: transparent; color: var(--muted-text);
+  font-size: 26px; line-height: 1; cursor: pointer;
+}
+.bitc-close:hover { color: var(--text); background: var(--control-bg); }
+
+/* The big Bit stays in sight while the wardrobe scrolls: what is put on or tried shows at once. */
+.bitc-stage {
+  position: sticky; top: 0; z-index: 1; display: grid; place-items: center; padding: 22px 0 6px;
+  background: linear-gradient(color-mix(in srgb, var(--accent) 7%, var(--surface)) 0 0), var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.bitc-slot { display: contents; }
+.bitc-big { width: 160px; aspect-ratio: 18 / 17; }
+@media (max-height: 760px) { .bitc-stage { padding-top: 12px; } .bitc-big { width: 104px; } }
+
+.bitc-body { display: grid; gap: 14px; padding: 14px 20px 0; min-width: 0; }
+.bitc-head { display: grid; gap: 6px; min-width: 0; }
+.bitc-title { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 700; }
+.bitc-line { margin: 0; font-size: 15px; line-height: 1.35; color: var(--muted-text); text-wrap: pretty; }
+.bitc-name input {
+  width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-control, 8px);
+  background: var(--control-bg); color: var(--text); font-size: 17px; font-weight: 600;
+}
+.bitc-name input::placeholder { color: var(--muted-text); font-weight: 400; }
+
+.bitc-facts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted-text); font-variant-numeric: tabular-nums; }
+.bitc-facts li:first-child { color: var(--text); font-weight: 600; }
+
+.bitc-go {
+  min-height: 48px; padding: 0 18px; border: 0; border-radius: var(--radius-control, 8px);
+  background: var(--accent); color: var(--bg); font-size: 16px; font-weight: 700; cursor: pointer;
+}
+.bitc-go:disabled { opacity: 0.55; cursor: default; }
+/* The card to post (bit-companion/card.js): the picture it made, then save, copy, share. */
+.bitc-card-img { display: block; width: 100%; max-width: 320px; height: auto; border: 1px solid var(--line); border-radius: 12px; }
+.bitc-clip-video { display: block; width: 100%; max-width: 200px; height: auto; aspect-ratio: 9 / 16; border: 1px solid var(--line); border-radius: 12px; }
+.bitc-card-slot { display: grid; gap: 10px; min-width: 0; }
+/* Its page on xenon-app.com (card.js siteChoice): the switch, what the page shows, then the link to it. */
+.bitc-site { display: grid; gap: 2px; min-width: 0; }
+.bitc-site .bitc-line { font-size: 13px; color: var(--muted-text); }
+.bitc-site-link { display: inline-flex; align-items: center; min-height: 44px; width: fit-content; color: var(--accent); font-size: 14px; font-weight: 600; text-underline-offset: 3px; }
+.bitc-note { margin: 0; min-height: 1em; font-size: 14px; color: var(--muted-text); }
+.bitc-note:empty { display: none; }
+
+.bitc-part { display: grid; gap: 10px; min-width: 0; }
+.bitc-part-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted-text); }
+.bitc-traits { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.bitc-trait { display: grid; gap: 4px; min-width: 0; }
+.bitc-trait-words { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; min-width: 0; }
+.bitc-trait-name { font-weight: 600; }
+.bitc-trait-item { color: var(--muted-text); text-align: end; overflow-wrap: anywhere; }
+.bitc-trait.is-earned .bitc-trait-item { color: var(--text); }
+.bitc-bar { display: block; height: 4px; border-radius: 2px; background: var(--control-bg); overflow: hidden; }
+.bitc-bar::before {
+  content: ''; display: block; height: 100%; width: 100%; background: var(--accent);
+  transform: scaleX(var(--bitc-fill, 0)); transform-origin: left center;
+}
+[dir='rtl'] .bitc-bar::before { transform-origin: right center; }
+
+.bitc-choice { display: grid; gap: 6px; min-width: 0; }
+.bitc-choice-title { font-size: 13px; font-weight: 600; color: var(--muted-text); }
+.bitc-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Four choices sit two by two, never three and a lone one. */
+.bitc-seg:has(> .bitc-seg-btn:nth-child(4):last-child) { display: grid; grid-template-columns: 1fr 1fr; }
+.bitc-seg-btn {
+  flex: 1 1 auto; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-control, 8px);
+  background: transparent; color: var(--text); font-size: 14px; cursor: pointer;
+}
+.bitc-seg-btn[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.bitc-switch { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; cursor: pointer; }
+.bitc-switch input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+
+/* The wardrobe (js/bit-companion/wardrobe.js): today's gift, what it owns, what it can get. */
+.bitw-gift { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.bitw-open { flex: 1 1 auto; }
+.bitw-gift-line { flex: 1 1 200px; margin: 0; font-size: 14px; line-height: 1.35; text-wrap: pretty; }
+.bitw-bolts { margin-inline-start: auto; font-size: 13px; color: var(--muted-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bitw-sub { margin: 4px 0 0; font-size: 12px; font-weight: 600; color: var(--muted-text); }
+.bitw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
+.bitw-item {
+  display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; min-height: 76px; padding: 8px 4px 6px;
+  border: 1px solid var(--line); border-radius: var(--radius-control, 8px); background: transparent; color: var(--text);
+  cursor: pointer; touch-action: manipulation;
+}
+/* A quiet well behind each item, so pastel colours still read on a light theme. */
+.bitw-item svg {
+  display: block; width: 52px; height: 52px; padding: 2px; box-sizing: border-box;
+  border-radius: 6px; background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.bitw-item-name {
+  max-width: 100%; font-size: 11px; line-height: 1.2; text-align: center; overflow-wrap: break-word; hyphens: auto;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.bitw-item svg .bitw-edge { fill: color-mix(in srgb, var(--text) 18%, transparent); }
+.bitw-item[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+/* Not owned yet: the drawing stays whole (it is what makes someone want it); the heading above
+   says they are still to get, the quieter name repeats it. */
+.bitw-item.is-locked { border-color: transparent; background: color-mix(in srgb, var(--text) 3%, transparent); }
+.bitw-item.is-locked .bitw-item-name { color: var(--muted-text); }
+.bitw-detail { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-control, 8px); }
+.bitw-detail-title { margin: 0; font-size: 14px; font-weight: 600; }
+.bitw-detail-line { margin: 0; font-size: 13px; line-height: 1.35; color: var(--muted-text); text-wrap: pretty; }
+.bitw-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.bitw-pick:disabled { opacity: 0.5; cursor: default; }
+/* The Store's consent box for a shop item, and the support link drawn as the buttons beside it. */
+.bitw-tick { align-items: flex-start; font-size: 13px; line-height: 1.35; color: var(--muted-text); }
+.bitw-tick input { margin-top: 1px; }
+.bitw-tick b { color: var(--text); font-weight: 600; }
+.bitw-join { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.bitw-go { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.bitw-go:disabled { opacity: 0.6; }
+.bitw-join[hidden], .bitw-pick[hidden] { display: none; }
+
+@media (max-width: 560px) {
+  .bitc-overlay { align-items: flex-end; padding: 0; }
+  .bitc-sheet { width: 100%; border-radius: 14px 14px 0 0; border-bottom: 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+  .bitc-big { width: 128px; }
+}
+
+/* A wide, short screen (the Xeneon Edge, a bar under a monitor): the Bit on the left at full
+   height, everything else scrolling on the right, instead of a narrow column that is mostly scroll. */
+@media (min-width: 1000px) and (max-height: 820px) and (min-aspect-ratio: 2 / 1) {
+  .bitc-sheet {
+    width: min(960px, 100%); height: calc(100% - 12px); grid-template-columns: minmax(260px, 34%) 1fr;
+    overflow: hidden; padding: 0;
+  }
+  /* The close button then sits in the sheet's corner, over the body's free top right. */
+  .bitc-stage { position: static; height: 100%; padding: 0; border-bottom: 0; border-inline-end: 1px solid var(--line); }
+  .bitc-head { padding-inline-end: 40px; }
+  /* What scrolls passes under the close button, so it keeps the sheet's fill. */
+  .bitc-close { background: var(--surface); }
+  .bitc-big { width: min(220px, 80%); }
+  .bitc-body { min-height: 0; overflow: hidden auto; scrollbar-width: none; padding: 22px 22px 18px; align-content: start; }
+  .bitc-body::-webkit-scrollbar { display: none; }
+  .bitw-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+}

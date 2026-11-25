@@ -12,8 +12,9 @@ import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const BIT_ENGINE = JSON.parse(readFileSync(join(HERE, 'fixtures', 'bit-engine.json'), 'utf8'));
 const src = (p) => readFileSync(join(HERE, '..', p), 'utf8');
-const SCRIPTS = ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/ai/bit-app.js', 'js/vitals/vitals-pet-core.js', 'js/vitals-pet/vitals-pet.js'];
+const SCRIPTS = [...BIT_ENGINE, 'js/ai/bit-app.js', 'js/vitals/vitals-pet-core.js', 'js/vitals-pet/vitals-pet.js'];
 const LABELS = {
   vpet_talk: 'Talk to Bit', vpet_talk_prompt: 'How are my vitals doing?', vitals_level: 'Level {n}', vitals_hydration: 'Hydration',
   vpet_lock_in: 'Locking the computer in {s} s: {vital}!', vpet_streak_days: '{n} days in a row',

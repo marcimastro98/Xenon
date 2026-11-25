@@ -37,7 +37,7 @@
     home.append(root);
     const left = from && from !== document.body ? from : null;
     const joined = home !== document.body ? home : null;
-    if (left) left.hidden = true;
+    if (left) left.hidden = !left.children.length; // the own Bit may stand there too (bit-companion)
     if (joined) joined.hidden = false;
     const bar = window.TopbarMinimal;
     if ((left || joined) && bar && bar.reflowIsland) bar.reflowIsland();

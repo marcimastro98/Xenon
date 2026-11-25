@@ -489,6 +489,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `netPath` (v5.0.0) — `{ ok, link, linkMbps, signal, dbm, router, provider, internet, traffic }`: **how the way to the internet is doing, stretch by stretch**: delay, jitter and loss to the router, to the provider's first hop and to the internet, with the Wi-Fi signal and this PC's traffic. Numbers only, never an address. See *The way to the internet* below. A **pull** stream
 - `energy` (v5.0.0) — `{ ok, enabled, sampleMinutes, now, hours:[…], days:[…] }`: **how much energy this PC used**, in Wh per hour (72 h) and per day (90 days), from the sensor history, with the source of each figure. Numbers only. See *Energy, hour by hour and day by day* below. A **pull** stream
 - `airflow` (v5.3) — `{ ok, state, drive, mode, why, fans:[…], check, quieterDb }`: **how the PC's fans are** with Airflow, Xenon's fan control: each fan's speed and who drives it, and the reason behind what Xenon does. Read only. See *The fans* below. A **pull** stream
+- `bit` (v5.3) — `{ ok, hatched, stage, name, number, founder, genes:{…}, worn:[…], played }`: **the person's own Bit**, to draw it with the Bit kit (`bit-kit.js`, copied into the package) and play the moves it makes on the dashboard. Never what it learned about the person. See *Your own Bit* below. A **pull** stream
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, loss, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline. `position` is a whole number of seconds and can trail the real position by up to a second or two; when you need to time something to the song (lyrics, a beat-synced effect), read `positionMs` instead, the unrounded position in milliseconds as of the moment the event was sent (absent from an older Xenon Helper: fall back to `position * 1000`). Between events, add the time since you received the event to it while `playbackStatus` is `Playing`. `thumbnail` is the cover picture, or `null`/empty when there is none: a `data:image/...` URL you can put straight into an `<img>`, or an `https://` URL (some players give one, and Xenon looks the cover up online when the player gives none), which the sandbox cannot load directly: show it through `/sdk/tile/` (see "Map & radar tiles") with its host in `hosts`. The same track keeps the same cover, so redraw it only when `title` or `artist` change
 - `audio` — volume, mute, output device (`speaker` is the current default output; `speakers[]` lists every connected one, each with an `id` and `isDefault`), and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
@@ -1164,6 +1165,67 @@ badge or a pump card.
   or a PC whose fans Xenon cannot reach: hide the tile or say so.
 - **Pull it about every 2 s** (the reading is cached that long), only while
   the widget is on screen.
+
+### 3b-octies. Your own Bit: `bit` (v5.3)
+
+Every Xenon has its own Bit, born on that PC and unlike any other: its colours,
+pattern, antenna tip, eyes, cheeks, character and the clothes it wears.
+`streams: ["bit"]` gives what a widget needs to draw THAT Bit, and the last move
+it made on the dashboard, so a widget's Bit moves with the others.
+
+```js
+{
+  ok: true,
+  hatched: true,
+  stage: 'young',      // 'egg' | 'baby' | 'young' | 'adult' | 'veteran' | 'legend'
+  name: 'Bit',         // the name the person gave it (up to 24 characters)
+  number: 1284,        // its number among every Bit born, or null (born offline)
+  founder: false,      // had Xenon before 5.3
+  everywhere: true,    // false: the person chose the classic Bit for the rest of the app
+  genes: {             // what it looks like: hand it to the Bit kit, never decode it yourself
+    classic: false, shiny: false, palette: 'sky-pastel', pattern: 'socks',
+    patternColor: 'accent', tip: 'capsule', eyes: 'ink', cheeks: 'rosy',
+    temperament: 'shy', quirk: 'juggle', voice: 'chirpy',
+  },
+  worn: ['scarf'],     // what it wears, item ids
+  played: { clip: 'wave', at: 1764000000000 },  // the last move on the dashboard, or null
+}
+```
+
+Not hatched yet (or a reply Xenon cannot read as a Bit): `{ ok: true, hatched: false, stage: 'egg' }`.
+
+**Draw it with the Bit kit, never by hand.** A widget's frame runs only the
+scripts of its own package, so copy `bit-kit.js` into the package (the MCP
+`new_widget` with `bit: true` writes one; the same file is on the site,
+`docs/create/bit-kit.js`) and load it before your script:
+
+```html
+<div id="bit"></div>
+<script src="bit-kit.js" defer></script>
+<script src="main.js" defer></script>
+```
+
+```js
+const bit = XenonBit.mount(document.getElementById('bit'), { label: 'Bit' });
+// on every data message of the bit stream, and again when the theme changes:
+bit.set(m.data, { light: theme.appearance === 'light' });
+```
+
+- **The kit is the app's own engine**: the same shape, clips and clothes as the
+  dashboard, the egg before it hatches, idle moves in its own character, still
+  poses with reduced motion, and it stops while the frame is hidden.
+- **`played`** makes the kit play a move the dashboard played (a Deck key, Bit
+  in the chat, another widget). The first update only says where things stand:
+  a move from before the widget opened is not replayed.
+- **`everywhere: false`**: the person keeps their own Bit in its corner and chose
+  the classic Bit for the rest of the app. A widget where Bit is the subject ("my
+  Bit") still draws theirs; one where Bit is a character in a scene (a pump
+  style, a game) draws the classic Bit, as the app does:
+  `bit.set(m.data, { light, classic: m.data.everywhere === false })`.
+- **Never in it**: the seed, what Bit learned about the person (its traits and
+  days), what it owns and its bolts. The genes draw it, nothing more.
+- **Pull it about once a second**, only while the widget is on screen.
+- To make it move, the `bit` action category (§5c-septies).
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
@@ -3108,6 +3170,32 @@ action: { type: 'airflowMode', mode: 'quiet' }   // 'auto' | 'quiet' | 'balanced
 Listed to the user as "Change how Xenon drives your fans: quieter, cooler or
 back to the PC".
 
+### 5c-septies. Your own Bit's moves: `bit` (v5.3)
+
+Makes the person's own Bit do a move, as a Deck key does: every Bit on the
+dashboard plays it, and so does a widget reading the `bit` stream. A move only:
+never its clothes, its name or the gift of the day, which are the person's own
+choices on Bit's sheet.
+
+```js
+action: { type: 'bitReact', move: 'wave' }
+// 'surprise' (one at random) | 'wave' | 'dance' | 'hop' | 'spin' | 'moonwalk'
+// | 'juggle' | 'bow' | 'wink' | 'airGuitar' | 'cheer'
+// { ok: true, clip: 'wave' } ; { ok: false, error: 'egg' }
+```
+
+```json
+{ "actions": ["bit"], "streams": ["bit"] }
+```
+
+- **`egg`**: Bit has not hatched yet; the person taps the egg on the dashboard.
+- **`clip`** is the move it played (the one picked, for `surprise`).
+- Bit keeps its own pace: a move asked for is played, but a widget that asks
+  every second is noise nobody wants. Ask on a tap or a real moment.
+- Allowed in manifest Deck macros.
+
+Listed to the user as "Make your own Bit do a move".
+
 ### 5d. Turning one person up or down: `discordUserVol` (v4.11)
 
 Two actions in the `discord` category act on ONE member of the voice channel the
@@ -3314,7 +3402,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `airflow`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `energy`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `netPath`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `airflow`, `audio`, `audioLevels`, `battery`, `bit`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `energy`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `netPath`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -3322,6 +3410,7 @@ the user granted, and every action is re-validated server-side.
 |----------|--------------|
 | `audioDevice` | `audioDevice`, `audioDeviceToggle`, `audioDeviceFirst` |
 | `benchmark` | `benchmark` |
+| `bit` | `bitReact` |
 | `browser` | `browserOpen` |
 | `capture` | `screenshot`, `record`, `replay`, `screenText`, `screenPin`, `screenColor`, `screenMeasure`, `captureMarker` |
 | `chroma` | `chromaColor`, `chromaOff` |

@@ -33,6 +33,7 @@ const TOOLS = [
         size: { type: 'string', enum: SIZES, description: 'Tile size. Defaults to medium.' },
         pump: { type: 'boolean', description: 'Also made for the round screen on an AIO pump cooler (Xenon 5.3): manifest "pump": true and a layout that stays inside the circle.' },
         pumpStyle: { type: 'boolean', description: 'A whole pump screen\'s style (Xenon 5.3), offered beside Xenon and Gauge: "pump" and "pumpStyle" in the manifest, and the widget draws the line placement.line names and moves the ring of lights with pumpRing.' },
+        bit: { type: 'boolean', description: 'A widget that draws the person\'s own Bit (Xenon 5.3): the "bit" stream and action, and bit-kit.js, the Bit engine the widget loads before its script.' },
         overwrite: { type: 'boolean', description: 'Replace files with the same names in a folder that is not empty.' },
       },
     },
@@ -101,7 +102,7 @@ async function withFolder(op, args, client) {
 async function newWidget(args, client) {
   const id = widgetId(args.folder, args.id);
   if (!id) return failed({ ok: false, error: 'bad_id', hint: 'Name the folder like a widget id (a-z, 0-9, dashes), or pass `id`.' });
-  const r = await client.call('widget_template', { id, name: args.name, size: args.size, pump: args.pump === true, pumpStyle: args.pumpStyle === true });
+  const r = await client.call('widget_template', { id, name: args.name, size: args.size, pump: args.pump === true, pumpStyle: args.pumpStyle === true, bit: args.bit === true });
   if (!r || !r.ok) return answer(r);
   const w = await writeWidgetFolder(args.folder, r.files, { overwrite: args.overwrite === true });
   return w.ok ? text({ ok: true, id, folder: w.folder, files: w.written, next: 'Edit the files, then call install_widget with this folder.' }) : failed(w);

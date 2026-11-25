@@ -137,6 +137,7 @@
     };
     fact(C() ? C().spark({ still: true }) : null, t('sparks_plan_sparks').replace('{n}', fmt(MONTHLY)));
     fact(opts.icon('supporters'), t('sparks_plan_packs'));
+    fact(bitIcon('sparks-plan-bit'), t('sparks_plan_bit')); // in its colours, as the Spark beside it
     fact(opts.icon('check'), t('sparks_plan_keep'));
     box.append(lead, facts);
     if (mine) return box;
@@ -171,12 +172,14 @@
     return b;
   }
 
-  function bitArt() {
-    const host = el('span', 'sparks-bit');
-    const markup = window.BitApp && typeof window.BitApp.icon === 'function' ? window.BitApp.icon('idle') : '';
+  // The person's own Bit in its colours, drawn by the engine.
+  function bitIcon(cls) {
+    const host = el('span', cls);
+    const markup = typeof window.BitApp?.icon === 'function' ? window.BitApp.icon('idle') : '';
     if (markup) host.innerHTML = markup; // the engine's own SVG, no catalog text
     return host;
   }
+
 
   // Bit answers on Sparks only with Bit as the provider: the button turns that
   // on first, then opens the chat. A draft waits in the box, unsent: an answer
@@ -206,7 +209,7 @@
     box.appendChild(head);
     const grid = el('div', 'sparks-uses');
     grid.appendChild(useCard({
-      art: bitArt(),
+      art: bitIcon('sparks-bit'),
       title: t('sparks_use_bit_t'),
       text: t('sparks_use_bit_d'),
       value: C() ? costLine() : '',

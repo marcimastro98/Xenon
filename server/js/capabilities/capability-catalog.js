@@ -1348,7 +1348,7 @@ const CAPABILITIES = [
   },
 ];
 
-// Entries kept in their own files by subject (catalog-pump.js, catalog-airflow.js): the page loads them first.
-for (const sub of (typeof module !== 'undefined' && module.exports ? [require('./catalog-pump.js'), require('./catalog-airflow.js')] : typeof window !== 'undefined' ? [/** @type {any} */ (window).CapabilityCatalogPump, /** @type {any} */ (window).CapabilityCatalogAirflow] : [])) CAPABILITIES.push(...(sub?.CAPABILITIES || []));
+// Entries kept in their own files by subject (catalog-pump.js, catalog-airflow.js, catalog-bit.js): the page loads them first.
+for (const sub of (typeof module !== 'undefined' && module.exports ? [require('./catalog-pump.js'), require('./catalog-airflow.js'), require('./catalog-bit.js')] : typeof window !== 'undefined' ? [/** @type {any} */ (window).CapabilityCatalogPump, /** @type {any} */ (window).CapabilityCatalogAirflow, /** @type {any} */ (window).CapabilityCatalogBit] : [])) CAPABILITIES.push(...(sub?.CAPABILITIES || []));
 if (typeof window !== 'undefined') window.CapabilityCatalog = { CAPABILITIES };
 if (typeof module !== 'undefined' && module.exports) module.exports = { CAPABILITIES };

@@ -54,7 +54,10 @@ test("a light tile's files exist and its markup is in index.html", () => {
 });
 
 test("a light tile's object and stream methods are in its own files, and its events are real", () => {
-  const events = new Set([...read('js/main.js').matchAll(/(?:on|addEventListener)\('([a-z_]+)'/g)].map((m) => m[1]));
+  // The events the dashboard takes from its stream: main.js's, and those of the hosts
+  // grid/data-stream.js hands the stream to (BitApp takes 'bit', BitMoments 'bit_play').
+  const relays = ['js/main.js', 'js/ai/bit-app.js', 'js/bit-companion/moments.js'].map((f) => read(f)).join('\n');
+  const events = new Set([...relays.matchAll(/(?:on|addEventListener)\('([a-z_]+)'/g)].map((m) => m[1]));
   for (const name of LayerTiles.LITE) {
     const row = LayerTiles.lite(name);
     if (!row.global) { assert.equal(row.streams, undefined, name + ': streams need an object'); continue; }

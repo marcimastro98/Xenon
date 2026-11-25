@@ -3,12 +3,9 @@
 // surfaces that read the catalog:
 //   probes()          what this machine can do, merged into /actions/catalog
 //                     `capabilities` so the Deck editor hides the rest
-//   aiFunctions()     Xenon AI function declarations (Gemini format; the other
-//                     providers convert from it)
-//   aiAction(n, a)    an AI call → the Deck action it stands for, which the
-//                     caller runs through actions/registry.js like any key
-//   run(action)       the effect, called by actions/registry.js AFTER
-//                     validateAction — never directly from a route
+//   aiFunctions()     Xenon AI function declarations (Gemini format; the others convert from it)
+//   aiAction(n, a)    an AI call → the Deck action it stands for, run through actions/registry.js like any key
+//   run(action)       the effect, called by actions/registry.js AFTER validateAction, never from a route
 //
 // Effects are injected (deps) so every decision is testable without a game,
 // a screen or an OS underneath.
@@ -169,8 +166,9 @@ function createCapabilities(deps) {
       // A Store widget's own options (widget-options/).
       widgetOptions: !!d.widgetOptions,
       shortcuts: typeof d.shortcutsAvailable === 'function' ? !!d.shortcutsAvailable() : false,
-      // A pump screen is a page any OS serves; only the iCUE import is Windows-only.
+      // A pump screen and the person's own Bit (server/bit/) work on any OS; only the iCUE import is Windows-only.
       pumpScreen: true,
+      bit: true,
       pumpIcue: require('../pump-screen/icue.js').icueImportAvailable(),
       // Xenon drawing on a pump screen itself (pump-screen/direct.js): Windows and Linux, the real Xenon only.
       pumpDirect: d.pumpDirect ?? require('../pump-screen/direct-start.js').directAvailable(),
@@ -288,6 +286,8 @@ function createCapabilities(deps) {
         return (d.pump || require('../pump-screen/index.js').actions).run(action);
       case 'airflowGet': case 'airflowMode': case 'airflowSet': case 'airflowCheck':
         return (d.airflow || require('../airflow/index.js')).actions.run(action);
+      case 'bitGet': case 'bitReact': case 'bitGift': case 'bitPlace': case 'bitWear': case 'bitRename':
+        return (d.bit || require('../bit/index.js')).actions.run(action);
       default: return { ok: false, error: 'unsupported' };
     }
   }

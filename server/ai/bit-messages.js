@@ -24,8 +24,8 @@ require('../store-catalog/community-messages'); // nothing is taken from it here
 
 const { ID_RE, cleanTime, cleanMessage, restoreMessage } = require('./bit-message-clean.js');
 // Highest first, when several wait for the same day. A vote never takes the day
-// from anything else.
-const PRIORITY = { hub: 6, drop: 5, sparks: 4, updates: 3, support: 2, share: 1, rate: 0 };
+// from anything else; the egg waiting to hatch goes before any ask.
+const PRIORITY = { hub: 7, drop: 6, sparks: 5, updates: 4, bit: 3, support: 2, share: 1, rate: 0 };
 
 const DAY = 24 * 3600 * 1000;
 const MAX_MESSAGES = 40;
@@ -144,10 +144,11 @@ function createBitMessages({ file, settings = () => ({}), onChange = () => {}, n
   }
 
   // What the feed or the catalog no longer offers is taken back, unless it was read;
-  // an unread list of updates gives way to the fresher one.
+  // an unread list of updates gives way to the fresher one, and the egg's card
+  // goes once the Bit has hatched.
   function withdraw(live) {
     let changed = false;
-    for (const kind of ['hub', 'drop', 'updates']) {
+    for (const kind of ['hub', 'drop', 'updates', 'bit']) {
       const ids = live && live[kind];
       if (!Array.isArray(ids)) continue;
       const still = new Set(ids.slice(0, GONE_CAP));

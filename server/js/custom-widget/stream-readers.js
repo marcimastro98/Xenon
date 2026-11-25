@@ -61,5 +61,32 @@
     };
   }
 
-  window.CustomWidgetStreamReaders = { netPath, airflow };
+  // The person's own Bit (server/bit/, GET /api/bit): what a widget draws it from with the Bit
+  // kit (docs/create/bit-kit.js), its genes without the seed, and the last move it played on the
+  // dashboard. Never what it learned about the person (traits, days), what it owns or its bolts.
+  const BIT_STAGES = ['egg', 'baby', 'young', 'adult', 'veteran', 'legend'];
+  const GENES = ['palette', 'pattern', 'patternColor', 'tip', 'eyes', 'cheeks', 'temperament', 'quirk', 'voice'];
+  const ID = /^[a-z][a-zA-Z0-9-]{0,31}$/;
+
+  function bit(d, played) {
+    if (!d || typeof d !== 'object' || d.ok !== true) return { ok: false, error: 'failed' };
+    const g = d.genes && typeof d.genes === 'object' ? d.genes : null;
+    if (d.hatched !== true || !g || GENES.some((k) => !ID.test(g[k]))) return { ok: true, hatched: false, stage: 'egg' };
+    const move = played && typeof played === 'object' && ID.test(played.clip) && num(played.at) != null ? played : null;
+    return {
+      ok: true,
+      hatched: true,
+      stage: one(d.stage, BIT_STAGES) || 'baby',
+      name: typeof d.name === 'string' ? d.name.slice(0, 24) : '',
+      number: Number.isSafeInteger(d.number) && d.number > 0 ? d.number : null,
+      founder: d.founder === true,
+      // False when the person chose the classic Bit for the rest of the app (the Bit sheet).
+      everywhere: d.everywhere !== false,
+      genes: { classic: g.classic === true, shiny: g.shiny === true, ...Object.fromEntries(GENES.map((k) => [k, g[k]])) },
+      worn: (Array.isArray(d.worn) ? d.worn : []).filter((id) => ID.test(id)).slice(0, 8),
+      played: move ? { clip: move.clip, at: move.at } : null,
+    };
+  }
+
+  window.CustomWidgetStreamReaders = { netPath, airflow, bit };
 })();

@@ -219,6 +219,7 @@
     },
     "server/js/main.js": {
       "packages/mcp/test/folder.test.mjs": "Names a main.js inside a widget folder it writes in a test; it never opens the dashboard's file.",
+      "server/mcp/mcp-dev-bit.js": "Names a main.js of its own: the entry of the Bit starter widget it writes. It never opens the dashboard's file.",
       "server/mcp/mcp-dev-tools.js": "Names a main.js of its own: the entry of the starter widget it writes. It never opens the dashboard's file.",
       "server/test/mcp-dev-tools.test.mjs": "Reads the main.js of the starter widget the MCP tools write, never the dashboard's file.",
       "server/test/perf-tools.test.mjs": "Names js/main.js only inside sample trace records and addresses it hands the trace reader; it never opens the file.",

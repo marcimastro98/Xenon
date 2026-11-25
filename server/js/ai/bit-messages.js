@@ -73,6 +73,7 @@
     installed: () => window.CommunityGallery && window.CommunityGallery.open('__installed'),
     sparks: () => window.XenonCredits && window.XenonCredits.openShop(),
     share: () => window.ShareCard && window.ShareCard.open({ source: 'setup' }),
+    bit: () => window.BitSheet?.open(),
     url: (msg) => window.open(msg.action.url, '_blank', 'noopener,noreferrer'),
   };
 

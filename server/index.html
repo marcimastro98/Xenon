@@ -215,6 +215,8 @@
 <link rel="stylesheet" href="components/SupportAsk/SupportAsk.css">
 <link rel="stylesheet" href="components/SupportGoal/SupportGoal.css">
 <link rel="stylesheet" href="components/BitMessage/BitMessage.css">
+<link rel="stylesheet" href="components/BitCompanion/BitCompanion.css">
+<link rel="stylesheet" href="components/BitCompanion/BitTile.css">
 <link rel="stylesheet" href="components/Spotlight/Spotlight.css">
 <link rel="stylesheet" href="components/Spotlight/SpotlightResults.css">
 <link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
@@ -298,8 +300,7 @@
 <link rel="stylesheet" href="components/SheetPage/SheetPage.css">
 </head>
 <body>
-<!-- Bit while the dashboard loads, on the user's theme ground
-     (js/first-run/boot-splash.js, right below, runs before the rest of the page). -->
+<!-- Bit while the dashboard loads, on the user's theme ground (js/first-run/boot-splash.js, run before the rest). -->
 <div class="boot-splash" id="boot-splash" aria-hidden="true">
   <span class="boot-splash-bit"></span>
 </div>
@@ -385,15 +386,12 @@
              inside .clock for the same free minimal-topbar reparenting as the
              two above, so it is present in both the full and minimal bars. -->
         <span class="clock-claude" id="clock-claude" hidden></span>
-        <!-- OpenAI Codex marker: a Codex session working, or one waiting on an
-             approval. Populated by js/codex-widget/codex-widget.js; same island rules. -->
+        <!-- Codex marker: a session working or waiting on an approval (js/codex-widget/codex-widget.js); same island rules. -->
         <span class="clock-codex" id="clock-codex" hidden></span>
-        <!-- Performance Mode marker: on screen while a session runs (and always,
-             when the user asks for it in Settings). Populated by js/performance/perf-marker.js;
-             same island rules as the two above. -->
+        <!-- Performance Mode marker: on while a session runs, or always if Settings asks for it
+             (js/performance/perf-marker.js); same island rules as the two above. -->
         <span class="clock-perf" id="clock-perf" hidden></span>
-        <!-- Bit waiting with something to say: an untouched message folds in here, where
-             it covers nothing (js/bit-message-card/bit-message-card.js); same island rules. -->
+        <!-- The own Bit (js/bit-companion/) and a folded message of Bit (js/bit-message-card/); same island rules. -->
         <span class="clock-bit" id="clock-bit" hidden></span>
       </div>
     </div>
@@ -891,6 +889,10 @@
         <div class="slideshow-widget-mount"></div>
       </section>
 
+      <section class="panel bit-panel dashboard-widget" data-dashboard-widget="bit" data-dashboard-size="normal" data-dashboard-order="42" data-dashboard-hidden="true">
+        <div class="bit-tile-mount"></div>
+      </section>
+
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2">
       <div id="system-block" class="system-block">
         <div class="system-tabs" data-fit-levels="3">
@@ -1099,8 +1101,7 @@
       </div>
     </div>
     <div class="ai-chat" id="ai-chat" aria-live="polite" aria-label="Conversazione AI"></div>
-    <!-- Voice mode: Bit listens, thinks and talks; the words appear beside it.
-         Tapping Bit listens again; tapping anywhere else stops (touchscreen-friendly). -->
+    <!-- Voice mode: Bit listens, thinks and talks, words beside it; tap Bit to listen again, anywhere else to stop. -->
     <div class="ai-voice-view" id="ai-voice-view" aria-hidden="true" onclick="_aiVoiceTapInterrupt()">
       <div class="ai-voice-stage">
         <div class="ai-presence" aria-hidden="true" onclick="event.stopPropagation(); _aiVoiceOrbTap()">
@@ -3479,17 +3480,9 @@
         <div id="settings-lighting-hub" data-lightf="mount"></div>
       </div>
 
-      <!-- ── Telefono ────────────────────────────────────────────────────────
-           Everything the user's phone does WITH Xenon: it becomes the dashboard,
-           and it exchanges files with this PC. Both run on the home network and
-           neither touches the desktop.
-
-           Deliberately NOT in "Controllo Remoto", which is the Sunshine/Moonlight
-           wizard: that one streams and drives the DESKTOP from anywhere. The two
-           shared a category through v4.11.0's development and it read as one
-           confused panel, because the name promised desktop control and the first
-           two blocks did something else entirely. Three unrelated products in one
-           scroll is not a category, it is a leftover. -->
+      <!-- ── Telefono: what the phone does WITH Xenon on the home network (it becomes the dashboard, swaps files
+           with this PC). NOT "Controllo Remoto" (Sunshine/Moonlight, drives the DESKTOP from anywhere): sharing
+           one category through v4.11.0 read as one confused panel. -->
       <div class="settings-group" data-settings-cat="phone" hidden>
         <div class="settings-group-head"><span data-i18n="settings_phone_bluetooth">Bluetooth</span></div>
         <!-- Reading the phone over Bluetooth. FIRST in this category, and the
@@ -4903,31 +4896,32 @@
   <div class="grid-plane floor"></div>
 </div>
 
-<!-- JavaScript — load order matters: utils → state → status → i18n → audio-feedback → clock → feature files → UI files → main -->
-<!-- Shared @xenon/core modules (served from the server/shared junction → packages/core).
-     Load first so js/state.js and js/utils.js can consume them; each has an inline
-     fallback so the dashboard still works if /shared is briefly unavailable. -->
+<!-- Load order matters (utils → state → status → i18n → audio → clock → features → UI → main); shared @xenon/core first. -->
 <script src="js/paired/remote-surface.js"></script>
 <script src="shared/src/constants.js"></script>
 <script src="shared/src/format.js"></script>
-<!-- Shared so no two fronts disagree: the Store layout (with the website and the hub)
-     and the update join (with the Xenon menu). community-gallery.js degrades without them. -->
+<!-- Shared so no two fronts disagree (Store layout: website, hub; update join: Xenon menu); community-gallery.js degrades without. -->
 <script src="shared/src/storefront-layout.js"></script>
 <script src="shared/src/store-updates.js"></script>
-<!-- Bit, the assistant's pixel face: one engine for the app, the site, the
-     Maker and the export tool (js/ai/bit-app.js mounts it here). -->
+<!-- Bit: one engine for app, site, Maker and export tool, with each person's own look and rhythm (js/ai/bit-app.js mounts it). -->
 <script src="shared/src/bit-clips.js"></script>
+<script src="shared/src/bit-color.js"></script>
+<script src="shared/src/bit-genes.js"></script>
+<script src="shared/src/bit-genome.js"></script>
+<script src="shared/src/bit-look.js"></script>
+<script src="shared/src/bit-wardrobe.js"></script>
 <script src="shared/src/bit.js"></script>
+<script src="shared/src/bit-clips-life.js"></script>
+<script src="shared/src/bit-director.js"></script>
 <script src="shared/src/bit-player.js"></script>
+<script src="shared/src/bit-icon.js"></script>
 <script src="shared/src/bit-phrases.js"></script>
 <script src="shared/src/bit-spark.js"></script>
-<!-- Store descriptions: a small Markdown subset, shared with the website catalog
-     and the hub. Without it the Store shows descriptions as plain text. -->
+<!-- Store descriptions: a small Markdown subset shared with the website catalog and the hub; plain text without it. -->
 <script src="shared/src/rich-text.js"></script>
 <script src="js/custom-select.js"></script>
 <script src="js/color-picker.js"></script>
-<!-- Monotone-cubic path builder shared by the stat sparklines (utils.js) and the
-     sensor-history charts (history-chart.js). Must load before both. -->
+<!-- Monotone-cubic path builder for the stat sparklines (utils.js) and history-chart.js: loads before both. -->
 <script src="js/store-supporters/spark-path.js"></script>
 <script src="js/first-run/xenon-loader.js"></script>
 <script src="js/streaming/live-stream.js"></script>
@@ -4938,8 +4932,7 @@
 <script src="js/alerts/toast-island.js"></script>
 <script src="js/alerts/toast.js"></script>
 <script src="js/alerts/alert-toasts.js"></script>
-<!-- Interrupt arbiter: owns busy()/whenIdle()/the daily budget for every modal
-     channel. Must load before any channel that waits its turn (catalog-drop). -->
+<!-- Interrupt arbiter: busy()/whenIdle()/daily budget for every modal channel; before any channel that waits (catalog-drop). -->
 <script src="js/alerts/interrupt-queue.js"></script>
 <!-- Bit's messages: what every channel files instead of popping up. -->
 <script src="js/bit-message-card/pieces.js"></script>
@@ -5246,7 +5239,7 @@
 <script src="js/store-catalog/deck-store.js"></script>
 <script src="js/deck/deck-icons.js"></script>
 <script src="js/capabilities/catalog-pump.js"></script>
-<script src="js/capabilities/catalog-airflow.js"></script>
+<script src="js/capabilities/catalog-airflow.js"></script><script src="js/capabilities/catalog-bit.js"></script>
 <script src="js/capabilities/capability-catalog.js"></script>
 <script src="js/deck/deck-actions.js"></script>
 <script src="js/deck/deck-error-text.js"></script>
@@ -5406,8 +5399,7 @@
 <script src="js/devclean-widget/devclean-widget.js"></script>
 <script src="js/media/lyrics-widget-options.js"></script>
 <script src="js/media/lyrics-widget.js"></script>
-<!-- Says why search and the disk map went empty on a Mac. Self-gating: it acts
-     only on the flag the server sets, which exists only on macOS. -->
+<!-- Says why search and the disk map went empty on a Mac; acts only on the flag the server sets on macOS. -->
 <script src="js/system/macos-fda.js"></script>
 <script src="js/transfer-widget/says.js"></script>
 <script src="js/transfer-widget/known.js"></script>
@@ -5437,6 +5429,15 @@
 <script src="js/vitals-pet/saved.js"></script>
 <script src="js/vitals-pet/effects.js"></script>
 <script src="js/vitals-pet/vitals-pet.js"></script>
+<script src="js/bit-companion/wardrobe-keep.js"></script>
+<script src="js/bit-companion/wardrobe.js"></script>
+<script src="js/bit-companion/card.js"></script>
+<script src="js/bit-companion/recap.js"></script>
+<script src="js/bit-companion/clip.js"></script>
+<script src="js/bit-companion/sheet.js"></script>
+<script src="js/bit-companion/companion.js"></script>
+<script src="js/bit-companion/tile.js"></script>
+<script src="js/bit-companion/moments.js"></script>
 <script src="js/ticker/ticker.js"></script>
 <script src="js/widget-sdk/sdk-perf.js"></script>
 <script src="js/widget-sdk/sdk-diagnostics.js"></script>
@@ -5544,8 +5545,7 @@
 <script src="js/store-supporters/trial-sheet.js"></script>
 <!-- Share card: composes the postable PNG; openShareDialog() looks for it at click time. -->
 <script src="js/presets/share-card.js"></script>
-<!-- Announcement feed: hub-match.js is the pure targeting filter (unit tested),
-     hub-messages.js the surface that renders what survives it. -->
+<!-- Announcement feed: hub-match.js filters what reaches this PC (unit tested), hub-messages.js shows it. -->
 <script src="js/store-supporters/hub-match.js"></script>
 <script src="js/store-supporters/hub-messages.js"></script>
 <script src="js/updates/release-notice.js"></script>

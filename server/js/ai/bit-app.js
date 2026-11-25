@@ -5,21 +5,33 @@
 // holds every live Bit while the dashboard stands still. One body-class
 // observer covers all of them; a Bit whose host left the page is let go on the
 // next mount or sweep.
-(function () {
+(() => {
   // Tile-level Bits stop under every dashboard freeze (invariants-rendering-gpu:
   // overlay-frozen, ambient-idle, game-mode, low-power-gpu, perf-mode). A Bit
   // that lives ON an overlay passes its own list without overlay-frozen.
   const TILE_HOLD = ['overlay-frozen', 'ambient-idle', 'game-mode', 'low-power-gpu', 'perf-mode'];
   const HOT_C = 28;
   const COLD_C = 3;
+  const CHIP_HOT_C = 85; // a CPU or GPU this warm makes Bit fan itself
+  const BORN = /^(\d{4})-(\d{2})-(\d{2})/;
   const RECENT_LINES = 6;
-  const ICON_PAD = 0.5;
+  // The person's own Bit, kept for the next page that opens (and the other windows).
+  const OWN_KEY = 'xenon.bit.own';
+  const SEED = /^[0-9a-f]{16}$/;
+  const MAX_WORN = 8;
+  const BACKGROUND = { light: '#f4f6f5', dark: '#0b0f14' };
 
   const players = new Map(); // host -> { player, hold }
   const recentLines = [];
   let observer = null;
+  let own = null; // { seed, worn } of the person's own Bit, or null: the classic Bit
+  let look = null;
+  let directorSeed = '';
+  let director = null; // the rhythm of the person's own Bit (bit-director.js), with or without the classic Bit chosen
+  let state = null; // the last answer of /api/bit or the 'bit' event: egg, stage, prefs, wardrobe
+  let personal = null; // the look of the person's own Bit, also where the app keeps the classic one (the companion)
 
-  const engine = () => (window.Xenon && window.Xenon.bit && window.Xenon.bitPlayer ? window.Xenon : null);
+  const engine = () => (window.Xenon?.bit && window.Xenon.bitPlayer ? window.Xenon : null);
 
   function held(hold) {
     const c = document.body.classList;
@@ -50,14 +62,26 @@
     return { kind: weatherStateIcon(classifyWeatherState(wd)), tempC: Number.isFinite(wd.tempC) ? wd.tempC : null };
   }
 
-  // The moment, in the shape bit.fits() reads.
+  // The last system reading the dashboard got (js/state.js), never a poll of its own.
+  function chipsHot() {
+    const sys = typeof lastSystemData !== 'undefined' && lastSystemData ? lastSystemData : null;
+    return !!sys && [sys.cpuTemp, sys.gpuTemp].some((v) => Number(v) >= CHIP_HOT_C);
+  }
+
+  function birthday() {
+    const m = own && BORN.exec(own.born || '');
+    return m ? { month: Number(m[2]), day: Number(m[3]) } : null;
+  }
+
+  // The moment, in the shape bitDirector.fits() reads.
   function context(now = new Date()) {
     const w = weatherKind();
     const X = engine();
     return {
       hour: now.getHours(),
       weather: w.kind,
-      season: X ? X.bit.seasonOf(now) : '',
+      season: X?.bitDirector ? X.bitDirector.seasonOf(now, birthday()) : '',
+      cpuHot: chipsHot(),
       hot: w.tempC != null && w.tempC >= HOT_C,
       cold: w.tempC != null && w.tempC <= COLD_C,
       music: typeof hasActiveMedia === 'function' && !!hasActiveMedia(),
@@ -68,7 +92,8 @@
   /**
    * A live Bit in `host` (emptied first: a cloned tile carries a stale copy).
    * @param {Element} host
-   * @param {{ mood?: string, label?: string, fidgets?: boolean, calm?: boolean, hold?: string[] }} [opts]
+   * @param {{ mood?: string, label?: string, fidgets?: boolean, calm?: boolean, hold?: string[], look?: () => object|null }} [opts]
+   *   look: a look of its own instead of the page's (the companion keeps the person's Bit)
    */
   function mount(host, opts = {}) {
     const X = engine();
@@ -76,7 +101,10 @@
     const known = players.get(host);
     if (known) return known.player;
     host.replaceChildren();
-    const player = X.bitPlayer.mount(host, { mood: opts.mood, label: opts.label, fidgets: opts.fidgets, calm: opts.calm, context: () => context() });
+    const player = X.bitPlayer.mount(host, {
+      mood: opts.mood, label: opts.label, fidgets: opts.fidgets, calm: opts.calm, context: () => context(),
+      director: () => (opts.look || own ? director : null), look: opts.look,
+    });
     const hold = Array.isArray(opts.hold) ? opts.hold : TILE_HOLD;
     players.set(host, { player, hold });
     player.hold(held(hold));
@@ -94,21 +122,43 @@
   // their mirrors). Only the engine's own palette and numbers go in it.
   function still(clipId, size, tint) {
     const X = engine();
-    const c = X && X.bit.clip(clipId);
+    const c = X?.bit.clip(clipId);
     if (!c) return '';
-    return X.bit.frameSvg(c, X.bitPlayer.stillIndex(c), { size, tint, clipId: 'bitfloor-still' });
+    const svg = X.bit.frameSvg(c, X.bitPlayer.stillIndex(c), { size, tint, look, clipId: 'bitfloor-still' });
+    return X.bitIcon ? X.bitIcon.mark(svg, { kind: 'still', clip: clipId, tint, size }) : svg;
+  }
+
+  // Markup made from the look of the moment carries how it was made
+  // (bitIcon.mark), so a new look (a hatch, an outfit) draws it again in place.
+  const MAKERS = {
+    still: (el) => still(el.dataset.bitClip, Number(el.dataset.bitSize) || undefined, el.dataset.bitTint),
+    icon: (el) => icon(el.dataset.bitClip, el.dataset.bitTint),
+    glyph: (el) => glyph(el.dataset.bitClip),
+  };
+
+  function redrawMarks() {
+    if (typeof document.querySelectorAll !== 'function') return;
+    const tpl = document.createElement('template');
+    for (const el of document.querySelectorAll('svg[data-bit-kind]')) {
+      const make = MAKERS[el.dataset.bitKind];
+      const markup = make?.(el);
+      if (!markup) continue;
+      tpl.innerHTML = markup; // the engine's own numbers and colours, never user text
+      const next = tpl.content.firstElementChild;
+      if (!next) continue;
+      if (el.getAttribute('class')) next.setAttribute('class', el.getAttribute('class'));
+      el.replaceWith(next);
+    }
   }
 
   /**
-   * Bit as an icon: the still pose cropped to a square around what it draws
-   * (the stage keeps room for props a pose may not use), sized by its CSS.
-   * @returns {string} SVG markup, or '' without the engine
+   * Bit as an icon: the still pose cropped to a square around it, sized by CSS
+   * (bit-icon.js). @returns {string} SVG markup, or '' without the engine
    */
   function icon(clipId, tint) {
-    const pose = iconPose(clipId, tint);
-    if (!pose) return '';
-    return pose.X.bit.frameSvg(pose.clip, pose.index, { size: 24, tint, clipId: 'bitfloor-still' })
-      .replace(/ viewBox="[^"]*" width="[^"]*" height="[^"]*"/, ` viewBox="${pose.box}"`);
+    const I = window.Xenon?.bitIcon;
+    const svg = I ? I.icon(clipId, { tint, look }) : '';
+    return svg && I.mark(svg, { kind: 'icon', clip: clipId, tint });
   }
 
   /** Bit as an icon inside `host`: a card that shows other text can stay free of markup. */
@@ -120,77 +170,112 @@
    * Bit as a one-colour glyph (currentColor) with its face cut out, for a
    * button that carries its own fill: it reads on any accent the way the
    * other topbar icons do, where Bit's own colours would clash with it.
-   * No mask or id, so a cloned copy (the phone dock) draws the same.
    * @returns {string} SVG markup, or '' without the engine
    */
   function glyph(clipId) {
-    const pose = iconPose(clipId);
-    if (!pose) return '';
-    const ink = pose.X.bitClips && pose.X.bitClips.INK;
-    const paths = pose.layers.map((layer) => {
-      const d = cutOut(layer.rects, ink);
-      const tr = pose.X.bit.transformAttr(layer.transform);
-      return d ? `<path${tr ? ` transform="${tr}"` : ''} d="${d}"/>` : '';
-    }).join('');
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${pose.box}" fill="currentColor">${paths}</svg>`;
+    const I = window.Xenon?.bitIcon;
+    const svg = I ? I.glyph(clipId, { look }) : '';
+    return svg && I.mark(svg, { kind: 'glyph', clip: clipId });
   }
 
-  // The still pose without its floor shadow (it would pull the crop below
-  // Bit's body), and the square around what it draws. The square sits on whole
-  // cells: a 24 px icon then has its edges on device pixels at 100%, 150%, 200%.
-  function iconPose(clipId, tint) {
-    const X = engine();
-    const base = X && X.bit.clip(clipId);
-    if (!base) return null;
-    const index = X.bitPlayer.stillIndex(base);
-    const clip = { ...base, frames: base.frames.map((f) => ({ ...f, noShadow: true })) };
-    const { layers } = X.bit.renderFrame(clip, index, { tint });
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const layer of layers) {
-      for (const r of layer.rects) {
-        x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y);
-        x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h);
-      }
-    }
-    const side = Math.ceil(Math.max(x1 - x0, y1 - y0) + ICON_PAD * 2);
-    const box = [Math.floor((x0 + x1 - side) / 2), Math.floor((y0 + y1 - side) / 2), side, side].join(' ');
-    return { X, clip, index, layers, box };
+  // ── The person's own Bit (server/bit/, GET /api/bit) ──
+  // Every Bit this page draws wears it: the live players (bitPlayer.useLook),
+  // the stills, icons and glyphs (redrawMarks). Until it hatches, or with the
+  // classic Bit chosen for the app, every place keeps the classic Bit.
+
+  function ownOf(raw) {
+    if (!raw || typeof raw !== 'object' || typeof raw.seed !== 'string' || !SEED.test(raw.seed)) return null;
+    const worn = Array.isArray(raw.worn) ? raw.worn.filter((id) => typeof id === 'string' && id.length <= 40).slice(0, MAX_WORN) : [];
+    const born = typeof raw.born === 'string' && BORN.test(raw.born) ? raw.born.slice(0, 10) : '';
+    return { seed: raw.seed, worn, born };
   }
 
-  // A layer's solid cells minus its ink (eyes, mouth, brows) as one path, on
-  // a half-cell grid (poses move by halves) so overlapping rects never cancel.
-  function cutOut(rects, ink) {
-    const on = new Set();
-    const cells = (r, fn) => {
-      for (let y = Math.round(r.y * 2); y < Math.round((r.y + r.h) * 2); y++) {
-        for (let x = Math.round(r.x * 2); x < Math.round((r.x + r.w) * 2); x++) fn(x + ',' + y);
-      }
-    };
-    for (const r of rects) if (r.o >= 1 && r.fill !== ink) cells(r, (k) => on.add(k));
-    for (const r of rects) if (r.fill === ink) cells(r, (k) => on.delete(k));
-    const rows = new Map();
-    for (const k of on) {
-      const [x, y] = k.split(',').map(Number);
-      if (!rows.has(y)) rows.set(y, []);
-      rows.get(y).push(x);
+  function lookFor(o) {
+    const X = window.Xenon;
+    if (!o || !X?.bitGenome || !X.bitLook || !X.bitWardrobe) return null;
+    const root = document.documentElement;
+    const light = !!(root?.style && root.style.colorScheme === 'light');
+    return X.bitLook.lookOf(X.bitGenome.decode(o.seed), { worn: X.bitWardrobe.outfit(o.worn), background: light ? BACKGROUND.light : BACKGROUND.dark });
+  }
+
+  function remember(o) {
+    try {
+      if (o) localStorage.setItem(OWN_KEY, JSON.stringify(o));
+      else localStorage.removeItem(OWN_KEY);
+    } catch { /* storage off: the next page asks the server */ }
+  }
+
+  function recalled() {
+    try { return ownOf(JSON.parse(localStorage.getItem(OWN_KEY) || 'null')); } catch { return null; }
+  }
+
+  /**
+   * The Bit every place in this page draws: { seed, worn } of the person's own
+   * Bit, or null for the classic one. `keep: false` leaves the copy kept for the
+   * other windows as it is (it came from there).
+   */
+  function setOwn(raw, { keep = true } = {}) {
+    own = ownOf(raw);
+    look = lookFor(own);
+    const X = window.Xenon;
+    if (own) rhythmOf(own.seed);
+    if (keep) remember(own);
+    if (X?.bitPlayer?.useLook) X.bitPlayer.useLook(look);
+    redrawMarks();
+    return own;
+  }
+
+  // One director per seed: a new outfit or the classic choice keeps its hourly count.
+  function rhythmOf(seed) {
+    const X = window.Xenon;
+    if (!X?.bitDirector || !X.bitGenome || (director && directorSeed === seed)) return;
+    director = X.bitDirector.createDirector(X.bitGenome.decode(seed), { cap: state ? state.reactionsPerHour : undefined });
+    directorSeed = seed;
+  }
+
+  // The server's word on the Bit: once per page (a hatch or an outfit while
+  // this page was closed) and on every 'bit' event. The classic Bit chosen for
+  // the app's places keeps every place classic.
+  function heard(bit) {
+    if (!bit || typeof bit !== 'object' || bit.ok !== true) return;
+    state = bit;
+    const hatched = bit.hatched ? ownOf(bit) : null;
+    personal = lookFor(hatched);
+    if (hatched) rhythmOf(hatched.seed);
+    const mine = hatched && bit.everywhere !== false ? bit : null;
+    if (JSON.stringify(ownOf(mine)) !== JSON.stringify(own)) setOwn(mine);
+    if (director) director.setCap(bit.reactionsPerHour);
+    if (typeof dispatchEvent === 'function' && typeof CustomEvent === 'function') dispatchEvent(new CustomEvent('xenon-bit', { detail: bit }));
+  }
+
+  async function askServer() {
+    if (typeof fetch !== 'function') return;
+    try {
+      const base = typeof SERVER === 'string' ? SERVER : '';
+      const res = await fetch(`${base}/api/bit`, { cache: 'no-store' });
+      if (res.ok) heard((await res.json()).bit);
+    } catch { /* offline or an older engine: the copy kept here stays */ }
+  }
+
+  // The dashboard's live stream (grid/data-stream.js) hands its EventSource here.
+  function listen(es) {
+    es.addEventListener('bit', (e) => {
+      try { heard(JSON.parse(e.data)); } catch { /* a broken event changes nothing */ }
+    });
+  }
+
+  function startOwn() {
+    setOwn(recalled(), { keep: false });
+    if (typeof addEventListener === 'function') {
+      addEventListener('storage', (e) => { if (e.key === OWN_KEY) setOwn(recalled(), { keep: false }); });
     }
-    let d = '';
-    for (const [y, xs] of [...rows].sort((a, b) => a[0] - b[0])) {
-      xs.sort((a, b) => a - b);
-      for (let i = 0; i < xs.length;) {
-        let j = i;
-        while (j + 1 < xs.length && xs[j + 1] === xs[j] + 1) j++;
-        d += `M${xs[i] / 2} ${y / 2}h${(j - i + 1) / 2}v0.5h${-(j - i + 1) / 2}z`;
-        i = j + 1;
-      }
-    }
-    return d;
+    askServer();
   }
 
   // One of Bit's lines for a moment, in the dashboard language, never one of
   // the last few said.
   function say(moment, vars) {
-    const P = window.Xenon && window.Xenon.bitPhrases;
+    const P = window.Xenon?.bitPhrases;
     if (!P) return '';
     const code = typeof lang === 'string' && P.LANGS.includes(lang) ? lang : 'en';
     const line = P.say(code, moment, vars, recentLines);
@@ -201,9 +286,14 @@
   }
 
   function greeting(now = new Date()) {
-    const P = window.Xenon && window.Xenon.bitPhrases;
+    const P = window.Xenon?.bitPhrases;
     return P ? say(P.greetingFor(now.getHours())) : '';
   }
 
-  window.BitApp = { TILE_HOLD, mount, playerFor, still, icon, showIcon, glyph, say, greeting, context, sweep: syncHolds };
+  window.BitApp = {
+    TILE_HOLD, mount, playerFor, still, icon, showIcon, glyph, say, greeting, context, sweep: syncHolds,
+    setOwn, own: () => own, look: () => look, director: () => director, listen, state: () => state, heard, personal: () => personal,
+    dressed: (worn) => (state?.hatched ? lookFor({ ...ownOf(state), worn }) : null),
+  };
+  startOwn();
 })();

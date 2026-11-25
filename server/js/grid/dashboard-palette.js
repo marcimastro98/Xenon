@@ -5,8 +5,7 @@
 // tile as a new tab. Which entries exist and where they are filed is
 // js/look/palette-model.js; this file draws them.
 (function () {
-  // Built-in widgets that open only with a supporter pass. The panel says so up
-  // front, so nobody adds one expecting it to work straight away.
+  // Built-in widgets that open only with a supporter pass: the panel says so, so nobody adds one expecting it to work.
   const SUPPORTER_WIDGETS = new Set(['devclean', 'lyrics']);
   // Inline icons (currentColor) — one per widget id.
   const I = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
@@ -50,6 +49,7 @@
     // A generic terminal prompt: the tile works WITH Codex, it is not OpenAI's,
     // so it carries no OpenAI mark.
     openaicodex: I('<rect x="2.5" y="4" width="19" height="16" rx="2.5"/><path d="m7 9.5 3 2.5-3 2.5"/><path d="M12.5 15h4.5"/>'),
+    bit: I('<rect x="5" y="8" width="14" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><path d="M9.5 13v1.5M14.5 13v1.5"/>'),
     vitals: I('<path d="M12 21S3.8 15.9 2.9 10.8A5.2 5.2 0 0 1 12 6.4a5.2 5.2 0 0 1 9.1 4.4C20.2 15.9 12 21 12 21Z"/><path d="M7 12h2.4l1.3-2.6 2 4.4 1.4-1.8H17"/>'),
     unifi: I('<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 4.6-2.6a1 1 0 0 1 1.5.9v7.4a1 1 0 0 1-1.5.9L16 14"/><circle cx="9" cy="12" r="2.5"/>'),
     fans: I('<circle cx="12" cy="12" r="2"/><path d="M12 10c0-3.5 1.5-6 4-6 1.8 0 2.6 1.6 1.6 3.1C16.5 8.7 14 10 12 10ZM14 12c3.5 0 6 1.5 6 4 0 1.8-1.6 2.6-3.1 1.6C15.3 16.5 14 14 14 12ZM12 14c0 3.5-1.5 6-4 6-1.8 0-2.6-1.6-1.6-3.1C7.5 15.3 10 14 12 14ZM10 12c-3.5 0-6-1.5-6-4 0-1.8 1.6-2.6 3.1-1.6C8.7 7.5 10 10 10 12Z"/>'),

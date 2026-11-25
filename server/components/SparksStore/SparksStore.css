@@ -96,6 +96,7 @@
 .sparks-plan-facts li { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; line-height: 1.4; color: var(--text, #e7e9ee); }
 .sparks-plan-facts .xspark, .sparks-plan-facts svg { flex: none; width: 18px; height: 18px; }
 .sparks-plan-facts svg { color: var(--muted-text); }
+.sparks-plan-bit { display: inline-flex; flex: none; }
 .sparks-plan-btn { min-height: 48px; padding: 12px 22px; font-size: 0.95rem; white-space: nowrap; justify-content: center; }
 @media (max-width: 860px) {
   .sparks-plan { grid-template-columns: 1fr; gap: 12px; }

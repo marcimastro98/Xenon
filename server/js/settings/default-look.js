@@ -58,6 +58,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     phone: Object.freeze({ x: 16, y: 64, w: 8, h: 12, visible: false, page: 'dashboard' }),
     // The Xenon menu on the main screen, from the dashboard (js/alerts/screen-tile.js).
     screen:   Object.freeze({ x: 16, y: 76, w: 8, h: 12, visible: false, page: 'dashboard' }),
+    bit:      Object.freeze({ x: 16, y: 64, w: 4, h: 5, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({

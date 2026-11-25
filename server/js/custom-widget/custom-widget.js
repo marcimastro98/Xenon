@@ -61,6 +61,7 @@
     layers: ['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion'],
     performance: ['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory'],
     fans: ['airflowMode'],
+    bit: ['bitReact'],
   };
   // Fields a widget may set on those types (server/sdk-widgets.js
   // SDK_ACTION_LIMITS): a capture START only, never 'reveal', replay on/off or
@@ -90,6 +91,7 @@
     sensorHistory: { enabled: 'boolean', everyMin: 'number' },
     gameIgnore: { added: 'flag' },
     airflowMode: { mode: ['auto', 'quiet', 'balanced', 'cool', 'pc'] },
+    bitReact: { clip: ['wave', 'dance', 'hop', 'spin', 'moonwalk', 'juggle', 'bow', 'wink', 'airGuitar', 'cheer'] },
   };
   function actionResultExtras(type, res) {
     const fields = Object.hasOwn(ACTION_RESULT_FIELDS, type) ? ACTION_RESULT_FIELDS[type] : null;
@@ -234,14 +236,10 @@
     // read starts one echo a second per stretch and they stop 10 s after the last, so only a
     // granted widget on screen keeps them going. Rebuilt field by field (stream-readers.js).
     netPath: Object.freeze({ ttl: 1000, load: async () => Readers.netPath(await api('/api/net-path')) }),
-    // What this PC drew, from the sensor history (server/sensor-history/):
-    // Wh per hour for 72 h and per day for 90 days, by source (cpu, gpu and
-    // psu, the power supply's own figure for the whole PC) with the seconds
-    // each covers, and the last reading in W. It changes once per sample, so a
-    // long TTL. Rebuilt field by field. outOfSight: a background service frame
-    // may ask for it too (a kWh chip by the clock with no tile anywhere): the read
-    // is the server's own history, and the TTL keeps it to one a minute however
-    // many frames ask.
+    // What this PC drew (server/sensor-history/): Wh per hour for 72 h and per day for 90 days, by source (cpu, gpu,
+    // psu = the power supply's figure for the whole PC) with the seconds each covers, and the last reading in W. Once per
+    // sample, so a long TTL; rebuilt field by field. outOfSight: a background service frame may ask too (a kWh chip by
+    // the clock with no tile anywhere): it is the server's own history, and the TTL keeps it to one a minute.
     energy: Object.freeze({ ttl: 60000, outOfSight: true, load: async () => {
       const d = await api('/api/energy');
       if (!d || typeof d !== 'object' || d.ok !== true) {
@@ -265,6 +263,8 @@
     // How the fans are (server/airflow/), while a granted widget is on screen, as often as the
     // Fans section reads it. Rebuilt field by field (stream-readers.js).
     airflow: Object.freeze({ ttl: 2000, load: async () => Readers.airflow(await api('/airflow')) }),
+    // The person's own Bit and the last move it played on this page (bit-companion/moments.js), each second while seen.
+    bit: Object.freeze({ ttl: 1000, load: async () => Readers.bit(await api('/api/bit'), window.BitMoments?.lastPlayed()) }),
     network: Object.freeze({ ttl: 1500, load: async () => {
       const d = await api('/network');
       if (!d || typeof d !== 'object') return { ok: false, interfaces: [] };

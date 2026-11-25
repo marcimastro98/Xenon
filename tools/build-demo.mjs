@@ -189,6 +189,11 @@ log('materialized shared/src from packages/core');
   html = cutOnce(html, '<!-- EXPERIMENTAL: Xeneon Edge fractional-DPR zoom compensation,',
     '</script>', 'Edge fractional-DPR block');
 
+  // 4d''. No offline worker: paired/pwa.js registers /sw.js at the root scope, which on the
+  //     site is a 404 on every visit, and a worker there would sit over every page of it.
+  html = cutOnce(html, '<!-- Installable app: registers the service worker',
+    '<script src="js/paired/pwa.js"></script>', 'offline worker (paired/pwa.js)');
+
   // 4d'. The app loads its strings from the server (/layer-i18n.js, one
   //     language); a static site has no server, so the demo loads the whole
   //     file, every language in it.

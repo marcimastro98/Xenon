@@ -20,7 +20,8 @@
   // index.html's order. No ai-live.js: Voce Live needs the dashboard's
   // full-duplex audio path, so on the screen Bit talks turn by turn.
   const SCRIPTS = Object.freeze([
-    'shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js',
+    'shared/src/bit-clips.js', 'shared/src/bit-color.js', 'shared/src/bit-genes.js', 'shared/src/bit-genome.js', 'shared/src/bit-look.js', 'shared/src/bit-wardrobe.js',
+    'shared/src/bit.js', 'shared/src/bit-clips-life.js', 'shared/src/bit-director.js', 'shared/src/bit-player.js', 'shared/src/bit-icon.js',
     'shared/src/bit-phrases.js', 'shared/src/bit-spark.js', 'js/dialog-focus.js',
     'js/store-supporters/xenon-credits.js', 'js/ai/ai-turn-wait.js', 'js/ai/bit-app.js', 'js/ai/ai-bit-chat.js',
     'js/ai/ai-reply-choices.js', 'js/ai/ai-ask-card.js',

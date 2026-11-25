@@ -25,7 +25,7 @@ const {
 // limited drop, or an item code on a different entry than it was issued for).
 // 'not_in_trial' = a trial code on something the trial does not open (a drop in
 // its first 30 days, a paid item); 'trial_used' = this install already had one.
-const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'wrong_code', 'not_in_trial', 'trial_used']);
+const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'wrong_code', 'not_in_trial', 'trial_used', 'not_yet']);
 // What /update can answer besides success. 'not_owner' is the hub's ONE answer for
 // every kind of refusal (it never says why), and the app treats it as "ask for the
 // code the usual way".

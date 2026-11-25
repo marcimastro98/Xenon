@@ -204,7 +204,8 @@
 .is-phone .gc-pill,
 .is-phone .deck-toast,
 .is-phone .wn-look,
-.is-phone .vpet {
+.is-phone .vpet,
+.is-phone .bitc {
   bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 12px);
 }
 /* TopbarMinimal.css pins the layout bar with state selectors a list entry cannot outweigh. */

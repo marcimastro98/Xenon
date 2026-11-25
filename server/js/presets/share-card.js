@@ -1091,7 +1091,7 @@ if (typeof window !== 'undefined') (function () {
     try { localStorage.setItem(BLUR_PREF_KEY, on ? '1' : '0'); } catch { /* private mode */ }
   }
 
-  window.ShareCard = { open, close, pickQrTarget };
+  window.ShareCard = { open, close, pickQrTarget, loadQrLib, drawQr }; // the last two also make the Bit card (bit-companion/card.js)
 })();
 
 if (typeof module !== 'undefined' && module.exports) {

@@ -63,6 +63,8 @@ async function getInstallId(dataDir) {
 const SCOPE_RATINGS = 'ratings';
 const SCOPE_DEVICES = 'activations';
 const SCOPE_WELCOME = 'welcome';
+// The personal Bit's birth (server/bit/hatch.js): one Bit per install, never tied to the others.
+const SCOPE_BIT = 'bit';
 const _scopedCache = new Map();
 
 async function getScopedId(dataDir, scope) {
@@ -118,6 +120,6 @@ async function savedStatus(dataDir) {
 }
 
 module.exports = {
-  fsp, getInstallId, SCOPE_RATINGS, SCOPE_DEVICES, SCOPE_WELCOME, _scopedCache, getScopedId,
+  fsp, getInstallId, SCOPE_RATINGS, SCOPE_DEVICES, SCOPE_WELCOME, SCOPE_BIT, _scopedCache, getScopedId,
   SUPPORTER_FILE, SAVEABLE_RE, readSavedCode, saveCode, forgetCode, savedStatus,
 };

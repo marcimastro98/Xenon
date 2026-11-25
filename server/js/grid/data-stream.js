@@ -63,10 +63,8 @@
   function connect() {
     if (es) { try { es.close(); } catch {} }
     es = new EventSource('/sse');
-    // A layer window follows the edit mode of the widget layers.
-    if (window.LayerHost) window.LayerHost.listen(es);
-    // Claude Code / Codex building widgets: pairings and their questions.
-    if (window.McpDev) window.McpDev.listen(es);
+    // Layer windows follow the widget layers' edit mode; MCP pairings and questions; the person's own Bit and its moves.
+    for (const host of [window.LayerHost, window.McpDev, window.BitApp, window.BitCompanion, window.BitMoments]) if (host) host.listen(es);
 
     let lastFgProcess = null;
     es.addEventListener('status', e => {

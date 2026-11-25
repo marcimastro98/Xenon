@@ -323,6 +323,17 @@ test('updates wait behind the news, the drops and the Sparks, and go before the 
   assert.equal((await inbox.view()).next.kind, 'sparks');
 });
 
+test('the egg waiting to hatch goes before the asks, opens the Bit, and goes once it hatched', async () => {
+  const { inbox, clock } = box();
+  const card = { id: 'bit:hatch', kind: 'bit', title: 'Your Bit is waiting', surface: 'dashboard', action: { type: 'bit', label: 'Hatch it' } };
+  await inbox.post({ messages: [{ id: 'support:ask', kind: 'support', title: 'Support' }, card] });
+  const next = (await inbox.view()).next;
+  assert.deepEqual([next.kind, next.action], ['bit', { type: 'bit', label: 'Hatch it' }]);
+  clock.now += 1000;
+  assert.equal(await inbox.post({ messages: [], live: { bit: [] } }), true);
+  assert.equal((await inbox.view()).next.kind, 'support');
+});
+
 test('a vote asked for keeps its entry and date, and never counts as told', () => {
   const msg = cleanMessage({ id: 'rate:neon:1', kind: 'rate', title: 'Neon', entryId: 'neon', since: NOON - 5 * DAY }, NOON);
   assert.equal(msg.kind, 'rate');

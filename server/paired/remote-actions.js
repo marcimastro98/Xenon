@@ -53,6 +53,8 @@ const FREE = new Set([
   'pumpFace', 'pumpSetup', 'pumpStyle', 'pumpSet', 'pumpGet', 'pumpDirect',
   // Airflow's mode and choices. The fan check (airflowCheck) is PC_ONLY, below.
   'airflowMode', 'airflowSet', 'airflowGet',
+  // The person's own Bit: the same dashboard on the phone (no purchase is here).
+  'bitGet', 'bitReact', 'bitGift', 'bitPlace', 'bitWear', 'bitRename',
   // A widget's own options: only what it declared, checked by the server.
   'widgetOption', 'widgetOptionList',
   'claudeStop',
