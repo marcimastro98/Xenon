@@ -26,10 +26,11 @@
   const traitKey = (id) => id.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
   // The first day of an item's month ('YYYY-MM') in the app's language: a date reads right in every one.
-  function firstDay(month) {
+  // A card's tag takes the short month ('Dec 1'): the long one does not fit under a card.
+  function firstDay(month, size = 'long') {
     const [y, m] = month.split('-').map(Number);
     try {
-      return new Intl.DateTimeFormat(typeof lang === 'string' ? lang : 'en', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(Date.UTC(y, m - 1, 1));
+      return new Intl.DateTimeFormat(typeof lang === 'string' ? lang : 'en', { day: 'numeric', month: size, timeZone: 'UTC' }).format(Date.UTC(y, m - 1, 1));
     } catch { return month; }
   }
 
@@ -57,7 +58,7 @@
     for (const [key, v] of [['viewBox', '0 0 24 24'], ['aria-hidden', 'true']]) svg.setAttribute(key, v);
     path.setAttribute('d', HEART);
     svg.append(path);
-    box.append(svg, makeEl('span', '', soon(it) ? ctx.say('mybit_soon_from', { date: firstDay(it.month) }) : ctx.say('mybit_group_supporter')));
+    box.append(svg, makeEl('span', '', soon(it) ? ctx.say('mybit_soon_from', { date: firstDay(it.month, 'short') }) : ctx.say('mybit_group_supporter')));
     return box;
   }
 

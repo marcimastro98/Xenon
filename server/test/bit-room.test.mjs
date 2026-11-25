@@ -101,6 +101,7 @@ test("supporters' items have their own tab, with the Store's heart; the one stil
   mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T12:00:00Z') });
   const r = rig();
   r.tell(born());
+  r.ctx.t = (key) => (key === 'mybit_soon_from' ? 'From {date}' : key);
   r.open();
   assert.equal(r.view.querySelector('.broom-card[data-source="supporter"]'), null, 'not mixed in with everything');
   const tab = r.tab('supporter');
@@ -117,8 +118,8 @@ test("supporters' items have their own tab, with the Store's heart; the one stil
   assert.ok(crown.querySelector('.broom-tag.is-supporter svg path'), 'the heart');
   assert.equal(crown.querySelector('.broom-tag').textContent, 'mybit_group_supporter');
   assert.ok(cape.classList.contains('is-supporter') && cape.classList.contains('is-soon'), "January's cape is the preview");
-  assert.equal(cape.querySelector('.broom-tag').textContent, 'mybit_soon_from');
-  assert.match(cape.getAttribute('aria-label'), /mybit_soon_from/, 'said too, not only blurred');
+  assert.equal(cape.querySelector('.broom-tag').textContent, 'From Jan 1', 'the short month: the long one does not fit under a card');
+  assert.match(cape.getAttribute('aria-label'), /From Jan 1/, 'said too, not only blurred');
   assert.equal(cape.getAttribute('aria-disabled'), 'true');
   cape.click();
   assert.equal(r.ctx.BitWardrobe.tried().length, 0, "next month's is only shown");
@@ -133,6 +134,7 @@ test("supporters' items have their own tab, with the Store's heart; the one stil
   assert.match(css, /\.broom-card\.is-soon \.broom-card-art svg \{ filter: blur\(/);
   assert.match(css, /\.broom-card\.is-supporter \{ background: var\(--broom-brass\); color: var\(--broom-wall\); \}/);
   assert.match(css, /\.broom-card\[aria-disabled='true'\] \{ cursor: default; \}/);
+  assert.match(css, /\.broom-card\.is-soon \.broom-tag\.is-supporter span \{ white-space: normal; \}/, 'a long day wraps, never cut');
 });
 
 test('a tap tries it on for free, with the same keep step; again takes it off', () => {
