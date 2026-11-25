@@ -180,23 +180,24 @@
   }
 
   // Save and share, where this browser can (no copy: a clipboard takes no video).
+  // Share where the system can, then save as the main key: the same row as its card's (card.js).
   function saveRow(clip, h) {
-    const row = makeEl('div', 'bitc-seg');
-    const add = (key, run) => {
-      const b = makeEl('button', 'bitc-seg-btn', h.say(key));
+    const row = makeEl('div', 'bitc-acts');
+    const add = (key, cls, run) => {
+      const b = makeEl('button', cls, h.say(key));
       b.type = 'button';
       b.addEventListener('click', run, { signal: h.signal });
       row.append(b);
     };
+    const file = typeof File === 'function' ? new File([clip.blob], clip.file, { type: clip.blob.type }) : null;
+    if (file && navigator.canShare?.({ files: [file] })) {
+      add('sharecard_share', 'bitc-seg-btn', () => navigator.share({ files: [file], title: 'Xenon' }).catch(() => {}));
+    }
     const S = window.XenonSaveFile;
     const ext = clip.file.slice(clip.file.lastIndexOf('.'));
     if (S) {
-      add('mybit_clip_save', () => S.save({ name: clip.file, types: [{ description: 'Video', accept: { [clip.blob.type]: [ext] } }], make: async () => clip.blob })
+      add('mybit_clip_save', 'bitc-seg-btn is-main', () => S.save({ name: clip.file, types: [{ description: 'Video', accept: { [clip.blob.type]: [ext] } }], make: async () => clip.blob })
         .catch(() => h.note(h.say('save_file_failed'))));
-    }
-    const file = typeof File === 'function' ? new File([clip.blob], clip.file, { type: clip.blob.type }) : null;
-    if (file && navigator.canShare?.({ files: [file] })) {
-      add('sharecard_share', () => navigator.share({ files: [file], title: 'Xenon' }).catch(() => {}));
     }
     return row;
   }

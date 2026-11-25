@@ -4,7 +4,7 @@
 // leads people back to Xenon.
 //
 // The card is a COMPOSER with an optional capture, never the reverse:
-// renderCard() must produce a complete, postable image with `capture === null`.
+// ShareCardDraw.render() (share-card-draw.js) must produce a complete, postable image with `capture === null`.
 // The screenshot is an upgrade to one rect inside a frame that is drawn
 // identically either way, which is what makes every fallback below free instead
 // of a separate code path that can rot.
@@ -178,7 +178,9 @@ function clampBlurRects(rects) {
     const x1 = Math.min(Math.max(x + w, 0), 1);
     const y1 = Math.min(Math.max(y + h, 0), 1);
     if (x1 - x0 <= 0 || y1 - y0 <= 0) continue;
-    out.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+    // The tile's corner (a fraction of the screen's height), at most half the box's height.
+    const corner = Number(r.r);
+    out.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, r: corner > 0 && Number.isFinite(corner) ? Math.min(corner, (y1 - y0) / 2) : 0 });
   }
   return out;
 }
@@ -190,13 +192,10 @@ if (typeof window !== 'undefined') (function () {
   };
   const el = makeEl; // shared DOM factory from utils.js
 
-  // Brand constants. BRAND.md locks these for every public surface, INDEPENDENT
-  // of the user's in-app accent — the card must stay recognisably Xenon while
-  // showing off someone else's palette.
+  // Brand constants (BRAND.md): the stock colours when a theme value is missing.
   const BRAND_GREEN = '#1ed760';
   const BRAND_INK = '#070808';
   const BRAND_TEXT = '#f0f3f1';
-  const BRAND_MUTED = '#9aa8a1';
   // server/public/ is a served runtime path on every surface. NEVER docs/images/*:
   // .gitattributes marks it export-ignore, so it is absent for every real user.
   // Relative when SERVER is empty (the static browser demo) so it resolves under
@@ -210,7 +209,7 @@ if (typeof window !== 'undefined') (function () {
   // than at guessed inner class names means a refactor inside a widget can never
   // silently stop blurring it.
   const PRIVATE_WIDGETS = ['notes', 'tasks', 'calendar', 'agenda', 'chat', 'claude', 'openaicodex', 'chatgpt',
-    'discord', 'notifications', 'search', 'unifi'];
+    'discord', 'notifications', 'search', 'unifi', 'phone', 'transfer', 'browser', 'slideshow', 'smarthome', 'remote', 'screen'];
 
   let qrLibPromise = null;
   function loadQrLib() {
@@ -286,258 +285,24 @@ if (typeof window !== 'undefined') (function () {
     return logoPromise;
   }
 
-  // ── Layout ───────────────────────────────────────────────────────────────
-  // Capture on top as the hero, metadata in a band underneath. The plate is a
-  // BOX the capture is contain-fitted and centred into, so any source aspect
-  // from a 32:9 Edge bar to a 16:10 laptop lands well without letterbox bars —
-  // a bar reads as a bug, a smaller plate reads as a choice.
-  const LAYOUTS = {
-    post: {
-      plate: { x: 48, y: 44, w: 1504, h: 524 },
-      logo: { x: 64, y: 600, s: 52 },
-      brand: { x: 128, midY: 626, size: 30 },
-      chip: { gap: 16, h: 36, size: 19, pad: 18 },
-      name: { x: 64, baseline: 716, lineH: 56, size: 46, maxW: 1150, lines: 2 },
-      swatch: { x: 82, cy: 812, r: 17, gap: 46 },
-      footer: { x: 64, baseline: 864, size: 22 },
-      qr: { x: 1348, y: 592, s: 188 },
-      qrCap: { cx: 1442, baseline: 812, size: 20, maxW: 240, align: 'center' },
-      note: { x: 64, baseline: 864, size: 20 },
-    },
-    story: {
-      plate: { x: 56, y: 300, w: 968, h: 900 },
-      logo: { x: 72, y: 116, s: 76 },
-      brand: { x: 168, midY: 154, size: 44 },
-      chip: { gap: 22, h: 50, size: 26, pad: 24 },
-      name: { x: 72, baseline: 1330, lineH: 84, size: 66, maxW: 936, lines: 2 },
-      swatch: { x: 96, cy: 1476, r: 24, gap: 64 },
-      footer: { x: 344, baseline: 1740, size: 26 },
-      qr: { x: 72, y: 1592, s: 236 },
-      qrCap: { x: 344, baseline: 1686, size: 28, maxW: 660, align: 'left' },
-      note: { x: 72, baseline: 1852, size: 24 },
-    },
-  };
+  // The card itself is drawn by presets/share-card-draw.js.
+  function drawQr(ctx, qr, x, y, size) { window.ShareCardDraw.drawQr(ctx, qr, x, y, size); }
 
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function drawQr(ctx, qr, x, y, size) {
-    const count = qr.getModuleCount();
-    const cell = size / count;
-    ctx.fillStyle = '#101214';
-    for (let r = 0; r < count; r++) {
-      for (let c = 0; c < count; c++) {
-        if (qr.isDark(r, c)) ctx.fillRect(x + c * cell, y + r * cell, Math.ceil(cell), Math.ceil(cell));
-      }
-    }
-  }
-
-  // Contain-fit `aspect` inside `box`, centred.
-  function fitPlate(box, aspect) {
-    const a = (Number.isFinite(aspect) && aspect > 0) ? aspect : 16 / 9;
-    let w = box.h * a;
-    let h = box.h;
-    if (w > box.w) { w = box.w; h = box.w / a; }
-    return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
-  }
-
-  // The no-capture plate: the user's own background with a stylised silhouette
-  // of the 24-column bento grid over it. Same rect, same glow, same stroke as a
-  // real capture — the fallback is one branch inside the renderer, not a second
-  // card that can rot.
-  function drawSilhouette(ctx, r, colors) {
-    ctx.save();
-    ctx.fillStyle = colors.background;
-    ctx.fillRect(r.x, r.y, r.w, r.h);
-    const rows = [[6, 10, 8], [10, 6, 4, 4], [8, 8, 8]];
-    const pad = Math.max(8, Math.round(r.h * 0.06));
-    const gap = pad * 0.62;
-    const rowH = (r.h - pad * (rows.length + 1)) / rows.length;
-    let y = r.y + pad;
-    for (const row of rows) {
-      const units = row.reduce((a, b) => a + b, 0);
-      const avail = r.w - pad * 2 - gap * (row.length - 1);
-      let x = r.x + pad;
-      for (const span of row) {
-        const w = avail * (span / units);
-        roundRect(ctx, x, y, w, rowH, Math.min(16, rowH * 0.16));
-        ctx.globalAlpha = 0.5;
-        ctx.fillStyle = colors.surface;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = colors.accent + '2e';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        x += w + gap;
-      }
-      y += rowH + pad;
-    }
-    ctx.restore();
-  }
-
-  // Pixel-blur the personal boxes by round-tripping each region through a tiny
-  // offscreen canvas. No CSS filter is involved, so this works identically on a
-  // canvas the browser will later hand to toBlob().
-  function drawBlurBoxes(ctx, img, plate, rects) {
-    for (const b of rects) {
-      const sw = b.w * img.width;
-      const sh = b.h * img.height;
-      if (sw < 2 || sh < 2) continue;
-      const small = document.createElement('canvas');
-      small.width = Math.max(2, Math.round(sw / 26));
-      small.height = Math.max(2, Math.round(sh / 26));
-      const sctx = small.getContext('2d');
-      if (!sctx) continue;
-      sctx.drawImage(img, b.x * img.width, b.y * img.height, sw, sh, 0, 0, small.width, small.height);
-      ctx.save();
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(small, 0, 0, small.width, small.height,
-        plate.x + b.x * plate.w, plate.y + b.y * plate.h, b.w * plate.w, b.h * plate.h);
-      ctx.restore();
-    }
-  }
-
-  // Compose the card. opts:
-  //   { format, kind, name, author?, colors, qr, qrCaption, capture, captureAspect,
-  //     blurRects, logo, fontOk, note? }
-  function renderCard(canvas, opts) {
-    const ctx = canvas.getContext('2d');
-    const size = cardSize(opts.format);
-    const L = LAYOUTS[opts.format] || LAYOUTS.post;
-    const colors = opts.colors;
-    const family = opts.fontOk ? '"Sofia Sans", sans-serif' : '"Segoe UI", system-ui, sans-serif';
-    const font = (weight, px) => weight + ' ' + px + 'px ' + family;
-
-    canvas.width = size.w;
-    canvas.height = size.h;
-    ctx.textBaseline = 'alphabetic';
-    ctx.textAlign = 'left';
-
-    // Ground + two brand-green glows. The user's accent appears only in the
-    // swatches and the plate's inner stroke.
-    ctx.fillStyle = BRAND_INK;
-    ctx.fillRect(0, 0, size.w, size.h);
-    for (const g of [{ x: 0.18, y: 0.06, r: 0.75, a: '30' }, { x: 0.88, y: 0.96, r: 0.6, a: '1c' }]) {
-      const grad = ctx.createRadialGradient(size.w * g.x, size.h * g.y, 0, size.w * g.x, size.h * g.y, size.w * g.r);
-      grad.addColorStop(0, BRAND_GREEN + g.a);
-      grad.addColorStop(1, BRAND_GREEN + '00');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, size.w, size.h);
-    }
-
-    // ── The plate. Never dimmed: the v4.4 card dimmed its screenshot because it
-    // was a BACKDROP; here it is the subject, and that inversion is most of the
-    // redesign.
-    const plate = fitPlate(L.plate, opts.captureAspect);
-    const radius = Math.min(22, plate.h * 0.06);
-    ctx.save();
-    ctx.shadowColor = BRAND_GREEN + '45';
-    ctx.shadowBlur = 44;
-    roundRect(ctx, plate.x, plate.y, plate.w, plate.h, radius);
-    ctx.fillStyle = BRAND_INK;
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    roundRect(ctx, plate.x, plate.y, plate.w, plate.h, radius);
-    ctx.clip();
-    if (opts.capture) {
-      ctx.drawImage(opts.capture, plate.x, plate.y, plate.w, plate.h);
-      if (opts.blurRects && opts.blurRects.length) drawBlurBoxes(ctx, opts.capture, plate, opts.blurRects);
-    } else {
-      drawSilhouette(ctx, plate, colors);
-    }
-    ctx.restore();
-
-    roundRect(ctx, plate.x, plate.y, plate.w, plate.h, radius);
-    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    roundRect(ctx, plate.x + 2, plate.y + 2, plate.w - 4, plate.h - 4, Math.max(2, radius - 2));
-    ctx.strokeStyle = colors.accent + '3a';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // ── Brand row: mark, wordmark, kind chip.
-    if (opts.logo) ctx.drawImage(opts.logo, L.logo.x, L.logo.y, L.logo.s, L.logo.s);
-    ctx.textBaseline = 'middle';
-    let chipX = L.brand.x;
-    if (opts.fontOk) {
-      ctx.font = font(800, L.brand.size);
-      ctx.fillStyle = BRAND_TEXT;
-      ctx.fillText('Xenon', L.brand.x, L.brand.midY);
-      chipX = L.brand.x + ctx.measureText('Xenon').width + L.chip.gap;
-    }
-    const kindLabel = String(opts.kind ? t('preset_kind_' + opts.kind, opts.kind) : '').toUpperCase();
-    if (kindLabel) {
-      ctx.font = font(700, L.chip.size);
-      const chipW = ctx.measureText(kindLabel).width + L.chip.pad * 2;
-      roundRect(ctx, chipX, L.brand.midY - L.chip.h / 2, chipW, L.chip.h, L.chip.h / 2);
-      ctx.fillStyle = colors.accent + '2b';
-      ctx.fill();
-      ctx.strokeStyle = colors.accent + '70';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.fillStyle = colors.accent;
-      ctx.fillText(kindLabel, chipX + L.chip.pad, L.brand.midY + 1);
-    }
-
-    // ── Name.
-    ctx.textBaseline = 'alphabetic';
-    ctx.font = font(800, L.name.size);
-    ctx.fillStyle = BRAND_TEXT;
-    const lines = wrapName((s) => ctx.measureText(s).width, opts.name, L.name.maxW, L.name.lines);
-    lines.forEach((ln, i) => ctx.fillText(ln, L.name.x, L.name.baseline + i * L.name.lineH));
-
-    // ── Palette swatches.
-    const swatches = [colors.accent, colors.background, colors.surface, colors.text, colors.onAccent];
-    swatches.forEach((c, i) => {
-      ctx.beginPath();
-      ctx.arc(L.swatch.x + i * L.swatch.gap, L.swatch.cy, L.swatch.r, 0, Math.PI * 2);
-      ctx.fillStyle = c;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.32)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
-
-    // ── QR + caption.
-    if (opts.qr) {
-      const pad = Math.round(L.qr.s * 0.1);
-      roundRect(ctx, L.qr.x, L.qr.y, L.qr.s, L.qr.s, 18);
-      ctx.fillStyle = '#f4f6f5';
-      ctx.fill();
-      drawQr(ctx, opts.qr, L.qr.x + pad, L.qr.y + pad, L.qr.s - pad * 2);
-      if (opts.qrCaption) {
-        ctx.font = font(500, L.qrCap.size);
-        ctx.fillStyle = 'rgba(255,255,255,0.72)';
-        ctx.textAlign = L.qrCap.align;
-        ctx.fillText(opts.qrCaption, L.qrCap.align === 'center' ? L.qrCap.cx : L.qrCap.x,
-          L.qrCap.baseline, L.qrCap.maxW);
-        ctx.textAlign = 'left';
-      }
-    }
-
-    // ── Footer, and the "code travels alongside" note when the QR could not
-    //    carry it. In `post` both want the same baseline, so the note wins and
-    //    the site name rides the QR caption instead.
-    ctx.font = font(600, L.footer.size);
-    ctx.fillStyle = BRAND_MUTED;
-    const byline = opts.author ? ' · ' + t('gallery_by', 'by') + ' ' + opts.author : '';
-    if (opts.note) {
-      ctx.font = font(500, L.note.size);
-      ctx.fillText(opts.note, L.note.x, L.note.baseline, L.name.maxW);
-    } else {
-      ctx.fillText('xenon-app.com' + byline, L.footer.x, L.footer.baseline, L.name.maxW);
-    }
+  // The person's own Bit for the card, once it has hatched: its picture and colours come from the
+  // Bit's own card (bit-companion/card.js), the line under it says who it is.
+  async function loadBitArt() {
+    const bit = window.BitApp?.state();
+    const C = window.BitCard;
+    if (bit?.hatched !== true || !C?.paint) return null;
+    try {
+      const tone = C.paint.toneOf(bit);
+      const picture = await C.paint.bitPicture(bit, 360, tone.ink);
+      if (!picture) return null;
+      const code = typeof lang === 'string' ? lang : 'en';
+      const say = (k, vars = {}) => String(t(k, k)).replace(/\{(\w+)\}/g, (m, key) => (key in vars ? String(vars[key]) : m));
+      const who = C.words(bit, say, (n) => Number(n).toLocaleString(code), () => '', code).big;
+      return { picture, tone, line: say('sharecard_bit_line', { name: who }) };
+    } catch { return null; }
   }
 
   // ── Surfaces & capture ───────────────────────────────────────────────────
@@ -669,7 +434,8 @@ if (typeof window !== 'undefined') (function () {
       if (node.getAttribute('data-dashboard-hidden') === 'true') return;
       const r = node.getBoundingClientRect();
       if (!(r.width > 0) || !(r.height > 0)) return;
-      out.push({ x: r.left / vw, y: r.top / vh, w: r.width / vw, h: r.height / vh });
+      const corner = parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0;
+      out.push({ x: r.left / vw, y: r.top / vh, w: r.width / vw, h: r.height / vh, r: corner / vh });
     });
     return clampBlurRects(out);
   }
@@ -785,9 +551,6 @@ if (typeof window !== 'undefined') (function () {
     openState = modal;
     modal.modal.classList.add('sharecard-modal');
 
-    // `galleryId` can only come from the user: a submission is reviewed by a
-    // human on the site, so the app never learns the id its creation was
-    // published under. It is offered as a paste field below, and remembered.
     // `galleryId` points the QR at a published catalog entry. Nothing supplies it
     // yet: publishing goes through a human review on the site, so the app never
     // learns the id its creation was given. It stays in the API for the day there
@@ -805,54 +568,58 @@ if (typeof window !== 'undefined') (function () {
       colors: themeColors(),
       logo: null,
       fontOk: false,
-      blur: readBlurPref(),
+      blur: readPref(BLUR_PREF_KEY),
       blurRects: [],
+      withBit: readPref(BIT_PREF_KEY),
+      bit: null,
       reason: '',
       busy: false,
     };
 
-    // ── Format chips.
+    // ── The card first, as big as the dialog allows, then how it looks.
+    const preview = el('div', 'sharecard-preview');
+    const canvas = document.createElement('canvas');
+    canvas.className = 'sharecard-canvas';
+    preview.appendChild(canvas);
+    modal.body.appendChild(preview);
+
     const formats = el('div', 'sharecard-formats');
-    const chips = {};
+    formats.setAttribute('role', 'group');
+    formats.setAttribute('aria-label', t('sharecard_format', 'Format'));
     [['post', t('sharecard_format_post', 'Post 16:9')], ['story', t('sharecard_format_story', 'Story 9:16')]]
       .forEach(([key, label]) => {
-        const b = el('button', 'settings-btn subtle' + (key === state.format ? ' active' : ''), label);
+        const b = el('button', 'sharecard-format', label);
         b.type = 'button';
+        b.setAttribute('aria-pressed', String(key === state.format));
         b.addEventListener('click', () => {
           if (state.format === key) return;
           state.format = key;
-          Object.keys(chips).forEach((k) => chips[k].classList.toggle('active', k === key));
+          formats.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
           paint();
         });
-        chips[key] = b;
         formats.appendChild(b);
       });
     modal.body.appendChild(formats);
 
-    const canvas = document.createElement('canvas');
-    canvas.className = 'sharecard-canvas';
-    modal.body.appendChild(canvas);
-
-    // ── "Use a real screenshot". Absent, never broken, when capture is refused.
-    const shotRow = el('label', 'preset-check-row');
-    const shotChk = document.createElement('input');
-    shotChk.type = 'checkbox';
-    shotChk.className = 'settings-check';
-    shotRow.appendChild(shotChk);
-    shotRow.appendChild(el('span', 'preset-check-name', t('sharecard_use_screenshot', 'Use a real screenshot of my dashboard')));
-    shotRow.hidden = true;
-    modal.body.appendChild(shotRow);
-
-    // ── Privacy blur.
-    const blurRow = el('label', 'preset-check-row');
-    const blurChk = document.createElement('input');
-    blurChk.type = 'checkbox';
-    blurChk.className = 'settings-check';
-    blurChk.checked = state.blur;
-    blurRow.appendChild(blurChk);
-    blurRow.appendChild(el('span', 'preset-check-name', t('sharecard_blur_personal', 'Blur personal details')));
-    blurRow.hidden = true;
-    modal.body.appendChild(blurRow);
+    // ── Its switches: the real screenshot (absent, never broken, when capture is refused), the
+    //    blur of personal tiles (with a screenshot only), and the person's own Bit (once hatched).
+    const options = el('div', 'sharecard-options');
+    const checkRow = (label, checked) => {
+      const row = el('label', 'preset-check-row');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.className = 'settings-check';
+      box.checked = checked;
+      row.appendChild(box);
+      row.appendChild(el('span', 'preset-check-name', label));
+      row.hidden = true;
+      options.appendChild(row);
+      return [row, box];
+    };
+    const [shotRow, shotChk] = checkRow(t('sharecard_use_screenshot', 'Use a real screenshot of my dashboard'), false);
+    const [blurRow, blurChk] = checkRow(t('sharecard_blur_personal', 'Blur personal details'), state.blur);
+    const [bitRow, bitChk] = checkRow(t('sharecard_with_bit', 'Put my Bit on it'), state.withBit);
+    modal.body.appendChild(options);
 
     // ── The link the QR encodes, in plain copyable text.
     // A QR is for a phone camera; posting the card anywhere means writing a
@@ -897,11 +664,14 @@ if (typeof window !== 'undefined') (function () {
     }
 
     function paint() {
-      renderCard(canvas, {
+      window.ShareCardDraw.render(canvas, {
         format: state.format,
-        kind,
+        size: cardSize(state.format),
         name,
-        author: o.author || '',
+        kindLabel: kind ? t('preset_kind_' + kind, kind) : '',
+        byline: o.author ? ' · ' + t('gallery_by', 'by') + ' ' + o.author : '',
+        wrap: wrapName,
+        bit: state.withBit ? state.bit : null,
         colors: state.colors,
         qr: state.qr,
         qrCaption: target.type === 'site'
@@ -929,6 +699,12 @@ if (typeof window !== 'undefined') (function () {
     Promise.all([ensureBrandFont(), loadLogoMark()]).then(([fontOk, logo]) => {
       state.fontOk = fontOk;
       state.logo = logo;
+      paint();
+    });
+    loadBitArt().then((bit) => {
+      if (!bit || openState !== modal) return;
+      state.bit = bit;
+      bitRow.hidden = false;
       paint();
     });
 
@@ -998,7 +774,12 @@ if (typeof window !== 'undefined') (function () {
 
     blurChk.addEventListener('change', () => {
       state.blur = blurChk.checked;
-      writeBlurPref(state.blur);
+      writePref(BLUR_PREF_KEY, state.blur);
+      paint();
+    });
+    bitChk.addEventListener('change', () => {
+      state.withBit = bitChk.checked;
+      writePref(BIT_PREF_KEY, state.withBit);
       paint();
     });
 
@@ -1080,15 +861,16 @@ if (typeof window !== 'undefined') (function () {
   }
 
 
+  // Both default ON. The blur: the dashboard routinely shows calendar entries, notes, file paths
+  // and account names, and posting those is the kind of thing you do once and regret. The Bit:
+  // it is theirs, and a card with it says whose setup this is.
   const BLUR_PREF_KEY = 'xenon.sharecard.blur';
-  function readBlurPref() {
-    // Default ON: the dashboard routinely shows calendar entries, notes, file
-    // paths and account names, and posting those is the kind of thing you do
-    // once and regret.
-    try { return localStorage.getItem(BLUR_PREF_KEY) !== '0'; } catch { return true; }
+  const BIT_PREF_KEY = 'xenon.sharecard.bit';
+  function readPref(key) {
+    try { return localStorage.getItem(key) !== '0'; } catch { return true; }
   }
-  function writeBlurPref(on) {
-    try { localStorage.setItem(BLUR_PREF_KEY, on ? '1' : '0'); } catch { /* private mode */ }
+  function writePref(key, on) {
+    try { localStorage.setItem(key, on ? '1' : '0'); } catch { /* private mode */ }
   }
 
   window.ShareCard = { open, close, pickQrTarget, loadQrLib, drawQr }; // the last two also make the Bit card (bit-companion/card.js)

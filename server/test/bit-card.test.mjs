@@ -68,9 +68,10 @@ test('the card is drawn from the engine and the server view, never a capture of 
 });
 
 test('the site choice: a switch that asks the server, a line on what is shown, the link once shown', () => {
-  assert.match(SRC, /h\.post\('\/api\/bit\/publish', \{ public: input\.checked \}\)/);
-  assert.match(SRC, /if \(!bit\.number \|\| bit\.local\) return null;/, 'only a Bit with the hub\'s number');
-  assert.match(SRC, /link\.rel = 'noopener noreferrer';/);
+  const panels = read('js/bit-companion/room-panels.js');
+  assert.match(panels, /h\.post\('\/api\/bit\/publish', \{ public: input\.checked \}\)/);
+  assert.match(panels, /if \(!bit\.number \|\| bit\.local\) return null;/, 'only a Bit with the hub\'s number');
+  assert.match(panels, /link\.rel = 'noopener noreferrer';/);
   for (const code of ['en', 'it', 'de', 'es', 'fr', 'ja', 'ko', 'nl', 'pt', 'ru', 'zh']) {
     const text = read(`js/i18n/${code}.js`);
     for (const key of ['mybit_site', 'mybit_site_line', 'mybit_site_open', 'mybit_site_failed', 'mybit_site_taken_down']) {
@@ -81,11 +82,14 @@ test('the site choice: a switch that asks the server, a line on what is shown, t
 
 test('the room\'s sharing drawer offers the card, the page loads it, and the QR helpers it borrows exist', () => {
   const panels = read('js/bit-companion/room-panels.js');
-  assert.match(panels, /window\.BitCard\?\.section\(bit, h\)/);
-  assert.match(panels, /window\.BitCard\?\.site\(bit, h\)/, 'the site choice sits with sharing');
+  assert.match(panels, /window\.BitCard\?\.section\(bit, h, \[ground, pose\(bit, h\)\]\.filter\(Boolean\)\)/, 'its card, its ground and pose under it');
+  assert.match(panels, /\[row, setup\(h\), window\.BitRecap\?\.section\(bit, h\), site\(bit, h\)\]/, 'the setup card and the site choice sit with sharing');
+  assert.match(panels, /window\.ShareCard\.open\(\{ source: 'setup' \}\)/, 'the setup card opens from the same drawer');
   const page = read('index.html');
   const card = page.indexOf('src="js/bit-companion/card.js"');
   assert.ok(card > 0 && card < page.indexOf('src="js/bit-companion/room-panels.js"'));
+  const draw = page.indexOf('src="js/presets/share-card-draw.js"');
+  assert.ok(draw > 0 && draw < page.indexOf('src="js/presets/share-card.js"'), 'the setup card is drawn by its own file, loaded first');
   assert.match(read('js/presets/share-card.js'), /window\.ShareCard = \{ open, close, pickQrTarget, loadQrLib, drawQr \}/);
 });
 

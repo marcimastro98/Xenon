@@ -149,10 +149,15 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
   .broom-card { width: auto; }
 }
 
-/* The drawer: sharing, or who it is and its settings. From the side, or from the bottom on a phone. */
+/* The drawer: sharing, or who it is and its settings. From the side, or from the bottom on a phone.
+   In the stage's own colours and opaque, like the rail: over the theatre a see-through panel lets the
+   curtains show through its words. Its accent is the stage's text, so a chosen key reads on any Bit. */
 .broom-drawer {
+  --text: var(--broom-text); --muted-text: var(--broom-muted); --line: color-mix(in oklab, var(--broom-text) 22%, transparent);
+  --control-bg: color-mix(in oklab, var(--broom-text) 9%, var(--broom-wall)); --accent: var(--broom-text); --bg: var(--broom-wall);
+  --input-bg: var(--control-bg); --lt-border: var(--line); --lt-strong: var(--broom-text); /* the light theme's fields too */
   position: absolute; z-index: 3; inset-block: 0; inset-inline-end: 0; display: grid; grid-template-rows: auto minmax(0, 1fr);
-  width: min(440px, 100%); background: var(--surface); color: var(--text); border-inline-start: 1px solid var(--line);
+  width: min(440px, 100%); background: color-mix(in oklab, var(--broom-wall) 86%, black); color: var(--text); border-inline-start: 1px solid var(--line);
   animation: broom-drawer 160ms steps(4, end) both;
 }
 .broom-drawer[hidden] { display: none; }
@@ -168,11 +173,17 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 /* In the Store it fills the view, with the Store's own corners and colours. */
 .cst-view.is-own:has(> .broom) { height: 100%; }
 .broom.is-store { min-height: 520px; border-radius: 10px; overflow: hidden; }
-.broom.is-store .broom-drawer { background: var(--cst-well, var(--surface)); }
 
 /* What the drawers hold (room-panels.js, card.js, clip.js, recap.js). */
-.bitc-share-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: start; gap: 12px; min-width: 0; }
-.bitc-share-row .bitc-seg-btn { width: 100%; }
+.bitc-share-row { display: grid; gap: 18px; min-width: 0; }
+.bitc-card { display: grid; gap: 12px; min-width: 0; }
+.bitc-acts { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.bitc-acts .bitc-seg-btn { flex: 1 1 auto; }
+.bitc-seg-btn.is-main { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+/* The setup's card (presets/share-card.js), set apart from the Bit's own. */
+.bitc-setup { padding-top: 16px; border-top: 1px solid var(--line); }
+.bitc-setup-words { display: grid; gap: 4px; }
+.bitc-setup .bitc-seg-btn { justify-self: start; }
 .bitc-pose { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
 .bitc-pose .bitc-line { flex: 1 1 160px; font-size: 14px; }
 .bitc-line { margin: 0; font-size: 15px; line-height: 1.35; color: var(--muted-text); text-wrap: pretty; }
@@ -184,11 +195,13 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 .bitc-name input::placeholder { color: var(--muted-text); font-weight: 400; }
 .bitc-facts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted-text); font-variant-numeric: tabular-nums; }
 .bitc-facts li:first-child { color: var(--text); font-weight: 600; }
-/* The card to post (card.js): the picture it made, then save, copy, share. */
+/* The card to post (card.js): the picture it made, its ground and pose, then copy, share, save. */
 .bitc-card-img { display: block; width: 100%; max-width: 320px; height: auto; border: 1px solid var(--line); border-radius: 12px; }
+/* Its place while it is drawn: the card's own shape, so nothing moves when it lands. */
+.bitc-card-img.is-wait { aspect-ratio: 4 / 5; background: var(--control-bg); }
 .bitc-clip-video { display: block; width: 100%; max-width: 200px; height: auto; aspect-ratio: 9 / 16; border: 1px solid var(--line); border-radius: 12px; }
 .bitc-card-slot { display: grid; gap: 10px; min-width: 0; }
-/* Its page on xenon-app.com (card.js siteChoice): the switch, what the page shows, then the link to it. */
+/* Its page on xenon-app.com (room-panels.js site): the switch, what the page shows, then the link to it. */
 .bitc-site { display: grid; gap: 2px; min-width: 0; }
 .bitc-site .bitc-line { font-size: 13px; color: var(--muted-text); }
 .bitc-site-link { display: inline-flex; align-items: center; min-height: 44px; width: fit-content; color: var(--accent); font-size: 14px; font-weight: 600; text-underline-offset: 3px; }

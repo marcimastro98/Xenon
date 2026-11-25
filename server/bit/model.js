@@ -5,7 +5,7 @@
 //
 //   { v, eggAt, founder, bit: { seed, number, born, sig, local } | null,
 //     name, worn: [item ids], owned: [item ids], days: { count, last }, traits,
-//     prefs: { place, reactions, sounds, classic, pose }, shown, months }   shown: the person chose to show it on xenon-app.com (publish.js);
+//     prefs: { place, reactions, sounds, classic, pose, card }, shown, months }   shown: the person chose to show it on xenon-app.com (publish.js);
 //     months: what each month held, for the recap cards (months.js)
 //
 // What is given for free (the seasons' items): seasons.js. An older file's daily gift is
@@ -21,7 +21,7 @@
  * @typedef {{ v: number, eggAt: string, founder: boolean, name: string, worn: string[], owned: string[],
  *   bit: { seed: string, number: number|null, born: string, sig: string, local: boolean } | null,
  *   days: { count: number, last: string }, traits: object,
- *   prefs: { place: string, reactions: string, sounds: boolean, classic: boolean, pose: string }, shown: boolean,
+ *   prefs: { place: string, reactions: string, sounds: boolean, classic: boolean, pose: string, card: string }, shown: boolean,
  *   months: object }} BitModel
  */
 
@@ -48,7 +48,9 @@ const SITE_PAGE = 'https://xenon-app.com/bit.html#';
 // often it reacts (bitDirector's hourly cap), and the classic Bit in the app.
 const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
-const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '' });
+const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain' });
+// The ground of its card: plain ink, or its theatre (room-scenery.js).
+const CARDS = Object.freeze(['plain', 'stage']);
 // The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of
 // the fidgets or the classic photo pose, chosen in the sheet.
 const POSES = Object.freeze([...GeneTables.QUIRKS.map((q) => q.id), 'pose']);
@@ -98,6 +100,7 @@ function normalizePrefs(raw) {
     sounds: p.sounds === true,
     classic: p.classic === true,
     pose: POSES.includes(p.pose) ? p.pose : '',
+    card: CARDS.includes(p.card) ? p.card : DEFAULT_PREFS.card,
   };
 }
 

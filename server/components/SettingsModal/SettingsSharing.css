@@ -127,22 +127,32 @@
 
 /* ── Share card — canvas preview modal. Wider than the other preset dialogs
       because the preview is a 16:9 (or 9:16) card, not a code field. ── */
-.sharecard-modal { width: min(760px, 100%); }
-.sharecard-canvas {
-  width: 100%; height: auto; display: block; margin: 0 0 12px;
-  border-radius: 12px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-  background: #000;
+.sharecard-modal { width: min(820px, 100%); }
+/* The card sits in a well, whole at any format: a story is as tall as the dialog allows, never a scroll. */
+.sharecard-preview {
+  display: grid; place-items: center; margin: 0 0 12px; padding: 12px; border-radius: 14px;
+  background: rgba(0, 0, 0, 0.22); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
 }
+.sharecard-canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: min(52vh, 460px); border-radius: 8px; }
 /* The composer redraws the canvas outright, so "busy" is a dim, not a spinner —
    anything animated here would also have to be hidden during a capture. */
 .sharecard-canvas.is-busy { opacity: 0.55; transition: opacity 160ms ease; }
-.sharecard-modal .preset-check-row { margin-bottom: 4px; }
-.sharecard-formats { display: flex; gap: 8px; margin-bottom: 10px; }
-.sharecard-formats .settings-btn.active {
-  border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.55);
-  background: rgba(var(--accent-rgb, 30, 215, 96), 0.14);
-  color: var(--accent, #1ed760);
+/* Post or story: one switch of two halves. */
+.sharecard-formats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 0 10px; padding: 4px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
 }
+.sharecard-format {
+  appearance: none; min-height: 44px; padding: 0 12px; border: 0; border-radius: 9px; cursor: pointer;
+  background: transparent; color: var(--text-dim, #8b91a1); font: inherit; font-size: 0.9rem; font-weight: 600;
+}
+.sharecard-format:hover { color: var(--text, #e7e9ee); }
+.sharecard-format[aria-pressed='true'] { background: var(--accent, #1ed760); color: var(--on-accent, #06130b); }
+.sharecard-format:focus-visible { outline: 2px solid var(--accent, #1ed760); outline-offset: 2px; }
+.sharecard-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px; }
+.sharecard-options:not(:has(> .preset-check-row:not([hidden]))) { display: none; }
+.sharecard-modal .preset-check-row { min-height: 44px; }
+.sharecard-modal .preset-check-name { white-space: normal; }
 .sharecard-note {
   margin: 6px 0 10px; font-size: 0.78rem; line-height: 1.45;
   color: var(--text-dim, rgba(231, 233, 238, 0.55));

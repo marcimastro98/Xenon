@@ -1,11 +1,9 @@
 'use strict';
-// The card of the person's own Bit, to post: their Bit big in its own pose, on a ground of its
-// own colour, its number and name, its DNA with the true odds (bit-companion/card-dna.js), and a
-// QR to the site where anyone gets one (to its own page there when the person chose to show it,
-// server/bit/publish.js). Made in the sheet
-// (bit-companion/sheet.js) when asked, on a canvas from the engine's own picture
-// (Xenon.bit.frameSvg) and the server's view of the Bit, never a capture of the page, so
-// nothing else on screen can end up in it. It shows only what the Bit owns, never a try-on.
+// The card of the person's own Bit, to post: their Bit big in its own pose, on its own colour or in
+// its theatre (prefs.card, room-scenery.js), its number and name, its DNA with the true odds
+// (card-dna.js) and a QR to the site, or to its own page there once shown (server/bit/publish.js).
+// Drawn from the engine's picture and the server's view of the Bit, never a capture of the page, so
+// nothing else on screen ends up in it; it shows only what the Bit owns, never a try-on.
 (() => {
   const W = 1080;
   const H = 1350;
@@ -16,13 +14,20 @@
   // The brand's ink when a Bit's colours are not known (BitDna.colors); the same from any theme.
   const PLAIN = Object.freeze({ ink: '#0e1116', text: '#f2f4f7', muted: '#9aa3b2', line: '#2a303a' });
   const FONT = '"Sofia Sans", system-ui, sans-serif';
-  const BIT = { x: 250, y: 120, w: 580 };
+  // Where things sit on each ground: the plain one has the Bit big under the mark; the theatre is
+  // its stage across the top (cells of 8 px, as in the room), with the mark inside the curtains.
+  const LAYOUT = Object.freeze({
+    plain: { bit: { x: 250, y: 120, w: 580 }, big: 770, small: 826, about: 884, strip: 946 },
+    stage: { stage: 720, mark: { x: 128, y: 80 }, big: 812, small: 864, about: 918, strip: 962 },
+  });
+  const groundOf = (bit) => (bit?.prefs?.card === 'stage' && window.BitScenery ? 'stage' : 'plain');
   const toneOf = (bit) => window.BitDna?.colors(bit) || PLAIN;
 
   // The card last made, kept while the Bit it shows stays the same: the sheet draws itself again
   // on every change the server tells, and the picture must not go with it.
   let made = null; // { key, canvas, title, src }
-  const keyOf = (bit) => JSON.stringify([bit.number, bit.name, bit.worn, bit.founder, bit.born, bit.genes, bit.prefs?.pose, pageOf(bit)]);
+  let pending = null; // { key, run }: the card being drawn, shared by every redraw of the drawer
+  const keyOf = (bit) => JSON.stringify([bit.number, bit.name, bit.worn, bit.founder, bit.born, bit.genes, bit.prefs?.pose, groundOf(bit), pageOf(bit)]);
 
   // Its odds: shiny or classic green when it is, then its whole look, since one gene alone repeats
   // across Bits (every pastel colour is 1 in 39). Also the sheet's line.
@@ -136,6 +141,14 @@
     return logo;
   }
 
+  // The Xenon mark and its name, the mark's top-left corner at (x, y).
+  function mark(ctx, logo, x, y, tone) {
+    if (logo) ctx.drawImage(logo, x, y, 52, 52);
+    ctx.fillStyle = tone.text;
+    ctx.font = `700 34px ${FONT}`;
+    ctx.fillText('Xenon', logo ? x + 66 : x, y + 38);
+  }
+
   // The ground every card shares: the ink (the Bit's own, `tone`), the Xenon mark at the top,
   // and at the foot the tagline, the site and a QR to `target` (recap.js draws on it too).
   async function ground(tagline, target, tone = PLAIN) {
@@ -146,10 +159,7 @@
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = tone.ink;
     ctx.fillRect(0, 0, W, H);
-    if (logo) ctx.drawImage(logo, 64, 60, 52, 52);
-    ctx.fillStyle = tone.text;
-    ctx.font = `700 34px ${FONT}`;
-    ctx.fillText('Xenon', logo ? 130 : 64, 98);
+    mark(ctx, logo, 64, 60, tone);
     ctx.fillStyle = tone.line;
     ctx.fillRect(64, 1150, W - 128, 2);
     ctx.fillStyle = tone.text;
@@ -165,26 +175,41 @@
       ctx.fill();
       window.ShareCard.drawQr(ctx, qr, W - 64 - 148, 1178, 136);
     }
-    return { canvas, ctx };
+    return { canvas, ctx, logo };
+  }
+
+  // Its theatre across the top of the card, the mark inside the curtains; where the Bit stands in it.
+  async function stage(ctx, bit, logo, tone) {
+    const L = LAYOUT.stage;
+    const scene = window.BitScenery.picture(bit, W, L.stage);
+    const url = URL.createObjectURL(new Blob([scene.svg], { type: 'image/svg+xml' }));
+    try {
+      const img = await image(url);
+      if (img) ctx.drawImage(img, 0, 0, W, L.stage);
+    } finally { URL.revokeObjectURL(url); }
+    mark(ctx, logo, L.mark.x, L.mark.y, tone);
+    return scene.bit;
   }
 
   async function draw(bit, say, num, date) {
     const said = words(bit, say, num, date, typeof lang === 'string' ? lang : 'en');
     const tone = toneOf(bit);
-    const [picture, { canvas, ctx }] = await Promise.all([bitPicture(bit, BIT.w, tone.ink), ground(said.tagline, pageOf(bit) || SITE, tone)]);
-    if (picture) ctx.drawImage(picture, BIT.x, BIT.y, BIT.w, picture.height * (BIT.w / picture.width));
+    const L = LAYOUT[groundOf(bit)];
+    const [{ canvas, ctx, logo }, picture] = await Promise.all([ground(said.tagline, pageOf(bit) || SITE, tone), bitPicture(bit, 580, tone.ink)]);
+    const spot = L.stage ? await stage(ctx, bit, logo, tone) : L.bit;
+    if (picture) ctx.drawImage(picture, spot.x, spot.y, spot.w, picture.height * (spot.w / picture.width));
     ctx.fillStyle = tone.text;
     ctx.textAlign = 'center';
     const big = fitLines(ctx, said.big, W - 128, 1, 800, [92, 76, 64]);
-    ctx.fillText(big.lines[0] || '', W / 2, 770);
+    ctx.fillText(big.lines[0] || '', W / 2, L.big);
     ctx.fillStyle = tone.muted;
-    if (said.small) ctx.fillText(fitLines(ctx, said.small, W - 128, 1, 500, [34, 30, 26]).lines[0] || '', W / 2, 826);
+    if (said.small) ctx.fillText(fitLines(ctx, said.small, W - 128, 1, 500, [34, 30, 26]).lines[0] || '', W / 2, L.small);
     if (said.about) {
       ctx.fillStyle = tone.text;
-      ctx.fillText(fitLines(ctx, said.about, W - 160, 1, 600, [34, 30, 26]).lines[0] || '', W / 2, 884);
+      ctx.fillText(fitLines(ctx, said.about, W - 160, 1, 600, [34, 30, 26]).lines[0] || '', W / 2, L.about);
     }
     ctx.textAlign = 'start';
-    window.BitDna?.strip(ctx, bit, { x: 64, y: 946, w: W - 128, say, num, font: FONT, tone, sizes: { swatch: 80, label: 26, odds: 30 } });
+    window.BitDna?.strip(ctx, bit, { x: 64, y: L.strip, w: W - 128, say, num, font: FONT, tone, sizes: { swatch: 80, label: 26, odds: 30 } });
     return { canvas, title: said.big };
   }
 
@@ -192,20 +217,17 @@
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('no_image'))), 'image/png');
   });
 
-  // Save, copy and share, where this browser can.
+  // Copy, share and save, where this browser can: the same row, in the same order, as the
+  // setup's card (presets/share-card.js), saving last and filled.
   function actions(canvas, h, name = 'my-bit.png') {
-    const row = makeEl('div', 'bitc-seg');
-    const add = (key, run) => {
-      const b = makeEl('button', 'bitc-seg-btn', h.say(key));
+    const row = makeEl('div', 'bitc-acts');
+    const add = (key, run, main = false) => {
+      const b = makeEl('button', main ? 'bitc-seg-btn is-main' : 'bitc-seg-btn', h.say(key));
       b.type = 'button';
       b.addEventListener('click', run, { signal: h.signal });
       row.append(b);
     };
     const S = window.XenonSaveFile;
-    if (S) {
-      add('sharecard_download', () => S.save({ name, types: [S.PNG_TYPE], make: () => blobOf(canvas) })
-        .catch(() => h.note(h.say('save_file_failed'))));
-    }
     if (navigator.clipboard && typeof window.ClipboardItem === 'function') {
       // The write runs inside the tap that asked for it.
       add('sharecard_copy_image', () => navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blobOf(canvas) })])
@@ -217,84 +239,61 @@
         if (navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: 'Xenon' }).catch(() => {});
       });
     }
+    if (S) {
+      add('sharecard_download', () => S.save({ name, types: [S.PNG_TYPE], make: () => blobOf(canvas) })
+        .catch(() => h.note(h.say('save_file_failed'))), true);
+    }
     return row;
   }
 
-  // Its page on xenon-app.com, by choice (POST /api/bit/publish): only a Bit with the hub's
-  // number has one. The line says what the page shows; the link opens it once it is shown.
-  function siteChoice(bit, h) {
-    if (!bit.number || bit.local) return null;
-    const box = makeEl('div', 'bitc-site');
-    const label = makeEl('label', 'bitc-switch');
-    const input = makeEl('input');
-    input.type = 'checkbox';
-    input.checked = bit.shown === true;
-    input.addEventListener('change', async () => {
-      input.disabled = true;
-      const out = await h.post('/api/bit/publish', { public: input.checked });
-      if (out.ok) { h.told(out); return; }
-      if (out.bit) h.told({ ok: true, bit: out.bit });
-      input.checked = !input.checked;
-      input.disabled = false;
-      h.note(h.say(out.error === 'taken_down' ? 'mybit_site_taken_down' : 'mybit_site_failed'));
-    }, { signal: h.signal });
-    label.append(input, makeEl('span', '', h.say('mybit_site')));
-    box.append(label);
-    // What the page shows is said before it is shown; once shown, the link to it.
-    if (!input.checked) box.append(makeEl('p', 'bitc-line', h.say('mybit_site_line')));
-    const page = pageOf(bit);
-    if (page) {
-      const link = makeEl('a', 'bitc-site-link', h.say('mybit_site_open'));
-      link.href = page;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      box.append(link);
-    }
-    return box;
+  const dateOf = (iso) => (Number.isNaN(Date.parse(iso)) ? '' : new Date(iso).toLocaleDateString(typeof lang === 'string' ? lang : 'en', { day: 'numeric', month: 'long', year: 'numeric' }));
+
+  // The card for this look: the one being drawn when there is one, else a new one.
+  function cardFor(bit, h, key) {
+    if (pending?.key === key) return pending.run;
+    const run = draw(bit, h.say, h.num, dateOf).then(({ canvas, title }) => ({ key, canvas, title, src: canvas.toDataURL('image/png') }));
+    pending = { key, run };
+    run.then((card) => { made = card; }, () => {}).finally(() => { if (pending?.run === run) pending = null; });
+    return run;
   }
 
   /**
-   * The sheet's part: a button that makes the card, then the card and what to do with it.
+   * The drawer's part: the card, drawn as soon as it shows (a frame its size waits in its place),
+   * the drawer's `tools` for it, then what to do with it; a button to try again when it failed.
    * @param {object} bit the server's view of the Bit (GET /api/bit)
-   * @param {{ say: Function, num: Function, note: Function, post: Function, told: Function, redraw: Function, signal: AbortSignal }} h the sheet's hands
+   * @param {{ say: Function, num: Function, note: Function, redraw: Function, signal: AbortSignal }} h the room's hands
+   * @param {Node[]} [tools]
    */
-  function section(bit, h) {
-    const box = makeEl('div', 'bitc-part bitc-card');
+  function section(bit, h, tools = []) {
+    const box = makeEl('div', 'bitc-card');
     const slot = makeEl('div', 'bitc-card-slot');
-    box.append(slot);
+    const acts = makeEl('div', 'bitc-card-acts');
+    box.append(slot, ...tools, acts);
     const key = keyOf(bit);
-    const show = () => {
+    const show = (card) => {
       const img = makeEl('img', 'bitc-card-img');
-      img.alt = made.title;
-      img.src = made.src;
-      slot.replaceChildren(img, actions(made.canvas, h));
+      img.alt = card.title;
+      img.src = card.src;
+      slot.replaceChildren(img);
+      acts.replaceChildren(actions(card.canvas, h));
     };
-    if (made?.key === key) { show(); return box; }
-    const go = makeEl('button', 'bitc-seg-btn', h.say('mybit_share'));
-    go.type = 'button';
-    const date = (iso) => {
-      const d = new Date(iso);
-      return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(typeof lang === 'string' ? lang : 'en', { day: 'numeric', month: 'long', year: 'numeric' });
-    };
-    const make = async () => {
-      go.disabled = true;
-      try {
-        const { canvas, title } = await draw(bit, h.say, h.num, date);
-        if (h.signal.aborted) return;
-        made = { key, canvas, title, src: canvas.toDataURL('image/png') };
-        if (box.isConnected) show(); else h.redraw();
-      } catch {
-        go.disabled = false;
+    if (made?.key === key) { show(made); return box; }
+    const make = () => {
+      slot.replaceChildren(makeEl('div', 'bitc-card-img is-wait'));
+      cardFor(bit, h, key).then((card) => { if (!h.signal.aborted && box.isConnected) show(card); }, () => {
+        if (h.signal.aborted || !box.isConnected) return;
+        const again = makeEl('button', 'bitc-seg-btn', h.say('mybit_share'));
+        again.type = 'button';
+        again.addEventListener('click', make, { signal: h.signal });
+        slot.replaceChildren(again);
         h.note(h.say('mybit_share_failed'));
-      }
+      });
     };
-    go.addEventListener('click', make, { signal: h.signal });
-    slot.append(go);
-    if (made) make(); // a card made before follows the Bit (a new pose, a new outfit)
+    make();
     return box;
   }
 
   // What recap.js and clip.js draw with: the same ground, mark, Bit, type and buttons.
   const paint = Object.freeze({ W, H, PLAIN, FONT, SITE, toneOf, pageOf, brand, ground, bitPicture, fitLines, actions });
-  window.BitCard = { section, site: siteChoice, words, rareLine, aboutLine, paint, reset: () => { made = null; } };
+  window.BitCard = { section, words, rareLine, aboutLine, paint, reset: () => { made = null; pending = null; } };
 })();

@@ -125,5 +125,37 @@
     return { pieces: [light(c), floor(c), stand(c), curtain(c, false), curtain(c, true), valance(c)], colours: c };
   }
 
-  window.BitScenery = { draw, colours };
+  /**
+   * The theatre as one picture w x h pixels high (its card draws it, card.js): every piece where
+   * BitCompanion.css puts it in the room, in cells of h / 90. Also where the Bit stands in it.
+   * @param {object|null} bit
+   * @param {number} w
+   * @param {number} h
+   * @returns {{ svg: string, bit: { x: number, y: number, w: number, h: number } }}
+   */
+  function picture(bit, w, h) {
+    const c = h / H;
+    const wings = w / h <= 4 / 5 ? -8 * c : 0; // a narrow stage keeps half of each curtain in the wings
+    const place = {
+      'broom-light': [w / 2 - 30 * c, 6 * c, 60 * c, 70 * c],
+      'broom-floor': [0, h - 16 * c, w, 16 * c],
+      'broom-stand': [w / 2 - 22 * c, h - 19 * c, 44 * c, 10 * c],
+      'is-left': [wings, 0, 16 * c, h],
+      'is-right': [w - 16 * c - wings, 0, 16 * c, h],
+      'broom-valance': [0, 0, w, 8 * c],
+    };
+    const { pieces, colours: tones } = draw(bit);
+    const root = svg(w, h, 'none', '');
+    root.setAttribute('width', String(w));
+    root.setAttribute('height', String(h));
+    rect(root, 0, 0, w, h, tones.wall);
+    for (const piece of pieces) {
+      const key = piece.getAttribute('class').split(' ').find((k) => k in place);
+      place[key].forEach((v, i) => { piece.setAttribute(['x', 'y', 'width', 'height'][i], String(v)); });
+      root.append(piece);
+    }
+    return { svg: new XMLSerializer().serializeToString(root), bit: { x: w / 2 - 27 * c, y: h - 65 * c, w: 54 * c, h: 51 * c } };
+  }
+
+  window.BitScenery = { draw, colours, picture };
 })();

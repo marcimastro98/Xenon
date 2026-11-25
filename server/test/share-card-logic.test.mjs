@@ -207,3 +207,11 @@ test('degenerate and fully off-plate rects are dropped', () => {
   assert.deepEqual(sc.clampBlurRects(null), []);
   assert.deepEqual(sc.clampBlurRects('nope'), []);
 });
+
+test('a tile keeps its rounded corner, never more than half its height, and a bad one is square', () => {
+  near(sc.clampBlurRects([{ x: 0.1, y: 0.1, w: 0.3, h: 0.2, r: 0.02 }])[0].r, 0.02);
+  near(sc.clampBlurRects([{ x: 0.1, y: 0.1, w: 0.3, h: 0.2, r: 0.5 }])[0].r, 0.1);
+  for (const r of [undefined, -1, NaN, Infinity, 'big']) {
+    assert.equal(sc.clampBlurRects([{ x: 0.1, y: 0.1, w: 0.3, h: 0.2, r }])[0].r, 0, String(r));
+  }
+});

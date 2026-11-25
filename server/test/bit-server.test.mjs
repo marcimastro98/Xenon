@@ -206,14 +206,16 @@ test('prefs: only known keys and values, and every change is told to all surface
   assert.equal(h.told().length, 1);
   assert.equal((await h.call('POST /api/bit/prefs', { place: 'ceiling' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { sounds: 'yes' })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { card: 'gold' })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { card: 'stage' })).bit.prefs.card, 'stage');
   await h.call('POST /api/bit/prefs', { classic: true });
-  assert.equal(h.told().length, 1, 'no change, nothing told');
+  assert.equal(h.told().length, 2, 'no change, nothing told');
 });
 
 test('the Vitals Bit becomes the companion where it lived', async (t) => {
   const h = harness(t, { settings: { vitals: { pet: { enabled: true, position: 'topbar', sounds: true } } } });
   const r = await h.call('GET /api/bit');
-  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '' });
+  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain' });
   const { prefsFromVitals } = require('../bit/handlers.js');
   assert.equal(prefsFromVitals({ vitals: { pet: { enabled: false, position: 'topbar' } } }).place, 'corner');
 });

@@ -1,7 +1,7 @@
 'use strict';
 // The two drawers of the Bit's room (bit-companion/room.js), opened over its stage:
-//   - share: its pose, the card, the short video, the month's card and its page on the site
-//     (bit-companion/card.js, clip.js, recap.js);
+//   - share: the card with its ground and pose, the short video, the setup's card with the Bit in it
+//     (presets/share-card.js), the month's card and its page on the site (card.js, clip.js, recap.js);
 //   - about: its name, who it is, what it learns from the person, where it lives, how often it
 //     reacts and the classic Bit elsewhere. An egg has only where it lives.
 // The server keeps it all (POST /api/bit/name|prefs); every answer goes through the room's hands.
@@ -9,6 +9,7 @@
   const TRAIT_KEYS = { gamer: 'gamer', nightOwl: 'night_owl', musicLover: 'music_lover', coder: 'coder', overclocker: 'overclocker', earlyBird: 'early_bird' };
   const PLACES = ['corner', 'topbar', 'both', 'off'];
   const REACTIONS = ['normal', 'few', 'off'];
+  const GROUNDS = ['plain', 'stage'];
   const NAME_MAX = 24;
 
   async function setPref(patch, h) {
@@ -117,11 +118,59 @@
     return line;
   }
 
+  // Its page on xenon-app.com, by choice (POST /api/bit/publish): only a Bit with the hub's
+  // number has one. The line says what the page shows; the link opens it once it is shown.
+  function site(bit, h) {
+    if (!bit.number || bit.local) return null;
+    const box = makeEl('div', 'bitc-site');
+    const label = makeEl('label', 'bitc-switch');
+    const input = makeEl('input');
+    input.type = 'checkbox';
+    input.checked = bit.shown === true;
+    input.addEventListener('change', async () => {
+      input.disabled = true;
+      const out = await h.post('/api/bit/publish', { public: input.checked });
+      if (out.ok) { h.told(out); return; }
+      if (out.bit) h.told({ ok: true, bit: out.bit });
+      input.checked = !input.checked;
+      input.disabled = false;
+      h.note(h.say(out.error === 'taken_down' ? 'mybit_site_taken_down' : 'mybit_site_failed'));
+    }, { signal: h.signal });
+    label.append(input, makeEl('span', '', h.say('mybit_site')));
+    box.append(label);
+    // What the page shows is said before it is shown; once shown, the link to it.
+    if (!input.checked) box.append(makeEl('p', 'bitc-line', h.say('mybit_site_line')));
+    const page = window.BitCard?.paint.pageOf(bit);
+    if (page) {
+      const link = makeEl('a', 'bitc-site-link', h.say('mybit_site_open'));
+      link.href = page;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      box.append(link);
+    }
+    return box;
+  }
+
+  // The setup's card (presets/share-card.js): a picture of the dashboard, the Bit standing beside it.
+  function setup(h) {
+    if (!window.ShareCard) return null;
+    const box = makeEl('section', 'bitc-part bitc-setup');
+    const words = makeEl('div', 'bitc-setup-words');
+    words.append(makeEl('h3', 'bitc-part-title', h.say('mybit_setup_title')), makeEl('p', 'bitc-line', h.say('mybit_setup_line')));
+    const go = makeEl('button', 'bitc-seg-btn', h.say('sharecard_setup_btn'));
+    go.type = 'button';
+    go.addEventListener('click', () => window.ShareCard.open({ source: 'setup' }), { signal: h.signal });
+    box.append(words, go);
+    return box;
+  }
+
   function share(bit, h) {
     const box = makeEl('div', 'broom-panel-body');
     const row = makeEl('div', 'bitc-share-row');
-    for (const part of [window.BitCard?.section(bit, h), window.BitClip?.section(bit, h)]) if (part) row.append(part);
-    box.append(...[pose(bit, h), row, window.BitRecap?.section(bit, h), window.BitCard?.site(bit, h)].filter(Boolean));
+    const ground = choice(h.say('mybit_ground'), 'card', GROUNDS, bit.prefs?.card || 'plain', (v) => h.say(`mybit_ground_${v}`), h);
+    const card = window.BitCard?.section(bit, h, [ground, pose(bit, h)].filter(Boolean));
+    for (const part of [card, window.BitClip?.section(bit, h)]) if (part) row.append(part);
+    box.append(...[row, setup(h), window.BitRecap?.section(bit, h), site(bit, h)].filter(Boolean));
     return box;
   }
 
