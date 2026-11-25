@@ -139,6 +139,14 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 .broom-tag { font-size: 12px; font-weight: 600; color: var(--muted-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .broom-tag.is-owned { color: color-mix(in oklab, var(--color-success, #45d483) 60%, var(--text)); }
 .broom-tag.is-trait { display: grid; gap: 4px; }
+/* Supporters' items: a brass card with the Store's heart; the one still to come is blurred until its day. */
+.broom-card.is-supporter { background: var(--broom-brass); color: var(--broom-wall); }
+.broom-card.is-supporter[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--broom-text); }
+.broom-card.is-supporter .broom-card-art { background: color-mix(in oklab, var(--broom-brass) 22%, var(--broom-wall)); }
+.broom-tag.is-supporter { display: flex; align-items: center; gap: 5px; color: inherit; font-weight: 700; }
+.broom-tag.is-supporter svg { flex: none; width: 13px; height: 13px; fill: currentColor; }
+.broom-tag.is-supporter span { overflow: hidden; text-overflow: ellipsis; }
+.broom-card.is-soon .broom-card-art svg { filter: blur(5px) grayscale(0.5); opacity: 0.6; }
 .broom-price {
   display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
   color: var(--broom-brass);

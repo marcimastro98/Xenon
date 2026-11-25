@@ -8247,6 +8247,7 @@ module.exports = {
   mybit_pose_change: 'Change pose',
   mybit_keep_line: 'Supporters\' item from {date}. Once kept, it stays yours for good.',
   mybit_keep_soon: 'Supporters get it from {date}, and keep it for good.',
+  mybit_soon_from: 'From {date}',
   mybit_keep: 'Keep it',
   mybit_keep_join: 'Become a supporter',
   mybit_keep_expired: 'Your supporter pass has run out. Renew it to keep this item.',

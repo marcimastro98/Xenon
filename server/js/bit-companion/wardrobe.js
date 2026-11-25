@@ -11,6 +11,8 @@
   // What it can still get, in this order after what it owns: what can be had today first.
   const SOURCE_ORDER = ['shop', 'supporter', 'season', 'trait'];
   const RANDOM_GLYPH = ['.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..']; // the random look's card
+  // The Store's supporter heart (community-gallery.js): what marks the supporters' items.
+  const HEART = 'M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z';
 
   let tried = []; // ids tried on the big Bit, one per place on the body, until kept or taken off
   let look = null; // the look the big Bit wears while something is tried on
@@ -117,6 +119,22 @@
     return tag;
   }
 
+  // A supporters' item still to come (the next month's, shown as a preview): blurred until its day.
+  const soonOf = (it) => it.source === 'supporter' && it.month > new Date().toISOString().slice(0, 7);
+
+  // The heart and "Supporters", or the day a coming one is out.
+  function supporterTag(it, ctx) {
+    const tag = makeEl('span', 'broom-tag is-supporter');
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    const path = document.createElementNS(SVG_NS, 'path');
+    for (const [k, v] of [['viewBox', '0 0 24 24'], ['aria-hidden', 'true']]) svg.setAttribute(k, v);
+    path.setAttribute('d', HEART);
+    svg.append(path);
+    const word = soonOf(it) ? ctx.say('mybit_soon_from', { date: window.BitKeep?.firstDay(it.month) || it.month }) : ctx.say('mybit_group_supporter');
+    tag.append(svg, makeEl('span', '', word));
+    return tag;
+  }
+
   // Under each card: "already its", the price, or how it comes (supporters, its season, its trait).
   function footOf(it, owned, bit, ctx) {
     if (owned) return makeEl('span', 'broom-tag is-owned', ctx.say('mybit_shelf_owned'));
@@ -130,6 +148,7 @@
       foot.append(bar);
       return foot;
     }
+    if (it.source === 'supporter') return supporterTag(it, ctx);
     return makeEl('span', 'broom-tag', ctx.say(`mybit_group_${it.source}`));
   }
 
@@ -190,7 +209,8 @@
   }
 
   function card({ it, owned }, bit, ctx) {
-    const btn = makeEl('button', owned ? 'broom-card is-owned' : 'broom-card');
+    const marks = [owned && 'is-owned', it.source === 'supporter' && 'is-supporter', !owned && soonOf(it) && 'is-soon'];
+    const btn = makeEl('button', ['broom-card', ...marks.filter(Boolean)].join(' '));
     btn.type = 'button';
     btn.dataset.item = it.id;
     btn.dataset.source = owned ? 'mine' : it.source;

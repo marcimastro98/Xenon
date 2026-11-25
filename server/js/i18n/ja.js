@@ -8231,6 +8231,7 @@ module.exports = {
   mybit_pose_change: 'ポーズを変える',
   mybit_keep_line: '{date}からのサポーター向けアイテム。一度受け取ればずっとあなたのものです。',
   mybit_keep_soon: 'サポーターは{date}から受け取れて、ずっと持っていられます。',
+  mybit_soon_from: '{date}から',
   mybit_keep: 'Bitに受け取る',
   mybit_keep_join: 'サポーターになる',
   mybit_keep_expired: 'サポーターパスの期限が切れています。更新するとこのアイテムを受け取れます。',

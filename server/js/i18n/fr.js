@@ -8075,6 +8075,7 @@ module.exports = {
   mybit_pose_change: 'Changer de pose',
   mybit_keep_line: 'Objet des supporters depuis le {date}. Une fois obtenu, il reste à vous pour de bon.',
   mybit_keep_soon: 'Les supporters le reçoivent à partir du {date} et le gardent pour de bon.',
+  mybit_soon_from: 'Dès le {date}',
   mybit_keep: 'Obtenir pour votre Bit',
   mybit_keep_join: 'Devenir supporter',
   mybit_keep_expired: 'Votre pass supporter a expiré. Renouvelez-le pour obtenir cet objet.',

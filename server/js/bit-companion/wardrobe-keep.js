@@ -262,7 +262,7 @@
   }
 
   window.BitKeep = {
-    listed, line, how, bar,
+    listed, line, how, bar, firstDay,
     /** The room closed: the next one asks the PC again. */
     reset: () => { pass = null; copies.clear(); },
   };

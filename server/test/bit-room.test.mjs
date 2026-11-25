@@ -94,6 +94,26 @@ test("the Store's view is the Bit's room: its own items first, the shop priced, 
   assert.ok(prices.every((n, i) => !i || n >= prices[i - 1]), 'cheapest first');
 });
 
+test("supporters' items stand out with the Store's heart; the one still to come is blurred and says its day", (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T12:00:00Z') });
+  const r = rig();
+  r.tell(born());
+  r.open();
+  const crown = r.card('crown');
+  const cape = r.card('cape');
+  assert.ok(crown.classList.contains('is-supporter') && !crown.classList.contains('is-soon'), "December's crown is out");
+  assert.ok(crown.querySelector('.broom-tag.is-supporter svg path'), 'the heart');
+  assert.equal(crown.querySelector('.broom-tag').textContent, 'mybit_group_supporter');
+  assert.ok(cape.classList.contains('is-supporter') && cape.classList.contains('is-soon'), "January's cape is the preview");
+  assert.equal(cape.querySelector('.broom-tag').textContent, 'mybit_soon_from');
+  assert.match(cape.getAttribute('aria-label'), /mybit_soon_from/, 'said too, not only blurred');
+  assert.ok(!r.card('beanie').classList.contains('is-supporter'), 'a shop item stays plain');
+  const css = src('components/BitCompanion/BitCompanion.css');
+  assert.match(css, /\.broom-card\.is-soon \.broom-card-art svg \{ filter: blur\(/);
+  assert.match(css, /\.broom-card\.is-supporter \{ background: var\(--broom-brass\); color: var\(--broom-wall\); \}/);
+});
+
 test('a tap tries it on for free, with the same keep step; again takes it off', () => {
   const r = rig();
   r.tell(born());

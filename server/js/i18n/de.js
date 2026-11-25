@@ -8095,6 +8095,7 @@ module.exports = {
   mybit_pose_change: 'Pose wechseln',
   mybit_keep_line: 'Teil für Unterstützer ab dem {date}. Einmal geholt, bleibt es für immer deins.',
   mybit_keep_soon: 'Unterstützer bekommen es ab dem {date} und behalten es für immer.',
+  mybit_soon_from: 'Ab {date}',
   mybit_keep: 'Für deinen Bit holen',
   mybit_keep_join: 'Unterstützer werden',
   mybit_keep_expired: 'Dein Unterstützer-Pass ist abgelaufen. Verlängere ihn, um dieses Teil zu holen.',

@@ -8231,6 +8231,7 @@ module.exports = {
   mybit_pose_change: '포즈 바꾸기',
   mybit_keep_line: '{date}부터 후원자용 아이템. 한 번 받으면 계속 당신의 것이에요.',
   mybit_keep_soon: '후원자는 {date}부터 받을 수 있고, 계속 가질 수 있어요.',
+  mybit_soon_from: '{date}부터',
   mybit_keep: 'Bit에게 받기',
   mybit_keep_join: '후원자 되기',
   mybit_keep_expired: '후원자 패스가 만료됐어요. 갱신하면 이 아이템을 받을 수 있어요.',

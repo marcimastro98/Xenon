@@ -8246,6 +8246,7 @@ module.exports = {
   mybit_pose_change: 'Cambia posa',
   mybit_keep_line: 'Oggetto dei sostenitori dal {date}. Una volta preso, resta tuo per sempre.',
   mybit_keep_soon: 'I sostenitori lo ricevono dal {date} e lo tengono per sempre.',
+  mybit_soon_from: 'Dal {date}',
   mybit_keep: 'Prendi per il tuo Bit',
   mybit_keep_join: 'Diventa sostenitore',
   mybit_keep_expired: 'Il tuo pass da sostenitore è scaduto. Rinnovalo per prendere questo oggetto.',

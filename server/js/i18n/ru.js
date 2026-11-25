@@ -8184,6 +8184,7 @@ module.exports = {
   mybit_pose_change: 'Другая поза',
   mybit_keep_line: 'Предмет для спонсоров с {date}. Получив его, вы оставите его навсегда.',
   mybit_keep_soon: 'Спонсоры получат его с {date} и оставят навсегда.',
+  mybit_soon_from: 'С {date}',
   mybit_keep: 'Забрать для Bit',
   mybit_keep_join: 'Стать спонсором',
   mybit_keep_expired: 'Ваш пропуск спонсора истёк. Продлите его, чтобы забрать этот предмет.',

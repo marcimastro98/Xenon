@@ -8235,6 +8235,7 @@ module.exports = {
   mybit_pose_change: 'Andere pose',
   mybit_keep_line: 'Item voor supporters vanaf {date}. Eenmaal genomen blijft het voorgoed van jou.',
   mybit_keep_soon: 'Supporters krijgen het vanaf {date} en houden het voorgoed.',
+  mybit_soon_from: 'Vanaf {date}',
   mybit_keep: 'Neem voor je Bit',
   mybit_keep_join: 'Word supporter',
   mybit_keep_expired: 'Je supporterpas is verlopen. Verleng hem om dit item te nemen.',

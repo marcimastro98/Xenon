@@ -8127,6 +8127,7 @@ module.exports = {
   mybit_pose_change: 'Cambiar pose',
   mybit_keep_line: 'Objeto de los mecenas desde el {date}. Una vez conseguido, es tuyo para siempre.',
   mybit_keep_soon: 'Los mecenas lo reciben a partir del {date} y se lo quedan para siempre.',
+  mybit_soon_from: 'Desde el {date}',
   mybit_keep: 'Conseguir para tu Bit',
   mybit_keep_join: 'Hazte mecenas',
   mybit_keep_expired: 'Tu pase de mecenas ha caducado. Renuévalo para conseguir este objeto.',

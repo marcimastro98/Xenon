@@ -8231,6 +8231,7 @@ module.exports = {
   mybit_pose_change: '换个姿势',
   mybit_keep_line: '{date}起的支持者物品。领取后永久归你所有。',
   mybit_keep_soon: '支持者从{date}起可以领取，并永久保留。',
+  mybit_soon_from: '{date}起',
   mybit_keep: '为 Bit 领取',
   mybit_keep_join: '成为支持者',
   mybit_keep_expired: '你的支持者通行证已过期。续订后即可领取此物品。',

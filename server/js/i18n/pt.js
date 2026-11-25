@@ -8124,6 +8124,7 @@ module.exports = {
   mybit_pose_change: 'Mudar de pose',
   mybit_keep_line: 'Objeto dos apoiantes desde {date}. Depois de o obteres, fica teu para sempre.',
   mybit_keep_soon: 'Os apoiantes recebem-no a partir de {date} e ficam com ele para sempre.',
+  mybit_soon_from: 'A partir de {date}',
   mybit_keep: 'Obter para o teu Bit',
   mybit_keep_join: 'Torna-te apoiante',
   mybit_keep_expired: 'O teu passe de apoiante expirou. Renova-o para obter este objeto.',
