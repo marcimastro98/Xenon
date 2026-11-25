@@ -7,12 +7,15 @@
 //     free, without the box. With too few Sparks the bar says so and offers more;
 //   - a supporter's item: kept with the pass this PC has saved, else the support sheet;
 //   - a season's or a trait's item: how it comes, nothing to buy.
-// Supporter items show from their month on, with the next one to come as a preview.
+// Supporter items show from their month on, with the next one as a blurred preview, never tried on.
 // Everything shown is built with textContent.
 (() => {
   // The consent version the hub checks (BUY_CONSENT in its src/buy.js), the Store's own.
   const BUY_CONSENT = 'item-2026-11';
   const SOURCE = 'bit-wardrobe';
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  // The Store's supporter heart (community-gallery.js): what marks the supporters' items.
+  const HEART = 'M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z';
 
   let busy = false;
   let pass = null; // Promise<boolean>: a pass saved on this PC, asked once per room
@@ -41,6 +44,21 @@
     const month = now.toISOString().slice(0, 7);
     const next = items.filter((x) => x.source === 'supporter' && x.month > month).map((x) => x.month).sort()[0];
     return it.month <= month || it.month === next;
+  }
+
+  /** Pure: a supporters' item still to come (the next month's, shown as a preview), blurred until its day. */
+  const soon = (it, now = new Date()) => it.source === 'supporter' && it.month > now.toISOString().slice(0, 7);
+
+  // The heart and "Supporters", or the day a coming one is out: under a card and over the supporters' tab.
+  function tag(it, ctx) {
+    const box = makeEl('span', 'broom-tag is-supporter');
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    const path = document.createElementNS(SVG_NS, 'path');
+    for (const [key, v] of [['viewBox', '0 0 24 24'], ['aria-hidden', 'true']]) svg.setAttribute(key, v);
+    path.setAttribute('d', HEART);
+    svg.append(path);
+    box.append(svg, makeEl('span', '', soon(it) ? ctx.say('mybit_soon_from', { date: firstDay(it.month) }) : ctx.say('mybit_group_supporter')));
+    return box;
   }
 
   /** How a supporter or shop item is got, in one sentence; null for the others. */
@@ -262,7 +280,7 @@
   }
 
   window.BitKeep = {
-    listed, line, how, bar, firstDay,
+    listed, line, how, bar, firstDay, soon, tag,
     /** The room closed: the next one asks the PC again. */
     reset: () => { pass = null; copies.clear(); },
   };

@@ -67,8 +67,9 @@ function rig({ answers = {} } = {}) {
   document.body.append(view);
   const open = () => ctx.BitRoom.store(view);
   const card = (id) => view.querySelector(`.broom-card[data-item="${id}"]`);
+  const tab = (id) => view.querySelector(`.broom-tab[data-tab="${id}"]`);
   const lines = () => view.querySelectorAll('.broom-keep-line').map((p) => p.textContent);
-  return { ctx, view, posts, open, card, lines, winHandlers, tell: (bit) => ctx.BitApp.heard(bit) };
+  return { ctx, view, posts, open, card, tab, lines, winHandlers, tell: (bit) => ctx.BitApp.heard(bit) };
 }
 
 test("the Store's view is the Bit's room: its own items first, the shop priced, this month's and the next supporter item", (t) => {
@@ -89,17 +90,27 @@ test("the Store's view is the Bit's room: its own items first, the shop priced, 
   assert.equal(guitar.dataset.source, 'mine');
   assert.equal(guitar.querySelector('.broom-tag').textContent, 'mybit_shelf_owned');
   assert.equal(guitar.querySelector('.broom-price'), null, 'its own: no price');
-  assert.ok(r.card('crown') && !r.card('cape') && !r.card('wings'), "the next supporter item, never further ahead");
   const prices = r.view.querySelectorAll('.broom-card[data-source="shop"] .broom-price').map((p) => Number(p.textContent));
   assert.ok(prices.every((n, i) => !i || n >= prices[i - 1]), 'cheapest first');
+  r.tab('supporter').click();
+  assert.ok(r.card('crown') && !r.card('cape') && !r.card('wings'), "the next supporter item, never further ahead");
 });
 
-test("supporters' items stand out with the Store's heart; the one still to come is blurred and says its day", (t) => {
+test("supporters' items have their own tab, with the Store's heart; the one still to come is blurred and can't be tried", (t) => {
   t.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T12:00:00Z') });
   const r = rig();
   r.tell(born());
   r.open();
+  assert.equal(r.view.querySelector('.broom-card[data-source="supporter"]'), null, 'not mixed in with everything');
+  const tab = r.tab('supporter');
+  assert.ok(tab.classList.contains('is-supporter') && tab.querySelector('svg rect'), 'a tab of their own, the heart in pixels');
+  assert.equal(tab.querySelector('.broom-tab-word').textContent, 'mybit_group_supporter');
+  tab.click();
+  const cards = r.view.querySelector('.broom-items').children;
+  assert.ok(cards[0].tagName === 'P' && cards[0].classList.contains('broom-intro'), 'it opens with what they are');
+  assert.equal(cards[0].textContent, 'mybit_group_supportermybit_group_supporter_line');
+  assert.ok(cards.slice(1).every((c) => c.dataset.source === 'supporter'), 'only theirs');
   const crown = r.card('crown');
   const cape = r.card('cape');
   assert.ok(crown.classList.contains('is-supporter') && !crown.classList.contains('is-soon'), "December's crown is out");
@@ -108,10 +119,20 @@ test("supporters' items stand out with the Store's heart; the one still to come 
   assert.ok(cape.classList.contains('is-supporter') && cape.classList.contains('is-soon'), "January's cape is the preview");
   assert.equal(cape.querySelector('.broom-tag').textContent, 'mybit_soon_from');
   assert.match(cape.getAttribute('aria-label'), /mybit_soon_from/, 'said too, not only blurred');
+  assert.equal(cape.getAttribute('aria-disabled'), 'true');
+  cape.click();
+  assert.equal(r.ctx.BitWardrobe.tried().length, 0, "next month's is only shown");
+  assert.equal(cape.getAttribute('aria-pressed'), 'false');
+  crown.click();
+  assert.deepEqual(Array.from(r.ctx.BitWardrobe.tried(), (it) => it.id), ['crown'], "this month's is tried on");
+  r.tab('all').click();
   assert.ok(!r.card('beanie').classList.contains('is-supporter'), 'a shop item stays plain');
+  r.card('beanie').click();
+  assert.deepEqual(Array.from(r.ctx.BitWardrobe.tried(), (it) => it.id), ['beanie'], 'it comes another way: tried alone');
   const css = src('components/BitCompanion/BitCompanion.css');
   assert.match(css, /\.broom-card\.is-soon \.broom-card-art svg \{ filter: blur\(/);
   assert.match(css, /\.broom-card\.is-supporter \{ background: var\(--broom-brass\); color: var\(--broom-wall\); \}/);
+  assert.match(css, /\.broom-card\[aria-disabled='true'\] \{ cursor: default; \}/);
 });
 
 test('a tap tries it on for free, with the same keep step; again takes it off', () => {
@@ -222,10 +243,10 @@ test("the rail's tabs: a picture of this Bit over each word, a place shown by wh
   assert.deepEqual(tabs.slice(0, 2).map((b) => b.dataset.tab), ['all', 'mine']);
   for (const b of tabs) {
     assert.ok(b.querySelector('.broom-tab-art svg rect'), `${b.dataset.tab}: a picture`);
-    assert.match(b.querySelector('.broom-tab-word').textContent, /^mybit_(tab_all|mine|slot_\w+)$/);
+    assert.match(b.querySelector('.broom-tab-word').textContent, /^mybit_(tab_all|mine|group_supporter|slot_\w+)$/);
   }
   const n = tabs.length;
-  assert.equal(r.view.querySelector('.broom-tabs').style.getPropertyValue('--broom-tab-cols'), String(n <= 4 ? n : Math.ceil(n / 2)), 'two even rows on a wide rail');
+  assert.equal(r.view.querySelector('.broom-tabs').style.getPropertyValue('--broom-tab-cols'), String(Math.ceil(n / Math.ceil(n / 4))), 'even rows on a wide rail, four across at most');
   const head = tabs.find((b) => b.dataset.tab === 'head');
   const cap = r.card('cap').querySelector('.broom-card-art svg');
   assert.equal(head.querySelector('svg').getAttribute('viewBox'), cap.getAttribute('viewBox'), 'the head: its own cap, the one it wears');

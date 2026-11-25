@@ -147,6 +147,11 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 .broom-tag.is-supporter svg { flex: none; width: 13px; height: 13px; fill: currentColor; }
 .broom-tag.is-supporter span { overflow: hidden; text-overflow: ellipsis; }
 .broom-card.is-soon .broom-card-art svg { filter: blur(5px) grayscale(0.5); opacity: 0.6; }
+.broom-card[aria-disabled='true'] { cursor: default; }
+.broom-tab.is-supporter .broom-tab-art { color: var(--broom-brass); }
+/* The supporters' tab opens with what their items are: one a month, theirs for good. */
+.broom-intro { flex: none; display: grid; align-content: center; gap: 6px; width: 200px; margin: 0; padding: 0 6px; font-size: 13px; line-height: 1.35; scroll-snap-align: start; }
+.broom-intro .broom-tag.is-supporter { color: var(--broom-brass); }
 .broom-price {
   display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
   color: var(--broom-brass);
@@ -165,6 +170,7 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
   .broom-tab-word { white-space: normal; overflow-wrap: anywhere; text-align: center; }
   .broom-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); overflow: visible; }
   .broom-card { width: auto; }
+  .broom-intro { grid-column: 1 / -1; width: auto; padding: 0 0 4px; }
 }
 
 /* The drawer: sharing, or who it is and its settings. From the side, or from the bottom on a phone.

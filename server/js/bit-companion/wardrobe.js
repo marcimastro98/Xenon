@@ -1,18 +1,16 @@
 'use strict';
 // The items of the person's own Bit, as the rail of its room (bit-companion/room.js): tabs for all
-// of them, its own and each place on the body (wardrobe-tabs.js), then one card per item with the Bit itself
-// wearing it. A tap on an item it owns puts it on or takes it off (POST /api/bit/wear); a tap on
-// any other tries it on the big Bit for free, one per place on the body, until it is kept
-// (bit-companion/wardrobe-keep.js) or taken off. The first card tries on a look at random from
-// the shop. Seasons to come are a surprise, never listed. The server decides what the Bit owns
-// and wears (server/bit/); this file only asks and draws.
+// of them, its own, the supporters' and each place on the body (wardrobe-tabs.js), then one card per
+// item with the Bit wearing it. A tap on an item it owns puts it on or takes it off (POST /api/bit/wear);
+// a tap on any other tries it on the big Bit for free, one per place on the body, until it is kept
+// (bit-companion/wardrobe-keep.js) or taken off; next month's supporters' item is only shown, blurred.
+// The first card tries on a look at random from the shop. Seasons to come are a surprise, never
+// listed. The server decides what the Bit owns and wears (server/bit/); this file only asks and draws.
 (() => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   // What it can still get, in this order after what it owns: what can be had today first.
   const SOURCE_ORDER = ['shop', 'supporter', 'season', 'trait'];
   const RANDOM_GLYPH = ['.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..']; // the random look's card
-  // The Store's supporter heart (community-gallery.js): what marks the supporters' items.
-  const HEART = 'M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z';
 
   let tried = []; // ids tried on the big Bit, one per place on the body, until kept or taken off
   let look = null; // the look the big Bit wears while something is tried on
@@ -119,22 +117,6 @@
     return tag;
   }
 
-  // A supporters' item still to come (the next month's, shown as a preview): blurred until its day.
-  const soonOf = (it) => it.source === 'supporter' && it.month > new Date().toISOString().slice(0, 7);
-
-  // The heart and "Supporters", or the day a coming one is out.
-  function supporterTag(it, ctx) {
-    const tag = makeEl('span', 'broom-tag is-supporter');
-    const svg = document.createElementNS(SVG_NS, 'svg');
-    const path = document.createElementNS(SVG_NS, 'path');
-    for (const [k, v] of [['viewBox', '0 0 24 24'], ['aria-hidden', 'true']]) svg.setAttribute(k, v);
-    path.setAttribute('d', HEART);
-    svg.append(path);
-    const word = soonOf(it) ? ctx.say('mybit_soon_from', { date: window.BitKeep?.firstDay(it.month) || it.month }) : ctx.say('mybit_group_supporter');
-    tag.append(svg, makeEl('span', '', word));
-    return tag;
-  }
-
   // Under each card: "already its", the price, or how it comes (supporters, its season, its trait).
   function footOf(it, owned, bit, ctx) {
     if (owned) return makeEl('span', 'broom-tag is-owned', ctx.say('mybit_shelf_owned'));
@@ -148,7 +130,7 @@
       foot.append(bar);
       return foot;
     }
-    if (it.source === 'supporter') return supporterTag(it, ctx);
+    if (it.source === 'supporter' && window.BitKeep) return window.BitKeep.tag(it, ctx);
     return makeEl('span', 'broom-tag', ctx.say(`mybit_group_${it.source}`));
   }
 
@@ -208,39 +190,52 @@
     return [...W.ITEMS.filter((it) => mine.has(it.id)).map((it) => ({ it, owned: true })), ...rest.map((it) => ({ it, owned: false }))];
   }
 
-  function card({ it, owned }, bit, ctx) {
-    const marks = [owned && 'is-owned', it.source === 'supporter' && 'is-supporter', !owned && soonOf(it) && 'is-soon'];
-    const btn = makeEl('button', ['broom-card', ...marks.filter(Boolean)].join(' '));
+  // A button with a picture, a name and what goes under it.
+  function tile(cls, art, name, foot) {
+    const btn = makeEl('button', cls);
     btn.type = 'button';
+    const box = makeEl('span', 'broom-card-art');
+    box.append(art);
+    btn.append(box, makeEl('span', 'broom-card-name', name), foot);
+    return btn;
+  }
+
+  function card({ it, owned }, bit, ctx) {
+    const soon = !owned && window.BitKeep?.soon(it) === true;
+    const marks = [owned && 'is-owned', it.source === 'supporter' && 'is-supporter', soon && 'is-soon'];
+    const name = ctx.say(`mybit_item_${it.id}`);
+    const foot = footOf(it, owned, bit, ctx);
+    const btn = tile(['broom-card', ...marks.filter(Boolean)].join(' '), thumb(bit, it), name, foot);
     btn.dataset.item = it.id;
     btn.dataset.source = owned ? 'mine' : it.source;
     btn.setAttribute('aria-pressed', String(owned ? bit.worn.includes(it.id) : tried.includes(it.id)));
-    const name = ctx.say(`mybit_item_${it.id}`);
-    const art = makeEl('span', 'broom-card-art');
-    art.append(thumb(bit, it));
-    const foot = footOf(it, owned, bit, ctx);
-    btn.append(art, makeEl('span', 'broom-card-name', name), foot);
     const said = !owned && it.price ? ctx.say('gallery_sparks_price', { n: ctx.num(it.price) }) : foot.textContent;
     btn.setAttribute('aria-label', said ? `${name}, ${said}` : name);
-    btn.addEventListener('click', () => (owned ? toggle(it, bit, ctx) : tryOn(it, bit, ctx)), { signal: ctx.signal });
+    // Next month's is a preview: it can't be tried on before its day.
+    if (soon) btn.setAttribute('aria-disabled', 'true');
+    else btn.addEventListener('click', () => (owned ? toggle(it, bit, ctx) : tryOn(it, bit, ctx)), { signal: ctx.signal });
     return btn;
   }
 
   function randomCard(bit, ctx) {
-    const btn = makeEl('button', 'broom-card is-random');
-    btn.type = 'button';
-    const art = makeEl('span', 'broom-card-art');
-    art.append(randomArt());
-    btn.append(art, makeEl('span', 'broom-card-name', ctx.say('mybit_random')), makeEl('span', 'broom-tag', ctx.say('mybit_random_line')));
+    const btn = tile('broom-card is-random', randomArt(), ctx.say('mybit_random'), makeEl('span', 'broom-tag', ctx.say('mybit_random_line')));
     btn.addEventListener('click', () => random(bit, ctx), { signal: ctx.signal });
     return btn;
   }
 
+  // The supporters' tab opens with what their items are.
+  function supporterNote(ctx) {
+    const note = makeEl('p', 'broom-intro');
+    note.append(window.BitKeep?.tag({ source: 'supporter' }, ctx) || '', makeEl('span', '', ctx.say('mybit_group_supporter_line')));
+    return note;
+  }
+
   function fillList(list, entries, bit, ctx) {
-    const shown = entries.filter((e) => (tab === 'all' ? true : tab === 'mine' ? e.owned : e.it.slot === tab));
+    const shown = entries.filter((e) => window.BitTabs.holds(tab, e));
     const shopLeft = entries.filter((e) => !e.owned && e.it.source === 'shop').length;
     const cards = shown.map((e) => card(e, bit, ctx));
     if (tab === 'all' && shopLeft > 1) cards.unshift(randomCard(bit, ctx));
+    if (tab === 'supporter') cards.unshift(supporterNote(ctx));
     list.replaceChildren(...cards);
     const at = scrolled.get(tab);
     queueMicrotask(() => { list.scrollLeft = at?.left || 0; list.scrollTop = at?.top || 0; });

@@ -279,13 +279,13 @@ test('the items: tabs by place on the body, the shop first with its prices; tryi
   r.tell(dressed());
   r.ctx.BitSheet.open();
   const tabs = r.sheet().querySelectorAll('.broom-tab');
-  assert.deepEqual(tabs.slice(0, 2).map((b) => b.textContent), ['mybit_tab_all', 'mybit_mine']);
-  assert.ok(tabs.slice(2).length >= 4 && tabs.slice(2).every((b) => /^mybit_slot_/.test(b.textContent)), 'then each place on the body');
+  assert.deepEqual(tabs.slice(0, 3).map((b) => b.textContent), ['mybit_tab_all', 'mybit_mine', 'mybit_group_supporter']);
+  assert.ok(tabs.slice(3).length >= 4 && tabs.slice(3).every((b) => /^mybit_slot_/.test(b.textContent)), 'then each place on the body');
   assert.equal(tabs[0].getAttribute('aria-pressed'), 'true');
 
   const cards = r.sheet().querySelectorAll('.broom-card');
   assert.ok(cards[0].classList.contains('is-random'), 'a look at random comes first');
-  assert.deepEqual([...new Set(cards.slice(1).map((b) => b.dataset.source))], ['mine', 'shop', 'supporter', 'trait'], 'its own, then what can be had today');
+  assert.deepEqual([...new Set(cards.slice(1).map((b) => b.dataset.source))], ['mine', 'shop', 'trait'], "its own, then what can be had today; the supporters' in their tab");
   const prices = r.sheet().querySelectorAll('.broom-card[data-source="shop"] .broom-price').map((p) => Number(p.textContent));
   assert.ok(prices.length >= 20 && prices.every((n, i) => !i || n >= prices[i - 1]), 'every shop item shows its price, cheapest first');
   assert.match(card(r.sheet(), 'guitar').getAttribute('aria-label'), /^mybit_item_guitar, gallery_sparks_price/);
@@ -300,16 +300,20 @@ test('the items: tabs by place on the body, the shop first with its prices; tryi
   assert.ok(r.sheet().querySelectorAll('.broom-card').every((b) => W.item(b.dataset.item)?.slot === 'head'), 'one place: only its items');
   tabs[0].click();
 
-  const posted = r.posts.length;
+  // December's crown is still to come at the end of November: shown, never tried on.
+  tabs[2].click();
   card(r.sheet(), 'crown').click();
+  assert.equal(card(r.sheet(), 'crown').getAttribute('aria-disabled'), 'true');
+  assert.equal(r.ctx.BitWardrobe.preview(), null, 'not before its day');
+  assert.equal(keepBar(r), null);
+  tabs[0].click();
+
+  const posted = r.posts.length;
+  card(r.sheet(), 'bandana').click();
   assert.equal(r.posts.length, posted, 'trying on asks nothing');
   assert.ok(r.ctx.BitWardrobe.preview(), 'the big Bit wears it');
-  assert.equal(card(r.sheet(), 'crown').getAttribute('aria-pressed'), 'true');
-  assert.equal(keepBar(r).querySelector('.broom-keep-name').textContent, 'mybit_item_crown');
-  assert.deepEqual(keepLines(r), ['mybit_keep_soon'], "a supporters' item says when it comes");
-
-  card(r.sheet(), 'bandana').click();
-  assert.equal(card(r.sheet(), 'crown').getAttribute('aria-pressed'), 'false', 'it comes another way: tried alone');
+  assert.equal(card(r.sheet(), 'bandana').getAttribute('aria-pressed'), 'true');
+  assert.equal(keepBar(r).querySelector('.broom-keep-name').textContent, 'mybit_item_bandana');
   assert.deepEqual(keepLines(r), ['mybit_shop_line'], 'a shop item: its price in a sentence');
   card(r.sheet(), 'bowtie').click();
   assert.deepEqual([...r.ctx.BitWardrobe.tried().map((it) => it.id)], ['bandana', 'bowtie'], 'shop items go on together, one per place');
@@ -367,11 +371,13 @@ function keepRig(t, { saved = true, answers = {} } = {}) {
 }
 
 const shown = (el) => el && !el.hidden;
+const supporters = (r) => r.sheet().querySelector('.broom-tab[data-tab="supporter"]').click();
 const joinOf = (r) => keepBar(r).querySelector('[data-support-source]');
 
 test("a supporter's item in its month is kept with the pass saved on this PC, and goes on at once", async (t) => {
   const r = keepRig(t, { answers: { '/api/bit/claim': (body) => ({ ok: true, bit: dressed({ owned: ['cap', body.item] }) }) } });
-  assert.equal(card(r.sheet(), 'cape').getAttribute('aria-pressed'), 'false', "January's item already shows as the next one");
+  supporters(r);
+  assert.equal(card(r.sheet(), 'cape').getAttribute('aria-disabled'), 'true', "January's item already shows as the next one");
   card(r.sheet(), 'crown').click();
   await settle(30);
   const keep = mainBtn(r);
@@ -389,6 +395,7 @@ test("a supporter's item in its month is kept with the pass saved on this PC, an
 
 test('without a pass the support sheet is offered instead of the keep button', async (t) => {
   const r = keepRig(t, { saved: false });
+  supporters(r);
   card(r.sheet(), 'crown').click();
   await settle(30);
   const join = joinOf(r);
@@ -400,6 +407,7 @@ test('without a pass the support sheet is offered instead of the keep button', a
 
 test('a run-out pass says so and offers renewing', async (t) => {
   const r = keepRig(t, { answers: { '/api/bit/claim': { ok: false, error: 'expired' } } });
+  supporters(r);
   card(r.sheet(), 'crown').click();
   await settle(30);
   mainBtn(r).click();
@@ -414,6 +422,7 @@ test('an answer from the hub is never read as offline', async (t) => {
   for (const [error, line] of cases) {
     await t.test(error, async (st) => {
       const r = keepRig(st, { answers: { '/api/bit/claim': { ok: false, error } } });
+      supporters(r);
       card(r.sheet(), 'crown').click();
       await settle(30);
       mainBtn(r).click();
