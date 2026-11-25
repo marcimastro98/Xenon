@@ -1,7 +1,7 @@
 'use strict';
 // The Bit's months, for its recap cards (js/bit-companion/recap.js): per month, the days it
 // was out, the minutes of games, music and code and with the PC hot, the nights after 1 am
-// and mornings before 7, the gifts opened and the items it got. Kept on this PC only, like
+// and mornings before 7, and the items it got. Kept on this PC only, like
 // the counts of traits.js, for the last KEEP months: the year's card is made from them.
 //
 // Counted by difference in one place: store.js hands in every change (before, after), so no
@@ -13,13 +13,13 @@ const wardrobe = require('../shared/src/bit-wardrobe.js');
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const KEEP = 14;
 const TRAIT_KEYS = Object.freeze(['gaming', 'music', 'coding', 'hot', 'night', 'early']);
-const COUNTS = Object.freeze(['days', ...TRAIT_KEYS, 'gifts']);
+const COUNTS = Object.freeze(['days', ...TRAIT_KEYS]);
 const MAX_ITEMS = 60;
 const MAX_COUNT = 1e7;
 // The year's card shows from this day of December to the end of January.
 const YEAR_FROM_DAY = 20;
 
-/** @typedef {{ days: number, gaming: number, music: number, coding: number, hot: number, night: number, early: number, gifts: number, items: string[] }} Month */
+/** @typedef {{ days: number, gaming: number, music: number, coding: number, hot: number, night: number, early: number, items: string[] }} Month */
 /** @typedef {{ bit?: { seed?: string } | null, months?: Record<string, Month> }} Model the parts of bit.json this file reads */
 
 const count = (v) => (Number.isFinite(v) && v > 0 ? Math.min(Math.floor(v), MAX_COUNT) : 0);
@@ -63,11 +63,10 @@ function normalize(raw) {
   return Object.fromEntries(Object.keys(kept).map((k) => [k, normalizeMonth(kept[k])]));
 }
 
-// What one change added: a day, minutes and nights counted, a gift opened, items got.
+// What one change added: a day, minutes and nights counted, items got.
 function added(before, after, owned) {
   const delta = { days: Math.max(0, after.days.count - (before.bit ? before.days.count : 0)) };
   for (const k of TRAIT_KEYS) delta[k] = Math.max(0, (after.traits[k] || 0) - (before.traits[k] || 0));
-  delta.gifts = after.gift && after.gift.day !== before.gift?.day ? 1 : 0;
   const had = new Set(before.bit ? owned(before) : []);
   delta.items = owned(after).filter((id) => !had.has(id));
   return delta;

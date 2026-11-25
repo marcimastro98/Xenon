@@ -180,6 +180,15 @@
     return host;
   }
 
+  // The person's own Bit in a top hat from its shop, or Bit's icon before it hatches.
+  function wardrobeArt() {
+    const look = window.BitApp?.dressed(['topHat']);
+    if (!look || !window.BitWardrobe) return bitIcon('sparks-bit');
+    const host = el('span', 'sparks-bit');
+    host.appendChild(window.BitWardrobe.figure(look));
+    return host;
+  }
+
 
   // Bit answers on Sparks only with Bit as the provider: the button turns that
   // on first, then opens the chat. A draft waits in the box, unsent: an answer
@@ -215,6 +224,14 @@
       value: C() ? costLine() : '',
       action: button(t('sparks_use_bit_cta'), () => openBit(ctx.close)),
     }));
+    if (window.BitShelf && ctx.goView) {
+      grid.appendChild(useCard({
+        art: wardrobeArt(),
+        title: t('sparks_use_wardrobe_t'),
+        text: t('sparks_use_wardrobe_d'),
+        action: button(t('sparks_use_wardrobe_cta'), () => ctx.goView('__bit')),
+      }));
+    }
     if (items.length) {
       grid.appendChild(useCard({
         art: ctx.icon('store'),
@@ -245,7 +262,7 @@
     return box;
   }
 
-  // ctx: { catalog(): Promise<entries>, renderCard(entry, noId), icon(name), supportHref(src), close() }
+  // ctx: { catalog(): Promise<entries>, renderCard(entry, noId), icon(name), supportHref(src), close(), goView(id) }
   async function render(body, ctx) {
     const root = el('div', 'sparks-shop');
     body.replaceChildren(root);

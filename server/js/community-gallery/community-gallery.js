@@ -52,14 +52,10 @@
     return '';
   }
 
-  // A drop the hub has CLOSED (`active:false` in the live status) is not sold
-  // out: the copies are still on the counter — freed serials handed back after a
-  // revocation, a drop paused mid-run — but the claim page turns everyone away.
-  // The flag was already fetched and normalized and NOTHING here read it, so a
-  // closed drop advertised "N of 50 left" next to a "Claim your copy" button
-  // that could only ever fail. Unknown (no live status: the catalog fallback
-  // carries no `active`) means OPEN, so a hub that stops sending the field can
-  // never shutter the whole Store.
+  // A drop the hub has CLOSED (`active:false` in the live status) is not sold out: copies are still on the
+  // counter (freed serials, a drop paused mid-run) but the claim page turns everyone away, so "N of 50 left"
+  // beside "Claim your copy" could only fail. Unknown (no live status: the catalog fallback carries no
+  // `active`) means OPEN, so a hub that stops sending the field can never shutter the whole Store.
   const dropClosed = (entry) => !!(entry && entry.limited && entry.limited.active === false);
   // "No copy is coming out of this drop right now" — the one question every CTA
   // site below actually asks. Sold out and closed differ only in what we SAY.
@@ -189,7 +185,7 @@
   let overlayEl = null;
   let infoEl = null;            // the "how it works" sheet over the Store
   let mainEl = null;            // the scrolling side of the Store
-  let viewEl = null;            // what the rail chose: home, a list, Installed, Sparks
+  let viewEl = null;            // what the rail chose: home, a list, Installed, Sparks, the Bit's shop
   let pageEl = null;            // one entry's page, shown in place of the view
   let detailEntry = null;       // the entry on that page
   let detailCta = null;         // its keys, redrawn when an install lands
@@ -248,11 +244,11 @@
   };
   let activeKind = '';
   let shown = PAGE;
-  let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine) | 'sparks' (the Sparks shop)
-  // Set to a repaint fn while the Store is open, cleared on close. Lets an install
-  // committed elsewhere (preset-share.js) re-render the open Store so a card flips
-  // to "Installed" — the finishing half of keeping the Store open across an
-  // install (#1). Browse state (search/sort/filter) above survives the repaint.
+  let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine) | 'sparks' (the Sparks shop) | 'bit' (its shop)
+  // The views of the rail's own rows, each only when its module loaded (else the catalog).
+  const ownTab = (id) => ({ __installed: 'installed', __sparks: window.SparksStore && 'sparks', __bit: window.BitShelf && 'bit' })[id] || 'browse';
+  // A repaint fn while the Store is open: an install committed elsewhere (preset-share.js) flips a card
+  // to "Installed" without closing the Store (#1); search/sort/filter above survive it.
   let repaintStore = null;
   const { readSeenIds, markCatalogSeen } = window.CommunityGallerySeen;
   // Snapshot of the seen-id set taken when the Store OPENS (null = never
@@ -1225,6 +1221,7 @@
   function viewName() {
     if (activeTab === 'installed') return t('gallery_tab_installed', 'Installed');
     if (activeTab === 'sparks') return t('xai_balance_unit', 'Sparks');
+    if (activeTab === 'bit') return t('mybit_title', 'Your Bit');
     if (storeState.searchQuery) return t('gallery_results', 'Results');
     const names = {
       '': t('gallery_tab_browse', 'Discover'),
@@ -1354,11 +1351,10 @@
 
     function paintHome(frag) {
       if (!all.length) { frag.appendChild(el('div', 'cgal-status', t('gallery_empty', 'Nothing here yet: new community creations will appear as they are published.'))); return undefined; }
-      // What leads the Store: the admin's spotlight when the catalog sets one,
-      // else the automatic ladder (see spotlightPick). Every shelf below skips
-      // whatever the spotlight shows, as the website and the hub's layout
-      // preview do: the same pack twice on one screen reads as filler. Only
-      // the Novità shelf repeats cards by design.
+      // What leads the Store: the admin's spotlight when the catalog sets one, else the automatic
+      // ladder (see spotlightPick). Every shelf below skips whatever the spotlight shows, as the website
+      // and the hub's layout preview do: the same pack twice on one screen reads as filler. Only the
+      // Novità shelf repeats cards by design.
       const spot = spotlightPick(limited, supporters, browse);
       const heroEntry = spot.main;
       const spotIds = new Set(spot.side.map((e) => e.id));
@@ -1366,7 +1362,6 @@
 
       // Updates are not a shelf: they live on Installed, whose red count (and the
       // Store dot) says one is waiting, and whose Update all handles them in one go.
-      //
       // "Novità": everything published since THIS user's last visit, newest
       // first, whatever its tier, minus what this machine already has (a thing
       // you installed is not news to you). It sits below the supporter shelf,
@@ -1493,8 +1488,9 @@
     // sandboxed preview frames stop running behind the view.
     if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
     if (activeTab === 'sparks') {
-      return window.SparksStore.render(viewEl, { catalog: catalogEntries, renderCard, icon, supportHref, close });
+      return window.SparksStore.render(viewEl, { catalog: catalogEntries, renderCard, icon, supportHref, close, goView });
     }
+    if (activeTab === 'bit') return window.BitShelf.render(viewEl, { close });
     if (window.InstalledManager) return InstalledManager.render(viewEl, force);
     viewEl.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
     return undefined;
@@ -1503,7 +1499,7 @@
   // ── The rail: every view of the Store, always in sight ─────────────────────
   function syncRail() {
     if (!rail) return;
-    const here = activeTab === 'installed' ? '__installed' : activeTab === 'sparks' ? '__sparks' : (storeState.searchQuery ? null : activeKind);
+    const here = activeTab !== 'browse' ? `__${activeTab}` : (storeState.searchQuery ? null : activeKind);
     overlayEl.querySelectorAll('.cst-railrow').forEach((row) => {
       const on = row.dataset.view === here;
       row.classList.toggle('on', on);
@@ -1513,7 +1509,7 @@
   function goView(id) {
     if (!overlayEl) return;
     closeInfo(); closeDetail();
-    const tab = id === '__installed' ? 'installed' : id === '__sparks' ? 'sparks' : 'browse';
+    const tab = ownTab(id);
     const inPlace = tab === 'browse' && activeTab === 'browse' && !!regrid;
     activeTab = tab;
     if (tab === 'browse') activeKind = id;
@@ -1586,6 +1582,8 @@
       stopCredits = XenonCredits.onChange(() => paintSparksRow(sparks));
       XenonCredits.refresh(false);
     }
+    // The person's Bit and its shop (bit-companion/shelf.js), marked with the Bit itself.
+    if (window.BitShelf) { const mark = el('span', 'cgal-ic'); window.BitApp?.showIcon(mark, 'idle'); own.appendChild(railRow('__bit', t('mybit_title', 'Your Bit'), mark)); }
     aside.appendChild(list);
     aside.appendChild(own);
     // Next to everything people can install, the place to make their own.
@@ -1597,7 +1595,7 @@
   }
 
   // filterKind doubles as a deep-link: a real kind ('widget', 'ambient', …) or a
-  // view ('__limited', '__supporters', '__installed', '__sparks').
+  // view ('__limited', '__supporters', '__installed', '__sparks', '__bit').
   function open(filterKind) {
     close();
     // Capture the seen-id set as it was BEFORE this visit — that snapshot is
@@ -1609,8 +1607,8 @@
     // Shared token is safe — close() above runs synchronously before this refreeze.
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', true);
     storeState.searchQuery = ''; storeState.sortBy = 'feat'; shown = PAGE; viewScroll = 0;
-    activeTab = (filterKind === '__installed') ? 'installed' : (filterKind === '__sparks' && window.SparksStore) ? 'sparks' : 'browse';
-    activeKind = (activeTab === 'browse' && filterKind !== '__sparks' && filterKind) || '';
+    activeTab = ownTab(filterKind);
+    activeKind = (activeTab === 'browse' && !['__sparks', '__bit'].includes(filterKind) && filterKind) || '';
     if (window.InstalledManager) InstalledManager.reset();
     const bd = el('div', 'preset-modal-overlay cgal-overlay cst-overlay');
     const store = el('div', 'preset-modal cgal-modal cst');

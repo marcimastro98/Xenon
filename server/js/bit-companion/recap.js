@@ -14,7 +14,7 @@
   // The sentences a card may say after the days, in the order they are picked: the first four
   // with something in them. Minutes are told in hours.
   const FACTS = Object.freeze([
-    ['gaming', 60], ['music', 60], ['coding', 60], ['night', 1], ['early', 1], ['items', 1], ['gifts', 1], ['hot', 60],
+    ['gaming', 60], ['music', 60], ['coding', 60], ['night', 1], ['early', 1], ['items', 1], ['hot', 60],
   ]);
   const MAX_FACTS = 4;
   const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -68,16 +68,17 @@
 
   async function draw(said, bit) {
     const P = window.BitCard.paint;
+    const tone = P.toneOf(bit);
     const [picture, { canvas, ctx }] = await Promise.all([
-      P.bitPicture(bit, BIT), P.ground(said.tagline, P.pageOf(bit) || P.SITE),
+      P.bitPicture(bit, BIT, tone.ink), P.ground(said.tagline, P.pageOf(bit) || P.SITE, tone),
     ]);
-    ctx.fillStyle = P.TEXT;
+    ctx.fillStyle = tone.text;
     ctx.textAlign = 'center';
     const title = P.fitLines(ctx, said.title, P.W - 128, 2, 800, [72, 62, 54]);
     title.lines.forEach((line, i) => { ctx.fillText(line, P.W / 2, 220 + i * (title.size + 8)); });
     let y = 220 + (title.lines.length - 1) * (title.size + 8);
     if (said.small) {
-      ctx.fillStyle = P.MUTED;
+      ctx.fillStyle = tone.muted;
       ctx.font = `500 32px ${P.FONT}`;
       ctx.fillText(said.small, P.W / 2, y + 54);
       y += 54;
@@ -92,7 +93,7 @@
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(picture, box.x, box.y, box.w, box.h, (P.W - w) / 2, start, w, h);
     }
-    ctx.fillStyle = P.TEXT;
+    ctx.fillStyle = tone.text;
     said.lines.forEach((line, i) => {
       const fit = P.fitLines(ctx, line, P.W - 160, 1, i === 0 ? 700 : 500, i === 0 ? [48, 42, 36] : [40, 36, 32]);
       ctx.fillText(fit.lines[0] || '', P.W / 2, start + h + UNDER_BIT + i * LINE_STEP);
@@ -130,7 +131,7 @@
   // show: the sheet draws itself again on every change the server tells.
   let made = {};
   let open = null;
-  const keyOf = (kind, rec, bit) => JSON.stringify([kind, rec, bit.number, bit.name, bit.worn, bit.genes, bit.page]);
+  const keyOf = (kind, rec, bit) => JSON.stringify([kind, rec, bit.number, bit.name, bit.worn, bit.genes, bit.prefs?.pose, bit.page]);
 
   /**
    * The sheet's part: a button per recap there is, and the card it makes with what to do with it.

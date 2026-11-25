@@ -19,7 +19,7 @@
       {
         "statement": "const capabilityRunner = capabilities.createCapabilities({",
         "callees": {
-          "server/capabilities/index.js": "30607382f8be01624468f358a257e50b33cde2e27cf502ac0b9f2209f90ad6d8",
+          "server/capabilities/index.js": "3c09cd27698bac2998a6ce1767af963b2f0d99316d9e464be6531517b3bb04d5",
           "server/notification-open/index.js": "b7fd7d2575f0cd056a560a5732150fe311ec649240a939fdc8893e0d611e7f07",
           "server/notification-open/start-apps.js": "93223b3724c28d1ce51644925a4257ae1285b02f9b6ddc0440998203f03466de",
           "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"

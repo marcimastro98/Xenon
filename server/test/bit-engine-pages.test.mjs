@@ -123,6 +123,8 @@ const WARDROBE = 'js/bit-companion/wardrobe.js';
 // The short video (bit-companion/clip.js): the person's own Bit in its outfit, drawn frame by
 // frame on the card's ground to be recorded. Never the classic one.
 const CLIP = 'js/bit-companion/clip.js';
+// The DNA strip on the card: parts of the Bit, in its own look, drawn on the card's canvas.
+const DNA = 'js/bit-companion/card-dna.js';
 
 function jsFiles(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -136,7 +138,7 @@ test('nothing in the app draws Bit around BitApp, beyond the known players', () 
   const found = [];
   for (const file of jsFiles(join(SERVER, 'js'))) {
     const rel = relative(SERVER, file).replace(/\\/g, '/');
-    if (rel === 'js/ai/bit-app.js' || rel === WIDGET_KIT || rel === CARD || rel === WARDROBE || rel === CLIP) continue;
+    if (rel === 'js/ai/bit-app.js' || rel === WIDGET_KIT || rel === CARD || rel === WARDROBE || rel === CLIP || rel === DNA) continue;
     const text = readFileSync(file, 'utf8');
     if (/\b(renderFrame|frameSvg)\(|bitIcon\.|bitPlayer\.mount\(/.test(text)) found.push(rel);
   }

@@ -296,7 +296,8 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
 test('the Store has a Sparks tab, opened from anywhere, its files loaded in order', () => {
   const gallery = read('../js/community-gallery/community-gallery.js').replace(/\r\n/g, '\n');
   assert.match(gallery, /railRow\('__sparks', t\('xai_balance_unit', 'Sparks'\), mark\)/);
-  assert.match(gallery, /filterKind === '__sparks' && window\.SparksStore\) \? 'sparks'/);
+  assert.match(gallery, /__sparks: window\.SparksStore && 'sparks'/);
+  assert.match(gallery, /activeTab = ownTab\(filterKind\);/);
   assert.match(gallery, /if \(activeTab === 'sparks'\) \{[\s\S]*?window\.SparksStore\.render\(viewEl, \{/);
   assert.match(gallery, /function openSparks\(\) \{\n\s*if \(overlayEl && window\.SparksStore\) \{ goView\('__sparks'\); return; \}\n\s*open\('__sparks'\);/);
   assert.match(gallery, /window\.CommunityGallery = \{[^}]*\bopenSparks\b/);

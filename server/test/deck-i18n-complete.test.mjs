@@ -70,6 +70,12 @@ const PHRASES_KEPT = new Set([
   'deck_act_sbCodeTrigger', 'desktop_title',
 ]);
 const wordCount = (s) => (s.replace(/\{\w+\}|<[^>]+>|https?:\S+/g, '').match(/[A-Za-z]{3,}/g) || []).length;
+// A plural form a language never asks for (Japanese, Korean and Chinese have only "other") needs no key.
+const PLURAL = /_(zero|one|two|few|many)$/;
+const asksFor = (lang, key) => {
+  const form = key.match(PLURAL)?.[1];
+  return !form || new Intl.PluralRules(lang).resolvedOptions().pluralCategories.includes(form);
+};
 
 test('no phrase anywhere in the app is left in English', () => {
   const I = dictionaries();
@@ -77,7 +83,7 @@ test('no phrase anywhere in the app is left in English', () => {
   for (const [k, en] of Object.entries(I.en)) {
     if (typeof en !== 'string' || wordCount(en) < 3 || PHRASES_KEPT.has(k)) continue;
     for (const l of Object.keys(I)) {
-      if (l !== 'en' && (!(k in I[l]) || I[l][k] === en)) untranslated.push(`${l}.${k}: ${en.slice(0, 60)}`);
+      if (l !== 'en' && asksFor(l, k) && (!(k in I[l]) || I[l][k] === en)) untranslated.push(`${l}.${k}: ${en.slice(0, 60)}`);
     }
   }
   assert.deepEqual(untranslated, []);

@@ -12,10 +12,6 @@
 //   POST /api/bit/name    { name } shown on the card; '' clears it. A phone may.
 //   POST /api/bit/prefs   { place?, reactions?, sounds?, classic? }: where the
 //                         companion lives and how much it does. A phone may.
-//   POST /api/bit/gift    {} opens today's gift (gifts.js): an item, or bolts
-//                         when it is owned already. Once a day. A phone may.
-//   POST /api/bit/pick    { item } an everyday item paid in bolts. A phone may:
-//                         bolts are given, never bought.
 //   POST /api/bit/claim   { item } a supporter's item of the month, kept for good with the
 //                         PC's pass (keep.js). The PC only: it uses the pass.
 //   POST /api/bit/buy     { item, consent? } a shop item for Sparks (keep.js). The PC only:
@@ -43,8 +39,6 @@ module.exports = {
     'POST /api/bit/wear': made['POST /api/bit/wear'],
     'POST /api/bit/name': made['POST /api/bit/name'],
     'POST /api/bit/prefs': made['POST /api/bit/prefs'],
-    'POST /api/bit/gift': made['POST /api/bit/gift'],
-    'POST /api/bit/pick': made['POST /api/bit/pick'],
     'POST /api/bit/claim': made['POST /api/bit/claim'],
     'POST /api/bit/buy': made['POST /api/bit/buy'],
     'POST /api/bit/publish': made['POST /api/bit/publish'],

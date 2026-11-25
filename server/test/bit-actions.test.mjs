@@ -16,7 +16,6 @@ const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const { FREE, remoteMayRun } = require('../paired/remote-actions.js');
 const { GROUPS } = require('../ai/ai-tool-groups.js');
 const Model = require('../bit/model.js');
-const Gifts = require('../bit/gifts.js');
 const bit = require('../shared/src/bit.js');
 require('../shared/src/bit-clips.js');
 require('../shared/src/bit-clips-life.js');
@@ -24,7 +23,7 @@ const { createBitStore } = require('../bit/store.js');
 const { createBitActions } = require('../bit/actions.js');
 
 const SEED = '0123456789abcdef';
-const TYPES = ['bitGet', 'bitReact', 'bitGift', 'bitPlace', 'bitWear', 'bitRename'];
+const TYPES = ['bitGet', 'bitReact', 'bitPlace', 'bitWear', 'bitRename'];
 const NOW = new Date(2026, 11, 3, 12);
 
 function setup({ hatched = true, extra = {} } = {}) {
@@ -95,15 +94,11 @@ test('a move is played on every surface, surprise picks a real one', async () =>
   } finally { t.done(); }
 });
 
-test('the gift opens once a day through the same step as the sheet', async () => {
+test('a Deck key from before, still asking for the daily gift, gets a plain no and changes nothing', async () => {
   const t = setup();
   try {
-    const first = await t.actions.run({ type: 'bitGift' });
-    assert.equal(first.ok, true);
-    assert.equal(first.bit.gift.last.item, Gifts.draw(SEED, '2026-12-03').id);
-    assert.equal(first.bit.gift.ready, false);
-    assert.deepEqual(await t.actions.run({ type: 'bitGift' }), { ok: false, error: 'opened' });
-    assert.deepEqual(t.sent.map((s) => s.event), ['bit']);
+    assert.deepEqual(await t.actions.run({ type: 'bitGift' }), { ok: false, error: 'unsupported' });
+    assert.deepEqual(t.sent, []);
   } finally { t.done(); }
 });
 

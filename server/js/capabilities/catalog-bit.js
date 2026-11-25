@@ -1,7 +1,7 @@
 'use strict';
 // The person's own Bit (server/bit/): Bit in the chat, a Deck key and a paired phone
 // reach it through these entries, so server/bit/actions.js runs the same steps as
-// its routes and every rule (what it owns, one gift a day) holds once. Same shape as
+// its routes and every rule (what it owns and wears) holds once. Same shape as
 // capability-catalog.js, which appends them; the page loads this file just before it.
 ((root, factory) => {
   const api = factory();
@@ -31,17 +31,6 @@
       },
     },
     {
-      type: 'bitGift', group: 'xenon', labelKey: 'deck_act_bitGift', params: [],
-      capability: {
-        domain: 'ai', risk: 'safe', requires: 'bit',
-        ai: {
-          name: 'open_bit_gift',
-          description: 'Open today\'s gift of the user\'s own Bit: one item a day (common 70%, uncommon 25%, rare 5%), the same on every screen; an item it already owns becomes bolts instead, and bolts get an everyday item on its sheet. Errors: "opened" (today\'s is open, a new one comes tomorrow), "egg" (not hatched). Say what came. Use it for "open my Bit\'s gift", "what did Bit get today?" (when get_my_bit says gift.ready).',
-          params: {},
-        },
-      },
-    },
-    {
       type: 'bitPlace', group: 'xenon', labelKey: 'deck_act_bitPlace',
       params: [{ name: 'place', kind: 'select', options: PLACES, optionKeys: keys(PLACES, 'mybit_place_') }],
       capability: {
@@ -64,7 +53,7 @@
         domain: 'ai', risk: 'safe', requires: 'bit',
         ai: {
           name: 'dress_bit',
-          description: 'Put on or take off one item the user\'s own Bit owns (get_my_bit lists owned and worn; one item per slot, the new one replaces the old). wear: on, off or toggle. Error "not_owned": it does not have it yet; get_my_bit says how items come (daily gift, bolts, seasons, traits). Use it for "put the scarf on my Bit", "take Bit\'s hat off".',
+          description: 'Put on or take off one item the user\'s own Bit owns (get_my_bit lists owned and worn; one item per slot, the new one replaces the old). wear: on, off or toggle. Error "not_owned": it does not have it yet; items come from traits, seasons, supporters\' months, or the shop on its sheet and in the Store for Sparks. Use it for "put the scarf on my Bit", "take Bit\'s hat off".',
           params: { item: 'The item id, from get_my_bit owned', wear: 'on, off or toggle' },
         },
       },
@@ -87,7 +76,7 @@
         domain: 'ai', risk: 'safe', requires: 'bit',
         ai: {
           name: 'get_my_bit',
-          description: 'How the user\'s own Bit is: hatched (false = still an egg, tapping it hatches it), name, number (its place among every Bit born; local = born offline, no number yet), founder (had Xenon before Bit came), stage and days (days of use: baby, young, adult, veteran, legend), rarest (its rarest trait and how rare: oneIn), traits (habits it is learning, progress 0-1, each earns an item), worn and owned (item ids), gift (ready = today\'s gift can be opened), bolts, place and reactions (how many moves an hour it makes by itself), cards (recap cards ready on its sheet: "2026-11" a month, "2026" the year; what they count stays on the PC). Use it for "how is my Bit?", "what does Bit have?", "how rare is my Bit?".',
+          description: 'How the user\'s own Bit is: hatched (false = still an egg, tapping it hatches it), name, number (its place among every Bit born; local = born offline, no number yet), founder (had Xenon before Bit came), stage and days (days of use: baby, young, adult, veteran, legend), lookOneIn (how many Bits it takes to find its whole look once), traits (habits it is learning, progress 0-1, each earns an item), worn and owned (item ids), place and reactions (how many moves an hour it makes by itself), cards (recap cards ready on its sheet: "2026-11" a month, "2026" the year; what they count stays on the PC). Use it for "how is my Bit?", "what does Bit have?", "how rare is my Bit?".',
           params: {},
         },
       },

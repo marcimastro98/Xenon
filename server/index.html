@@ -381,15 +381,12 @@
              few at once). Populated by js/widget-sdk/sdk-badges.js; lives inside .clock for
              the same free minimal-topbar reparenting as clock-vitals above. -->
         <span class="clock-sdkbadges" id="clock-sdkbadges" hidden></span>
-        <!-- Claude Code marker: shows while a session is working and lights up
-             when one finishes answering. Populated by js/claude-widget/claude-widget.js; lives
-             inside .clock for the same free minimal-topbar reparenting as the
-             two above, so it is present in both the full and minimal bars. -->
+        <!-- Claude Code marker: shows while a session works, lights up when one finishes answering
+             (js/claude-widget/claude-widget.js); inside .clock like the two above, so in both bars. -->
         <span class="clock-claude" id="clock-claude" hidden></span>
         <!-- Codex marker: a session working or waiting on an approval (js/codex-widget/codex-widget.js); same island rules. -->
         <span class="clock-codex" id="clock-codex" hidden></span>
-        <!-- Performance Mode marker: on while a session runs, or always if Settings asks for it
-             (js/performance/perf-marker.js); same island rules as the two above. -->
+        <!-- Performance Mode marker: on in a session or always (js/performance/perf-marker.js); same island rules. -->
         <span class="clock-perf" id="clock-perf" hidden></span>
         <!-- The own Bit (js/bit-companion/) and a folded message of Bit (js/bit-message-card/); same island rules. -->
         <span class="clock-bit" id="clock-bit" hidden></span>
@@ -5431,10 +5428,12 @@
 <script src="js/vitals-pet/vitals-pet.js"></script>
 <script src="js/bit-companion/wardrobe-keep.js"></script>
 <script src="js/bit-companion/wardrobe.js"></script>
+<script src="js/bit-companion/card-dna.js"></script>
 <script src="js/bit-companion/card.js"></script>
 <script src="js/bit-companion/recap.js"></script>
 <script src="js/bit-companion/clip.js"></script>
 <script src="js/bit-companion/sheet.js"></script>
+<script src="js/bit-companion/shelf.js"></script>
 <script src="js/bit-companion/companion.js"></script>
 <script src="js/bit-companion/tile.js"></script>
 <script src="js/bit-companion/moments.js"></script>

@@ -63,7 +63,7 @@
 
   // The person's own Bit (server/bit/, GET /api/bit): what a widget draws it from with the Bit
   // kit (docs/create/bit-kit.js), its genes without the seed, and the last move it played on the
-  // dashboard. Never what it learned about the person (traits, days), what it owns or its bolts.
+  // dashboard. Never what it learned about the person (traits, days), or what it owns.
   const BIT_STAGES = ['egg', 'baby', 'young', 'adult', 'veteran', 'legend'];
   const GENES = ['palette', 'pattern', 'patternColor', 'tip', 'eyes', 'cheeks', 'temperament', 'quirk', 'voice'];
   const ID = /^[a-z][a-zA-Z0-9-]{0,31}$/;

@@ -25,16 +25,17 @@ test('the card: the name first, then the number and the hatch day in one sentenc
   const w = JSON.parse(JSON.stringify(C.words(bit, say, num, date, 'en')));
   assert.equal(w.big, 'Pixel');
   assert.equal(w.small, 'mybit_share_born_of{"number":"mybit_number{\\"n\\":\\"1284\\"}","date":"2026-11-04"}');
-  assert.equal(w.about, 'mybit_founder mybit_rare_shiny{"n":"4096"}');
+  assert.equal(w.about, 'mybit_founder mybit_share_unique', 'the odds are on the DNA strip');
   assert.equal(w.tagline, 'mybit_share_tagline');
   assert.ok(!('chips' in w), 'no chips: sentences only');
   // Japanese and Chinese put no space between sentences.
-  assert.equal(C.words(bit, say, num, date, 'ja').about, 'mybit_foundermybit_rare_shiny{"n":"4096"}');
+  assert.equal(C.words(bit, say, num, date, 'ja').about, 'mybit_foundermybit_share_unique');
 
   const plain = JSON.parse(JSON.stringify(C.words({ number: 7, rarity: [{ gene: 'palette', id: 'classic', oneIn: 512 }] }, say, num, date)));
   assert.equal(plain.big, 'mybit_number{"n":"7"}');
   assert.equal(plain.small, '');
-  assert.equal(plain.about, 'mybit_rare_classic{"n":"512"}');
+  assert.equal(plain.about, 'mybit_share_unique');
+  assert.equal(C.words({ number: 7, local: true }, say, num, date).about, '', 'one of a kind only when the hub numbered it');
 
   // A name but no number yet: the hatch day alone.
   assert.equal(C.words({ name: 'Pixel', born: '2026-11-04T10:00:00.000Z' }, say, num, date).small, 'mybit_share_born{"date":"2026-11-04"}');
@@ -42,8 +43,13 @@ test('the card: the name first, then the number and the hatch day in one sentenc
   // Born on this PC, offline: no number, no odds to show.
   const local = JSON.parse(JSON.stringify(C.words({ born: 'not a date' }, say, num, () => '')));
   assert.deepEqual([local.big, local.small, local.about], ['mybit_title', '', '']);
-  assert.equal(C.rareLine({ rarity: [{ gene: 'eyes', id: 'gold', oneIn: 40 }] }, say, num), 'mybit_rare_trait{"n":"40"}');
+  // One gene alone repeats across Bits (every pastel colour is 1 in 39): the line gives the whole look's odds.
+  assert.equal(C.rareLine({ rarity: [{ gene: 'eyes', id: 'gold', oneIn: 40 }], lookOneIn: 52000 }, say, num), 'mybit_look_odds{"n":"52000"}');
   assert.equal(C.rareLine(null, say, num), '');
+  assert.equal(C.rareLine({ rarity: [{ gene: 'eyes', id: 'gold', oneIn: 40 }] }, say, num), '', 'no look odds, no line');
+  assert.equal(C.rareLine({ rarity: [{ gene: 'shiny', id: 'shiny', oneIn: 4096 }], lookOneIn: 9000000 }, say, num),
+    'mybit_rare_shiny{"n":"4096"} mybit_look_odds{"n":"9000000"}', 'shiny first, then the whole look');
+  assert.equal(C.rareLine({ rarity: [{ gene: 'palette', id: 'classic', oneIn: 512 }], lookOneIn: 1 }, say, num), 'mybit_rare_classic{"n":"512"}');
   assert.equal(C.aboutLine({ founder: true }, say, num, 'en'), 'mybit_founder');
 });
 
@@ -54,7 +60,9 @@ test('the card is drawn from the engine and the server view, never a capture of 
     assert.ok(!SRC.includes(bad), bad);
   }
   assert.match(SRC, /const SITE = 'https:\/\/xenon-app\.com\/';/, 'the QR leads to the site, never this PC');
-  assert.match(SRC, /ground\(said\.tagline, pageOf\(bit\) \|\| SITE\)/, 'or to its own page there, once shown');
+  assert.match(SRC, /ground\(said\.tagline, pageOf\(bit\) \|\| SITE, tone\)/, 'or to its own page there, once shown, on its own colour');
+  assert.match(SRC, /BitDna\?\.strip\(ctx, bit,/, 'its DNA with the true odds');
+  assert.match(SRC, /D\?\.pose\(D\.poseOf\(bit\)\)/, 'in its own pose');
   assert.match(SRC, /qrCode\(target\)/, 'the ground draws the QR it is given');
   assert.match(SRC, /bit\.page\.startsWith\(PAGE\) && \/\^\[1-9\]\\d\{0,8\}\$\/\.test/, 'a page only on the site, by number');
 });
@@ -72,7 +80,8 @@ test('the site choice: a switch that asks the server, a line on what is shown, t
 });
 
 test('the sheet offers the card, the page loads it, and the QR helpers it borrows exist', () => {
-  assert.match(read('js/bit-companion/sheet.js'), /window\.BitCard\?\.section\(bit, wardrobeHands\(\)\)/);
+  assert.match(read('js/bit-companion/sheet.js'), /window\.BitCard\?\.section\(bit, hands\)/);
+  assert.match(read('js/bit-companion/sheet.js'), /window\.BitCard\?\.site\(bit, hands\)/, 'the site choice sits with sharing');
   const page = read('index.html');
   const card = page.indexOf('src="js/bit-companion/card.js"');
   assert.ok(card > 0 && card < page.indexOf('src="js/bit-companion/sheet.js"'));

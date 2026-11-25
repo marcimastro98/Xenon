@@ -10,7 +10,7 @@ import { makeDom } from './mini-dom.mjs';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const SRC = read('js/bit-companion/recap.js');
-const FACTS = ['days', 'gaming', 'music', 'coding', 'night', 'early', 'items', 'gifts', 'hot'];
+const FACTS = ['days', 'gaming', 'music', 'coding', 'night', 'early', 'items', 'hot'];
 
 // Its answers as plain values of this realm, so deepEqual compares them as such.
 const plain = (v) => JSON.parse(JSON.stringify(v));
@@ -30,7 +30,7 @@ function sayIn(code) {
 }
 const num = (n) => String(n);
 
-const month = { key: '2026-11', days: 21, gaming: 2530, music: 59, coding: 0, hot: 30, night: 3, early: 0, gifts: 1, items: ['beanie', 'scarf'] };
+const month = { key: '2026-11', days: 21, gaming: 2530, music: 59, coding: 0, hot: 30, night: 3, early: 0, items: ['beanie', 'scarf'] };
 const bit = { number: 1284, name: 'Pixel', worn: [], genes: {} };
 
 test('a month in English: the name in the title, the number under it, the days, then four facts at most', () => {
@@ -40,7 +40,7 @@ test('a month in English: the name in the title, the number under it, the days, 
   assert.deepEqual(w.lines, ['21 days together', '42 hours of games', '1 hour of music', '3 nights at the PC after 1 am', '2 new things in the wardrobe']);
   assert.equal(w.button, 'Your November');
   assert.equal(w.file, 'my-bit-2026-11.png');
-  const quiet = load().words({ ...month, days: 1, gaming: 20, music: 0, hot: 0, night: 0, gifts: 0, items: [] }, 'month', { number: 7 }, sayIn('en'), num, 'en');
+  const quiet = load().words({ ...month, days: 1, gaming: 20, music: 0, hot: 0, night: 0, items: [] }, 'month', { number: 7 }, sayIn('en'), num, 'en');
   assert.deepEqual([quiet.title, quiet.small, quiet.lines], ['Your November with Bit #7', '', ['1 day together']], 'under half an hour is no hour');
 });
 
@@ -106,10 +106,10 @@ test('the sheet\'s part: a button per recap, nothing without one', () => {
 });
 
 test('the card is drawn on the birth card\'s ground, never from the page; the sheet offers it', () => {
-  assert.match(SRC, /P\.bitPicture\(bit, BIT\)/);
-  assert.match(SRC, /P\.ground\(said\.tagline, P\.pageOf\(bit\) \|\| P\.SITE\)/);
+  assert.match(SRC, /P\.bitPicture\(bit, BIT, tone\.ink\)/);
+  assert.match(SRC, /P\.ground\(said\.tagline, P\.pageOf\(bit\) \|\| P\.SITE, tone\)/);
   for (const bad of ['innerHTML', 'html2canvas', 'getDisplayMedia', 'frameSvg']) assert.ok(!SRC.includes(bad), bad);
-  assert.match(read('js/bit-companion/sheet.js'), /window\.BitRecap\?\.section\(bit, wardrobeHands\(\)\)/);
+  assert.match(read('js/bit-companion/sheet.js'), /window\.BitRecap\?\.section\(bit, hands\)/);
   assert.match(read('js/bit-companion/sheet.js'), /window\.BitRecap\?\.reset\(\);/);
   const page = read('index.html');
   const at = page.indexOf('src="js/bit-companion/recap.js"');

@@ -57,8 +57,6 @@ const CLASSIFIED = Object.freeze({
   'POST /api/bit/wear': { remote: true },
   'POST /api/bit/name': { remote: true },
   'POST /api/bit/prefs': { remote: true },
-  'POST /api/bit/gift': { remote: true },
-  'POST /api/bit/pick': { remote: true },
   'POST /api/bit/publish': { remote: true },
   // Keeping a supporter's item uses the PC's pass, a shop item spends Sparks: the PC only.
   'POST /api/bit/claim': { remote: false },

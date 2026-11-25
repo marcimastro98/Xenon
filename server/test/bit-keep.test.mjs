@@ -110,12 +110,13 @@ test('the wrong door, an egg and a hub that cannot be reached are told apart', a
 
   const store = await hatchedStore(t);
   const keep = createKeep({ store, redeem: async () => { throw new Error('offline'); }, buy: async () => null, now: () => startOf(supporters[0].month) });
+  const before = (await store.ready()).owned;
   assert.equal((await keep.claim(shopItems[0].id)).error, 'bad_item', 'a shop item is not claimed with the pass');
   assert.equal((await keep.shop(supporters[0].id)).error, 'bad_item', 'a supporter item is not for sale');
   assert.equal((await keep.claim('nope')).error, 'bad_item');
   assert.equal((await keep.claim(supporters[0].id)).error, 'network');
   assert.equal((await keep.shop(shopItems[0].id, 'x')).error, 'network');
-  assert.deepEqual((await store.ready()).owned.filter((id) => wardrobe.item(id)?.source === 'shop'), []);
+  assert.deepEqual((await store.ready()).owned, before, 'nothing was added');
 });
 
 test('through the routes: an item is a string, a yes answers with the Bit, a no with the reason', async (t) => {

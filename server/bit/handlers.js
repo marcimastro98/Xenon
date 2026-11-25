@@ -4,7 +4,6 @@
 // routes.js.
 
 const Model = require('./model.js');
-const Gifts = require('./gifts.js');
 
 const MAX_BODY_BYTES = 4 * 1024;
 
@@ -89,8 +88,6 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
     'POST /api/bit/wear': changing((m, body) => Model.wear(m, body.worn), { onSite: true }),
     'POST /api/bit/name': changing((m, body) => Model.rename(m, body.name), { onSite: true }),
     'POST /api/bit/prefs': changing((m, body) => Model.setPrefs(m, body)),
-    'POST /api/bit/gift': changing((m) => Gifts.open(m, new Date(), Model.ownedItems(m))),
-    'POST /api/bit/pick': changing((m, body) => Gifts.pick(m, body.item, Model.ownedItems(m))),
     'POST /api/bit/claim': keeping((body) => keep.claim(body.item)),
     'POST /api/bit/buy': keeping((body) => keep.shop(body.item, typeof body.consent === 'string' ? body.consent : undefined)),
     'POST /api/bit/publish': async (req, _res, { json, readBody }, hands) => {

@@ -108,7 +108,8 @@ test('a locked entry leads with one key, and an owner is not sold the membership
 });
 
 test('Installed and Sparks stay reachable by name from outside', () => {
-  assert.match(js, /filterKind === '__installed'\) \? 'installed'/);
+  assert.match(js, /const ownTab = \(id\) => \(\{ __installed: 'installed',/);
+  assert.match(js, /activeTab = ownTab\(filterKind\);/);
   assert.match(js, /window\.CommunityGallery = \{[^}]*\bopenSparks\b/);
   assert.match(js, /window\.CommunityGallery = \{[^}]*\bopenEntryById\b/);
 });

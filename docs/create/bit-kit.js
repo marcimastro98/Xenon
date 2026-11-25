@@ -1042,7 +1042,10 @@
     return traits.map((t) => ({ ...t, oneIn: Math.round(1 / t.chance) })).sort((a, b) => a.chance - b.chance);
   }
 
-  return { VERSION, PALETTES, palette, normalizeSeed, decode, fingerprint, lookCount, rarity, odds, stream };
+  /** How many Bits it takes, on average, to see this whole look once: every visible gene's odds together. */
+  const lookOneIn = (g) => Math.round(1 / rarity(g).reduce((p, t) => p * t.chance, 1));
+
+  return { VERSION, PALETTES, palette, normalizeSeed, decode, fingerprint, lookCount, rarity, lookOneIn, odds, stream };
 });
 
 // ---- bit-look.js
@@ -1182,13 +1185,12 @@
    * shows mood), stays above the floor and fits every mood pose (where a big move such as
    * moonwalk would take it off the stage, x -3..14 y -5..12, bit.js sets it down for that
    * clip), and has no hearts, confetti or glows: validate() and the Bit Lab check it. Ids are
-   * permanent (owned items are stored by id). A daily item has a tier (c, u, r: the gift's
-   * odds, server/bit/gifts.js), a season item its season (SEASONS), a supporter item its month
-   * ('YYYY-MM', one a month) and a shop item its price in Sparks; those two are kept through
-   * the hub's key entryOf(item) (server/bit/keep.js). */
+   * permanent (owned items are stored by id). A season item has its season (SEASONS), a
+   * supporter item its month ('YYYY-MM', one a month) and a shop item its fixed price in Sparks;
+   * those two are kept through the hub's key entryOf(item) (server/bit/keep.js). */
 
   const SLOTS = Object.freeze(['head', 'face', 'neck', 'back', 'feet', 'hand']);
-  const SOURCES = Object.freeze(['trait', 'daily', 'season', 'supporter', 'shop', 'founder']);
+  const SOURCES = Object.freeze(['trait', 'season', 'supporter', 'shop', 'founder']);
   const SLATE = '#3b4250';
   const WHITE = '#f0f3f1';
   const GOLD = '#ffd75e';
@@ -1197,10 +1199,9 @@
   const BROWN = '#8a5a3b';
   const LEAF = '#6fcf73';
   const ORANGE = '#ff8c2e';
-  /** @typedef {{ id: string, slot: string, source: string, tier?: string, season?: string, month?: string, price?: number, layers: readonly object[] }} WardrobeItem */
-  /** @type {(id: string, slot: string, source: string, layers: object[], extra?: { tier?: string, season?: string, month?: string, price?: number }) => Readonly<WardrobeItem>} */
+  /** @typedef {{ id: string, slot: string, source: string, season?: string, month?: string, price?: number, layers: readonly object[] }} WardrobeItem */
+  /** @type {(id: string, slot: string, source: string, layers: object[], extra?: { season?: string, month?: string, price?: number }) => Readonly<WardrobeItem>} */
   const I = (id, slot, source, layers, extra = {}) => Object.freeze({ id, slot, source, ...extra, layers: Object.freeze(layers) });
-  const D = (tier) => ({ tier });
   const S = (season) => ({ season });
   const M = (month) => ({ month });
   const P = (price) => ({ price });
@@ -1216,18 +1217,17 @@
     halloween: [[10, 15], [11, 2]],
     birthday: null,
   });
-  const TIERS = Object.freeze(['c', 'u', 'r']);
 
   const ITEMS = Object.freeze([
     // head: around the antenna, never over it
-    I('beanie', 'head', 'daily', [
+    I('beanie', 'head', 'shop', [
       { fill: 'accent', cells: [[3, 1, 3], [7, 1, 2]] },
       { fill: 'cream', cells: [[2, 2, 8]] },
-    ], D('c')),
-    I('cap', 'head', 'daily', [
+    ], P(50)),
+    I('cap', 'head', 'shop', [
       { fill: 'accent', cells: [[3, 1, 3], [7, 1, 2], [3, 2, 6]] },
       { fill: SLATE, cells: [[9, 2, 2]] },
-    ], D('c')),
+    ], P(50)),
     I('crown', 'head', 'supporter', [
       { fill: GOLD, cells: [[3, 1], [5, 1], [7, 1], [8, 1], [3, 2, 6]] },
       { fill: '#ff5a6e', cells: [[4, 2]] },
@@ -1278,10 +1278,10 @@
       { fill: '#8d97a5', cells: [[0, 5, 2], [10, 5, 2]] },
     ], M('2027-02')),
     // feet
-    I('sneakers', 'feet', 'daily', [
+    I('sneakers', 'feet', 'shop', [
       { fill: WHITE, cells: [[3, 10, 2], [7, 10, 2]] },
       { fill: 'accent', cells: [[4, 10], [8, 10]] },
-    ], D('c')),
+    ], P(50)),
     I('boots', 'feet', 'shop', [{ fill: '#8a5a3b', cells: [[3, 9, 2, 2], [7, 9, 2, 2]] }], P(100)),
     // hand: held on Bit's right, with a little arm in its own colour
     I('mug', 'hand', 'trait', [
@@ -1295,56 +1295,56 @@
       { fill: 'cream', cells: [[12, 5]] },
     ]),
 
-    // ── the daily gift's pool ──
-    I('bandana', 'head', 'daily', [
+    // ── more of the shop ──
+    I('bandana', 'head', 'shop', [
       { fill: 'accent', cells: [[3, 1, 3], [7, 1, 2], [2, 2, 8], [10, 2], [11, 3]] },
       { fill: 'cream', cells: [[4, 1], [8, 1], [3, 2], [6, 2], [9, 2]] },
-    ], D('c')),
-    I('bucketHat', 'head', 'daily', [
+    ], P(50)),
+    I('bucketHat', 'head', 'shop', [
       { fill: '#d9c9a3', cells: [[3, 0, 3], [7, 0, 2], [1, 2, 10]] },
       { fill: 'shadow', cells: [[3, 1, 3], [7, 1, 2]] },
-    ], D('c')),
-    I('bow', 'head', 'daily', [{ fill: PINK, cells: [[8, 0, 1, 3], [10, 0, 1, 3]] }, { fill: '#e0607a', cells: [[9, 1]] }], D('c')),
-    I('beret', 'head', 'daily', [{ fill: 'accent', cells: [[2, 1, 4], [7, 1, 3], [1, 2, 9]] }, { fill: 'shadow', cells: [[4, 0]] }], D('u')),
-    I('seedling', 'head', 'daily', [{ fill: '#3f9a4a', cells: [[8, 0, 1, 2]] }, { fill: LEAF, cells: [[7, 0], [9, -1, 2]] }], D('u')),
-    I('goggles', 'head', 'daily', [{ fill: SLATE, cells: [[2, 2, 8]] }, { fill: '#5eead4', cells: [[3, 1, 2], [7, 1, 2]] }], D('u')),
-    I('topHat', 'head', 'daily', [{ fill: SLATE, cells: [[3, 0, 3], [7, 0, 3], [1, 2, 10]] }, { fill: 'accent', cells: [[3, 1, 3], [7, 1, 3]] }], D('r')),
-    I('kerchief', 'neck', 'daily', [
+    ], P(50)),
+    I('bow', 'head', 'shop', [{ fill: PINK, cells: [[8, 0, 1, 3], [10, 0, 1, 3]] }, { fill: '#e0607a', cells: [[9, 1]] }], P(50)),
+    I('beret', 'head', 'shop', [{ fill: 'accent', cells: [[2, 1, 4], [7, 1, 3], [1, 2, 9]] }, { fill: 'shadow', cells: [[4, 0]] }], P(100)),
+    I('seedling', 'head', 'shop', [{ fill: '#3f9a4a', cells: [[8, 0, 1, 2]] }, { fill: LEAF, cells: [[7, 0], [9, -1, 2]] }], P(100)),
+    I('goggles', 'head', 'shop', [{ fill: SLATE, cells: [[2, 2, 8]] }, { fill: '#5eead4', cells: [[3, 1, 2], [7, 1, 2]] }], P(100)),
+    I('topHat', 'head', 'shop', [{ fill: SLATE, cells: [[3, 0, 3], [7, 0, 3], [1, 2, 10]] }, { fill: 'accent', cells: [[3, 1, 3], [7, 1, 3]] }], P(200)),
+    I('kerchief', 'neck', 'shop', [
       { fill: 'accent', cells: [[3, 8, 6], [4, 9, 4], [5, 10, 2]] },
       { fill: 'cream', cells: [[4, 8], [7, 8], [6, 9]] },
-    ], D('c')),
-    I('collar', 'neck', 'daily', [{ fill: RED, cells: [[2, 8, 8]] }, { fill: GOLD, cells: [[5, 9, 2]] }], D('c')),
-    I('tie', 'neck', 'daily', [{ fill: 'shadow', cells: [[5, 8, 2]] }, { fill: 'accent', cells: [[5, 9, 2, 2]] }], D('u')),
-    I('slippers', 'feet', 'daily', [{ fill: PINK, cells: [[2, 10, 3], [7, 10, 3]] }, { fill: WHITE, cells: [[2, 10], [9, 10]] }], D('c')),
-    I('rainBoots', 'feet', 'daily', [{ fill: GOLD, cells: [[3, 9, 2, 2], [7, 9, 2, 2]] }], D('u')),
-    I('lollipop', 'hand', 'daily', [
+    ], P(50)),
+    I('collar', 'neck', 'shop', [{ fill: RED, cells: [[2, 8, 8]] }, { fill: GOLD, cells: [[5, 9, 2]] }], P(50)),
+    I('tie', 'neck', 'shop', [{ fill: 'shadow', cells: [[5, 8, 2]] }, { fill: 'accent', cells: [[5, 9, 2, 2]] }], P(100)),
+    I('slippers', 'feet', 'shop', [{ fill: PINK, cells: [[2, 10, 3], [7, 10, 3]] }, { fill: WHITE, cells: [[2, 10], [9, 10]] }], P(50)),
+    I('rainBoots', 'feet', 'shop', [{ fill: GOLD, cells: [[3, 9, 2, 2], [7, 9, 2, 2]] }], P(100)),
+    I('lollipop', 'hand', 'shop', [
       ARM,
       { fill: WHITE, cells: [[11, 4, 1, 3]] },
       { fill: PINK, cells: [[11, 2, 2, 2]] },
       { fill: WHITE, cells: [[12, 2]] },
-    ], D('c')),
-    I('book', 'hand', 'daily', [
+    ], P(50)),
+    I('book', 'hand', 'shop', [
       ARM,
       { fill: '#4a7bd0', cells: [[11, 5, 2, 3]] },
       { fill: WHITE, cells: [[13, 5, 1, 3]] },
-    ], D('u')),
-    I('gamepad', 'hand', 'daily', [
+    ], P(100)),
+    I('gamepad', 'hand', 'shop', [
       ARM,
       { fill: SLATE, cells: [[11, 6, 3, 2]] },
       { fill: WHITE, cells: [[11, 6]] },
       { fill: RED, cells: [[13, 6]] },
-    ], D('u')),
-    I('balloon', 'hand', 'daily', [
+    ], P(100)),
+    I('balloon', 'hand', 'shop', [
       ARM,
       { fill: 'line', cells: [[11, 2, 1, 5]] },
       { fill: RED, cells: [[10, -1, 3, 3]] },
       { fill: WHITE, cells: [[10, -1]] },
-    ], D('r')),
-    I('guitar', 'back', 'daily', [
+    ], P(200)),
+    I('guitar', 'back', 'shop', [
       { fill: '#c47a3d', cells: [[10, 6, 2, 3]] },
       { fill: SLATE, cells: [[11, 7], [10, 1, 2]] },
       { fill: BROWN, cells: [[10, 2, 1, 4]] },
-    ], D('r')),
+    ], P(200)),
 
     // ── seasons: given to every Bit while the season lasts, kept for good ──
     I('santaHat', 'head', 'season', [
@@ -1403,7 +1403,6 @@
     if (!/^[a-z][a-zA-Z0-9]{1,31}$/.test(it.id || '')) errors.push('id');
     if (!SLOTS.includes(it.slot)) errors.push('slot');
     if (!SOURCES.includes(it.source)) errors.push('source');
-    if (it.source === 'daily' && !TIERS.includes(it.tier)) errors.push('tier');
     if (it.source === 'season' && !Object.hasOwn(SEASONS, it.season)) errors.push('season');
     if (it.source === 'supporter' && !MONTH.test(it.month || '')) errors.push('month');
     if (it.source === 'shop' && !(Number.isInteger(it.price) && it.price >= 50 && it.price <= 300)) errors.push('price');
@@ -1426,6 +1425,8 @@
   const supporterOut = (date) => ITEMS.filter((it) => it.source === 'supporter' && it.month <= monthOf(date));
   /** The hub's key of a supporter or shop item: 'bit-' and the id in kebab case (topHat → bit-top-hat). */
   const entryOf = (it) => `bit-${it.id.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+  /** What a Bit hatches wearing, one of the shop's cheapest, from `pick` in [0, 1) (its seed's 'birth-gift' stream): the hub reads it the same way. */
+  const birthItem = (pick) => { const first = ITEMS.filter((it) => it.source === 'shop' && it.price === 50); return first[Math.min(first.length - 1, Math.floor(pick * first.length))].id; };
 
   const md = (m, d) => m * 100 + d;
   const DAY_MS = 864e5;
@@ -1462,7 +1463,7 @@
     return SLOTS.map((s) => bySlot.get(s)).filter(Boolean);
   }
 
-  return { SLOTS, SOURCES, TIERS, SEASONS, ITEMS, item, cellsOf, validate, outfit, seasonsOn, monthOf, supporterOut, entryOf };
+  return { SLOTS, SOURCES, SEASONS, ITEMS, item, cellsOf, validate, outfit, seasonsOn, monthOf, supporterOut, entryOf, birthItem };
 });
 
 // ---- bit.js

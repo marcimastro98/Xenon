@@ -1223,7 +1223,7 @@ bit.set(m.data, { light: theme.appearance === 'light' });
   style, a game) draws the classic Bit, as the app does:
   `bit.set(m.data, { light, classic: m.data.everywhere === false })`.
 - **Never in it**: the seed, what Bit learned about the person (its traits and
-  days), what it owns and its bolts. The genes draw it, nothing more.
+  days) and what it owns. The genes draw it, nothing more.
 - **Pull it about once a second**, only while the widget is on screen.
 - To make it move, the `bit` action category (§5c-septies).
 
@@ -3174,8 +3174,7 @@ back to the PC".
 
 Makes the person's own Bit do a move, as a Deck key does: every Bit on the
 dashboard plays it, and so does a widget reading the `bit` stream. A move only:
-never its clothes, its name or the gift of the day, which are the person's own
-choices on Bit's sheet.
+never its clothes or its name, which are the person's own choices on Bit's sheet.
 
 ```js
 action: { type: 'bitReact', move: 'wave' }

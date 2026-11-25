@@ -97,3 +97,16 @@ test('every palette is complete and the classic one is the logo green', () => {
   }
   assert.equal(new Set(genome.PALETTES.map((p) => p.body)).size, genome.PALETTES.length);
 });
+
+test('the odds of a whole look: every visible gene together, so a common colour alone never reads as rare', () => {
+  const seeds = Array.from({ length: 400 }, (_, i) => hex8(((i * 2654435761) % 4294967296) / 4294967296) + hex8(((i * 40503 + 7) % 65536) / 65536));
+  for (const seed of seeds) {
+    const g = genome.decode(seed);
+    const n = genome.lookOneIn(g);
+    const product = genome.rarity(g).reduce((p, t) => p * t.chance, 1);
+    assert.equal(n, Math.round(1 / product), seed);
+    assert.ok(n > Math.max(...genome.rarity(g).map((t) => t.oneIn)), `${seed}: rarer than any one gene`);
+  }
+  const plain = genome.decode(seeds[0]);
+  assert.ok(genome.lookOneIn({ ...plain, shiny: true }) >= genome.lookOneIn({ ...plain, shiny: false }) * 4000, 'a shiny look is 4096 times rarer');
+});

@@ -35,7 +35,7 @@ test('SDK: a bit stream and a bit category with the move alone', () => {
   assert.ok(SDK.SDK_STREAMS.includes('bit'));
   assert.deepEqual([...SDK.SDK_ACTION_CATEGORIES.bit], ['bitReact']);
   const granted = Object.values(SDK.SDK_ACTION_CATEGORIES).flat();
-  for (const type of ['bitWear', 'bitRename', 'bitGift', 'bitPlace', 'bitGet']) assert.ok(!granted.includes(type), `${type} is never a widget's`);
+  for (const type of ['bitWear', 'bitRename', 'bitPlace', 'bitGet']) assert.ok(!granted.includes(type), `${type} is never a widget's`);
 });
 
 test('SDK: the bridge pulls /api/bit every second with the last move, and mirrors the category', () => {
@@ -60,7 +60,7 @@ test('SDK: every page that hosts widgets loads the stream readers before the bri
 
 test('SDK: the stream draws the Bit and nothing it learned about the person', () => {
   const view = hatchedView();
-  assert.ok(view.traits && view.gifts && view.genes, 'the app\'s own view has more than a widget gets');
+  assert.ok(view.traits && view.owned && view.genes, 'the app\'s own view has more than a widget gets');
   const out = reader()({ ok: true, ...view, seed: SEED }, { clip: 'wave', at: 5 });
   assert.deepEqual(Object.keys(out).sort(), ['everywhere', 'founder', 'genes', 'hatched', 'name', 'number', 'ok', 'played', 'stage', 'worn']);
   assert.equal(out.number, 7);

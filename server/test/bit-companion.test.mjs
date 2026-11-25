@@ -24,7 +24,7 @@ const PREFS = { place: 'corner', reactions: 'normal', sounds: false, classic: fa
 const egg = (prefs = {}) => ({ ok: true, hatched: false, stage: 'egg', founder: false, prefs: { ...PREFS, ...prefs }, everywhere: true, reactionsPerHour: 6 });
 const born = (prefs = {}, more = {}) => ({
   ...egg(prefs), hatched: true, seed: SEED, number: 1284, local: false, born: '2026-11-24T20:00:00.000Z', name: '', worn: [], owned: [],
-  days: 3, stage: 'baby', rarity: [{ gene: 'tip', id: 'leaf', chance: 0.01, oneIn: 100 }],
+  days: 3, stage: 'baby', rarity: [{ gene: 'tip', id: 'leaf', chance: 0.01, oneIn: 100 }], lookOneIn: 52000,
   traits: [{ id: 'gamer', item: 'headset', progress: 0.5, earned: false }], ...more,
 });
 
@@ -185,7 +185,7 @@ test('tapping the egg opens its sheet, and hatching shows who came out', async (
   r.runTimers();
   assert.ok(sheet.querySelector('.bitc-name input'), 'then the card: its name');
   const facts = sheet.querySelectorAll('.bitc-facts li').map((li) => li.textContent);
-  assert.deepEqual(facts, ['mybit_number', 'mybit_age', 'mybit_rare_trait']);
+  assert.deepEqual(facts, ['mybit_number', 'mybit_age', 'mybit_look_odds'], 'the odds of its whole look, never of one gene');
 });
 
 test('no internet: the egg says so and the button comes back', async () => {
@@ -227,31 +227,22 @@ test('a place chosen on the sheet moves the Bit, and a bad name says so', async 
   assert.equal(r.sheet().querySelector('.bitc-note').textContent, 'mybit_name_bad');
 });
 
-const GIFTS = { bolts: 7, gift: { ready: true, last: null }, odds: { c: 0.7, u: 0.25, r: 0.05 }, prices: { c: 6, u: 12, r: 30 } };
-const dressed = (more) => born({}, { owned: ['cap'], worn: ['cap'], gifts: GIFTS, ...more });
+const dressed = (more) => born({}, { owned: ['cap'], worn: ['cap'], ...more });
 const itemButton = (sheet, id) => sheet.querySelectorAll('.bitw-item').find((b) => b.querySelector('.bitw-item-name').textContent === `mybit_item_${id}`);
+const groupOf = (el) => { let n = el; while (n && !String(n.className || '').includes('bitw-group')) n = n.parentNode; return n; };
 
-test("the wardrobe: today's gift opens once, a tap puts on or takes off what it owns", async () => {
-  const opened = { ...GIFTS, gift: { ready: false, last: { day: '2026-12-03', item: 'beanie', bolts: 0 } } };
+test('the wardrobe: a tap puts on or takes off what it owns, and no gift waits anywhere', async () => {
   const r = rig({
-    answers: {
-      '/api/bit/gift': { ok: true, bit: dressed({ owned: ['cap', 'beanie'], gifts: opened }) },
-      '/api/bit/wear': (body) => ({ ok: true, bit: dressed({ owned: ['cap', 'beanie'], worn: body.worn, gifts: opened }) }),
-    },
+    answers: { '/api/bit/wear': (body) => ({ ok: true, bit: dressed({ owned: ['cap', 'beanie'], worn: body.worn }) }) },
   });
-  r.tell(dressed());
+  r.tell(dressed({ owned: ['cap', 'beanie'] }));
   r.ctx.BitSheet.open();
   const cap = itemButton(r.sheet(), 'cap');
   assert.equal(cap.getAttribute('aria-pressed'), 'true', 'what it wears is marked');
   assert.ok(cap.querySelector('rect'), "each item is drawn in this Bit's colours");
-  assert.equal(r.sheet().querySelector('.bitw-bolts').textContent, 'mybit_bolts');
-
-  r.sheet().querySelector('.bitw-open').click();
-  await settle();
-  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/gift', body: {} });
-  assert.equal(r.sheet().querySelector('.bitw-open'), null, 'once a day');
-  assert.equal(r.sheet().querySelector('.bitw-gift-line').textContent, 'mybit_gift_got mybit_gift_next');
-  assert.ok(itemButton(r.sheet(), 'beanie').className.includes('bitw-item') && !itemButton(r.sheet(), 'beanie').className.includes('is-locked'));
+  assert.equal(groupOf(cap).className, 'bitw-group bitw-mine', 'what it owns comes first, in its own colour');
+  for (const gone of ['.bitw-open', '.bitw-gift-line', '.bitw-bolts']) assert.equal(r.sheet().querySelector(gone), null, gone);
+  assert.equal(cap.querySelector('.bitw-item-price'), null, 'an owned item shows no price');
 
   itemButton(r.sheet(), 'beanie').click();
   await settle();
@@ -261,12 +252,28 @@ test("the wardrobe: today's gift opens once, a tap puts on or takes off what it 
   assert.deepEqual(r.posts.at(-1).body, { worn: ['beanie'] });
 });
 
-test('the wardrobe: anything is tried on for free, says how it is got, and bolts buy an everyday item', async (t) => {
+test('the wardrobe: the shop first with its prices, then supporters, seasons and traits; trying on is free', async (t) => {
   t.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-25T12:00:00Z') });
-  const r = rig({ answers: { '/api/bit/pick': { ok: true, bit: dressed({ owned: ['cap', 'bandana'], gifts: { ...GIFTS, bolts: 1 } }) } } });
+  const r = rig({});
   r.tell(dressed());
   r.ctx.BitSheet.open();
+  const groups = () => r.sheet().querySelectorAll('.bitw-group').map((g) => g.querySelector('.bitw-sub').textContent);
+  assert.deepEqual(groups(), ['mybit_mine', 'mybit_group_shop', 'mybit_group_supporter', 'mybit_group_season', 'mybit_group_trait']);
+  const sources = r.sheet().querySelectorAll('.bitw-group').map((g) => g.dataset.source || '');
+  assert.deepEqual(sources, ['', 'shop', 'supporter', 'season', 'trait'], 'each group takes its own colour');
+
+  const shop = r.sheet().querySelectorAll('.bitw-group').find((g) => g.dataset.source === 'shop');
+  const prices = shop.querySelectorAll('.bitw-item-price').map((p) => Number(p.textContent));
+  assert.ok(prices.length >= 20 && prices.every((n, i) => !i || n >= prices[i - 1]), 'every shop item shows its price, cheapest first');
+  assert.match(itemButton(r.sheet(), 'guitar').getAttribute('aria-label'), /^mybit_item_guitar, gallery_sparks_price/);
+
+  // No season runs at the end of November: the group says each one is a surprise, and lists nothing.
+  const season = r.sheet().querySelectorAll('.bitw-group').find((g) => g.dataset.source === 'season');
+  assert.equal(season.querySelector('.bitw-why').textContent, 'mybit_group_season_line');
+  assert.equal(season.querySelector('.bitw-grid'), null);
+  assert.equal(itemButton(r.sheet(), 'witchHat'), undefined, 'a season to come stays a surprise');
+
   const posted = r.posts.length;
   itemButton(r.sheet(), 'crown').click();
   assert.equal(r.posts.length, posted, 'trying on asks nothing');
@@ -274,22 +281,23 @@ test('the wardrobe: anything is tried on for free, says how it is got, and bolts
   assert.equal(itemButton(r.sheet(), 'crown').getAttribute('aria-pressed'), 'true');
   const lines = () => r.sheet().querySelectorAll('.bitw-detail-line').map((p) => p.textContent);
   assert.deepEqual(lines(), ['mybit_keep_soon'], "a supporters' item says when it comes");
-  assert.equal(r.sheet().querySelector('.bitw-pick'), null, 'no price on what bolts cannot buy, nothing to keep before its month');
+  assert.equal(groupOf(r.sheet().querySelector('.bitw-detail')).querySelector('.bitw-sub').textContent, 'mybit_group_supporter', 'the detail shows in its own group');
 
   itemButton(r.sheet(), 'bandana').click();
-  assert.deepEqual(lines(), ['mybit_get_daily']);
-  const pick = r.sheet().querySelector('.bitw-pick');
-  assert.equal(pick.disabled, false, '7 bolts, a common item costs 6');
-  pick.click();
-  await settle();
-  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/pick', body: { item: 'bandana' } });
-  assert.equal(r.ctx.BitWardrobe.preview(), null, 'once it is owned the try-on ends');
-
-  itemButton(r.sheet(), 'topHat').click();
-  assert.equal(r.sheet().querySelector('.bitw-pick').disabled, true, 'a rare item costs more than 1 bolt');
-  assert.deepEqual(lines(), ['mybit_get_daily', 'mybit_pick_have']);
+  assert.deepEqual(lines(), ['mybit_shop_line'], 'a shop item: its price in a sentence');
   r.ctx.BitSheet.close();
   assert.equal(r.ctx.BitWardrobe.preview(), null, 'closing takes it off');
+});
+
+test('the wardrobe: a running season is named and lists only its own items', () => {
+  const r = rig({});
+  r.tell(dressed({ seasons: ['winter'] }));
+  r.ctx.BitSheet.open();
+  const season = r.sheet().querySelectorAll('.bitw-group').find((g) => g.dataset.source === 'season');
+  assert.equal(season.querySelector('.bitw-why').textContent, 'mybit_season_now');
+  assert.ok(itemButton(r.sheet(), 'scarf'), "winter's own item");
+  assert.equal(itemButton(r.sheet(), 'witchHat'), undefined, 'not Halloween');
+  assert.equal(itemButton(r.sheet(), 'santaHat'), undefined, 'not Christmas either, until it starts');
 });
 
 // A supporter's item in its month and a shop item, with the pass and the wallet faked.
@@ -522,6 +530,45 @@ test('a founder\'s egg files one card to hatch it; a fresh hatch takes it back, 
   later.tell(born({}, { founder: true, born: '2026-01-01T00:00:00.000Z' }));
   later.tell({ ...egg({ place: 'off' }), founder: true });
   assert.deepEqual(none, [], 'hatched long ago, or no Bit wanted anywhere');
+});
+
+test('an egg is met once, on its first day, after whatever is on screen', () => {
+  const store = new Map();
+  const shelf = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+  const waiting = [];
+  const AT = new Date().toISOString();
+  const fresh = () => ({ ...egg(), eggAt: AT });
+  const page = () => {
+    const r = rig();
+    r.ctx.localStorage = shelf;
+    r.ctx.XenonInterrupts = { PRIORITY: { message: 10 }, whenIdle: (fn) => waiting.push(fn), registerOverlay() {} };
+    return r;
+  };
+  const r = page();
+  r.tell(fresh());
+  r.tell(fresh());
+  assert.equal(r.sheet(), null, 'not over the first-run choice');
+  assert.equal(waiting.length, 1, 'asked once a page');
+  waiting.shift()();
+  assert.ok(r.sheet(), 'the egg is shown when the screen is free');
+  const next = page();
+  next.tell(fresh());
+  waiting.splice(0).forEach((fn) => fn());
+  assert.equal(next.sheet(), null, 'once on this device');
+  const again = page();
+  again.tell({ ...egg(), eggAt: new Date(Date.parse(AT) + 1000).toISOString() });
+  waiting.splice(0).forEach((fn) => fn());
+  assert.ok(again.sheet(), 'a new egg (a reinstall) is met again');
+  store.clear();
+  const old = page();
+  old.tell({ ...egg(), eggAt: '2026-01-01T00:00:00.000Z' });
+  old.tell({ ...fresh(), prefs: { ...PREFS, place: 'off' } });
+  assert.equal(waiting.length, 0, 'an old egg or no Bit wanted: nothing opens');
+  const founder = page();
+  founder.tell({ ...fresh(), founder: true });
+  waiting.shift()();
+  assert.ok(founder.sheet(), 'a founder meets the egg right after the update too');
+  assert.match(founder.sheet().textContent, /mybit_card_text/, 'and reads why it carries the mark');
 });
 
 test('a closed month is told once, as a message of Bit with its card; a new month takes an unread one back', () => {

@@ -5,11 +5,11 @@
 //
 //   { v, eggAt, founder, bit: { seed, number, born, sig, local } | null,
 //     name, worn: [item ids], owned: [item ids], days: { count, last }, traits,
-//     prefs: { place, reactions, sounds, classic }, bolts, gift: { day, item, bolts } | null,
-//     shown, months }   shown: the person chose to show it on xenon-app.com (publish.js);
+//     prefs: { place, reactions, sounds, classic, pose }, shown, months }   shown: the person chose to show it on xenon-app.com (publish.js);
 //     months: what each month held, for the recap cards (months.js)
 //
-// What is given for free (the daily gift, bolts, the seasons): gifts.js.
+// What is given for free (the seasons' items): seasons.js. An older file's daily gift is
+// dropped on read: items are earned, a season's, a supporter's or bought.
 //
 // The prefs live here, not in the settings: one place says everything about the
 // Bit, every surface learns a change from the 'bit' event, and a phone's copy of
@@ -20,17 +20,17 @@
 /**
  * @typedef {{ v: number, eggAt: string, founder: boolean, name: string, worn: string[], owned: string[],
  *   bit: { seed: string, number: number|null, born: string, sig: string, local: boolean } | null,
- *   days: { count: number, last: string }, traits: object, bolts: number,
- *   gift: { day: string, item: string, bolts: number } | null,
- *   prefs: { place: string, reactions: string, sounds: boolean, classic: boolean }, shown: boolean,
+ *   days: { count: number, last: string }, traits: object,
+ *   prefs: { place: string, reactions: string, sounds: boolean, classic: boolean, pose: string }, shown: boolean,
  *   months: object }} BitModel
  */
 
 const Traits = require('./traits.js');
-const Gifts = require('./gifts.js');
+const Seasons = require('./seasons.js');
 const Months = require('./months.js');
 const genome = require('../shared/src/bit-genome.js');
 const wardrobe = require('../shared/src/bit-wardrobe.js');
+const GeneTables = require('../shared/src/bit-genes.js');
 
 const VERSION = 1;
 const SEED = /^[0-9a-f]{16}$/;
@@ -48,7 +48,10 @@ const SITE_PAGE = 'https://xenon-app.com/bit.html#';
 // often it reacts (bitDirector's hourly cap), and the classic Bit in the app.
 const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
-const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false });
+const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '' });
+// The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of
+// the fidgets or the classic photo pose, chosen in the sheet.
+const POSES = Object.freeze([...GeneTables.QUIRKS.map((q) => q.id), 'pose']);
 
 // Days of use (not in a row) to each stage; the body never changes, the tip does.
 const STAGES = Object.freeze([
@@ -94,6 +97,7 @@ function normalizePrefs(raw) {
     reactions: Object.hasOwn(REACTIONS, p.reactions) ? p.reactions : DEFAULT_PREFS.reactions,
     sounds: p.sounds === true,
     classic: p.classic === true,
+    pose: POSES.includes(p.pose) ? p.pose : '',
   };
 }
 
@@ -117,7 +121,6 @@ function normalize(raw) {
     prefs: normalizePrefs(src.prefs),
     shown: src.shown === true,
     months: Months.normalize(src.months),
-    ...Gifts.normalize(src),
   };
 }
 
@@ -146,15 +149,12 @@ function hatched(model, birth, now) {
   if (!b) return { error: 'bad_birth' };
   const gift = birthGift(b.seed);
   const born = { ...model, bit: b, owned: [...new Set([...model.owned, gift])], worn: [gift], days: { count: 1, last: Traits.dateKey(now) } };
-  return { model: Gifts.seasonal(born, now) };
+  return { model: Seasons.seasonal(born, now) };
 }
 
-// A gift at birth, the same for the same seed: one of the common everyday items.
-function birthGift(seed) {
-  const daily = wardrobe.ITEMS.filter((it) => it.source === 'daily' && it.tier === 'c');
-  const pick = genome.stream(seed, 'birth-gift')();
-  return daily[Math.floor(pick * daily.length)].id;
-}
+// An item at birth, the same for the same seed: one of the shop's cheapest (bit-wardrobe.js
+// birthItem), which the hub reads from the seed too, so a public page shows it.
+const birthGift = (seed) => wardrobe.birthItem(genome.stream(seed, 'birth-gift')());
 
 function wear(model, ids) {
   if (!model.bit) return { error: 'egg' };
@@ -193,7 +193,7 @@ function setPrefs(model, patch) {
 function countDay(model, now) {
   const day = Traits.dateKey(now);
   if (!model.bit || model.days.last === day) return null;
-  return { model: Gifts.seasonal({ ...model, days: { count: model.days.count + 1, last: day } }, now) };
+  return { model: Seasons.seasonal({ ...model, days: { count: model.days.count + 1, last: day } }, now) };
 }
 
 function learn(model, facts, now) {
@@ -208,7 +208,7 @@ function learn(model, facts, now) {
  * and only to this person's own screens (a widget's reader drops both).
  * everywhere: the app's places draw this Bit, not the classic one.
  * @param {BitModel} model
- * @param {Date} now whether today's gift is still to open
+ * @param {Date} now which seasons run, and which recap cards are out
  */
 const GENE_KEYS = ['classic', 'shiny', 'palette', 'pattern', 'patternColor', 'tip', 'eyes', 'cheeks', 'temperament', 'quirk', 'voice'];
 
@@ -232,10 +232,11 @@ function view(model, now) {
     days: model.days.count,
     stage: stageOf(model.days.count),
     rarity: genome.rarity(genes),
+    lookOneIn: genome.lookOneIn(genes),
     // What it looks like, without the seed: what a widget draws it from (the SDK `bit` stream).
     genes: Object.fromEntries(GENE_KEYS.map((k) => [k, genes[k]])),
     traits: Traits.progress(model.traits),
-    gifts: Gifts.view(model, now),
+    seasons: Seasons.running(model, now),
     shown: model.shown && !!b.number,
     page: model.shown && b.number ? SITE_PAGE + b.number : '',
     // Last month's card and, at the year's end, the year's: to this person's own screens only.
@@ -244,6 +245,6 @@ function view(model, now) {
 }
 
 module.exports = {
-  VERSION, STAGES, PLACES, REACTIONS, DEFAULT_PREFS,
+  VERSION, STAGES, PLACES, REACTIONS, DEFAULT_PREFS, POSES,
   normalize, normalizePrefs, cleanName, stageOf, ownedItems, hatched, wear, rename, setShown, setPrefs, countDay, learn, view, birthGift,
 };

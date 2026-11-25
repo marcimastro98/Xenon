@@ -1,7 +1,8 @@
 'use strict';
 // A moment of the person's own Bit, to post on TikTok, Reels or Shorts: a short vertical video
-// of their Bit saying hello, doing its own favourite move and a dance, then striking a pose, in
-// its outfit, on the birth card's ground (card.js `paint`) with its name and the site. Drawn
+// of their Bit saying hello, doing its own favourite move and a dance, then striking its own pose
+// (card-dna.js), in its outfit, on the birth card's ground in its colour (card.js `paint`) with
+// its name and the site. Drawn
 // frame by frame from the engine (Xenon.bit.renderFrame) on a canvas and recorded by the
 // browser (MediaRecorder), never a capture of the screen. Made only when asked, in the Bit
 // sheet; where this browser cannot record a canvas the sheet does not offer it.
@@ -21,6 +22,7 @@
   // MP4 first: it is what every app takes; WebM where the browser records nothing else.
   const TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   const FILL = ['hop', 'spin', 'dance'];
+  const HOLD_MS = 1600; // the last pose, held so the video ends on it
 
   const code = () => (typeof lang === 'string' ? lang : 'en');
 
@@ -33,29 +35,31 @@
   }
 
   // What plays, frame by frame: hello, its quirk, a dance, more moves until six seconds are
-  // filled, then the pose it strikes for a photo. Pure: `clipOf` is Xenon.bit.clip.
-  function timeline(quirk, clipOf) {
+  // filled, then its pose: `end` is { clip, frame }, played up to that frame and held there.
+  // Pure: `clipOf` is Xenon.bit.clip.
+  function timeline(quirk, clipOf, end) {
     const lengthOf = (c) => c.frames.reduce((s, f) => s + (Number(f.ms) || 0), 0);
     const usable = (id) => {
       const c = typeof id === 'string' ? clipOf(id) : null;
       return c?.frames?.length && lengthOf(c) > 0 ? c : null;
     };
     const clips = [...new Set(['wave', quirk, 'dance'])].map(usable).filter(Boolean);
-    const end = usable('pose');
-    const sum = () => clips.reduce((s, c) => s + lengthOf(c), 0) + (end ? lengthOf(end) : 0);
+    const last = end?.clip?.frames?.length ? end : null;
+    const stop = last ? Math.min(Math.max(0, last.frame | 0), last.clip.frames.length - 1) : 0;
+    const lead = last ? last.clip.frames.slice(0, stop).reduce((s, f) => s + (Number(f.ms) || 0), 0) + HOLD_MS : 0;
+    const sum = () => clips.reduce((s, c) => s + lengthOf(c), 0) + lead;
     for (const id of FILL) {
       if (sum() >= MIN_MS) break;
       const c = usable(id);
-      if (c) clips.push(c);
+      if (c && !clips.includes(c)) clips.push(c);
     }
-    if (end) clips.push(end);
     const steps = [];
     let at = 0;
-    for (const c of clips) {
-      c.frames.forEach((f, i) => {
-        const ms = Number(f.ms) || 0;
-        if (ms > 0) { steps.push({ c, i, at, ms }); at += ms; }
-      });
+    const add = (c, i, ms) => { if (ms > 0) { steps.push({ c, i, at, ms }); at += ms; } };
+    for (const c of clips) c.frames.forEach((f, i) => { add(c, i, Number(f.ms) || 0); });
+    if (last) {
+      for (let i = 0; i < stop; i++) add(last.clip, i, Number(last.clip.frames[i].ms) || 0);
+      add(last.clip, stop, HOLD_MS);
     }
     return { steps, total: at };
   }
@@ -90,29 +94,30 @@
 
   // What stays still under the Bit: the ink, the mark, its name and number, and at the foot
   // the tagline and the site.
-  async function groundFor(said, P) {
+  async function groundFor(said, P, tone) {
     const logo = await P.brand();
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = P.INK;
+    ctx.fillStyle = tone.ink;
     ctx.fillRect(0, 0, W, H);
     if (logo) ctx.drawImage(logo, SAFE.x, SAFE.top, 56, 56);
-    ctx.fillStyle = P.TEXT;
+    ctx.fillStyle = tone.text;
     ctx.font = `700 36px ${P.FONT}`;
     ctx.fillText('Xenon', logo ? SAFE.x + 70 : SAFE.x, SAFE.top + 41);
     ctx.textAlign = 'center';
     const big = P.fitLines(ctx, said.big, W - 2 * SAFE.x, 1, 800, [104, 88, 72]);
     ctx.fillText(big.lines[0] || '', W / 2, 470);
     if (said.small) {
-      ctx.fillStyle = P.MUTED;
+      ctx.fillStyle = tone.muted;
       ctx.fillText(P.fitLines(ctx, said.small, W - 2 * SAFE.x, 1, 500, [38, 34, 30]).lines[0] || '', W / 2, 536);
     }
-    ctx.fillStyle = P.TEXT;
-    const tag = P.fitLines(ctx, said.tagline, W - 2 * SAFE.x, 2, 600, [42, 38, 34]);
+    // Under the Bit: that no other Bit looks like it (card.js says when that is known), then the tagline.
+    ctx.fillStyle = tone.text;
+    const tag = P.fitLines(ctx, [said.about, said.tagline].filter(Boolean).join(' '), W - 2 * SAFE.x, 2, 600, [42, 38, 34]);
     tag.lines.forEach((line, i) => { ctx.fillText(line, W / 2, 1460 + i * (tag.size + 12)); });
-    ctx.fillStyle = P.MUTED;
+    ctx.fillStyle = tone.muted;
     ctx.font = `600 40px ${P.FONT}`;
     ctx.fillText('xenon-app.com', W / 2, 1600);
     return canvas;
@@ -123,10 +128,12 @@
   async function record(bit, said, type, signal, live) {
     const X = window.Xenon;
     const P = window.BitCard.paint;
-    const look = X.bitLook.lookOf(bit.genes, { worn: X.bitWardrobe.outfit(bit.worn || []), background: P.INK });
-    const { steps, total } = timeline(bit.genes?.quirk, X.bit.clip);
+    const tone = P.toneOf(bit);
+    const look = X.bitLook.lookOf(bit.genes, { worn: X.bitWardrobe.outfit(bit.worn || []), background: tone.ink });
+    const D = window.BitDna;
+    const { steps, total } = timeline(bit.genes?.quirk, X.bit.clip, D ? D.pose(D.poseOf(bit)) : null);
     if (!total) throw new Error('no_clip');
-    const base = await groundFor(said, P);
+    const base = await groundFor(said, P, tone);
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -198,7 +205,7 @@
   // the sheet draws itself again on every change the server tells.
   let made = null; // { key, blob, url, file }
   let busy = null; // { canvas }
-  const keyOf = (bit) => JSON.stringify([bit.number, bit.name, bit.worn, bit.genes]);
+  const keyOf = (bit) => JSON.stringify([bit.number, bit.name, bit.worn, bit.genes, bit.prefs?.pose]);
 
   /**
    * The sheet's part: a button that makes the video, then the video and what to do with it.

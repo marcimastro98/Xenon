@@ -169,7 +169,6 @@ window.DeckEditorActionIcons = () => {
       airflowMode: _ai('<circle cx="12" cy="12" r="1.5"/><path d="M12 10.5C12 6 13 3 16 3s4 3 0 6l-2.6 2M13.5 12c4.5 0 7.5 1 7.5 4s-3 4-6 0l-2-2.6M12 13.5c0 4.5-1 7.5-4 7.5s-4-3 0-6l2.6-2M10.5 12C6 12 3 11 3 8s3-4 6 0l2 2.6"/>'),
       // The person's own Bit: its face when the app has drawn it, a plain mark before.
       bitReact: (window.BitApp && BitApp.icon('happy')) || _ai('<path d="M7 11V6a1.5 1.5 0 0 1 3 0v4M10 10V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V12M16 9a1.5 1.5 0 0 1 3 0v5a7 7 0 0 1-12.5 4.3L4 15a1.6 1.6 0 0 1 2.4-2.1L7 13.5"/>'),
-      bitGift: _ai('<rect x="3" y="9" width="18" height="4" rx="1"/><path d="M5 13v8h14v-8M12 9v12M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z"/>'),
       bitPlace: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><rect x="14" y="13" width="4" height="4" rx="1"/>'),
       desktopWallpaper: _ai('<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M6 13l3.5-4 3 3 2-2 3.5 3"/>'),
     };

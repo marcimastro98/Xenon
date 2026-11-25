@@ -53,6 +53,16 @@
     ui.player = player;
   }
 
+  // Its own colours on the sheet: the stage on the deep ground of its card, "Yours" in its body colour.
+  function paintTone(bit) {
+    const tone = bit.hatched ? window.BitDna?.colors(bit) : null;
+    const body = bit.hatched && bit.genes ? window.Xenon?.bitGenome?.palette(bit.genes.palette)?.body : null;
+    for (const [key, value] of [['--bitc-ink', tone?.ink], ['--bitc-ink-text', tone?.text], ['--bitc-body', body]]) {
+      if (value) ui.sheet.style.setProperty(key, value);
+      else ui.sheet.style.removeProperty(key);
+    }
+  }
+
   // Who it is, how old, then in plain sentences: one of the Founders, its rarest trait with the true odds.
   function factsOf(bit) {
     return [
@@ -85,7 +95,7 @@
   }
 
   function traits(bit) {
-    const box = makeEl('section', 'bitc-part');
+    const box = makeEl('section', 'bitc-part bitc-learn');
     box.append(makeEl('h3', 'bitc-part-title', say('mybit_traits')));
     const list = makeEl('ul', 'bitc-traits');
     for (const tr of Array.isArray(bit.traits) ? bit.traits : []) {
@@ -124,7 +134,7 @@
 
   function prefs(bit) {
     const p = bit.prefs || {};
-    const box = makeEl('section', 'bitc-part');
+    const box = makeEl('section', 'bitc-part bitc-prefs');
     box.append(choice(say('mybit_place'), 'place', PLACES, p.place, (v) => say(`mybit_place_${v}`)));
     if (bit.hatched) box.append(choice(say('mybit_reactions'), 'reactions', REACTIONS, p.reactions, (v) => say(`mybit_react_${v}`)));
     if (bit.hatched) {
@@ -144,40 +154,62 @@
     if (out.ok) told(out); else note(say('mybit_save_failed'));
   }
 
+  // What can leave the sheet: the card, the month's card, the short video, the page on the site.
+  function share(bit, hands) {
+    const box = makeEl('section', 'bitc-part bitc-share');
+    box.append(makeEl('h3', 'bitc-part-title', say('mybit_share_title')));
+    // Its pose on the card and at the end of the video: its own from the DNA, or the next one.
+    const D = window.BitDna;
+    if (D) {
+      const line = makeEl('div', 'bitc-pose');
+      line.append(makeEl('p', 'bitc-line', say(bit.prefs?.pose ? 'mybit_pose_chosen' : 'mybit_pose_own')));
+      const turn = makeEl('button', 'bitc-seg-btn', say('mybit_pose_change'));
+      turn.type = 'button';
+      turn.addEventListener('click', () => { const next = D.nextPose(bit); hands.play(next || D.poseOf({ genes: bit.genes })); setPref({ pose: next }); }, { signal: ui.stop.signal });
+      line.append(turn);
+      box.append(line);
+    }
+    const row = makeEl('div', 'bitc-share-row');
+    for (const part of [window.BitCard?.section(bit, hands), window.BitClip?.section(bit, hands)]) if (part) row.append(part);
+    box.append(row);
+    for (const part of [window.BitRecap?.section(bit, hands), window.BitCard?.site(bit, hands)]) if (part) box.append(part);
+    return box;
+  }
+
+  // Two columns on a wide screen (who it is, sharing and settings beside the wardrobe);
+  // one on a phone, where BitCompanion.css orders the same parts: who, wardrobe, sharing.
   function fill(bit) {
     if (!ui) return;
     stage(bit);
+    ui.sheet.classList.toggle('is-hatched', !!bit.hatched);
+    paintTone(bit);
     const head = makeEl('div', 'bitc-head');
     const title = makeEl('h2', 'bitc-title', bit.hatched ? say('mybit_title') : say('mybit_egg_label'));
     title.id = 'bitc-title';
     head.append(title);
-    const parts = [head];
+    const side = makeEl('div', 'bitc-side');
+    const main = makeEl('div', 'bitc-main');
+    const n = makeEl('p', 'bitc-note');
+    n.setAttribute('role', 'status');
+    side.append(head);
     if (bit.hatched) {
       head.append(nameField(bit));
       const facts = makeEl('ul', 'bitc-facts');
       for (const line of factsOf(bit)) facts.append(makeEl('li', '', line));
-      parts.push(facts);
-      for (const part of [
-        window.BitCard?.section(bit, wardrobeHands()),
-        window.BitRecap?.section(bit, wardrobeHands()),
-        window.BitClip?.section(bit, wardrobeHands()),
-      ]) {
-        if (part) parts.push(part);
-      }
-      const dress = window.BitWardrobe?.section(bit, wardrobeHands());
-      if (dress) parts.push(dress);
-      parts.push(traits(bit));
+      const hands = wardrobeHands();
+      side.append(facts, n, share(bit, hands), prefs(bit));
+      const dress = window.BitWardrobe?.section(bit, hands);
+      if (dress) main.append(dress);
+      main.append(traits(bit));
     } else {
-      head.append(makeEl('p', 'bitc-line', say('mybit_egg_line')));
+      // A founder learns here why theirs carries the mark.
+      head.append(makeEl('p', 'bitc-line', say(bit.founder ? 'mybit_card_text' : 'mybit_egg_line')));
       const go = makeEl('button', 'bitc-go', say('mybit_hatch'));
       go.type = 'button';
       go.addEventListener('click', hatch, { signal: ui.stop.signal });
-      parts.push(go);
+      side.append(go, n, prefs(bit));
     }
-    const n = makeEl('p', 'bitc-note');
-    n.setAttribute('role', 'status');
-    parts.push(n, prefs(bit));
-    ui.body.replaceChildren(...parts);
+    ui.body.replaceChildren(side, main);
   }
 
   // What the wardrobe may do in this sheet: ask the server, play on the big Bit, draw again.
@@ -258,5 +290,7 @@
     return true;
   }
 
+  // Other cards wait while the sheet is open (alerts/interrupt-queue.js).
+  if (window.XenonInterrupts) window.XenonInterrupts.registerOverlay('.bitc-overlay');
   window.BitSheet = { open, close, isOpen: () => !!ui };
 })();

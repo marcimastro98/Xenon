@@ -33,23 +33,29 @@ function load(extra = {}, canvas = { prototype: { captureStream() {} } }) {
   return window.BitClip;
 }
 
-test('it plays hello, its own quirk, a dance, then more moves to six seconds, and ends on its pose', () => {
+test('it plays hello, its own quirk, a dance, then more moves to six seconds, and ends held on its pose', () => {
   const C = load();
+  const end = { clip: bit.clip('pose'), frame: 3 };
   for (const { id } of QUIRKS) {
-    const { steps, total } = C.timeline(id, bit.clip);
+    const { steps, total } = C.timeline(id, bit.clip, end);
     const order = steps.filter((s, i) => i === 0 || steps[i - 1].c !== s.c).map((s) => s.c.id);
     assert.ok(total >= 6000, `${id}: ${total} ms`);
     assert.equal(order[0], 'wave', id);
     assert.ok(order.includes(id), `${id} is in its own video`);
     assert.equal(order.at(-1), 'pose', id);
     assert.equal(new Set(order).size, order.length, `${id}: no move twice (${order})`);
-    assert.equal(total, order.reduce((s, c) => s + lengthOf(bit.clip(c)), 0), `${id}: every frame, each for its own time`);
+    assert.deepEqual([steps.at(-1).i, steps.at(-1).ms], [3, 1600], `${id}: the pose's frame is held`);
+    assert.equal(total, steps.reduce((sum, s) => sum + s.ms, 0));
     steps.forEach((s, i) => assert.equal(s.at, i ? steps[i - 1].at + steps[i - 1].ms : 0));
   }
-  assert.deepEqual([...C.timeline('dance', bit.clip).steps.filter((s, i, all) => !i || all[i - 1].c !== s.c).map((s) => s.c.id)], ['wave', 'dance', 'hop', 'pose'], 'moves added only while short of six seconds');
-  const unknown = C.timeline('notAMove', bit.clip);
+  const peek = C.timeline('wink', bit.clip, { clip: bit.clip('peek'), frame: 5 }).steps.at(-1);
+  assert.deepEqual([peek.c.id, peek.i], ['peek', 5], 'another pose ends on its own frame');
+  const moves = (e) => [...C.timeline('dance', bit.clip, e).steps.filter((s, i, all) => !i || all[i - 1].c !== s.c).map((s) => s.c.id)];
+  assert.deepEqual(moves(end), ['wave', 'dance', 'pose'], 'six seconds already');
+  assert.deepEqual(moves({ clip: bit.clip('pose'), frame: 0 }), ['wave', 'dance', 'hop', 'spin', 'pose'], 'moves added only while short of six seconds');
+  const unknown = C.timeline('notAMove', bit.clip, end);
   assert.ok(unknown.total >= 6000, 'a quirk this engine does not know is left out, not a hole');
-  assert.equal(C.timeline('wave', () => null).total, 0, 'no clips: nothing to record');
+  assert.equal(C.timeline('wave', () => null, null).total, 0, 'no clips: nothing to record');
 });
 
 test('it records MP4 where the browser can, WebM where it cannot, and is not offered where it records nothing', () => {
@@ -105,7 +111,7 @@ test('drawn frame by frame from the engine, never a capture; the sheet offers it
   assert.match(SRC, /URL\.revokeObjectURL\(made\.url\)/, 'the video is let go when the sheet closes');
   assert.match(SRC, /prefers-reduced-motion/);
   const sheet = read('js/bit-companion/sheet.js');
-  assert.match(sheet, /window\.BitClip\?\.section\(bit, wardrobeHands\(\)\)/);
+  assert.match(sheet, /window\.BitClip\?\.section\(bit, hands\)/);
   assert.match(sheet, /window\.BitClip\?\.reset\(\);/);
   const page = read('index.html');
   const at = page.indexOf('src="js/bit-companion/clip.js"');

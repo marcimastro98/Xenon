@@ -1,12 +1,11 @@
 'use strict';
 // What Bit in the chat, a Deck key and a paired phone do with the person's own Bit
-// (js/capabilities/catalog-bit.js): the same steps as the routes (model.js,
-// gifts.js) on the same store, so what it owns and the one gift a day hold once.
+// (js/capabilities/catalog-bit.js): the same steps as the routes (model.js) on the same
+// store, so what it wears and owns holds once.
 // A change is heard on every surface as the 'bit' event; a move as 'bit_play',
 // which every own Bit of the page plays (js/bit-companion/moments.js).
 
 const Model = require('./model.js');
-const Gifts = require('./gifts.js');
 const { MOVES } = require('../js/capabilities/catalog-bit.js');
 
 const PICKABLE = MOVES.filter((m) => m !== 'surprise');
@@ -16,10 +15,9 @@ function brief(view) {
   if (!view.hatched) return { hatched: false, founder: view.founder, place: view.prefs.place };
   return {
     hatched: true, name: view.name, number: view.number, local: view.local, founder: view.founder,
-    stage: view.stage, days: view.days, rarest: view.rarity[0] || null,
+    stage: view.stage, days: view.days, lookOneIn: view.lookOneIn,
     traits: view.traits.map((t) => ({ id: t.id, item: t.item, progress: t.progress, earned: t.earned })),
     worn: view.worn, owned: view.owned,
-    gift: { ready: view.gifts.gift.ready, last: view.gifts.gift.last }, bolts: view.gifts.bolts,
     place: view.prefs.place, reactions: view.prefs.reactions,
     // Which recap cards its sheet can make, never what they count: a cloud model (Bit on Sparks
     // goes through Xenon's server) hears only that one is there.
@@ -77,7 +75,6 @@ function createBitActions({ store, broadcast, now = () => new Date(), random = M
         return model ? { ok: true, bit: brief(Model.view(model, now())) } : { ok: false, error: 'egg' };
       }
       case 'bitReact': return move(action);
-      case 'bitGift': return change((m) => Gifts.open(m, now(), Model.ownedItems(m)));
       case 'bitPlace': return change((m) => Model.setPrefs(m, { place: action.place }));
       case 'bitRename': return change((m) => Model.rename(m, String(action.name ?? '')));
       case 'bitWear': return change((m) => wearOne(m, action));

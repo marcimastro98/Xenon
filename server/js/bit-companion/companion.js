@@ -138,11 +138,31 @@
     })), { bit: ids });
   }
 
+  // Every egg is met once, on its first day (a new install's, or a founder's right after the
+  // update), when the first-run choice and anything else on screen are gone: the corner alone
+  // is too small to be found.
+  const MET = 'xenon.bit.metEgg';
+  function meetEgg() {
+    if (told || bit.prefs?.place === 'off' || !(Date.now() - Date.parse(bit.eggAt) < 24 * 3600 * 1000)) return;
+    told = true;
+    // Kept per egg: a new egg on the same browser (a reinstall) is met again, and the mark is
+    // written only once the sheet is really open.
+    const show = () => {
+      try { if (localStorage.getItem(MET) === bit.eggAt) return; } catch { return; }
+      if (bit.hatched || !window.BitSheet?.open()) return;
+      try { localStorage.setItem(MET, bit.eggAt); } catch { /* shown; at worst shown again */ }
+    };
+    const I = window.XenonInterrupts;
+    if (I) I.whenIdle(show, { priority: I.PRIORITY.message }); else show();
+  }
+
   function tellEgg() {
     const M = window.BitMessages;
-    if (!M || bit?.ok !== true) return;
+    if (bit?.ok !== true) return;
+    if (!bit.hatched) meetEgg();
+    if (!bit.hatched && !bit.founder) return;
+    if (!M) return;
     if (bit.hatched) { tellRecaps(M); return; }
-    if (!bit.founder) return;
     if (told || bit.prefs?.place === 'off') return;
     told = true;
     const body = t('mybit_card_text');

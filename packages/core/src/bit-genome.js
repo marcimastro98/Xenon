@@ -162,5 +162,8 @@
     return traits.map((t) => ({ ...t, oneIn: Math.round(1 / t.chance) })).sort((a, b) => a.chance - b.chance);
   }
 
-  return { VERSION, PALETTES, palette, normalizeSeed, decode, fingerprint, lookCount, rarity, odds, stream };
+  /** How many Bits it takes, on average, to see this whole look once: every visible gene's odds together. */
+  const lookOneIn = (g) => Math.round(1 / rarity(g).reduce((p, t) => p * t.chance, 1));
+
+  return { VERSION, PALETTES, palette, normalizeSeed, decode, fingerprint, lookCount, rarity, lookOneIn, odds, stream };
 });

@@ -37,33 +37,33 @@ test('the months as kept: garbage dropped, counts made whole, the newest fourtee
   const out = Months.normalize(raw);
   assert.equal(Object.keys(out).length, Months.KEEP);
   assert.deepEqual(Object.keys(out).slice(0, 2), ['2025-01', '2025-02']);
-  assert.deepEqual(out['2026-11'], { days: 0, gaming: 12, music: 0, coding: 0, hot: 0, night: 0, early: 0, gifts: 0, items: ['beanie'] });
+  assert.deepEqual(out['2026-11'], { days: 0, gaming: 12, music: 0, coding: 0, hot: 0, night: 0, early: 0, items: ['beanie'] });
   assert.equal(out['2026-10'].days, 0);
   assert.deepEqual(Months.normalize([1, 2]), {});
   assert.deepEqual(Months.normalize(null), {});
   assert.deepEqual(Model.normalize({}).months, {}, 'a bit.json from before the months has none');
 });
 
-test('every change counts in its month: the hatch, the days, the minutes, the gift and the items', async (t) => {
+test('every change counts in its month: the hatch, the days, the minutes and the items', async (t) => {
   const { store, clock } = storeAt(t, new Date(2026, 10, 3, 12, 0));
   await store.create(false);
   await store.update((m) => Model.hatched(m, born, clock.now));
   let month = (await store.ready()).months['2026-11'];
   assert.equal(month.days, 1, 'the day it hatched');
-  assert.equal(month.items.length, 1, 'with its birth gift');
+  assert.equal(month.items.length, 1, 'with the item it hatched wearing');
   for (let i = 0; i < 90; i++) await store.remember((m) => Model.learn(m, minute, clock.now));
   clock.now = new Date(2026, 10, 4, 2, 0);
   await store.remember((m) => Model.learn(m, { active: true }, clock.now));
   await store.update((m) => Model.countDay(m, clock.now));
   month = (await store.ready()).months['2026-11'];
   assert.deepEqual([month.days, month.gaming, month.music, month.night], [2, 90, 90, 1]);
+  // The first of December: a new day, and winter's items with it.
   clock.now = new Date(2026, 11, 1, 9, 0);
-  const Gifts = require('../bit/gifts.js');
-  await store.update((m) => Gifts.open(m, clock.now, Model.ownedItems(m)));
   await store.update((m) => Model.countDay(m, clock.now));
   const all = (await store.ready()).months;
   assert.deepEqual(Object.keys(all), ['2026-11', '2026-12']);
-  assert.equal(all['2026-12'].gifts, 1);
+  assert.ok(!('gifts' in all['2026-12']), 'no daily gift to count any more');
+  assert.ok(all['2026-12'].items.includes('scarf'), "the season's items are the month's");
   assert.equal(all['2026-12'].days, 1);
   assert.equal(all['2026-11'].days, 2, 'last month stays as it closed');
   await store.update((m) => Model.rename(m, 'Pixel'));
