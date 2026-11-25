@@ -8106,6 +8106,7 @@ module.exports = {
   mybit_keep: 'Conseguir para tu Bit',
   mybit_keep_join: 'Hazte mecenas',
   mybit_keep_expired: 'Tu pase de mecenas ha caducado. Renuévalo para conseguir este objeto.',
+  mybit_keep_unavailable: 'Este objeto no se puede conseguir ahora mismo. Inténtalo más tarde.',
   mybit_keep_no_pass: 'Se consigue con un pase de mecenas guardado en este PC.',
   mybit_keep_pc_only: 'Los objetos de mecenas y de la tienda se consiguen desde el PC.',
   mybit_kept: 'Hecho, tu Bit se lo queda para siempre.',

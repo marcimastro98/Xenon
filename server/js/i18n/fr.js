@@ -8054,6 +8054,7 @@ module.exports = {
   mybit_keep: 'Obtenir pour votre Bit',
   mybit_keep_join: 'Devenir supporter',
   mybit_keep_expired: 'Votre pass supporter a expiré. Renouvelez-le pour obtenir cet objet.',
+  mybit_keep_unavailable: 'Cet objet n’est pas disponible pour le moment. Réessayez plus tard.',
   mybit_keep_no_pass: 'Il s’obtient avec un pass supporter enregistré sur ce PC.',
   mybit_keep_pc_only: 'Les objets des supporters et de la boutique s’obtiennent depuis le PC.',
   mybit_kept: 'C’est fait, votre Bit le garde pour de bon.',

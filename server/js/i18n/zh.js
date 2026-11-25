@@ -8209,6 +8209,7 @@ module.exports = {
   mybit_keep: '为 Bit 领取',
   mybit_keep_join: '成为支持者',
   mybit_keep_expired: '你的支持者通行证已过期。续订后即可领取此物品。',
+  mybit_keep_unavailable: '这件物品现在无法领取。请稍后再试。',
   mybit_keep_no_pass: '使用此电脑上保存的支持者通行证领取。',
   mybit_keep_pc_only: '支持者物品和商店物品需在电脑上领取。',
   mybit_kept: '完成，你的 Bit 会永久保留它。',

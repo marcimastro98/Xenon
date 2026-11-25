@@ -8209,6 +8209,7 @@ module.exports = {
   mybit_keep: 'Bit에게 받기',
   mybit_keep_join: '후원자 되기',
   mybit_keep_expired: '후원자 패스가 만료됐어요. 갱신하면 이 아이템을 받을 수 있어요.',
+  mybit_keep_unavailable: '이 아이템은 지금 받을 수 없어요. 나중에 다시 시도해 주세요.',
   mybit_keep_no_pass: '이 PC에 저장된 후원자 패스로 받을 수 있어요.',
   mybit_keep_pc_only: '후원자 아이템과 상점 아이템은 PC에서 받아요.',
   mybit_kept: '완료. 당신의 Bit가 계속 가지고 있어요.',

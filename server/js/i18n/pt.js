@@ -8103,6 +8103,7 @@ module.exports = {
   mybit_keep: 'Obter para o teu Bit',
   mybit_keep_join: 'Torna-te apoiante',
   mybit_keep_expired: 'O teu passe de apoiante expirou. Renova-o para obter este objeto.',
+  mybit_keep_unavailable: 'Este objeto não está disponível neste momento. Tenta mais tarde.',
   mybit_keep_no_pass: 'Obtém-se com um passe de apoiante guardado neste PC.',
   mybit_keep_pc_only: 'Os objetos dos apoiantes e da loja obtêm-se no PC.',
   mybit_kept: 'Feito, o teu Bit fica com ele para sempre.',

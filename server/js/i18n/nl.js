@@ -8214,6 +8214,7 @@ module.exports = {
   mybit_keep: 'Neem voor je Bit',
   mybit_keep_join: 'Word supporter',
   mybit_keep_expired: 'Je supporterpas is verlopen. Verleng hem om dit item te nemen.',
+  mybit_keep_unavailable: 'Dit item is nu niet te krijgen. Probeer het later opnieuw.',
   mybit_keep_no_pass: 'Je neemt het met een supporterpas die op deze pc is opgeslagen.',
   mybit_keep_pc_only: 'Items voor supporters en uit de winkel neem je op de pc.',
   mybit_kept: 'Klaar, je Bit houdt het voorgoed.',

@@ -134,7 +134,7 @@ test('no file opens the membership on its own any more', () => {
   const known = new Set([
     'ai/ai-xenon-settings.js', 'community-gallery/community-gallery.js', 'devclean-widget/devclean-widget.js', 'media/lyrics-widget.js',
     'presets/preset-share.js', 'store-supporters/support-appeal.js', 'store-supporters/support-card.js', 'store-supporters/support-sheet.js',
-    'store-supporters/trial-pass-ui.js', 'store-supporters/bit-trial-end.js',
+    'store-supporters/trial-pass-ui.js', 'store-supporters/bit-trial-end.js', 'bit-companion/wardrobe-keep.js',
   ]);
   const found = [];
   const walk = (at) => {

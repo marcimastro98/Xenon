@@ -353,6 +353,21 @@ test('a run-out pass says so and offers renewing', async (t) => {
   assert.ok(shown(r2.sheet().querySelector('.bitw-join')), 'renewing is one tap away');
 });
 
+test('an answer from the hub is never read as offline', async (t) => {
+  const cases = [['revoked', 'sparks_err_revoked'], ['bad_code', 'preset_redeem_saved_stale'], ['bad_entry', 'mybit_keep_unavailable'],
+    ['network', 'preset_redeem_offline']];
+  for (const [error, line] of cases) {
+    await t.test(error, async (st) => {
+      const r = keepRig(st, { answers: { '/api/bit/claim': { ok: false, error } } });
+      itemButton(r.sheet(), 'crown').click();
+      await settle(30);
+      r.sheet().querySelector('.bitw-detail .bitw-pick').click();
+      await settle(30);
+      assert.equal(r.sheet().querySelector('.bitc-note').textContent, line);
+    });
+  }
+});
+
 test('a shop item is bought only with the box ticked, and short Sparks lead to the Store', async (t) => {
   const r = keepRig(t, { answers: { '/api/bit/buy': { ok: false, error: 'no_sparks', balance: 10, price: 50 } } });
   itemButton(r.sheet(), 'bowtie').click();
@@ -503,7 +518,7 @@ test('a founder\'s egg files one card to hatch it; a fresh hatch takes it back, 
   assert.equal(JSON.stringify(filed[1]), '{"messages":[],"live":{"bit":[]}}');
   const later = rig();
   const none = [];
-  later.ctx.BitMessages = { file: (m, live) => { none.push(live); return Promise.resolve(true); }, firstLine: (s) => s };
+  later.ctx.BitMessages = { file: (_m, live) => { none.push(live); return Promise.resolve(true); }, firstLine: (s) => s };
   later.tell(born({}, { founder: true, born: '2026-01-01T00:00:00.000Z' }));
   later.tell({ ...egg({ place: 'off' }), founder: true });
   assert.deepEqual(none, [], 'hatched long ago, or no Bit wanted anywhere');

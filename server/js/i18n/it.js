@@ -8225,6 +8225,7 @@ module.exports = {
   mybit_keep: 'Prendi per il tuo Bit',
   mybit_keep_join: 'Diventa sostenitore',
   mybit_keep_expired: 'Il tuo pass da sostenitore è scaduto. Rinnovalo per prendere questo oggetto.',
+  mybit_keep_unavailable: 'Questo oggetto non si può prendere in questo momento. Riprova più tardi.',
   mybit_keep_no_pass: 'Si prende con un pass da sostenitore salvato su questo PC.',
   mybit_keep_pc_only: 'Gli oggetti dei sostenitori e della bottega si prendono dal PC.',
   mybit_kept: 'Fatto, il tuo Bit lo tiene per sempre.',

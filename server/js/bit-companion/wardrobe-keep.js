@@ -85,7 +85,11 @@
     if (e === 'limit') return ctx.say('preset_redeem_limit');
     if (e === 'rate_limited' || e === 'busy') return ctx.say('devclean_unlock_rate');
     if (e === 'egg' || e === 'bad_item' || e === 'write_failed') return ctx.say('mybit_save_failed');
-    return ctx.say('preset_redeem_offline');
+    // The hub answered: a code it no longer takes, or an item it does not open right now, is never "offline".
+    if (e === 'revoked') return ctx.say('sparks_err_revoked');
+    if (e === 'bad_code' || e === 'wrong_code') return ctx.say('preset_redeem_saved_stale');
+    if (e === 'network') return ctx.say('preset_redeem_offline');
+    return ctx.say('mybit_keep_unavailable');
   }
 
   // Kept: it goes on at once (it was being tried on), and the wardrobe redraws as owned.

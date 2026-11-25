@@ -8074,6 +8074,7 @@ module.exports = {
   mybit_keep: 'Für deinen Bit holen',
   mybit_keep_join: 'Unterstützer werden',
   mybit_keep_expired: 'Dein Unterstützer-Pass ist abgelaufen. Verlängere ihn, um dieses Teil zu holen.',
+  mybit_keep_unavailable: 'Dieses Teil ist gerade nicht zu haben. Versuch es später noch einmal.',
   mybit_keep_no_pass: 'Du holst es mit einem Unterstützer-Pass, der auf diesem PC gespeichert ist.',
   mybit_keep_pc_only: 'Teile für Unterstützer und aus dem Laden holst du am PC.',
   mybit_kept: 'Erledigt, dein Bit behält es für immer.',

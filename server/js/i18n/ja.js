@@ -8209,6 +8209,7 @@ module.exports = {
   mybit_keep: 'Bitに受け取る',
   mybit_keep_join: 'サポーターになる',
   mybit_keep_expired: 'サポーターパスの期限が切れています。更新するとこのアイテムを受け取れます。',
+  mybit_keep_unavailable: 'このアイテムは今は受け取れません。あとでもう一度お試しください。',
   mybit_keep_no_pass: 'このPCに保存されたサポーターパスで受け取れます。',
   mybit_keep_pc_only: 'サポーター向けとショップのアイテムはPCで受け取ります。',
   mybit_kept: '完了。Bitがずっと持っています。',

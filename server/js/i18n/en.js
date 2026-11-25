@@ -8226,6 +8226,7 @@ module.exports = {
   mybit_keep: 'Keep it',
   mybit_keep_join: 'Become a supporter',
   mybit_keep_expired: 'Your supporter pass has run out. Renew it to keep this item.',
+  mybit_keep_unavailable: 'This item can’t be had right now. Try again later.',
   mybit_keep_no_pass: 'It is kept with a supporter pass saved on this PC.',
   mybit_keep_pc_only: 'Supporter and shop items are kept from the PC.',
   mybit_kept: 'Done. Your Bit keeps it for good.',

@@ -139,29 +139,37 @@
     paintAt(0);
     live(canvas);
     const stream = canvas.captureStream(FPS);
-    const chunks = [];
-    const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: BITRATE });
-    const stopped = new Promise((resolve, reject) => {
-      rec.addEventListener('dataavailable', (e) => { if (e.data?.size) chunks.push(e.data); });
-      rec.addEventListener('stop', resolve, { once: true });
-      rec.addEventListener('error', (e) => reject(e.error || new Error('record_failed')), { once: true });
-    });
-    rec.start();
-    const t0 = performance.now();
-    await new Promise((resolve) => {
-      const tick = () => {
-        const t = performance.now() - t0;
-        if (t >= total || signal.aborted) { resolve(); return; }
-        paintAt(t);
+    // The stream's track stops however this ends, a recorder that would not start included.
+    try {
+      const chunks = [];
+      const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: BITRATE });
+      let failed = false;
+      const stopped = new Promise((resolve, reject) => {
+        rec.addEventListener('dataavailable', (e) => { if (e.data?.size) chunks.push(e.data); });
+        rec.addEventListener('stop', resolve, { once: true });
+        rec.addEventListener('error', (e) => reject(e.error || new Error('record_failed')), { once: true });
+      });
+      // An error while recording ends the loop; it is thrown by the await below, never left unhandled.
+      stopped.catch(() => { failed = true; });
+      rec.start();
+      const t0 = performance.now();
+      await new Promise((resolve) => {
+        const tick = () => {
+          const t = performance.now() - t0;
+          if (t >= total || signal.aborted || failed) { resolve(); return; }
+          paintAt(t);
+          requestAnimationFrame(tick);
+        };
         requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    });
-    rec.stop();
-    try { await stopped; } finally { for (const track of stream.getTracks()) track.stop(); }
-    if (signal.aborted) throw new Error('aborted');
-    if (!chunks.length) throw new Error('record_failed');
-    return new Blob(chunks, { type: type.split(';')[0] });
+      });
+      if (rec.state !== 'inactive') rec.stop();
+      await stopped;
+      if (signal.aborted) throw new Error('aborted');
+      if (!chunks.length) throw new Error('record_failed');
+      return new Blob(chunks, { type: type.split(';')[0] });
+    } finally {
+      for (const track of stream.getTracks()) track.stop();
+    }
   }
 
   // Save and share, where this browser can (no copy: a clipboard takes no video).

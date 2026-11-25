@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-561 routes.
-- Asked by: 1 before the chain, 56 chain, 34 feature, 4 socket, 466 table.
-- Paired device: 34 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 420 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 360 (none), 192 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+563 routes.
+- Asked by: 1 before the chain, 56 chain, 36 feature, 4 socket, 466 table.
+- Paired device: 36 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 420 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 360 (none), 194 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -55,6 +55,8 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | GET | `/api/ai/xenon/balance` | table | server/ai/routes.js | yes |  |  |  |
 | GET | `/api/battery` | table | server/system/routes-info.js | yes |  |  |  |
 | GET | `/api/bit` | feature | server/bit/routes.js | yes |  |  |  |
+| POST | `/api/bit/buy` | feature | server/bit/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
+| POST | `/api/bit/claim` | feature | server/bit/routes.js | no: REMOTE_ADMIN | CSRF_MUTATION_PATHS |  |  |
 | POST | `/api/bit/gift` | feature | server/bit/routes.js | yes | CSRF_MUTATION_PATHS |  |  |
 | POST | `/api/bit/hatch` | feature | server/bit/routes.js | yes | CSRF_MUTATION_PATHS |  |  |
 | POST | `/api/bit/name` | feature | server/bit/routes.js | yes | CSRF_MUTATION_PATHS |  |  |
