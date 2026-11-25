@@ -2316,7 +2316,7 @@ module.exports = {
   settings_vitals_enabled: 'Enable Vitals',
   settings_vitals_enabled_hint: 'Game-style bars (hydration, energy, movement, focus) that drain with time at the PC: tap them to refill',
   settings_vitals_topbar: 'Mini indicators in the top bar',
-  settings_vitals_topbar_hint: 'small pixel icons next to the clock and weather: tap an icon to refill',
+  settings_vitals_topbar_hint: 'Small pixel icons next to the clock and weather: tap an icon to refill',
   settings_vitals_reminders: 'Pop-up reminders',
   settings_vitals_reminders_hint: 'An alert when a vital drops below 25%: tap it to see the tip',
   settings_vpet: 'Bit: the pixel guardian',

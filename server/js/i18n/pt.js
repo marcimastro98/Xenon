@@ -2301,7 +2301,7 @@ module.exports = {
   settings_vitals_enabled: 'Ativar Vitals',
   settings_vitals_enabled_hint: 'Barras ao estilo de videojogo (hidratação, energia, movimento, foco) que descem com o tempo ao PC: toca nelas para as recarregar',
   settings_vitals_topbar: 'Mini indicadores na barra superior',
-  settings_vitals_topbar_hint: 'pequenos ícones píxel junto ao relógio e à meteorologia: toca num ícone para recarregar',
+  settings_vitals_topbar_hint: 'Pequenos ícones píxel junto ao relógio e à meteorologia: toca num ícone para recarregar',
   settings_vitals_reminders: 'Lembretes pop-up',
   settings_vitals_reminders_hint: 'Um aviso quando um vital desce abaixo de 25%: toca para veres a dica',
   settings_vpet: 'Bit, o guardião pixel',

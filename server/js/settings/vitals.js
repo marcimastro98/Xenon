@@ -12,6 +12,21 @@ function updateVitalsSetting(field, enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// The Vitals' bars in the top bar are the bar's own Vitals segment (Settings → Top bar); this row
+// in the Vitals card switches the same thing.
+function vitalsBarsShown() {
+  const items = hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.items) ? hubSettings.topbarClock.items : [];
+  const item = items.find((it) => it && it.id === 'vitals');
+  return item ? item.hidden !== true : hubSettings.vitals?.topbar === true;
+}
+
+function updateVitalsBars(on) {
+  if (vitalsBarsShown() === !!on) return;
+  toggleTopbarIslandItem('vitals');
+  syncVitalsControls();
+  if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets();
+}
+
 function updateVitalItem(id, field, value) {
   if (!VITALS_IDS.includes(id)) return;
   const cur = hubSettings.vitals || {};
@@ -43,14 +58,33 @@ function updateVitalsPetSetting(field, value) {
   const pet = { ...(cur.pet || {}) };
   const next = (field === 'tone' || field === 'position') ? String(value) : !!value;
   // Guarded like updateVitalItem: syncVitalsControls dispatches 'change' on the
-  // tone custom-select — an unchanged value must be a no-op, not a save.
-  if (pet[field] === next) return;
+  // tone custom-select — an unchanged value must be a no-op, not a save. The
+  // place shown is the one Bit really has (saved.js position()).
+  const was = field === 'position' && window.VitalsPetSaved ? window.VitalsPetSaved.position() : pet[field];
+  if (was === next) return;
   pet[field] = next;
   hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, pet } });
   saveHubSettings();
   syncVitalsControls();
+  if (field === 'position') moveOwnBit(next);
   if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
   setSettingsStatus('settings_saved', 'ok');
+}
+
+// One "where Bit lives": the Vitals' Bit stands where the person's own Bit does (its room's place,
+// vitals-pet/saved.js), so this choice moves that one too. The server keeps it (POST /api/bit/prefs).
+async function moveOwnBit(position) {
+  const place = { floating: 'corner', topbar: 'topbar', both: 'both' }[position];
+  const own = window.BitApp && typeof window.BitApp.state === 'function' ? window.BitApp.state() : null;
+  if (!place || !own || own.ok !== true || !own.prefs || own.prefs.place === place) return;
+  try {
+    const res = await fetch(`${SERVER}/api/bit/prefs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ place }) });
+    const out = await res.json().catch(() => null);
+    if (!out?.ok || !out.bit) throw new Error(out?.error || 'bad_answer');
+    window.BitApp.heard(out.bit);
+  } catch {
+    setSettingsStatus('mybit_save_failed', 'error');
+  }
 }
 
 // Per-rung escalation delay (minutes a vital must be at zero before the stage).

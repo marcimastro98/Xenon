@@ -334,12 +334,9 @@
     const host = document.getElementById('clock-vitals');
     if (!host) return;
     const ids = (v.enabled && v.topbar) ? enabledIds(v) : [];
-    // Bit's topbar mini chip (vitals-pet.js) shares this host so it rides the
-    // minimal-island reparenting with the clock — it is NOT ours to remove:
-    // the rebuild below must preserve it, and it alone keeps the host visible.
-    const bitChip = host.querySelector('#clock-bit');
+    // Only the bars live here: Bit's chip has its own slot (#clock-bit, vitals-pet.js).
     const wasHidden = host.hidden;
-    host.hidden = !ids.length && !bitChip;
+    host.hidden = !ids.length;
     // When the vitals segment appears/disappears in the minimal island, recompute
     // the segment dividers so the first-visible "lead" (no hairline) stays correct.
     if (host.hidden !== wasHidden && window.TopbarMinimal && window.TopbarMinimal.applyIslandLayout) {
@@ -348,8 +345,7 @@
     const sig = ids.join(',');
     if (sig !== chipSig) {
       chipSig = sig;
-      if (bitChip) host.replaceChildren(bitChip);
-      else host.replaceChildren();
+      host.replaceChildren();
       ids.forEach((id) => {
         const chip = el('button', 'clock-vital');
         chip.type = 'button';

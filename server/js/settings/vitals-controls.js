@@ -1,11 +1,37 @@
 // syncVitalsControls(): shows the health-nudge settings in their controls.
 'use strict';
 
+// The bars' row, made here so index.html does not grow: under "Abilita Vitals", where people look
+// for the bars (settings/vitals.js updateVitalsBars).
+function vitalsBarsBox() {
+  const found = $('settings-vitals-topbar');
+  const after = $('settings-vitals-enabled')?.closest('label');
+  if (found || !after) return found;
+  const row = makeEl('label', 'settings-toggle-row full');
+  row.id = 'settings-vitals-topbar-row';
+  const box = makeEl('input', 'settings-check');
+  box.type = 'checkbox';
+  box.id = 'settings-vitals-topbar';
+  box.addEventListener('change', () => updateVitalsBars(box.checked));
+  const words = makeEl('span', 'settings-label-line');
+  for (const [key, cls] of [['settings_vitals_topbar', ''], ['settings_vitals_topbar_hint', 'settings-hint']]) {
+    const line = makeEl('span', cls, t(key));
+    line.dataset.i18n = key;
+    words.append(line);
+  }
+  row.append(box, words);
+  after.after(row);
+  return box;
+}
+
 function syncVitalsControls() {
   const v = hubSettings.vitals || {};
   const enabled = v.enabled !== false;
   const en = $('settings-vitals-enabled');
   if (en) en.checked = enabled;
+  const bars = vitalsBarsBox();
+  if (bars) { bars.checked = vitalsBarsShown(); bars.disabled = !enabled; }
+  $('settings-vitals-topbar-row')?.classList.toggle('is-disabled', !enabled);
   [['settings-vitals-reminders', v.reminders !== false],
    ['settings-vitals-awaypause', v.awayPause !== false]].forEach(([id, on]) => {
     const box = $(id);
@@ -50,12 +76,12 @@ function syncVitalsControls() {
   }
   const toneRow = $('settings-vpet-tone-row');
   if (toneRow) toneRow.classList.toggle('is-disabled', !petOn);
-  // Where Bit lives (floating corner / topbar chip / both) — same guarded
-  // custom-select sync pattern as the tone select.
+  // Where Bit lives (floating corner / topbar chip / both): where the person's own Bit lives when it
+  // has a place (vitals-pet/saved.js). Same guarded custom-select sync as the tone select.
   const pos = $('settings-vpet-position');
   if (pos) {
     pos.disabled = !petOn;
-    const want = ['floating', 'topbar', 'both'].includes(pet.position) ? pet.position : 'floating';
+    const want = window.VitalsPetSaved ? window.VitalsPetSaved.position() : (pet.position || 'floating');
     if (pos.value !== want) {
       pos.value = want;
       pos.dispatchEvent(new Event('change', { bubbles: true }));

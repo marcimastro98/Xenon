@@ -141,6 +141,12 @@ export function makeDom() {
       return child;
     };
     node.prepend = (...kids) => kids.slice().reverse().forEach((k) => node.insertBefore(k, node.children[0] || null));
+    node.after = (...kids) => {
+      const parent = node.parentNode;
+      if (!parent) return;
+      const ref = parent.children[parent.children.indexOf(node) + 1] || null;
+      kids.forEach((k) => parent.insertBefore(k, ref));
+    };
     node.replaceChildren = (...kids) => {
       node.children.slice().forEach((c) => c.remove());
       node._text = '';
@@ -166,6 +172,11 @@ export function makeDom() {
       const list = node._handlers[type] || [];
       const at = list.indexOf(fn);
       if (at >= 0) list.splice(at, 1);
+    };
+    // Only this node's own handlers: no bubbling here.
+    node.dispatchEvent = (event) => {
+      (node._handlers[event.type] || []).forEach((fn) => fn(Object.assign(event, { target: node })));
+      return true;
     };
     /** Fire a handler the way a tap would, including a usable event object. */
     node.click = () => (node._handlers.click || []).forEach((fn) => fn({

@@ -17,15 +17,24 @@ const src = (p) => readFileSync(join(HERE, '..', p), 'utf8');
 const SCRIPTS = [...BIT_ENGINE, 'js/ai/bit-app.js', 'js/vitals/vitals-pet-core.js', 'js/vitals-pet/vitals-pet.js'];
 const LABELS = {
   vpet_talk: 'Talk to Bit', vpet_talk_prompt: 'How are my vitals doing?', vitals_level: 'Level {n}', vitals_hydration: 'Hydration',
-  vpet_lock_in: 'Locking the computer in {s} s: {vital}!', vpet_streak_days: '{n} days in a row',
+  vpet_lock_in: 'Locking the computer in {s} s: {vital}!', vpet_streak_days: '{n} days in a row', mybit_open: 'Open your Bit',
 };
 
-function mount({ position = 'floating', levels = { hydration: 1 }, pet = {}, zeroAt = {}, mem = {} } = {}) {
+function mount({ position = 'floating', levels = { hydration: 1 }, pet = {}, zeroAt = {}, mem = {}, own = null } = {}) {
   const dom = makeDom();
   const { document, mkEl } = dom;
+  // The clock as index.html has it: the Vitals' bars, then the Bit's own slot.
   const clock = mkEl('div');
   clock.id = 'clock-vitals';
+  clock.hidden = true;
   document.body.appendChild(clock);
+  const slot = mkEl('span');
+  slot.id = 'clock-bit';
+  slot.className = 'clock-bit';
+  slot.hidden = true;
+  document.body.appendChild(slot);
+  const sheets = [];
+  const bus = new EventTarget();
   const input = mkEl('textarea');
   input.id = 'ai-text-input';
   document.body.appendChild(input);
@@ -43,6 +52,11 @@ function mount({ position = 'floating', levels = { hydration: 1 }, pet = {}, zer
     fetch: async () => ({ ok: false, json: async () => ({}) }),
     t: (k) => LABELS[k] || k,
     openAiPanel: () => opened.push(true),
+    BitSheet: { open: () => { sheets.push(true); return true; } },
+    // The page's own events ('xenon-bit' from BitApp).
+    addEventListener: (type, fn) => bus.addEventListener(type, fn),
+    dispatchEvent: (e) => bus.dispatchEvent(e),
+    CustomEvent,
     normalizeSettings: (s) => s,
     saveHubSettings() {},
     saveVitalsStateNow() {},
@@ -56,10 +70,11 @@ function mount({ position = 'floating', levels = { hydration: 1 }, pet = {}, zer
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   for (const f of SCRIPTS) vm.runInContext(src(f), sandbox, { filename: f });
+  if (own) sandbox.BitApp.heard({ ok: true, hatched: false, prefs: { place: own } });
   sandbox.VitalsPet.sync();
   const sprite = () => document.querySelector('.vpet-sprite');
   const chipSprite = () => document.querySelector('.cb-sprite');
-  return { sandbox, document, sprite, chipSprite, opened, input, tick: () => intervals.forEach((fn) => fn()), levels };
+  return { sandbox, document, sprite, chipSprite, opened, sheets, input, clock, slot, tick: () => intervals.forEach((fn) => fn()), levels };
 }
 
 test('the floating pet is a live Bit, and its mood follows the worst meter', () => {
@@ -166,4 +181,40 @@ test('the Vitals tile and the pet use no tracked capitals and no text under 11px
   }
   const tile = src('components/VitalsWidget/VitalsWidget.css');
   for (const m of tile.matchAll(/font-size:\s*(\d+)px/g)) assert.ok(Number(m[1]) >= 11, 'font-size ' + m[1] + 'px');
+});
+
+test('in the top bar the Bit has its own place: hiding the Vitals bars does not hide it', () => {
+  const r = mount({ position: 'both' });
+  const chip = r.document.querySelector('.vpet-chip');
+  assert.ok(chip, 'a chip in the bar');
+  assert.equal(chip.parentNode, r.slot, 'in #clock-bit, beside the clock');
+  assert.equal(r.slot.hidden, false);
+  assert.equal(r.clock.children.length, 0, 'nothing of the Bit among the bars');
+  assert.equal(chip.id, '', 'one #clock-bit on the page: the slot');
+  r.sandbox.hubSettings.vitals.pet.position = 'floating';
+  r.sandbox.VitalsPet.sync();
+  assert.equal(r.document.querySelector('.vpet-chip'), null);
+  assert.equal(r.slot.hidden, true, 'an empty slot hides again');
+});
+
+test("the Vitals menu opens the person's own Bit first", () => {
+  const r = mount();
+  r.sprite().click();
+  const first = r.document.querySelector('.vpet-menu').querySelectorAll('.vpet-menu-act')[0];
+  assert.equal(first.textContent, 'Open your Bit');
+  first.click();
+  assert.equal(r.sheets.length, 1, 'its room opens');
+  assert.equal(r.document.querySelector('.vpet-menu'), null, 'the menu closes');
+});
+
+test("the Vitals' Bit stands where the person's own Bit lives, and moves with it", () => {
+  const r = mount({ position: 'floating', own: 'topbar' });
+  assert.equal(r.sprite(), null, 'no corner: its room says next to the clock');
+  assert.ok(r.document.querySelector('.vpet-chip'));
+  r.sandbox.BitApp.heard({ ok: true, hatched: false, prefs: { place: 'corner' } });
+  assert.ok(r.sprite(), 'the corner now');
+  assert.equal(r.document.querySelector('.vpet-chip'), null);
+  // Hidden in its room: its warnings still need a Bit on screen, so its own setting holds.
+  r.sandbox.BitApp.heard({ ok: true, hatched: false, prefs: { place: 'off' } });
+  assert.ok(r.sprite());
 });

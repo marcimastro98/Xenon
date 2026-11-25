@@ -31,7 +31,7 @@
 (function () {
   const core = window.VitalsPetCore;
   const {
-    t, thresholdsMs, cfg, petCfg, activated, lang, vitalName, todayKey, popupsAllowed, petState,
+    t, thresholdsMs, cfg, petCfg, position, activated, lang, vitalName, todayKey, popupsAllowed, petState,
     memState, saveVitalsState, persistEp, bumpMemPatch, snoozed,
   } = window.VitalsPetSaved;
 
@@ -149,42 +149,39 @@
     releaseBits();
   }
 
-  // The topbar mini-Bit: first child of #clock-vitals, so it rides the
-  // minimal-island reparenting together with the clock exactly like the vitals
-  // chips (vitals.js syncTopbar knows to preserve it and to keep the host
-  // visible while it exists).
+  // The topbar mini-Bit: in the clock's Bit slot (#clock-bit, with a folded
+  // message), never among the Vitals' bars, which the bar hides on their own.
   function mountChip() {
     if (state.chip) return;
-    const hostEl = document.getElementById('clock-vitals');
-    if (!hostEl) return;
+    const slot = document.getElementById('clock-bit');
+    if (!slot) return;
     state.chip = document.createElement('button');
     state.chip.type = 'button';
-    state.chip.id = 'clock-bit';
-    state.chip.className = 'clock-bit';
+    state.chip.className = 'vpet-chip';
     state.chip.setAttribute('aria-label', 'Bit');
     const spr = document.createElement('span');
     spr.className = 'cb-sprite';
     state.chip.appendChild(spr);
     state.chip.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(e); });
-    hostEl.prepend(state.chip);
+    slot.prepend(state.chip);
     mountBit(spr, false); // a tiny Bit next to the clock stays still between moods
-    hostEl.hidden = false;
+    slot.hidden = false;
     if (window.TopbarMinimal && window.TopbarMinimal.applyIslandLayout) window.TopbarMinimal.applyIslandLayout();
     setMood(state.mood || 'neutral', true);
   }
   function unmountChip() {
     if (!state.chip) return;
+    const slot = state.chip.parentNode;
     state.chip.remove();
     state.chip = null;
     releaseBits();
     if (state.chipBubbleTimer) { clearTimeout(state.chipBubbleTimer); state.chipBubbleTimer = null; }
     if (state.chipBubbleEl) { state.chipBubbleEl.remove(); state.chipBubbleEl = null; }
-    const hostEl = document.getElementById('clock-vitals');
-    if (hostEl && !hostEl.querySelector('.clock-vital')) hostEl.hidden = true;
+    if (slot && !slot.children.length) slot.hidden = true;
     if (window.TopbarMinimal && window.TopbarMinimal.applyIslandLayout) window.TopbarMinimal.applyIslandLayout();
   }
   function ensureMounts() {
-    const pos = petCfg().position || 'floating';
+    const pos = position();
     if (pos === 'topbar') unmountFloating(); else mount();
     if (pos === 'floating') unmountChip(); else mountChip();
   }
@@ -295,41 +292,34 @@
         menu.appendChild(row);
       });
     }
-    const snooze = document.createElement('button');
-    snooze.type = 'button';
-    snooze.className = 'vpet-menu-act';
-    snooze.textContent = t('vpet_snooze', 'Tregua 30 min');
-    snooze.addEventListener('click', () => {
+    const act = (label, run) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'vpet-menu-act';
+      btn.textContent = label;
+      btn.addEventListener('click', () => { closeMenu(); run(); });
+      menu.appendChild(btn);
+    };
+    // The same Bit as the person's own: its room (outfit, name, where it lives) stays one tap away.
+    if (window.BitSheet) act(t('mybit_open', 'Apri il tuo Bit'), () => window.BitSheet.open());
+    act(t('vpet_snooze', 'Tregua 30 min'), () => {
       state.roastGen++; // a roast in flight must not break the truce it predates
       saveVitalsState({ pet: { ...petState(), snoozeUntil: Date.now() + 30 * 60000 } });
-      closeMenu();
       showBubble(t('vpet_snooze_ok', 'Ok. 30 minuti. Poi torno.'), 5000);
     });
-    const mute = document.createElement('button');
-    mute.type = 'button';
-    mute.className = 'vpet-menu-act';
-    mute.textContent = t('vpet_mute_today', 'Zitto per oggi');
-    mute.addEventListener('click', () => {
+    act(t('vpet_mute_today', 'Zitto per oggi'), () => {
       state.roastGen++;
       saveVitalsState({ pet: { ...petState(), muteDay: todayKey() } });
-      closeMenu();
       showBubble(t('vpet_mute_ok', 'Silenzio fino a domani. Ricordati che esisto.'), 5000);
     });
-    menu.append(snooze, mute);
     // The pet is the same Bit as the assistant: one tap to its chat, with a
     // question about the meters ready to send or change.
     if (typeof window.openAiPanel === 'function') {
-      const talk = document.createElement('button');
-      talk.type = 'button';
-      talk.className = 'vpet-menu-act';
-      talk.textContent = t('vpet_talk', 'Parla con Bit');
-      talk.addEventListener('click', () => {
-        closeMenu();
+      act(t('vpet_talk', 'Parla con Bit'), () => {
         window.openAiPanel();
         const input = document.getElementById('ai-text-input');
         if (input && !input.value) input.value = t('vpet_talk_prompt', 'Come sto con i vitali?');
       });
-      menu.appendChild(talk);
     }
     return menu;
   }
@@ -705,5 +695,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', sync);
+  // Its room may move the person's Bit (prefs.place): this one follows.
+  if (typeof addEventListener === 'function') addEventListener('xenon-bit', () => { if (activated()) ensureMounts(); });
   window.VitalsPet = { sync, onStatus, onRefill, onReturn };
 })();

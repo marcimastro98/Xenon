@@ -100,11 +100,11 @@
   animation: vpet-go-blink 1.6s steps(2) infinite;
 }
 
-/* ── Topbar mini-Bit (#clock-bit, pet.position topbar/both) ──────────────────
-   First child of #clock-vitals so it rides the minimal-island reparenting with
-   the clock. The same live Bit at chip scale, mood glow via --vpet-rgb; the
-   touch target stays comfortable (≥32px) even though Bit is tiny. */
-.clock-bit {
+/* ── Topbar mini-Bit (.vpet-chip in #clock-bit, pet.position topbar/both) ────
+   In the clock's Bit slot, apart from the Vitals' bars. The same live Bit at
+   chip scale, mood glow via --vpet-rgb; the touch target stays comfortable
+   (≥32px) even though Bit is tiny. */
+.vpet-chip {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -118,13 +118,13 @@
   --vpet-rgb: 255, 215, 94;
   --vpet-body: rgb(var(--vpet-rgb));
 }
-.clock-bit .cb-sprite {
+.vpet-chip .cb-sprite {
   width: 30px;
   height: 28px;
   display: block;
   filter: drop-shadow(0 0 6px rgba(var(--vpet-rgb), 0.45));
 }
-.clock-bit .cb-sprite svg { width: 100%; height: 100%; display: block; }
+.vpet-chip .cb-sprite svg { width: 100%; height: 100%; display: block; }
 /* Frosted overlay open: pause the pet's INFINITE loops only — one-shot moves
    (glitch, go-in, chip pops) must finish or they'd freeze mid-frame. Bit
    itself holds on the same class (js/ai/bit-app.js TILE_HOLD).

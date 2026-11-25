@@ -19,7 +19,7 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 
 /* In the clock it is one more mark of the bar; a folded message goes in front. */
 .bitc-chip { width: 34px; height: 32px; }
-.clock-bit:has(.bm-card) .bitc-chip { display: none; }
+.clock-bit:has(.bm-card) :is(.bitc-chip, .vpet-chip) { display: none; }
 
 /* The room (room.js): a pixel theatre in the Bit's own colours (room-scenery.js sets --broom-*),
    the Bit big on its stand, the apron under it with one step, the items on a rail. The stage keeps

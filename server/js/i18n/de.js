@@ -2296,7 +2296,7 @@ module.exports = {
   settings_vitals_enabled: 'Vitals aktivieren',
   settings_vitals_enabled_hint: 'Leisten im Videospiel-Stil (Hydration, Energie, Bewegung, Fokus), die mit der Zeit am PC sinken: zum Auffüllen antippen',
   settings_vitals_topbar: 'Mini-Anzeigen in der oberen Leiste',
-  settings_vitals_topbar_hint: 'kleine Pixel-Icons neben Uhr und Wetter: tippe ein Icon an, um aufzufüllen',
+  settings_vitals_topbar_hint: 'Kleine Pixel-Icons neben Uhr und Wetter: tippe ein Icon an, um aufzufüllen',
   settings_vitals_reminders: 'Pop-up-Erinnerungen',
   settings_vitals_reminders_hint: 'Ein Hinweis, wenn ein Vital unter 25 % fällt: antippen, um den Tipp zu sehen',
   settings_vpet: 'Bit: der Pixel-Wächter',

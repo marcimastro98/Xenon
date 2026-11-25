@@ -2312,7 +2312,7 @@ module.exports = {
   settings_vitals_enabled: 'Vitals inschakelen',
   settings_vitals_enabled_hint: 'balken in gamestijl (hydratatie, energie, beweging, focus) die na verloop van tijd achter de pc leeglopen: tik erop om ze aan te vullen',
   settings_vitals_topbar: 'Mini-indicatoren in de bovenbalk',
-  settings_vitals_topbar_hint: 'kleine pixeliconen naast de klok en het weer: tik op een icoon om aan te vullen',
+  settings_vitals_topbar_hint: 'Kleine pixeliconen naast de klok en het weer: tik op een icoon om aan te vullen',
   settings_vitals_reminders: 'Pop-upherinneringen',
   settings_vitals_reminders_hint: 'een melding wanneer een vital onder 25% zakt: tik erop voor de tip',
   settings_vpet: 'Bit: de pixelbeschermer',

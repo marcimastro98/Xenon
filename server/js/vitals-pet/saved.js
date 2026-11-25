@@ -27,6 +27,16 @@
 
   function petCfg() { const v = cfg(); return (v.pet && typeof v.pet === 'object') ? v.pet : {}; }
 
+  // Where the Vitals' Bit stands: where the person's own Bit lives (its room, prefs.place), else
+  // its own setting. Hidden there, it keeps its own: its warnings need a Bit on screen.
+  const FROM_PLACE = { corner: 'floating', topbar: 'topbar', both: 'both' };
+  function position() {
+    const own = window.BitApp && typeof window.BitApp.state === 'function' ? window.BitApp.state() : null;
+    const place = own && own.ok === true && own.prefs ? FROM_PLACE[own.prefs.place] : '';
+    const mine = petCfg().position;
+    return place || (['floating', 'topbar', 'both'].includes(mine) ? mine : 'floating');
+  }
+
   function activated() { const v = cfg(); return v.enabled !== false && v.pet && v.pet.enabled === true; }
 
   // Follow the ACTIVE UI language (i18n mirrors it onto <html lang>) so Bit's
@@ -94,7 +104,7 @@
   }
 
   window.VitalsPetSaved = {
-    t, thresholdsMs, cfg, petCfg, activated, lang, vitalName, todayKey, popupsAllowed, petState,
+    t, thresholdsMs, cfg, petCfg, position, activated, lang, vitalName, todayKey, popupsAllowed, petState,
     memState, saveVitalsState, persistEp, bumpMemPatch, snoozed,
   };
 })();
