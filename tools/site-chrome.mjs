@@ -123,7 +123,7 @@ export function headerHtml({ lang = false, page = '' } = {}) {
 <!-- /xenon:header -->`;
 }
 
-const BIT_LINE = "Bit lives in the Vitals widget and has opinions about your posture.";
+const BIT_LINE = "Every Xenon install hatches its own Bit, and no two look the same.";
 const LEGAL_LINE = "Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR. Every other name and logo belongs to its owner.";
 
 export function footerHtml() {
@@ -138,7 +138,7 @@ export function footerHtml() {
       <div class="xf-bit"><span data-xl="bit">${BIT_LINE}</span></div>
       ${socialRow()}
     </div>
-    ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/maker/', 'f.maker', 'Xenon Maker'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
+    ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/bit.html', '', 'Bit'], ['/maker/', 'f.maker', 'Xenon Maker'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
     ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/single-screen.html', 'f.onescreen', 'Xenon on one screen'], ['/fps-overlay.html', 'f.fps', 'FPS overlay'], ['/screen-recorder.html', 'f.recorder', 'Screen recorder'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/compare.html', 'f.compare', 'Xenon and other tools'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
     ${col('project', 'Project', [['/#support', 'f.support', 'Supporters'], ['https://github.com/marcimastro98/Xenon', '', 'GitHub', true], ['https://discord.gg/MBVrw9kZyg', '', 'Discord', true], ['/faq.html', 'f.faq', 'Help and questions'], ['/privacy.html', 'f.privacy', 'Privacy']])}
     <div class="xf-col" data-theme-switch></div>
@@ -234,6 +234,7 @@ const PAGES = [
   { file: 'docs/xeneon-edge-widgets.html', lang: false },
   { file: 'docs/xenon-exe.html', lang: false },
   { file: 'docs/pawnio.html', lang: false },
+  { file: 'docs/bit.html', lang: false },
   { file: 'docs/mac.html', lang: false },
   { file: 'docs/widgets.html', lang: false },
   { file: 'docs/deck.html', lang: false },

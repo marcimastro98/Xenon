@@ -38,6 +38,7 @@ export const LANG_PAGES = [
   { page: 'screen-recorder.html', langs: ALL, dict: 'screen-recorder' },
   { page: '5.html', langs: ALL, dict: '5' },
   { page: 'pawnio.html', langs: ALL, dict: 'pawnio' },
+  { page: 'bit.html', langs: ALL, dict: 'bit' },
 ];
 
 // The catalog carries its seven languages in its own inline table, and its copies

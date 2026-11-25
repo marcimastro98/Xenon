@@ -1,0 +1,86 @@
+{
+  "en": {
+    "meta.title": "Bit: the companion every Xenon install hatches",
+    "meta.desc": "Every Xenon install hatches its own Bit, and no two look the same. See the Bits their owners chose to show here.",
+    "bit.h1": "Bit",
+    "bit.lede": "Every Xenon install hatches its own Bit, and no two look the same. It grows with the days you use Xenon and wears what it earns.",
+    "bit.h.recent": "Bits on the site",
+    "bit.loading": "Loading the Bits shown here.",
+    "bit.h.how": "Showing your Bit here",
+    "bit.how.p1": "A Bit is on this page only while its owner wants it here: in Xenon, tap your Bit and turn on <strong>Show it on xenon-app.com</strong>. Turn it off and it leaves the page within a minute.",
+    "bit.how.p2": "The page shows its look, name, number, stage, hatch day and badges. Nothing about the PC or the person behind it.",
+    "bit.how.p3": "Once it is shown, the card you make of your Bit carries a QR code that opens its page."
+  },
+  "es": {
+    "meta.title": "Bit: el compañero que nace en cada instalación de Xenon",
+    "meta.desc": "Cada instalación de Xenon hace nacer su propio Bit, y no hay dos iguales. Mira los Bits que sus dueños eligieron mostrar aquí.",
+    "bit.h1": "Bit",
+    "bit.lede": "Cada instalación de Xenon hace nacer su propio Bit, y no hay dos iguales. Crece con los días que usas Xenon y lleva lo que se gana.",
+    "bit.h.recent": "Bits en el sitio",
+    "bit.loading": "Cargando los Bits que se muestran aquí.",
+    "bit.h.how": "Mostrar tu Bit aquí",
+    "bit.how.p1": "Un Bit está en esta página solo mientras su dueño quiere: en Xenon, toca tu Bit y activa <strong>Mostrarlo en xenon-app.com</strong>. Si lo desactivas, sale de la página en un minuto.",
+    "bit.how.p2": "La página muestra su aspecto, nombre, número, etapa, día de nacimiento e insignias. Nada sobre el PC ni sobre la persona que hay detrás.",
+    "bit.how.p3": "Cuando se muestra, la tarjeta que haces de tu Bit lleva un código QR que abre su página."
+  },
+  "fr": {
+    "meta.title": "Bit : le compagnon qui éclot dans chaque Xenon",
+    "meta.desc": "Chaque installation de Xenon fait éclore son propre Bit, et il n’y en a pas deux pareils. Découvrez les Bits que leurs propriétaires ont choisi de montrer ici.",
+    "bit.h1": "Bit",
+    "bit.lede": "Chaque installation de Xenon fait éclore son propre Bit, et il n’y en a pas deux pareils. Il grandit avec les jours où vous utilisez Xenon et porte ce qu’il gagne.",
+    "bit.h.recent": "Les Bits sur le site",
+    "bit.loading": "Chargement des Bits montrés ici.",
+    "bit.h.how": "Montrer votre Bit ici",
+    "bit.how.p1": "Un Bit n’est sur cette page que tant que son propriétaire le veut : dans Xenon, touchez votre Bit et activez <strong>Le montrer sur xenon-app.com</strong>. Désactivez-le et il quitte la page en une minute.",
+    "bit.how.p2": "La page montre son apparence, son nom, son numéro, son stade, son jour d’éclosion et ses badges. Rien sur le PC ni sur la personne derrière.",
+    "bit.how.p3": "Une fois montré, la carte que vous faites de votre Bit porte un code QR qui ouvre sa page."
+  },
+  "it": {
+    "meta.title": "Bit: il compagno che nasce con ogni installazione di Xenon",
+    "meta.desc": "Ogni installazione di Xenon fa nascere il suo Bit, e non ce ne sono due uguali. Guarda i Bit che i loro proprietari hanno scelto di mostrare qui.",
+    "bit.h1": "Bit",
+    "bit.lede": "Ogni installazione di Xenon fa nascere il suo Bit, e non ce ne sono due uguali. Cresce con i giorni in cui usi Xenon e indossa quello che si guadagna.",
+    "bit.h.recent": "I Bit sul sito",
+    "bit.loading": "Carico i Bit mostrati qui.",
+    "bit.h.how": "Mostrare il tuo Bit qui",
+    "bit.how.p1": "Un Bit è su questa pagina solo finché chi lo ha lo vuole: in Xenon tocca il tuo Bit e attiva <strong>Mostralo su xenon-app.com</strong>. Se lo spegni, lascia la pagina entro un minuto.",
+    "bit.how.p2": "La pagina mostra il suo aspetto, nome, numero, stadio, giorno di nascita e distintivi. Niente del PC né della persona dietro.",
+    "bit.how.p3": "Una volta mostrato, la scheda che fai del tuo Bit porta un codice QR che apre la sua pagina."
+  },
+  "ja": {
+    "meta.title": "Bit：Xenon をインストールするたびに生まれる相棒",
+    "meta.desc": "Xenon をインストールすると、自分だけの Bit が生まれます。同じ見た目の Bit は二つとありません。持ち主が公開した Bit をここで見られます。",
+    "bit.h1": "Bit",
+    "bit.lede": "Xenon をインストールすると、自分だけの Bit が生まれます。同じ見た目の Bit は二つとありません。Xenon を使った日数とともに育ち、手に入れたものを身につけます。",
+    "bit.h.recent": "サイトの Bit",
+    "bit.loading": "公開中の Bit を読み込んでいます。",
+    "bit.h.how": "あなたの Bit をここで公開する",
+    "bit.how.p1": "Bit がこのページに載るのは、持ち主が望んでいる間だけです。Xenon で自分の Bit をタップし、<strong>xenon-app.com で公開する</strong>をオンにします。オフにすると 1 分以内にページから消えます。",
+    "bit.how.p2": "ページに出るのは見た目、名前、番号、成長段階、誕生日、バッジだけです。PC やその持ち主については何も出ません。",
+    "bit.how.p3": "公開すると、Bit のカードにこのページを開く QR コードが入ります。"
+  },
+  "ko": {
+    "meta.title": "Bit: Xenon을 설치할 때마다 태어나는 친구",
+    "meta.desc": "Xenon을 설치하면 자기만의 Bit가 태어나고, 똑같은 Bit는 하나도 없어요. 주인이 공개한 Bit를 여기서 볼 수 있어요.",
+    "bit.h1": "Bit",
+    "bit.lede": "Xenon을 설치하면 자기만의 Bit가 태어나고, 똑같은 Bit는 하나도 없어요. Xenon을 쓴 날만큼 자라고 얻은 것을 입어요.",
+    "bit.h.recent": "사이트의 Bit",
+    "bit.loading": "공개된 Bit를 불러오는 중이에요.",
+    "bit.h.how": "내 Bit를 여기에 공개하기",
+    "bit.how.p1": "Bit는 주인이 원할 때만 이 페이지에 있어요. Xenon에서 내 Bit를 탭하고 <strong>xenon-app.com에 공개하기</strong>를 켜세요. 끄면 1분 안에 페이지에서 내려가요.",
+    "bit.how.p2": "페이지에는 모습, 이름, 번호, 성장 단계, 태어난 날, 배지만 보여요. PC나 주인에 대한 정보는 없어요.",
+    "bit.how.p3": "공개하면 내 Bit 카드에 이 페이지를 여는 QR 코드가 들어가요."
+  },
+  "zh": {
+    "meta.title": "Bit：每次安装 Xenon 都会孵化的伙伴",
+    "meta.desc": "每次安装 Xenon 都会孵化一个属于自己的 Bit，没有两个长得一样。这里展示的是主人选择公开的 Bit。",
+    "bit.h1": "Bit",
+    "bit.lede": "每次安装 Xenon 都会孵化一个属于自己的 Bit，没有两个长得一样。它随着你使用 Xenon 的天数成长，并穿戴它赢得的东西。",
+    "bit.h.recent": "网站上的 Bit",
+    "bit.loading": "正在加载这里展示的 Bit。",
+    "bit.h.how": "在这里展示你的 Bit",
+    "bit.how.p1": "只有主人愿意时，Bit 才会出现在这个页面上：在 Xenon 中点按你的 Bit，打开<strong>在 xenon-app.com 上展示</strong>。关闭后，它会在一分钟内离开页面。",
+    "bit.how.p2": "页面只显示它的样子、名字、编号、成长阶段、孵化日和徽章，不涉及电脑或它的主人。",
+    "bit.how.p3": "展示后，你为 Bit 制作的卡片会带有一个打开其页面的二维码。"
+  }
+}
