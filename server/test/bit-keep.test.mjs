@@ -17,6 +17,8 @@ const { createKeep } = require('../bit/keep.js');
 const { createRoutes } = require('../bit/handlers.js');
 
 const SEED = '0123456789abcdef';
+// The supporters' items come from the hub (server/bit/items.js): these three are the first it made.
+wardrobe.addItems(require('./fixtures/bit-hub-items.json'));
 const supporters = wardrobe.ITEMS.filter((it) => it.source === 'supporter').sort((a, b) => a.month.localeCompare(b.month));
 const shopItems = wardrobe.ITEMS.filter((it) => it.source === 'shop');
 const startOf = (month) => new Date(`${month}-01T00:00:00.000Z`);

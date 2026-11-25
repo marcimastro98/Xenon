@@ -367,7 +367,7 @@
       "id": "my-bit",
       "area": "bit",
       "name": "Your own Bit",
-      "what": "Each person's own Bit: egg, growth, its room (a stage to try items on and keep them, also in the Store), recap cards, a video; corner, top bar, tile, widget kit, site page.",
+      "what": "Each person's own Bit: egg, growth, its room, items (some from the hub), cards, video, tile, widget kit, site page.",
       "files": [
         "server/bit/**",
         "docs/bit.html",

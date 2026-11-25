@@ -68,11 +68,15 @@
   const GENES = ['palette', 'pattern', 'patternColor', 'tip', 'eyes', 'cheeks', 'temperament', 'quirk', 'voice'];
   const ID = /^[a-z][a-zA-Z0-9-]{0,31}$/;
 
+  // A hub item it wears (server/bit/items.js, already checked there), as the kit draws it: no names, no price.
+  const drawn = (it) => ({ id: it.id, slot: it.slot, source: it.source, month: it.month, price: it.price, layers: it.layers });
+
   function bit(d, played) {
     if (!d || typeof d !== 'object' || d.ok !== true) return { ok: false, error: 'failed' };
     const g = d.genes && typeof d.genes === 'object' ? d.genes : null;
     if (d.hatched !== true || !g || GENES.some((k) => !ID.test(g[k]))) return { ok: true, hatched: false, stage: 'egg' };
     const move = played && typeof played === 'object' && ID.test(played.clip) && num(played.at) != null ? played : null;
+    const worn = (Array.isArray(d.worn) ? d.worn : []).filter((id) => ID.test(id)).slice(0, 8);
     return {
       ok: true,
       hatched: true,
@@ -83,7 +87,8 @@
       // False when the person chose the classic Bit for the rest of the app (the Bit sheet).
       everywhere: d.everywhere !== false,
       genes: { classic: g.classic === true, shiny: g.shiny === true, ...Object.fromEntries(GENES.map((k) => [k, g[k]])) },
-      worn: (Array.isArray(d.worn) ? d.worn : []).filter((id) => ID.test(id)).slice(0, 8),
+      worn,
+      items: (Array.isArray(d.items) ? d.items : []).filter((it) => it && worn.includes(it.id)).slice(0, 8).map(drawn),
       played: move ? { clip: move.clip, at: move.at } : null,
     };
   }

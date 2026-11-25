@@ -22,13 +22,15 @@ const FILES = [...BIT_ENGINE, 'js/dialog-focus.js', 'js/ai/bit-app.js', 'js/bit-
   'js/bit-companion/card-dna.js', 'js/bit-companion/card.js', 'js/bit-companion/recap.js', 'js/bit-companion/clip.js', 'js/bit-companion/room-scenery.js',
   'js/bit-companion/room-panels.js', 'js/bit-companion/room.js', 'js/bit-companion/sheet.js', 'js/bit-companion/companion.js', 'js/bit-companion/tile.js', 'js/bit-companion/moments.js'];
 
+// The supporters' items come with the view, as the hub made them (server/bit/items.js).
+const HUB_ITEMS = require('./fixtures/bit-hub-items.json').map((it) => ({ ...it, offered: true }));
 const SEED = '0123456789abcdef';
 const PREFS = { place: 'corner', reactions: 'normal', sounds: false, classic: false };
 const egg = (prefs = {}) => ({ ok: true, hatched: false, stage: 'egg', founder: false, prefs: { ...PREFS, ...prefs }, everywhere: true, reactionsPerHour: 6 });
 const born = (prefs = {}, more = {}) => ({
   ...egg(prefs), hatched: true, seed: SEED, number: 1284, local: false, born: '2026-11-24T20:00:00.000Z', name: '', worn: [], owned: [],
   days: 3, stage: 'baby', rarity: [{ gene: 'tip', id: 'leaf', chance: 0.01, oneIn: 100 }], lookOneIn: 52000,
-  traits: [{ id: 'gamer', item: 'headset', progress: 0.5, earned: false }], ...more,
+  traits: [{ id: 'gamer', item: 'headset', progress: 0.5, earned: false }], items: HUB_ITEMS, ...more,
 });
 
 function rig({ vitalsPet = false, answers = {} } = {}) {

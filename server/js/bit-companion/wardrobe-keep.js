@@ -34,13 +34,17 @@
     } catch { return month; }
   }
 
+  // A hub item (server/bit/items.js) carries its name in the app's languages; an item of the code has a key.
+  const name = (it, ctx) => (it.names ? it.names[typeof lang === 'string' ? lang : 'en'] || it.names.en : ctx.say(`mybit_item_${it.id}`));
+
   function names(items, ctx) {
-    const all = items.map((it) => ctx.say(`mybit_item_${it.id}`));
+    const all = items.map((it) => name(it, ctx));
     try { return new Intl.ListFormat(typeof lang === 'string' ? lang : 'en', { type: 'conjunction' }).format(all); } catch { return all.join(', '); }
   }
 
   /** Pure: is a supporter's item listed yet? Those out by `now`, and the next month's. */
   function listed(it, items, now = new Date()) {
+    if (it.offered === false) return false; // a hub item no longer offered stays only where it is owned
     if (it.source !== 'supporter') return true;
     const month = now.toISOString().slice(0, 7);
     const next = items.filter((x) => x.source === 'supporter' && x.month > month).map((x) => x.month).sort()[0];
@@ -281,7 +285,7 @@
   }
 
   window.BitKeep = {
-    listed, line, how, bar, firstDay, soon, tag,
+    listed, name, line, how, bar, firstDay, soon, tag,
     /** The room closed: the next one asks the PC again. */
     reset: () => { pass = null; copies.clear(); },
   };

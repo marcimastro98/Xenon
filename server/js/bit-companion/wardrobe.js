@@ -203,7 +203,7 @@
   function card({ it, owned }, bit, ctx) {
     const soon = !owned && window.BitKeep?.soon(it) === true;
     const marks = [owned && 'is-owned', it.source === 'supporter' && 'is-supporter', soon && 'is-soon'];
-    const name = ctx.say(`mybit_item_${it.id}`);
+    const name = window.BitKeep?.name(it, ctx) ?? ctx.say(`mybit_item_${it.id}`);
     const foot = footOf(it, owned, bit, ctx);
     const btn = tile(['broom-card', ...marks.filter(Boolean)].join(' '), thumb(bit, it), name, foot);
     btn.dataset.item = it.id;
@@ -251,6 +251,7 @@
     const X = engine();
     if (!bit?.hatched || !X?.bitWardrobe || !X.bitLook || !X.bitGenome || !window.BitTabs) return null;
     const W = X.bitWardrobe;
+    W.addItems(bit.items); // the hub's items offered now or owned (server/bit/items.js): listed like the code's
     const mine = new Set(Array.isArray(bit.owned) ? bit.owned : []);
     tried = tried.filter((id) => !mine.has(id) && W.item(id));
     look = tried.length ? window.BitApp?.dressed([...bit.worn, ...tried]) || null : null;

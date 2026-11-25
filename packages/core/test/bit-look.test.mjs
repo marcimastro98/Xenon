@@ -85,3 +85,27 @@ test('an outfit holds one item per slot and drops unknown ids', () => {
   for (const it of wardrobe.ITEMS) assert.deepEqual(wardrobe.validate(it), [], it.id);
   assert.ok(wardrobe.validate({ id: 'x', slot: 'hat', source: 'shop', layers: [{ fill: 'red', cells: [[6, 0]] }] }).length >= 4);
 });
+
+test('items from the hub join the wardrobe only when they keep every rule', () => {
+  const hat = { id: 'testHalo', slot: 'head', source: 'supporter', month: '2031-01', layers: [{ fill: '#ffd75e', cells: [[3, 1, 3], [7, 1, 2]] }], names: { en: 'Halo' } };
+  const birth = wardrobe.birthItem(0.99);
+  wardrobe.addItems([
+    hat,
+    { ...hat, id: 'beanie' }, // an id of the code
+    { ...hat, id: 'testOver', layers: [{ fill: '#ffd75e', cells: [[6, 0]] }] }, // over the antenna
+    { ...hat, id: 'testTrait', source: 'trait' }, // only supporters' and shop items come this way
+    { ...hat, id: 'testBroken', layers: 'x' },
+    null,
+  ]);
+  assert.equal(wardrobe.item('testHalo').names.en, 'Halo');
+  assert.equal(wardrobe.item('beanie').source, 'shop', 'the code item stays');
+  for (const id of ['testOver', 'testTrait', 'testBroken']) assert.equal(wardrobe.item(id), null, id);
+  assert.ok(wardrobe.ITEMS.some((it) => it.id === 'testHalo'));
+  assert.deepEqual(wardrobe.outfit(['testHalo']).map((it) => it.id), ['testHalo']);
+  assert.ok(!wardrobe.supporterOut(new Date('2030-12-31T23:00:00Z')).some((it) => it.id === 'testHalo'));
+  assert.ok(wardrobe.supporterOut(new Date('2031-01-01T00:00:00Z')).some((it) => it.id === 'testHalo'));
+  wardrobe.addItems([{ ...hat, layers: [{ fill: 'accent', cells: [[3, 1, 3]] }] }]);
+  assert.equal(wardrobe.item('testHalo').layers[0].fill, 'accent', 'the same id again replaces it');
+  wardrobe.addItems([{ ...hat, id: 'testCheap', source: 'shop', price: 50, month: undefined }]);
+  assert.equal(wardrobe.birthItem(0.99), birth, "a hub item never changes what a Bit hatches wearing (the hub reads it from the seed)");
+});

@@ -1,0 +1,189 @@
+[
+  {
+    "id": "crown",
+    "slot": "head",
+    "source": "supporter",
+    "month": "2026-12",
+    "layers": [
+      {
+        "fill": "#ffd75e",
+        "cells": [
+          [
+            3,
+            1
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            3,
+            2,
+            6
+          ]
+        ]
+      },
+      {
+        "fill": "#ff5a6e",
+        "cells": [
+          [
+            4,
+            2
+          ]
+        ]
+      },
+      {
+        "fill": "#5eead4",
+        "cells": [
+          [
+            7,
+            2
+          ]
+        ]
+      }
+    ],
+    "names": {
+      "en": "Crown",
+      "it": "Corona",
+      "de": "Krone",
+      "es": "Corona",
+      "fr": "Couronne",
+      "ja": "王冠",
+      "ko": "왕관",
+      "nl": "Kroon",
+      "pt": "Coroa",
+      "ru": "Корона",
+      "zh": "王冠"
+    }
+  },
+  {
+    "id": "cape",
+    "slot": "back",
+    "source": "supporter",
+    "month": "2027-01",
+    "layers": [
+      {
+        "fill": "accent",
+        "cells": [
+          [
+            1,
+            3,
+            1,
+            7
+          ],
+          [
+            10,
+            3,
+            1,
+            7
+          ],
+          [
+            1,
+            10,
+            2
+          ],
+          [
+            9,
+            10,
+            2
+          ]
+        ]
+      }
+    ],
+    "names": {
+      "en": "Cape",
+      "it": "Mantello",
+      "de": "Umhang",
+      "es": "Capa",
+      "fr": "Cape",
+      "ja": "マント",
+      "ko": "망토",
+      "nl": "Cape",
+      "pt": "Capa",
+      "ru": "Плащ",
+      "zh": "斗篷"
+    }
+  },
+  {
+    "id": "wings",
+    "slot": "back",
+    "source": "supporter",
+    "month": "2027-02",
+    "layers": [
+      {
+        "fill": "#f0f3f1",
+        "cells": [
+          [
+            0,
+            3,
+            2
+          ],
+          [
+            0,
+            4,
+            2
+          ],
+          [
+            10,
+            3,
+            2
+          ],
+          [
+            10,
+            4,
+            2
+          ]
+        ]
+      },
+      {
+        "fill": "#c3cad3",
+        "cells": [
+          [
+            -1,
+            4
+          ],
+          [
+            12,
+            4
+          ]
+        ]
+      },
+      {
+        "fill": "#8d97a5",
+        "cells": [
+          [
+            0,
+            5,
+            2
+          ],
+          [
+            10,
+            5,
+            2
+          ]
+        ]
+      }
+    ],
+    "names": {
+      "en": "Wings",
+      "it": "Ali",
+      "de": "Flügel",
+      "es": "Alas",
+      "fr": "Ailes",
+      "ja": "翼",
+      "ko": "날개",
+      "nl": "Vleugels",
+      "pt": "Asas",
+      "ru": "Крылья",
+      "zh": "翅膀"
+    }
+  }
+]

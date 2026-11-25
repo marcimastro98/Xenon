@@ -8,8 +8,8 @@
 // step has to remember to count, and a backup restored (`replace`) is never counted as a
 // month of life.
 
-const wardrobe = require('../shared/src/bit-wardrobe.js');
-
+// An item's id, kept even before the wardrobe knows it (a hub item, items.js: model.js keeps them too).
+const ITEM_ID = /^[a-z][a-zA-Z0-9]{1,31}$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const KEEP = 14;
 const TRAIT_KEYS = Object.freeze(['gaming', 'music', 'coding', 'hot', 'night', 'early']);
@@ -45,7 +45,7 @@ function normalizeMonth(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const out = empty();
   for (const k of COUNTS) out[k] = count(src[k]);
-  const ids = Array.isArray(src.items) ? src.items.filter((id) => typeof id === 'string' && wardrobe.item(id)) : [];
+  const ids = Array.isArray(src.items) ? src.items.filter((id) => typeof id === 'string' && ITEM_ID.test(id)) : [];
   out.items = [...new Set(ids)].slice(0, MAX_ITEMS);
   return out;
 }

@@ -187,12 +187,14 @@
     if (!raw || typeof raw !== 'object' || typeof raw.seed !== 'string' || !SEED.test(raw.seed)) return null;
     const worn = Array.isArray(raw.worn) ? raw.worn.filter((id) => typeof id === 'string' && id.length <= 40).slice(0, MAX_WORN) : [];
     const born = typeof raw.born === 'string' && BORN.test(raw.born) ? raw.born.slice(0, 10) : '';
-    return { seed: raw.seed, worn, born };
+    const items = Array.isArray(raw.items) ? raw.items.filter((it) => it && worn.includes(it.id)).slice(0, MAX_WORN) : []; // the hub's items it wears (server/bit/items.js): drawn offline too
+    return { seed: raw.seed, worn, born, items };
   }
 
   function lookFor(o) {
     const X = window.Xenon;
     if (!o || !X?.bitGenome || !X.bitLook || !X.bitWardrobe) return null;
+    X.bitWardrobe.addItems(o.items);
     const root = document.documentElement;
     const light = !!(root?.style && root.style.colorScheme === 'light');
     return X.bitLook.lookOf(X.bitGenome.decode(o.seed), { worn: X.bitWardrobe.outfit(o.worn), background: light ? BACKGROUND.light : BACKGROUND.dark });
@@ -272,8 +274,7 @@
     askServer();
   }
 
-  // One of Bit's lines for a moment, in the dashboard language, never one of
-  // the last few said.
+  // One of Bit's lines for a moment, in the dashboard language, never one of the last few said.
   function say(moment, vars) {
     const P = window.Xenon?.bitPhrases;
     if (!P) return '';

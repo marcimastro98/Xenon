@@ -15,9 +15,10 @@
    * shows mood), stays above the floor and fits every mood pose (where a big move such as
    * moonwalk would take it off the stage, x -3..14 y -5..12, bit.js sets it down for that
    * clip), and has no hearts, confetti or glows: validate() and the Bit Lab check it. Ids are
-   * permanent (owned items are stored by id). A season item has its season (SEASONS), a
-   * supporter item its month ('YYYY-MM', one a month) and a shop item its fixed price in Sparks;
-   * those two are kept through the hub's key entryOf(item) (server/bit/keep.js). */
+   * permanent (owned items are stored by id). A season item has its season (SEASONS) and a shop
+   * item its fixed price in Sparks. A supporters' item (its month 'YYYY-MM', one a month) and any
+   * newer shop item come from the hub (addItems); both are kept through the hub's key
+   * entryOf(item) (server/bit/keep.js). */
 
   const SLOTS = Object.freeze(['head', 'face', 'neck', 'back', 'feet', 'hand']);
   const SOURCES = Object.freeze(['trait', 'season', 'supporter', 'shop', 'founder']);
@@ -29,11 +30,10 @@
   const BROWN = '#8a5a3b';
   const LEAF = '#6fcf73';
   const ORANGE = '#ff8c2e';
-  /** @typedef {{ id: string, slot: string, source: string, season?: string, month?: string, price?: number, layers: readonly object[] }} WardrobeItem */
+  /** @typedef {{ id: string, slot: string, source: string, season?: string, month?: string, price?: number, layers: readonly object[], names?: Record<string, string>, offered?: boolean }} WardrobeItem */
   /** @type {(id: string, slot: string, source: string, layers: object[], extra?: { season?: string, month?: string, price?: number }) => Readonly<WardrobeItem>} */
   const I = (id, slot, source, layers, extra = {}) => Object.freeze({ id, slot, source, ...extra, layers: Object.freeze(layers) });
   const S = (season) => ({ season });
-  const M = (month) => ({ month });
   const P = (price) => ({ price });
   const ARM = { fill: 'body', cells: [[10, 6]] };
 
@@ -58,11 +58,6 @@
       { fill: 'accent', cells: [[3, 1, 3], [7, 1, 2], [3, 2, 6]] },
       { fill: SLATE, cells: [[9, 2, 2]] },
     ], P(50)),
-    I('crown', 'head', 'supporter', [
-      { fill: GOLD, cells: [[3, 1], [5, 1], [7, 1], [8, 1], [3, 2, 6]] },
-      { fill: '#ff5a6e', cells: [[4, 2]] },
-      { fill: '#5eead4', cells: [[7, 2]] },
-    ], M('2026-12')),
     I('nightcap', 'head', 'trait', [
       { fill: '#8ab4f8', cells: [[3, 1, 3], [7, 1, 2], [2, 2, 8], [9, 1], [10, 2, 1, 2]] },
       { fill: WHITE, cells: [[10, 4]] },
@@ -100,13 +95,6 @@
       { fill: 'accent', cells: [[1, 4, 1, 5], [10, 4, 1, 5]] },
       { fill: SLATE, layer: 'over', cells: [[2, 3, 1, 6], [9, 3, 1, 6]] },
     ]),
-    I('cape', 'back', 'supporter', [{ fill: 'accent', cells: [[1, 3, 1, 7], [10, 3, 1, 7], [1, 10, 2], [9, 10, 2]] }], M('2027-01')),
-    // White on top, grey feathers under: all-white wings vanish on a light theme.
-    I('wings', 'back', 'supporter', [
-      { fill: WHITE, cells: [[0, 3, 2], [0, 4, 2], [10, 3, 2], [10, 4, 2]] },
-      { fill: '#c3cad3', cells: [[-1, 4], [12, 4]] },
-      { fill: '#8d97a5', cells: [[0, 5, 2], [10, 5, 2]] },
-    ], M('2027-02')),
     // feet
     I('sneakers', 'feet', 'shop', [
       { fill: WHITE, cells: [[3, 10, 2], [7, 10, 2]] },
@@ -209,8 +197,21 @@
   ]);
 
   const BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
+  // Items from the hub (the app's server/bit/items.js rebuilds each one first): a supporters' item
+  // or a newer shop item, drawn like the ones above. One that breaks a rule, or takes an id of the
+  // code, is dropped; the same id again replaces it (the hub changed it).
+  const extra = new Map();
+  let all = ITEMS;
+  function addItems(list) {
+    for (const it of Array.isArray(list) ? list : []) {
+      let ok = false;
+      try { ok = !BY_ID.has(it.id) && (it.source === 'supporter' || it.source === 'shop') && !validate(it).length; } catch { /* not an item */ }
+      if (ok) extra.set(it.id, Object.freeze({ ...it }));
+    }
+    all = Object.freeze([...ITEMS, ...extra.values()]);
+  }
 
-  const item = (id) => BY_ID.get(id) || null;
+  const item = (id) => BY_ID.get(id) || extra.get(id) || null;
 
   function cellsOf(it) {
     const out = [];
@@ -252,7 +253,7 @@
   /** The month of `date` as 'YYYY-MM', in UTC: the app and the hub agree on when a month starts. */
   const monthOf = (date) => date.toISOString().slice(0, 7);
   /** The supporter items out by `date`: this month's and every one before it. */
-  const supporterOut = (date) => ITEMS.filter((it) => it.source === 'supporter' && it.month <= monthOf(date));
+  const supporterOut = (date) => all.filter((it) => it.source === 'supporter' && it.month <= monthOf(date));
   /** The hub's key of a supporter or shop item: 'bit-' and the id in kebab case (topHat → bit-top-hat). */
   const entryOf = (it) => `bit-${it.id.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
   /** What a Bit hatches wearing, one of the shop's cheapest, from `pick` in [0, 1) (its seed's 'birth-gift' stream): the hub reads it the same way. */
@@ -293,5 +294,5 @@
     return SLOTS.map((s) => bySlot.get(s)).filter(Boolean);
   }
 
-  return { SLOTS, SOURCES, SEASONS, ITEMS, item, cellsOf, validate, outfit, seasonsOn, monthOf, supporterOut, entryOf, birthItem };
+  return { SLOTS, SOURCES, SEASONS, get ITEMS() { return all; }, item, addItems, cellsOf, validate, outfit, seasonsOn, monthOf, supporterOut, entryOf, birthItem };
 });

@@ -31,9 +31,10 @@
         player.setMood('egg');
         return;
       }
-      const next = JSON.stringify([data.genes, data.worn, light, classic === true]);
+      const next = JSON.stringify([data.genes, data.worn, data.items, light, classic === true]);
       if (next !== key) {
         key = next;
+        X.bitWardrobe.addItems(data.items); // the hub's items it wears, each checked again by the wardrobe
         look = classic === true ? null
           : X.bitLook.lookOf(data.genes, { worn: X.bitWardrobe.outfit(data.worn || []), background: light ? BACKGROUND.light : BACKGROUND.dark });
         director = X.bitDirector.createDirector(data.genes);

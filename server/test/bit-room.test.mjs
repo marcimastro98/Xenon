@@ -18,11 +18,13 @@ const BIT_ENGINE = require('./fixtures/bit-engine.json');
 const src = (p) => readFileSync(join(SERVER, p), 'utf8');
 const ROOM = ['wardrobe-keep', 'wardrobe-tabs', 'wardrobe', 'card-dna', 'card', 'recap', 'clip', 'room-scenery', 'room-panels', 'room'];
 const FILES = [...BIT_ENGINE, 'js/ai/bit-app.js', ...ROOM.map((f) => `js/bit-companion/${f}.js`)];
+// The supporters' items come with the view, as the hub made them (server/bit/items.js).
+const HUB_ITEMS = require('./fixtures/bit-hub-items.json').map((it) => ({ ...it, offered: true }));
 const SEED = '0123456789abcdef';
 const born = (more = {}) => ({
   ok: true, hatched: true, stage: 'baby', founder: false, everywhere: true, reactionsPerHour: 6,
   prefs: { place: 'corner', reactions: 'normal', sounds: false, classic: false },
-  seed: SEED, number: 1284, local: false, born: '2026-11-24T20:00:00.000Z', name: '', worn: ['cap'], owned: ['cap'], days: 3, traits: [], ...more,
+  seed: SEED, number: 1284, local: false, born: '2026-11-24T20:00:00.000Z', name: '', worn: ['cap'], owned: ['cap'], days: 3, traits: [], items: HUB_ITEMS, ...more,
 });
 
 function rig({ answers = {} } = {}) {

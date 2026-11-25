@@ -65,7 +65,15 @@ const STAGES = Object.freeze([
 ]);
 
 const iso = (v) => (typeof v === 'string' && ISO.test(v) && Number.isFinite(Date.parse(v)) ? v : '');
-const knownIds = (v, max) => [...new Set((Array.isArray(v) ? v : []).filter((id) => typeof id === 'string' && wardrobe.item(id)))].slice(0, max);
+// An id the wardrobe does not know yet is kept when it is well formed: it can be a hub item
+// (items.js) whose list is not loaded, or not reachable offline. Dropping it would undress the Bit for good.
+const ITEM_ID = /^[a-z][a-zA-Z0-9]{1,31}$/;
+const keptIds = (v, max) => [...new Set((Array.isArray(v) ? v : []).filter((id) => typeof id === 'string' && ITEM_ID.test(id)))].slice(0, max);
+/** One item per slot of those it knows, then the ids it does not know yet. */
+function wornOf(v) {
+  const ids = keptIds(v, wardrobe.SLOTS.length);
+  return [...wardrobe.outfit(ids).map((it) => it.id), ...ids.filter((id) => !wardrobe.item(id))].slice(0, wardrobe.SLOTS.length);
+}
 
 function normalizeBirth(raw) {
   if (!raw || typeof raw !== 'object' || typeof raw.seed !== 'string' || !SEED.test(raw.seed)) return null;
@@ -114,8 +122,8 @@ function normalize(raw) {
     founder: src.founder === true,
     bit: normalizeBirth(src.bit),
     name: cleanName(src.name),
-    worn: wardrobe.outfit(knownIds(src.worn, wardrobe.SLOTS.length)).map((it) => it.id),
-    owned: knownIds(src.owned, MAX_OWNED),
+    worn: wornOf(src.worn),
+    owned: keptIds(src.owned, MAX_OWNED),
     days: {
       count: Number.isSafeInteger(days.count) && days.count > 0 ? days.count : 0,
       last: typeof days.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(days.last) ? days.last : '',
@@ -131,6 +139,12 @@ function stageOf(days) {
   let stage = 'egg';
   for (const s of STAGES) if (days >= s.from) stage = s.id;
   return stage;
+}
+
+/** The hub's items (they carry names) offered now or owned: what the surfaces need to draw and list them. */
+function hubItems(model) {
+  const mine = new Set(model.owned);
+  return wardrobe.ITEMS.filter((it) => it.names && (it.offered || mine.has(it.id)));
 }
 
 /** Everything the Bit may wear: bought or given, earned by a trait, and the founder's medal. */
@@ -232,6 +246,8 @@ function view(model, now) {
     name: model.name,
     worn: model.worn,
     owned: ownedItems(model),
+    // The hub's items (items.js) it can draw: those offered now and those it owns.
+    items: hubItems(model),
     days: model.days.count,
     stage: stageOf(model.days.count),
     rarity: genome.rarity(genes),

@@ -99,13 +99,14 @@ test('a broken file is kept aside, never written over', async (t) => {
   assert.equal(JSON.parse(readFileSync(join(dir, 'bit.json'), 'utf8')).bit, null);
 });
 
-test('the file read back is cleaned: unknown items, bad seeds and names', () => {
+test('the file read back is cleaned: broken item ids, bad seeds and names', () => {
   const m = Model.normalize({
-    bit: { seed: SEED.toUpperCase(), number: 5 }, worn: ['beanie', 'nope', 'cap'], owned: ['beanie', 42], name: 'x'.repeat(80),
+    bit: { seed: SEED.toUpperCase(), number: 5 }, worn: ['beanie', 'not an id', 'hubHat', 'cap'], owned: ['beanie', 42, 'hubHat', '<b>'], name: 'x'.repeat(80),
   });
   assert.equal(m.bit, null);
-  assert.deepEqual(m.worn, ['cap'], 'one item per slot, the last one wins');
-  assert.deepEqual(m.owned, ['beanie']);
+  // 'hubHat' is no item the code knows: a hub item (items.js) whose list is not loaded yet keeps its place.
+  assert.deepEqual(m.worn, ['cap', 'hubHat'], 'one item per slot, the last one wins, then the ids still unknown');
+  assert.deepEqual(m.owned, ['beanie', 'hubHat']);
   assert.equal([...m.name].length, 24);
   assert.equal(Model.cleanName('mail me at someone@example.com'), '');
   assert.equal(Model.cleanName('  Pixel\u0000  the   Brave '), 'Pixel the Brave');

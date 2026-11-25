@@ -31,13 +31,13 @@ function storeAt(t, start) {
 }
 
 test('the months as kept: garbage dropped, counts made whole, the newest fourteen only', () => {
-  const raw = { 'not-a-month': { days: 3 }, '2026-13': { days: 3 }, '2026-11': { days: -2, gaming: 12.7, items: ['beanie', 'nope', 'beanie'], extra: 1 } };
+  const raw = { 'not-a-month': { days: 3 }, '2026-13': { days: 3 }, '2026-11': { days: -2, gaming: 12.7, items: ['beanie', 'hubHat', 'not an id', 7, 'beanie'], extra: 1 } };
   for (let m = 1; m <= 12; m++) raw[`2025-${String(m).padStart(2, '0')}`] = { days: m };
   raw['2026-10'] = { days: 'x' };
   const out = Months.normalize(raw);
   assert.equal(Object.keys(out).length, Months.KEEP);
   assert.deepEqual(Object.keys(out).slice(0, 2), ['2025-01', '2025-02']);
-  assert.deepEqual(out['2026-11'], { days: 0, gaming: 12, music: 0, coding: 0, hot: 0, night: 0, early: 0, items: ['beanie'] });
+  assert.deepEqual(out['2026-11'], { days: 0, gaming: 12, music: 0, coding: 0, hot: 0, night: 0, early: 0, items: ['beanie', 'hubHat'] });
   assert.equal(out['2026-10'].days, 0);
   assert.deepEqual(Months.normalize([1, 2]), {});
   assert.deepEqual(Months.normalize(null), {});

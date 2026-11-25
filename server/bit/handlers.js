@@ -11,9 +11,10 @@ const MAX_BODY_BYTES = 4 * 1024;
  * @param {{ store: import('./store.js').BitStore, hatch: { hatch: () => Promise<object> }, founder: (fresh: boolean) => Promise<boolean>,
  *   publish?: { set: (on: boolean) => Promise<{ ok: boolean, error?: string }>, refresh: () => Promise<boolean> },
  *   keep?: { claim: (id: string) => Promise<any>, shop: (id: string, consent?: string) => Promise<any> },
+ *   items?: { ready: () => Promise<void>, refresh: () => Promise<boolean> },
  *   settings?: () => object, changed?: (bit: object) => void }} deps
  */
-function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_KEEP, settings = () => ({}), changed = (_bit) => {} }) {
+function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_KEEP, items = NO_ITEMS, settings = () => ({}), changed = (_bit) => {} }) {
   // The first time the app asks, the egg is written down, with whether this
   // install had Xenon before (hands.FRESH_INSTALL: the data folder was empty
   // when this engine started) and where the Vitals' Bit already lived.
@@ -48,6 +49,7 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
       if (!body) { json({ ok: false, error: 'bad_request' }); return; }
       let out;
       try {
+        await items.ready(); // an item from the hub goes on only once its list is read
         await current(hands);
         out = await store.update((m) => stepOf(m, body));
       } catch { json({ ok: false, error: 'write_failed' }); return; }
@@ -64,6 +66,7 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
       if (!body || typeof body.item !== 'string') { json({ ok: false, error: 'bad_request' }); return; }
       let out;
       try {
+        await items.ready();
         await current(hands);
         out = await ask(body);
       } catch { json({ ok: false, error: 'write_failed' }); return; }
@@ -73,8 +76,12 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
 
   return {
     'GET /api/bit': async (_req, _res, { json }, hands) => {
-      try { json(view(await current(hands))); }
-      catch { json({ ok: false, error: 'read_failed' }); }
+      try {
+        await items.ready();
+        json(view(await current(hands)));
+      } catch { json({ ok: false, error: 'read_failed' }); return; }
+      // The hub's items (items.js), asked at most every few hours: a new one reaches every surface.
+      items.refresh().then((news) => news && told(), () => {});
     },
     'POST /api/bit/hatch': async (_req, _res, { json }, hands) => {
       let out;
@@ -105,6 +112,8 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
 
 // Tests and a store with no hub: nothing is kept through it.
 const NO_KEEP = Object.freeze({ claim: async () => ({ ok: false, error: 'network' }), shop: async () => ({ ok: false, error: 'network' }) });
+// Tests and a store with no hub: only the items of the code.
+const NO_ITEMS = Object.freeze({ ready: async () => {}, refresh: async () => false });
 // Tests and a store with no hub: nothing is ever shown.
 const NO_PUBLISH = Object.freeze({ set: async () => ({ ok: false, error: 'network' }), refresh: async () => false });
 

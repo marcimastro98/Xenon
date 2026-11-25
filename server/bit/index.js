@@ -13,6 +13,7 @@ const { createBitStore } = require('./store.js');
 const { createHatch } = require('./hatch.js');
 const { createPublish } = require('./publish.js');
 const { createKeep } = require('./keep.js');
+const { createBitItems } = require('./items.js');
 const sparksWallet = require('../store-supporters/sparks-wallet.js');
 const { createBitBackup } = require('./backup.js');
 const { readFacts } = require('./facts.js');
@@ -35,6 +36,9 @@ const hub = {
 const hatch = createHatch({ store, ...hub });
 // The Bit on xenon-app.com, only when the person chooses it (publish.js).
 const publish = createPublish({ store, ...hub });
+// The items made on the hub (items.js): each month's supporters' item and newer shop items.
+const items = createBitItems({ dataDir: DATA_DIR, post: hub.post, warn: (msg) => console.warn(msg) });
+items.ready(); // read at start, so the popup's Bit (sprite.js, synchronous) wears them too
 // Supporter and shop items, through the hub's /redeem and /buy (keep.js). The pass trial
 // never keeps one, and without a saved pass there is nothing to ask the hub with.
 const keep = createKeep({
@@ -103,4 +107,4 @@ start();
 // The person's own Bit for the Windows Vitals popup (vitals-nag.js), or null for the classic one.
 const popupSprite = (mood) => spriteFor(store.peek(), mood);
 
-module.exports = { store, hatch, publish, keep, founder, backup, actions, popupSprite, stop, _tick: tick };
+module.exports = { store, hatch, publish, keep, items, founder, backup, actions, popupSprite, stop, _tick: tick };

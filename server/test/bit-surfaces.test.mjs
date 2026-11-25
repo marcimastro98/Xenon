@@ -62,7 +62,7 @@ test('SDK: the stream draws the Bit and nothing it learned about the person', ()
   const view = hatchedView();
   assert.ok(view.traits && view.owned && view.genes, 'the app\'s own view has more than a widget gets');
   const out = reader()({ ok: true, ...view, seed: SEED }, { clip: 'wave', at: 5 });
-  assert.deepEqual(Object.keys(out).sort(), ['everywhere', 'founder', 'genes', 'hatched', 'name', 'number', 'ok', 'played', 'stage', 'worn']);
+  assert.deepEqual(Object.keys(out).sort(), ['everywhere', 'founder', 'genes', 'hatched', 'items', 'name', 'number', 'ok', 'played', 'stage', 'worn']);
   assert.equal(out.number, 7);
   assert.deepEqual(out.played, { clip: 'wave', at: 5 });
   assert.deepEqual(out.genes, view.genes);
@@ -137,6 +137,30 @@ test('kit: draws the egg, then the Bit, the classic one on request, and plays on
   assert.deepEqual(played, ['wave']);
   assert.ok(MOVES.filter((m) => m !== 'surprise').every((m) => ctx.XenonBit.clips().includes(m)), 'every move is a clip');
   b.destroy();
+});
+
+// A month's supporters' item is made on the hub (server/bit/items.js): a widget gets the drawing of
+// the ones the Bit wears, never their names, prices of others or what it does not wear, and the kit draws it.
+test('SDK and kit: a hub item the Bit wears reaches the widget as a drawing and goes on', async (t) => {
+  const [crown, cape] = JSON.parse(readDisk(new URL('./fixtures/bit-hub-items.json', import.meta.url), 'utf8'));
+  const view = { ok: true, ...hatchedView(), worn: ['crown'], items: [{ ...crown, offered: true }, { ...cape, offered: true }] };
+  const out = reader()(view);
+  assert.deepEqual(out.items, [{ id: 'crown', slot: 'head', source: 'supporter', month: '2026-12', layers: crown.layers }]);
+  const { ctx, el } = fakePage();
+  vm.createContext(ctx);
+  new vm.Script(await bitKit()).runInContext(ctx);
+  let lookNow = () => undefined;
+  const real = ctx.Xenon.bitPlayer.mount;
+  ctx.Xenon.bitPlayer.mount = (host, opts) => { lookNow = opts.look; return real(host, opts); };
+  const b = ctx.XenonBit.mount(el(), { label: 'Bit' });
+  t.after(() => b.destroy());
+  const drawn = () => JSON.parse(JSON.stringify(lookNow().worn.map((it) => it.id)));
+  b.set({ ...out, items: [] });
+  assert.deepEqual(drawn(), [], 'an item the kit was never handed is not drawn');
+  b.set(out);
+  assert.deepEqual(drawn(), ['crown']);
+  b.set({ ...out, worn: ['crown2'], items: [{ ...out.items[0], id: 'crown2', layers: [{ fill: '#ffd75e', cells: [[6, 0]] }] }] });
+  assert.deepEqual(drawn(), [], 'the wardrobe checks it again: over the antenna, never drawn');
 });
 
 test('MCP: the Bit starter carries the kit, installs, and check_widget asks for the kit when it is missing', async () => {
