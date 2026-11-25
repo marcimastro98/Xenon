@@ -373,13 +373,11 @@
              Hidden whenever nothing is playing; turned off for good from
              Settings → Dynamic Island, where it is a normal segment row. -->
         <span class="clock-media" id="clock-media" hidden></span>
-        <!-- Vitals mini chips (opt-in, Settings → Notifiche → Vitals). Populated
-             by js/vitals/vitals.js; lives inside .clock so the minimal-topbar island
-             adopts it automatically when the clock is reparented. -->
+        <!-- Vitals mini chips (opt-in, Settings → Notifiche → Vitals), filled by js/vitals/vitals.js; inside
+             .clock so the minimal-topbar island adopts them when the clock is reparented. -->
         <span class="clock-vitals" id="clock-vitals" hidden></span>
-        <!-- Third-party SDK badge chips (Widget SDK `badge` capability, up to a
-             few at once). Populated by js/widget-sdk/sdk-badges.js; lives inside .clock for
-             the same free minimal-topbar reparenting as clock-vitals above. -->
+        <!-- Third-party SDK badge chips (Widget SDK `badge`), filled by js/widget-sdk/sdk-badges.js; inside
+             .clock for the same free minimal-topbar reparenting as clock-vitals above. -->
         <span class="clock-sdkbadges" id="clock-sdkbadges" hidden></span>
         <!-- Claude Code marker: shows while a session works, lights up when one finishes answering
              (js/claude-widget/claude-widget.js); inside .clock like the two above, so in both bars. -->
@@ -5432,8 +5430,10 @@
 <script src="js/bit-companion/card.js"></script>
 <script src="js/bit-companion/recap.js"></script>
 <script src="js/bit-companion/clip.js"></script>
+<script src="js/bit-companion/room-scenery.js"></script>
+<script src="js/bit-companion/room-panels.js"></script>
+<script src="js/bit-companion/room.js"></script>
 <script src="js/bit-companion/sheet.js"></script>
-<script src="js/bit-companion/shelf.js"></script>
 <script src="js/bit-companion/companion.js"></script>
 <script src="js/bit-companion/tile.js"></script>
 <script src="js/bit-companion/moments.js"></script>

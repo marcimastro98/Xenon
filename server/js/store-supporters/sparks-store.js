@@ -224,7 +224,7 @@
       value: C() ? costLine() : '',
       action: button(t('sparks_use_bit_cta'), () => openBit(ctx.close)),
     }));
-    if (window.BitShelf && ctx.goView) {
+    if (window.BitRoom && ctx.goView) {
       grid.appendChild(useCard({
         art: wardrobeArt(),
         title: t('sparks_use_wardrobe_t'),

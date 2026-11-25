@@ -1,10 +1,12 @@
 'use strict';
-// Keeping a supporter's item or a shop item for good, in the wardrobe's "trying on"
-// box (bit-companion/wardrobe.js). The server asks the hub (server/bit/keep.js, POST
-// /api/bit/claim|buy); this file says how to get the item and offers the one step:
+// The bar under the big Bit in its room (bit-companion/room.js) while something is tried on
+// (bit-companion/wardrobe.js): what it is, how it comes, and the one step to keep it. The server
+// asks the hub (server/bit/keep.js, POST /api/bit/claim|buy):
+//   - shop items, one or several: their fixed price in Sparks; "Keep it" asks for the Store's
+//     consent box, then buys them one after the other. A copy bought on another PC comes back
+//     free, without the box. With too few Sparks the bar says so and offers more;
 //   - a supporter's item: kept with the pass this PC has saved, else the support sheet;
-//   - a shop item: its fixed price in Sparks, the Store's consent box, then the buy. A
-//     copy bought on another PC comes back free, without the box.
+//   - a season's or a trait's item: how it comes, nothing to buy.
 // Supporter items show from their month on, with the next one to come as a preview.
 // Everything shown is built with textContent.
 (() => {
@@ -13,11 +15,12 @@
   const SOURCE = 'bit-wardrobe';
 
   let busy = false;
-  let pass = null; // Promise<boolean>: a pass saved on this PC, asked once per sheet
-  const copies = new Map(); // entry id → Promise<boolean>: bought before, asked once per sheet
+  let pass = null; // Promise<boolean>: a pass saved on this PC, asked once per room
+  const copies = new Map(); // entry id → Promise<boolean>: bought before, asked once per room
 
   const W = () => window.Xenon?.bitWardrobe;
   const base = () => (typeof SERVER === 'string' ? SERVER : '');
+  const traitKey = (id) => id.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
   // The first day of an item's month ('YYYY-MM') in the app's language: a date reads right in every one.
   function firstDay(month) {
@@ -25,6 +28,11 @@
     try {
       return new Intl.DateTimeFormat(typeof lang === 'string' ? lang : 'en', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(Date.UTC(y, m - 1, 1));
     } catch { return month; }
+  }
+
+  function names(items, ctx) {
+    const all = items.map((it) => ctx.say(`mybit_item_${it.id}`));
+    try { return new Intl.ListFormat(typeof lang === 'string' ? lang : 'en', { type: 'conjunction' }).format(all); } catch { return all.join(', '); }
   }
 
   /** Pure: is a supporter's item listed yet? Those out by `now`, and the next month's. */
@@ -43,18 +51,36 @@
     return ctx.say(out ? 'mybit_keep_line' : 'mybit_keep_soon', { date: firstDay(it.month) });
   }
 
-  // The one step the box offers (keep, buy) is drawn as the main button; Buy Sparks is not.
-  function button(text, onClick, ctx, main = true) {
-    const b = makeEl('button', `bitc-seg-btn bitw-pick${main ? ' bitw-go' : ''}`, text);
+  /** How an item it does not own comes, in one plain sentence. */
+  function how(it, bit, ctx) {
+    if (it.source === 'season') return ctx.say('mybit_get_season', { season: ctx.say(`mybit_season_${it.season}`) });
+    if (it.source === 'trait') {
+      const tr = (Array.isArray(bit.traits) ? bit.traits : []).find((x) => x.item === it.id);
+      return tr ? ctx.say('mybit_get_trait', { trait: ctx.say(`mybit_trait_${traitKey(tr.id)}`) }) : ctx.say('mybit_get_later');
+    }
+    return line(it, ctx) || ctx.say(`mybit_get_${it.source}`);
+  }
+
+  function button(text, onClick, ctx, main = false) {
+    const b = makeEl('button', main ? 'broom-btn is-main' : 'broom-btn', text);
     b.type = 'button';
-    b.addEventListener('click', onClick, { signal: ctx.signal });
+    if (onClick) b.addEventListener('click', onClick, { signal: ctx.signal });
+    return b;
+  }
+
+  // A sentence with the price in it: "Keep it for ✦ 200", the Sparks mark beside the number.
+  function withPrice(key, n, ctx) {
+    const [before, after = ''] = ctx.say(key).split('{n}');
+    const b = button('', null, ctx, true);
+    b.append(before, window.BitWardrobe.priceTag({ price: n }, ctx), after);
+    b.setAttribute('aria-label', `${before}${ctx.say('gallery_sparks_price', { n: ctx.num(n) })}${after}`.trim());
     return b;
   }
 
   function joinLink(ctx) {
     const c = window.Xenon?.constants;
     if (typeof c?.supportUrl !== 'function') return null;
-    const a = makeEl('a', 'bitc-seg-btn bitw-join bitw-go', ctx.say('mybit_keep_join'));
+    const a = makeEl('a', 'broom-btn is-main', ctx.say('mybit_keep_join'));
     a.href = c.supportUrl(SOURCE);
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
@@ -62,12 +88,12 @@
     return a;
   }
 
-  // To the Store's Sparks tab: the sheet steps aside so the Store is not under it.
-  function sparksButton(ctx) {
+  // To the Store's Sparks: the sheet steps aside so the Store is not under it.
+  function sparksButton(ctx, main = false) {
     return button(ctx.say('sparks_buy_more'), () => {
       window.BitSheet?.close();
       window.XenonCredits?.openShop();
-    }, ctx, false);
+    }, ctx, main);
   }
 
   function errorText(out, it, ctx) {
@@ -92,82 +118,35 @@
     return ctx.say('mybit_keep_unavailable');
   }
 
-  // Kept: it goes on at once (it was being tried on), and the wardrobe redraws as owned.
-  async function kept(it, out, ctx) {
+  // Kept: it goes on at once (it was being tried on), the room redraws it as owned, and the Bit
+  // opens its box: the moment ends on the Bit, with its video one tap away.
+  async function kept(ids, out, ctx) {
     const worn = Array.isArray(out.bit?.worn) ? out.bit.worn : [];
-    const on = await ctx.post('/api/bit/wear', { worn: [...worn, it.id] });
+    const on = await ctx.post('/api/bit/wear', { worn: [...worn, ...ids] });
     ctx.told(on.ok ? on : out);
-    ctx.refresh();
-    ctx.play('twirl');
-    ctx.note(ctx.say('mybit_kept'));
+    ctx.play('unbox');
+    ctx.note(ctx.say(ids.length > 1 ? 'mybit_kept_many' : 'mybit_kept'));
   }
 
-  async function ask(path, body, it, btn, ctx) {
+  // One after the other; what was bought stays bought if a later one fails.
+  async function buyAll(items, consent, btn, ctx) {
     if (busy) return null;
     busy = true;
     btn.disabled = true;
-    const out = await ctx.post(path, body);
+    const done = [];
+    let last = null;
+    let failed = null;
+    for (const it of items) {
+      const out = await ctx.post('/api/bit/buy', consent ? { item: it.id, consent: BUY_CONSENT } : { item: it.id });
+      if (!out.ok) { failed = { out, it }; break; }
+      done.push(it.id);
+      last = out;
+    }
     busy = false;
     btn.disabled = false;
-    if (out.ok) { await kept(it, out, ctx); return out; }
-    ctx.note(errorText(out, it, ctx));
-    return out;
-  }
-
-  function supporterPart(it, row, ctx) {
-    if (!W().supporterOut(new Date()).includes(it)) return;
-    const join = joinLink(ctx);
-    const keep = button(ctx.say('mybit_keep'), async () => {
-      const out = await ask('/api/bit/claim', { item: it.id }, it, keep, ctx);
-      if (join && (out?.error === 'expired' || out?.error === 'no_code')) { keep.hidden = true; join.hidden = false; }
-    }, ctx);
-    keep.hidden = true;
-    if (join) join.hidden = true;
-    row.prepend(...[keep, join].filter(Boolean));
-    pass ??= window.XenonCredits?.supporterSaved?.() ?? Promise.resolve(false);
-    pass.then((saved) => {
-      if (saved || !join) keep.hidden = false;
-      else join.hidden = false;
-    });
-  }
-
-  function consentRow(box, ctx) {
-    const row = makeEl('label', 'bitc-switch bitw-tick');
-    const [lead, rest = ''] = ctx.say('sparks_buy_consent').split('|');
-    const words = makeEl('span');
-    words.append(makeEl('b', null, lead), rest);
-    row.append(box, words);
-    return row;
-  }
-
-  function shopPart(it, detail, row, ctx) {
-    const entryId = W().entryOf(it);
-    const tick = document.createElement('input');
-    tick.type = 'checkbox';
-    const consent = consentRow(tick, ctx);
-    let again = false;
-    const buy = button(ctx.say('mybit_buy', { n: ctx.num(it.price) }), async () => {
-      if (!again && !tick.checked) { ctx.note(ctx.say('sparks_tick_first')); tick.focus(); return; }
-      const out = await ask('/api/bit/buy', again ? { item: it.id } : { item: it.id, consent: BUY_CONSENT }, it, buy, ctx);
-      if (out?.ok) window.XenonCredits?.refresh?.();
-      if ((out?.error === 'no_sparks' || out?.error === 'no_code') && !row.querySelector('.bitw-more')) {
-        const more = sparksButton(ctx);
-        more.classList.add('bitw-more');
-        row.append(more);
-      }
-    }, ctx);
-    row.prepend(buy);
-    detail.insertBefore(consent, row);
-    if (!copies.has(entryId)) copies.set(entryId, ownedCopy(entryId));
-    copies.get(entryId).then((mine) => {
-      if (!mine || !buy.isConnected) return;
-      again = true;
-      consent.remove();
-      buy.textContent = ctx.say('mybit_buy_back');
-      // The price line would read as a second charge: say it comes back free.
-      const priceLine = detail.querySelector('.bitw-detail-line');
-      if (priceLine) priceLine.textContent = ctx.say('mybit_buy_back_line');
-    });
+    if (done.length) { window.XenonCredits?.refresh?.(true); await kept(done, last, ctx); }
+    if (failed) ctx.note(errorText(failed.out, failed.it, ctx));
+    return failed?.out || null;
   }
 
   async function ownedCopy(entryId) {
@@ -178,18 +157,113 @@
     } catch { return false; }
   }
 
-  /** Adds the keep or buy step for a supporter or shop item to the trying-on box. */
-  function fill(it, detail, row, ctx) {
-    if (it.source !== 'supporter' && it.source !== 'shop') return;
+  function copiesOf(items) {
+    return Promise.all(items.map((it) => {
+      const id = W().entryOf(it);
+      if (!copies.has(id)) copies.set(id, ownedCopy(id));
+      return copies.get(id);
+    }));
+  }
+
+  // The Store's consent box, then the buy itself, in place of the bar's buttons.
+  function confirm(items, total, bar, acts, ctx) {
+    const tick = document.createElement('input');
+    tick.type = 'checkbox';
+    const consent = makeEl('label', 'bitc-switch broom-tick');
+    const [lead, rest = ''] = ctx.say('sparks_buy_consent').split('|');
+    const words = makeEl('span');
+    words.append(makeEl('b', null, lead), rest);
+    consent.append(tick, words);
+    const back = button(ctx.say('ai_deck_cancel'), () => ctx.changed(), ctx);
+    const buy = button(ctx.say('mybit_buy', { n: ctx.num(total) }), async () => {
+      if (!tick.checked) { ctx.note(ctx.say('sparks_tick_first')); tick.focus(); return; }
+      const out = await buyAll(items, true, buy, ctx);
+      if ((out?.error === 'no_sparks' || out?.error === 'no_code') && buy.isConnected) acts.replaceChildren(back, sparksButton(ctx, true));
+    }, ctx, true);
+    bar.insertBefore(consent, acts);
+    acts.replaceChildren(back, buy);
+    tick.focus();
+  }
+
+  function shopStep(items, bar, words, acts, ctx) {
+    const total = items.reduce((sum, it) => sum + (it.price || 0), 0);
+    const many = items.length > 1;
+    const lineEl = words.querySelector('.broom-keep-line');
+    const { state } = window.XenonCredits || {};
+    // Known to be short: say so, and the main step is more Sparks.
+    if (state?.status === 'ok' && Number.isFinite(state.balance) && state.balance < total) {
+      lineEl.textContent = ctx.say('sparks_err_short', { price: ctx.num(total), balance: ctx.num(state.balance) });
+      acts.append(sparksButton(ctx, true));
+      return;
+    }
+    const keep = withPrice(many ? 'mybit_keep_for_many' : 'mybit_keep_for', total, ctx);
+    keep.addEventListener('click', () => confirm(items, total, bar, acts, ctx), { signal: ctx.signal });
+    acts.append(keep);
+    // Bought before on another PC: it comes back free, without the box.
+    copiesOf(items).then((mine) => {
+      if (!keep.isConnected || !mine.every(Boolean)) return;
+      lineEl.textContent = ctx.say('mybit_buy_back_line');
+      const again = button(ctx.say('mybit_buy_back'), () => buyAll(items, false, again, ctx), ctx, true);
+      keep.replaceWith(again);
+    });
+  }
+
+  function supporterStep(it, acts, ctx) {
+    if (!W().supporterOut(new Date()).includes(it)) return;
+    const join = joinLink(ctx);
+    const keep = button(ctx.say('mybit_keep'), async () => {
+      if (busy) return;
+      busy = true;
+      keep.disabled = true;
+      const out = await ctx.post('/api/bit/claim', { item: it.id });
+      busy = false;
+      keep.disabled = false;
+      if (out.ok) { await kept([it.id], out, ctx); return; }
+      ctx.note(errorText(out, it, ctx));
+      if (join && (out.error === 'expired' || out.error === 'no_code')) { keep.hidden = true; join.hidden = false; }
+    }, ctx, true);
+    keep.hidden = true;
+    if (join) join.hidden = true;
+    acts.append(...[keep, join].filter(Boolean));
+    pass ??= window.XenonCredits?.supporterSaved?.() ?? Promise.resolve(false);
+    pass.then((saved) => {
+      if (saved || !join) keep.hidden = false;
+      else join.hidden = false;
+    });
+  }
+
+  /**
+   * The bar for what is tried on: its name, how it comes, take it off, keep it.
+   * @param {object} bit the server's view of the Bit (GET /api/bit)
+   * @param {object[]} items the engine's items being tried on (shop items together, any other alone)
+   * @param {{ say: Function, num: Function, post: Function, told: Function, note: Function, play: Function,
+   *   changed: () => void, takeOff: () => void, signal: AbortSignal }} ctx
+   */
+  function bar(bit, items, ctx) {
+    const box = makeEl('div', 'broom-keep');
+    const words = makeEl('div', 'broom-keep-words');
+    const shop = items.every((it) => it.source === 'shop');
+    const total = items.reduce((sum, it) => sum + (it.price || 0), 0);
+    const first = items[0];
+    const said = shop && items.length > 1 ? ctx.say('mybit_shop_line_many', { n: ctx.num(total) }) : how(first, bit, ctx);
+    words.append(makeEl('p', 'broom-keep-name', names(items, ctx)), makeEl('p', 'broom-keep-line', said));
+    const acts = makeEl('div', 'broom-keep-acts');
+    acts.append(button(ctx.say(items.length > 1 ? 'mybit_take_off_many' : 'mybit_take_off'), () => ctx.takeOff(), ctx));
+    box.append(words, acts);
     // A paired phone can be lost or lent: the pass and the Sparks are used on the PC only.
-    if (window.RemoteSurface?.isRemote?.()) { detail.insertBefore(makeEl('p', 'bitw-detail-line', ctx.say('mybit_keep_pc_only')), row); return; }
-    if (it.source === 'supporter') supporterPart(it, row, ctx);
-    else if (it.source === 'shop') shopPart(it, detail, row, ctx);
+    const keepable = shop || first.source === 'supporter';
+    if (keepable && window.RemoteSurface?.isRemote?.()) {
+      words.append(makeEl('p', 'broom-keep-line', ctx.say('mybit_keep_pc_only')));
+      return box;
+    }
+    if (shop) shopStep(items, box, words, acts, ctx);
+    else if (first.source === 'supporter') supporterStep(first, acts, ctx);
+    return box;
   }
 
   window.BitKeep = {
-    listed, line, fill,
-    /** The sheet closed: the next one asks the PC again. */
+    listed, line, how, bar,
+    /** The room closed: the next one asks the PC again. */
     reset: () => { pass = null; copies.clear(); },
   };
 })();

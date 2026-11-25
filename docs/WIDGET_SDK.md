@@ -3174,7 +3174,7 @@ back to the PC".
 
 Makes the person's own Bit do a move, as a Deck key does: every Bit on the
 dashboard plays it, and so does a widget reading the `bit` stream. A move only:
-never its clothes or its name, which are the person's own choices on Bit's sheet.
+never its clothes or its name, which are the person's own choices in Bit's room.
 
 ```js
 action: { type: 'bitReact', move: 'wave' }

@@ -246,7 +246,7 @@
   let shown = PAGE;
   let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine) | 'sparks' (the Sparks shop) | 'bit' (its shop)
   // The views of the rail's own rows, each only when its module loaded (else the catalog).
-  const ownTab = (id) => ({ __installed: 'installed', __sparks: window.SparksStore && 'sparks', __bit: window.BitShelf && 'bit' })[id] || 'browse';
+  const ownTab = (id) => ({ __installed: 'installed', __sparks: window.SparksStore && 'sparks', __bit: window.BitRoom && 'bit' })[id] || 'browse';
   // A repaint fn while the Store is open: an install committed elsewhere (preset-share.js) flips a card
   // to "Installed" without closing the Store (#1); search/sort/filter above survive it.
   let repaintStore = null;
@@ -338,14 +338,14 @@
     try { refreshStoreDot(); } catch { /* store-dot.js, taken below; close() runs after load */ }
   }
 
-  // Esc walks back one step: the sheet, the entry's page, then the Store. Taken in
-  // the capture phase so nothing under the Store also reacts to it; whatever sits
-  // above the Store (a dropdown, the zoom, a dialog) keeps its own Esc.
+  // Esc walks back one step: the sheet, the entry's page, then the Store. Taken in the capture phase so
+  // nothing under the Store also reacts to it; what sits above it (a dropdown, the zoom, a dialog) keeps its own.
   function onStoreKey(e) {
     if (e.key !== 'Escape' || !overlayEl || zoomEl) return;
     if (document.querySelector('.cs-wrap.cs-open')) return;
     if (document.querySelectorAll('.preset-modal-overlay').length > 1) return;
     e.preventDefault(); e.stopPropagation();
+    if (window.BitRoom?.escape()) return; // the Bit room's drawer first
     if (infoEl) closeInfo();
     else if (detailEntry) closeDetail();
     else close();
@@ -1490,7 +1490,7 @@
     if (activeTab === 'sparks') {
       return window.SparksStore.render(viewEl, { catalog: catalogEntries, renderCard, icon, supportHref, close, goView });
     }
-    if (activeTab === 'bit') return window.BitShelf.render(viewEl, { close });
+    if (activeTab === 'bit') return window.BitRoom.store(viewEl);
     if (window.InstalledManager) return InstalledManager.render(viewEl, force);
     viewEl.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
     return undefined;
@@ -1582,8 +1582,8 @@
       stopCredits = XenonCredits.onChange(() => paintSparksRow(sparks));
       XenonCredits.refresh(false);
     }
-    // The person's Bit and its shop (bit-companion/shelf.js), marked with the Bit itself.
-    if (window.BitShelf) { const mark = el('span', 'cgal-ic'); window.BitApp?.showIcon(mark, 'idle'); own.appendChild(railRow('__bit', t('mybit_title', 'Your Bit'), mark)); }
+    // The person's Bit in its room, with its shop (bit-companion/room.js), marked with the Bit itself.
+    if (window.BitRoom) { const mark = el('span', 'cgal-ic'); window.BitApp?.showIcon(mark, 'idle'); own.appendChild(railRow('__bit', t('mybit_title', 'Your Bit'), mark)); }
     aside.appendChild(list);
     aside.appendChild(own);
     // Next to everything people can install, the place to make their own.

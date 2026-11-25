@@ -1,5 +1,5 @@
 // The short video of the person's own Bit (js/bit-companion/clip.js): what it plays, when the
-// sheet offers it, what it says when it fails, and that it is drawn from the engine, never
+// room offers it, what it says when it fails, and that it is drawn from the engine, never
 // captured from the screen. The recording itself runs in a real browser (headless Chromium).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -73,7 +73,7 @@ function sayIn(code) {
   return (key) => String(own[key] ?? en[key] ?? key);
 }
 
-test('the sheet\'s part: one button where it can record; the failure note survives the redraw', async () => {
+test('the sharing drawer\'s part: one button where it can record; the failure note survives the redraw', async () => {
   const { document } = makeDom();
   const makeEl = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -104,15 +104,14 @@ test('every video word in all 11 languages', () => {
   }
 });
 
-test('drawn frame by frame from the engine, never a capture; the sheet offers it and lets it go', () => {
+test('drawn frame by frame from the engine, never a capture; the room offers it and lets it go', () => {
   assert.match(SRC, /X\.bit\.renderFrame\(c, i, \{ look \}\)/);
   assert.match(SRC, /canvas\.captureStream\(FPS\)/);
   for (const bad of ['innerHTML', 'getDisplayMedia', 'html2canvas', 'frameSvg', 'eval(']) assert.ok(!SRC.includes(bad), bad);
-  assert.match(SRC, /URL\.revokeObjectURL\(made\.url\)/, 'the video is let go when the sheet closes');
+  assert.match(SRC, /URL\.revokeObjectURL\(made\.url\)/, 'the video is let go when the room closes');
   assert.match(SRC, /prefers-reduced-motion/);
-  const sheet = read('js/bit-companion/sheet.js');
-  assert.match(sheet, /window\.BitClip\?\.section\(bit, hands\)/);
-  assert.match(sheet, /window\.BitClip\?\.reset\(\);/);
+  assert.match(read('js/bit-companion/room-panels.js'), /window\.BitClip\?\.section\(bit, h\)/);
+  assert.match(read('js/bit-companion/room.js'), /\[window\.BitWardrobe, window\.BitCard, window\.BitRecap, window\.BitClip\]\) part\?\.reset\(\)/, 'let go when the room closes');
   const page = read('index.html');
   const at = page.indexOf('src="js/bit-companion/clip.js"');
   assert.ok(at > page.indexOf('src="js/bit-companion/recap.js"') && at < page.indexOf('src="js/bit-companion/companion.js"'));

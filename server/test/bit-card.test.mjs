@@ -1,5 +1,5 @@
 // The card of the person's own Bit, to post (js/bit-companion/card.js): what it says, that it
-// is drawn from the engine and never from the page, and that the sheet offers it. Every number
+// is drawn from the engine and never from the page, and that the room's sharing drawer offers it. Every number
 // and name here is made up.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -79,12 +79,13 @@ test('the site choice: a switch that asks the server, a line on what is shown, t
   }
 });
 
-test('the sheet offers the card, the page loads it, and the QR helpers it borrows exist', () => {
-  assert.match(read('js/bit-companion/sheet.js'), /window\.BitCard\?\.section\(bit, hands\)/);
-  assert.match(read('js/bit-companion/sheet.js'), /window\.BitCard\?\.site\(bit, hands\)/, 'the site choice sits with sharing');
+test('the room\'s sharing drawer offers the card, the page loads it, and the QR helpers it borrows exist', () => {
+  const panels = read('js/bit-companion/room-panels.js');
+  assert.match(panels, /window\.BitCard\?\.section\(bit, h\)/);
+  assert.match(panels, /window\.BitCard\?\.site\(bit, h\)/, 'the site choice sits with sharing');
   const page = read('index.html');
   const card = page.indexOf('src="js/bit-companion/card.js"');
-  assert.ok(card > 0 && card < page.indexOf('src="js/bit-companion/sheet.js"'));
+  assert.ok(card > 0 && card < page.indexOf('src="js/bit-companion/room-panels.js"'));
   assert.match(read('js/presets/share-card.js'), /window\.ShareCard = \{ open, close, pickQrTarget, loadQrLib, drawQr \}/);
 });
 

@@ -1,4 +1,4 @@
-/* The person's own Bit (js/bit-companion/companion.js) and its sheet (sheet.js).
+/* The person's own Bit (js/bit-companion/companion.js) and its room (room.js).
    The corner is the Vitals' Bit's place (VitalsPet.css): only one of the two is
    ever on screen. Bit animates itself and stands still under game mode, low
    power, idle and a frosted overlay: no CSS loops here. */
@@ -10,92 +10,181 @@ body.layout-editing .bitc { display: none; }
 html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 
 .bitc-sprite,
-.bitc-chip,
-.bitc-big { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+.bitc-chip { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
 .bitc-sprite { width: 64px; height: 60px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45)); }
 .bitc-sprite svg,
-.bitc-chip svg,
-.bitc-big svg { display: block; width: 100%; height: 100%; }
+.bitc-chip svg { display: block; width: 100%; height: 100%; }
 .bitc-sprite:focus-visible,
-.bitc-chip:focus-visible,
-.bitc-big:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; border-radius: 8px; }
+.bitc-chip:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; border-radius: 8px; }
 
 /* In the clock it is one more mark of the bar; a folded message goes in front. */
 .bitc-chip { width: 34px; height: 32px; }
 .clock-bit:has(.bm-card) .bitc-chip { display: none; }
 
-/* The sheet: from the bottom on a phone, a card in the middle on a wider screen. */
-.bitc-overlay {
-  position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 18px;
-  background: color-mix(in srgb, var(--bg) 62%, transparent);
-}
-.bitc-sheet {
-  position: relative; width: min(420px, 100%); max-height: calc(100% - 12px); overflow: hidden auto; scrollbar-width: none;
-  display: grid; gap: 4px; padding: 0 0 18px;
-  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-modal, 14px);
-  animation: bitc-in 200ms steps(5, end) both;
-}
-.bitc-sheet::-webkit-scrollbar { display: none; }
-.bitc-sheet:focus { outline: none; }
-.bitc-sheet button, .bitc-sheet input { font: inherit; }
-.bitc-sheet :focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+/* The room (room.js): a pixel theatre in the Bit's own colours (room-scenery.js sets --broom-*),
+   the Bit big on its stand, the apron under it with one step, the items on a rail. The stage keeps
+   its colours in both themes: on a light ground the Bits lost their contrast. Every piece of the
+   theatre is sized in cells of the stage's height (--c), so a cell stays square on every screen. */
+.bitc-overlay { position: fixed; inset: 0; z-index: 2000; background: var(--bg); animation: bitc-in 200ms steps(5, end) both; }
+.bitc-overlay:focus { outline: none; }
 @keyframes bitc-in { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .bitc-sheet { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .bitc-overlay, .broom-drawer { animation: none; } }
 
-.bitc-close {
-  position: absolute; z-index: 1; top: 8px; right: 8px; width: 44px; height: 44px; display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: var(--radius-control, 8px); background: transparent; color: var(--muted-text);
-  font-size: 26px; line-height: 1; cursor: pointer;
+.broom { container: broom / size; height: 100%; min-height: 0; color: var(--text); }
+.broom :is(button, input) { font: inherit; }
+.broom :focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+.broom-in { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; height: 100%; min-width: 0; overflow: hidden; }
+.broom-stage { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; background: var(--broom-wall); color: var(--broom-text); }
+.broom-theatre { --c: min(100cqh / 90, 100cqw / 64); --cur: calc(15 * var(--c)); position: relative; container: broom-stage / size; min-height: 0; overflow: hidden; }
+.broom-scenery > svg { position: absolute; display: block; }
+.broom-valance { inset-inline: 0; top: 0; width: 100%; height: calc(8 * var(--c)); }
+.broom-curtain { top: 0; width: calc(16 * var(--c)); height: 100%; }
+.broom-curtain.is-left { left: 0; }
+.broom-curtain.is-right { right: 0; }
+.broom-floor { inset-inline: 0; bottom: 0; width: 100%; height: calc(16 * var(--c)); }
+.broom-light { left: 50%; top: calc(6 * var(--c)); width: calc(60 * var(--c)); height: calc(70 * var(--c)); transform: translateX(-50%); }
+.broom-stand { left: 50%; bottom: calc(9 * var(--c)); width: calc(44 * var(--c)); height: calc(10 * var(--c)); transform: translateX(-50%); }
+/* A narrow stage opens its curtains wider: half of each stays in the wings. */
+@container broom-stage (max-aspect-ratio: 4 / 5) {
+  .broom-theatre > * { --cur: calc(7 * var(--c)); }
+  .broom-curtain.is-left { left: calc(-8 * var(--c)); }
+  .broom-curtain.is-right { right: calc(-8 * var(--c)); }
 }
-.bitc-close:hover { color: var(--text); background: var(--control-bg); }
-
-/* The big Bit stays in sight while the wardrobe scrolls: what is put on or tried shows at once.
-   Once hatched it stands on the deep ground of its own colour, as on its card (sheet.js paintTone). */
-.bitc-stage {
-  position: sticky; top: 0; z-index: 1; display: grid; place-items: center; padding: 22px 0 6px;
-  background: linear-gradient(color-mix(in srgb, var(--accent) 7%, var(--surface)) 0 0), var(--bg);
-  border-bottom: 1px solid var(--line);
+.broom-bit {
+  position: absolute; left: 50%; bottom: calc(14 * var(--c)); width: calc(54 * var(--c)); aspect-ratio: 18 / 17; transform: translateX(-50%);
+  display: block; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation;
 }
-.bitc-sheet.is-hatched .bitc-stage { background: var(--bitc-ink, var(--surface)); }
-.bitc-sheet.is-hatched .bitc-close { color: var(--bitc-ink-text, var(--muted-text)); }
-.bitc-sheet.is-hatched .bitc-close:hover { color: var(--bitc-ink-text, var(--text)); background: color-mix(in srgb, var(--bitc-ink-text, var(--text)) 14%, transparent); }
-.bitc-slot { display: contents; }
-.bitc-big { width: 160px; aspect-ratio: 18 / 17; }
-@media (max-height: 760px) { .bitc-stage { padding-top: 12px; } .bitc-big { width: 104px; } }
+.broom-bit svg { display: block; width: 100%; height: 100%; }
+.broom-top { position: absolute; top: calc(9 * var(--c)); inset-inline: var(--cur); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.broom-who {
+  display: grid; justify-items: start; align-content: center; gap: 2px; min-width: 0; min-height: 44px; margin: -4px -8px; padding: 4px 8px;
+  border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: start; cursor: pointer;
+}
+.broom-name { max-width: 100%; margin: 0; font-size: clamp(20px, calc(4.2 * var(--c)), 34px); line-height: 1.1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.broom-id { margin: 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.broom-rare { margin: 0; max-width: 34ch; font-size: 13px; line-height: 1.35; color: var(--broom-muted); text-wrap: pretty; }
+.broom-tools { display: flex; flex: none; gap: 8px; }
+.broom-icon {
+  display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px;
+  background: color-mix(in srgb, var(--broom-text) 12%, transparent); color: var(--broom-text); cursor: pointer;
+}
+.broom-icon svg { width: 18px; height: 18px; }
+.broom-note {
+  position: absolute; left: 50%; bottom: calc(2 * var(--c)); width: max-content; max-width: 86%; margin: 0; transform: translateX(-50%);
+  font-size: 14px; text-align: center; text-wrap: balance;
+}
+.broom-note:empty { display: none; }
 
-.bitc-body { display: grid; gap: 18px; padding: 14px 20px 0; min-width: 0; }
-/* One column: both halves flow into the body, in this order: who it is, its wardrobe, sharing, settings. */
-.bitc-side, .bitc-main { display: contents; }
-.bitc-head { order: 0; }
-.bitc-facts { order: 1; }
-.bitc-note { order: 2; }
-.bitw { order: 3; }
-.bitc-share { order: 4; }
-.bitc-learn { order: 5; }
-.bitc-prefs { order: 6; }
-.bitc-share-row { display: grid; gap: 8px; min-width: 0; }
+/* The apron: the boards come forward, and the one step for now stands on them. */
+.broom-dock {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 18px; min-width: 0; min-height: 68px;
+  padding: 12px 16px; background: var(--broom-floor); border-top: 2px solid var(--broom-seam);
+}
+.broom-dock:empty { display: none; }
+.broom-line { margin: 0; font-size: 14px; color: var(--broom-muted); text-wrap: balance; }
+.broom-acts, .broom-keep-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.broom-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 16px;
+  border: 0; border-radius: 8px; background: color-mix(in srgb, var(--broom-text) 14%, transparent); color: var(--broom-text);
+  font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; touch-action: manipulation;
+}
+.broom-btn.is-main { background: var(--broom-text); color: var(--broom-wall); }
+.broom-btn:disabled { opacity: 0.55; cursor: default; }
+.broom-btn[hidden] { display: none; }
+.broom-keep { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 18px; min-width: 0; }
+.broom-keep-words { display: grid; gap: 2px; min-width: 0; max-width: 46ch; }
+.broom-keep-name { margin: 0; font-size: 16px; font-weight: 700; }
+.broom-keep-line { margin: 0; font-size: 14px; line-height: 1.35; color: var(--broom-muted); text-wrap: pretty; }
+.broom-tick { max-width: 46ch; font-size: 13px; line-height: 1.35; color: var(--broom-muted); }
+.broom-tick b { color: var(--broom-text); font-weight: 600; }
+
+/* The rail: tabs and its Sparks, then a card per item with the Bit wearing it. It is the stalls of the same
+   theatre, so it takes the stage's colours whatever the theme. */
+.broom-side {
+  --text: var(--broom-text); --muted-text: var(--broom-muted); --line: var(--broom-seam);
+  --control-bg: color-mix(in oklab, var(--broom-text) 9%, var(--broom-wall));
+  min-width: 0; min-height: 0; background: color-mix(in oklab, var(--broom-wall) 80%, black); color: var(--text); border-top: 1px solid var(--line);
+}
+.broom-rail { display: grid; gap: 10px; min-width: 0; padding: 10px 16px max(14px, env(safe-area-inset-bottom)); }
+.broom-rail-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.broom-tabs { display: flex; flex: 1; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.broom-tab {
+  flex: none; min-height: 44px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--muted-text); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.broom-tab[aria-pressed='true'] { background: color-mix(in oklab, var(--broom-text) 16%, transparent); color: var(--text); }
+.broom-balance {
+  display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.broom-balance[hidden] { display: none; }
+.broom-balance .xspark { width: 18px; height: 18px; }
+.broom-items { display: flex; gap: 10px; min-width: 0; padding-bottom: 4px; overflow: auto hidden; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.broom-card {
+  flex: none; display: grid; align-content: start; gap: 4px; width: 120px; padding: 0 0 8px; border: 0; border-radius: 10px;
+  background: var(--control-bg); color: var(--text); text-align: start; cursor: pointer; touch-action: manipulation; scroll-snap-align: start;
+}
+.broom-card-art { display: grid; place-items: center; aspect-ratio: 1; border-radius: 10px 10px 0 0; background: var(--broom-wall); color: var(--broom-brass); }
+.broom-card-art svg { width: 76%; height: 76%; }
+.broom-card-art .broom-edge { fill: color-mix(in srgb, var(--broom-text) 22%, transparent); }
+.broom-card-name { padding: 0 10px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.broom-card > :is(.broom-tag, .broom-price) { padding: 0 10px; }
+.broom-card[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--broom-brass); }
+.broom-tag { font-size: 12px; font-weight: 600; color: var(--muted-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.broom-tag.is-owned { color: color-mix(in oklab, var(--color-success, #45d483) 60%, var(--text)); }
+.broom-tag.is-trait { display: grid; gap: 4px; }
+.broom-price {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--broom-brass);
+}
+.broom-price .xspark, .broom-btn svg { width: 16px; height: 16px; flex: none; }
+.broom-btn .broom-price { color: inherit; }
+
+/* Wide and low (the Xeneon Edge, a monitor across): the rail stands at the side, as a grid. */
+@container broom (min-aspect-ratio: 2 / 1) {
+  .broom-in { grid-template-columns: minmax(0, 1fr) clamp(300px, 30%, 420px); grid-template-rows: minmax(0, 1fr); }
+  .broom-side { overflow: hidden auto; border-top: 0; border-inline-start: 1px solid var(--line); }
+  .broom-tabs { flex-wrap: wrap; }
+  .broom-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); overflow: visible; }
+  .broom-card { width: auto; }
+}
+
+/* The drawer: sharing, or who it is and its settings. From the side, or from the bottom on a phone. */
+.broom-drawer {
+  position: absolute; z-index: 3; inset-block: 0; inset-inline-end: 0; display: grid; grid-template-rows: auto minmax(0, 1fr);
+  width: min(440px, 100%); background: var(--surface); color: var(--text); border-inline-start: 1px solid var(--line);
+  animation: broom-drawer 160ms steps(4, end) both;
+}
+.broom-drawer[hidden] { display: none; }
+@keyframes broom-drawer { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.broom-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 20px; border-bottom: 1px solid var(--line); }
+.broom-drawer-title { margin: 0; font-size: 18px; font-weight: 700; }
+.broom-drawer .broom-icon { background: transparent; color: var(--muted-text); }
+.broom-panel-body { display: grid; align-content: start; gap: 18px; min-height: 0; padding: 16px 20px max(24px, env(safe-area-inset-bottom)); overflow: hidden auto; }
+@container broom (max-width: 600px) {
+  .broom-drawer { inset: auto 0 0; width: 100%; height: 88%; border-inline-start: 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; }
+}
+
+/* In the Store it fills the view, with the Store's own corners and colours. */
+.cst-view.is-own:has(> .broom) { height: 100%; }
+.broom.is-store { min-height: 520px; border-radius: 10px; overflow: hidden; }
+.broom.is-store .broom-drawer { background: var(--cst-well, var(--surface)); }
+
+/* What the drawers hold (room-panels.js, card.js, clip.js, recap.js). */
+.bitc-share-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: start; gap: 12px; min-width: 0; }
 .bitc-share-row .bitc-seg-btn { width: 100%; }
-/* The pose its card and video end on, and the button that turns to the next one. */
 .bitc-pose { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
 .bitc-pose .bitc-line { flex: 1 1 160px; font-size: 14px; }
-.bitc-head { display: grid; gap: 6px; min-width: 0; }
-.bitc-title { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 700; }
 .bitc-line { margin: 0; font-size: 15px; line-height: 1.35; color: var(--muted-text); text-wrap: pretty; }
+.bitc-name { display: grid; gap: 6px; }
 .bitc-name input {
   width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-control, 8px);
   background: var(--control-bg); color: var(--text); font-size: 17px; font-weight: 600;
 }
 .bitc-name input::placeholder { color: var(--muted-text); font-weight: 400; }
-
 .bitc-facts { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted-text); font-variant-numeric: tabular-nums; }
 .bitc-facts li:first-child { color: var(--text); font-weight: 600; }
-
-.bitc-go {
-  min-height: 48px; padding: 0 18px; border: 0; border-radius: var(--radius-control, 8px);
-  background: var(--accent); color: var(--bg); font-size: 16px; font-weight: 700; cursor: pointer;
-}
-.bitc-go:disabled { opacity: 0.55; cursor: default; }
-/* The card to post (bit-companion/card.js): the picture it made, then save, copy, share. */
+/* The card to post (card.js): the picture it made, then save, copy, share. */
 .bitc-card-img { display: block; width: 100%; max-width: 320px; height: auto; border: 1px solid var(--line); border-radius: 12px; }
 .bitc-clip-video { display: block; width: 100%; max-width: 200px; height: auto; aspect-ratio: 9 / 16; border: 1px solid var(--line); border-radius: 12px; }
 .bitc-card-slot { display: grid; gap: 10px; min-width: 0; }
@@ -103,9 +192,6 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 .bitc-site { display: grid; gap: 2px; min-width: 0; }
 .bitc-site .bitc-line { font-size: 13px; color: var(--muted-text); }
 .bitc-site-link { display: inline-flex; align-items: center; min-height: 44px; width: fit-content; color: var(--accent); font-size: 14px; font-weight: 600; text-underline-offset: 3px; }
-.bitc-note { margin: 0; min-height: 1em; font-size: 14px; color: var(--muted-text); }
-.bitc-note:empty { display: none; }
-
 .bitc-part { display: grid; gap: 10px; min-width: 0; }
 .bitc-part-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
 .bitc-traits { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
@@ -120,7 +206,6 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
   transform: scaleX(var(--bitc-fill, 0)); transform-origin: left center;
 }
 [dir='rtl'] .bitc-bar::before { transform-origin: right center; }
-
 .bitc-choice { display: grid; gap: 6px; min-width: 0; }
 .bitc-choice-title { font-size: 13px; font-weight: 600; color: var(--muted-text); }
 .bitc-seg { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -133,137 +218,3 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 .bitc-seg-btn[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
 .bitc-switch { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; cursor: pointer; }
 .bitc-switch input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
-
-/* The wardrobe (js/bit-companion/wardrobe.js): what it owns, then one group per way of getting an
-   item: its name, one line on how, its items. Each group has its own colour, the theme's: the shop
-   the Sparks' amber, supporters the accent, seasons the info blue, traits the success green; "Yours"
-   takes the Bit's own body colour. A name mixes it with the text colour, so it reads on light and dark. */
-.bitw-group {
-  --bitw-tone: var(--accent);
-  display: grid; gap: 6px; min-width: 0; padding-top: 12px; border-top: 1px solid var(--line);
-}
-.bitw-mine { --bitw-tone: var(--bitc-body, var(--accent)); padding-top: 0; border-top: 0; }
-.bitw-group[data-source='shop'] { --bitw-tone: var(--color-warn, #f0b84f); }
-.bitw-group[data-source='season'] { --bitw-tone: var(--color-info, #62cbea); }
-.bitw-group[data-source='trait'] { --bitw-tone: var(--color-success, #45d483); }
-.bitw-why { margin: 0; font-size: 13px; line-height: 1.35; color: var(--muted-text); text-wrap: pretty; }
-.bitw-sub { margin: 4px 0 0; font-size: 12px; font-weight: 600; color: var(--muted-text); }
-.bitw-group > .bitw-sub { margin: 0; font-size: 15px; font-weight: 700; color: color-mix(in oklab, var(--bitw-tone) 55%, var(--text)); }
-.bitw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
-.bitw-item {
-  display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; min-height: 76px; padding: 8px 4px 6px;
-  border: 1px solid color-mix(in srgb, var(--bitw-tone, var(--accent)) 28%, var(--line)); border-radius: var(--radius-control, 8px);
-  background: color-mix(in srgb, var(--bitw-tone, var(--accent)) 8%, transparent); color: var(--text);
-  cursor: pointer; touch-action: manipulation;
-}
-/* A well behind each item in its group's colour, so pastel colours still read on a light theme. */
-.bitw-item > svg {
-  display: block; width: 52px; height: 52px; padding: 2px; box-sizing: border-box;
-  border-radius: 6px; background: color-mix(in srgb, var(--bitw-tone, var(--text)) 14%, color-mix(in srgb, var(--text) 6%, transparent));
-}
-.bitw-item-price {
-  display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: color-mix(in oklab, var(--bitw-tone, var(--accent)) 55%, var(--text));
-}
-.bitw-item-price .xspark { width: 14px; height: 14px; }
-.bitw-item-name {
-  max-width: 100%; font-size: 11px; line-height: 1.2; text-align: center; overflow-wrap: break-word; hyphens: auto;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.bitw-item > svg .bitw-edge { fill: color-mix(in srgb, var(--text) 18%, transparent); }
-.bitw-item[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-/* Not owned yet: the drawing stays whole (it is what makes someone want it); the heading above
-   says they are still to get, the quieter name repeats it. */
-.bitw-item.is-locked { border-color: transparent; }
-.bitw-item.is-locked .bitw-item-name { color: var(--muted-text); }
-.bitw-detail {
-  display: grid; gap: 6px; padding: 10px 12px; border-radius: var(--radius-control, 8px);
-  border: 1px solid color-mix(in srgb, var(--bitw-tone, var(--accent)) 40%, var(--line));
-  background: color-mix(in srgb, var(--bitw-tone, var(--accent)) 6%, transparent);
-}
-.bitw-detail-title { margin: 0; font-size: 14px; font-weight: 600; }
-.bitw-detail-line { margin: 0; font-size: 13px; line-height: 1.35; color: var(--muted-text); text-wrap: pretty; }
-.bitw-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.bitw-pick:disabled { opacity: 0.5; cursor: default; }
-/* The Store's consent box for a shop item, and the support link drawn as the buttons beside it. */
-.bitw-tick { align-items: flex-start; font-size: 13px; line-height: 1.35; color: var(--muted-text); }
-.bitw-tick input { margin-top: 1px; }
-.bitw-tick b { color: var(--text); font-weight: 600; }
-.bitw-join { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
-.bitw-go { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
-.bitw-go:disabled { opacity: 0.6; }
-.bitw-join[hidden], .bitw-pick[hidden] { display: none; }
-
-@media (max-width: 560px) {
-  .bitc-overlay { align-items: flex-end; padding: 0; }
-  .bitc-sheet { width: 100%; border-radius: 14px 14px 0 0; border-bottom: 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
-  .bitc-big { width: 128px; }
-}
-
-/* Any wider screen (a monitor, the Xeneon Edge, a tablet across): the Bit and who it is on the
-   left, its wardrobe on the right, each scrolling on its own, instead of one long narrow column. */
-@media (min-width: 880px) and (min-height: 520px) {
-  .bitc-sheet.is-hatched {
-    width: min(1120px, 100%); height: min(860px, calc(100% - 12px)); padding: 0; overflow: hidden;
-    grid-template-columns: minmax(300px, 360px) 1fr; grid-template-rows: auto 1fr; gap: 0;
-  }
-  .bitc-sheet.is-hatched .bitc-stage { position: static; grid-column: 1; grid-row: 1; border-inline-end: 1px solid var(--line); }
-  .bitc-sheet.is-hatched .bitc-body { display: contents; }
-  .bitc-sheet.is-hatched .bitc-side,
-  .bitc-sheet.is-hatched .bitc-main {
-    display: grid; gap: 18px; align-content: start; min-height: 0; min-width: 0;
-    overflow: hidden auto; scrollbar-width: thin; padding: 18px 20px 22px;
-  }
-  .bitc-sheet.is-hatched .bitc-side { grid-column: 1; grid-row: 2; border-inline-end: 1px solid var(--line); }
-  /* The close button sits in the sheet's corner, over the wardrobe's free top right. */
-  .bitc-sheet.is-hatched .bitc-main { grid-column: 2; grid-row: 1 / span 2; padding: 22px 24px 24px; }
-  .bitc-sheet.is-hatched .bitc-main > :first-child > .bitc-part-title { padding-inline-end: 48px; }
-  .bitc-sheet.is-hatched .bitc-close,
-  .bitc-sheet.is-hatched .bitc-close:hover { color: var(--muted-text); background: var(--surface); }
-  .bitc-sheet.is-hatched .bitw-grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
-  .bitc-sheet.is-hatched .bitw-item { min-height: 92px; }
-  .bitc-sheet.is-hatched .bitw-item > svg { width: 60px; height: 60px; }
-}
-@media (min-width: 880px) and (min-height: 1000px) {
-  .bitc-sheet.is-hatched .bitc-big { width: 200px; }
-}
-
-/* The Bit's shop in the Store (js/bit-companion/shelf.js): the big Bit on its own deep colour, then
-   each item as a picture of the same Bit wearing it. As in the rest of the Store the pictures carry
-   the colour; a shelf's name takes the shop's amber or the supporters' accent. */
-.bshelf { --bshelf-ink: var(--cst-well); display: flex; flex-direction: column; gap: 30px; min-width: 0; }
-.bshelf-hero { display: grid; grid-template-columns: minmax(220px, 360px) minmax(0, 1fr); gap: 24px; }
-.bshelf-stage { display: grid; place-items: center; min-height: 260px; border-radius: 10px; background: var(--bshelf-ink); }
-.bshelf .bshelf-bit { width: min(220px, 70%); }
-.bshelf-words { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 10px; min-width: 0; }
-.bshelf-title { margin: 0; font-size: clamp(28px, 2.6vw, 44px); line-height: 1.05; font-weight: 700; }
-.bshelf-line { margin: 0; max-width: 58ch; font-size: 16px; line-height: 1.4; color: var(--cst-muted); text-wrap: pretty; }
-.bshelf-note { margin: 0; font-size: 14px; color: var(--color-danger, #ff6268); }
-.bshelf-note:empty, .bshelf-slot:empty { display: none; }
-.bshelf-slot { align-self: stretch; max-width: 560px; }
-/* The Store puts no border on a card: the try-on box sits on the well like the cards. */
-.bshelf-slot .bitw-detail { border: 0; background: var(--cst-well); }
-.bshelf-lists { display: flex; flex-direction: column; gap: 30px; }
-.bshelf-group { --bitw-tone: var(--accent); display: grid; gap: 6px; min-width: 0; }
-.bshelf-group[data-source='shop'] { --bitw-tone: var(--color-warn, #f0b84f); }
-.bshelf-group-title { margin: 0; font-size: 22px; font-weight: 700; color: color-mix(in oklab, var(--bitw-tone) 55%, var(--cst-text)); }
-.bshelf-group-line { margin: 0 0 6px; font-size: 14px; line-height: 1.4; color: var(--cst-muted); text-wrap: pretty; }
-.bshelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.bshelf-card {
-  display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0 0 12px;
-  border: 0; border-radius: 10px; color: var(--cst-text); background: var(--cst-well);
-  text-align: start; cursor: pointer; touch-action: manipulation;
-}
-.bshelf-art { display: grid; place-items: center; aspect-ratio: 6 / 5; border-radius: 10px 10px 0 0; background: var(--bshelf-ink); }
-.bshelf-art svg { width: 78%; height: auto; }
-.bshelf-name { padding: 0 12px; font-size: 14px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
-.bshelf-foot { display: flex; min-height: 18px; padding: 0 12px; }
-.bshelf-owned { font-size: 12px; font-weight: 700; color: color-mix(in oklab, var(--color-success, #45d483) 60%, var(--cst-text)); }
-.bshelf-card[aria-pressed='true'] { box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--bitw-tone) 70%, var(--cst-text)); }
-.bshelf-card:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
-.bshelf-wait { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-@media (max-width: 700px) {
-  .bshelf-hero { grid-template-columns: minmax(0, 1fr); }
-  .bshelf-stage { min-height: 200px; }
-  .bshelf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}

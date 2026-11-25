@@ -1,5 +1,5 @@
 // The recap cards of the person's own Bit (js/bit-companion/recap.js): what they say in each
-// language's plural forms, which recaps a view carries, the sheet's buttons, and the one
+// language's plural forms, which recaps a view carries, the sharing drawer's buttons, and the one
 // message that tells about a closed month (companion.js). Every number and name is made up.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -89,7 +89,7 @@ test('only well-made recaps make a button: the year first, then the month', () =
   assert.deepEqual(both.map((r) => r.kind), ['year', 'month']);
 });
 
-test('the sheet\'s part: a button per recap, nothing without one', () => {
+test('the sharing drawer\'s part: a button per recap, nothing without one', () => {
   const { document } = makeDom();
   const makeEl = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -105,12 +105,12 @@ test('the sheet\'s part: a button per recap, nothing without one', () => {
   assert.equal(load({ makeEl }).section({ ...bit, recap: { month } }, h), null, 'no card painter: no buttons that do nothing');
 });
 
-test('the card is drawn on the birth card\'s ground, never from the page; the sheet offers it', () => {
+test('the card is drawn on the birth card\'s ground, never from the page; the room offers it', () => {
   assert.match(SRC, /P\.bitPicture\(bit, BIT, tone\.ink\)/);
   assert.match(SRC, /P\.ground\(said\.tagline, P\.pageOf\(bit\) \|\| P\.SITE, tone\)/);
   for (const bad of ['innerHTML', 'html2canvas', 'getDisplayMedia', 'frameSvg']) assert.ok(!SRC.includes(bad), bad);
-  assert.match(read('js/bit-companion/sheet.js'), /window\.BitRecap\?\.section\(bit, hands\)/);
-  assert.match(read('js/bit-companion/sheet.js'), /window\.BitRecap\?\.reset\(\);/);
+  assert.match(read('js/bit-companion/room-panels.js'), /window\.BitRecap\?\.section\(bit, h\)/);
+  assert.match(read('js/bit-companion/room.js'), /\[window\.BitWardrobe, window\.BitCard, window\.BitRecap, window\.BitClip\]\) part\?\.reset\(\)/, 'let go when the room closes');
   const page = read('index.html');
   const at = page.indexOf('src="js/bit-companion/recap.js"');
   assert.ok(at > page.indexOf('src="js/bit-companion/card.js"') && at < page.indexOf('src="js/bit-companion/companion.js"'));

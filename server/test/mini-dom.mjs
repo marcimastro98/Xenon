@@ -144,7 +144,7 @@ export function makeDom() {
     node.replaceChildren = (...kids) => {
       node.children.slice().forEach((c) => c.remove());
       node._text = '';
-      kids.forEach(node.appendChild);
+      node.append(...kids); // text too, as in the DOM
     };
     // In place, as in the DOM: a module draws one row again where the old one stood.
     node.replaceWith = (other) => {
@@ -203,9 +203,17 @@ export function makeDom() {
   }
 
   // Descendant selectors of class / tag / #id / [attr] / [attr="v"] tokens.
-  // Enough for every selector these modules use, and small enough to read.
+  // Enough for every selector these modules use, and small enough to read. Also `:not(x, y)`
+  // and `:disabled`: the Bit's room asks for the cards and buttons a tap can still change.
   function matches(node, part) {
-    const tokens = part.match(/\[[^\]]+\]|[.#]?[\w-]+/g) || [];
+    const nots = [];
+    let rest = part.replace(/:not\(([^)]*)\)/g, (_, inner) => { nots.push(inner); return ''; });
+    if (rest.includes(':disabled')) {
+      if (!node.disabled) return false;
+      rest = rest.replace(/:disabled/g, '');
+    }
+    if (nots.some((inner) => inner.split(',').some((one) => matches(node, one.trim())))) return false;
+    const tokens = rest.match(/\[[^\]]+\]|[.#]?[\w-]+/g) || [];
     return tokens.every((tk) => {
       if (tk[0] === '[') {
         const m = tk.slice(1, -1).match(/^([\w-]+)(?:=["']?([^"']*)["']?)?$/);
@@ -224,8 +232,9 @@ export function makeDom() {
   }
   function find(root, sel) {
     // A list answers in document order, as the DOM does.
-    if (sel.includes(',')) {
-      const hit = new Set(sel.split(',').flatMap((one) => find(root, one)));
+    const LIST = /,(?![^(]*\))/; // a comma outside :not( )
+    if (LIST.test(sel)) {
+      const hit = new Set(sel.split(LIST).flatMap((one) => find(root, one)));
       return descendants(root).filter((d) => hit.has(d));
     }
     // `:scope > x` is a direct child of the node asked.
