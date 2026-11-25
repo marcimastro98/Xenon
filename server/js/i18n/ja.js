@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: '実際のダッシュボードをキャプチャするには Edge プレビューをオフにしてください。',
   sharecard_capture_ambiguous: 'どのディスプレイにダッシュボードがあるか判別できないため、カードを描画しました。',
   sharecard_capture_needs_fullscreen: 'ダッシュボードをキャプチャするには全画面表示を許可してください。',
+  sharecard_capture_wait: 'ブラウザーの全画面表示の案内が消えたら撮影します。',
   sharecard_capture_game: 'ゲームが全画面で動作中のため、このカードは描画版です。',
   preset_publish_hint: 'コードをコピーしました。GitHubフォームの「Share code」欄に貼り付けてください。',
   preset_publish_hint2: 'コードをコピーしました。公開ページの「共有コード」欄に貼り付けてください。',

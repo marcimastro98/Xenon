@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: '실제 대시보드를 캡처하려면 Edge 미리보기를 끄세요.',
   sharecard_capture_ambiguous: 'Xenon이 어느 디스플레이에 대시보드가 있는지 알 수 없어 카드를 그렸습니다.',
   sharecard_capture_needs_fullscreen: '대시보드를 캡처하려면 전체 화면을 허용하세요.',
+  sharecard_capture_wait: '브라우저의 전체 화면 안내가 사라지면 촬영합니다.',
   sharecard_capture_game: '게임이 전체 화면으로 실행 중이라 이 카드는 그려진 버전입니다.',
   preset_publish_hint: '코드 복사됨: GitHub 양식의 "Share code" 칸에 붙여넣으세요.',
   preset_publish_hint2: '코드 복사됨: 게시 페이지의 "공유 코드" 칸에 붙여넣으세요.',

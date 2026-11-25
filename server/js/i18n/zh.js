@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: '关闭 Edge 预览以截取真实的仪表板。',
   sharecard_capture_ambiguous: 'Xenon 无法判断仪表板在哪块显示器上，因此改为绘制卡片。',
   sharecard_capture_needs_fullscreen: '请允许全屏以截取仪表板。',
+  sharecard_capture_wait: '浏览器的全屏提示消失后就会截图。',
   sharecard_capture_game: '有游戏正在全屏运行，因此这张卡片是绘制的。',
   preset_publish_hint: '代码已复制：请粘贴到 GitHub 表单的 “Share code” 字段。',
   preset_publish_hint2: '代码已复制：请粘贴到发布页面的 “分享代码” 字段。',

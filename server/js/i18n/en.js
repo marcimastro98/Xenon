@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: 'Turn off Edge preview to capture the real dashboard.',
   sharecard_capture_ambiguous: 'Xenon can’t tell which of your displays holds the dashboard, so it drew the card instead.',
   sharecard_capture_needs_fullscreen: 'Allow full screen to capture the dashboard.',
+  sharecard_capture_wait: 'Taking the picture as soon as the browser’s full screen notice goes away.',
   sharecard_capture_game: 'A game is running full screen, so this card is drawn instead.',
   preset_publish_hint: 'Code copied: paste it into the GitHub form\'s "Share code" field.',
   preset_publish_hint2: 'Code copied: paste it into the "Share code" field of the publish page.',

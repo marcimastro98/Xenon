@@ -18,21 +18,10 @@
 // Never a 127.0.0.1 deep link: a phone can't reach the local dashboard.
 
 const SHARE_SITE_BASE = 'https://xenon-app.com/';
-// What a QR can HOLD and what a phone can READ off a posted image are different
-// numbers, and the card this replaces used the first one. 1200 bytes needs QR
-// version 40 — 177x177 modules. The card's QR panel is ~190 px, so each module
-// lands under a single pixel, and the image is downscaled again by whatever
-// platform it is posted to: the result is noise, not a code.
-//
-// Working backwards from the pixels instead: a card posted at ~1200 px wide
-// renders the panel at ~140 px, and a phone needs roughly 3 px per module at
-// arm's length. That is ~47 modules — QR version 8, about 152 bytes at error
-// correction M. 130 leaves room for the URL prefix.
-//
-// The practical consequence, stated plainly: a preset code never fits. Rung 2
-// only ever fires for something very short, and everything real resolves to the
-// catalog entry or the site — both around 40 characters, which scan instantly.
-// That is the correct trade: a QR nobody can scan is worse than no QR.
+// What a phone can READ off a posted image, not what a QR can hold: a card posted ~1200 px wide
+// draws the panel at ~140 px, a phone needs ~3 px per module, so ~47 modules (version 8, ~152
+// bytes at level M); 130 leaves room for the URL. A preset code never fits: everything real
+// resolves to the catalog entry or the site (~40 characters). A QR nobody can scan is worse than none.
 const QR_CODE_MAX_BYTES = 130;
 
 // Two aspect presets and nothing else: the dashboard is 32:9, so a 16:9 card
@@ -72,20 +61,10 @@ function pickQrTarget(opts) {
   return { type: 'site', url: SHARE_SITE_BASE };
 }
 
-// Which enumerated display holds the dashboard, by SHAPE.
-//
-// This is the fix for the defect that killed the v4.4 card. There are two
-// incompatible screen coordinate spaces on a Windows box: listScreens() (via
-// PowerShell) and ffmpeg/gdigrab are both DPI-UNAWARE and agree with each other
-// in virtualised units, while the browser/WebView2 is per-monitor DPI AWARE and
-// reports DIPs that cannot be converted into that space — the page cannot see
-// the other displays' scale factors, so no correction factor exists. Aspect
-// ratio is the only key invariant across both spaces (2560/720 === 1707/480).
-//
-// Returns the position of the single matching screen, or null when zero or more
-// than one match. Two 16:9 monitors is the common ambiguous case and refusing is
-// the correct answer: the caller falls back to the drawn card, never to a
-// capture of the wrong display.
+// Which enumerated display holds the dashboard, by SHAPE (the v4.4 card's defect): listScreens() and
+// gdigrab are DPI-unaware, the browser is per-monitor DPI aware and can't see the other displays'
+// scale, so only the aspect ratio holds in both spaces (2560/720 === 1707/480). The single matching
+// screen, or null for none or several (two 16:9 monitors): the caller then draws the card instead.
 function matchScreen(targetAspect, screens) {
   if (!Number.isFinite(targetAspect) || targetAspect <= 0) return null;
   if (!Array.isArray(screens) || !screens.length) return null;
@@ -185,6 +164,13 @@ function clampBlurRects(rects) {
   return out;
 }
 
+// Did a personal tile move between two measures (fractions of the screen)? Then a picture taken in
+// between can't say where it was, and its blur box could land beside it.
+function blurRectsMoved(a, b, tol = 0.004) {
+  if (a.length !== b.length) return true;
+  return a.some((r, i) => ['x', 'y', 'w', 'h'].some((k) => Math.abs(r[k] - b[i][k]) > tol));
+}
+
 if (typeof window !== 'undefined') (function () {
   const t = (k, fb) => {
     const v = (typeof window.t === 'function') ? window.t(k) : k;
@@ -196,6 +182,9 @@ if (typeof window !== 'undefined') (function () {
   const BRAND_GREEN = '#1ed760';
   const BRAND_INK = '#070808';
   const BRAND_TEXT = '#f0f3f1';
+  // Chromium shows "Press Esc to exit full screen" for 3.8 s (ExclusiveAccessBubble::kShowTime)
+  // and then fades it: a grab before that has the banner in the picture.
+  const FULLSCREEN_BANNER_MS = 4400;
   // server/public/ is a served runtime path on every surface. NEVER docs/images/*:
   // .gitattributes marks it export-ignore, so it is absent for every real user.
   // Relative when SERVER is empty (the static browser demo) so it resolves under
@@ -316,14 +305,8 @@ if (typeof window !== 'undefined') (function () {
     return { native, framed, edgePreview, gaming };
   }
 
-  // Decide WHICH display holds the dashboard, or why we refuse.
-  //
-  // Note what this deliberately does NOT do: compute a rectangle from
-  // window.screenX/screenY. The browser is per-monitor DPI aware and
-  // /api/screens + gdigrab are not, and no client-side factor converts between
-  // the two — mixing them is exactly what made the v4.4 card grab the wrong
-  // monitor. window.__pageZoom is irrelevant here for the same reason: nothing
-  // is converted, the shape is matched. See matchScreen().
+  // Which display holds the dashboard, or why we refuse. Never a rectangle from window.screenX/Y:
+  // nothing converts between the browser's DPI space and gdigrab's, so the shape is matched (matchScreen).
   async function resolveCaptureTarget() {
     const s = surfaceState();
     // Inside iCUE the frame lives in someone else's window on an unknown
@@ -349,16 +332,9 @@ if (typeof window !== 'undefined') (function () {
   // is up, that is what the user is sharing.
   const KEEP_VISIBLE = /(^|\s)(ambient-[\w-]*overlay|lockscreen-overlay)(\s|$)/;
 
-  // Everything that must be off the composited desktop before ffmpeg grabs it.
-  //
-  // Every LIVE overlay counts, not a hand-written list of them. The first version
-  // enumerated four selectors and missed the obvious one: "Share my setup" is
-  // launched from Settings, so the Settings overlay is always up, and the card
-  // photographed the settings panel instead of the dashboard. An allowlist here
-  // is wrong by construction — a new dialog added anywhere in the app would
-  // silently start appearing in people's screenshots. Matching `*-overlay`
-  // inverts that: the dashboard's own chrome (topbar, tiles, pager) carries no
-  // such class, so it stays in the shot, which is the whole point.
+  // Everything that must be off the desktop before ffmpeg grabs it: every LIVE `*-overlay`, never a
+  // hand-written list (the first one missed Settings, which is always up, and photographed it). The
+  // dashboard's own chrome (topbar, tiles, pager) has no such class, so it stays in the shot.
   function collectChrome(overlay) {
     const nodes = [];
     const seen = new Set();
@@ -440,6 +416,19 @@ if (typeof window !== 'undefined') (function () {
     return clampBlurRects(out);
   }
 
+  // The tiles once they stop moving: the grid refits 120 ms after a resize, then slides into place.
+  async function settledBlurRects() {
+    const start = performance.now();
+    let last = collectBlurRects();
+    let still = start;
+    while (performance.now() - still < 400 && performance.now() - start < 1500) {
+      await new Promise((r) => setTimeout(r, 50));
+      const now = collectBlurRects();
+      if (blurRectsMoved(last, now)) { last = now; still = performance.now(); }
+    }
+    return last;
+  }
+
   // The full capture round trip, with every gate failing CLOSED to the drawn card.
   async function captureMonitor(target, overlay) {
     const ctrl = new AbortController();
@@ -448,11 +437,18 @@ if (typeof window !== 'undefined') (function () {
     const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
       const url = SERVER + '/api/screenshot/monitor?index=' + encodeURIComponent(target.index) + '&max=2560';
+      // The blur boxes are measured with the UI hidden, right before the grab, and again after it:
+      // a tile that moved in between means the picture can't say where it was.
+      let rects = [];
+      let moved = false;
       const data = await withUiHidden(overlay, async () => {
+        rects = await settledBlurRects();
         const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
-        if (!res.ok) return null;
-        return res.json();
+        const out = res.ok ? await res.json() : null;
+        moved = blurRectsMoved(rects, collectBlurRects());
+        return out;
       });
+      if (moved) return { ok: false, reason: 'changed' };
       if (!data || !data.base64 || data.base64.length < 50 || !data.screen) return { ok: false, reason: 'unavailable' };
 
       // Gate 3a: the display we were given back must still be the shape we asked
@@ -472,7 +468,7 @@ if (typeof window !== 'undefined') (function () {
         return { ok: false, reason: 'changed' };
       }
       if (looksBlank(img)) return { ok: false, reason: 'blank' };
-      return { ok: true, img, aspect: img.width / img.height };
+      return { ok: true, img, aspect: img.width / img.height, rects };
     } catch (e) {
       return { ok: false, reason: (e && e.name === 'AbortError') ? 'timeout' : 'unavailable' };
     } finally {
@@ -551,14 +547,8 @@ if (typeof window !== 'undefined') (function () {
     openState = modal;
     modal.modal.classList.add('sharecard-modal');
 
-    // `galleryId` points the QR at a published catalog entry. Nothing supplies it
-    // yet: publishing goes through a human review on the site, so the app never
-    // learns the id its creation was given. It stays in the API for the day there
-    // IS an automatic source — the submission portal handing the id back, or a
-    // share opened on catalog-installed content. It was briefly offered as a
-    // paste field and that was a mistake: two link boxes read as two links, and
-    // what the field replaced (the site root) is already the right answer for
-    // everyone who has not published anything.
+    // `galleryId` points the QR at a published catalog entry. Nothing supplies it yet (the app never
+    // learns the id a reviewed creation gets); never a paste field again: two link boxes read as two links.
     const target = pickQrTarget({ galleryId: o.galleryId, code });
     const state = {
       format: 'post',
@@ -739,13 +729,13 @@ if (typeof window !== 'undefined') (function () {
           try { await document.documentElement.requestFullscreen(); }
           catch { state.reason = 'fullscreen'; return false; }
           entered = true;
-          // requestFullscreen resolves before the reflow settles, and the blur
-          // boxes are measured against the POST-fullscreen layout.
-          await new Promise((r) => setTimeout(r, 260));
+          setNote(t('sharecard_capture_wait', 'Taking the picture as soon as the browser’s full screen notice goes away.'));
+          await new Promise((r) => setTimeout(r, FULLSCREEN_BANNER_MS));
+          if (!document.fullscreenElement) { state.reason = 'fullscreen'; return false; }
         }
-        state.blurRects = collectBlurRects();
         const shot = await captureMonitor(resolved, modal.overlay);
         if (!shot.ok) { state.reason = shot.reason; return false; }
+        state.blurRects = shot.rects;
         state.capture = shot.img;
         state.captureAspect = shot.aspect;
         state.reason = '';
@@ -878,7 +868,7 @@ if (typeof window !== 'undefined') (function () {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    pickQrTarget, matchScreen, wrapName, clampBlurRects, cardSize,
+    pickQrTarget, matchScreen, wrapName, clampBlurRects, blurRectsMoved, cardSize,
     QR_CODE_MAX_BYTES, SHARE_SITE_BASE, SCREEN_ASPECT_TOLERANCE, CARD_SIZES,
   };
 }

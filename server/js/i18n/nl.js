@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: 'Schakel de Edge-voorbeeldweergave uit om het echte dashboard vast te leggen.',
   sharecard_capture_ambiguous: 'Xenon kan niet bepalen op welk scherm het dashboard staat, dus is de kaart getekend.',
   sharecard_capture_needs_fullscreen: 'Sta volledig scherm toe om het dashboard vast te leggen.',
+  sharecard_capture_wait: 'De foto wordt gemaakt zodra de melding van volledig scherm van de browser verdwijnt.',
   sharecard_capture_game: 'Er draait een game op volledig scherm, dus deze kaart is getekend.',
   preset_publish_hint: 'Code gekopieerd: plak hem in het veld "Share code" van het GitHub-formulier.',
   preset_publish_hint2: 'Code gekopieerd: plak hem in het veld "Share code" van de publicatiepagina.',

@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: 'Отключите предпросмотр Edge, чтобы снять настоящую панель.',
   sharecard_capture_ambiguous: 'Xenon не может определить, на каком экране панель, поэтому карточка нарисована.',
   sharecard_capture_needs_fullscreen: 'Разрешите полноэкранный режим, чтобы снять панель.',
+  sharecard_capture_wait: 'Снимок будет сделан, как только исчезнет подсказка браузера о полноэкранном режиме.',
   sharecard_capture_game: 'Игра работает в полноэкранном режиме, поэтому карточка нарисована.',
   preset_publish_hint: 'Код скопирован: вставьте его в поле «Share code» формы GitHub.',
   preset_publish_hint2: 'Код скопирован: вставьте его в поле «Share code» на странице публикации.',

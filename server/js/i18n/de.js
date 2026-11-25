@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: 'Schalte die Edge-Vorschau aus, um das echte Dashboard aufzunehmen.',
   sharecard_capture_ambiguous: 'Xenon kann nicht erkennen, auf welchem Bildschirm das Dashboard liegt: deshalb ist die Karte gezeichnet.',
   sharecard_capture_needs_fullscreen: 'Erlaube den Vollbildmodus, um das Dashboard aufzunehmen.',
+  sharecard_capture_wait: 'Das Bild wird aufgenommen, sobald der Vollbild-Hinweis des Browsers verschwindet.',
   sharecard_capture_game: 'Ein Spiel läuft im Vollbild: diese Karte ist gezeichnet.',
   preset_publish_hint: 'Code kopiert: füge ihn im GitHub-Formular in „Share code“ ein.',
   preset_publish_hint2: 'Code kopiert: füge ihn auf der Veröffentlichen-Seite in „Share code“ ein.',

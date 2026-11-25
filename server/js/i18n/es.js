@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: 'Desactiva la vista previa Edge para capturar el panel real.',
   sharecard_capture_ambiguous: 'Xenon no puede saber en qué pantalla está el panel, así que dibujó la tarjeta.',
   sharecard_capture_needs_fullscreen: 'Permite la pantalla completa para capturar el panel.',
+  sharecard_capture_wait: 'La foto se hace en cuanto desaparece el aviso de pantalla completa del navegador.',
   sharecard_capture_game: 'Hay un juego en pantalla completa, así que esta tarjeta está dibujada.',
   preset_publish_hint: 'Código copiado: pégalo en el campo "Share code" del formulario de GitHub.',
   preset_publish_hint2: 'Código copiado: pégalo en el campo "Share code" de la página de publicación.',

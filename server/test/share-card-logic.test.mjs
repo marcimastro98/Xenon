@@ -215,3 +215,31 @@ test('a tile keeps its rounded corner, never more than half its height, and a ba
     assert.equal(sc.clampBlurRects([{ x: 0.1, y: 0.1, w: 0.3, h: 0.2, r }])[0].r, 0, String(r));
   }
 });
+
+// ── blurRectsMoved: the picture is only trusted when the personal tiles held still around it. ──
+
+test('blur boxes that held still are trusted, a slide or a new tile is not', () => {
+  const a = [{ x: 0, y: 0.05, w: 0.375, h: 0.9 }, { x: 0.66, y: 0.5, w: 0.33, h: 0.45 }];
+  assert.equal(sc.blurRectsMoved(a, a.map((r) => ({ ...r }))), false);
+  // A pixel of rounding on a 2560 px screen is still the same place.
+  assert.equal(sc.blurRectsMoved(a, [{ ...a[0], x: 0.0004 }, a[1]]), false);
+  // Mid-slide after full screen: the chat tile a third of the screen away.
+  assert.equal(sc.blurRectsMoved(a, [{ ...a[0], x: 0.34 }, a[1]]), true);
+  assert.equal(sc.blurRectsMoved(a, [{ ...a[0], w: 0.3 }, a[1]]), true);
+  assert.equal(sc.blurRectsMoved(a, [a[0]]), true);
+  assert.equal(sc.blurRectsMoved([], []), false);
+});
+
+// His setup card showed the blur box beside the chat and the browser's "Press Esc" banner: the boxes
+// were measured 260 ms after full screen, while the grid was still sliding, and the grab came before
+// the banner went. The boxes now come from the grab itself, and the banner is waited out.
+test('the setup card measures its blur boxes at the grab and waits out the full screen banner', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../js/presets/share-card.js', import.meta.url), 'utf8');
+  assert.match(src, /state\.blurRects = shot\.rects;/);
+  assert.doesNotMatch(src, /state\.blurRects = collectBlurRects\(\)/);
+  assert.match(src, /moved = blurRectsMoved\(rects, collectBlurRects\(\)\)/);
+  const wait = Number(/const FULLSCREEN_BANNER_MS = (\d+);/.exec(src)?.[1]);
+  assert.ok(wait >= 4000 && wait <= 6000, `banner wait ${wait} ms: Chromium shows it 3.8 s, then fades it`);
+  assert.match(src, /if \(!document\.fullscreenElement\) \{ state\.reason = 'fullscreen'; return false; \}/);
+});

@@ -85,7 +85,7 @@
     "server/js/phone/phone-widget.js": 720,
     "server/js/presets/dashboard-presets.js": 404,
     "server/js/presets/preset-share.js": 5050,
-    "server/js/presets/share-card.js": 884,
+    "server/js/presets/share-card.js": 874,
     "server/js/remote-access-page/remote-access-page.js": 566,
     "server/js/remote-control/remote-control.js": 825,
     "server/js/second-screen-tile/second-screen-tile.js": 663,

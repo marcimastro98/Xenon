@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: 'Desliga a pré-visualização Edge para capturar o painel real.',
   sharecard_capture_ambiguous: 'O Xenon não consegue saber em que ecrã está o painel, por isso desenhou o cartão.',
   sharecard_capture_needs_fullscreen: 'Permite o ecrã inteiro para capturar o painel.',
+  sharecard_capture_wait: 'A foto é tirada assim que o aviso de ecrã inteiro do navegador desaparecer.',
   sharecard_capture_game: 'Está um jogo em ecrã inteiro, por isso este cartão é desenhado.',
   preset_publish_hint: 'Código copiado: cola-o no campo "Share code" do formulário do GitHub.',
   preset_publish_hint2: 'Código copiado: cola-o no campo "Share code" da página de publicação.',

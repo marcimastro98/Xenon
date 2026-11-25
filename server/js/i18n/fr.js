@@ -1776,6 +1776,7 @@ module.exports = {
   sharecard_capture_edgepreview: 'Désactivez l’aperçu Edge pour capturer le vrai tableau de bord.',
   sharecard_capture_ambiguous: 'Xenon ne peut pas déterminer sur quel écran se trouve le tableau de bord : la carte a donc été dessinée.',
   sharecard_capture_needs_fullscreen: 'Autorisez le plein écran pour capturer le tableau de bord.',
+  sharecard_capture_wait: 'La capture se fait dès que l’avis de plein écran du navigateur disparaît.',
   sharecard_capture_game: 'Un jeu tourne en plein écran : cette carte est donc dessinée.',
   preset_publish_hint: 'Code copié : collez-le dans le champ « Share code » du formulaire GitHub.',
   preset_publish_hint2: 'Code copié : collez-le dans le champ « Share code » de la page de publication.',
