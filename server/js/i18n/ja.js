@@ -8181,6 +8181,8 @@ module.exports = {
   mybit_desk_main: 'メイン画面',
   mybit_desk_off: 'オフ',
   mybit_desk_reset: 'いつもの場所に戻す',
+  mybit_desk_told_title: 'Bitがデスクトップに来ました',
+  mybit_desk_told_text: 'メイン画面のタスクバーの上にいます。バーに沿ってドラッグすると場所を変えられます。消すには、あなたのBitを開いて「デスクトップ」を「オフ」にしてください。',
   mybit_warp: 'テレポートのしかた',
   mybit_warp_any: '毎回ちがう',
   mybit_warp_crumble: 'ビットに崩れる',

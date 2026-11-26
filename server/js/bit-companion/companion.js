@@ -124,6 +124,7 @@
   // Once it hatched, a closed month (or year) is told once, with its card in the sheet
   // (recap.js), and an unread one goes when its month gives way to the next.
   const WEEK = 7 * 24 * 3600 * 1000;
+  const DESK_TOLD = 'bit:desk'; // the desktop's one line (desk.js): not a recap, it stays until read
   let told = false;
   let filed = null; // the recap ids last filed from this page
   const say = (key, vars = {}) => String(t(key)).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
@@ -140,7 +141,7 @@
     M.file(recaps.map(({ kind, rec }, i) => ({
       id: ids[i], kind: 'bit', surface: 'dashboard', title: R.words(rec, kind, bit, say, num, typeof lang === 'string' ? lang : 'en').title,
       line: M.firstLine(body), body, action: { type: 'bit', label: say('mybit_recap_open') },
-    })), { bit: ids });
+    })), { bit: [...ids, DESK_TOLD] });
   }
 
   // Every egg is met once, on its first day (a new install's, or a founder's right after the

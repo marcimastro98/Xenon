@@ -8025,6 +8025,8 @@ module.exports = {
   mybit_desk_main: 'Écran principal',
   mybit_desk_off: 'Non',
   mybit_desk_reset: 'Retour à sa place',
+  mybit_desk_told_title: 'Bit est maintenant sur votre bureau',
+  mybit_desk_told_text: 'Il se tient sur la barre des tâches de votre écran principal. Faites-le glisser le long de la barre pour lui donner une autre place. Pour le retirer, ouvrez votre Bit et réglez Sur le bureau sur Non.',
   mybit_warp: 'Comment il se téléporte',
   mybit_warp_any: 'Change à chaque fois',
   mybit_warp_crumble: 'Se défait en bits',

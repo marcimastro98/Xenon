@@ -8181,6 +8181,8 @@ module.exports = {
   mybit_desk_main: '主屏幕',
   mybit_desk_off: '关闭',
   mybit_desk_reset: '放回原位',
+  mybit_desk_told_title: 'Bit 现在在你的桌面上了',
+  mybit_desk_told_text: '它站在主屏幕的任务栏上。沿着任务栏拖动它，就能换个位置。要把它拿走，打开你的 Bit，把“在桌面上”设为“关闭”。',
   mybit_warp: '瞬移方式',
   mybit_warp_any: '每次不同',
   mybit_warp_crumble: '碎成比特',

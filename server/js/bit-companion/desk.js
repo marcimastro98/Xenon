@@ -27,6 +27,7 @@
   const WALK_GUARD_MS = 90000; // no word from the shell by then: it counts as arrived
   const ONCE_MARGIN_MS = 1000;
   const QUIET_RETRY_MS = 30000; // a pace with no fidgets is asked again after this
+  const TOLD = 'xenon.bit.deskTold'; // the egg whose desktop line was filed on this PC
 
   let sent = '';
   let out = false; // the shell has Bit on screen
@@ -115,6 +116,23 @@
     if (out && !keepalive) keepalive = setInterval(() => send(true), KEEPALIVE_MS);
     if (!out) { clearInterval(keepalive); keepalive = 0; }
     if (out || was) signal(json);
+    if (out && !was) tellOnce();
+  }
+
+  // The first time it stands on the desktop, Bit's messages say in one line how to move it or turn it
+  // off: a card that waits for a calm moment (js/ai/bit-messages.js), once per egg on this PC.
+  function tellOnce() {
+    const egg = state()?.eggAt;
+    const M = window.BitMessages;
+    if (!egg || !M || typeof t !== 'function') return;
+    try { if (localStorage.getItem(TOLD) === egg) return; } catch { return; }
+    const body = t('mybit_desk_told_text');
+    M.file([{
+      id: 'bit:desk', kind: 'bit', surface: 'dashboard', title: t('mybit_desk_told_title'),
+      line: M.firstLine(body), body, action: { type: 'bit', label: t('mybit_recap_open') },
+    }]).then((ok) => {
+      try { if (ok) localStorage.setItem(TOLD, egg); } catch { /* filed; the inbox keeps one id only */ }
+    }).catch(() => { /* asked again next time it goes out */ });
   }
 
   function schedule() {

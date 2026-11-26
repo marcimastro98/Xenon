@@ -8185,6 +8185,8 @@ module.exports = {
   mybit_desk_main: 'Hoofdscherm',
   mybit_desk_off: 'Uit',
   mybit_desk_reset: 'Terug naar zijn plek',
+  mybit_desk_told_title: 'Bit staat nu op je bureaublad',
+  mybit_desk_told_text: 'Het staat op de taakbalk van je hoofdscherm. Sleep het langs de balk om het een andere plek te geven. Om het weg te halen, open je Bit en zet Op het bureaublad op Uit.',
   mybit_warp: 'Hoe het teleporteert',
   mybit_warp_any: 'Elke keer anders',
   mybit_warp_crumble: 'Valt uiteen in bits',

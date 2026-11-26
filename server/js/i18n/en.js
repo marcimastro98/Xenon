@@ -8197,6 +8197,8 @@ module.exports = {
   mybit_desk_main: 'Main screen',
   mybit_desk_off: 'Off',
   mybit_desk_reset: 'Back to its usual spot',
+  mybit_desk_told_title: 'Bit is on your desktop now',
+  mybit_desk_told_text: 'It stands on the taskbar of your main screen. Drag it along the bar to give it another spot. To take it away, open your Bit and set On the desktop to Off.',
   mybit_warp: 'How it teleports',
   mybit_warp_any: 'Changes each time',
   mybit_warp_crumble: 'Crumbles into bits',

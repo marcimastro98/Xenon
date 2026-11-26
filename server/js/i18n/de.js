@@ -8045,6 +8045,8 @@ module.exports = {
   mybit_desk_main: 'Hauptbildschirm',
   mybit_desk_off: 'Aus',
   mybit_desk_reset: 'Zurück an seinen Platz',
+  mybit_desk_told_title: 'Bit ist jetzt auf deinem Desktop',
+  mybit_desk_told_text: 'Es steht auf der Taskleiste deines Hauptbildschirms. Zieh es an der Leiste entlang, um ihm einen anderen Platz zu geben. Zum Entfernen öffne dein Bit und stell Auf dem Desktop auf Aus.',
   mybit_warp: 'Wie es sich teleportiert',
   mybit_warp_any: 'Jedes Mal anders',
   mybit_warp_crumble: 'Zerfällt in Bits',

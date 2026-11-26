@@ -609,7 +609,7 @@ test('a founder\'s egg files one card to hatch it; a fresh hatch takes it back, 
   const [card] = filed[0].messages;
   assert.deepEqual([card.id, card.kind, card.surface, card.action.type, card.title], ['bit:hatch', 'bit', 'dashboard', 'bit', 'mybit_card_title']);
   r.tell(born({}, { founder: true, born: new Date().toISOString() }));
-  assert.equal(JSON.stringify(filed[1]), '{"messages":[],"live":{"bit":[]}}');
+  assert.equal(JSON.stringify(filed[1]), '{"messages":[],"live":{"bit":["bit:desk"]}}', 'the egg card goes, the desktop line stays');
   const later = rig();
   const none = [];
   later.ctx.BitMessages = { file: (_m, live) => { none.push(live); return Promise.resolve(true); }, firstLine: (s) => s };
@@ -668,9 +668,9 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
   assert.equal(filed.length, 1, 'once a page for the same month');
   const [msg] = filed[0].messages;
   assert.deepEqual([msg.id, msg.kind, msg.surface, msg.action.type, msg.action.label, msg.body], ['bit:recap:2026-11', 'bit', 'dashboard', 'bit', 'mybit_recap_open', 'mybit_recap_msg']);
-  assert.deepEqual(filed[0].live, { bit: ['bit:recap:2026-11'] });
+  assert.deepEqual(filed[0].live, { bit: ['bit:recap:2026-11', 'bit:desk'] });
   r.tell(born({}, { ...old, recap: { month: { ...nov, key: '2026-12' }, year: { ...nov, key: '2026' } } }));
-  assert.deepEqual(filed[1].live, { bit: ['bit:recap:2026', 'bit:recap:2026-12'] }, 'an unread November goes');
+  assert.deepEqual(filed[1].live, { bit: ['bit:recap:2026', 'bit:recap:2026-12', 'bit:desk'] }, 'an unread November goes');
   const off = rig();
   const none = [];
   off.ctx.BitMessages = { file: (m) => { none.push(m); return Promise.resolve(true); }, firstLine: (s) => s };

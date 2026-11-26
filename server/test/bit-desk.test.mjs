@@ -202,6 +202,35 @@ test('a drop is its place: kept in its prefs, or undone when the save fails', as
   assert.equal(r.posts.length, 1, 'not a number: nothing');
 });
 
+test('the first time out, one line in Bit\'s messages says how to move it or take it away, once per egg', async () => {
+  const store = new Map();
+  const filed = [];
+  const egg = '2026-11-26T08:00:00.000Z';
+  const out = (eggAt, prefs) => {
+    const r = rig({ bit: { ...born(prefs), eggAt }, pace: 'game' });
+    r.ctx.t = (key) => key;
+    r.ctx.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) };
+    r.ctx.BitMessages = { file: (m) => { filed.push(m); return Promise.resolve(true); }, firstLine: (s) => s };
+    r.advance(100);
+    return r;
+  };
+  const r = out(egg);
+  await Promise.resolve(); // the inbox answers on the next tick
+  assert.equal(filed.length, 1);
+  const [msg] = filed[0];
+  assert.deepEqual([msg.id, msg.kind, msg.surface, msg.title, msg.body, msg.action.type], ['bit:desk', 'bit', 'dashboard', 'mybit_desk_told_title', 'mybit_desk_told_text', 'bit']);
+  assert.equal(store.get('xenon.bit.deskTold'), egg, 'kept once the inbox has it');
+  r.ctx.BitApp.heard({ ...born({ desk: 'off' }), eggAt: egg });
+  r.advance(100);
+  r.ctx.BitApp.heard({ ...born(), eggAt: egg });
+  r.advance(100);
+  out(egg);
+  out(egg, { desk: 'off' });
+  assert.equal(filed.length, 1, 'off and on again, or the next start, says nothing new');
+  out('2026-12-01T08:00:00.000Z');
+  assert.equal(filed.length, 2, 'a new egg (a reinstall) is told again');
+});
+
 test('turned off from its room: one message switches it off, then nothing', () => {
   const r = rig();
   r.advance(100);

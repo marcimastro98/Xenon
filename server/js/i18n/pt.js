@@ -8074,6 +8074,8 @@ module.exports = {
   mybit_desk_main: 'Ecrã principal',
   mybit_desk_off: 'Desligado',
   mybit_desk_reset: 'Voltar ao seu lugar',
+  mybit_desk_told_title: 'O Bit já está na tua área de trabalho',
+  mybit_desk_told_text: 'Está na barra de tarefas do teu ecrã principal. Arrasta-o ao longo da barra para lhe dar outro lugar. Para o tirar, abre o teu Bit e põe Na área de trabalho em Desligado.',
   mybit_warp: 'Como se teletransporta',
   mybit_warp_any: 'Cada vez diferente',
   mybit_warp_crumble: 'Se desfaz em bits',

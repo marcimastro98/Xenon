@@ -8181,6 +8181,8 @@ module.exports = {
   mybit_desk_main: '주 화면',
   mybit_desk_off: '끄기',
   mybit_desk_reset: '원래 자리로',
+  mybit_desk_told_title: '이제 Bit가 바탕 화면에 있어요',
+  mybit_desk_told_text: '메인 화면의 작업 표시줄 위에 서 있어요. 막대를 따라 끌어서 다른 자리로 옮길 수 있어요. 없애려면 내 Bit를 열고 바탕 화면을 끄기로 바꾸세요.',
   mybit_warp: '순간이동 방식',
   mybit_warp_any: '매번 달라요',
   mybit_warp_crumble: '비트로 부서져요',
