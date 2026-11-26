@@ -23,7 +23,7 @@ const { createBitStore } = require('../bit/store.js');
 const { createBitActions } = require('../bit/actions.js');
 
 const SEED = '0123456789abcdef';
-const TYPES = ['bitGet', 'bitReact', 'bitPlace', 'bitWear', 'bitRename'];
+const TYPES = ['bitGet', 'bitReact', 'bitPlace', 'bitDesk', 'bitWarp', 'bitWear', 'bitRename'];
 const NOW = new Date(2026, 11, 3, 12);
 
 function setup({ hatched = true, extra = {} } = {}) {
@@ -43,6 +43,8 @@ function setup({ hatched = true, extra = {} } = {}) {
 test('the catalog is appended, its places are the model\'s and every move is a clip', () => {
   for (const type of TYPES) assert.ok(CAPABILITIES.some((c) => c.type === type), type);
   assert.deepEqual(Catalog.PLACES, [...Model.PLACES]);
+  assert.deepEqual(Catalog.DESKS, [...Model.DESKS]);
+  assert.deepEqual(Catalog.WARPS, [...Model.WARPS]);
   for (const m of Catalog.MOVES.filter((x) => x !== 'surprise')) assert.ok(bit.clip(m), m);
   for (const c of Catalog.CAPABILITIES) assert.equal(c.capability.risk, 'safe', c.type);
 });
@@ -113,6 +115,20 @@ test('only what it owns can be worn; toggle, on and off do what they say', async
     const off = await t.actions.run({ type: 'bitWear', item: 'scarf', wear: 'off' });
     assert.equal(off.bit.worn.includes('scarf'), false);
     assert.deepEqual(t.sent.map((s) => s.event), ['bit', 'bit'], 'a change that changes nothing is not told');
+  } finally { t.done(); }
+});
+
+test('the desktop and the way it teleports go through the model\'s rules, and the answer says them', async () => {
+  const t = setup();
+  try {
+    const desk = await t.actions.run({ type: 'bitDesk', desk: 'all' });
+    assert.deepEqual([desk.ok, desk.bit.desk], [true, 'all']);
+    const warp = await t.actions.run({ type: 'bitWarp', warp: 'beam' });
+    assert.deepEqual([warp.ok, warp.bit.warp], [true, 'beam']);
+    assert.deepEqual(await t.actions.run({ type: 'bitDesk', desk: 'ceiling' }), { ok: false, error: 'bad_value' });
+    assert.deepEqual(await t.actions.run({ type: 'bitWarp', warp: 'explode' }), { ok: false, error: 'bad_value' });
+    assert.deepEqual(await t.actions.run({ type: 'bitWarp' }), { ok: false, error: 'bad_value' }, 'nothing chosen: a plain no');
+    assert.equal(t.sent.filter((s) => s.event === 'bit').length, 2, 'every surface hears each change, once');
   } finally { t.done(); }
 });
 

@@ -11,8 +11,10 @@
   // Moves anyone may ask for: clips of the engine that read well on any Bit.
   // "surprise" picks one of the others.
   const MOVES = ['surprise', 'wave', 'dance', 'hop', 'spin', 'moonwalk', 'juggle', 'bow', 'wink', 'airGuitar', 'cheer'];
-  // Same list as server/bit/model.js PLACES (a test keeps them equal).
+  // Same lists as server/bit/model.js PLACES, DESKS and WARPS (a test keeps them equal).
   const PLACES = ['corner', 'topbar', 'both', 'off'];
+  const DESKS = ['main', 'all', 'off'];
+  const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch'];
   const WEAR = ['toggle', 'on', 'off'];
   const keys = (list, prefix) => Object.fromEntries(list.map((v) => [v, prefix + v]));
   const snake = (id) => id.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
@@ -39,6 +41,30 @@
           name: 'place_bit',
           description: 'Where the user\'s own Bit stands on the dashboard: corner (bottom corner), topbar (by the clock), both, or off (hidden; its Bit widget, if placed, stays). Use it for "hide my Bit", "put Bit by the clock", "bring Bit back".',
           params: { place: 'corner, topbar, both or off' },
+        },
+      },
+    },
+    {
+      type: 'bitDesk', group: 'xenon', labelKey: 'deck_act_bitDesk',
+      params: [{ name: 'desk', kind: 'select', labelKey: 'mybit_desk', options: DESKS, optionKeys: keys(DESKS, 'mybit_desk_') }],
+      capability: {
+        domain: 'ai', risk: 'safe', requires: 'bit',
+        ai: {
+          name: 'place_bit_desktop',
+          description: 'Whether the user\'s own Bit also stands on the desktop, on the taskbar (only in the Xenon app on Windows for now): main (the main screen), all (one Bit that travels to every screen in turn, never the dashboard\'s own), or off. Use it for "put Bit on my desktop", "Bit on every screen", "take Bit off the taskbar".',
+          params: { desk: 'main, all or off' },
+        },
+      },
+    },
+    {
+      type: 'bitWarp', group: 'xenon', labelKey: 'deck_act_bitWarp',
+      params: [{ name: 'warp', kind: 'select', labelKey: 'mybit_warp', options: WARPS, optionKeys: keys(WARPS, 'mybit_warp_') }],
+      capability: {
+        domain: 'ai', risk: 'safe', requires: 'bit',
+        ai: {
+          name: 'bit_teleport_style',
+          description: 'How the user\'s own Bit teleports when it moves, on the dashboard and on the desktop: any (a different way each time), crumble (it crumbles into its bits and comes together again), beam (a beam of light), packet (it runs off as a packet of data), or glitch. Use it for "make Bit teleport with a beam", "Bit should crumble into bits".',
+          params: { warp: 'any, crumble, beam, packet or glitch' },
         },
       },
     },
@@ -76,12 +102,12 @@
         domain: 'ai', risk: 'safe', requires: 'bit',
         ai: {
           name: 'get_my_bit',
-          description: 'How the user\'s own Bit is: hatched (false = still an egg, tapping it hatches it), name, number (its place among every Bit born; local = born offline, no number yet), founder (had Xenon before Bit came), stage and days (days of use: baby, young, adult, veteran, legend), lookOneIn (how many Bits it takes to find its whole look once), traits (habits it is learning, progress 0-1, each earns an item), worn and owned (item ids), place and reactions (how many moves an hour it makes by itself), cards (recap cards ready on its sheet: "2026-11" a month, "2026" the year; what they count stays on the PC). Use it for "how is my Bit?", "what does Bit have?", "how rare is my Bit?".',
+          description: 'How the user\'s own Bit is: hatched (false = still an egg, tapping it hatches it), name, number (its place among every Bit born; local = born offline, no number yet), founder (had Xenon before Bit came), stage and days (days of use: baby, young, adult, veteran, legend), lookOneIn (how many Bits it takes to find its whole look once), traits (habits it is learning, progress 0-1, each earns an item), worn and owned (item ids), place and reactions (how many moves an hour it makes by itself), desk (on the desktop: main, all or off) and warp (how it teleports), cards (recap cards ready on its sheet: "2026-11" a month, "2026" the year; what they count stays on the PC). Use it for "how is my Bit?", "what does Bit have?", "how rare is my Bit?".',
           params: {},
         },
       },
     },
   ];
 
-  return { CAPABILITIES, MOVES, PLACES };
+  return { CAPABILITIES, MOVES, PLACES, DESKS, WARPS };
 });

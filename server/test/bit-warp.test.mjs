@@ -12,16 +12,16 @@ const BOX = { left: 100, top: 200, width: 72, height: 68 }; // 4 px per cell on 
 
 function classes() {
   const set = new Set();
-  return { add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c) };
+  return { add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c), toggle: (c, on) => (on ? set.add(c) : set.delete(c)) };
 }
 
-function spriteOf(paths, { left = false, box = BOX } = {}) {
+function spriteOf(paths, { left = false, box = BOX, inRoom = false } = {}) {
   const els = paths.map(({ d, fill = '#fff', opacity, transform = 'translate(0 0) scale(1 1)' }) => {
     const attrs = { d, fill, opacity };
     return { parentNode: { getAttribute: () => transform }, getAttribute: (k) => attrs[k] ?? null };
   });
   const svg = { viewBox: { baseVal: { x: -3, y: -5, width: 18, height: 17 } }, getBoundingClientRect: () => box, querySelectorAll: () => els };
-  return { classList: classes(), querySelector: () => svg, closest: (sel) => (sel === '.is-left' && left ? {} : null), getBoundingClientRect: () => box };
+  return { classList: classes(), querySelector: () => svg, closest: (sel) => ((sel === '.is-left' && left) || (sel === '.bitc-overlay' && inRoom) ? {} : null), getBoundingClientRect: () => box };
 }
 
 function page({ reduced = false, noContext = false } = {}) {
@@ -33,7 +33,7 @@ function page({ reduced = false, noContext = false } = {}) {
   const canvas = () => {
     const style = { props: {}, ys: [], setProperty(k, v) { style.props[k] = v; if (k === '--warp-ty') style.ys.push(v); } };
     const el = {
-      width: 0, height: 0, className: '', style, setAttribute() {},
+      width: 0, height: 0, className: '', classList: classes(), style, setAttribute() {},
       remove: () => body.splice(body.indexOf(el), 1),
       getContext: () => (noContext ? null : {
         setTransform() {}, clearRect() {}, globalAlpha: 1, fillStyle: '',
@@ -96,6 +96,16 @@ test('every effect leaves, moves Bit once and arrives, on a canvas that is gone 
     assert.ok(most >= 1 && p.draws.length > 0, `${name}: drawn`);
     assert.equal(p.body.length, 0, `${name}: no canvas left behind`);
     assert.equal(sprite.classList.contains('bit-warping'), false, `${name}: shown again`);
+  }
+});
+
+test('an effect played on the room\'s Bit is drawn over the room, any other under it', async () => {
+  for (const inRoom of [true, false]) {
+    const p = page();
+    const done = p.warp.move(spriteOf([{ d: 'M0 0h4v3h-4z' }], { inRoom }), 'beam', () => {});
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(p.made[0].classList.contains('is-top'), inRoom);
+    await p.run(done);
   }
 });
 

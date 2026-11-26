@@ -1,5 +1,6 @@
 'use strict';
-// The two drawers of the Bit's room (bit-companion/room.js), opened over its stage:
+// The drawers of the Bit's room (bit-companion/room.js), opened over its stage (and the guided setup's,
+// room-setup.js, which asks with the same rows):
 //   - share: one choice at the top (its card, a short video, the setup's card with the Bit in it, the
 //     month's card once a month has closed), then only that one, with one row to copy, share or save
 //     it (card.js, clip.js, presets/share-card.js, recap.js);
@@ -83,6 +84,7 @@
       const btn = makeEl('button', 'bitc-seg-btn', wordOf(value));
       btn.type = 'button';
       btn.setAttribute('aria-pressed', String(value === current));
+      btn.dataset.value = value;
       btn.addEventListener('click', () => setPref({ [key]: value }, h), { signal: h.signal });
       row.append(btn);
     }
@@ -253,12 +255,13 @@
 
   /**
    * One drawer's title and body.
-   * @param {'share'|'about'} kind
+   * @param {'share'|'about'|'setup'} kind setup: the guided setup (room-setup.js)
    * @param {object} bit the server's view of the Bit (GET /api/bit)
    * @param {{ say: Function, num: Function, post: Function, told: Function, note: Function, play: Function,
    *   redraw: Function, signal: AbortSignal }} h the room's hands
    */
   function build(kind, bit, h) {
+    if (kind === 'setup') return window.BitSetup?.build(bit, h) || null;
     const title = kind === 'share' ? h.say('mybit_share_title') : h.say(bit.hatched ? 'mybit_about' : 'mybit_place');
     return { title, body: kind === 'share' ? share(bit, h) : about(bit, h) };
   }
@@ -267,5 +270,7 @@
     build, factsOf,
     /** The share drawer opens on this part next: 'card', 'clip', 'setup' or 'recap'. */
     choose: (id) => { shareTab = id; },
+    /** The rows the guided setup asks with (room-setup.js), the same ones this drawer shows. */
+    parts: Object.freeze({ choice, roam, warp: warpChoice, desk, deskShown, PLACES }),
   };
 })();

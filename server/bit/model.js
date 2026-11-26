@@ -48,12 +48,11 @@ const SITE_PAGE = 'https://xenon-app.com/bit.html#';
 // often it reacts (bitDirector's hourly cap), and the classic Bit in the app.
 const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
-const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null });
+const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null, setup: false });
 // In the corner it strolls along the bottom now and then, sometimes teleporting (mix), only on foot, or
 // stays where it stands; warp: how it teleports (js/bit-companion/warp.js), 'any' a different way each
-// time. spot: where the
-// person dragged it, as fractions of the room the screen leaves it ({x: 0 left, y: 0 bottom}), or
-// null for its corner.
+// time. setup: the person went through the guided setup (js/bit-companion/room-setup.js). spot: where
+// the person dragged it, as fractions of the room the screen leaves it ({x: 0 left, y: 0 bottom}), or null for its corner.
 const ROAMS = Object.freeze(['mix', 'walk', 'stay']);
 const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
 // On the desktop (the shell's own window on the taskbar, layers/bit_desk.rs): on the main screen, one Bit
@@ -138,6 +137,7 @@ function normalizePrefs(raw) {
     spot: normalizeSpot(p.spot),
     desk: DESKS.includes(p.desk) ? p.desk : DEFAULT_PREFS.desk,
     deskX: normalizeFraction(p.deskX),
+    setup: p.setup === true,
   };
 }
 

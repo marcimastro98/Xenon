@@ -91,6 +91,7 @@ test('only well-made recaps make a button: the year first, then the month', () =
 
 test('the sharing drawer\'s recap: drawn at once, a choice only with the month and the year, nothing without one', () => {
   const { document } = makeDom();
+  document.head = document.createElement('head');
   const makeEl = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;

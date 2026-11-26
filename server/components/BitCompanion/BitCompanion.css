@@ -206,6 +206,7 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52p
 @container broom (width > 600px) and (aspect-ratio < 2 / 1) { .broom.has-drawer .broom-in { padding-inline-end: min(440px, 100%); } }
 @container broom (max-width: 600px) {
   .broom-drawer { inset: auto 0 0; width: 100%; height: 88%; border-inline-start: 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; }
+  .broom-drawer.is-watching { opacity: 0; pointer-events: none; } /* the setup's effect plays on the Bit it covers (room-setup.js) */
 }
 
 /* In the Store it fills the view, with the Store's own corners and colours. */
@@ -267,8 +268,8 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52p
 .bitc-choice { display: grid; gap: 6px; min-width: 0; }
 .bitc-choice-title { font-size: 13px; font-weight: 600; color: var(--muted-text); }
 .bitc-spot-back { justify-self: start; min-height: 44px; padding-inline: 16px; }
-/* warp.js: Bit hidden while an effect draws it, and the canvas made for that effect alone. */
-.bit-warping { visibility: hidden; }
+.bit-warping { visibility: hidden; } /* warp.js: Bit hidden while an effect draws it; .bit-warp is that effect's own canvas */
+.bit-warp.is-top { z-index: 2001; } /* over .bitc-overlay: an effect played on the room's Bit */
 .bit-warp {
   position: fixed; z-index: 51; left: var(--warp-x); top: var(--warp-y); width: var(--warp-w); height: var(--warp-h); pointer-events: none;
   transform: translate(var(--warp-tx, 0px), var(--warp-ty, 0px)); /* a packet travels with this, compositor only */

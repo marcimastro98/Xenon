@@ -170,6 +170,10 @@ window.DeckEditorActionIcons = () => {
       // The person's own Bit: its face when the app has drawn it, a plain mark before.
       bitReact: (window.BitApp && BitApp.icon('happy')) || _ai('<path d="M7 11V6a1.5 1.5 0 0 1 3 0v4M10 10V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V12M16 9a1.5 1.5 0 0 1 3 0v5a7 7 0 0 1-12.5 4.3L4 15a1.6 1.6 0 0 1 2.4-2.1L7 13.5"/>'),
       bitPlace: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><rect x="14" y="13" width="4" height="4" rx="1"/>'),
+      // On the desktop: a screen with its taskbar and Bit standing on it.
+      bitDesk: _ai('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M3 14h18M9 21h6M12 17v4"/><rect x="14" y="10" width="3" height="4"/>'),
+      // How it teleports: a block breaking into smaller and smaller bits.
+      bitWarp: _ai('<rect x="3" y="11" width="7" height="7"/><rect x="12" y="8" width="4" height="4"/><rect x="18" y="5" width="2.5" height="2.5"/><rect x="17" y="13" width="2" height="2"/>'),
       desktopWallpaper: _ai('<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M6 13l3.5-4 3 3 2-2 3.5 3"/>'),
     };
     // One icon per category header, from an action that stands for the group.

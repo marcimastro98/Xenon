@@ -87,8 +87,7 @@
       note: (text) => { noteEl.textContent = text || ''; },
       play: (id) => { if (room.player && window.Xenon?.bit?.clip(id)) room.player.play(id); },
       redraw: () => fill(bitNow()),
-      refresh: () => room.player?.refresh(),
-      changed: () => dockFill(bitNow(), true),
+      refresh: () => room.player?.refresh(), changed: () => dockFill(bitNow(), true), close: () => closePanel(),
       takeOff: () => window.BitWardrobe?.takeOff(null, bitNow(), hands),
       balance: () => balance,
     };
@@ -228,7 +227,8 @@
       head(bit);
       railFill(bit);
       dockFill(bit);
-      if (room.panel) openPanel(room.panel);
+      const panel = room.panel || window.BitSetup?.first(bit, room); // the guided setup opens by itself once
+      if (panel) openPanel(panel);
     }
 
     async function hatch() {

@@ -75,6 +75,7 @@ function sayIn(code) {
 
 test('the sharing drawer\'s part: one button where it can record; the failure note survives the redraw', async () => {
   const { document } = makeDom();
+  document.head = document.createElement('head');
   const makeEl = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;

@@ -147,6 +147,7 @@
       vx: (c.x + c.w / 2 - b.cx) * 1.2 + (Math.random() - 0.5) * 50, vy: -30 - Math.random() * 50 }));
     const area = { x: b.left - PAD, y: b.top - b.h * 3 - 20, w: b.w + 2 * PAD, h: b.h * 4 + 20 + PAD };
     const { canvas, ctx } = sheet(area);
+    canvas.classList.toggle('is-top', !!sprite.closest?.('.bitc-overlay')); // the room's Bit: over the room
     try {
       await animate(MS[name], (t) => {
         const at = arriving ? 1 - t : t;

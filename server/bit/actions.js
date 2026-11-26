@@ -18,7 +18,7 @@ function brief(view) {
     stage: view.stage, days: view.days, lookOneIn: view.lookOneIn,
     traits: view.traits.map((t) => ({ id: t.id, item: t.item, progress: t.progress, earned: t.earned })),
     worn: view.worn, owned: view.owned,
-    place: view.prefs.place, reactions: view.prefs.reactions,
+    place: view.prefs.place, reactions: view.prefs.reactions, desk: view.prefs.desk, warp: view.prefs.warp,
     // Which recap cards its sheet can make, never what they count: a cloud model (Bit on Sparks
     // goes through Xenon's server) hears only that one is there.
     cards: [view.recap?.year?.key, view.recap?.month?.key].filter(Boolean),
@@ -76,6 +76,8 @@ function createBitActions({ store, broadcast, now = () => new Date(), random = M
       }
       case 'bitReact': return move(action);
       case 'bitPlace': return change((m) => Model.setPrefs(m, { place: action.place }));
+      case 'bitDesk': return change((m) => Model.setPrefs(m, { desk: action.desk }));
+      case 'bitWarp': return change((m) => Model.setPrefs(m, { warp: action.warp }));
       case 'bitRename': return change((m) => Model.rename(m, String(action.name ?? '')));
       case 'bitWear': return change((m) => wearOne(m, action));
       default: return { ok: false, error: 'unsupported' };

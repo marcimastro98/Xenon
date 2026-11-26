@@ -286,7 +286,7 @@ function createCapabilities(deps) {
         return (d.pump || require('../pump-screen/index.js').actions).run(action);
       case 'airflowGet': case 'airflowMode': case 'airflowSet': case 'airflowCheck':
         return (d.airflow || require('../airflow/index.js')).actions.run(action);
-      case 'bitGet': case 'bitReact': case 'bitPlace': case 'bitWear': case 'bitRename':
+      case 'bitGet': case 'bitReact': case 'bitPlace': case 'bitDesk': case 'bitWarp': case 'bitWear': case 'bitRename':
         return (d.bit || require('../bit/index.js')).actions.run(action);
       default: return { ok: false, error: 'unsupported' };
     }

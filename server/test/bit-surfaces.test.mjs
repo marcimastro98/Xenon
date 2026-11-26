@@ -35,7 +35,7 @@ test('SDK: a bit stream and a bit category with the move alone', () => {
   assert.ok(SDK.SDK_STREAMS.includes('bit'));
   assert.deepEqual([...SDK.SDK_ACTION_CATEGORIES.bit], ['bitReact']);
   const granted = Object.values(SDK.SDK_ACTION_CATEGORIES).flat();
-  for (const type of ['bitWear', 'bitRename', 'bitPlace', 'bitGet']) assert.ok(!granted.includes(type), `${type} is never a widget's`);
+  for (const type of ['bitWear', 'bitRename', 'bitPlace', 'bitDesk', 'bitWarp', 'bitGet']) assert.ok(!granted.includes(type), `${type} is never a widget's`);
 });
 
 test('SDK: the bridge pulls /api/bit every second with the last move, and mirrors the category', () => {

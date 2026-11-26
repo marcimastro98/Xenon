@@ -124,24 +124,38 @@
   // Once it hatched, a closed month (or year) is told once, with its card in the sheet
   // (recap.js), and an unread one goes when its month gives way to the next.
   const WEEK = 7 * 24 * 3600 * 1000;
-  const DESK_TOLD = 'bit:desk'; // the desktop's one line (desk.js): not a recap, it stays until read
+  const SETUP_TOLD = 'bit:setup'; // the guided setup's card (room-setup.js): it goes once the setup is seen
   let told = false;
-  let filed = null; // the recap ids last filed from this page
+  let filed = null; // the ids last filed from this page
+  let setupLoaded = false;
   const say = (key, vars = {}) => String(t(key)).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
   const num = (n) => Number(n).toLocaleString(typeof lang === 'string' ? lang : 'en');
+
+  // A Bit from before the guided setup (room-setup.js) gets one card that opens its room, where the setup
+  // waits; seen there, the card goes. Not while the room is open: the setup is on screen already.
+  const setupDue = () => bit?.hatched === true && bit.prefs?.setup !== true;
+  function setupCard(M) {
+    if (!setupDue() || bit.prefs?.place === 'off' || window.BitSheet?.isOpen()) return [];
+    const body = say('mybit_guide_msg_text');
+    return [{
+      id: SETUP_TOLD, kind: 'bit', surface: 'dashboard', title: say('mybit_guide_msg_title'),
+      line: M.firstLine(body), body, action: { type: 'bit', label: say('mybit_guide_msg_open') },
+    }];
+  }
 
   function tellRecaps(M) {
     const R = window.BitRecap;
     const recaps = R && bit.prefs?.place !== 'off' ? R.recapsOf(bit) : [];
-    const ids = recaps.map(({ rec }) => `bit:recap:${rec.key}`);
+    const setup = setupCard(M);
+    const ids = [...recaps.map(({ rec }) => `bit:recap:${rec.key}`), ...setup.map((m) => m.id)];
     const fresh = Date.now() - Date.parse(bit.born) < WEEK;
-    if ((!ids.length && !fresh) || filed === ids.join()) return;
+    if ((!ids.length && !fresh && filed === null) || filed === ids.join()) return;
     filed = ids.join();
     const body = say('mybit_recap_msg');
-    M.file(recaps.map(({ kind, rec }, i) => ({
+    M.file([...recaps.map(({ kind, rec }, i) => ({
       id: ids[i], kind: 'bit', surface: 'dashboard', title: R.words(rec, kind, bit, say, num, typeof lang === 'string' ? lang : 'en').title,
       line: M.firstLine(body), body, action: { type: 'bit', label: say('mybit_recap_open') },
-    })), { bit: [...ids, DESK_TOLD] });
+    })), ...setup], { bit: ids });
   }
 
   // Every egg is met once, on its first day (a new install's, or a founder's right after the
@@ -181,6 +195,7 @@
   function heard(next) {
     bit = next;
     sync();
+    if (bit?.ok === true && bit.prefs?.setup !== true) loadSetup();
     tellEgg();
   }
 
@@ -193,6 +208,23 @@
   if (typeof addEventListener === 'function') {
     addEventListener('xenon-bit', (e) => { if (e.detail) heard(e.detail); });
   }
+  // Scripts only some pages need, added once in this order.
+  function load(srcs) {
+    for (const src of srcs) {
+      const tag = document.createElement('script');
+      tag.src = src;
+      tag.async = false; // in this order
+      document.head.append(tag);
+    }
+  }
+
+  // The guided setup (room-setup.js) is fetched only while it is still due: an egg, or a Bit not set up.
+  function loadSetup() {
+    if (setupLoaded) return;
+    setupLoaded = true;
+    load(['js/bit-companion/room-setup.js']);
+  }
+
   const known = app()?.state();
   if (known) heard(known);
 
@@ -202,12 +234,7 @@
   function loadDesk() {
     const caps = window.__XENON_NATIVE_CAPS__ || {};
     if (window.__XENON_NATIVE__ !== true || caps.bitDesk !== true || (typeof isLayerPage === 'function' && isLayerPage())) return;
-    for (const src of ['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk.js']) {
-      const tag = document.createElement('script');
-      tag.src = src;
-      tag.async = false; // in this order
-      document.head.append(tag);
-    }
+    load(['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk.js']);
   }
   loadDesk();
 
