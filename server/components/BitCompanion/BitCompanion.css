@@ -269,7 +269,10 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52p
 .bitc-spot-back { justify-self: start; min-height: 44px; padding-inline: 16px; }
 /* warp.js: Bit hidden while an effect draws it, and the canvas made for that effect alone. */
 .bit-warping { visibility: hidden; }
-.bit-warp { position: fixed; z-index: 51; left: var(--warp-x); top: var(--warp-y); width: var(--warp-w); height: var(--warp-h); pointer-events: none; }
+.bit-warp {
+  position: fixed; z-index: 51; left: var(--warp-x); top: var(--warp-y); width: var(--warp-w); height: var(--warp-h); pointer-events: none;
+  transform: translate(var(--warp-tx, 0px), var(--warp-ty, 0px)); /* a packet travels with this, compositor only */
+}
 .bitc-seg { display: flex; flex-wrap: wrap; gap: 6px; }
 /* Four choices sit two by two, never three and a lone one. */
 .bitc-seg:has(> .bitc-seg-btn:nth-child(4):last-child) { display: grid; grid-template-columns: 1fr 1fr; }

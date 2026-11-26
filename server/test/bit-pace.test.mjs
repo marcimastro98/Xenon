@@ -64,8 +64,10 @@ test('a player with its own fidget list never plays the same one twice in a row'
 function bootMoments({ classes = [], phone = false, players = [], hatched = true } = {}) {
   const body = new Set(classes);
   const reacted = [];
+  const observers = [];
   const ctx = {
     Math, Date, Number, Array, Set, Map, String, Object, JSON,
+    MutationObserver: class { constructor(cb) { observers.push(cb); } observe() {} },
     queueMicrotask: (fn) => fn(),
     localStorage: { getItem: () => null, setItem() {} },
     document: {
@@ -85,7 +87,8 @@ function bootMoments({ classes = [], phone = false, players = [], hatched = true
   };
   vm.createContext(ctx);
   vm.runInContext(read('../js/bit-companion/moments.js'), ctx, { filename: 'moments.js' });
-  return { M: ctx.BitMoments, ctx, body, reacted };
+  const classChanged = (oldValue) => observers.forEach((cb) => cb([{ oldValue }]));
+  return { M: ctx.BitMoments, ctx, body, reacted, classChanged };
 }
 
 function fakePlayer(running = true) {
@@ -171,4 +174,18 @@ test('Claude Code and Codex sessions, and files from the phone, reach Bit', () =
   assert.deepEqual(reacted, ['download', 'update', 'calendarSoon']);
   send('claude', 'broken');
   handlers.transfer({ data: '{not json' });
+});
+
+test('a notification opening on the island is news for Bit, once per opening', () => {
+  const { body, reacted, classChanged } = bootMoments({ players: [fakePlayer(true)] });
+  classChanged('topbar-minimal');
+  assert.deepEqual(reacted, [], 'another class: nothing');
+  body.add('xtoast-island');
+  classChanged('topbar-minimal');
+  assert.deepEqual(reacted, ['notification']);
+  classChanged('topbar-minimal xtoast-island');
+  assert.deepEqual(reacted, ['notification'], 'the next card on an island already open is no new opening');
+  body.delete('xtoast-island');
+  classChanged('topbar-minimal xtoast-island');
+  assert.deepEqual(reacted, ['notification'], 'closing is nothing');
 });

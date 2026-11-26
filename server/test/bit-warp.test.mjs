@@ -1,6 +1,7 @@
 // js/bit-companion/warp.js: Bit's moving effects. The cells are read off the sprite as drawn (its
 // transform groups, mirrored when it walks left), each effect draws on a canvas of its own that is
 // gone when it ends, the move happens once whatever goes wrong, and reduced motion only moves it.
+// News (send) runs from Bit along the top edge into the island on a canvas that travels with it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
@@ -27,16 +28,19 @@ function page({ reduced = false, noContext = false } = {}) {
   const body = [];
   const frames = [];
   const draws = [];
+  const made = [];
   let now = 0;
   const canvas = () => {
+    const style = { props: {}, ys: [], setProperty(k, v) { style.props[k] = v; if (k === '--warp-ty') style.ys.push(v); } };
     const el = {
-      width: 0, height: 0, className: '', style: { setProperty() {} }, setAttribute() {},
+      width: 0, height: 0, className: '', style, setAttribute() {},
       remove: () => body.splice(body.indexOf(el), 1),
       getContext: () => (noContext ? null : {
         setTransform() {}, clearRect() {}, globalAlpha: 1, fillStyle: '',
         fillRect: (...a) => draws.push(a),
       }),
     };
+    made.push(el);
     return el;
   };
   const ctx = {
@@ -65,7 +69,7 @@ function page({ reduced = false, noContext = false } = {}) {
     assert.equal(done, true, 'the move ends');
     return most;
   }
-  return { warp: ctx.BitWarp, body, draws, run };
+  return { warp: ctx.BitWarp, body, draws, made, run };
 }
 
 test('the cells are the sprite as drawn: its groups, its colours, mirrored when it walks left', () => {
@@ -118,4 +122,22 @@ test('an effect that cannot draw still moves Bit, once, and shows it', async () 
   assert.equal(moves, 1);
   assert.equal(p.body.length, 0);
   assert.equal(sprite.classList.contains('bit-warping'), false);
+});
+
+test('news runs from the top of Bit up, along the top edge and into the island; Bit stays', async () => {
+  const p = page();
+  const sprite = spriteOf([{ d: 'M0 0h4v3h-4z' }]); // its top centre at 120, 220
+  const box = { left: 600, top: 10, width: 120, height: 36 };
+  const most = await p.run(p.warp.send(sprite, box));
+  assert.equal(most, 1);
+  assert.equal(p.body.length, 0, 'no canvas left behind');
+  assert.equal(sprite.classList.contains('bit-warping'), false, 'Bit itself never leaves');
+  const [c] = p.made;
+  const half = c.width / 2;
+  assert.ok(c.width < 100 && c.height === c.width, 'a canvas the size of its tail, never of the screen');
+  assert.ok(c.style.ys.includes(`${7 - half}px`), 'along the top edge, above the bar');
+  assert.deepEqual([c.style.props['--warp-tx'], c.style.props['--warp-ty']], [`${660 - half}px`, `${28 - half}px`], 'into the island');
+  const calm = page({ reduced: true });
+  await calm.warp.send(sprite, box);
+  assert.equal(calm.made.length, 0, 'with reduced motion, nothing runs');
 });

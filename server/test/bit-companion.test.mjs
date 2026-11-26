@@ -754,7 +754,10 @@ test('now and then Bit strolls along the bottom and comes back; told to stay, it
 // ── warp.js on the corner: teleports, a new place reached in view, a few moments in place ──
 const spyWarp = (r) => {
   const calls = [];
-  r.ctx.BitWarp = { move: async (sprite, name, relocate, opts) => { calls.push({ name, opts, sprite }); relocate(); } };
+  r.ctx.BitWarp = {
+    move: async (sprite, name, relocate, opts) => { calls.push({ name, opts, sprite }); relocate(); },
+    send: async (sprite, box) => { calls.push({ name: 'send', sprite, box }); },
+  };
   return calls;
 };
 
@@ -807,4 +810,24 @@ test("the day's hello downloads Bit in, a very hot PC glitches it; elsewhere tha
   r.tell(born({ place: 'topbar' }));
   r.ctx.BitMoments.react('hello');
   assert.equal(calls.length, 2, 'no corner, no effect');
+});
+
+test('a notification on the island gets a packet of news from the corner; no island, no packet', () => {
+  const r = rig();
+  r.tell(born());
+  const calls = spyWarp(r);
+  r.ctx.BitApp.director = () => ({ react: (name) => name });
+  r.ctx.BitMoments.react('notification');
+  assert.equal(calls.length, 0, 'the island holds no card');
+  const glass = r.document.createElement('div');
+  glass.className = 'xisland-bg';
+  glass._rect = { width: 120, height: 36 };
+  r.document.body.append(glass);
+  r.document.body.classList.add('xtoast-island');
+  r.ctx.BitMoments.react('notification');
+  assert.deepEqual(calls.map((c) => [c.name, c.box.width]), [['send', 120]]);
+  assert.equal(calls[0].sprite, r.corner().querySelector('.bitc-sprite'));
+  r.ctx.BitSheet.open();
+  r.ctx.BitMoments.react('notification');
+  assert.equal(calls.length, 1, 'its room open over the corner: nothing');
 });

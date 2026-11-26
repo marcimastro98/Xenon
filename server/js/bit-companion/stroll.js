@@ -2,7 +2,8 @@
 // The own Bit's corner (companion.js), alive on the screen: every few minutes it strolls along
 // the bottom and comes back, and the person can drag it anywhere, where it stays. With roam 'mix'
 // some strolls start with a teleport, and a new place set from elsewhere (its room, the phone) is
-// reached the same way; a few moments get an effect in place (warp.js does them all).
+// reached the same way; a few moments get an effect in place, and a notification opening on the
+// island gets a packet of news from Bit (warp.js does them all).
 // All are prefs in bit.json (server/bit/model.js): roam 'mix' | 'walk' | 'stay', warp, and spot {x, y} as
 // fractions of the room the screen leaves it (null: its corner). The spot is two CSS variables
 // on the root, which BitCompanion.css places the corner with, so a corner drawn again stands in
@@ -158,11 +159,21 @@
     try { await warp().move(btn, prefs().warp, () => place()); } finally { warping = false; }
   }
 
-  /** A moment with an effect of its own, on the corner where it stands (moments.js). */
+  // The island's glass while a notification holds it (js/alerts/toast.js), else nothing.
+  function island() {
+    if (!document.body.classList.contains('xtoast-island')) return null;
+    const box = document.querySelector('.xisland-bg')?.getBoundingClientRect();
+    return box?.width ? box : null;
+  }
+
+  /** A moment with an effect of its own, on the corner where it stands (moments.js); a notification
+   *  goes to the island as a packet when one has just opened there. */
   function flourish(name) {
     const btn = corner();
-    if (!FLOURISH[name] || !btn || walking || warping || phone() || !warp()) return;
-    warp().move(btn, FLOURISH[name], () => {}, { leave: FLOURISH[name] !== 'download' });
+    if (!btn || walking || warping || phone() || !warp() || window.BitSheet?.isOpen()) return;
+    const box = name === 'notification' ? island() : null;
+    if (box) warp().send(btn, box);
+    else if (FLOURISH[name]) warp().move(btn, FLOURISH[name], () => {}, { leave: FLOURISH[name] !== 'download' });
   }
 
   // ── dragging it somewhere ──

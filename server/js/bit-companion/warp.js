@@ -6,13 +6,18 @@
 // while Bit stands. The cells are read off the sprite as drawn, what it wears and its tint included,
 // and keep Bit's own colours. Arriving plays the leaving backwards. With reduced motion Bit simply
 // shows in its new place. Used by stroll.js (a stroll that teleports) and moments.js (the day's first
-// hello, a very hot PC).
+// hello, a very hot PC). send() is the packet alone: news running from Bit to the island.
 (() => {
   const NAMES = ['crumble', 'beam', 'packet', 'glitch']; // what the person can pick; 'any' is one of them
   const MS = { crumble: 650, beam: 560, packet: 380, glitch: 480, download: 900 };
   const PAD = 90; // room around Bit the cells may fly into
   const PACKET_PX_S = 900;
   const PACKET_PX = 6; // about two of its cells: one alone reads as dust
+  const TAIL = 6; // steps of the packet's tail
+  const TAIL_GAP_PX = 6;
+  const SEND_PX_S = 2400; // news runs faster than Bit does
+  const SEND_MS = [250, 600]; // and lands about when the island has opened (js/alerts/toast-island.js)
+  const EDGE_PX = 4; // news runs this far under the screen's top edge, above the bar's buttons
   const RECT = /M(-?[\d.]+) (-?[\d.]+)h(-?[\d.]+)v(-?[\d.]+)/g;
   const MOVE = /translate\((-?[\d.]+) (-?[\d.]+)\) scale\((-?[\d.]+) (-?[\d.]+)\)/;
   const busy = new WeakSet();
@@ -164,23 +169,41 @@
     return b;
   }
 
-  /** The packet's run between two places: down or up first, then along, with a short tail. */
-  async function run(from, to, colour) {
-    const turn = { x: from.x, y: to.y };
-    const legs = [Math.abs(to.y - from.y), Math.abs(to.x - from.x)];
-    const length = legs[0] + legs[1];
+  const lengthOf = (points) => points.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - points[i].x, p.y - points[i].y), 0);
+
+  // The point d px along a path of points.
+  function along(points, d) {
+    let rest = d;
+    for (let i = 1; i < points.length; i += 1) {
+      const a = points[i - 1];
+      const b = points[i];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (rest <= len) return { x: lerp(a.x, b.x, len ? rest / len : 1), y: lerp(a.y, b.y, len ? rest / len : 1) };
+      rest -= len;
+    }
+    return points[points.length - 1];
+  }
+
+  /** The packet running along a path with a short tail, on a canvas the size of the tail that
+   *  travels with it (a transform): never one the size of the screen. */
+  async function dash(points, colour, ms) {
+    const length = lengthOf(points);
     if (length < 4) return;
-    const at = (d) => (d <= legs[0] ? { x: from.x, y: lerp(from.y, turn.y, legs[0] ? d / legs[0] : 1) } : { x: lerp(turn.x, to.x, (d - legs[0]) / legs[1]), y: to.y });
-    const area = { x: Math.min(from.x, to.x) - 10, y: Math.min(from.y, to.y) - 10, w: Math.abs(to.x - from.x) + 20, h: Math.abs(to.y - from.y) + 20 };
-    const { canvas, ctx } = sheet(area);
+    const half = TAIL * TAIL_GAP_PX + PACKET_PX;
+    const { canvas, ctx } = sheet({ x: 0, y: 0, w: half * 2, h: half * 2 });
     try {
-      await animate((length / PACKET_PX_S) * 1000, (t) => {
-        ctx.clearRect(area.x, area.y, area.w, area.h);
+      await animate(ms, (t) => {
+        const head = along(points, t * length);
+        const ox = Math.round(head.x) - half;
+        const oy = Math.round(head.y) - half;
+        canvas.style.setProperty('--warp-tx', `${ox}px`);
+        canvas.style.setProperty('--warp-ty', `${oy}px`);
+        ctx.clearRect(0, 0, half * 2, half * 2);
         ctx.fillStyle = colour;
-        for (let i = 6; i >= 0; i -= 1) {
-          const p = at(Math.max(0, t * length - i * 6));
-          ctx.globalAlpha = i ? (1 - i / 7) * 0.5 : 1;
-          ctx.fillRect(p.x - PACKET_PX / 2, p.y - PACKET_PX / 2, PACKET_PX, PACKET_PX);
+        for (let i = TAIL; i >= 0; i -= 1) {
+          const p = along(points, Math.max(0, t * length - i * TAIL_GAP_PX));
+          ctx.globalAlpha = i ? (1 - i / (TAIL + 1)) * 0.5 : 1;
+          ctx.fillRect(p.x - ox - PACKET_PX / 2, p.y - oy - PACKET_PX / 2, PACKET_PX, PACKET_PX);
         }
       });
     } finally {
@@ -207,7 +230,11 @@
       if (opts.leave === false) sprite.classList.add('bit-warping');
       const b = opts.leave === false ? null : await play(sprite, effect, false);
       go();
-      if (effect === 'packet' && b) await run(from, centreOf(sprite), b.main);
+      if (effect === 'packet' && b) {
+        const to = centreOf(sprite);
+        const path = [from, { x: from.x, y: to.y }, to]; // down or up first, then along
+        await dash(path, b.main, (lengthOf(path) / PACKET_PX_S) * 1000);
+      }
       await play(sprite, effect, true);
     } catch (err) {
       console.warn('[bit] an effect stopped:', err.message);
@@ -218,5 +245,26 @@
     }
   }
 
-  window.BitWarp = { NAMES, move, cellsOf };
+  /**
+   * News: a packet leaves the top of Bit, runs up and along the screen's top edge and into box (the
+   * island a notification just opened). Bit stays where it is; with reduced motion nothing runs.
+   * @param {Element} sprite @param {{left: number, top: number, width: number, height: number}} box
+   */
+  async function send(sprite, box) {
+    if (!sprite || !box?.width || reduced() || typeof requestAnimationFrame !== 'function') return;
+    const cells = cellsOf(sprite);
+    if (!cells.length) return;
+    const b = boundsOf(cells);
+    const to = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    const edge = Math.min(EDGE_PX + PACKET_PX / 2, to.y);
+    const path = [{ x: b.cx, y: b.top }, { x: b.cx, y: edge }, { x: to.x, y: edge }, to];
+    const ms = Math.min(SEND_MS[1], Math.max(SEND_MS[0], (lengthOf(path) / SEND_PX_S) * 1000));
+    try {
+      await dash(path, b.main, ms);
+    } catch (err) {
+      console.warn('[bit] the news stopped:', err.message);
+    }
+  }
+
+  window.BitWarp = { NAMES, move, send, cellsOf };
 })();

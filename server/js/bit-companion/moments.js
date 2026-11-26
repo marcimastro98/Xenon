@@ -2,14 +2,15 @@
 // What makes the person's own Bit move by itself, and how much it moves.
 // Moments of the live stream: a game starts or ends, the PC runs hot or stutters, a new track, a
 // return after a while away, Claude Code or Codex starting, finishing or
-// asking, a calendar reminder, an update, a file from the phone, something new from the Store;
+// asking, a calendar reminder, an update, a file from the phone, something new from the Store, a
+// notification opening on the island (the class js/alerts/toast.js sets, not each place that shows one);
 // and of its life (it hatches, it reaches a new stage, the first look of the day, its birthday).
 // Each goes through BitApp's director, which may let it pass, and plays on every own Bit of the
 // page: the elements marked data-own-bit (the corner, the clock, the Bit tile). A moment that
 // comes while those Bits can't play (held, hidden, asleep) waits, the last one only, without
 // counting against the hourly cap, and plays when one can.
 // pace(): how much those Bits move (bitDirector.PACES), which BitApp asks on every change.
-// No poll and no timer of its own: only what the stream already carries.
+// No poll and no timer of its own: only what the stream and the page already carry.
 (() => {
   const HOT_C = 85;
   const VERY_HOT_C = 92;
@@ -199,6 +200,14 @@
     addEventListener('xenon-content-installed', () => react('storeDrop')); // something new from the Store is in
   }
   last = app()?.state() || null;
+
+  // The island taking a notification (body.xtoast-island) is news Bit brings there (stroll.js).
+  if (typeof MutationObserver === 'function' && document.body) {
+    new MutationObserver((list) => {
+      const was = /\bxtoast-island\b/.test(list[0]?.oldValue || '');
+      if (!was && document.body.classList.contains('xtoast-island')) react('notification');
+    }).observe(document.body, { attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+  }
 
   // A move asked from the chat, a Deck key or a phone (server/bit/actions.js): played as asked, past the hourly cap.
   const onPlay = (d) => { if (typeof d.clip === 'string') play(d.clip); };
