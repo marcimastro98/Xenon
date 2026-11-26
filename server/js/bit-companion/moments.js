@@ -23,6 +23,7 @@
   const SLOW = ['ambient-idle', 'low-power-gpu', 'perf-mode'];
   const WAIT_MS = 10 * 60000; // a moment that waited longer is no longer news
   const HELLO_KEY = 'xenon.bit.hello';
+  const SIGNAL_EVENTS = ['claude', 'codex', 'calendar_reminder', 'timer_done', 'system']; // signals.js, loaded later
 
   const seen = { gaming: null, hot: false, veryHot: false, track: '', away: false, idleSec: 0, pace: '', greeted: false };
   const agents = { claude: null, codex: null }; // source -> Map(session id -> 'running' | 'idle' | 'asks')
@@ -194,6 +195,8 @@
     on('widget_auto_updated', () => react('update'));
     on('transfer', guarded(onTransfer));
     on('stutter_why', () => react('fpsDrop'));
+    // What Bit keeps to tell until it is seen (signals.js), from the same stream.
+    for (const name of SIGNAL_EVENTS) on(name, (d) => window.BitSignals?.heard(name, d));
   }
 
   if (typeof addEventListener === 'function') {

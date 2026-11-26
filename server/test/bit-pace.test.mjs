@@ -151,8 +151,9 @@ test('Claude Code and Codex sessions, and files from the phone, reach Bit', () =
   const p = fakePlayer(true);
   const { M, reacted } = bootMoments({ players: [p] });
   const handlers = {};
-  M.listen({ addEventListener: (name, fn) => { handlers[name] = fn; } });
-  const send = (name, data) => handlers[name]({ data: JSON.stringify(data) });
+  // Like an EventSource: every listener of an event hears it (the signs listen to the same events).
+  M.listen({ addEventListener: (name, fn) => { (handlers[name] ||= []).push(fn); } });
+  const send = (name, data) => handlers[name].forEach((fn) => fn({ data: JSON.stringify(data) }));
   const sessions = (...list) => ({ live: { sessions: list } });
   send('claude', sessions({ id: 'a', state: 'idle' }));
   assert.deepEqual(reacted, [], 'what is there at load is no news');
@@ -173,7 +174,7 @@ test('Claude Code and Codex sessions, and files from the phone, reach Bit', () =
   send('calendar_reminder', {});
   assert.deepEqual(reacted, ['download', 'update', 'calendarSoon']);
   send('claude', 'broken');
-  handlers.transfer({ data: '{not json' });
+  handlers.transfer[0]({ data: '{not json' });
 });
 
 test('a notification opening on the island is news for Bit, once per opening', () => {

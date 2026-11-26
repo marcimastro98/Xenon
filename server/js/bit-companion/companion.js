@@ -2,7 +2,7 @@
 // The person's own Bit on the dashboard (server/bit/, GET /api/bit and the 'bit'
 // event, which BitApp passes on as 'xenon-bit'): in the corner, next to the
 // clock or both (prefs.place), an egg until it hatches. Tapping it opens its
-// sheet (bit-companion/sheet.js).
+// pocket (pocket.js), the chat or its room (sheet.js), as the person chose (prefs.tap).
 //
 // One Bit on screen: with the Vitals' Bit on, that one already stands in these
 // places wearing the same look, so this one steps aside; in the clock it shares
@@ -55,7 +55,7 @@
 
   function open(e) {
     if (e) e.stopPropagation();
-    if (window.BitSheet) window.BitSheet.open();
+    tap(e?.currentTarget);
   }
 
   function button(cls) {
@@ -76,6 +76,7 @@
     mountBit(btn, false);
     spots.corner = { node, btn, kind };
     window.BitStroll?.arm();
+    window.BitSigns?.paint();
   }
 
   // In the clock: a calm Bit between moves, like every other mark of the bar.
@@ -211,5 +212,39 @@
   }
   loadDesk();
 
-  window.BitCompanion = { listen, sync, state: () => bit, spots: () => ({ corner: spots.corner?.btn, chip: spots.chip?.btn }) };
+  // The signs over its head (signals.js, signs.js) from the start, with their styles and the pocket's;
+  // the pocket itself (pocket.js) the first time it is asked for.
+  let pocketReady = null;
+  function loadSigns() {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'components/BitPocket/BitPocket.css';
+    document.head.append(css);
+    load(['js/bit-companion/signals.js', 'js/bit-companion/signs.js']);
+  }
+  loadSigns();
+
+  /** Its pocket, beside `anchor` or alone in the menu's window (`sheet`). */
+  function pocket(o) {
+    if (!pocketReady) {
+      const tag = load(['js/bit-companion/pocket.js']);
+      pocketReady = new Promise((done) => { tag.onload = done; tag.onerror = done; });
+    }
+    pocketReady.then(() => window.BitPocket?.open(o));
+  }
+
+  /** Its room; in the menu's window its Bit may not be read yet, and the room opens once it is. */
+  function room() {
+    if (window.BitSheet?.open() === false) addEventListener('xenon-bit', () => window.BitSheet?.open(), { once: true });
+  }
+
+  /** A tap on one of its Bits: what the person chose (prefs.tap); an egg opens its room, where it hatches. */
+  function tap(anchor) {
+    const choice = bit?.hatched ? bit.prefs?.tap || 'pocket' : 'room';
+    if (choice === 'chat') window.DashboardOpen?.run({ open: 'chat' });
+    else if (choice === 'room') room();
+    else pocket({ anchor });
+  }
+
+  window.BitCompanion = { listen, sync, tap, pocket, room, state: () => bit, spots: () => ({ corner: spots.corner?.btn, chip: spots.chip?.btn }) };
 })();

@@ -53,6 +53,8 @@ const CLASSIFIED = Object.freeze({
   'POST /api/lighting/icue-import': { remote: true },
   // The personal Bit: the phone is the same dashboard, so it reads, hatches, dresses and names it.
   'GET /api/bit': { remote: true },
+  // Bit's pocket: the quick keys this PC can run, read-only; the phone opens the same pocket.
+  'GET /api/bit/pocket': { remote: true },
   'POST /api/bit/hatch': { remote: true },
   'POST /api/bit/wear': { remote: true },
   'POST /api/bit/name': { remote: true },

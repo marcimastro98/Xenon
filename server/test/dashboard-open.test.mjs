@@ -28,6 +28,22 @@ test('the supporter pass: What\'s New in the alerts window asks for it by name',
   } finally { delete globalThis.window; }
 });
 
+test("the desktop Bit tapped: its pocket or its room, alone in the menu's window, and nothing else rides along", () => {
+  assert.deepEqual(DashboardOpen.parse('?open=pocket&id=' + ID), { open: 'pocket' });
+  assert.deepEqual(DashboardOpen.parse('?open=bitroom&kind=x'), { open: 'bitroom' });
+  assert.equal(DashboardOpen.sheetAddress({ open: 'pocket' }), '/?panel=sheet&open=pocket');
+  assert.equal(DashboardOpen.sheetAddress({ open: 'bitroom' }), '/?panel=sheet&open=bitroom');
+  const asked = [];
+  globalThis.window = { BitCompanion: { pocket: (o) => asked.push(['pocket', o.sheet]), room: () => asked.push(['room']) } };
+  try {
+    assert.equal(DashboardOpen.run({ open: 'pocket' }), true);
+    assert.equal(DashboardOpen.run({ open: 'bitroom' }), true);
+    assert.deepEqual(asked, [['pocket', true], ['room']]);
+    globalThis.window = {};
+    assert.equal(DashboardOpen.run({ open: 'pocket' }), false, 'no Bit on this page: said, not pretended');
+  } finally { delete globalThis.window; }
+});
+
 test("What's New: asked for by name, it opens where the stage can, and a page without it says so", () => {
   assert.deepEqual(DashboardOpen.parse('?open=whatsnew&id=' + ID), { open: 'whatsnew' });
   assert.equal(DashboardOpen.sheetAddress({ open: 'whatsnew' }), '/?panel=sheet&open=whatsnew');

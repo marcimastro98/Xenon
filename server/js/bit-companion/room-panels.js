@@ -5,7 +5,7 @@
 //     month's card once a month has closed), then only that one, with one row to copy, share or save
 //     it (card.js, clip.js, presets/share-card.js, recap.js);
 //   - about: its name, who it is, what it learns from the person, where it lives, how often it
-//     reacts, the classic Bit elsewhere and its page on the site. An egg has only where it lives.
+//     reacts, what a tap on it opens, the classic Bit elsewhere and its page on the site. An egg has only where it lives.
 // The server keeps it all (POST /api/bit/name|prefs|publish); every answer goes through the room's hands.
 (() => {
   const TRAIT_KEYS = { gamer: 'gamer', nightOwl: 'night_owl', musicLover: 'music_lover', coder: 'coder', overclocker: 'overclocker', earlyBird: 'early_bird' };
@@ -14,6 +14,7 @@
   const ROAMS = ['mix', 'walk', 'stay'];
   const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch']; // bit-companion/warp.js
   const DESKS = ['main', 'all', 'off']; // bit-companion/desk.js
+  const TAPS = ['pocket', 'chat', 'room']; // companion.js tap()
   const GROUNDS = ['plain', 'stage'];
   const NAME_MAX = 24;
   let shareTab = 'card'; // what the share drawer shows; the room's buttons choose it before opening
@@ -138,6 +139,7 @@
     box.append(choice(h.say('mybit_place'), 'place', PLACES, p.place, (v) => h.say(`mybit_place_${v}`), h));
     if (!bit.hatched) return box;
     box.append(choice(h.say('mybit_reactions'), 'reactions', REACTIONS, p.reactions, (v) => h.say(`mybit_react_${v}`), h));
+    box.append(choice(h.say('mybit_tap'), 'tap', TAPS, p.tap || 'pocket', (v) => h.say(`mybit_tap_${v}`), h));
     if (p.place === 'corner' || p.place === 'both') box.append(roam(p, h), warpChoice(p, h));
     box.append(...deskParts(p, h));
     const label = makeEl('label', 'bitc-switch');

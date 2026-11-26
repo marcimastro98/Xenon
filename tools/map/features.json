@@ -367,13 +367,14 @@
       "id": "my-bit",
       "area": "bit",
       "name": "Your own Bit",
-      "what": "Each person's own Bit: egg, growth, its room, items (some from the hub), cards, video, tile, widget kit, site, desktop.",
+      "what": "Each person's own Bit: egg, growth, room, items, cards, video, tile, widget kit, site, desktop, pocket, signs.",
       "files": [
         "server/bit/**",
         "docs/bit.html",
         "docs/bit-page.js",
         "server/js/bit-companion/**",
         "server/components/BitCompanion/**",
+        "server/components/BitPocket/**",
         "apps/native/src-tauri/src/layers/bit_desk.rs",
         "apps/native/src-tauri/src/layers/bit_desk/**"
       ]

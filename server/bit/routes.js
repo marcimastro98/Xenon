@@ -10,9 +10,11 @@
 //                         Bit born here after days without one. A phone may.
 //   POST /api/bit/wear    { worn: [item ids] } from what the Bit owns. A phone may.
 //   POST /api/bit/name    { name } shown on the card; '' clears it. A phone may.
-//   POST /api/bit/prefs   { place?, reactions?, sounds?, classic?, roam?, warp?, spot?, desk?, deskX? }: where
+//   POST /api/bit/prefs   { place?, reactions?, sounds?, classic?, roam?, warp?, spot?, desk?, deskX?, tap?, keys? }: where
 //                         the companion lives (on the desktop too) and how much it does. A phone may.
 //                         Also asks the hub for its Bit items (items.js) when its list is old.
+//   GET  /api/bit/pocket  the quick keys its pocket may hold on this PC (pocket.js) and the usual four.
+//                         Read-only, never a path; a phone may (its pocket runs them on the PC).
 //   POST /api/bit/claim   { item } a supporter's item of the month, kept for good with the
 //                         PC's pass (keep.js). The PC only: it uses the pass.
 //   POST /api/bit/buy     { item, consent? } a shop item for Sparks (keep.js). The PC only:
@@ -27,6 +29,7 @@ const { createRoutes } = require('./handlers.js');
 const bit = require('./index.js');
 const { hub } = require('../settings/current.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
+const Pocket = require('./pocket.js');
 
 const made = createRoutes({
   store: bit.store, hatch: bit.hatch, founder: bit.founder, publish: bit.publish, keep: bit.keep, items: bit.items, settings: () => hub.settings, changed: (b) => broadcastSSE('bit', b),
@@ -40,6 +43,9 @@ module.exports = {
     'POST /api/bit/wear': made['POST /api/bit/wear'],
     'POST /api/bit/name': made['POST /api/bit/name'],
     'POST /api/bit/prefs': made['POST /api/bit/prefs'],
+    'GET /api/bit/pocket': async (_req, _res, { json }, { capabilityRunner }) => {
+      json({ ok: true, usual: Pocket.USUAL, choices: Pocket.choices(capabilityRunner.probes()) });
+    },
     'POST /api/bit/claim': made['POST /api/bit/claim'],
     'POST /api/bit/buy': made['POST /api/bit/buy'],
     'POST /api/bit/publish': made['POST /api/bit/publish'],

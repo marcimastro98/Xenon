@@ -1,8 +1,8 @@
 'use strict';
 // The Bit tile: the person's own Bit as big as the tile lets it be, with its
 // name and age, on the dashboard, a layer page (desktop, overlay, beside a
-// window) or a phone. Every copy draws the same Bit; tapping one opens its
-// sheet (sheet.js). It moves with every moment like the corner (moments.js:
+// window) or a phone. Every copy draws the same Bit; tapping one opens what the
+// person chose for a tap (companion.js tap(): its pocket, the chat or its room; sheet.js where there is no companion). It moves with every moment like the corner (moments.js:
 // data-own-bit) and holds still with the dashboard (BitApp's TILE_HOLD).
 // On a layer page the stream reaches it through the on* handlers below
 // (layers/layer-tiles.js); on the dashboard BitApp and BitMoments listen.
@@ -22,7 +22,8 @@
 
   function open(e) {
     if (e) e.stopPropagation();
-    if (window.BitSheet) window.BitSheet.open();
+    if (window.BitCompanion?.tap) window.BitCompanion.tap(e?.currentTarget);
+    else if (window.BitSheet) window.BitSheet.open();
   }
 
   function render(mount, bit) {
@@ -49,6 +50,7 @@
     drawn = shownOf(bit);
     for (const mount of document.querySelectorAll('.bit-tile-mount')) render(mount, bit);
     if (app()) app().sweep();
+    window.BitSigns?.paint();
   }
 
   function heard(bit) {

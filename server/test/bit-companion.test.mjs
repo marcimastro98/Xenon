@@ -513,7 +513,7 @@ test('on a paired phone a kept item only says it is done from the PC', async (t)
 
 test('Esc closes the drawer first, then the room, each giving the focus back', () => {
   const r = rig();
-  r.tell(born());
+  r.tell(born({ tap: 'room' }));
   const btn = r.corner().querySelector('.bitc-sprite');
   btn.focus();
   btn.click();
@@ -561,12 +561,12 @@ test('the Bit tile shows the egg, then the hatched Bit with its name and age, an
   r.tell(egg());
   assert.equal(mount.querySelector('.bitt-name').textContent, 'mybit_egg_label');
   assert.equal(mount.querySelector('.bitt-line').textContent, 'mybit_tap_hatch');
-  r.tell(born({}, { name: 'Pixel', stage: 'young', days: 12 }));
+  r.tell(born({ tap: 'room' }, { name: 'Pixel', stage: 'young', days: 12 }));
   assert.equal(mount.querySelector('.bitt-name').textContent, 'Pixel');
   assert.equal(mount.querySelector('.bitt-line').textContent, 'mybit_age');
   const sprite = mount.querySelector('.bitt-sprite');
   assert.equal(sprite.getAttribute('aria-label'), 'mybit_open');
-  r.tell(born({}, { name: 'Pixel', stage: 'young', days: 12, reactionsPerHour: 2 }));
+  r.tell(born({ tap: 'room' }, { name: 'Pixel', stage: 'young', days: 12, reactionsPerHour: 2 }));
   assert.equal(mount.querySelector('.bitt-sprite'), sprite, 'a word that changes nothing shown draws nothing again');
   sprite.click();
   assert.ok(r.sheet(), 'the sheet opens from the tile');
@@ -669,8 +669,12 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
 });
 
 // ── room-setup.js: where to see it, how it moves, what it can do; until it is done ──
+// Loaded on every page with a companion: its signs, and the pocket's styles (a link, no src).
+const ALWAYS = ['js/bit-companion/signals.js', 'js/bit-companion/signs.js'];
+const loaded = (head) => head.children.filter((n) => n.tag === 'script' && !ALWAYS.includes(n.src)).map((n) => n.src);
+
 test('the guided setup is fetched only while it is due', () => {
-  const tags = (r) => r.document.head.children.map((s) => s.src);
+  const tags = (r) => loaded(r.document.head);
   const done = rig();
   done.tell(born({ setup: true }));
   assert.deepEqual(tags(done), [], 'set up already: never fetched');
@@ -984,7 +988,29 @@ test('Bit on the desktop is loaded only in the shell that can draw it, never in 
     ctx.window = ctx;
     vm.createContext(ctx);
     vm.runInContext(src('js/bit-companion/companion.js'), ctx);
-    const tags = document.head.children.map((s) => s.src);
+    assert.deepEqual(document.head.children.filter((n) => n.tag === 'script' && ALWAYS.includes(n.src)).map((n) => n.src), ALWAYS, 'its signs, everywhere');
+    const tags = loaded(document.head);
     assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk-spot.js', 'js/bit-companion/desk.js'] : []);
   }
+});
+
+test('a tap opens what the person chose: its pocket by default, the chat or its room; an egg always its room', () => {
+  const pocketAsked = (r) => r.document.head.children.filter((n) => n.src === 'js/bit-companion/pocket.js').length;
+  const r = rig();
+  r.tell(born());
+  r.corner().querySelector('.bitc-sprite').click();
+  assert.equal(pocketAsked(r), 1, 'the pocket, fetched the first time');
+  assert.equal(r.sheet(), null);
+  r.corner().querySelector('.bitc-sprite').click();
+  assert.equal(pocketAsked(r), 1, 'once');
+  const chat = rig();
+  const opened = [];
+  chat.ctx.DashboardOpen = { run: (req) => opened.push(req.open) };
+  chat.tell(born({ tap: 'chat' }));
+  chat.corner().querySelector('.bitc-sprite').click();
+  assert.deepEqual(opened, ['chat']);
+  const shell = rig();
+  shell.tell(egg());
+  shell.corner().querySelector('.bitc-sprite').click();
+  assert.ok(shell.sheet(), 'an egg hatches in its room');
 });

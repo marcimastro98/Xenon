@@ -34,6 +34,12 @@
     return w.cells;
   }
 
+  // Its sign (signs.js) over its head on the right, on every frame of Bit itself: not on a way of going.
+  const SIGN_AT = { x: BOX.x1 - 4, y: BOX.y0 };
+  function signed(part, sign) {
+    return sign && part ? { clip: part.clip, maps: part.maps.map((m) => new Map([...m, ...sign])) } : part;
+  }
+
   // Frames on the common grid: the loop, then the clip played once when one is on.
   function framesOn(loop, extra, reduced) {
     const maps = loop.maps.concat(extra ? extra.maps : []);
@@ -47,15 +53,18 @@
   /**
    * The frames of one message: its loop (nothing at all while it is gone), and the clip or the way
    * of going or coming played once. Null when the look gives nothing the shell can take.
-   * @param {{ look: object, loopId: string, once: object|null, gone: boolean, reduced: boolean }} now
+   * @param {{ look: object, loopId: string, once: object|null, gone: boolean, reduced: boolean, sign?: string }} now
    */
-  function picture({ look, loopId, once, gone, reduced }) {
+  function picture({ look, loopId, once, gone, reduced, sign }) {
     const stand = cellsOf(loopId, look) || cellsOf('idle', look);
     if (!stand) return null;
     const extra = once && (once.kind ? warpCells(once, stand) : cellsOf(once.id, look));
     // Gone: one empty frame, with its own frame after it (never played) so the grid keeps its colours.
     const loop = gone ? { clip: NOTHING.clip, maps: [...NOTHING.maps, stand.maps[0]] } : stand;
-    return framesOn(loop, extra, reduced) || framesOn(stand, null, reduced);
+    const mark = !gone && sign ? window.BitSigns?.at(sign, SIGN_AT.x, SIGN_AT.y) : null;
+    // A sign whose colours do not fit the grid's palette is left out, never the Bit.
+    const withSign = mark && framesOn(signed(loop, mark), once?.kind ? extra : signed(extra, mark), reduced);
+    return withSign || framesOn(loop, extra, reduced) || framesOn(stand, null, reduced);
   }
 
   window.BitDeskFrames = Object.freeze({ BODY, COLS: BOX.x1 - BOX.x0 + 1, cellsOf, picture });

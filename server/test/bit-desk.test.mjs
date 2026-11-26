@@ -13,6 +13,7 @@ const SOURCE = readFileSync(new URL('../js/bit-companion/desk.js', import.meta.u
 const FRAMES = readFileSync(new URL('../js/bit-companion/desk-frames.js', import.meta.url), 'utf8');
 const SCREENS = readFileSync(new URL('../js/bit-companion/desk-screens.js', import.meta.url), 'utf8');
 const SPOT = readFileSync(new URL('../js/bit-companion/desk-spot.js', import.meta.url), 'utf8');
+const SIGNS = readFileSync(new URL('../js/bit-companion/signs.js', import.meta.url), 'utf8');
 const bit = require('../../packages/core/src/bit.js');
 require('../../packages/core/src/bit-clips-life.js');
 require('../../packages/core/src/bit-clips-move.js');
@@ -27,13 +28,14 @@ const LOOK = bitLook.lookOf(genome.decode(SEED), { background: '#0d1117' });
 const MAX_PAYLOAD = 64 * 1024;
 const born = (prefs = {}) => ({ ok: true, hatched: true, seed: SEED, prefs: { roam: 'mix', desk: 'main', deskX: null, ...prefs } });
 
-function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), reduced = false, pace = 'live', save = { ok: true }, warp = false, displays = [], active = '' } = {}) {
+function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), reduced = false, pace = 'live', save = { ok: true }, warp = false, displays = [], active = '', sign = '', menu = 'screen' } = {}) {
   let now = 0;
   let id = 0;
   const timers = new Map(); // id -> { at, fn, every }
   const signals = [];
   const posts = [];
   const handlers = {};
+  const taps = []; // the dashboard's pocket, asked for when the menu's window can't show it
   const ctx = {
     console: { ...console, warn() {} }, Math, Object, Number, JSON, Map, WeakMap, Promise,
     Date: { now: () => now },
@@ -54,16 +56,21 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
     clearTimeout: (t) => timers.delete(t),
     setInterval: (fn, ms) => { timers.set(++id, { at: now + ms, fn, every: ms }); return id; },
     clearInterval: (t) => timers.delete(t),
+    requestAnimationFrame: (fn) => ctx.setTimeout(fn, 16),
     SERVER: '',
     fetch: async (url, init) => {
       posts.push({ url, body: JSON.parse(init.body) });
+      if (url === '/screen-menu') return { status: 200, json: async () => ({ ok: true, where: menu }) };
       const out = typeof save === 'function' ? save() : save;
       if (out.ok) out.bit = { ...state, prefs: { ...state.prefs, ...JSON.parse(init.body) } };
       return { status: out.ok ? 200 : 500, json: async () => out };
     },
   };
   ctx.window = ctx;
+  ctx.BitCompanion = { tap: (anchor) => taps.push(anchor) };
+  ctx.BitSignals = { top: () => (sign ? { kind: sign, vars: {} } : null) };
   vm.createContext(ctx);
+  vm.runInContext(SIGNS, ctx);
   vm.runInContext(FRAMES, ctx);
   vm.runInContext(SCREENS, ctx);
   vm.runInContext(SPOT, ctx);
@@ -86,7 +93,7 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
     return JSON.parse(decodeURIComponent(s.slice('xenon-app:bit-desk?d='.length)));
   });
   const last = () => messages().at(-1);
-  return { ctx, desk: ctx.BitDesk, advance, signals, messages, last, posts };
+  return { ctx, desk: ctx.BitDesk, advance, signals, messages, last, posts, taps };
 }
 
 // The rule bit_desk.rs parse() enforces, so a message the page sends is never dropped.
@@ -343,4 +350,48 @@ test('its own fidgets come at the pace of the Bit in the dashboard, none asleep'
   const asleep = rig({ pace: 'asleep' });
   asleep.advance(600000);
   assert.ok(asleep.messages().every((m) => !m.once));
+});
+
+test("tapped: the pocket, the chat or its room alone in the menu's window, as the person chose", async () => {
+  for (const [tap, open] of [[undefined, 'pocket'], ['pocket', 'pocket'], ['chat', 'chat'], ['room', 'bitroom']]) {
+    const r = rig({ pace: 'game', bit: born(tap ? { tap } : {}) });
+    r.advance(100);
+    await r.desk.tapped();
+    const asked = r.posts.filter((p) => p.url === '/screen-menu');
+    assert.deepEqual(asked.map((p) => p.body), [{ sheet: { open } }]);
+    assert.deepEqual(r.taps, [], 'the window shows it: nothing on the dashboard');
+  }
+});
+
+test('tapped with no window to show it: the dashboard opens what was chosen', async () => {
+  const r = rig({ pace: 'game', menu: 'closed' });
+  r.advance(100);
+  await r.desk.tapped();
+  assert.deepEqual(r.taps, [null]);
+});
+
+test('a sign over its head on every frame of Bit, in colours the shell takes; none while it is gone', () => {
+  const r = rig({ pace: 'game', sign: 'done' });
+  r.advance(100);
+  const msg = r.last();
+  assertShellTakes(msg, JSON.stringify(msg));
+  const ink = (hex) => String.fromCharCode(65 + msg.pal.indexOf(hex));
+  assert.ok(msg.pal.includes('3fd16b') && msg.pal.includes('d9dde3'));
+  for (const f of msg.loop) assert.equal(f.rows[0].slice(15, 19), ink('d9dde3') + ink('3fd16b').repeat(3), 'the flag, top right');
+  const plain = rig({ pace: 'game' });
+  plain.advance(100);
+  assert.ok(!plain.last().pal.includes('3fd16b'), 'no sign, no flag');
+});
+
+test('every sign is five by five and fits the palette beside any Bit', () => {
+  const r = rig();
+  const S = r.ctx.BitSigns;
+  assert.deepEqual([...S.KINDS].sort(), ['ask', 'bell', 'disk', 'done', 'soon']);
+  for (const kind of S.KINDS) {
+    const cells = S.cells(kind);
+    assert.ok(cells.length > 0 && cells.every((c) => c.x >= 0 && c.x < 5 && c.y >= 0 && c.y < 5 && /^[0-9a-f]{6}$/.test(c.hex)), kind);
+    assert.ok(new Set(cells.map((c) => c.hex)).size <= 4, kind + ': few colours, so the Bit keeps its own');
+  }
+  assert.equal(S.at('nope', 0, 0), null);
+  assert.equal(S.cells('nope').length, 0);
 });

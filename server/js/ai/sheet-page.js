@@ -1,7 +1,7 @@
 'use strict';
 
 // One screen of the dashboard alone in the Xenon menu's window (`/?panel=sheet`):
-// Settings, the Store, Scintille, the gallery or the chat, opened from the address by
+// Settings, the Store, Scintille, the gallery, the chat or Bit's pocket and room, opened from the address by
 // js/grid/dashboard-open.js, with nothing behind them (components/SheetPage). When the
 // screen closes the window goes back to the menu it came from, or away; a screen or a menu section asked
 // for elsewhere (a tile's Set up button, Bit, the tray) takes its place.
@@ -29,7 +29,7 @@
     const el = document.getElementById('ai-overlay');
     return !!el && !el.hidden;
   };
-  const showing = () => !!window.SheetChat || settingsOpen() || !!document.querySelector('.preset-modal-overlay, .wn-stage, #deck-mix-backdrop, #deck-editor-backdrop');
+  const showing = () => !!window.SheetChat || settingsOpen() || !!document.querySelector('.preset-modal-overlay, .wn-stage, #deck-mix-backdrop, #deck-editor-backdrop, .bitp, .bitc-overlay');
 
   function go(address) {
     if (leaving) return;

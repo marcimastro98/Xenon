@@ -27,7 +27,7 @@
   // The Ambient category is `lock` inside Settings; an unknown one hides every pane.
   const SETTINGS_PANES = { ambient: 'lock' };
   const CAPTURE_ID = /^[a-f0-9]{16}$/;
-  const SIMPLE = ['update', 'mixer', 'chat', 'dashboard', 'sparks', 'supporters', 'import', 'whatsnew'];
+  const SIMPLE = ['update', 'mixer', 'chat', 'dashboard', 'sparks', 'supporters', 'import', 'whatsnew', 'pocket', 'bitroom'];
   // What the Store may open on: the scenes, what is meant for the screen or for a pump's, or what you have.
   const STORE_KINDS = ['ambient', '__screen', '__pump', '__installed'];
   // One creation of the Store, the button of a message from Bit (js/ai/bit-messages.js).
@@ -39,7 +39,7 @@
   const SETTINGS_CATS = ['ambient', 'appearance', 'capture', 'general', 'notifications',
     'ai', 'smarthome', 'spotify', 'streaming', 'unifi', 'slideshow', 'phone'];
   // The screens that open alone in the Xenon menu's window (js/ai/sheet-page.js).
-  const SHEET_SCREENS = ['settings', 'store', 'sparks', 'gallery', 'chat', 'mixer', 'macro', 'deckkey', 'import', 'whatsnew'];
+  const SHEET_SCREENS = ['settings', 'store', 'sparks', 'gallery', 'chat', 'mixer', 'macro', 'deckkey', 'import', 'whatsnew', 'pocket', 'bitroom'];
   const KEY_ID = /^[\w-]{1,64}$/;
   // A Deck tile or one of its copies (server.js reads the same shape from a key).
   const DECK_INSTANCE = /^deck(~[a-z0-9]{1,40})?$/;
@@ -192,6 +192,14 @@
       const deck = /** @type {any} */ (window).Deck;
       if (!deck) return false;
       deck.openSlot(req);
+      return true;
+    }
+    // Bit on the desktop tapped (js/bit-companion/desk.js): its pocket or its room, alone in the menu's window.
+    if (req.open === 'pocket' || req.open === 'bitroom') {
+      const own = /** @type {any} */ (window).BitCompanion;
+      if (!own) return false;
+      if (req.open === 'pocket') own.pocket({ sheet: true });
+      else own.room();
       return true;
     }
     if (req.open === 'mixer') {

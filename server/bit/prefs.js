@@ -3,6 +3,7 @@
 // as it comes in, so a file edited by hand or an old version's never breaks a surface.
 
 const GeneTables = require('../shared/src/bit-genes.js');
+const Pocket = require('./pocket.js');
 
 // A display id as the shell gives them (printable, as layers/bit_desk.rs takes them).
 const SCREEN_ID = /^[\x20-\x7e]{1,64}$/;
@@ -15,7 +16,7 @@ const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
 const DEFAULT_PREFS = Object.freeze({
   place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null,
-  desk: 'main', deskX: null, deskY: null, deskScreen: '', setup: false,
+  desk: 'main', deskX: null, deskY: null, deskScreen: '', tap: 'pocket', keys: [], setup: false,
 });
 // In the corner it strolls along the bottom now and then, sometimes teleporting (mix), only on foot, or
 // stays where it stands; warp: how it teleports (js/bit-companion/warp.js), 'any' a different way each
@@ -28,6 +29,9 @@ const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
 // (0 left, 1 right; null its usual place), deskY how high when dropped away from the bar (0 top, 1 bottom of
 // the desktop; null on the bar), deskScreen the screen (the shell's display id; '' the main one).
 const DESKS = Object.freeze(['main', 'all', 'off']);
+// A tap on it opens its pocket (js/bit-companion/pocket.js), the chat or its room. keys: the pocket's
+// quick keys (pocket.js here), [] for the usual ones.
+const TAPS = Object.freeze(['pocket', 'chat', 'room']);
 // The ground of its card: plain ink, or its theatre (room-scenery.js).
 const CARDS = Object.freeze(['plain', 'stage']);
 // The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of
@@ -63,6 +67,8 @@ function normalizePrefs(raw) {
     deskX: normalizeFraction(p.deskX),
     deskY: normalizeFraction(p.deskY),
     deskScreen: typeof p.deskScreen === 'string' && SCREEN_ID.test(p.deskScreen) ? p.deskScreen : '',
+    tap: TAPS.includes(p.tap) ? p.tap : DEFAULT_PREFS.tap,
+    keys: Pocket.normalizeKeys(p.keys),
     setup: p.setup === true,
   };
 }
@@ -72,10 +78,11 @@ function merge(prev, patch) {
   if (!patch || typeof patch !== 'object') return { error: 'bad_request' };
   const next = normalizePrefs({ ...prev, ...patch });
   for (const k of Object.keys(patch)) {
-    const kept = CLEARABLE.has(k) ? patch[k] === null || next[k] !== null : next[k] === patch[k];
+    const kept = CLEARABLE.has(k) ? patch[k] === null || next[k] !== null
+      : Array.isArray(next[k]) ? JSON.stringify(next[k]) === JSON.stringify(patch[k]) : next[k] === patch[k];
     if (Object.hasOwn(DEFAULT_PREFS, k) && !kept) return { error: 'bad_value' };
   }
   return { prefs: next };
 }
 
-module.exports = { PLACES, REACTIONS, ROAMS, WARPS, DESKS, CARDS, POSES, DEFAULT_PREFS, normalizePrefs, merge };
+module.exports = { PLACES, REACTIONS, ROAMS, WARPS, DESKS, TAPS, CARDS, POSES, DEFAULT_PREFS, normalizePrefs, merge };

@@ -69,7 +69,7 @@
     if (!wanted() && !leaving) return { on: false };
     const look = app()?.personal();
     const shown = playing();
-    const f = look && frames()?.picture({ look, loopId: loopId(), once: shown, gone, reduced: reduced() });
+    const f = look && frames()?.picture({ look, loopId: loopId(), once: shown, gone, reduced: reduced(), sign: window.BitSigns?.kind() });
     if (!f) return { on: false };
     const at = spot();
     const msg = { on: true, monitor: here(), cell: CELL, body: frames().BODY, pal: f.pal, loop: f.loop, home: at.x };
@@ -214,10 +214,16 @@
     schedule();
   }
 
-  /** Tapped: a poke (its pocket comes with phase 3 of its plan). */
-  function tapped() {
+  /** Tapped: a poke, and what the person chose for a tap (prefs.tap) alone in the Xenon menu's window, where
+   *  they are; with no window to show it (the server says 'closed'), on the dashboard. */
+  async function tapped() {
     const pokes = (engine().bit?.POKES || []).filter((id) => id !== recent[recent.length - 1]);
     if (pokes.length) play(pokes[Math.floor(Math.random() * pokes.length)]);
+    const open = { chat: 'chat', room: 'bitroom' }[prefs().tap] || 'pocket';
+    const r = await fetch(SERVER + '/screen-menu', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheet: { open } }),
+    }).then((res) => res.json()).catch(() => null);
+    if (r?.where !== 'screen') window.BitCompanion?.tap(null);
   }
 
   const third = (n) => clamp01(Math.round(n * 1000) / 1000);
@@ -244,6 +250,7 @@
 
   function start() {
     addEventListener('xenon-bit', schedule);
+    addEventListener('xenon-bit-signals', schedule); // a sign over its head comes or goes (signs.js)
     schedule();
     armFidget();
     armStroll();
