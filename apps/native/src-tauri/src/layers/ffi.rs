@@ -6,7 +6,7 @@ mod ask;
 mod blit;
 mod input;
 
-pub use ask::{class_of, cloaked, exe_of, frame_of, monitor_rect_of, monitor_scale_of, pid_of, title_of};
+pub use ask::{class_of, cloaked, exe_of, frame_of, monitor_areas_of, monitor_rect_of, monitor_scale_of, pid_of, title_of};
 pub use blit::blit;
 pub use input::*;
 

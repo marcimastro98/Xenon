@@ -73,7 +73,12 @@ pub fn monitor_scale_of(h: isize) -> f64 {
 }
 
 pub fn monitor_rect_of(h: isize) -> Option<Rect> {
+    monitor_areas_of(h).map(|(monitor, _)| monitor)
+}
+
+/// The monitor a window is on (the nearest one) and its work area, in physical pixels.
+pub fn monitor_areas_of(h: isize) -> Option<(Rect, Rect)> {
     let m = unsafe { MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST) };
     let mut info = MonitorInfo { size: std::mem::size_of::<MonitorInfo>() as u32, monitor: Rect::default(), work: Rect::default(), flags: 0 };
-    (m != 0 && unsafe { GetMonitorInfoW(m, &mut info) } != 0).then_some(info.monitor)
+    (m != 0 && unsafe { GetMonitorInfoW(m, &mut info) } != 0).then_some((info.monitor, info.work))
 }

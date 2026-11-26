@@ -28,6 +28,24 @@
   /** True on a screen other than the main one (a screen gone counts as the main one: the shell's too). */
   const away = (id, state = read()) => !!id && find(id, state)?.primary === false;
 
+  // '' and a screen gone are the main one, as the shell resolves them (monitor::layer_monitor).
+  const resolved = (id, state) => (id && find(id, state) ? id : String(all(state).find((d) => d.primary)?.id ?? ''));
+
+  /** Two names of the same screen. */
+  const same = (a, b, state = read()) => resolved(a, state) === resolved(b, state);
+
+  /** The screen whose top-left corner is at x, y (physical pixels, as the shell tells a drop), or null. */
+  function at(x, y, state = read()) {
+    const d = all(state).find((s) => s.x === x && s.y === y);
+    return d ? String(d.id) : null;
+  }
+
+  /** Where Bit may stand: any screen but the dashboard's, which has its own Bit. */
+  const usable = (id, state = read()) => !state.active || !same(id, String(state.active), state);
+
+  /** '' for the main screen, else the id: how a screen is kept in its prefs (deskScreen). */
+  const kept = (id, state = read()) => (away(id, state) ? id : '');
+
   /** Its place along another screen's bar (0-1), `cols` cells of `cell` logical px wide: just left of
    *  the clock, past the centred icons. The main screen's place is the one it was given (desk.js). */
   function home(id, cols, cell, state = read()) {
@@ -39,5 +57,5 @@
     return Math.min(1, Math.max(0, (d.width - CLOCK_GAP * scale - w) / room));
   }
 
-  window.BitDeskScreens = Object.freeze({ list, next, away, home });
+  window.BitDeskScreens = Object.freeze({ list, next, away, home, same, at, usable, kept });
 })();

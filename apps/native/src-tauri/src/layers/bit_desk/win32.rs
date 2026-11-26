@@ -1,8 +1,8 @@
 //! Bit on the desktop on Windows (bit_desk.rs has the rule and the pixels):
 //! one layered window, topmost, never activated, a tool window (no taskbar
 //! button, no Alt+Tab). Not click-through: its empty pixels let every click
-//! pass (alpha 0), its cells take them, so Bit can be tapped and dragged along
-//! the taskbar while the rest of the bar works as always. It stays in
+//! pass (alpha 0), its cells take them, so Bit can be tapped and dragged
+//! anywhere while the rest of the bar works as always. It stays in
 //! screenshots and recordings: a desktop with Bit on it is meant to be seen.
 //!
 //! One timer: at the walk's pace while it walks, at the next frame while a clip
@@ -20,7 +20,7 @@ use std::cell::RefCell;
 
 use super::super::ffi::*;
 use super::window_win32::{create, tell, Drag};
-use super::{lane, paint, place, step, Area, Frame, Lane, Plan, Spec};
+use super::{lane, paint, place, spot, step, Area, Frame, Lane, Plan, Spec};
 
 /// The page re-sends what it shows at least every 20 s.
 const STALE_MS: u64 = 60_000;
@@ -35,7 +35,8 @@ pub(super) struct Desk {
     pub(super) hwnd: isize,
     hook: isize,
     pub(super) spec: Spec,
-    mon: Area,
+    pub(super) mon: Area,
+    pub(super) work: Area,
     pub(super) lane: Lane,
     pub(super) scale: f64,
     pub(super) cell: i32,
@@ -53,6 +54,8 @@ pub(super) struct Desk {
     touched: u64,
     hidden: bool,
     pub(super) drag: Option<Drag>,
+    /// Where the window is while it is dragged, and after a drop until the page answers.
+    pub(super) free: Option<(i32, i32)>,
 }
 
 thread_local! {
@@ -84,10 +87,20 @@ fn frames(d: &Desk) -> &[Frame] {
     }
 }
 
+/// The window's top-left corner: held by the mouse, left away from the bar, or on it.
+pub(super) fn at(d: &Desk) -> (i32, i32) {
+    let (w, h) = size(d);
+    match (d.free, d.spec.rise) {
+        (Some(p), _) => p,
+        (None, Some(rise)) => spot(&d.lane, d.work, d.pos, rise, w, h),
+        (None, None) => place(&d.lane, d.pos, w, h),
+    }
+}
+
 pub(super) fn render(d: &Desk) -> bool {
     let Some(frame) = frames(d).get(d.frame) else { return false };
     let (w, h) = size(d);
-    let (x, y) = place(&d.lane, d.pos, w, h);
+    let (x, y) = at(d);
     let px = paint(frame, d.spec.w, d.spec.h, &d.spec.pal, d.cell as usize, d.left);
     blit(d.hwnd, Rect { l: x, t: y, r: x + w, b: y + h }, &px, 255)
 }
@@ -152,12 +165,17 @@ fn take(d: &mut Desk, plan: Plan, t: u64) {
     let rehomed = d.heard_home.is_none_or(|was| (was - home).abs() > 1e-6);
     let (walk, once) = (plan.spec.walk, plan.spec.once.as_ref().map(|o| o.seq));
     d.mon = plan.mon;
+    d.work = plan.work;
     d.cell = cell;
     d.scale = plan.scale;
     d.lane = lane(plan.mon, plan.work, plan.spec.body as i32 * cell);
     d.spec = plan.spec;
     d.heard_home = Some(home);
     d.touched = t;
+    // The page's word puts it back where it belongs: where it was dropped, or where it was when the drop was refused.
+    if d.drag.is_none() {
+        d.free = None;
+    }
     if (moved || rehomed) && d.drag.is_none() {
         d.pos = home;
         d.walk = None;

@@ -11,7 +11,7 @@
 // What is given for free (the seasons' items): seasons.js. An older file's daily gift is
 // dropped on read: items are earned, a season's, a supporter's or bought.
 //
-// The prefs live here, not in the settings: one place says everything about the
+// The prefs (prefs.js) live here, not in the settings: one place says everything about the
 // Bit, every surface learns a change from the 'bit' event, and a phone's copy of
 // the settings never carries the seed's signature.
 //
@@ -30,7 +30,7 @@ const Seasons = require('./seasons.js');
 const Months = require('./months.js');
 const genome = require('../shared/src/bit-genome.js');
 const wardrobe = require('../shared/src/bit-wardrobe.js');
-const GeneTables = require('../shared/src/bit-genes.js');
+const Prefs = require('./prefs.js');
 
 const VERSION = 1;
 const SEED = /^[0-9a-f]{16}$/;
@@ -44,26 +44,6 @@ const LINKISH = /@|:\/\/|www\.|https?|[.。][a-z]{2,}\b|\p{Nd}{5,}/iu;
 const SIG_MAX = 200;
 // Its page on the site, when shown (the hub's src/bit-public.js answers it).
 const SITE_PAGE = 'https://xenon-app.com/bit.html#';
-// Where the companion lives (off: only where the app already shows Bit), how
-// often it reacts (bitDirector's hourly cap), and the classic Bit in the app.
-const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
-const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
-const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null, setup: false });
-// In the corner it strolls along the bottom now and then, sometimes teleporting (mix), only on foot, or
-// stays where it stands; warp: how it teleports (js/bit-companion/warp.js), 'any' a different way each
-// time. setup: the person went through the guided setup (js/bit-companion/room-setup.js). spot: where
-// the person dragged it, as fractions of the room the screen leaves it ({x: 0 left, y: 0 bottom}), or null for its corner.
-const ROAMS = Object.freeze(['mix', 'walk', 'stay']);
-const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
-// On the desktop (the shell's own window on the taskbar, layers/bit_desk.rs): on the main screen, one Bit
-// that travels across every screen now and then, or not at all; deskX: where along the bar the person
-// dragged it (0 left, 1 right), null for its usual place.
-const DESKS = Object.freeze(['main', 'all', 'off']);
-// The ground of its card: plain ink, or its theatre (room-scenery.js).
-const CARDS = Object.freeze(['plain', 'stage']);
-// The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of
-// the fidgets or the classic photo pose, chosen in the sheet.
-const POSES = Object.freeze([...GeneTables.QUIRKS.map((q) => q.id), 'pose']);
 
 // Days of use (not in a row) to each stage; the body never changes, the tip does.
 const STAGES = Object.freeze([
@@ -110,37 +90,6 @@ function cleanName(raw) {
   return name;
 }
 
-function normalizeSpot(raw) {
-  if (!raw || typeof raw !== 'object') return null;
-  const x = Number(raw.x);
-  const y = Number(raw.y);
-  const ok = (n) => Number.isFinite(n) && n >= 0 && n <= 1;
-  return ok(x) && ok(y) ? { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } : null;
-}
-
-function normalizeFraction(raw) {
-  const n = typeof raw === 'number' ? raw : NaN;
-  return Number.isFinite(n) && n >= 0 && n <= 1 ? Math.round(n * 1000) / 1000 : null;
-}
-
-function normalizePrefs(raw) {
-  const p = raw && typeof raw === 'object' ? raw : {};
-  return {
-    place: PLACES.includes(p.place) ? p.place : DEFAULT_PREFS.place,
-    reactions: Object.hasOwn(REACTIONS, p.reactions) ? p.reactions : DEFAULT_PREFS.reactions,
-    sounds: p.sounds === true,
-    classic: p.classic === true,
-    pose: POSES.includes(p.pose) ? p.pose : '',
-    card: CARDS.includes(p.card) ? p.card : DEFAULT_PREFS.card,
-    roam: ROAMS.includes(p.roam) ? p.roam : DEFAULT_PREFS.roam,
-    warp: WARPS.includes(p.warp) ? p.warp : DEFAULT_PREFS.warp,
-    spot: normalizeSpot(p.spot),
-    desk: DESKS.includes(p.desk) ? p.desk : DEFAULT_PREFS.desk,
-    deskX: normalizeFraction(p.deskX),
-    setup: p.setup === true,
-  };
-}
-
 /** bit.json as this engine keeps it, whatever came from disk. */
 function normalize(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
@@ -158,7 +107,7 @@ function normalize(raw) {
       last: typeof days.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(days.last) ? days.last : '',
     },
     traits: Traits.normalizeCounts(src.traits),
-    prefs: normalizePrefs(src.prefs),
+    prefs: Prefs.normalizePrefs(src.prefs),
     shown: src.shown === true,
     months: Months.normalize(src.months),
   };
@@ -225,15 +174,11 @@ function setShown(model, on) {
   return model.shown === (on === true) ? null : { model: { ...model, shown: on === true } };
 }
 
-/** A change of the prefs: only the keys sent, each one checked. Allowed on an egg. */
+/** A change of the prefs (prefs.js): only the keys sent, each one checked. Allowed on an egg. */
 function setPrefs(model, patch) {
-  if (!patch || typeof patch !== 'object') return { error: 'bad_request' };
-  const next = normalizePrefs({ ...model.prefs, ...patch });
-  for (const k of Object.keys(patch)) {
-    const kept = k === 'spot' || k === 'deskX' ? patch[k] === null || next[k] !== null : next[k] === patch[k];
-    if (Object.hasOwn(DEFAULT_PREFS, k) && !kept) return { error: 'bad_value' };
-  }
-  return JSON.stringify(next) === JSON.stringify(model.prefs) ? null : { model: { ...model, prefs: next } };
+  const out = Prefs.merge(model.prefs, patch);
+  if (out.error) return out;
+  return JSON.stringify(out.prefs) === JSON.stringify(model.prefs) ? null : { model: { ...model, prefs: out.prefs } };
 }
 
 /** A day the PC ran Xenon with a Bit out of its egg: counted once per date, with the season's items. */
@@ -263,7 +208,7 @@ function view(model, now) {
   const b = model.bit;
   const base = {
     ok: true, hatched: !!b, eggAt: model.eggAt, founder: model.founder, prefs: model.prefs,
-    everywhere: !model.prefs.classic, reactionsPerHour: REACTIONS[model.prefs.reactions],
+    everywhere: !model.prefs.classic, reactionsPerHour: Prefs.REACTIONS[model.prefs.reactions],
   };
   if (!b) return { ...base, stage: 'egg' };
   const genes = genome.decode(b.seed);
@@ -293,6 +238,7 @@ function view(model, now) {
   };
 }
 
+const { PLACES, REACTIONS, ROAMS, WARPS, DESKS, DEFAULT_PREFS, POSES, normalizePrefs } = Prefs;
 module.exports = {
   VERSION, STAGES, PLACES, REACTIONS, ROAMS, WARPS, DESKS, DEFAULT_PREFS, POSES,
   normalize, normalizePrefs, cleanName, stageOf, ownedItems, hatched, wear, rename, setShown, setPrefs, countDay, learn, view, birthGift,

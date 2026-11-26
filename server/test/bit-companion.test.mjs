@@ -960,7 +960,7 @@ test('on the desktop: chosen in its room only where the shell draws it, said wha
   assert.ok(said('mybit_guide_desk_line'), 'with what it is');
   btn('mybit_desk_reset').click();
   await settle();
-  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskX: null } });
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskX: null, deskY: null, deskScreen: '' } }, 'its usual spot: along the bar of the main screen');
   btn('mybit_desk_off').click();
   await settle();
   assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { desk: 'off' } });
@@ -985,6 +985,6 @@ test('Bit on the desktop is loaded only in the shell that can draw it, never in 
     vm.createContext(ctx);
     vm.runInContext(src('js/bit-companion/companion.js'), ctx);
     const tags = document.head.children.map((s) => s.src);
-    assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk.js'] : []);
+    assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk-spot.js', 'js/bit-companion/desk.js'] : []);
   }
 });

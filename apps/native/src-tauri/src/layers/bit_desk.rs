@@ -15,7 +15,7 @@
 
 use serde::Deserialize;
 
-pub use ground::{along, lane, place, step, Area, Lane};
+pub use ground::{along, lane, place, rise_of, spot, step, Area, Lane};
 
 mod ground;
 #[cfg(test)]
@@ -70,6 +70,7 @@ struct Wire {
     once: Option<WireOnce>,
     #[serde(default)]
     home: f64,
+    rise: Option<f64>,
     #[serde(default)]
     body: u32,
     walk: Option<WireWalk>,
@@ -113,6 +114,8 @@ pub struct Spec {
     pub once: Option<Once>,
     /// Where it lives along the lane, 0 to 1.
     pub home: f64,
+    /// Left away from the bar: how high, 0 (top of the desktop) to 1 (on the lane); None on the bar.
+    pub rise: Option<f64>,
     /// A walk from where it stands; a new `seq` starts it.
     pub walk: Option<Walk>,
 }
@@ -191,7 +194,8 @@ pub fn parse(json: &str) -> Option<Spec> {
     });
     let body = if wire.body == 0 { h } else { (wire.body as usize).min(h) };
     let cell = if wire.cell == 0 { DEFAULT_CELL } else { wire.cell.clamp(CELL.0, CELL.1) };
-    Some(Spec { on: true, monitor: wire.monitor, cell, pal, w, h, body, looped, once, home: fraction(wire.home), walk })
+    let rise = wire.rise.filter(|r| r.is_finite()).map(fraction);
+    Some(Spec { on: true, monitor: wire.monitor, cell, pal, w, h, body, looped, once, home: fraction(wire.home), rise, walk })
 }
 
 /// A frame as premultiplied BGRA rows, top-down, `cell` pixels a cell, mirrored

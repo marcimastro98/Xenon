@@ -107,15 +107,16 @@
   const warpChoice = (p, h) => choice(h.say('mybit_warp'), 'warp', WARPS, p.warp || 'any', (v) => h.say(`mybit_warp_${v}`), h);
 
   // On the taskbar, only where the shell can draw it; every screen in turn only with two to go to
-  // besides the dashboard's (or when already chosen); dragged along the bar, a way back to its usual spot.
+  // besides the dashboard's (or when already chosen); dragged anywhere, a way back to its usual spot.
   function desk(p, h) {
     const screens = window.BitDesk?.screens?.().length || 1;
     const options = DESKS.filter((v) => v !== 'all' || screens > 1 || p.desk === 'all');
     const box = choice(h.say('mybit_desk'), 'desk', options, p.desk || 'main', (v) => h.say(`mybit_desk_${v}`), h);
-    if (typeof p.deskX !== 'number' || p.desk === 'off') return box;
+    const moved = typeof p.deskX === 'number' || typeof p.deskY === 'number' || !!p.deskScreen;
+    if (!moved || p.desk === 'off') return box;
     const back = makeEl('button', 'bitc-seg-btn bitc-spot-back', h.say('mybit_desk_reset'));
     back.type = 'button';
-    back.addEventListener('click', () => setPref({ deskX: null }, h), { signal: h.signal });
+    back.addEventListener('click', () => setPref({ deskX: null, deskY: null, deskScreen: '' }, h), { signal: h.signal });
     box.append(back);
     return box;
   }

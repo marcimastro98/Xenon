@@ -225,17 +225,25 @@ test('prefs: only known keys and values, and every change is told to all surface
   assert.equal((await h.call('POST /api/bit/prefs', { deskX: 1.5 })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { deskX: '0.5' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { deskX: null })).bit.prefs.deskX, null);
+  // Dropped away from the bar, on another screen: how high (null: on the bar) and which screen ('' the main one).
+  const pinned = (await h.call('POST /api/bit/prefs', { deskX: 0.3, deskY: 0.2504, deskScreen: '\\\\.\\DISPLAY6' })).bit.prefs;
+  assert.deepEqual([pinned.deskX, pinned.deskY, pinned.deskScreen], [0.3, 0.25, '\\\\.\\DISPLAY6']);
+  for (const bad of [{ deskY: -1 }, { deskY: '0.5' }, { deskScreen: 'a\nb' }, { deskScreen: 7 }, { deskScreen: 'x'.repeat(65) }]) {
+    assert.equal((await h.call('POST /api/bit/prefs', bad)).error, 'bad_value', JSON.stringify(bad));
+  }
+  const back = (await h.call('POST /api/bit/prefs', { deskX: null, deskY: null, deskScreen: '' })).bit.prefs;
+  assert.deepEqual([back.deskX, back.deskY, back.deskScreen], [null, null, '']);
   // The guided setup, once seen (js/bit-companion/room-setup.js): only a yes.
   assert.equal((await h.call('POST /api/bit/prefs', { setup: 'done' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { setup: true })).bit.prefs.setup, true);
   await h.call('POST /api/bit/prefs', { classic: true });
-  assert.equal(h.told().length, 10, 'no change, nothing told');
+  assert.equal(h.told().length, 12, 'no change, nothing told');
 });
 
 test('the Vitals Bit becomes the companion where it lived', async (t) => {
   const h = harness(t, { settings: { vitals: { pet: { enabled: true, position: 'topbar', sounds: true } } } });
   const r = await h.call('GET /api/bit');
-  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null, setup: false });
+  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null, deskY: null, deskScreen: '', setup: false });
   const { prefsFromVitals } = require('../bit/handlers.js');
   assert.equal(prefsFromVitals({ vitals: { pet: { enabled: false, position: 'topbar' } } }).place, 'corner');
 });

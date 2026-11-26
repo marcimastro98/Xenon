@@ -104,3 +104,41 @@ fn the_body_is_what_fits_in_the_taskbar() {
     assert_eq!(parse(&msg(r#","body":1"#)).unwrap().body, 1);
     assert_eq!(parse(&msg(r#","body":9"#)).unwrap().body, 2, "never more than the grid");
 }
+
+#[test]
+fn left_away_from_the_bar_it_stands_where_it_was_let_go() {
+    let mon = Area { l: 0, t: 0, r: 1920, b: 1080 };
+    let work = Area { l: 0, t: 0, r: 1920, b: 1032 };
+    let on = lane(mon, work, 36);
+    // rise 0: the top of the desktop; 1: its feet on the lane, as on the bar.
+    assert_eq!(spot(&on, work, 0.0, 0.0, 54, 51), (0, 0));
+    assert_eq!(spot(&on, work, 0.0, 1.0, 54, 51), place(&on, 0.0, 54, 51));
+    let (left, top) = spot(&on, work, 0.5, 0.25, 54, 51);
+    assert_eq!(left, place(&on, 0.5, 54, 51).0);
+    // And back: the same height from where the window is.
+    let rise = rise_of(&on, work, top, 51, 24).expect("away from the bar");
+    assert!((rise - 0.25).abs() < 0.002, "{rise}");
+    assert_eq!(rise_of(&on, work, 0, 51, 24), Some(0.0));
+    assert_eq!(rise_of(&on, work, -400, 51, 24), Some(0.0), "above the screen: at its top");
+}
+
+#[test]
+fn let_go_near_the_bar_or_on_it_it_walks_on_the_bar_again() {
+    let mon = Area { l: -1080, t: 128, r: 0, b: 2048 };
+    let work = Area { l: -1080, t: 128, r: 0, b: 2000 };
+    let on = lane(mon, work, 36);
+    assert_eq!(rise_of(&on, work, 2000 - 51 - 10, 51, 24), None, "feet 10 px over the bar");
+    assert_eq!(rise_of(&on, work, 2010, 51, 24), None, "over the bar itself");
+    assert!(rise_of(&on, work, 2000 - 51 - 30, 51, 24).is_some(), "30 px over it: stays put");
+    // A screen too short for Bit: always on the bar.
+    let tiny = Area { l: 0, t: 0, r: 100, b: 40 };
+    assert_eq!(rise_of(&lane(tiny, tiny, 36), tiny, 0, 51, 24), None);
+}
+
+#[test]
+fn how_high_is_kept_in_range_or_left_out() {
+    assert_eq!(parse(&msg(r#","rise":0.3"#)).expect("valid").rise, Some(0.3));
+    assert_eq!(parse(&msg(r#","rise":7"#)).expect("valid").rise, Some(1.0));
+    assert_eq!(parse(&msg("")).expect("valid").rise, None, "on the bar");
+    assert!(parse(&msg(r#","rise":"high""#)).is_none(), "not a number: dropped");
+}

@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url);
 const SOURCE = readFileSync(new URL('../js/bit-companion/desk.js', import.meta.url), 'utf8');
 const FRAMES = readFileSync(new URL('../js/bit-companion/desk-frames.js', import.meta.url), 'utf8');
 const SCREENS = readFileSync(new URL('../js/bit-companion/desk-screens.js', import.meta.url), 'utf8');
+const SPOT = readFileSync(new URL('../js/bit-companion/desk-spot.js', import.meta.url), 'utf8');
 const bit = require('../../packages/core/src/bit.js');
 require('../../packages/core/src/bit-clips-life.js');
 require('../../packages/core/src/bit-clips-move.js');
@@ -65,6 +66,7 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
   vm.createContext(ctx);
   vm.runInContext(FRAMES, ctx);
   vm.runInContext(SCREENS, ctx);
+  vm.runInContext(SPOT, ctx);
   vm.runInContext(SOURCE, ctx);
   /** Runs every timer due in the next `ms`, in order. */
   function advance(ms) {
@@ -193,7 +195,7 @@ test('a drop is its place: kept in its prefs, or undone when the save fails', as
   r.advance(100);
   await r.desk.dropped(0.4213);
   r.advance(100);
-  assert.deepEqual(r.posts, [{ url: '/api/bit/prefs', body: { deskX: 0.421 } }]);
+  assert.deepEqual(r.posts, [{ url: '/api/bit/prefs', body: { deskX: 0.421, deskY: null, deskScreen: '' } }]);
   assert.equal(r.last().home, 0.421);
   const failing = rig({ save: { ok: false, error: 'offline' } });
   failing.advance(100);
@@ -205,6 +207,45 @@ test('a drop is its place: kept in its prefs, or undone when the save fails', as
   assert.equal(failing.last().home, 0.7, 'and goes back when not kept');
   await r.desk.dropped('left');
   assert.equal(r.posts.length, 1, 'not a number: nothing');
+});
+
+test("dropped away from the bar it stays put there, on any screen but the dashboard's; near the bar it walks again", async () => {
+  const displays = [{ id: 'main', x: 0, y: 0, width: 3840, primary: true }, { id: 'side', x: -1080, y: 128, width: 1080, primary: false }, { id: 'edge', x: 573, y: 2160, width: 2560, primary: false }];
+  const r = rig({ displays, active: 'edge' });
+  r.advance(100);
+  await r.desk.dropped(0.25, 0.4, 0, 0);
+  r.advance(100);
+  assert.deepEqual(r.posts.at(-1).body, { deskX: 0.25, deskY: 0.4, deskScreen: '' });
+  assert.deepEqual([r.last().monitor, r.last().home, r.last().rise], ['', 0.25, 0.4], 'still where it was left');
+  r.advance(20 * 60000);
+  assert.ok(r.messages().slice(-20).every((m) => !m.walk), 'no stroll while it stays put');
+  await r.desk.dropped(0.6, 0.1, -1080, 128);
+  r.advance(100);
+  assert.deepEqual(r.posts.at(-1).body, { deskX: 0.6, deskY: 0.1, deskScreen: 'side' }, 'another screen is its own now');
+  assert.deepEqual([r.last().monitor, r.last().rise], ['side', 0.1]);
+  const before = r.posts.length;
+  await r.desk.dropped(0.5, 0.5, 573, 2160);
+  r.advance(100);
+  assert.equal(r.posts.length, before, "the dashboard's screen has its own Bit: not kept");
+  assert.deepEqual([r.last().monitor, r.last().home, r.last().rise], ['side', 0.6, 0.1], 'and the shell is told its place again');
+  await r.desk.dropped(0.3, 0.2, 9999, 9999);
+  assert.equal(r.posts.length, before, 'a screen not known: not kept');
+  await r.desk.dropped(0.8, -1, 0, 0);
+  r.advance(100);
+  assert.deepEqual(r.posts.at(-1).body, { deskX: 0.8, deskY: null, deskScreen: '' }, 'near the bar: back on it, on the main screen');
+  assert.equal('rise' in r.last(), false);
+  r.advance(6 * 60000);
+  assert.ok(r.messages().some((m) => m.walk), 'and it strolls again');
+});
+
+test('a drop the shell shows is told back even when nothing changed, so the shell puts it where it belongs', async () => {
+  const r = rig({ save: { ok: false, error: 'offline' } });
+  r.advance(100);
+  const n = r.signals.length;
+  await r.desk.dropped(0.7, -1, Number.NaN, Number.NaN);
+  r.advance(100);
+  assert.ok(r.signals.length > n, 'sent again');
+  assert.equal(r.last().home, 0.7);
 });
 
 test('going out files no message: the guided setup says how to move it (room-setup.js)', () => {
