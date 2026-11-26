@@ -32,6 +32,7 @@ mod anchor_macos;
 mod clicks_win32;
 #[cfg(target_os = "linux")]
 mod anchor_x11;
+pub mod bit_desk;
 pub mod desks;
 #[cfg(target_os = "macos")]
 mod desks_macos;

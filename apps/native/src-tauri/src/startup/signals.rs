@@ -58,6 +58,13 @@ pub(super) fn app(nav_handle: &tauri::AppHandle, url: &tauri::Url) {
             let u = url.clone();
             std::thread::spawn(move || layers::glow(&h, &u));
         }
+        // The own Bit on the desktop: its frames, its place, a walk
+        // (layers/bit_desk.rs). A plain thread, like above.
+        "bit-desk" => {
+            let h = nav_handle.clone();
+            let u = url.clone();
+            std::thread::spawn(move || layers::bit_desk::signal(&h, &u));
+        }
         // Settings → Background, "See-through background":
         // remember it, and relaunch when the window has to be
         // rebuilt (see_through.rs). A plain thread: it writes

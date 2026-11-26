@@ -125,6 +125,9 @@ const WARDROBE = 'js/bit-companion/wardrobe.js';
 const CLIP = 'js/bit-companion/clip.js';
 // The DNA strip on the card: parts of the Bit, in its own look, drawn on the card's canvas.
 const DNA = 'js/bit-companion/card-dna.js';
+// Bit on the desktop (bit-companion/desk.js): the person's own Bit, its frames turned into cells for the
+// shell's window, in the look BitApp gives (personal()).
+const DESK = 'js/bit-companion/desk.js';
 
 function jsFiles(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -138,7 +141,7 @@ test('nothing in the app draws Bit around BitApp, beyond the known players', () 
   const found = [];
   for (const file of jsFiles(join(SERVER, 'js'))) {
     const rel = relative(SERVER, file).replace(/\\/g, '/');
-    if (rel === 'js/ai/bit-app.js' || rel === WIDGET_KIT || rel === CARD || rel === WARDROBE || rel === CLIP || rel === DNA) continue;
+    if (rel === 'js/ai/bit-app.js' || rel === WIDGET_KIT || rel === CARD || rel === WARDROBE || rel === CLIP || rel === DNA || rel === DESK) continue;
     const text = readFileSync(file, 'utf8');
     if (/\b(renderFrame|frameSvg)\(|bitIcon\.|bitPlayer\.mount\(/.test(text)) found.push(rel);
   }
@@ -146,6 +149,7 @@ test('nothing in the app draws Bit around BitApp, beyond the known players', () 
   for (const f of DIRECT) assert.match(src(f), /bitPlayer\.mount\(/, `${f} mounts the player`);
   assert.match(src(CARD), /X\.bitLook\.lookOf\(bit\.genes,/, 'the card draws their own look');
   assert.match(src(CLIP), /X\.bitLook\.lookOf\(bit\.genes, \{ worn: X\.bitWardrobe\.outfit\(bit\.worn/, 'the video draws their own look, dressed');
+  assert.match(src(DESK), /const look = app\(\)\.personal\(\);/, 'the desktop draws the person\'s own look');
   assert.match(src(WARDROBE), /window\.BitApp\?\.dressed\(\[it\.id\]\)/, 'the thumbnails wear the page\'s look');
 });
 

@@ -831,3 +831,55 @@ test('a notification on the island gets a packet of news from the corner; no isl
   r.ctx.BitMoments.react('notification');
   assert.equal(calls.length, 1, 'its room open over the corner: nothing');
 });
+
+test('a moment reaches Bit on the desktop too, even while the page keeps its own Bits still', () => {
+  const r = rig();
+  r.tell(born({ place: 'corner' }));
+  const desk = [];
+  r.ctx.BitApp.playerFor = () => ({ running: false, play() {} });
+  r.ctx.BitApp.director = () => ({ react: () => 'wave' });
+  r.ctx.BitDesk = { on: () => false, play: (id) => desk.push(id) };
+  r.send('widget_auto_updated', {});
+  assert.deepEqual(desk, [], 'held, and no Bit on the desktop: the moment waits');
+  r.ctx.BitDesk.on = () => true;
+  r.send('widget_auto_updated', {});
+  assert.deepEqual(desk, ['wave']);
+  r.send('bit_play', { clip: 'hop' });
+  assert.deepEqual(desk, ['wave', 'hop'], 'a move asked from the chat as well');
+});
+
+test('on the desktop: chosen in its room only where the shell draws it, with a way back after a drag', async () => {
+  const r = rig({ answers: { '/api/bit/prefs': (body) => ({ ok: true, bit: born({ desk: 'main', deskX: 0.3, ...body }) }) } });
+  const btn = (text) => r.sheet().querySelectorAll('.broom-drawer .bitc-seg-btn').find((b) => b.textContent === text);
+  r.tell(born());
+  r.ctx.BitSheet.open();
+  openAbout(r);
+  assert.equal(btn('mybit_desk_main'), undefined, 'not in a browser');
+  r.ctx.BitSheet.close?.();
+  r.ctx.__XENON_NATIVE__ = true;
+  r.ctx.__XENON_NATIVE_CAPS__ = { bitDesk: true };
+  r.tell(born({ desk: 'main', deskX: 0.3 }));
+  r.ctx.BitSheet.open();
+  openAbout(r);
+  assert.equal(btn('mybit_desk_main').getAttribute('aria-pressed'), 'true');
+  btn('mybit_desk_reset').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskX: null } });
+  btn('mybit_desk_off').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { desk: 'off' } });
+  assert.equal(btn('mybit_desk_reset'), undefined, 'off: no place to go back to');
+});
+
+test('Bit on the desktop is loaded only in the shell that can draw it, never in a browser', () => {
+  for (const [native, caps, want] of [[false, {}, 0], [true, {}, 0], [true, { bitDesk: true }, 2]]) {
+    const { document } = makeDom();
+    document.head = document.createElement('head');
+    const ctx = { console, document, window: null, __XENON_NATIVE__: native, __XENON_NATIVE_CAPS__: caps, addEventListener() {} };
+    ctx.window = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(src('js/bit-companion/companion.js'), ctx);
+    const tags = document.head.children.map((s) => s.src);
+    assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'js/bit-companion/desk.js'] : []);
+  }
+});

@@ -57,13 +57,14 @@
   function play(clipId) {
     played = { clip: clipId, at: Date.now() };
     for (const p of players()) p.play(clipId);
+    window.BitDesk?.play(clipId); // and on the desktop when it is out there (desk.js)
   }
 
-  // Own Bits that can't show it now: held or hidden, or asleep for anything short of important.
+  // Own Bits that can't show it now: held or hidden (unless the desktop's is out), or asleep for anything short of important.
   function cantPlay(name) {
     const own = players();
     if (!own.length) return false;
-    if (!own.some((p) => p.running)) return true;
+    if (!own.some((p) => p.running) && window.BitDesk?.on() !== true) return true;
     return pace() === 'asleep' && (events()[name]?.priority || 0) < 3;
   }
 

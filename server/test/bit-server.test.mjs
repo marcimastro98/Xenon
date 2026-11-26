@@ -217,14 +217,21 @@ test('prefs: only known keys and values, and every change is told to all surface
   assert.equal((await h.call('POST /api/bit/prefs', { warp: 'beam' })).bit.prefs.warp, 'beam');
   assert.equal((await h.call('POST /api/bit/prefs', { warp: 'explode' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { spot: null, roam: 'walk' })).bit.prefs.spot, null);
+  // On the desktop: the main screen or off, and where along the bar it was dragged (null: its usual place).
+  assert.equal((await h.call('POST /api/bit/prefs', { deskX: 0.4213 })).bit.prefs.deskX, 0.421);
+  assert.equal((await h.call('POST /api/bit/prefs', { desk: 'off' })).bit.prefs.desk, 'off');
+  assert.equal((await h.call('POST /api/bit/prefs', { desk: 'everywhere' })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { deskX: 1.5 })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { deskX: '0.5' })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { deskX: null })).bit.prefs.deskX, null);
   await h.call('POST /api/bit/prefs', { classic: true });
-  assert.equal(h.told().length, 5, 'no change, nothing told');
+  assert.equal(h.told().length, 8, 'no change, nothing told');
 });
 
 test('the Vitals Bit becomes the companion where it lived', async (t) => {
   const h = harness(t, { settings: { vitals: { pet: { enabled: true, position: 'topbar', sounds: true } } } });
   const r = await h.call('GET /api/bit');
-  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null });
+  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null });
   const { prefsFromVitals } = require('../bit/handlers.js');
   assert.equal(prefsFromVitals({ vitals: { pet: { enabled: false, position: 'topbar' } } }).place, 'corner');
 });

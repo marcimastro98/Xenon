@@ -12,6 +12,7 @@
   const REACTIONS = ['normal', 'few', 'off'];
   const ROAMS = ['mix', 'walk', 'stay'];
   const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch']; // bit-companion/warp.js
+  const DESKS = ['main', 'off']; // bit-companion/desk.js
   const GROUNDS = ['plain', 'stage'];
   const NAME_MAX = 24;
   let shareTab = 'card'; // what the share drawer shows; the room's buttons choose it before opening
@@ -103,6 +104,18 @@
   // How it teleports: on a stroll with roam 'mix', and on its way to a place set here or elsewhere.
   const warpChoice = (p, h) => choice(h.say('mybit_warp'), 'warp', WARPS, p.warp || 'any', (v) => h.say(`mybit_warp_${v}`), h);
 
+  // On the taskbar, only where the shell can draw it; dragged along the bar, a way back to its usual spot.
+  function desk(p, h) {
+    const box = choice(h.say('mybit_desk'), 'desk', DESKS, p.desk || 'main', (v) => h.say(`mybit_desk_${v}`), h);
+    if (typeof p.deskX !== 'number' || p.desk === 'off') return box;
+    const back = makeEl('button', 'bitc-seg-btn bitc-spot-back', h.say('mybit_desk_reset'));
+    back.type = 'button';
+    back.addEventListener('click', () => setPref({ deskX: null }, h), { signal: h.signal });
+    box.append(back);
+    return box;
+  }
+  const deskShown = () => window.__XENON_NATIVE__ === true && window.__XENON_NATIVE_CAPS__?.bitDesk === true;
+
   function prefs(bit, h) {
     const p = bit.prefs || {};
     const box = makeEl('section', 'bitc-part bitc-prefs');
@@ -110,6 +123,7 @@
     if (!bit.hatched) return box;
     box.append(choice(h.say('mybit_reactions'), 'reactions', REACTIONS, p.reactions, (v) => h.say(`mybit_react_${v}`), h));
     if (p.place === 'corner' || p.place === 'both') box.append(roam(p, h), warpChoice(p, h));
+    if (deskShown()) box.append(desk(p, h));
     const label = makeEl('label', 'bitc-switch');
     const tick = makeEl('input');
     tick.type = 'checkbox';

@@ -48,7 +48,7 @@ const SITE_PAGE = 'https://xenon-app.com/bit.html#';
 // often it reacts (bitDirector's hourly cap), and the classic Bit in the app.
 const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
-const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null });
+const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null });
 // In the corner it strolls along the bottom now and then, sometimes teleporting (mix), only on foot, or
 // stays where it stands; warp: how it teleports (js/bit-companion/warp.js), 'any' a different way each
 // time. spot: where the
@@ -56,6 +56,9 @@ const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', soun
 // null for its corner.
 const ROAMS = Object.freeze(['mix', 'walk', 'stay']);
 const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
+// On the desktop (the shell's own window on the taskbar, layers/bit_desk.rs): on the main screen or not
+// at all; deskX: where along the bar the person dragged it (0 left, 1 right), null for its usual place.
+const DESKS = Object.freeze(['main', 'off']);
 // The ground of its card: plain ink, or its theatre (room-scenery.js).
 const CARDS = Object.freeze(['plain', 'stage']);
 // The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of
@@ -115,6 +118,11 @@ function normalizeSpot(raw) {
   return ok(x) && ok(y) ? { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } : null;
 }
 
+function normalizeFraction(raw) {
+  const n = typeof raw === 'number' ? raw : NaN;
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? Math.round(n * 1000) / 1000 : null;
+}
+
 function normalizePrefs(raw) {
   const p = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -127,6 +135,8 @@ function normalizePrefs(raw) {
     roam: ROAMS.includes(p.roam) ? p.roam : DEFAULT_PREFS.roam,
     warp: WARPS.includes(p.warp) ? p.warp : DEFAULT_PREFS.warp,
     spot: normalizeSpot(p.spot),
+    desk: DESKS.includes(p.desk) ? p.desk : DEFAULT_PREFS.desk,
+    deskX: normalizeFraction(p.deskX),
   };
 }
 
@@ -219,7 +229,7 @@ function setPrefs(model, patch) {
   if (!patch || typeof patch !== 'object') return { error: 'bad_request' };
   const next = normalizePrefs({ ...model.prefs, ...patch });
   for (const k of Object.keys(patch)) {
-    const kept = k === 'spot' ? patch.spot === null || next.spot !== null : next[k] === patch[k];
+    const kept = k === 'spot' || k === 'deskX' ? patch[k] === null || next[k] !== null : next[k] === patch[k];
     if (Object.hasOwn(DEFAULT_PREFS, k) && !kept) return { error: 'bad_value' };
   }
   return JSON.stringify(next) === JSON.stringify(model.prefs) ? null : { model: { ...model, prefs: next } };
@@ -283,6 +293,6 @@ function view(model, now) {
 }
 
 module.exports = {
-  VERSION, STAGES, PLACES, REACTIONS, ROAMS, WARPS, DEFAULT_PREFS, POSES,
+  VERSION, STAGES, PLACES, REACTIONS, ROAMS, WARPS, DESKS, DEFAULT_PREFS, POSES,
   normalize, normalizePrefs, cleanName, stageOf, ownedItems, hatched, wear, rename, setShown, setPrefs, countDay, learn, view, birthGift,
 };

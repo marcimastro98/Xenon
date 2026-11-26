@@ -78,6 +78,8 @@ pub(super) fn build(
         "anchor": layers_why.is_none() && layers::draws_anchor(),
         // It says which virtual desktop is shown (layers/desks.rs).
         "desks": layers_why.is_none() && layers::desks::supported(),
+        // The own Bit on the taskbar (layers/bit_desk.rs).
+        "bitDesk": layers_why.is_none() && layers::bit_desk::supported(),
         // Holding View + Menu on a controller opens the Xenon menu
         // (layers/pad.rs).
         "pad": layers_why.is_none() && layers::draws_menu() && layers::pad::supported(),

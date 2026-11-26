@@ -7,7 +7,8 @@
 // One Bit on screen: with the Vitals' Bit on, that one already stands in these
 // places wearing the same look, so this one steps aside; in the clock it shares
 // #clock-bit with a folded message, which goes in front (BitCompanion.css).
-// Its buttons carry data-own-bit, so it moves with every moment (moments.js).
+// Its buttons carry data-own-bit, so it moves with every moment (moments.js). In the shell it
+// also brings Bit onto the desktop (desk.js).
 (() => {
   let bit = null; // the last answer of the server, through BitApp
   const spots = { corner: null, chip: null }; // each { node, btn, kind } while it stands there
@@ -193,6 +194,20 @@
   }
   const known = app()?.state();
   if (known) heard(known);
+
+  // Bit on the desktop (desk.js, with the cells it sends: shared/src/bit-cells.js) is loaded only
+  // where the shell can draw it, so a browser, a phone or a layer page never fetches it.
+  function loadDesk() {
+    const caps = window.__XENON_NATIVE_CAPS__ || {};
+    if (window.__XENON_NATIVE__ !== true || caps.bitDesk !== true || (typeof isLayerPage === 'function' && isLayerPage())) return;
+    for (const src of ['shared/src/bit-cells.js', 'js/bit-companion/desk.js']) {
+      const tag = document.createElement('script');
+      tag.src = src;
+      tag.async = false; // in this order
+      document.head.append(tag);
+    }
+  }
+  loadDesk();
 
   window.BitCompanion = { listen, sync, state: () => bit, spots: () => ({ corner: spots.corner?.btn, chip: spots.chip?.btn }) };
 })();

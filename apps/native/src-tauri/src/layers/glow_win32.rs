@@ -135,49 +135,13 @@ fn blend(alpha: u8) -> Blend {
     Blend { op: 0, flags: 0, alpha, format: AC_SRC_ALPHA }
 }
 
-/// Draw the glow into the window: a top-down 32-bit DIB handed to
-/// UpdateLayeredWindow, then freed (the system keeps its own copy).
+/// Draw the glow into the window (ffi::blit).
 fn repaint(w: &Win, state: State, rgb: [u8; 3], alpha: u8) -> bool {
     let (cx, cy) = (w.rect.r - w.rect.l, w.rect.b - w.rect.t);
     if cx <= 0 || cy <= 0 {
         return false;
     }
-    let pixels = glow::paint(cx as usize, cy as usize, w.scale, state, rgb);
-    let info = BitmapInfo {
-        size: 40,
-        width: cx,
-        height: -cy,
-        planes: 1,
-        bit_count: 32,
-        compression: 0,
-        size_image: 0,
-        x_ppm: 0,
-        y_ppm: 0,
-        clr_used: 0,
-        clr_important: 0,
-        colors: [0],
-    };
-    unsafe {
-        let screen = GetDC(0);
-        let mem = CreateCompatibleDC(screen);
-        let mut bits: *mut core::ffi::c_void = std::ptr::null_mut();
-        let bmp = CreateDIBSection(mem, &info, 0, &mut bits, 0, 0);
-        let mut ok = false;
-        if bmp != 0 && !bits.is_null() {
-            std::ptr::copy_nonoverlapping(pixels.as_ptr(), bits.cast::<u8>(), pixels.len());
-            let old = SelectObject(mem, bmp);
-            let pos = Point { x: w.rect.l, y: w.rect.t };
-            let size = Size { cx, cy };
-            let src = Point { x: 0, y: 0 };
-            let b = blend(alpha);
-            ok = UpdateLayeredWindow(w.hwnd, screen, &pos, &size, mem, &src, 0, &b, ULW_ALPHA) != 0;
-            SelectObject(mem, old);
-            DeleteObject(bmp);
-        }
-        DeleteDC(mem);
-        ReleaseDC(0, screen);
-        ok
-    }
+    blit(w.hwnd, w.rect, &glow::paint(cx as usize, cy as usize, w.scale, state, rgb), alpha)
 }
 
 fn destroy_all(g: &mut Glow) {

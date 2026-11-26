@@ -67,7 +67,7 @@ The assistant: chat, voice, memory and the things it can do on the PC.
 | Feature | What it does | Where |
 |---|---|---|
 | **Bit** | The assistant: chat and voice, the AI providers, its memory, its tools, and the looks and widgets it builds. | `server/ai/**` `server/js/ai/**` `server/js/bit-message-card/**` `server/components/AIPanel/**` `server/components/AskSheet/**` `server/components/BitMessage/**` and 3 more |
-| **Your own Bit** | Each person's own Bit: egg, growth, its room, items (some from the hub), cards, video, tile, widget kit, site page. | `server/bit/**` `docs/bit.html` `docs/bit-page.js` `server/js/bit-companion/**` `server/components/BitCompanion/**` |
+| **Your own Bit** | Each person's own Bit: egg, growth, its room, items (some from the hub), cards, video, tile, widget kit, site, desktop. | `server/bit/**` `docs/bit.html` `docs/bit-page.js` `server/js/bit-companion/**` `server/components/BitCompanion/**` `apps/native/src-tauri/src/layers/bit_desk.rs` and 1 more |
 | **Capabilities** | The one list of things the PC can do, shared by Bit, the Deck and the menu. | `server/capabilities/**` `server/js/capabilities/**` |
 
 ## Store and supporters
