@@ -1,35 +1,15 @@
 'use strict';
-// The small pixel sign over the person's own Bit while it has something to tell (signals.js): a green
-// flag when Claude Code or Codex finished, a yellow "!" board while one asks, a clock before an event,
-// a bell when a timer ended, a full box for a disk. Five by five cells, the same on every own Bit of the
-// dashboard (an SVG of rects beside each data-own-bit host, never markup from text) and on the desktop
-// (desk-frames.js stamps the cells over its head). Each reads the same mirrored: the desktop Bit turns.
+// The small pixel sign over the person's own Bit while it has something to tell (signals.js), drawn from
+// the shared table (shared/src/bit-signs.js, loaded just before this file): the same on every own Bit of
+// the dashboard (an SVG of rects beside each data-own-bit host, never markup from text), on the desktop
+// (desk-frames.js stamps the cells over its head) and in a widget's Bit kit.
 (() => {
-  const SIZE = 5;
-  const INK = Object.freeze({
-    G: '3fd16b', P: 'd9dde3', Y: 'ffd23f', K: '1d1f24', W: 'f2f4f7', B: '4a90e2', O: 'f5b83d', R: 'ff5a4d',
-  });
-  const SIGNS = Object.freeze({
-    done: ['PGGG.', 'PGGGG', 'PGGG.', 'P....', 'P....'],
-    ask: ['YYYYY', 'YYKYY', 'YYKYY', 'YYYYY', 'YYKYY'],
-    soon: ['.WWW.', 'WKBKW', 'WKBBW', 'WKKKW', '.WWW.'],
-    bell: ['..O..', '.OOO.', '.OOO.', 'OOOOO', '..O..'],
-    disk: ['.R.R.', 'WRRRW', 'WRRRW', 'WRRRW', 'WWWWW'],
-  });
+  const S = globalThis.Xenon?.bitSigns;
+  const SIZE = S?.SIZE || 5;
+  const cells = (kind) => (S ? S.cells(kind) : []);
   const NS = 'http://www.w3.org/2000/svg';
   // The dashboard's Bits that carry one: the corner and the tile (the clock's chip has no room).
   const HOSTS = '[data-own-bit]:not(.bitc-chip)';
-
-  /** The cells of a sign, { x, y, hex } from its top-left; [] for none. */
-  function cells(kind) {
-    const rows = SIGNS[kind];
-    if (!rows) return [];
-    const out = [];
-    rows.forEach((row, y) => {
-      [...row].forEach((ch, x) => { if (INK[ch]) out.push({ x, y, hex: INK[ch] }); });
-    });
-    return out;
-  }
 
   /** For desk-frames.js: the sign's cells on the desktop grid, its top-left at (x0, y0); null for none. */
   function at(kind, x0, y0) {
@@ -76,5 +56,5 @@
   addEventListener('xenon-bit-signals', later);
   addEventListener('xenon-bit', later);   // a Bit placed again (companion.js, tile.js)
 
-  window.BitSigns = Object.freeze({ SIZE, KINDS: Object.keys(SIGNS), cells, at, svg: svgOf, paint: later, kind: kindNow });
+  window.BitSigns = Object.freeze({ SIZE, KINDS: S?.KINDS || [], cells, at, svg: svgOf, paint: later, kind: kindNow });
 })();

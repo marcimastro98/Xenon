@@ -324,3 +324,22 @@ test('Esc, a tap outside or a second tap on Bit closes it; Ask Bit and its room 
   assert.deepEqual(r.opened, ['room', 'chat']);
   assert.equal(r.all('.bitp').length, 0);
 });
+
+// A Deck key or Bit in the chat opens the pocket by itself in the menu's window (open_xenon_screen
+// pocket), where a tap on Bit on the desktop opens it too; with no window to open it in, the menu.
+test('a key or Bit opens the pocket alone in the menu\'s window, the same list in the catalog', () => {
+  const XenonMenu = require('../capabilities/xenon-menu.js');
+  const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
+  const DashboardOpen = require('../js/grid/dashboard-open.js');
+  const asked = [];
+  const menu = { show: () => 'dashboard', showSheet: (req) => { asked.push(req); return 'screen'; } };
+  assert.deepEqual(XenonMenu.openScreen({ menu }, { type: 'xenonScreen', screen: 'pocket' }), { ok: true, where: 'screen', screen: 'pocket' });
+  assert.deepEqual(asked, [{ open: 'pocket' }]);
+  assert.deepEqual(DashboardOpen.sheet({ open: 'pocket' }), { open: 'pocket' }, 'the window takes it');
+  const noWindow = { show: () => 'dashboard', showSheet: () => 'closed' };
+  assert.deepEqual(XenonMenu.openScreen({ menu: noWindow }, { screen: 'pocket' }), { ok: true, where: 'dashboard', screen: 'pocket' });
+  const key = CAPABILITIES.find((c) => c.type === 'xenonScreen');
+  assert.deepEqual(key.params[0].options, [...XenonMenu.SCREENS]);
+  assert.ok(Object.keys(key.params[0].optionKeys).every((k) => XenonMenu.SCREENS.includes(k)) && key.params[0].optionKeys.pocket);
+  assert.ok(key.capability.ai.params.screen.includes('pocket'));
+});

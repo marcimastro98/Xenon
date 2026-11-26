@@ -2557,6 +2557,48 @@
   return { mount, stillIndex, useLook, look: () => pageLook };
 });
 
+// ---- bit-signs.js
+;((root, factory) => {
+  'use strict';
+  const mod = factory();
+  if (typeof module === 'object' && module.exports) module.exports = mod;
+  root.Xenon = root.Xenon || {};
+  root.Xenon.bitSigns = mod;
+})(typeof globalThis !== 'undefined' ? globalThis : this, () => {
+  'use strict';
+  // The small pixel signs over the person's own Bit while it has something to tell: a green flag when
+  // Claude Code or Codex finished, a yellow "!" board while one asks, a clock before an event, a bell
+  // when a timer ended, a full box for a disk. Five by five cells, the same everywhere: the dashboard
+  // (js/bit-companion/signs.js), the desktop Bit (desk-frames.js) and a widget's Bit (the Bit kit,
+  // from the SDK `bit` stream's `signal`). Each reads the same mirrored: the desktop Bit turns.
+
+  const SIZE = 5;
+  const INK = Object.freeze({
+    G: '3fd16b', P: 'd9dde3', Y: 'ffd23f', K: '1d1f24', W: 'f2f4f7', B: '4a90e2', O: 'f5b83d', R: 'ff5a4d',
+  });
+  const SIGNS = Object.freeze({
+    done: ['PGGG.', 'PGGGG', 'PGGG.', 'P....', 'P....'],
+    ask: ['YYYYY', 'YYKYY', 'YYKYY', 'YYYYY', 'YYKYY'],
+    soon: ['.WWW.', 'WKBKW', 'WKBBW', 'WKKKW', '.WWW.'],
+    bell: ['..O..', '.OOO.', '.OOO.', 'OOOOO', '..O..'],
+    disk: ['.R.R.', 'WRRRW', 'WRRRW', 'WRRRW', 'WWWWW'],
+  });
+  const KINDS = Object.freeze(Object.keys(SIGNS));
+
+  /** The cells of a sign, { x, y, hex } from its top-left; [] for none or an unknown kind. */
+  function cells(kind) {
+    const rows = Object.hasOwn(SIGNS, kind) ? SIGNS[kind] : null;
+    if (!rows) return [];
+    const out = [];
+    rows.forEach((row, y) => {
+      [...row].forEach((ch, x) => { if (INK[ch]) out.push({ x, y, hex: INK[ch] }); });
+    });
+    return out;
+  }
+
+  return Object.freeze({ SIZE, KINDS, cells });
+});
+
 // ---- kit-api.js
 'use strict';
 // The end of the Bit kit (server/bit/kit.js puts the engine before it): what a widget
@@ -2567,12 +2609,35 @@
 //   // on every `data` message of the `bit` stream, and on `theme`:
 //   bit.set(m.data, { light: theme.appearance === 'light' });
 //
-// Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too.
+// Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too, and the
+// sign over its head (data.signal) shows in the top-right corner; `signs: false` leaves it to you.
+// `XenonBit.signs(svg)` draws the same sign over a Bit drawn without mount (the Maker's Bit layer).
 // `classic: true` draws the classic Bit with its own rhythm, as the app does where the person
 // chose the classic Bit (data.everywhere === false).
 (() => {
   const X = globalThis.Xenon;
   const BACKGROUND = { dark: '#15191c', light: '#f4f6f5' };
+  const NS = 'http://www.w3.org/2000/svg';
+
+  /** The sign over its head (shared/src/bit-signs.js), drawn over the frame in the stage's top-right corner. */
+  function signer(svg) {
+    const S = X.bitSigns;
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'xbit-sign');
+    svg.append(g);
+    const { x, y, w } = X.bit.STAGE;
+    let shown = '';
+    return (kind) => {
+      const next = S?.KINDS.includes(kind) ? kind : '';
+      if (next === shown) return;
+      shown = next;
+      g.replaceChildren(...(next ? S.cells(next) : []).map((c) => {
+        const r = document.createElementNS(NS, 'rect');
+        for (const [k, v] of [['x', x + w - S.SIZE + c.x], ['y', y + c.y], ['width', 1], ['height', 1], ['fill', '#' + c.hex]]) r.setAttribute(k, String(v));
+        return r;
+      }));
+    };
+  }
 
   function mount(host, opts = {}) {
     let look = null;
@@ -2582,6 +2647,7 @@
     const player = X.bitPlayer.mount(host, {
       label: opts.label, mood: 'egg', look: () => look, director: () => director,
     });
+    const sign = opts.signs === false ? () => {} : signer(player.element);
 
     function set(data, { light = false, classic = false } = {}) {
       if (data?.ok !== true) return;
@@ -2589,6 +2655,7 @@
         look = null;
         key = '';
         player.setMood('egg');
+        sign('');
         return;
       }
       const next = JSON.stringify([data.genes, data.worn, data.items, light, classic === true]);
@@ -2601,6 +2668,7 @@
         if (player.mood === 'egg') player.setMood('idle');
         player.refresh();
       }
+      sign(data.signal);
       const p = data.played;
       if (p && p.at > seen) {
         // The first answer only says where things stand: a move from before is not replayed.
@@ -2612,5 +2680,5 @@
     return { set, play: (clip) => player.play(clip), destroy: () => player.destroy() };
   }
 
-  globalThis.XenonBit = { mount, clips: () => X.bit.clips.map((c) => c.id) };
+  globalThis.XenonBit = { mount, signs: signer, clips: () => X.bit.clips.map((c) => c.id) };
 })();

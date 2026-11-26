@@ -19,6 +19,7 @@ require('../../packages/core/src/bit-clips-life.js');
 require('../../packages/core/src/bit-clips-move.js');
 const bitCells = require('../../packages/core/src/bit-cells.js');
 const bitCellsWarp = require('../../packages/core/src/bit-cells-warp.js');
+const bitSigns = require('../../packages/core/src/bit-signs.js');
 const bitDirector = require('../../packages/core/src/bit-director.js');
 const genome = require('../../packages/core/src/bit-genome.js');
 const bitLook = require('../../packages/core/src/bit-look.js');
@@ -44,7 +45,7 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
     __xenonSignal: (url) => url,
     location: { set href(v) { signals.push(v); } },
     XenonNative: { afterLoad: (fn) => fn(), displayState: () => ({ displays, active }) },
-    Xenon: { bit, bitCells, bitDirector, ...(warp ? { bitCellsWarp } : {}) },
+    Xenon: { bit, bitCells, bitDirector, bitSigns, ...(warp ? { bitCellsWarp } : {}) },
     BitApp: {
       state: () => state, personal: () => LOOK, director: () => null, context: () => ({ hour: 12 }),
       heard: (next) => { state = next; (handlers['xenon-bit'] || []).forEach((fn) => fn()); },

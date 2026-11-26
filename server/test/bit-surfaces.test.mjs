@@ -11,7 +11,8 @@ const require = createRequire(import.meta.url);
 const SDK = require('../widget-sdk/surface.js');
 const sdk = require('../sdk-widgets.js');
 const Model = require('../bit/model.js');
-const { bitKit, FILES } = require('../bit/kit.js');
+const { bitKit, FILES, ENGINE } = require('../bit/kit.js');
+const bitSigns = require('../../packages/core/src/bit-signs.js');
 const T = require('../mcp/mcp-dev-tools.js');
 const { MOVES } = require('../js/capabilities/catalog-bit.js');
 
@@ -25,10 +26,11 @@ function hatchedView() {
 }
 
 // What a widget sees of a pulled reply (js/custom-widget/stream-readers.js), run on its own.
-function reader() {
-  const window = {};
+// `signs: false`: a page without the sign table (a desktop layer, the pump's screen).
+function reader({ signs = true } = {}) {
+  const window = signs ? { Xenon: { bitSigns } } : {};
   vm.runInNewContext(readFileSync(new URL('../js/custom-widget/stream-readers.js', import.meta.url), 'utf8'), { window });
-  return (d, played) => JSON.parse(JSON.stringify(window.CustomWidgetStreamReaders.bit(d, played)));
+  return (d, played, signal) => JSON.parse(JSON.stringify(window.CustomWidgetStreamReaders.bit(d, played, signal)));
 }
 
 test('SDK: a bit stream and a bit category with the move alone', () => {
@@ -40,7 +42,7 @@ test('SDK: a bit stream and a bit category with the move alone', () => {
 
 test('SDK: the bridge pulls /api/bit every second with the last move, and mirrors the category', () => {
   const src = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
-  assert.ok(src.includes("    bit: Object.freeze({ ttl: 1000, load: async () => Readers.bit(await api('/api/bit'), window.BitMoments?.lastPlayed()) }),"));
+  assert.ok(src.includes("    bit: Object.freeze({ ttl: 1000, load: async () => Readers.bit(await api('/api/bit'), window.BitMoments?.lastPlayed(), window.BitSignals?.top()?.kind) }),"));
   assert.ok(src.includes("    bit: ['bitReact'],"));
   const allowed = readFileSync(new URL('../js/settings/allowed-values.js', import.meta.url), 'utf8');
   for (const list of ['SDK_WIDGET_STREAMS', 'SDK_WIDGET_ACTION_CATS']) {
@@ -62,11 +64,19 @@ test('SDK: the stream draws the Bit and nothing it learned about the person', ()
   const view = hatchedView();
   assert.ok(view.traits && view.owned && view.genes, 'the app\'s own view has more than a widget gets');
   const out = reader()({ ok: true, ...view, seed: SEED }, { clip: 'wave', at: 5 });
-  assert.deepEqual(Object.keys(out).sort(), ['everywhere', 'founder', 'genes', 'hatched', 'items', 'name', 'number', 'ok', 'played', 'stage', 'worn']);
+  assert.deepEqual(Object.keys(out).sort(), ['everywhere', 'founder', 'genes', 'hatched', 'items', 'name', 'number', 'ok', 'played', 'signal', 'stage', 'worn']);
   assert.equal(out.number, 7);
   assert.deepEqual(out.played, { clip: 'wave', at: 5 });
   assert.deepEqual(out.genes, view.genes);
   assert.ok(!JSON.stringify(out).includes(SEED), 'never the seed');
+});
+
+test('SDK: the sign over its head reaches the widget as its kind alone', () => {
+  const view = { ok: true, ...hatchedView() };
+  for (const kind of bitSigns.KINDS) assert.equal(reader()(view, null, kind).signal, kind);
+  for (const odd of [undefined, '', 'Done', '<b>', 'claude finished in xenon', 7, { kind: 'done' }]) assert.equal(reader()(view, null, odd).signal, null);
+  assert.equal(reader({ signs: false })(view, null, 'done').signal, null, 'no table, no sign');
+  assert.ok(!('signal' in reader()({ ok: true, hatched: false }, null, 'done')), 'an egg has none');
 });
 
 test('SDK: an egg, a bad reply and odd fields', () => {
@@ -101,9 +111,8 @@ function fakePage() {
 
 test('kit: the app\'s engine in load order, and the site\'s copy is the same text', async () => {
   const order = JSON.parse(readDisk(new URL('./fixtures/bit-engine.json', import.meta.url), 'utf8'));
-  const engine = FILES.filter((f) => f.startsWith('shared/'));
-  assert.deepEqual(engine, order.filter((f) => engine.includes(f)), 'the dashboard\'s order');
-  assert.ok(FILES.at(-1).endsWith('kit-api.js'));
+  assert.deepEqual(ENGINE, order.filter((f) => ENGINE.includes(f)), 'the dashboard\'s order');
+  assert.deepEqual(FILES.slice(ENGINE.length), ['shared/src/bit-signs.js', 'js/bit-companion/kit-api.js']);
   const site = readDisk(new URL('../../docs/create/bit-kit.js', import.meta.url), 'utf8');
   assert.equal(site, await bitKit(), 'docs/create/bit-kit.js is stale: run node tools/bit-kit.mjs');
 });
@@ -137,6 +146,50 @@ test('kit: draws the egg, then the Bit, the classic one on request, and plays on
   assert.deepEqual(played, ['wave']);
   assert.ok(MOVES.filter((m) => m !== 'surprise').every((m) => ctx.XenonBit.clips().includes(m)), 'every move is a clip');
   b.destroy();
+});
+
+// The kit draws the sign the stream names in the stage's top-right corner, over the frame, from the shared table.
+test('kit: the sign over its head comes, changes and goes with data.signal, and signs: false leaves it out', async () => {
+  const { ctx } = fakePage();
+  const made = [];
+  const node = (tag) => {
+    const n = { tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute() {}, append(...c) { this.kids.push(...c); },
+      appendChild(c) { this.kids.push(c); return c; }, replaceChildren(...c) { this.kids = c; }, remove() {}, insertBefore() {}, querySelector: () => null,
+      style: {}, classList: { add() {}, remove() {}, toggle() {} }, children: [] };
+    made.push(n);
+    return n;
+  };
+  ctx.document.createElementNS = (ns, tag) => node(tag);
+  vm.createContext(ctx);
+  new vm.Script(await bitKit()).runInContext(ctx);
+  const out = reader()({ ok: true, ...hatchedView() }, null, 'ask');
+  const b = ctx.XenonBit.mount(node('div'), { label: 'Bit' });
+  const g = made.find((n) => n.attrs.class === 'xbit-sign');
+  const drawn = () => g.kids.map((r) => [r.attrs.x, r.attrs.y, r.attrs.fill].join(' ')).sort();
+  const want = (kind) => bitSigns.cells(kind).map((c) => [String(10 + c.x), String(-5 + c.y), '#' + c.hex].join(' ')).sort();
+  b.set(out);
+  assert.deepEqual(drawn(), want('ask'));
+  b.set({ ...out, signal: 'disk' });
+  assert.deepEqual(drawn(), want('disk'));
+  b.set({ ...out, signal: 'not-a-sign' });
+  assert.deepEqual(drawn(), []);
+  b.set({ ...out, signal: 'done' });
+  b.set({ ok: true, hatched: false, stage: 'egg' });
+  assert.deepEqual(drawn(), [], 'an egg carries none');
+  b.destroy();
+  made.length = 0;
+  const quiet = ctx.XenonBit.mount(node('div'), { label: 'Bit', signs: false });
+  quiet.set(out);
+  assert.ok(!made.some((n) => n.attrs.class === 'xbit-sign'), 'the widget draws it itself');
+  quiet.destroy();
+  // The same sign over a Bit drawn without mount (the Maker's Bit layer).
+  const svg = node('svg');
+  const own = ctx.XenonBit.signs(svg);
+  own('bell');
+  assert.equal(svg.kids[0].attrs.class, 'xbit-sign');
+  assert.equal(svg.kids[0].kids.length, bitSigns.cells('bell').length);
+  own(null);
+  assert.deepEqual(svg.kids[0].kids, []);
 });
 
 // A month's supporters' item is made on the hub (server/bit/items.js): a widget gets the drawing of

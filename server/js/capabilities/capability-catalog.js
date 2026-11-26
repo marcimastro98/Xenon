@@ -1168,16 +1168,16 @@ const CAPABILITIES = [
   {
     type: 'xenonScreen', group: 'xenon', labelKey: 'deck_act_xenonScreen',
     params: [
-      { name: 'screen', kind: 'select', labelKey: 'deck_param_xenon_screen', options: ['chat', 'store', 'sparks', 'settings', 'mixer', 'whatsnew'], optionKeys: {
-        chat: 'xmenu_bit', store: 'xmenu_store', sparks: 'xmenu_sparks', settings: 'settings_title', mixer: 'deck_act_appMixer', whatsnew: 'xmenu_whatsnew',
+      { name: 'screen', kind: 'select', labelKey: 'deck_param_xenon_screen', options: ['chat', 'store', 'sparks', 'settings', 'mixer', 'whatsnew', 'pocket'], optionKeys: {
+        chat: 'xmenu_bit', store: 'xmenu_store', sparks: 'xmenu_sparks', settings: 'settings_title', mixer: 'deck_act_appMixer', whatsnew: 'xmenu_whatsnew', pocket: 'mybit_pocket_title',
       } },
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'xenonMenu',
       ai: {
         name: 'open_xenon_screen',
-        description: 'Open one Xenon screen by itself in a window over what the user is doing, without the dashboard: chat (talk to Bit), store (widgets and packs), sparks (buy Sparks), settings, or mixer (volume per app).',
-        params: { screen: 'chat, store, sparks, settings, mixer or whatsnew' },
+        description: 'Open one Xenon screen by itself in a window over what the user is doing, without the dashboard: chat (talk to Bit), store (widgets and packs), sparks (buy Sparks), settings, mixer (volume per app), or pocket (Bit\'s pocket: what Bit has to tell right now with its button, the quick keys the user chose, Ask Bit and its room).',
+        params: { screen: 'chat, store, sparks, settings, mixer, whatsnew or pocket' },
       },
     },
   },

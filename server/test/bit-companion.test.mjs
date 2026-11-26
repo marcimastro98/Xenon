@@ -670,7 +670,7 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
 
 // ── room-setup.js: where to see it, how it moves, what it can do; until it is done ──
 // Loaded on every page with a companion: its signs, and the pocket's styles (a link, no src).
-const ALWAYS = ['js/bit-companion/signals.js', 'js/bit-companion/signs.js'];
+const ALWAYS = ['shared/src/bit-signs.js', 'js/bit-companion/signals.js', 'js/bit-companion/signs.js'];
 const loaded = (head) => head.children.filter((n) => n.tag === 'script' && !ALWAYS.includes(n.src)).map((n) => n.src);
 
 test('the guided setup is fetched only while it is due', () => {

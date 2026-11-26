@@ -10,11 +10,13 @@ const path = require('path');
 
 const SERVER = path.join(__dirname, '..');
 // The engine in the order the dashboard loads it (test/fixtures/bit-engine.json), up to the player.
-const FILES = Object.freeze([
+const ENGINE = Object.freeze([
   'shared/src/bit-clips.js', 'shared/src/bit-color.js', 'shared/src/bit-genes.js', 'shared/src/bit-genome.js',
   'shared/src/bit-look.js', 'shared/src/bit-wardrobe.js', 'shared/src/bit.js', 'shared/src/bit-clips-life.js',
-  'shared/src/bit-director.js', 'shared/src/bit-player.js', 'js/bit-companion/kit-api.js',
+  'shared/src/bit-director.js', 'shared/src/bit-player.js',
 ]);
+// Then the signs over its head (no engine file needs them) and the API.
+const FILES = Object.freeze([...ENGINE, 'shared/src/bit-signs.js', 'js/bit-companion/kit-api.js']);
 
 const HEAD = '// Bit kit for Xenon widgets: the Bit engine and XenonBit.mount(host).set(bitStreamData).\n'
   + '// Copy it into your widget package and load it before your own script. See docs/WIDGET_SDK.md, "Your own Bit".\n';
@@ -31,4 +33,4 @@ function bitKit() {
   return built;
 }
 
-module.exports = { bitKit, FILES };
+module.exports = { bitKit, FILES, ENGINE };

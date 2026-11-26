@@ -10,7 +10,7 @@ const { SECTIONS, cleanSection } = require('../menu/screen-menu.js');
 
 const MODES = Object.freeze(['toggle', 'open', 'close']);
 // Screens a key opens by themselves, in the menu's window (js/ai/sheet-page.js).
-const SCREENS = Object.freeze(['chat', 'store', 'sparks', 'settings', 'mixer', 'whatsnew']);
+const SCREENS = Object.freeze(['chat', 'store', 'sparks', 'settings', 'mixer', 'whatsnew', 'pocket']);
 
 function available(menu) {
   return !!(menu && typeof menu.show === 'function');
