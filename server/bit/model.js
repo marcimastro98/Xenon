@@ -56,9 +56,10 @@ const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', soun
 // null for its corner.
 const ROAMS = Object.freeze(['mix', 'walk', 'stay']);
 const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
-// On the desktop (the shell's own window on the taskbar, layers/bit_desk.rs): on the main screen or not
-// at all; deskX: where along the bar the person dragged it (0 left, 1 right), null for its usual place.
-const DESKS = Object.freeze(['main', 'off']);
+// On the desktop (the shell's own window on the taskbar, layers/bit_desk.rs): on the main screen, one Bit
+// that travels across every screen now and then, or not at all; deskX: where along the bar the person
+// dragged it (0 left, 1 right), null for its usual place.
+const DESKS = Object.freeze(['main', 'all', 'off']);
 // The ground of its card: plain ink, or its theatre (room-scenery.js).
 const CARDS = Object.freeze(['plain', 'stage']);
 // The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of

@@ -8132,6 +8132,7 @@ module.exports = {
   mybit_spot_reset: 'Вернуть в угол',
   mybit_desk: 'На рабочем столе',
   mybit_desk_main: 'Главный экран',
+  mybit_desk_all: 'Все экраны',
   mybit_desk_off: 'Выкл.',
   mybit_desk_reset: 'Вернуть на место',
   mybit_desk_told_title: 'Bit теперь на рабочем столе',

@@ -8179,6 +8179,7 @@ module.exports = {
   mybit_spot_reset: '구석으로 돌려놓기',
   mybit_desk: '바탕 화면',
   mybit_desk_main: '주 화면',
+  mybit_desk_all: '모든 화면',
   mybit_desk_off: '끄기',
   mybit_desk_reset: '원래 자리로',
   mybit_desk_told_title: '이제 Bit가 바탕 화면에 있어요',

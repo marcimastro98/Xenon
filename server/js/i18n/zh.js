@@ -8179,6 +8179,7 @@ module.exports = {
   mybit_spot_reset: '放回角落',
   mybit_desk: '在桌面上',
   mybit_desk_main: '主屏幕',
+  mybit_desk_all: '所有屏幕',
   mybit_desk_off: '关闭',
   mybit_desk_reset: '放回原位',
   mybit_desk_told_title: 'Bit 现在在你的桌面上了',

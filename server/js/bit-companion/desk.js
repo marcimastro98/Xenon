@@ -1,9 +1,10 @@
 'use strict';
-// Bit on the desktop: the person's own Bit standing on the taskbar of the main screen, drawn by
-// the shell's own small window (apps/native/src-tauri/src/layers/bit_desk.rs), not a webview.
-// This page keeps the brain: it renders the clips with the person's own look into cells
-// (shared/src/bit-cells.js) and sends them a whole clip at a time as `xenon-app:bit-desk?d=<json>`;
-// the shell plays the frames on its own timer and moves the window only while Bit walks.
+// Bit on the desktop: the person's own Bit standing on the taskbar of a screen, drawn by the
+// shell's own small window (apps/native/src-tauri/src/layers/bit_desk.rs), not a webview.
+// This page keeps the brain: desk-frames.js turns the clips (and its ways of going and coming) into
+// cells, sent a whole clip at a time as `xenon-app:bit-desk?d=<json>`; the shell plays the frames on
+// its own timer and moves the window only while Bit walks. It comes in a beam of light, crumbles away
+// when turned off, and with desk 'all' it crumbles now and then and comes together on the next screen.
 // It shows idle (asleep: sleep), a fidget now and then at the director's pace, every move the
 // dashboard's own Bits play (moments.js), a poke when tapped, and every few minutes a short walk
 // along the bar and back (not with roam 'stay' or reduced motion). Dropped somewhere along the
@@ -14,11 +15,6 @@
   const KEEPALIVE_MS = 20000;
   const SEND_DELAY_MS = 50;
   const CELL = 3; // logical px a cell: about 36 px of Bit at 100%
-  // One grid for every clip, so a clip never resizes the window: room for what Bit holds up and
-  // out, its feet on the bottom rows. BODY rows (from just over its head down) must fit the bar.
-  const BOX = { x0: -4, x1: 15, y0: -8, y1: 12, max: 24 };
-  const BODY = BOX.y1 + 2;
-  const MAX_FRAMES = 24;
   const HOME = 0.7; // its place along the bar until dragged: right of the centred icons, left of the tray
   const STROLL_EVERY_MS = [120000, 300000];
   const PAUSE_MS = [5000, 14000]; // it sits this long at the far end
@@ -28,26 +24,32 @@
   const ONCE_MARGIN_MS = 1000;
   const QUIET_RETRY_MS = 30000; // a pace with no fidgets is asked again after this
   const TOLD = 'xenon.bit.deskTold'; // the egg whose desktop line was filed on this PC
+  const TRAVEL_EVERY_MS = [600000, 1800000]; // with desk 'all': a hop to the next screen
 
   let sent = '';
+  let monitor = ''; // the screen it stands on, as the shell names them ('' the main one)
+  let gone = false; // crumbled away: nothing in its loop until it comes back
+  let leaving = 0; // the timer that ends a going
   let out = false; // the shell has Bit on screen
   let timer = 0;
   let keepalive = 0;
   let fidgetTimer = 0;
   let strollTimer = 0;
   let walkTimer = 0;
+  let travelTimer = 0;
   let seq = 0; // walks and clips played once share one counter: a new number plays it
-  let once = null; // { id, seq, until }
+  let once = null; // { id, seq, until }: a clip, or { kind, seq, until, cells } a way of going or coming
   let walk = null; // { seq, to, out }
   let sitting = false;
   let dropped = null; // a drop not saved yet: where it stands meanwhile
+  let visit = null; // dropped on another screen: there until it goes on (only the main screen's is saved)
   const recent = [];
-  const cache = new WeakMap(); // look -> Map(clip id -> cells of each frame)
 
   const caps = () => window.__XENON_NATIVE_CAPS__ || {};
   const supported = () => window.__XENON_NATIVE__ === true && caps().bitDesk === true
     && !(typeof isLayerPage === 'function' && isLayerPage());
   const engine = () => window.Xenon || {};
+  const frames = () => window.BitDeskFrames;
   const app = () => window.BitApp;
   const state = () => app()?.state() || null;
   const prefs = () => state()?.prefs || {};
@@ -55,43 +57,26 @@
   const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const between = ([lo, hi]) => lo + Math.random() * (hi - lo);
   const clamp01 = (n) => Math.min(1, Math.max(0, n));
-  const home = () => dropped ?? (typeof prefs().deskX === 'number' ? prefs().deskX : HOME);
+  const screens = () => window.BitDeskScreens;
+  const here = () => (prefs().desk === 'all' ? monitor : '');
+  // On the main screen the place it was given; on another one beside the clock, or where dropped this visit.
+  const home = () => (screens()?.away(here())
+    ? visit ?? screens().home(here(), frames().COLS, CELL) ?? HOME
+    : dropped ?? (typeof prefs().deskX === 'number' ? prefs().deskX : HOME));
   const wanted = () => supported() && !!state()?.hatched && prefs().desk !== 'off' && !!app()?.personal();
 
-  /** The cells of every frame of a clip in this look, or null for a clip the shell can't take. */
-  function cellsOf(id, look) {
-    const { bit, bitCells } = engine();
-    const clip = bit?.clip(id);
-    if (!clip || !bitCells || clip.frames.length > MAX_FRAMES) return null;
-    if (!cache.has(look)) cache.set(look, new Map());
-    const byClip = cache.get(look);
-    if (!byClip.has(id)) byClip.set(id, clip.frames.map((_, i) => bitCells.cells(bit.renderFrame(clip, i, { look }).layers)));
-    return { clip, maps: byClip.get(id) };
-  }
-
+  const playing = () => (once && Date.now() < once.until ? once : null);
   const loopId = () => (walk ? 'walk' : sitting ? 'sit' : pace() === 'asleep' ? 'sleep' : 'idle');
-
-  // Frames on the common grid: the loop, then the clip played once when one is on.
-  function framesOn(loop, extra) {
-    const maps = loop.maps.concat(extra ? extra.maps : []);
-    const g = engine().bitCells.grid(maps, BOX);
-    if (!g) return null;
-    const rows = (clip, from) => clip.frames.map((f, i) => ({ ms: Math.round(f.ms), rows: g.frames[from + i] }));
-    const still = reduced() ? 1 : loop.clip.frames.length;
-    return { pal: g.palette, loop: rows(loop.clip, 0).slice(0, still), once: extra ? rows(extra.clip, loop.maps.length) : null };
-  }
 
   /** What the shell is asked to show now. */
   function message() {
-    if (!wanted()) return { on: false };
-    const look = app().personal();
-    const loop = cellsOf(loopId(), look) || cellsOf('idle', look);
-    if (!loop) return { on: false };
-    const extra = once && Date.now() < once.until ? cellsOf(once.id, look) : null;
-    const f = framesOn(loop, extra) || framesOn(loop, null);
+    if (!wanted() && !leaving) return { on: false };
+    const look = app()?.personal();
+    const shown = playing();
+    const f = look && frames()?.picture({ look, loopId: loopId(), once: shown, gone, reduced: reduced() });
     if (!f) return { on: false };
-    const msg = { on: true, monitor: '', cell: CELL, body: BODY, pal: f.pal, loop: f.loop, home: home() };
-    if (f.once) msg.once = { seq: once.seq, frames: f.once };
+    const msg = { on: true, monitor: here(), cell: CELL, body: frames().BODY, pal: f.pal, loop: f.loop, home: home() };
+    if (f.once) msg.once = { seq: shown.seq, frames: f.once };
     if (walk) msg.walk = { seq: walk.seq, to: walk.to, pxs: SPEED_PX_S };
     return msg;
   }
@@ -103,6 +88,9 @@
 
   function send(force) {
     timer = 0;
+    if (out && !wanted() && !leaving && !gone) return leave(schedule); // turned off: its bits fly off first
+    if (gone && !leaving) gone = false; // it went: to another screen, or off (then message() says so)
+    if (!out && wanted() && !playing() && !reduced()) once = warp('beam'); // it comes in a beam of light
     let msg;
     try { msg = message(); } catch (err) {
       console.warn('[bit] desktop:', err.message);
@@ -139,9 +127,53 @@
     if (!timer) timer = setTimeout(() => send(false), SEND_DELAY_MS);
   }
 
+  /** A way of going or coming, played once like a clip. */
+  function warp(kind) {
+    const n = engine().bitCellsWarp?.KINDS[kind];
+    return n ? { kind, seq: ++seq, until: Date.now() + n.n * n.ms } : null;
+  }
+
+  /** It crumbles away, then `then` runs (another screen, or off); with reduced motion it just goes. */
+  function leave(then) {
+    const w = reduced() ? null : warp('crumble');
+    once = w;
+    gone = true;
+    leaving = setTimeout(() => {
+      leaving = 0;
+      then();
+    }, w ? w.until - Date.now() : 0);
+    schedule();
+  }
+
+  function armTravel() {
+    clearTimeout(travelTimer);
+    travelTimer = setTimeout(travel, between(TRAVEL_EVERY_MS));
+  }
+
+  /** One Bit for every screen: its bits fly off here and come together on the next one (the shell
+   *  moves the window when the screen in the message changes). False when it can't: fewer than two
+   *  screens to go to (desk-screens.js), not desk 'all', or busy walking or going. */
+  function hop() {
+    const next = prefs().desk === 'all' ? screens()?.next(monitor) : '';
+    if (!next || !out || walk || sitting || leaving || dropped != null) return false;
+    leave(() => {
+      monitor = next;
+      visit = null;
+      once = reduced() ? null : warp('assemble');
+      armTravel();
+      schedule();
+    });
+    return true;
+  }
+
+  function travel() {
+    const calm = pace() === 'live' || pace() === 'slow';
+    if (!calm || !hop()) armTravel();
+  }
+
   /** A clip once on the desktop, then its loop again. False when it can't (off, walking, too long). */
   function play(id) {
-    if (!out || walk || !cellsOf(id, app().personal())) return false;
+    if (!out || walk || leaving || !frames()?.cellsOf(id, app().personal())) return false;
     const ms = engine().bit.duration(id);
     once = { id, seq: ++seq, until: Date.now() + ms + ONCE_MARGIN_MS };
     recent.push(id);
@@ -213,8 +245,13 @@
     clearTimeout(walkTimer);
     walk = null;
     sitting = false;
-    dropped = clamp01(Math.round(at * 1000) / 1000);
+    const spot = clamp01(Math.round(at * 1000) / 1000);
     armStroll();
+    if (screens()?.away(here())) {
+      visit = spot;
+      return schedule();
+    }
+    dropped = spot;
     schedule();
     try {
       const base = typeof SERVER === 'string' ? SERVER : '';
@@ -234,6 +271,7 @@
     schedule();
     armFidget();
     armStroll();
+    armTravel();
   }
 
   if (supported()) window.XenonNative?.afterLoad(start);
@@ -245,5 +283,7 @@
     tapped,
     dropped: drop,
     arrived,
+    hop,
+    screens: () => screens()?.list() || [],
   });
 })();

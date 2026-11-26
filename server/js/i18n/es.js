@@ -8075,6 +8075,7 @@ module.exports = {
   mybit_spot_reset: 'Volver a la esquina',
   mybit_desk: 'En el escritorio',
   mybit_desk_main: 'Pantalla principal',
+  mybit_desk_all: 'Todas las pantallas',
   mybit_desk_off: 'No',
   mybit_desk_reset: 'Volver a su sitio',
   mybit_desk_told_title: 'Bit ya está en tu escritorio',

@@ -217,15 +217,16 @@ test('prefs: only known keys and values, and every change is told to all surface
   assert.equal((await h.call('POST /api/bit/prefs', { warp: 'beam' })).bit.prefs.warp, 'beam');
   assert.equal((await h.call('POST /api/bit/prefs', { warp: 'explode' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { spot: null, roam: 'walk' })).bit.prefs.spot, null);
-  // On the desktop: the main screen or off, and where along the bar it was dragged (null: its usual place).
+  // On the desktop: the main screen, every screen in turn or off, and where along the bar it was dragged (null: its usual place).
   assert.equal((await h.call('POST /api/bit/prefs', { deskX: 0.4213 })).bit.prefs.deskX, 0.421);
+  assert.equal((await h.call('POST /api/bit/prefs', { desk: 'all' })).bit.prefs.desk, 'all');
   assert.equal((await h.call('POST /api/bit/prefs', { desk: 'off' })).bit.prefs.desk, 'off');
   assert.equal((await h.call('POST /api/bit/prefs', { desk: 'everywhere' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { deskX: 1.5 })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { deskX: '0.5' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { deskX: null })).bit.prefs.deskX, null);
   await h.call('POST /api/bit/prefs', { classic: true });
-  assert.equal(h.told().length, 8, 'no change, nothing told');
+  assert.equal(h.told().length, 9, 'no change, nothing told');
 });
 
 test('the Vitals Bit becomes the companion where it lived', async (t) => {

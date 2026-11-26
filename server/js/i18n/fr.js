@@ -8023,6 +8023,7 @@ module.exports = {
   mybit_spot_reset: 'Retour dans le coin',
   mybit_desk: 'Sur le bureau',
   mybit_desk_main: 'Écran principal',
+  mybit_desk_all: 'Tous les écrans',
   mybit_desk_off: 'Non',
   mybit_desk_reset: 'Retour à sa place',
   mybit_desk_told_title: 'Bit est maintenant sur votre bureau',

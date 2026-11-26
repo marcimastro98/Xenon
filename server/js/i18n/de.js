@@ -8043,6 +8043,7 @@ module.exports = {
   mybit_spot_reset: 'Zurück in die Ecke',
   mybit_desk: 'Auf dem Desktop',
   mybit_desk_main: 'Hauptbildschirm',
+  mybit_desk_all: 'Alle Bildschirme',
   mybit_desk_off: 'Aus',
   mybit_desk_reset: 'Zurück an seinen Platz',
   mybit_desk_told_title: 'Bit ist jetzt auf deinem Desktop',

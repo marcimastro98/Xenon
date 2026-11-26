@@ -8195,6 +8195,7 @@ module.exports = {
   mybit_spot_reset: 'Back to the corner',
   mybit_desk: 'On the desktop',
   mybit_desk_main: 'Main screen',
+  mybit_desk_all: 'Every screen',
   mybit_desk_off: 'Off',
   mybit_desk_reset: 'Back to its usual spot',
   mybit_desk_told_title: 'Bit is on your desktop now',

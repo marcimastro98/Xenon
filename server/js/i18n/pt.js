@@ -8072,6 +8072,7 @@ module.exports = {
   mybit_spot_reset: 'Voltar ao canto',
   mybit_desk: 'Na área de trabalho',
   mybit_desk_main: 'Ecrã principal',
+  mybit_desk_all: 'Todos os ecrãs',
   mybit_desk_off: 'Desligado',
   mybit_desk_reset: 'Voltar ao seu lugar',
   mybit_desk_told_title: 'O Bit já está na tua área de trabalho',

@@ -12,7 +12,7 @@
   const REACTIONS = ['normal', 'few', 'off'];
   const ROAMS = ['mix', 'walk', 'stay'];
   const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch']; // bit-companion/warp.js
-  const DESKS = ['main', 'off']; // bit-companion/desk.js
+  const DESKS = ['main', 'all', 'off']; // bit-companion/desk.js
   const GROUNDS = ['plain', 'stage'];
   const NAME_MAX = 24;
   let shareTab = 'card'; // what the share drawer shows; the room's buttons choose it before opening
@@ -104,9 +104,12 @@
   // How it teleports: on a stroll with roam 'mix', and on its way to a place set here or elsewhere.
   const warpChoice = (p, h) => choice(h.say('mybit_warp'), 'warp', WARPS, p.warp || 'any', (v) => h.say(`mybit_warp_${v}`), h);
 
-  // On the taskbar, only where the shell can draw it; dragged along the bar, a way back to its usual spot.
+  // On the taskbar, only where the shell can draw it; every screen in turn only with two to go to
+  // besides the dashboard's (or when already chosen); dragged along the bar, a way back to its usual spot.
   function desk(p, h) {
-    const box = choice(h.say('mybit_desk'), 'desk', DESKS, p.desk || 'main', (v) => h.say(`mybit_desk_${v}`), h);
+    const screens = window.BitDesk?.screens?.().length || 1;
+    const options = DESKS.filter((v) => v !== 'all' || screens > 1 || p.desk === 'all');
+    const box = choice(h.say('mybit_desk'), 'desk', options, p.desk || 'main', (v) => h.say(`mybit_desk_${v}`), h);
     if (typeof p.deskX !== 'number' || p.desk === 'off') return box;
     const back = makeEl('button', 'bitc-seg-btn bitc-spot-back', h.say('mybit_desk_reset'));
     back.type = 'button';

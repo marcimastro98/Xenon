@@ -8194,6 +8194,7 @@ module.exports = {
   mybit_spot_reset: 'Riportalo nell’angolo',
   mybit_desk: 'Sul desktop',
   mybit_desk_main: 'Schermo principale',
+  mybit_desk_all: 'Tutti gli schermi',
   mybit_desk_off: 'No',
   mybit_desk_reset: 'Riportalo al suo posto',
   mybit_desk_told_title: 'Bit ora è sul desktop',

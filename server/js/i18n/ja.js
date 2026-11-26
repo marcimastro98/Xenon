@@ -8179,6 +8179,7 @@ module.exports = {
   mybit_spot_reset: '隅に戻す',
   mybit_desk: 'デスクトップ',
   mybit_desk_main: 'メイン画面',
+  mybit_desk_all: 'すべての画面',
   mybit_desk_off: 'オフ',
   mybit_desk_reset: 'いつもの場所に戻す',
   mybit_desk_told_title: 'Bitがデスクトップに来ました',

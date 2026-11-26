@@ -869,6 +869,15 @@ test('on the desktop: chosen in its room only where the shell draws it, with a w
   await settle();
   assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { desk: 'off' } });
   assert.equal(btn('mybit_desk_reset'), undefined, 'off: no place to go back to');
+  assert.equal(btn('mybit_desk_all'), undefined, 'one screen to go to: no every-screen choice');
+  r.ctx.BitSheet.close?.();
+  r.ctx.BitDesk = { screens: () => ['a', 'b'] };
+  r.tell(born({ desk: 'main' }));
+  r.ctx.BitSheet.open();
+  openAbout(r);
+  btn('mybit_desk_all').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { desk: 'all' } });
 });
 
 test('Bit on the desktop is loaded only in the shell that can draw it, never in a browser', () => {
@@ -880,6 +889,6 @@ test('Bit on the desktop is loaded only in the shell that can draw it, never in 
     vm.createContext(ctx);
     vm.runInContext(src('js/bit-companion/companion.js'), ctx);
     const tags = document.head.children.map((s) => s.src);
-    assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'js/bit-companion/desk.js'] : []);
+    assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk.js'] : []);
   }
 });

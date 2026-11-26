@@ -8183,6 +8183,7 @@ module.exports = {
   mybit_spot_reset: 'Terug naar de hoek',
   mybit_desk: 'Op het bureaublad',
   mybit_desk_main: 'Hoofdscherm',
+  mybit_desk_all: 'Alle schermen',
   mybit_desk_off: 'Uit',
   mybit_desk_reset: 'Terug naar zijn plek',
   mybit_desk_told_title: 'Bit staat nu op je bureaublad',

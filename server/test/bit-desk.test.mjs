@@ -10,10 +10,13 @@ import { readFileSync } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
 const SOURCE = readFileSync(new URL('../js/bit-companion/desk.js', import.meta.url), 'utf8');
+const FRAMES = readFileSync(new URL('../js/bit-companion/desk-frames.js', import.meta.url), 'utf8');
+const SCREENS = readFileSync(new URL('../js/bit-companion/desk-screens.js', import.meta.url), 'utf8');
 const bit = require('../../packages/core/src/bit.js');
 require('../../packages/core/src/bit-clips-life.js');
 require('../../packages/core/src/bit-clips-move.js');
 const bitCells = require('../../packages/core/src/bit-cells.js');
+const bitCellsWarp = require('../../packages/core/src/bit-cells-warp.js');
 const bitDirector = require('../../packages/core/src/bit-director.js');
 const genome = require('../../packages/core/src/bit-genome.js');
 const bitLook = require('../../packages/core/src/bit-look.js');
@@ -23,7 +26,7 @@ const LOOK = bitLook.lookOf(genome.decode(SEED), { background: '#0d1117' });
 const MAX_PAYLOAD = 64 * 1024;
 const born = (prefs = {}) => ({ ok: true, hatched: true, seed: SEED, prefs: { roam: 'mix', desk: 'main', deskX: null, ...prefs } });
 
-function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), reduced = false, pace = 'live', save = { ok: true } } = {}) {
+function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), reduced = false, pace = 'live', save = { ok: true }, warp = false, displays = [], active = '' } = {}) {
   let now = 0;
   let id = 0;
   const timers = new Map(); // id -> { at, fn, every }
@@ -37,8 +40,8 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
     __XENON_NATIVE_CAPS__: caps,
     __xenonSignal: (url) => url,
     location: { set href(v) { signals.push(v); } },
-    XenonNative: { afterLoad: (fn) => fn() },
-    Xenon: { bit, bitCells, bitDirector },
+    XenonNative: { afterLoad: (fn) => fn(), displayState: () => ({ displays, active }) },
+    Xenon: { bit, bitCells, bitDirector, ...(warp ? { bitCellsWarp } : {}) },
     BitApp: {
       state: () => state, personal: () => LOOK, director: () => null, context: () => ({ hour: 12 }),
       heard: (next) => { state = next; (handlers['xenon-bit'] || []).forEach((fn) => fn()); },
@@ -60,6 +63,8 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
   };
   ctx.window = ctx;
   vm.createContext(ctx);
+  vm.runInContext(FRAMES, ctx);
+  vm.runInContext(SCREENS, ctx);
   vm.runInContext(SOURCE, ctx);
   /** Runs every timer due in the next `ms`, in order. */
   function advance(ms) {
@@ -229,6 +234,74 @@ test('the first time out, one line in Bit\'s messages says how to move it or tak
   assert.equal(filed.length, 1, 'off and on again, or the next start, says nothing new');
   out('2026-12-01T08:00:00.000Z');
   assert.equal(filed.length, 2, 'a new egg (a reinstall) is told again');
+});
+
+const empty = (msg) => msg.loop.length === 1 && msg.loop[0].rows.every((row) => /^\.+$/.test(row));
+const crumbleMs = bitCellsWarp.KINDS.crumble.n * bitCellsWarp.KINDS.crumble.ms;
+
+test('it comes in a beam of light, and crumbles away when turned off, then goes', () => {
+  const r = rig({ warp: true, pace: 'game' });
+  r.advance(100);
+  const first = r.last();
+  assert.equal(first.once.frames.length, bitCellsWarp.KINDS.beam.n);
+  assertShellTakes(first, JSON.stringify(first));
+  r.ctx.BitApp.heard(born({ desk: 'off' }));
+  r.advance(100);
+  const going = r.last();
+  assert.equal(going.once.frames.length, bitCellsWarp.KINDS.crumble.n);
+  assert.ok(empty(going), 'nothing left once its bits have flown');
+  assertShellTakes(going, JSON.stringify(going));
+  r.advance(crumbleMs + 100);
+  assert.deepEqual(r.last(), { on: false });
+  r.ctx.BitApp.heard(born());
+  r.advance(100);
+  assert.equal(r.last().once.frames.length, bitCellsWarp.KINDS.beam.n, 'back on: the beam again');
+  assert.equal(empty(r.last()), false);
+});
+
+test('on every screen: it crumbles here and comes together on the next one, left to right', () => {
+  const displays = [{ id: 'right', x: 3840, y: 0, primary: false }, { id: 'left', x: 0, y: 0, primary: true }];
+  const r = rig({ warp: true, displays, bit: born({ desk: 'all', roam: 'stay' }) });
+  r.advance(31 * 60000);
+  const all = r.messages();
+  const at = all.findIndex((m) => m.monitor === 'right');
+  assert.ok(at > 0, 'it went to the other screen within 30 minutes');
+  const before = all.slice(0, at).filter((m) => m.once).at(-1);
+  assert.ok(empty(before) && before.monitor === '' && before.once.frames.length === bitCellsWarp.KINDS.crumble.n, 'crumbled on the main one');
+  assert.equal(all[at].once.frames.length, bitCellsWarp.KINDS.assemble.n);
+  assert.equal(empty(all[at]), false);
+  for (const m of all) assertShellTakes(m, JSON.stringify(m));
+  const one = rig({ warp: true, displays: displays.slice(1), bit: born({ desk: 'all', roam: 'stay' }) });
+  one.advance(31 * 60000);
+  assert.ok(one.messages().every((m) => m.monitor === '' && !empty(m)), 'one screen: it stays');
+  assert.equal(one.desk.hop(), false, 'and a hop asked by hand does nothing');
+  const three = [...displays, { id: 'edge', x: 1000, y: 2160, primary: false }];
+  const dash = rig({ warp: true, displays: three, active: 'edge', bit: born({ desk: 'all', roam: 'stay' }) });
+  assert.deepEqual([...dash.desk.screens()], ['left', 'right'], "never the dashboard's own screen");
+  dash.advance(3 * 31 * 60000);
+  assert.ok(dash.messages().some((m) => m.monitor === 'right') && dash.messages().every((m) => m.monitor !== 'edge'));
+  const two = rig({ warp: true, displays, active: 'right', bit: born({ desk: 'all', roam: 'stay' }) });
+  assert.equal(two.desk.hop(), false, "the other screen is the dashboard's: nowhere to go");
+  const wide = [{ id: 'left', x: 0, y: 0, width: 3840, scale: 1.5, primary: true }, { id: 'side', x: 3840, y: 0, width: 1080, scale: 1, primary: false }];
+  const away = rig({ warp: true, displays: wide, bit: born({ desk: 'all', roam: 'stay', deskX: 0.3 }) });
+  away.advance(100);
+  assert.equal(away.last().home, 0.3, 'the main screen: the place it was given');
+  away.desk.hop();
+  away.advance(2000);
+  assert.equal(away.last().monitor, 'side');
+  assert.equal(away.last().home, (1080 - 110 - 60) / (1080 - 60), 'another screen: just left of its clock');
+  away.desk.dropped(0.5);
+  away.advance(100);
+  assert.equal(away.last().home, 0.5, 'dropped there: it stays for this visit');
+  assert.deepEqual(away.posts, [], 'and the main screen\'s place is not touched');
+  away.desk.hop();
+  away.advance(2000);
+  assert.equal(away.last().monitor, 'left');
+  assert.equal(away.last().home, 0.3);
+  const main = rig({ warp: true, displays, bit: born({ roam: 'stay' }) });
+  main.advance(31 * 60000);
+  assert.ok(main.messages().every((m) => m.monitor === ''), 'main screen only: it stays');
+  assert.equal(main.desk.hop(), false);
 });
 
 test('turned off from its room: one message switches it off, then nothing', () => {
