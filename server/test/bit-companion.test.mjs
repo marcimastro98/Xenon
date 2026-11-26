@@ -995,7 +995,7 @@ test('Bit on the desktop is loaded only in the shell that can draw it, never in 
     vm.runInContext(src('js/bit-companion/companion.js'), ctx);
     assert.deepEqual(document.head.children.filter((n) => n.tag === 'script' && ALWAYS.includes(n.src)).map((n) => n.src), ALWAYS, 'its signs, everywhere');
     const tags = loaded(document.head);
-    assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk-spot.js', 'js/bit-companion/desk.js'] : []);
+    assert.deepEqual(tags, want ? ['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk-spot.js', 'js/bit-companion/desk-try.js', 'js/bit-companion/desk.js'] : []);
   }
 });
 

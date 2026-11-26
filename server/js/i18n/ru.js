@@ -8253,6 +8253,8 @@ module.exports = {
   mybit_take_off: 'Снять',
   mybit_take_off_many: 'Снять всё',
   mybit_try_hint: 'Нажмите на вещь, чтобы примерить. Примерка бесплатна.',
+  mybit_try_desk: 'Примерить на рабочем столе',
+  mybit_try_desk_on: 'На рабочем столе 10 минут',
   mybit_random: 'Случайный образ',
   mybit_random_line: 'Примерить бесплатно',
   mybit_tab_all: 'Всё',

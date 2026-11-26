@@ -8300,6 +8300,8 @@ module.exports = {
   mybit_take_off: '外す',
   mybit_take_off_many: 'すべて外す',
   mybit_try_hint: 'アイテムをタップして試着。試着は無料です。',
+  mybit_try_desk: 'デスクトップで試す',
+  mybit_try_desk_on: 'デスクトップで10分間',
   mybit_random: 'ランダムなコーデ',
   mybit_random_line: '無料で試着',
   mybit_tab_all: 'すべて',

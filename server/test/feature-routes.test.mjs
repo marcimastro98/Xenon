@@ -60,6 +60,8 @@ const CLASSIFIED = Object.freeze({
   'POST /api/bit/name': { remote: true },
   'POST /api/bit/prefs': { remote: true },
   'POST /api/bit/publish': { remote: true },
+  // One anonymous count of what was seen of the Bit, from a fixed list (the page asks from the PC only).
+  'POST /api/bit/seen': { remote: true },
   // Keeping a supporter's item uses the PC's pass, a shop item spends Sparks: the PC only.
   'POST /api/bit/claim': { remote: false },
   'POST /api/bit/buy': { remote: false },

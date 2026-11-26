@@ -202,7 +202,7 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/phone/dial', '/api/phone/send',
   // The gallery's new copies, the hardware scan for local models, the pump screens and the personal Bit: a paired device makes
   // them by POST only (each writes a file, runs a program on the PC or saves the settings; its menu reads the pumps in the menu state).
-  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe', '/api/ai-local/scan', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy',
+  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe', '/api/ai-local/scan', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/seen', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy',
 ]);
 let _getMutators = DEFAULT_GET_MUTATORS;
 

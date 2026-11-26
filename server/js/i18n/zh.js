@@ -8300,6 +8300,8 @@ module.exports = {
   mybit_take_off: '脱下',
   mybit_take_off_many: '全部脱下',
   mybit_try_hint: '点一件物品试穿。试穿免费。',
+  mybit_try_desk: '在桌面上试穿',
+  mybit_try_desk_on: '在桌面上穿 10 分钟',
   mybit_random: '随机搭配',
   mybit_random_line: '免费试穿',
   mybit_tab_all: '全部',

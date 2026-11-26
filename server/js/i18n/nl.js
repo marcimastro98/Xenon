@@ -8304,6 +8304,8 @@ module.exports = {
   mybit_take_off: 'Uittrekken',
   mybit_take_off_many: 'Alles uittrekken',
   mybit_try_hint: 'Tik op een item om het te passen. Passen is gratis.',
+  mybit_try_desk: 'Passen op het bureaublad',
+  mybit_try_desk_on: '10 minuten op het bureaublad',
   mybit_random: 'Een willekeurige look',
   mybit_random_line: 'Gratis passen',
   mybit_tab_all: 'Alles',

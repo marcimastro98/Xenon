@@ -202,13 +202,13 @@
   const known = app()?.state();
   if (known) heard(known);
 
-  // Bit on the desktop (desk.js, its pictures desk-frames.js, its screens desk-screens.js, its place desk-spot.js, their cells
+  // Bit on the desktop (desk.js, its pictures desk-frames.js, its screens desk-screens.js, its place desk-spot.js, a try-on desk-try.js, their cells
   // shared/src/bit-cells*.js) is loaded only where the shell can draw it, so a browser, a phone or a layer
   // page never fetches it.
   function loadDesk() {
     const caps = window.__XENON_NATIVE_CAPS__ || {};
     if (window.__XENON_NATIVE__ !== true || caps.bitDesk !== true || (typeof isLayerPage === 'function' && isLayerPage())) return;
-    load(['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk-spot.js', 'js/bit-companion/desk.js']);
+    load(['shared/src/bit-cells.js', 'shared/src/bit-cells-warp.js', 'js/bit-companion/desk-frames.js', 'js/bit-companion/desk-screens.js', 'js/bit-companion/desk-spot.js', 'js/bit-companion/desk-try.js', 'js/bit-companion/desk.js']);
   }
   loadDesk();
 

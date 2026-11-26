@@ -253,6 +253,7 @@
     const W = X.bitWardrobe;
     W.addItems(bit.items); // the hub's items offered now or owned (server/bit/items.js): listed like the code's
     const mine = new Set(Array.isArray(bit.owned) ? bit.owned : []);
+    if (!tried.length) tried = window.BitDeskTry?.take() || []; // back from ten minutes on the desktop (desk-try.js)
     tried = tried.filter((id) => !mine.has(id) && W.item(id));
     look = tried.length ? window.BitApp?.dressed([...bit.worn, ...tried]) || null : null;
     const entries = entriesOf(bit, W);

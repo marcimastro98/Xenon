@@ -8300,6 +8300,8 @@ module.exports = {
   mybit_take_off: '벗기기',
   mybit_take_off_many: '모두 벗기기',
   mybit_try_hint: '아이템을 눌러 입혀 보세요. 입어 보기는 무료예요.',
+  mybit_try_desk: '바탕 화면에서 입어 보기',
+  mybit_try_desk_on: '바탕 화면에서 10분 동안',
   mybit_random: '무작위 스타일',
   mybit_random_line: '무료로 입어 보기',
   mybit_tab_all: '전체',

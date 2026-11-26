@@ -165,6 +165,7 @@ function pocketRig({ keys = [], signal = null, keysAnswer = null, prefsOk = true
   const asked = [];
   const opened = [];
   let seen = 0;
+  const counted = [];
   let state = { ok: true, hatched: true, prefs: { keys } };
   const winHandlers = {};
   const ctx = {
@@ -182,7 +183,7 @@ function pocketRig({ keys = [], signal = null, keysAnswer = null, prefsOk = true
     XenonMenuIcons: { make: (doc, name) => { const s = doc.createElement('svg'); s.className = 'xm-ic ic-' + name; return s; } },
     BitSignals: { top: () => signal, seen: () => { seen++; } },
     BitSigns: { svg: (kind) => { const s = document.createElement('svg'); s.className = 'bit-sign bit-sign-' + kind; return s; } },
-    BitApp: { state: () => state, heard: (next) => { state = next; } },
+    BitApp: { state: () => state, heard: (next) => { state = next; }, seen: (what) => counted.push(what) },
     BitSheet: { open: () => opened.push('room') },
     DashboardOpen: { run: (req) => opened.push(req.open), sheetAddress: (req) => '/?panel=sheet&open=' + req.open },
     aiAsk: (q) => asked.push(q),
@@ -207,7 +208,7 @@ function pocketRig({ keys = [], signal = null, keysAnswer = null, prefsOk = true
   const keyNamed = (label) => all('.bitp-key').find((b) => b.textContent === label);
   const btnNamed = (label) => all('.bitp-btn').find((b) => b.textContent === label);
   const press = (key) => (winHandlers.keydown || []).forEach((fn) => fn({ key, stopImmediatePropagation() {} }));
-  return { ctx, P, all, keyNamed, btnNamed, press, posts, asked, opened, seen: () => seen, location: ctx.location };
+  return { ctx, P, all, keyNamed, btnNamed, press, posts, asked, opened, seen: () => seen, counted, location: ctx.location };
 }
 
 test('the pocket: nothing new, then the usual four keys; opening it is seeing its signs', async () => {
@@ -342,4 +343,13 @@ test('a key or Bit opens the pocket alone in the menu\'s window, the same list i
   assert.deepEqual(key.params[0].options, [...XenonMenu.SCREENS]);
   assert.ok(Object.keys(key.params[0].optionKeys).every((k) => XenonMenu.SCREENS.includes(k)) && key.params[0].optionKeys.pocket);
   assert.ok(key.capability.ai.params.screen.includes('pocket'));
+});
+
+test('opening the pocket is counted, with the kind of sign it showed and never what it was about', () => {
+  const plain = pocketRig();
+  plain.P.open();
+  assert.deepEqual(plain.counted, ['pocket']);
+  const r = pocketRig({ signal: { kind: 'disk', vars: { drive: 'C:', pct: 95 } } });
+  r.P.open();
+  assert.deepEqual(r.counted, ['pocket', 'sign.disk']);
 });

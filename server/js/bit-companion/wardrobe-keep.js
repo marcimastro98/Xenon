@@ -100,14 +100,14 @@
     return b;
   }
 
-  function joinLink(ctx) {
+  function joinLink(ctx, source = SOURCE) {
     const c = window.Xenon?.constants;
     if (typeof c?.supportUrl !== 'function') return null;
     const a = makeEl('a', 'broom-btn is-main', ctx.say('mybit_keep_join'));
-    a.href = c.supportUrl(SOURCE);
+    a.href = c.supportUrl(source);
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
-    a.dataset.supportSource = SOURCE; // the support sheet opens first (support-sheet.js)
+    a.dataset.supportSource = source; // the support sheet opens first (support-sheet.js)
     return a;
   }
 
@@ -233,7 +233,7 @@
 
   function supporterStep(it, acts, ctx) {
     if (!W().supporterOut(new Date()).includes(it)) return;
-    const join = joinLink(ctx);
+    const join = joinLink(ctx, window.BitDeskTry?.tried(it.id) ? 'bit-tryon' : SOURCE);
     const keep = button(ctx.say('mybit_keep'), async () => {
       if (busy) return;
       busy = true;
@@ -272,6 +272,8 @@
     words.append(makeEl('p', 'broom-keep-name', names(items, ctx)), makeEl('p', 'broom-keep-line', said));
     const acts = makeEl('div', 'broom-keep-acts');
     acts.append(button(ctx.say(items.length > 1 ? 'mybit_take_off_many' : 'mybit_take_off'), () => ctx.takeOff(), ctx));
+    const desk = window.BitDeskTry?.button(items, ctx); // ten minutes on the desktop Bit (desk-try.js)
+    if (desk) acts.append(desk);
     box.append(words, acts);
     // A paired phone can be lost or lent: the pass and the Sparks are used on the PC only.
     const keepable = shop || first.source === 'supporter';

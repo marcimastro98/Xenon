@@ -15,6 +15,8 @@
 //                         Also asks the hub for its Bit items (items.js) when its list is old.
 //   GET  /api/bit/pocket  the quick keys its pocket may hold on this PC (pocket.js) and the usual four.
 //                         Read-only, never a path; a phone may (its pocket runs them on the PC).
+//   POST /api/bit/seen    { what } one anonymous count (seen.js): the pocket opened, a desktop
+//                         try-on, the kind of sign seen. Ids from a fixed list; the page asks from the PC only.
 //   POST /api/bit/claim   { item } a supporter's item of the month, kept for good with the
 //                         PC's pass (keep.js). The PC only: it uses the pass.
 //   POST /api/bit/buy     { item, consent? } a shop item for Sparks (keep.js). The PC only:
@@ -30,6 +32,7 @@ const bit = require('./index.js');
 const { hub } = require('../settings/current.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const Pocket = require('./pocket.js');
+const Seen = require('./seen.js');
 
 const made = createRoutes({
   store: bit.store, hatch: bit.hatch, founder: bit.founder, publish: bit.publish, keep: bit.keep, items: bit.items, settings: () => hub.settings, changed: (b) => broadcastSSE('bit', b),
@@ -45,6 +48,11 @@ module.exports = {
     'POST /api/bit/prefs': made['POST /api/bit/prefs'],
     'GET /api/bit/pocket': async (_req, _res, { json }, { capabilityRunner }) => {
       json({ ok: true, usual: Pocket.USUAL, choices: Pocket.choices(capabilityRunner.probes()) });
+    },
+    'POST /api/bit/seen': async (req, _res, { json, readBody }) => {
+      let what = '';
+      try { what = JSON.parse(await readBody(req, 256))?.what; } catch { /* not JSON */ }
+      json(Seen.SEEN.includes(what) ? { ok: true, counted: Seen.seen(what) } : { ok: false, error: 'bad_request' });
     },
     'POST /api/bit/claim': made['POST /api/bit/claim'],
     'POST /api/bit/buy': made['POST /api/bit/buy'],

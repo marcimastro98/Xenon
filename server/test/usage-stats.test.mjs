@@ -259,7 +259,7 @@ test('the server and client wire the setting the strict way, local to the PC', (
 
 test('every app id is one the hub accepts', { skip: !fs.existsSync(HUB_FEATURES) && 'hub checkout not found' }, async () => {
   const hub = await import(pathToFileURL(HUB_FEATURES).href);
-  const mine = [...CAPABILITIES.map((c) => 'cap.' + c.type), 'layer.place.desktop', 'layer.place.overlay'].sort();
+  const mine = [...CAPABILITIES.map((c) => 'cap.' + c.type), 'layer.place.desktop', 'layer.place.overlay', ...require('../bit/seen.js').IDS].sort();
   assert.deepEqual(mine, [...hub.USAGE_FEATURES.app].sort());
 
   const { normalizeBatch } = await import(pathToFileURL(HUB_USAGE).href);

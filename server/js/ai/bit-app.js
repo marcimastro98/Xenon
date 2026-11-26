@@ -287,8 +287,10 @@
     return P ? say(P.greetingFor(now.getHours())) : '';
   }
 
+  // One anonymous count of what was seen of the Bit (server/bit/seen.js); a paired phone counts nothing.
+  const seen = (what) => { if (!window.RemoteSurface?.isRemote?.()) fetch(SERVER + '/api/bit/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ what }) }).catch(() => {}); };
   window.BitApp = {
-    TILE_HOLD, mount, playerFor, still, icon, showIcon, glyph, say, greeting, context, sweep: syncHolds,
+    TILE_HOLD, seen, mount, playerFor, still, icon, showIcon, glyph, say, greeting, context, sweep: syncHolds,
     setOwn, own: () => own, look: () => look, director: () => director, listen, state: () => state, heard, personal: () => personal,
     dressed: (worn) => (state?.hatched ? lookFor({ ...ownOf(state), worn }) : null),
   };

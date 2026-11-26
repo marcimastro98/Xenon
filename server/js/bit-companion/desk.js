@@ -62,12 +62,13 @@
   const wanted = () => supported() && !!state()?.hatched && prefs().desk !== 'off' && !!app()?.personal();
 
   const playing = () => (once && Date.now() < once.until ? once : null);
+  const lookNow = () => window.BitDeskTry?.look() || app()?.personal(); // desk-try.js: ten minutes in something tried on
   const loopId = () => (walk ? 'walk' : sitting ? 'sit' : pace() === 'asleep' ? 'sleep' : 'idle');
 
   /** What the shell is asked to show now. */
   function message() {
     if (!wanted() && !leaving) return { on: false };
-    const look = app()?.personal();
+    const look = lookNow();
     const shown = playing();
     const f = look && frames()?.picture({ look, loopId: loopId(), once: shown, gone, reduced: reduced(), sign: window.BitSigns?.kind() });
     if (!f) return { on: false };
@@ -155,7 +156,7 @@
 
   /** A clip once on the desktop, then its loop again. False when it can't (off, walking, too long). */
   function play(id) {
-    if (!out || walk || leaving || !frames()?.cellsOf(id, app().personal())) return false;
+    if (!out || walk || leaving || !frames()?.cellsOf(id, lookNow())) return false;
     const ms = engine().bit.duration(id);
     once = { id, seq: ++seq, until: Date.now() + ms + ONCE_MARGIN_MS };
     recent.push(id);
@@ -251,6 +252,7 @@
   function start() {
     addEventListener('xenon-bit', schedule);
     addEventListener('xenon-bit-signals', schedule); // a sign over its head comes or goes (signs.js)
+    addEventListener('xenon-bit-desk-try', schedule); // something from the room put on, or its ten minutes over
     schedule();
     armFidget();
     armStroll();

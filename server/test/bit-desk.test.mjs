@@ -14,6 +14,8 @@ const FRAMES = readFileSync(new URL('../js/bit-companion/desk-frames.js', import
 const SCREENS = readFileSync(new URL('../js/bit-companion/desk-screens.js', import.meta.url), 'utf8');
 const SPOT = readFileSync(new URL('../js/bit-companion/desk-spot.js', import.meta.url), 'utf8');
 const SIGNS = readFileSync(new URL('../js/bit-companion/signs.js', import.meta.url), 'utf8');
+const TRY = readFileSync(new URL('../js/bit-companion/desk-try.js', import.meta.url), 'utf8');
+const wardrobe = require('../../packages/core/src/bit-wardrobe.js');
 const bit = require('../../packages/core/src/bit.js');
 require('../../packages/core/src/bit-clips-life.js');
 require('../../packages/core/src/bit-clips-move.js');
@@ -37,6 +39,7 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
   const posts = [];
   const handlers = {};
   const taps = []; // the dashboard's pocket, asked for when the menu's window can't show it
+  const counted = []; // what was seen of the Bit (BitApp.seen, server/bit/seen.js)
   const ctx = {
     console: { ...console, warn() {} }, Math, Object, Number, JSON, Map, WeakMap, Promise,
     Date: { now: () => now },
@@ -47,12 +50,15 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
     XenonNative: { afterLoad: (fn) => fn(), displayState: () => ({ displays, active }) },
     Xenon: { bit, bitCells, bitDirector, bitSigns, ...(warp ? { bitCellsWarp } : {}) },
     BitApp: {
-      state: () => state, personal: () => LOOK, director: () => null, context: () => ({ hour: 12 }),
+      state: () => state, personal: () => LOOK, director: () => null, context: () => ({ hour: 12 }), seen: (what) => counted.push(what),
+      dressed: (worn) => bitLook.lookOf(genome.decode(SEED), { background: '#0d1117', worn: wardrobe.outfit(worn) }),
       heard: (next) => { state = next; (handlers['xenon-bit'] || []).forEach((fn) => fn()); },
     },
     BitMoments: { pace: () => pace },
     matchMedia: () => ({ matches: reduced }),
     addEventListener: (type, fn) => { (handlers[type] ||= []).push(fn); },
+    dispatchEvent: (e) => (handlers[e.type] || []).forEach((fn) => fn(e)),
+    CustomEvent: class { constructor(type) { this.type = type; } },
     setTimeout: (fn, ms = 0) => { timers.set(++id, { at: now + ms, fn }); return id; },
     clearTimeout: (t) => timers.delete(t),
     setInterval: (fn, ms) => { timers.set(++id, { at: now + ms, fn, every: ms }); return id; },
@@ -75,6 +81,7 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
   vm.runInContext(FRAMES, ctx);
   vm.runInContext(SCREENS, ctx);
   vm.runInContext(SPOT, ctx);
+  vm.runInContext(TRY, ctx);
   vm.runInContext(SOURCE, ctx);
   /** Runs every timer due in the next `ms`, in order. */
   function advance(ms) {
@@ -94,7 +101,7 @@ function rig({ native = true, caps = { bitDesk: true }, bit: state = born(), red
     return JSON.parse(decodeURIComponent(s.slice('xenon-app:bit-desk?d='.length)));
   });
   const last = () => messages().at(-1);
-  return { ctx, desk: ctx.BitDesk, advance, signals, messages, last, posts, taps };
+  return { ctx, desk: ctx.BitDesk, tryOn: ctx.BitDeskTry, advance, signals, messages, last, posts, taps, counted };
 }
 
 // The rule bit_desk.rs parse() enforces, so a message the page sends is never dropped.
@@ -395,4 +402,55 @@ test('every sign is five by five and fits the palette beside any Bit', () => {
   }
   assert.equal(S.at('nope', 0, 0), null);
   assert.equal(S.cells('nope').length, 0);
+});
+
+// ── desk-try.js ──────────────────────────────────────────────────────────
+
+const cellsOfMsg = (msg) => msg.loop[0].rows.join('');
+
+test('tried on in the room: the desktop Bit wears it ten minutes, then takes it off; the next room tries it on again', () => {
+  const r = rig({ pace: 'game', bit: { ...born(), worn: [] } });
+  r.advance(100);
+  const plain = cellsOfMsg(r.last());
+  r.tryOn.start(['topHat']);
+  r.advance(1000);
+  assert.notEqual(cellsOfMsg(r.last()), plain, 'the hat is on the desktop Bit');
+  assert.ok(r.tryOn.tried('topHat') && !r.tryOn.tried('beanie'));
+  assert.deepEqual(r.counted, ['tryon']);
+  assertShellTakes(r.last(), JSON.stringify(r.last()));
+  assert.deepEqual([...r.tryOn.take()], [], 'nothing for the room while it lasts');
+  r.advance(10 * 60 * 1000);
+  assert.equal(cellsOfMsg(r.last()), plain, 'ten minutes later it is taken off');
+  assert.deepEqual([...r.tryOn.take()], ['topHat'], 'the next room tries it on again');
+  assert.deepEqual([...r.tryOn.take()], [], 'once');
+});
+
+test("the keep bar's button: only while the desktop Bit is out, and it says what it is doing", () => {
+  const made = [];
+  const el = () => {
+    const b = { disabled: false, textContent: '', on: null, addEventListener: (_t, fn) => { b.on = fn; } };
+    made.push(b);
+    return b;
+  };
+  const ctx = { say: (k) => k, signal: null };
+  const off = rig({ native: true, bit: born({ desk: 'off' }) });
+  off.ctx.makeEl = (_tag, _cls, text) => Object.assign(el(), { textContent: text });
+  off.advance(100);
+  assert.equal(off.tryOn.button([{ id: 'topHat' }], ctx), null, 'no desktop Bit, no button');
+  const r = rig({ pace: 'game' });
+  r.ctx.makeEl = (_tag, _cls, text) => Object.assign(el(), { textContent: text });
+  r.advance(100);
+  const b = r.tryOn.button([{ id: 'topHat' }], ctx);
+  assert.equal(b.textContent, 'mybit_try_desk');
+  b.on();
+  assert.deepEqual([b.textContent, b.disabled], ['mybit_try_desk_on', true]);
+  assert.equal(r.tryOn.button([{ id: 'topHat' }], ctx).disabled, true, 'a new room says it is still on');
+});
+
+test('the room starts from what the desktop wore, and its support link says it came from there', () => {
+  const W = readFileSync(new URL('../js/bit-companion/wardrobe.js', import.meta.url), 'utf8');
+  const K = readFileSync(new URL('../js/bit-companion/wardrobe-keep.js', import.meta.url), 'utf8');
+  assert.ok(W.includes('if (!tried.length) tried = window.BitDeskTry?.take() || [];'));
+  assert.ok(K.includes("joinLink(ctx, window.BitDeskTry?.tried(it.id) ? 'bit-tryon' : SOURCE)"));
+  assert.ok(K.includes('window.BitDeskTry?.button(items, ctx)'));
 });

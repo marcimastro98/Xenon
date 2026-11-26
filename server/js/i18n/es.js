@@ -8196,6 +8196,8 @@ module.exports = {
   mybit_take_off: 'Quitárselo',
   mybit_take_off_many: 'Quitárselos',
   mybit_try_hint: 'Toca un objeto para probárselo. Probar es gratis.',
+  mybit_try_desk: 'Probar en el escritorio',
+  mybit_try_desk_on: 'En el escritorio durante 10 minutos',
   mybit_random: 'Un look al azar',
   mybit_random_line: 'Pruébalo gratis',
   mybit_tab_all: 'Todo',

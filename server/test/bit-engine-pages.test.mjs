@@ -149,7 +149,8 @@ test('nothing in the app draws Bit around BitApp, beyond the known players', () 
   for (const f of DIRECT) assert.match(src(f), /bitPlayer\.mount\(/, `${f} mounts the player`);
   assert.match(src(CARD), /X\.bitLook\.lookOf\(bit\.genes,/, 'the card draws their own look');
   assert.match(src(CLIP), /X\.bitLook\.lookOf\(bit\.genes, \{ worn: X\.bitWardrobe\.outfit\(bit\.worn/, 'the video draws their own look, dressed');
-  assert.match(src('js/bit-companion/desk.js'), /const look = app\(\)\?\.personal\(\);/, 'the desktop draws the person\'s own look');
+  assert.ok(src('js/bit-companion/desk.js').includes('const lookNow = () => window.BitDeskTry?.look() || app()?.personal();'), 'the desktop draws the person\'s own look');
+  assert.ok(src('js/bit-companion/desk-try.js').includes('app()?.dressed?.(['), 'a desktop try-on is the page\'s own look, dressed');
   assert.match(src(WARDROBE), /window\.BitApp\?\.dressed\(\[it\.id\]\)/, 'the thumbnails wear the page\'s look');
 });
 

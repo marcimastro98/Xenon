@@ -39,7 +39,7 @@ const SAVE_DELAY_MS = 30 * 1000;
 const MAX_EVENTS = 64;
 const MAX_COUNT = 500;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const ID_RE = /^(cap\.[A-Za-z]{1,40}|layer\.place\.(desktop|overlay))$/;
+const ID_RE = /^(cap\.[A-Za-z]{1,40}|layer\.place\.(desktop|overlay)|bit\.(pocket|tryon|sign\.[a-z]{1,12}))$/;
 let _transport = postBatch;   // swappable for tests
 let _dataDir = '';
 let _enabled = () => false;

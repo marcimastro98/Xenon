@@ -168,6 +168,9 @@
     document.body.append(root);
     drawKeys();
     if (!o.sheet) placeBy(card, o.anchor);
+    window.BitApp?.seen?.('pocket');
+    const sign = window.BitSignals?.top()?.kind;
+    if (sign) window.BitApp?.seen?.(`sign.${sign}`); // which sign was seen, never what it was about
     window.BitSignals?.seen();
     loadKeys().then(() => { if (ui && !o.sheet) placeBy(card, o.anchor); });
     return true;
