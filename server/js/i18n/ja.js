@@ -8148,6 +8148,7 @@ module.exports = {
   mybit_name_hint: '名前をつける',
   mybit_name_bad: 'この名前は使えません。別の名前にしてください。',
   mybit_save_failed: '保存できませんでした。もう一度お試しください。',
+  mybit_perk_supporters: 'サポーター向け：選ぶとパスで開きます。',
   mybit_traits: 'あなたから覚えること',
   mybit_trait_gamer: 'ゲーマー',
   mybit_trait_night_owl: '夜型',

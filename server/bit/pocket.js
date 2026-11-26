@@ -15,11 +15,12 @@ const OWN = Object.freeze([
 const FROM_MENU = Object.freeze(['area', 'shot', 'record', 'marker', 'text', 'color', 'draw', 'dnd', 'gallery', 'why', 'companion', 'page']);
 const ENTRIES = Object.freeze([...OWN, ...FROM_MENU.map((id) => Menu.functionById(id)).filter(Boolean)]);
 const IDS = Object.freeze(ENTRIES.map((e) => e.id));
-const MAX_KEYS = 4;
+const MAX_KEYS = 8;
+const FREE_KEYS = 4; // more only with the moreKeys extra (perks.js), when the hub keeps it for supporters
 // What a new pocket holds until the person changes it.
 const USUAL = Object.freeze(['timer', 'mic', 'area', 'dnd']);
 
-/** The person's keys as saved: known ids only, once each, at most four. */
+/** The person's keys as saved: known ids only, once each, at most MAX_KEYS. */
 function normalizeKeys(raw) {
   if (!Array.isArray(raw)) return [];
   const out = [];
@@ -37,4 +38,4 @@ function choices(probes) {
   }));
 }
 
-module.exports = { IDS, MAX_KEYS, USUAL, normalizeKeys, choices };
+module.exports = { IDS, MAX_KEYS, FREE_KEYS, USUAL, normalizeKeys, choices };

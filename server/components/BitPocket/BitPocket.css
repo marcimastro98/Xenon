@@ -50,3 +50,10 @@
 @media (max-width: 480px) {
   .bitp:not(.is-sheet) .bitp-card { left: var(--space-2) !important; right: var(--space-2); top: auto !important; bottom: var(--space-2); width: auto; transform: none; }
 }
+
+/* An extra the hub keeps for supporters, not opened on this Bit (js/bit-companion/perks.js): the Store's heart in
+   the room's brass, on the room's choice and on a pocket key. Choosing it opens it, or the support sheet. */
+.bit-perk-heart { flex: none; width: 12px; height: 12px; fill: var(--broom-brass, var(--amber)); }
+.bitc-seg-btn.is-perk { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.bitp-key.is-perk { position: relative; }
+.bitp-key.is-perk .bit-perk-heart { position: absolute; top: 6px; right: 6px; }

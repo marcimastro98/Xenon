@@ -7992,6 +7992,7 @@ module.exports = {
   mybit_name_hint: 'Donnez-lui un nom',
   mybit_name_bad: 'Ce nom ne peut pas être utilisé. Essayez-en un autre.',
   mybit_save_failed: 'Échec de l’enregistrement. Réessayez.',
+  mybit_perk_supporters: 'Pour les supporters : choisissez-le pour l’ouvrir avec votre pass.',
   mybit_traits: 'Ce qu’il apprend de vous',
   mybit_trait_gamer: 'Gamer',
   mybit_trait_night_owl: 'Oiseau de nuit',

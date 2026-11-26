@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const Model = require('../bit/model.js');
 const Traits = require('../bit/traits.js');
+const Pocket = require('../bit/pocket.js');
 const { createBitStore } = require('../bit/store.js');
 const { createHatch, LOCAL_AFTER_MS } = require('../bit/hatch.js');
 const { createRoutes } = require('../bit/handlers.js');
@@ -240,14 +241,15 @@ test('prefs: only known keys and values, and every change is told to all surface
   assert.equal(h.told().length, 12, 'no change, nothing told');
 });
 
-test("prefs: what a tap opens, and the pocket's own keys (known ones, once each, at most four)", async (t) => {
+test("prefs: what a tap opens, and the pocket's own keys (known ones, once each, at most eight)", async (t) => {
   const h = harness(t);
   const first = (await h.call('POST /api/bit/prefs', { tap: 'chat' })).bit.prefs;
   assert.deepEqual([first.tap, first.keys], ['chat', []]);
   assert.equal((await h.call('POST /api/bit/prefs', { tap: 'room' })).bit.prefs.tap, 'room');
   assert.equal((await h.call('POST /api/bit/prefs', { tap: 'menu' })).error, 'bad_value');
   assert.deepEqual((await h.call('POST /api/bit/prefs', { keys: ['timer', 'dnd', 'area'] })).bit.prefs.keys, ['timer', 'dnd', 'area']);
-  for (const bad of [['timer', 'timer'], ['nope'], 'timer', ['timer', 'mic', 'area', 'dnd', 'shot'], [7], null]) {
+  assert.equal((await h.call('POST /api/bit/prefs', { keys: ['timer', 'mic', 'area', 'dnd', 'shot'] })).bit.prefs.keys.length, 5, 'five: the extra is free until the hub says otherwise');
+  for (const bad of [['timer', 'timer'], ['nope'], 'timer', [...Pocket.IDS.slice(0, 9)], [7], null]) {
     assert.equal((await h.call('POST /api/bit/prefs', { keys: bad })).error, 'bad_value', JSON.stringify(bad));
   }
   assert.deepEqual((await h.call('POST /api/bit/prefs', { keys: [] })).bit.prefs.keys, [], 'back to the usual four');

@@ -21,7 +21,9 @@
 
   async function setPref(patch, h) {
     const out = await h.post('/api/bit/prefs', patch);
-    if (out.ok) h.told(out); else h.note(h.say('mybit_save_failed'));
+    if (out.ok) h.told(out);
+    else if (out.error === 'locked') window.BitPerks?.offer(out.perk, () => setPref(patch, h)); // perks.js
+    else h.note(h.say('mybit_save_failed'));
   }
 
   // Who it is, how old, then in plain sentences: one of the Founders, its rarest trait with the true odds.
@@ -113,6 +115,7 @@
     const screens = window.BitDesk?.screens?.().length || 1;
     const options = DESKS.filter((v) => v !== 'all' || screens > 1 || p.desk === 'all');
     const box = choice(h.say('mybit_desk'), 'desk', options, p.desk || 'main', (v) => h.say(`mybit_desk_${v}`), h);
+    if (p.desk !== 'all') window.BitPerks?.mark(box.querySelector('[data-value="all"]'), 'allScreens'); // kept if it had it
     const moved = typeof p.deskX === 'number' || typeof p.deskY === 'number' || !!p.deskScreen;
     if (!moved || p.desk === 'off') return box;
     const back = makeEl('button', 'bitc-seg-btn bitc-spot-back', h.say('mybit_desk_reset'));

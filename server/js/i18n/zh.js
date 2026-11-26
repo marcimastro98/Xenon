@@ -8148,6 +8148,7 @@ module.exports = {
   mybit_name_hint: '给它起个名字',
   mybit_name_bad: '这个名字不能用，换一个试试。',
   mybit_save_failed: '保存失败，请重试。',
+  mybit_perk_supporters: '支持者专属：选择后用你的通行证开启。',
   mybit_traits: '它从你身上学到的',
   mybit_trait_gamer: '玩家',
   mybit_trait_night_owl: '夜猫子',

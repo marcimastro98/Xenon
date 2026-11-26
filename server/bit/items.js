@@ -6,13 +6,15 @@
 // what fails is dropped and counted. The list is kept in DATA_DIR/bit-items.json (written
 // atomically) so the items draw offline, and an item once seen is never forgotten: a Bit that
 // owns one keeps wearing it when the hub stops offering it. The hub is asked again at most
-// every REFRESH_MS, when something reads the Bit: no timer.
+// every REFRESH_MS, when something reads the Bit: no timer. The same answer says which of the
+// Bit's extras the hub keeps for supporters (perks.js), kept in the same file.
 
 const path = require('path');
 const fsp = require('fs').promises;
 const { writeFileAtomic } = require('../files/atomic-write.js');
 const wardrobe = require('../shared/src/bit-wardrobe.js');
 const genes = require('../shared/src/bit-genes.js');
+const Perks = require('./perks.js');
 
 const FILE = 'bit-items.json';
 const FEED_PATH = '/bit/items';
@@ -115,6 +117,7 @@ function createBitItems({ dataDir, post, warn = (_msg) => {}, now = () => Date.n
       for (const it of (Array.isArray(raw.items) ? raw.items : []).slice(0, MAX_ITEMS).map(itemOf)) if (it) known.set(it.id, it);
       offered = new Set((Array.isArray(raw.offered) ? raw.offered : []).filter((id) => known.has(id)));
       fetchedAt = Number.isSafeInteger(raw.fetchedAt) && raw.fetchedAt <= now() ? raw.fetchedAt : 0;
+      Perks.setAccess(raw.perks);
     } catch (e) {
       if (e.code !== 'ENOENT') warn('bit: bit-items.json could not be read, the hub is asked again');
     }
@@ -124,7 +127,7 @@ function createBitItems({ dataDir, post, warn = (_msg) => {}, now = () => Date.n
   const ready = () => (loading ||= load());
 
   async function write() {
-    const body = { v: 1, fetchedAt, dropped, offered: [...offered], items: [...known.values()] };
+    const body = { v: 1, fetchedAt, dropped, offered: [...offered], items: [...known.values()], perks: Perks.access() };
     await writeFileAtomic(file, JSON.stringify(body) + '\n');
   }
 
@@ -146,12 +149,13 @@ function createBitItems({ dataDir, post, warn = (_msg) => {}, now = () => Date.n
     const fresh = list.map(itemOf).filter(Boolean);
     dropped = list.length - fresh.length;
     if (dropped) warn(`bit: ${dropped} item(s) from the hub were dropped: they break a wardrobe rule`);
-    const before = JSON.stringify([[...known.values()], [...offered]]);
+    const before = JSON.stringify([[...known.values()], [...offered], Perks.access()]);
     known = new Map([...known, ...fresh.map((it) => [it.id, it])]);
     offered = new Set(fresh.map((it) => it.id));
+    if (out.perks && typeof out.perks === 'object') Perks.setAccess(out.perks); // a hub before the extras says nothing
     keepWithin();
     fetchedAt = now();
-    const changed = JSON.stringify([[...known.values()], [...offered]]) !== before;
+    const changed = JSON.stringify([[...known.values()], [...offered], Perks.access()]) !== before;
     register();
     await write().catch(() => warn('bit: bit-items.json could not be written'));
     return changed;

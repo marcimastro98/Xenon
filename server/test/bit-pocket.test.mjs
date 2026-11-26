@@ -20,13 +20,15 @@ test('its keys: the menu\'s one-tap tools and two of its own; the usual four are
   assert.ok(Pocket.IDS.includes('timer') && Pocket.IDS.includes('mic'));
   for (const id of Pocket.IDS.filter((x) => x !== 'timer' && x !== 'mic')) assert.ok(Menu.functionById(id), id);
   assert.ok(Pocket.USUAL.every((id) => Pocket.IDS.includes(id)));
-  assert.equal(Pocket.USUAL.length, Pocket.MAX_KEYS);
+  assert.equal(Pocket.USUAL.length, Pocket.FREE_KEYS);
+  assert.equal(Pocket.MAX_KEYS, 8, 'eight with the extra (perks.js)');
 });
 
-test('saved keys: known ids only, once each, at most four', () => {
+test('saved keys: known ids only, once each, at most eight', () => {
   assert.deepEqual(Pocket.normalizeKeys(['dnd', 'timer']), ['dnd', 'timer']);
   assert.deepEqual(Pocket.normalizeKeys(['timer', 'timer', 'nope', 7, 'mic']), ['timer', 'mic']);
-  assert.deepEqual(Pocket.normalizeKeys(['timer', 'mic', 'area', 'dnd', 'shot']), ['timer', 'mic', 'area', 'dnd']);
+  assert.deepEqual(Pocket.normalizeKeys(['timer', 'mic', 'area', 'dnd', 'shot']), ['timer', 'mic', 'area', 'dnd', 'shot']);
+  assert.deepEqual(Pocket.normalizeKeys(Pocket.IDS), Pocket.IDS.slice(0, Pocket.MAX_KEYS));
   for (const bad of [null, 'timer', { 0: 'timer' }]) assert.deepEqual(Pocket.normalizeKeys(bad), []);
 });
 
@@ -352,4 +354,33 @@ test('opening the pocket is counted, with the kind of sign it showed and never w
   const r = pocketRig({ signal: { kind: 'disk', vars: { drive: 'C:', pct: 95 } } });
   r.P.open();
   assert.deepEqual(r.counted, ['pocket', 'sign.disk']);
+});
+
+test('eight keys with the extra; kept for supporters, a fifth wears the heart and opens it (perks.js)', async () => {
+  const offered = [];
+  const marked = [];
+  const r = pocketRig();
+  r.ctx.BitPerks = { keys: () => 4, locked: () => true, mark: (b, id) => marked.push([b.textContent, id]), offer: (id, again) => offered.push([id, again]) };
+  r.P.open();
+  await settle();
+  r.btnNamed('mybit_pocket_edit').click();
+  const free = r.all('.bitp-key').filter((b) => b.getAttribute('aria-pressed') === 'false');
+  assert.ok(free.every((b) => !b.disabled), 'closed: a fifth key opens the extra');
+  assert.equal(marked.length, free.length);
+  assert.ok(marked.every(([, id]) => id === 'moreKeys'));
+  r.ctx.fetch = async (url, init) => {
+    r.posts.push({ url, body: JSON.parse(init.body) });
+    return { json: async () => ({ ok: false, error: 'locked', perk: 'moreKeys' }) };
+  };
+  r.keyNamed('xmenu_gallery').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1).body, { keys: [...Pocket.USUAL, 'gallery'] });
+  assert.equal(offered[0][0], 'moreKeys');
+  assert.ok(!r.opened.includes('toast:mybit_pocket_failed'), 'locked is not a failure');
+  const open = pocketRig();
+  open.ctx.BitPerks = { keys: () => 8, locked: () => false, mark: () => assert.fail('no heart'), offer: () => {} };
+  open.P.open();
+  await settle();
+  open.btnNamed('mybit_pocket_edit').click();
+  assert.ok(open.all('.bitp-key').every((b) => !b.disabled), 'eight: room for more');
 });

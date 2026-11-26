@@ -8101,6 +8101,7 @@ module.exports = {
   mybit_name_hint: 'Дайте ему имя',
   mybit_name_bad: 'Это имя нельзя использовать. Попробуйте другое.',
   mybit_save_failed: 'Не удалось сохранить. Попробуйте ещё раз.',
+  mybit_perk_supporters: 'Для спонсоров: выберите, чтобы открыть по вашему пропуску.',
   mybit_traits: 'Чему он учится у вас',
   mybit_trait_gamer: 'Геймер',
   mybit_trait_night_owl: 'Сова',

@@ -5,7 +5,8 @@
 //
 //   { v, eggAt, founder, bit: { seed, number, born, sig, local } | null,
 //     name, worn: [item ids], owned: [item ids], days: { count, last }, traits,
-//     prefs: { place, reactions, sounds, classic, pose, card }, shown, months }   shown: the person chose to show it on xenon-app.com (publish.js);
+//     prefs: { place, reactions, sounds, classic, pose, card }, shown, months, perks }   shown: the person chose to show it on xenon-app.com (publish.js);
+//     perks: the supporters' extras it opened (perks.js)
 //     months: what each month held, for the recap cards (months.js)
 //
 // What is given for free (the seasons' items): seasons.js. An older file's daily gift is
@@ -22,7 +23,7 @@
  *   bit: { seed: string, number: number|null, born: string, sig: string, local: boolean } | null,
  *   days: { count: number, last: string }, traits: object,
  *   prefs: { place: string, reactions: string, sounds: boolean, classic: boolean, pose: string, card: string }, shown: boolean,
- *   months: object }} BitModel
+ *   months: object, perks: string[] }} BitModel
  */
 
 const Traits = require('./traits.js');
@@ -31,6 +32,7 @@ const Months = require('./months.js');
 const genome = require('../shared/src/bit-genome.js');
 const wardrobe = require('../shared/src/bit-wardrobe.js');
 const Prefs = require('./prefs.js');
+const Perks = require('./perks.js');
 
 const VERSION = 1;
 const SEED = /^[0-9a-f]{16}$/;
@@ -110,6 +112,7 @@ function normalize(raw) {
     prefs: Prefs.normalizePrefs(src.prefs),
     shown: src.shown === true,
     months: Months.normalize(src.months),
+    perks: Perks.openedOf(src.perks),
   };
 }
 
@@ -178,7 +181,15 @@ function setShown(model, on) {
 function setPrefs(model, patch) {
   const out = Prefs.merge(model.prefs, patch);
   if (out.error) return out;
+  const perk = Perks.lockedBy(model.prefs, out.prefs, model.perks); // an extra kept for supporters
+  if (perk) return { error: 'locked', perk };
   return JSON.stringify(out.prefs) === JSON.stringify(model.prefs) ? null : { model: { ...model, prefs: out.prefs } };
+}
+
+/** A supporters' extra the hub opened for this Bit (keep.js): its own for good. */
+function openPerk(model, id) {
+  if (!Perks.IDS.includes(id) || model.perks.includes(id)) return null;
+  return { model: { ...model, perks: [...model.perks, id] } };
 }
 
 /** A day the PC ran Xenon with a Bit out of its egg: counted once per date, with the season's items. */
@@ -209,6 +220,7 @@ function view(model, now) {
   const base = {
     ok: true, hatched: !!b, eggAt: model.eggAt, founder: model.founder, prefs: model.prefs,
     everywhere: !model.prefs.classic, reactionsPerHour: Prefs.REACTIONS[model.prefs.reactions],
+    perks: Perks.view(model.perks), // which extras the hub keeps for supporters, and which this Bit has
   };
   if (!b) return { ...base, stage: 'egg' };
   const genes = genome.decode(b.seed);
@@ -241,5 +253,5 @@ function view(model, now) {
 const { PLACES, REACTIONS, ROAMS, WARPS, DESKS, DEFAULT_PREFS, POSES, normalizePrefs } = Prefs;
 module.exports = {
   VERSION, STAGES, PLACES, REACTIONS, ROAMS, WARPS, DESKS, DEFAULT_PREFS, POSES,
-  normalize, normalizePrefs, cleanName, stageOf, ownedItems, hatched, wear, rename, setShown, setPrefs, countDay, learn, view, birthGift,
+  normalize, normalizePrefs, cleanName, stageOf, ownedItems, hatched, wear, rename, setShown, setPrefs, openPerk, countDay, learn, view, birthGift,
 };

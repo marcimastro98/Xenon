@@ -96,7 +96,7 @@ function rig({ vitalsPet = false, answers = {}, setup = false } = {}) {
   const runTimers = () => { const due = [...timers.values()]; timers.clear(); due.forEach((fn) => fn()); };
   const key = (k) => (winHandlers.keydown || []).forEach((fn) => fn({ key: k, preventDefault() {}, stopPropagation() {} }));
   return {
-    ctx, document, clock, posts, tell, send, reactions, fakeDirector, runTimers, key,
+    ctx, document, clock, posts, tell, send, reactions, fakeDirector, runTimers, key, answers,
     corner: () => document.getElementById('bit-companion'),
     chip: () => clock.querySelector('.bitc-chip'),
     sheet: () => document.querySelector('.bitc-overlay'),
@@ -670,7 +670,7 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
 
 // ── room-setup.js: where to see it, how it moves, what it can do; until it is done ──
 // Loaded on every page with a companion: its signs, and the pocket's styles (a link, no src).
-const ALWAYS = ['shared/src/bit-signs.js', 'js/bit-companion/signals.js', 'js/bit-companion/signs.js'];
+const ALWAYS = ['shared/src/bit-signs.js', 'js/bit-companion/signals.js', 'js/bit-companion/signs.js', 'js/bit-companion/perks.js'];
 const loaded = (head) => head.children.filter((n) => n.tag === 'script' && !ALWAYS.includes(n.src)).map((n) => n.src);
 
 test('the guided setup is fetched only while it is due', () => {
@@ -983,6 +983,22 @@ test('on the desktop: chosen in its room only where the shell draws it, said wha
   btn('mybit_desk_all').click();
   await settle();
   assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { desk: 'all' } });
+
+  // Kept for supporters (perks.js): the heart on the choice, and the server's 'locked' opens the extra, not an error.
+  const offered = [];
+  r.ctx.BitSheet.close?.();
+  r.ctx.BitPerks = { mark: (el, id) => el?.classList.add('is-perk-' + id), offer: (id, again) => offered.push([id, again]) };
+  r.answers['/api/bit/prefs'] = { ok: false, error: 'locked', perk: 'allScreens' };
+  r.tell(born({ desk: 'main' }));
+  r.ctx.BitSheet.open();
+  openAbout(r);
+  assert.ok(btn('mybit_desk_all').classList.contains('is-perk-allScreens'));
+  btn('mybit_desk_all').click();
+  await settle();
+  assert.equal(offered[0][0], 'allScreens');
+  assert.ok(!said('mybit_save_failed'), 'locked is not a failure');
+  r.tell(born({ desk: 'all' }));
+  assert.ok(!btn('mybit_desk_all').classList.contains('is-perk-allScreens'), 'chosen before: no heart on what it has');
 });
 
 test('Bit on the desktop is loaded only in the shell that can draw it, never in a browser', () => {

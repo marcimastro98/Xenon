@@ -8012,6 +8012,7 @@ module.exports = {
   mybit_name_hint: 'Gib ihm einen Namen',
   mybit_name_bad: 'Dieser Name geht nicht. Versuch einen anderen.',
   mybit_save_failed: 'Speichern fehlgeschlagen. Versuch es noch mal.',
+  mybit_perk_supporters: 'Für Unterstützer: wähle es, um es mit deinem Pass zu öffnen.',
   mybit_traits: 'Was er von dir lernt',
   mybit_trait_gamer: 'Gamer',
   mybit_trait_night_owl: 'Nachteule',

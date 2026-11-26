@@ -9,12 +9,16 @@
 //   - The Sparks shop: one /buy of the item's key (sparks-wallet.js) with the box the
 //     buyer ticked. The hub charges once per owner and sends the order email; asking
 //     again from a new install, without the box, opens it at no charge.
+//   - An extra the hub keeps for supporters (perks.js): the same /redeem as a supporter's item,
+//     of the extra's own entry.
 //
 // The key either answers with is ignored: the proof is that the hub answered. The app
 // is source-available, so this is an honest gate: someone who edits the code can dress
 // their Bit here, and the site still shows only the items anyone gets for free.
 
 const wardrobe = require('../shared/src/bit-wardrobe.js');
+const Perks = require('./perks.js');
+const Model = require('./model.js');
 
 /**
  * @param {{ store: import('./store.js').BitStore,
@@ -70,7 +74,21 @@ function createKeep({ store, redeem, buy, now = () => new Date() }) {
     return { ok: true, bought: out.bought === true, balance: Number.isInteger(out.balance) ? out.balance : null };
   }
 
-  return { claim, shop };
+  /** An extra kept for supporters, with the pass this PC keeps. → { ok } | { ok: false, error } */
+  async function perk(id) {
+    if (typeof id !== 'string' || !Perks.IDS.includes(id)) return { ok: false, error: 'bad_item' };
+    const model = await store.ready();
+    if (!model.bit) return { ok: false, error: 'egg' };
+    if (Perks.isOpen(id, model.perks)) return { ok: true }; // free, or opened before
+    let out;
+    try { out = await redeem({ entryId: Perks.PERKS[id].entry, code: '' }); }
+    catch { return { ok: false, error: 'network' }; }
+    if (out?.ok !== true) return { ok: false, error: String(out?.error || 'network') };
+    await store.update((m) => Model.openPerk(m, id));
+    return { ok: true };
+  }
+
+  return { claim, shop, perk };
 }
 
 module.exports = { createKeep };

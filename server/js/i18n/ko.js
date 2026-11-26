@@ -8148,6 +8148,7 @@ module.exports = {
   mybit_name_hint: '이름을 지어 주세요',
   mybit_name_bad: '이 이름은 쓸 수 없어요. 다른 이름을 써 보세요.',
   mybit_save_failed: '저장하지 못했어요. 다시 시도해 주세요.',
+  mybit_perk_supporters: '후원자 전용: 선택하면 패스로 열립니다.',
   mybit_traits: '당신에게서 배우는 것',
   mybit_trait_gamer: '게이머',
   mybit_trait_night_owl: '올빼미',

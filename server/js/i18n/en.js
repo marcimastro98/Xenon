@@ -8164,6 +8164,7 @@ module.exports = {
   mybit_name_hint: 'Give it a name',
   mybit_name_bad: 'That name can’t be used. Try another one.',
   mybit_save_failed: 'Couldn’t save. Try again.',
+  mybit_perk_supporters: 'For supporters: choose it to open it with your pass.',
   mybit_traits: 'What it picks up from you',
   mybit_trait_gamer: 'Gamer',
   mybit_trait_night_owl: 'Night owl',

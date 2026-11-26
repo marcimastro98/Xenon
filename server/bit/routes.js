@@ -21,6 +21,9 @@
 //                         PC's pass (keep.js). The PC only: it uses the pass.
 //   POST /api/bit/buy     { item, consent? } a shop item for Sparks (keep.js). The PC only:
 //                         it spends Sparks.
+//   POST /api/bit/perk    { perk } an extra the hub keeps for supporters (perks.js), opened for good
+//                         with the PC's pass (keep.js). The PC only: it uses the pass. A prefs change
+//                         that needs an extra not opened answers { ok: false, error: 'locked', perk }.
 //   POST /api/bit/publish { public } shows the Bit on xenon-app.com or takes it
 //                         down (publish.js): the hub hears its name, outfit and
 //                         stage, nothing else. A phone may: the same sheet.
@@ -56,6 +59,7 @@ module.exports = {
     },
     'POST /api/bit/claim': made['POST /api/bit/claim'],
     'POST /api/bit/buy': made['POST /api/bit/buy'],
+    'POST /api/bit/perk': made['POST /api/bit/perk'],
     'POST /api/bit/publish': made['POST /api/bit/publish'],
   },
   stop: bit.stop,

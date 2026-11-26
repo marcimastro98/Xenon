@@ -8163,6 +8163,7 @@ module.exports = {
   mybit_name_hint: 'Dagli un nome',
   mybit_name_bad: 'Questo nome non si può usare. Provane un altro.',
   mybit_save_failed: 'Salvataggio non riuscito. Riprova.',
+  mybit_perk_supporters: 'Per i sostenitori: sceglilo per aprirlo con il tuo pass.',
   mybit_traits: 'Cosa impara da te',
   mybit_trait_gamer: 'Giocatore',
   mybit_trait_night_owl: 'Nottambulo',

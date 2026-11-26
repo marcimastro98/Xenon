@@ -10,7 +10,7 @@ const MAX_BODY_BYTES = 4 * 1024;
 /**
  * @param {{ store: import('./store.js').BitStore, hatch: { hatch: () => Promise<object> }, founder: (fresh: boolean) => Promise<boolean>,
  *   publish?: { set: (on: boolean) => Promise<{ ok: boolean, error?: string }>, refresh: () => Promise<boolean> },
- *   keep?: { claim: (id: string) => Promise<any>, shop: (id: string, consent?: string) => Promise<any> },
+ *   keep?: { claim: (id: string) => Promise<any>, shop: (id: string, consent?: string) => Promise<any>, perk: (id: string) => Promise<any> },
  *   items?: { ready: () => Promise<void>, refresh: () => Promise<boolean> },
  *   settings?: () => object, changed?: (bit: object) => void }} deps
  */
@@ -53,17 +53,17 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
         await current(hands);
         out = await store.update((m) => stepOf(m, body));
       } catch { json({ ok: false, error: 'write_failed' }); return; }
-      if (out?.error) { json({ ok: false, error: out.error }); return; }
+      if (out?.error) { json({ ok: false, error: out.error, ...(out.perk ? { perk: out.perk } : {}) }); return; }
       if (onSite && !out?.unchanged) publish.refresh().then((off) => off && told(), () => {});
       json(out?.unchanged ? view(await store.ready()) : await told());
     };
   }
 
-  // An item kept through the hub (keep.js): its answer, with the Bit as it is now.
-  function keeping(ask) {
+  // An item or an extra kept through the hub (keep.js): its answer, with the Bit as it is now.
+  function keeping(ask, field = 'item') {
     return async (req, _res, { json, readBody }, hands) => {
       const body = await readJson(req, readBody);
-      if (!body || typeof body.item !== 'string') { json({ ok: false, error: 'bad_request' }); return; }
+      if (!body || typeof body[field] !== 'string') { json({ ok: false, error: 'bad_request' }); return; }
       let out;
       try {
         await items.ready();
@@ -97,6 +97,7 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
     'POST /api/bit/prefs': changing((m, body) => Model.setPrefs(m, body)),
     'POST /api/bit/claim': keeping((body) => keep.claim(body.item)),
     'POST /api/bit/buy': keeping((body) => keep.shop(body.item, typeof body.consent === 'string' ? body.consent : undefined)),
+    'POST /api/bit/perk': keeping((body) => keep.perk(body.perk), 'perk'),
     'POST /api/bit/publish': async (req, _res, { json, readBody }, hands) => {
       const body = await readJson(req, readBody);
       if (typeof body?.public !== 'boolean') { json({ ok: false, error: 'bad_request' }); return; }
@@ -111,7 +112,7 @@ function createRoutes({ store, hatch, founder, publish = NO_PUBLISH, keep = NO_K
 }
 
 // Tests and a store with no hub: nothing is kept through it.
-const NO_KEEP = Object.freeze({ claim: async () => ({ ok: false, error: 'network' }), shop: async () => ({ ok: false, error: 'network' }) });
+const NO_KEEP = Object.freeze({ claim: async () => ({ ok: false, error: 'network' }), shop: async () => ({ ok: false, error: 'network' }), perk: async () => ({ ok: false, error: 'network' }) });
 // Tests and a store with no hub: only the items of the code.
 const NO_ITEMS = Object.freeze({ ready: async () => {}, refresh: async () => false });
 // Tests and a store with no hub: nothing is ever shown.

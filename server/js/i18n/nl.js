@@ -8152,6 +8152,7 @@ module.exports = {
   mybit_name_hint: 'Geef hem een naam',
   mybit_name_bad: 'Die naam kan niet. Probeer een andere.',
   mybit_save_failed: 'Opslaan mislukt. Probeer het opnieuw.',
+  mybit_perk_supporters: 'Voor supporters: kies het om het met je pas te openen.',
   mybit_traits: 'Wat hij van je leert',
   mybit_trait_gamer: 'Gamer',
   mybit_trait_night_owl: 'Nachtuil',

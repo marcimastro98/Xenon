@@ -212,15 +212,15 @@
   }
   loadDesk();
 
-  // The signs over its head (signals.js, signs.js on the shared table bit-signs.js) from the start, with their styles and the pocket's;
-  // the pocket itself (pocket.js) the first time it is asked for.
+  // The signs over its head (signals.js, signs.js on the shared table bit-signs.js) from the start, with their styles and the pocket's,
+  // and its extras (perks.js); the pocket itself (pocket.js) the first time it is asked for.
   let pocketReady = null;
   function loadSigns() {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
     css.href = 'components/BitPocket/BitPocket.css';
     document.head.append(css);
-    load(['shared/src/bit-signs.js', 'js/bit-companion/signals.js', 'js/bit-companion/signs.js']);
+    load(['shared/src/bit-signs.js', 'js/bit-companion/signals.js', 'js/bit-companion/signs.js', 'js/bit-companion/perks.js']);
   }
   loadSigns();
 

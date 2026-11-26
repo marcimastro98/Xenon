@@ -1,7 +1,8 @@
 'use strict';
 // Bit's pocket: what opens when the person taps their own Bit (companion.js, tile.js, desk.js through the
 // Xenon menu's window). At the top what Bit has to tell now (signals.js) with the one thing to do about it;
-// then four quick keys the person chooses from what this PC can run (GET /api/bit/pocket, server/bit/pocket.js);
+// then the quick keys the person chooses from what this PC can run (GET /api/bit/pocket, server/bit/pocket.js),
+// four, or eight with the extra the hub may keep for supporters (perks.js: a closed one shows the gold heart);
 // then "Ask Bit" and its room. Opening it is seeing what it says: the sign over its head goes.
 // On the dashboard it opens beside the Bit that was tapped; alone in the menu's window (`sheet`) it fills it,
 // and a key closes the window before it runs (POST /screen-menu `run`), as the menu's own tiles do.
@@ -97,6 +98,7 @@
 
   async function saveKeys(ids) {
     const r = await post('/api/bit/prefs', { keys: ids });
+    if (r?.error === 'locked') { window.BitPerks?.offer(r.perk, () => saveKeys(ids)); return; }
     if (!r?.ok || !r.bit) { failed(); return; }
     window.BitApp?.heard(r.bit);
     drawKeys();
@@ -104,12 +106,14 @@
 
   function pickRow() {
     const ids = chosen().map((c) => c.id);
-    const full = ids.length >= 4;
+    const full = ids.length >= (window.BitPerks?.keys() ?? 4);
+    const closed = full && window.BitPerks?.locked('moreKeys'); // a key more opens the extra
     return ui.choices.map((c) => {
       const on = ids.includes(c.id);
       const b = keyButton(c, () => saveKeys(on ? ids.filter((id) => id !== c.id) : [...ids, c.id]));
       b.setAttribute('aria-pressed', String(on));
-      b.disabled = full && !on;
+      b.disabled = full && !on && !closed;
+      if (closed && !on) window.BitPerks.mark(b, 'moreKeys');
       return b;
     });
   }

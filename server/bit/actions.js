@@ -45,7 +45,7 @@ function createBitActions({ store, broadcast, now = () => new Date(), random = M
     } catch {
       return { ok: false, error: 'write_failed' };
     }
-    if (out?.error) return { ok: false, error: out.error };
+    if (out?.error) return { ok: false, error: out.error, ...(out.perk ? { perk: out.perk } : {}) };
     const view = Model.view(await store.ready(), now());
     if (!out?.unchanged) broadcast('bit', view);
     return { ok: true, bit: brief(view) };
