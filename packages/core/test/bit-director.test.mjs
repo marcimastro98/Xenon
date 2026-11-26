@@ -128,3 +128,25 @@ test('the life pack keeps a personal Bit plain: no hearts, confetti or star eyes
     }
   }
 });
+
+test('the move pack walks in place: its moods loop with the eyes ahead, the body never changes', () => {
+  const MOVE = require('../src/bit-clips-move.js');
+  const LIFE = require('../src/bit-clips-life.js');
+  for (const id of ['walk', 'run', 'walkSign', 'sit', 'turn']) assert.ok(bit.clip(id), `${id} reached the engine`);
+  for (const c of MOVE.CLIPS) {
+    for (const fr of c.frames) {
+      assert.ok((fr.dy || 0) >= -2 && (fr.dy || 0) <= 2, `${c.id} leaves its cell`);
+      for (const e of fr.ex || []) {
+        const name = Array.isArray(e) ? e[0] : e;
+        assert.ok(bit.parts[name] || LIFE.PARTS[name] || MOVE.PARTS[name], `${c.id}: unknown part ${name}`);
+      }
+    }
+  }
+  for (const id of ['walk', 'run', 'walkSign']) {
+    const c = bit.clip(id);
+    assert.equal(c.kind, 'mood', `${id} loops while the stroll lasts`);
+    assert.ok(c.frames.every((fr) => fr.eyes === 'right'), `${id} looks where it goes (left is the host's mirror)`);
+  }
+  assert.equal(bit.clip('turn').kind, 'react');
+  assert.deepEqual(D.PACES, ['live', 'slow', 'game', 'asleep', 'still']);
+});

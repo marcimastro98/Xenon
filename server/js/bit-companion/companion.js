@@ -39,12 +39,15 @@
     return typeof t === 'function' ? t(bit?.hatched ? 'mybit_open' : 'mybit_egg_label') : 'Bit';
   }
 
-  function mountBit(host, still) {
+  // In the clock only the small moves that keep inside the pill.
+  const CHIP_FIDGETS = ['doubleBlink', 'lookAround', 'antennaSpark'];
+
+  function mountBit(host, calm) {
     const A = app();
     if (!A) return;
     A.mount(host, {
       mood: bit?.hatched ? 'idle' : 'egg',
-      fidgets: !!(bit?.hatched) && !still,
+      fidgets: !bit?.hatched ? false : calm ? CHIP_FIDGETS : true,
       look: () => A.personal(),
     });
   }
@@ -71,9 +74,10 @@
     document.body.append(node);
     mountBit(btn, false);
     spots.corner = { node, btn, kind };
+    window.BitStroll?.arm();
   }
 
-  // In the clock: a still Bit between moves, like every other mark of the bar.
+  // In the clock: a calm Bit between moves, like every other mark of the bar.
   function mountChip(kind) {
     const slot = clockSlot();
     if (!slot) return;

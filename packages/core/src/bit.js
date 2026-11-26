@@ -5,7 +5,7 @@
   // Extra clip packs (the hatch, life moments). In a page a pack loaded before this file
   // waits in Xenon.bitPacks, one loaded after calls addPack(); a page that skips one just
   // lacks those clips.
-  const packs = node ? [require('./bit-clips-life.js')] : (root.Xenon?.bitPacks) || [];
+  const packs = node ? [require('./bit-clips-life.js'), require('./bit-clips-move.js')] : (root.Xenon?.bitPacks) || [];
   const mod = factory(clips, packs);
   if (node) module.exports = mod;
   root.Xenon = root.Xenon || {};
@@ -230,6 +230,13 @@
     );
   }
 
+  /** The frame a still pose shows: the longest one, usually the clearest face. */
+  function stillIndex(c) {
+    let best = 0;
+    c.frames.forEach((f, i) => { if (f.ms > c.frames[best].ms) best = i; });
+    return best;
+  }
+
   function duration(clipOrId) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
     return c ? c.frames.reduce((s, f) => s + f.ms, 0) : 0;
@@ -237,6 +244,7 @@
 
   return {
     STAGE,
+    stillIndex,
     INK,
     MOOD_RGB,
     POKES,

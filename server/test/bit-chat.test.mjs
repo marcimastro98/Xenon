@@ -4,56 +4,14 @@
 // beside a reply. The page itself is checked in the browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
-import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { createRequire } from 'node:module';
+import { readFileSync } from './browser-source.mjs';
+import { FakeEl, bootPlayer, BIT_ENGINE } from './bit-player-fake.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const BIT_ENGINE = require('./fixtures/bit-engine.json');
-
-// Just enough DOM for the player: elements that keep children and attributes.
-class FakeEl {
-  constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.parent = null; this.textContent = ''; this.className = ''; this.isConnected = true; }
-  setAttribute(k, v) { this.attrs[k] = String(v); }
-  removeAttribute(k) { delete this.attrs[k]; }
-  getAttribute(k) { return this.attrs[k] ?? null; }
-  appendChild(c) { c.parent = this; this.children.push(c); return c; }
-  append(...cs) { cs.forEach((c) => this.appendChild(c)); }
-  replaceChildren(...cs) { this.children = []; this.append(...cs); }
-  remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.isConnected = false; }
-}
-
-function fakeClock() {
-  let next = 1;
-  const pending = new Map();
-  return {
-    setTimeout: (fn, ms) => { const id = next++; pending.set(id, { fn, ms }); return id; },
-    clearTimeout: (id) => { pending.delete(id); },
-    pending,
-    runNext() { const [id, t] = pending.entries().next().value; pending.delete(id); t.fn(); },
-  };
-}
-
-function bootPlayer() {
-  const clock = fakeClock();
-  const docListeners = {};
-  const document = {
-    hidden: false,
-    createElementNS: (_ns, tag) => new FakeEl(tag),
-    addEventListener: (type, fn) => { docListeners[type] = fn; },
-    removeEventListener: () => {},
-  };
-  const ctx = { document, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, Math, Promise, Object, Array, String, Number, Set, Map };
-  ctx.globalThis = ctx;
-  vm.createContext(ctx);
-  // Every page loads the whole engine in this order (bit-engine-pages.test.mjs).
-  for (const f of BIT_ENGINE) {
-    vm.runInContext(read(`../${f}`), ctx, { filename: f });
-  }
-  return { ctx, clock, Xenon: ctx.Xenon };
-}
 
 test('a held Bit stops its clock and picks up again when let go', () => {
   const { clock, Xenon } = bootPlayer();
@@ -112,8 +70,8 @@ test('a tile Bit follows the dashboard freezes, an overlay Bit only its own list
   const holds = new Map();
   const spy = (host, opts) => {
     const p = BitApp.mount(host, opts);
-    const real = p.hold.bind(p);
-    p.hold = (h) => { holds.set(host, h); real(h); };
+    const real = p.setPace.bind(p);
+    p.setPace = (pace) => { holds.set(host, pace === 'still'); real(pace); };
     return p;
   };
   spy(tile, { mood: 'idle' });
@@ -256,8 +214,8 @@ test('in voice mode Bit listens, thinks and talks, in the colour of the mood', (
     if (state === 'speaking') assert.equal(props['--bit-rgb'], ctx.Xenon.bit.MOOD_RGB.idle, 'talking is Bit yellow, not the thinking colour');
   }
   assert.equal(host.children.length, 1, 'one Bit, mounted once');
-  const real = player().hold.bind(player());
-  player().hold = (h) => { holds.push(h); real(h); };
+  const real = player().setPace.bind(player());
+  player().setPace = (pace) => { holds.push(pace === 'still'); real(pace); };
   // The voice view is the overlay in front: the dashboard freezes leave it moving.
   for (const cls of ['overlay-frozen', 'ambient-idle', 'game-mode']) { flip(cls, true); assert.equal(holds.at(-1), false, cls); flip(cls, false); }
   for (const cls of ['low-power-gpu', 'perf-mode']) { flip(cls, true); assert.equal(holds.at(-1), true, cls); flip(cls, false); }
@@ -433,8 +391,8 @@ test('inside the Game Companion card Bit waits, looks at the screen, answers and
   assert.equal(els['gc-reply-bit'].innerHTML, pose('idle'));
   // the card is in front while open: game mode does not stop this Bit, the low-GPU choices do
   const holds = [];
-  const real = head().hold.bind(head());
-  head().hold = (h) => { holds.push(h); real(h); };
+  const real = head().setPace.bind(head());
+  head().setPace = (pace) => { holds.push(pace === 'still'); real(pace); };
   flip('game-mode', false); flip('game-mode', true);
   assert.equal(holds.at(-1), false, 'game-mode');
   flip('perf-mode', true); assert.equal(holds.at(-1), true, 'perf-mode'); flip('perf-mode', false);

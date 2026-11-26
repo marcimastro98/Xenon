@@ -1,14 +1,14 @@
 'use strict';
 
-// Bit in the dashboard: mounts the shared engine (shared/src/bit*.js) where the
-// app shows Bit, feeds it the moment (hour, weather, music, a game running) and
-// holds every live Bit while the dashboard stands still. One body-class
-// observer covers all of them; a Bit whose host left the page is let go on the
-// next mount or sweep.
+// Bit in the dashboard: mounts the shared engine (shared/src/bit*.js) where the app shows Bit,
+// feeds it the moment (hour, weather, music, a game running) and sets how much every live Bit
+// moves. One body-class observer covers all of them; a Bit whose host left the page is let go
+// on the next mount or sweep.
 (() => {
-  // Tile-level Bits stop under every dashboard freeze (invariants-rendering-gpu:
-  // overlay-frozen, ambient-idle, game-mode, low-power-gpu, perf-mode). A Bit
-  // that lives ON an overlay passes its own list without overlay-frozen.
+  // A Bit stops under every dashboard freeze (invariants-rendering-gpu: overlay-frozen,
+  // ambient-idle, game-mode, low-power-gpu, perf-mode); one that lives ON an overlay passes its
+  // own list without overlay-frozen. The person's own Bit (a host marked data-own-bit) moves at
+  // the pace moments.js reads instead: slower, never frozen, by those same states.
   const TILE_HOLD = ['overlay-frozen', 'ambient-idle', 'game-mode', 'low-power-gpu', 'perf-mode'];
   const HOT_C = 28;
   const COLD_C = 3;
@@ -33,10 +33,8 @@
 
   const engine = () => (window.Xenon?.bit && window.Xenon.bitPlayer ? window.Xenon : null);
 
-  function held(hold) {
-    const c = document.body.classList;
-    return hold.some((name) => c.contains(name));
-  }
+  const held = (hold) => hold.some((name) => document.body.classList.contains(name));
+  const paceOf = (entry) => (entry.own && window.BitMoments ? window.BitMoments.pace() : held(entry.hold) ? 'still' : 'live');
 
   function syncHolds() {
     for (const [host, entry] of players) {
@@ -46,7 +44,7 @@
         continue;
       }
       entry.placed = true;
-      entry.player.hold(held(entry.hold));
+      entry.player.setPace(paceOf(entry));
     }
   }
 
@@ -92,7 +90,7 @@
   /**
    * A live Bit in `host` (emptied first: a cloned tile carries a stale copy).
    * @param {Element} host
-   * @param {{ mood?: string, label?: string, fidgets?: boolean, calm?: boolean, hold?: string[], look?: () => object|null }} [opts]
+   * @param {{ mood?: string, label?: string, fidgets?: boolean|string[], calm?: boolean, hold?: string[], look?: () => object|null }} [opts]
    *   look: a look of its own instead of the page's (the companion keeps the person's Bit)
    */
   function mount(host, opts = {}) {
@@ -101,22 +99,20 @@
     const known = players.get(host);
     if (known) return known.player;
     host.replaceChildren();
+    const mine = typeof host.hasAttribute === 'function' && host.hasAttribute('data-own-bit');
     const player = X.bitPlayer.mount(host, {
       mood: opts.mood, label: opts.label, fidgets: opts.fidgets, calm: opts.calm, context: () => context(),
-      director: () => (opts.look || own ? director : null), look: opts.look,
+      director: () => (opts.look || own ? director : null), look: opts.look, onWake: mine ? () => window.BitMoments?.woke() : undefined,
     });
-    const hold = Array.isArray(opts.hold) ? opts.hold : TILE_HOLD;
-    players.set(host, { player, hold });
-    player.hold(held(hold));
+    const entry = { player, hold: Array.isArray(opts.hold) ? opts.hold : TILE_HOLD, own: mine };
+    players.set(host, entry);
+    player.setPace(paceOf(entry));
     watchBody();
     syncHolds();
     return player;
   }
 
-  function playerFor(host) {
-    const entry = host && players.get(host);
-    return entry ? entry.player : null;
-  }
+  const playerFor = (host) => (host && players.get(host)?.player) || null;
 
   // A still Bit as markup, for places that are copied as HTML (chat lines and
   // their mirrors). Only the engine's own palette and numbers go in it.

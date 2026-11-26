@@ -1,7 +1,7 @@
 // The person's own Bit on the dashboard (js/bit-companion/): where it stands
 // (corner, by the clock, both, hidden, its tile), the egg until it hatches,
 // stepping aside for the Vitals' Bit, what of the live stream makes it react
-// (moments.js) on every place at once, and its room (the egg, its name and settings, items to try
+// (moments.js) on every place at once, its strolls and the spot it is dragged to (stroll.js), and its room (the egg, its name and settings, items to try
 // on and keep, bit-companion/room.js), each
 // answer of the server followed on every place.
 import { test, mock } from 'node:test';
@@ -18,9 +18,9 @@ const SERVER = join(HERE, '..');
 const require = createRequire(import.meta.url);
 const BIT_ENGINE = require('./fixtures/bit-engine.json');
 const src = (p) => readFileSync(join(SERVER, p), 'utf8');
-const FILES = [...BIT_ENGINE, 'js/dialog-focus.js', 'js/ai/bit-app.js', 'js/bit-companion/wardrobe-keep.js', 'js/bit-companion/wardrobe-tabs.js', 'js/bit-companion/wardrobe.js',
+const FILES = [...BIT_ENGINE, 'shared/src/bit-clips-move.js', 'js/dialog-focus.js', 'js/ai/bit-app.js', 'js/bit-companion/wardrobe-keep.js', 'js/bit-companion/wardrobe-tabs.js', 'js/bit-companion/wardrobe.js',
   'js/bit-companion/card-dna.js', 'js/bit-companion/card.js', 'js/bit-companion/recap.js', 'js/bit-companion/clip.js', 'js/bit-companion/room-scenery.js',
-  'js/bit-companion/room-panels.js', 'js/bit-companion/room.js', 'js/bit-companion/sheet.js', 'js/bit-companion/companion.js', 'js/bit-companion/tile.js', 'js/bit-companion/moments.js'];
+  'js/bit-companion/room-panels.js', 'js/bit-companion/room.js', 'js/bit-companion/sheet.js', 'js/bit-companion/companion.js', 'js/bit-companion/tile.js', 'js/bit-companion/moments.js', 'js/bit-companion/warp.js', 'js/bit-companion/stroll.js'];
 
 // The supporters' items come with the view, as the hub made them (server/bit/items.js).
 const HUB_ITEMS = require('./fixtures/bit-hub-items.json').map((it) => ({ ...it, offered: true }));
@@ -40,15 +40,18 @@ function rig({ vitalsPet = false, answers = {} } = {}) {
   clock.hidden = true;
   document.body.append(clock);
   const posts = [];
-  const timers = [];
+  const timers = new Map(); // id -> fn: a cleared timer never runs, as in a page
+  let timerId = 0;
   const winHandlers = {};
   const ctx = {
     console, Math, Promise, queueMicrotask, Object, Array, String, Number, Set, Map, JSON, RegExp, Date, AbortController,
     document,
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     matchMedia: () => ({ matches: false, addEventListener() {} }),
-    setTimeout: (fn) => { timers.push(fn); return timers.length; },
-    clearTimeout() {},
+    setTimeout: (fn) => { timers.set(++timerId, fn); return timerId; },
+    clearTimeout: (id) => { timers.delete(id); },
+    innerWidth: 1280,
+    innerHeight: 720,
     requestAnimationFrame: () => 0,
     cancelAnimationFrame() {},
     addEventListener: (type, fn) => { (winHandlers[type] ||= []).push(fn); },
@@ -85,7 +88,7 @@ function rig({ vitalsPet = false, answers = {} } = {}) {
   ctx.BitMoments.listen(es);
   const send = (name, data) => stream[name].forEach((fn) => fn({ data: JSON.stringify(data) }));
   const fakeDirector = () => { ctx.BitApp.director = () => ({ react: (name) => { reactions.push(name); return null; } }); };
-  const runTimers = () => timers.splice(0).forEach((fn) => fn());
+  const runTimers = () => { const due = [...timers.values()]; timers.clear(); due.forEach((fn) => fn()); };
   const key = (k) => (winHandlers.keydown || []).forEach((fn) => fn({ key: k, preventDefault() {}, stopPropagation() {} }));
   return {
     ctx, document, clock, posts, tell, send, reactions, fakeDirector, runTimers, key,
@@ -145,7 +148,8 @@ test('the live stream makes it react: games, heat once per climb, a new track, a
   r.send('status', { idleSec: 700 });
   r.send('status', { idleSec: 1 });
   r.send('status', { idleSec: 1 });
-  assert.deepEqual(r.reactions, ['gameStart', 'gameEnd', 'cpuHot', 'veryHot', 'gpuHot', 'trackChange', 'welcomeBack']);
+  // The first look of the day says hello, once (moments.js greet).
+  assert.deepEqual(r.reactions, ['hello', 'gameStart', 'gameEnd', 'cpuHot', 'veryHot', 'gpuHot', 'trackChange', 'welcomeBack']);
 });
 
 test('an egg does not react, and a new stage is a moment of its own', async () => {
@@ -569,7 +573,7 @@ test('a moment plays on every own Bit of the page at once: corner, clock and til
   r.tell(born({ place: 'both' }));
   r.ctx.BitTile.renderWidgets();
   const played = [];
-  r.ctx.BitApp.playerFor = (host) => ({ play: (id) => played.push([host.className, id]) });
+  r.ctx.BitApp.playerFor = (host) => ({ running: true, play: (id) => played.push([host.className, id]) });
   r.ctx.BitApp.director = () => ({ react: () => 'fanSweat' });
   r.send('system', { cpuTemp: 90, gpuTemp: 40 });
   assert.deepEqual(played.map(([cls]) => cls).sort(), ['bitc-chip', 'bitc-sprite', 'bitt-sprite']);
@@ -588,7 +592,7 @@ test('on a layer page the tile takes the stream through its own handlers', () =>
   r.ctx.BitTile.onStatus({ gaming: true });
   r.ctx.BitTile.onMedia({ active: true, playbackStatus: 'Playing', title: 'One' });
   r.ctx.BitTile.onMedia({ active: true, playbackStatus: 'Playing', title: 'Two' });
-  assert.deepEqual(r.reactions, ['gameStart', 'trackChange']);
+  assert.deepEqual(r.reactions, ['hello', 'gameStart', 'trackChange']);
 });
 
 test('a founder\'s egg files one card to hatch it; a fresh hatch takes it back, an old one asks nothing', () => {
@@ -673,4 +677,134 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
   off.tell(born({ place: 'off' }, { ...old, recap: { month: nov, year: null } }));
   off.tell(born({}, { ...old, recap: { month: null, year: null } }));
   assert.deepEqual(none, [], 'no Bit wanted anywhere, or no month closed yet');
+});
+
+// ── stroll.js: the corner walks now and then, and stays where it is dragged ──
+const drag = (r, steps) => {
+  const sprite = r.corner().querySelector('.bitc-sprite');
+  for (const [type, x, y] of steps) {
+    (r.document._handlers[type] || []).forEach((fn) => fn({ type, target: sprite, button: 0, isPrimary: true, pointerId: 1, clientX: x, clientY: y }));
+  }
+};
+const rootVar = (r, name) => r.document.documentElement.style.getPropertyValue(name);
+
+test('dragged anywhere, Bit stays there, by its edge when dropped near one; the drop opens nothing', async () => {
+  const r = rig({ answers: { '/api/bit/prefs': (body) => ({ ok: true, bit: born(body) }) } });
+  r.tell(born());
+  Object.assign(r.ctx, { innerWidth: 1292, innerHeight: 788 }); // the corner's room: 1200 x 700
+  drag(r, [['pointerdown', 46, 742], ['pointermove', 48, 742], ['pointermove', 646, 392], ['pointerup', 646, 392]]);
+  assert.equal(r.corner().classList.contains('is-dragging'), false);
+  r.document._handlers.click.forEach((fn) => fn({ target: r.corner().querySelector('.bitc-sprite'), stopPropagation() {}, preventDefault() {} }));
+  assert.equal(r.sheet(), null, 'letting go is not a tap');
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { spot: { x: 0.5, y: 0.503 } } });
+  assert.deepEqual([rootVar(r, '--bitc-fx'), rootVar(r, '--bitc-fy')], ['0.5', '0.503']);
+  drag(r, [['pointerdown', 646, 392], ['pointermove', 1270, 760], ['pointerup', 1270, 760]]);
+  await settle();
+  assert.deepEqual(r.posts.at(-1).body, { spot: { x: 1, y: 0 } }, 'near the bottom right corner it sticks to it');
+  r.tell(born({ spot: null }));
+  await settle(); // set from elsewhere: it goes there through an effect (warp.js)
+  assert.equal(rootVar(r, '--bitc-fx'), '', 'back in its corner');
+});
+
+test('a place that was not saved is not shown: Bit goes back where it was', async () => {
+  const r = rig({ answers: { '/api/bit/prefs': { ok: false, error: 'offline' } } });
+  r.tell(born({ spot: { x: 0.2, y: 0 } }));
+  Object.assign(r.ctx, { innerWidth: 1292, innerHeight: 788 });
+  r.ctx.console = { ...console, warn() {} };
+  drag(r, [['pointerdown', 300, 742], ['pointermove', 646, 392], ['pointerup', 646, 392]]);
+  assert.equal(rootVar(r, '--bitc-fx'), '0.5');
+  await settle();
+  assert.equal(rootVar(r, '--bitc-fx'), '0.2');
+});
+
+test('now and then Bit strolls along the bottom and comes back; told to stay, it never does', async () => {
+  const r = rig();
+  r.tell(born({ roam: 'walk' }));
+  Object.assign(r.ctx, { innerWidth: 1280, innerHeight: 720 });
+  const node = r.corner();
+  const player = r.ctx.BitApp.playerFor(node.querySelector('.bitc-sprite'));
+  const set = r.ctx.setTimeout;
+  const waits = [];
+  r.ctx.setTimeout = (fn, ms) => { if (ms >= 120000) waits.push(ms); return set(fn, ms); };
+  for (let i = 0; i < 3; i += 1) { r.ctx.BitStroll.arm(); r.tell(born({ roam: 'walk' })); }
+  assert.deepEqual(waits, [], 'drawn again or heard of, it keeps the wait it started (else it would never walk)');
+  r.ctx.setTimeout = set;
+  r.runTimers();
+  assert.equal(r.ctx.BitStroll.walking(), true, 'out for a walk');
+  assert.equal(player.mood, 'walk');
+  assert.ok(parseInt(node.style.getPropertyValue('--bitc-walk'), 10) > 0, 'to the right, where there is room');
+  for (let i = 0; i < 30 && r.ctx.BitStroll.walking(); i += 1) { r.runTimers(); await settle(); }
+  assert.equal(r.ctx.BitStroll.walking(), false, 'home again');
+  assert.equal(node.style.getPropertyValue('--bitc-walk'), '0px');
+  assert.equal(node.classList.contains('is-left'), false, 'facing out');
+  assert.equal(player.mood, 'idle');
+  r.ctx.BitStroll.arm();
+  r.runTimers();
+  assert.equal(r.ctx.BitStroll.walking(), true);
+  r.ctx.dispatchEvent({ type: 'resize' });
+  assert.equal(r.ctx.BitStroll.walking(), false, 'a smaller window ends the walk, never Bit off the screen');
+  assert.equal(node.style.getPropertyValue('--bitc-walk'), '0px');
+  r.tell(born({ roam: 'stay' }));
+  r.ctx.BitStroll.arm();
+  r.runTimers();
+  assert.equal(r.ctx.BitStroll.walking(), false);
+});
+
+// ── warp.js on the corner: teleports, a new place reached in view, a few moments in place ──
+const spyWarp = (r) => {
+  const calls = [];
+  r.ctx.BitWarp = { move: async (sprite, name, relocate, opts) => { calls.push({ name, opts, sprite }); relocate(); } };
+  return calls;
+};
+
+test('with roam mix a stroll can start in a blink, the way the room says, and it walks back', async () => {
+  const r = rig();
+  r.tell(born({ roam: 'mix', warp: 'beam' }));
+  const calls = spyWarp(r);
+  r.ctx.Math = Object.create(Math, { random: { value: () => 0.1 } }); // under the odds of a teleport
+  const node = r.corner();
+  r.runTimers();
+  await settle();
+  assert.deepEqual(calls.map((c) => c.name), ['beam']);
+  assert.equal(calls[0].sprite, node.querySelector('.bitc-sprite'));
+  assert.equal(node.style.getPropertyValue('--bitc-walk-ms'), '0ms', 'there at once');
+  assert.ok(parseInt(node.style.getPropertyValue('--bitc-walk'), 10) > 0);
+  for (let i = 0; i < 30 && r.ctx.BitStroll.walking(); i += 1) { r.runTimers(); await settle(); }
+  assert.equal(node.style.getPropertyValue('--bitc-walk'), '0px', 'home on foot');
+  assert.equal(calls.length, 1);
+});
+
+test('a place set elsewhere is reached with an effect, after its room closes; a drag is simply put', async () => {
+  const r = rig({ answers: { '/api/bit/prefs': (body) => ({ ok: true, bit: born(body) }) } });
+  r.tell(born({ spot: { x: 0.4, y: 0.2 } }));
+  const calls = spyWarp(r);
+  r.tell(born({ spot: { x: 0.4, y: 0.2 } }));
+  assert.equal(calls.length, 0, 'the same place: nothing');
+  r.ctx.BitSheet.open();
+  r.tell(born({ spot: null }));
+  assert.equal(rootVar(r, '--bitc-fx'), '0.4', 'its room covers the corner: it waits there');
+  r.ctx.BitSheet.close();
+  await settle();
+  assert.deepEqual(calls.map((c) => c.name), [undefined], 'the pref unset: a different way each time');
+  assert.equal(rootVar(r, '--bitc-fx'), '', 'in its corner now');
+  Object.assign(r.ctx, { innerWidth: 1292, innerHeight: 788 });
+  drag(r, [['pointerdown', 46, 742], ['pointermove', 646, 392], ['pointerup', 646, 392]]);
+  await settle();
+  assert.equal(calls.length, 1, 'dragged there: no effect on the way');
+  assert.equal(rootVar(r, '--bitc-fx'), '0.5');
+});
+
+test("the day's hello downloads Bit in, a very hot PC glitches it; elsewhere than the corner, nothing", async () => {
+  const r = rig();
+  r.tell(born());
+  const calls = spyWarp(r);
+  r.ctx.BitApp.director = () => ({ react: (name) => name });
+  r.ctx.BitMoments.react('hello');
+  r.send('system', { cpuTemp: 95, gpuTemp: 60 });
+  r.ctx.BitMoments.react('drink');
+  assert.deepEqual(calls.map((c) => [c.name, c.opts.leave]), [['download', false], ['glitch', true]]);
+  r.tell(born({ place: 'topbar' }));
+  r.ctx.BitMoments.react('hello');
+  assert.equal(calls.length, 2, 'no corner, no effect');
 });

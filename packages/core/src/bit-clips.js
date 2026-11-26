@@ -176,7 +176,7 @@
 
   // ── mood loops: what Bit does while in a state ────────────────
   const MOODS = [
-    { id: 'idle', frames: [F(1200, {}), F(1100, { sy: 1.03, sx: 0.985 })] },
+    { id: 'idle', frames: [F(1300, {}), F(1100, { sy: 1.05, sx: 0.98 }), F(1300, {}), F(1100, { sy: 1.05, sx: 0.98 }), F(110, { eyes: 'blink' })] },
     {
       id: 'listen',
       frames: [

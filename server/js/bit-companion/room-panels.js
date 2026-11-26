@@ -10,6 +10,8 @@
   const TRAIT_KEYS = { gamer: 'gamer', nightOwl: 'night_owl', musicLover: 'music_lover', coder: 'coder', overclocker: 'overclocker', earlyBird: 'early_bird' };
   const PLACES = ['corner', 'topbar', 'both', 'off'];
   const REACTIONS = ['normal', 'few', 'off'];
+  const ROAMS = ['mix', 'walk', 'stay'];
+  const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch']; // bit-companion/warp.js
   const GROUNDS = ['plain', 'stage'];
   const NAME_MAX = 24;
   let shareTab = 'card'; // what the share drawer shows; the room's buttons choose it before opening
@@ -87,12 +89,27 @@
     return box;
   }
 
+  // In the corner: whether it strolls now and then, and the way back after a drag (stroll.js).
+  function roam(p, h) {
+    const box = choice(h.say('mybit_roam'), 'roam', ROAMS, p.roam || 'mix', (v) => h.say(`mybit_roam_${v}`), h);
+    if (!p.spot) return box;
+    const back = makeEl('button', 'bitc-seg-btn bitc-spot-back', h.say('mybit_spot_reset'));
+    back.type = 'button';
+    back.addEventListener('click', () => setPref({ spot: null }, h), { signal: h.signal });
+    box.append(back);
+    return box;
+  }
+
+  // How it teleports: on a stroll with roam 'mix', and on its way to a place set here or elsewhere.
+  const warpChoice = (p, h) => choice(h.say('mybit_warp'), 'warp', WARPS, p.warp || 'any', (v) => h.say(`mybit_warp_${v}`), h);
+
   function prefs(bit, h) {
     const p = bit.prefs || {};
     const box = makeEl('section', 'bitc-part bitc-prefs');
     box.append(choice(h.say('mybit_place'), 'place', PLACES, p.place, (v) => h.say(`mybit_place_${v}`), h));
     if (!bit.hatched) return box;
     box.append(choice(h.say('mybit_reactions'), 'reactions', REACTIONS, p.reactions, (v) => h.say(`mybit_react_${v}`), h));
+    if (p.place === 'corner' || p.place === 'both') box.append(roam(p, h), warpChoice(p, h));
     const label = makeEl('label', 'bitc-switch');
     const tick = makeEl('input');
     tick.type = 'checkbox';

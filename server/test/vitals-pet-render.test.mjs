@@ -101,7 +101,7 @@ test('the pet stands still with the dashboard: game mode and low power hold it',
   const r = mount();
   const player = r.sandbox.BitApp.playerFor(r.sprite());
   const holds = [];
-  player.hold = (h) => holds.push(h);
+  player.setPace = (pace) => holds.push(pace === 'still');
   for (const cls of ['game-mode', 'low-power-gpu']) {
     r.document.body.classList.add(cls);
     r.sandbox.BitApp.sweep();

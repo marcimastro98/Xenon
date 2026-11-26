@@ -180,7 +180,7 @@
 
   // ── mood loops: what Bit does while in a state ────────────────
   const MOODS = [
-    { id: 'idle', frames: [F(1200, {}), F(1100, { sy: 1.03, sx: 0.985 })] },
+    { id: 'idle', frames: [F(1300, {}), F(1100, { sy: 1.05, sx: 0.98 }), F(1300, {}), F(1100, { sy: 1.05, sx: 0.98 }), F(110, { eyes: 'blink' })] },
     {
       id: 'listen',
       frames: [
@@ -1475,7 +1475,7 @@
   // Extra clip packs (the hatch, life moments). In a page a pack loaded before this file
   // waits in Xenon.bitPacks, one loaded after calls addPack(); a page that skips one just
   // lacks those clips.
-  const packs = node ? [require('./bit-clips-life.js')] : (root.Xenon?.bitPacks) || [];
+  const packs = node ? [require('./bit-clips-life.js'), require('./bit-clips-move.js')] : (root.Xenon?.bitPacks) || [];
   const mod = factory(clips, packs);
   if (node) module.exports = mod;
   root.Xenon = root.Xenon || {};
@@ -1700,6 +1700,13 @@
     );
   }
 
+  /** The frame a still pose shows: the longest one, usually the clearest face. */
+  function stillIndex(c) {
+    let best = 0;
+    c.frames.forEach((f, i) => { if (f.ms > c.frames[best].ms) best = i; });
+    return best;
+  }
+
   function duration(clipOrId) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
     return c ? c.frames.reduce((s, f) => s + f.ms, 0) : 0;
@@ -1707,6 +1714,7 @@
 
   return {
     STAGE,
+    stillIndex,
     INK,
     MOOD_RGB,
     POKES,
@@ -2046,9 +2054,15 @@
    * - createDirector(): one personal Bit's rhythm. Its temperament sets how
    *   often it moves and how much it reacts; its quirk is played twice as often.
    *   Reactions to what happens on the PC have a priority, a cooldown each and
-   *   a cap per hour, and wait while a game runs or at night unless they matter. */
+   *   a cap per hour, and wait while a game runs or at night unless they matter.
+   * - idleGap() / idleFidget(): a waiting player's next fidget at its pace. */
 
   const IDLE_GAP_MS = [7000, 16000];
+  // How much a player moves (bit-player.js setPace): live loops its mood; slow and game rest on a
+  // still pose between clips, slow with a fidget now and then, game with none; asleep and still don't fidget.
+  const PACES = Object.freeze(['live', 'slow', 'game', 'asleep', 'still']);
+  const SLOW_GAP_MS = [40000, 90000];
+  const CALM_FACTOR = 2.5; // a player in a quieter place (the chat) waits this much longer
   const HOUR_MS = 3600000;
   const QUIRK_BOOST = 2;
   // Kept out of a personal Bit's idle pool: hearts read as filler (no-AI-slop rule).
@@ -2157,6 +2171,28 @@
     return null;
   }
 
+  const between = (range, rand) => range[0] + rand() * (range[1] - range[0]);
+
+  // Without a personal Bit's director: the classic rhythm, any fidget that fits.
+  const CLASSIC = Object.freeze({
+    idleGapMs: () => between(IDLE_GAP_MS, Math.random),
+    nextFidget: (ctx, recent) => pickFidget(ctx, recent),
+  });
+
+  /** The pause before a waiting player's next fidget at its pace, or 0: it waits for none. */
+  function idleGap(rhythm, pace, ctx = {}, calm = false, rand = Math.random) {
+    if (pace === 'slow') return between(SLOW_GAP_MS, rand);
+    if (pace !== 'live') return 0;
+    return rhythm.idleGapMs(ctx) * (calm ? CALM_FACTOR : 1);
+  }
+
+  /** The fidget it plays then: one of `only` (never the last one again), or the rhythm's pick. */
+  function idleFidget(rhythm, ctx, recent, only, rand = Math.random) {
+    if (!Array.isArray(only)) return rhythm.nextFidget(ctx, recent);
+    const pool = only.filter((id) => bit.clip(id) && id !== recent[recent.length - 1]);
+    return pool.length ? pool[Math.floor(rand() * pool.length)] : null;
+  }
+
   function clipFor(event, big) {
     const known = event.clips.filter((id) => bit.clip(id));
     if (!known.length) return null;
@@ -2216,7 +2252,7 @@
     };
   }
 
-  return { TEMPERAMENTS, EVENTS, IDLE_GAP_MS, fits, pickFidget, seasonOf, createDirector };
+  return { TEMPERAMENTS, EVENTS, IDLE_GAP_MS, PACES, CLASSIC, fits, pickFidget, seasonOf, createDirector, idleGap, idleFidget };
 });
 
 // ---- bit-player.js
@@ -2237,25 +2273,12 @@
    * A mood loops; while Bit is idle a fidget plays now and then (fitted to
    * the moment, never the same twice in a row); react() plays one clip and
    * goes back to the mood. Stops itself while the page or the element is
-   * hidden, or while the host holds it (hold(true): the app's own freeze
-   * states); reduced motion shows still poses and no fidgets. */
+   * hidden. Its pace (setPace, bitDirector.PACES) says how much it moves;
+   * still (hold(true): the app's own freeze states) stops it, and a reaction
+   * asked meanwhile waits, the last one only. Reduced motion shows still poses
+   * and no fidgets. A page without bit-director.js gets no fidgets, never an error. */
 
   const NS = 'http://www.w3.org/2000/svg';
-  const CALM_FACTOR = 2.5;
-
-  // Without a personal Bit's director: the classic rhythm, any fidget that fits.
-  // A page without bit-director.js gets no idle fidgets, never an error.
-  function classic() {
-    const d = director();
-    if (!d) return null;
-    return {
-      idleGapMs() {
-        const [lo, hi] = d.IDLE_GAP_MS;
-        return lo + Math.random() * (hi - lo);
-      },
-      nextFidget: (ctx, recent) => d.pickFidget(ctx, recent),
-    };
-  }
   let uid = 0;
 
   function el(name, attrs) {
@@ -2264,7 +2287,6 @@
     return node;
   }
 
-  // The frame a still pose shows: the longest one, usually the clearest face.
   // The page's own Bit (BitApp.setOwn): every player without a look of its own draws it.
   let pageLook = null;
   const live = new Set();
@@ -2275,24 +2297,19 @@
     for (const p of live) p.refresh();
   }
 
-  function stillIndex(c) {
-    let best = 0;
-    c.frames.forEach((f, i) => {
-      if (f.ms > c.frames[best].ms) best = i;
-    });
-    return best;
-  }
+  const { stillIndex } = bit;
 
   /**
    * @param {Element} host
    * @param {object} [opts]
    * @param {string} [opts.mood]          starting mood clip id (default 'idle')
    * @param {string} [opts.label]         accessible name; omit for decorative
-   * @param {boolean} [opts.fidgets]      idle surprises (default true)
+   * @param {boolean|string[]} [opts.fidgets] idle surprises (default true), or only these clip ids
    * @param {boolean} [opts.calm]         fewer surprises
    * @param {boolean} [opts.reducedMotion] force still poses (default: OS setting)
    * @param {() => object} [opts.context] the moment, for bitDirector.fits()
    * @param {(id: string) => void} [opts.onClip] told when a clip starts
+   * @param {() => void} [opts.onWake] told when it starts playing again after a stop
    * @param {() => object|null} [opts.look] a look of its own (bit-look.js), read on every
    *   frame: a try-on preview. Without it the player draws the page's look (useLook)
    * @param {object|(() => object|null)} [opts.director] a personal Bit's rhythm
@@ -2330,15 +2347,18 @@
       pageVisible: typeof document === 'undefined' || !document.hidden,
       inView: true,
       held: false,
+      pace: 'live',
       resolveReact: null,
+      shown: null,
       drawn: 0,
     };
 
     const reduced = () => (opts.reducedMotion != null ? !!opts.reducedMotion : !!(motionQuery && motionQuery.matches));
-    const rhythm = () => (typeof opts.director === 'function' ? opts.director() : opts.director) || classic();
+    const rhythm = () => (typeof opts.director === 'function' ? opts.director() : opts.director) || director()?.CLASSIC || null;
 
     function draw(c, i) {
       const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook });
+      state.shown = c;
       state.drawn = i;
       const groups = layers.map((l) => {
         const g = el('g', {});
@@ -2364,21 +2384,26 @@
       state.idleTimer = 0;
     }
 
-    function finishReact() {
-      const done = state.resolveReact;
-      state.resolveReact = null;
-      if (done) done();
+    function finishReact() { const done = state.resolveReact; state.resolveReact = null; if (done) done(); }
+
+    // Between clips off the live pace: the mood's clearest frame, or asleep its sleeping pose.
+    function rest() {
+      const c = bit.clip(state.pace === 'asleep' && bit.clip('sleep') ? 'sleep' : state.mood);
+      draw(c, stillIndex(c));
     }
 
+    // fidgets: false none, an array of clip ids only those (the clock's calm Bit), else the rhythm's pick.
     function scheduleIdle() {
       clearTimeout(state.idleTimer);
+      const d = director();
       const pace = rhythm();
-      if (!pace || !state.running || reduced() || opts.fidgets === false || state.mood !== 'idle') return;
-      const ctx = opts.context ? opts.context() : {};
-      const gap = pace.idleGapMs(ctx) * (opts.calm ? CALM_FACTOR : 1);
+      if (!d || !pace || !state.running || reduced() || opts.fidgets === false || state.mood !== 'idle') return;
+      const ctx = () => (opts.context ? opts.context() : {});
+      const gap = d.idleGap(pace, state.pace, ctx(), opts.calm);
+      if (!gap) return;
       state.idleTimer = setTimeout(() => {
         if (state.current && state.current.kind !== 'mood') return;
-        const next = pace.nextFidget(opts.context ? opts.context() : {}, state.recent);
+        const next = d.idleFidget(pace, ctx(), state.recent, opts.fidgets);
         if (next) play(next);
       }, gap);
     }
@@ -2409,7 +2434,12 @@
         if (c.kind !== 'mood') state.timer = setTimeout(() => (finishReact(), start(bit.clip(state.mood))), bit.duration(c));
         return;
       }
-      if (!state.running) return draw(c, 0);
+      // Held, a reaction waits as the current clip and shows the rest pose, never its first frame.
+      if (!state.running || (c.kind === 'mood' && state.pace !== 'live')) {
+        rest();
+        if (state.running) scheduleIdle();
+        return;
+      }
       step();
       if (c.kind === 'mood') scheduleIdle();
     }
@@ -2451,9 +2481,25 @@
       state.running = should;
       if (!should) {
         clearTimers();
+        if (state.current && state.current.kind !== 'mood') rest();
         return;
       }
       start(state.current && state.current.kind !== 'mood' ? state.current : bit.clip(state.mood));
+      if (opts.onWake) opts.onWake();
+    }
+
+    function setPace(name) {
+      const next = (director()?.PACES || ['live', 'still']).includes(name) ? name : 'live';
+      if (next === state.pace) return;
+      const was = state.running;
+      state.pace = next;
+      state.held = next === 'still';
+      updateRunning();
+      // A reaction playing ends into the new pace by itself; a mood starts again in it.
+      if (was && state.running && (!state.current || state.current.kind === 'mood')) {
+        clearTimers();
+        start(bit.clip(state.mood));
+      }
     }
 
     const onVisibility = () => {
@@ -2481,18 +2527,17 @@
       play,
       poke,
       hold(held) {
-        state.held = !!held;
-        updateRunning();
+        setPace(held ? 'still' : 'live');
       },
-      get mood() {
-        return state.mood;
-      },
-      get clip() {
-        return state.current ? state.current.id : null;
-      },
+      setPace,
+      get pace() { return state.pace; },
+      /** Plays now: shown, on screen and not held. */
+      get running() { return state.running; },
+      get mood() { return state.mood; },
+      get clip() { return state.current ? state.current.id : null; },
       /** Draws the frame on screen again: after the look changed. */
       refresh() {
-        if (state.current) draw(state.current, state.drawn || 0);
+        if (state.shown) draw(state.shown, state.drawn || 0);
       },
       destroy() {
         clearTimers();

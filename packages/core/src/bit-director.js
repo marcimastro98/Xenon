@@ -18,9 +18,15 @@
    * - createDirector(): one personal Bit's rhythm. Its temperament sets how
    *   often it moves and how much it reacts; its quirk is played twice as often.
    *   Reactions to what happens on the PC have a priority, a cooldown each and
-   *   a cap per hour, and wait while a game runs or at night unless they matter. */
+   *   a cap per hour, and wait while a game runs or at night unless they matter.
+   * - idleGap() / idleFidget(): a waiting player's next fidget at its pace. */
 
   const IDLE_GAP_MS = [7000, 16000];
+  // How much a player moves (bit-player.js setPace): live loops its mood; slow and game rest on a
+  // still pose between clips, slow with a fidget now and then, game with none; asleep and still don't fidget.
+  const PACES = Object.freeze(['live', 'slow', 'game', 'asleep', 'still']);
+  const SLOW_GAP_MS = [40000, 90000];
+  const CALM_FACTOR = 2.5; // a player in a quieter place (the chat) waits this much longer
   const HOUR_MS = 3600000;
   const QUIRK_BOOST = 2;
   // Kept out of a personal Bit's idle pool: hearts read as filler (no-AI-slop rule).
@@ -129,6 +135,28 @@
     return null;
   }
 
+  const between = (range, rand) => range[0] + rand() * (range[1] - range[0]);
+
+  // Without a personal Bit's director: the classic rhythm, any fidget that fits.
+  const CLASSIC = Object.freeze({
+    idleGapMs: () => between(IDLE_GAP_MS, Math.random),
+    nextFidget: (ctx, recent) => pickFidget(ctx, recent),
+  });
+
+  /** The pause before a waiting player's next fidget at its pace, or 0: it waits for none. */
+  function idleGap(rhythm, pace, ctx = {}, calm = false, rand = Math.random) {
+    if (pace === 'slow') return between(SLOW_GAP_MS, rand);
+    if (pace !== 'live') return 0;
+    return rhythm.idleGapMs(ctx) * (calm ? CALM_FACTOR : 1);
+  }
+
+  /** The fidget it plays then: one of `only` (never the last one again), or the rhythm's pick. */
+  function idleFidget(rhythm, ctx, recent, only, rand = Math.random) {
+    if (!Array.isArray(only)) return rhythm.nextFidget(ctx, recent);
+    const pool = only.filter((id) => bit.clip(id) && id !== recent[recent.length - 1]);
+    return pool.length ? pool[Math.floor(rand() * pool.length)] : null;
+  }
+
   function clipFor(event, big) {
     const known = event.clips.filter((id) => bit.clip(id));
     if (!known.length) return null;
@@ -188,5 +216,5 @@
     };
   }
 
-  return { TEMPERAMENTS, EVENTS, IDLE_GAP_MS, fits, pickFidget, seasonOf, createDirector };
+  return { TEMPERAMENTS, EVENTS, IDLE_GAP_MS, PACES, CLASSIC, fits, pickFidget, seasonOf, createDirector, idleGap, idleFidget };
 });

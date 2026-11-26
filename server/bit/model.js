@@ -48,7 +48,14 @@ const SITE_PAGE = 'https://xenon-app.com/bit.html#';
 // often it reacts (bitDirector's hourly cap), and the classic Bit in the app.
 const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
-const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain' });
+const DEFAULT_PREFS = Object.freeze({ place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null });
+// In the corner it strolls along the bottom now and then, sometimes teleporting (mix), only on foot, or
+// stays where it stands; warp: how it teleports (js/bit-companion/warp.js), 'any' a different way each
+// time. spot: where the
+// person dragged it, as fractions of the room the screen leaves it ({x: 0 left, y: 0 bottom}), or
+// null for its corner.
+const ROAMS = Object.freeze(['mix', 'walk', 'stay']);
+const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
 // The ground of its card: plain ink, or its theatre (room-scenery.js).
 const CARDS = Object.freeze(['plain', 'stage']);
 // The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of
@@ -100,6 +107,14 @@ function cleanName(raw) {
   return name;
 }
 
+function normalizeSpot(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const x = Number(raw.x);
+  const y = Number(raw.y);
+  const ok = (n) => Number.isFinite(n) && n >= 0 && n <= 1;
+  return ok(x) && ok(y) ? { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } : null;
+}
+
 function normalizePrefs(raw) {
   const p = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -109,6 +124,9 @@ function normalizePrefs(raw) {
     classic: p.classic === true,
     pose: POSES.includes(p.pose) ? p.pose : '',
     card: CARDS.includes(p.card) ? p.card : DEFAULT_PREFS.card,
+    roam: ROAMS.includes(p.roam) ? p.roam : DEFAULT_PREFS.roam,
+    warp: WARPS.includes(p.warp) ? p.warp : DEFAULT_PREFS.warp,
+    spot: normalizeSpot(p.spot),
   };
 }
 
@@ -201,7 +219,8 @@ function setPrefs(model, patch) {
   if (!patch || typeof patch !== 'object') return { error: 'bad_request' };
   const next = normalizePrefs({ ...model.prefs, ...patch });
   for (const k of Object.keys(patch)) {
-    if (Object.hasOwn(DEFAULT_PREFS, k) && next[k] !== patch[k]) return { error: 'bad_value' };
+    const kept = k === 'spot' ? patch.spot === null || next.spot !== null : next[k] === patch[k];
+    if (Object.hasOwn(DEFAULT_PREFS, k) && !kept) return { error: 'bad_value' };
   }
   return JSON.stringify(next) === JSON.stringify(model.prefs) ? null : { model: { ...model, prefs: next } };
 }
@@ -264,6 +283,6 @@ function view(model, now) {
 }
 
 module.exports = {
-  VERSION, STAGES, PLACES, REACTIONS, DEFAULT_PREFS, POSES,
+  VERSION, STAGES, PLACES, REACTIONS, ROAMS, WARPS, DEFAULT_PREFS, POSES,
   normalize, normalizePrefs, cleanName, stageOf, ownedItems, hatched, wear, rename, setShown, setPrefs, countDay, learn, view, birthGift,
 };

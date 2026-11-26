@@ -10,8 +10,8 @@
 //                         Bit born here after days without one. A phone may.
 //   POST /api/bit/wear    { worn: [item ids] } from what the Bit owns. A phone may.
 //   POST /api/bit/name    { name } shown on the card; '' clears it. A phone may.
-//   POST /api/bit/prefs   { place?, reactions?, sounds?, classic? }: where the
-//                         companion lives and how much it does. A phone may.
+//   POST /api/bit/prefs   { place?, reactions?, sounds?, classic?, roam?, warp?, spot? }: where
+//                         the companion lives and how much it does. A phone may.
 //                         Also asks the hub for its Bit items (items.js) when its list is old.
 //   POST /api/bit/claim   { item } a supporter's item of the month, kept for good with the
 //                         PC's pass (keep.js). The PC only: it uses the pass.

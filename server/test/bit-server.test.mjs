@@ -209,14 +209,22 @@ test('prefs: only known keys and values, and every change is told to all surface
   assert.equal((await h.call('POST /api/bit/prefs', { sounds: 'yes' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { card: 'gold' })).error, 'bad_value');
   assert.equal((await h.call('POST /api/bit/prefs', { card: 'stage' })).bit.prefs.card, 'stage');
+  // Where it was dragged: fractions of the screen, rounded; out of the screen is refused, null is its corner.
+  assert.deepEqual((await h.call('POST /api/bit/prefs', { spot: { x: 0.25, y: 0.1234 }, roam: 'stay' })).bit.prefs.spot, { x: 0.25, y: 0.123 });
+  assert.equal((await h.call('POST /api/bit/prefs', { spot: { x: 2, y: 0 } })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { spot: 'left' })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { roam: 'fly' })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { warp: 'beam' })).bit.prefs.warp, 'beam');
+  assert.equal((await h.call('POST /api/bit/prefs', { warp: 'explode' })).error, 'bad_value');
+  assert.equal((await h.call('POST /api/bit/prefs', { spot: null, roam: 'walk' })).bit.prefs.spot, null);
   await h.call('POST /api/bit/prefs', { classic: true });
-  assert.equal(h.told().length, 2, 'no change, nothing told');
+  assert.equal(h.told().length, 5, 'no change, nothing told');
 });
 
 test('the Vitals Bit becomes the companion where it lived', async (t) => {
   const h = harness(t, { settings: { vitals: { pet: { enabled: true, position: 'topbar', sounds: true } } } });
   const r = await h.call('GET /api/bit');
-  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain' });
+  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null });
   const { prefsFromVitals } = require('../bit/handlers.js');
   assert.equal(prefsFromVitals({ vitals: { pet: { enabled: false, position: 'topbar' } } }).place, 'corner');
 });

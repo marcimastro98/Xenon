@@ -12,6 +12,7 @@
     letGo?.();
     room.destroy();
     overlay.remove();
+    window.BitStroll?.settle(); // a place changed in the room is reached now, in view
   }
 
   function open() {

@@ -1,13 +1,22 @@
 /* The person's own Bit (js/bit-companion/companion.js) and its room (room.js).
    The corner is the Vitals' Bit's place (VitalsPet.css): only one of the two is
-   ever on screen. Bit animates itself and stands still under game mode, low
-   power, idle and a frosted overlay: no CSS loops here. */
+   ever on screen. Bit animates itself and slows down under game mode, low
+   power, idle and a frosted overlay: no CSS loops here.
+   Where it stands: --bitc-fx/--bitc-fy, the spot it was dragged to (stroll.js), as fractions
+   of the room the screen leaves it; its stroll slides it by --bitc-walk (compositor only). */
 
-.bitc { position: fixed; left: 14px; bottom: 14px; z-index: 50; }
+.bitc {
+  position: fixed; z-index: 50;
+  left: calc(14px + var(--bitc-fx, 0) * (100vw - 92px)); bottom: calc(14px + var(--bitc-fy, 0) * (100dvh - 88px));
+  transform: translate3d(var(--bitc-walk, 0px), 0, 0); transition: transform var(--bitc-walk-ms, 0ms) linear;
+}
+.bitc.is-left .bitc-sprite svg { transform: scaleX(-1); }
+html:not(.is-phone) .bitc-sprite { touch-action: none; }
+.bitc.is-dragging .bitc-sprite { cursor: grabbing; }
 body[data-panel] .bitc,
 body.layout-editing .bitc { display: none; }
 /* On a phone PhoneViewDock.css lifts it over the dock and the ticker. */
-html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
+html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52px + var(--bitc-fy, 0) * (100dvh - 126px)); }
 
 .bitc-sprite,
 .bitc-chip { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
@@ -257,6 +266,10 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: 52px; }
 [dir='rtl'] .bitc-bar::before { transform-origin: right center; }
 .bitc-choice { display: grid; gap: 6px; min-width: 0; }
 .bitc-choice-title { font-size: 13px; font-weight: 600; color: var(--muted-text); }
+.bitc-spot-back { justify-self: start; min-height: 44px; padding-inline: 16px; }
+/* warp.js: Bit hidden while an effect draws it, and the canvas made for that effect alone. */
+.bit-warping { visibility: hidden; }
+.bit-warp { position: fixed; z-index: 51; left: var(--warp-x); top: var(--warp-y); width: var(--warp-w); height: var(--warp-h); pointer-events: none; }
 .bitc-seg { display: flex; flex-wrap: wrap; gap: 6px; }
 /* Four choices sit two by two, never three and a lone one. */
 .bitc-seg:has(> .bitc-seg-btn:nth-child(4):last-child) { display: grid; grid-template-columns: 1fr 1fr; }
