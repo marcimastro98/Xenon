@@ -1,10 +1,10 @@
-// macOS: the picture of the glow, drawn once into memory.
+// macOS: the picture of the glow, drawn once into memory (and each frame of Bit on the desktop).
 
 use std::ffi::c_void;
 use super::{BGRA_PREMULTIPLIED, CGBitmapContextCreate, CGBitmapContextCreateImage, CGBitmapContextGetBytesPerRow, CGBitmapContextGetData, CGColorSpaceCreateDeviceRGB, CGColorSpaceRelease, CGContextRelease, CGImageRelease};
 
 /// A CGImage, released with this value.
-pub(super) struct Image(pub(super) *mut c_void);
+pub(in crate::layers) struct Image(pub(in crate::layers) *mut c_void);
 
 impl Drop for Image {
     fn drop(&mut self) {
@@ -15,7 +15,7 @@ impl Drop for Image {
 /// glow::paint's rows (premultiplied BGRA, top row first) as a CGImage. Core
 /// Graphics owns the bitmap the rows are copied into, so the image never
 /// points at a buffer of ours.
-pub(super) fn image(pixels: &[u8], w: usize, h: usize) -> Option<Image> {
+pub(in crate::layers) fn image(pixels: &[u8], w: usize, h: usize) -> Option<Image> {
     unsafe {
         let space = CGColorSpaceCreateDeviceRGB();
         if space.is_null() {

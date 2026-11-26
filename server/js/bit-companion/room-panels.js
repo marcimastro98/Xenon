@@ -123,13 +123,18 @@
   }
   const deskShown = () => window.__XENON_NATIVE__ === true && window.__XENON_NATIVE_CAPS__?.bitDesk === true;
 
-  // The desktop as a choice with what it is, where the shell draws it. A Windows app from before Bit on the
-  // desktop (its caps never name bitDesk) says what it takes; a browser, a phone or a PC that cannot draw it, nothing.
+  // The desktop as a choice with what it is, where the shell draws it (on macOS and Linux a Beta, which says how
+  // it differs there). A Windows app from before Bit on the desktop (its caps never name bitDesk) says what it
+  // takes; a browser, a phone or a PC that cannot draw it, nothing.
   function deskParts(p, h) {
     const line = (key) => makeEl('p', 'bitc-line', h.say(key));
-    if (deskShown()) return [desk(p, h), line('mybit_guide_desk_line')];
+    const ua = String(window.navigator?.userAgent);
+    const windows = /Windows/.test(ua);
+    if (deskShown()) {
+      const beta = windows ? null : /Macintosh|Mac OS X/.test(ua) ? 'mybit_desk_beta_mac' : 'mybit_desk_beta_linux';
+      return [desk(p, h), line('mybit_guide_desk_line'), ...(beta ? [line(beta)] : [])];
+    }
     const caps = window.__XENON_NATIVE__ === true ? window.__XENON_NATIVE_CAPS__ || {} : null;
-    const windows = /Windows/.test(String(window.navigator?.userAgent));
     return caps && windows && !('bitDesk' in caps) ? [line('mybit_desk_needs_app')] : [];
   }
 

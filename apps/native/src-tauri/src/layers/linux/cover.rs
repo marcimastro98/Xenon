@@ -54,8 +54,9 @@ pub(super) fn discharging(kind: &str, status: &str) -> bool {
 }
 
 /// The monitor of the active window when that window, not one of Xenon's,
-/// fills it. Main thread.
-pub(super) fn fullscreen_monitor() -> Option<gtk::gdk::Monitor> {
+/// fills it (X11; Wayland never says). Main thread; also Bit on the desktop
+/// (bit_desk/linux.rs) hides under it.
+pub(in crate::layers) fn fullscreen_monitor() -> Option<gtk::gdk::Monitor> {
     let screen = gtk::gdk::Screen::default()?;
     // gdk-rs leaves this call out (deprecated in GTK, still the X11 answer).
     // Transfer full: the reference is ours, released with `active`.

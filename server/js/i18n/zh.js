@@ -8204,6 +8204,8 @@ module.exports = {
   mybit_desk_off: '关闭',
   mybit_desk_reset: '放回原位',
   mybit_desk_needs_app: 'Bit 也可以站在任务栏上，在 Xenon 之外。需要最新版本的 Xenon 应用。',
+  mybit_desk_beta_mac: '在 Mac 上，它在程序坞正上方行走。macOS 上的桌面 Bit 仍是测试版。',
+  mybit_desk_beta_linux: 'Linux 上的桌面 Bit 仍是测试版。在 Wayland 下，它沿屏幕底边行走；拖动它时，松开后它才会移到新位置。',
   mybit_warp: '瞬移方式',
   mybit_warp_any: '每次不同',
   mybit_warp_crumble: '碎成比特',

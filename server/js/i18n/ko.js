@@ -8204,6 +8204,8 @@ module.exports = {
   mybit_desk_off: '끄기',
   mybit_desk_reset: '원래 자리로',
   mybit_desk_needs_app: 'Bit는 Xenon 밖, 작업 표시줄 위에도 있을 수 있어요. 최신 버전의 Xenon 앱이 필요해요.',
+  mybit_desk_beta_mac: 'Mac에서는 Dock 바로 위를 걸어요. macOS의 데스크톱 Bit는 아직 베타예요.',
+  mybit_desk_beta_linux: 'Linux의 데스크톱 Bit는 아직 베타예요. Wayland에서는 화면 아래쪽 가장자리를 걷고, 끌어서 옮기면 손을 뗄 때 이동해요.',
   mybit_warp: '순간이동 방식',
   mybit_warp_any: '매번 달라요',
   mybit_warp_crumble: '비트로 부서져요',

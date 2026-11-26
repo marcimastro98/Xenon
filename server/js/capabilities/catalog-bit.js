@@ -51,7 +51,7 @@
         domain: 'ai', risk: 'safe', requires: 'bit',
         ai: {
           name: 'place_bit_desktop',
-          description: 'Whether the user\'s own Bit also stands on the desktop, on the taskbar (only in the Xenon app on Windows for now): main (the main screen), all (one Bit that travels to every screen in turn, never the dashboard\'s own), or off. Use it for "put Bit on my desktop", "Bit on every screen", "take Bit off the taskbar".',
+          description: 'Whether the user\'s own Bit also stands on the desktop, on the taskbar (only in the Xenon app; on Windows, and as a Beta on macOS, over the Dock, and on Linux): main (the main screen), all (one Bit that travels to every screen in turn, never the dashboard\'s own), or off. Use it for "put Bit on my desktop", "Bit on every screen", "take Bit off the taskbar".',
           params: { desk: 'main, all or off' },
         },
       },

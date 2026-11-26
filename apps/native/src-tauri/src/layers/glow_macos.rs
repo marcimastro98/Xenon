@@ -27,7 +27,8 @@ use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 use super::glow::{self, State};
 
-mod image;
+// Bit on the desktop (bit_desk/macos.rs) turns its pixels into a picture the same way.
+pub(super) mod image;
 mod window;
 
 use window::{breathe, create, paint};
@@ -79,13 +80,19 @@ impl Screen {
         let scale = m.scale_factor();
         let p = m.position().to_logical::<f64>(scale);
         let s = m.size().to_logical::<f64>(scale);
-        let main_height = unsafe { CGDisplayBounds(CGMainDisplayID()) }.size.height;
+        let main_height = main_height();
         Screen {
             frame: NSRect::new(NSPoint::new(p.x, main_height - p.y - s.height), NSSize::new(s.width, s.height)),
             px: (m.size().width as usize, m.size().height as usize),
             scale,
         }
     }
+}
+
+/// The main display's height in points: AppKit counts y up from its bottom
+/// edge, Tauri down from its top. Core Graphics may be asked from any thread.
+pub(super) fn main_height() -> f64 {
+    unsafe { CGDisplayBounds(CGMainDisplayID()) }.size.height
 }
 
 pub struct Plan {

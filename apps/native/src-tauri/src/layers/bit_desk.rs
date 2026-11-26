@@ -1,29 +1,44 @@
 //! Bit on the desktop: the person's own Bit standing on the taskbar of one
-//! screen, drawn by one plain layered window (bit_desk/win32.rs) rather than a
-//! webview, so it costs a few MB and no browser process, and its empty pixels
-//! let every click through to what is under it.
+//! screen, drawn by one plain native window rather than a webview, so it costs
+//! a few MB and no browser process: a layered window on Windows (win32.rs), a
+//! non-activating panel on macOS (macos.rs, on top of the Dock), a GTK window
+//! or layer surface on Linux (linux.rs). macOS and Linux are Beta: built here
+//! and checked to compile, not yet run on a real Mac or Linux PC.
 //!
 //! The dashboard keeps the brain (js/bit-companion/desk.js): it renders the
 //! clips with the person's own look into cells and sends them, a whole clip at
 //! a time, as `xenon-app:bit-desk?d=<json>`; the shell plays the frames on its
 //! own timer and moves the window only while Bit walks. This file holds the
-//! message rule and the pixels (the lane on the taskbar is ground.rs): plain functions with
-//! tests, the same on every OS.
-
-// Only Windows draws it yet: elsewhere the rule is parsed and the rest waits for its backend.
-#![cfg_attr(not(windows), allow(dead_code))]
+//! message rule and the pixels (the lane on the taskbar is ground.rs, what Bit
+//! does with them state.rs): plain functions with tests, the same on every OS.
 
 use serde::Deserialize;
+use tauri::Manager;
 
 pub use ground::{along, lane, place, rise_of, spot, step, Area, Lane};
 
 mod ground;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
+mod state;
 #[cfg(test)]
 mod unit_tests;
 #[cfg(windows)]
 mod win32;
 #[cfg(windows)]
 mod window_win32;
+#[cfg(target_os = "linux")]
+mod window_linux;
+
+/// How Bit's window is drawn on this OS: the same `apply(Plan)`.
+#[cfg(target_os = "linux")]
+use linux as backend;
+#[cfg(target_os = "macos")]
+use macos as backend;
+#[cfg(windows)]
+use win32 as backend;
 
 const MAX_PAYLOAD: usize = 64 * 1024;
 /// Cells on a side, at most: Bit's stage is 18 x 17, with room for what it holds.
@@ -241,25 +256,29 @@ impl Plan {
     }
 }
 
-/// Where the shell can draw it: Windows for now (the caps' `bitDesk`).
+/// Where the shell can draw it (the caps' `bitDesk`, which also needs the
+/// layer windows: on Linux not on GNOME Wayland or X11 without a compositor).
 pub fn supported() -> bool {
-    cfg!(windows)
+    cfg!(any(windows, target_os = "macos", target_os = "linux"))
+}
+
+/// The page's `window.BitDesk`, told with numbers only.
+fn tell(call: String) {
+    let Some(app) = super::APP.get() else { return };
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.eval(format!("try{{window.BitDesk&&window.BitDesk.{call}}}catch(e){{}}"));
+    }
 }
 
 /// `xenon-app:bit-desk` from the main dashboard. Call on a plain thread.
 pub fn signal(app: &tauri::AppHandle, url: &tauri::Url) {
     let Some(spec) = super::signals::query(url, "d").as_deref().and_then(parse) else { return };
-    #[cfg(windows)]
-    {
-        let _ = super::APP.set(app.clone());
-        // A screen that is gone resolves to the main one (layer_monitor).
-        let monitor = if spec.on { crate::monitor::layer_monitor(app, &spec.monitor) } else { None };
-        if spec.on && monitor.is_none() {
-            return;
-        }
-        let plan = Plan::of(spec, monitor.as_ref());
-        let _ = app.run_on_main_thread(move || win32::apply(plan));
+    let _ = super::APP.set(app.clone());
+    // A screen that is gone resolves to the main one (layer_monitor).
+    let monitor = if spec.on { crate::monitor::layer_monitor(app, &spec.monitor) } else { None };
+    if spec.on && monitor.is_none() {
+        return;
     }
-    #[cfg(not(windows))]
-    let _ = (app, spec);
+    let plan = Plan::of(spec, monitor.as_ref());
+    let _ = app.run_on_main_thread(move || backend::apply(plan));
 }

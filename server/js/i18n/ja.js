@@ -8204,6 +8204,8 @@ module.exports = {
   mybit_desk_off: 'オフ',
   mybit_desk_reset: 'いつもの場所に戻す',
   mybit_desk_needs_app: 'Bit は Xenon の外、タスクバーの上にもいられます。最新版の Xenon アプリが必要です。',
+  mybit_desk_beta_mac: 'Mac では Dock のすぐ上を歩きます。macOS のデスクトップの Bit はまだベータ版です。',
+  mybit_desk_beta_linux: 'Linux のデスクトップの Bit はまだベータ版です。Wayland では画面の下端を歩き、ドラッグすると指を離したところに移動します。',
   mybit_warp: 'テレポートのしかた',
   mybit_warp_any: '毎回ちがう',
   mybit_warp_crumble: 'ビットに崩れる',

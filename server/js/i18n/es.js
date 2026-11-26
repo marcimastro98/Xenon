@@ -8100,6 +8100,8 @@ module.exports = {
   mybit_desk_off: 'No',
   mybit_desk_reset: 'Volver a su sitio',
   mybit_desk_needs_app: 'Bit también puede estar en la barra de tareas, fuera de Xenon. Necesita la versión más reciente de la app de Xenon.',
+  mybit_desk_beta_mac: 'En un Mac camina justo encima del Dock. En macOS, Bit en el escritorio todavía está en beta.',
+  mybit_desk_beta_linux: 'En Linux, Bit en el escritorio todavía está en beta. Con Wayland camina por el borde inferior de la pantalla y, si lo arrastras, se mueve cuando lo sueltas.',
   mybit_warp: 'Cómo se teletransporta',
   mybit_warp_any: 'Cada vez distinto',
   mybit_warp_crumble: 'Se deshace en bits',

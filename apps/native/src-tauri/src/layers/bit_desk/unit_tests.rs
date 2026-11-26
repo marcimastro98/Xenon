@@ -142,3 +142,72 @@ fn how_high_is_kept_in_range_or_left_out() {
     assert_eq!(parse(&msg("")).expect("valid").rise, None, "on the bar");
     assert!(parse(&msg(r#","rise":"high""#)).is_none(), "not a number: dropped");
 }
+
+fn plan(extra: &str) -> Plan {
+    let spec = parse(&msg(extra)).expect("valid");
+    Plan { spec, mon: Area { l: 0, t: 0, r: 1000, b: 800 }, work: Area { l: 0, t: 0, r: 1000, b: 760 }, scale: 1.0 }
+}
+
+#[test]
+fn a_still_bit_wakes_only_for_the_watchdog_and_goes_stale() {
+    let mut d = state::Desk::default();
+    d.take(plan(""), 0);
+    assert_eq!(d.wait_ms(0), state::IDLE_TICK_MS);
+    assert_eq!(d.tick(500), (false, false));
+    assert!(!d.stale(60_000) && d.stale(60_001));
+}
+
+#[test]
+fn a_walk_goes_at_its_pace_and_says_when_it_arrived() {
+    let mut d = state::Desk::default();
+    d.take(plan(r#","walk":{"seq":1,"to":1,"pxs":400}"#), 0);
+    assert!(d.wait_ms(0) < 100);
+    let (mut t, mut arrived) = (0, false);
+    while !arrived && t < 10_000 {
+        t += 100;
+        arrived = d.tick(t).1;
+    }
+    assert!(arrived, "a walk ends");
+    // 994 = the lane's right end less Bit's 6 pixels.
+    assert_eq!(d.at().0, 994);
+    assert_eq!(d.wait_ms(t), state::IDLE_TICK_MS);
+    // The same walk heard again does not start over.
+    d.take(plan(r#","walk":{"seq":1,"to":1,"pxs":400}"#), t);
+    assert_eq!(d.at().0, 994, "it stays where the walk took it");
+}
+
+#[test]
+fn a_clip_once_plays_then_the_loop_again() {
+    let once = r#","once":{"seq":7,"frames":[{"ms":100,"rows":["AA","AA"]},{"ms":100,"rows":["BB","BB"]}]}"#;
+    let mut d = state::Desk::default();
+    d.take(plan(once), 0);
+    assert_eq!(d.current().map(|f| f.cells.clone()), Some(vec![1, 1, 1, 1]));
+    assert_eq!(d.tick(100), (true, false));
+    assert_eq!(d.current().map(|f| f.cells.clone()), Some(vec![2, 2, 2, 2]));
+    assert_eq!(d.tick(200), (true, false));
+    assert_eq!(d.current().map(|f| f.cells.clone()), Some(vec![1, 0, 2, 1]), "back to the loop");
+    // Heard again with the same seq, the clip does not play twice.
+    d.take(plan(once), 300);
+    assert_eq!(d.current().map(|f| f.cells.clone()), Some(vec![1, 0, 2, 1]));
+}
+
+#[test]
+fn a_small_press_is_a_tap_and_a_long_one_a_drop_the_page_decides_on() {
+    let mut d = state::Desk::default();
+    d.take(plan(""), 0);
+    let home = d.at();
+    d.press((10, 10));
+    assert!(!d.drag_to((12, 12)), "under the drag distance");
+    assert_eq!(d.release(true, |_| None).as_deref(), Some("tapped()"));
+    // The mouse taken away without a drag says nothing.
+    d.press((10, 10));
+    assert_eq!(d.release(false, |_| None), None);
+    d.press((10, 10));
+    assert!(d.drag_to((300, -500)));
+    assert_eq!(d.at(), (home.0 + 290, home.1 - 510));
+    assert_eq!(d.release(true, |_| None).as_deref(), Some("dropped(0.2918,0.3436,0,0)"));
+    // Until the page answers it stays where it was let go; its word puts it where it belongs.
+    assert_eq!(d.at(), (home.0 + 290, home.1 - 510));
+    d.take(plan(""), 100);
+    assert_eq!(d.at(), home);
+}

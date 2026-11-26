@@ -956,12 +956,17 @@ test('on the desktop: chosen in its room only where the shell draws it, said wha
   look(true, { layers: true });
   assert.ok(!btn('mybit_desk_main') && said('mybit_desk_needs_app'), 'an app from before it: what it takes');
   look(true, { layers: true }, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15');
-  assert.ok(!said('mybit_desk_needs_app'), 'off Windows the new app has no taskbar Bit yet: not promised');
+  assert.ok(!said('mybit_desk_needs_app'), 'an app from before it off Windows: not promised');
   look(true, { bitDesk: false });
   assert.ok(!btn('mybit_desk_main') && !said('mybit_desk_needs_app'), 'a new app that cannot draw it here: nothing');
+  look(true, { bitDesk: true }, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15');
+  assert.ok(btn('mybit_desk_main') && said('mybit_desk_beta_mac') && !said('mybit_desk_beta_linux'), 'a Mac: the choice, how it differs there, and that it is a Beta');
+  look(true, { bitDesk: true }, 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15');
+  assert.ok(btn('mybit_desk_main') && said('mybit_desk_beta_linux') && !said('mybit_desk_beta_mac'), 'Linux the same');
   look(true, { bitDesk: true });
   assert.equal(btn('mybit_desk_main').getAttribute('aria-pressed'), 'true', 'on by default, on the main screen');
   assert.ok(said('mybit_guide_desk_line'), 'with what it is');
+  assert.ok(!said('mybit_desk_beta_mac') && !said('mybit_desk_beta_linux'), 'no Beta line on Windows');
   btn('mybit_desk_reset').click();
   await settle();
   assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskX: null, deskY: null, deskScreen: '' } }, 'its usual spot: along the bar of the main screen');

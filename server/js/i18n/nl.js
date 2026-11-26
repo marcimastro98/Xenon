@@ -8208,6 +8208,8 @@ module.exports = {
   mybit_desk_off: 'Uit',
   mybit_desk_reset: 'Terug naar zijn plek',
   mybit_desk_needs_app: 'Bit kan ook op de taakbalk staan, buiten Xenon. Daarvoor is de nieuwste versie van de Xenon-app nodig.',
+  mybit_desk_beta_mac: 'Op een Mac loopt hij net boven het Dock. Op macOS is Bit op het bureaublad nog in bèta.',
+  mybit_desk_beta_linux: 'Op Linux is Bit op het bureaublad nog in bèta. Onder Wayland loopt hij over de onderrand van het scherm, en als je hem sleept, verplaatst hij zich pas als je loslaat.',
   mybit_warp: 'Hoe hij teleporteert',
   mybit_warp_any: 'Elke keer anders',
   mybit_warp_crumble: 'Valt uiteen in bits',

@@ -54,6 +54,7 @@ mod cover;
 mod saver;
 
 use cover::watch_cover;
+pub(super) use cover::fullscreen_monitor;
 #[cfg(test)]
 use cover::discharging;
 pub use saver::saver_held;

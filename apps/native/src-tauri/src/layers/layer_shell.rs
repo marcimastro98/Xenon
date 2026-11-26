@@ -52,6 +52,7 @@ struct Api {
     set_exclusive_zone: unsafe extern "C" fn(Win, c_int),
     set_monitor: unsafe extern "C" fn(Win, *mut gtk::gdk::ffi::GdkMonitor),
     set_keyboard_mode: unsafe extern "C" fn(Win, c_int),
+    set_margin: unsafe extern "C" fn(Win, c_int, c_int),
 }
 
 static API: OnceLock<Option<Api>> = OnceLock::new();
@@ -88,6 +89,7 @@ fn load() -> Option<Api> {
             set_exclusive_zone: sym!(c"gtk_layer_set_exclusive_zone"),
             set_monitor: sym!(c"gtk_layer_set_monitor"),
             set_keyboard_mode: sym!(c"gtk_layer_set_keyboard_mode"),
+            set_margin: sym!(c"gtk_layer_set_margin"),
         })
     }
 }
@@ -173,6 +175,44 @@ pub fn place_glow(w: &gtk::Window, monitor: Option<&gtk::gdk::Monitor>) {
         if let Some(m) = monitor {
             (a.set_monitor)(p, m.as_ptr());
         }
+    }
+}
+
+/// Make a new, not yet shown `w` the surface of Bit on the desktop
+/// (bit_desk/linux.rs): the top band, under a full-screen app, anchored to the
+/// top-left corner of its monitor so the margins place it (`move_bit`), over
+/// the panels' zones, never the keyboard.
+pub fn place_bit(w: &gtk::Window) {
+    let Some(a) = api() else { return };
+    let p: Win = w.as_ptr();
+    // SAFETY: `p` is a live GtkWindow the caller just made and has not
+    // realized, on the main thread; the calls follow gtk-layer-shell.h.
+    unsafe {
+        (a.init_for_window)(p);
+        (a.set_namespace)(p, c"xenon-bit".as_ptr());
+        (a.set_anchor)(p, EDGES[0], 1);
+        (a.set_anchor)(p, EDGES[2], 1);
+        (a.set_layer)(p, LAYER_TOP);
+        (a.set_exclusive_zone)(p, -1);
+        (a.set_keyboard_mode)(p, KEYBOARD_NONE);
+    }
+}
+
+/// Bit's surface `left`, `top` logical pixels from its monitor's top-left
+/// corner, on `monitor` when it changed (a new monitor remaps the surface).
+pub fn move_bit(w: &gtk::Window, monitor: Option<&gtk::gdk::Monitor>, left: i32, top: i32) {
+    let Some(a) = api() else { return };
+    let p: Win = w.as_ptr();
+    // SAFETY: a live GtkWindow placed by `place_bit`, on the main thread.
+    unsafe {
+        if (a.is_layer_window)(p) == 0 {
+            return;
+        }
+        if let Some(m) = monitor {
+            (a.set_monitor)(p, m.as_ptr());
+        }
+        (a.set_margin)(p, EDGES[0], left);
+        (a.set_margin)(p, EDGES[2], top);
     }
 }
 
